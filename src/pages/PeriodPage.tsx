@@ -7,7 +7,9 @@ export default function PeriodPage() {
   if (!period) return <p>Not found</p>;
 
   return (
-    <article className="max-w-prose mx-auto space-y-8 py-8">
+    <article
+      className="w-full max-w-3xl space-y-10
+                 px-4 sm:px-6 lg:px-0 py-8 mx-auto">
       <h1 className="text-3xl font-bold">{period.title}</h1>
 
       {period.concepts?.length && (
