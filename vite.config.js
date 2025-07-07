@@ -2,12 +2,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import string from 'vite-plugin-string';
+import FullReload from 'vite-plugin-full-reload';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   plugins: [
     react(),
-    string({ include: '**/*.csv' })   // импортирует CSV как raw-строку
+    string({ include: '**/*.csv' }),
+    FullReload(['content/**/*.csv']),
   ],
   resolve: {
     alias: {
