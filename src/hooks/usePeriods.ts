@@ -20,9 +20,10 @@ interface Period {
   quiz: Quiz | null;
 }
 
-const clean = (s = '') => s.replace(/[\[\]"]/g, '').trim();
-const splitMulti = (s: string) =>
-  clean(s).split(/[,;\n]/).map(t => t.trim()).filter(Boolean);
+const sanitize  = (s = '') => s.replace(/[\[\]"]/g, '').trim();
+const parseList = (s?: string) =>
+  sanitize(s).split(/[,;\n]/).map(t => t.trim()).filter(Boolean);
+const parseVideo = (s?: string) => sanitize(s);
 
 const parseQuiz = (s?: string): Quiz | null => {
   try {
@@ -58,16 +59,16 @@ export function usePeriods(): Period[] {
             p.video = val;
             break;
           case 'concepts':
-            p.concepts = splitMulti(val);
+            p.concepts = parseList(val);
             break;
           case 'authors':
-            p.authors = splitMulti(val);
+            p.authors = parseList(val);
             break;
           case 'coreRead':
             p.coreRead = val;
             break;
           case 'extraVideo':
-            p.extraVideo = val;
+            p.extraVideo = parseVideo(val);
             break;
           case 'quiz':
             p.quiz = parseQuiz(val);
