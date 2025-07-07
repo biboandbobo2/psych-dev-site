@@ -10,7 +10,23 @@ import {
 import { usePeriods } from "@/lib/usePeriods";
 
 /* ------------ 🎨  GLOBAL STYLES ------------------------------------------------ */
-const globalStyles = `/* тот же CSS, что был у вас – без изменений */`;
+const globalStyles = `
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+html{font-family:'Inter',system-ui,-apple-system,sans-serif;scroll-behavior:smooth}
+body{display:flex;min-height:100vh;background:#f9fafb;color:#1f2937;line-height:1.55}
+
+aside{width:240px;background:#fff;border-right:1px solid #e5e7eb;padding:1rem}
+nav{display:flex;flex-direction:column;gap:.25rem}
+nav a{display:block;padding:.5rem .75rem;border-radius:8px;color:#4f46e5;text-decoration:none;font-weight:500}
+nav a.active{background:#a5b4fd;color:#1e1b4b;font-weight:600}
+
+main{flex:1;max-width:960px;margin:0 auto;padding:2rem 1rem}
+h1{font-size:1.6rem;margin-bottom:1rem}
+h2{font-size:1.25rem;margin-top:1rem;margin-bottom:.5rem}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1rem;margin-bottom:1rem}
+iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:12px}
+`;
 
 /* ------------ 📄  HELPERS ------------------------------------------------------ */
 
@@ -58,13 +74,6 @@ function Section({ rubric, text }) {
     lines = text.split("\n");
   }
 
-  // 2 — helper, чтобы YouTube всегда был /embed/
-  const toEmbed = (url) =>
-    url.includes("watch?v=")
-      ? `https://www.youtube.com/embed/${url.split("watch?v=")[1].split("&")[0]}`
-      : url.includes("youtu.be/")
-      ? `https://www.youtube.com/embed/${url.split("youtu.be/")[1].split("?")[0]}`
-      : url;
 
   return (
     <section>
@@ -109,14 +118,21 @@ export default function App() {
     <Router>
       <style>{globalStyles}</style>
 
-      <div style={{ display: "flex" }}>
+      <div style={{ display: 'flex', flex: 1 }}>
         <aside>
           <nav>
-            {periods.map((p) => (
-              <NavLink key={p.slug} to={`/${p.slug}`}>
-                {p.label}
-              </NavLink>
-            ))}
+            <ul>
+              {periods.map((p) => (
+                <li key={p.slug}>
+                  <NavLink
+                    to={`/${p.slug}`}
+                    className={({ isActive }) => (isActive ? 'active' : '')}
+                  >
+                    {p.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
           </nav>
         </aside>
 
