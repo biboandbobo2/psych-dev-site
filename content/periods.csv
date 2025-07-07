@@ -1,0 +1,265 @@
+﻿rubric,prenatal,infancy,toddler,preschool,school,earlyAdolescence,adolescence,emergingAdult,earlyAdult,midlife,lateAdult,oldestOld
+label,Пренатальный период,Младенчество (0–1 год),Раннее детство (1–3 г.),Дошкольный возраст (3–6 лет),Младший школьный возраст (6–11 лет),Ранняя подростковость (11–14 лет),Средняя подростковость (14–18 лет),Юность / Emerging Adulthood (18–25 лет),Ранняя зрелость (25–40 лет),Средняя зрелость (40–65 лет),Пожилой возраст (65–80 лет),Долголетие (80+ лет)
+video,https://www.youtube.com/embed/WncJ2UVesJM,https://www.youtube.com/embed/Vuv8hlNzEL8,https://www.youtube.com/embed/_yV-pR8Xkl8,https://www.youtube.com/embed/zs44RJHpv28,https://www.youtube.com/embed/8rTnfCrwloY,https://www.youtube.com/embed/PppRYW4udTw,https://www.youtube.com/embed/XzVAzrp-rFA,https://www.youtube.com/embed/s3iDxvk7Cck,https://www.youtube.com/embed/q1552sXvKNc,https://www.youtube.com/embed/7dCDEPGz2MY,-,-
+concepts,"[
+        ""Тератогены"",
+        ""Фетальный программинг (Barker Hypothesis)"",
+        ""Нейральная трубка"",
+      ]","[
+        ""Новорождённый рефлекс"",
+        ""Привязанность (Ainsworth)"",
+        ""Со-регуляция сна"",
+      ]","[
+        ""Автономия vs. стыд/сомнение (Erikson)"",
+        ""Vocabulary spurt — «словесный взрыв»"",
+        ""Обобщённое подражание"",
+        ""Переход от сенсомоторных схем к символической игре"",
+      ]","[
+        ""Теория разума"",
+        ""Эгоцентризм (Piaget)"",
+        ""Внутренняя речь (Vygotsky)"",
+        ""Игровая деятельность как ведущая"",
+      ]","[
+        ""Конкретные операции (Piaget)"",
+        ""Метапамять и метапознание"",
+        ""Самооценка и компетентность (Harter)"",
+        ""Коллектив – ведущая деятельность"",
+      ]","[
+        ""Пубертатный скачок"",
+        ""Формальные операции"",
+        ""Эгоцентризм подростка (воображаемая аудитория)"",
+        ""Сравнение с референтной группой"",
+      ]","[
+        ""Идентичность vs. ролевое смешение (Erikson)"",
+        ""Моральное мышление (Kohlberg III)"",
+        ""Сенсационный поиск (Zuckerman)"",
+        ""Воображаемая аудитория & личная легенда"",
+      ]","[
+        ""Emerging Adulthood – «чувство между»"",
+        ""Поиск идентичности в любви и работе"",
+        ""Институциональная задержка взрослости"",
+        ""Самофокус и ощущение возможностей"",
+      ]","[
+        ""Интимность vs. изоляция (Erikson)"",
+        ""Консолидация карьеры (Vaillant)"",
+        ""Кристаллизованный интеллект и пик продуктивности"",
+        ""Work-life balance"",
+      ]","[
+        ""Генеративность vs. стагнация (Erikson)"",
+        ""Когнитивная стабильность: кристаллизованный интеллект"",
+        ""Парадокс благополучия"",
+        ""Midlife review vs. crisis"",
+      ]","[
+        ""Интеграция vs. отчаяние (Erikson)"",
+        ""Выборочная оптимизация с компенсацией (Baltes)"",
+        ""Socioemotional selectivity theory"",
+        ""Retirement adjustment"",
+      ]","[
+        ""Четвёртый возраст"",
+        ""Синдром хрупкости (frailty)"",
+        ""Сжатие заболеваемости (Fries)"",
+        ""Advanced directives и геронтотехнологии"",
+      ]"
+authors,"[
+        ""T. Berry Brazelton"",
+        ""David J. Barker"",
+        ""Heidi Murkoff"",
+      ]","M. Ainsworth
+J. Bowlby
+P. Rochat","Jean Piaget
+Lev Vygotsky
+Patricia Kuhl","L. Vygotsky
+J. Piaget
+Susan Carey","J. Piaget
+S. Harter
+Lev Vygotsky","L. Steinberg
+D. Elkind
+S. Blakemore","Erik Erikson
+Laurence Steinberg
+Sarah-Jayne Blakemore","Jeffrey J. Arnett
+Meg Jay
+Shinichi I. Kawamura","Daniel Levinson
+Laura Carstensen
+John Gottman","Daniel Levinson
+Laura Carstensen
+Margie Lachman","Paul Baltes
+Laura Carstensen
+George Vaillant","Laura Carstensen
+K. Warner Schaie
+Linda Fried"
+coreRead,"The Developing Human: Clinically Oriented Embryology
+Prenatal Development: A Psychological Perspective","Infancy: Development from Birth to Age 3
+Attachment","The Scientist in the Crib
+Language Development","Mind in Society
+Theories of Childhood","Child Development, 8e
+The Development of Children’s Thinking","Adolescence, 13e
+Inventing Ourselves: The Secret Life of the Teenage Brain","Adolescence (13 e)
+Inventing Ourselves: The Secret Life of the Teenage Brain","Emerging Adulthood: The Winding Road, 3 e
+The Defining Decade","The Seasons of a Man’s Life
+The Science of Happily Ever After","Handbook of Midlife Development
+The Longevity Paradox","Aging Well
+Successful Aging","The Oldest Old
+Aging and the Life Course, 8e"
+extraRead,What to Expect When You,The Wonder Weeks,No Bad Kids,Pretend Play in Childhood,How Children Learn Mathematics,The Power of Peer Influence,Lost in Transition,You and Your Adult Child,30 Lessons for Living,Passages,The Blue Zones,How to Live Forever
+extraVideo,Teratogens and Prenatal Development – https://www.youtube.com/embed/lO4OEt_Knuw,Still-Face Experiment – https://www.youtube.com/embed/apzXGEbZht0,Gestures and Language Development – https://www.youtube.com/embed/o0jbfvj4_tw,Theory of Mind in Preschoolers (UCL) – https://www.youtube.com/embed/zJjqhG0iSx8,Growth vs. Fixed Mindset (Dweck) – https://www.youtube.com/embed/Yl9TVbAal5s,Risk-taking & Reward in Teens – https://www.youtube.com/embed/6zVRq1U74ek,The mysterious workings of the adolescent brain (TED) – https://www.youtube.com/embed/6zVRq1U74ek,Why 30 is not the new 20 (TED) – https://www.youtube.com/embed/vhhgI4tSMwc,The Science of Love (John Gottman) – https://www.youtube.com/embed/638KKBnHlOs,Why midlife may be the best time (TED) – https://www.youtube.com/embed/0Xgx3aG9Jr8,The secrets of longevity (TED) – https://www.youtube.com/embed/ff40YiMmVkU,Lessons from centenarians (TED) – https://www.youtube.com/embed/FFc8Ede5thk
+quiz,"[
+        {
+          type: ""quiz"",
+          q: ""На каком месяце формируются основные органы?"",
+          options: [""1–2"", ""3–4"", ""5–6""]","[
+        {
+          type: ""quiz"",
+          q: ""Какой возраст пик «stranger anxiety»?"",
+          options: [""4 мес"", ""8 мес"", ""15 мес""]","[
+        {
+          type: ""quiz"",
+          q: ""К какому возрасту большинство детей начинают комбинировать два слова?"",
+          options: [""к 18 месяцам"", ""к 24 месяцам"", ""к 30 месяцам""]","[
+        {
+          type: ""quiz"",
+          q: ""Какой эксперимент проверяет наличие теории разума?"",
+          options: [
+            ""Стил-фейс"",
+            ""Салли-Энн тест"",
+            ""Визуальная скала глубины"",
+          ]","[
+        {
+          type: ""quiz"",
+          q: ""С какой операции начинается стадия конкретных операций?"",
+          options: [""Консервация количества"", ""Обратимость действий"", ""Абстракция""]","[
+        {
+          type: ""quiz"",
+          q: ""Какой лобный отдел дозревает последним?"",
+          options: [""Префронтальная кора"", ""Теменная кора"", ""Височная доля""]","[
+        {
+          type: ""quiz"",
+          q: ""В каком возрасте рискованное поведение достигает пика?"",
+          options: [""14–16 лет"", ""19–21 год"", ""25+ лет""]","[
+        {
+          type: ""quiz"",
+          q: ""Сколько, по Арнетту, длится emerging adulthood в развитых странах?"",
+          options: [""3–4 года"", ""5–7 лет"", ""10 лет и более""]","[
+        {
+          type: ""quiz"",
+          q: ""С какого возраста, по Carstensen, начинает расти кривая эмоционального благополучия?"",
+          options: [""18–20"", ""30–35"", ""50–55""]","[
+        {
+          type: ""quiz"",
+          q: ""Что, по Carstensen, усиливается с возрастом и повышает счастье?"",
+          options: [""Положительный фокус внимания"", ""Адреналиновый поиск"", ""Рабочая память""]","[
+        {
+          type: ""quiz"",
+          q: ""Какой фактор важнее всего для счастья в 75 лет, по Harvard Study?"",
+          options: [""Доход"", ""Социальные связи"", ""IQ в молодости""]","[
+        {
+          type: ""quiz"",
+          q: ""Какой показатель лучше всего предсказывает долголетие?"",
+          options: [""Гены"", ""Физическая активность"", ""Социальная вовлечённость""]"
+self,"[
+        ""Как изменения в питании матери могут сказаться на здоровье взрослого человека?"",
+      ]","[
+        ""Как вы реагируете на чужой детский плач и почему?"",
+      ]","[
+        ""Вспомните первое слово ребёнка в вашей семье. Что оно значило для вас?"",
+      ]","[
+        ""Какие игры вы помните самым ярким образом из детства?"",
+      ]",Какие школьные предметы давались вам легче всего и почему?,"[
+        ""Какие ценности вы впервые поставили под сомнение в 12 лет?"",
+      ]","[
+        ""Вспомните смелый поступок в 16 лет: что им двигало? Как смотрите на него сейчас?"",
+      ]","[
+        ""В каких сферах вы всё ещё «между» подростком и взрослым?"",
+      ]","[
+        ""Какие отношения сейчас требуют большего взаимопонимания и почему?"",
+      ]","[
+        ""Какие проекты вы бы хотели передать следующему поколению?"",
+      ]",Какие навыки вы хотели бы передать внукам?,Как вы представляете себе качество жизни в 90 лет?
+egp,"[
+        ""Доступность медицинской помощи"",
+        ""Экологическая безопасность среды"",
+      ]","Роль родовых отпусков
+Качество грудного вскармливания","[
+        ""Качество родительского отпуска"",
+        ""Безопасность игровой среды"",
+      ]","[
+        ""Доступность детского сада"",
+        ""Культурные сценарии гендера"",
+      ]","Качество школы
+Учительская поддержка
+Доступ к кружкам","[
+        ""Доступ к спортивным секциям и кружкам"",
+        ""Онлайн-среда и кибербезопасность"",
+      ]","[
+        ""Качество и стресс ЕГЭ/экзаменов"",
+        ""Онлайн-соцсети и сравнение"",
+        ""Доступ к ментальному здоровью"",
+      ]","[
+        ""Высшее образование и студкредиты"",
+        ""Гиг-экономика vs. карьерная лестница"",
+        ""Цифровые знакомства и дистанционные отношения"",
+      ]","[
+        ""Доступность жилья и ипотека"",
+        ""Решение о родительстве / child-free"",
+        ""Гибкость рабочего графика"",
+      ]","[
+        ""Баланс уход-работа (sandwich generation)"",
+        ""Финансовая стабильность и пенсия"",
+      ]","Медицинское страхование
+Возрастной эйджизм","Доступ к уходу 24/7
+Технологии для независимости"
+leisure,"Фильм «Дитя человеческое»
+Книга «Room» (Э. Донахью)","Фильм «Точка невозврата» (Babies)
+Книга «Brain Rules for Baby»","М/ф «Тоторо»
+Книга «Груффало»","Фильм «Головоломка»
+Книга «Маленький принц»","Фильм «Матильда»
+Книга «Полианна»","Фильм «Хористы»
+Книга «Изгои» (S. Hinton)","Фильм «Lady Bird»
+Книга «Над пропастью во ржи»","Фильм «Boyhood»
+Книга «Normal People»","Фильм «Marriage Story»
+Книга «Eat Pray Love»","Фильм «About Schmidt»
+Книга «Eat That Frog!»","Фильм «The Intern»
+Книга «Being Mortal»","Фильм «Amour»
+Книга «Tuesdays with Morrie»"
+research,Prenatal stress and immune programming – https://doi.org/10.1016/j.psyneuen.2023.105994,Infant gaze following predicts language – https://doi.org/10.1016/j.cognition.2021.104872,Bilingual exposure and toddler vocabulary growth – https://doi.org/10.1111/cdev.14055,Play and executive function – https://doi.org/10.1016/j.ecresq.2022.01.004,Math anxiety in elementary years – https://doi.org/10.1037/dev0001497,Social media use and adolescent sleep – https://doi.org/10.1016/j.sleep.2024.02.005,Risk-taking and cortical maturation in adolescence – https://doi.org/10.1016/j.dcn.2024.101287,Quarter-life crisis prevalence and predictors – https://doi.org/10.1037/dev0001534,Millennial burnout and job satisfaction – https://doi.org/10.1016/j.jvb.2024.103837,U-shape of happiness revisited – https://doi.org/10.1016/j.socscimed.2024.116402,Cognitive reserve and aging – https://doi.org/10.1016/j.neuropsych.2022.108169,Centenarians and cognitive health – https://doi.org/10.1016/j.neurobiolaging.2024.02.006
+experimental,"[
+        ""ННР-тест плода (измерение реакции на звук)"",
+      ]","[
+        ""Preferential Looking Paradigm"",
+        ""High-Amplitude Sucking Technique"",
+      ]","[
+        ""Preferential Looking"",
+        ""Violation-of-Expectation (M. Spelke)"",
+      ]","Салли-Энн
+Функциональная классификация игрушек","[
+        ""Консервация Жидкости (Piaget)"",
+        ""Когнитивная гибкость (Dimensional Card Sort)"",
+      ]","[
+        ""Iowa Gambling Task (подростковый вариант)"",
+        ""Cold-Hot Corsi Block"",
+      ]","[
+        ""Balloon Analogue Risk Task (BART)"",
+        ""Эмоциональный Go/No-Go"",
+      ]","[
+        ""Delay Discounting (межвременно-ценностный выбор)"",
+        ""Iowa Gambling Task – взрослый вариант"",
+      ]","[
+        ""Adult Attachment Interview"",
+        ""Лаборатория конфликт-обсуждения супругов (Gottman)"",
+      ]","[
+        ""Stroop with emotional bias"",
+        ""Lifespan Sternberg memory task"",
+      ]","Trail Making Test
+Verbal Fluency (category)","MMSE-2
+Clock-Drawing Test"
+video_format,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line
+concepts_format,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line
+authors_format,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line
+coreRead_format,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line
+extraRead_format,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line
+extraVideo_format,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line
+quiz_format,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line
+self_format,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line
+egp_format,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line
+leisure_format,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line
+research_format,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line
+experimental_format,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line,each item on new line
