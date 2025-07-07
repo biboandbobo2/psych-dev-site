@@ -1,35 +1,68 @@
-import { useParams } from 'react-router-dom'
-import { usePeriods, rubrics } from '@/lib/usePeriods'
-import ReactMarkdown from 'react-markdown'          // если хотите MD-рендер
+import { useParams } from 'react-router-dom';
+import { usePeriods } from '../hooks/usePeriods';
 
 export default function PeriodPage() {
-  const { slug } = useParams()          // slug == 'prenatal' | 'infancy' | …
-  const period = usePeriods().find(p => p.slug === slug)
-
-  if (!period) return <h1>404 — Не найдено</h1>
+  const { slug } = useParams();
+  const period = usePeriods().find(p => p.slug === slug);
+  if (!period) return <p>Not found</p>;
 
   return (
-    <>
-      <h1>{period.slug}</h1>            {/* заголовок берём из slug или format */}
-      {rubrics.map(r => {
-        const text  = period.data[r]    || ''
-        const rule  = period.format[r]  || ''
+    <article className="max-w-prose mx-auto space-y-8 py-8">
+      <h1 className="text-3xl font-bold">{period.title}</h1>
 
-        if (!text) return null
+      {period.concepts?.length && (
+        <Section title="Основные понятия">
+          <ul className="list-disc list-inside space-y-1">
+            {period.concepts.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        </Section>
+      )}
 
-        // ➜ пример применения формат-строки
-        const items = text.split('\n')         // «каждый пункт с новой строки»
-        return (
-          <section key={r}>
-            <h2>{r}</h2>
-            {rule.includes('each item') ? (
-              <ul>{items.map((t,i)=><li key={i}><ReactMarkdown>{t}</ReactMarkdown></li>)}</ul>
-            ) : (
-              <ReactMarkdown>{text}</ReactMarkdown>
-            )}
-          </section>
-        )
-      })}
-    </>
-  )
+      {period.authors?.length && (
+        <Section title="Авторы">
+          <ul className="list-disc list-inside">
+            {period.authors.map((a, i) => <li key={i}>{a}</li>)}
+          </ul>
+        </Section>
+      )}
+
+      {period.coreRead && (
+        <Section title="Основное чтение">
+          <p>{period.coreRead}</p>
+        </Section>
+      )}
+
+      {period.extraVideo && (
+        <Section title="Дополнительное видео">
+          <div className="aspect-video">
+            <iframe
+              src={period.extraVideo}
+              className="w-full h-full rounded"
+              allowFullScreen
+            />
+          </div>
+        </Section>
+      )}
+
+      {period.quiz && (
+        <Section title="Вопрос">
+          <p className="mb-2 font-medium">{period.quiz.q}</p>
+          <ul className="list-disc list-inside">
+            {period.quiz.options.map((opt: string, i: number) => (
+              <li key={i}>{opt}</li>
+            ))}
+          </ul>
+        </Section>
+      )}
+    </article>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <h2 className="text-xl font-semibold mb-2">{title}</h2>
+      {children}
+    </section>
+  );
 }
