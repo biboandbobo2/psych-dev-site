@@ -8,6 +8,7 @@ import {
   Navigate,
   useParams,
 } from "react-router-dom";
+import { usePeriods } from "./lib/usePeriods";
 
 /* ------------ 🎨  GLOBAL STYLES ------------------------------------------------ */
 const globalStyles = `
@@ -32,37 +33,8 @@ iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:.5rem}
 @media(max-width:768px){aside{display:none}main{padding:1rem}}
 `;
 
-/* ------------ 🗄  DATA IMPORTS (12 возрастов) --------------------------------- */
-import prenatal from "./data/prenatal";
-import infancy from "./data/infancy";
-import toddler from "./data/toddler";
-import preschool from "./data/preschool";
-import school from "./data/school";
-import earlyAdolescence from "./data/earlyAdolescence";
-import adolescence from "./data/adolescence";
-import emergingAdult from "./data/emergingAdult";
-import earlyAdult from "./data/earlyAdult";
-import midlife from "./data/midlife";
-import lateAdult from "./data/lateAdult";
-import oldestOld from "./data/oldestOld";
-
-const periods = [
-  prenatal,
-  infancy,
-  toddler,
-  preschool,
-  school,
-  earlyAdolescence,
-  adolescence,
-  emergingAdult,
-  earlyAdult,
-  midlife,
-  lateAdult,
-  oldestOld,
-];
-
 /* ------------ 📄  UTILS -------------------------------------------------------- */
-const PeriodPage = () => {
+const PeriodPage = ({ periods }) => {
   const { id } = useParams();
   const data = periods.find((p) => p.id === id);
   if (!data) return <Navigate to={`/${periods[0].id}`} replace />;
@@ -131,6 +103,17 @@ const Section = ({ title, content }) =>
 
 /* ------------ 🌐  APP SHELL ---------------------------------------------------- */
 export default function App() {
+  const { periods, loading, error } = usePeriods();
+
+  if (loading) return <p className="p-4">Loading…</p>;
+  if (error)
+    return (
+      <p className="p-4">
+        Не удалось загрузить данные: {error.message}
+      </p>
+    );
+  if (!periods.length) return <p className="p-4">Нет данных для отображения</p>;
+
   return (
     <Router>
       <style>{globalStyles}</style>
@@ -147,7 +130,7 @@ export default function App() {
 
         <Routes>
           <Route path="/" element={<Navigate to={`/${periods[0].id}`} />} />
-          <Route path="/:id" element={<PeriodPage />} />
+          <Route path="/:id" element={<PeriodPage periods={periods} />} />
         </Routes>
       </div>
     </Router>
