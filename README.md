@@ -1,12 +1,23 @@
-# React + Vite
+# Psych Dev Site
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Контент сайта теперь хранится в одном файле `public/content/periods.csv` (в браузере доступен как `/content/periods.csv`). Именно этот CSV загружается в рантайме и наполняет страницы периодов.
 
-Currently, two official plugins are available:
+## Как обновлять контент
+- Отредактируйте `public/content/periods.csv` в любом табличном редакторе, сохранив исходные колонки и порядок строк.
+- Колонка `content_type` показывает, хранится ли элемент как обычная строка (`string`) или сериализованный объект (`object`). Для объектов допускается правка значений внутри JSON.
+- После сохранения файла перезапустите dev-сервер (`npm run dev`) или просто обновите вкладку, если он уже запущен.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Разработка
+- `npm install`
+- `npm run dev`
+- Для предпросмотра production-сборки: `npm run build && npm run preview`
 
-## Expanding the ESLint configuration
+## Review checklist
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+| Проверка                                           | Инструмент                     |
+| -------------------------------------------------- | ------------------------------ |
+| Сайдбар не дублируется на **каждом** slug-е        | ручной переход                 |
+| На странице нет `[` `]` `"`                        | визуально                      |
+| Под мобилку (< 640 px) нет горизонтального скролла | DevTools Responsive            |
+| Lighthouse Mobile ≥ 90                             | `npm run preview` + Lighthouse |
+| Пустые секции (нет данных) не рендерятся           | ручной переход                 |
