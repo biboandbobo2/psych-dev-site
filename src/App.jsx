@@ -33,6 +33,69 @@ iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:.5rem}
 @media(max-width:768px){aside{display:none}main{padding:1rem}}
 `;
 
+const isUrlString = (value) => {
+  if (typeof value !== "string" || !value.trim()) return false;
+  try {
+    const url = new URL(value, value.startsWith("http") ? undefined : "https://www.youtube.com");
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch (error) {
+    return false;
+  }
+};
+
+const toYoutubeEmbedUrl = (value) => {
+  if (!isUrlString(value)) return "";
+  try {
+    const url = new URL(
+      value,
+      value.startsWith("http") ? undefined : "https://www.youtube.com"
+    );
+    const host = url.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") {
+      const videoId = url.pathname.replace(/\///g, "");
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
+    }
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      if (url.pathname.startsWith("/embed/")) {
+        return `https://www.youtube.com${url.pathname}${url.search}`;
+      }
+      if (url.pathname === "/watch") {
+        const videoId = url.searchParams.get("v");
+        return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
+      }
+    }
+  } catch (error) {
+    return "";
+  }
+  return value;
+};
+
+const normalizeVideoEntry = (entry) => {
+  if (!entry) {
+    return {
+      title: "Видео-лекция",
+      embedUrl: "",
+      originalUrl: "",
+    };
+  }
+
+  if (typeof entry === "string") {
+    const trimmed = entry.trim();
+    return {
+      title: "Видео-лекция",
+      embedUrl: toYoutubeEmbedUrl(trimmed),
+      originalUrl: trimmed,
+    };
+  }
+
+  const rawUrl = typeof entry.url === "string" ? entry.url.trim() : "";
+  return {
+    title: entry.title ?? "Видео-лекция",
+    embedUrl: toYoutubeEmbedUrl(rawUrl),
+    originalUrl: rawUrl,
+  };
+};
+
 /* ------------ 📄  UTILS -------------------------------------------------------- */
 const PeriodPage = ({ periods }) => {
   const { id } = useParams();
@@ -48,22 +111,62 @@ const PeriodPage = ({ periods }) => {
   );
 };
 
-const Section = ({ title, content }) =>
-  content && content.length ? (
+const Section = ({ title, content }) => {
+  if (!content || !content.length) return null;
+
+  if (title === "Видео-лекция") {
+    const { embedUrl, originalUrl, title: videoTitle } = normalizeVideoEntry(content[0]);
+    if (!embedUrl) {
+      return (
+        <section>
+          <h2>{title}</h2>
+          <div className="card">
+            <p>
+              Видео недоступно.{' '}
+              {isUrlString(originalUrl) ? (
+                <a href={originalUrl} target="_blank" rel="noreferrer">
+                  Открыть на YouTube
+                </a>
+              ) : (
+                "Проверьте URL в CSV."
+              )}
+            </p>
+          </div>
+        </section>
+      );
+    }
+
+    return (
+      <section>
+        <h2>{title}</h2>
+        <div className="card">
+          <iframe title={videoTitle} src={embedUrl} allowFullScreen />
+        </div>
+      </section>
+    );
+  }
+
+  return (
     <section>
       <h2>{title}</h2>
       <div className="card">
-        {title === "Видео-лекция" ? (
-          <iframe
-            title={content[0].title}
-            src={content[0].url}
-            allowFullScreen
-          />
-        ) : (
-          content.map((item, i) =>
-            typeof item === "string" ? (
-              <p key={i}>{item}</p>
-            ) : item.type === "quiz" ? (
+        {content.map((item, i) => {
+          if (typeof item === "string") {
+            const trimmed = item.trim();
+            if (isUrlString(trimmed)) {
+              return (
+                <p key={i}>
+                  <a href={trimmed} target="_blank" rel="noreferrer">
+                    {trimmed}
+                  </a>
+                </p>
+              );
+            }
+            return <p key={i}>{trimmed}</p>;
+          }
+
+          if (item.type === "quiz") {
+            return (
               <details key={i}>
                 <summary>{item.q}</summary>
                 <ul>
@@ -80,26 +183,30 @@ const Section = ({ title, content }) =>
                   ))}
                 </ul>
               </details>
-            ) : (
-              <p key={i}>
-                <strong>{item.title}</strong>
-                {item.author ? ` — ${item.author}` : ""}
-                {item.year ? ` (${item.year})` : ""}
-                {item.url ? (
-                  <>
-                    {" "}
-                    <a href={item.url} target="_blank" rel="noreferrer">
-                      ►
-                    </a>
-                  </>
-                ) : null}
-              </p>
-            )
-          )
-        )}
+            );
+          }
+
+          const rawUrl = typeof item.url === "string" ? item.url.trim() : "";
+          return (
+            <p key={i}>
+              <strong>{item.title}</strong>
+              {item.author ? ` — ${item.author}` : ""}
+              {item.year ? ` (${item.year})` : ""}
+              {isUrlString(rawUrl) ? (
+                <>
+                  {" "}
+                  <a href={rawUrl} target="_blank" rel="noreferrer">
+                    ►
+                  </a>
+                </>
+              ) : null}
+            </p>
+          );
+        })}
       </div>
     </section>
-  ) : null;
+  );
+};
 
 /* ------------ 🌐  APP SHELL ---------------------------------------------------- */
 export default function App() {
