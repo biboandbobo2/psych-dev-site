@@ -11,6 +11,9 @@
     "check:embeds": "node scripts/check-embeds.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/manrope": "^5.2.8",
+    "framer-motion": "^12.23.22",
+    "nprogress": "^0.2.0",
     "papaparse": "^5.5.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

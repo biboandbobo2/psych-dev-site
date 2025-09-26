@@ -3,5 +3,13 @@
 @tailwind utilities;
 
 body {
-  background-color: #ff0000;
+  @apply bg-bg text-fg font-sans antialiased;
+}
+
+a {
+  @apply text-accent hover:underline underline-offset-4;
+}
+
+small {
+  @apply text-sm leading-6 text-muted;
 }
