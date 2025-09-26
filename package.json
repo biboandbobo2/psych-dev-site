@@ -13,7 +13,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "check:embeds": "node scripts/check-embeds.mjs"
+    "check:embeds": "node scripts/check-embeds.mjs",
+    "set-bg": "node scripts/set-bg.mjs",
+    "set-bg:infancy": "node scripts/set-bg.mjs --period infancy --src \"~/Downloads/infancy.png\""
   },
   "dependencies": {
     "@fontsource-variable/manrope": "^5.2.8",

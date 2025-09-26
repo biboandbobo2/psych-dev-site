@@ -13,6 +13,7 @@ import { Helmet } from 'react-helmet-async';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { ROUTE_CONFIG, SITE_NAME, NOT_FOUND_REDIRECT } from './routes';
 import { usePeriods } from './lib/usePeriods';
+import { BACKGROUND_BY_PERIOD } from './theme/backgrounds';
 import { Section, SectionMuted } from './components/ui/Section';
 import { Skeleton } from './components/ui/Skeleton';
 import { Button } from './components/ui/Button';
@@ -209,6 +210,10 @@ function PeriodRoute({ config, period }) {
   const placeholderText =
     config.placeholder || 'Раздел пока недоступен. Загляните позже.';
 
+  const backgroundImage = BACKGROUND_BY_PERIOD[config.periodId];
+  const backgroundClass = backgroundImage ? 'bg-repeat bg-[length:180px]' : '';
+  const backgroundStyle = backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined;
+
   const renderBadgeItem = (item, index) => (
     <span
       key={index}
@@ -391,7 +396,8 @@ function PeriodRoute({ config, period }) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0, transition }}
       exit={{ opacity: 0, y: -16, transition }}
-      className="flex-1"
+      className={cn('flex-1 bg-bg', backgroundClass)}
+      style={backgroundStyle}
     >
       <Helmet>
         <title>{title}</title>
