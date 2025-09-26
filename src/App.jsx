@@ -1,13 +1,16 @@
 // File: src/App.jsx
-import React from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   NavLink,
   Navigate,
-  useParams,
+  useLocation,
+  useNavigationType,
 } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
+import { ROUTE_CONFIG, SITE_NAME, NOT_FOUND_REDIRECT } from "./routes";
 import { usePeriods } from "./lib/usePeriods";
 
 /* ------------ 🎨  GLOBAL STYLES ------------------------------------------------ */
@@ -30,16 +33,45 @@ section{margin-bottom:1.5rem}
 details{margin:.5rem 0}
 summary{cursor:pointer;font-weight:600}
 iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:.5rem}
-@media(max-width:768px){aside{display:none}main{padding:1rem}}
+@media(max-width:1024px){aside{height:auto;position:static;border-right:none;border-bottom:1px solid #e5e7eb;display:flex;overflow-x:auto}nav{display:flex;gap:.5rem}nav a{white-space:nowrap;margin:0}}
+@media(max-width:768px){main{padding:1rem}}
 `;
 
+/* ------------ 🔄  SCROLL MANAGEMENT ------------------------------------------- */
+function ScrollManager() {
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const positionsRef = useRef(new Map());
+
+  useEffect(() => {
+    const key = location.key || location.pathname;
+    const positions = positionsRef.current;
+    return () => {
+      positions.set(key, window.scrollY);
+    };
+  }, [location]);
+
+  useLayoutEffect(() => {
+    const key = location.key || location.pathname;
+    const stored = positionsRef.current.get(key);
+    if (navigationType === "POP" && typeof stored === "number") {
+      window.scrollTo(0, stored);
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [location, navigationType]);
+
+  return null;
+}
+
+/* ------------ 🧭  HELPERS ----------------------------------------------------- */
 const ensureUrl = (value) => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
   try {
     return new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -63,7 +95,7 @@ const extractYoutubeId = (url) => {
   if (host === "youtu.be") {
     return url.pathname.replace(/\//g, "");
   }
-  if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+  if (["youtube.com", "m.youtube.com", "music.youtube.com"].includes(host)) {
     if (url.pathname.startsWith("/embed/")) {
       const [, , videoId] = url.pathname.split("/");
       return videoId || null;
@@ -138,28 +170,12 @@ const normalizeVideoEntry = (entry) => {
   };
 };
 
-/* ------------ 📄  UTILS -------------------------------------------------------- */
-const PeriodPage = ({ periods }) => {
-  const { id } = useParams();
-  const data = periods.find((p) => p.id === id);
-  if (!data) return <Navigate to={`/${periods[0].id}`} replace />;
-  return (
-    <main>
-      <h1>{data.label}</h1>
-      {Object.entries(data.sections).map(([slug, section]) => (
-        <Section key={slug} title={section.title} content={section.content} />
-      ))}
-    </main>
-  );
-};
-
+/* ------------ 📄  SECTIONS ----------------------------------------------------- */
 const Section = ({ title, content }) => {
   if (!content || !content.length) return null;
 
   if (title === "Видео-лекция") {
-    const { embedUrl, originalUrl, title: videoTitle, isYoutube } = normalizeVideoEntry(
-      content[0]
-    );
+    const { embedUrl, originalUrl, title: videoTitle, isYoutube } = normalizeVideoEntry(content[0]);
 
     if (!embedUrl) {
       return (
@@ -167,7 +183,7 @@ const Section = ({ title, content }) => {
           <h2>{title}</h2>
           <div className="card">
             <p>
-              Видео недоступно для встраивания.{" "}
+              Видео недоступно для встраивания. {""}
               {isUrlString(originalUrl) ? (
                 <a href={originalUrl} target="_blank" rel="noreferrer">
                   Открыть на YouTube
@@ -194,7 +210,7 @@ const Section = ({ title, content }) => {
           />
           {!isYoutube && isUrlString(originalUrl) ? (
             <p style={{ marginTop: "0.5rem" }}>
-              Ссылка не похожа на YouTube. Проверить источник:{" "}
+              Ссылка не похожа на YouTube. Проверить источник: {""}
               <a href={originalUrl} target="_blank" rel="noreferrer">
                 {originalUrl}
               </a>
@@ -275,9 +291,65 @@ const Section = ({ title, content }) => {
   );
 };
 
+/* ------------ 📄  ROUTE VIEWS -------------------------------------------------- */
+function PeriodRoute({ config, period }) {
+  const title = config.meta?.title ?? `${config.navLabel} — ${SITE_NAME}`;
+  const description =
+    config.meta?.description ?? `Материалы и ссылки по разделу ${config.navLabel}.`;
+  const showPlaceholder = Boolean(config.placeholder || !period);
+  const placeholderText =
+    config.placeholder || "Раздел пока недоступен. Загляните позже.";
+
+  return (
+    <main>
+      <Helmet>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+      </Helmet>
+      <h1>{config.navLabel}</h1>
+      {showPlaceholder ? (
+        <div className="card">
+          <p>{placeholderText}</p>
+        </div>
+      ) : (
+        Object.entries(period.sections).map(([slug, section]) => (
+          <Section key={slug} title={section.title} content={section.content} />
+        ))
+      )}
+    </main>
+  );
+}
+
+function NotFound() {
+  return (
+    <main>
+      <Helmet>
+        <title>Страница не найдена — {SITE_NAME}</title>
+        <meta
+          name="description"
+          content="Мы не нашли такую страницу. Вернитесь на главную."
+        />
+      </Helmet>
+      <h1>Страница не найдена</h1>
+      <div className="card">
+        <p>Кажется, такой страницы нет. Вернитесь на главную и выберите раздел.</p>
+        <p style={{ marginTop: "1rem" }}>
+          <NavLink to="/prenatal">На главную</NavLink>
+        </p>
+      </div>
+    </main>
+  );
+}
+
 /* ------------ 🌐  APP SHELL ---------------------------------------------------- */
-export default function App() {
+function AppContent() {
   const { periods, loading, error } = usePeriods();
+
+  const periodMap = useMemo(() => {
+    const map = new Map();
+    periods.forEach((period) => map.set(period.id, period));
+    return map;
+  }, [periods]);
 
   if (loading) return <p className="p-4">Loading…</p>;
   if (error)
@@ -290,23 +362,42 @@ export default function App() {
 
   return (
     <Router>
+      <Helmet>
+        <title>{SITE_NAME}</title>
+        <meta name="description" content="Образовательный ресурс по возрастной психологии." />
+      </Helmet>
       <style>{globalStyles}</style>
+      <ScrollManager />
       <div style={{ display: "flex" }}>
         <aside>
           <nav>
-            {periods.map((p) => (
-              <NavLink key={p.id} to={`/${p.id}`}>
-                {p.label}
+            {ROUTE_CONFIG.map((config) => (
+              <NavLink key={config.path} to={config.path} end>
+                {config.navLabel}
               </NavLink>
             ))}
           </nav>
         </aside>
 
         <Routes>
-          <Route path="/" element={<Navigate to={`/${periods[0].id}`} />} />
-          <Route path="/:id" element={<PeriodPage periods={periods} />} />
+          <Route path="/" element={<Navigate to="/prenatal" replace />} />
+          {ROUTE_CONFIG.map((config) => (
+            <Route
+              key={config.path}
+              path={config.path}
+              element={<PeriodRoute config={config} period={periodMap.get(config.periodId)} />}
+            />
+          ))}
+          <Route
+            path="*"
+            element={NOT_FOUND_REDIRECT ? <Navigate to="/prenatal" replace /> : <NotFound />}
+          />
         </Routes>
       </div>
     </Router>
   );
+}
+
+export default function App() {
+  return <AppContent />;
 }
