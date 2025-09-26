@@ -11,6 +11,7 @@
 - `npm install`
 - `npm run dev`
 - Для предпросмотра production-сборки: `npm run build && npm run preview`
+- Проверить, что все ссылки на YouTube разрешают встраивание: `npm run check:embeds`
 
 ## Review checklist
 

@@ -33,42 +33,81 @@ iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:.5rem}
 @media(max-width:768px){aside{display:none}main{padding:1rem}}
 `;
 
-const isUrlString = (value) => {
-  if (typeof value !== "string" || !value.trim()) return false;
+const ensureUrl = (value) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
   try {
-    const url = new URL(value, value.startsWith("http") ? undefined : "https://www.youtube.com");
-    return url.protocol === "http:" || url.protocol === "https:";
+    return new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);
   } catch (error) {
-    return false;
+    return null;
   }
 };
 
-const toYoutubeEmbedUrl = (value) => {
-  if (!isUrlString(value)) return "";
-  try {
-    const url = new URL(
-      value,
-      value.startsWith("http") ? undefined : "https://www.youtube.com"
-    );
-    const host = url.hostname.replace(/^www\./, "");
-    if (host === "youtu.be") {
-      const videoId = url.pathname.replace(/\///g, "");
-      return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
-    }
-    if (host === "youtube.com" || host === "m.youtube.com") {
-      if (url.pathname.startsWith("/embed/")) {
-        return `https://www.youtube.com${url.pathname}${url.search}`;
-      }
-      if (url.pathname === "/watch") {
-        const videoId = url.searchParams.get("v");
-        return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
-      }
-    }
-  } catch (error) {
-    return "";
-  }
-  return value;
+const parseTimeParam = (raw) => {
+  if (!raw) return undefined;
+  if (/^\d+$/.test(raw)) return raw;
+  const match = raw.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
+  if (!match) return undefined;
+  const [, hours, minutes, seconds] = match;
+  const total =
+    (Number(hours ?? 0) || 0) * 3600 +
+    (Number(minutes ?? 0) || 0) * 60 +
+    (Number(seconds ?? 0) || 0);
+  return total ? String(total) : undefined;
 };
+
+const extractYoutubeId = (url) => {
+  if (!url) return null;
+  const host = url.hostname.replace(/^www\./, "");
+  if (host === "youtu.be") {
+    return url.pathname.replace(/\//g, "");
+  }
+  if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+    if (url.pathname.startsWith("/embed/")) {
+      const [, , videoId] = url.pathname.split("/");
+      return videoId || null;
+    }
+    if (url.pathname.startsWith("/watch")) {
+      return url.searchParams.get("v");
+    }
+    if (url.pathname.startsWith("/shorts/") || url.pathname.startsWith("/live/")) {
+      const [, , videoId] = url.pathname.split("/");
+      return videoId || null;
+    }
+  }
+  return null;
+};
+
+const buildYoutubeEmbedUrl = (rawValue) => {
+  const url = ensureUrl(rawValue);
+  if (!url) return "";
+
+  const host = url.hostname.replace(/^www\./, "");
+  if (host === "youtube.com" && url.pathname.startsWith("/embed/")) {
+    return url.toString();
+  }
+
+  const videoId = extractYoutubeId(url);
+  if (!videoId) return "";
+
+  const params = new URLSearchParams();
+  if (url.searchParams.has("list")) params.set("list", url.searchParams.get("list"));
+  if (url.searchParams.has("si")) params.set("si", url.searchParams.get("si"));
+
+  const start = url.searchParams.get("start") ?? parseTimeParam(url.searchParams.get("t"));
+  if (start) params.set("start", start);
+
+  if (!params.has("feature")) params.set("feature", "oembed");
+  if (!params.has("rel")) params.set("rel", "0");
+  params.set("modestbranding", "1");
+  params.set("playsinline", "1");
+
+  const query = params.toString();
+  return `https://www.youtube.com/embed/${videoId}${query ? `?${query}` : ""}`;
+};
+
+const isUrlString = (value) => Boolean(ensureUrl(value));
 
 const normalizeVideoEntry = (entry) => {
   if (!entry) {
@@ -76,6 +115,7 @@ const normalizeVideoEntry = (entry) => {
       title: "Видео-лекция",
       embedUrl: "",
       originalUrl: "",
+      isYoutube: false,
     };
   }
 
@@ -83,16 +123,18 @@ const normalizeVideoEntry = (entry) => {
     const trimmed = entry.trim();
     return {
       title: "Видео-лекция",
-      embedUrl: toYoutubeEmbedUrl(trimmed),
+      embedUrl: buildYoutubeEmbedUrl(trimmed),
       originalUrl: trimmed,
+      isYoutube: Boolean(ensureUrl(trimmed)?.hostname.includes("youtu")),
     };
   }
 
   const rawUrl = typeof entry.url === "string" ? entry.url.trim() : "";
   return {
     title: entry.title ?? "Видео-лекция",
-    embedUrl: toYoutubeEmbedUrl(rawUrl),
+    embedUrl: buildYoutubeEmbedUrl(rawUrl),
     originalUrl: rawUrl,
+    isYoutube: Boolean(ensureUrl(rawUrl)?.hostname.includes("youtu")),
   };
 };
 
@@ -115,14 +157,17 @@ const Section = ({ title, content }) => {
   if (!content || !content.length) return null;
 
   if (title === "Видео-лекция") {
-    const { embedUrl, originalUrl, title: videoTitle } = normalizeVideoEntry(content[0]);
+    const { embedUrl, originalUrl, title: videoTitle, isYoutube } = normalizeVideoEntry(
+      content[0]
+    );
+
     if (!embedUrl) {
       return (
         <section>
           <h2>{title}</h2>
           <div className="card">
             <p>
-              Видео недоступно.{' '}
+              Видео недоступно для встраивания.{" "}
               {isUrlString(originalUrl) ? (
                 <a href={originalUrl} target="_blank" rel="noreferrer">
                   Открыть на YouTube
@@ -140,7 +185,21 @@ const Section = ({ title, content }) => {
       <section>
         <h2>{title}</h2>
         <div className="card">
-          <iframe title={videoTitle} src={embedUrl} allowFullScreen />
+          <iframe
+            title={videoTitle}
+            src={embedUrl}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+          {!isYoutube && isUrlString(originalUrl) ? (
+            <p style={{ marginTop: "0.5rem" }}>
+              Ссылка не похожа на YouTube. Проверить источник:{" "}
+              <a href={originalUrl} target="_blank" rel="noreferrer">
+                {originalUrl}
+              </a>
+            </p>
+          ) : null}
         </div>
       </section>
     );
@@ -153,10 +212,11 @@ const Section = ({ title, content }) => {
         {content.map((item, i) => {
           if (typeof item === "string") {
             const trimmed = item.trim();
-            if (isUrlString(trimmed)) {
+            const parsedUrl = ensureUrl(trimmed);
+            if (parsedUrl) {
               return (
                 <p key={i}>
-                  <a href={trimmed} target="_blank" rel="noreferrer">
+                  <a href={parsedUrl.toString()} target="_blank" rel="noreferrer">
                     {trimmed}
                   </a>
                 </p>
@@ -187,18 +247,25 @@ const Section = ({ title, content }) => {
           }
 
           const rawUrl = typeof item.url === "string" ? item.url.trim() : "";
+          const parsedUrl = ensureUrl(rawUrl);
           return (
             <p key={i}>
-              <strong>{item.title}</strong>
+              {parsedUrl ? (
+                <a href={parsedUrl.toString()} target="_blank" rel="noreferrer">
+                  <strong>{item.title}</strong>
+                </a>
+              ) : (
+                <strong>{item.title}</strong>
+              )}
               {item.author ? ` — ${item.author}` : ""}
               {item.year ? ` (${item.year})` : ""}
-              {isUrlString(rawUrl) ? (
-                <>
+              {parsedUrl && !item.title ? (
+                <span>
                   {" "}
-                  <a href={rawUrl} target="_blank" rel="noreferrer">
-                    ►
+                  <a href={parsedUrl.toString()} target="_blank" rel="noreferrer">
+                    {parsedUrl.toString()}
                   </a>
-                </>
+                </span>
               ) : null}
             </p>
           );
