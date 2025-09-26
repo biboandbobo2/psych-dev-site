@@ -1,5 +1,5 @@
 "period_id","period_label","period_order","section_id","section_title","section_order","item_order","content_type","content_value"
-"prenatal","Пренатальный период","0","video","Видео-лекция","0","0","object","{""title"":""Prenatal Development (Yale U.)"",""url"":""https://www.youtube.com/embed/Oy2LrWj3WGQ""}"
+"prenatal","Пренатальный период","0","video","Видео-лекция","0","0","object","{""title"":""Prenatal Development (Yale U.)"",""url"":""https://youtu.be/fP5USHcvPqI?si=RpRAHFsk75YF4s4g""}"
 "prenatal","Пренатальный период","0","concepts","Понятия","1","0","string","Терааааааааатогены"
 "prenatal","Пренатальный период","0","concepts","Понятия","1","1","string","Фетальный программинг (Barker Hypothesis)"
 "prenatal","Пренатальный период","0","concepts","Понятия","1","2","string","Нейральная трубка"
