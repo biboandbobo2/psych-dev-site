@@ -2,7 +2,7 @@ services:
   - type: web
     name: psych-dev-site
     runtime: static
-    buildCommand: npm i --legacy-peer-deps && npm run build
+    buildCommand: npm ci && npm run build
     staticPublishPath: dist
     routes:
       # опционально: серверный редирект с / на /prenatal
