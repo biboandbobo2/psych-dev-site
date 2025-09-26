@@ -1,14 +1,17 @@
 services:
-  - type: static_site
+  - type: web
     name: psych-dev-site
-    env: static
+    runtime: static
     buildCommand: npm i --legacy-peer-deps && npm run build
     staticPublishPath: dist
     routes:
+      # опционально: серверный редирект с / на /prenatal
       # - type: redirect
       #   source: /
       #   destination: /prenatal
       #   statusCode: 302
+
+      # обязательно: catch-all rewrite для SPA
       - type: rewrite
         source: /*
         destination: /index.html
