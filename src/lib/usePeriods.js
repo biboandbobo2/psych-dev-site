@@ -8,6 +8,8 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const trim = (value) => (typeof value === 'string' ? value.trim() : '');
+
 const safeParse = (value) => {
   try {
     return JSON.parse(value);
@@ -67,8 +69,9 @@ export function usePeriods() {
     const periodMap = new Map();
 
     for (const row of rawRows) {
-      const periodId = row.period_id?.trim();
-      const sectionId = row.section_id?.trim();
+      const periodId = trim(row.period_id);
+      const sectionId = trim(row.section_id);
+      const deckUrl = trim(row.deck_url);
 
       if (!periodId || !sectionId) continue;
 
@@ -76,12 +79,17 @@ export function usePeriods() {
         if (!periodMap.has(periodId)) {
           periodMap.set(periodId, {
             id: periodId,
-            label: row.period_label?.trim() ?? periodId,
+            label: trim(row.period_label) || periodId,
             order: toNumber(row.period_order),
             sections: new Map(),
+            deckUrl: deckUrl,
           });
         }
-        return periodMap.get(periodId);
+        const stored = periodMap.get(periodId);
+        if (!stored.deckUrl && deckUrl) {
+          stored.deckUrl = deckUrl;
+        }
+        return stored;
       })();
 
       const section = (() => {
@@ -89,7 +97,7 @@ export function usePeriods() {
         if (!period.sections.has(key)) {
           period.sections.set(key, {
             key,
-            title: row.section_title?.trim() ?? key,
+            title: trim(row.section_title) || key,
             order: toNumber(row.section_order),
             items: [],
           });
@@ -124,14 +132,15 @@ export function usePeriods() {
         sections: Array.from(period.sections.values())
           .sort((a, b) => a.order - b.order)
           .reduce((acc, section) => {
-            acc[section.key] = {
-              title: section.title,
-              content: section.items
-                .sort((a, b) => a.order - b.order)
-                .map((item) => item.value),
-            };
-            return acc;
-          }, {}),
+          acc[section.key] = {
+            title: section.title,
+            content: section.items
+              .sort((a, b) => a.order - b.order)
+              .map((item) => item.value),
+          };
+          return acc;
+        }, {}),
+        deckUrl: period.deckUrl ? period.deckUrl : '',
       }));
   }, [rawRows]);
 

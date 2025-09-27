@@ -35,6 +35,7 @@ const mapRowToIntro = (row) => {
   const extraLiterature = splitPairs(row.extra_literature);
   const extraVideos = splitPairs(row.extra_videos);
   const selfQuestionsUrl = trim(row.self_questions_url);
+  const deckUrl = trim(row.deck_url);
 
   return {
     videoUrl,
@@ -44,6 +45,7 @@ const mapRowToIntro = (row) => {
     extraLiterature,
     extraVideos,
     selfQuestionsUrl: selfQuestionsUrl || null,
+    deckUrl: deckUrl || null,
   };
 };
 
