@@ -17,9 +17,8 @@ export default {
         card: "var(--card)",
         card2: "var(--card-2)",
         accent: {
-          DEFAULT: "var(--accent)",
-          100: "var(--accent-100)",
-          600: "var(--accent-600)",
+          DEFAULT: 'var(--accent)',
+          100: 'var(--accent-100)',
         },
         mark: "var(--mark)",
       },

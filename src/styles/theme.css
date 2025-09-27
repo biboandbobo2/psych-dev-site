@@ -6,6 +6,7 @@
   --card: #FFFFFF;
   --card-2: #FDFBF7;
   --accent: #2E7D32;
+  --accent-rgb: 46 125 50;
   --accent-600: #256D27;
   --accent-100: #E8F5E9;
   --mark: #FFF3B0;
@@ -29,7 +30,7 @@ mark,
 
 blockquote {
   background: var(--accent-100);
-  border: 1px solid rgba(46, 125, 50, 0.2);
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
   border-radius: var(--radius);
   padding: 1.25rem 1.5rem;
 }
@@ -69,6 +70,6 @@ ul li::marker {
 }
 
 ::selection {
-  background: rgba(46, 125, 50, 0.15);
+  background: rgba(var(--accent-rgb), 0.15);
   color: var(--fg);
 }

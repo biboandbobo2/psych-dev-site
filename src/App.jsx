@@ -14,6 +14,7 @@ import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { ROUTE_CONFIG, SITE_NAME, NOT_FOUND_REDIRECT } from './routes';
 import { usePeriods } from './lib/usePeriods';
 import { BACKGROUND_BY_PERIOD } from './theme/backgrounds';
+import { PERIOD_THEME, DEFAULT_THEME } from './theme/periods';
 import { Section, SectionMuted } from './components/ui/Section';
 import { Skeleton } from './components/ui/Skeleton';
 import { Button } from './components/ui/Button';
@@ -21,6 +22,23 @@ import { NavigationProgress } from './components/ui/NavigationProgress';
 import { cn } from './lib/cn';
 
 const transition = { duration: 0.25, ease: [0.16, 1, 0.3, 1] };
+
+const hexToRgb = (value) => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim().replace('#', '');
+  if (trimmed.length === 3) {
+    const r = trimmed[0];
+    const g = trimmed[1];
+    const b = trimmed[2];
+    return hexToRgb(`${r}${r}${g}${g}${b}${b}`);
+  }
+  if (trimmed.length !== 6 || /[^0-9a-fA-F]/.test(trimmed)) return null;
+  const r = parseInt(trimmed.slice(0, 2), 16);
+  const g = parseInt(trimmed.slice(2, 4), 16);
+  const b = parseInt(trimmed.slice(4, 6), 16);
+  if ([r, g, b].some((channel) => Number.isNaN(channel))) return null;
+  return `${r} ${g} ${b}`;
+};
 
 /* ------------ 🔄  SCROLL MANAGEMENT ------------------------------------------- */
 function ScrollManager() {
@@ -47,6 +65,22 @@ function ScrollManager() {
   }, [location, navigationType]);
 
   return null;
+}
+
+function usePeriodTheme(themeKey) {
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    const theme = themeKey && PERIOD_THEME[themeKey]
+      ? PERIOD_THEME[themeKey]
+      : DEFAULT_THEME;
+    root.style.setProperty('--accent', theme.accent);
+    root.style.setProperty('--accent-100', theme.accent100);
+    const accentRgb = hexToRgb(theme.accent);
+    if (accentRgb) {
+      root.style.setProperty('--accent-rgb', accentRgb);
+    }
+  }, [themeKey]);
 }
 
 /* ------------ 🧭  HELPERS ----------------------------------------------------- */
@@ -203,6 +237,8 @@ function EmptyState() {
 
 /* ------------ 📄  ROUTE VIEWS -------------------------------------------------- */
 function PeriodRoute({ config, period }) {
+  const themeKey = config.themeKey ?? config.periodId;
+  usePeriodTheme(themeKey);
   const title = config.meta?.title ?? `${config.navLabel} — ${SITE_NAME}`;
   const description =
     config.meta?.description ?? `Материалы и ссылки по разделу ${config.navLabel}.`;
