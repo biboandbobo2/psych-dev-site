@@ -2,6 +2,18 @@ export const SITE_NAME = 'Psych Dev Site';
 
 export const ROUTE_CONFIG = [
   {
+    path: '/intro',
+    key: 'intro',
+    navLabel: 'Вводное занятие',
+    isIntro: true,
+    themeKey: 'intro',
+    videoSrc: 'https://www.youtube.com/watch?v=0q4AZ3WsAAc',
+    meta: {
+      title: 'Вводное занятие — Psych Dev Site',
+      description: 'Знакомство с психологией развития: вводное занятие и ключевые вопросы курса.',
+    },
+  },
+  {
     path: '/prenatal',
     key: 'prenatal',
     navLabel: 'Пренатальный период',

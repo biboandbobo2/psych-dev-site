@@ -1,4 +1,5 @@
 export type PeriodThemeKey =
+  | 'intro'
   | 'prenatal'
   | 'infancy'
   | 'toddler'
@@ -19,6 +20,7 @@ export interface PeriodTheme {
 }
 
 export const PERIOD_THEME: Record<PeriodThemeKey, PeriodTheme> = {
+  intro: { accent: '#2C7DA0', accent100: '#E6F2F6' },
   prenatal: { accent: '#2F9683', accent100: '#E6F2F0' },
   infancy: { accent: '#2E7D32', accent100: '#E5EFE6' },
   toddler: { accent: '#5C6BC0', accent100: '#EBEDF7' },

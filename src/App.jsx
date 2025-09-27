@@ -236,6 +236,52 @@ function EmptyState() {
 }
 
 /* ------------ 📄  ROUTE VIEWS -------------------------------------------------- */
+function IntroRoute({ config }) {
+  const themeKey = config.themeKey;
+  usePeriodTheme(themeKey);
+  const { embedUrl, originalUrl } = normalizeVideoEntry(config.videoSrc);
+  const videoSrc = embedUrl || originalUrl;
+  const title = config.meta?.title ?? `${config.navLabel} — ${SITE_NAME}`;
+  const description = config.meta?.description ?? '';
+
+  return (
+    <Motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0, transition }}
+      exit={{ opacity: 0, y: -16, transition }}
+      className="flex-1 bg-bg"
+    >
+      <Helmet>
+        <title>{title}</title>
+        {description ? <meta name="description" content={description} /> : null}
+      </Helmet>
+      <div className="space-y-4 mb-8">
+        <h1 className="text-5xl md:text-6xl leading-tight font-semibold tracking-tight text-fg">
+          {config.navLabel}
+        </h1>
+      </div>
+
+      <Section title="Видео-лекция">
+        {videoSrc ? (
+          <iframe
+            title="Вводное занятие — видео"
+            src={videoSrc}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
+            className="w-full aspect-video rounded-2xl border border-border shadow-brand"
+          />
+        ) : (
+          <p className="text-lg leading-8 text-muted">
+            Видео недоступно. Проверьте ссылку на YouTube.
+          </p>
+        )}
+      </Section>
+    </Motion.div>
+  );
+}
+
 function PeriodRoute({ config, period }) {
   const themeKey = config.themeKey ?? config.periodId;
   usePeriodTheme(themeKey);
@@ -487,6 +533,47 @@ function NotFound() {
   );
 }
 
+function RoutePager({ currentPath }) {
+  const normalizedPath = currentPath?.endsWith('/') && currentPath.length > 1
+    ? currentPath.slice(0, -1)
+    : currentPath;
+  const currentIndex = ROUTE_CONFIG.findIndex((route) => route.path === normalizedPath);
+  if (currentIndex === -1) return null;
+  const prev = currentIndex > 0 ? ROUTE_CONFIG[currentIndex - 1] : null;
+  const next = currentIndex < ROUTE_CONFIG.length - 1 ? ROUTE_CONFIG[currentIndex + 1] : null;
+  if (!prev && !next) return null;
+
+  return (
+    <div className="mt-10 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      {prev ? (
+        <Button
+          as={NavLink}
+          to={prev.path}
+          variant="secondary"
+          className="w-full md:w-auto flex items-center justify-center gap-2"
+        >
+          <span aria-hidden="true">←</span>
+          <span>{prev.navLabel}</span>
+        </Button>
+      ) : (
+        <span className="hidden md:block" />
+      )}
+      {next ? (
+        <Button
+          as={NavLink}
+          to={next.path}
+          className="w-full md:w-auto flex items-center justify-center gap-2"
+        >
+          <span>{next.navLabel}</span>
+          <span aria-hidden="true">→</span>
+        </Button>
+      ) : (
+        <span className="hidden md:block" />
+      )}
+    </div>
+  );
+}
+
 function AppInner() {
   const { periods, loading, error } = usePeriods();
   const location = useLocation();
@@ -550,7 +637,16 @@ function AppInner() {
                     <Route
                       key={config.path}
                       path={config.path}
-                      element={<PeriodRoute config={config} period={periodMap.get(config.periodId)} />}
+                      element={
+                        config.isIntro ? (
+                          <IntroRoute config={config} />
+                        ) : (
+                          <PeriodRoute
+                            config={config}
+                            period={periodMap.get(config.periodId)}
+                          />
+                        )
+                      }
                     />
                   ))}
                   <Route
@@ -565,6 +661,7 @@ function AppInner() {
                   />
                 </Routes>
               </AnimatePresence>
+              <RoutePager currentPath={location.pathname} />
             </div>
           </div>
         </div>
