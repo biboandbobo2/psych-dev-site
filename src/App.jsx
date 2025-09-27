@@ -324,6 +324,7 @@ function IntroRoute({ config }) {
     extraLiterature,
     extraVideos,
     selfQuestionsUrl,
+    deckUrl,
   } = data;
 
   const { embedUrl, originalUrl } = normalizeVideoEntry(videoUrl);
@@ -334,18 +335,34 @@ function IntroRoute({ config }) {
 
   const sections = [];
 
+  const deckLink = deckUrl
+    ? (
+        <a
+          className="mt-3 inline-block text-sm font-semibold italic text-[color:var(--accent)] hover:underline underline-offset-4"
+          href={deckUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Скачать презентацию
+        </a>
+      )
+    : null;
+
   sections.push(
     <Section key="video" title="Видео-лекция">
       {videoSrc ? (
-        <iframe
-          title="Вводное занятие — видео"
-          src={videoSrc}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-          loading="lazy"
-          referrerPolicy="strict-origin-when-cross-origin"
-          className="w-full aspect-video rounded-2xl border border-border shadow-brand"
-        />
+        <>
+          <iframe
+            title="Вводное занятие — видео"
+            src={videoSrc}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
+            className="w-full aspect-video rounded-2xl border border-border shadow-brand"
+          />
+          {deckLink}
+        </>
       ) : (
         <p className="text-lg leading-8 text-muted">
           Видео недоступно. Проверьте ссылку в intro.csv.
@@ -450,7 +467,7 @@ function IntroRoute({ config }) {
 
   if (selfQuestionsUrl) {
     sections.push(
-      <Section key="self_questions" title="Вопросы для контакта с собой">
+      <Section key="self_questions" title="Рабочая тетрадь">
         <div className="flex flex-wrap gap-2">
           <a
             className={`${badgeInteractiveClass} font-semibold`}
@@ -458,7 +475,7 @@ function IntroRoute({ config }) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Открыть вопросы
+            Скачать рабочую тетрадь
           </a>
         </div>
       </Section>
@@ -491,6 +508,7 @@ function PeriodRoute({ config, period }) {
   const showPlaceholder = Boolean(config.placeholder || !period);
   const placeholderText =
     config.placeholder || 'Раздел пока недоступен. Загляните позже.';
+  const deckUrl = period?.deckUrl ? period.deckUrl.trim() : '';
 
   const backgroundImage = BACKGROUND_BY_PERIOD[config.periodId];
   const backgroundClass = backgroundImage ? 'bg-repeat bg-[length:180px]' : '';
@@ -514,14 +532,17 @@ function PeriodRoute({ config, period }) {
   const renderSection = ([slug, section]) => {
     if (!section?.content?.length) return null;
 
-    if (section.title === 'Видео-лекция') {
+    const rawTitle = section.title ?? '';
+    const displayTitle = rawTitle === 'Вопросы для контакта с собой' ? 'Рабочая тетрадь' : rawTitle;
+
+    if (rawTitle === 'Видео-лекция') {
       const { embedUrl, originalUrl, title: videoTitle, isYoutube } = normalizeVideoEntry(
         section.content[0]
       );
 
       if (!embedUrl) {
         return (
-          <Section key={slug} title={section.title}>
+          <Section key={slug} title={displayTitle}>
             <p className="text-lg leading-8 text-muted">
               Видео недоступно для встраивания.{' '}
               {isUrlString(originalUrl) ? (
@@ -536,8 +557,19 @@ function PeriodRoute({ config, period }) {
         );
       }
 
+      const deckLink = deckUrl ? (
+        <a
+          className="mt-3 inline-block text-sm font-semibold italic text-[color:var(--accent)] hover:underline underline-offset-4"
+          href={deckUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Скачать презентацию
+        </a>
+      ) : null;
+
       return (
-        <Section key={slug} title={section.title}>
+        <Section key={slug} title={displayTitle}>
           <iframe
             title={videoTitle}
             src={embedUrl}
@@ -546,6 +578,7 @@ function PeriodRoute({ config, period }) {
             referrerPolicy="strict-origin-when-cross-origin"
             className="w-full aspect-video rounded-2xl border border-border shadow-brand"
           />
+          {deckLink}
           {!isYoutube && isUrlString(originalUrl) ? (
             <p className="text-sm leading-6 text-muted">
               Ссылка не похожа на YouTube. Проверить источник:{' '}
@@ -563,7 +596,7 @@ function PeriodRoute({ config, period }) {
 
     if (isBadgeSection) {
       return (
-        <Section key={slug} title={section.title}>
+        <Section key={slug} title={displayTitle}>
           <div className="flex flex-wrap gap-2">
             {section.content
               .filter((item) => typeof item === 'string')
@@ -583,7 +616,7 @@ function PeriodRoute({ config, period }) {
         .filter(Boolean);
 
       return (
-        <Section key={slug} title={section.title}>
+        <Section key={slug} title={displayTitle}>
           <ul className="list-disc pl-6 marker:text-accent space-y-2 text-lg leading-8 text-fg">
             {lines.map((line, index) => renderListItem(line, index))}
           </ul>
@@ -592,7 +625,7 @@ function PeriodRoute({ config, period }) {
     }
 
     return (
-      <Section key={slug} title={section.title}>
+      <Section key={slug} title={displayTitle}>
         <div className="space-y-4">
           {section.content.map((item, index) => {
             if (typeof item === 'string') {
