@@ -13,6 +13,7 @@ import { Helmet } from 'react-helmet-async';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { ROUTE_CONFIG, SITE_NAME, NOT_FOUND_REDIRECT } from './routes';
 import { usePeriods } from './lib/usePeriods';
+import { useIntro } from './lib/useIntro';
 import { BACKGROUND_BY_PERIOD } from './theme/backgrounds';
 import { PERIOD_THEME, DEFAULT_THEME } from './theme/periods';
 import { Section, SectionMuted } from './components/ui/Section';
@@ -239,10 +240,230 @@ function EmptyState() {
 function IntroRoute({ config }) {
   const themeKey = config.themeKey;
   usePeriodTheme(themeKey);
-  const { embedUrl, originalUrl } = normalizeVideoEntry(config.videoSrc);
-  const videoSrc = embedUrl || originalUrl;
+  const { data, loading, error } = useIntro();
   const title = config.meta?.title ?? `${config.navLabel} — ${SITE_NAME}`;
   const description = config.meta?.description ?? '';
+
+  const hero = (
+    <div className="space-y-4 mb-8">
+      <h1 className="text-5xl md:text-6xl leading-tight font-semibold tracking-tight text-fg">
+        {config.navLabel}
+      </h1>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <Motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0, transition }}
+        exit={{ opacity: 0, y: -16, transition }}
+        className="flex-1 bg-bg"
+      >
+        <Helmet>
+          <title>{title}</title>
+          {description ? <meta name="description" content={description} /> : null}
+        </Helmet>
+        {hero}
+        <Section title="Видео-лекция">
+          <Skeleton className="h-48 md:h-64" />
+        </Section>
+      </Motion.div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0, transition }}
+        exit={{ opacity: 0, y: -16, transition }}
+        className="flex-1 bg-bg"
+      >
+        <Helmet>
+          <title>{title}</title>
+          {description ? <meta name="description" content={description} /> : null}
+        </Helmet>
+        {hero}
+        <SectionMuted>
+          <p className="text-lg leading-8 text-muted">
+            Не удалось загрузить вводное занятие. Попробуйте обновить страницу позже.
+          </p>
+        </SectionMuted>
+      </Motion.div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <Motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0, transition }}
+        exit={{ opacity: 0, y: -16, transition }}
+        className="flex-1 bg-bg"
+      >
+        <Helmet>
+          <title>{title}</title>
+          {description ? <meta name="description" content={description} /> : null}
+        </Helmet>
+        {hero}
+        <Section title="Видео-лекция">
+          <p className="text-lg leading-8 text-muted">
+            Данные вводного занятия отсутствуют. Проверьте файл intro.csv.
+          </p>
+        </Section>
+      </Motion.div>
+    );
+  }
+
+  const {
+    videoUrl,
+    concepts,
+    authors,
+    coreLiterature,
+    extraLiterature,
+    extraVideos,
+    selfQuestionsUrl,
+  } = data;
+
+  const { embedUrl, originalUrl } = normalizeVideoEntry(videoUrl);
+  const videoSrc = embedUrl || originalUrl;
+
+  const badgeBaseClass = 'inline-flex items-center rounded-full bg-accent-100 text-accent px-3 py-1 text-sm font-medium';
+  const badgeInteractiveClass = `${badgeBaseClass} transition-colors duration-150 hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-opacity-40`;
+
+  const sections = [];
+
+  sections.push(
+    <Section key="video" title="Видео-лекция">
+      {videoSrc ? (
+        <iframe
+          title="Вводное занятие — видео"
+          src={videoSrc}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
+          className="w-full aspect-video rounded-2xl border border-border shadow-brand"
+        />
+      ) : (
+        <p className="text-lg leading-8 text-muted">
+          Видео недоступно. Проверьте ссылку в intro.csv.
+        </p>
+      )}
+    </Section>
+  );
+
+  if (concepts.length) {
+    sections.push(
+      <Section key="concepts" title="Понятия">
+        <div className="flex flex-wrap gap-2">
+          {concepts.map((concept, index) => (
+            <span key={`${concept}-${index}`} className={badgeBaseClass}>
+              {concept}
+            </span>
+          ))}
+        </div>
+      </Section>
+    );
+  }
+
+  if (authors.length) {
+    sections.push(
+      <Section key="authors" title="Ключевые авторы">
+        <div className="flex flex-wrap gap-2">
+          {authors.map(({ label, url }, index) => (
+            <a
+              key={`${label}-${index}`}
+              className={badgeInteractiveClass}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+      </Section>
+    );
+  }
+
+  if (coreLiterature.length) {
+    sections.push(
+      <Section key="core_literature" title="Основная литература">
+        <div className="flex flex-wrap gap-2">
+          {coreLiterature.map(({ label, url }, index) => (
+            <a
+              key={`${label}-${index}`}
+              className={badgeInteractiveClass}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+      </Section>
+    );
+  }
+
+  if (extraLiterature.length) {
+    sections.push(
+      <Section key="extra_literature" title="Дополнительная литература">
+        <div className="flex flex-wrap gap-2">
+          {extraLiterature.map(({ label, url }, index) => (
+            <a
+              key={`${label}-${index}`}
+              className={badgeInteractiveClass}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+      </Section>
+    );
+  }
+
+  if (extraVideos.length) {
+    sections.push(
+      <Section key="extra_videos" title="Дополнительные видео и лекции">
+        <div className="flex flex-wrap gap-2">
+          {extraVideos.map(({ label, url }, index) => (
+            <a
+              key={`${label}-${index}`}
+              className={badgeInteractiveClass}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {label}
+            </a>
+          ))}
+        </div>
+      </Section>
+    );
+  }
+
+  if (selfQuestionsUrl) {
+    sections.push(
+      <Section key="self_questions" title="Вопросы для контакта с собой">
+        <div className="flex flex-wrap gap-2">
+          <a
+            className={`${badgeInteractiveClass} font-semibold`}
+            href={selfQuestionsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Открыть вопросы
+          </a>
+        </div>
+      </Section>
+    );
+  }
 
   return (
     <Motion.div
@@ -255,29 +476,8 @@ function IntroRoute({ config }) {
         <title>{title}</title>
         {description ? <meta name="description" content={description} /> : null}
       </Helmet>
-      <div className="space-y-4 mb-8">
-        <h1 className="text-5xl md:text-6xl leading-tight font-semibold tracking-tight text-fg">
-          {config.navLabel}
-        </h1>
-      </div>
-
-      <Section title="Видео-лекция">
-        {videoSrc ? (
-          <iframe
-            title="Вводное занятие — видео"
-            src={videoSrc}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            loading="lazy"
-            referrerPolicy="strict-origin-when-cross-origin"
-            className="w-full aspect-video rounded-2xl border border-border shadow-brand"
-          />
-        ) : (
-          <p className="text-lg leading-8 text-muted">
-            Видео недоступно. Проверьте ссылку на YouTube.
-          </p>
-        )}
-      </Section>
+      {hero}
+      {sections}
     </Motion.div>
   );
 }
