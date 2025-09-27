@@ -20,7 +20,7 @@ export interface PeriodTheme {
 }
 
 export const PERIOD_THEME: Record<PeriodThemeKey, PeriodTheme> = {
-  intro: { accent: '#2C7DA0', accent100: '#E6F2F6' },
+  intro: { accent: '#C58F12', accent100: '#FFF4DA' },
   prenatal: { accent: '#2F9683', accent100: '#E6F2F0' },
   infancy: { accent: '#2E7D32', accent100: '#E5EFE6' },
   toddler: { accent: '#5C6BC0', accent100: '#EBEDF7' },
