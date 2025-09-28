@@ -20,6 +20,7 @@ import { Section, SectionMuted } from './components/ui/Section';
 import { Skeleton } from './components/ui/Skeleton';
 import { Button } from './components/ui/Button';
 import { NavigationProgress } from './components/ui/NavigationProgress';
+import { BackToTop } from './components/ui/BackToTop';
 import { cn } from './lib/cn';
 
 const transition = { duration: 0.25, ease: [0.16, 1, 0.3, 1] };
@@ -777,32 +778,39 @@ function RoutePager({ currentPath }) {
   if (!prev && !next) return null;
 
   return (
-    <div className="mt-10 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      {prev ? (
-        <Button
-          as={NavLink}
-          to={prev.path}
-          variant="secondary"
-          className="w-full md:w-auto flex items-center justify-center gap-2"
-        >
-          <span aria-hidden="true">←</span>
-          <span>{prev.navLabel}</span>
-        </Button>
-      ) : (
-        <span className="hidden md:block" />
-      )}
-      {next ? (
-        <Button
-          as={NavLink}
-          to={next.path}
-          className="w-full md:w-auto flex items-center justify-center gap-2"
-        >
-          <span>{next.navLabel}</span>
-          <span aria-hidden="true">→</span>
-        </Button>
-      ) : (
-        <span className="hidden md:block" />
-      )}
+    <div className="mt-10 w-full grid items-center gap-3 grid-cols-1 sm:grid-cols-[1fr_auto_1fr] sm:gap-4">
+      <div className="justify-self-start">
+        {prev ? (
+          <Button
+            as={NavLink}
+            to={prev.path}
+            variant="secondary"
+            className="w-full sm:w-auto flex items-center justify-center gap-2"
+          >
+            <span aria-hidden="true">←</span>
+            <span>{prev.navLabel}</span>
+          </Button>
+        ) : (
+          <span className="hidden sm:block" />
+        )}
+      </div>
+      <div className="justify-self-center">
+        <BackToTop />
+      </div>
+      <div className="justify-self-end">
+        {next ? (
+          <Button
+            as={NavLink}
+            to={next.path}
+            className="w-full sm:w-auto flex items-center justify-center gap-2"
+          >
+            <span>{next.navLabel}</span>
+            <span aria-hidden="true">→</span>
+          </Button>
+        ) : (
+          <span className="hidden sm:block" />
+        )}
+      </div>
     </div>
   );
 }
@@ -832,7 +840,8 @@ function AppInner() {
       </Helmet>
       <NavigationProgress />
       <ScrollManager />
-      <div className="bg-bg text-fg min-h-screen">
+      <main className="bg-bg text-fg min-h-screen">
+        <div id="page-top" aria-hidden="true" />
         <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12">
           <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
             <aside className="lg:w-72 flex-shrink-0 lg:sticky lg:top-8">
@@ -898,7 +907,7 @@ function AppInner() {
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </>
   );
 }
