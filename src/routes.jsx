@@ -30,7 +30,6 @@ export const ROUTE_CONFIG = [
     navLabel: 'Младенчество (0–1 год)',
     periodId: 'infancy',
     themeKey: 'infancy',
-    placeholder: 'Контент для возраста 0–1 год появится в ближайшем обновлении.',
     meta: {
       title: 'Младенчество 0–1 — Psych Dev Site',
       description: 'Исследуем привязанность, сенсомоторное развитие и ключевых авторов младенчества.'
