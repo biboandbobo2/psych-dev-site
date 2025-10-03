@@ -169,6 +169,7 @@ const normalizeVideoEntry = (entry) => {
       embedUrl: '',
       originalUrl: '',
       isYoutube: false,
+      deckUrl: '',
     };
   }
 
@@ -179,6 +180,7 @@ const normalizeVideoEntry = (entry) => {
       embedUrl: buildYoutubeEmbedUrl(trimmed),
       originalUrl: trimmed,
       isYoutube: Boolean(ensureUrl(trimmed)?.hostname.includes('youtu')),
+      deckUrl: '',
     };
   }
 
@@ -188,6 +190,7 @@ const normalizeVideoEntry = (entry) => {
     embedUrl: buildYoutubeEmbedUrl(rawUrl),
     originalUrl: rawUrl,
     isYoutube: Boolean(ensureUrl(rawUrl)?.hostname.includes('youtu')),
+    deckUrl: typeof entry.deckUrl === 'string' ? entry.deckUrl.trim() : '',
   };
 };
 
@@ -537,57 +540,69 @@ function PeriodRoute({ config, period }) {
     const displayTitle = rawTitle === 'Вопросы для контакта с собой' ? 'Рабочая тетрадь' : rawTitle;
 
     if (rawTitle === 'Видео-лекция') {
-      const { embedUrl, originalUrl, title: videoTitle, isYoutube } = normalizeVideoEntry(
-        section.content[0]
-      );
+      const videos = section.content.map((entry, index) => {
+        const normalized = normalizeVideoEntry(entry);
+        const effectiveDeckUrl = normalized.deckUrl || deckUrl;
+        return { ...normalized, deckUrl: effectiveDeckUrl, key: `${slug}-video-${index}` };
+      });
 
-      if (!embedUrl) {
-        return (
-          <Section key={slug} title={displayTitle}>
-            <p className="text-lg leading-8 text-muted">
-              Видео недоступно для встраивания.{' '}
-              {isUrlString(originalUrl) ? (
-                <a className="text-accent hover:underline underline-offset-4" href={originalUrl} target="_blank" rel="noreferrer">
-                  Открыть на YouTube
-                </a>
-              ) : (
-                'Проверьте URL в CSV.'
-              )}
-            </p>
-          </Section>
-        );
+      if (!videos.length) {
+        return null;
       }
-
-      const deckLink = deckUrl ? (
-        <a
-          className="mt-3 inline-block text-sm font-semibold italic text-[color:var(--accent)] hover:underline underline-offset-4"
-          href={deckUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Скачать презентацию
-        </a>
-      ) : null;
 
       return (
         <Section key={slug} title={displayTitle}>
-          <iframe
-            title={videoTitle}
-            src={embedUrl}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            className="w-full aspect-video rounded-2xl border border-border shadow-brand"
-          />
-          {deckLink}
-          {!isYoutube && isUrlString(originalUrl) ? (
-            <p className="text-sm leading-6 text-muted">
-              Ссылка не похожа на YouTube. Проверить источник:{' '}
-              <a className="text-accent hover:underline underline-offset-4" href={originalUrl} target="_blank" rel="noreferrer">
-                {originalUrl}
-              </a>
-            </p>
-          ) : null}
+          <div className="space-y-6">
+            {videos.map(({ key: videoKey, title: videoTitle, embedUrl, originalUrl, isYoutube, deckUrl: videoDeckUrl }) => {
+              if (!embedUrl) {
+                return (
+                  <div key={videoKey} className="space-y-3">
+                    <p className="text-lg leading-8 text-muted">
+                      Видео недоступно для встраивания.{' '}
+                      {isUrlString(originalUrl) ? (
+                        <a className="text-accent hover:underline underline-offset-4" href={originalUrl} target="_blank" rel="noreferrer">
+                          Открыть на YouTube
+                        </a>
+                      ) : (
+                        'Проверьте URL в CSV.'
+                      )}
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={videoKey} className="space-y-3">
+                  <iframe
+                    title={videoTitle}
+                    src={embedUrl}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    className="w-full aspect-video rounded-2xl border border-border shadow-brand"
+                  />
+                  {videoDeckUrl ? (
+                    <a
+                      className="inline-block text-sm font-semibold italic text-[color:var(--accent)] hover:underline underline-offset-4"
+                      href={videoDeckUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Скачать презентацию
+                    </a>
+                  ) : null}
+                  {!isYoutube && isUrlString(originalUrl) ? (
+                    <p className="text-sm leading-6 text-muted">
+                      Ссылка не похожа на YouTube. Проверить источник:{' '}
+                      <a className="text-accent hover:underline underline-offset-4" href={originalUrl} target="_blank" rel="noreferrer">
+                        {originalUrl}
+                      </a>
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
         </Section>
       );
     }
