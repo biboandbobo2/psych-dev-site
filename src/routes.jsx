@@ -41,7 +41,6 @@ export const ROUTE_CONFIG = [
     navLabel: 'Раннее детство (1–3 года)',
     periodId: 'toddler',
     themeKey: 'toddler',
-    placeholder: 'Контент для возраста 1–3 года появится в ближайшем обновлении.',
     meta: {
       title: 'Раннее детство 1–3 — Psych Dev Site',
       description: 'Речь, автономия и игры раннего детства в одном месте.'
