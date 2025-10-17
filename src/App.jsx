@@ -170,6 +170,7 @@ const normalizeVideoEntry = (entry) => {
       originalUrl: '',
       isYoutube: false,
       deckUrl: '',
+      audioUrl: '',
     };
   }
 
@@ -181,6 +182,7 @@ const normalizeVideoEntry = (entry) => {
       originalUrl: trimmed,
       isYoutube: Boolean(ensureUrl(trimmed)?.hostname.includes('youtu')),
       deckUrl: '',
+      audioUrl: '',
     };
   }
 
@@ -191,6 +193,7 @@ const normalizeVideoEntry = (entry) => {
     originalUrl: rawUrl,
     isYoutube: Boolean(ensureUrl(rawUrl)?.hostname.includes('youtu')),
     deckUrl: typeof entry.deckUrl === 'string' ? entry.deckUrl.trim() : '',
+    audioUrl: typeof entry.audioUrl === 'string' ? entry.audioUrl.trim() : '',
   };
 };
 
@@ -543,7 +546,11 @@ function PeriodRoute({ config, period }) {
       const videos = section.content.map((entry, index) => {
         const normalized = normalizeVideoEntry(entry);
         const effectiveDeckUrl = normalized.deckUrl || deckUrl;
-        return { ...normalized, deckUrl: effectiveDeckUrl, key: `${slug}-video-${index}` };
+        return {
+          ...normalized,
+          deckUrl: effectiveDeckUrl,
+          key: `${slug}-video-${index}`,
+        };
       });
 
       if (!videos.length) {
@@ -553,7 +560,7 @@ function PeriodRoute({ config, period }) {
       return (
         <Section key={slug} title={displayTitle}>
           <div className="space-y-6">
-            {videos.map(({ key: videoKey, title: videoTitle, embedUrl, originalUrl, isYoutube, deckUrl: videoDeckUrl }) => {
+            {videos.map(({ key: videoKey, title: videoTitle, embedUrl, originalUrl, isYoutube, deckUrl: videoDeckUrl, audioUrl: videoAudioUrl }) => {
               if (!embedUrl) {
                 return (
                   <div key={videoKey} className="space-y-3">
@@ -581,15 +588,29 @@ function PeriodRoute({ config, period }) {
                     referrerPolicy="strict-origin-when-cross-origin"
                     className="w-full aspect-video rounded-2xl border border-border shadow-brand"
                   />
-                  {videoDeckUrl ? (
-                    <a
-                      className="inline-block text-sm font-semibold italic text-[color:var(--accent)] hover:underline underline-offset-4"
-                      href={videoDeckUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Скачать презентацию
-                    </a>
+                  {(videoDeckUrl || videoAudioUrl) ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                      {videoDeckUrl ? (
+                        <a
+                          className="inline-block text-sm font-semibold italic text-[color:var(--accent)] hover:underline underline-offset-4"
+                          href={videoDeckUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Скачать презентацию
+                        </a>
+                      ) : null}
+                      {videoAudioUrl ? (
+                        <a
+                          className="inline-block text-sm font-semibold italic text-[color:var(--accent)] hover:underline underline-offset-4 ml-auto"
+                          href={videoAudioUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Слушать аудио
+                        </a>
+                      ) : null}
+                    </div>
                   ) : null}
                   {!isYoutube && isUrlString(originalUrl) ? (
                     <p className="text-sm leading-6 text-muted">
