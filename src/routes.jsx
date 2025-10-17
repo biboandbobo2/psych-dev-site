@@ -49,13 +49,12 @@ export const ROUTE_CONFIG = [
   {
     path: '/3-6',
     key: '3-6',
-    navLabel: 'Дошкольный возраст (3–6 лет)',
+    navLabel: 'Дошкольный возраст (3–7 лет)',
     periodId: 'preschool',
     themeKey: 'preschool',
-    placeholder: 'Контент для возраста 3–6 лет появится в ближайшем обновлении.',
     meta: {
-      title: 'Дошкольный возраст 3–6 — Psych Dev Site',
-      description: 'Когнитивные скачки, теория разума и ресурсы для дошкольников.'
+      title: 'Дошкольный возраст 3–7 — Psych Dev Site',
+      description: 'Игра, развитие мышления и социальные навыки дошкольников.'
     }
   },
   {
