@@ -30,7 +30,8 @@
     "verify": "tsx scripts/verifyContent.ts",
     "reconcile": "tsx scripts/reconcileContent.ts",
     "reconcile:apply": "tsx scripts/reconcileContent.ts --apply",
-    "analyze": "tsx scripts/analyze-project.ts"
+    "analyze": "tsx scripts/analyze-project.ts",
+    "check:env": "node -e \"console.log('Env check:', Object.keys(process.env).filter(k => k.startsWith('VITE_')))\""
   },
   "dependencies": {
     "@fontsource-variable/manrope": "^5.2.8",
