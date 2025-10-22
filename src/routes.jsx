@@ -63,7 +63,8 @@ export const ROUTE_CONFIG = [
     navLabel: 'Младший школьный возраст (7–9 лет)',
     periodId: 'school',
     themeKey: 'school1',
-    placeholder: 'Контент для возраста 7–9 лет появится в ближайшем обновлении.',
+    placeholderText: 'Контент для возраста 7–9 лет появится в ближайшем обновлении.',
+    placeholderDefaultEnabled: true,
     meta: {
       title: 'Младший школьный возраст 7–9 — Psych Dev Site',
       description: 'Операции мышления, мотивация к учёбе и развитие школьников.'
@@ -75,7 +76,8 @@ export const ROUTE_CONFIG = [
     navLabel: 'Ранняя подростковость (10–13 лет)',
     periodId: 'earlyAdolescence',
     themeKey: 'earlyTeen',
-    placeholder: 'Контент для возраста 10–13 лет появится в ближайшем обновлении.',
+    placeholderText: 'Контент для возраста 10–13 лет появится в ближайшем обновлении.',
+    placeholderDefaultEnabled: true,
     meta: {
       title: 'Ранняя подростковость 10–13 — Psych Dev Site',
       description: 'Нейробиология риска, идентичность и поддержка пре-подростков.'
@@ -87,7 +89,8 @@ export const ROUTE_CONFIG = [
     navLabel: 'Средняя подростковость (14–18 лет)',
     periodId: 'adolescence',
     themeKey: 'teen',
-    placeholder: 'Контент для возраста 14–18 лет появится в ближайшем обновлении.',
+    placeholderText: 'Контент для возраста 14–18 лет появится в ближайшем обновлении.',
+    placeholderDefaultEnabled: true,
     meta: {
       title: 'Подростковость 14–18 — Psych Dev Site',
       description: 'Социализация, принятие решений и развитие личности подростков.'
@@ -99,7 +102,8 @@ export const ROUTE_CONFIG = [
     navLabel: 'Юность (19–22 года)',
     periodId: 'emergingAdult',
     themeKey: 'emergingAdult',
-    placeholder: 'Контент для возраста 19–22 года появится в ближайшем обновлении.',
+    placeholderText: 'Контент для возраста 19–22 года появится в ближайшем обновлении.',
+    placeholderDefaultEnabled: true,
     meta: {
       title: 'Юность 19–22 — Psych Dev Site',
       description: 'Переход ко взрослости, идентичность и профессиональный поиск.'
@@ -110,7 +114,8 @@ export const ROUTE_CONFIG = [
     key: '22-27',
     navLabel: 'Ранняя зрелость (22–27 лет)',
     themeKey: 'earlyAdult',
-    placeholder: 'Контент для возраста 22–27 лет появится в ближайшем обновлении.',
+    placeholderText: 'Контент для возраста 22–27 лет появится в ближайшем обновлении.',
+    placeholderDefaultEnabled: true,
     meta: {
       title: 'Ранняя зрелость 22–27 — Psych Dev Site',
       description: 'Мы готовим материалы для ранней взрослости 22–27 лет.'
@@ -122,7 +127,8 @@ export const ROUTE_CONFIG = [
     navLabel: 'Ранняя зрелость (28–40 лет)',
     periodId: 'earlyAdult',
     themeKey: 'midAdult1',
-    placeholder: 'Контент для возраста 28–40 лет появится в ближайшем обновлении.',
+    placeholderText: 'Контент для возраста 28–40 лет появится в ближайшем обновлении.',
+    placeholderDefaultEnabled: true,
     meta: {
       title: 'Ранняя зрелость 28–40 — Psych Dev Site',
       description: 'Работа, близость и развитие партнёрства в 28–40 лет.'
@@ -134,7 +140,8 @@ export const ROUTE_CONFIG = [
     navLabel: 'Средняя зрелость (40–65 лет)',
     periodId: 'midlife',
     themeKey: 'midAdult2',
-    placeholder: 'Контент для возраста 40–65 лет появится в ближайшем обновлении.',
+    placeholderText: 'Контент для возраста 40–65 лет появится в ближайшем обновлении.',
+    placeholderDefaultEnabled: true,
     meta: {
       title: 'Средняя зрелость 40–65 — Psych Dev Site',
       description: 'Генеративность, кризисы и новые карьерные стратегии.'
@@ -146,7 +153,8 @@ export const ROUTE_CONFIG = [
     navLabel: 'Пожилой возраст (66–80 лет)',
     periodId: 'lateAdult',
     themeKey: 'older',
-    placeholder: 'Контент для возраста 66–80 лет появится в ближайшем обновлении.',
+    placeholderText: 'Контент для возраста 66–80 лет появится в ближайшем обновлении.',
+    placeholderDefaultEnabled: true,
     meta: {
       title: 'Пожилой возраст 66–80 — Psych Dev Site',
       description: 'Когнитивные изменения и качество жизни пожилых людей.'
@@ -158,7 +166,8 @@ export const ROUTE_CONFIG = [
     navLabel: 'Долголетие (80+ лет)',
     periodId: 'oldestOld',
     themeKey: 'oldest',
-    placeholder: 'Контент для возраста 80+ лет появится в ближайшем обновлении.',
+    placeholderText: 'Контент для возраста 80+ лет появится в ближайшем обновлении.',
+    placeholderDefaultEnabled: true,
     meta: {
       title: 'Долголетие 80+ — Psych Dev Site',
       description: 'Поддержка, исследования и смыслы самой поздней зрелости.'
@@ -167,3 +176,10 @@ export const ROUTE_CONFIG = [
 ];
 
 export const NOT_FOUND_REDIRECT = false;
+
+export const ROUTE_BY_PERIOD = ROUTE_CONFIG.reduce((acc, config) => {
+  if (config.periodId) {
+    acc[config.periodId] = config;
+  }
+  return acc;
+}, {});

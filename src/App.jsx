@@ -22,6 +22,21 @@ import { Button } from './components/ui/Button';
 import { NavigationProgress } from './components/ui/NavigationProgress';
 import { BackToTop } from './components/ui/BackToTop';
 import { cn } from './lib/cn';
+import { AuthProvider } from './auth/AuthProvider';
+import RequireAuth from './auth/RequireAuth';
+import RequireAdmin from './auth/RequireAdmin';
+import Login from './pages/Login';
+import Admin from './pages/Admin';
+import AdminUsers from './pages/AdminUsers';
+import AdminImport from './pages/AdminImport';
+import AdminContent from './pages/AdminContent';
+import AdminContentEdit from './pages/AdminContentEdit';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from './lib/firebase';
+import { useLoginModal } from './hooks/useLoginModal';
+import LoginModal from './components/LoginModal';
+import UserMenu from './components/UserMenu';
+import Profile from './pages/Profile';
 
 const transition = { duration: 0.25, ease: [0.16, 1, 0.3, 1] };
 
@@ -509,13 +524,30 @@ function IntroRoute({ config }) {
 function PeriodRoute({ config, period }) {
   const themeKey = config.themeKey ?? config.periodId;
   usePeriodTheme(themeKey);
-  const title = config.meta?.title ?? `${config.navLabel} — ${SITE_NAME}`;
+  const heading = period?.label || config.navLabel;
+  const title = config.meta?.title ?? `${heading} — ${SITE_NAME}`;
   const description =
-    config.meta?.description ?? `Материалы и ссылки по разделу ${config.navLabel}.`;
-  const showPlaceholder = Boolean(config.placeholder || !period);
+    config.meta?.description ?? period?.subtitle ?? `Материалы и ссылки по разделу ${heading}.`;
+  const placeholderFromConfig = config.placeholderText;
+  const placeholderDefaultEnabled = config.placeholderDefaultEnabled ?? false;
+  const placeholderEnabledFromData =
+    typeof period?.placeholderEnabled === 'boolean' ? period.placeholderEnabled : undefined;
+  const placeholderEnabled =
+    placeholderEnabledFromData !== undefined
+      ? placeholderEnabledFromData
+      : placeholderDefaultEnabled;
   const placeholderText =
-    config.placeholder || 'Раздел пока недоступен. Загляните позже.';
+    (period?.placeholderText || placeholderFromConfig || 'Контент для этого возраста появится в ближайшем обновлении.');
+
+  const hasSections = Boolean(
+    period &&
+      Object.values(period.sections ?? {}).some((section) =>
+        Array.isArray(section?.content) && section.content.length > 0
+      )
+  );
+  const showPlaceholder = placeholderEnabled || !hasSections;
   const deckUrl = period?.deckUrl ? period.deckUrl.trim() : '';
+  const defaultVideoTitle = heading.trim() || 'Видео-лекция';
 
   const backgroundImage = BACKGROUND_BY_PERIOD[config.periodId];
   const backgroundClass = backgroundImage ? 'bg-repeat bg-[length:180px]' : '';
@@ -540,7 +572,10 @@ function PeriodRoute({ config, period }) {
     if (!section?.content?.length) return null;
 
     const rawTitle = section.title ?? '';
-    const displayTitle = rawTitle === 'Вопросы для контакта с собой' ? 'Рабочая тетрадь' : rawTitle;
+    const lowerTitle = rawTitle.toLowerCase();
+    const displayTitle = lowerTitle.includes('вопросы для контакта с собой')
+      ? 'Рабочая тетрадь'
+      : rawTitle;
 
     if (rawTitle === 'Видео-лекция') {
       const videos = section.content.map((entry, index) => {
@@ -552,6 +587,13 @@ function PeriodRoute({ config, period }) {
           key: `${slug}-video-${index}`,
         };
       });
+      const showVideoHeadings =
+        videos.length > 1 ||
+        videos.some((video) =>
+          video.title &&
+          video.title.trim().length > 0 &&
+          video.title.trim().toLowerCase() !== defaultVideoTitle.toLowerCase()
+        );
 
       if (!videos.length) {
         return null;
@@ -580,6 +622,11 @@ function PeriodRoute({ config, period }) {
 
               return (
                 <div key={videoKey} className="space-y-3">
+                  {showVideoHeadings && videoTitle ? (
+                    <h3 className="text-2xl font-semibold leading-tight text-fg">
+                      {videoTitle}
+                    </h3>
+                  ) : null}
                   <iframe
                     title={videoTitle}
                     src={embedUrl}
@@ -639,6 +686,34 @@ function PeriodRoute({ config, period }) {
               .filter((item) => typeof item === 'string')
               .map((item, index) => renderBadgeItem(item, index))}
           </div>
+        </Section>
+      );
+    }
+
+    if (slug === 'self_questions') {
+      const firstItem = section.content.find((item) => typeof item === 'string') ?? '';
+      const parsedUrl = ensureUrl(firstItem);
+
+      return (
+        <Section key={slug} title={displayTitle}>
+          {parsedUrl ? (
+            <div className="flex flex-col gap-3">
+              <p className="text-lg leading-8 text-muted max-w-measure">
+                Скачайте рабочую тетрадь и держите её под рукой во время просмотра лекции.
+              </p>
+              <Button
+                as="a"
+                href={parsedUrl.toString()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto"
+              >
+                Скачать рабочую тетрадь
+              </Button>
+            </div>
+          ) : (
+            <p className="text-lg leading-8 text-muted">Ссылка на рабочую тетрадь пока недоступна.</p>
+          )}
         </Section>
       );
     }
@@ -709,13 +784,32 @@ function PeriodRoute({ config, period }) {
 
             const rawUrl = typeof item.url === 'string' ? item.url.trim() : '';
             const parsedUrl = ensureUrl(rawUrl);
-            const content = (
+            const primaryText =
+              (typeof item.title === 'string' && item.title.trim()) ||
+              (typeof item.label === 'string' && item.label.trim()) ||
+              (typeof item.name === 'string' && item.name.trim()) ||
+              '';
+            const secondaryText =
+              (typeof item.author === 'string' && item.author.trim()) ||
+              (typeof item.subtitle === 'string' && item.subtitle.trim()) ||
+              (typeof item.type === 'string' && item.type.trim()) ||
+              '';
+            const yearText =
+              (typeof item.year === 'string' && item.year.trim()) ||
+              (typeof item.year === 'number' ? item.year.toString() : '') ||
+              '';
+
+            const contentNode = (
               <span className="text-lg leading-8 text-fg">
-                <strong>{item.title}</strong>
-                {item.author ? ` — ${item.author}` : ''}
-                {item.year ? ` (${item.year})` : ''}
+                {primaryText ? <strong>{primaryText}</strong> : null}
+                {secondaryText ? ` — ${secondaryText}` : ''}
+                {yearText ? ` (${yearText})` : ''}
               </span>
             );
+
+            const fallbackNode = rawUrl ? (
+              <span className="text-lg leading-8 text-fg">{rawUrl}</span>
+            ) : null;
 
             if (parsedUrl) {
               return (
@@ -726,7 +820,7 @@ function PeriodRoute({ config, period }) {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    {content}
+                    {primaryText ? contentNode : fallbackNode || parsedUrl.toString()}
                   </a>
                 </p>
               );
@@ -734,7 +828,12 @@ function PeriodRoute({ config, period }) {
 
             return (
               <p key={index} className="text-lg leading-8 text-fg max-w-measure">
-                {content}
+                {primaryText ? contentNode : fallbackNode}
+                {!primaryText && !fallbackNode && typeof item === 'object' ? (
+                  <code className="text-sm text-muted block whitespace-pre-wrap">
+                    {JSON.stringify(item, null, 2)}
+                  </code>
+                ) : null}
               </p>
             );
           })}
@@ -758,8 +857,11 @@ function PeriodRoute({ config, period }) {
       <div className="space-y-4 mb-8">
         <p className="text-sm leading-6 text-muted uppercase tracking-[0.35em]">Возрастной период</p>
         <h1 className="text-5xl md:text-6xl leading-tight font-semibold tracking-tight text-fg">
-          {config.navLabel}
+          {heading}
         </h1>
+        {period?.subtitle ? (
+          <p className="text-lg leading-8 text-muted max-w-measure">{period.subtitle}</p>
+        ) : null}
       </div>
 
       {showPlaceholder ? (
@@ -854,6 +956,8 @@ function RoutePager({ currentPath }) {
 function AppInner() {
   const { periods, loading, error } = usePeriods();
   const location = useLocation();
+  const [user, authLoading] = useAuthState(auth);
+  const { isOpen, openModal, closeModal } = useLoginModal();
 
   const periodMap = useMemo(() => {
     const map = new Map();
@@ -876,7 +980,21 @@ function AppInner() {
       </Helmet>
       <NavigationProgress />
       <ScrollManager />
-      <main className="bg-bg text-fg min-h-screen">
+      <LoginModal isOpen={isOpen} onClose={closeModal} />
+      <main className="relative bg-bg text-fg min-h-screen">
+        <div className="absolute top-6 right-6 z-40">
+          {!user ? (
+            <button
+              onClick={openModal}
+              disabled={authLoading}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              Войти
+            </button>
+          ) : (
+            <UserMenu user={user} />
+          )}
+        </div>
         <div id="page-top" aria-hidden="true" />
         <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12">
           <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
@@ -886,23 +1004,33 @@ function AppInner() {
                   Навигация
                 </p>
                 <nav className="flex flex-col gap-2">
-                  {ROUTE_CONFIG.map((config) => (
-                    <NavLink
-                      key={config.path}
-                      to={config.path}
-                      end
-                      className={({ isActive }) =>
-                        cn(
-                          'block rounded-2xl px-4 py-3 text-base font-medium transition-colors duration-150 border border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20',
-                          isActive
-                            ? 'bg-accent-100 text-accent border-accent/30 shadow-sm'
-                            : 'text-muted hover:text-fg hover:bg-card2'
-                        )
-                      }
-                    >
-                      {config.navLabel}
-                    </NavLink>
-                  ))}
+                  {ROUTE_CONFIG.map((config) => {
+                    const periodData = config.periodId ? periodMap.get(config.periodId) : null;
+
+                    if (config.periodId && !periodData) {
+                      return null;
+                    }
+
+                    const label = periodData?.label || config.navLabel;
+
+                    return (
+                      <NavLink
+                        key={config.path}
+                        to={config.path}
+                        end
+                        className={({ isActive }) =>
+                          cn(
+                            'block rounded-2xl px-4 py-3 text-base font-medium transition-colors duration-150 border border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20',
+                            isActive
+                              ? 'bg-accent-100 text-accent border-accent/30 shadow-sm'
+                              : 'text-muted hover:text-fg hover:bg-card2'
+                          )
+                        }
+                      >
+                        {label}
+                      </NavLink>
+                    );
+                  })}
                 </nav>
               </div>
             </aside>
@@ -911,6 +1039,48 @@ function AppInner() {
               <AnimatePresence mode="wait" initial={false}>
                 <Routes location={location} key={location.pathname}>
                   <Route path="/" element={<Navigate to="/prenatal" replace />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route
+                    path="/admin"
+                    element={
+                      <RequireAuth>
+                        <Admin />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/admin/users"
+                    element={
+                      <RequireAdmin>
+                        <AdminUsers />
+                      </RequireAdmin>
+                    }
+                  />
+                  <Route
+                    path="/admin/content"
+                    element={
+                      <RequireAdmin>
+                        <AdminContent />
+                      </RequireAdmin>
+                    }
+                  />
+                  <Route
+                    path="/admin/content/edit/:periodId"
+                    element={
+                      <RequireAdmin>
+                        <AdminContentEdit />
+                      </RequireAdmin>
+                    }
+                  />
+                  <Route
+                    path="/admin/import"
+                    element={
+                      <RequireAdmin>
+                        <AdminImport />
+                      </RequireAdmin>
+                    }
+                  />
+                  <Route path="/profile" element={<Profile />} />
                   {ROUTE_CONFIG.map((config) => (
                     <Route
                       key={config.path}
@@ -951,7 +1121,9 @@ function AppInner() {
 export default function App() {
   return (
     <Router>
-      <AppInner />
+      <AuthProvider>
+        <AppInner />
+      </AuthProvider>
     </Router>
   );
 }

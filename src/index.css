@@ -13,3 +13,25 @@ a {
 small {
   @apply text-sm leading-6 text-muted;
 }
+
+/* Safari text selection fix */
+input,
+textarea {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default;
+  cursor: text;
+}
+
+input::selection,
+textarea::selection {
+  background: rgba(59, 130, 246, 0.24); /* Tailwind blue-500 @ 24% */
+  color: inherit;
+}
+
+button,
+input[type="checkbox"],
+input[type="radio"] {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}

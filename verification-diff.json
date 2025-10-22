@@ -1,0 +1,72 @@
+{
+  "perPeriod": {
+    "prenatal": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    },
+    "infancy": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    },
+    "toddler": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    },
+    "preschool": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    },
+    "school": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    },
+    "earlyAdolescence": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    },
+    "adolescence": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    },
+    "emergingAdult": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    },
+    "earlyAdult": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    },
+    "midlife": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    },
+    "lateAdult": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    },
+    "oldestOld": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    },
+    "intro": {
+      "missingDocument": false,
+      "scalars": {},
+      "arrays": {}
+    }
+  },
+  "extraDocuments": [
+    "intro"
+  ]
+}
