@@ -45,6 +45,7 @@
     "react-firebase-hooks": "^5.1.1",
     "react-helmet-async": "^2.0.5",
     "react-router-dom": "^7.6.3",
+    "serve": "^14.2.5",
     "vite-plugin-string": "^1.2.3"
   },
   "devDependencies": {
