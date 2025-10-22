@@ -60,6 +60,25 @@
 
 5. Нажмите «Сделать меня админом» (код используется один раз). После этого станут доступны загрузки в `assets/` и защищённые коллекции Firestore/Storage.
 
+### Environment Variables
+
+- `.env.local` — локальные секреты; хранится только на вашем компьютере и перечислен в `.gitignore`.
+- `.env.production` — шаблон для продакшна. Значения переменных задаются в Render Dashboard → Environment Variables и подставляются при билде.
+
+Список переменных:
+
+```
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+VITE_ADMIN_SEED_CODE
+```
+
+Локально используйте `.env.local`, на Render достаточно заполнить те же ключи в настройках сервиса и убедиться, что `.env.production` присутствует в репозитории.
+
 ### Cloud Functions bootstrap
 1. `npx firebase functions:config:set admin.seed_code="PSYCH-ADM-7Q9Z-2M4K-83VJ" --project psych-dev-site-prod`
 2. `cd functions && npm i && npm run build && cd ..`
