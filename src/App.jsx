@@ -37,6 +37,7 @@ import { useLoginModal } from './hooks/useLoginModal';
 import LoginModal from './components/LoginModal';
 import UserMenu from './components/UserMenu';
 import Profile from './pages/Profile';
+import { useAuthSync } from './hooks/useAuthSync';
 
 const transition = { duration: 0.25, ease: [0.16, 1, 0.3, 1] };
 
@@ -954,6 +955,7 @@ function RoutePager({ currentPath }) {
 }
 
 function AppInner() {
+  useAuthSync();
   const { periods, loading, error } = usePeriods();
   const location = useLocation();
   const [user, authLoading] = useAuthState(auth);

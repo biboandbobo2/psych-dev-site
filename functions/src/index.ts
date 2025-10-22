@@ -594,3 +594,5 @@ export const runReconcile = functions.https.onCall(async (data, context) => {
 
   return { ok: true, applied: apply, plan };
 });
+
+export { onUserCreate } from './onUserCreate.js';
