@@ -514,3 +514,6 @@ export const runReconcile = functions.https.onCall(async (data, context) => {
     }
     return { ok: true, applied: apply, plan };
 });
+export { onUserCreate } from './onUserCreate.js';
+export { migrateAdmins } from './migrateAdmins.js';
+export { makeUserAdmin, removeAdmin } from './makeAdmin.js';

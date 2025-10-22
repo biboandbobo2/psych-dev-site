@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
 import { auth, googleProvider, db } from "../lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { SUPER_ADMIN_EMAIL } from "../constants/superAdmin";
 
 interface AuthContextValue {
   user: User | null;
@@ -28,12 +29,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsub = onAuthStateChanged(auth, async (next) => {
       setUser(next);
       if (next) {
-        try {
-          const snap = await getDoc(doc(db, "admins", next.uid));
-          setIsAdmin(snap.exists());
-        } catch (error) {
-          console.warn("Failed to check admin document", error);
-          setIsAdmin(false);
+        if (next.email === SUPER_ADMIN_EMAIL) {
+          setIsAdmin(true);
+        } else {
+          try {
+            const snap = await getDoc(doc(db, "users", next.uid));
+            const role = snap.data()?.role;
+            setIsAdmin(role === "admin" || role === "super-admin");
+          } catch (error) {
+            console.warn("Failed to check user role", error);
+            setIsAdmin(false);
+          }
         }
       } else {
         setIsAdmin(false);
