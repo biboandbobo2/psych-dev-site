@@ -1,28 +1,53 @@
 import { useEffect } from "react";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../lib/firebase";
-import { useAuth } from "../auth/AuthProvider";
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth, db } from "../lib/firebase";
+import { SUPER_ADMIN_EMAIL } from "../constants/superAdmin";
 
 export function useAuthSync() {
-  const { user } = useAuth();
+  const [user] = useAuthState(auth);
 
   useEffect(() => {
     if (!user) return;
 
-    const updateLastLogin = async () => {
+    const syncUser = async () => {
       try {
-        const ref = doc(db, "users", user.uid);
-        await updateDoc(ref, {
+        const userRef = doc(db, "users", user.uid);
+        const snapshot = await getDoc(userRef);
+        const isSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
+
+        if (!snapshot.exists()) {
+          await setDoc(userRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            role: isSuperAdmin ? "super-admin" : "student",
+            createdAt: serverTimestamp(),
+            lastLoginAt: serverTimestamp(),
+          });
+          return;
+        }
+
+        const updates: Record<string, unknown> = {
           lastLoginAt: serverTimestamp(),
           email: user.email,
           displayName: user.displayName,
           photoURL: user.photoURL,
-        });
+        };
+
+        const currentRole = snapshot.data()?.role;
+        if (isSuperAdmin && currentRole !== "super-admin") {
+          updates.role = "super-admin";
+          updates.upgradedAt = serverTimestamp();
+        }
+
+        await updateDoc(userRef, updates);
       } catch (error) {
-        console.error("Error updating last login:", error);
+        console.error("Error syncing user:", error);
       }
     };
 
-    updateLastLogin();
+    syncUser();
   }, [user]);
 }

@@ -3,6 +3,8 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { Navigate, Link } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
+import { SuperAdminBadge } from '../components/SuperAdminBadge';
+import { SUPER_ADMIN_EMAIL } from '../constants/superAdmin';
 
 function AdminPanel() {
   const [stats, setStats] = useState({
@@ -19,13 +21,16 @@ function AdminPanel() {
         const totalPeriods = periodsSnap.size;
         const publishedPeriods = periodsSnap.docs.filter((periodDoc) => periodDoc.data().published === true).length;
 
-        const adminsSnap = await getDocs(collection(db, 'admins'));
-        const totalUsers = adminsSnap.size;
+        const usersSnap = await getDocs(collection(db, 'users'));
+        const totalAdmins = usersSnap.docs.filter((userDoc) => {
+          const role = userDoc.data().role;
+          return role === 'admin' || role === 'super-admin';
+        }).length;
 
         setStats({
           totalPeriods: totalPeriods + 1,
           publishedPeriods: publishedPeriods + 1,
-          totalUsers,
+          totalUsers: totalAdmins,
           loading: false,
         });
       } catch (error) {
@@ -211,6 +216,7 @@ function StudentPanel() {
 export default function Profile() {
   const [user, loading] = useAuthState(auth);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<'student' | 'admin' | 'super-admin'>('student');
   const [checkingAdmin, setCheckingAdmin] = useState(true);
 
   useEffect(() => {
@@ -222,15 +228,27 @@ export default function Profile() {
 
       try {
         const tokenResult = await user.getIdTokenResult(true);
-        const hasAdminClaim = tokenResult.claims.role === 'admin';
+        const claimRole = typeof tokenResult.claims.role === 'string' ? (tokenResult.claims.role as string) : undefined;
 
-        const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-        const inAdminsCollection = adminDoc.exists();
+        let firestoreRole: string | undefined;
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          firestoreRole = userDoc.data()?.role;
+        } catch (firestoreError) {
+          console.error('Error reading user role:', firestoreError);
+        }
 
-        setIsAdmin(hasAdminClaim || inAdminsCollection);
+        const resolvedRole = (claimRole ?? firestoreRole ?? (user.email === SUPER_ADMIN_EMAIL ? 'super-admin' : 'student')) as
+          | 'student'
+          | 'admin'
+          | 'super-admin';
+
+        setRole(resolvedRole);
+        setIsAdmin(resolvedRole === 'admin' || resolvedRole === 'super-admin');
       } catch (err) {
         console.error('Error checking admin status:', err);
         setIsAdmin(false);
+        setRole('student');
       } finally {
         setCheckingAdmin(false);
       }
@@ -292,15 +310,22 @@ export default function Profile() {
               )}
 
               <div className="ml-6 mb-4">
-                {isAdmin ? (
-                  <span className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-800 rounded-full font-semibold text-sm">
+                {role === 'super-admin' ? (
+                  <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-sm font-semibold text-white shadow">
+                    <span className="text-lg" role="img" aria-label="Супер-админ">
+                      ⭐
+                    </span>
+                    Супер-админ
+                  </span>
+                ) : role === 'admin' ? (
+                  <span className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-800">
                     <span className="text-lg" role="img" aria-label="Администратор">
                       👑
                     </span>
                     Администратор
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-800 rounded-full font-semibold text-sm">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-800">
                     <span className="text-lg" role="img" aria-label="Студент">
                       🎓
                     </span>
@@ -311,7 +336,10 @@ export default function Profile() {
             </div>
 
             <div className="space-y-3">
-              <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
+                <SuperAdminBadge />
+              </div>
               <div className="flex flex-wrap gap-6 text-gray-600">
                 <div className="flex items-center gap-2">
                   <span className="text-xl" role="img" aria-hidden="true">

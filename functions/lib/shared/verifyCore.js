@@ -5,6 +5,7 @@ const SCALAR_FIELDS = [
     'accent100',
     'published',
     'order',
+    'placeholder_enabled',
     'video_url',
     'deck_url',
     'audio_url',
