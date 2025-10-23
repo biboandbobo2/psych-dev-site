@@ -13,6 +13,21 @@ export default function AdminUsers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const isSuperAdmin = currentUser?.email === SUPER_ADMIN_EMAIL;
+
+  if (!isSuperAdmin) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4 text-center">
+        <div className="max-w-md space-y-3">
+          <h1 className="text-2xl font-semibold text-gray-900">Доступ запрещён</h1>
+          <p className="text-gray-600">
+            Управление пользователями доступно только владельцу проекта (super-admin).
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -41,8 +56,6 @@ export default function AdminUsers() {
     admins: users.filter((u) => u.role === 'admin' || u.role === 'super-admin').length,
     students: users.filter((u) => u.role === 'student').length,
   };
-
-  const isSuperAdmin = currentUser?.email === SUPER_ADMIN_EMAIL;
 
   const handleMakeAdmin = async (uid: string) => {
     if (!isSuperAdmin) return;

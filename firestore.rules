@@ -2,85 +2,81 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Проверяем, что пользователь аутентифицирован
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Проверяем, что пользователь — владелец документа
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Проверяем, что пользователь — администратор
-    function isAdmin() {
-      return isAuthenticated() &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super-admin'];
-    }
-
-    // Проверяем, что пользователь — супер-администратор
     function isSuperAdmin() {
-      return isAuthenticated() &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super-admin';
+      return isAuthenticated() && request.auth.token.email == 'biboandbobo2@gmail.com';
     }
 
-    // Коллекция пользователей
+    function isAdmin() {
+      return isSuperAdmin() || (
+        isAuthenticated() &&
+        request.auth.token.role != null &&
+        request.auth.token.role in ['admin', 'super-admin']
+      );
+    }
+
     match /users/{userId} {
-      // Админы читают всё, пользователь читает только себя
       allow read: if isOwner(userId) || isAdmin();
-
-      // Создание документа — только самим пользователем
-      allow create: if isOwner(userId);
-
-      // Обновление: пользователь может обновлять себя (кроме роли), либо супер-админ
-      allow update: if (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
-                    || isSuperAdmin();
-
-      // Удаление — только супер-админ
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isSuperAdmin();
       allow delete: if isSuperAdmin();
     }
 
-    // Старая коллекция админов (для обратной совместимости)
     match /admins/{adminId} {
       allow read: if isAuthenticated();
       allow write: if isSuperAdmin();
     }
 
-    // Коллекции контента
+    match /intro/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /prenatal/{document=**} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /early-childhood/{document=**} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /preschool/{document=**} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /primary-school/{document=**} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /adolescence/{document=**} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Профили пользователей
+    match /periods/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /profiles/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow write: if isOwner(userId);
     }
 
-    // По умолчанию всё запрещено
     match /{document=**} {
-      allow read, write: if false;
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

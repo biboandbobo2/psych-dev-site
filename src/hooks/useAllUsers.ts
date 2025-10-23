@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { useAuth } from "../auth/AuthProvider";
 
 export interface UserRecord {
   uid: string;
@@ -16,8 +17,15 @@ export function useAllUsers() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user: currentUser } = useAuth();
 
   useEffect(() => {
+    if (currentUser?.email !== "biboandbobo2@gmail.com") {
+      setUsers([]);
+      setLoading(false);
+      return;
+    }
+
     const usersRef = collection(db, "users");
     const q = query(usersRef, orderBy("createdAt", "desc"));
 
@@ -37,7 +45,7 @@ export function useAllUsers() {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUser]);
 
   return { users, loading, error };
 }
