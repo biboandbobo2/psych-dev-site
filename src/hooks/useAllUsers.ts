@@ -17,10 +17,10 @@ export function useAllUsers() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user: currentUser } = useAuth();
+  const { isSuperAdmin } = useAuth();
 
   useEffect(() => {
-    if (currentUser?.email !== "biboandbobo2@gmail.com") {
+    if (!isSuperAdmin) {
       setUsers([]);
       setLoading(false);
       return;
@@ -45,7 +45,7 @@ export function useAllUsers() {
     );
 
     return () => unsubscribe();
-  }, [currentUser]);
+  }, [isSuperAdmin]);
 
   return { users, loading, error };
 }

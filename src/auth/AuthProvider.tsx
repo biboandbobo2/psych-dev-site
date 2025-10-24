@@ -1,13 +1,18 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
 import { auth, googleProvider, db } from "../lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { SUPER_ADMIN_EMAIL } from "../constants/superAdmin";
 
+type UserRole = "student" | "admin" | "super-admin" | null;
+
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
+  userRole: UserRole;
+  isStudent: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -15,7 +20,10 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
+  userRole: null,
+  isStudent: false,
   isAdmin: false,
+  isSuperAdmin: false,
   signInWithGoogle: async () => {},
   logout: async () => {},
 });
@@ -23,45 +31,85 @@ const AuthContext = createContext<AuthContextValue>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>(null);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (next) => {
+    let cancelled = false;
+
+    const unsubscribe = onAuthStateChanged(auth, async (next) => {
+      if (cancelled) return;
+
       setUser(next);
-      if (next) {
+
+      if (!next) {
+        setUserRole(null);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        let resolvedRole: Exclude<UserRole, null> = "student";
+
         if (next.email === SUPER_ADMIN_EMAIL) {
-          setIsAdmin(true);
+          resolvedRole = "super-admin";
         } else {
-          try {
+          const tokenResult = await next.getIdTokenResult(true);
+          const claimRole = tokenResult.claims.role;
+
+          if (claimRole === "admin" || claimRole === "super-admin") {
+            resolvedRole = claimRole as Exclude<UserRole, null>;
+          } else {
             const snap = await getDoc(doc(db, "users", next.uid));
-            const role = snap.data()?.role;
-            setIsAdmin(role === "admin" || role === "super-admin");
-          } catch (error) {
-            console.warn("Failed to check user role", error);
-            setIsAdmin(false);
+            const firestoreRole = snap.data()?.role;
+            if (firestoreRole === "admin" || firestoreRole === "super-admin") {
+              resolvedRole = firestoreRole;
+            }
           }
         }
-      } else {
-        setIsAdmin(false);
+
+        setUserRole(resolvedRole);
+      } catch (error) {
+        console.warn("Failed to determine user role", error);
+        setUserRole("student");
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     });
 
-    return () => unsub();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     await signInWithPopup(auth, googleProvider);
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await signOut(auth);
-  };
+  }, []);
 
-  const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, isAdmin, signInWithGoogle, logout }),
-    [user, loading, isAdmin]
-  );
+  const value = useMemo<AuthContextValue>(() => {
+    const isSuperAdmin = userRole === "super-admin";
+    const isAdmin = userRole === "admin" || isSuperAdmin;
+    const isStudent = userRole === "student";
+
+    return {
+      user,
+      loading,
+      userRole,
+      isStudent,
+      isAdmin,
+      isSuperAdmin,
+      signInWithGoogle,
+      logout,
+    };
+  }, [user, loading, userRole, signInWithGoogle, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

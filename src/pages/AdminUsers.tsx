@@ -4,16 +4,13 @@ import { useAuth } from "../auth/AuthProvider";
 import { makeUserAdmin, removeAdmin } from "../lib/adminFunctions";
 import { AddAdminModal } from "../components/AddAdminModal";
 import { SuperAdminBadge } from "../components/SuperAdminBadge";
-import { SUPER_ADMIN_EMAIL } from "../constants/superAdmin";
 
 export default function AdminUsers() {
   const { users, loading, error } = useAllUsers();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, isSuperAdmin } = useAuth();
   const [filter, setFilter] = useState<'all' | 'students' | 'admins'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-
-  const isSuperAdmin = currentUser?.email === SUPER_ADMIN_EMAIL;
 
   if (!isSuperAdmin) {
     return (

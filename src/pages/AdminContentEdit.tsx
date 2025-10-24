@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, deleteField } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, deleteField, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { DEFAULT_THEME } from "../theme/periods";
 import { ROUTE_BY_PERIOD } from "../routes";
+import { normalizeText } from "../utils/contentHelpers";
 
 interface Period {
   period: string;
@@ -391,7 +392,9 @@ export default function AdminContentEdit() {
   const placeholderDisplayText =
     routeConfig?.placeholderText || 'Контент для этого возраста появится в ближайшем обновлении.';
 
-const [period, setPeriod] = useState<Period | null>(null);
+  const normalizedPlaceholderText = normalizeText(placeholderDisplayText);
+
+  const [period, setPeriod] = useState<Period | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -408,7 +411,7 @@ const [period, setPeriod] = useState<Period | null>(null);
   const [coreLiterature, setCoreLiterature] = useState<Array<{ title: string; url: string }>>([]);
   const [extraLiterature, setExtraLiterature] = useState<Array<{ title: string; url: string }>>([]);
   const [extraVideos, setExtraVideos] = useState<Array<{ title: string; url: string }>>([]);
-const [selfQuestionsUrl, setSelfQuestionsUrl] = useState("");
+  const [selfQuestionsUrl, setSelfQuestionsUrl] = useState("");
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -467,7 +470,6 @@ const [selfQuestionsUrl, setSelfQuestionsUrl] = useState("");
       const data: Record<string, unknown> = {
         period: periodId,
         title: trimmedTitle,
-        subtitle: subtitle.trim(),
         published,
         order,
         accent,
@@ -478,8 +480,19 @@ const [selfQuestionsUrl, setSelfQuestionsUrl] = useState("");
         core_literature: normalizedCoreLiterature,
         extra_literature: normalizedExtraLiterature,
         extra_videos: normalizedExtraVideos,
-        updatedAt: new Date(),
+        status: published ? 'published' : 'draft',
+        updatedAt: serverTimestamp(),
       };
+
+      if (placeholderEnabled && normalizedPlaceholderText.length) {
+        data.placeholder = normalizedPlaceholderText;
+        data.placeholder_text = normalizedPlaceholderText;
+        data.placeholderText = normalizedPlaceholderText;
+      } else {
+        data.placeholder = deleteField();
+        data.placeholder_text = deleteField();
+        data.placeholderText = deleteField();
+      }
 
       const primaryVideo = normalizedVideos[0];
 
@@ -487,6 +500,9 @@ const [selfQuestionsUrl, setSelfQuestionsUrl] = useState("");
       data.deck_url = primaryVideo?.deckUrl ? primaryVideo.deckUrl : deleteField();
       data.audio_url = primaryVideo?.audioUrl ? primaryVideo.audioUrl : deleteField();
       data.self_questions_url = trimmedSelfQuestionsUrl ? trimmedSelfQuestionsUrl : deleteField();
+
+      const trimmedSubtitle = subtitle.trim();
+      data.subtitle = trimmedSubtitle ? trimmedSubtitle : deleteField();
 
       if (normalizedVideos.length) {
         data.video_playlist = normalizedVideos.map((video) => ({

@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth';
 import { Navigate, Link } from 'react-router-dom';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
-import { SUPER_ADMIN_EMAIL } from '../constants/superAdmin';
+import { useAuth } from '../auth/AuthProvider';
 
-function AdminPanel() {
+function AdminPanel({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const [stats, setStats] = useState({
     totalPeriods: 0,
     publishedPeriods: 0,
@@ -75,6 +74,20 @@ function AdminPanel() {
           </div>
           <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
         </Link>
+
+        {isSuperAdmin && (
+          <Link
+            to="/admin/users"
+            className="group relative overflow-hidden bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl p-6 text-white hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+          >
+            <div className="relative z-10">
+              <div className="text-4xl mb-3">⭐</div>
+              <h3 className="text-xl font-bold mb-2">Управление пользователями</h3>
+              <p className="text-pink-100 text-sm">Назначение администраторов и контроль доступа</p>
+            </div>
+            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
+          </Link>
+        )}
       </div>
 
       <div className="border-t pt-6">
@@ -214,50 +227,9 @@ function StudentPanel() {
 }
 
 export default function Profile() {
-  const [user, loading] = useAuthState(auth);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [role, setRole] = useState<'student' | 'admin' | 'super-admin'>('student');
-  const [checkingAdmin, setCheckingAdmin] = useState(true);
+  const { user, loading, userRole, isAdmin, isSuperAdmin } = useAuth();
 
-  useEffect(() => {
-    const checkAdminStatus = async () => {
-      if (!user) {
-        setCheckingAdmin(false);
-        return;
-      }
-
-      try {
-        const tokenResult = await user.getIdTokenResult(true);
-        const claimRole = typeof tokenResult.claims.role === 'string' ? (tokenResult.claims.role as string) : undefined;
-
-        let firestoreRole: string | undefined;
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          firestoreRole = userDoc.data()?.role;
-        } catch (firestoreError) {
-          console.error('Error reading user role:', firestoreError);
-        }
-
-        const resolvedRole = (claimRole ?? firestoreRole ?? (user.email === SUPER_ADMIN_EMAIL ? 'super-admin' : 'student')) as
-          | 'student'
-          | 'admin'
-          | 'super-admin';
-
-        setRole(resolvedRole);
-        setIsAdmin(resolvedRole === 'admin' || resolvedRole === 'super-admin');
-      } catch (err) {
-        console.error('Error checking admin status:', err);
-        setIsAdmin(false);
-        setRole('student');
-      } finally {
-        setCheckingAdmin(false);
-      }
-    };
-
-    checkAdminStatus();
-  }, [user]);
-
-  if (loading || checkingAdmin) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -280,6 +252,7 @@ export default function Profile() {
         day: 'numeric',
       })
     : 'Неизвестно';
+  const role = userRole ?? 'student';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4">
@@ -358,8 +331,14 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          {isAdmin ? <AdminPanel /> : <StudentPanel />}
+        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-12">
+          <StudentPanel />
+
+          {isAdmin && (
+            <div className="pt-8 border-t border-border/50">
+              <AdminPanel isSuperAdmin={isSuperAdmin} />
+            </div>
+          )}
         </div>
       </div>
     </div>

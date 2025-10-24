@@ -18,7 +18,6 @@ export default function AdminContent() {
   const [periods, setPeriods] = useState<Period[]>([]);
   const [intro, setIntro] = useState<Period | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
 
   const loadPeriods = async () => {
     try {
@@ -62,19 +61,6 @@ export default function AdminContent() {
     loadPeriods();
   }, []);
 
-  const filteredPeriods = periods.filter((period) => {
-    if (filter === "published") return Boolean(period.published);
-    if (filter === "draft") return !period.published;
-    return true;
-  });
-
-  const introMatchesFilter = () => {
-    if (!intro) return false;
-    if (filter === "published") return Boolean(intro.published);
-    if (filter === "draft") return !intro.published;
-    return true;
-  };
-
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto p-6">
@@ -87,9 +73,6 @@ export default function AdminContent() {
     );
   }
 
-  const publishedCount = periods.filter((period) => period.published).length + (intro?.published ? 1 : 0);
-  const draftCount = periods.filter((period) => !period.published).length + (intro && !intro.published ? 1 : 0);
-
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <header>
@@ -97,40 +80,19 @@ export default function AdminContent() {
         <p className="text-gray-600">Редактирование периодов и вводного занятия</p>
       </header>
 
-      <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={() => setFilter("all")}
-          className={`px-4 py-2 rounded font-medium transition ${
-            filter === "all"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-          }`}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-700">Все периоды</h2>
+
+        <Link
+          to="/admin/topics"
+          className="inline-flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-700"
         >
-          Все ({(intro ? 1 : 0) + periods.length})
-        </button>
-        <button
-          onClick={() => setFilter("published")}
-          className={`px-4 py-2 rounded font-medium transition ${
-            filter === "published"
-              ? "bg-green-600 text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-          }`}
-        >
-          Опубликовано ({publishedCount})
-        </button>
-        <button
-          onClick={() => setFilter("draft")}
-          className={`px-4 py-2 rounded font-medium transition ${
-            filter === "draft"
-              ? "bg-orange-600 text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-          }`}
-        >
-          Черновики ({draftCount})
-        </button>
+          <span aria-hidden>📚</span>
+          <span>Редактировать темы заметок</span>
+        </Link>
       </div>
 
-      {intro && introMatchesFilter() && (
+      {intro && (
         <Link
           to="/admin/content/edit/intro"
           className="block bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-lg shadow hover:shadow-lg transition-shadow"
@@ -155,18 +117,12 @@ export default function AdminContent() {
       )}
 
       <div className="space-y-3">
-        {filteredPeriods.length === 0 && filter !== "all" ? (
+        {periods.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-            <p>Периодов не найдено.</p>
-            <button
-              onClick={() => setFilter("all")}
-              className="mt-2 text-blue-600 hover:underline"
-            >
-              Показать все
-            </button>
+            <p>Периоды не найдены.</p>
           </div>
         ) : (
-          filteredPeriods.map((period) => {
+          periods.map((period) => {
             const colors = getPeriodColors(period.period);
             return (
               <Link
