@@ -22,7 +22,7 @@ import { Button } from './components/ui/Button';
 import { NavigationProgress } from './components/ui/NavigationProgress';
 import { BackToTop } from './components/ui/BackToTop';
 import { cn } from './lib/cn';
-import { AuthProvider } from './auth/AuthProvider';
+import { AuthProvider, useAuth } from './auth/AuthProvider';
 import RequireAuth from './auth/RequireAuth';
 import RequireAdmin from './auth/RequireAdmin';
 import Login from './pages/Login';
@@ -31,13 +31,16 @@ import AdminUsers from './pages/AdminUsers';
 import AdminImport from './pages/AdminImport';
 import AdminContent from './pages/AdminContent';
 import AdminContentEdit from './pages/AdminContentEdit';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from './lib/firebase';
 import { useLoginModal } from './hooks/useLoginModal';
 import LoginModal from './components/LoginModal';
 import UserMenu from './components/UserMenu';
 import Profile from './pages/Profile';
+import Notes from './pages/Notes';
+import MigrateTopics from './pages/MigrateTopics';
+import ContentEditor from './pages/ContentEditor';
+import AdminTopics from './pages/AdminTopics';
 import { useAuthSync } from './hooks/useAuthSync';
+import { normalizeText } from './utils/contentHelpers';
 
 const transition = { duration: 0.25, ease: [0.16, 1, 0.3, 1] };
 
@@ -537,8 +540,11 @@ function PeriodRoute({ config, period }) {
     placeholderEnabledFromData !== undefined
       ? placeholderEnabledFromData
       : placeholderDefaultEnabled;
-  const placeholderText =
-    (period?.placeholderText || placeholderFromConfig || 'Контент для этого возраста появится в ближайшем обновлении.');
+
+  const defaultPlaceholderText = 'Контент для этого возраста появится в ближайшем обновлении.';
+  const placeholderSource = period?.placeholderText ?? placeholderFromConfig ?? defaultPlaceholderText;
+  const trimmedPlaceholder = normalizeText(placeholderSource);
+  const placeholderMessage = trimmedPlaceholder || defaultPlaceholderText;
 
   const hasSections = Boolean(
     period &&
@@ -546,7 +552,9 @@ function PeriodRoute({ config, period }) {
         Array.isArray(section?.content) && section.content.length > 0
       )
   );
-  const showPlaceholder = placeholderEnabled || !hasSections;
+  const showExplicitPlaceholder = placeholderEnabled && trimmedPlaceholder.length > 0;
+  const showFallbackPlaceholder = !hasSections && placeholderMessage.length > 0;
+  const showPlaceholder = showExplicitPlaceholder || showFallbackPlaceholder;
   const deckUrl = period?.deckUrl ? period.deckUrl.trim() : '';
   const defaultVideoTitle = heading.trim() || 'Видео-лекция';
 
@@ -867,11 +875,11 @@ function PeriodRoute({ config, period }) {
 
       {showPlaceholder ? (
         <SectionMuted>
-          <p className="text-lg leading-8 text-muted max-w-measure">{placeholderText}</p>
+          <p className="text-lg leading-8 text-muted max-w-measure">{placeholderMessage}</p>
         </SectionMuted>
       ) : (
         <div className="space-y-2">
-          {Object.entries(period.sections).map(renderSection)}
+          {Object.entries(period?.sections ?? {}).map(renderSection)}
         </div>
       )}
     </Motion.div>
@@ -958,7 +966,7 @@ function AppInner() {
   useAuthSync();
   const { periods, loading, error } = usePeriods();
   const location = useLocation();
-  const [user, authLoading] = useAuthState(auth);
+  const { user, loading: authLoading, isAdmin, isSuperAdmin } = useAuth();
   const { isOpen, openModal, closeModal } = useLoginModal();
 
   const periodMap = useMemo(() => {
@@ -1043,18 +1051,10 @@ function AppInner() {
                   <Route path="/" element={<Navigate to="/prenatal" replace />} />
                   <Route path="/login" element={<Login />} />
                   <Route
-                    path="/admin"
-                    element={
-                      <RequireAuth>
-                        <Admin />
-                      </RequireAuth>
-                    }
-                  />
-                  <Route
-                    path="/admin/users"
+                    path="/editor"
                     element={
                       <RequireAdmin>
-                        <AdminUsers />
+                        <ContentEditor />
                       </RequireAdmin>
                     }
                   />
@@ -1063,6 +1063,14 @@ function AppInner() {
                     element={
                       <RequireAdmin>
                         <AdminContent />
+                      </RequireAdmin>
+                    }
+                  />
+                  <Route
+                    path="/admin/topics"
+                    element={
+                      <RequireAdmin>
+                        <AdminTopics />
                       </RequireAdmin>
                     }
                   />
@@ -1083,6 +1091,42 @@ function AppInner() {
                     }
                   />
                   <Route path="/profile" element={<Profile />} />
+                  <Route
+                    path="/notes"
+                    element={
+                      <RequireAuth>
+                        <Notes />
+                      </RequireAuth>
+                    }
+                  />
+                  {isSuperAdmin && (
+                    <>
+                      <Route
+                        path="/admin"
+                        element={
+                          <RequireAdmin>
+                            <Admin />
+                          </RequireAdmin>
+                        }
+                      />
+                      <Route
+                        path="/admin/users"
+                        element={
+                          <RequireAdmin>
+                            <AdminUsers />
+                          </RequireAdmin>
+                        }
+                      />
+                      <Route
+                        path="/migrate-topics"
+                        element={
+                          <RequireAuth>
+                            <MigrateTopics />
+                          </RequireAuth>
+                        }
+                      />
+                    </>
+                  )}
                   {ROUTE_CONFIG.map((config) => (
                     <Route
                       key={config.path}

@@ -177,6 +177,9 @@ const buildFirestoreSections = (period) => {
 const mapFirestorePeriod = (period) => {
   const label = period.title || period.period;
   const sections = buildFirestoreSections(period);
+  const placeholderTextRaw = trim(
+    period.placeholderText ?? period.placeholder_text ?? period.placeholder ?? ''
+  );
   return {
     id: period.period,
     label,
@@ -186,6 +189,7 @@ const mapFirestorePeriod = (period) => {
       typeof period.placeholder_enabled === 'boolean'
         ? period.placeholder_enabled
         : undefined,
+    ...(placeholderTextRaw ? { placeholderText: placeholderTextRaw } : {}),
     order: typeof period.order === 'number' ? period.order : Number.MAX_SAFE_INTEGER,
   };
 };

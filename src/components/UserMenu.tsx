@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { auth } from "../lib/firebase";
+import { useAuth } from "../auth/AuthProvider";
 
 interface UserMenuProps {
   user: User;
@@ -10,6 +11,7 @@ interface UserMenuProps {
 export default function UserMenu({ user }: UserMenuProps) {
   const displayName = user.displayName || user.email?.split('@')[0] || "Пользователь";
   const photoURL = user.photoURL;
+  const { isAdmin, isSuperAdmin } = useAuth();
 
   const handleSignOut = async () => {
     if (window.confirm("Выйти из системы?")) {
@@ -18,7 +20,35 @@ export default function UserMenu({ user }: UserMenuProps) {
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
+      <Link
+        to="/notes"
+        className="inline-flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-800 transition hover:bg-blue-200"
+      >
+        <span aria-hidden className="text-base">📝</span>
+        <span>Заметки</span>
+      </Link>
+
+      {isAdmin && (
+        <Link
+          to="/editor"
+          className="hidden sm:inline-flex items-center gap-2 rounded-lg bg-teal-100 px-3 py-2 text-sm font-medium text-teal-800 transition hover:bg-teal-200"
+        >
+          <span aria-hidden className="text-base">✏️</span>
+          <span>Редактор</span>
+        </Link>
+      )}
+
+      {isSuperAdmin && (
+        <Link
+          to="/admin"
+          className="hidden sm:inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-accent-600"
+        >
+          <span aria-hidden className="text-base">⚙️</span>
+          <span>Админ-панель</span>
+        </Link>
+      )}
+
       <Link
         to="/profile"
         className="flex items-center gap-2 bg-white rounded-lg shadow-lg px-3 py-2 hover:shadow-xl transition-shadow"
