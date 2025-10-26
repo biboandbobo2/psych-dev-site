@@ -140,7 +140,7 @@ export default function Notes() {
         <h1 className="text-3xl font-bold text-fg">📝 Мои заметки</h1>
         <button
           onClick={handleCreateNote}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 sm:w-64"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 sm:w-48"
         >
           <span className="text-lg">＋</span>
           <span>Новая заметка</span>
@@ -169,7 +169,7 @@ export default function Notes() {
         <select
           value={sortBy}
           onChange={(event) => setSortBy(event.target.value as SortOption)}
-          className="w-full rounded-lg border border-border bg-card px-4 py-2 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 sm:w-64"
+          className="w-full rounded-lg border border-border bg-card px-4 py-2 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 sm:w-48"
         >
           <option value="date-new">Сначала новые</option>
           <option value="date-old">Сначала старые</option>
@@ -209,7 +209,7 @@ export default function Notes() {
             <span className="text-xs">{showStats ? '▲' : '▼'}</span>
           </button>
         </div>
-        <div className="w-full sm:w-64">
+        <div className="w-full sm:w-48">
           <ExportNotesButton notes={displayNotes} />
         </div>
       </div>

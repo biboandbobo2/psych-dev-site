@@ -129,18 +129,18 @@ function StudentPanel() {
       title: 'Мои заметки',
       description: 'Создавайте заметки к каждому периоду и возвращайтесь к ним в любое время',
       color: 'from-blue-500 to-blue-600',
-      comingSoon: true,
+      link: '/notes',
     },
     {
-      icon: '✅',
-      title: 'Пройденные тесты',
+      icon: '📚',
+      title: 'Тесты - курс целиком',
       description: 'История ваших результатов по тестам и самопроверкам',
       color: 'from-green-500 to-green-600',
       comingSoon: true,
     },
     {
       icon: '📊',
-      title: 'Прогресс обучения',
+      title: 'Тесты - возрастной период',
       description: 'Отслеживайте какие периоды вы уже изучили и что осталось',
       color: 'from-purple-500 to-purple-600',
       comingSoon: true,
@@ -170,57 +170,53 @@ function StudentPanel() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {features.map((feature, index) => (
-          <div
-            key={index}
-            className="relative group bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-all duration-300 hover:shadow-lg"
-          >
-            {feature.comingSoon && (
-              <div className="absolute top-3 right-3">
-                <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
-                  Скоро
-                </span>
+        {features.map((feature, index) => {
+          const content = (
+            <>
+              {feature.comingSoon && (
+                <div className="absolute top-3 right-3">
+                  <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
+                    Скоро
+                  </span>
+                </div>
+              )}
+
+              <div
+                className={`inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} text-3xl mb-4 shadow-md`}
+              >
+                {feature.icon}
               </div>
-            )}
 
+              <h3 className="text-lg font-bold text-gray-900 mb-2">{feature.title}</h3>
+              <p className="text-sm text-gray-600">{feature.description}</p>
+
+              {feature.comingSoon && (
+                <div className="absolute inset-0 bg-gray-50/50 rounded-xl backdrop-blur-[1px] cursor-not-allowed" />
+              )}
+            </>
+          );
+
+          if (feature.link) {
+            return (
+              <Link
+                key={index}
+                to={feature.link}
+                className="relative group bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-blue-400 transition-all duration-300 hover:shadow-lg cursor-pointer"
+              >
+                {content}
+              </Link>
+            );
+          }
+
+          return (
             <div
-              className={`inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} text-3xl mb-4 shadow-md`}
+              key={index}
+              className="relative group bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-all duration-300 hover:shadow-lg"
             >
-              {feature.icon}
+              {content}
             </div>
-
-            <h3 className="text-lg font-bold text-gray-900 mb-2">{feature.title}</h3>
-            <p className="text-sm text-gray-600">{feature.description}</p>
-
-            {feature.comingSoon && (
-              <div className="absolute inset-0 bg-gray-50/50 rounded-xl backdrop-blur-[1px] cursor-not-allowed" />
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-8 border-t pt-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700">🚀 Начните обучение</h3>
-
-        <Link
-          to="/"
-          className="block group bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 text-white hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-xl font-bold mb-2">Перейти к материалам курса</h4>
-              <p className="text-blue-100 text-sm">Изучайте периоды развития от пренатального до долголетия</p>
-            </div>
-            <span className="text-4xl group-hover:translate-x-2 transition-transform">→</span>
-          </div>
-        </Link>
-      </div>
-
-      <div className="mt-6 p-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200">
-        <p className="text-gray-700 italic mb-2">
-          "Образование — это самое мощное оружие, которым можно изменить мир."
-        </p>
-        <p className="text-sm text-gray-600">— Нельсон Мандела</p>
+          );
+        })}
       </div>
     </div>
   );

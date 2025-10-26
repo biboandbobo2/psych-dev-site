@@ -1098,6 +1098,23 @@ function AppInner() {
                       </RequireAuth>
                     }
                   />
+                  {/* TODO: Implement test pages */}
+                  {/* <Route
+                    path="/tests/full-course"
+                    element={
+                      <RequireAuth>
+                        <TestsFullCourse />
+                      </RequireAuth>
+                    }
+                  /> */}
+                  {/* <Route
+                    path="/tests/period"
+                    element={
+                      <RequireAuth>
+                        <TestsPeriod />
+                      </RequireAuth>
+                    }
+                  /> */}
                   {isSuperAdmin && (
                     <>
                       <Route
