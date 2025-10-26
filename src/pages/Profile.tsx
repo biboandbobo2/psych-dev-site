@@ -136,7 +136,7 @@ function StudentPanel() {
       title: 'Тесты - курс целиком',
       description: 'История ваших результатов по тестам и самопроверкам',
       color: 'from-green-500 to-green-600',
-      comingSoon: true,
+      link: '/tests',
     },
     {
       icon: '📊',
