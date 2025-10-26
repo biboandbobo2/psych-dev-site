@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../auth/AuthProvider';
-import { type Note, type AgeRange, AGE_RANGE_ORDER } from '../types/notes';
+import { type Note, type AgeRange, AGE_RANGE_ORDER, AGE_RANGE_LABELS } from '../types/notes';
 
 const LEGACY_AGE_RANGE_MAP: Record<string, AgeRange> = {
   'early-childhood': 'infancy',
@@ -67,13 +67,19 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
         let notesData = snapshot.docs.map((docSnap) => {
           const data = docSnap.data();
           console.log('Note document:', docSnap.id, data);
+          const ageRange = normalizeAgeRangeValue(data.ageRange ?? data.periodId);
+          const periodId = normalizeAgeRangeValue(data.periodId ?? ageRange);
+          const periodTitle = data.periodTitle ?? (periodId ? AGE_RANGE_LABELS[periodId] : null);
           return {
             id: docSnap.id,
             userId: data.userId || '',
             title: data.title || 'Без названия',
             content: data.content || '',
-            ageRange: normalizeAgeRangeValue(data.ageRange),
+            ageRange,
+            periodId: periodId ?? null,
+            periodTitle: periodTitle ?? null,
             topicId: data.topicId || null,
+            topicTitle: data.topicTitle ?? null,
             createdAt: data.createdAt?.toDate?.() || new Date(),
             updatedAt: data.updatedAt?.toDate?.() || new Date(),
           } as Note;
@@ -109,7 +115,8 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
     title: string,
     content: string,
     ageRange: AgeRange | null = null,
-    topicId: string | null = null
+    topicId: string | null = null,
+    topicTitle: string | null = null
   ) => {
     if (!user) {
       console.error('Cannot create note: user not authenticated');
@@ -117,12 +124,17 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
     }
 
     try {
+      const normalizedAgeRange = normalizeAgeRangeValue(ageRange);
+      const derivedPeriodTitle = normalizedAgeRange ? AGE_RANGE_LABELS[normalizedAgeRange] : null;
       const noteData = {
         userId: user.uid,
         title: title || 'Без названия',
         content: content || '',
-        ageRange: normalizeAgeRangeValue(ageRange),
+        ageRange: normalizedAgeRange,
+        periodId: normalizedAgeRange ?? null,
+        periodTitle: derivedPeriodTitle,
         topicId: topicId || null,
+        topicTitle: topicTitle || null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -139,23 +151,38 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
 
   const updateNote = async (
     noteId: string,
-    updates: Partial<Pick<Note, 'title' | 'content' | 'ageRange' | 'topicId'>>
+    updates: Partial<Pick<Note, 'title' | 'content' | 'ageRange' | 'topicId' | 'topicTitle'>>
   ) => {
     try {
       const noteRef = doc(db, 'notes', noteId);
       console.log('Updating note:', noteId, updates);
-      const normalizedUpdates: Partial<Pick<Note, 'title' | 'content' | 'ageRange' | 'topicId'>> = {
+      const normalizedUpdates: Partial<Pick<Note, 'title' | 'content' | 'ageRange' | 'topicId' | 'topicTitle'>> = {
         ...updates,
       };
 
+      let normalizedAgeRange: AgeRange | null | undefined;
       if ('ageRange' in normalizedUpdates) {
-        normalizedUpdates.ageRange = normalizeAgeRangeValue(normalizedUpdates.ageRange ?? null);
+        normalizedAgeRange = normalizeAgeRangeValue(normalizedUpdates.ageRange ?? null);
+        normalizedUpdates.ageRange = normalizedAgeRange;
       }
 
-      await updateDoc(noteRef, {
+      const payload: Record<string, unknown> = {
         ...normalizedUpdates,
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      if ('ageRange' in normalizedUpdates) {
+        payload.periodId = normalizedAgeRange ?? null;
+        payload.periodTitle = normalizedAgeRange ? AGE_RANGE_LABELS[normalizedAgeRange] : null;
+      }
+
+      if ('topicId' in normalizedUpdates && !normalizedUpdates.topicId) {
+        payload.topicTitle = null;
+      } else if ('topicTitle' in normalizedUpdates) {
+        payload.topicTitle = normalizedUpdates.topicTitle ?? null;
+      }
+
+      await updateDoc(noteRef, payload);
       console.log('✅ Note updated successfully');
     } catch (error) {
       console.error('❌ Error updating note:', error);
