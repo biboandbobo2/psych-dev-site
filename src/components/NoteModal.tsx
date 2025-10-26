@@ -9,12 +9,14 @@ interface NoteModalProps {
   initialContent?: string;
   initialAgeRange?: AgeRange | null;
   initialTopicId?: string | null;
+  initialTopicTitle?: string | null;
   onClose: () => void;
   onSave: (data: {
     title: string;
     content: string;
     ageRange: AgeRange | null;
     topicId: string | null;
+    topicTitle: string | null;
   }) => Promise<void>;
 }
 
@@ -25,6 +27,7 @@ export function NoteModal({
   initialContent = '',
   initialAgeRange = null,
   initialTopicId = null,
+  initialTopicTitle = null,
   onClose,
   onSave,
 }: NoteModalProps) {
@@ -32,6 +35,7 @@ export function NoteModal({
   const [content, setContent] = useState(initialContent);
   const [ageRange, setAgeRange] = useState<AgeRange | null>(initialAgeRange);
   const [topicId, setTopicId] = useState<string | null>(initialTopicId);
+  const [topicTitle, setTopicTitle] = useState<string | null>(initialTopicTitle);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -40,8 +44,9 @@ export function NoteModal({
     setContent(initialContent);
     setAgeRange(initialAgeRange);
     setTopicId(initialTopicId);
+    setTopicTitle(initialTopicTitle);
     setSaving(false);
-  }, [isOpen, initialTitle, initialContent, initialAgeRange, initialTopicId]);
+  }, [isOpen, initialTitle, initialContent, initialAgeRange, initialTopicId, initialTopicTitle]);
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -52,7 +57,7 @@ export function NoteModal({
     setSaving(true);
     try {
       console.log('Saving note...');
-      await onSave({ title, content, ageRange, topicId });
+      await onSave({ title, content, ageRange, topicId, topicTitle: topicTitle ?? null });
       console.log('Note saved, waiting for sync...');
       await new Promise((resolve) => setTimeout(resolve, 800));
       console.log('Closing modal');
@@ -67,6 +72,7 @@ export function NoteModal({
 
   const handleTopicSelect = (newTopicId: string | null, topicText: string | null) => {
     setTopicId(newTopicId);
+    setTopicTitle(topicText);
     if (topicText && !title.trim()) {
       setTitle(topicText);
     }

@@ -864,7 +864,6 @@ function PeriodRoute({ config, period }) {
         <meta name="description" content={description} />
       </Helmet>
       <div className="space-y-4 mb-8">
-        <p className="text-sm leading-6 text-muted uppercase tracking-[0.35em]">Возрастной период</p>
         <h1 className="text-5xl md:text-6xl leading-tight font-semibold tracking-tight text-fg">
           {heading}
         </h1>
@@ -992,21 +991,21 @@ function AppInner() {
       <ScrollManager />
       <LoginModal isOpen={isOpen} onClose={closeModal} />
       <main className="relative bg-bg text-fg min-h-screen">
-        <div className="absolute top-6 right-6 z-40">
-          {!user ? (
-            <button
-              onClick={openModal}
-              disabled={authLoading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              Войти
-            </button>
-          ) : (
-            <UserMenu user={user} />
-          )}
-        </div>
         <div id="page-top" aria-hidden="true" />
         <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12">
+          <div className="mb-8 flex flex-wrap items-center justify-end gap-2">
+            {!user ? (
+              <button
+                onClick={openModal}
+                disabled={authLoading}
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-md transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Войти
+              </button>
+            ) : (
+              <UserMenu user={user} />
+            )}
+          </div>
           <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
             <aside className="lg:w-72 flex-shrink-0 lg:sticky lg:top-8">
               <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-4 md:p-5 space-y-2">

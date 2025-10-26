@@ -20,7 +20,7 @@ export default function UserMenu({ user }: UserMenuProps) {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       <Link
         to="/notes"
         className="inline-flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-800 transition hover:bg-blue-200"

@@ -36,7 +36,10 @@ export interface Note {
   title: string;
   content: string;
   ageRange: AgeRange | null;
+  periodId?: AgeRange | null;
+  periodTitle?: string | null;
   topicId: string | null;
+  topicTitle?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
