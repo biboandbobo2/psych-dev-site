@@ -36,6 +36,10 @@ import LoginModal from './components/LoginModal';
 import UserMenu from './components/UserMenu';
 import Profile from './pages/Profile';
 import Notes from './pages/Notes';
+import Tests from './pages/Tests';
+import AuthorsTest from './pages/AuthorsTest';
+import AuthorsTestLevel2 from './pages/AuthorsTestLevel2';
+import AuthorsTestLevel3 from './pages/AuthorsTestLevel3';
 import MigrateTopics from './pages/MigrateTopics';
 import ContentEditor from './pages/ContentEditor';
 import AdminTopics from './pages/AdminTopics';
@@ -1098,23 +1102,38 @@ function AppInner() {
                       </RequireAuth>
                     }
                   />
-                  {/* TODO: Implement test pages */}
-                  {/* <Route
-                    path="/tests/full-course"
+                  <Route
+                    path="/tests"
                     element={
                       <RequireAuth>
-                        <TestsFullCourse />
+                        <Tests />
                       </RequireAuth>
                     }
-                  /> */}
-                  {/* <Route
-                    path="/tests/period"
+                  />
+                  <Route
+                    path="/tests/authors"
                     element={
                       <RequireAuth>
-                        <TestsPeriod />
+                        <AuthorsTest />
                       </RequireAuth>
                     }
-                  /> */}
+                  />
+                  <Route
+                    path="/tests/authors/level2"
+                    element={
+                      <RequireAuth>
+                        <AuthorsTestLevel2 />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/tests/authors/level3"
+                    element={
+                      <RequireAuth>
+                        <AuthorsTestLevel3 />
+                      </RequireAuth>
+                    }
+                  />
                   {isSuperAdmin && (
                     <>
                       <Route
