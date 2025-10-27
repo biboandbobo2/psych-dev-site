@@ -31,7 +31,7 @@ export default function UserMenu({ user }: UserMenuProps) {
 
       {isAdmin && (
         <Link
-          to="/editor"
+          to="/admin/content"
           className="hidden sm:inline-flex items-center gap-2 rounded-lg bg-teal-100 px-3 py-2 text-sm font-medium text-teal-800 transition hover:bg-teal-200"
         >
           <span aria-hidden className="text-base">✏️</span>
