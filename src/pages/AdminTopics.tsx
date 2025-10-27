@@ -84,7 +84,7 @@ export default function AdminTopics() {
     <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-5xl space-y-6">
         <nav className="text-sm text-gray-600">
-          <Link to="/editor" className="hover:text-blue-600">
+          <Link to="/admin/content" className="hover:text-blue-600">
             Редактор
           </Link>
           <span className="mx-2">→</span>

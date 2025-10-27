@@ -41,7 +41,6 @@ import AuthorsTest from './pages/AuthorsTest';
 import AuthorsTestLevel2 from './pages/AuthorsTestLevel2';
 import AuthorsTestLevel3 from './pages/AuthorsTestLevel3';
 import MigrateTopics from './pages/MigrateTopics';
-import ContentEditor from './pages/ContentEditor';
 import AdminTopics from './pages/AdminTopics';
 import { useAuthSync } from './hooks/useAuthSync';
 import { normalizeText } from './utils/contentHelpers';
@@ -1053,14 +1052,6 @@ function AppInner() {
                 <Routes location={location} key={location.pathname}>
                   <Route path="/" element={<Navigate to="/prenatal" replace />} />
                   <Route path="/login" element={<Login />} />
-                  <Route
-                    path="/editor"
-                    element={
-                      <RequireAdmin>
-                        <ContentEditor />
-                      </RequireAdmin>
-                    }
-                  />
                   <Route
                     path="/admin/content"
                     element={
