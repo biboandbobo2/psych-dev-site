@@ -5,210 +5,32 @@ import { useAuth } from '../auth/AuthProvider';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Icon, type EventIconId } from '../components/Icon';
-import { EVENT_ICONS, EVENT_ICON_MAP } from '../data/eventIcons';
+import { EVENT_ICON_MAP } from '../data/eventIcons';
 
-// ============ TYPES ============
-
-type Sphere =
-  | 'education' // Образование
-  | 'career' // Карьера
-  | 'family' // Семья
-  | 'health' // Здоровье
-  | 'friends' // Друзья
-  | 'place' // Место/переезд
-  | 'finance' // Финансы
-  | 'hobby' // Хобби
-  | 'other'; // Другое
-
-type NodeT = {
-  id: string;
-  age: number;
-  x?: number; // X-координата для перемещения влево/вправо от линии жизни
-  parentX?: number; // X-координата родительской линии (от которой была создана горизонталь)
-  label: string;
-  notes?: string;
-  sphere?: Sphere;
-  isDecision: boolean;
-  iconId?: EventIconId;
-};
-
-type EdgeT = {
-  id: string;
-  x: number; // X-координата ветки
-  startAge: number; // Возраст начала (где событие)
-  endAge: number; // Возраст конца
-  color: string; // Цвет (от сферы события)
-  nodeId: string; // ID события, от которого идёт ветка
-};
-
-type TimelineData = {
-  currentAge: number;
-  ageMax: number;
-  nodes: NodeT[];
-  edges: EdgeT[];
-};
-
-type HistoryState = {
-  nodes: NodeT[];
-  edges: EdgeT[];
-};
-
-type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
-
-// ============ CONSTANTS ============
-
-const YEAR_PX = 80; // Пиксели на год по вертикали
-const DEFAULT_AGE_MAX = 100;
-const DEFAULT_CURRENT_AGE = 25;
-const LINE_X_POSITION = 2000; // X-координата линии жизни (центр холста)
-const NODE_RADIUS = 20;
-const MIN_SCALE = 0.2;
-const MAX_SCALE = 3;
-
-const SPHERE_META: Record<Sphere, { color: string; label: string; emoji: string }> = {
-  education: { color: '#a5b4fc', label: 'Образование', emoji: '🎓' }, // Пастельный индиго
-  career: { color: '#7dd3fc', label: 'Карьера', emoji: '💼' }, // Пастельный голубой
-  family: { color: '#fca5a5', label: 'Семья', emoji: '❤️' }, // Пастельный красный
-  health: { color: '#86efac', label: 'Здоровье', emoji: '💪' }, // Пастельный зелёный
-  friends: { color: '#fcd34d', label: 'Друзья', emoji: '🤝' }, // Пастельный оранжевый
-  place: { color: '#c4b5fd', label: 'Место/переезд', emoji: '🏠' }, // Пастельный фиолетовый
-  finance: { color: '#6ee7b7', label: 'Финансы', emoji: '💰' }, // Пастельный изумрудный
-  hobby: { color: '#f9a8d4', label: 'Хобби', emoji: '🎨' }, // Пастельный розовый
-  other: { color: '#cbd5e1', label: 'Другое', emoji: '⭐' }, // Пастельный серый
-};
-
-// ============ UTILITIES ============
-
-function screenToWorld(
-  e: React.PointerEvent | React.WheelEvent,
-  svg: SVGSVGElement | null,
-  transform: { x: number; y: number; k: number }
-) {
-  if (!svg) return { x: 0, y: 0 };
-  const rect = svg.getBoundingClientRect();
-  const screenX = 'clientX' in e ? e.clientX : 0;
-  const screenY = 'clientY' in e ? e.clientY : 0;
-  return {
-    x: (screenX - rect.left - transform.x) / transform.k,
-    y: (screenY - rect.top - transform.y) / transform.k,
-  };
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function parseAge(value: string): number {
-  // Заменяем запятую на точку и убираем лидирующие нули
-  const cleaned = value.replace(',', '.').replace(/^0+(?=\d)/, '');
-  const parsed = parseFloat(cleaned);
-  return isNaN(parsed) ? 0 : parsed;
-}
-
-type IconPickerTone = 'emerald' | 'sky';
-
-function IconPickerButton({
-  value,
-  onChange,
-  tone,
-}: {
-  value: EventIconId | null;
-  onChange: (value: EventIconId | null) => void;
-  tone: IconPickerTone;
-}) {
-  const [open, setOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    function handleClickOutside(event: MouseEvent) {
-      const target = event.target as Node;
-      if (popoverRef.current?.contains(target)) return;
-      if (buttonRef.current?.contains(target)) return;
-      setOpen(false);
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open]);
-
-  const toneClasses = tone === 'emerald'
-    ? {
-        button: 'border-emerald-200 hover:border-emerald-300',
-        active: 'border-emerald-400 shadow-md',
-        header: 'text-emerald-700',
-        popover: 'border-emerald-200',
-        reset: 'border-emerald-200 text-emerald-600 hover:bg-emerald-50',
-      }
-    : {
-        button: 'border-sky-200 hover:border-sky-300',
-        active: 'border-sky-400 shadow-md',
-        header: 'text-sky-700',
-        popover: 'border-sky-200',
-        reset: 'border-slate-200 text-slate-600 hover:bg-slate-100',
-      };
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        ref={buttonRef}
-        onClick={() => setOpen((prev) => !prev)}
-        className={`flex h-8 w-8 items-center justify-center rounded-xl border bg-white/85 text-lg transition ${toneClasses.button}`}
-        title="Выбрать пиктограмму события"
-      >
-        {value ? (
-          <Icon name={value} size={24} />
-        ) : (
-          <span aria-hidden="true">🖼️</span>
-        )}
-      </button>
-      {open && (
-        <div
-          ref={popoverRef}
-          className={`absolute right-0 top-full z-50 mt-2 w-56 rounded-2xl border ${toneClasses.popover} bg-white/95 p-3 shadow-2xl backdrop-blur-md`}
-        >
-          <div className={`mb-2 text-xs font-semibold uppercase tracking-[0.2em] ${toneClasses.header}`}>
-            Пиктограмма
-          </div>
-          <div className="grid grid-cols-5 gap-2">
-            {EVENT_ICONS.map((icon) => {
-              const isActive = value === icon.id;
-              return (
-                <button
-                  type="button"
-                  key={icon.id}
-                  onClick={() => {
-                    onChange(icon.id);
-                    setOpen(false);
-                  }}
-                  className={`flex h-11 w-11 items-center justify-center rounded-xl border bg-white/85 transition ${
-                    isActive ? toneClasses.active : 'border-transparent hover:border-slate-200'
-                  }`}
-                  title={icon.name}
-                >
-                  <Icon name={icon.id} size={30} />
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              onChange(null);
-              setOpen(false);
-            }}
-            className={`mt-3 w-full rounded-xl border bg-white/85 px-3 py-1.5 text-xs font-medium transition ${toneClasses.reset}`}
-          >
-            Без пиктограммы
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
+// Импорт типов, констант, утилит и компонентов из модулей
+import type {
+  Sphere,
+  NodeT,
+  BirthDetails,
+  EdgeT,
+  TimelineData,
+  HistoryState,
+  SaveStatus,
+  Transform,
+} from './timeline/types';
+import {
+  YEAR_PX,
+  DEFAULT_AGE_MAX,
+  DEFAULT_CURRENT_AGE,
+  LINE_X_POSITION,
+  NODE_RADIUS,
+  MIN_SCALE,
+  MAX_SCALE,
+  SPHERE_META,
+  SAVE_DEBOUNCE_MS,
+} from './timeline/constants';
+import { screenToWorld, clamp, parseAge, removeUndefined } from './timeline/utils';
+import { IconPickerButton } from './timeline/components/IconPickerButton';
 
 
 // ============ MAIN COMPONENT ============
@@ -250,6 +72,11 @@ export default function Timeline() {
   const [formEventSphere, setFormEventSphere] = useState<Sphere | undefined>(undefined);
   const [formEventIsDecision, setFormEventIsDecision] = useState(false);
   const [formEventIcon, setFormEventIcon] = useState<EventIconId | null>(null);
+  const [birthDetails, setBirthDetails] = useState<BirthDetails>({});
+  const [birthFormDate, setBirthFormDate] = useState('');
+  const [birthFormPlace, setBirthFormPlace] = useState('');
+  const [birthFormNotes, setBirthFormNotes] = useState('');
+  const [birthSelected, setBirthSelected] = useState(false);
 
   // Original values when editing (to detect changes)
   const [originalFormValues, setOriginalFormValues] = useState<{
@@ -273,6 +100,26 @@ export default function Timeline() {
   // Computed
   const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedId), [nodes, selectedId]);
   const selectedEdge = useMemo(() => edges.find((e) => e.x === selectedBranchX), [edges, selectedBranchX]);
+  const birthHasChanges = useMemo(() => {
+    const normalized = {
+      date: birthDetails.date ?? '',
+      place: birthDetails.place ?? '',
+      notes: birthDetails.notes ?? '',
+    };
+    return (
+      birthFormDate !== normalized.date ||
+      birthFormPlace !== normalized.place ||
+      birthFormNotes !== normalized.notes
+    );
+  }, [birthDetails, birthFormDate, birthFormPlace, birthFormNotes]);
+
+  useEffect(() => {
+    if (birthSelected) {
+      setBirthFormDate(birthDetails.date ?? '');
+      setBirthFormPlace(birthDetails.place ?? '');
+      setBirthFormNotes(birthDetails.notes ?? '');
+    }
+  }, [birthDetails, birthSelected]);
 
   // Check if form has changes (for edit mode)
   const hasFormChanges = useMemo(() => {
@@ -328,10 +175,15 @@ export default function Timeline() {
 
   // ============ HISTORY (UNDO/REDO) ============
 
-  function saveToHistory(customNodes?: NodeT[], customEdges?: EdgeT[]) {
+  function saveToHistory(customNodes?: NodeT[], customEdges?: EdgeT[], customBirth?: BirthDetails) {
+    const nodesToSave = customNodes ?? nodes;
+    const edgesToSave = customEdges ?? edges;
+    const birthToSave = customBirth ?? birthDetails;
+
     const newState: HistoryState = {
-      nodes: JSON.parse(JSON.stringify(customNodes ?? nodes)),
-      edges: JSON.parse(JSON.stringify(customEdges ?? edges)),
+      nodes: JSON.parse(JSON.stringify(nodesToSave)),
+      edges: JSON.parse(JSON.stringify(edgesToSave)),
+      birth: { ...birthToSave },
     };
 
     const newHistory = history.slice(0, historyIndex + 1);
@@ -351,6 +203,7 @@ export default function Timeline() {
       const prevState = history[historyIndex - 1];
       setNodes(prevState.nodes);
       setEdges(prevState.edges);
+      setBirthDetails(prevState.birth);
       setHistoryIndex(historyIndex - 1);
     }
   }
@@ -360,6 +213,7 @@ export default function Timeline() {
       const nextState = history[historyIndex + 1];
       setNodes(nextState.nodes);
       setEdges(nextState.edges);
+      setBirthDetails(nextState.birth);
       setHistoryIndex(historyIndex + 1);
     }
   }
@@ -521,6 +375,38 @@ export default function Timeline() {
     setBranchYears('5'); // Сбрасываем на значение по умолчанию
   }
 
+  function selectBirth() {
+    setBirthSelected(true);
+    setSelectedId(null);
+    setSelectedBranchX(null);
+    clearForm();
+    setBirthFormDate(birthDetails.date ?? '');
+    setBirthFormPlace(birthDetails.place ?? '');
+    setBirthFormNotes(birthDetails.notes ?? '');
+  }
+
+  function handleBirthSave() {
+    const trimmedPlace = birthFormPlace.trim();
+    const trimmedNotes = birthFormNotes.trim();
+
+    const updated: BirthDetails = {
+      date: birthFormDate ? birthFormDate : undefined,
+      place: trimmedPlace ? trimmedPlace : undefined,
+      notes: trimmedNotes ? trimmedNotes : undefined,
+    };
+
+    setBirthDetails(updated);
+    setBirthSelected(false);
+    saveToHistory(nodes, edges, updated);
+  }
+
+  function handleBirthCancel() {
+    setBirthFormDate(birthDetails.date ?? '');
+    setBirthFormPlace(birthDetails.place ?? '');
+    setBirthFormNotes(birthDetails.notes ?? '');
+    setBirthSelected(false);
+  }
+
   // ============ BRANCH MANAGEMENT ============
 
   function updateBranchLength() {
@@ -601,6 +487,7 @@ export default function Timeline() {
   function handlePointerDown(e: React.PointerEvent<SVGSVGElement>) {
     setIsPanning(true);
     setLastPointer({ x: e.clientX, y: e.clientY });
+    setBirthSelected(false);
   }
 
   function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
@@ -630,6 +517,7 @@ export default function Timeline() {
     if (!node) return;
 
     setSelectedId(nodeId);
+    setBirthSelected(false);
     setFormEventId(nodeId);
     const ageStr = node.age.toString();
     setFormEventAge(ageStr);
@@ -784,6 +672,8 @@ export default function Timeline() {
         deleteNode(selectedId);
       } else if (e.key === 'Escape') {
         setSelectedId(null);
+        setSelectedBranchX(null);
+        setBirthSelected(false);
       }
     }
 
@@ -792,29 +682,6 @@ export default function Timeline() {
   }, [selectedId, historyIndex, history]);
 
   // ============ FIRESTORE SAVE/LOAD ============
-
-  // Функция для удаления undefined значений из объекта (Firestore их не поддерживает)
-  function removeUndefined<T>(obj: T): T {
-    if (obj === null || obj === undefined) {
-      return obj;
-    }
-
-    if (Array.isArray(obj)) {
-      return obj.map((item) => removeUndefined(item)) as T;
-    }
-
-    if (typeof obj === 'object') {
-      const cleaned: any = {};
-      for (const key in obj) {
-        if (obj[key] !== undefined) {
-          cleaned[key] = removeUndefined(obj[key]);
-        }
-      }
-      return cleaned;
-    }
-
-    return obj;
-  }
 
   async function saveToFirestore(data: TimelineData) {
     if (!user) return;
@@ -847,13 +714,14 @@ export default function Timeline() {
   // Auto-save
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (nodes.length > 0 || edges.length > 0) {
-        saveToFirestore({ currentAge, ageMax, nodes, edges });
+      const hasBirthData = Boolean(birthDetails.date || birthDetails.place || birthDetails.notes);
+      if (nodes.length > 0 || edges.length > 0 || hasBirthData) {
+        saveToFirestore({ currentAge, ageMax, nodes, edges, birthDetails });
       }
     }, 10000);
 
     return () => clearTimeout(timer);
-  }, [nodes, edges, currentAge, ageMax, user]);
+  }, [nodes, edges, birthDetails, currentAge, ageMax, user]);
 
   // Load on mount
   useEffect(() => {
@@ -892,6 +760,7 @@ export default function Timeline() {
             nodeId: edge.nodeId,
           }));
           setEdges(normalizedEdges);
+          setBirthDetails(data.birthDetails || {});
 
           // Set initial viewport after data loads
           if (!initialViewportSet) {
@@ -936,6 +805,7 @@ export default function Timeline() {
             setInitialViewportSet(true);
           }, 100);
         }
+        setBirthDetails({});
       }
     });
   }, [user]);
@@ -1075,32 +945,54 @@ export default function Timeline() {
             <rect x={0} y={-100} width={worldWidth} height={worldHeight + 200} fill="#ffffff" />
 
             {/* Time scale - vertical, on the left of life line */}
-            {Array.from({ length: Math.floor(ageMax / 5) + 1 }, (_, i) => i * 5).map((age) => (
-              <g key={age}>
-                {/* Horizontal line at each 5-year mark */}
-                <line
-                  x1={0}
-                  y1={worldHeight - age * YEAR_PX}
-                  x2={worldWidth}
+            {Array.from({ length: Math.floor(ageMax / 5) + 1 }, (_, i) => i * 5).map((age) => {
+              const birthDate = birthDetails.date ? new Date(birthDetails.date) : null;
+              let yearLabel: string | null = null;
+              if (birthDate && !Number.isNaN(birthDate.getTime())) {
+                const year = birthDate.getFullYear() + age;
+                yearLabel = `${year}`;
+              }
+
+              return (
+                <g key={age}>
+                  {/* Horizontal line at each 5-year mark */}
+                  <line
+                    x1={0}
+                    y1={worldHeight - age * YEAR_PX}
+                    x2={worldWidth}
                   y2={worldHeight - age * YEAR_PX}
                   stroke="#e2e8f0"
                   strokeWidth={age % 10 === 0 ? 2 : 1}
                 />
 
                 {/* Age label */}
-                <text
-                  x={LINE_X_POSITION - 30}
-                  y={worldHeight - age * YEAR_PX + 5}
-                  fontSize={42}
-                  textAnchor="end"
-                  fill="#475569"
-                  fontWeight="500"
-                  fontFamily="Georgia, serif"
-                >
-                  {age}
-                </text>
-              </g>
-            ))}
+                  <text
+                    x={LINE_X_POSITION - 30}
+                    y={worldHeight - age * YEAR_PX + 5}
+                    fontSize={42}
+                    textAnchor="end"
+                    fill="#475569"
+                    fontWeight="500"
+                    fontFamily="Georgia, serif"
+                  >
+                    {age}
+                  </text>
+                  {yearLabel && (
+                    <text
+                      x={LINE_X_POSITION + 30}
+                      y={worldHeight - age * YEAR_PX + 5}
+                      fontSize={42}
+                      textAnchor="start"
+                      fill="#475569"
+                      fontWeight="500"
+                      fontFamily="Georgia, serif"
+                    >
+                      {yearLabel}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
 
             {/* Life line - vertical */}
             {/* Solid line from birth to current age */}
@@ -1115,6 +1007,7 @@ export default function Timeline() {
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedBranchX(null);
+                setBirthSelected(false);
               }}
               className="cursor-pointer"
               style={{ cursor: 'pointer' }}
@@ -1133,15 +1026,37 @@ export default function Timeline() {
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedBranchX(null);
+                setBirthSelected(false);
               }}
               className="cursor-pointer"
               style={{ cursor: 'pointer' }}
             />
 
             {/* Birth marker */}
-            <g>
-              <circle cx={LINE_X_POSITION} cy={worldHeight} r={adaptiveRadius * 0.6} fill="#0f172a" />
-              <text x={LINE_X_POSITION + adaptiveRadius + 15} y={worldHeight + 5} fontSize={16} fontWeight="600" fill="#0f172a">
+            <g
+              onClick={(e) => {
+                e.stopPropagation();
+                selectBirth();
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="cursor-pointer"
+              style={{ cursor: 'pointer' }}
+            >
+              <circle
+                cx={LINE_X_POSITION}
+                cy={worldHeight}
+                r={adaptiveRadius * 0.8}
+                fill="#ffffff"
+                stroke={birthSelected ? '#38bdf8' : '#0f172a'}
+                strokeWidth={birthSelected ? 5 : 3}
+              />
+              <text
+                x={LINE_X_POSITION + adaptiveRadius + 20}
+                y={worldHeight + 6}
+                fontSize={16}
+                fontWeight={birthSelected ? '700' : '600'}
+                fill={birthSelected ? '#0ea5e9' : '#0f172a'}
+              >
                 👶 Рождение
               </text>
             </g>
@@ -1189,6 +1104,7 @@ export default function Timeline() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedBranchX(edge.x);
+                      setBirthSelected(false);
                     }}
                     className="cursor-pointer"
                     style={{ cursor: 'pointer' }}
@@ -1386,6 +1302,95 @@ export default function Timeline() {
               </div>
             </div>
           </div>
+
+          {birthSelected && (
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-amber-900" style={{ fontFamily: 'Georgia, serif' }}>
+                  Профиль рождения
+                </h3>
+                <button
+                  onClick={handleBirthCancel}
+                  className="px-2 py-1 text-xs rounded-lg bg-white/80 text-amber-700 hover:bg-white transition"
+                  style={{ fontFamily: 'Georgia, serif' }}
+                >
+                  Закрыть
+                </button>
+              </div>
+
+              <form
+                className="space-y-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleBirthSave();
+                }}
+              >
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
+                    Дата рождения
+                  </span>
+                  <input
+                    type="date"
+                    value={birthFormDate}
+                    onChange={(e) => setBirthFormDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition text-sm bg-white"
+                    style={{ fontFamily: 'Georgia, serif' }}
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
+                    Город / место
+                  </span>
+                  <input
+                    type="text"
+                    value={birthFormPlace}
+                    onChange={(e) => setBirthFormPlace(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition text-sm bg-white"
+                    placeholder="Например: Москва"
+                    style={{ fontFamily: 'Georgia, serif' }}
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
+                    Обстоятельства
+                  </span>
+                  <textarea
+                    value={birthFormNotes}
+                    onChange={(e) => setBirthFormNotes(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition text-sm bg-white resize-none"
+                    rows={3}
+                    placeholder="Добавьте детали..."
+                    style={{ fontFamily: 'Georgia, serif' }}
+                  />
+                </label>
+
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={!birthHasChanges}
+                    className="flex-1 px-4 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ fontFamily: 'Georgia, serif' }}
+                  >
+                    Сохранить
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBirthFormDate('');
+                      setBirthFormPlace('');
+                      setBirthFormNotes('');
+                    }}
+                    className="px-4 py-2.5 bg-white/80 text-amber-700 rounded-xl border border-amber-200 hover:bg-white transition text-sm"
+                    style={{ fontFamily: 'Georgia, serif' }}
+                  >
+                    Очистить
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
           {/* Unified Event Form - show when no branch selected OR editing an event */}
           {(!selectedBranchX || formEventId) && (
