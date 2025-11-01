@@ -1,0 +1,1013 @@
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../auth/AuthProvider';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+
+// ============ TYPES ============
+
+type Sphere =
+  | 'education' // Образование
+  | 'career' // Карьера
+  | 'family' // Семья
+  | 'health' // Здоровье
+  | 'friends' // Друзья
+  | 'place' // Место/переезд
+  | 'finance' // Финансы
+  | 'hobby' // Хобби
+  | 'other'; // Другое
+
+type NodeT = {
+  id: string;
+  age: number;
+  label: string;
+  notes?: string;
+  sphere: Sphere;
+  isDecision: boolean;
+};
+
+type TimelineData = {
+  currentAge: number;
+  ageMax: number;
+  nodes: NodeT[];
+};
+
+type HistoryState = {
+  nodes: NodeT[];
+};
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+// ============ CONSTANTS ============
+
+const YEAR_PX = 80; // Пиксели на год по вертикали
+const DEFAULT_AGE_MAX = 100;
+const DEFAULT_CURRENT_AGE = 25;
+const EVENT_X_POSITION = 200; // X-координата для размещения событий
+const LINE_X_POSITION = 100; // X-координата линии жизни
+
+const SPHERE_META: Record<Sphere, { color: string; label: string; emoji: string }> = {
+  education: { color: '#4f46e5', label: 'Образование', emoji: '🎓' },
+  career: { color: '#0ea5e9', label: 'Карьера', emoji: '💼' },
+  family: { color: '#ef4444', label: 'Семья', emoji: '❤️' },
+  health: { color: '#10b981', label: 'Здоровье', emoji: '💪' },
+  friends: { color: '#f59e0b', label: 'Друзья', emoji: '🤝' },
+  place: { color: '#8b5cf6', label: 'Место/переезд', emoji: '🏠' },
+  finance: { color: '#22c55e', label: 'Финансы', emoji: '💰' },
+  hobby: { color: '#ec4899', label: 'Хобби', emoji: '🎨' },
+  other: { color: '#64748b', label: 'Другое', emoji: '⭐' },
+};
+
+// ============ UTILITIES ============
+
+function screenToWorld(
+  e: React.PointerEvent | React.WheelEvent,
+  svg: SVGSVGElement | null,
+  transform: { x: number; y: number; k: number }
+) {
+  if (!svg) return { x: 0, y: 0 };
+  const rect = svg.getBoundingClientRect();
+  const screenX = 'clientX' in e ? e.clientX : 0;
+  const screenY = 'clientY' in e ? e.clientY : 0;
+  return {
+    x: (screenX - rect.left - transform.x) / transform.k,
+    y: (screenY - rect.top - transform.y) / transform.k,
+  };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+// ============ TOOL BUTTON COMPONENT ============
+
+function ToolButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-col items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
+        active
+          ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ============ MAIN COMPONENT ============
+
+export default function Timeline() {
+  const { user } = useAuth();
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // State
+  const [currentAge, setCurrentAge] = useState(DEFAULT_CURRENT_AGE);
+  const [ageMax, setAgeMax] = useState(DEFAULT_AGE_MAX);
+  const [nodes, setNodes] = useState<NodeT[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [transform, setTransform] = useState({ x: 50, y: 50, k: 0.8 }); // Начальная позиция
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [showHelp, setShowHelp] = useState(false);
+
+  // Panning state
+  const [isPanning, setIsPanning] = useState(false);
+  const [lastPointer, setLastPointer] = useState<{ x: number; y: number } | null>(null);
+
+  // History state (Undo/Redo)
+  const [history, setHistory] = useState<HistoryState[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Form state for adding new event
+  const [newEventAge, setNewEventAge] = useState<number>(currentAge);
+  const [newEventLabel, setNewEventLabel] = useState('');
+  const [newEventNotes, setNewEventNotes] = useState('');
+  const [newEventSphere, setNewEventSphere] = useState<Sphere>('other');
+  const [newEventIsDecision, setNewEventIsDecision] = useState(false);
+
+  // Computed
+  const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedId), [nodes, selectedId]);
+  const ages = useMemo(() => {
+    const result: number[] = [];
+    for (let i = 0; i <= ageMax; i++) {
+      result.push(i);
+    }
+    return result;
+  }, [ageMax]);
+
+  const worldWidth = 800; // Фиксированная ширина
+  const worldHeight = ageMax * YEAR_PX + 500; // Высота зависит от максимального возраста
+
+  // ============ HISTORY (UNDO/REDO) ============
+
+  function saveToHistory() {
+    const newState: HistoryState = {
+      nodes: JSON.parse(JSON.stringify(nodes)),
+    };
+
+    // Обрезаем историю после текущего индекса (если были отмены)
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(newState);
+
+    // Ограничиваем историю 50 шагами
+    if (newHistory.length > 50) {
+      newHistory.shift();
+    } else {
+      setHistoryIndex(historyIndex + 1);
+    }
+
+    setHistory(newHistory);
+  }
+
+  function undo() {
+    if (historyIndex > 0) {
+      const prevState = history[historyIndex - 1];
+      setNodes(prevState.nodes);
+      setHistoryIndex(historyIndex - 1);
+    }
+  }
+
+  function redo() {
+    if (historyIndex < history.length - 1) {
+      const nextState = history[historyIndex + 1];
+      setNodes(nextState.nodes);
+      setHistoryIndex(historyIndex + 1);
+    }
+  }
+
+  // ============ CRUD OPERATIONS ============
+
+  function addEventFromForm() {
+    if (!newEventLabel.trim()) return;
+
+    const node: NodeT = {
+      id: crypto.randomUUID(),
+      age: newEventAge,
+      label: newEventLabel,
+      notes: newEventNotes,
+      sphere: newEventSphere,
+      isDecision: newEventIsDecision,
+    };
+    setNodes((prev) => [...prev, node]);
+    setSelectedId(node.id);
+    saveToHistory();
+
+    // Очистить форму
+    setNewEventLabel('');
+    setNewEventNotes('');
+    setNewEventSphere('other');
+    setNewEventIsDecision(false);
+  }
+
+  function updateNode(id: string, updates: Partial<NodeT>) {
+    setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, ...updates } : n)));
+  }
+
+  function deleteNode(id: string) {
+    setNodes((prev) => prev.filter((n) => n.id !== id));
+    setSelectedId(null);
+    saveToHistory();
+  }
+
+  // ============ EVENT HANDLERS ============
+
+  function handleWheel(e: React.WheelEvent<SVGSVGElement>) {
+    e.preventDefault();
+    const worldPoint = screenToWorld(e, svgRef.current, transform);
+    const scaleBy = 1 + -e.deltaY * 0.001;
+    const newK = clamp(transform.k * scaleBy, 0.25, 2);
+    const newTransform = {
+      k: newK,
+      x: transform.x + worldPoint.x * (transform.k - newK),
+      y: transform.y + worldPoint.y * (transform.k - newK),
+    };
+    setTransform(newTransform);
+  }
+
+  function handlePointerDown(e: React.PointerEvent<SVGSVGElement>) {
+    // Только панорамирование
+    setIsPanning(true);
+    setLastPointer({ x: e.clientX, y: e.clientY });
+  }
+
+  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
+    if (isPanning && lastPointer) {
+      const dx = e.clientX - lastPointer.x;
+      const dy = e.clientY - lastPointer.y;
+      setTransform((t) => ({ ...t, x: t.x + dx, y: t.y + dy }));
+      setLastPointer({ x: e.clientX, y: e.clientY });
+    }
+  }
+
+  function handlePointerUp() {
+    setIsPanning(false);
+    setLastPointer(null);
+  }
+
+  function handleNodeClick(nodeId: string) {
+    setSelectedId(nodeId);
+  }
+
+  function handleClearAll() {
+    if (confirm('Удалить все события? Это действие нельзя отменить.')) {
+      setNodes([]);
+      setSelectedId(null);
+      saveToHistory();
+    }
+  }
+
+  // ============ KEYBOARD SHORTCUTS ============
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Игнорируем команды, если фокус в input/textarea
+      const target = e.target as HTMLElement;
+      const isInTextField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+
+      // Undo/Redo работают всегда
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      // Остальные команды не работают в текстовых полях
+      if (isInTextField) {
+        return;
+      }
+
+      if (e.key === 'Delete' && selectedId) {
+        deleteNode(selectedId);
+      } else if (e.key === 'Escape') {
+        setSelectedId(null);
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedId, historyIndex, history]);
+
+  // ============ FIRESTORE SAVE/LOAD ============
+
+  async function saveToFirestore(data: TimelineData) {
+    if (!user) return;
+
+    setSaveStatus('saving');
+    const docRef = doc(db, 'timelines', user.uid);
+
+    try {
+      await setDoc(
+        docRef,
+        {
+          userId: user.uid,
+          updatedAt: serverTimestamp(),
+          data,
+        },
+        { merge: true }
+      );
+
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (error) {
+      console.error('Save error:', error);
+      setSaveStatus('error');
+    }
+  }
+
+  // Auto-save
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (nodes.length > 0) {
+        saveToFirestore({ currentAge, ageMax, nodes });
+      }
+    }, 10000);
+
+    return () => clearTimeout(timer);
+  }, [nodes, currentAge, ageMax, user]);
+
+  // Load on mount
+  useEffect(() => {
+    if (!user) return;
+
+    const docRef = doc(db, 'timelines', user.uid);
+    getDoc(docRef).then((snap) => {
+      if (snap.exists()) {
+        const { data } = snap.data();
+        if (data) {
+          setCurrentAge(data.currentAge || DEFAULT_CURRENT_AGE);
+          setAgeMax(data.ageMax || DEFAULT_AGE_MAX);
+
+          // Добавляем дефолтные значения для старых узлов
+          const normalizedNodes = (data.nodes || []).map((node: any) => ({
+            id: node.id,
+            age: node.age,
+            label: node.label || 'Событие',
+            notes: node.notes || '',
+            sphere: node.sphere || 'other',
+            isDecision: node.isDecision ?? false,
+          }));
+          setNodes(normalizedNodes);
+        }
+      }
+    });
+  }, [user]);
+
+  // ============ RENDER ============
+
+  const cursorClass = isPanning ? 'cursor-grabbing' : 'cursor-grab';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 bg-gradient-to-br from-slate-50 to-white overflow-hidden"
+    >
+      {/* Exit button */}
+      <Link
+        to="/profile"
+        className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2.5 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 hover:bg-slate-50 transition-all duration-200 text-slate-700 hover:text-slate-900"
+      >
+        <span className="text-lg">←</span>
+        <span className="text-sm font-medium">Выход</span>
+      </Link>
+
+      {/* Toolbar */}
+      <div className="fixed z-40 top-4 left-4 flex flex-col gap-3">
+        {/* Панель инструментов */}
+        <div className="flex gap-2 p-3 bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200">
+          <ToolButton active={tool === 'line'} onClick={() => setTool('line')}>
+            <span className="text-2xl">📏</span>
+            <span className="text-sm font-medium">Линия</span>
+          </ToolButton>
+
+          <div className="w-px bg-slate-300 mx-1" />
+
+          <ToolButton active={tool === 'event'} onClick={() => setTool('event')}>
+            <span className="text-2xl">⭕</span>
+            <span className="text-sm font-medium">Событие</span>
+          </ToolButton>
+
+          <div className="w-px bg-slate-300 mx-1" />
+
+          <ToolButton active={tool === 'hand'} onClick={() => setTool('hand')}>
+            <span className="text-2xl">✋</span>
+            <span className="text-sm font-medium">Рука</span>
+          </ToolButton>
+        </div>
+
+        {/* Панель настроек кисти */}
+        {tool !== 'hand' && (
+          <div className="p-3 bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200">
+            <label className="flex flex-col gap-2">
+              <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
+                Размер {tool === 'line' ? 'линии' : 'события'}
+              </span>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={tool === 'line' ? 2 : 12}
+                  max={tool === 'line' ? 12 : 40}
+                  step={tool === 'line' ? 1 : 2}
+                  value={tool === 'line' ? drawStrokeWidth : nodeRadius}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    if (tool === 'line') {
+                      setDrawStrokeWidth(value);
+                    } else {
+                      setNodeRadius(value);
+                    }
+                  }}
+                  className="flex-1"
+                />
+
+                <span className="text-sm font-medium text-slate-900 w-8 text-right">
+                  {tool === 'line' ? drawStrokeWidth : nodeRadius}
+                </span>
+              </div>
+
+              {/* Визуальный превью */}
+              <div className="flex items-center justify-center h-16 bg-slate-50 rounded-xl">
+                {tool === 'line' ? (
+                  <svg width="100" height="40">
+                    <line
+                      x1="10"
+                      y1="20"
+                      x2="90"
+                      y2="20"
+                      stroke="#3b82f6"
+                      strokeWidth={drawStrokeWidth}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                ) : (
+                  <svg width="100" height="100">
+                    <circle cx="50" cy="50" r={nodeRadius} fill="#3b82f6" />
+                  </svg>
+                )}
+              </div>
+            </label>
+          </div>
+        )}
+
+        {/* Панель управления */}
+        <div className="flex flex-col gap-2 p-3 bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200">
+          {/* Undo/Redo */}
+          <div className="flex gap-2">
+            <button
+              onClick={undo}
+              disabled={historyIndex <= 0}
+              className="flex-1 px-3 py-2 text-sm rounded-xl border border-slate-200 hover:bg-slate-50 transition disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+              title="Отменить (Cmd+Z)"
+            >
+              ↶ Отменить
+            </button>
+
+            <button
+              onClick={redo}
+              disabled={historyIndex >= history.length - 1}
+              className="flex-1 px-3 py-2 text-sm rounded-xl border border-slate-200 hover:bg-slate-50 transition disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+              title="Повторить (Cmd+Shift+Z)"
+            >
+              ↷ Повторить
+            </button>
+          </div>
+
+          <button
+            onClick={handleClearAll}
+            className="px-3 py-2 text-sm rounded-xl bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition font-medium"
+          >
+            🗑️ Очистить всё
+          </button>
+
+          <button
+            onClick={() => setShowHelp(true)}
+            className="px-3 py-2 text-sm rounded-xl bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100 transition font-medium"
+          >
+            ❓ Справка
+          </button>
+        </div>
+
+        {/* Save status */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm border border-slate-200">
+          {saveStatus === 'saving' && (
+            <>
+              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+              <span className="text-xs text-slate-600">Сохранение...</span>
+            </>
+          )}
+          {saveStatus === 'saved' && (
+            <>
+              <div className="w-2 h-2 bg-green-500 rounded-full" />
+              <span className="text-xs text-slate-600">Сохранено</span>
+            </>
+          )}
+          {saveStatus === 'error' && (
+            <>
+              <div className="w-2 h-2 bg-red-500 rounded-full" />
+              <span className="text-xs text-red-600">Ошибка</span>
+            </>
+          )}
+          {saveStatus === 'idle' && (
+            <>
+              <div className="w-2 h-2 bg-slate-300 rounded-full" />
+              <span className="text-xs text-slate-600">Авто-сохранение</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Zoom slider */}
+      <div className="fixed left-4 top-1/2 translate-y-12 z-40 flex flex-col items-center gap-2 p-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200">
+        <button
+          onClick={() =>
+            setTransform((t) => ({
+              ...t,
+              k: Math.min(t.k * 1.2, 3),
+            }))
+          }
+          className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 hover:bg-slate-50 transition text-base font-bold"
+          title="Увеличить"
+        >
+          +
+        </button>
+
+        <input
+          type="range"
+          min={0.25}
+          max={3}
+          step={0.05}
+          value={transform.k}
+          onChange={(e) => {
+            const newK = Number(e.target.value);
+            setTransform((t) => ({
+              ...t,
+              k: newK,
+            }));
+          }}
+          className="zoom-slider"
+          style={{ margin: '40px 0' }}
+        />
+
+        <div className="text-xs text-slate-600 font-medium">{Math.round(transform.k * 100)}%</div>
+
+        <button
+          onClick={() =>
+            setTransform((t) => ({
+              ...t,
+              k: Math.max(t.k / 1.2, 0.25),
+            }))
+          }
+          className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 hover:bg-slate-50 transition text-base font-bold"
+          title="Уменьшить"
+        >
+          −
+        </button>
+
+        <button
+          onClick={() =>
+            setTransform((t) => ({
+              ...t,
+              k: 1,
+            }))
+          }
+          className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 hover:bg-slate-50 transition text-xs font-medium"
+          title="Сбросить масштаб"
+        >
+          1:1
+        </button>
+      </div>
+
+      {/* Canvas */}
+      <div className="absolute inset-0">
+        <svg
+          ref={svgRef}
+          className={`w-full h-full ${cursorClass}`}
+          onWheel={handleWheel}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        >
+          <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
+            {/* Background */}
+            <rect x={-1000} y={-2000} width={worldWidth + 2000} height={worldHeight + 4000} fill="#ffffff" />
+
+            {/* Time grid */}
+            {ages.map((age) => (
+              <g key={age}>
+                {/* Вертикальная линия */}
+                <line
+                  x1={age * YEAR_PX}
+                  y1={-2000}
+                  x2={age * YEAR_PX}
+                  y2={worldHeight + 2000}
+                  stroke={age % 5 === 0 ? '#e2e8f0' : '#f1f5f9'}
+                  strokeWidth={age % 5 === 0 ? 2 : 1}
+                />
+
+                {/* Метки возраста сверху и снизу каждые 5 лет */}
+                {age % 5 === 0 && (
+                  <>
+                    {/* Сверху (далеко над холстом) */}
+                    <text x={age * YEAR_PX} y={-1500} fontSize={20} textAnchor="middle" fill="#1e293b" fontWeight="700">
+                      {age} лет
+                    </text>
+
+                    {/* Снизу (далеко под холстом) */}
+                    <text x={age * YEAR_PX} y={worldHeight + 1500} fontSize={20} textAnchor="middle" fill="#1e293b" fontWeight="700">
+                      {age} лет
+                    </text>
+                  </>
+                )}
+              </g>
+            ))}
+
+            {/* Birth marker */}
+            <g>
+              <circle cx={0} cy={0} r={16} fill="#0f172a" />
+              <text x={20} y={6} fontSize={18} fontWeight="600" fill="#0f172a">
+                👶 Рождение
+              </text>
+            </g>
+
+            {/* Lines */}
+            {lines.map((line, i) => (
+              <line
+                key={`line-${i}`}
+                x1={line.x1}
+                y1={line.y1}
+                x2={line.x2}
+                y2={line.y2}
+                stroke="#64748b"
+                strokeWidth={line.width}
+                strokeLinecap="round"
+                opacity={0.7}
+              />
+            ))}
+
+            {/* Ghost line (предпросмотр) */}
+            {tool === 'line' && lineStart && ghostPoint && (
+              <line
+                x1={lineStart.x}
+                y1={lineStart.y}
+                x2={ghostPoint.x}
+                y2={ghostPoint.y}
+                stroke="#3b82f6"
+                strokeWidth={drawStrokeWidth}
+                strokeLinecap="round"
+                strokeDasharray="8 4"
+                opacity={0.6}
+                pointerEvents="none"
+              />
+            )}
+
+            {/* Nodes */}
+            {nodes.map((node) => {
+              const isSelected = node.id === selectedId;
+              const isHovered = node.id === hoveredId;
+              const meta = SPHERE_META[node.sphere || 'other'];
+
+              return (
+                <g
+                  key={node.id}
+                  onPointerDown={(e) => handleNodePointerDown(e, node.id)}
+                  onPointerEnter={() => setHoveredId(node.id)}
+                  onPointerLeave={() => setHoveredId(null)}
+                  className="cursor-pointer"
+                  style={{ transition: 'none' }}
+                >
+                  {/* Круг события с цветом сферы */}
+                  <circle cx={node.x} cy={node.y} r={node.radius} fill={meta.color} stroke="transparent" strokeWidth={0} />
+
+                  {/* Подсветка при hover (НЕ при выделении) */}
+                  {isHovered && !isSelected && (
+                    <circle cx={node.x} cy={node.y} r={node.radius + 2} fill="none" stroke={meta.color} strokeWidth={2} opacity={0.5} />
+                  )}
+
+                  {/* Подсветка при выделении */}
+                  {isSelected && (
+                    <circle cx={node.x} cy={node.y} r={node.radius + 4} fill="none" stroke="#0f172a" strokeWidth={3} opacity={0.8} />
+                  )}
+
+                  {/* Крестик если это решение */}
+                  {node.isDecision === true && (
+                    <g>
+                      <line
+                        x1={node.x - node.radius * 0.4}
+                        y1={node.y - node.radius * 0.4}
+                        x2={node.x + node.radius * 0.4}
+                        y2={node.y + node.radius * 0.4}
+                        stroke="#ffffff"
+                        strokeWidth={3}
+                        strokeLinecap="round"
+                      />
+                      <line
+                        x1={node.x - node.radius * 0.4}
+                        y1={node.y + node.radius * 0.4}
+                        x2={node.x + node.radius * 0.4}
+                        y2={node.y - node.radius * 0.4}
+                        stroke="#ffffff"
+                        strokeWidth={3}
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  )}
+
+                  {/* Подпись справа */}
+                  <text x={node.x + node.radius + 10} y={node.y + 5} fontSize={16} fontWeight="600" fill="#0f172a">
+                    {node.label}
+                  </text>
+
+                  {/* Возраст под узлом */}
+                  <text x={node.x} y={node.y + node.radius + 20} fontSize={13} textAnchor="middle" fill="#64748b" fontWeight="500">
+                    {node.age} лет
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        </svg>
+      </div>
+
+      {/* Inspector */}
+      <aside className="fixed right-0 top-0 bottom-0 w-80 border-l border-slate-200 bg-gradient-to-b from-white to-slate-50 overflow-y-auto z-30">
+        <div className="p-5 space-y-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Таймлайн жизни</h2>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Нарисуйте линию жизни и отметьте ключевые события. Каждая точка — важное решение или поворотный момент.
+            </p>
+          </div>
+
+          {/* Instructions */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-200">
+            <h3 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">💡 Инструкция</h3>
+            <ul className="text-xs text-blue-800 space-y-1.5 leading-relaxed">
+              <li>
+                • <strong>📏 Линия:</strong> Клик-клик для рисования прямых линий
+              </li>
+              <li>
+                • <strong>⭕ Событие:</strong> Кликните, чтобы добавить важный момент
+              </li>
+              <li>
+                • <strong>✋ Рука:</strong> Перемещение по холсту
+              </li>
+              <li>
+                • <strong>Пробел:</strong> Временно активирует руку
+              </li>
+              <li>
+                • <strong>Колёсико мыши:</strong> Масштабирование
+              </li>
+            </ul>
+          </div>
+
+          {/* Node editor */}
+          {selectedNode ? (
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-slate-900">Редактировать событие</h3>
+                <button
+                  onClick={() => deleteNode(selectedNode.id)}
+                  className="px-2 py-1 text-xs rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
+                >
+                  🗑️ Удалить
+                </button>
+              </div>
+
+              <form className="space-y-3" onSubmit={(e) => e.preventDefault()}>
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-700 mb-1 block">Название события</span>
+                  <input
+                    type="text"
+                    value={selectedNode.label}
+                    onChange={(e) => updateNode(selectedNode.id, { label: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+                    placeholder="Например: Поступил в университет"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-700 mb-1 block">Возраст (лет)</span>
+                  <input
+                    type="number"
+                    value={selectedNode.age}
+                    onChange={(e) => {
+                      const age = Number(e.target.value);
+                      updateNode(selectedNode.id, { age, x: age * YEAR_PX });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+                    min={0}
+                    max={120}
+                    step={0.5}
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-700 mb-1 block">Сфера жизни</span>
+                  <select
+                    value={selectedNode.sphere}
+                    onChange={(e) => updateNode(selectedNode.id, { sphere: e.target.value as Sphere })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition bg-white"
+                  >
+                    {Object.entries(SPHERE_META).map(([key, meta]) => (
+                      <option key={key} value={key}>
+                        {meta.emoji} {meta.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="flex items-center gap-2 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedNode.isDecision}
+                    onChange={(e) => updateNode(selectedNode.id, { isDecision: e.target.checked })}
+                    className="w-5 h-5 rounded border-slate-300 text-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                  <span className="text-sm font-medium text-slate-700">✕ Это было моё решение</span>
+                </label>
+
+                <label className="block">
+                  <span className="text-xs font-medium text-slate-700 mb-1 block">Подробности</span>
+                  <textarea
+                    value={selectedNode.notes || ''}
+                    onChange={(e) => updateNode(selectedNode.id, { notes: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition resize-none"
+                    rows={4}
+                    placeholder="Опишите контекст, чувства, последствия..."
+                  />
+                </label>
+              </form>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+              <p className="text-sm text-slate-500 italic">Выберите событие для редактирования...</p>
+            </div>
+          )}
+
+          {/* Stats */}
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+            <h3 className="text-sm font-semibold text-slate-900 mb-3">Статистика</h3>
+            <div className="space-y-2 text-sm text-slate-600">
+              <div className="flex justify-between">
+                <span>События:</span>
+                <span className="font-medium text-slate-900">{nodes.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Линии:</span>
+                <span className="font-medium text-slate-900">{lines.length}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Help Modal */}
+      <AnimatePresence>
+        {showHelp && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowHelp(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between mb-6">
+                <h2 className="text-2xl font-bold text-slate-900">Как пользоваться таймлайном</h2>
+                <button onClick={() => setShowHelp(false)} className="p-2 rounded-xl hover:bg-slate-100 transition">
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4 text-slate-700">
+                <section>
+                  <h3 className="font-semibold text-lg mb-2">🎯 Цель упражнения</h3>
+                  <p className="leading-relaxed">
+                    Визуализировать жизненный путь через прямые линии и ключевые события. Соединяйте события линиями, показывая связи и переходы между ними.
+                  </p>
+                </section>
+
+                <section>
+                  <h3 className="font-semibold text-lg mb-2">🛠️ Инструменты</h3>
+                  <ul className="space-y-2">
+                    <li>
+                      <strong>📏 Линия:</strong> Кликните дважды для создания прямой линии. Первый клик — начало, второй — конец. Показывайте связи между событиями.
+                    </li>
+                    <li>
+                      <strong>⭕ Событие:</strong> Кликните на холст, чтобы добавить важное событие или решение. Отмечайте поворотные моменты.
+                    </li>
+                    <li>
+                      <strong>✋ Рука:</strong> Выберите этот инструмент для перемещения по холсту (панорамирование).
+                    </li>
+                    <li>
+                      <strong>Пробел:</strong> Зажмите пробел для временного включения инструмента "Рука".
+                    </li>
+                    <li>
+                      <strong>Колёсико мыши:</strong> Крутите для увеличения/уменьшения масштаба.
+                    </li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="font-semibold text-lg mb-2">💡 Советы</h3>
+                  <ul className="space-y-1 text-sm">
+                    <li>• Начните с точки рождения (👶) и двигайтесь вперёд по времени</li>
+                    <li>• Используйте разные толщины линий для разных типов связей</li>
+                    <li>• Отмечайте события в хронологическом порядке</li>
+                    <li>• Регулируйте размер событий в зависимости от их значимости</li>
+                    <li>• Соединяйте события линиями, чтобы показать причинно-следственные связи</li>
+                    <li>• Не бойтесь экспериментировать с масштабом</li>
+                  </ul>
+                </section>
+
+                <section className="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                  <h3 className="font-semibold text-amber-900 mb-2">⚠️ Важно</h3>
+                  <p className="text-sm text-amber-800 leading-relaxed">
+                    Данные автоматически сохраняются каждые 10 секунд. Вы можете в любой момент вернуться и продолжить работу над своим
+                    таймлайном.
+                  </p>
+                </section>
+              </div>
+
+              <button onClick={() => setShowHelp(false)} className="mt-6 w-full py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition">
+                Понятно, начнём!
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Global CSS for range slider */}
+      <style>{`
+        .zoom-slider {
+          -webkit-appearance: none;
+          appearance: none;
+          background: transparent;
+          width: 32px;
+          transform: rotate(-90deg);
+          transform-origin: center;
+        }
+
+        .zoom-slider::-webkit-slider-track {
+          background: #e2e8f0;
+          height: 4px;
+          border-radius: 2px;
+        }
+
+        .zoom-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #3b82f6;
+          cursor: pointer;
+          border: 2px solid white;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .zoom-slider::-moz-range-track {
+          background: #e2e8f0;
+          height: 4px;
+          border-radius: 2px;
+        }
+
+        .zoom-slider::-moz-range-thumb {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #3b82f6;
+          cursor: pointer;
+          border: 2px solid white;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+      `}</style>
+    </motion.div>
+  );
+}

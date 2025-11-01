@@ -42,6 +42,7 @@ import AuthorsTestLevel2 from './pages/AuthorsTestLevel2';
 import AuthorsTestLevel3 from './pages/AuthorsTestLevel3';
 import MigrateTopics from './pages/MigrateTopics';
 import AdminTopics from './pages/AdminTopics';
+import Timeline from './pages/Timeline';
 import { useAuthSync } from './hooks/useAuthSync';
 import { normalizeText } from './utils/contentHelpers';
 
@@ -1090,6 +1091,14 @@ function AppInner() {
                     element={
                       <RequireAuth>
                         <Notes />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/timeline"
+                    element={
+                      <RequireAuth>
+                        <Timeline />
                       </RequireAuth>
                     }
                   />
