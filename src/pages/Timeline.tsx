@@ -1,3 +1,4 @@
+// Timeline component with bulk event creation support
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,6 +7,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Icon, type EventIconId } from '../components/Icon';
 import { EVENT_ICON_MAP } from '../data/eventIcons';
+import { useNotes } from '../hooks/useNotes';
 
 // Импорт типов, констант, утилит и компонентов из модулей
 import type {
@@ -34,7 +36,10 @@ import { IconPickerButton } from './timeline/components/IconPickerButton';
 import { PeriodizationSelector } from './timeline/components/PeriodizationSelector';
 import { PeriodizationLayer } from './timeline/components/PeriodizationLayer';
 import { PeriodBoundaryModal } from './timeline/components/PeriodBoundaryModal';
+import { BulkEventCreator } from './timeline/components/BulkEventCreator';
+import { SaveEventAsNoteButton } from './timeline/components/SaveEventAsNoteButton';
 import { PERIODIZATIONS, getPeriodizationById } from './timeline/data/periodizations';
+import { exportTimelineJSON, exportTimelinePNG, exportTimelinePDF } from './timeline/utils/exporters';
 
 
 // ============ MAIN COMPONENT ============
@@ -42,6 +47,7 @@ import { PERIODIZATIONS, getPeriodizationById } from './timeline/data/periodizat
 export default function Timeline() {
   const { user } = useAuth();
   const svgRef = useRef<SVGSVGElement>(null);
+  const { createNote } = useNotes();
 
   // State
   const [currentAge, setCurrentAge] = useState(DEFAULT_CURRENT_AGE);
@@ -81,6 +87,9 @@ export default function Timeline() {
   const [birthFormPlace, setBirthFormPlace] = useState('');
   const [birthFormNotes, setBirthFormNotes] = useState('');
   const [birthSelected, setBirthSelected] = useState(false);
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
+  const downloadButtonRef = useRef<HTMLButtonElement>(null);
+  const downloadMenuRef = useRef<HTMLDivElement>(null);
 
   // Original values when editing (to detect changes)
   const [originalFormValues, setOriginalFormValues] = useState<{
@@ -104,6 +113,9 @@ export default function Timeline() {
   // Periodization state
   const [selectedPeriodization, setSelectedPeriodization] = useState<string | null>(null);
   const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
+
+  // Bulk event creation state
+  const [showBulkCreator, setShowBulkCreator] = useState(false);
 
   // Computed
   const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedId), [nodes, selectedId]);
@@ -143,6 +155,60 @@ export default function Timeline() {
     if (birthBaseYear === null || Number.isNaN(currentAge)) return null;
     return birthBaseYear + Math.round(currentAge);
   }, [birthBaseYear, currentAge]);
+  const exportFilenamePrefix = useMemo(() => {
+    const now = new Date();
+    const iso = now.toISOString();
+    return `timeline-${iso.split('T')[0]}`;
+  }, []);
+
+  useEffect(() => {
+    if (!downloadMenuOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (downloadMenuRef.current?.contains(target)) return;
+      if (downloadButtonRef.current?.contains(target)) return;
+      setDownloadMenuOpen(false);
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [downloadMenuOpen]);
+
+  async function handleDownload(type: 'json' | 'png' | 'pdf') {
+    setDownloadMenuOpen(false);
+    const exportPayload = {
+      currentAge,
+      ageMax,
+      nodes,
+      edges,
+      birthDetails: { ...birthDetails },
+      selectedPeriodization,
+    };
+
+    try {
+      if (type === 'json') {
+        exportTimelineJSON(exportPayload, `${exportFilenamePrefix}.json`);
+        return;
+      }
+
+      if (!svgRef.current) {
+        throw new Error('SVG not ready for export');
+      }
+
+      if (type === 'png') {
+        await exportTimelinePNG(svgRef.current, `${exportFilenamePrefix}.png`);
+        return;
+      }
+
+      const periodization = selectedPeriodization
+        ? getPeriodizationById(selectedPeriodization) ?? null
+        : null;
+      await exportTimelinePDF(svgRef.current, exportPayload, periodization, `${exportFilenamePrefix}.pdf`);
+    } catch (error) {
+      console.error('Export failed', error);
+    }
+  }
 
   // Check if form has changes (for edit mode)
   const hasFormChanges = useMemo(() => {
@@ -428,6 +494,27 @@ export default function Timeline() {
     setBirthFormPlace(birthDetails.place ?? '');
     setBirthFormNotes(birthDetails.notes ?? '');
     setBirthSelected(false);
+  }
+
+  function handleBulkCreate(events: Omit<NodeT, 'id'>[]) {
+    const newNodes: NodeT[] = events.map((event) => ({
+      ...event,
+      id: crypto.randomUUID(),
+    }));
+
+    const updatedNodes = [...nodes, ...newNodes];
+    setNodes(updatedNodes);
+    saveToHistory(updatedNodes, edges);
+  }
+
+  function handleExtendBranchForBulk(newEndAge: number) {
+    if (!selectedEdge) return;
+
+    const updatedEdges = edges.map((e) =>
+      e.id === selectedEdge.id ? { ...e, endAge: newEndAge } : e
+    );
+    setEdges(updatedEdges);
+    saveToHistory(nodes, updatedEdges);
   }
 
   // ============ BRANCH MANAGEMENT ============
@@ -851,13 +938,74 @@ export default function Timeline() {
           className="w-36 space-y-3 rounded-3xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/90 p-4 shadow-xl backdrop-blur-md sm:w-40"
           style={{ fontFamily: 'Georgia, serif' }}
         >
-          <Link
-            to="/profile"
-            className="flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 px-3 py-2 text-amber-900 shadow-md transition-all duration-200 hover:border-amber-300 hover:from-amber-100 hover:to-yellow-100"
-          >
-            <span className="text-sm">←</span>
-            <span className="text-[11px] font-semibold uppercase tracking-wide">Выход</span>
-          </Link>
+          <div className="flex items-center gap-2 pr-6">
+            <Link
+              to="/profile"
+              className="flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 px-3 py-2 text-amber-900 shadow-md transition-all duration-200 hover:border-amber-300 hover:from-amber-100 hover:to-yellow-100"
+            >
+              <span className="text-sm">←</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide">Выход</span>
+            </Link>
+            <div className="relative">
+              <button
+                type="button"
+                ref={downloadButtonRef}
+                title="Скачать таймлайн"
+                onClick={() => setDownloadMenuOpen((prev) => !prev)}
+                className="flex h-9 w-9 items-center justify-center text-slate-600 transition hover:text-slate-900"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5"
+                >
+                  <path d="M12 3v12" />
+                  <path d="M7.5 10.5 12 15l4.5-4.5" />
+                  <path d="M5 17h14" />
+                </svg>
+              </button>
+
+              {downloadMenuOpen && (
+                <div
+                  ref={downloadMenuRef}
+                  className="absolute right-0 top-full z-50 mt-3 w-40 rounded-2xl border border-slate-200 bg-white shadow-lg backdrop-blur-md"
+                >
+                  <div className="px-3 pt-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-500">
+                    Скачать
+                  </div>
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDownload('json')}
+                      className="w-full px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                    >
+                      JSON
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownload('png')}
+                      className="w-full px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                    >
+                      PNG (изображение)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownload('pdf')}
+                      className="w-full px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                    >
+                      PDF (отчёт)
+                    </button>
+                  </div>
+                  <div className="h-2" />
+                </div>
+              )}
+            </div>
+          </div>
 
           <div className="space-y-3">
             <label className="flex flex-col gap-2">
@@ -963,8 +1111,10 @@ export default function Timeline() {
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          data-world-width={worldWidth}
+          data-world-height={worldHeight}
         >
-          <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
+          <g data-export-root="true" transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
             {/* Background */}
             <rect x={0} y={-100} width={worldWidth} height={worldHeight + 200} fill="#ffffff" />
 
@@ -1464,37 +1614,6 @@ export default function Timeline() {
               </div>
             </div>
 
-            {/* Selected branch indicator */}
-            {!formEventId && selectedBranchX !== null && (() => {
-              const selectedEdge = edges.find((e) => e.x === selectedBranchX);
-              return (
-                <div className="mb-3 p-2 bg-purple-100 border border-purple-300 rounded-lg">
-                  <p className="text-xs text-purple-900" style={{ fontFamily: 'Georgia, serif' }}>
-                    <span className="font-semibold">📍 Выбрана ветка</span>
-                    <br />
-                    {selectedEdge ? (
-                      <>
-                        Диапазон: {selectedEdge.startAge}-{selectedEdge.endAge} лет
-                        <br />
-                        Новое событие в этом диапазоне будет добавлено на ветку
-                      </>
-                    ) : (
-                      'Новое событие будет добавлено на выбранную ветку'
-                    )}
-                  </p>
-                </div>
-              );
-            })()}
-            {!formEventId && selectedBranchX === null && (
-              <div className="mb-3 p-2 bg-blue-100 border border-blue-300 rounded-lg">
-                <p className="text-xs text-blue-900" style={{ fontFamily: 'Georgia, serif' }}>
-                  <span className="font-semibold">📍 Основная линия</span>
-                  <br />
-                  Новое событие будет добавлено на основную линию жизни
-                </p>
-              </div>
-            )}
-
             <form
               className="space-y-3"
               onSubmit={(e) => {
@@ -1551,17 +1670,30 @@ export default function Timeline() {
                 </select>
               </label>
 
-              <label className="flex items-center gap-2 p-2.5 rounded-xl border border-green-200 hover:bg-white/50 transition cursor-pointer bg-white/30">
-                <input
-                  type="checkbox"
-                  checked={formEventIsDecision}
-                  onChange={(e) => setFormEventIsDecision(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300"
+              <div className="flex items-center gap-2">
+                <label className="flex-1 flex items-center gap-2 p-2.5 rounded-xl border border-green-200 hover:bg-white/50 transition cursor-pointer bg-white/30">
+                  <input
+                    type="checkbox"
+                    checked={formEventIsDecision}
+                    onChange={(e) => setFormEventIsDecision(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300"
+                  />
+                  <span className="text-xs font-medium text-slate-700" style={{ fontFamily: 'Georgia, serif' }}>
+                    ✕ Это было моё решение
+                  </span>
+                </label>
+                <SaveEventAsNoteButton
+                  eventTitle={formEventLabel}
+                  eventAge={formEventAge}
+                  eventNotes={formEventNotes}
+                  eventSphere={formEventSphere}
+                  createNote={createNote}
+                  onSuccess={() => {
+                    // Показываем уведомление об успешном сохранении
+                    alert('Событие сохранено в заметки!');
+                  }}
                 />
-                <span className="text-xs font-medium text-slate-700" style={{ fontFamily: 'Georgia, serif' }}>
-                  ✕ Это было моё решение
-                </span>
-              </label>
+              </div>
 
               <label className="block">
                 <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
@@ -1602,6 +1734,18 @@ export default function Timeline() {
                 )}
               </div>
             </form>
+
+            {/* Bulk event creator button - only show when not editing */}
+            {!formEventId && (
+              <button
+                type="button"
+                onClick={() => setShowBulkCreator(true)}
+                className="w-full mt-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 text-blue-700 rounded-xl hover:from-blue-100 hover:to-cyan-100 transition font-medium text-xs"
+                style={{ fontFamily: 'Georgia, serif' }}
+              >
+                📝 Создать много событий
+              </button>
+            )}
 
             {/* Branch extension - only show when event is not on main life line AND doesn't have a branch yet */}
             {formEventId &&
@@ -1674,7 +1818,7 @@ export default function Timeline() {
                       <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
                         Длина ветки (лет)
                       </span>
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-2">
                         <input
                           type="number"
                           value={branchYears}
@@ -1686,6 +1830,7 @@ export default function Timeline() {
                           step={1}
                         />
                         <button
+                          type="button"
                           onClick={updateBranchLength}
                           className="px-3 py-2 bg-purple-400 hover:bg-purple-500 text-white rounded-xl transition text-xs font-medium"
                           style={{ fontFamily: 'Georgia, serif' }}
@@ -1693,22 +1838,17 @@ export default function Timeline() {
                         >
                           ✓
                         </button>
+                        <button
+                          type="button"
+                          onClick={deleteBranch}
+                          className="px-3 py-2 bg-red-200 hover:bg-red-300 text-red-800 rounded-xl transition text-xs font-medium"
+                          style={{ fontFamily: 'Georgia, serif' }}
+                          title="Удалить ветку"
+                        >
+                          🗑️
+                        </button>
                       </div>
                     </label>
-                  </div>
-
-                  {/* Delete button */}
-                  <button
-                    onClick={deleteBranch}
-                    className="w-full px-3 py-2 bg-red-200 hover:bg-red-300 text-red-800 rounded-xl transition text-sm font-medium"
-                    style={{ fontFamily: 'Georgia, serif' }}
-                    title="Удалить ветку"
-                  >
-                    🗑️
-                  </button>
-
-                  <div className="mt-3 text-xs text-slate-600" style={{ fontFamily: 'Georgia, serif' }}>
-                    💡 События на ветке перейдут на родительскую линию
                   </div>
                 </div>
               )}
@@ -1778,17 +1918,30 @@ export default function Timeline() {
                     </select>
                   </label>
 
-                  <label className="flex items-center gap-2 p-2.5 rounded-xl border border-blue-200 hover:bg-white/50 transition cursor-pointer bg-white/30">
-                    <input
-                      type="checkbox"
-                      checked={formEventIsDecision}
-                      onChange={(e) => setFormEventIsDecision(e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-300"
+                  <div className="flex items-center gap-2">
+                    <label className="flex-1 flex items-center gap-2 p-2.5 rounded-xl border border-blue-200 hover:bg-white/50 transition cursor-pointer bg-white/30">
+                      <input
+                        type="checkbox"
+                        checked={formEventIsDecision}
+                        onChange={(e) => setFormEventIsDecision(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-300"
+                      />
+                      <span className="text-xs text-slate-700" style={{ fontFamily: 'Georgia, serif' }}>
+                        ✕ Это было моё решение
+                      </span>
+                    </label>
+                    <SaveEventAsNoteButton
+                      eventTitle={formEventLabel}
+                      eventAge={formEventAge}
+                      eventNotes={formEventNotes}
+                      eventSphere={formEventSphere}
+                      createNote={createNote}
+                      onSuccess={() => {
+                        // Показываем уведомление об успешном сохранении
+                        alert('Событие сохранено в заметки!');
+                      }}
                     />
-                    <span className="text-xs text-slate-700" style={{ fontFamily: 'Georgia, serif' }}>
-                      ✕ Это было моё решение
-                    </span>
-                  </label>
+                  </div>
 
                   <button
                     type="submit"
@@ -1798,6 +1951,16 @@ export default function Timeline() {
                     + Добавить событие
                   </button>
                 </form>
+
+                {/* Bulk event creator button for branch */}
+                <button
+                  type="button"
+                  onClick={() => setShowBulkCreator(true)}
+                  className="w-full mt-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 text-blue-700 rounded-xl hover:from-blue-100 hover:to-cyan-100 transition font-medium text-xs"
+                  style={{ fontFamily: 'Georgia, serif' }}
+                >
+                  📝 Создать много событий
+                </button>
               </div>
             </>
           )}
@@ -1851,6 +2014,22 @@ export default function Timeline() {
           />
         );
       })()}
+
+      {/* Bulk Event Creator Modal */}
+      {showBulkCreator && (
+        <BulkEventCreator
+          onClose={() => setShowBulkCreator(false)}
+          onCreate={handleBulkCreate}
+          onExtendBranch={handleExtendBranchForBulk}
+          ageMax={ageMax}
+          selectedBranchX={selectedBranchX}
+          selectedEdge={selectedEdge}
+          branchSphere={selectedEdge ? (() => {
+            const originNode = nodes.find((n) => n.id === selectedEdge.nodeId);
+            return originNode?.sphere;
+          })() : undefined}
+        />
+      )}
 
       {/* Help Modal */}
       <AnimatePresence>

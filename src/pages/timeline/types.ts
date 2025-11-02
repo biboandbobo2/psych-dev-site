@@ -9,6 +9,7 @@ export type Period = {
   name: string;
   description: string;
   color: string;
+  coursePath?: string;
 };
 
 /**
@@ -18,9 +19,11 @@ export type Periodization = {
   id: string;
   name: string;
   author: string;
-  wikiUrl: string;
   criterion: string;
   periods: Period[];
+  wikiUrl?: string;
+  moreInfoLabel?: string;
+  getMoreInfoUrl?: (context: { periodBefore: Period; periodAfter: Period; age: number }) => string | null;
   flexibleBoundaries?: boolean; // Если true, границы между периодами не строгие
   boundaryNote?: string; // Примечание о гибкости границ
 };

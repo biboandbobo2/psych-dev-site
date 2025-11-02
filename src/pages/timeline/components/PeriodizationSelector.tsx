@@ -80,6 +80,12 @@ export function PeriodizationSelector({ value, onChange }: PeriodizationSelector
           {/* Список периодизаций */}
           {PERIODIZATIONS.map((periodization) => {
             const isActive = value === periodization.id;
+            const label =
+              periodization.id === 'course-outline'
+                ? periodization.name
+                : periodization.author || periodization.name;
+            const subLabel =
+              periodization.id === 'course-outline' ? periodization.author : null;
             return (
               <button
                 type="button"
@@ -88,14 +94,20 @@ export function PeriodizationSelector({ value, onChange }: PeriodizationSelector
                   onChange(periodization.id);
                   setOpen(false);
                 }}
-                className={`w-full px-3.5 py-2 text-left text-sm transition ${
-                  isActive
-                    ? 'bg-emerald-50 font-semibold text-emerald-700'
-                    : 'text-slate-700 hover:bg-slate-50'
+                className={`w-full px-3.5 py-2 text-left transition ${
+                  isActive ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'
                 }`}
               >
-                <div className="font-medium text-slate-900">{periodization.name}</div>
-                <div className="mt-0.5 text-xs text-slate-500">{periodization.author}</div>
+                <div className="flex flex-col">
+                  <div
+                    className={`text-sm leading-snug ${
+                      isActive ? 'font-semibold text-emerald-800' : 'text-slate-700'
+                    }`}
+                  >
+                    {label}
+                  </div>
+                  {subLabel && <div className="text-xs text-slate-500">{subLabel}</div>}
+                </div>
               </button>
             );
           })}
