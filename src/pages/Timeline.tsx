@@ -981,8 +981,6 @@ export default function Timeline() {
 
             {/* Time scale - vertical, on the left of life line */}
             {Array.from({ length: Math.floor(ageMax / 5) + 1 }, (_, i) => i * 5).map((age) => {
-              const isCurrentTick = age === Math.round(currentAge);
-              const leftLabel = isCurrentTick ? 'сейчас' : `${age}`;
               const rightLabel = birthBaseYear !== null ? `${birthBaseYear + age}` : null;
 
               return (
@@ -1006,9 +1004,8 @@ export default function Timeline() {
                     fill="#475569"
                     fontWeight="500"
                     fontFamily="Georgia, serif"
-                    style={isCurrentTick ? { textTransform: 'uppercase' } : undefined}
                   >
-                    {leftLabel}
+                    {age}
                   </text>
                   {rightLabel && (
                     <text
