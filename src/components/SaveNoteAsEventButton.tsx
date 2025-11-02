@@ -53,9 +53,9 @@ export function SaveNoteAsEventButton({
         age: ageNum,
         label: eventTitle.trim(),
         x: LINE_X_POSITION,
-        parentX: undefined,
+        // parentX: undefined, // Не передаём поле, если значение undefined
         notes: noteContent || '',
-        sphere: undefined, // Сфера не устанавливается
+        // sphere: undefined, // Сфера не устанавливается - не передаём поле
         isDecision: false,
       };
 
