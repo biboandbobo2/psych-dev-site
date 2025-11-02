@@ -19,6 +19,12 @@ export function PeriodBoundaryModal({
   age,
   onClose,
 }: PeriodBoundaryModalProps) {
+  const linkUrl =
+    periodization.getMoreInfoUrl?.({ periodBefore, periodAfter, age }) ?? periodization.wikiUrl ?? null;
+  const linkLabel =
+    periodization.moreInfoLabel ??
+    (periodization.getMoreInfoUrl ? '📖 Перейти к разделу курса' : '📖 Подробнее в Wikipedia');
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/20 backdrop-blur-sm"
@@ -110,14 +116,16 @@ export function PeriodBoundaryModal({
 
         {/* Кнопки */}
         <div className="mt-6 flex gap-3">
-          <a
-            href={periodization.wikiUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            📖 Подробнее в Wikipedia
-          </a>
+          {linkUrl && (
+            <a
+              href={linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              {linkLabel}
+            </a>
+          )}
           <button
             onClick={onClose}
             className="rounded-xl bg-slate-900 px-6 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
