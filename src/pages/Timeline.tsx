@@ -31,6 +31,10 @@ import {
 } from './timeline/constants';
 import { screenToWorld, clamp, parseAge, removeUndefined } from './timeline/utils';
 import { IconPickerButton } from './timeline/components/IconPickerButton';
+import { PeriodizationSelector } from './timeline/components/PeriodizationSelector';
+import { PeriodizationLayer } from './timeline/components/PeriodizationLayer';
+import { PeriodBoundaryModal } from './timeline/components/PeriodBoundaryModal';
+import { PERIODIZATIONS, getPeriodizationById } from './timeline/data/periodizations';
 
 
 // ============ MAIN COMPONENT ============
@@ -97,6 +101,10 @@ export default function Timeline() {
   // Selected branch X coordinate (for placing new events)
   const [selectedBranchX, setSelectedBranchX] = useState<number | null>(null);
 
+  // Periodization state
+  const [selectedPeriodization, setSelectedPeriodization] = useState<string | null>(null);
+  const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
+
   // Computed
   const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedId), [nodes, selectedId]);
   const selectedEdge = useMemo(() => edges.find((e) => e.x === selectedBranchX), [edges, selectedBranchX]);
@@ -120,6 +128,21 @@ export default function Timeline() {
       setBirthFormNotes(birthDetails.notes ?? '');
     }
   }, [birthDetails, birthSelected]);
+
+  const birthDateObj = useMemo(() => {
+    if (!birthDetails.date) return null;
+    const parsed = new Date(birthDetails.date);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, [birthDetails.date]);
+  const birthBaseYear = birthDateObj ? birthDateObj.getFullYear() : null;
+  const formattedCurrentAge = useMemo(() => {
+    if (Number.isNaN(currentAge)) return '0';
+    return Number.isInteger(currentAge) ? `${currentAge}` : currentAge.toFixed(1);
+  }, [currentAge]);
+  const currentYearLabel = useMemo(() => {
+    if (birthBaseYear === null || Number.isNaN(currentAge)) return null;
+    return birthBaseYear + Math.round(currentAge);
+  }, [birthBaseYear, currentAge]);
 
   // Check if form has changes (for edit mode)
   const hasFormChanges = useMemo(() => {
@@ -715,13 +738,13 @@ export default function Timeline() {
   useEffect(() => {
     const timer = setTimeout(() => {
       const hasBirthData = Boolean(birthDetails.date || birthDetails.place || birthDetails.notes);
-      if (nodes.length > 0 || edges.length > 0 || hasBirthData) {
-        saveToFirestore({ currentAge, ageMax, nodes, edges, birthDetails });
+      if (nodes.length > 0 || edges.length > 0 || hasBirthData || selectedPeriodization) {
+        saveToFirestore({ currentAge, ageMax, nodes, edges, birthDetails, selectedPeriodization });
       }
     }, 10000);
 
     return () => clearTimeout(timer);
-  }, [nodes, edges, birthDetails, currentAge, ageMax, user]);
+  }, [nodes, edges, birthDetails, currentAge, ageMax, selectedPeriodization, user]);
 
   // Load on mount
   useEffect(() => {
@@ -761,6 +784,7 @@ export default function Timeline() {
           }));
           setEdges(normalizedEdges);
           setBirthDetails(data.birthDetails || {});
+          setSelectedPeriodization(data.selectedPeriodization ?? null);
 
           // Set initial viewport after data loads
           if (!initialViewportSet) {
@@ -944,14 +968,22 @@ export default function Timeline() {
             {/* Background */}
             <rect x={0} y={-100} width={worldWidth} height={worldHeight + 200} fill="#ffffff" />
 
+            {/* Periodization layer */}
+            <PeriodizationLayer
+              periodization={selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null}
+              ageMax={ageMax}
+              worldHeight={worldHeight}
+              canvasWidth={worldWidth}
+              onBoundaryClick={(periodIndex) => {
+                setPeriodBoundaryModal({ periodIndex });
+              }}
+            />
+
             {/* Time scale - vertical, on the left of life line */}
             {Array.from({ length: Math.floor(ageMax / 5) + 1 }, (_, i) => i * 5).map((age) => {
-              const birthDate = birthDetails.date ? new Date(birthDetails.date) : null;
-              let yearLabel: string | null = null;
-              if (birthDate && !Number.isNaN(birthDate.getTime())) {
-                const year = birthDate.getFullYear() + age;
-                yearLabel = `${year}`;
-              }
+              const isCurrentTick = age === Math.round(currentAge);
+              const leftLabel = isCurrentTick ? 'сейчас' : `${age}`;
+              const rightLabel = birthBaseYear !== null ? `${birthBaseYear + age}` : null;
 
               return (
                 <g key={age}>
@@ -967,19 +999,20 @@ export default function Timeline() {
 
                 {/* Age label */}
                   <text
-                    x={LINE_X_POSITION - 30}
+                    x={LINE_X_POSITION - 35}
                     y={worldHeight - age * YEAR_PX + 5}
                     fontSize={42}
                     textAnchor="end"
                     fill="#475569"
                     fontWeight="500"
                     fontFamily="Georgia, serif"
+                    style={isCurrentTick ? { textTransform: 'uppercase' } : undefined}
                   >
-                    {age}
+                    {leftLabel}
                   </text>
-                  {yearLabel && (
+                  {rightLabel && (
                     <text
-                      x={LINE_X_POSITION + 30}
+                      x={LINE_X_POSITION + 35}
                       y={worldHeight - age * YEAR_PX + 5}
                       fontSize={42}
                       textAnchor="start"
@@ -987,7 +1020,7 @@ export default function Timeline() {
                       fontWeight="500"
                       fontFamily="Georgia, serif"
                     >
-                      {yearLabel}
+                      {rightLabel}
                     </text>
                   )}
                 </g>
@@ -1051,11 +1084,13 @@ export default function Timeline() {
                 strokeWidth={birthSelected ? 5 : 3}
               />
               <text
-                x={LINE_X_POSITION + adaptiveRadius + 20}
-                y={worldHeight + 6}
+                x={LINE_X_POSITION}
+                y={worldHeight + adaptiveRadius * 1.8}
                 fontSize={16}
+                textAnchor="middle"
                 fontWeight={birthSelected ? '700' : '600'}
                 fill={birthSelected ? '#0ea5e9' : '#0f172a'}
+                fontFamily="Georgia, serif"
               >
                 👶 Рождение
               </text>
@@ -1065,14 +1100,29 @@ export default function Timeline() {
             <g>
               <circle cx={LINE_X_POSITION} cy={worldHeight - currentAge * YEAR_PX} r={adaptiveRadius * 0.5} fill="#3b82f6" />
               <text
-                x={LINE_X_POSITION + adaptiveRadius + 10}
-                y={worldHeight - currentAge * YEAR_PX + 5}
-                fontSize={14}
+                x={LINE_X_POSITION - adaptiveRadius - 12}
+                y={worldHeight - currentAge * YEAR_PX + 4}
+                fontSize={16}
                 fontWeight="600"
-                fill="#3b82f6"
+                fill="#1d4ed8"
+                textAnchor="end"
+                fontFamily="Georgia, serif"
               >
-                Сейчас ({currentAge} лет)
+                Сейчас · {formattedCurrentAge} лет
               </text>
+              {currentYearLabel !== null && (
+                <text
+                  x={LINE_X_POSITION + adaptiveRadius + 12}
+                  y={worldHeight - currentAge * YEAR_PX + 4}
+                  fontSize={16}
+                  fontWeight="600"
+                  fill="#1d4ed8"
+                  textAnchor="start"
+                  fontFamily="Georgia, serif"
+                >
+                  {currentYearLabel}
+                </text>
+              )}
             </g>
 
             {/* Vertical branches (edges) */}
@@ -1257,9 +1307,12 @@ export default function Timeline() {
       <aside className="fixed right-0 top-0 bottom-0 w-80 border-l border-purple-200 bg-gradient-to-b from-purple-50 to-blue-50 overflow-y-auto z-30">
         <div className="p-4 space-y-4">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2">
               <h2 className="text-lg font-bold text-slate-900" style={{ fontFamily: 'Georgia, serif' }}>Таймлайн жизни</h2>
-              {/* Save status lamp */}
+              <div className="flex items-center gap-2">
+                {/* Periodization selector */}
+                <PeriodizationSelector value={selectedPeriodization} onChange={setSelectedPeriodization} />
+                {/* Save status lamp */}
               <div
                 className="relative"
                 onMouseEnter={() => setShowSaveTooltip(true)}
@@ -1299,6 +1352,7 @@ export default function Timeline() {
                     </div>
                   </div>
                 )}
+              </div>
               </div>
             </div>
           </div>
@@ -1779,6 +1833,27 @@ export default function Timeline() {
           </div>
         </div>
       </aside>
+
+      {/* Periodization Boundary Modal */}
+      {periodBoundaryModal && selectedPeriodization && (() => {
+        const periodization = getPeriodizationById(selectedPeriodization);
+        if (!periodization) return null;
+
+        const periodBefore = periodization.periods[periodBoundaryModal.periodIndex];
+        const periodAfter = periodization.periods[periodBoundaryModal.periodIndex + 1];
+
+        if (!periodBefore || !periodAfter) return null;
+
+        return (
+          <PeriodBoundaryModal
+            periodization={periodization}
+            periodBefore={periodBefore}
+            periodAfter={periodAfter}
+            age={periodAfter.startAge}
+            onClose={() => setPeriodBoundaryModal(null)}
+          />
+        );
+      })()}
 
       {/* Help Modal */}
       <AnimatePresence>

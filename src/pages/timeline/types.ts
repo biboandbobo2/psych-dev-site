@@ -1,6 +1,31 @@
 import type { EventIconId } from '../../components/Icon';
 
 /**
+ * Период в периодизации развития
+ */
+export type Period = {
+  startAge: number;
+  endAge: number;
+  name: string;
+  description: string;
+  color: string;
+};
+
+/**
+ * Периодизация развития от психолога/педагога
+ */
+export type Periodization = {
+  id: string;
+  name: string;
+  author: string;
+  wikiUrl: string;
+  criterion: string;
+  periods: Period[];
+  flexibleBoundaries?: boolean; // Если true, границы между периодами не строгие
+  boundaryNote?: string; // Примечание о гибкости границ
+};
+
+/**
  * Сфера жизни для события
  */
 export type Sphere =
@@ -59,6 +84,7 @@ export type TimelineData = {
   nodes: NodeT[];
   edges: EdgeT[];
   birthDetails?: BirthDetails;
+  selectedPeriodization?: string | null; // ID выбранной периодизации или null
 };
 
 /**
