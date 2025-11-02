@@ -1389,6 +1389,7 @@ export default function Timeline() {
                           strokeWidth={0}
                         />
                         <image
+                          data-icon-id={node.iconId ?? undefined}
                           href={`/icons/events/${iconMeta.filename}`}
                           x={x - adaptiveRadius}
                           y={y - adaptiveRadius}

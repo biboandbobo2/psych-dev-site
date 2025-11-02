@@ -1,3 +1,5 @@
+import type { EventIconId } from '../../../data/eventIcons';
+import { EVENT_ICON_DATA_URL_MAP } from '../../../data/eventIconDataUrls';
 import type { BirthDetails, EdgeT, NodeT, TimelineData } from '../types';
 import type { Periodization } from '../data/periodizations';
 
@@ -10,33 +12,103 @@ export type TimelineExportPayload = {
   selectedPeriodization: TimelineData['selectedPeriodization'];
 };
 
-const JSON_FILENAME = 'timeline.json';
-const PNG_FILENAME = 'timeline.png';
-const PDF_FILENAME = 'timeline.pdf';
+/**
+ * Генерирует уникальное имя файла с timestamp
+ * Формат: timeline_2024-01-15_14-30-45.ext
+ */
+function generateFilename(extension: string): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
 
-export function exportTimelineJSON(data: TimelineExportPayload, filename = JSON_FILENAME) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  downloadBlob(blob, filename);
+  return `timeline_${year}-${month}-${day}_${hours}-${minutes}-${seconds}.${extension}`;
 }
 
-export async function exportTimelinePNG(svg: SVGSVGElement, filename = PNG_FILENAME) {
+type ExportDebugIcon = {
+  index: number;
+  iconId?: EventIconId;
+  href: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  sampleX: number;
+  sampleY: number;
+};
+
+type ExportDebugState = {
+  icons: ExportDebugIcon[];
+};
+
+const EXPORT_DEBUG =
+  typeof window !== 'undefined' &&
+  (window as any).__TIMELINE_EXPORT_DEBUG__ !== false &&
+  import.meta.env.DEV;
+
+function debugExport(...args: unknown[]) {
+  if (EXPORT_DEBUG) {
+    console.log('[timeline-export]', ...args);
+  }
+}
+
+function debugExportGroup(label: string, fn: () => void) {
+  if (EXPORT_DEBUG) {
+    console.groupCollapsed(`[timeline-export] ${label}`);
+    try {
+      fn();
+    } finally {
+      console.groupEnd();
+    }
+  }
+}
+
+function getDebugState(): ExportDebugState | null {
+  if (!EXPORT_DEBUG || typeof window === 'undefined') return null;
+  const win = window as any;
+  if (!win.__TIMELINE_EXPORT_STATE) {
+    win.__TIMELINE_EXPORT_STATE = { icons: [] } as ExportDebugState;
+  }
+  return win.__TIMELINE_EXPORT_STATE as ExportDebugState;
+}
+
+function resetDebugState() {
+  const state = getDebugState();
+  if (state) {
+    state.icons = [];
+  }
+}
+
+export function exportTimelineJSON(data: TimelineExportPayload, filename?: string) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  downloadBlob(blob, filename || generateFilename('json'));
+}
+
+export async function exportTimelinePNG(svg: SVGSVGElement, filename?: string) {
+  debugExport('Starting PNG export');
   const { canvas } = await renderSvgToCanvas(svg);
   const blob = await canvasToBlob(canvas, 'image/png', 1);
-  downloadBlob(blob, filename);
+  downloadBlob(blob, filename || generateFilename('png'));
+  debugExport('PNG export complete');
 }
 
 export async function exportTimelinePDF(
   svg: SVGSVGElement,
   data: TimelineExportPayload,
   periodization: Periodization | null,
-  filename = PDF_FILENAME
+  filename?: string
 ) {
+  debugExport('Starting PDF export');
   const { canvas, width, height } = await renderSvgToCanvas(svg);
   const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.92);
   const jpegBytes = dataUriToUint8Array(jpegDataUrl);
   const pdfBytes = buildPdfWithImage(jpegBytes, width, height, periodization, data);
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-  downloadBlob(blob, filename);
+  downloadBlob(blob, filename || generateFilename('pdf'));
+  debugExport('PDF export complete');
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -56,7 +128,15 @@ async function renderSvgToCanvas(svg: SVGSVGElement) {
   const url = URL.createObjectURL(svgBlob);
 
   try {
+    debugExport('Rendering SVG to canvas', { width, height });
     const image = await loadImage(url);
+
+    // Даём браузеру время декодировать вложенные base64 изображения внутри SVG
+    // Это критично, потому что image.decode() завершается для основного SVG,
+    // но вложенные <image> элементы могут декодироваться асинхронно
+    debugExport('Waiting for nested images to decode...');
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     const ratio = window.devicePixelRatio || 1;
     const canvas = document.createElement('canvas');
     canvas.width = width * ratio;
@@ -69,6 +149,7 @@ async function renderSvgToCanvas(svg: SVGSVGElement) {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(image, 0, 0, width, height);
+    sampleRenderedIcons(ctx, width, height);
 
     return { canvas, width, height };
   } finally {
@@ -77,7 +158,15 @@ async function renderSvgToCanvas(svg: SVGSVGElement) {
 }
 
 async function serializeSvg(svg: SVGSVGElement) {
+  resetDebugState();
   const clone = svg.cloneNode(true) as SVGSVGElement;
+  debugExportGroup('Serialize SVG', () => {
+    debugExport('Original dataset', {
+      worldWidth: svg.dataset.worldWidth,
+      worldHeight: svg.dataset.worldHeight,
+      exportRoot: !!svg.querySelector('[data-export-root="true"]'),
+    });
+  });
 
   const DEFAULT_WIDTH = Number(svg.dataset.worldWidth ?? 4000);
   const DEFAULT_HEIGHT = Number(svg.dataset.worldHeight ?? 100 * 80 + 500);
@@ -101,6 +190,7 @@ async function serializeSvg(svg: SVGSVGElement) {
     textNode.setAttribute('font-family', 'Manrope, sans-serif');
   });
 
+  debugExport('inlineImages will process', { totalImages: clone.querySelectorAll('image').length });
   await inlineImages(clone);
 
   const serializer = new XMLSerializer();
@@ -121,8 +211,33 @@ function loadImage(url: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.crossOrigin = 'anonymous';
-    image.onload = () => resolve(image);
-    image.onerror = (error) => reject(error);
+    const cleanup = () => {
+      image.onload = null;
+      image.onerror = null;
+    };
+    image.onload = () => {
+      const decode = (image as HTMLImageElement & { decode?: () => Promise<void> }).decode;
+      if (typeof decode === 'function') {
+        decode
+          .call(image)
+          .then(() => {
+            cleanup();
+            resolve(image);
+          })
+          .catch((error) => {
+            debugExport('Image decode failed, proceeding with onload', error);
+            cleanup();
+            resolve(image);
+          });
+      } else {
+        cleanup();
+        resolve(image);
+      }
+    };
+    image.onerror = (error) => {
+      cleanup();
+      reject(error);
+    };
     image.src = url;
   });
 }
@@ -281,15 +396,82 @@ function sanitizeText(text: string) {
 async function inlineImages(svgClone: SVGSVGElement) {
   const imageNodes = Array.from(svgClone.querySelectorAll<SVGImageElement>('image'));
   const cache = new Map<string, string>();
+  const debugState = getDebugState();
+  const stats = {
+    total: imageNodes.length,
+    withDataAttr: 0,
+    iconMapHit: 0,
+    alreadyDataUrl: 0,
+    missingHref: 0,
+    fetchPerformed: 0,
+    fetchCacheHit: 0,
+    errors: 0,
+  };
+
+  debugExportGroup('inlineImages details', () => {
+    debugExport('Image nodes snapshot', imageNodes.map((node, index) => ({
+      index,
+      dataIconId: node.getAttribute('data-icon-id') ?? (node.dataset ? node.dataset.iconId : null),
+      href:
+        node.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ??
+        node.getAttribute('href'),
+    })));
+  });
 
   await Promise.all(
-    imageNodes.map(async (imageNode) => {
+    imageNodes.map(async (imageNode, index) => {
+      const iconIdAttr =
+        imageNode.getAttribute('data-icon-id') ||
+        (imageNode.dataset ? imageNode.dataset.iconId : null);
+      const iconId = (iconIdAttr || undefined) as EventIconId | undefined;
+      if (iconId) {
+        stats.withDataAttr += 1;
+        const dataUrl = EVENT_ICON_DATA_URL_MAP[iconId];
+        if (dataUrl) {
+          imageNode.setAttributeNS('http://www.w3.org/1999/xlink', 'href', dataUrl);
+          imageNode.setAttribute('href', dataUrl);
+          stats.iconMapHit += 1;
+          debugExport('Icon inlined from map', {
+            index,
+            iconId,
+            preview: dataUrl.slice(0, 48),
+          });
+          if (debugState) {
+            debugState.icons.push({
+              index,
+              iconId,
+              href: dataUrl,
+              x: Number(imageNode.getAttribute('x') ?? '0'),
+              y: Number(imageNode.getAttribute('y') ?? '0'),
+              width: Number(imageNode.getAttribute('width') ?? '0'),
+              height: Number(imageNode.getAttribute('height') ?? '0'),
+              sampleX:
+                Number(imageNode.getAttribute('x') ?? '0') +
+                Number(imageNode.getAttribute('width') ?? '0') / 2,
+              sampleY:
+                Number(imageNode.getAttribute('y') ?? '0') +
+                Number(imageNode.getAttribute('height') ?? '0') / 2,
+            });
+          }
+          return;
+        }
+        debugExport('IconId present but not found in map', { index, iconId });
+      }
+
       const hrefAttr =
         imageNode.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ||
         imageNode.getAttribute('href');
-      if (!hrefAttr) return;
+      if (!hrefAttr) {
+        stats.missingHref += 1;
+        debugExport('Image is missing href, skipping', { index });
+        return;
+      }
 
-      if (hrefAttr.startsWith('data:')) return;
+      if (hrefAttr.startsWith('data:')) {
+        stats.alreadyDataUrl += 1;
+        debugExport('Image already contains data URL, skipping', { index });
+        return;
+      }
 
       let absoluteUrl = hrefAttr;
       if (hrefAttr.startsWith('http')) {
@@ -302,20 +484,53 @@ async function inlineImages(svgClone: SVGSVGElement) {
       }
 
       try {
-        if (!cache.has(absoluteUrl)) {
-          const response = await fetch(absoluteUrl, { mode: 'cors' });
-          const blob = await response.blob();
-          const dataUrl = await blobToDataURL(blob);
+        let dataUrl = cache.get(absoluteUrl);
+        if (!dataUrl) {
+          stats.fetchPerformed += 1;
+          debugExport('Fetching image for export', { index, absoluteUrl });
+          dataUrl = await fetchImageAsDataURL(absoluteUrl);
           cache.set(absoluteUrl, dataUrl);
+        } else {
+          stats.fetchCacheHit += 1;
+          debugExport('Using cached data URL', { index, absoluteUrl });
         }
-        const dataUrl = cache.get(absoluteUrl)!;
-        imageNode.setAttributeNS('http://www.w3.org/1999/xlink', 'href', dataUrl);
-        imageNode.setAttribute('href', dataUrl);
+        if (dataUrl) {
+          imageNode.setAttributeNS('http://www.w3.org/1999/xlink', 'href', dataUrl);
+          imageNode.setAttribute('href', dataUrl);
+          debugExport('Image inlined via fetch', {
+            index,
+            absoluteUrl,
+            preview: dataUrl.slice(0, 48),
+          });
+          if (debugState) {
+            debugState.icons.push({
+              index,
+              iconId,
+              href: dataUrl,
+              x: Number(imageNode.getAttribute('x') ?? '0'),
+              y: Number(imageNode.getAttribute('y') ?? '0'),
+              width: Number(imageNode.getAttribute('width') ?? '0'),
+              height: Number(imageNode.getAttribute('height') ?? '0'),
+              sampleX:
+                Number(imageNode.getAttribute('x') ?? '0') +
+                Number(imageNode.getAttribute('width') ?? '0') / 2,
+              sampleY:
+                Number(imageNode.getAttribute('y') ?? '0') +
+                Number(imageNode.getAttribute('height') ?? '0') / 2,
+            });
+          }
+        }
       } catch (error) {
+        stats.errors += 1;
         console.warn('Failed to inline image for export:', absoluteUrl, error);
       }
     })
   );
+
+  debugExport('inlineImages summary', stats);
+  if (debugState) {
+    debugExport('Icon geometry recorded', debugState.icons);
+  }
 }
 
 function blobToDataURL(blob: Blob) {
@@ -326,5 +541,92 @@ function blobToDataURL(blob: Blob) {
     };
     reader.onerror = reject;
     reader.readAsDataURL(blob);
+  });
+}
+
+async function fetchImageAsDataURL(url: string) {
+  try {
+    const response = await fetch(url, { mode: 'cors' });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const blob = await response.blob();
+    return await blobToDataURL(blob);
+  } catch (error) {
+    return loadImageAsDataURL(url);
+  }
+}
+
+function loadImageAsDataURL(url: string) {
+  return new Promise<string>((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const width = image.naturalWidth || image.width;
+        const height = image.naturalHeight || image.height;
+        canvas.width = width || 1;
+        canvas.height = height || 1;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas context unavailable for image conversion'));
+          return;
+        }
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/png'));
+      } catch (conversionError) {
+        reject(conversionError);
+      }
+    };
+    image.onerror = reject;
+    image.src = url;
+  });
+}
+
+function sampleRenderedIcons(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  if (!EXPORT_DEBUG) return;
+  const state = getDebugState();
+  if (!state || !state.icons.length) return;
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+  const ratioX = canvasWidth / width;
+  const ratioY = canvasHeight / height;
+
+  debugExportGroup('Canvas icon samples', () => {
+    state.icons.forEach((icon) => {
+      const px = Math.max(
+        0,
+        Math.min(canvasWidth - 1, Math.round(icon.sampleX * ratioX))
+      );
+      const py = Math.max(
+        0,
+        Math.min(canvasHeight - 1, Math.round(icon.sampleY * ratioY))
+      );
+      let rgba: number[] = [0, 0, 0, 0];
+      try {
+        rgba = Array.from(ctx.getImageData(px, py, 1, 1).data);
+      } catch (error) {
+        debugExport('Failed to sample pixel', { icon, error });
+      }
+      debugExport('Icon sample RGBA', {
+        index: icon.index,
+        iconId: icon.iconId,
+        sampleX: icon.sampleX,
+        sampleY: icon.sampleY,
+        px,
+        py,
+        rgba,
+      });
+    });
+    const midX = Math.round(canvasWidth / 2);
+    const midY = Math.round(canvasHeight / 2);
+    let midRgba: number[] = [0, 0, 0, 0];
+    try {
+      midRgba = Array.from(ctx.getImageData(midX, midY, 1, 1).data);
+    } catch (error) {
+      debugExport('Failed to sample canvas center', { error });
+    }
+    debugExport('Canvas center sample', { px: midX, py: midY, rgba: midRgba });
   });
 }
