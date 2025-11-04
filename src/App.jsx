@@ -40,6 +40,7 @@ import Tests from './pages/Tests';
 import AuthorsTest from './pages/AuthorsTest';
 import AuthorsTestLevel2 from './pages/AuthorsTestLevel2';
 import AuthorsTestLevel3 from './pages/AuthorsTestLevel3';
+import DynamicTest from './pages/DynamicTest';
 import MigrateTopics from './pages/MigrateTopics';
 import AdminTopics from './pages/AdminTopics';
 import Timeline from './pages/Timeline';
@@ -1131,6 +1132,14 @@ function AppInner() {
                     element={
                       <RequireAuth>
                         <AuthorsTestLevel3 />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/tests/dynamic/:testId"
+                    element={
+                      <RequireAuth>
+                        <DynamicTest />
                       </RequireAuth>
                     }
                   />
