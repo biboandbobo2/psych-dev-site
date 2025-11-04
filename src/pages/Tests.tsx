@@ -1,9 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
-import { getTestResults } from '../lib/testResults';
+import { getPublishedTests } from '../lib/tests';
+import { isTestUnlocked } from '../lib/testAccess';
+import type { Test as FirestoreTest, TestAppearance } from '../types/tests';
+import { AGE_RANGE_LABELS } from '../types/notes';
+import { mergeAppearance, createGradient, hexToRgba } from '../utils/testAppearance';
 
-interface Test {
+interface LegacyTest {
   id: string;
   title: string;
   description: string;
@@ -15,7 +20,7 @@ interface Test {
   link?: string;
 }
 
-const COURSE_TESTS: Test[] = [
+const COURSE_TESTS: LegacyTest[] = [
   {
     id: 'general-knowledge',
     title: 'Общие знания по курсу',
@@ -35,17 +40,6 @@ const COURSE_TESTS: Test[] = [
     questionCount: 40,
     duration: '35 мин',
     active: false,
-  },
-  {
-    id: 'key-authors',
-    title: 'Ключевые авторы и теории',
-    description: 'Проверьте знание авторов и их вклада в психологию развития',
-    icon: '👥',
-    color: 'from-purple-500 to-purple-600',
-    questionCount: 10,
-    duration: '10 мин',
-    active: true,
-    link: '/tests/authors',
   },
   {
     id: 'practical-application',
@@ -79,33 +73,160 @@ const COURSE_TESTS: Test[] = [
   },
 ];
 
+// Вспомогательная функция для получения иконки и цвета по рубрике
+function getTestMetadata(rubric: string): { icon: string; color: string; description: string } {
+  if (rubric === 'full-course') {
+    return {
+      icon: '🎓',
+      color: 'from-indigo-500 to-indigo-600',
+      description: 'Тест по всему курсу психологии развития',
+    };
+  }
+
+  // Для возрастных периодов
+  const label = AGE_RANGE_LABELS[rubric as keyof typeof AGE_RANGE_LABELS];
+  return {
+    icon: '📖',
+    color: 'from-teal-500 to-teal-600',
+    description: label ? `Тест по периоду: ${label}` : 'Тематический тест',
+  };
+}
+
+interface TestChain {
+  root: FirestoreTest;
+  levels: FirestoreTest[];
+}
+
+const MAX_CHAIN_LENGTH = 3;
+
+function buildTestChains(tests: FirestoreTest[]): TestChain[] {
+  if (tests.length === 0) return [];
+
+  const byId = new Map(tests.map((test) => [test.id, test]));
+  const children = new Map<string, FirestoreTest[]>();
+
+  tests.forEach((test) => {
+    if (!test.prerequisiteTestId) return;
+    const list = children.get(test.prerequisiteTestId) ?? [];
+    list.push(test);
+    children.set(test.prerequisiteTestId, list);
+  });
+
+  const roots: FirestoreTest[] = [];
+  const visited = new Set<string>();
+
+  tests.forEach((test) => {
+    if (!test.prerequisiteTestId || !byId.has(test.prerequisiteTestId)) {
+      roots.push(test);
+    }
+  });
+
+  const chains: TestChain[] = [];
+
+  const sortByCreated = (a: FirestoreTest, b: FirestoreTest) =>
+    (a.createdAt?.getTime?.() ?? 0) - (b.createdAt?.getTime?.() ?? 0);
+
+  roots.sort((a, b) => (b.updatedAt?.getTime?.() ?? 0) - (a.updatedAt?.getTime?.() ?? 0));
+
+  for (const root of roots) {
+    const chain: FirestoreTest[] = [];
+    const localVisited = new Set<string>();
+    let node: FirestoreTest | undefined = root;
+
+    while (node && !localVisited.has(node.id) && chain.length < MAX_CHAIN_LENGTH) {
+      chain.push(node);
+      visited.add(node.id);
+      localVisited.add(node.id);
+
+      const successors = (children.get(node.id) ?? [])
+        .slice()
+        .sort(sortByCreated)
+        .filter((test) => !localVisited.has(test.id));
+
+      if (successors.length === 0) {
+        break;
+      }
+
+      node = successors[0];
+    }
+
+    chains.push({ root, levels: chain });
+  }
+
+  // Добавляем одиночные тесты, которые не попали в цепочки
+  tests.forEach((test) => {
+    if (!visited.has(test.id)) {
+      chains.push({ root: test, levels: [test] });
+    }
+  });
+
+  return chains.sort(
+    (a, b) => (b.root.updatedAt?.getTime?.() ?? 0) - (a.root.updatedAt?.getTime?.() ?? 0)
+  );
+}
+
+function cleanLevelLabel(text: string) {
+  return text
+    .replace(/^Уровень\s*\d+\s*[-–—:]?\s*/i, '')
+    .trim();
+}
+
+function formatLevelLabel(test: FirestoreTest, index: number) {
+  const levelNumber = index + 1;
+  const parts = test.title.split(':');
+  if (parts.length > 1) {
+    const suffix = cleanLevelLabel(parts.slice(1).join(':').trim());
+    if (suffix) {
+      return suffix;
+    }
+  }
+  return cleanLevelLabel(test.title) || `Уровень ${levelNumber}`;
+}
+
+function getCombinedAppearance(test: FirestoreTest): TestAppearance {
+  return mergeAppearance(test.appearance);
+}
+
 export default function Tests() {
   const { user } = useAuth();
-  const [isLevel2Unlocked, setIsLevel2Unlocked] = useState(false);
-  const [isLevel3Unlocked, setIsLevel3Unlocked] = useState(false);
+  const [firestoreTests, setFirestoreTests] = useState<FirestoreTest[]>([]);
+  const [loadingTests, setLoadingTests] = useState(true);
+  const [testUnlockStatus, setTestUnlockStatus] = useState<Record<string, boolean>>({});
 
-  // Проверка разблокировки уровней 2 и 3 для теста "Авторы и теории"
+  // Загрузка опубликованных тестов из Firestore
   useEffect(() => {
-    if (!user) return;
-
-    const checkUnlocks = async () => {
+    const loadTests = async () => {
       try {
-        // Проверка Level 2
-        const level1Results = await getTestResults(user.uid, 'authors-test');
-        const hasLevel1Perfect = level1Results.some((result) => result.score === 10);
-        setIsLevel2Unlocked(hasLevel1Perfect);
+        setLoadingTests(true);
+        const tests = await getPublishedTests();
+        console.log('🔵 [Tests.tsx] Загружено тестов из Firestore:', tests.length);
+        console.log('📋 [Tests.tsx] Список тестов:', tests);
+        setFirestoreTests(tests);
 
-        // Проверка Level 3
-        const level2Results = await getTestResults(user.uid, 'authors-test-level2');
-        const hasLevel2Perfect = level2Results.some((result) => result.score === 10);
-        setIsLevel3Unlocked(hasLevel2Perfect);
+        // Проверяем доступность тестов для пользователя
+        if (user) {
+          const unlockStatus: Record<string, boolean> = {};
+          for (const test of tests) {
+            unlockStatus[test.id] = await isTestUnlocked(
+              user.uid,
+              test.prerequisiteTestId,
+              test.requiredPercentage ?? 70
+            );
+          }
+          setTestUnlockStatus(unlockStatus);
+          console.log('🔓 [Tests.tsx] Статусы разблокировки:', unlockStatus);
+        }
       } catch (error) {
-        console.error('Error checking level unlocks:', error);
+        console.error('❌ [Tests.tsx] Ошибка загрузки тестов:', error);
+      } finally {
+        setLoadingTests(false);
       }
     };
 
-    checkUnlocks();
+    loadTests();
   }, [user]);
+
+  const testChains = useMemo(() => buildTestChains(firestoreTests), [firestoreTests]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4">
@@ -136,7 +257,8 @@ export default function Tests() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {COURSE_TESTS.map((test) => {
-            const content = (
+            // Контент без кнопок level2/level3
+            const baseContent = (
               <>
                 {!test.active && (
                   <div className="absolute top-4 right-4">
@@ -170,47 +292,20 @@ export default function Tests() {
                   )}
                 </div>
 
-                {/* Индикаторы уровней 2 и 3 */}
-                {test.id === 'key-authors' && (
-                  <div className="flex flex-col gap-2">
-                    {isLevel2Unlocked && (
-                      <Link
-                        to="/tests/authors/level2"
-                        className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg text-sm font-bold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span>🔥</span>
-                        <span>Уровень 2 доступен!</span>
-                      </Link>
-                    )}
-                    {isLevel3Unlocked && (
-                      <Link
-                        to="/tests/authors/level3"
-                        className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg text-sm font-bold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span>🔥🔥</span>
-                        <span>Уровень 3 доступен!</span>
-                      </Link>
-                    )}
-                  </div>
-                )}
-
                 {!test.active && (
                   <div className="absolute inset-0 bg-gray-50/50 rounded-xl backdrop-blur-[1px] cursor-not-allowed" />
                 )}
               </>
             );
 
+            // Кнопки дополнительных уровней (вне Link)
             if (test.active && test.link) {
               return (
-                <Link
-                  key={test.id}
-                  to={test.link}
-                  className="relative bg-white border-2 rounded-xl p-6 transition-all duration-300 border-gray-200 hover:border-blue-400 hover:shadow-lg cursor-pointer"
-                >
-                  {content}
-                </Link>
+                <div key={test.id} className="relative bg-white border-2 rounded-xl p-6 transition-all duration-300 border-gray-200 hover:border-blue-400 hover:shadow-lg">
+                  <Link to={test.link} className="block">
+                    {baseContent}
+                  </Link>
+                </div>
               );
             }
 
@@ -219,10 +314,162 @@ export default function Tests() {
                 key={test.id}
                 className="relative bg-white border-2 rounded-xl p-6 transition-all duration-300 border-gray-200 opacity-60"
               >
-                {content}
+                {baseContent}
               </div>
             );
           })}
+
+          {/* Тесты из Firestore */}
+          {loadingTests ? (
+            <>
+              <div className="relative bg-white border-2 rounded-xl p-6 animate-pulse border-gray-200">
+                <div className="w-16 h-16 bg-gray-200 rounded-xl mb-4" />
+                <div className="h-6 bg-gray-200 rounded w-3/4 mb-2" />
+                <div className="h-4 bg-gray-200 rounded w-full mb-4" />
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+              </div>
+              <div className="relative bg-white border-2 rounded-xl p-6 animate-pulse border-gray-200">
+                <div className="w-16 h-16 bg-gray-200 rounded-xl mb-4" />
+                <div className="h-6 bg-gray-200 rounded w-3/4 mb-2" />
+                <div className="h-4 bg-gray-200 rounded w-full mb-4" />
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+              </div>
+            </>
+          ) : testChains.length === 0 ? (
+            <div className="relative bg-white border-2 rounded-xl p-6 text-gray-500">
+              Нет опубликованных тестов.
+            </div>
+          ) : (
+            testChains.map((chain) => {
+              const root = chain.root;
+              const appearance = getCombinedAppearance(root);
+              const metadata = getTestMetadata(root.rubric);
+              const iconGradientStyle: CSSProperties = {
+                backgroundImage: createGradient(
+                  appearance.accentGradientFrom,
+                  appearance.accentGradientTo,
+                  appearance.resolvedTheme?.primary
+                ),
+              };
+              const badgeGradientStyle: CSSProperties = {
+                backgroundImage: createGradient(
+                  appearance.badgeGradientFrom ?? appearance.accentGradientFrom,
+                  appearance.badgeGradientTo ?? appearance.accentGradientTo,
+                  appearance.resolvedTheme?.badge
+                ),
+              };
+              const cardStyle: CSSProperties = { height: 260 };
+
+              const levels = chain.levels.slice(1);
+              const titleText = root.title.split(':')[0]?.trim() || root.title;
+              const description = appearance.introDescription || metadata.description;
+              const rootUnlocked = testUnlockStatus[root.id] ?? true;
+
+              const renderLevelButton = (test: FirestoreTest, idx: number) => {
+                const levelAppearance = mergeAppearance(test.appearance);
+                const levelGradientStyle: CSSProperties = {
+                  backgroundImage: createGradient(
+                    levelAppearance.accentGradientFrom,
+                    levelAppearance.accentGradientTo,
+                    levelAppearance.resolvedTheme?.primary
+                  ),
+                };
+                const label = formatLevelLabel(test, idx + 1);
+                const icon = levelAppearance.badgeIcon || '🔥'.repeat(Math.min(idx + 2, 3));
+                const unlocked = testUnlockStatus[test.id] ?? true;
+
+                if (unlocked) {
+                  return (
+                    <Link
+                      key={test.id}
+                      to={`/tests/dynamic/${test.id}`}
+                      style={levelGradientStyle}
+                      className="h-10 rounded-xl px-4 text-white text-sm font-semibold shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2 whitespace-nowrap"
+                    >
+                      <span>{icon}</span>
+                      <span>{label}</span>
+                    </Link>
+                  );
+                }
+
+                return (
+                  <div
+                    key={test.id}
+                    className="h-10 rounded-xl border border-dashed border-gray-300 px-4 text-sm text-gray-500 bg-gray-50 flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <span>🔒</span>
+                    <span>{label}</span>
+                    <span className="ml-auto text-xs text-gray-400">
+                      ≥{test.requiredPercentage ?? 70}%
+                    </span>
+                  </div>
+                );
+              };
+
+              const badgeLabel = appearance.badgeLabel?.trim();
+              const showBadge = Boolean(badgeLabel);
+
+              return (
+                <div
+                  key={root.id}
+                  className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-blue-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-lg"
+                  style={cardStyle}
+                >
+                  <div className="flex items-start gap-4">
+                    <div
+                      className="flex h-14 w-14 items-center justify-center rounded-xl text-2xl text-white shadow"
+                      style={iconGradientStyle}
+                    >
+                    {appearance.introIcon || metadata.icon}
+                  </div>
+                  <div className="flex-1 flex flex-col gap-2">
+                      {showBadge && (
+                        <div className="flex items-center gap-2 text-xs font-semibold text-white">
+                          <span className="inline-flex items-center gap-1 rounded-full px-3 py-1" style={badgeGradientStyle}>
+                            {appearance.badgeIcon ? <span>{appearance.badgeIcon}</span> : null}
+                            <span>{badgeLabel}</span>
+                          </span>
+                        </div>
+                      )}
+                      {rootUnlocked ? (
+                        <Link
+                          to={`/tests/dynamic/${root.id}`}
+                          className={`text-left font-semibold text-gray-900 ${levels.length === 0 ? 'text-xl' : 'text-lg'} hover:underline focus:underline transition-colors`}
+                        >
+                          {titleText}
+                        </Link>
+                      ) : (
+                        <div className={`font-semibold text-gray-900 ${levels.length === 0 ? 'text-xl' : 'text-lg'}`}>
+                          {titleText}
+                        </div>
+                      )}
+                      {description && (
+                        <p className={`${levels.length === 0 ? 'text-base' : 'text-sm'} text-gray-600 leading-snug line-clamp-3`}>
+                          {description}
+                        </p>
+                      )}
+                      <div className="mt-auto flex flex-wrap items-center gap-4 text-xs font-medium text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <span>📋</span>
+                          <span>{root.questionCount} вопросов</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span>🔥</span>
+                          <span>{chain.levels.length} уровня</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {levels.length > 0 && (
+                    <div className="mt-4 flex flex-col gap-2">
+                      {levels.map((level, idx) => renderLevelButton(level, idx))}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

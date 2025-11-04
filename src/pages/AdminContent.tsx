@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { getPeriodColors } from "../constants/periods";
+import { TestEditorModal } from "../components/TestEditorModal";
 
 interface Period {
   period: string;
@@ -18,6 +19,7 @@ export default function AdminContent() {
   const [periods, setPeriods] = useState<Period[]>([]);
   const [intro, setIntro] = useState<Period | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showTestEditor, setShowTestEditor] = useState(false);
 
   const loadPeriods = async () => {
     try {
@@ -83,13 +85,23 @@ export default function AdminContent() {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-700">Все периоды</h2>
 
-        <Link
-          to="/admin/topics"
-          className="inline-flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-700"
-        >
-          <span aria-hidden>📚</span>
-          <span>Редактировать темы заметок</span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowTestEditor(true)}
+            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+          >
+            <span aria-hidden>📝</span>
+            <span>Создать тест</span>
+          </button>
+
+          <Link
+            to="/admin/topics"
+            className="inline-flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-700"
+          >
+            <span aria-hidden>📚</span>
+            <span>Редактировать темы заметок</span>
+          </Link>
+        </div>
       </div>
 
       {intro && (
@@ -167,6 +179,10 @@ export default function AdminContent() {
           💡 <strong>Совет:</strong> Нажмите на период чтобы редактировать его содержимое.
         </p>
       </div>
+
+      {showTestEditor && (
+        <TestEditorModal onClose={() => setShowTestEditor(false)} />
+      )}
     </div>
   );
 }
