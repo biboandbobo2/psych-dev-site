@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { getAllTests, getTestById, deleteTest } from '../lib/tests';
-import type { Test, TestStatus, TestRubric } from '../types/tests';
+import type { Test, TestStatus, TestRubric, TestQuestion } from '../types/tests';
 import { AGE_RANGE_LABELS } from '../types/notes';
 import { TestEditorForm } from './TestEditorForm';
+import { importTestFromJson, readFileAsText, generateTestTemplate, downloadJson } from '../utils/testImportExport';
 
 interface TestEditorModalProps {
   onClose: () => void;
@@ -235,6 +236,11 @@ export function TestEditorModal({ onClose }: TestEditorModalProps) {
   );
   const [isDeleting, setIsDeleting] = useState(false);
   const deleteConfirmRef = useRef<HTMLButtonElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importedTest, setImportedTest] = useState<{
+    data?: Partial<Test>;
+    questions?: TestQuestion[];
+  } | null>(null);
 
   useEffect(() => {
     if (filterOpen) {
@@ -453,6 +459,7 @@ export function TestEditorModal({ onClose }: TestEditorModalProps) {
 
   const handleBackToList = () => {
     setSelectedTestId(null);
+    setImportedTest(null);
     loadTests();
   };
 
@@ -476,6 +483,43 @@ export function TestEditorModal({ onClose }: TestEditorModalProps) {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const content = await readFileAsText(file);
+      const result = importTestFromJson(content);
+
+      if (!result.success) {
+        setFeedback({
+          type: 'error',
+          message: result.error || 'Ошибка импорта',
+        });
+        return;
+      }
+
+      setImportedTest({ data: result.data, questions: result.questions });
+      setSelectedTestId('new');
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: 'Не удалось прочитать файл',
+      });
+    } finally {
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDownloadTestTemplate = () => {
+    const template = generateTestTemplate();
+    const filename = `test-template-${new Date().toISOString().split('T')[0]}.json`;
+    downloadJson(template, filename);
   };
 
   if (selectedTestId) {
@@ -503,6 +547,7 @@ export function TestEditorModal({ onClose }: TestEditorModalProps) {
               onClose={handleBackToList}
               onSaved={handleBackToList}
               existingTests={tests}
+              importedData={importedTest}
             />
           </div>
         </div>
@@ -513,8 +558,8 @@ export function TestEditorModal({ onClose }: TestEditorModalProps) {
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
-      <div className="relative max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-lg bg-white shadow-2xl">
-        <header className="sticky top-0 flex items-center justify-between border-b bg-white px-6 py-4">
+      <div className="relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
+        <header className="flex items-center justify-between border-b bg-white px-6 py-4">
           <h2 className="text-xl font-bold">Управление тестами</h2>
           <button
             onClick={onClose}
@@ -525,24 +570,51 @@ export function TestEditorModal({ onClose }: TestEditorModalProps) {
           </button>
         </header>
 
-        <div className="overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
-            <button
-              onClick={handleCreateNew}
-              className="w-full rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 px-6 py-4 text-left transition hover:border-blue-400 hover:bg-blue-100"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">➕</span>
-                <div>
-                  <h3 className="text-lg font-bold text-blue-700">
-                    Создать новый тест
-                  </h3>
-                  <p className="text-sm text-blue-600">
-                    Создайте тест для курса или возрастного периода
-                  </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+            <div className="w-full rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 transition hover:border-blue-400">
+              <div className="flex items-stretch">
+                <button
+                  onClick={handleCreateNew}
+                  className="flex flex-1 items-center gap-3 px-6 py-4 text-left transition hover:bg-blue-100"
+                >
+                  <span className="text-3xl">➕</span>
+                  <div>
+                    <h3 className="text-lg font-bold text-blue-700">
+                      Создать новый тест
+                    </h3>
+                    <p className="text-sm text-blue-600">
+                      Создайте тест для курса или возрастного периода
+                    </p>
+                  </div>
+                </button>
+
+                <div className="flex flex-col border-l-2 border-blue-300">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1 px-4 py-2 text-blue-700 transition hover:bg-blue-100"
+                    title="Импортировать тест из JSON"
+                  >
+                    <span className="text-xl">📥</span>
+                  </button>
+                  <button
+                    onClick={handleDownloadTestTemplate}
+                    className="flex-1 border-t-2 border-blue-300 px-4 py-2 text-blue-700 transition hover:bg-blue-100"
+                    title="Скачать шаблон JSON теста"
+                  >
+                    <span className="text-xl">📄</span>
+                  </button>
                 </div>
               </div>
-            </button>
+            </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-sm font-medium text-gray-700 sr-only">

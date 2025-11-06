@@ -9,7 +9,16 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { AUTHORS_TEST_QUESTIONS } from '../src/data/authorsTestData';
 import { AUTHORS_TEST_LEVEL2_QUESTIONS } from '../src/data/authorsTestLevel2Data';
 import { AUTHORS_TEST_LEVEL3_QUESTIONS } from '../src/data/authorsTestLevel3Data';
-import type { TestQuestion, TestResource, TestAppearance } from '../src/types/tests';
+import type {
+  TestQuestion,
+  TestResource,
+  TestAppearance,
+  QuestionAnswer,
+} from '../src/types/tests';
+import {
+  DEFAULT_REVEAL_POLICY,
+  MAX_QUESTION_ANSWERS,
+} from '../src/types/tests';
 import { randomUUID } from 'node:crypto';
 
 // Инициализация Firebase Admin
@@ -257,6 +266,13 @@ function getAuthorResources(author?: string | string[]): TestResource[] {
   return AUTHOR_RESOURCES[author] ?? [];
 }
 
+function createAnswers(options: string[]): QuestionAnswer[] {
+  return options.slice(0, MAX_QUESTION_ANSWERS).map((option) => ({
+    id: randomUUID(),
+    text: option,
+  }));
+}
+
 /**
  * Конвертировать legacy Level 1 в TestQuestion[]
  */
@@ -268,15 +284,22 @@ function convertLevel1ToQuestions(): TestQuestion[] {
     }
 
     const resources = getAuthorResources(q.correctAuthor);
+    const answers = createAnswers(q.options);
+    const correctAnswerId = answers[correctIndex]?.id;
+
+    if (!correctAnswerId) {
+      throw new Error(`Не удалось определить правильный ответ для вопроса ${q.id}`);
+    }
 
     return {
       id: randomUUID(),
       questionText: `Кто автор концепции: "${q.term}"?`,
-      options: q.options as [string, string, string, string],
-      correctOptionIndex: correctIndex,
-      successMessage: q.explanation,
-      failureMessage: q.explanation,
-      successResources: resources.length ? resources : undefined,
+      answers,
+      correctAnswerId,
+      shuffleAnswers: true,
+      revealPolicy: DEFAULT_REVEAL_POLICY,
+      explanation: q.explanation,
+      resourcesRight: resources.length ? resources : undefined,
     };
   });
 }
@@ -292,15 +315,22 @@ function convertLevel2ToQuestions(): TestQuestion[] {
     }
 
     const resources = getAuthorResources(q.correctAuthor);
+    const answers = createAnswers(q.options);
+    const correctAnswerId = answers[correctIndex]?.id;
+
+    if (!correctAnswerId) {
+      throw new Error(`Не удалось определить правильный ответ для вопроса ${q.id}`);
+    }
 
     return {
       id: randomUUID(),
       questionText: `Кому принадлежит эта цитата?\n\n"${q.quote}"`,
-      options: q.options as [string, string, string, string],
-      correctOptionIndex: correctIndex,
-      successMessage: q.explanation,
-      failureMessage: q.explanation,
-      successResources: resources.length ? resources : undefined,
+      answers,
+      correctAnswerId,
+      shuffleAnswers: true,
+      revealPolicy: DEFAULT_REVEAL_POLICY,
+      explanation: q.explanation,
+      resourcesRight: resources.length ? resources : undefined,
     };
   });
 }
@@ -321,15 +351,23 @@ function convertLevel3ToQuestions(): TestQuestion[] {
       ...authorResources,
     ];
 
+    const answers = createAnswers(q.options);
+    const correctAnswerId = answers[correctIndex]?.id;
+
+    if (!correctAnswerId) {
+      throw new Error(`Не удалось определить правильный ответ для вопроса ${q.id}`);
+    }
+
     return {
       id: randomUUID(),
       questionText: `Заполните пропуск в цитате:\n\n"${q.quote}"\n\nИсточник: ${q.sourceTitle}`,
-      options: q.options as [string, string, string, string],
-      correctOptionIndex: correctIndex,
-      successMessage:
-        'Отличное понимание контекста! Углубите знания, изучив первоисточник.',
-      failureMessage: q.encouragement,
-      successResources,
+      answers,
+      correctAnswerId,
+      shuffleAnswers: true,
+      revealPolicy: DEFAULT_REVEAL_POLICY,
+      explanation: 'Отличное понимание контекста! Углубите знания, изучив первоисточник.',
+      customWrongMsg: q.encouragement,
+      resourcesRight: successResources.length ? successResources : undefined,
     };
   });
 }

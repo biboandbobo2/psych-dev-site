@@ -1,11 +1,12 @@
 // File: src/App.jsx
-import React, { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   NavLink,
   Navigate,
+  Link,
   useLocation,
   useNavigationType,
 } from 'react-router-dom';
@@ -37,6 +38,7 @@ import UserMenu from './components/UserMenu';
 import Profile from './pages/Profile';
 import Notes from './pages/Notes';
 import Tests from './pages/Tests';
+import { AgeTests } from './pages/AgeTests';
 import AuthorsTest from './pages/AuthorsTest';
 import AuthorsTestLevel2 from './pages/AuthorsTestLevel2';
 import AuthorsTestLevel3 from './pages/AuthorsTestLevel3';
@@ -46,6 +48,7 @@ import AdminTopics from './pages/AdminTopics';
 import Timeline from './pages/Timeline';
 import { useAuthSync } from './hooks/useAuthSync';
 import { normalizeText } from './utils/contentHelpers';
+import { getPublishedTests } from './lib/tests';
 
 const transition = { duration: 0.25, ease: [0.16, 1, 0.3, 1] };
 
@@ -534,6 +537,25 @@ function PeriodRoute({ config, period }) {
   const themeKey = config.themeKey ?? config.periodId;
   usePeriodTheme(themeKey);
   const heading = period?.label || config.navLabel;
+  const [periodTests, setPeriodTests] = useState([]);
+
+  useEffect(() => {
+    const loadTests = async () => {
+      try {
+        const allTests = await getPublishedTests();
+        // Фильтруем тесты по рубрике, соответствующей текущему периоду
+        const filtered = allTests.filter((test) => test.rubric === config.periodId);
+        setPeriodTests(filtered);
+      } catch (error) {
+        console.error('Error loading tests for period:', error);
+        setPeriodTests([]);
+      }
+    };
+
+    if (config.periodId) {
+      loadTests();
+    }
+  }, [config.periodId]);
   const title = config.meta?.title ?? `${heading} — ${SITE_NAME}`;
   const description =
     config.meta?.description ?? period?.subtitle ?? `Материалы и ссылки по разделу ${heading}.`;
@@ -588,7 +610,7 @@ function PeriodRoute({ config, period }) {
     const rawTitle = section.title ?? '';
     const lowerTitle = rawTitle.toLowerCase();
     const displayTitle = lowerTitle.includes('вопросы для контакта с собой')
-      ? 'Рабочая тетрадь'
+      ? 'Рабочая тетрадь и тесты'
       : rawTitle;
 
     if (rawTitle === 'Видео-лекция') {
@@ -715,15 +737,31 @@ function PeriodRoute({ config, period }) {
               <p className="text-lg leading-8 text-muted max-w-measure">
                 Скачайте рабочую тетрадь и держите её под рукой во время просмотра лекции.
               </p>
-              <Button
-                as="a"
-                href={parsedUrl.toString()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full sm:w-auto"
-              >
-                Скачать рабочую тетрадь
-              </Button>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  as="a"
+                  href={parsedUrl.toString()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto"
+                >
+                  Скачать рабочую тетрадь
+                </Button>
+                {periodTests.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {periodTests.map((test) => (
+                      <Link
+                        key={test.id}
+                        to={`/tests/dynamic/${test.id}`}
+                        className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 text-white text-xl hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
+                        title={test.title}
+                      >
+                        📖
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <p className="text-lg leading-8 text-muted">Ссылка на рабочую тетрадь пока недоступна.</p>
@@ -1108,6 +1146,14 @@ function AppInner() {
                     element={
                       <RequireAuth>
                         <Tests />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/tests/age-periods"
+                    element={
+                      <RequireAuth>
+                        <AgeTests />
                       </RequireAuth>
                     }
                   />

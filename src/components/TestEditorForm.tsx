@@ -11,6 +11,7 @@ import {
   isTestTitleUnique,
 } from '../lib/tests';
 import type { Test, TestQuestion, TestRubric, TestAppearance } from '../types/tests';
+import { DEFAULT_REVEAL_POLICY, MIN_QUESTION_ANSWERS } from '../types/tests';
 import type { ThemeOverrides, ThemePreset, DerivedTheme } from '../types/themes';
 import { AGE_RANGE_LABELS } from '../types/notes';
 import type { AgeRange } from '../hooks/useNotes';
@@ -27,12 +28,17 @@ import {
 } from '../utils/theme';
 import { hexToHsl, hslToHex, getContrastRatio } from '../utils/color';
 import { ThemePicker } from './theme/ThemePicker';
+import { importTestFromJson, readFileAsText, generateQuestionsTemplate, downloadJson } from '../utils/testImportExport';
 
 interface TestEditorFormProps {
   testId: string | null; // null = создание нового теста
   onClose: () => void;
   onSaved: () => void;
   existingTests: Test[];
+  importedData?: {
+    data?: Partial<Test>;
+    questions?: TestQuestion[];
+  } | null;
 }
 
 const TITLE_MAX = 20;
@@ -183,7 +189,19 @@ function EmojiPicker({
     </div>
   );
 }
-export function TestEditorForm({ testId, onClose, onSaved, existingTests }: TestEditorFormProps) {
+
+const createEmptyQuestion = (): TestQuestion => ({
+  id: crypto.randomUUID(),
+  questionText: '',
+  answers: Array.from({ length: 4 }, () => ({
+    id: crypto.randomUUID(),
+    text: '',
+  })),
+  correctAnswerId: null,
+  shuffleAnswers: true,
+  revealPolicy: { ...DEFAULT_REVEAL_POLICY },
+});
+export function TestEditorForm({ testId, onClose, onSaved, existingTests, importedData }: TestEditorFormProps) {
   const { user } = useAuth();
 
   // Основные поля теста
@@ -213,6 +231,7 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests }: Test
   const [previousTestOpen, setPreviousTestOpen] = useState<boolean>(false);
   const [previousTestError, setPreviousTestError] = useState<string | null>(null);
   const selectContainerRef = useRef<HTMLDivElement | null>(null);
+  const questionsFileInputRef = useRef<HTMLInputElement | null>(null);
   const [highlightIndex, setHighlightIndex] = useState<number>(0);
 
   // UI состояния
@@ -254,7 +273,17 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests }: Test
     }
   }, [testId]);
 
-  const testsForChain = useMemo(() => existingTests.filter((t) => t.id !== testId), [existingTests, testId]);
+  const testsForChain = useMemo(() => {
+    // Собираем ID тестов, которые уже используются как prerequisite для других тестов
+    const usedPrerequisiteIds = new Set(
+      existingTests
+        .filter((t) => t.prerequisiteTestId && t.id !== testId) // Исключаем текущий тест
+        .map((t) => t.prerequisiteTestId)
+    );
+
+    // Фильтруем: исключаем текущий тест и те, что уже используются как prerequisite
+    return existingTests.filter((t) => t.id !== testId && !usedPrerequisiteIds.has(t.id));
+  }, [existingTests, testId]);
   const testOptions = useMemo(
     () =>
       testsForChain.map((test) => ({
@@ -540,18 +569,50 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests }: Test
     loadTest();
   }, [testId]);
 
-  // Инициализация пустых вопросов при изменении количества
+  // Загрузка импортированных данных
   useEffect(() => {
-    if (questions.length === 0 && questionCount > 0) {
-      const emptyQuestions: TestQuestion[] = Array.from({ length: questionCount }, (_, i) => ({
-        id: crypto.randomUUID(),
-        questionText: '',
-        options: ['', '', '', ''],
-        correctOptionIndex: 0,
-      }));
+    if (!testId && importedData) {
+      const { data, questions: importedQuestions } = importedData;
+
+      if (data) {
+        // Импортируем все поля теста
+        if (data.title) setTitle(data.title);
+        if (data.rubric) setRubric(data.rubric);
+        if (data.prerequisiteTestId) {
+          setPrerequisiteTestId(data.prerequisiteTestId);
+          setIsNextLevel(true);
+          setPreviousTestIdInput(data.prerequisiteTestId);
+        }
+        if (typeof data.requiredPercentage === 'number') {
+          setRequiredPercentage(data.requiredPercentage);
+          setThresholdInput(String(data.requiredPercentage));
+        }
+        if (data.appearance) {
+          setAppearanceFromTest(data.appearance);
+          setShowBadgeConfig(Boolean(data.appearance.badgeIcon || data.appearance.badgeLabel));
+        }
+      }
+
+      if (importedQuestions && importedQuestions.length > 0) {
+        // Сначала устанавливаем количество
+        setQuestionCount(importedQuestions.length);
+        setQuestionCountInput(String(importedQuestions.length));
+        // Затем устанавливаем сами вопросы
+        setQuestions(importedQuestions);
+      }
+    }
+  }, [importedData, testId, setAppearanceFromTest]);
+
+  // Инициализация пустых вопросов при изменении количества
+  // ВАЖНО: не создавать пустые вопросы если есть импортированные данные
+  useEffect(() => {
+    if (!importedData && questions.length === 0 && questionCount > 0) {
+      const emptyQuestions: TestQuestion[] = Array.from({ length: questionCount }, () =>
+        createEmptyQuestion()
+      );
       setQuestions(emptyQuestions);
     }
-  }, [questionCount, questions.length]);
+  }, [questionCount, questions.length, importedData]);
 
   const applyQuestionCount = (target: number) => {
     const normalized = Math.max(1, Math.min(20, Math.floor(target)));
@@ -562,12 +623,7 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests }: Test
       if (normalized > prev.length) {
         const additionalQuestions: TestQuestion[] = Array.from(
           { length: normalized - prev.length },
-          () => ({
-            id: crypto.randomUUID(),
-            questionText: '',
-            options: ['', '', '', ''],
-            correctOptionIndex: 0,
-          })
+          () => createEmptyQuestion()
         );
         return [...prev, ...additionalQuestions];
       }
@@ -616,16 +672,69 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests }: Test
       alert('Максимум 20 вопросов');
       return;
     }
-    const newQuestion: TestQuestion = {
-      id: crypto.randomUUID(),
-      questionText: '',
-      options: ['', '', '', ''],
-      correctOptionIndex: 0,
-    };
+    const newQuestion = createEmptyQuestion();
     setQuestions([...questions, newQuestion]);
     setQuestionCount(questions.length + 1);
     setQuestionCountInput(String(questions.length + 1));
     setQuestionCountError(null);
+  };
+
+  const handleImportQuestions = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const content = await readFileAsText(file);
+      const result = importTestFromJson(content);
+
+      if (!result.success) {
+        alert(result.error || 'Ошибка импорта вопросов');
+        return;
+      }
+
+      if (!result.questions || result.questions.length === 0) {
+        alert('В файле не найдены вопросы для импорта');
+        return;
+      }
+
+      // Добавляем импортированные вопросы к существующим
+      const totalQuestions = questions.length + result.questions.length;
+      if (totalQuestions > 20) {
+        const canAdd = 20 - questions.length;
+        if (canAdd <= 0) {
+          alert('Невозможно добавить вопросы: достигнут лимит в 20 вопросов');
+          return;
+        }
+        const confirmAdd = window.confirm(
+          `Импортировано ${result.questions.length} вопросов, но можно добавить только ${canAdd}. Добавить первые ${canAdd} вопросов?`
+        );
+        if (!confirmAdd) return;
+
+        const questionsToAdd = result.questions.slice(0, canAdd);
+        setQuestions([...questions, ...questionsToAdd]);
+        setQuestionCount(questions.length + questionsToAdd.length);
+        setQuestionCountInput(String(questions.length + questionsToAdd.length));
+        alert(`Добавлено ${questionsToAdd.length} вопросов`);
+      } else {
+        setQuestions([...questions, ...result.questions]);
+        setQuestionCount(totalQuestions);
+        setQuestionCountInput(String(totalQuestions));
+        alert(`Добавлено ${result.questions.length} вопросов`);
+      }
+    } catch (error) {
+      alert('Не удалось прочитать файл');
+    } finally {
+      // Reset file input
+      if (questionsFileInputRef.current) {
+        questionsFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDownloadQuestionsTemplate = () => {
+    const template = generateQuestionsTemplate();
+    const filename = `questions-template-${new Date().toISOString().split('T')[0]}.json`;
+    downloadJson(template, filename);
   };
 
   const handleThresholdInputChange = (value: string) => {
@@ -788,8 +897,16 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests }: Test
         alert(`Вопрос ${i + 1}: заполните текст вопроса`);
         return false;
       }
-      if (q.options.some((opt) => !opt.trim())) {
-        alert(`Вопрос ${i + 1}: заполните все варианты ответов`);
+      const filledAnswers = q.answers.filter((answer) => answer.text.trim().length > 0);
+      if (filledAnswers.length < MIN_QUESTION_ANSWERS) {
+        alert(
+          `Вопрос ${i + 1}: заполните минимум ${MIN_QUESTION_ANSWERS} варианта ответа`
+        );
+        return false;
+      }
+      const correctAnswer = q.answers.find((answer) => answer.id === q.correctAnswerId);
+      if (!correctAnswer || correctAnswer.text.trim().length === 0) {
+        alert(`Вопрос ${i + 1}: выберите правильный ответ`);
         return false;
       }
     }
@@ -903,8 +1020,9 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests }: Test
         await updateTestQuestions(newTestId, questions);
       }
 
-      console.log('✅ Тест сохранён как черновик, возвращаемся к списку');
-      alert('Тест сохранён как черновик');
+      const message = currentStatus === 'draft' ? 'Тест сохранён как черновик' : 'Изменения сохранены';
+      console.log(`✅ ${message}, возвращаемся к списку`);
+      alert(message);
       onSaved(); // Вернёт к списку тестов
     } catch (error) {
       console.error('Ошибка сохранения:', error);
@@ -1359,13 +1477,38 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests }: Test
           <h3 className="text-lg font-bold text-gray-900">
             Вопросы ({questions.length})
           </h3>
-          <button
-            onClick={handleAddQuestion}
-            disabled={questions.length >= 20 || saving}
-            className="rounded-md bg-green-600 px-3 py-1 text-sm text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            + Добавить вопрос
-          </button>
+          <div className="flex gap-2">
+            <input
+              ref={questionsFileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImportQuestions}
+              className="hidden"
+            />
+            <button
+              onClick={handleDownloadQuestionsTemplate}
+              disabled={saving}
+              className="rounded-md bg-blue-600 px-3 py-1 text-sm text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              title="Скачать шаблон JSON вопросов"
+            >
+              📄 Шаблон
+            </button>
+            <button
+              onClick={() => questionsFileInputRef.current?.click()}
+              disabled={questions.length >= 20 || saving}
+              className="rounded-md bg-purple-600 px-3 py-1 text-sm text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+              title="Импортировать вопросы из JSON"
+            >
+              📥 Импорт
+            </button>
+            <button
+              onClick={handleAddQuestion}
+              disabled={questions.length >= 20 || saving}
+              className="rounded-md bg-green-600 px-3 py-1 text-sm text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              + Добавить вопрос
+            </button>
+          </div>
         </div>
 
         {questions.length === 0 ? (
@@ -1381,6 +1524,8 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests }: Test
                 questionNumber={index + 1}
                 onChange={(updated) => handleQuestionChange(index, updated)}
                 onDelete={() => handleQuestionDelete(index)}
+                onRequestSave={handleSaveDraft}
+                testId={testId}
               />
             ))}
           </div>
@@ -1403,7 +1548,7 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests }: Test
             disabled={saving}
             className="rounded-md bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {saving ? 'Сохранение...' : 'Сохранить черновик'}
+            {saving ? 'Сохранение...' : (currentStatus === 'draft' ? 'Сохранить черновик' : 'Сохранить изменения')}
           </button>
 
           {currentStatus === 'published' ? (

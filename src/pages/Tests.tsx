@@ -226,7 +226,14 @@ export default function Tests() {
     loadTests();
   }, [user]);
 
-  const testChains = useMemo(() => buildTestChains(firestoreTests), [firestoreTests]);
+  // Фильтруем только тесты по полному курсу и сортируем по дате (новые выше)
+  const courseTests = useMemo(() => {
+    return firestoreTests
+      .filter((test) => test.rubric === 'full-course')
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }, [firestoreTests]);
+
+  const testChains = useMemo(() => buildTestChains(courseTests), [courseTests]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4">
@@ -256,69 +263,6 @@ export default function Tests() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {COURSE_TESTS.map((test) => {
-            // Контент без кнопок level2/level3
-            const baseContent = (
-              <>
-                {!test.active && (
-                  <div className="absolute top-4 right-4">
-                    <span className="inline-flex items-center px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
-                      Скоро
-                    </span>
-                  </div>
-                )}
-
-                <div
-                  className={`inline-flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-br ${test.color} text-4xl mb-4 shadow-md`}
-                >
-                  {test.icon}
-                </div>
-
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{test.title}</h3>
-                <p className="text-sm text-gray-600 mb-4">{test.description}</p>
-
-                <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                  {test.questionCount && (
-                    <div className="flex items-center gap-1">
-                      <span>📋</span>
-                      <span>{test.questionCount} вопросов</span>
-                    </div>
-                  )}
-                  {test.duration && (
-                    <div className="flex items-center gap-1">
-                      <span>⏱️</span>
-                      <span>{test.duration}</span>
-                    </div>
-                  )}
-                </div>
-
-                {!test.active && (
-                  <div className="absolute inset-0 bg-gray-50/50 rounded-xl backdrop-blur-[1px] cursor-not-allowed" />
-                )}
-              </>
-            );
-
-            // Кнопки дополнительных уровней (вне Link)
-            if (test.active && test.link) {
-              return (
-                <div key={test.id} className="relative bg-white border-2 rounded-xl p-6 transition-all duration-300 border-gray-200 hover:border-blue-400 hover:shadow-lg">
-                  <Link to={test.link} className="block">
-                    {baseContent}
-                  </Link>
-                </div>
-              );
-            }
-
-            return (
-              <div
-                key={test.id}
-                className="relative bg-white border-2 rounded-xl p-6 transition-all duration-300 border-gray-200 opacity-60"
-              >
-                {baseContent}
-              </div>
-            );
-          })}
-
           {/* Тесты из Firestore */}
           {loadingTests ? (
             <>
@@ -412,7 +356,7 @@ export default function Tests() {
               return (
                 <div
                   key={root.id}
-                  className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-blue-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-lg"
+                  className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-blue-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-lg min-h-[280px]"
                   style={cardStyle}
                 >
                   <div className="flex items-start gap-4">
@@ -470,6 +414,70 @@ export default function Tests() {
               );
             })
           )}
+
+          {/* Заглушки - примеры будущих тестов */}
+          {!loadingTests && COURSE_TESTS.map((test) => {
+            // Контент без кнопок level2/level3
+            const baseContent = (
+              <>
+                {!test.active && (
+                  <div className="absolute top-4 right-4">
+                    <span className="inline-flex items-center px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
+                      Скоро
+                    </span>
+                  </div>
+                )}
+
+                <div
+                  className={`inline-flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-br ${test.color} text-4xl mb-4 shadow-md`}
+                >
+                  {test.icon}
+                </div>
+
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{test.title}</h3>
+                <p className="text-sm text-gray-600 mb-4">{test.description}</p>
+
+                <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                  {test.questionCount && (
+                    <div className="flex items-center gap-1">
+                      <span>📋</span>
+                      <span>{test.questionCount} вопросов</span>
+                    </div>
+                  )}
+                  {test.duration && (
+                    <div className="flex items-center gap-1">
+                      <span>⏱️</span>
+                      <span>{test.duration}</span>
+                    </div>
+                  )}
+                </div>
+
+                {!test.active && (
+                  <div className="absolute inset-0 bg-gray-50/50 rounded-xl backdrop-blur-[1px] cursor-not-allowed" />
+                )}
+              </>
+            );
+
+            // Кнопки дополнительных уровней (вне Link)
+            if (test.active && test.link) {
+              return (
+                <div key={test.id} className="relative bg-white border-2 rounded-xl p-6 transition-all duration-300 border-gray-200 hover:border-blue-400 hover:shadow-lg">
+                  <Link to={test.link} className="block">
+                    {baseContent}
+                  </Link>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={test.id}
+                className="relative bg-white border-2 rounded-xl p-6 transition-all duration-300 border-gray-200 opacity-60 min-h-[280px]"
+              >
+                {baseContent}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -143,7 +143,7 @@ function StudentPanel() {
       title: 'Тесты - возрастной период',
       description: 'Отслеживайте какие периоды вы уже изучили и что осталось',
       color: 'from-purple-500 to-purple-600',
-      comingSoon: true,
+      link: '/tests/age-periods',
     },
     {
       icon: '🗺️',

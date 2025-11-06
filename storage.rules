@@ -14,5 +14,11 @@ service firebase.storage {
     match /uploads/{userId}/{path=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Медиа-файлы для вопросов тестов
+    match /tests/{testId}/questions/{questionId}/{fileName} {
+      allow read: if true; // Все могут читать медиа в тестах
+      allow write, delete: if isAdmin(); // Только админы могут загружать/удалять
+    }
   }
 }
