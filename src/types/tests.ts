@@ -21,6 +21,25 @@ export interface TestResource {
   url: string;
 }
 
+export type RevealPolicy =
+  | { mode: 'never' }
+  | { mode: 'after_attempts'; attempts: number }
+  | { mode: 'after_test' }
+  | { mode: 'immediately' };
+
+export type QuestionRevealPolicySource = 'inherit' | 'custom';
+
+export const DEFAULT_REVEAL_POLICY: RevealPolicy = { mode: 'after_test' };
+export const MIN_QUESTION_ANSWERS = 2;
+export const MAX_QUESTION_ANSWERS = 8;
+export const DEFAULT_ANSWER_PRESETS = [4, 6, 8] as const;
+export const MAX_REVEAL_ATTEMPTS = 3;
+
+export interface QuestionAnswer {
+  id: string;
+  text: string;
+}
+
 export interface TestAppearance {
   introIcon?: string; // Эмодзи или пиктограмма для стартового экрана
   introDescription?: string; // Краткое описание перед началом
@@ -40,12 +59,19 @@ export interface TestAppearance {
 export interface TestQuestion {
   id: string; // UUID вопроса
   questionText: string; // Текст вопроса
-  options: [string, string, string, string]; // Ровно 4 варианта ответа
-  correctOptionIndex: number; // Индекс правильного ответа (0-3)
-  successMessage?: string; // Кастомное сообщение при правильном ответе
-  failureMessage?: string; // Кастомное сообщение при неправильном ответе
-  successResources?: TestResource[]; // Рекомендуемые материалы при правильном ответе
-  failureResources?: TestResource[]; // Материалы при неправильном ответе
+  answers: QuestionAnswer[]; // 2..8 вариантов ответа
+  correctAnswerId: string | null; // ID выбранного правильного ответа
+  shuffleAnswers: boolean; // Перемешивать варианты при прохождении
+  revealPolicy: RevealPolicy; // Политика показа правильного ответа
+  revealPolicySource?: QuestionRevealPolicySource; // Наследовать политику теста или использовать свою
+  explanation?: string; // Пояснение, показываемое при разрешённом показе
+  customRightMsg?: string; // Кастомное сообщение при правильном ответе
+  customWrongMsg?: string; // Кастомное сообщение при неправильном ответе
+  resourcesRight?: TestResource[]; // Материалы при правильном ответе
+  resourcesWrong?: TestResource[]; // Материалы при неправильном ответе
+  imageUrl?: string; // URL картинки из Firebase Storage
+  audioUrl?: string; // URL аудио из Firebase Storage
+  videoUrl?: string; // URL видео (YouTube, Vimeo и т.д.)
 }
 
 /**
@@ -60,6 +86,7 @@ export interface Test {
   questions: TestQuestion[]; // Массив вопросов
   status: TestStatus; // Статус публикации
   requiredPercentage?: number; // Порог прохождения для открытия следующего уровня
+  defaultRevealPolicy?: RevealPolicy; // Глобальная политика показа правильного ответа
   appearance?: TestAppearance; // Настройки внешнего вида
   createdAt: Date; // Дата создания
   updatedAt: Date; // Дата последнего обновления

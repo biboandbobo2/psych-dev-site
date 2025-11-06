@@ -1,14 +1,69 @@
-import { useState, useEffect, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, useCallback, type CSSProperties } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { saveTestResult } from '../lib/testResults';
 import { getTestById } from '../lib/tests';
 import { isTestUnlocked } from '../lib/testAccess';
-import type { Test, TestQuestion, TestAppearance } from '../types/tests';
+import type {
+  Test,
+  TestQuestion,
+  TestAppearance,
+  RevealPolicy,
+  QuestionAnswer,
+} from '../types/tests';
+import {
+  DEFAULT_REVEAL_POLICY,
+  MAX_REVEAL_ATTEMPTS,
+} from '../types/tests';
 import TestHistory from '../components/TestHistory';
 import { mergeAppearance, createGradient, hexToRgba } from '../utils/testAppearance';
+import { getYouTubeEmbedUrl } from '../utils/mediaUpload';
+
+type QuestionOutcome = 'unanswered' | 'correct' | 'failed';
 
 type AnswerState = 'idle' | 'correct' | 'incorrect';
+
+type FeedbackState = {
+  status: 'idle' | 'correct' | 'incorrect';
+  reveal: boolean;
+  revealReason?: 'correct' | 'after_attempts' | 'immediately' | 'after_test';
+  attemptsLeft?: number;
+};
+
+function shuffleArray<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+function resolveRevealPolicy(
+  question: TestQuestion,
+  defaultPolicy?: RevealPolicy
+): RevealPolicy {
+  const base: RevealPolicy =
+    question.revealPolicySource === 'inherit'
+      ? defaultPolicy ?? question.revealPolicy ?? DEFAULT_REVEAL_POLICY
+      : question.revealPolicy ?? defaultPolicy ?? DEFAULT_REVEAL_POLICY;
+
+  if (base.mode === 'after_attempts') {
+    const attempts = Math.min(
+      Math.max(base.attempts ?? 1, 1),
+      MAX_REVEAL_ATTEMPTS
+    );
+    return { mode: 'after_attempts', attempts };
+  }
+
+  return { mode: base.mode };
+}
+
+function shouldRevealOnResults(policy: RevealPolicy): boolean {
+  if (policy.mode === 'never') return false;
+  if (policy.mode === 'after_test') return true;
+  return true;
+}
 
 export default function DynamicTest() {
   const { testId } = useParams<{ testId: string }>();
@@ -24,12 +79,13 @@ export default function DynamicTest() {
   const [started, setStarted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answerState, setAnswerState] = useState<AnswerState>('idle');
   const [showExplanation, setShowExplanation] = useState(false);
   const [finished, setFinished] = useState(false);
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [resultSaved, setResultSaved] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
 
   // Загрузка теста
   useEffect(() => {
@@ -95,6 +151,40 @@ export default function DynamicTest() {
   const currentQuestion = test?.questions[currentQuestionIndex];
   const totalQuestions = test?.questions.length || 0;
   const progress = totalQuestions > 0 ? ((currentQuestionIndex + 1) / totalQuestions) * 100 : 0;
+
+  // Определяем URL для возврата в зависимости от рубрики теста
+  const backUrl = useMemo(() => {
+    if (!test) return '/tests';
+    return test.rubric === 'full-course' ? '/tests' : '/tests/age-periods';
+  }, [test?.rubric]);
+
+  // Перемешивание вариантов ответов
+  const displayedAnswers = useMemo(() => {
+    if (!currentQuestion) return [];
+    if (!currentQuestion.shuffleAnswers) return currentQuestion.answers;
+    return shuffleArray(currentQuestion.answers);
+  }, [currentQuestion?.id, currentQuestion?.shuffleAnswers, currentQuestion?.answers]);
+
+  // Политика показа правильного ответа
+  const effectiveRevealPolicy = useMemo(() => {
+    if (!currentQuestion) return DEFAULT_REVEAL_POLICY;
+    return resolveRevealPolicy(currentQuestion, test?.defaultRevealPolicy);
+  }, [currentQuestion, test?.defaultRevealPolicy]);
+
+  // Определяем, показывать ли правильный ответ
+  const shouldRevealCorrectAnswer = useMemo(() => {
+    if (answerState === 'idle') return false;
+    if (answerState === 'correct') return true; // Всегда показываем при правильном ответе
+
+    const policy = effectiveRevealPolicy;
+    if (policy.mode === 'immediately') return true;
+    if (policy.mode === 'never') return false;
+    if (policy.mode === 'after_attempts') {
+      return attemptCount >= policy.attempts;
+    }
+    // after_test - показываем только на экране результатов
+    return false;
+  }, [answerState, effectiveRevealPolicy, attemptCount]);
 
   const appearance: TestAppearance = mergeAppearance(test?.appearance);
 
@@ -163,17 +253,18 @@ export default function DynamicTest() {
     }
   }, [finished, resultSaved, user, startTime, score, totalQuestions, test]);
 
-  const handleAnswer = (optionIndex: number) => {
+  const handleAnswer = (answerId: string) => {
     if (answerState !== 'idle' || !currentQuestion) return;
 
-    setSelectedAnswer(optionIndex);
-    const isCorrect = optionIndex === currentQuestion.correctOptionIndex;
+    setSelectedAnswer(answerId);
+    const isCorrect = answerId === currentQuestion.correctAnswerId;
 
     if (isCorrect) {
       setScore(score + 1);
       setAnswerState('correct');
     } else {
       setAnswerState('incorrect');
+      setAttemptCount(prev => prev + 1);
     }
 
     setShowExplanation(true);
@@ -185,6 +276,7 @@ export default function DynamicTest() {
       setSelectedAnswer(null);
       setAnswerState('idle');
       setShowExplanation(false);
+      setAttemptCount(0);
     } else {
       setFinished(true);
     }
@@ -200,6 +292,7 @@ export default function DynamicTest() {
     setFinished(false);
     setStartTime(null);
     setResultSaved(false);
+    setAttemptCount(0);
   };
 
   // Loading state
@@ -256,7 +349,7 @@ export default function DynamicTest() {
       <div className="min-h-screen py-12 px-4" style={pageBackgroundStyle}>
         <div className="max-w-3xl mx-auto">
           <Link
-            to="/tests"
+            to={backUrl}
             className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors"
           >
             <span className="text-xl mr-2">←</span>
@@ -382,7 +475,7 @@ export default function DynamicTest() {
                   Пройти тест заново
                 </button>
                 <Link
-                  to="/tests"
+                  to={backUrl}
                   className="block w-full bg-white border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-bold text-lg hover:border-gray-400 transition-all duration-300"
                 >
                   Вернуться к списку тестов
@@ -471,12 +564,50 @@ export default function DynamicTest() {
               <span className="text-3xl">{appearance.introIcon || '👤'}</span>
             </div>
             {renderQuestionHeading(currentQuestion.questionText)}
+
+            {/* Медиа к вопросу */}
+            {(currentQuestion.imageUrl || currentQuestion.audioUrl || currentQuestion.videoUrl) && (
+              <div className="mt-6 space-y-4">
+                {currentQuestion.imageUrl && (
+                  <div className="rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm">
+                    <img
+                      src={currentQuestion.imageUrl}
+                      alt="Изображение к вопросу"
+                      className="w-full h-auto max-h-96 object-contain bg-gray-50"
+                    />
+                  </div>
+                )}
+
+                {currentQuestion.audioUrl && (
+                  <div className="rounded-xl border-2 border-gray-200 bg-white p-4 shadow-sm">
+                    <audio controls className="w-full">
+                      <source src={currentQuestion.audioUrl} />
+                      Ваш браузер не поддерживает аудио.
+                    </audio>
+                  </div>
+                )}
+
+                {currentQuestion.videoUrl && getYouTubeEmbedUrl(currentQuestion.videoUrl) && (
+                  <div className="rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm bg-black">
+                    <div className="relative pb-[56.25%]">
+                      <iframe
+                        src={getYouTubeEmbedUrl(currentQuestion.videoUrl) || ''}
+                        className="absolute inset-0 w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title="Видео к вопросу"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="space-y-4 mb-6">
-            {currentQuestion.options.map((option, index) => {
-              const isSelected = selectedAnswer === index;
-              const isCorrectOption = index === currentQuestion.correctOptionIndex;
+            {displayedAnswers.map((answer, index) => {
+              const isSelected = selectedAnswer === answer.id;
+              const isCorrectOption = answer.id === currentQuestion.correctAnswerId;
 
               let buttonClass =
                 'w-full text-left p-4 rounded-xl border-2 font-semibold transition-all duration-300 transform';
@@ -484,18 +615,18 @@ export default function DynamicTest() {
               if (answerState === 'idle') {
                 buttonClass +=
                   ' border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50 hover:scale-105 cursor-pointer';
-              } else if (isCorrectOption) {
+              } else if (shouldRevealCorrectAnswer && isCorrectOption) {
                 buttonClass += ' border-green-500 bg-green-100 text-green-800';
               } else if (isSelected && answerState === 'incorrect') {
                 buttonClass += ' border-red-500 bg-red-100 text-red-800';
-              } else {
+              } else if (answerState !== 'idle') {
                 buttonClass += ' border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed';
               }
 
               return (
                 <button
-                  key={index}
-                  onClick={() => handleAnswer(index)}
+                  key={answer.id}
+                  onClick={() => handleAnswer(answer.id)}
                   disabled={answerState !== 'idle'}
                   className={buttonClass}
                 >
@@ -503,7 +634,7 @@ export default function DynamicTest() {
                     <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-700">
                       {String.fromCharCode(65 + index)}
                     </span>
-                    <span className="flex-1">{option}</span>
+                    <span className="flex-1">{answer.text}</span>
                   </div>
                 </button>
               );
@@ -531,18 +662,44 @@ export default function DynamicTest() {
                     >
                       {answerState === 'correct' ? 'Правильно!' : 'Не совсем...'}
                     </div>
-                    {answerState === 'correct' && currentQuestion.successMessage ? (
-                      <p className="text-gray-700">{currentQuestion.successMessage}</p>
+                    {shouldRevealCorrectAnswer && answerState === 'correct' && currentQuestion.customRightMsg ? (
+                      <p className="text-gray-700">{currentQuestion.customRightMsg}</p>
                     ) : null}
-                    {answerState === 'incorrect' && currentQuestion.failureMessage ? (
-                      <p className="text-gray-700">{currentQuestion.failureMessage}</p>
+                    {answerState === 'incorrect' && currentQuestion.customWrongMsg ? (
+                      <p className="text-gray-700">{currentQuestion.customWrongMsg}</p>
                     ) : null}
 
-                    {answerState === 'correct' && currentQuestion.successResources?.length ? (
+                    {/* Показываем объяснение только если разрешено показывать правильный ответ */}
+                    {shouldRevealCorrectAnswer && currentQuestion.explanation ? (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="text-sm font-semibold text-blue-900 mb-1">Объяснение:</div>
+                        <p className="text-sm text-blue-800">{currentQuestion.explanation}</p>
+                      </div>
+                    ) : null}
+
+                    {/* Если не показываем правильный ответ, покажем причину */}
+                    {!shouldRevealCorrectAnswer && answerState === 'incorrect' && effectiveRevealPolicy.mode === 'after_attempts' ? (
+                      <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <p className="text-sm text-yellow-800">
+                          Правильный ответ будет показан после {effectiveRevealPolicy.attempts} {effectiveRevealPolicy.attempts === 1 ? 'попытки' : 'попыток'}
+                          {' '}(осталось: {effectiveRevealPolicy.attempts - attemptCount})
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {!shouldRevealCorrectAnswer && answerState === 'incorrect' && effectiveRevealPolicy.mode === 'after_test' ? (
+                      <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <p className="text-sm text-yellow-800">
+                          Правильный ответ будет показан после завершения теста
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {shouldRevealCorrectAnswer && answerState === 'correct' && currentQuestion.resourcesRight?.length ? (
                       <div className="mt-3 text-sm">
                         <div className="font-semibold text-green-800">Рекомендуемые материалы:</div>
                         <ul className="mt-2 space-y-1">
-                          {currentQuestion.successResources.map((resource, idx) => (
+                          {currentQuestion.resourcesRight.map((resource, idx) => (
                             <li key={idx}>
                               <a
                                 href={resource.url}
@@ -558,11 +715,11 @@ export default function DynamicTest() {
                       </div>
                     ) : null}
 
-                    {answerState === 'incorrect' && currentQuestion.failureResources?.length ? (
+                    {shouldRevealCorrectAnswer && answerState === 'incorrect' && currentQuestion.resourcesWrong?.length ? (
                       <div className="mt-3 text-sm">
                         <div className="font-semibold text-blue-800">Материалы для разбора:</div>
                         <ul className="mt-2 space-y-1">
-                          {currentQuestion.failureResources.map((resource, idx) => (
+                          {currentQuestion.resourcesWrong.map((resource, idx) => (
                             <li key={idx}>
                               <a
                                 href={resource.url}
@@ -578,23 +735,40 @@ export default function DynamicTest() {
                       </div>
                     ) : null}
 
-                    {answerState === 'incorrect' && (
+                    {shouldRevealCorrectAnswer && answerState === 'incorrect' && currentQuestion.correctAnswerId && (
                       <p className="mt-2 text-sm text-gray-700">
                         Правильный ответ:{' '}
-                        <strong>{currentQuestion.options[currentQuestion.correctOptionIndex]}</strong>
+                        <strong>
+                          {currentQuestion.answers.find(a => a.id === currentQuestion.correctAnswerId)?.text || ''}
+                        </strong>
                       </p>
                     )}
                   </div>
                 </div>
               </div>
 
-              <button
-                onClick={handleNext}
-                style={accentGradientStyle}
-                className="mt-6 w-full text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
-              >
-                {currentQuestionIndex < totalQuestions - 1 ? 'Следующий вопрос →' : 'Завершить тест'}
-              </button>
+              {/* Кнопка для повторной попытки или следующего вопроса */}
+              {!shouldRevealCorrectAnswer && answerState === 'incorrect' && effectiveRevealPolicy.mode === 'after_attempts' && attemptCount < effectiveRevealPolicy.attempts ? (
+                <button
+                  onClick={() => {
+                    setSelectedAnswer(null);
+                    setAnswerState('idle');
+                    setShowExplanation(false);
+                  }}
+                  style={accentGradientStyle}
+                  className="mt-6 w-full text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+                >
+                  Попробовать ещё раз
+                </button>
+              ) : (
+                <button
+                  onClick={handleNext}
+                  style={accentGradientStyle}
+                  className="mt-6 w-full text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transform hover:scale-105 transition-all duration-300"
+                >
+                  {currentQuestionIndex < totalQuestions - 1 ? 'Следующий вопрос →' : 'Завершить тест'}
+                </button>
+              )}
             </div>
           )}
         </div>
