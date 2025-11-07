@@ -39,9 +39,7 @@ import Profile from './pages/Profile';
 import Notes from './pages/Notes';
 import Tests from './pages/Tests';
 import { AgeTests } from './pages/AgeTests';
-import AuthorsTest from './pages/AuthorsTest';
-import AuthorsTestLevel2 from './pages/AuthorsTestLevel2';
-import AuthorsTestLevel3 from './pages/AuthorsTestLevel3';
+
 import DynamicTest from './pages/DynamicTest';
 import MigrateTopics from './pages/MigrateTopics';
 import AdminTopics from './pages/AdminTopics';
@@ -1157,30 +1155,7 @@ function AppInner() {
                       </RequireAuth>
                     }
                   />
-                  <Route
-                    path="/tests/authors"
-                    element={
-                      <RequireAuth>
-                        <AuthorsTest />
-                      </RequireAuth>
-                    }
-                  />
-                  <Route
-                    path="/tests/authors/level2"
-                    element={
-                      <RequireAuth>
-                        <AuthorsTestLevel2 />
-                      </RequireAuth>
-                    }
-                  />
-                  <Route
-                    path="/tests/authors/level3"
-                    element={
-                      <RequireAuth>
-                        <AuthorsTestLevel3 />
-                      </RequireAuth>
-                    }
-                  />
+
                   <Route
                     path="/tests/dynamic/:testId"
                     element={
