@@ -1,8 +1,10 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "./AuthProvider";
+import { useAuthStore } from "../stores/useAuthStore";
 
 export default function RequireAdmin({ children }: { children: JSX.Element }) {
-  const { user, loading, isAdmin } = useAuth();
+  const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
   const location = useLocation();
 
   if (loading) {

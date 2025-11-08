@@ -4,25 +4,36 @@
  *
  * This provides a compatibility layer for existing code using useAuth() hook.
  */
+import { useMemo } from 'react';
 import { useAuthStore } from '../stores/useAuthStore';
-import { shallow } from 'zustand/shallow';
 
 /**
  * @deprecated Use useAuthStore from '../stores/useAuthStore' instead
  * This hook is provided for backwards compatibility only.
+ *
+ * Uses individual selectors to avoid unnecessary re-renders.
  */
 export function useAuth() {
-  return useAuthStore(
-    (state) => ({
-      user: state.user,
-      loading: state.loading,
-      userRole: state.userRole,
-      isStudent: state.isStudent,
-      isAdmin: state.isAdmin,
-      isSuperAdmin: state.isSuperAdmin,
-      signInWithGoogle: state.signInWithGoogle,
-      logout: state.logout,
+  const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+  const userRole = useAuthStore((state) => state.userRole);
+  const isStudent = useAuthStore((state) => state.isStudent);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+  const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
+  const logout = useAuthStore((state) => state.logout);
+
+  return useMemo(
+    () => ({
+      user,
+      loading,
+      userRole,
+      isStudent,
+      isAdmin,
+      isSuperAdmin,
+      signInWithGoogle,
+      logout,
     }),
-    shallow
+    [user, loading, userRole, isStudent, isAdmin, isSuperAdmin, signInWithGoogle, logout]
   );
 }
