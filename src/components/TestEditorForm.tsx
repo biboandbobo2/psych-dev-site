@@ -24,6 +24,7 @@ import { TestAppearanceEditor } from './tests/editor/TestAppearanceEditor';
 import { TestQuestionsManager } from './tests/editor/TestQuestionsManager';
 import { TestPolicyEditor } from './tests/editor/TestPolicyEditor';
 import { TestImportExport } from './tests/editor/TestImportExport';
+import { TestBasicMetadata } from './tests/editor/TestBasicMetadata';
 import {
   deriveTheme,
   findPresetById,
@@ -1061,74 +1062,22 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
   return (
     <div className="space-y-6">
       {/* Основные параметры теста */}
+      <TestBasicMetadata
+        title={title}
+        onTitleChange={setTitle}
+        titleMaxLength={TITLE_MAX}
+        titleHint={titleHint}
+        rubric={rubric}
+        onRubricChange={setRubric}
+        questionCountInput={questionCountInput}
+        onQuestionCountInputChange={handleQuestionCountInputChange}
+        questionCountError={questionCountError}
+        questionHint={questionHint}
+        saving={saving}
+      />
+
+      {/* Prerequisite configuration */}
       <div className="space-y-6 rounded-lg border border-gray-200 bg-white p-4">
-        <h3 className="text-lg font-bold text-gray-900">Параметры теста</h3>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Field htmlFor="test-title" label="Название теста *" hint={titleHint}>
-            <input
-              id="test-title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Например: Тест по периоду младенчества"
-              maxLength={TITLE_MAX}
-              className={controlClass(false)}
-              disabled={saving}
-            />
-          </Field>
-
-          <Field htmlFor="test-rubric" label="Рубрика *" hint="Выберите курс или возрастной период.">
-            <div className="relative">
-              <select
-                id="test-rubric"
-                value={rubric}
-                onChange={(e) => setRubric(e.target.value as TestRubric)}
-                className={controlClass(false, 'appearance-none pr-8')}
-                disabled={saving}
-              >
-                <option value="full-course">Курс целиком</option>
-                <optgroup label="Возрастные периоды">
-                  {Object.entries(AGE_RANGE_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-              <svg
-                className="pointer-events-none absolute inset-y-0 right-3 my-auto h-4 w-4 text-zinc-500"
-                viewBox="0 0 16 16"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-          </Field>
-
-          <Field
-            htmlFor="test-question-count"
-            label="Количество вопросов (1–20) *"
-            hint={questionHint}
-            error={questionCountError}
-          >
-            <input
-              id="test-question-count"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={20}
-              value={questionCountInput}
-              onChange={(e) => handleQuestionCountInputChange(e.target.value)}
-              className={controlClass(Boolean(questionCountError))}
-              aria-invalid={Boolean(questionCountError)}
-              disabled={saving}
-            />
-          </Field>
-        </div>
-
         <div className="mt-4">
           <label className="inline-flex items-center gap-2 text-sm font-medium text-zinc-800">
             <input
