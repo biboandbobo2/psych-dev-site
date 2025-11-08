@@ -11,18 +11,11 @@ import {
 } from '../lib/tests';
 import type { Test, TestQuestion, TestRubric, TestAppearance } from '../types/tests';
 import { DEFAULT_REVEAL_POLICY, MIN_QUESTION_ANSWERS } from '../types/tests';
-import type { ThemeOverrides, ThemePreset, DerivedTheme } from '../types/themes';
-import { AGE_RANGE_LABELS } from '../types/notes';
-import type { AgeRange } from '../hooks/useNotes';
-import { QuestionEditor } from './QuestionEditor';
+import type { ThemeOverrides, DerivedTheme } from '../types/themes';
 import { mergeAppearance } from '../utils/testAppearance';
 import { THEME_PRESETS } from '../constants/themePresets';
-import { TestMetadataEditor } from './tests/editor/TestMetadataEditor';
-import { TestPrerequisiteSelector } from './tests/editor/TestPrerequisiteSelector';
 import { TestAppearanceEditor } from './tests/editor/TestAppearanceEditor';
 import { TestQuestionsManager } from './tests/editor/TestQuestionsManager';
-import { TestPolicyEditor } from './tests/editor/TestPolicyEditor';
-import { TestImportExport } from './tests/editor/TestImportExport';
 import { TestBasicMetadata } from './tests/editor/TestBasicMetadata';
 import { TestPrerequisiteConfig } from './tests/editor/TestPrerequisiteConfig';
 import { TestActionButtons } from './tests/editor/TestActionButtons';
@@ -35,10 +28,7 @@ import {
   cloneGradient,
 } from '../utils/theme';
 import { hexToHsl, hslToHex, getContrastRatio } from '../utils/color';
-import { ThemePicker } from './theme/ThemePicker';
 import { importTestFromJson, readFileAsText, generateQuestionsTemplate, downloadJson } from '../utils/testImportExport';
-import { Field } from './Field';
-import { EmojiPicker } from './EmojiPicker';
 
 interface TestEditorFormProps {
   testId: string | null; // null = создание нового теста
@@ -52,18 +42,6 @@ interface TestEditorFormProps {
 }
 
 const TITLE_MAX = 20;
-const DESCRIPTION_MAX = 40;
-
-const CONTROL =
-  'h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-[15px] leading-none outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500';
-const CONTROL_ERROR = 'border-red-400 focus:border-red-500 focus:ring-red-500/60';
-const TEXTAREA =
-  'min-h-[112px] w-full rounded-lg border border-zinc-300 bg-white p-3 text-[15px] leading-snug outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500';
-
-function controlClass(hasError?: boolean, extra?: string) {
-  return `${CONTROL} ${hasError ? CONTROL_ERROR : ''} ${extra ?? ''}`.trim();
-}
-
 const HEX_COLOR_REGEX = /^#?[0-9a-f]{6}$/i;
 
 const clampValue = (value: number, min: number, max: number) =>
@@ -628,11 +606,6 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
       }
     } catch (error) {
       alert('Не удалось прочитать файл');
-    } finally {
-      // Reset file input
-      if (questionsFileInputRef.current) {
-        questionsFileInputRef.current.value = '';
-      }
     }
   };
 
