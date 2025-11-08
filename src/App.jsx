@@ -37,8 +37,7 @@ import LoginModal from './components/LoginModal';
 import UserMenu from './components/UserMenu';
 import Profile from './pages/Profile';
 import Notes from './pages/Notes';
-import Tests from './pages/Tests';
-import { AgeTests } from './pages/AgeTests';
+import { TestsPage } from './pages/TestsPage';
 
 import DynamicTest from './pages/DynamicTest';
 import MigrateTopics from './pages/MigrateTopics';
@@ -1143,7 +1142,7 @@ function AppInner() {
                     path="/tests"
                     element={
                       <RequireAuth>
-                        <Tests />
+                        <TestsPage rubricFilter="full-course" />
                       </RequireAuth>
                     }
                   />
@@ -1151,7 +1150,7 @@ function AppInner() {
                     path="/tests/age-periods"
                     element={
                       <RequireAuth>
-                        <AgeTests />
+                        <TestsPage rubricFilter="age-periods" />
                       </RequireAuth>
                     }
                   />
