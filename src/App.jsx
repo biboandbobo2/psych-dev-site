@@ -23,7 +23,8 @@ import { Button } from './components/ui/Button';
 import { NavigationProgress } from './components/ui/NavigationProgress';
 import { BackToTop } from './components/ui/BackToTop';
 import { cn } from './lib/cn';
-import { AuthProvider, useAuth } from './auth/AuthProvider';
+import { AuthInitializer } from './auth/AuthInitializer';
+import { useAuthStore } from './stores/useAuthStore';
 import RequireAuth from './auth/RequireAuth';
 import RequireAdmin from './auth/RequireAdmin';
 import Login from './pages/Login';
@@ -1005,7 +1006,10 @@ function AppInner() {
   useAuthSync();
   const { periods, loading, error } = usePeriods();
   const location = useLocation();
-  const { user, loading: authLoading, isAdmin, isSuperAdmin } = useAuth();
+  const user = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.loading);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const { isOpen, openModal, closeModal } = useLoginModal();
 
   const periodMap = useMemo(() => {
@@ -1231,9 +1235,9 @@ function AppInner() {
 export default function App() {
   return (
     <Router>
-      <AuthProvider>
+      <AuthInitializer>
         <AppInner />
-      </AuthProvider>
+      </AuthInitializer>
     </Router>
   );
 }
