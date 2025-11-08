@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import type { ReactNode, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import {
   createTest,
@@ -18,6 +18,12 @@ import type { AgeRange } from '../hooks/useNotes';
 import { QuestionEditor } from './QuestionEditor';
 import { mergeAppearance } from '../utils/testAppearance';
 import { THEME_PRESETS } from '../constants/themePresets';
+import { TestMetadataEditor } from './tests/editor/TestMetadataEditor';
+import { TestPrerequisiteSelector } from './tests/editor/TestPrerequisiteSelector';
+import { TestAppearanceEditor } from './tests/editor/TestAppearanceEditor';
+import { TestQuestionsManager } from './tests/editor/TestQuestionsManager';
+import { TestPolicyEditor } from './tests/editor/TestPolicyEditor';
+import { TestImportExport } from './tests/editor/TestImportExport';
 import {
   deriveTheme,
   findPresetById,
@@ -29,6 +35,8 @@ import {
 import { hexToHsl, hslToHex, getContrastRatio } from '../utils/color';
 import { ThemePicker } from './theme/ThemePicker';
 import { importTestFromJson, readFileAsText, generateQuestionsTemplate, downloadJson } from '../utils/testImportExport';
+import { Field } from './Field';
+import { EmojiPicker } from './EmojiPicker';
 
 interface TestEditorFormProps {
   testId: string | null; // null = создание нового теста
@@ -43,10 +51,6 @@ interface TestEditorFormProps {
 
 const TITLE_MAX = 20;
 const DESCRIPTION_MAX = 40;
-
-const EMOJI_OPTIONS = [
-  '😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😜','🤪','😝','🤑','🤗','🤩','🤠','😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','🤡','👹','👺','👻','👽','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾','👶','🧒','👦','👧','🧑','👨','👩','👱','🧔','👵','👴','👨‍⚕️','👩‍⚕️','👨‍🎓','👩‍🎓','👨‍🏫','👩‍🏫','👨‍💻','👩‍💻','👨‍🎤','👩‍🎤','👨‍🎨','👩‍🎨','👨‍🚀','👩‍🚀','👨‍🚒','👩‍🚒','🧑‍🍳','🧑‍🔬','🧑‍🎄','🧑‍🚀','🧑‍🎓','🧑‍⚖️','🧑‍🌾','🧑‍🏭','👮','🕵️','💂','👷','👳','👲','🧕','🤴','👸','🤵','👰','🤰','🤱','🧑‍🍼','🎅','🤶','🦸','🦹','🧙','🧚','🧛','🧜','🧝','🧞','🧟','🧌','💃','🕺','👯','🧖','🧗','🏃','🚶','🤸','⛹️','🤾','🧘','🏋️','🚴','🚣','🏄','🤽','🛀','🛌','🤹','🧍','🧎','💪','🤝','🙏','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💫','✨','⭐️','🌟','🔥','⚡️','🌈','☀️','🌤️','🌙','☁️','❄️','☔️','🌊','🍎','🍇','🍉','🍓','🍒','🍑','🍍','🥝','🍅','🥑','🥦','🥕','🌶️','🥔','🥐','🥖','🧀','🍔','🍟','🍕','🌭','🥪','🌮','🍣','🍱','🍙','🍜','🍝','🍥','🥡','🍦','🍰','🧁','🍩','🎂','🍮','☕️','🍵','🍺','🍷','🍸','🥂','🥃','🧃','🧉','🍽️','🍴','🥄','🔔','🎵','🎶','🎹','🥁','🎷','🎺','🎸','🪗','🎻','🪕','🎧','📚','📰','🗂️','✏️','🖋️','🖊️','🖌️','🖍️','📝','📎','📌','📍','📏','📐','🧮','📊','📈','📉','🗃️','🗳️','💡','🔑','🗝️','🔨','🛠️','⚙️','🔧','🪛','🪚','🔗','🧲','💎','🪙','🧸','🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚚','🚜','✈️','🛩️','🚀','🛰️','⛵️','🚁','🏰','🗽','🏙️','🌆','🌉','🗻','🏞️','🌋','🛖','🏠','🏡','🏢','🏬','🏫','🏥','🏛️','⛪️','🕍','🕌','🛕','🏯','🕋'
-];
 
 const CONTROL =
   'h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-[15px] leading-none outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500';
@@ -93,103 +97,6 @@ const cloneThemeOverrides = (overrides?: ThemeOverrides): ThemeOverrides | undef
   return Object.keys(next).length ? next : undefined;
 };
 
-interface FieldProps {
-  htmlFor: string;
-  label: string;
-  hint?: ReactNode;
-  error?: ReactNode;
-  children: ReactNode;
-}
-
-function Field({ htmlFor, label, hint, error, children }: FieldProps) {
-  return (
-    <div className="flex flex-col">
-      <label htmlFor={htmlFor} className="mb-1 text-sm font-medium text-zinc-800">
-        {label}
-      </label>
-      {children}
-      <div className="mt-1 min-h-[20px] text-xs text-zinc-500">
-        {error ? <span className="text-red-600">{error}</span> : hint}
-      </div>
-    </div>
-  );
-}
-
-function EmojiPicker({
-  value,
-  onChange,
-  disabled,
-  placeholder,
-  inputId,
-}: {
-  value?: string;
-  onChange: (emoji: string) => void;
-  disabled?: boolean;
-  placeholder?: string;
-  inputId?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleClick = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
-
-  return (
-    <div className="relative" ref={containerRef}>
-      <div className="flex items-center gap-2">
-        <input
-          id={inputId}
-          type="text"
-          maxLength={4}
-          value={value ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className={controlClass(false)}
-          disabled={disabled}
-        />
-        <button
-          type="button"
-          onClick={() => setOpen((prev) => !prev)}
-          className="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-300 bg-white text-xl shadow-sm outline-none transition hover:bg-zinc-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          disabled={disabled}
-          aria-label="Выбрать эмодзи"
-        >
-          😊
-        </button>
-      </div>
-      {open && (
-        <div className="absolute z-20 mt-2 max-h-72 w-72 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
-          <div className="grid grid-cols-8 gap-1">
-            {EMOJI_OPTIONS.map((emoji) => (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => {
-                  onChange(emoji);
-                  setOpen(false);
-                }}
-                className={`flex h-9 w-9 items-center justify-center rounded text-2xl hover:bg-gray-100 ${
-                  value === emoji ? 'bg-blue-100' : ''
-                }`}
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 const createEmptyQuestion = (): TestQuestion => ({
   id: crypto.randomUUID(),
   questionText: '',
@@ -231,7 +138,6 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
   const [previousTestOpen, setPreviousTestOpen] = useState<boolean>(false);
   const [previousTestError, setPreviousTestError] = useState<string | null>(null);
   const selectContainerRef = useRef<HTMLDivElement | null>(null);
-  const questionsFileInputRef = useRef<HTMLInputElement | null>(null);
   const [highlightIndex, setHighlightIndex] = useState<number>(0);
 
   // UI состояния
@@ -1353,184 +1259,45 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
       </div>
 
       {/* Оформление */}
-      <div className="space-y-6 rounded-lg border border-gray-200 bg-white p-4">
-        <h3 className="text-lg font-bold text-gray-900">Оформление теста</h3>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field
-            htmlFor="test-start-icon"
-            label="Иконка на стартовом экране"
-            hint="Можно использовать эмодзи или короткий текст."
-          >
-            <EmojiPicker
-              inputId="test-start-icon"
-              value={appearance.introIcon}
-              onChange={(emoji) => handleAppearanceChange('introIcon', emoji)}
-              placeholder="Например: 📖"
-              disabled={saving}
-            />
-          </Field>
-
-          <Field htmlFor="test-preface" label="Описание перед стартом" hint={prefaceHint}>
-            <textarea
-              id="test-preface"
-              value={appearance.introDescription ?? ''}
-              onChange={(e) => handleAppearanceChange('introDescription', e.target.value)}
-              placeholder="Кратко опишите, что ждёт пользователя в тесте"
-              maxLength={DESCRIPTION_MAX}
-              className={TEXTAREA}
-              disabled={saving}
-            />
-          </Field>
-        </div>
-
-        <ThemePicker
-          presets={THEME_PRESETS}
-          presetId={themePresetId}
-          onPresetChange={handlePresetChange}
-          mainColor={mainColor}
-          onMainColorChange={handleMainColorChange}
-          badgeLockedToPrimary={badgeLockedToPrimary}
-          onBadgeLockedChange={handleBadgeLockedChange}
-          overrides={themeOverrides}
-          onOverridesChange={handleOverridesChange}
-          derivedTheme={derivedTheme}
-          baseTheme={baseTheme}
-          contrastWarning={contrastWarning}
-          onReset={handleResetTheme}
-          onRandomize={handleRandomizeTheme}
-          advancedOpen={themeAdvancedOpen}
-          onAdvancedToggle={(value) => setThemeAdvancedOpen(value)}
-          buttonTextColor={buttonTextColor}
-        />
-
-        <div className="mt-2">
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-zinc-800">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-zinc-400 text-indigo-600 focus:ring-indigo-500"
-              checked={showBadgeConfig}
-              onChange={(e) => handleToggleBadgeConfig(e.target.checked)}
-              disabled={saving}
-            />
-            <span>Настраивать бейдж уровня</span>
-          </label>
-        </div>
-
-        {showBadgeConfig && (
-          <div
-            className="grid grid-cols-1 gap-4 md:grid-cols-2"
-            aria-hidden={!showBadgeConfig}
-          >
-            <Field
-              htmlFor="test-badge-icon"
-              label="Иконка бейджа уровня"
-              hint="Если оставить пустым, бейдж будет без иконки."
-            >
-              <EmojiPicker
-                inputId="test-badge-icon"
-                value={appearance.badgeIcon}
-                onChange={(emoji) => handleAppearanceChange('badgeIcon', emoji)}
-                placeholder="Например: 🔥🔥"
-                disabled={saving}
-              />
-            </Field>
-
-            <Field
-              htmlFor="test-badge-label"
-              label="Подпись бейджа"
-              hint="Например: УРОВЕНЬ 3"
-            >
-              <input
-                id="test-badge-label"
-                type="text"
-                value={appearance.badgeLabel ?? ''}
-                onChange={(e) => handleAppearanceChange('badgeLabel', e.target.value)}
-                placeholder="Например: УРОВЕНЬ 3"
-                className={controlClass(false)}
-                disabled={saving}
-              />
-            </Field>
-          </div>
-        )}
-
-        <Field
-          htmlFor="test-features"
-          label="Особенности теста (каждый пункт с новой строки)"
-          hint={featuresHint}
-        >
-          <textarea
-            id="test-features"
-            value={appearanceBullets}
-            onChange={(e) => setAppearanceBullets(e.target.value)}
-            placeholder={'• Всего 10 вопросов\n• После ответа появляется пояснение'}
-            className={TEXTAREA}
-            disabled={saving}
-          />
-        </Field>
-
-      </div>
+      <TestAppearanceEditor
+        appearance={appearance}
+        onAppearanceChange={handleAppearanceChange}
+        bulletPoints={appearanceBullets}
+        onBulletPointsChange={setAppearanceBullets}
+        themePresets={THEME_PRESETS}
+        themePresetId={themePresetId}
+        onPresetChange={handlePresetChange}
+        mainColor={mainColor}
+        onMainColorChange={handleMainColorChange}
+        badgeLockedToPrimary={badgeLockedToPrimary}
+        onBadgeLockedChange={handleBadgeLockedChange}
+        themeOverrides={themeOverrides}
+        onOverridesChange={handleOverridesChange}
+        derivedTheme={derivedTheme}
+        baseTheme={baseTheme}
+        contrastWarning={contrastWarning}
+        onResetTheme={handleResetTheme}
+        onRandomizeTheme={handleRandomizeTheme}
+        themeAdvancedOpen={themeAdvancedOpen}
+        onAdvancedToggle={setThemeAdvancedOpen}
+        buttonTextColor={buttonTextColor}
+        showBadgeConfig={showBadgeConfig}
+        onToggleBadgeConfig={handleToggleBadgeConfig}
+        saving={saving}
+      />
 
       {/* Список вопросов */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900">
-            Вопросы ({questions.length})
-          </h3>
-          <div className="flex gap-2">
-            <input
-              ref={questionsFileInputRef}
-              type="file"
-              accept=".json"
-              onChange={handleImportQuestions}
-              className="hidden"
-            />
-            <button
-              onClick={handleDownloadQuestionsTemplate}
-              disabled={saving}
-              className="rounded-md bg-blue-600 px-3 py-1 text-sm text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-              title="Скачать шаблон JSON вопросов"
-            >
-              📄 Шаблон
-            </button>
-            <button
-              onClick={() => questionsFileInputRef.current?.click()}
-              disabled={questions.length >= 20 || saving}
-              className="rounded-md bg-purple-600 px-3 py-1 text-sm text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
-              title="Импортировать вопросы из JSON"
-            >
-              📥 Импорт
-            </button>
-            <button
-              onClick={handleAddQuestion}
-              disabled={questions.length >= 20 || saving}
-              className="rounded-md bg-green-600 px-3 py-1 text-sm text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              + Добавить вопрос
-            </button>
-          </div>
-        </div>
-
-        {questions.length === 0 ? (
-          <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center text-gray-500">
-            Нет вопросов. Установите количество вопросов выше.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {questions.map((question, index) => (
-              <QuestionEditor
-                key={question.id}
-                question={question}
-                questionNumber={index + 1}
-                onChange={(updated) => handleQuestionChange(index, updated)}
-                onDelete={() => handleQuestionDelete(index)}
-                onRequestSave={handleSaveDraft}
-                testId={testId}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <TestQuestionsManager
+        questions={questions}
+        onQuestionChange={handleQuestionChange}
+        onQuestionDelete={handleQuestionDelete}
+        onAddQuestion={handleAddQuestion}
+        onImportQuestions={handleImportQuestions}
+        onDownloadTemplate={handleDownloadQuestionsTemplate}
+        saving={saving}
+        testId={testId || undefined}
+        onRequestSave={handleSaveDraft}
+      />
 
       {/* Кнопки действий */}
       <div className="sticky bottom-0 flex items-center justify-between gap-3 rounded-lg border-t border-gray-200 bg-white p-4 shadow-lg">
