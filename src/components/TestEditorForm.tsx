@@ -151,7 +151,6 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
       setThresholdError(null);
       setQuestionCountInput(String(questionCount));
       setQuestionCountError(null);
-      setHighlightIndex(0);
       setShowBadgeConfig(false);
     }
   }, [testId]);
@@ -196,29 +195,15 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
   }, [debouncedPreviousTestQuery, testOptions]);
 
   useEffect(() => {
-    if (filteredTestOptions.length === 0) {
-      setHighlightIndex(-1);
-    } else {
-      setHighlightIndex((prev) => {
-        if (prev < 0) return 0;
-        if (prev >= filteredTestOptions.length) return filteredTestOptions.length - 1;
-        return prev;
-      });
-    }
-  }, [filteredTestOptions]);
-
-  useEffect(() => {
     if (!isNextLevel) {
       setPrerequisiteTestId(undefined);
       setPreviousTestIdInput('');
       setPreviousTestQuery('');
       setDebouncedPreviousTestQuery('');
       setPreviousTestError(null);
-      setPreviousTestOpen(false);
       setThresholdError(null);
       setRequiredPercentage(70);
       setThresholdInput('70');
-      setHighlightIndex(0);
       setShowBadgeConfig(false);
       return;
     }
@@ -232,29 +217,15 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
         setPreviousTestQuery(match.title);
         setPreviousTestIdInput(prerequisiteTestId);
         setPreviousTestError(null);
-        setHighlightIndex(0);
       } else {
         setPreviousTestIdInput(prerequisiteTestId);
         setPreviousTestError('Тест с таким ID не найден');
-        setHighlightIndex(-1);
       }
     } else {
       setPreviousTestQuery('');
       setPreviousTestIdInput('');
-      setHighlightIndex(0);
     }
   }, [isNextLevel, prerequisiteTestId, testOptions]);
-
-  useEffect(() => {
-    if (!previousTestOpen) return;
-    const handleClick = (event: MouseEvent) => {
-      if (selectContainerRef.current && !selectContainerRef.current.contains(event.target as Node)) {
-        setPreviousTestOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [previousTestOpen]);
 
   const currentThemePreset: ThemePreset = useMemo(
     () => findPresetById(themePresetId),
