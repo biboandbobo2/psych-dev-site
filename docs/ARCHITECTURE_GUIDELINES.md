@@ -15,9 +15,10 @@
 3. [Структура проекта](#структура-проекта)
 4. [Композиция компонентов](#композиция-компонентов)
 5. [State Management](#state-management)
-6. [Чеклист перед коммитом](#чеклист-перед-коммитом)
-7. [Инструменты автоматизации](#инструменты-автоматизации)
-8. [Примеры хороших практик](#примеры-хороших-практик)
+6. [Testing](#testing)
+7. [Чеклист перед коммитом](#чеклист-перед-коммитом)
+8. [Инструменты автоматизации](#инструменты-автоматизации)
+9. [Примеры хороших практик](#примеры-хороших-практик)
 
 ---
 
@@ -308,14 +309,27 @@ export function LoginForm({ onSubmit }) {
 
 ## State Management
 
+**Статус:** Migration to Zustand completed (2025-11-09)
+
+### Текущий стек
+
+- ✅ **Zustand** - основное решение для глобального состояния приложения
+  - `useAuthStore` - авторизация (user, loading, roles, methods)
+  - `useTestStore` - тестирование (progress, answers, scoring)
+  - Redux DevTools integration для отладки
+  - Atomic селекторы для оптимизации ре-рендеров
+
+- ⚠️ **Context API** - legacy, постепенно мигрируется на Zustand
+  - `AuthProvider` - сейчас compatibility wrapper над `useAuthStore`
+
 ### Иерархия выбора
 
 ```
 1. Local state (useState) → для UI состояния компонента
 2. Compound components → для связанных компонентов
 3. Custom hooks → для переиспользуемой логики
-4. Context API → для подсистемы (темизация, локализация)
-5. Zustand/Redux → для глобального состояния
+4. Zustand → для глобального состояния (PREFERRED)
+5. Context API → только для подсистем (темизация, локализация)
 ```
 
 ### Когда использовать что
@@ -368,21 +382,48 @@ function AuthProvider({ children }) {
 // Используется по всему приложению
 ```
 
-#### 4. **Zustand** - глобальное состояние
+#### 4. **Zustand** - глобальное состояние (ПРЕДПОЧТИТЕЛЬНО)
 
 ```typescript
 // ✅ Хорошо для:
-const useAppStore = create((set) => ({
-  theme: 'light',
-  notifications: [],
-  setTheme: (theme) => set({ theme }),
-  addNotification: (notif) => set((state) => ({
-    notifications: [...state.notifications, notif]
-  })),
-}));
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 
-// Глобальное состояние приложения
+interface AuthState {
+  user: User | null;
+  loading: boolean;
+  setUser: (user: User | null) => void;
+  logout: () => Promise<void>;
+}
+
+export const useAuthStore = create<AuthState>()(
+  devtools(
+    (set, get) => ({
+      user: null,
+      loading: true,
+      setUser: (user) => set({ user }),
+      logout: async () => {
+        await signOut(auth);
+        set({ user: null });
+      },
+    }),
+    { name: 'AuthStore' }
+  )
+);
+
+// Использование с atomic селекторами:
+function UserMenu() {
+  const user = useAuthStore((state) => state.user); // ✅ re-render только при изменении user
+  const logout = useAuthStore((state) => state.logout);
+  // ...
+}
 ```
+
+**Best practices для Zustand:**
+- ✅ Используйте atomic селекторы для минимизации ре-рендеров
+- ✅ Включайте devtools middleware для отладки
+- ✅ Создавайте отдельные stores для разных доменов (auth, tests, etc.)
+- ❌ Избегайте получения всего store: `useStore((state) => state)` // infinite loops!
 
 ### Правило "Prop Drilling"
 
@@ -404,6 +445,150 @@ const useAppStore = create((set) => ({
 const { user } = useAuth();
 // Любой компонент может получить user
 ```
+
+---
+
+## Testing
+
+**Статус:** Test infrastructure established (2025-11-09)
+
+**Цель проекта:** Стремление к полному покрытию кода unit тестами
+
+### Текущий стек
+
+- ✅ **Vitest** - современный, быстрый test runner (интеграция с Vite)
+- ✅ **@testing-library/react** - тестирование React компонентов
+- ✅ **@testing-library/jest-dom** - дополнительные matchers для DOM
+- ✅ **jsdom** - браузерная среда для тестов
+
+### Структура тестов
+
+```
+src/
+├── utils/
+│   ├── testChainHelpers.ts
+│   └── testChainHelpers.test.ts         ← unit test рядом с файлом
+├── components/
+│   ├── TestCard.tsx
+│   └── TestCard.test.tsx                 ← component test рядом с компонентом
+└── tests/
+    └── setup.ts                          ← глобальная настройка тестов
+```
+
+### Команды для тестирования
+
+```bash
+npm test              # watch mode - тесты перезапускаются при изменениях
+npm run test:ui       # UI mode - визуальный интерфейс
+npm run test:coverage # запуск с отчетом покрытия
+```
+
+### Что тестировать
+
+#### ✅ Обязательно покрыть тестами:
+
+1. **Utility functions** - чистые функции с предсказуемым output
+   ```typescript
+   // testChainHelpers.test.ts
+   describe('buildTestChains', () => {
+     it('should return empty array for empty input', () => {
+       expect(buildTestChains([])).toEqual([]);
+     });
+   });
+   ```
+
+2. **Custom hooks** - переиспользуемая логика
+   ```typescript
+   // useTestProgress.test.ts
+   import { renderHook, act } from '@testing-library/react';
+
+   describe('useTestProgress', () => {
+     it('should increment score', () => {
+       const { result } = renderHook(() => useTestProgress(10));
+       act(() => {
+         result.current.incrementScore();
+       });
+       expect(result.current.score).toBe(1);
+     });
+   });
+   ```
+
+3. **Validation logic** - критически важно для корректности
+   ```typescript
+   // validators.test.ts
+   describe('validateEmail', () => {
+     it('should accept valid email', () => {
+       expect(validateEmail('test@example.com')).toBe(true);
+     });
+
+     it('should reject invalid email', () => {
+       expect(validateEmail('invalid')).toBe(false);
+     });
+   });
+   ```
+
+4. **Business logic** - сложные вычисления, преобразования данных
+   ```typescript
+   // testScoring.test.ts
+   describe('calculateScore', () => {
+     it('should return 100% for all correct answers', () => {
+       const answers = [true, true, true];
+       expect(calculateScore(answers)).toBe(100);
+     });
+   });
+   ```
+
+#### ⚠️ Опционально (по ресурсам):
+
+1. **UI components** - snapshots, interaction tests
+2. **Integration tests** - взаимодействие компонентов
+3. **E2E tests** - полные пользовательские сценарии (Playwright/Cypress)
+
+### Best practices
+
+**Структура теста (AAA pattern):**
+```typescript
+it('should do something', () => {
+  // Arrange - подготовка
+  const input = [1, 2, 3];
+
+  // Act - действие
+  const result = myFunction(input);
+
+  // Assert - проверка
+  expect(result).toEqual([2, 4, 6]);
+});
+```
+
+**Naming convention:**
+```typescript
+// ✅ Хорошо - описательно
+it('should return empty array for empty input')
+it('should throw error when user is not authenticated')
+
+// ❌ Плохо - неясно
+it('works')
+it('test1')
+```
+
+**Coverage goals:**
+- Utilities: 90%+
+- Hooks: 80%+
+- Components: 60%+ (критические компоненты 80%+)
+- Общее покрытие: стремимся к 70%+
+
+### Текущее покрытие
+
+**Covered (2025-11-09):**
+- ✅ `testChainHelpers.ts` - 3 tests
+- ✅ `testAppearance.ts` - 6 tests
+
+**TODO (приоритет):**
+- ⏳ `useTestProgress.ts`
+- ⏳ `useAnswerValidation.ts`
+- ⏳ `useQuestionNavigation.ts`
+- ⏳ Custom hooks (useNotes, useTopics, useTests)
+- ⏳ Validation functions
 
 ---
 
