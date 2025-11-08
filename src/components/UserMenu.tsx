@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { auth } from "../lib/firebase";
-import { useAuth } from "../auth/AuthProvider";
+import { useAuthStore } from "../stores/useAuthStore";
 
 interface UserMenuProps {
   user: User;
@@ -11,7 +11,8 @@ interface UserMenuProps {
 export default function UserMenu({ user }: UserMenuProps) {
   const displayName = user.displayName || user.email?.split('@')[0] || "Пользователь";
   const photoURL = user.photoURL;
-  const { isAdmin, isSuperAdmin } = useAuth();
+  const isAdmin = useAuthStore((state) => state.isAdmin);
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
 
   const handleSignOut = async () => {
     if (window.confirm("Выйти из системы?")) {
