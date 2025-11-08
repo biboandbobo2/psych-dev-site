@@ -25,6 +25,7 @@ import { TestPolicyEditor } from './tests/editor/TestPolicyEditor';
 import { TestImportExport } from './tests/editor/TestImportExport';
 import { TestBasicMetadata } from './tests/editor/TestBasicMetadata';
 import { TestPrerequisiteConfig } from './tests/editor/TestPrerequisiteConfig';
+import { TestActionButtons } from './tests/editor/TestActionButtons';
 import {
   deriveTheme,
   findPresetById,
@@ -1075,43 +1076,14 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
       />
 
       {/* Кнопки действий */}
-      <div className="sticky bottom-0 flex items-center justify-between gap-3 rounded-lg border-t border-gray-200 bg-white p-4 shadow-lg">
-        <button
-          onClick={onClose}
-          disabled={saving}
-          className="rounded-md bg-gray-600 px-4 py-2 text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Отмена
-        </button>
-
-        <div className="flex gap-3">
-          <button
-            onClick={handleSaveDraft}
-            disabled={saving}
-            className="rounded-md bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saving ? 'Сохранение...' : (currentStatus === 'draft' ? 'Сохранить черновик' : 'Сохранить изменения')}
-          </button>
-
-          {currentStatus === 'published' ? (
-            <button
-              onClick={handleUnpublish}
-              disabled={saving}
-              className="rounded-md bg-orange-600 px-4 py-2 text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving ? 'Снятие...' : 'Снять с публикации'}
-            </button>
-          ) : (
-            <button
-              onClick={handlePublish}
-              disabled={saving}
-              className="rounded-md bg-green-600 px-4 py-2 text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving ? 'Публикация...' : 'Опубликовать'}
-            </button>
-          )}
-        </div>
-      </div>
+      <TestActionButtons
+        currentStatus={currentStatus}
+        saving={saving}
+        onClose={onClose}
+        onSaveDraft={handleSaveDraft}
+        onPublish={handlePublish}
+        onUnpublish={handleUnpublish}
+      />
     </div>
   );
 }
