@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import {
   createTest,
@@ -25,6 +24,7 @@ import { TestQuestionsManager } from './tests/editor/TestQuestionsManager';
 import { TestPolicyEditor } from './tests/editor/TestPolicyEditor';
 import { TestImportExport } from './tests/editor/TestImportExport';
 import { TestBasicMetadata } from './tests/editor/TestBasicMetadata';
+import { TestPrerequisiteConfig } from './tests/editor/TestPrerequisiteConfig';
 import {
   deriveTheme,
   findPresetById,
@@ -136,10 +136,7 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
   const [previousTestIdInput, setPreviousTestIdInput] = useState<string>('');
   const [previousTestQuery, setPreviousTestQuery] = useState<string>('');
   const [debouncedPreviousTestQuery, setDebouncedPreviousTestQuery] = useState<string>('');
-  const [previousTestOpen, setPreviousTestOpen] = useState<boolean>(false);
   const [previousTestError, setPreviousTestError] = useState<string | null>(null);
-  const selectContainerRef = useRef<HTMLDivElement | null>(null);
-  const [highlightIndex, setHighlightIndex] = useState<number>(0);
 
   // UI состояния
   const [loading, setLoading] = useState(false);
@@ -667,8 +664,6 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
 
   const handlePreviousTestQueryChange = (value: string) => {
     setPreviousTestQuery(value);
-    setPreviousTestOpen(true);
-    setHighlightIndex(0);
     if (!selectedTest || value !== selectedTest.title) {
       setPrerequisiteTestId(undefined);
       setPreviousTestIdInput('');
@@ -688,10 +683,7 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
     setPrerequisiteTestId(option.id);
     setPreviousTestQuery(option.title);
     setPreviousTestIdInput(option.id);
-    setPreviousTestOpen(false);
     setPreviousTestError(null);
-    const index = filteredTestOptions.findIndex((item) => item.id === option.id);
-    setHighlightIndex(index >= 0 ? index : 0);
   };
 
   const handlePreviousTestIdInputChange = (value: string) => {
@@ -700,15 +692,12 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
     if (trimmed === '') {
       setPrerequisiteTestId(undefined);
       setPreviousTestError(null);
-      setHighlightIndex(0);
       return;
     }
     const match = testOptions.find((option) => option.id === trimmed);
     if (!match) {
       setPrerequisiteTestId(undefined);
       setPreviousTestError('Тест с таким ID не найден');
-      setPreviousTestOpen(false);
-      setHighlightIndex(-1);
       return;
     }
     if (!canAttachPrerequisite(match.id)) {
@@ -718,8 +707,6 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
     setPrerequisiteTestId(match.id);
     setPreviousTestQuery(match.title);
     setPreviousTestError(null);
-    setPreviousTestOpen(false);
-    setHighlightIndex(0);
   };
 
   const handleToggleBadgeConfig = (checked: boolean) => {
@@ -733,58 +720,8 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
     }
   };
 
-  const handlePreviousTestKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      if (!previousTestOpen) {
-        setPreviousTestOpen(true);
-        setHighlightIndex(filteredTestOptions.length > 0 ? 0 : -1);
-      } else if (filteredTestOptions.length > 0) {
-        setHighlightIndex((prev) => {
-          if (prev < 0) return 0;
-          const next = prev + 1;
-          return next >= filteredTestOptions.length ? filteredTestOptions.length - 1 : next;
-        });
-      }
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      if (previousTestOpen && filteredTestOptions.length > 0) {
-        setHighlightIndex((prev) => {
-          if (prev <= 0) return 0;
-          return prev - 1;
-        });
-      }
-    } else if (event.key === 'Enter') {
-      if (!previousTestOpen) {
-        setPreviousTestOpen(true);
-        setHighlightIndex(filteredTestOptions.length > 0 ? 0 : -1);
-      } else if (highlightIndex >= 0 && filteredTestOptions[highlightIndex]) {
-        event.preventDefault();
-        handleSelectPreviousTest(filteredTestOptions[highlightIndex]);
-      }
-    } else if (event.key === 'Escape') {
-      if (previousTestOpen) {
-        event.preventDefault();
-        setPreviousTestOpen(false);
-      }
-    }
-  };
-
   const titleHint = `До ${TITLE_MAX} символов. Осталось ${Math.max(0, TITLE_MAX - title.length)}.`;
   const questionHint = `Сейчас добавлено ${questionCount} вопрос(ов).`;
-  const idHint = selectedTest
-    ? `Найдено: ${selectedTest.title}`
-    : 'Можно вставить ID вручную, если знаете его.';
-  const prefaceHint = `До ${DESCRIPTION_MAX} символов. Осталось ${Math.max(
-    0,
-    DESCRIPTION_MAX - (appearance.introDescription?.length ?? 0)
-  )}.`;
-  const featuresHint =
-    'Пункты будут показаны списком перед началом теста. Если оставить поле пустым, появится стандартный набор правил.';
-  const activeOptionId =
-    highlightIndex >= 0 && highlightIndex < filteredTestOptions.length
-      ? `previous-test-option-${filteredTestOptions[highlightIndex].id}`
-      : undefined;
 
   // Валидация для публикации
   const validateForPublish = (): boolean => {
@@ -1077,135 +1014,24 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
       />
 
       {/* Prerequisite configuration */}
-      <div className="space-y-6 rounded-lg border border-gray-200 bg-white p-4">
-        <div className="mt-4">
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-zinc-800">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-zinc-400 text-indigo-600 focus:ring-indigo-500"
-              checked={isNextLevel}
-              onChange={(e) => setIsNextLevel(e.target.checked)}
-              disabled={saving}
-            />
-            <span>Этот тест открыт только после прохождения другого теста</span>
-          </label>
-        </div>
-
-        {isNextLevel && (
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3" data-visible={isNextLevel}>
-            <Field
-              htmlFor="test-threshold"
-              label="Порог прохождения (%) *"
-              hint="Студент должен набрать не меньше указанного процента на предыдущем тесте."
-              error={thresholdError}
-            >
-              <input
-                id="test-threshold"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={100}
-                step={1}
-                value={thresholdInput}
-                onChange={(e) => handleThresholdInputChange(e.target.value)}
-                className={controlClass(Boolean(thresholdError))}
-                aria-invalid={Boolean(thresholdError)}
-                disabled={saving}
-              />
-            </Field>
-
-            <Field
-              htmlFor="test-previous-title"
-              label="Предыдущий тест"
-              hint="Выберите тест, после которого откроется текущий уровень."
-            >
-              <div ref={selectContainerRef} className="relative">
-                <input
-                  id="test-previous-title"
-                  type="text"
-                  value={previousTestQuery}
-                  onChange={(e) => handlePreviousTestQueryChange(e.target.value)}
-                  onFocus={() => !saving && setPreviousTestOpen(true)}
-                  onKeyDown={handlePreviousTestKeyDown}
-                  onBlur={(event) => {
-                    const next = event.relatedTarget as HTMLElement | null;
-                    if (!next || !selectContainerRef.current?.contains(next)) {
-                      window.setTimeout(() => setPreviousTestOpen(false), 80);
-                    }
-                  }}
-                  placeholder="Начните вводить название теста"
-                  className={controlClass(false)}
-                  role="combobox"
-                  aria-autocomplete="list"
-                  aria-expanded={previousTestOpen}
-                  aria-controls="previous-test-options"
-                  aria-activedescendant={activeOptionId}
-                  disabled={saving}
-                />
-                {previousTestOpen && (
-                  <div
-                    id="previous-test-options"
-                    role="listbox"
-                    className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg"
-                  >
-                    {filteredTestOptions.length === 0 ? (
-                      <div className="px-3 py-2 text-sm text-zinc-500">Ничего не найдено</div>
-                    ) : (
-                      filteredTestOptions.map((option, index) => {
-                        const isSelected = option.id === prerequisiteTestId;
-                        const isHighlighted = highlightIndex === index;
-                        const optionId = `previous-test-option-${option.id}`;
-                        return (
-                          <button
-                            key={option.id}
-                            id={optionId}
-                            type="button"
-                            role="option"
-                            aria-selected={isSelected || isHighlighted}
-                            tabIndex={-1}
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => handleSelectPreviousTest(option)}
-                            className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${
-                              isHighlighted
-                                ? 'bg-indigo-50 text-indigo-900'
-                                : isSelected
-                                ? 'bg-blue-100 text-blue-900'
-                                : 'hover:bg-zinc-100'
-                            }`}
-                          >
-                            <span className="mr-2 truncate">{option.title}</span>
-                            <span className="flex-shrink-0 text-xs text-zinc-500">
-                              • {option.questionCount} вопросов
-                            </span>
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-            </Field>
-
-            <Field
-              htmlFor="test-previous-id"
-              label="ID предыдущего теста *"
-              hint={idHint}
-              error={previousTestError}
-            >
-              <input
-                id="test-previous-id"
-                type="text"
-                value={previousTestIdInput}
-                onChange={(e) => handlePreviousTestIdInputChange(e.target.value)}
-                placeholder="Например: abc123"
-                className={controlClass(Boolean(previousTestError))}
-                aria-invalid={Boolean(previousTestError)}
-                disabled={saving}
-              />
-            </Field>
-          </div>
-        )}
-      </div>
+      <TestPrerequisiteConfig
+        isNextLevel={isNextLevel}
+        onIsNextLevelChange={setIsNextLevel}
+        thresholdInput={thresholdInput}
+        onThresholdInputChange={handleThresholdInputChange}
+        thresholdError={thresholdError}
+        previousTestQuery={previousTestQuery}
+        onPreviousTestQueryChange={handlePreviousTestQueryChange}
+        previousTestIdInput={previousTestIdInput}
+        onPreviousTestIdInputChange={handlePreviousTestIdInputChange}
+        previousTestError={previousTestError}
+        testOptions={testOptions}
+        filteredTestOptions={filteredTestOptions}
+        selectedTest={selectedTest}
+        prerequisiteTestId={prerequisiteTestId}
+        onSelectPreviousTest={handleSelectPreviousTest}
+        saving={saving}
+      />
 
       {/* Оформление */}
       <TestAppearanceEditor
