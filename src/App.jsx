@@ -23,7 +23,8 @@ import { Button } from './components/ui/Button';
 import { NavigationProgress } from './components/ui/NavigationProgress';
 import { BackToTop } from './components/ui/BackToTop';
 import { cn } from './lib/cn';
-import { AuthProvider, useAuth } from './auth/AuthProvider';
+import { AuthInitializer } from './auth/AuthInitializer';
+import { useAuthStore } from './stores/useAuthStore';
 import RequireAuth from './auth/RequireAuth';
 import RequireAdmin from './auth/RequireAdmin';
 import Login from './pages/Login';
@@ -37,11 +38,8 @@ import LoginModal from './components/LoginModal';
 import UserMenu from './components/UserMenu';
 import Profile from './pages/Profile';
 import Notes from './pages/Notes';
-import Tests from './pages/Tests';
-import { AgeTests } from './pages/AgeTests';
-import AuthorsTest from './pages/AuthorsTest';
-import AuthorsTestLevel2 from './pages/AuthorsTestLevel2';
-import AuthorsTestLevel3 from './pages/AuthorsTestLevel3';
+import { TestsPage } from './pages/TestsPage';
+
 import DynamicTest from './pages/DynamicTest';
 import MigrateTopics from './pages/MigrateTopics';
 import AdminTopics from './pages/AdminTopics';
@@ -1008,7 +1006,10 @@ function AppInner() {
   useAuthSync();
   const { periods, loading, error } = usePeriods();
   const location = useLocation();
-  const { user, loading: authLoading, isAdmin, isSuperAdmin } = useAuth();
+  const user = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.loading);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const { isOpen, openModal, closeModal } = useLoginModal();
 
   const periodMap = useMemo(() => {
@@ -1145,7 +1146,7 @@ function AppInner() {
                     path="/tests"
                     element={
                       <RequireAuth>
-                        <Tests />
+                        <TestsPage rubricFilter="full-course" />
                       </RequireAuth>
                     }
                   />
@@ -1153,34 +1154,11 @@ function AppInner() {
                     path="/tests/age-periods"
                     element={
                       <RequireAuth>
-                        <AgeTests />
+                        <TestsPage rubricFilter="age-periods" />
                       </RequireAuth>
                     }
                   />
-                  <Route
-                    path="/tests/authors"
-                    element={
-                      <RequireAuth>
-                        <AuthorsTest />
-                      </RequireAuth>
-                    }
-                  />
-                  <Route
-                    path="/tests/authors/level2"
-                    element={
-                      <RequireAuth>
-                        <AuthorsTestLevel2 />
-                      </RequireAuth>
-                    }
-                  />
-                  <Route
-                    path="/tests/authors/level3"
-                    element={
-                      <RequireAuth>
-                        <AuthorsTestLevel3 />
-                      </RequireAuth>
-                    }
-                  />
+
                   <Route
                     path="/tests/dynamic/:testId"
                     element={
@@ -1257,9 +1235,9 @@ function AppInner() {
 export default function App() {
   return (
     <Router>
-      <AuthProvider>
+      <AuthInitializer>
         <AppInner />
-      </AuthProvider>
+      </AuthInitializer>
     </Router>
   );
 }
