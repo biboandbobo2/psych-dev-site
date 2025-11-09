@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { NodeT, EdgeT, Sphere } from '../types';
-import { parseAge } from '../utils';
+import { parseBulkEventsText } from '../utils/parseBulkEvents';
 import { LINE_X_POSITION } from '../constants';
 
 interface BulkEventCreatorProps {
@@ -32,59 +32,39 @@ export function BulkEventCreator({
   const minAge = selectedEdge ? selectedEdge.startAge : 0;
   const maxAge = selectedEdge ? selectedEdge.endAge : ageMax;
 
-  // Парсинг текста в массив событий
-  const parsedEvents = inputText
-    .split('\n')
-    .map((line, index) => {
-      const trimmed = line.trim();
-      if (!trimmed) return null;
+  const baseParsedEvents = parseBulkEventsText(inputText);
+  const parsedEvents = baseParsedEvents.map((event) => {
+    if (event.error || event.age === null || event.label === null) return event;
 
-      // Разделяем по первой запятой
-      const commaIndex = trimmed.indexOf(',');
-      if (commaIndex === -1) {
-        return { error: `Строка ${index + 1}: Нет запятой. Формат: "возраст, название"`, age: null, label: null, needsExtension: false };
+    if (selectedEdge) {
+      if (event.age < minAge) {
+        return {
+          ...event,
+          error: `Строка ${event.line}: Возраст ${event.age} меньше начала ветки (${minAge})`,
+        };
       }
-
-      const ageStr = trimmed.substring(0, commaIndex).trim();
-      const label = trimmed.substring(commaIndex + 1).trim();
-
-      if (!ageStr || !label) {
-        return { error: `Строка ${index + 1}: Пустой возраст или название`, age: null, label: null, needsExtension: false };
+      if (event.age > maxAge) {
+        return {
+          ...event,
+          error: `Строка ${event.line}: Возраст ${event.age} больше конца ветки (${maxAge})`,
+          needsExtension: true,
+        };
       }
+    } else if (event.age < 0 || event.age > ageMax) {
+      return {
+        ...event,
+        error: `Строка ${event.line}: Возраст должен быть от 0 до ${ageMax}`,
+      };
+    }
 
-      const age = parseAge(ageStr);
-
-      if (isNaN(age)) {
-        return { error: `Строка ${index + 1}: Неверный формат возраста`, age: null, label: null, needsExtension: false };
-      }
-
-      // Проверка для ветки
-      if (selectedEdge) {
-        if (age < minAge) {
-          return { error: `Строка ${index + 1}: Возраст ${age} меньше начала ветки (${minAge})`, age: null, label: null, needsExtension: false };
-        }
-        if (age > maxAge) {
-          return { error: `Строка ${index + 1}: Возраст ${age} больше конца ветки (${maxAge})`, age, label, needsExtension: true };
-        }
-      } else {
-        // Проверка для основной линии
-        if (age < 0 || age > ageMax) {
-          return { error: `Строка ${index + 1}: Возраст должен быть от 0 до ${ageMax}`, age: null, label: null, needsExtension: false };
-        }
-      }
-
-      return { age, label, error: null, needsExtension: false };
-    })
-    .filter((item): item is { age: number | null; label: string | null; error: string | null; needsExtension: boolean } => item !== null);
+    return event;
+  });
 
   const validEvents = parsedEvents.filter((e) => e.error === null && e.age !== null && e.label !== null);
   const hasErrors = parsedEvents.some((e) => e.error !== null);
-  const needsExtension = parsedEvents.some((e) => e.needsExtension);
-
-  // Вычисляем максимальный возраст среди событий, которые выходят за пределы ветки
-  const maxRequiredAge = parsedEvents
-    .filter((e) => e.needsExtension && e.age !== null)
-    .reduce((max, e) => Math.max(max, e.age!), maxAge);
+  const extensionEvents = parsedEvents.filter((e) => e.needsExtension && e.age !== null);
+  const needsExtension = extensionEvents.length > 0;
+  const maxRequiredAge = extensionEvents.reduce((max, e) => Math.max(max, e.age ?? max), maxAge);
 
   const handleSubmit = () => {
     if (validEvents.length === 0) return;

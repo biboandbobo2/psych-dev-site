@@ -1,7 +1,7 @@
-import type { EventIconId } from '../../../data/eventIcons';
-import { EVENT_ICON_DATA_URL_MAP } from '../../../data/eventIconDataUrls';
-import type { BirthDetails, EdgeT, NodeT, TimelineData } from '../types';
-import type { Periodization } from '../data/periodizations';
+import type { EventIconId } from '../../../../data/eventIcons';
+import { EVENT_ICON_DATA_URL_MAP } from '../../../../data/eventIconDataUrls';
+import type { BirthDetails, EdgeT, NodeT, TimelineData } from '../../types';
+import type { Periodization } from '../../data/periodizations';
 
 export type TimelineExportPayload = {
   currentAge: number;
@@ -16,7 +16,7 @@ export type TimelineExportPayload = {
  * Генерирует уникальное имя файла с timestamp
  * Формат: timeline_2024-01-15_14-30-45.ext
  */
-function generateFilename(extension: string): string {
+export function generateFilename(extension: string): string {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -49,7 +49,7 @@ const EXPORT_DEBUG =
   (window as any).__TIMELINE_EXPORT_DEBUG__ !== false &&
   import.meta.env.DEV;
 
-function debugExport(...args: unknown[]) {
+export function debugExport(...args: unknown[]) {
   if (EXPORT_DEBUG) {
     console.log('[timeline-export]', ...args);
   }
@@ -82,36 +82,7 @@ function resetDebugState() {
   }
 }
 
-export function exportTimelineJSON(data: TimelineExportPayload, filename?: string) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  downloadBlob(blob, filename || generateFilename('json'));
-}
-
-export async function exportTimelinePNG(svg: SVGSVGElement, filename?: string) {
-  debugExport('Starting PNG export');
-  const { canvas } = await renderSvgToCanvas(svg);
-  const blob = await canvasToBlob(canvas, 'image/png', 1);
-  downloadBlob(blob, filename || generateFilename('png'));
-  debugExport('PNG export complete');
-}
-
-export async function exportTimelinePDF(
-  svg: SVGSVGElement,
-  data: TimelineExportPayload,
-  periodization: Periodization | null,
-  filename?: string
-) {
-  debugExport('Starting PDF export');
-  const { canvas, width, height } = await renderSvgToCanvas(svg);
-  const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.92);
-  const jpegBytes = dataUriToUint8Array(jpegDataUrl);
-  const pdfBytes = buildPdfWithImage(jpegBytes, width, height, periodization, data);
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-  downloadBlob(blob, filename || generateFilename('pdf'));
-  debugExport('PDF export complete');
-}
-
-function downloadBlob(blob: Blob, filename: string) {
+export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -122,7 +93,7 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-async function renderSvgToCanvas(svg: SVGSVGElement) {
+export async function renderSvgToCanvas(svg: SVGSVGElement) {
   const { serializedSvg, width, height } = await serializeSvg(svg);
   const svgBlob = new Blob([serializedSvg], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(svgBlob);
@@ -242,7 +213,7 @@ function loadImage(url: string) {
   });
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number) {
+export function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number) {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) {
@@ -254,7 +225,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality?: number)
   });
 }
 
-function dataUriToUint8Array(dataUri: string) {
+export function dataUriToUint8Array(dataUri: string) {
   const base64 = dataUri.split(',')[1];
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -264,7 +235,7 @@ function dataUriToUint8Array(dataUri: string) {
   return bytes;
 }
 
-function buildPdfWithImage(
+export function buildPdfWithImage(
   imageBytes: Uint8Array,
   widthPx: number,
   heightPx: number,

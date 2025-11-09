@@ -26,6 +26,31 @@ export const LINE_X_POSITION = 2000;
 export const NODE_RADIUS = 20;
 
 /**
+ * Базовый радиус кружка события (адаптивный)
+ */
+export const BASE_NODE_RADIUS = 15;
+
+/**
+ * Минимальный радиус кружка события при зуме
+ */
+export const MIN_NODE_RADIUS = 9;
+
+/**
+ * Максимальный радиус кружка события при зуме
+ */
+export const MAX_NODE_RADIUS = 38;
+
+/**
+ * Ширина толстой линии для клика по ветке
+ */
+export const BRANCH_CLICK_WIDTH = 24;
+
+/**
+ * Ширина обычной линии для клика по ветке (не выбрана)
+ */
+export const BRANCH_CLICK_WIDTH_UNSELECTED = 12;
+
+/**
  * Минимальный масштаб холста
  */
 export const MIN_SCALE = 0.2;

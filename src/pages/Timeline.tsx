@@ -1,6 +1,5 @@
 // Timeline component with bulk event creation support
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../auth/AuthProvider';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -25,19 +24,25 @@ import {
   DEFAULT_AGE_MAX,
   DEFAULT_CURRENT_AGE,
   LINE_X_POSITION,
-  NODE_RADIUS,
   MIN_SCALE,
   MAX_SCALE,
   SPHERE_META,
   SAVE_DEBOUNCE_MS,
+  BASE_NODE_RADIUS,
+  MIN_NODE_RADIUS,
+  MAX_NODE_RADIUS,
+  BRANCH_CLICK_WIDTH,
+  BRANCH_CLICK_WIDTH_UNSELECTED,
 } from './timeline/constants';
 import { screenToWorld, clamp, parseAge, removeUndefined } from './timeline/utils';
 import { IconPickerButton } from './timeline/components/IconPickerButton';
 import { PeriodizationSelector } from './timeline/components/PeriodizationSelector';
-import { PeriodizationLayer } from './timeline/components/PeriodizationLayer';
 import { PeriodBoundaryModal } from './timeline/components/PeriodBoundaryModal';
 import { BulkEventCreator } from './timeline/components/BulkEventCreator';
 import { SaveEventAsNoteButton } from './timeline/components/SaveEventAsNoteButton';
+import { TimelineLeftPanel } from './timeline/components/TimelineLeftPanel';
+import { TimelineRightPanel } from './timeline/components/TimelineRightPanel';
+import { TimelineCanvas } from './timeline/components/TimelineCanvas';
 import { PERIODIZATIONS, getPeriodizationById } from './timeline/data/periodizations';
 import { exportTimelineJSON, exportTimelinePNG, exportTimelinePDF } from './timeline/utils/exporters';
 
@@ -58,7 +63,6 @@ export default function Timeline() {
   const [transform, setTransform] = useState({ x: 50, y: 100, k: 1 });
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [showHelp, setShowHelp] = useState(false);
-  const [showSaveTooltip, setShowSaveTooltip] = useState(false);
   const [initialViewportSet, setInitialViewportSet] = useState(false);
 
   // Panning state
@@ -175,6 +179,10 @@ export default function Timeline() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [downloadMenuOpen]);
 
+  const handleDownloadMenuToggle = () => {
+    setDownloadMenuOpen((prev) => !prev);
+  };
+
   async function handleDownload(type: 'json' | 'png' | 'pdf') {
     setDownloadMenuOpen(false);
     const exportPayload = {
@@ -256,11 +264,32 @@ export default function Timeline() {
   const worldWidth = 4000;
   const worldHeight = ageMax * YEAR_PX + 500;
 
+  const handleViewportAgeChange = (age: number) => {
+    setViewportAge(age);
+    const viewportHeight = window.innerHeight;
+    const targetY = worldHeight - age * YEAR_PX;
+    setTransform((prev) => ({
+      ...prev,
+      y: viewportHeight / 2 - targetY * prev.k,
+    }));
+  };
+
+  const handleScaleChange = (newScale: number) => {
+    setTransform((prev) => {
+      const centerY = window.innerHeight / 2;
+      const lineScreenX = prev.x + LINE_X_POSITION * prev.k;
+      return {
+        k: newScale,
+        x: lineScreenX - LINE_X_POSITION * newScale,
+        y: prev.y + (centerY - prev.y) * (1 - newScale / prev.k),
+      };
+    });
+  };
+
   // Adaptive node radius based on zoom level
   // При отдалении (k маленький) - кружки больше, при приближении - меньше
   // Используем обратную пропорцию: radius = baseRadius / k
-  const baseRadius = 15; // Уменьшено на 1/4 (было 20)
-  const adaptiveRadius = clamp(baseRadius / transform.k, 9, 38);
+  const adaptiveRadius = clamp(BASE_NODE_RADIUS / transform.k, MIN_NODE_RADIUS, MAX_NODE_RADIUS);
 
   // ============ HISTORY (UNDO/REDO) ============
 
@@ -569,6 +598,14 @@ export default function Timeline() {
     saveToHistory(updatedNodes, updatedEdges);
   }
 
+  const handleHideBranchEditor = () => {
+    setSelectedBranchX(null);
+  };
+
+  const handleOpenBulkCreator = () => {
+    setShowBulkCreator(true);
+  };
+
   // ============ EVENT HANDLERS ============
 
   function handleWheel(e: React.WheelEvent<SVGSVGElement>) {
@@ -621,6 +658,20 @@ export default function Timeline() {
     setIsPanning(false);
     setLastPointer(null);
   }
+
+  const handlePeriodBoundaryClick = (periodIndex: number) => {
+    setPeriodBoundaryModal({ periodIndex });
+  };
+
+  const handleSelectBranch = (x: number) => {
+    setSelectedBranchX(x);
+    setBirthSelected(false);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedBranchX(null);
+    setBirthSelected(false);
+  };
 
   function handleNodeClick(nodeId: string) {
     const node = nodes.find((n) => n.id === nodeId);
@@ -932,1070 +983,104 @@ export default function Timeline() {
       transition={{ duration: 0.3 }}
       className="fixed inset-0 bg-gradient-to-br from-slate-50 to-white overflow-hidden"
     >
-      {/* Left controls */}
-      <div className="fixed top-4 left-4 z-40">
-        <aside
-          className="w-36 space-y-3 rounded-3xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/90 p-4 shadow-xl backdrop-blur-md sm:w-40"
-          style={{ fontFamily: 'Georgia, serif' }}
-        >
-          <div className="flex items-center gap-2 pr-6">
-            <Link
-              to="/profile"
-              className="flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 px-3 py-2 text-amber-900 shadow-md transition-all duration-200 hover:border-amber-300 hover:from-amber-100 hover:to-yellow-100"
-            >
-              <span className="text-sm">←</span>
-              <span className="text-[11px] font-semibold uppercase tracking-wide">Выход</span>
-            </Link>
-            <div className="relative">
-              <button
-                type="button"
-                ref={downloadButtonRef}
-                title="Скачать таймлайн"
-                onClick={() => setDownloadMenuOpen((prev) => !prev)}
-                className="flex h-9 w-9 items-center justify-center text-slate-600 transition hover:text-slate-900"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-5 w-5"
-                >
-                  <path d="M12 3v12" />
-                  <path d="M7.5 10.5 12 15l4.5-4.5" />
-                  <path d="M5 17h14" />
-                </svg>
-              </button>
+      <TimelineLeftPanel
+        currentAge={currentAge}
+        ageMax={ageMax}
+        viewportAge={viewportAge}
+        scale={transform.k}
+        nodes={nodes}
+        downloadMenuOpen={downloadMenuOpen}
+        downloadButtonRef={downloadButtonRef}
+        downloadMenuRef={downloadMenuRef}
+        onCurrentAgeChange={(value) => setCurrentAge(value)}
+        onViewportAgeChange={handleViewportAgeChange}
+        onScaleChange={handleScaleChange}
+        onDownloadMenuToggle={handleDownloadMenuToggle}
+        onDownloadSelect={handleDownload}
+        onClearAll={handleClearAll}
+      />
 
-              {downloadMenuOpen && (
-                <div
-                  ref={downloadMenuRef}
-                  className="absolute right-0 top-full z-50 mt-3 w-40 rounded-2xl border border-slate-200 bg-white shadow-lg backdrop-blur-md"
-                >
-                  <div className="px-3 pt-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-slate-500">
-                    Скачать
-                  </div>
-                  <div className="mt-2">
-                    <button
-                      type="button"
-                      onClick={() => handleDownload('json')}
-                      className="w-full px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-                    >
-                      JSON
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDownload('png')}
-                      className="w-full px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-                    >
-                      PNG (изображение)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDownload('pdf')}
-                      className="w-full px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-                    >
-                      PDF (отчёт)
-                    </button>
-                  </div>
-                  <div className="h-2" />
-                </div>
-              )}
-            </div>
-          </div>
+      <TimelineCanvas
+        svgRef={svgRef}
+        transform={transform}
+        worldWidth={worldWidth}
+        worldHeight={worldHeight}
+        ageMax={ageMax}
+        currentAge={currentAge}
+        nodes={nodes}
+        edges={edges}
+        selectedPeriodization={selectedPeriodization}
+        selectedId={selectedId}
+        selectedBranchX={selectedBranchX}
+        draggingNodeId={draggingNodeId}
+        birthSelected={birthSelected}
+        birthBaseYear={birthBaseYear}
+        formattedCurrentAge={formattedCurrentAge}
+        currentYearLabel={currentYearLabel}
+        cursorClass={cursorClass}
+        onWheel={handleWheel}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onNodeClick={handleNodeClick}
+        onNodeDragStart={handleNodeDragStart}
+        onPeriodBoundaryClick={handlePeriodBoundaryClick}
+        onSelectBranch={handleSelectBranch}
+        onClearSelection={handleClearSelection}
+        onSelectBirth={selectBirth}
+      />
 
-          <div className="space-y-3">
-            <label className="flex flex-col gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-700">Мой возраст</span>
-              <input
-                type="number"
-                value={currentAge}
-                onChange={(e) => setCurrentAge(Number(e.target.value))}
-                min={0}
-                max={ageMax}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-lg font-semibold text-slate-900 transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-            </label>
+      <TimelineRightPanel
+        saveStatus={saveStatus}
+        selectedPeriodization={selectedPeriodization}
+        onPeriodizationChange={setSelectedPeriodization}
+        birthSelected={birthSelected}
+        birthFormDate={birthFormDate}
+        birthFormPlace={birthFormPlace}
+        birthFormNotes={birthFormNotes}
+        onBirthDateChange={setBirthFormDate}
+        onBirthPlaceChange={setBirthFormPlace}
+        onBirthNotesChange={setBirthFormNotes}
+        onBirthSave={handleBirthSave}
+        onBirthCancel={handleBirthCancel}
+        birthHasChanges={birthHasChanges}
+        formEventId={formEventId}
+        formEventAge={formEventAge}
+        onFormEventAgeChange={setFormEventAge}
+        formEventLabel={formEventLabel}
+        onFormEventLabelChange={setFormEventLabel}
+        formEventSphere={formEventSphere}
+        onFormEventSphereChange={(value) => setFormEventSphere(value)}
+        formEventIsDecision={formEventIsDecision}
+        onFormEventIsDecisionChange={setFormEventIsDecision}
+        formEventIcon={formEventIcon}
+        onFormEventIconChange={setFormEventIcon}
+        formEventNotes={formEventNotes}
+        onFormEventNotesChange={setFormEventNotes}
+        hasFormChanges={hasFormChanges}
+        onEventFormSubmit={handleFormSubmit}
+        onClearForm={clearForm}
+        onDeleteEvent={deleteNode}
+        createNote={createNote}
+        selectedBranchX={selectedBranchX}
+        selectedEdge={selectedEdge}
+        branchYears={branchYears}
+        onBranchYearsChange={setBranchYears}
+        onUpdateBranchLength={updateBranchLength}
+        onDeleteBranch={deleteBranch}
+        onHideBranchEditor={handleHideBranchEditor}
+        onExtendBranch={extendBranch}
+        selectedNode={selectedNode}
+        edges={edges}
+        ageMax={ageMax}
+        onOpenBulkCreator={handleOpenBulkCreator}
+        undo={undo}
+        redo={redo}
+        historyIndex={historyIndex}
+        historyLength={history.length}
+      />
 
-            <label className="flex flex-col gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-700">Прокрутка</span>
-              <input
-                type="range"
-                value={viewportAge}
-                onChange={(e) => {
-                  const age = Number(e.target.value);
-                  setViewportAge(age);
-                  const targetY = worldHeight - age * YEAR_PX;
-                  const viewportHeight = window.innerHeight;
-                  setTransform((t) => ({
-                    ...t,
-                    y: viewportHeight / 2 - targetY * t.k,
-                  }));
-                }}
-                min={0}
-                max={ageMax}
-                step={1}
-                className="accent-blue-500"
-              />
-              <span className="text-center text-[11px] font-medium text-slate-600">{viewportAge} лет</span>
-            </label>
-
-            <label className="flex flex-col items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-700">Масштаб</span>
-              <input
-                type="range"
-                orient="vertical"
-                value={transform.k}
-                onChange={(e) => {
-                  const newK = Number(e.target.value);
-                  const centerY = window.innerHeight / 2;
-
-                  const lineScreenX = transform.x + LINE_X_POSITION * transform.k;
-
-                  setTransform({
-                    k: newK,
-                    x: lineScreenX - LINE_X_POSITION * newK,
-                    y: transform.y + (centerY - transform.y) * (1 - newK / transform.k),
-                  });
-                }}
-                min={MIN_SCALE}
-                max={MAX_SCALE}
-                step={0.05}
-                className="h-32 w-2 accent-blue-500"
-                style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
-              />
-              <span className="text-[11px] font-medium text-slate-600">{(transform.k * 100).toFixed(0)}%</span>
-            </label>
-
-            <div className="rounded-xl border border-slate-200 bg-white/70 p-3 shadow-inner">
-              <div className="text-center">
-                <div className="text-xl font-semibold text-slate-900">{nodes.length}</div>
-                <div className="text-[10px] uppercase tracking-[0.3em] text-slate-600">Событий</div>
-              </div>
-              <div className="mt-2 space-y-1.5 border-t border-slate-200 pt-2">
-                {Object.entries(SPHERE_META).map(([key, meta]) => {
-                  const count = nodes.filter((n) => n.sphere === key).length;
-                  if (count === 0) return null;
-                  return (
-                    <div key={key} className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
-                        <span className="text-slate-600">{meta.emoji}</span>
-                      </div>
-                      <span className="font-semibold text-slate-900">{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <button
-                type="button"
-                onClick={handleClearAll}
-                className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
-              >
-                ✕ Очистить всё
-              </button>
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      {/* Canvas */}
-      <div className="absolute inset-0">
-        <svg
-          ref={svgRef}
-          className={`w-full h-full ${cursorClass}`}
-          onWheel={handleWheel}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          data-world-width={worldWidth}
-          data-world-height={worldHeight}
-        >
-          <g data-export-root="true" transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
-            {/* Background */}
-            <rect x={0} y={-100} width={worldWidth} height={worldHeight + 200} fill="#ffffff" />
-
-            {/* Periodization layer */}
-            <PeriodizationLayer
-              periodization={selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null}
-              ageMax={ageMax}
-              worldHeight={worldHeight}
-              canvasWidth={worldWidth}
-              onBoundaryClick={(periodIndex) => {
-                setPeriodBoundaryModal({ periodIndex });
-              }}
-            />
-
-            {/* Time scale - vertical, on the left of life line */}
-            {Array.from({ length: Math.floor(ageMax / 5) + 1 }, (_, i) => i * 5).map((age) => {
-              const rightLabel = birthBaseYear !== null ? `${birthBaseYear + age}` : null;
-
-              return (
-                <g key={age}>
-                  {/* Horizontal line at each 5-year mark */}
-                  <line
-                    x1={0}
-                    y1={worldHeight - age * YEAR_PX}
-                    x2={worldWidth}
-                  y2={worldHeight - age * YEAR_PX}
-                  stroke="#e2e8f0"
-                  strokeWidth={age % 10 === 0 ? 2 : 1}
-                />
-
-                {/* Age label */}
-                  <text
-                    x={LINE_X_POSITION - 35}
-                    y={worldHeight - age * YEAR_PX + 5}
-                    fontSize={42}
-                    textAnchor="end"
-                    fill="#475569"
-                    fontWeight="500"
-                    fontFamily="Georgia, serif"
-                  >
-                    {age}
-                  </text>
-                  {rightLabel && (
-                    <text
-                      x={LINE_X_POSITION + 35}
-                      y={worldHeight - age * YEAR_PX + 5}
-                      fontSize={42}
-                      textAnchor="start"
-                      fill="#475569"
-                      fontWeight="500"
-                      fontFamily="Georgia, serif"
-                    >
-                      {rightLabel}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-
-            {/* Life line - vertical */}
-            {/* Solid line from birth to current age */}
-            <line
-              x1={LINE_X_POSITION}
-              y1={worldHeight}
-              x2={LINE_X_POSITION}
-              y2={worldHeight - currentAge * YEAR_PX}
-              stroke="#93c5fd"
-              strokeWidth={selectedBranchX === null ? 16 : 11}
-              strokeLinecap="round"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedBranchX(null);
-                setBirthSelected(false);
-              }}
-              className="cursor-pointer"
-              style={{ cursor: 'pointer' }}
-            />
-
-            {/* Dashed line from current age to max age */}
-            <line
-              x1={LINE_X_POSITION}
-              y1={worldHeight - currentAge * YEAR_PX}
-              x2={LINE_X_POSITION}
-              y2={worldHeight - ageMax * YEAR_PX}
-              stroke="#cbd5e1"
-              strokeWidth={selectedBranchX === null ? 16 : 11}
-              strokeLinecap="round"
-              strokeDasharray="10 5"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedBranchX(null);
-                setBirthSelected(false);
-              }}
-              className="cursor-pointer"
-              style={{ cursor: 'pointer' }}
-            />
-
-            {/* Birth marker */}
-            <g
-              onClick={(e) => {
-                e.stopPropagation();
-                selectBirth();
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="cursor-pointer"
-              style={{ cursor: 'pointer' }}
-            >
-              <circle
-                cx={LINE_X_POSITION}
-                cy={worldHeight}
-                r={adaptiveRadius * 0.8}
-                fill="#ffffff"
-                stroke={birthSelected ? '#38bdf8' : '#0f172a'}
-                strokeWidth={birthSelected ? 5 : 3}
-              />
-              <text
-                x={LINE_X_POSITION}
-                y={worldHeight + adaptiveRadius * 1.8}
-                fontSize={16}
-                textAnchor="middle"
-                fontWeight={birthSelected ? '700' : '600'}
-                fill={birthSelected ? '#0ea5e9' : '#0f172a'}
-                fontFamily="Georgia, serif"
-              >
-                👶 Рождение
-              </text>
-            </g>
-
-            {/* Current age marker */}
-            <g>
-              <circle cx={LINE_X_POSITION} cy={worldHeight - currentAge * YEAR_PX} r={adaptiveRadius * 0.5} fill="#3b82f6" />
-              <text
-                x={LINE_X_POSITION - adaptiveRadius - 12}
-                y={worldHeight - currentAge * YEAR_PX + 4}
-                fontSize={16}
-                fontWeight="600"
-                fill="#1d4ed8"
-                textAnchor="end"
-                fontFamily="Georgia, serif"
-              >
-                Сейчас · {formattedCurrentAge} лет
-              </text>
-              {currentYearLabel !== null && (
-                <text
-                  x={LINE_X_POSITION + adaptiveRadius + 12}
-                  y={worldHeight - currentAge * YEAR_PX + 4}
-                  fontSize={16}
-                  fontWeight="600"
-                  fill="#1d4ed8"
-                  textAnchor="start"
-                  fontFamily="Georgia, serif"
-                >
-                  {currentYearLabel}
-                </text>
-              )}
-            </g>
-
-            {/* Vertical branches (edges) */}
-            {edges
-              .filter((edge) => {
-                // Пропускаем ветки с невалидными данными
-                return (
-                  typeof edge.x === 'number' &&
-                  typeof edge.startAge === 'number' &&
-                  typeof edge.endAge === 'number' &&
-                  !isNaN(edge.x) &&
-                  !isNaN(edge.startAge) &&
-                  !isNaN(edge.endAge)
-                );
-              })
-              .map((edge) => {
-                const isSelected = selectedBranchX === edge.x;
-                return (
-                  <g key={edge.id}>
-                    {/* Невидимая толстая линия для расширенной области клика */}
-                    <line
-                      x1={edge.x}
-                      y1={worldHeight - edge.startAge * YEAR_PX}
-                      x2={edge.x}
-                      y2={worldHeight - edge.endAge * YEAR_PX}
-                    stroke="transparent"
-                    strokeWidth={isSelected ? 24 : 12}
-                    strokeLinecap="round"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedBranchX(edge.x);
-                      setBirthSelected(false);
-                    }}
-                    className="cursor-pointer"
-                    style={{ cursor: 'pointer' }}
-                  />
-                  {/* Видимая линия */}
-                  <line
-                    x1={edge.x}
-                    y1={worldHeight - edge.startAge * YEAR_PX}
-                    x2={edge.x}
-                    y2={worldHeight - edge.endAge * YEAR_PX}
-                    stroke={edge.color}
-                    strokeWidth={isSelected ? 8 : 4}
-                    strokeLinecap="round"
-                    opacity={isSelected ? 1 : 0.8}
-                    pointerEvents="none"
-                  />
-                </g>
-              );
-            })}
-
-            {/* Events */}
-            {nodes
-              .filter((node) => {
-                // Пропускаем события с невалидным возрастом
-                return typeof node.age === 'number' && !isNaN(node.age);
-              })
-              .map((node) => {
-                const isSelected = node.id === selectedId;
-                const isDragging = node.id === draggingNodeId;
-                const meta = node.sphere ? SPHERE_META[node.sphere] : SPHERE_META.other;
-                const y = worldHeight - node.age * YEAR_PX;
-                const x = node.x ?? LINE_X_POSITION;
-                const iconMeta = node.iconId ? EVENT_ICON_MAP[node.iconId] : null;
-                const iconSize = adaptiveRadius * 2;
-
-              // Подсвечиваем горизонтальную линию только если выбрана ветка с той же X-координатой
-              const isBranchSelected = selectedBranchX !== null && x === selectedBranchX && x !== LINE_X_POSITION;
-
-              // Родительская линия - та, от которой событие было создано
-              // Хранится в node.parentX, если undefined - значит от основной линии
-              const parentLineX = node.parentX ?? LINE_X_POSITION;
-
-              // Рисовать горизонтальную линию, если событие НЕ на родительской линии
-              // Также проверяем, что все координаты валидны
-              const shouldDrawHorizontalLine =
-                x !== parentLineX &&
-                typeof parentLineX === 'number' &&
-                typeof x === 'number' &&
-                typeof y === 'number' &&
-                !isNaN(parentLineX) &&
-                !isNaN(x) &&
-                !isNaN(y);
-
-              return (
-                <g key={node.id}>
-                  {/* Веточка - линия от родительской линии к событию */}
-                  {shouldDrawHorizontalLine && (
-                    <line
-                      x1={parentLineX}
-                      y1={y}
-                      x2={x}
-                      y2={y}
-                      stroke={meta.color}
-                      strokeWidth={isBranchSelected ? 6 : 3}
-                      strokeLinecap="round"
-                      opacity={isBranchSelected ? 1 : 0.6}
-                    />
-                  )}
-
-                  {/* Event circle */}
-                  <g
-                    onPointerDown={(e) => handleNodeDragStart(e, node.id)}
-                    onClick={() => !isDragging && handleNodeClick(node.id)}
-                    className="cursor-move"
-                    style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-                  >
-                    {iconMeta ? (
-                      <>
-                        <circle
-                          cx={x}
-                          cy={y}
-                          r={adaptiveRadius}
-                          fill="transparent"
-                          stroke="transparent"
-                          strokeWidth={0}
-                        />
-                        <image
-                          data-icon-id={node.iconId ?? undefined}
-                          href={`/icons/events/${iconMeta.filename}`}
-                          x={x - adaptiveRadius}
-                          y={y - adaptiveRadius}
-                          width={iconSize}
-                          height={iconSize}
-                          preserveAspectRatio="xMidYMid meet"
-                          pointerEvents="none"
-                        />
-                      </>
-                    ) : (
-                      <circle cx={x} cy={y} r={adaptiveRadius} fill="white" stroke={meta.color} strokeWidth={4} />
-                    )}
-
-                    {/* Selection highlight */}
-                    {isSelected && (
-                      <circle cx={x} cy={y} r={adaptiveRadius + 4} fill="none" stroke="#0f172a" strokeWidth={3} opacity={0.8} />
-                    )}
-
-                    {/* Decision cross */}
-                    {node.isDecision === true && !iconMeta && (
-                      <g>
-                        <line
-                          x1={x - adaptiveRadius * 0.4}
-                          y1={y - adaptiveRadius * 0.4}
-                          x2={x + adaptiveRadius * 0.4}
-                          y2={y + adaptiveRadius * 0.4}
-                          stroke={meta.color}
-                          strokeWidth={3}
-                          strokeLinecap="round"
-                        />
-                        <line
-                          x1={x - adaptiveRadius * 0.4}
-                          y1={y + adaptiveRadius * 0.4}
-                          x2={x + adaptiveRadius * 0.4}
-                          y2={y - adaptiveRadius * 0.4}
-                          stroke={meta.color}
-                          strokeWidth={3}
-                          strokeLinecap="round"
-                        />
-                      </g>
-                    )}
-
-                    {/* Label */}
-                    <text
-                      x={x + adaptiveRadius + 10}
-                      y={y - adaptiveRadius - 5}
-                      fontSize={28}
-                      fontWeight="500"
-                      fill="#0f172a"
-                      fontFamily="Georgia, serif"
-                    >
-                      {node.label}
-                    </text>
-                  </g>
-                </g>
-              );
-            })}
-          </g>
-        </svg>
-      </div>
-
-      {/* Right Sidebar */}
-      <aside className="fixed right-0 top-0 bottom-0 w-80 border-l border-purple-200 bg-gradient-to-b from-purple-50 to-blue-50 overflow-y-auto z-30">
-        <div className="p-4 space-y-4">
-          <div>
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-slate-900" style={{ fontFamily: 'Georgia, serif' }}>Таймлайн жизни</h2>
-              <div className="flex items-center gap-2">
-                {/* Periodization selector */}
-                <PeriodizationSelector value={selectedPeriodization} onChange={setSelectedPeriodization} />
-                {/* Save status lamp */}
-              <div
-                className="relative"
-                onMouseEnter={() => setShowSaveTooltip(true)}
-                onMouseLeave={() => setShowSaveTooltip(false)}
-              >
-                <div
-                  className={`w-3 h-3 rounded-full transition-colors ${
-                    saveStatus === 'saving'
-                      ? 'bg-yellow-500 animate-pulse'
-                      : saveStatus === 'saved'
-                      ? 'bg-green-500'
-                      : saveStatus === 'error'
-                      ? 'bg-red-500'
-                      : 'bg-slate-300'
-                  }`}
-                />
-                {/* Tooltip */}
-                {showSaveTooltip && (
-                  <div className="absolute left-5 top-0 z-50 w-48 p-2 bg-slate-800 text-white text-xs rounded-lg shadow-xl">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-slate-300 rounded-full" />
-                        <span>Ожидание</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-yellow-500 rounded-full" />
-                        <span>Сохранение...</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full" />
-                        <span>Сохранено</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-red-500 rounded-full" />
-                        <span>Ошибка</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              </div>
-            </div>
-          </div>
-
-          {birthSelected && (
-            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200 shadow-sm">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-amber-900" style={{ fontFamily: 'Georgia, serif' }}>
-                  Профиль рождения
-                </h3>
-                <button
-                  onClick={handleBirthCancel}
-                  className="px-2 py-1 text-xs rounded-lg bg-white/80 text-amber-700 hover:bg-white transition"
-                  style={{ fontFamily: 'Georgia, serif' }}
-                >
-                  Закрыть
-                </button>
-              </div>
-
-              <form
-                className="space-y-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleBirthSave();
-                }}
-              >
-                <label className="block">
-                  <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-                    Дата рождения
-                  </span>
-                  <input
-                    type="date"
-                    value={birthFormDate}
-                    onChange={(e) => setBirthFormDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition text-sm bg-white"
-                    style={{ fontFamily: 'Georgia, serif' }}
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-                    Город / место
-                  </span>
-                  <input
-                    type="text"
-                    value={birthFormPlace}
-                    onChange={(e) => setBirthFormPlace(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition text-sm bg-white"
-                    placeholder="Например: Москва"
-                    style={{ fontFamily: 'Georgia, serif' }}
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-                    Обстоятельства
-                  </span>
-                  <textarea
-                    value={birthFormNotes}
-                    onChange={(e) => setBirthFormNotes(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition text-sm bg-white resize-none"
-                    rows={3}
-                    placeholder="Добавьте детали..."
-                    style={{ fontFamily: 'Georgia, serif' }}
-                  />
-                </label>
-
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={!birthHasChanges}
-                    className="flex-1 px-4 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ fontFamily: 'Georgia, serif' }}
-                  >
-                    Сохранить
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBirthFormDate('');
-                      setBirthFormPlace('');
-                      setBirthFormNotes('');
-                    }}
-                    className="px-4 py-2.5 bg-white/80 text-amber-700 rounded-xl border border-amber-200 hover:bg-white transition text-sm"
-                    style={{ fontFamily: 'Georgia, serif' }}
-                  >
-                    Очистить
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Unified Event Form - show when no branch selected OR editing an event */}
-          {(!selectedBranchX || formEventId) && (
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-200 shadow-sm">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-slate-900" style={{ fontFamily: 'Georgia, serif' }}>
-                {formEventId ? 'Редактировать событие' : 'Новое событие'}
-              </h3>
-              <div className="flex items-center gap-2">
-                <IconPickerButton value={formEventIcon} onChange={setFormEventIcon} tone="emerald" />
-                {formEventId && (
-                  <button
-                    onClick={clearForm}
-                    className="px-2 py-1 text-xs rounded-lg bg-white/80 text-slate-600 hover:bg-white transition"
-                    style={{ fontFamily: 'Georgia, serif' }}
-                  >
-                    Отменить
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <form
-              className="space-y-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleFormSubmit();
-              }}
-            >
-              <label className="block">
-                <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-                  Возраст (лет)
-                </span>
-                <input
-                  type="text"
-                  value={formEventAge}
-                  onChange={(e) => setFormEventAge(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-green-300 focus:border-green-400 focus:ring-2 focus:ring-green-100 transition text-sm bg-white"
-                  style={{ fontFamily: 'Georgia, serif' }}
-                  placeholder="Например: 25 или 25,5"
-                  required
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-                  Название
-                </span>
-                <input
-                  type="text"
-                  value={formEventLabel}
-                  onChange={(e) => setFormEventLabel(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-green-300 focus:border-green-400 focus:ring-2 focus:ring-green-100 transition text-sm bg-white"
-                  style={{ fontFamily: 'Georgia, serif' }}
-                  placeholder="Например: Поступил в университет"
-                  required
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-                  Сфера жизни (опционально)
-                </span>
-                <select
-                  value={formEventSphere || ''}
-                  onChange={(e) => setFormEventSphere(e.target.value ? (e.target.value as Sphere) : undefined)}
-                  className="w-full px-3 py-2 rounded-xl border border-green-300 focus:border-green-400 focus:ring-2 focus:ring-green-100 transition bg-white text-sm"
-                  style={{ fontFamily: 'Georgia, serif' }}
-                >
-                  <option value="">Не указано</option>
-                  {Object.entries(SPHERE_META).map(([key, meta]) => (
-                    <option key={key} value={key}>
-                      {meta.emoji} {meta.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="flex items-center gap-2">
-                <label className="flex-1 flex items-center gap-2 p-2.5 rounded-xl border border-green-200 hover:bg-white/50 transition cursor-pointer bg-white/30">
-                  <input
-                    type="checkbox"
-                    checked={formEventIsDecision}
-                    onChange={(e) => setFormEventIsDecision(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300"
-                  />
-                  <span className="text-xs font-medium text-slate-700" style={{ fontFamily: 'Georgia, serif' }}>
-                    ✕ Это было моё решение
-                  </span>
-                </label>
-                <SaveEventAsNoteButton
-                  eventTitle={formEventLabel}
-                  eventAge={formEventAge}
-                  eventNotes={formEventNotes}
-                  eventSphere={formEventSphere}
-                  createNote={createNote}
-                  onSuccess={() => {
-                    // Показываем уведомление об успешном сохранении
-                    alert('Событие сохранено в заметки!');
-                  }}
-                />
-              </div>
-
-              <label className="block">
-                <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-                  Подробности
-                </span>
-                <textarea
-                  value={formEventNotes}
-                  onChange={(e) => setFormEventNotes(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-green-300 focus:border-green-400 focus:ring-2 focus:ring-green-100 transition resize-none text-sm bg-white"
-                  style={{ fontFamily: 'Georgia, serif' }}
-                  rows={3}
-                  placeholder="Опишите контекст..."
-                />
-              </label>
-
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={formEventId ? !hasFormChanges : false}
-                  className="flex-1 px-4 py-2.5 bg-green-400 text-white rounded-xl hover:bg-green-500 transition font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ fontFamily: 'Georgia, serif' }}
-                >
-                  {formEventId ? 'Сохранить' : '+ Добавить'}
-                </button>
-                {formEventId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (confirm('Удалить это событие?')) {
-                        deleteNode(formEventId);
-                      }
-                    }}
-                    className="px-4 py-2.5 bg-red-200 hover:bg-red-300 text-red-800 rounded-xl transition font-medium text-sm"
-                    style={{ fontFamily: 'Georgia, serif' }}
-                  >
-                    🗑️
-                  </button>
-                )}
-              </div>
-            </form>
-
-            {/* Bulk event creator button - only show when not editing */}
-            {!formEventId && (
-              <button
-                type="button"
-                onClick={() => setShowBulkCreator(true)}
-                className="w-full mt-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 text-blue-700 rounded-xl hover:from-blue-100 hover:to-cyan-100 transition font-medium text-xs"
-                style={{ fontFamily: 'Georgia, serif' }}
-              >
-                📝 Создать много событий
-              </button>
-            )}
-
-            {/* Branch extension - only show when event is not on main life line AND doesn't have a branch yet */}
-            {formEventId &&
-              selectedNode &&
-              (selectedNode.x ?? LINE_X_POSITION) !== LINE_X_POSITION &&
-              !edges.some((e) => e.nodeId === selectedNode.id) && (
-              <div className="mt-3 pt-3 border-t border-green-200">
-                <label className="block mb-2">
-                  <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-                    Продолжить ветку (лет)
-                  </span>
-                  <input
-                    type="number"
-                    value={branchYears}
-                    onChange={(e) => setBranchYears(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-green-300 focus:border-green-400 focus:ring-2 focus:ring-green-100 transition text-sm bg-white"
-                    style={{ fontFamily: 'Georgia, serif' }}
-                    min={1}
-                    max={ageMax - selectedNode.age}
-                    step={1}
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={extendBranch}
-                  className="w-full px-4 py-2.5 bg-purple-400 text-white rounded-xl hover:bg-purple-500 transition font-medium text-sm"
-                  style={{ fontFamily: 'Georgia, serif' }}
-                >
-                  ↑ Продолжить ветку
-                </button>
-              </div>
-            )}
-          </div>
-          )}
-
-          {/* Branch editor - show when branch is selected */}
-          {selectedBranchX && !formEventId && (
-            <>
-              {/* Branch settings */}
-              {selectedEdge && (
-                <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-4 border border-purple-200 shadow-sm">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-slate-900" style={{ fontFamily: 'Georgia, serif' }}>
-                      Редактор ветки
-                    </h3>
-                    <button
-                      onClick={() => setSelectedBranchX(null)}
-                      className="px-2 py-1 text-xs rounded-lg bg-white/80 text-slate-600 hover:bg-white transition"
-                      style={{ fontFamily: 'Georgia, serif' }}
-                    >
-                      Закрыть
-                    </button>
-                  </div>
-
-                  {/* Branch info */}
-                  <div className="mb-3 p-3 bg-white/60 rounded-xl border border-purple-200">
-                    <div className="text-sm text-slate-700" style={{ fontFamily: 'Georgia, serif' }}>
-                      <div className="font-semibold mb-1">
-                        Диапазон: {selectedEdge.endAge - selectedEdge.startAge} лет
-                      </div>
-                      <div className="text-xs text-slate-600">
-                        ({selectedEdge.startAge} - {selectedEdge.endAge} лет)
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Length input */}
-                  <div className="mb-3">
-                    <label className="block mb-2">
-                      <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-                        Длина ветки (лет)
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          value={branchYears}
-                          onChange={(e) => setBranchYears(e.target.value)}
-                          className="flex-1 px-3 py-2 rounded-xl border border-purple-300 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition text-sm bg-white"
-                          style={{ fontFamily: 'Georgia, serif' }}
-                          min={1}
-                          max={ageMax - selectedEdge.startAge}
-                          step={1}
-                        />
-                        <button
-                          type="button"
-                          onClick={updateBranchLength}
-                          className="px-3 py-2 bg-purple-400 hover:bg-purple-500 text-white rounded-xl transition text-xs font-medium"
-                          style={{ fontFamily: 'Georgia, serif' }}
-                          title="Применить"
-                        >
-                          ✓
-                        </button>
-                        <button
-                          type="button"
-                          onClick={deleteBranch}
-                          className="px-3 py-2 bg-red-200 hover:bg-red-300 text-red-800 rounded-xl transition text-xs font-medium"
-                          style={{ fontFamily: 'Georgia, serif' }}
-                          title="Удалить ветку"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {/* Event creation form */}
-              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-4 border border-blue-200 shadow-sm">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-slate-900" style={{ fontFamily: 'Georgia, serif' }}>
-                    Новое событие на ветке
-                  </h3>
-                  <IconPickerButton value={formEventIcon} onChange={setFormEventIcon} tone="sky" />
-                </div>
-
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleFormSubmit();
-                  }}
-                  className="space-y-3"
-                >
-                  <label className="block">
-                    <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-                      Возраст
-                    </span>
-                    <input
-                      type="text"
-                      value={formEventAge}
-                      onChange={(e) => setFormEventAge(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-blue-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition text-sm bg-white"
-                      style={{ fontFamily: 'Georgia, serif' }}
-                      placeholder="Например: 25 или 25,5"
-                      required
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-                      Название
-                    </span>
-                    <input
-                      type="text"
-                      value={formEventLabel}
-                      onChange={(e) => setFormEventLabel(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-blue-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition text-sm bg-white"
-                      style={{ fontFamily: 'Georgia, serif' }}
-                      placeholder="Например: Поступил в университет"
-                      required
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-                      Сфера жизни
-                    </span>
-                    <select
-                      value={formEventSphere || ''}
-                      onChange={(e) => setFormEventSphere(e.target.value ? (e.target.value as Sphere) : undefined)}
-                      className="w-full px-3 py-2 rounded-xl border border-blue-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition bg-white text-sm"
-                      style={{ fontFamily: 'Georgia, serif' }}
-                    >
-                      <option value="">Не указано</option>
-                      {Object.entries(SPHERE_META).map(([key, meta]) => (
-                        <option key={key} value={key}>
-                          {meta.emoji} {meta.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <div className="flex items-center gap-2">
-                    <label className="flex-1 flex items-center gap-2 p-2.5 rounded-xl border border-blue-200 hover:bg-white/50 transition cursor-pointer bg-white/30">
-                      <input
-                        type="checkbox"
-                        checked={formEventIsDecision}
-                        onChange={(e) => setFormEventIsDecision(e.target.checked)}
-                        className="w-4 h-4 rounded border-slate-300"
-                      />
-                      <span className="text-xs text-slate-700" style={{ fontFamily: 'Georgia, serif' }}>
-                        ✕ Это было моё решение
-                      </span>
-                    </label>
-                    <SaveEventAsNoteButton
-                      eventTitle={formEventLabel}
-                      eventAge={formEventAge}
-                      eventNotes={formEventNotes}
-                      eventSphere={formEventSphere}
-                      createNote={createNote}
-                      onSuccess={() => {
-                        // Показываем уведомление об успешном сохранении
-                        alert('Событие сохранено в заметки!');
-                      }}
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full px-4 py-2.5 bg-blue-400 text-white rounded-xl hover:bg-blue-500 transition font-medium text-sm"
-                    style={{ fontFamily: 'Georgia, serif' }}
-                  >
-                    + Добавить событие
-                  </button>
-                </form>
-
-                {/* Bulk event creator button for branch */}
-                <button
-                  type="button"
-                  onClick={() => setShowBulkCreator(true)}
-                  className="w-full mt-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 text-blue-700 rounded-xl hover:from-blue-100 hover:to-cyan-100 transition font-medium text-xs"
-                  style={{ fontFamily: 'Georgia, serif' }}
-                >
-                  📝 Создать много событий
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* Undo/Redo controls - moved from left */}
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-3 border border-amber-200 shadow-sm">
-            <div className="flex gap-2">
-              <button
-                onClick={undo}
-                disabled={historyIndex <= 0}
-                className="flex-1 px-3 py-2 text-sm rounded-xl border border-amber-300 bg-white hover:bg-amber-50 transition disabled:opacity-40 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-1"
-                style={{ fontFamily: 'Georgia, serif' }}
-                title="Отменить (Cmd+Z)"
-              >
-                <span>←</span>
-                <span>Отменить</span>
-              </button>
-
-              <button
-                onClick={redo}
-                disabled={historyIndex >= history.length - 1}
-                className="flex-1 px-3 py-2 text-sm rounded-xl border border-amber-300 bg-white hover:bg-amber-50 transition disabled:opacity-40 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-1"
-                style={{ fontFamily: 'Georgia, serif' }}
-                title="Повторить (Cmd+Shift+Z)"
-              >
-                <span>Повторить</span>
-                <span>→</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Periodization Boundary Modal */}
+      {/* Periodization Boundary Modal */}      {/* Periodization Boundary Modal */}
       {periodBoundaryModal && selectedPeriodization && (() => {
         const periodization = getPeriodizationById(selectedPeriodization);
         if (!periodization) return null;

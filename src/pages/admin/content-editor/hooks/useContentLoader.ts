@@ -1,0 +1,152 @@
+import { useEffect, useState } from 'react';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { db } from '../../../../lib/firebase';
+import { DEFAULT_THEME } from '../../../../theme/periods';
+import type { Period } from '../types';
+import { createEmptyVideoEntry, createVideoEntryFromSource } from '../utils/videoHelpers';
+
+interface UseContentLoaderParams {
+  periodId: string | undefined;
+  placeholderDefaultEnabled: boolean;
+  placeholderDisplayText: string;
+  setTitle: (value: string) => void;
+  setSubtitle: (value: string) => void;
+  setPublished: (value: boolean) => void;
+  setOrder: (value: number) => void;
+  setAccent: (value: string) => void;
+  setAccent100: (value: string) => void;
+  setPlaceholderEnabled: (value: boolean) => void;
+  setVideos: (value: any[]) => void;
+  setConcepts: (value: string[]) => void;
+  setAuthors: (value: Array<{ name: string; url?: string }>) => void;
+  setCoreLiterature: (value: Array<{ title: string; url: string }>) => void;
+  setExtraLiterature: (value: Array<{ title: string; url: string }>) => void;
+  setExtraVideos: (value: Array<{ title: string; url: string }>) => void;
+  setSelfQuestionsUrl: (value: string) => void;
+  onNavigate: () => void;
+}
+
+/**
+ * Hook for loading period content from Firestore
+ */
+export function useContentLoader(params: UseContentLoaderParams) {
+  const {
+    periodId,
+    placeholderDefaultEnabled,
+    placeholderDisplayText,
+    setTitle,
+    setSubtitle,
+    setPublished,
+    setOrder,
+    setAccent,
+    setAccent100,
+    setPlaceholderEnabled,
+    setVideos,
+    setConcepts,
+    setAuthors,
+    setCoreLiterature,
+    setExtraLiterature,
+    setExtraVideos,
+    setSelfQuestionsUrl,
+    onNavigate,
+  } = params;
+
+  const [period, setPeriod] = useState<Period | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadPeriod() {
+      if (!periodId) return;
+
+      try {
+        setLoading(true);
+        let snapshot;
+
+        if (periodId === 'intro') {
+          const singletonRef = doc(db, 'intro', 'singleton');
+          const singletonSnap = await getDoc(singletonRef);
+          if (singletonSnap.exists()) {
+            snapshot = singletonSnap;
+          } else {
+            const introCol = collection(db, 'intro');
+            const introSnap = await getDocs(introCol);
+            if (!introSnap.empty) {
+              snapshot = introSnap.docs[0];
+            }
+          }
+        } else {
+          snapshot = await getDoc(doc(db, 'periods', periodId));
+        }
+
+        if (!snapshot || !snapshot.exists()) {
+          alert('Период не найден');
+          onNavigate();
+          return;
+        }
+
+        const data = { ...(snapshot.data() as Period), period: periodId };
+        setPeriod(data);
+
+        setTitle(data.title || '');
+        setSubtitle(data.subtitle || '');
+        setPublished(data.published ?? true);
+        setOrder(typeof data.order === 'number' ? data.order : 0);
+        setAccent(data.accent || DEFAULT_THEME.accent);
+        setAccent100(data.accent100 || DEFAULT_THEME.accent100);
+        setPlaceholderEnabled(
+          typeof data.placeholder_enabled === 'boolean'
+            ? data.placeholder_enabled
+            : placeholderDefaultEnabled
+        );
+
+        // Load video playlist
+        const playlist = Array.isArray(data.video_playlist) ? data.video_playlist : [];
+        if (playlist.length) {
+          setVideos(
+            playlist.map((entry, index) =>
+              createVideoEntryFromSource(entry, index, data.title || placeholderDisplayText)
+            )
+          );
+        } else {
+          const fallbackVideoUrl =
+            (typeof data.video_url === 'string' && data.video_url.trim()) ||
+            (typeof (data as any).videoUrl === 'string' && (data as any).videoUrl.trim()) ||
+            '';
+
+          if (fallbackVideoUrl) {
+            setVideos([
+              createVideoEntryFromSource(
+                {
+                  title: data.title,
+                  url: fallbackVideoUrl,
+                  deckUrl: data.deck_url || (data as any).deckUrl,
+                  audioUrl: data.audio_url || (data as any).audioUrl,
+                },
+                0,
+                data.title || placeholderDisplayText
+              ),
+            ]);
+          } else {
+            setVideos([createEmptyVideoEntry(0, data.title || placeholderDisplayText)]);
+          }
+        }
+
+        setConcepts(data.concepts || []);
+        setAuthors(data.authors || []);
+        setCoreLiterature(data.core_literature || []);
+        setExtraLiterature(data.extra_literature || []);
+        setExtraVideos(data.extra_videos || []);
+        setSelfQuestionsUrl(data.self_questions_url || '');
+      } catch (error: any) {
+        console.error('Error loading period', error);
+        alert('Ошибка загрузки: ' + (error?.message || error));
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadPeriod();
+  }, [periodId, placeholderDefaultEnabled]);
+
+  return { period, loading };
+}
