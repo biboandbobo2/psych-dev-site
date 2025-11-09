@@ -1,9 +1,6 @@
 // Timeline component with bulk event creation support
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../auth/AuthProvider';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { Icon, type EventIconId } from '../components/Icon';
 import { EVENT_ICON_MAP } from '../data/eventIcons';
 import { useNotes } from '../hooks/useNotes';
@@ -21,20 +18,17 @@ import type {
 } from './timeline/types';
 import {
   YEAR_PX,
-  DEFAULT_AGE_MAX,
-  DEFAULT_CURRENT_AGE,
   LINE_X_POSITION,
   MIN_SCALE,
   MAX_SCALE,
   SPHERE_META,
-  SAVE_DEBOUNCE_MS,
   BASE_NODE_RADIUS,
   MIN_NODE_RADIUS,
   MAX_NODE_RADIUS,
   BRANCH_CLICK_WIDTH,
   BRANCH_CLICK_WIDTH_UNSELECTED,
 } from './timeline/constants';
-import { screenToWorld, clamp, parseAge, removeUndefined } from './timeline/utils';
+import { screenToWorld, clamp, parseAge } from './timeline/utils';
 import { IconPickerButton } from './timeline/components/IconPickerButton';
 import { PeriodizationSelector } from './timeline/components/PeriodizationSelector';
 import { PeriodBoundaryModal } from './timeline/components/PeriodBoundaryModal';
@@ -45,25 +39,40 @@ import { TimelineRightPanel } from './timeline/components/TimelineRightPanel';
 import { TimelineCanvas } from './timeline/components/TimelineCanvas';
 import { PERIODIZATIONS, getPeriodizationById } from './timeline/data/periodizations';
 import { exportTimelineJSON, exportTimelinePNG, exportTimelinePDF } from './timeline/utils/exporters';
+import { useTimelineState } from './timeline/hooks/useTimelineState';
+import { useTimelineHistory } from './timeline/hooks/useTimelineHistory';
+import { useDownloadMenu } from './timeline/hooks/useDownloadMenu';
+import { useTimelineShortcuts } from './timeline/hooks/useTimelineShortcuts';
+import { TimelineHelpModal } from './timeline/components/TimelineHelpModal';
 
 
 // ============ MAIN COMPONENT ============
 
 export default function Timeline() {
-  const { user } = useAuth();
   const svgRef = useRef<SVGSVGElement>(null);
   const { createNote } = useNotes();
 
-  // State
-  const [currentAge, setCurrentAge] = useState(DEFAULT_CURRENT_AGE);
-  const [ageMax, setAgeMax] = useState(DEFAULT_AGE_MAX);
-  const [nodes, setNodes] = useState<NodeT[]>([]);
-  const [edges, setEdges] = useState<EdgeT[]>([]);
+  const {
+    currentAge,
+    setCurrentAge,
+    ageMax,
+    nodes,
+    setNodes,
+    edges,
+    setEdges,
+    birthDetails,
+    setBirthDetails,
+    selectedPeriodization,
+    setSelectedPeriodization,
+    saveStatus,
+    transform,
+    setTransform,
+    viewportAge,
+    setViewportAge,
+  } = useTimelineState();
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [transform, setTransform] = useState({ x: 50, y: 100, k: 1 });
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [showHelp, setShowHelp] = useState(false);
-  const [initialViewportSet, setInitialViewportSet] = useState(false);
 
   // Panning state
   const [isPanning, setIsPanning] = useState(false);
@@ -74,9 +83,17 @@ export default function Timeline() {
   const [dragStartX, setDragStartX] = useState<number>(0);
   const [dragStartNodeX, setDragStartNodeX] = useState<number>(LINE_X_POSITION); // Исходная X-координата события
 
-  // History state (Undo/Redo)
-  const [history, setHistory] = useState<HistoryState[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const {
+    saveToHistory: pushHistory,
+    undo: fetchUndoSnapshot,
+    redo: fetchRedoSnapshot,
+    moveBackward,
+    moveForward,
+    canUndo,
+    canRedo,
+    historyIndex,
+    historyLength,
+  } = useTimelineHistory();
 
   // Form state for adding/editing event
   const [formEventId, setFormEventId] = useState<string | null>(null);
@@ -86,14 +103,17 @@ export default function Timeline() {
   const [formEventSphere, setFormEventSphere] = useState<Sphere | undefined>(undefined);
   const [formEventIsDecision, setFormEventIsDecision] = useState(false);
   const [formEventIcon, setFormEventIcon] = useState<EventIconId | null>(null);
-  const [birthDetails, setBirthDetails] = useState<BirthDetails>({});
   const [birthFormDate, setBirthFormDate] = useState('');
   const [birthFormPlace, setBirthFormPlace] = useState('');
   const [birthFormNotes, setBirthFormNotes] = useState('');
   const [birthSelected, setBirthSelected] = useState(false);
-  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
-  const downloadButtonRef = useRef<HTMLButtonElement>(null);
-  const downloadMenuRef = useRef<HTMLDivElement>(null);
+  const {
+    isOpen: downloadMenuOpen,
+    toggle: toggleDownloadMenu,
+    close: closeDownloadMenu,
+    buttonRef: downloadButtonRef,
+    menuRef: downloadMenuRef,
+  } = useDownloadMenu();
 
   // Original values when editing (to detect changes)
   const [originalFormValues, setOriginalFormValues] = useState<{
@@ -105,9 +125,6 @@ export default function Timeline() {
     iconId: EventIconId | null;
   } | null>(null);
 
-  // Viewport scroll state
-  const [viewportAge, setViewportAge] = useState<number>(currentAge);
-
   // Branch extension state
   const [branchYears, setBranchYears] = useState<string>('5');
 
@@ -115,7 +132,6 @@ export default function Timeline() {
   const [selectedBranchX, setSelectedBranchX] = useState<number | null>(null);
 
   // Periodization state
-  const [selectedPeriodization, setSelectedPeriodization] = useState<string | null>(null);
   const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
 
   // Bulk event creation state
@@ -165,26 +181,12 @@ export default function Timeline() {
     return `timeline-${iso.split('T')[0]}`;
   }, []);
 
-  useEffect(() => {
-    if (!downloadMenuOpen) return;
-
-    function handleClickOutside(event: MouseEvent) {
-      const target = event.target as Node;
-      if (downloadMenuRef.current?.contains(target)) return;
-      if (downloadButtonRef.current?.contains(target)) return;
-      setDownloadMenuOpen(false);
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [downloadMenuOpen]);
-
   const handleDownloadMenuToggle = () => {
-    setDownloadMenuOpen((prev) => !prev);
+    toggleDownloadMenu();
   };
 
   async function handleDownload(type: 'json' | 'png' | 'pdf') {
-    setDownloadMenuOpen(false);
+    closeDownloadMenu();
     const exportPayload = {
       currentAge,
       ageMax,
@@ -293,48 +295,46 @@ export default function Timeline() {
 
   // ============ HISTORY (UNDO/REDO) ============
 
-  function saveToHistory(customNodes?: NodeT[], customEdges?: EdgeT[], customBirth?: BirthDetails) {
-    const nodesToSave = customNodes ?? nodes;
-    const edgesToSave = customEdges ?? edges;
-    const birthToSave = customBirth ?? birthDetails;
-
-    const newState: HistoryState = {
-      nodes: JSON.parse(JSON.stringify(nodesToSave)),
-      edges: JSON.parse(JSON.stringify(edgesToSave)),
-      birth: { ...birthToSave },
-    };
-
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(newState);
-
-    if (newHistory.length > 50) {
-      newHistory.shift();
-    } else {
-      setHistoryIndex(historyIndex + 1);
-    }
-
-    setHistory(newHistory);
-  }
+  const recordHistory = (customNodes?: NodeT[], customEdges?: EdgeT[], customBirth?: BirthDetails) => {
+    pushHistory(customNodes ?? nodes, customEdges ?? edges, customBirth ?? birthDetails);
+  };
 
   function undo() {
-    if (historyIndex > 0) {
-      const prevState = history[historyIndex - 1];
-      setNodes(prevState.nodes);
-      setEdges(prevState.edges);
-      setBirthDetails(prevState.birth);
-      setHistoryIndex(historyIndex - 1);
-    }
+    const prev = fetchUndoSnapshot();
+    if (!prev) return;
+    setNodes(prev.nodes);
+    setEdges(prev.edges);
+    setBirthDetails(prev.birth);
+    moveBackward();
   }
 
   function redo() {
-    if (historyIndex < history.length - 1) {
-      const nextState = history[historyIndex + 1];
-      setNodes(nextState.nodes);
-      setEdges(nextState.edges);
-      setBirthDetails(nextState.birth);
-      setHistoryIndex(historyIndex + 1);
-    }
+    const next = fetchRedoSnapshot();
+    if (!next) return;
+    setNodes(next.nodes);
+    setEdges(next.edges);
+    setBirthDetails(next.birth);
+    moveForward();
   }
+
+  // ============ KEYBOARD SHORTCUTS ============
+
+  useTimelineShortcuts({
+    selectedId,
+    canUndo: () => canUndo,
+    canRedo: () => canRedo,
+    onUndo: undo,
+    onRedo: redo,
+    onDelete: (id: string) => {
+      deleteNode(id);
+    },
+    onEscape: () => {
+      clearForm();
+      setSelectedId(null);
+      setSelectedBranchX(null);
+      setBirthSelected(false);
+    },
+  });
 
   // ============ CRUD OPERATIONS ============
 
@@ -370,7 +370,7 @@ export default function Timeline() {
           : n
       );
       setNodes(updatedNodes);
-      saveToHistory(updatedNodes, edges);
+      recordHistory(updatedNodes, edges);
     } else {
       // Add new event
       let eventX = LINE_X_POSITION;
@@ -428,7 +428,7 @@ export default function Timeline() {
       const newNodes = [...nodes, node];
       setNodes(newNodes);
       setSelectedId(node.id);
-      saveToHistory(newNodes, edges);
+      recordHistory(newNodes, edges);
     }
 
     // Clear form
@@ -456,7 +456,7 @@ export default function Timeline() {
     // Также удаляем все ветки связанные с этим событием
     setEdges((prev) => prev.filter((e) => e.nodeId !== id));
     clearForm();
-    saveToHistory();
+    recordHistory();
   }
 
   function extendBranch() {
@@ -486,7 +486,7 @@ export default function Timeline() {
 
     const newEdges = [...edges, edge];
     setEdges(newEdges);
-    saveToHistory(nodes, newEdges);
+    recordHistory(nodes, newEdges);
 
     // Очищаем форму и снимаем выбор
     clearForm();
@@ -515,7 +515,7 @@ export default function Timeline() {
 
     setBirthDetails(updated);
     setBirthSelected(false);
-    saveToHistory(nodes, edges, updated);
+    recordHistory(nodes, edges, updated);
   }
 
   function handleBirthCancel() {
@@ -533,7 +533,7 @@ export default function Timeline() {
 
     const updatedNodes = [...nodes, ...newNodes];
     setNodes(updatedNodes);
-    saveToHistory(updatedNodes, edges);
+    recordHistory(updatedNodes, edges);
   }
 
   function handleExtendBranchForBulk(newEndAge: number) {
@@ -543,7 +543,7 @@ export default function Timeline() {
       e.id === selectedEdge.id ? { ...e, endAge: newEndAge } : e
     );
     setEdges(updatedEdges);
-    saveToHistory(nodes, updatedEdges);
+    recordHistory(nodes, updatedEdges);
   }
 
   // ============ BRANCH MANAGEMENT ============
@@ -568,7 +568,7 @@ export default function Timeline() {
     // Обновить ветку
     const updatedEdges = edges.map((e) => (e.id === selectedEdge.id ? { ...e, endAge: newEndAge } : e));
     setEdges(updatedEdges);
-    saveToHistory(nodes, updatedEdges);
+    recordHistory(nodes, updatedEdges);
   }
 
   function deleteBranch() {
@@ -595,7 +595,7 @@ export default function Timeline() {
     setNodes(updatedNodes);
     setEdges(updatedEdges);
     setSelectedBranchX(null); // Снять выделение
-    saveToHistory(updatedNodes, updatedEdges);
+    recordHistory(updatedNodes, updatedEdges);
   }
 
   const handleHideBranchEditor = () => {
@@ -793,7 +793,7 @@ export default function Timeline() {
 
   function handleNodeDragEnd() {
     if (draggingNodeId) {
-      saveToHistory();
+      recordHistory();
       setDraggingNodeId(null);
     }
   }
@@ -804,173 +804,23 @@ export default function Timeline() {
       setNodes([]);
       setEdges([]);
       setSelectedBranchX(null);
-      saveToHistory([], []);
+      recordHistory([], []);
     }
   }
 
-  // ============ KEYBOARD SHORTCUTS ============
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement;
-      const isInTextField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
-
-      // Undo/Redo работают всегда
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-        return;
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
-        e.preventDefault();
-        redo();
-        return;
-      }
-
-      if (isInTextField) return;
-
-      if (e.key === 'Delete' && selectedId) {
-        deleteNode(selectedId);
-      } else if (e.key === 'Escape') {
-        setSelectedId(null);
-        setSelectedBranchX(null);
-        setBirthSelected(false);
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, historyIndex, history]);
-
-  // ============ FIRESTORE SAVE/LOAD ============
-
-  async function saveToFirestore(data: TimelineData) {
-    if (!user) return;
-
-    setSaveStatus('saving');
-    const docRef = doc(db, 'timelines', user.uid);
-
-    try {
-      // Удаляем undefined значения перед сохранением
-      const cleanedData = removeUndefined(data);
-
-      await setDoc(
-        docRef,
-        {
-          userId: user.uid,
-          updatedAt: serverTimestamp(),
-          data: cleanedData,
-        },
-        { merge: true }
-      );
-
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (error) {
-      console.error('Save error:', error);
-      setSaveStatus('error');
-    }
-  }
-
-  // Auto-save
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const hasBirthData = Boolean(birthDetails.date || birthDetails.place || birthDetails.notes);
-      if (nodes.length > 0 || edges.length > 0 || hasBirthData || selectedPeriodization) {
-        saveToFirestore({ currentAge, ageMax, nodes, edges, birthDetails, selectedPeriodization });
-      }
-    }, 10000);
-
-    return () => clearTimeout(timer);
-  }, [nodes, edges, birthDetails, currentAge, ageMax, selectedPeriodization, user]);
-
-  // Load on mount
-  useEffect(() => {
-    if (!user) return;
-
-    const docRef = doc(db, 'timelines', user.uid);
-    getDoc(docRef).then((snap) => {
-      if (snap.exists()) {
-        const { data } = snap.data();
-        if (data) {
-          const loadedAge = data.currentAge || DEFAULT_CURRENT_AGE;
-          setCurrentAge(loadedAge);
-          // Всегда используем DEFAULT_AGE_MAX (100), игнорируем старое значение из базы
-          const finalAgeMax = DEFAULT_AGE_MAX;
-          setAgeMax(finalAgeMax);
-
-          const normalizedNodes = (data.nodes || []).map((node: any) => ({
-            id: node.id,
-            age: node.age,
-            x: node.x ?? LINE_X_POSITION, // По умолчанию на линии жизни
-            parentX: node.parentX, // Сохраняем родительскую линию
-            label: node.label || 'Событие',
-            notes: node.notes || '',
-            sphere: node.sphere || 'other',
-            isDecision: node.isDecision ?? false,
-            iconId: node.iconId ?? undefined,
-          }));
-          setNodes(normalizedNodes);
-
-          const normalizedEdges = (data.edges || []).map((edge: any) => ({
-            id: edge.id,
-            x: edge.x,
-            startAge: edge.startAge,
-            endAge: edge.endAge,
-            color: edge.color,
-            nodeId: edge.nodeId,
-          }));
-          setEdges(normalizedEdges);
-          setBirthDetails(data.birthDetails || {});
-          setSelectedPeriodization(data.selectedPeriodization ?? null);
-
-          // Set initial viewport after data loads
-          if (!initialViewportSet) {
-            setTimeout(() => {
-              // If user has events or non-default age, center on current age
-              // Otherwise, center on birth
-              const targetAge = normalizedNodes.length > 0 || loadedAge !== DEFAULT_CURRENT_AGE ? loadedAge : 0;
-              // Вычисляем worldHeight с актуальным finalAgeMax
-              const currentWorldHeight = finalAgeMax * YEAR_PX + 500;
-              const targetY = currentWorldHeight - targetAge * YEAR_PX;
-              const viewportHeight = window.innerHeight;
-              const viewportWidth = window.innerWidth;
-
-              // Центрируем по линии жизни горизонтально и по возрасту вертикально
-              setTransform({
-                x: viewportWidth / 2 - LINE_X_POSITION,
-                y: viewportHeight / 2 - targetY,
-                k: 1,
-              });
-              setViewportAge(targetAge);
-              setInitialViewportSet(true);
-            }, 100);
-          }
-        }
-      } else {
-        // No data - center on birth
-        if (!initialViewportSet) {
-          setTimeout(() => {
-            // Вычисляем worldHeight с DEFAULT_AGE_MAX
-            const currentWorldHeight = DEFAULT_AGE_MAX * YEAR_PX + 500;
-            const targetY = currentWorldHeight;
-            const viewportHeight = window.innerHeight;
-            const viewportWidth = window.innerWidth;
-
-            // Центрируем по линии жизни горизонтально и по рождению вертикально
-            setTransform({
-              x: viewportWidth / 2 - LINE_X_POSITION,
-              y: viewportHeight / 2 - targetY,
-              k: 1,
-            });
-            setViewportAge(0);
-            setInitialViewportSet(true);
-          }, 100);
-        }
-        setBirthDetails({});
-      }
-    });
-  }, [user]);
+  useTimelineShortcuts({
+    selectedId,
+    canUndo: () => historyIndex > 0,
+    canRedo: () => historyIndex < historyLength - 1,
+    onUndo: undo,
+    onRedo: redo,
+    onDelete: deleteNode,
+    onEscape: () => {
+      setSelectedId(null);
+      setSelectedBranchX(null);
+      setBirthSelected(false);
+    },
+  });
 
   // ============ RENDER ============
 
@@ -1118,77 +968,7 @@ export default function Timeline() {
       )}
 
       {/* Help Modal */}
-      <AnimatePresence>
-        {showHelp && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowHelp(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start justify-between mb-6">
-                <h2 className="text-2xl font-bold text-slate-900">Как пользоваться таймлайном</h2>
-                <button onClick={() => setShowHelp(false)} className="p-2 rounded-xl hover:bg-slate-100 transition">
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-4 text-slate-700">
-                <section>
-                  <h3 className="font-semibold text-lg mb-2">🎯 Что это?</h3>
-                  <p className="leading-relaxed">
-                    Таймлайн жизни растет снизу вверх. Сплошная линия - ваша прожитая жизнь, пунктир - будущее.
-                  </p>
-                </section>
-
-                <section>
-                  <h3 className="font-semibold text-lg mb-2">📝 Как добавлять события</h3>
-                  <ul className="space-y-2">
-                    <li>1. Укажите свой текущий возраст слева</li>
-                    <li>2. Используйте форму справа для добавления событий</li>
-                    <li>3. Выберите возраст, название и сферу жизни</li>
-                    <li>4. Отметьте крестиком, если это было ваше решение</li>
-                  </ul>
-                </section>
-
-                <section>
-                  <h3 className="font-semibold text-lg mb-2">🎨 Сферы жизни</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    {Object.entries(SPHERE_META).map(([key, meta]) => (
-                      <div key={key} className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: meta.color }} />
-                        <span>
-                          {meta.emoji} {meta.label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="bg-amber-50 rounded-xl p-4 border border-amber-200">
-                  <h3 className="font-semibold text-amber-900 mb-2">⚠️ Важно</h3>
-                  <p className="text-sm text-amber-800 leading-relaxed">
-                    Данные автоматически сохраняются каждые 10 секунд. Используйте колёсико мыши для масштабирования и перетаскивайте
-                    холст для перемещения.
-                  </p>
-                </section>
-              </div>
-
-              <button onClick={() => setShowHelp(false)} className="mt-6 w-full py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition">
-                Понятно!
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <TimelineHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </motion.div>
   );
 }

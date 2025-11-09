@@ -88,5 +88,6 @@ export function useTimelineHistory() {
     canUndo,
     canRedo,
     historyIndex,
+    historyLength: history.length,
   };
 }
