@@ -87,7 +87,7 @@ export function validateBulkEvents(
 ): BulkEventValidationResult {
   const errors: string[] = [];
   let needsExtension = false;
-  let maxRequiredAge = ageMax;
+  let maxRequiredAge = selectedEdge ? selectedEdge.endAge : ageMax;
 
   events.forEach((event) => {
     if (event.error || event.age === null) return;

@@ -27,7 +27,6 @@ export function BulkEventCreator({
   branchSphere
 }: BulkEventCreatorProps) {
   const [inputText, setInputText] = useState('');
-  const [suggestedExtension, setSuggestedExtension] = useState<number | null>(null);
 
   const minAge = selectedEdge ? selectedEdge.startAge : 0;
   const maxAge = selectedEdge ? selectedEdge.endAge : ageMax;
@@ -46,7 +45,6 @@ export function BulkEventCreator({
       if (event.age > maxAge) {
         return {
           ...event,
-          error: `Строка ${event.line}: Возраст ${event.age} больше конца ветки (${maxAge})`,
           needsExtension: true,
         };
       }
