@@ -43,6 +43,12 @@ import { useTimelineState } from './timeline/hooks/useTimelineState';
 import { useTimelineHistory } from './timeline/hooks/useTimelineHistory';
 import { useDownloadMenu } from './timeline/hooks/useDownloadMenu';
 import { useTimelineShortcuts } from './timeline/hooks/useTimelineShortcuts';
+import { useTimelineForm } from './timeline/hooks/useTimelineForm';
+import { useTimelineBirth } from './timeline/hooks/useTimelineBirth';
+import { useTimelinePanZoom } from './timeline/hooks/useTimelinePanZoom';
+import { useTimelineDragDrop } from './timeline/hooks/useTimelineDragDrop';
+import { useTimelineBranch } from './timeline/hooks/useTimelineBranch';
+import { useTimelineCRUD } from './timeline/hooks/useTimelineCRUD';
 import { TimelineHelpModal } from './timeline/components/TimelineHelpModal';
 
 
@@ -52,6 +58,9 @@ export default function Timeline() {
   const svgRef = useRef<SVGSVGElement>(null);
   const { createNote } = useNotes();
 
+  // ============ STATE HOOKS ============
+
+  // Timeline state (data, transform, etc)
   const {
     currentAge,
     setCurrentAge,
@@ -71,18 +80,7 @@ export default function Timeline() {
     setViewportAge,
   } = useTimelineState();
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showHelp, setShowHelp] = useState(false);
-
-  // Panning state
-  const [isPanning, setIsPanning] = useState(false);
-  const [lastPointer, setLastPointer] = useState<{ x: number; y: number } | null>(null);
-
-  // Dragging event state
-  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
-  const [dragStartX, setDragStartX] = useState<number>(0);
-  const [dragStartNodeX, setDragStartNodeX] = useState<number>(LINE_X_POSITION); // Исходная X-координата события
-
+  // History (undo/redo)
   const {
     saveToHistory: pushHistory,
     undo: fetchUndoSnapshot,
@@ -95,18 +93,13 @@ export default function Timeline() {
     historyLength,
   } = useTimelineHistory();
 
-  // Form state for adding/editing event
-  const [formEventId, setFormEventId] = useState<string | null>(null);
-  const [formEventAge, setFormEventAge] = useState<string>('');
-  const [formEventLabel, setFormEventLabel] = useState('');
-  const [formEventNotes, setFormEventNotes] = useState('');
-  const [formEventSphere, setFormEventSphere] = useState<Sphere | undefined>(undefined);
-  const [formEventIsDecision, setFormEventIsDecision] = useState(false);
-  const [formEventIcon, setFormEventIcon] = useState<EventIconId | null>(null);
-  const [birthFormDate, setBirthFormDate] = useState('');
-  const [birthFormPlace, setBirthFormPlace] = useState('');
-  const [birthFormNotes, setBirthFormNotes] = useState('');
-  const [birthSelected, setBirthSelected] = useState(false);
+  // Event form
+  const formHook = useTimelineForm();
+
+  // Birth details form
+  const birthHook = useTimelineBirth({ birthDetails, setBirthDetails });
+
+  // Download menu
   const {
     isOpen: downloadMenuOpen,
     toggle: toggleDownloadMenu,
@@ -115,185 +108,90 @@ export default function Timeline() {
     menuRef: downloadMenuRef,
   } = useDownloadMenu();
 
-  // Original values when editing (to detect changes)
-  const [originalFormValues, setOriginalFormValues] = useState<{
-    age: string;
-    label: string;
-    notes: string;
-    sphere: Sphere | undefined;
-    isDecision: boolean;
-    iconId: EventIconId | null;
-  } | null>(null);
+  // Pan & Zoom
+  const panZoomHook = useTimelinePanZoom({
+    transform,
+    setTransform,
+    onBirthDeselect: () => birthHook.setBirthSelected(false),
+  });
 
-  // Branch extension state
-  const [branchYears, setBranchYears] = useState<string>('5');
+  // Drag & Drop
+  const dragDropHook = useTimelineDragDrop({
+    nodes,
+    edges,
+    setNodes,
+    setEdges,
+    transform,
+    svgRef,
+    onHistoryRecord: () => recordHistory(),
+  });
 
-  // Selected branch X coordinate (for placing new events)
-  const [selectedBranchX, setSelectedBranchX] = useState<number | null>(null);
+  // Branch management
+  const branchHook = useTimelineBranch({
+    nodes,
+    edges,
+    setNodes,
+    setEdges,
+    ageMax,
+    onHistoryRecord: recordHistory,
+    onClearForm: formHook.clearForm,
+  });
 
-  // Periodization state
+  // CRUD operations
+  const crudHook = useTimelineCRUD({
+    nodes,
+    edges,
+    ageMax,
+    setNodes,
+    setEdges,
+    onHistoryRecord: recordHistory,
+    onClearForm: formHook.clearForm,
+    onSetSelectedId: setSelectedId,
+  });
+
+  // ============ LOCAL UI STATE ============
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
   const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
-
-  // Bulk event creation state
   const [showBulkCreator, setShowBulkCreator] = useState(false);
 
-  // Computed
+  // ============ COMPUTED VALUES ============
+
   const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedId), [nodes, selectedId]);
-  const selectedEdge = useMemo(() => edges.find((e) => e.x === selectedBranchX), [edges, selectedBranchX]);
-  const birthHasChanges = useMemo(() => {
-    const normalized = {
-      date: birthDetails.date ?? '',
-      place: birthDetails.place ?? '',
-      notes: birthDetails.notes ?? '',
-    };
-    return (
-      birthFormDate !== normalized.date ||
-      birthFormPlace !== normalized.place ||
-      birthFormNotes !== normalized.notes
-    );
-  }, [birthDetails, birthFormDate, birthFormPlace, birthFormNotes]);
-
-  useEffect(() => {
-    if (birthSelected) {
-      setBirthFormDate(birthDetails.date ?? '');
-      setBirthFormPlace(birthDetails.place ?? '');
-      setBirthFormNotes(birthDetails.notes ?? '');
-    }
-  }, [birthDetails, birthSelected]);
-
-  const birthDateObj = useMemo(() => {
-    if (!birthDetails.date) return null;
-    const parsed = new Date(birthDetails.date);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }, [birthDetails.date]);
-  const birthBaseYear = birthDateObj ? birthDateObj.getFullYear() : null;
   const formattedCurrentAge = useMemo(() => {
     if (Number.isNaN(currentAge)) return '0';
     return Number.isInteger(currentAge) ? `${currentAge}` : currentAge.toFixed(1);
   }, [currentAge]);
   const currentYearLabel = useMemo(() => {
-    if (birthBaseYear === null || Number.isNaN(currentAge)) return null;
-    return birthBaseYear + Math.round(currentAge);
-  }, [birthBaseYear, currentAge]);
+    if (birthHook.birthBaseYear === null || Number.isNaN(currentAge)) return null;
+    return birthHook.birthBaseYear + Math.round(currentAge);
+  }, [birthHook.birthBaseYear, currentAge]);
   const exportFilenamePrefix = useMemo(() => {
     const now = new Date();
     const iso = now.toISOString();
     return `timeline-${iso.split('T')[0]}`;
   }, []);
 
-  const handleDownloadMenuToggle = () => {
-    toggleDownloadMenu();
-  };
-
-  async function handleDownload(type: 'json' | 'png' | 'pdf') {
-    closeDownloadMenu();
-    const exportPayload = {
-      currentAge,
-      ageMax,
-      nodes,
-      edges,
-      birthDetails: { ...birthDetails },
-      selectedPeriodization,
-    };
-
-    try {
-      if (type === 'json') {
-        exportTimelineJSON(exportPayload, `${exportFilenamePrefix}.json`);
-        return;
-      }
-
-      if (!svgRef.current) {
-        throw new Error('SVG not ready for export');
-      }
-
-      if (type === 'png') {
-        await exportTimelinePNG(svgRef.current, `${exportFilenamePrefix}.png`);
-        return;
-      }
-
-      const periodization = selectedPeriodization
-        ? getPeriodizationById(selectedPeriodization) ?? null
-        : null;
-      await exportTimelinePDF(svgRef.current, exportPayload, periodization, `${exportFilenamePrefix}.pdf`);
-    } catch (error) {
-      console.error('Export failed', error);
-    }
-  }
-
-  // Check if form has changes (for edit mode)
-  const hasFormChanges = useMemo(() => {
-    if (!formEventId || !originalFormValues) return false;
-
-    return (
-      formEventAge !== originalFormValues.age ||
-      formEventLabel !== originalFormValues.label ||
-      formEventNotes !== originalFormValues.notes ||
-      formEventSphere !== originalFormValues.sphere ||
-      formEventIsDecision !== originalFormValues.isDecision ||
-      formEventIcon !== originalFormValues.iconId
-    );
-  }, [formEventId, originalFormValues, formEventAge, formEventLabel, formEventNotes, formEventSphere, formEventIsDecision, formEventIcon]);
-
-  // Автоматический подхват сферы при выборе ветки
+  // Auto-pickup sphere when selecting branch
   useEffect(() => {
-    // Только если создаём новое событие (не редактируем существующее)
-    if (formEventId !== null) return;
-
-    // Только если выбрана ветка
-    if (selectedBranchX !== null) {
-      // Найти любую ветку с этой X-координатой
-      const selectedEdge = edges.find((e) => e.x === selectedBranchX);
+    if (formHook.formEventId !== null) return;
+    if (branchHook.selectedBranchX !== null) {
+      const selectedEdge = edges.find((e) => e.x === branchHook.selectedBranchX);
       if (selectedEdge) {
-        // Найти исходное событие этой ветки
         const originNode = nodes.find((n) => n.id === selectedEdge.nodeId);
         if (originNode && originNode.sphere) {
-          // Автоматически установить сферу в select
-          setFormEventSphere(originNode.sphere);
+          formHook.setFormEventSphere(originNode.sphere);
         }
       }
     }
-    // Если ветка не выбрана - не меняем сферу (пользователь мог выбрать вручную)
-  }, [selectedBranchX, edges, nodes, formEventId]);
-
-  // Установить длину ветки при выборе
-  useEffect(() => {
-    if (selectedEdge) {
-      const length = selectedEdge.endAge - selectedEdge.startAge;
-      setBranchYears(length.toString());
-    }
-  }, [selectedEdge]);
+  }, [branchHook.selectedBranchX, edges, nodes, formHook.formEventId]);
 
   const worldWidth = 4000;
   const worldHeight = ageMax * YEAR_PX + 500;
-
-  const handleViewportAgeChange = (age: number) => {
-    setViewportAge(age);
-    const viewportHeight = window.innerHeight;
-    const targetY = worldHeight - age * YEAR_PX;
-    setTransform((prev) => ({
-      ...prev,
-      y: viewportHeight / 2 - targetY * prev.k,
-    }));
-  };
-
-  const handleScaleChange = (newScale: number) => {
-    setTransform((prev) => {
-      const centerY = window.innerHeight / 2;
-      const lineScreenX = prev.x + LINE_X_POSITION * prev.k;
-      return {
-        k: newScale,
-        x: lineScreenX - LINE_X_POSITION * newScale,
-        y: prev.y + (centerY - prev.y) * (1 - newScale / prev.k),
-      };
-    });
-  };
-
-  // Adaptive node radius based on zoom level
-  // При отдалении (k маленький) - кружки больше, при приближении - меньше
-  // Используем обратную пропорцию: radius = baseRadius / k
   const adaptiveRadius = clamp(BASE_NODE_RADIUS / transform.k, MIN_NODE_RADIUS, MAX_NODE_RADIUS);
 
-  // ============ HISTORY (UNDO/REDO) ============
+  // ============ HANDLERS ============
 
   const recordHistory = (customNodes?: NodeT[], customEdges?: EdgeT[], customBirth?: BirthDetails) => {
     pushHistory(customNodes ?? nodes, customEdges ?? edges, customBirth ?? birthDetails);
@@ -317,6 +215,65 @@ export default function Timeline() {
     moveForward();
   }
 
+  const handleDownload = async (type: 'json' | 'png' | 'pdf') => {
+    closeDownloadMenu();
+    const exportPayload = { currentAge, ageMax, nodes, edges, birthDetails: { ...birthDetails }, selectedPeriodization };
+
+    try {
+      if (type === 'json') {
+        exportTimelineJSON(exportPayload, `${exportFilenamePrefix}.json`);
+        return;
+      }
+      if (!svgRef.current) throw new Error('SVG not ready');
+      if (type === 'png') {
+        await exportTimelinePNG(svgRef.current, `${exportFilenamePrefix}.png`);
+        return;
+      }
+      const periodization = selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null;
+      await exportTimelinePDF(svgRef.current, exportPayload, periodization, `${exportFilenamePrefix}.pdf`);
+    } catch (error) {
+      console.error('Export failed', error);
+    }
+  };
+
+  const handleViewportAgeChange = (age: number) => {
+    setViewportAge(age);
+    const targetY = worldHeight - age * YEAR_PX;
+    setTransform((prev) => ({ ...prev, y: window.innerHeight / 2 - targetY * prev.k }));
+  };
+
+  const handleScaleChange = (newScale: number) => {
+    setTransform((prev) => {
+      const lineScreenX = prev.x + LINE_X_POSITION * prev.k;
+      return {
+        k: newScale,
+        x: lineScreenX - LINE_X_POSITION * newScale,
+        y: prev.y + (window.innerHeight / 2 - prev.y) * (1 - newScale / prev.k),
+      };
+    });
+  };
+
+  const handleNodeClick = (nodeId: string) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    setSelectedId(nodeId);
+    birthHook.setBirthSelected(false);
+    formHook.setFormFromNode(node);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (dragDropHook.draggingNodeId) {
+      dragDropHook.handleNodeDragMove(e);
+      return;
+    }
+    panZoomHook.handlePointerMove(e);
+  };
+
+  const handlePointerUp = () => {
+    dragDropHook.handleNodeDragEnd();
+    panZoomHook.handlePointerUp();
+  };
+
   // ============ KEYBOARD SHORTCUTS ============
 
   useTimelineShortcuts({
@@ -325,506 +282,53 @@ export default function Timeline() {
     canRedo: () => canRedo,
     onUndo: undo,
     onRedo: redo,
-    onDelete: (id: string) => {
-      deleteNode(id);
-    },
+    onDelete: crudHook.deleteNode,
     onEscape: () => {
-      clearForm();
+      formHook.clearForm();
       setSelectedId(null);
-      setSelectedBranchX(null);
-      setBirthSelected(false);
+      branchHook.setSelectedBranchX(null);
+      birthHook.setBirthSelected(false);
     },
   });
 
-  // ============ CRUD OPERATIONS ============
-
-  function handleFormSubmit() {
-    if (!formEventLabel.trim()) return;
-
-    if (!formEventAge.trim()) {
-      alert('Пожалуйста, укажите возраст события');
-      return;
-    }
-
-    const parsedAge = parseAge(formEventAge);
-    if (isNaN(parsedAge) || parsedAge < 0 || parsedAge > ageMax) {
-      alert(`Возраст должен быть от 0 до ${ageMax} лет`);
-      return;
-    }
-
-    if (formEventId) {
-      // Edit existing event
-      const updatedNodes = nodes.map((n) =>
-        n.id === formEventId
-          ? {
-              ...n,
-              age: parsedAge,
-              label: formEventLabel,
-              notes: formEventNotes,
-              sphere: formEventSphere,
-              isDecision: formEventIsDecision,
-              iconId: formEventIcon ?? undefined,
-              x: n.x ?? LINE_X_POSITION,
-              parentX: n.parentX,
-            }
-          : n
-      );
-      setNodes(updatedNodes);
-      recordHistory(updatedNodes, edges);
-    } else {
-      // Add new event
-      let eventX = LINE_X_POSITION;
-      let eventSphere = formEventSphere;
-
-      // Если выбрана ветка, проверяем попадает ли возраст в её диапазон
-      if (selectedBranchX !== null) {
-        // Ищем edge с нужной X-координатой, который покрывает указанный возраст
-        const selectedEdge = edges.find(
-          (e) => e.x === selectedBranchX && parsedAge >= e.startAge && parsedAge <= e.endAge
-        );
-
-        if (selectedEdge) {
-          // Возраст попадает в диапазон ветки
-          eventX = selectedBranchX;
-
-          // Берём сферу от исходного события ветки (всегда, если не указана вручную)
-          if (!eventSphere) {
-            const originNode = nodes.find((n) => n.id === selectedEdge.nodeId);
-            if (originNode && originNode.sphere) {
-              eventSphere = originNode.sphere;
-            }
-          }
-        } else {
-          // Если не нашли точное совпадение, попробуем найти любую ветку с этой X-координатой
-          // и взять сферу от её исходного события (для автоподхвата)
-          const anyEdgeAtX = edges.find((e) => e.x === selectedBranchX);
-          if (anyEdgeAtX) {
-            // Автоподхват сферы даже если возраст не в диапазоне
-            if (!eventSphere) {
-              const originNode = nodes.find((n) => n.id === anyEdgeAtX.nodeId);
-              if (originNode && originNode.sphere) {
-                eventSphere = originNode.sphere;
-              }
-            }
-
-            alert(
-              `Возраст события (${parsedAge} лет) не попадает в диапазон выбранной ветки (${anyEdgeAtX.startAge}-${anyEdgeAtX.endAge} лет). Событие будет добавлено на основную линию жизни.`
-            );
-          }
-        }
-      }
-
-      const node: NodeT = {
-        id: crypto.randomUUID(),
-        age: parsedAge,
-        x: eventX,
-        parentX: selectedBranchX ?? undefined, // Запоминаем родительскую линию
-        label: formEventLabel,
-        notes: formEventNotes,
-        sphere: eventSphere,
-        isDecision: formEventIsDecision,
-        iconId: formEventIcon ?? undefined,
-      };
-      const newNodes = [...nodes, node];
-      setNodes(newNodes);
-      setSelectedId(node.id);
-      recordHistory(newNodes, edges);
-    }
-
-    // Clear form
-    clearForm();
-  }
-
-  function clearForm() {
-    setFormEventId(null);
-    setFormEventAge('');
-    setFormEventLabel('');
-    setFormEventNotes('');
-    setFormEventSphere(undefined);
-    setFormEventIsDecision(false);
-    setFormEventIcon(null);
-    setSelectedId(null);
-    setOriginalFormValues(null);
-  }
-
-  function updateNode(id: string, updates: Partial<NodeT>) {
-    setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, ...updates } : n)));
-  }
-
-  function deleteNode(id: string) {
-    setNodes((prev) => prev.filter((n) => n.id !== id));
-    // Также удаляем все ветки связанные с этим событием
-    setEdges((prev) => prev.filter((e) => e.nodeId !== id));
-    clearForm();
-    recordHistory();
-  }
-
-  function extendBranch() {
-    if (!selectedNode || !selectedNode.sphere) return;
-
-    const nodeX = selectedNode.x ?? LINE_X_POSITION;
-    if (nodeX === LINE_X_POSITION) {
-      alert('Событие должно быть не на основной линии жизни');
-      return;
-    }
-
-    const years = parseFloat(branchYears);
-    if (isNaN(years) || years <= 0) {
-      alert('Введите корректное количество лет');
-      return;
-    }
-
-    const meta = SPHERE_META[selectedNode.sphere];
-    const edge: EdgeT = {
-      id: crypto.randomUUID(),
-      x: nodeX,
-      startAge: selectedNode.age,
-      endAge: selectedNode.age + years,
-      color: meta.color,
-      nodeId: selectedNode.id,
-    };
-
-    const newEdges = [...edges, edge];
-    setEdges(newEdges);
-    recordHistory(nodes, newEdges);
-
-    // Очищаем форму и снимаем выбор
-    clearForm();
-    setBranchYears('5'); // Сбрасываем на значение по умолчанию
-  }
-
-  function selectBirth() {
-    setBirthSelected(true);
-    setSelectedId(null);
-    setSelectedBranchX(null);
-    clearForm();
-    setBirthFormDate(birthDetails.date ?? '');
-    setBirthFormPlace(birthDetails.place ?? '');
-    setBirthFormNotes(birthDetails.notes ?? '');
-  }
-
-  function handleBirthSave() {
-    const trimmedPlace = birthFormPlace.trim();
-    const trimmedNotes = birthFormNotes.trim();
-
-    const updated: BirthDetails = {
-      date: birthFormDate ? birthFormDate : undefined,
-      place: trimmedPlace ? trimmedPlace : undefined,
-      notes: trimmedNotes ? trimmedNotes : undefined,
-    };
-
-    setBirthDetails(updated);
-    setBirthSelected(false);
-    recordHistory(nodes, edges, updated);
-  }
-
-  function handleBirthCancel() {
-    setBirthFormDate(birthDetails.date ?? '');
-    setBirthFormPlace(birthDetails.place ?? '');
-    setBirthFormNotes(birthDetails.notes ?? '');
-    setBirthSelected(false);
-  }
-
-  function handleBulkCreate(events: Omit<NodeT, 'id'>[]) {
-    const newNodes: NodeT[] = events.map((event) => ({
-      ...event,
-      id: crypto.randomUUID(),
-    }));
-
-    const updatedNodes = [...nodes, ...newNodes];
-    setNodes(updatedNodes);
-    recordHistory(updatedNodes, edges);
-  }
-
-  function handleExtendBranchForBulk(newEndAge: number) {
-    if (!selectedEdge) return;
-
-    const updatedEdges = edges.map((e) =>
-      e.id === selectedEdge.id ? { ...e, endAge: newEndAge } : e
-    );
-    setEdges(updatedEdges);
-    recordHistory(nodes, updatedEdges);
-  }
-
-  // ============ BRANCH MANAGEMENT ============
-
-  function updateBranchLength() {
-    if (!selectedEdge) return;
-
-    const years = parseFloat(branchYears);
-    if (isNaN(years) || years <= 0) {
-      alert('Введите корректное количество лет');
-      return;
-    }
-
-    const newEndAge = selectedEdge.startAge + years;
-
-    // Проверка на максимальный возраст
-    if (newEndAge > ageMax) {
-      alert(`Максимальный возраст: ${ageMax} лет`);
-      return;
-    }
-
-    // Обновить ветку
-    const updatedEdges = edges.map((e) => (e.id === selectedEdge.id ? { ...e, endAge: newEndAge } : e));
-    setEdges(updatedEdges);
-    recordHistory(nodes, updatedEdges);
-  }
-
-  function deleteBranch() {
-    if (!selectedEdge) return;
-
-    const confirmed = window.confirm('Удалить эту ветку? Все события на ней будут перенесены на родительскую линию.');
-    if (!confirmed) return;
-
-    // Найти родительскую линию удаляемой ветки
-    const originNode = nodes.find((n) => n.id === selectedEdge.nodeId);
-    const branchParentX = originNode?.parentX ?? LINE_X_POSITION;
-
-    // Обновить parentX у всех событий на этой ветке
-    const updatedNodes = nodes.map((node) => {
-      if (node.parentX === selectedEdge.x) {
-        return { ...node, parentX: branchParentX === LINE_X_POSITION ? undefined : branchParentX };
-      }
-      return node;
-    });
-
-    // Удалить ветку
-    const updatedEdges = edges.filter((e) => e.id !== selectedEdge.id);
-
-    setNodes(updatedNodes);
-    setEdges(updatedEdges);
-    setSelectedBranchX(null); // Снять выделение
-    recordHistory(updatedNodes, updatedEdges);
-  }
-
-  const handleHideBranchEditor = () => {
-    setSelectedBranchX(null);
-  };
-
-  const handleOpenBulkCreator = () => {
-    setShowBulkCreator(true);
-  };
-
-  // ============ EVENT HANDLERS ============
-
-  function handleWheel(e: React.WheelEvent<SVGSVGElement>) {
-    e.preventDefault();
-    const scaleBy = 1 + -e.deltaY * 0.001;
-    const newK = clamp(transform.k * scaleBy, MIN_SCALE, MAX_SCALE);
-
-    // Масштабируем относительно линии жизни (LINE_X_POSITION)
-    // Это гарантирует что линия жизни остаётся в центре при масштабировании
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-
-    // Текущая позиция линии жизни на экране
-    const lineScreenX = transform.x + LINE_X_POSITION * transform.k;
-    const lineScreenY = transform.y + centerY / transform.k * transform.k;
-
-    // Новая позиция после масштабирования
-    const newTransform = {
-      k: newK,
-      x: lineScreenX - LINE_X_POSITION * newK,
-      y: transform.y + (centerY - transform.y) * (1 - newK / transform.k),
-    };
-    setTransform(newTransform);
-  }
-
-  function handlePointerDown(e: React.PointerEvent<SVGSVGElement>) {
-    setIsPanning(true);
-    setLastPointer({ x: e.clientX, y: e.clientY });
-    setBirthSelected(false);
-  }
-
-  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
-    // Сначала проверяем drag событий
-    if (draggingNodeId) {
-      handleNodeDragMove(e);
-      return;
-    }
-
-    // Затем panning
-    if (isPanning && lastPointer) {
-      const dx = e.clientX - lastPointer.x;
-      const dy = e.clientY - lastPointer.y;
-      setTransform((t) => ({ ...t, x: t.x + dx, y: t.y + dy }));
-      setLastPointer({ x: e.clientX, y: e.clientY });
-    }
-  }
-
-  function handlePointerUp() {
-    handleNodeDragEnd();
-    setIsPanning(false);
-    setLastPointer(null);
-  }
+  // ============ ADDITIONAL HANDLERS ============
 
   const handlePeriodBoundaryClick = (periodIndex: number) => {
     setPeriodBoundaryModal({ periodIndex });
   };
 
   const handleSelectBranch = (x: number) => {
-    setSelectedBranchX(x);
-    setBirthSelected(false);
+    branchHook.handleSelectBranch(x);
+    birthHook.setBirthSelected(false);
   };
 
   const handleClearSelection = () => {
-    setSelectedBranchX(null);
-    setBirthSelected(false);
+    branchHook.setSelectedBranchX(null);
+    birthHook.setBirthSelected(false);
   };
 
-  function handleNodeClick(nodeId: string) {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node) return;
+  const handleOpenBulkCreator = () => {
+    setShowBulkCreator(true);
+  };
 
-    setSelectedId(nodeId);
-    setBirthSelected(false);
-    setFormEventId(nodeId);
-    const ageStr = node.age.toString();
-    setFormEventAge(ageStr);
-    setFormEventLabel(node.label);
-    setFormEventNotes(node.notes || '');
-    setFormEventSphere(node.sphere);
-    setFormEventIsDecision(node.isDecision);
-    setFormEventIcon(node.iconId ?? null);
-
-    // Save original values for change detection
-    setOriginalFormValues({
-      age: ageStr,
-      label: node.label,
-      notes: node.notes || '',
-      sphere: node.sphere,
-      isDecision: node.isDecision,
-      iconId: node.iconId ?? null,
-    });
-  }
-
-  function handleNodeDragStart(e: React.PointerEvent, nodeId: string) {
-    e.stopPropagation();
-    const worldPoint = screenToWorld(e, svgRef.current, transform);
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node) return;
-
-    setDraggingNodeId(nodeId);
-    setDragStartX(worldPoint.x);
-    setDragStartNodeX(node.x ?? LINE_X_POSITION); // Запоминаем исходную x-координату события
-  }
-
-  function handleNodeDragMove(e: React.PointerEvent) {
-    if (!draggingNodeId) return;
-
-    e.stopPropagation();
-    const worldPoint = screenToWorld(e, svgRef.current, transform);
-    const node = nodes.find((n) => n.id === draggingNodeId);
-    if (!node) return;
-
-    const newX = worldPoint.x;
-    const oldX = node.x ?? LINE_X_POSITION; // Используем ТЕКУЩУЮ координату события!
-    const deltaX = newX - oldX;
-
-    // Рекурсивно обновляем события и ветки
-    function updateRecursively(
-      currentNodes: NodeT[],
-      currentEdges: EdgeT[],
-      fromX: number,
-      toX: number
-    ): { nodes: NodeT[]; edges: EdgeT[] } {
-      let updatedNodes = [...currentNodes];
-      let updatedEdges = [...currentEdges];
-
-      // Находим ID событий, у которых parentX === fromX (до обновления)
-      const childNodeIds = updatedNodes.filter((n) => n.parentX === fromX).map((n) => n.id);
-
-      // Обновляем parentX и x для этих событий
-      updatedNodes = updatedNodes.map((n) => {
-        if (n.parentX === fromX) {
-          // Определяем текущую позицию события
-          const currentX = n.x ?? LINE_X_POSITION;
-
-          // Если событие на родительской линии (не смещено), переносим на новую линию
-          // Если событие смещено, сохраняем смещение
-          const newX = currentX === fromX ? toX : currentX + deltaX;
-
-          return { ...n, x: newX, parentX: toX };
-        }
-        return n;
-      });
-
-      // Для каждого дочернего события обновляем его ветки и рекурсивно обрабатываем
-      for (const childNodeId of childNodeIds) {
-        // Находим ветки от этого события
-        const childEdges = updatedEdges.filter((e) => e.nodeId === childNodeId);
-
-        for (const childEdge of childEdges) {
-          const oldEdgeX = childEdge.x;
-          const newEdgeX = oldEdgeX + deltaX;
-
-          // Обновляем x-координату ветки
-          updatedEdges = updatedEdges.map((e) =>
-            e.id === childEdge.id ? { ...e, x: newEdgeX } : e
-          );
-
-          // Рекурсивно обновляем потомков на этой ветке
-          const result = updateRecursively(updatedNodes, updatedEdges, oldEdgeX, newEdgeX);
-          updatedNodes = result.nodes;
-          updatedEdges = result.edges;
-        }
-      }
-
-      return { nodes: updatedNodes, edges: updatedEdges };
-    }
-
-    // Обновляем x-координату самого перемещаемого события
-    let updatedNodes = nodes.map((n) =>
-      n.id === draggingNodeId ? { ...n, x: newX } : n
+  const handleFormSubmit = () => {
+    crudHook.handleFormSubmit(
+      {
+        id: formHook.formEventId,
+        age: formHook.formEventAge,
+        label: formHook.formEventLabel,
+        notes: formHook.formEventNotes,
+        sphere: formHook.formEventSphere,
+        isDecision: formHook.formEventIsDecision,
+        icon: formHook.formEventIcon,
+      },
+      branchHook.selectedBranchX
     );
-
-    // Обновляем x-координату всех веток, связанных с перемещаемым событием
-    let updatedEdges = edges.map((edge) =>
-      edge.nodeId === draggingNodeId ? { ...edge, x: newX } : edge
-    );
-
-    // Рекурсивно обновляем всех детей
-    const result = updateRecursively(updatedNodes, updatedEdges, oldX, newX);
-
-    setNodes(result.nodes);
-    setEdges(result.edges);
-  }
-
-  function handleNodeDragEnd() {
-    if (draggingNodeId) {
-      recordHistory();
-      setDraggingNodeId(null);
-    }
-  }
-
-  function handleClearAll() {
-    if (confirm('Удалить все события? Это действие нельзя отменить.')) {
-      clearForm();
-      setNodes([]);
-      setEdges([]);
-      setSelectedBranchX(null);
-      recordHistory([], []);
-    }
-  }
-
-  useTimelineShortcuts({
-    selectedId,
-    canUndo: () => historyIndex > 0,
-    canRedo: () => historyIndex < historyLength - 1,
-    onUndo: undo,
-    onRedo: redo,
-    onDelete: deleteNode,
-    onEscape: () => {
-      setSelectedId(null);
-      setSelectedBranchX(null);
-      setBirthSelected(false);
-    },
-  });
+  };
 
   // ============ RENDER ============
 
-  const cursorClass = isPanning ? 'cursor-grabbing' : 'cursor-grab';
+  const cursorClass = panZoomHook.isPanning ? 'cursor-grabbing' : 'cursor-grab';
 
   return (
     <motion.div
@@ -845,9 +349,9 @@ export default function Timeline() {
         onCurrentAgeChange={(value) => setCurrentAge(value)}
         onViewportAgeChange={handleViewportAgeChange}
         onScaleChange={handleScaleChange}
-        onDownloadMenuToggle={handleDownloadMenuToggle}
+        onDownloadMenuToggle={toggleDownloadMenu}
         onDownloadSelect={handleDownload}
-        onClearAll={handleClearAll}
+        onClearAll={crudHook.handleClearAll}
       />
 
       <TimelineCanvas
@@ -861,65 +365,65 @@ export default function Timeline() {
         edges={edges}
         selectedPeriodization={selectedPeriodization}
         selectedId={selectedId}
-        selectedBranchX={selectedBranchX}
-        draggingNodeId={draggingNodeId}
-        birthSelected={birthSelected}
-        birthBaseYear={birthBaseYear}
+        selectedBranchX={branchHook.selectedBranchX}
+        draggingNodeId={dragDropHook.draggingNodeId}
+        birthSelected={birthHook.birthSelected}
+        birthBaseYear={birthHook.birthBaseYear}
         formattedCurrentAge={formattedCurrentAge}
         currentYearLabel={currentYearLabel}
         cursorClass={cursorClass}
-        onWheel={handleWheel}
-        onPointerDown={handlePointerDown}
+        onWheel={panZoomHook.handleWheel}
+        onPointerDown={panZoomHook.handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onNodeClick={handleNodeClick}
-        onNodeDragStart={handleNodeDragStart}
+        onNodeDragStart={dragDropHook.handleNodeDragStart}
         onPeriodBoundaryClick={handlePeriodBoundaryClick}
         onSelectBranch={handleSelectBranch}
         onClearSelection={handleClearSelection}
-        onSelectBirth={selectBirth}
+        onSelectBirth={birthHook.handleBirthSelect}
       />
 
       <TimelineRightPanel
         saveStatus={saveStatus}
         selectedPeriodization={selectedPeriodization}
         onPeriodizationChange={setSelectedPeriodization}
-        birthSelected={birthSelected}
-        birthFormDate={birthFormDate}
-        birthFormPlace={birthFormPlace}
-        birthFormNotes={birthFormNotes}
-        onBirthDateChange={setBirthFormDate}
-        onBirthPlaceChange={setBirthFormPlace}
-        onBirthNotesChange={setBirthFormNotes}
-        onBirthSave={handleBirthSave}
-        onBirthCancel={handleBirthCancel}
-        birthHasChanges={birthHasChanges}
-        formEventId={formEventId}
-        formEventAge={formEventAge}
-        onFormEventAgeChange={setFormEventAge}
-        formEventLabel={formEventLabel}
-        onFormEventLabelChange={setFormEventLabel}
-        formEventSphere={formEventSphere}
-        onFormEventSphereChange={(value) => setFormEventSphere(value)}
-        formEventIsDecision={formEventIsDecision}
-        onFormEventIsDecisionChange={setFormEventIsDecision}
-        formEventIcon={formEventIcon}
-        onFormEventIconChange={setFormEventIcon}
-        formEventNotes={formEventNotes}
-        onFormEventNotesChange={setFormEventNotes}
-        hasFormChanges={hasFormChanges}
+        birthSelected={birthHook.birthSelected}
+        birthFormDate={birthHook.birthFormDate}
+        birthFormPlace={birthHook.birthFormPlace}
+        birthFormNotes={birthHook.birthFormNotes}
+        onBirthDateChange={birthHook.setBirthFormDate}
+        onBirthPlaceChange={birthHook.setBirthFormPlace}
+        onBirthNotesChange={birthHook.setBirthFormNotes}
+        onBirthSave={() => birthHook.handleBirthSave(recordHistory)}
+        onBirthCancel={birthHook.handleBirthCancel}
+        birthHasChanges={birthHook.birthHasChanges}
+        formEventId={formHook.formEventId}
+        formEventAge={formHook.formEventAge}
+        onFormEventAgeChange={formHook.setFormEventAge}
+        formEventLabel={formHook.formEventLabel}
+        onFormEventLabelChange={formHook.setFormEventLabel}
+        formEventSphere={formHook.formEventSphere}
+        onFormEventSphereChange={formHook.setFormEventSphere}
+        formEventIsDecision={formHook.formEventIsDecision}
+        onFormEventIsDecisionChange={formHook.setFormEventIsDecision}
+        formEventIcon={formHook.formEventIcon}
+        onFormEventIconChange={formHook.setFormEventIcon}
+        formEventNotes={formHook.formEventNotes}
+        onFormEventNotesChange={formHook.setFormEventNotes}
+        hasFormChanges={formHook.hasFormChanges}
         onEventFormSubmit={handleFormSubmit}
-        onClearForm={clearForm}
-        onDeleteEvent={deleteNode}
+        onClearForm={formHook.clearForm}
+        onDeleteEvent={crudHook.deleteNode}
         createNote={createNote}
-        selectedBranchX={selectedBranchX}
-        selectedEdge={selectedEdge}
-        branchYears={branchYears}
-        onBranchYearsChange={setBranchYears}
-        onUpdateBranchLength={updateBranchLength}
-        onDeleteBranch={deleteBranch}
-        onHideBranchEditor={handleHideBranchEditor}
-        onExtendBranch={extendBranch}
+        selectedBranchX={branchHook.selectedBranchX}
+        selectedEdge={branchHook.selectedEdge}
+        branchYears={branchHook.branchYears}
+        onBranchYearsChange={branchHook.setBranchYears}
+        onUpdateBranchLength={branchHook.updateBranchLength}
+        onDeleteBranch={branchHook.deleteBranch}
+        onHideBranchEditor={branchHook.handleHideBranchEditor}
+        onExtendBranch={() => branchHook.extendBranch(selectedNode)}
         selectedNode={selectedNode}
         edges={edges}
         ageMax={ageMax}
@@ -927,7 +431,7 @@ export default function Timeline() {
         undo={undo}
         redo={redo}
         historyIndex={historyIndex}
-        historyLength={history.length}
+        historyLength={historyLength}
       />
 
       {/* Periodization Boundary Modal */}      {/* Periodization Boundary Modal */}
@@ -955,13 +459,13 @@ export default function Timeline() {
       {showBulkCreator && (
         <BulkEventCreator
           onClose={() => setShowBulkCreator(false)}
-          onCreate={handleBulkCreate}
-          onExtendBranch={handleExtendBranchForBulk}
+          onCreate={crudHook.handleBulkCreate}
+          onExtendBranch={branchHook.handleExtendBranchForBulk}
           ageMax={ageMax}
-          selectedBranchX={selectedBranchX}
-          selectedEdge={selectedEdge}
-          branchSphere={selectedEdge ? (() => {
-            const originNode = nodes.find((n) => n.id === selectedEdge.nodeId);
+          selectedBranchX={branchHook.selectedBranchX}
+          selectedEdge={branchHook.selectedEdge}
+          branchSphere={branchHook.selectedEdge ? (() => {
+            const originNode = nodes.find((n) => n.id === branchHook.selectedEdge!.nodeId);
             return originNode?.sphere;
           })() : undefined}
         />
