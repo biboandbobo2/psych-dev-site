@@ -143,3 +143,16 @@ function getWeeksWord(weeks: number): string {
   if (weeks >= 2 && weeks <= 4) return 'недели';
   return 'недель';
 }
+
+function getNoteDate(date: Date | string): Date {
+  return date instanceof Date ? date : new Date(date);
+}
+
+function isSameDay(dateA: Date | string, dateB: Date): boolean {
+  const a = getNoteDate(dateA);
+  return (
+    a.getFullYear() === dateB.getFullYear() &&
+    a.getMonth() === dateB.getMonth() &&
+    a.getDate() === dateB.getDate()
+  );
+}

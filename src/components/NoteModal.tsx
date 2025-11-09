@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { type AgeRange } from '../types/notes';
 import { TopicSelector } from './TopicSelector';
 import { SaveNoteAsEventButton } from './SaveNoteAsEventButton';
@@ -52,7 +52,9 @@ export function NoteModal({
     setSaving(false);
   }, [isOpen, initialTitle, initialContent, initialAgeRange, initialTopicId, initialTopicTitle]);
 
-  const handleSave = async () => {
+  const headerTitle = useMemo(() => (noteId ? 'Редактировать заметку' : 'Новая заметка'), [noteId]);
+
+  const handleSaveClick = async () => {
     if (!title.trim()) {
       alert('Введите название заметки');
       return;
@@ -60,11 +62,8 @@ export function NoteModal({
 
     setSaving(true);
     try {
-      console.log('Saving note...');
       await onSave({ title, content, ageRange, topicId, topicTitle: topicTitle ?? null });
-      console.log('Note saved, waiting for sync...');
       await new Promise((resolve) => setTimeout(resolve, 800));
-      console.log('Closing modal');
       setSaving(false);
       onClose();
     } catch (error) {
@@ -74,11 +73,11 @@ export function NoteModal({
     }
   };
 
-  const handleTopicSelect = (newTopicId: string | null, topicText: string | null) => {
+  const handleTopicSelect = (newTopicId: string | null, newTopicTitle: string | null) => {
     setTopicId(newTopicId);
-    setTopicTitle(topicText);
-    if (topicText && !title.trim()) {
-      setTitle(topicText);
+    setTopicTitle(newTopicTitle);
+    if (newTopicTitle && !title.trim()) {
+      setTitle(newTopicTitle);
     }
   };
 
@@ -87,19 +86,7 @@ export function NoteModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white shadow-2xl">
-        <header className="sticky top-0 flex items-center justify-between border-b bg-white px-6 py-4">
-          <h2 className="text-xl font-bold">
-            {noteId ? 'Редактировать заметку' : 'Новая заметка'}
-          </h2>
-          <button
-            onClick={onClose}
-            disabled={saving}
-            className="text-2xl text-gray-400 transition hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Закрыть"
-          >
-            ×
-          </button>
-        </header>
+        <NoteModalHeader title={headerTitle} onClose={onClose} disabled={saving} />
 
         <div className="space-y-4 p-6">
           <TopicSelector
@@ -134,58 +121,104 @@ export function NoteModal({
           </div>
         </div>
 
-        <footer className="sticky bottom-0 flex items-center justify-between gap-3 border-t bg-gray-50 px-6 py-4">
-          {/* Кнопка сохранения на таймлайн слева */}
-          <SaveNoteAsEventButton
-            noteTitle={title}
-            noteContent={content}
-            onEventCreate={addEventToTimeline}
-            onSuccess={() => {
-              alert('Событие добавлено на таймлайн!');
-            }}
-          />
-
-          {/* Кнопки справа */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onClose}
-              disabled={saving}
-              className="rounded-md border border-gray-300 px-4 py-2 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Отмена
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-            >
-              {saving ? (
-                <>
-                  <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  Сохранение...
-                </>
-              ) : (
-                'Сохранить'
-              )}
-            </button>
-          </div>
-        </footer>
+        <NoteModalFooter
+          onClose={onClose}
+          onSave={handleSaveClick}
+          saving={saving}
+          noteTitle={title}
+          noteContent={content}
+          addEventToTimeline={addEventToTimeline}
+        />
       </div>
     </div>
+  );
+}
+
+function NoteModalHeader({
+  title,
+  onClose,
+  disabled,
+}: {
+  title: string;
+  onClose: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <header className="sticky top-0 flex items-center justify-between border-b bg-white px-6 py-4">
+      <h2 className="text-xl font-bold">{title}</h2>
+      <button
+        onClick={onClose}
+        disabled={disabled}
+        className="text-2xl text-gray-400 transition hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label="Закрыть"
+      >
+        ×
+      </button>
+    </header>
+  );
+}
+
+function NoteModalFooter({
+  onClose,
+  onSave,
+  saving,
+  noteTitle,
+  noteContent,
+  addEventToTimeline,
+}: {
+  onClose: () => void;
+  onSave: () => void;
+  saving: boolean;
+  noteTitle: string;
+  noteContent: string;
+  addEventToTimeline: ReturnType<typeof useTimeline>['addEventToTimeline'];
+}) {
+  return (
+    <footer className="sticky bottom-0 flex items-center justify-between gap-3 border-t bg-gray-50 px-6 py-4">
+      <SaveNoteAsEventButton
+        noteTitle={noteTitle}
+        noteContent={noteContent}
+        onEventCreate={addEventToTimeline}
+        onSuccess={() => alert('Событие добавлено на таймлайн!')}
+      />
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onClose}
+          disabled={saving}
+          className="rounded-md border border-gray-300 px-4 py-2 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Отмена
+        </button>
+        <button
+          onClick={onSave}
+          disabled={saving}
+          className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+        >
+          {saving ? (
+            <>
+              <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24">
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+              Сохранение...
+            </>
+          ) : (
+            'Сохранить'
+          )}
+        </button>
+      </div>
+    </footer>
   );
 }
