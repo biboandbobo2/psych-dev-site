@@ -53,6 +53,14 @@ src/components/
 src/hooks/
 ├── useNotes.ts                   # Работа с заметками (CRUD операции)
 └── useTimeline.ts                # Добавление событий на таймлайн из заметок
+
+## Новая структура после рефакторинга
+
+- **`TimelineCanvas.tsx`** — теперь весь `SVG`‑рендер и обработка мыши/колёсика вынесены сюда; Canvas получает трансформацию, события, ветки и callback’и (`onSelectBranch`, `onSelectBirth`, `onPeriodBoundaryClick`).
+- **`TimelineLeftPanel.tsx`** и **`TimelineRightPanel.tsx`** собирают UI управления (возраст, прокрутка, экспорт, формы) и передают действия обратно в `Timeline.tsx`.
+- **Формы** (`TimelineBirthForm`, `TimelineEventForm`, `TimelineBranchContinuation`, `TimelineBranchEditor`) теперь компоненты с минимальной логикой, они получают только пропсы и используют shared UI (IconPicker, сохранение заметки).
+- **Утилиты**: `parseBulkEvents` и `formatEventAsNote` находятся в `src/pages/timeline/utils/`; они покрыты Vitest и используются в `BulkEventCreator` и `SaveEventAsNoteButton`.
+- **`BulkEventCreator.tsx`** продолжает жить в `timeline/components` и теперь вызывает `parseBulkEvents`, которые возвращают структурированные строчки и статус расширения ветки.
 ```
 
 ### Модули
