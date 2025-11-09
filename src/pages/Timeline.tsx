@@ -93,6 +93,32 @@ export default function Timeline() {
     historyLength,
   } = useTimelineHistory();
 
+  // ============ HANDLERS (must be declared before hooks that use them) ============
+
+  const recordHistory = (customNodes?: NodeT[], customEdges?: EdgeT[], customBirth?: BirthDetails) => {
+    pushHistory(customNodes ?? nodes, customEdges ?? edges, customBirth ?? birthDetails);
+  };
+
+  function undo() {
+    const prev = fetchUndoSnapshot();
+    if (!prev) return;
+    setNodes(prev.nodes);
+    setEdges(prev.edges);
+    setBirthDetails(prev.birth);
+    moveBackward();
+  }
+
+  function redo() {
+    const next = fetchRedoSnapshot();
+    if (!next) return;
+    setNodes(next.nodes);
+    setEdges(next.edges);
+    setBirthDetails(next.birth);
+    moveForward();
+  }
+
+  // ============ FORM HOOKS ============
+
   // Event form
   const formHook = useTimelineForm();
 
@@ -123,7 +149,7 @@ export default function Timeline() {
     setEdges,
     transform,
     svgRef,
-    onHistoryRecord: () => recordHistory(),
+    onHistoryRecord: recordHistory,
   });
 
   // Branch management
@@ -191,29 +217,7 @@ export default function Timeline() {
   const worldHeight = ageMax * YEAR_PX + 500;
   const adaptiveRadius = clamp(BASE_NODE_RADIUS / transform.k, MIN_NODE_RADIUS, MAX_NODE_RADIUS);
 
-  // ============ HANDLERS ============
-
-  const recordHistory = (customNodes?: NodeT[], customEdges?: EdgeT[], customBirth?: BirthDetails) => {
-    pushHistory(customNodes ?? nodes, customEdges ?? edges, customBirth ?? birthDetails);
-  };
-
-  function undo() {
-    const prev = fetchUndoSnapshot();
-    if (!prev) return;
-    setNodes(prev.nodes);
-    setEdges(prev.edges);
-    setBirthDetails(prev.birth);
-    moveBackward();
-  }
-
-  function redo() {
-    const next = fetchRedoSnapshot();
-    if (!next) return;
-    setNodes(next.nodes);
-    setEdges(next.edges);
-    setBirthDetails(next.birth);
-    moveForward();
-  }
+  // ============ ADDITIONAL HANDLERS ============
 
   const handleDownload = async (type: 'json' | 'png' | 'pdf') => {
     closeDownloadMenu();
