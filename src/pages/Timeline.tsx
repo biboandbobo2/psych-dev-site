@@ -152,6 +152,13 @@ export default function Timeline() {
     onHistoryRecord: recordHistory,
   });
 
+  // ============ LOCAL UI STATE ============
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
+  const [showBulkCreator, setShowBulkCreator] = useState(false);
+
   // Branch management
   const branchHook = useTimelineBranch({
     nodes,
@@ -174,13 +181,6 @@ export default function Timeline() {
     onClearForm: formHook.clearForm,
     onSetSelectedId: setSelectedId,
   });
-
-  // ============ LOCAL UI STATE ============
-
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showHelp, setShowHelp] = useState(false);
-  const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
-  const [showBulkCreator, setShowBulkCreator] = useState(false);
 
   // ============ COMPUTED VALUES ============
 
