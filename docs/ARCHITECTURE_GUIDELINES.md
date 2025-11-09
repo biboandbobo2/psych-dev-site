@@ -307,6 +307,33 @@ export function LoginForm({ onSubmit }) {
 
 ---
 
+## Security, Roles & Logging
+
+### Logging & Privacy
+- Все продакшен-логи должны быть обёрнуты в условие `isDebug()` (создайте/используйте `src/lib/debug.ts`).  
+  ```ts
+  import { isDebug } from '../lib/debug';
+  if (isDebug()) {
+    console.debug('[Notes] loaded', notes.length);
+  }
+  ```
+- Запрещено логировать ID токены, email/UID, содержимое заметок, результаты тестов, значения env.
+- ESLint/прехуки блокируют `console.log` в `src/lib`, `src/pages`, `functions/src` (оставляйте только явные исключения).
+- Для диагностики используйте `console.debug` или специализированный логгер, который включается только в dev.
+
+### Access Control & Roles
+- Роли: `student`, `admin`, `super-admin`.
+- Клиент: используйте `useAuthStore` (`isAdmin`, `isSuperAdmin`) и не храните секреты (seed-коды и т.п.) в бандле.
+- Cloud Functions: helper `ensureAdmin` обязан принимать обе роли; каждая callable-функция вызывает его перед основной логикой.
+- Firebase Rules: при изменении ролевой модели обновляйте `firestore.rules`, `storage.rules` и UI одновременно.
+
+### QA / Smoke Tracking
+- После каждого `npm run test`, `npm run build` и ручных smoke-сценариев (CRUD заметок, экспорт, создание события, админ-флоу) добавляйте строку в `docs/qa-smoke-log.md`.
+- Формат: дата, сценарий/команда, результат, ответственный, ссылка на PR/коммит.
+- Изменения без записи в логе считаются непроверенными.
+
+---
+
 ## State Management
 
 **Статус:** Migration to Zustand completed (2025-11-09)
@@ -637,6 +664,8 @@ it('test1')
 - [ ] Код вручную протестирован?
 - [ ] Edge cases учтены?
 - [ ] Unit-тесты написаны (для сложной логики)?
+- [ ] Результаты (unit/build/smoke) записаны в `docs/qa-smoke-log.md` с ссылкой на коммит?
+- [ ] Проверки ролей и правил логирования соблюдены?
 
 ---
 
