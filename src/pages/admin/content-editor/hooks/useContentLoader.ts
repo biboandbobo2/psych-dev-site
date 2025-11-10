@@ -8,6 +8,7 @@ interface UseContentLoaderParams {
   periodId: string | undefined;
   placeholderDefaultEnabled: boolean;
   placeholderDisplayText: string;
+  fallbackTitle: string;
   setTitle: (value: string) => void;
   setSubtitle: (value: string) => void;
   setPublished: (value: boolean) => void;
@@ -22,7 +23,6 @@ interface UseContentLoaderParams {
   setExtraLiterature: (value: Array<{ title: string; url: string }>) => void;
   setExtraVideos: (value: Array<{ title: string; url: string }>) => void;
   setSelfQuestionsUrl: (value: string) => void;
-  onNavigate: () => void;
 }
 
 /**
@@ -33,6 +33,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
     periodId,
     placeholderDefaultEnabled,
     placeholderDisplayText,
+    fallbackTitle,
     setTitle,
     setSubtitle,
     setPublished,
@@ -47,7 +48,6 @@ export function useContentLoader(params: UseContentLoaderParams) {
     setExtraLiterature,
     setExtraVideos,
     setSelfQuestionsUrl,
-    onNavigate,
   } = params;
 
   const [period, setPeriod] = useState<Period | null>(null);
@@ -82,8 +82,40 @@ export function useContentLoader(params: UseContentLoaderParams) {
         }
 
         if (!data) {
-          alert('Период не найден');
-          onNavigate();
+          const safeTitle =
+            (typeof fallbackTitle === 'string' && fallbackTitle.trim()) ||
+            placeholderDisplayText ||
+            'Новый период';
+          const fallbackPeriod: Period = {
+            period: periodId,
+            title: safeTitle,
+            subtitle: '',
+            concepts: [],
+            authors: [],
+            core_literature: [],
+            extra_literature: [],
+            extra_videos: [],
+            published: false,
+            order: 0,
+            accent: DEFAULT_THEME.accent,
+            accent100: DEFAULT_THEME.accent100,
+          };
+
+          setPeriod(fallbackPeriod);
+          setTitle(fallbackPeriod.title);
+          setSubtitle('');
+          setPublished(false);
+          setOrder(0);
+          setAccent(DEFAULT_THEME.accent);
+          setAccent100(DEFAULT_THEME.accent100);
+          setPlaceholderEnabled(placeholderDefaultEnabled);
+          setVideos([createEmptyVideoEntry(0, safeTitle)]);
+          setConcepts([]);
+          setAuthors([]);
+          setCoreLiterature([]);
+          setExtraLiterature([]);
+          setExtraVideos([]);
+          setSelfQuestionsUrl('');
           return;
         }
 
@@ -148,7 +180,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
     }
 
     loadPeriod();
-  }, [periodId, placeholderDefaultEnabled]);
+  }, [periodId, placeholderDefaultEnabled, placeholderDisplayText, fallbackTitle]);
 
   return { period, loading };
 }

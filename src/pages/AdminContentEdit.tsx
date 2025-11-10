@@ -27,6 +27,8 @@ export default function AdminContentEdit() {
   const placeholderDisplayText =
     routeConfig?.placeholderText || 'Контент для этого возраста появится в ближайшем обновлении.';
   const normalizedPlaceholderText = normalizeText(placeholderDisplayText);
+  const fallbackTitle =
+    routeConfig?.navLabel || (periodId ? `Период ${periodId}` : 'Новый период');
 
   // Form state management
   const form = useContentForm(placeholderDefaultEnabled);
@@ -36,6 +38,7 @@ export default function AdminContentEdit() {
     periodId,
     placeholderDefaultEnabled,
     placeholderDisplayText,
+    fallbackTitle,
     setTitle: form.setTitle,
     setSubtitle: form.setSubtitle,
     setPublished: form.setPublished,
@@ -50,7 +53,6 @@ export default function AdminContentEdit() {
     setExtraLiterature: form.setExtraLiterature,
     setExtraVideos: form.setExtraVideos,
     setSelfQuestionsUrl: form.setSelfQuestionsUrl,
-    onNavigate: () => navigate('/admin/content'),
   });
 
   // Save/delete handlers

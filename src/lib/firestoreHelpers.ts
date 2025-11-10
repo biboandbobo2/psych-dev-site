@@ -23,7 +23,7 @@ const CANONICAL_TO_LEGACY_IDS: Record<string, string> = Object.fromEntries(
   Object.entries(LEGACY_PERIOD_IDS).map(([legacy, canonical]) => [canonical, legacy])
 );
 
-const canonicalizePeriodId = (id: string): string => LEGACY_PERIOD_IDS[id] ?? id;
+export const canonicalizePeriodId = (id: string): string => LEGACY_PERIOD_IDS[id] ?? id;
 const resolveLegacyId = (id: string): string | undefined => CANONICAL_TO_LEGACY_IDS[id];
 
 async function getPeriodDocWithAliases(periodId: string) {
