@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import { db } from '../../../../lib/firebase';
+import { getPeriod as fetchPeriod, getIntro as fetchIntro } from '../../../../lib/firestoreHelpers';
 import { DEFAULT_THEME } from '../../../../theme/periods';
 import type { Period } from '../types';
 import { createEmptyVideoEntry, createVideoEntryFromSource } from '../utils/videoHelpers';
@@ -56,35 +55,38 @@ export function useContentLoader(params: UseContentLoaderParams) {
 
   useEffect(() => {
     async function loadPeriod() {
-      if (!periodId) return;
+      if (!periodId) {
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
-        let snapshot;
+        let data: Period | null = null;
 
         if (periodId === 'intro') {
-          const singletonRef = doc(db, 'intro', 'singleton');
-          const singletonSnap = await getDoc(singletonRef);
-          if (singletonSnap.exists()) {
-            snapshot = singletonSnap;
+          const intro = await fetchPeriod('intro');
+          if (intro) {
+            data = intro as Period;
           } else {
-            const introCol = collection(db, 'intro');
-            const introSnap = await getDocs(introCol);
-            if (!introSnap.empty) {
-              snapshot = introSnap.docs[0];
+            const legacyIntro = await fetchIntro();
+            if (legacyIntro) {
+              data = legacyIntro as Period;
             }
           }
         } else {
-          snapshot = await getDoc(doc(db, 'periods', periodId));
+          const fetched = await fetchPeriod(periodId);
+          if (fetched) {
+            data = fetched as Period;
+          }
         }
 
-        if (!snapshot || !snapshot.exists()) {
+        if (!data) {
           alert('Период не найден');
           onNavigate();
           return;
         }
 
-        const data = { ...(snapshot.data() as Period), period: periodId };
         setPeriod(data);
 
         setTitle(data.title || '');

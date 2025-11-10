@@ -25,6 +25,21 @@ export interface Period {
   self_questions_url?: string;
   deck_url?: string;
   placeholder_enabled?: boolean;
+  /**
+   * Клиентские поля (формируются в hooks/usePeriods.ts)
+   */
+  label?: string;
+  sections?: Record<
+    string,
+    {
+      title: string;
+      content: any[];
+    }
+  >;
+  deckUrl?: string;
+  selfQuestionsUrl?: string;
+  placeholderEnabled?: boolean;
+  placeholderText?: string;
   accent: string;
   accent100: string;
   background?: string;

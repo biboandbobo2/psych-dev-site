@@ -430,7 +430,6 @@ export const runReconcile = functions.https.onCall(async (data, context) => {
             continue;
         const isIntro = period === 'intro';
         const docRef = isIntro ? db.collection('intro').doc('singleton') : db.collection('periods').doc(period);
-        const descriptor = isIntro ? 'intro/singleton' : `periods/${period}`;
         const arrays = {};
         ARRAY_FIELDS.forEach((field) => {
             const entry = diff.arrays[field];

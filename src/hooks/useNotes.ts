@@ -17,6 +17,7 @@ import { reportAppError } from '../lib/errorHandler';
 
 const LEGACY_AGE_RANGE_MAP: Record<string, AgeRange> = {
   'early-childhood': 'infancy',
+  school: 'primary-school',
 };
 
 const VALID_AGE_RANGES = new Set<AgeRange>(AGE_RANGE_ORDER);

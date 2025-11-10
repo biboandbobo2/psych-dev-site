@@ -48,7 +48,6 @@ export const PERIOD_FILTER_GROUPS: Group[] = [
     label: 'Школьный возраст',
     options: [
       { value: 'primary-school', label: '🎒 Младший школьный (7-10 лет)' },
-      { value: 'school', label: '📚 Младший школьный (7-9 лет)' },
       { value: 'earlyAdolescence', label: '🧑‍🎓 Ранняя подростковость (10-13 лет)' },
       { value: 'adolescence', label: '👦 Подростковость (14-18 лет)' },
     ],

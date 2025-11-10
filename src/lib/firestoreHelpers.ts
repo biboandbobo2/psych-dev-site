@@ -15,6 +15,69 @@ import {
 import { db } from "./firebase";
 import type { Period, IntroContent, PeriodFormData } from "../types/content";
 
+const LEGACY_PERIOD_IDS: Record<string, string> = {
+  school: "primary-school",
+};
+
+const CANONICAL_TO_LEGACY_IDS: Record<string, string> = Object.fromEntries(
+  Object.entries(LEGACY_PERIOD_IDS).map(([legacy, canonical]) => [canonical, legacy])
+);
+
+const canonicalizePeriodId = (id: string): string => LEGACY_PERIOD_IDS[id] ?? id;
+const resolveLegacyId = (id: string): string | undefined => CANONICAL_TO_LEGACY_IDS[id];
+
+async function getPeriodDocWithAliases(periodId: string) {
+  const canonical = canonicalizePeriodId(periodId);
+  const legacy = resolveLegacyId(periodId);
+  const tryIds: string[] = [];
+
+  if (!tryIds.includes(canonical)) {
+    tryIds.push(canonical);
+  }
+  if (!tryIds.includes(periodId)) {
+    tryIds.push(periodId);
+  }
+  if (legacy && !tryIds.includes(legacy)) {
+    tryIds.push(legacy);
+  }
+
+  for (const id of tryIds) {
+    const docRef = doc(db, "periods", id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { snap: docSnap, id };
+    }
+  }
+  return null;
+}
+
+function mapDocsToPeriods(docs: Array<{ id: string; data: () => any }>): Period[] {
+  const map = new Map<string, { rawId: string; data: Period }>();
+
+  docs.forEach((docSnap) => {
+    const rawId = docSnap.id;
+    const canonicalId = canonicalizePeriodId(rawId);
+    const data: Period = {
+      ...(docSnap.data() as Omit<Period, "period">),
+      period: canonicalId,
+    };
+
+    const existing = map.get(canonicalId);
+    if (!existing) {
+      map.set(canonicalId, { rawId, data });
+      return;
+    }
+
+    const existingIsCanonical = existing.rawId === canonicalId;
+    const currentIsCanonical = rawId === canonicalId;
+    if (!existingIsCanonical && currentIsCanonical) {
+      map.set(canonicalId, { rawId, data });
+    }
+  });
+
+  return Array.from(map.values()).map(({ data }) => data);
+}
+
 // === PERIODS ===
 
 export async function getAllPeriods(): Promise<Period[]> {
@@ -22,10 +85,7 @@ export async function getAllPeriods(): Promise<Period[]> {
   const q = query(periodsRef, orderBy("order", "asc"));
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map((docSnap) => ({
-    ...(docSnap.data() as Omit<Period, "period">),
-    period: docSnap.id,
-  }));
+  return mapDocsToPeriods(snapshot.docs);
 }
 
 export async function getPublishedPeriods(): Promise<Period[]> {
@@ -33,34 +93,31 @@ export async function getPublishedPeriods(): Promise<Period[]> {
   const q = query(periodsRef, where("published", "==", true), orderBy("order", "asc"));
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map((docSnap) => ({
-    ...(docSnap.data() as Omit<Period, "period">),
-    period: docSnap.id,
-  }));
+  return mapDocsToPeriods(snapshot.docs);
 }
 
 export async function getPeriod(periodId: string): Promise<Period | null> {
-  const docRef = doc(db, "periods", periodId);
-  const docSnap = await getDoc(docRef);
-
-  if (!docSnap.exists()) {
+  const result = await getPeriodDocWithAliases(periodId);
+  if (!result) {
     return null;
   }
 
+  const canonicalId = canonicalizePeriodId(result.id);
   return {
-    ...(docSnap.data() as Omit<Period, "period">),
-    period: periodId,
+    ...(result.snap.data() as Omit<Period, "period">),
+    period: canonicalId,
   };
 }
 
 export async function savePeriod(periodId: string, data: PeriodFormData): Promise<void> {
-  const docRef = doc(db, "periods", periodId);
+  const canonicalId = canonicalizePeriodId(periodId);
+  const docRef = doc(db, "periods", canonicalId);
 
   await setDoc(
     docRef,
     {
       ...data,
-      period: periodId,
+      period: canonicalId,
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -68,13 +125,22 @@ export async function savePeriod(periodId: string, data: PeriodFormData): Promis
 }
 
 export async function deletePeriod(periodId: string): Promise<void> {
-  const docRef = doc(db, "periods", periodId);
-  await deleteDoc(docRef);
+  const canonicalId = canonicalizePeriodId(periodId);
+  await deleteDoc(doc(db, "periods", canonicalId));
+  const legacyId = resolveLegacyId(canonicalId);
+  if (legacyId) {
+    await deleteDoc(doc(db, "periods", legacyId)).catch(() => {});
+  }
 }
 
 // === INTRO ===
 
 export async function getIntro(): Promise<IntroContent | null> {
+  const canonicalIntro = await getPeriod("intro");
+  if (canonicalIntro) {
+    return canonicalIntro as IntroContent;
+  }
+
   const docRef = doc(db, "intro", "singleton");
   const docSnap = await getDoc(docRef);
 

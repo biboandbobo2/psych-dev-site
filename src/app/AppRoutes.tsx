@@ -1,0 +1,149 @@
+import { Routes, Route, Navigate, Location } from 'react-router-dom';
+import RequireAuth from '../auth/RequireAuth';
+import RequireAdmin from '../auth/RequireAdmin';
+import Login from '../pages/Login';
+import Admin from '../pages/Admin';
+import AdminUsers from '../pages/AdminUsers';
+import AdminContent from '../pages/AdminContent';
+import AdminContentEdit from '../pages/AdminContentEdit';
+import Profile from '../pages/Profile';
+import Notes from '../pages/Notes';
+import { TestsPage } from '../pages/TestsPage';
+import DynamicTest from '../pages/DynamicTest';
+import MigrateTopics from '../pages/MigrateTopics';
+import AdminTopics from '../pages/AdminTopics';
+import Timeline from '../pages/Timeline';
+import { ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
+import { PeriodPage } from '../pages/PeriodPage';
+import NotFound from './NotFound';
+import type { Period } from '../types/content';
+
+interface AppRoutesProps {
+  location: Location;
+  periodMap: Map<string, Period>;
+  isSuperAdmin: boolean;
+}
+
+export function AppRoutes({ location, periodMap, isSuperAdmin }: AppRoutesProps) {
+  return (
+    <Routes location={location} key={location.pathname}>
+      <Route path="/" element={<Navigate to="/prenatal" replace />} />
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/admin/content"
+        element={
+          <RequireAdmin>
+            <AdminContent />
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/topics"
+        element={
+          <RequireAdmin>
+            <AdminTopics />
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/content/edit/:periodId"
+        element={
+          <RequireAdmin>
+            <AdminContentEdit />
+          </RequireAdmin>
+        }
+      />
+      <Route path="/profile" element={<Profile />} />
+      <Route
+        path="/notes"
+        element={
+          <RequireAuth>
+            <Notes />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/timeline"
+        element={
+          <RequireAuth>
+            <Timeline />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/tests"
+        element={
+          <RequireAuth>
+            <TestsPage rubricFilter="full-course" />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/tests/age-periods"
+        element={
+          <RequireAuth>
+            <TestsPage rubricFilter="age-periods" />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/tests/dynamic/:testId"
+        element={
+          <RequireAuth>
+            <DynamicTest />
+          </RequireAuth>
+        }
+      />
+      {isSuperAdmin && (
+        <>
+          <Route
+            path="/admin"
+            element={
+              <RequireAdmin>
+                <Admin />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <RequireAdmin>
+                <AdminUsers />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/migrate-topics"
+            element={
+              <RequireAuth>
+                <MigrateTopics />
+              </RequireAuth>
+            }
+          />
+        </>
+      )}
+      {ROUTE_CONFIG.map((config) => (
+        <Route
+          key={config.path}
+          path={config.path}
+          element={
+            <PeriodPage
+              config={config}
+              period={config.periodId ? periodMap.get(config.periodId) : null}
+            />
+          }
+        />
+      ))}
+      <Route
+        path="*"
+        element={
+          NOT_FOUND_REDIRECT ? (
+            <Navigate to="/prenatal" replace />
+          ) : (
+            <NotFound />
+          )
+        }
+      />
+    </Routes>
+  );
+}

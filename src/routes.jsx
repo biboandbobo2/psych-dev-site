@@ -5,7 +5,7 @@ export const ROUTE_CONFIG = [
     path: '/intro',
     key: 'intro',
     navLabel: 'Вводное занятие',
-    isIntro: true,
+    periodId: 'intro',
     themeKey: 'intro',
     videoSrc: 'https://www.youtube.com/watch?v=0q4AZ3WsAAc',
     meta: {
@@ -60,13 +60,13 @@ export const ROUTE_CONFIG = [
   {
     path: '/7-9',
     key: '7-9',
-    navLabel: 'Младший школьный возраст (7–9 лет)',
-    periodId: 'school',
+    navLabel: 'Младший школьный возраст (7–10 лет)',
+    periodId: 'primary-school',
     themeKey: 'school1',
-    placeholderText: 'Контент для возраста 7–9 лет появится в ближайшем обновлении.',
-    placeholderDefaultEnabled: true,
+    placeholderText: 'Контент для возраста 7–10 лет появится в ближайшем обновлении.',
+    placeholderDefaultEnabled: false,
     meta: {
-      title: 'Младший школьный возраст 7–9 — Psych Dev Site',
+      title: 'Младший школьный возраст 7–10 — Psych Dev Site',
       description: 'Операции мышления, мотивация к учёбе и развитие школьников.'
     }
   },

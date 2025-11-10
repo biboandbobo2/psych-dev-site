@@ -6,7 +6,7 @@ export type AgeRange =
   | 'toddler'
   | 'preschool'
   | 'primary-school'
-  | 'school'
+  | 'school' // legacy alias для primary-school
   | 'earlyAdolescence'
   | 'adolescence'
   | 'emergingAdult'
@@ -52,7 +52,7 @@ export const AGE_RANGE_LABELS: Record<AgeRange, string> = {
   toddler: 'Раннее детство (1-3 года)',
   preschool: 'Дошкольный возраст (3-7 лет)',
   'primary-school': 'Младший школьный возраст (7-10 лет)',
-  school: 'Младший школьный возраст (7-9 лет)',
+  school: 'Младший школьный возраст (7-9 лет)', // legacy, используйте primary-school
   earlyAdolescence: 'Ранняя подростковость (10-13 лет)',
   adolescence: 'Подростковость (14-18 лет)',
   emergingAdult: 'Юность (19-22 года)',
@@ -69,7 +69,6 @@ export const AGE_RANGE_ORDER: AgeRange[] = [
   'toddler',
   'preschool',
   'primary-school',
-  'school',
   'earlyAdolescence',
   'adolescence',
   'emergingAdult',
