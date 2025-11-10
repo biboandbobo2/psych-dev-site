@@ -13,6 +13,7 @@ import {
 import { db } from '../lib/firebase';
 import { useAuth } from '../auth/AuthProvider';
 import { type Note, type AgeRange, AGE_RANGE_ORDER, AGE_RANGE_LABELS } from '../types/notes';
+import { reportAppError } from '../lib/errorHandler';
 
 const LEGACY_AGE_RANGE_MAP: Record<string, AgeRange> = {
   'early-childhood': 'infancy',
@@ -97,9 +98,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
         setError(null);
       },
       (err) => {
-        console.error('Error loading notes:', err);
-        console.error('Error code:', err.code);
-        console.error('Error message:', err.message);
+        reportAppError({ message: 'Ошибка загрузки заметок', error: err, context: 'useNotes.listener' });
         setError(err.message);
         setLoading(false);
       }
@@ -143,11 +142,11 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
       const docRef = await addDoc(collection(db, 'notes'), noteData);
       console.log('✅ Note created successfully with ID:', docRef.id);
       return docRef.id;
-    } catch (error) {
-      console.error('❌ Error creating note:', error);
-      throw error;
-    }
-  };
+      } catch (error) {
+        reportAppError({ message: 'Не удалось создать заметку', error, context: 'useNotes.createNote' });
+        throw error;
+      }
+    };
 
   const updateNote = async (
     noteId: string,
@@ -185,7 +184,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
       await updateDoc(noteRef, payload);
       console.log('✅ Note updated successfully');
     } catch (error) {
-      console.error('❌ Error updating note:', error);
+      reportAppError({ message: 'Не удалось обновить заметку', error, context: 'useNotes.updateNote' });
       throw error;
     }
   };
@@ -196,7 +195,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
       await deleteDoc(doc(db, 'notes', noteId));
       console.log('✅ Note deleted successfully');
     } catch (error) {
-      console.error('❌ Error deleting note:', error);
+      reportAppError({ message: 'Не удалось удалить заметку', error, context: 'useNotes.deleteNote' });
       throw error;
     }
   };

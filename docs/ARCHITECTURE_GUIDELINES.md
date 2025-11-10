@@ -320,6 +320,7 @@ export function LoginForm({ onSubmit }) {
 - Запрещено логировать ID токены, email/UID, содержимое заметок, результаты тестов, значения env.
 - ESLint/прехуки блокируют `console.log` в `src/lib`, `src/pages`, `functions/src` (оставляйте только явные исключения).
 - Для диагностики используйте `console.debug` или специализированный логгер, который включается только в dev.
+- Для ошибок UI/сетевых вызовов используйте `src/lib/errorHandler.ts`, `ErrorBoundary` и `ErrorToast`: сообщение логируется, показывается пользовательский тост и при необходимости отправляется в систему мониторинга.
 
 ### Access Control & Roles
 - Роли: `student`, `admin`, `super-admin`.

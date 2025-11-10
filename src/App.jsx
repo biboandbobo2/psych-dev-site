@@ -13,7 +13,7 @@ import {
 import { Helmet } from 'react-helmet-async';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { ROUTE_CONFIG, SITE_NAME, NOT_FOUND_REDIRECT } from './routes';
-import { usePeriods } from './lib/usePeriods';
+import { usePeriods } from './hooks/usePeriods';
 import { useIntro } from './lib/useIntro';
 import { BACKGROUND_BY_PERIOD } from './theme/backgrounds';
 import { PERIOD_THEME, DEFAULT_THEME } from './theme/periods';

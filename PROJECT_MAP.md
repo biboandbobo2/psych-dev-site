@@ -1,13 +1,13 @@
 # 🗺️ Project Structure Map
 
-Generated: 2025-11-10T06:14:26.040Z
+Generated: 2025-11-10T07:37:38.227Z
 
 ## 📊 Summary
 
-- **Data files**: 13
+- **Data files**: 14
 - **Components**: 98
 - **Config/Utils**: 76
-- **Total analyzed**: 219
+- **Total analyzed**: 221
 
 ---
 
@@ -16,11 +16,12 @@ Generated: 2025-11-10T06:14:26.040Z
 - `.claude/settings.local.json` (34 lines, 1.0KB) - Data storage
 - `firebase.json` (14 lines, 0.2KB) - Data storage
 - `firestore.indexes.json` (31 lines, 0.8KB) - Data storage
-- `functions/package-lock.json` (2764 lines, 100.4KB) - Data storage
-- `functions/package.json` (18 lines, 0.3KB) - Data storage
+- `functions/package-lock.json` (4542 lines, 157.5KB) - Data storage
+- `functions/package.json` (21 lines, 0.4KB) - Data storage
 - `functions/tsconfig.json` (12 lines, 0.2KB) - Data storage
+- `logs/lighthouse-timeline.json` (26181 lines, 1044.8KB) - Data storage
 - `package-lock.json` (15608 lines, 546.3KB) - Data storage
-- `package.json` (75 lines, 2.7KB) - Data storage
+- `package.json` (76 lines, 2.9KB) - Data storage
 - `public/icons/icons.json` (202 lines, 4.0KB) - Data storage
 - `scripts/tsconfig.json` (10 lines, 0.2KB) - Data storage
 - `tsconfig.json` (19 lines, 0.4KB) - Data storage
@@ -45,6 +46,7 @@ Generated: 2025-11-10T06:14:26.040Z
 - `src/components/ui/BackToTop.jsx` - [Contains period colors]
 - `src/components/ui/Button.jsx` - [Contains period colors]
 - `src/constants/periods.ts` - Utilities/Config [Contains period colors]
+- `src/pages/Admin.tsx` - Component: Admin [Contains period colors]
 - `src/pages/AdminContent.tsx` - Component: AdminContent [Contains period colors]
 - `src/pages/AdminContentEdit.tsx` - Component: AdminContentEdit [Contains period colors]
 - `src/pages/DynamicTest.tsx` - Component: DynamicTest [Contains period colors]
@@ -79,7 +81,7 @@ Generated: 2025-11-10T06:14:26.040Z
 - `src/components/AddAdminModal.tsx` - Component
 - `src/components/SuperAdminBadge.tsx` - Component
 - `src/components/tests/TestIntroScreen.tsx` - [Contains period colors]
-- `src/pages/Admin.tsx` - Component: Admin
+- `src/pages/Admin.tsx` - Component: Admin [Contains period colors]
 - `src/pages/AdminContent.tsx` - Component: AdminContent [Contains period colors]
 - `src/pages/AdminContentEdit.tsx` - Component: AdminContentEdit [Contains period colors]
 - `src/pages/AdminTopics.tsx` - Component: AdminTopics

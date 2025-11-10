@@ -11,6 +11,7 @@ import {
   SAVE_DEBOUNCE_MS,
 } from '../constants';
 import { removeUndefined } from '../utils';
+import { reportAppError } from '../../../lib/errorHandler';
 
 export function useTimelineState() {
   const { user } = useAuth();
@@ -46,7 +47,7 @@ export function useTimelineState() {
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
-      console.error('Save error:', error);
+      reportAppError({ message: 'Ошибка сохранения таймлайна', error, context: 'useTimelineState.save' });
       setSaveStatus('error');
     }
   }
@@ -68,7 +69,8 @@ export function useTimelineState() {
     if (!user) return;
 
     const docRef = doc(db, 'timelines', user.uid);
-    getDoc(docRef).then((snapshot) => {
+    getDoc(docRef)
+      .then((snapshot) => {
       if (!snapshot.exists()) {
         if (!initialViewportSet) {
           setTimeout(() => {
@@ -140,7 +142,10 @@ export function useTimelineState() {
           setInitialViewportSet(true);
         }, 100);
       }
-    });
+      })
+      .catch((error) => {
+        reportAppError({ message: 'Ошибка загрузки таймлайна', error, context: 'useTimelineState.load' });
+      });
   }, [user]);
 
   return {
