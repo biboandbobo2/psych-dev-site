@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { collection, orderBy, query, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { getPeriodColors, PERIOD_NAMES, PERIOD_ORDER } from "../constants/periods";
+import { getPeriodColors } from "../constants/periods";
 import { TestEditorModal } from "../components/TestEditorModal";
 
 interface Period {
@@ -12,29 +12,7 @@ interface Period {
   published: boolean;
   order: number;
   accent: string;
-  accent100?: string;
-  placeholder?: boolean;
   [key: string]: any;
-}
-
-function ensurePeriodList(fetched: Period[]) {
-  const existing = new Map(fetched.map((period) => [period.period, period]));
-  return PERIOD_ORDER.map((periodId, index) => {
-    if (existing.has(periodId)) {
-      return existing.get(periodId)!;
-    }
-    const colors = getPeriodColors(periodId);
-    return {
-      period: periodId,
-      title: PERIOD_NAMES[periodId] || periodId,
-      subtitle: "Контент пока не создан",
-      published: false,
-      order: index,
-      accent: colors.accent,
-      accent100: colors.accent100,
-      placeholder: true,
-    };
-  });
 }
 
 export default function AdminContent() {
@@ -48,11 +26,10 @@ export default function AdminContent() {
       const periodsRef = collection(db, "periods");
       const q = query(periodsRef, orderBy("order", "asc"));
       const snapshot = await getDocs(q);
-      const docs = snapshot.docs.map((docSnap) => ({
+      const data = snapshot.docs.map((docSnap) => ({
         ...(docSnap.data() as Period),
         period: docSnap.id,
       }));
-      const data = ensurePeriodList(docs);
 
       setPeriods(data);
     } catch (err: any) {
@@ -115,8 +92,8 @@ export default function AdminContent() {
           </div>
         ) : (
           periods.map((period) => {
-        const colors = getPeriodColors(period.period);
-        const isIntro = period.period === "intro";
+            const colors = getPeriodColors(period.period);
+            const isIntro = period.period === "intro";
             return (
               <Link
                 key={period.period}
