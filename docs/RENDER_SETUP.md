@@ -22,8 +22,9 @@ VITE_FIREBASE_PROJECT_ID=psych-dev-site-prod
 VITE_FIREBASE_STORAGE_BUCKET=psych-dev-site-prod.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=1006911372271
 VITE_FIREBASE_APP_ID=1:1006911372271:web:b7e9b4371c8ece412e941a
-VITE_ADMIN_SEED_CODE=PSYCH-ADM-7Q9Z-2M4K-83VJ
 ```
+
+> Seed-код теперь управляется только в Cloud Functions (`functions.config().admin.seed_code`) — клиент больше не спрашивает его. См. `docs/ARCHITECTURE_GUIDELINES.md#security-roles--logging`.
 
 ### Step 2: Verify Build Settings
 - **Build Command**: `npm ci && npm run build`

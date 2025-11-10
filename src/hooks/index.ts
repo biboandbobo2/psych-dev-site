@@ -5,7 +5,6 @@
 export { useAllUsers } from './useAllUsers';
 export { useAnswerValidation } from './useAnswerValidation';
 export { useAuthSync } from './useAuthSync';
-export { useDataSource } from './useDataSource';
 export { useLoginModal } from './useLoginModal';
 export { useNotes } from './useNotes';
 export { usePeriods } from './usePeriods';

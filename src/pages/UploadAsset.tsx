@@ -2,6 +2,8 @@ import { useState } from "react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, storage } from "../lib/firebase";
 
+const acceptsAdminRole = (role?: string) => role === "admin" || role === "super-admin";
+
 export async function diagnoseToken() {
   const user = auth.currentUser;
   if (!user) {
@@ -35,7 +37,7 @@ async function uploadToAssets(file: File): Promise<{ path: string; url: string }
   const tokenResult = await user.getIdTokenResult(true);
   console.log("🔑 Token claims:", tokenResult.claims);
 
-  if (tokenResult.claims.role !== "admin") {
+  if (!acceptsAdminRole(tokenResult.claims.role as string | undefined)) {
     throw new Error("Admin role required. Please sign out and sign in again.");
   }
 
@@ -74,7 +76,7 @@ export default function UploadAsset() {
     try {
       setBusy(true);
       const tokenResult = await diagnoseToken();
-      if (!tokenResult || tokenResult.claims.role !== "admin") {
+      if (!tokenResult || !acceptsAdminRole(tokenResult.claims.role as string | undefined)) {
         throw new Error("❌ Admin role not found in token. Please sign out and sign in again.");
       }
       const { path, url } = await uploadToAssets(file);
@@ -127,8 +129,8 @@ export default function UploadAsset() {
         onClick={async () => {
           try {
             const res = await diagnoseToken();
-            if (res?.claims.role === "admin") {
-              alert("✅ Token OK! Role: admin found");
+            if (acceptsAdminRole(res?.claims.role as string | undefined)) {
+              alert("✅ Token OK! Admin/super-admin role found");
             } else {
               alert("❌ No admin role in token. Sign out and sign in again.");
             }

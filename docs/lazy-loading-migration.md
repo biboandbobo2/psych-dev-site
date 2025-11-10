@@ -19,7 +19,7 @@
 
 ### 1.3 Определить критический путь загрузки
 - [ ] Решить, какой минимум должен приезжать синхронно (главная, авторизация, базовые хуки, общие UI-компоненты).
-- [ ] Согласовать список «тяжёлых» модулей для ленивой загрузки: `Admin`, `AdminUsers`, `AdminContent`, `AdminContentEdit`, `AdminImport`, `AdminTopics`, `Timeline`, `TestsPage`, `DynamicTest`, `Notes`, возможно — модальные редакторы (`TestEditorModal` и related hooks).
+- [ ] Согласовать список «тяжёлых» модулей для ленивой загрузки: `Admin`, `AdminUsers`, `AdminContent`, `AdminContentEdit`, `AdminTopics`, `Timeline`, `TestsPage`, `DynamicTest`, `Notes`, возможно — модальные редакторы (`TestEditorModal` и related hooks).
 - [ ] Зафиксировать список в документе (в конце этого файла или отдельным приложением).
 
 ---
@@ -44,7 +44,7 @@
 ## Этап 3. Ленивая загрузка страниц
 
 ### 3.1 Admin-зона
-- [ ] Заменить синхронные импорты `Admin`, `AdminUsers`, `AdminContent`, `AdminContentEdit`, `AdminImport`, `AdminTopics`, `UploadAsset`, `MigrateTopics` на `React.lazy`.
+- [ ] Заменить синхронные импорты `Admin`, `AdminUsers`, `AdminContent`, `AdminContentEdit`, `AdminTopics`, `UploadAsset`, `MigrateTopics` на `React.lazy`.
 - [ ] Проверить, что `RequireAdmin`/`RequireAuth` работают корректно с ленивыми компонентами (при необходимости оборачивать внутри `Suspense`).
 - [ ] Протестировать сценарии: вход под обычным студентом, вход под админом, вход под супер-админом (учтите условные маршруты).
 
@@ -95,7 +95,7 @@
 
 ## Приложение A. Рекомендуемые ленивые модули (стартовый список)
 
-- `Admin`, `AdminUsers`, `AdminContent`, `AdminContentEdit`, `AdminImport`, `AdminTopics`, `UploadAsset`, `MigrateTopics`.
+- `Admin`, `AdminUsers`, `AdminContent`, `AdminContentEdit`, `AdminTopics`, `UploadAsset`, `MigrateTopics`.
 - `Profile`, `Notes`, `Timeline`, `TestsPage`, `DynamicTest`.
 - Редактор тестов (`components/tests/editor/*`, `TestEditorModal`) — если используется как отдельная страница.
 

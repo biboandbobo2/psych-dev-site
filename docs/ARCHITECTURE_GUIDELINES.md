@@ -323,9 +323,11 @@ export function LoginForm({ onSubmit }) {
 
 ### Access Control & Roles
 - Роли: `student`, `admin`, `super-admin`.
+- Storage Rules: `storage.rules` use `isAdminOrSuperAdmin()` so админы и супер-админы имеют одинаковый доступ к `assets/`, `tests/**` и `uploads`; синхронизируйте с UI.
 - Клиент: используйте `useAuthStore` (`isAdmin`, `isSuperAdmin`) и не храните секреты (seed-коды и т.п.) в бандле.
-- Cloud Functions: helper `ensureAdmin` обязан принимать обе роли; каждая callable-функция вызывает его перед основной логикой.
+- Cloud Functions: helper `ensureAdmin` обязан принимать `role === 'admin' || role === 'super-admin'`; каждая callable-функция вызывает его перед основной логикой, поэтому новые роли мгновенно вступают в силу.
 - Firebase Rules: при изменении ролевой модели обновляйте `firestore.rules`, `storage.rules` и UI одновременно.
+- Seed-код хранится только на стороне функций (`functions.config().admin.seed_code`). Для выдачи доступа super-admin или владелец проекта обновляют настройку SEED и вызывают `seedAdmin` на сервере; клиентская кнопка «Сделать меня админом» убрана. См. `docs/audit-backlog.md#L10` и `docs/TimelineGuide.md#Phase-6-QA-и-метрики` для процессов ротации и документации.
 
 ### QA / Smoke Tracking
 - После каждого `npm run test`, `npm run build` и ручных smoke-сценариев (CRUD заметок, экспорт, создание события, админ-флоу) добавляйте строку в `docs/qa-smoke-log.md`.

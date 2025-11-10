@@ -32,9 +32,9 @@ type Link = { title: string; url?: string };
 type Leisure = { title: string; url?: string; type?: string; year?: string };
 type VideoEntry = { title: string; url: string; deckUrl?: string; audioUrl?: string };
 
-function ensureAdmin(context: functions.https.CallableContext) {
+export function ensureAdmin(context: functions.https.CallableContext) {
   const role = (context.auth?.token as any)?.role;
-  if (role !== 'admin') {
+  if (role !== "admin" && role !== "super-admin") {
     throw new functions.https.HttpsError('permission-denied', 'Admin only');
   }
 }

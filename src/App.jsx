@@ -30,7 +30,6 @@ import RequireAdmin from './auth/RequireAdmin';
 import Login from './pages/Login';
 import Admin from './pages/Admin';
 import AdminUsers from './pages/AdminUsers';
-import AdminImport from './pages/AdminImport';
 import AdminContent from './pages/AdminContent';
 import AdminContentEdit from './pages/AdminContentEdit';
 import { useLoginModal } from './hooks/useLoginModal';
@@ -1114,14 +1113,6 @@ function AppInner() {
                     element={
                       <RequireAdmin>
                         <AdminContentEdit />
-                      </RequireAdmin>
-                    }
-                  />
-                  <Route
-                    path="/admin/import"
-                    element={
-                      <RequireAdmin>
-                        <AdminImport />
                       </RequireAdmin>
                     }
                   />
