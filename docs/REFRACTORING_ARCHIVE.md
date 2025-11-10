@@ -13,7 +13,7 @@
 ### Core
 - **Phase 1 («Быстрые победы»)**: удалены legacy-данные и перенесены утилиты. Документ — `docs/CORE_REFACTORING_PLAN.md:80-134`. Коммиты: ранее [[link]].
 - **Phase 2 (AdminContentEdit)**: структура `content-editor` и хук/компоненты (в коде). Зафиксировано описание в плане `docs/CORE_REFACTORING_PLAN.md:126-233`.
-- **Phase 3 (AdminImport)**: компоненты импорта вынесены в `src/pages/admin/import`. Документ и чеклист в `docs/CORE_REFACTORING_PLAN.md:234-303`.
+- **Phase 3 (AdminImport)**: legacy CSV-импорт (страница `AdminImport` и связанная логика) удалены, связанные документы/процедуры перенесены в `docs/audit-backlog.md:3.2`.
 - **Phase 4 (Notes)**: `NotesHeader/NotesList/NotesEditor/NotesEmpty` вынесены, `useNotes` остался; описание в `docs/CORE_REFACTORING_PLAN.md:304-368`.
 - **Phase 5 (Финал)**: анализ «желтых» файлов, рефакторинг `NoteModal`, `ExportNotesButton` и `SaveNoteAsEventButton`, итог описан в `docs/CORE_REFACTORING_PLAN.md:369-405`.
 - **Phase 6 (QA и релиз)**: покрыты тестами `SaveNoteAsEventButton` и `useTimeline`, проведены `npm run test`/`npm run build`; описание `docs/CORE_REFACTORING_PLAN.md:407-638`.
@@ -50,7 +50,7 @@
 - 📌 Ключевые выписки:
   - Фаза 1 «быстрые победы» (удаление legacy-данных, перенос test-утилит).  
   - Фаза 2 разбиение `AdminContentEdit` на `content-editor/*` (4 компонента, 3 hook, types).  
-  - Фаза 3 оптимизация `AdminImport`.  
+  - Фаза 3: вывод CSV-импорта и удаление `AdminImport`.  
   - Фаза 4 модульная система Notes (`NotesHeader`, `NotesList`, `NotesEditor`, `NotesEmpty`).  
   - Фаза 5 «желтая зона» (NoteModal, ExportNotesButton, SaveNoteAsEventButton).  
   - Фаза 6 QA + smoke (юнит-тесты `SaveNoteAsEventButton`, `useTimeline`, `npm run build`).  

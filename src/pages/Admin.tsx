@@ -2,16 +2,14 @@ import { httpsCallable, getFunctions } from "firebase/functions";
 import { doc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import type { User } from "firebase/auth";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
-import { auth, db } from "../lib/firebase";
+import { auth } from "../lib/firebase";
 import UploadAsset, { diagnoseToken } from "./UploadAsset";
-import { useDataSource } from "../hooks/useDataSource";
 
 export default function Admin() {
   const { user, isAdmin, logout } = useAuth();
-  const dataSource = useDataSource();
   const location = useLocation();
 
   return (
@@ -21,7 +19,6 @@ export default function Admin() {
         <div className="space-y-2 text-sm sm:text-right">
           <div className="opacity-70">{user?.email}</div>
           <AdminHeaderStatus user={user} isAdmin={isAdmin} />
-          {isAdmin && <DataSourceToggle current={dataSource} />}
           <button
             onClick={async () => {
               try {
@@ -115,70 +112,30 @@ export default function Admin() {
             📝 Content
           </Link>
 
-          <Link
-            to="/admin/import"
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              location.pathname === '/admin/import'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            📥 Import CSV
-          </Link>
         </nav>
       )}
 
-      {!isAdmin ? <MakeMeAdmin /> : <UploadAsset />}
-    </div>
-  );
-}
-
-function MakeMeAdmin() {
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [message, setMessage] = useState<string | null>(null);
-  const navigate = useNavigate();
-
-  const seedCode = import.meta.env.VITE_ADMIN_SEED_CODE as string | undefined;
-
-  const requestAdmin = async () => {
-    if (!seedCode || seedCode === "SET_YOUR_ONE_TIME_CODE") {
-      setStatus("error");
-      setMessage("Код администратора не задан. Установите VITE_ADMIN_SEED_CODE.");
-      return;
-    }
-
-    try {
-      setStatus("loading");
-      setMessage(null);
-      const fn = httpsCallable(getFunctions(), "seedAdmin");
-      const result = await fn({ seedCode });
-      setStatus("success");
-      setMessage("Права администратора выданы. Пожалуйста, войдите снова.");
-      window.alert("Admin role applied! Please sign in again.");
-      await auth.signOut();
-      navigate("/login");
-    } catch (error) {
-      setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Не удалось назначить администратора");
-    }
-  };
-
-  return (
-    <div className="rounded-2xl border border-yellow-300/80 bg-yellow-100/60 p-5 space-y-3 text-yellow-900">
-      <h2 className="text-lg font-semibold">Нужны права администратора?</h2>
-      <p className="text-sm leading-6">
-        Нажмите кнопку ниже, чтобы одноразово создать запись в Firestore. Убедитесь, что в .env.local задан
-        корректный код и Cloud Function `seedAdmin` задеплоена.
-      </p>
-      <button
-        onClick={requestAdmin}
-        disabled={status === "loading"}
-        className="px-3 py-1 rounded-xl border border-yellow-600/60 bg-white/80 hover:bg-white disabled:opacity-60"
-      >
-        {status === "loading" ? "Отправка…" : "Сделать меня админом"}
-      </button>
-      {message && (
-        <p className={`text-sm ${status === "error" ? "text-red-700" : ""}`}>{message}</p>
+      {!isAdmin ? (
+        <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-5 space-y-3">
+          <h2 className="text-xl font-semibold">Доступ администратора</h2>
+          <p className="text-sm text-muted">
+            Админские права больше не выдаются из клиента. Чтобы получить доступ, обратитесь к
+            супер-админу или владельцу проекта — они обновляют `functions.config().admin.seed_code`
+            и вызывают Cloud Function `seedAdmin` на сервере.
+          </p>
+          <p className="text-sm text-muted">
+            Подробный процесс описан в{" "}
+            <a
+              href="/docs/ARCHITECTURE_GUIDELINES.md#security-roles--logging"
+              className="text-accent underline"
+            >
+              Architecture Guidelines → Security, Roles &amp; Logging
+            </a>
+            .
+          </p>
+        </div>
+      ) : (
+        <UploadAsset />
       )}
     </div>
   );
@@ -213,20 +170,5 @@ function AdminHeaderStatus({ user, isAdmin }: { user: User | null; isAdmin: bool
     <div className="text-sm opacity-70">
       UID: {user?.uid ?? "—"} • Admin: {isAdmin || role === "admin" ? "yes" : "no"}
     </div>
-  );
-}
-
-function DataSourceToggle({ current }: { current: string }) {
-  const isFirestore = current === "firestore";
-
-  return (
-    <button
-      type="button"
-      disabled
-      className="px-3 py-2 rounded-xl border border-indigo-200 text-indigo-400 bg-indigo-50/40 cursor-not-allowed"
-      title="Источник данных зафиксирован. Для временного доступа к CSV используйте параметр ?source=csv."
-    >
-      Data Source: {isFirestore ? "FIRESTORE" : current.toUpperCase()} (locked)
-    </button>
   );
 }

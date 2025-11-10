@@ -4,6 +4,7 @@ import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebas
 import { auth, googleProvider, db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { SUPER_ADMIN_EMAIL } from '../constants/superAdmin';
+import { reportAppError } from '../lib/errorHandler';
 
 type UserRole = 'student' | 'admin' | 'super-admin' | null;
 
@@ -57,7 +58,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           await signInWithPopup(auth, googleProvider);
         } catch (error) {
-          console.error('Error signing in with Google:', error);
+          reportAppError({ message: 'Ошибка входа через Google', error, context: 'useAuthStore.signInWithGoogle' });
           throw error;
         }
       },
@@ -66,7 +67,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           await signOut(auth);
         } catch (error) {
-          console.error('Error signing out:', error);
+          reportAppError({ message: 'Ошибка выхода', error, context: 'useAuthStore.logout' });
           throw error;
         }
       },
@@ -109,7 +110,7 @@ export const useAuthStore = create<AuthState>()(
 
             get().setUserRole(resolvedRole);
           } catch (error) {
-            console.warn('Failed to determine user role', error);
+            reportAppError({ message: 'Не удалось определить роль пользователя', error, context: 'useAuthStore.initializeAuth' });
             get().setUserRole('student');
           } finally {
             if (!cancelled) {

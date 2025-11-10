@@ -19,6 +19,10 @@ export const PERIOD_COLORS: Record<string, { accent: string; accent100: string }
     accent: "#059669",
     accent100: "#D1FAE5",
   },
+  "primary-school": {
+    accent: "#7C3AED",
+    accent100: "#EDE9FE",
+  },
   school: {
     accent: "#7C3AED",
     accent100: "#EDE9FE",
@@ -26,6 +30,10 @@ export const PERIOD_COLORS: Record<string, { accent: string; accent100: string }
   adolescence: {
     accent: "#EA580C",
     accent100: "#FFEDD5",
+  },
+  earlyAdult: {
+    accent: "#43A047",
+    accent100: "#E8F3E8",
   },
 };
 
@@ -35,8 +43,9 @@ export const PERIOD_ORDER = [
   "infant",
   "toddler",
   "preschool",
-  "school",
+  "primary-school",
   "adolescence",
+  "earlyAdult",
 ];
 
 export const PERIOD_NAMES: Record<string, string> = {
@@ -45,8 +54,10 @@ export const PERIOD_NAMES: Record<string, string> = {
   infant: "Младенчество",
   toddler: "Раннее детство",
   preschool: "Дошкольный возраст",
-  school: "Школьный возраст",
+  "primary-school": "Младший школьный возраст (7-10 лет)",
+  school: "Младший школьный возраст (7-9 лет)",
   adolescence: "Подростковый возраст",
+  earlyAdult: "Ранняя зрелость (22-27 лет)",
 };
 
 export function getPeriodColors(periodId: string) {

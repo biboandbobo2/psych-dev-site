@@ -54,6 +54,17 @@ src/hooks/
 ├── useNotes.ts                   # Работа с заметками (CRUD операции)
 └── useTimeline.ts                # Добавление событий на таймлайн из заметок
 
+## Feature-based структура и экспортные точки
+
+- `src/pages/timeline/index.ts` выступает как баррель: экспортирует типы, константы, утилиты в `timeline/utils`, компоненты (`IconPickerButton`, `PeriodizationSelector`, `PeriodizationLayer`, `PeriodBoundaryModal`), хук `useTimelineHistory` и статические данные `data/periodizations`. Это упрощает импорты в `src/pages/Timeline.tsx` и других частях приложения.
+- Каждый компонент/хук живёт рядом со своей функциональной зоной:
+  - Компоненты (`components/…`) управляют UI-интерфейсами (`IconPickerButton`, `PeriodizationSelector`, панель границ `PeriodBoundaryModal`).
+  - `hooks/useTimelineHistory` держит историю undo/redo и используется совместно с `useTimelineState`.
+  - `utils/exporters.ts` и `utils/index.ts` — повторно используемые утилиты (экспорт данных, координаты, парсинг возраста).
+  - `data/periodizations.ts` содержит все актуальные периодизации и их метаданные, поэтому импортируется в форму выбора периодизации и TimelineCanvas.
+- `src/pages/Timeline.tsx` остаётся точкой интеграции: он собирает состояния из `useTimelineState`, рендерит `TimelineCanvas` и панели, экспортирует данные в `SaveNoteAsEventButton` и `NoteModal`, и подключает `src/pages/timeline/index.ts` для любых reusable элементов.
+- Согласно архивной версии `docs/TIMELINE_REFACTORING_PLAN.md`, текущие задачи по таймлайну переехали в `docs/audit-backlog.md` (разделы 4, 5, 7) и `docs/REFRACTORING_ARCHIVE.md` (секция Timeline). При работе с новым функционалом ориентируйтесь на эти документы: гайды синхронизированы, а этот файл описывает реализацию и любые отклонения от плана.
+
 ## Новая структура после рефакторинга
 
 - **`TimelineCanvas.tsx`** — теперь весь `SVG`‑рендер и обработка мыши/колёсика вынесены сюда; Canvas получает трансформацию, события, ветки и callback’и (`onSelectBranch`, `onSelectBirth`, `onPeriodBoundaryClick`).
@@ -486,3 +497,30 @@ const height = endY - startY;
   - База данных периодизаций захардкожена в `data/periodizations.ts`. При необходимости можно вынести в Firestore для динамического управления.
   - Возможное расширение: добавление пользовательских периодизаций, сравнение нескольких периодизаций на одном холсте.
 - Возможное расширение: экспорт таймлайна, фильтрация по сферам, история ветвлений во времени.
+
+## Phase 6 QA и метрики (Timeline)
+
+- Чеклист Phase 6 живёт в `docs/audit-backlog.md` (разделы 7.1–7.3) и `docs/REFRACTORING_ARCHIVE.md` (Timeline section). Перед финальной сборкой:
+  1. Прогоняйте `npm run test`, `npm run build`, ручные smoke-сценарии (CRUD заметок, экспорт) и фиксируйте результаты в `docs/qa-smoke-log.md`.
+  2. Проверяйте, что Timeline отражает те же механизмы, что описаны в `docs/TIMELINE_REFACTORING_PLAN.md` (ссылка на архив/бэклог) — архитектурные решения и новые компоненты должны быть синхронизированы.
+  3. Отмечайте любые отклонения (баги, регрессии) и привязывайте их к тикетам/коммитам, чтобы QA видела полный контекст изменений.
+  4. Автоматизируйте Lighthouse для таймлайна через `npm run lighthouse:timeline` (предварительно запуская `npm run dev -- --port=4173` или `npm run preview`), чтобы отчёты попадали в `logs/lighthouse-timeline.json`.
+
+### Замеры сборки (`npm run build`)
+
+- Команда `npm run build` выполнена на Vite 7.1.7; сборка прошла, но Vite сигнализирует о чанках > 500 кБ (предупреждение оставлено в логах).
+  - `dist/index.html` — 0.62 кБ (gzip: 0.37 кБ)
+  - `dist/assets/index-BsbPjJZN.css` — 69.85 кБ (gzip: 14.54 кБ)
+  - `dist/assets/index-xyfPF6x7.js` — 3 856.33 кБ (gzip: 2 298.00 кБ); в будущем стоит разбить логику на ленивые модули (`build.rollupOptions.output.manualChunks`) и/или lazy-роутинг.
+  - Шрифты Manrope (`dist/assets/manrope-*.woff2`) лежат в диапазоне 8.5–24.8 кБ и подключаются через `@font-face`.
+
+### Lighthouse (mobile/desktop)
+
+- Lighthouse пока не запускался в этой среде (нет headless Chromium). По завершении Phase 6 запускайте команду вроде:
+
+```
+npx lighthouse http://localhost:5173/timeline --only-categories=performance,accessibility,best-practices --output=json --output-path=logs/lighthouse-timeline.json
+```
+
+- Записывайте результаты (LCP, FID/TBT, Accessibility, Best Practices) в `docs/qa-smoke-log.md` и сверяйтесь с чеклистом.
+- Если показатели ухудшатся после рефакторинга, фиксируйте причину и добавляйте ссылку на Lighthouse-отчёт в релизную заметку.

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, orderBy, query, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { getPeriodColors } from "../constants/periods";
+import { getPeriodColors, PERIOD_NAMES, PERIOD_ORDER } from "../constants/periods";
 import { TestEditorModal } from "../components/TestEditorModal";
 
 interface Period {
@@ -12,43 +12,47 @@ interface Period {
   published: boolean;
   order: number;
   accent: string;
+  accent100?: string;
+  placeholder?: boolean;
   [key: string]: any;
+}
+
+function ensurePeriodList(fetched: Period[]) {
+  const existing = new Map(fetched.map((period) => [period.period, period]));
+  return PERIOD_ORDER.map((periodId, index) => {
+    if (existing.has(periodId)) {
+      return existing.get(periodId)!;
+    }
+    const colors = getPeriodColors(periodId);
+    return {
+      period: periodId,
+      title: PERIOD_NAMES[periodId] || periodId,
+      subtitle: "Контент пока не создан",
+      published: false,
+      order: index,
+      accent: colors.accent,
+      accent100: colors.accent100,
+      placeholder: true,
+    };
+  });
 }
 
 export default function AdminContent() {
   const [periods, setPeriods] = useState<Period[]>([]);
-  const [intro, setIntro] = useState<Period | null>(null);
   const [loading, setLoading] = useState(true);
   const [showTestEditor, setShowTestEditor] = useState(false);
 
   const loadPeriods = async () => {
     try {
       setLoading(true);
-
-      // load intro document (singleton)
-      const introDoc = await getDoc(doc(db, "intro", "singleton"));
-      if (introDoc.exists()) {
-        setIntro({ ...(introDoc.data() as Period), period: "intro" });
-      } else {
-        // fallback to collection intro (legacy)
-        const introRef = collection(db, "intro");
-        const introSnap = await getDocs(introRef);
-        if (!introSnap.empty) {
-          const introData = introSnap.docs[0].data() as Period;
-          setIntro({ ...introData, period: "intro" });
-        } else {
-          setIntro(null);
-        }
-      }
-
-      // load periods ordered by order asc
       const periodsRef = collection(db, "periods");
       const q = query(periodsRef, orderBy("order", "asc"));
       const snapshot = await getDocs(q);
-      const data = snapshot.docs.map((docSnap) => ({
+      const docs = snapshot.docs.map((docSnap) => ({
         ...(docSnap.data() as Period),
         period: docSnap.id,
       }));
+      const data = ensurePeriodList(docs);
 
       setPeriods(data);
     } catch (err: any) {
@@ -79,7 +83,7 @@ export default function AdminContent() {
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <header>
         <h1 className="text-3xl font-bold mb-2">📝 Управление контентом</h1>
-        <p className="text-gray-600">Редактирование периодов и вводного занятия</p>
+        <p className="text-gray-600">Редактирование периодов</p>
       </header>
 
       <div className="flex items-center justify-between">
@@ -104,30 +108,6 @@ export default function AdminContent() {
         </div>
       </div>
 
-      {intro && (
-        <Link
-          to="/admin/content/edit/intro"
-          className="block bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-lg shadow hover:shadow-lg transition-shadow"
-        >
-          <div className="p-6 flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h3 className="text-xl font-bold text-white">✨ Вводное занятие</h3>
-                <span
-                  className={`px-2 py-1 text-xs rounded ${
-                    intro.published ? "bg-white/20 text-white" : "bg-black/20 text-white"
-                  }`}
-                >
-                  {intro.published ? "Опубликовано" : "Черновик"}
-                </span>
-              </div>
-              <p className="text-yellow-100 text-sm">{intro.title}</p>
-            </div>
-            <span className="text-white text-3xl">✏️</span>
-          </div>
-        </Link>
-      )}
-
       <div className="space-y-3">
         {periods.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
@@ -135,12 +115,15 @@ export default function AdminContent() {
           </div>
         ) : (
           periods.map((period) => {
-            const colors = getPeriodColors(period.period);
+        const colors = getPeriodColors(period.period);
+        const isIntro = period.period === "intro";
             return (
               <Link
                 key={period.period}
                 to={`/admin/content/edit/${period.period}`}
-                className="block bg-white rounded-lg shadow hover:shadow-lg transition-shadow"
+                className={`block rounded-lg shadow hover:shadow-lg transition-shadow ${
+                  isIntro ? "bg-gradient-to-r from-yellow-400 to-yellow-500 text-white" : "bg-white"
+                }`}
               >
                 <div className="flex items-center p-4">
                   <div
@@ -149,7 +132,9 @@ export default function AdminContent() {
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
-                      <h3 className="text-lg font-bold">{period.title}</h3>
+                      <h3 className="text-lg font-bold">
+                        {isIntro ? `✨ ${period.title || "Вводное занятие"}` : period.title}
+                      </h3>
                       <span
                         className={`px-2 py-1 text-xs rounded ${
                           period.published ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-700"
@@ -159,14 +144,16 @@ export default function AdminContent() {
                       </span>
                     </div>
                     {period.subtitle && (
-                      <p className="text-sm text-gray-600 mb-2">{period.subtitle}</p>
+                      <p className={`text-sm mb-2 ${isIntro ? "text-yellow-100" : "text-gray-600"}`}>
+                        {period.subtitle}
+                      </p>
                     )}
-                    <div className="flex gap-4 text-xs text-gray-500">
+                    <div className={`flex gap-4 text-xs ${isIntro ? "text-yellow-50" : "text-gray-500"}`}>
                       <span>ID: {period.period}</span>
                       <span>Порядок: {period.order}</span>
                     </div>
                   </div>
-                  <span className="text-gray-400 text-2xl ml-4">✏️</span>
+                  <span className={`text-2xl ml-4 ${isIntro ? "text-white" : "text-gray-400"}`}>✏️</span>
                 </div>
               </Link>
             );

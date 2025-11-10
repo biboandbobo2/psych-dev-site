@@ -2,13 +2,13 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    function isAdmin() {
-      return request.auth != null && request.auth.token.role == 'admin';
+    function isAdminOrSuperAdmin() {
+      return request.auth != null && (request.auth.token.role == 'admin' || request.auth.token.role == 'super-admin');
     }
 
     match /assets/{path=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdminOrSuperAdmin();
     }
 
     match /uploads/{userId}/{path=**} {
@@ -18,7 +18,7 @@ service firebase.storage {
     // Медиа-файлы для вопросов тестов
     match /tests/{testId}/questions/{questionId}/{fileName} {
       allow read: if true; // Все могут читать медиа в тестах
-      allow write, delete: if isAdmin(); // Только админы могут загружать/удалять
+      allow write, delete: if isAdminOrSuperAdmin(); // Админы и супер-админы могут загружать/удалять
     }
   }
 }
