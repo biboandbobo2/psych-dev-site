@@ -22,6 +22,7 @@ interface UseContentLoaderParams {
   setCoreLiterature: (value: Array<{ title: string; url: string }>) => void;
   setExtraLiterature: (value: Array<{ title: string; url: string }>) => void;
   setExtraVideos: (value: Array<{ title: string; url: string }>) => void;
+  setLeisure: (value: Array<{ title?: string; url?: string; type?: string; year?: string }>) => void;
   setSelfQuestionsUrl: (value: string) => void;
 }
 
@@ -47,6 +48,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
     setCoreLiterature,
     setExtraLiterature,
     setExtraVideos,
+    setLeisure,
     setSelfQuestionsUrl,
   } = params;
 
@@ -95,6 +97,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
             core_literature: [],
             extra_literature: [],
             extra_videos: [],
+            leisure: [],
             published: false,
             order: 0,
             accent: DEFAULT_THEME.accent,
@@ -115,6 +118,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
           setCoreLiterature([]);
           setExtraLiterature([]);
           setExtraVideos([]);
+          setLeisure([]);
           setSelfQuestionsUrl('');
           return;
         }
@@ -170,6 +174,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
         setCoreLiterature(data.core_literature || []);
         setExtraLiterature(data.extra_literature || []);
         setExtraVideos(data.extra_videos || []);
+        setLeisure(data.leisure || []);
         setSelfQuestionsUrl(data.self_questions_url || '');
       } catch (error: any) {
         console.error('Error loading period', error);

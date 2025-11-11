@@ -52,6 +52,7 @@ export default function AdminContentEdit() {
     setCoreLiterature: form.setCoreLiterature,
     setExtraLiterature: form.setExtraLiterature,
     setExtraVideos: form.setExtraVideos,
+    setLeisure: form.setLeisure,
     setSelfQuestionsUrl: form.setSelfQuestionsUrl,
   });
 
@@ -75,6 +76,7 @@ export default function AdminContentEdit() {
       coreLiterature: form.coreLiterature,
       extraLiterature: form.extraLiterature,
       extraVideos: form.extraVideos,
+      leisure: form.leisure,
       selfQuestionsUrl: form.selfQuestionsUrl,
     });
   };
@@ -159,6 +161,8 @@ export default function AdminContentEdit() {
         setExtraLiterature={form.setExtraLiterature}
         extraVideos={form.extraVideos}
         setExtraVideos={form.setExtraVideos}
+        leisure={form.leisure}
+        setLeisure={form.setLeisure}
         selfQuestionsUrl={form.selfQuestionsUrl}
         setSelfQuestionsUrl={form.setSelfQuestionsUrl}
       />

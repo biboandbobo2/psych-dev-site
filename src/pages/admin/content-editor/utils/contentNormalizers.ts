@@ -1,4 +1,4 @@
-import type { VideoFormEntry, ListItem } from '../types';
+import type { VideoFormEntry } from '../types';
 
 /**
  * Normalizes concepts array by trimming and filtering empty strings
@@ -58,4 +58,27 @@ export function normalizeVideos(
       audioUrl: video.audioUrl.trim(),
     }))
     .filter((video) => Boolean(video.url));
+}
+
+/**
+ * Normalizes leisure recommendations (title required, other fields optional)
+ */
+export function normalizeLeisure(
+  items: Array<{ title?: string; url?: string; type?: string; year?: string }>
+): Array<{ title: string; url?: string; type?: string; year?: string }> {
+  return items
+    .map((item) => {
+      const title = item.title?.trim();
+      const url = item.url?.trim();
+      const type = item.type?.trim();
+      const year = item.year?.trim();
+      if (!title) return null;
+      return {
+        title,
+        ...(url ? { url } : {}),
+        ...(type ? { type } : {}),
+        ...(year ? { year } : {}),
+      };
+    })
+    .filter((item): item is { title: string; url?: string; type?: string; year?: string } => Boolean(item));
 }

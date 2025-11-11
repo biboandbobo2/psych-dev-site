@@ -11,6 +11,7 @@ export function EditableList({
   placeholder,
   maxItems = 10,
   showUrl = true,
+  extraFields = [],
 }: EditableListProps) {
   const addItem = () => {
     if (items.length < maxItems) {
@@ -71,6 +72,17 @@ export function EditableList({
                     style={SELECTABLE_TEXT_STYLE}
                   />
                 )}
+                {extraFields.map(({ key, placeholder: extraPlaceholder, type = 'text' }) => (
+                  <input
+                    key={key}
+                    type={type}
+                    value={item[key] ?? ''}
+                    onChange={(event) => updateItem(index, key, event.target.value)}
+                    placeholder={extraPlaceholder}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    style={SELECTABLE_TEXT_STYLE}
+                  />
+                ))}
               </div>
               <button
                 type="button"

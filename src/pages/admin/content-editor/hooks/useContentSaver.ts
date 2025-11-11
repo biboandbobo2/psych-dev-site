@@ -7,6 +7,7 @@ import {
   normalizeAuthors,
   normalizeLiterature,
   normalizeVideos,
+  normalizeLeisure,
 } from '../utils/contentNormalizers';
 
 interface SaveParams {
@@ -25,6 +26,7 @@ interface SaveParams {
   coreLiterature: Array<{ title: string; url: string }>;
   extraLiterature: Array<{ title: string; url: string }>;
   extraVideos: Array<{ title: string; url: string }>;
+  leisure: Array<{ title?: string; url?: string; type?: string; year?: string }>;
   selfQuestionsUrl: string;
 }
 
@@ -51,6 +53,7 @@ export function useContentSaver(onNavigate: () => void) {
       coreLiterature,
       extraLiterature,
       extraVideos,
+      leisure,
       selfQuestionsUrl,
     } = params;
 
@@ -67,6 +70,7 @@ export function useContentSaver(onNavigate: () => void) {
       const normalizedCoreLiterature = normalizeLiterature(coreLiterature);
       const normalizedExtraLiterature = normalizeLiterature(extraLiterature);
       const normalizedExtraVideos = normalizeLiterature(extraVideos);
+      const normalizedLeisure = normalizeLeisure(leisure);
 
       const trimmedTitle = title.trim();
       const normalizedVideos = normalizeVideos(videos);
@@ -85,6 +89,7 @@ export function useContentSaver(onNavigate: () => void) {
         core_literature: normalizedCoreLiterature,
         extra_literature: normalizedExtraLiterature,
         extra_videos: normalizedExtraVideos,
+        leisure: normalizedLeisure,
         status: published ? 'published' : 'draft',
         updatedAt: serverTimestamp(),
       };

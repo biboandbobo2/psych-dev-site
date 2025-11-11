@@ -8,6 +8,10 @@ interface ContentLiteratureSectionProps {
   setExtraLiterature: (items: Array<{ title: string; url: string }>) => void;
   extraVideos: Array<{ title: string; url: string }>;
   setExtraVideos: (items: Array<{ title: string; url: string }>) => void;
+  leisure: Array<{ title?: string; url?: string; type?: string; year?: string }>;
+  setLeisure: (
+    items: Array<{ title?: string; url?: string; type?: string; year?: string }>
+  ) => void;
   selfQuestionsUrl: string;
   setSelfQuestionsUrl: (value: string) => void;
 }
@@ -22,6 +26,8 @@ export function ContentLiteratureSection({
   setExtraLiterature,
   extraVideos,
   setExtraVideos,
+  leisure,
+  setLeisure,
   selfQuestionsUrl,
   setSelfQuestionsUrl,
 }: ContentLiteratureSectionProps) {
@@ -60,6 +66,26 @@ export function ContentLiteratureSection({
           placeholder="Название видео"
           maxItems={10}
           showUrl={true}
+        />
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-bold mb-4">🎲 Досуговое</h2>
+        <EditableList
+          items={leisure}
+          onChange={(items) =>
+            setLeisure(
+              items as Array<{ title?: string; url?: string; type?: string; year?: string }>
+            )
+          }
+          label="Рекомендации для вдохновения"
+          placeholder="Название (книга, фильм, подкаст...)"
+          maxItems={10}
+          showUrl={true}
+          extraFields={[
+            { key: 'type', placeholder: 'Тип (книга, фильм, выставка...)' },
+            { key: 'year', placeholder: 'Год или период (опционально)' },
+          ]}
         />
       </div>
 

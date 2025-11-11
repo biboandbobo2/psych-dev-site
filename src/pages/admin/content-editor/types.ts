@@ -26,6 +26,9 @@ export interface ListItem {
   title?: string;
   name?: string;
   url?: string;
+  type?: string;
+  year?: string;
+  [key: string]: string | undefined;
 }
 
 export interface EditableListProps {
@@ -35,6 +38,11 @@ export interface EditableListProps {
   placeholder: string;
   maxItems?: number;
   showUrl?: boolean;
+  extraFields?: Array<{
+    key: string;
+    placeholder: string;
+    type?: string;
+  }>;
 }
 
 export interface SimpleListProps {
