@@ -1,7 +1,7 @@
 // File: src/app/AppShell.jsx
 // AppShell отвечает за отображение основного контента и маршрутов,
 // опираясь на ROUTE_CONFIG, Zustand-сторы и UI-компоненты. Провайдеры (Router/Auth) живут в src/App.jsx.
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { AnimatePresence } from 'framer-motion';
@@ -19,10 +19,11 @@ import { LoadingSplash, ErrorState, EmptyState } from '../shared/ui/states';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { AppRoutes } from './AppRoutes';
 
+const normalizePath = (path) =>
+  path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
+
 function RoutePager({ currentPath }) {
-  const normalizedPath = currentPath?.endsWith('/') && currentPath.length > 1
-    ? currentPath.slice(0, -1)
-    : currentPath;
+  const normalizedPath = normalizePath(currentPath);
   const currentIndex = ROUTE_CONFIG.findIndex((route) => route.path === normalizedPath);
   if (currentIndex === -1) return null;
   const prev = currentIndex > 0 ? ROUTE_CONFIG[currentIndex - 1] : null;
@@ -72,10 +73,23 @@ export function AppShell() {
   useScrollRestoration();
   const { periods, loading, error } = usePeriods();
   const location = useLocation();
+  const normalizedPath = normalizePath(location.pathname);
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.loading);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const { isOpen, openModal, closeModal } = useLoginModal();
+
+  useEffect(() => {
+    const route = ROUTE_CONFIG.find((entry) => entry.path === normalizedPath);
+    if (!route) {
+      document.title = SITE_NAME;
+      return;
+    }
+
+    const label = route.navLabel || SITE_NAME;
+    const title = route.meta?.title ?? `${label} — ${SITE_NAME}`;
+    document.title = title;
+  }, [normalizedPath]);
 
   const periodMap = useMemo(() => {
     const map = new Map();

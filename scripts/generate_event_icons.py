@@ -62,6 +62,7 @@ ICON_ENTRIES: List[Tuple[str, str]] = [
     ("infinity-ring", "Бесконечность"),
     ("wedding-rings", "Свадебные кольца"),
     ("prayer-hands", "Поддержка"),
+    ("custom-icon", "Пользовательская иконка"),
 ]
 
 

@@ -201,6 +201,11 @@ export const EVENT_ICONS = [
     "id": "prayer-hands",
     "name": "Поддержка",
     "filename": "prayer-hands.png"
+  },
+  {
+    "id": "custom-icon",
+    "name": "Пользовательская иконка",
+    "filename": "custom-icon.png"
   }
 ] as const;
 
