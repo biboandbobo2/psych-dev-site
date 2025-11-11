@@ -8,6 +8,7 @@ interface UseContentLoaderParams {
   periodId: string | undefined;
   placeholderDefaultEnabled: boolean;
   placeholderDisplayText: string;
+  fallbackTitle: string;
   setTitle: (value: string) => void;
   setSubtitle: (value: string) => void;
   setPublished: (value: boolean) => void;
@@ -21,8 +22,8 @@ interface UseContentLoaderParams {
   setCoreLiterature: (value: Array<{ title: string; url: string }>) => void;
   setExtraLiterature: (value: Array<{ title: string; url: string }>) => void;
   setExtraVideos: (value: Array<{ title: string; url: string }>) => void;
+  setLeisure: (value: Array<{ title?: string; url?: string; type?: string; year?: string }>) => void;
   setSelfQuestionsUrl: (value: string) => void;
-  onNavigate: () => void;
 }
 
 /**
@@ -33,6 +34,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
     periodId,
     placeholderDefaultEnabled,
     placeholderDisplayText,
+    fallbackTitle,
     setTitle,
     setSubtitle,
     setPublished,
@@ -46,8 +48,8 @@ export function useContentLoader(params: UseContentLoaderParams) {
     setCoreLiterature,
     setExtraLiterature,
     setExtraVideos,
+    setLeisure,
     setSelfQuestionsUrl,
-    onNavigate,
   } = params;
 
   const [period, setPeriod] = useState<Period | null>(null);
@@ -82,8 +84,42 @@ export function useContentLoader(params: UseContentLoaderParams) {
         }
 
         if (!data) {
-          alert('Период не найден');
-          onNavigate();
+          const safeTitle =
+            (typeof fallbackTitle === 'string' && fallbackTitle.trim()) ||
+            placeholderDisplayText ||
+            'Новый период';
+          const fallbackPeriod: Period = {
+            period: periodId,
+            title: safeTitle,
+            subtitle: '',
+            concepts: [],
+            authors: [],
+            core_literature: [],
+            extra_literature: [],
+            extra_videos: [],
+            leisure: [],
+            published: false,
+            order: 0,
+            accent: DEFAULT_THEME.accent,
+            accent100: DEFAULT_THEME.accent100,
+          };
+
+          setPeriod(fallbackPeriod);
+          setTitle(fallbackPeriod.title);
+          setSubtitle('');
+          setPublished(false);
+          setOrder(0);
+          setAccent(DEFAULT_THEME.accent);
+          setAccent100(DEFAULT_THEME.accent100);
+          setPlaceholderEnabled(placeholderDefaultEnabled);
+          setVideos([createEmptyVideoEntry(0, safeTitle)]);
+          setConcepts([]);
+          setAuthors([]);
+          setCoreLiterature([]);
+          setExtraLiterature([]);
+          setExtraVideos([]);
+          setLeisure([]);
+          setSelfQuestionsUrl('');
           return;
         }
 
@@ -138,6 +174,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
         setCoreLiterature(data.core_literature || []);
         setExtraLiterature(data.extra_literature || []);
         setExtraVideos(data.extra_videos || []);
+        setLeisure(data.leisure || []);
         setSelfQuestionsUrl(data.self_questions_url || '');
       } catch (error: any) {
         console.error('Error loading period', error);
@@ -148,7 +185,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
     }
 
     loadPeriod();
-  }, [periodId, placeholderDefaultEnabled]);
+  }, [periodId, placeholderDefaultEnabled, placeholderDisplayText, fallbackTitle]);
 
   return { period, loading };
 }

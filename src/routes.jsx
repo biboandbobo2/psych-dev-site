@@ -113,6 +113,7 @@ export const ROUTE_CONFIG = [
     path: '/22-27',
     key: '22-27',
     navLabel: 'Ранняя зрелость (22–27 лет)',
+    periodId: '22-27',
     themeKey: 'earlyAdult',
     placeholderText: 'Контент для возраста 22–27 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,

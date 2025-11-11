@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { collection, orderBy, query, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { ROUTE_CONFIG } from "../routes";
 import { getPeriodColors } from "../constants/periods";
 import { TestEditorModal } from "../components/TestEditorModal";
+import { canonicalizePeriodId } from "../lib/firestoreHelpers";
 
 interface Period {
   period: string;
@@ -12,8 +14,24 @@ interface Period {
   published: boolean;
   order: number;
   accent: string;
+  isPlaceholder?: boolean;
   [key: string]: any;
 }
+
+const ROUTE_ORDER_MAP: Record<string, number> = ROUTE_CONFIG.reduce(
+  (acc, config, index) => {
+    if (config.periodId) {
+      acc[config.periodId] = index;
+    }
+    return acc;
+  },
+  {} as Record<string, number>
+);
+
+const getRouteOrder = (periodId: string) =>
+  ROUTE_ORDER_MAP[periodId] ?? Number.MAX_SAFE_INTEGER;
+
+const FALLBACK_PLACEHOLDER_TEXT = "Контент для этого возраста пока не создан.";
 
 export default function AdminContent() {
   const [periods, setPeriods] = useState<Period[]>([]);
@@ -26,12 +44,40 @@ export default function AdminContent() {
       const periodsRef = collection(db, "periods");
       const q = query(periodsRef, orderBy("order", "asc"));
       const snapshot = await getDocs(q);
-      const data = snapshot.docs.map((docSnap) => ({
-        ...(docSnap.data() as Period),
-        period: docSnap.id,
+      const data = snapshot.docs.map((docSnap) => {
+        const docData = docSnap.data() as Period;
+        const canonicalId = canonicalizePeriodId(docSnap.id);
+        return {
+          ...docData,
+          period: canonicalId,
+        };
+      });
+
+      const existingIds = new Set(data.map((period) => period.period));
+      const placeholderPeriods = ROUTE_CONFIG.filter(
+        (config) => config.periodId && !existingIds.has(config.periodId)
+      ).map((config) => ({
+        period: config.periodId!,
+        title: config.navLabel,
+        subtitle:
+          config.placeholderText ||
+          config.meta?.description ||
+          FALLBACK_PLACEHOLDER_TEXT,
+        published: false,
+        order: getRouteOrder(config.periodId!),
+        accent: "",
+        isPlaceholder: true,
       }));
 
-      setPeriods(data);
+      const combined = [...data, ...placeholderPeriods].sort((a, b) => {
+        const orderA =
+          typeof a.order === "number" ? a.order : getRouteOrder(a.period);
+        const orderB =
+          typeof b.order === "number" ? b.order : getRouteOrder(b.period);
+        return orderA - orderB;
+      });
+
+      setPeriods(combined);
     } catch (err: any) {
       console.error("Error loading periods:", err);
       alert("Failed to load periods: " + (err?.message || err));
@@ -94,13 +140,14 @@ export default function AdminContent() {
           periods.map((period) => {
             const colors = getPeriodColors(period.period);
             const isIntro = period.period === "intro";
+            const isPlaceholder = Boolean(period.isPlaceholder);
             return (
               <Link
                 key={period.period}
                 to={`/admin/content/edit/${period.period}`}
                 className={`block rounded-lg shadow hover:shadow-lg transition-shadow ${
                   isIntro ? "bg-gradient-to-r from-yellow-400 to-yellow-500 text-white" : "bg-white"
-                }`}
+                } ${isPlaceholder && !isIntro ? "border border-dashed border-blue-200" : ""}`}
               >
                 <div className="flex items-center p-4">
                   <div
@@ -119,6 +166,11 @@ export default function AdminContent() {
                       >
                         {period.published ? "Опубликовано" : "Черновик"}
                       </span>
+                      {!isIntro && isPlaceholder && (
+                        <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">
+                          Новый период
+                        </span>
+                      )}
                     </div>
                     {period.subtitle && (
                       <p className={`text-sm mb-2 ${isIntro ? "text-yellow-100" : "text-gray-600"}`}>

@@ -3,6 +3,7 @@ import type { Test } from '../../../types/tests';
 import { Section } from '../../../components/ui/Section';
 import { Button } from '../../../components/ui/Button';
 import { ensureUrl } from '../utils/media';
+import { mergeAppearance, createGradient } from '../../../utils/testAppearance';
 
 interface SelfQuestionsSectionProps {
   slug: string;
@@ -34,16 +35,26 @@ export function SelfQuestionsSection({ slug, title, content, periodTests }: Self
             </Button>
             {periodTests.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
-                {periodTests.map((test) => (
-                  <Link
-                    key={test.id}
-                    to={`/tests/dynamic/${test.id}`}
-                    className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-teal-600 text-white text-xl hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
-                    title={test.title}
-                  >
-                    📖
-                  </Link>
-                ))}
+                {periodTests.map((test) => {
+                  const appearance = mergeAppearance(test.appearance);
+                  const icon = appearance.introIcon || '📖';
+                  const backgroundImage = createGradient(
+                    appearance.accentGradientFrom,
+                    appearance.accentGradientTo,
+                    appearance.resolvedTheme?.primary
+                  );
+                  return (
+                    <Link
+                      key={test.id}
+                      to={`/tests/dynamic/${test.id}`}
+                      className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-xl text-white shadow hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
+                      title={test.title}
+                      style={{ backgroundImage }}
+                    >
+                      {icon}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>

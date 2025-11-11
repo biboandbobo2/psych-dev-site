@@ -27,6 +27,8 @@ export default function AdminContentEdit() {
   const placeholderDisplayText =
     routeConfig?.placeholderText || 'Контент для этого возраста появится в ближайшем обновлении.';
   const normalizedPlaceholderText = normalizeText(placeholderDisplayText);
+  const fallbackTitle =
+    routeConfig?.navLabel || (periodId ? `Период ${periodId}` : 'Новый период');
 
   // Form state management
   const form = useContentForm(placeholderDefaultEnabled);
@@ -36,6 +38,7 @@ export default function AdminContentEdit() {
     periodId,
     placeholderDefaultEnabled,
     placeholderDisplayText,
+    fallbackTitle,
     setTitle: form.setTitle,
     setSubtitle: form.setSubtitle,
     setPublished: form.setPublished,
@@ -49,8 +52,8 @@ export default function AdminContentEdit() {
     setCoreLiterature: form.setCoreLiterature,
     setExtraLiterature: form.setExtraLiterature,
     setExtraVideos: form.setExtraVideos,
+    setLeisure: form.setLeisure,
     setSelfQuestionsUrl: form.setSelfQuestionsUrl,
-    onNavigate: () => navigate('/admin/content'),
   });
 
   // Save/delete handlers
@@ -73,6 +76,7 @@ export default function AdminContentEdit() {
       coreLiterature: form.coreLiterature,
       extraLiterature: form.extraLiterature,
       extraVideos: form.extraVideos,
+      leisure: form.leisure,
       selfQuestionsUrl: form.selfQuestionsUrl,
     });
   };
@@ -157,6 +161,8 @@ export default function AdminContentEdit() {
         setExtraLiterature={form.setExtraLiterature}
         extraVideos={form.extraVideos}
         setExtraVideos={form.setExtraVideos}
+        leisure={form.leisure}
+        setLeisure={form.setLeisure}
         selfQuestionsUrl={form.selfQuestionsUrl}
         setSelfQuestionsUrl={form.setSelfQuestionsUrl}
       />
