@@ -78,6 +78,11 @@
 - **Цель:** стремление к полному покрытию кода unit тестами
 - Текущее покрытие: utility functions (testChainHelpers, testAppearance)
 - Скрипты: `npm test`, `npm run test:ui`, `npm run test:coverage`
+- Дополнительно:
+- `npm run test:ci` — запускает `vitest --runInBand`, используется в CI/при sequential прогоне, чтобы избежать параллельных writes.
+- `npm run test:integration` — запускает `vitest tests/integration --runInBand`, предполагает, что Firebase эмуляторы подняты и использует helper из `tests/integration/helper.ts`.
+- `npm run lint` — линтит всё дерево через ESLint.
+- `npm run build` — проверяет, что Vite собирает проект без ошибок.
 
 ### 🏗️ Архитектура
 - **Barrel exports** для чистых импортов (components, hooks, stores, utils, lib)
@@ -221,3 +226,7 @@ VITE_FIREBASE_APP_ID
 | Под мобилку (< 640 px) нет горизонтального скролла | DevTools Responsive            |
 | Lighthouse Mobile ≥ 90                             | `npm run preview` + Lighthouse |
 | Пустые секции (нет данных) не рендерятся           | ручной переход                 |
+## Logging & Privacy — мини-приёмка
+- `npm run check-console` проверяет staged-файлы в `src/**` и `functions/src/**`, пропуская `src/lib/debug.ts`, `functions/src/lib/debug.ts` и `scripts/**`.
+- Husky pre-commit запускает `npm run -s lint` и `npm run -s check-console`, поэтому raw `console.*` блокируются до коммита;
+  подробности и политика логов описаны в [docs/ARCHITECTURE_GUIDELINES.md#logging--privacy](docs/ARCHITECTURE_GUIDELINES.md#logging--privacy).

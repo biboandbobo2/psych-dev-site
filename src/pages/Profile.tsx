@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getCountFromServer, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { debugError } from '../lib/debug';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
 import { useAuth } from '../auth/AuthProvider';
 
-function AdminPanel({ isSuperAdmin }: { isSuperAdmin: boolean }) {
+export function AdminPanel({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const [stats, setStats] = useState({
     totalPeriods: 0,
     publishedPeriods: 0,
@@ -20,20 +21,21 @@ function AdminPanel({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         const totalPeriods = periodsSnap.size;
         const publishedPeriods = periodsSnap.docs.filter((periodDoc) => periodDoc.data().published === true).length;
 
-        const usersSnap = await getDocs(collection(db, 'users'));
-        const totalAdmins = usersSnap.docs.filter((userDoc) => {
-          const role = userDoc.data().role;
-          return role === 'admin' || role === 'super-admin';
-        }).length;
+        const adminsQuery = query(
+          collection(db, 'users'),
+          where('role', 'in', ['admin', 'super-admin'])
+        );
+        const adminCountSnap = await getCountFromServer(adminsQuery);
+        const totalAdmins = adminCountSnap.data().count ?? 0;
 
         setStats({
-          totalPeriods: totalPeriods + 1,
-          publishedPeriods: publishedPeriods + 1,
+          totalPeriods,
+          publishedPeriods,
           totalUsers: totalAdmins,
           loading: false,
         });
       } catch (error) {
-        console.error('Error loading stats:', error);
+        debugError('Error loading stats:', error);
         setStats((prev) => ({ ...prev, loading: false }));
       }
     };
