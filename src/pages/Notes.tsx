@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNotes } from '../hooks/useNotes';
-import { AGE_RANGE_ORDER, type AgeRange, type Note } from '../types/notes';
+import { type AgeRange, type Note } from '../types/notes';
 import { sortNotes, type SortOption } from '../utils/sortNotes';
 import { NotesHeader } from './notes/components/NotesHeader';
 import { NotesList } from './notes/components/NotesList';
 import { NotesEmpty } from './notes/components/NotesEmpty';
 import { NotesEditor } from './notes/components/NotesEditor';
+import { debugError } from '../lib/debug';
 
 const SORT_STORAGE_KEY = 'notesSortPreference';
 
@@ -88,7 +89,7 @@ export default function Notes() {
         await createNote(data.title, data.content, data.ageRange, data.topicId, data.topicTitle);
       }
     } catch (err) {
-      console.error('Error saving note', err);
+      debugError('Error saving note', err);
       alert('Ошибка при сохранении заметки');
     }
   };
@@ -98,7 +99,7 @@ export default function Notes() {
     try {
       await deleteNote(noteId);
     } catch (err) {
-      console.error(err);
+      debugError(err);
       alert('Ошибка при удалении заметки');
     }
   };
