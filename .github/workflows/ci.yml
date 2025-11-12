@@ -31,8 +31,17 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+      - name: Check module initialization
+        run: npm run check:init
+
       - name: Run tests
         run: npm run test
 
       - name: Build
         run: npm run build
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E production smoke tests
+        run: npm run test:e2e:prod

@@ -78,7 +78,17 @@ export const AGE_RANGE_ORDER: AgeRange[] = [
   'oldestOld',
 ];
 
-export const AGE_RANGE_OPTIONS = AGE_RANGE_ORDER.map((value) => ({
-  value,
-  label: AGE_RANGE_LABELS[value] ?? value,
-}));
+// Lazy initialization to avoid "Cannot access uninitialized variable" in production
+let _AGE_RANGE_OPTIONS: Array<{ value: AgeRange; label: string }> | null = null;
+
+function getAgeRangeOptions(): Array<{ value: AgeRange; label: string }> {
+  if (!_AGE_RANGE_OPTIONS) {
+    _AGE_RANGE_OPTIONS = AGE_RANGE_ORDER.map((value) => ({
+      value,
+      label: AGE_RANGE_LABELS[value] ?? value,
+    }));
+  }
+  return _AGE_RANGE_OPTIONS;
+}
+
+export const AGE_RANGE_OPTIONS = getAgeRangeOptions();

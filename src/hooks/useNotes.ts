@@ -14,20 +14,29 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../auth/AuthProvider';
 import { type Note, type AgeRange, AGE_RANGE_ORDER, AGE_RANGE_LABELS } from '../types/notes';
 import { reportAppError } from '../lib/errorHandler';
+import { debugLog, debugError } from '../lib/debug';
 
 const LEGACY_AGE_RANGE_MAP: Record<string, AgeRange> = {
   'early-childhood': 'infancy',
   school: 'primary-school',
 };
 
-const VALID_AGE_RANGES = new Set<AgeRange>(AGE_RANGE_ORDER);
+// Lazy initialization to avoid "Cannot access uninitialized variable" in production
+let VALID_AGE_RANGES: Set<AgeRange> | null = null;
+
+function getValidAgeRanges(): Set<AgeRange> {
+  if (!VALID_AGE_RANGES) {
+    VALID_AGE_RANGES = new Set<AgeRange>(AGE_RANGE_ORDER);
+  }
+  return VALID_AGE_RANGES;
+}
 
 const normalizeAgeRangeValue = (value: unknown): AgeRange | null => {
   if (!value) return null;
   if (typeof value !== 'string') return null;
 
   const mapped = LEGACY_AGE_RANGE_MAP[value] ?? value;
-  if (mapped && VALID_AGE_RANGES.has(mapped as AgeRange)) {
+  if (mapped && getValidAgeRanges().has(mapped as AgeRange)) {
     return mapped as AgeRange;
   }
 
@@ -59,16 +68,16 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
       notesQuery = query(collection(db, 'notes'), where('userId', '==', user.uid));
     }
 
-    console.log('Starting notes listener for user:', user.uid, 'ageRange:', ageRangeFilter);
+    debugLog('[useNotes] Starting notes listener for user:', user.uid, 'ageRange:', ageRangeFilter);
 
     const unsubscribe = onSnapshot(
       notesQuery,
       (snapshot) => {
-        console.log('Received notes snapshot:', snapshot.size, 'documents');
+        debugLog('[useNotes] Received notes snapshot:', snapshot.size, 'documents');
 
         let notesData = snapshot.docs.map((docSnap) => {
           const data = docSnap.data();
-          console.log('Note document:', docSnap.id, data);
+          debugLog('[useNotes] Note document:', docSnap.id, data);
           const ageRange = normalizeAgeRangeValue(data.ageRange ?? data.periodId);
           const periodId = normalizeAgeRangeValue(data.periodId ?? ageRange);
           const periodTitle = data.periodTitle ?? (periodId ? AGE_RANGE_LABELS[periodId] : null);
@@ -93,7 +102,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
           return dateB - dateA;
         });
 
-        console.log('Sorted notes:', notesData.length, 'total');
+        debugLog('[useNotes] Sorted notes:', notesData.length, 'total');
         setNotes(notesData);
         setLoading(false);
         setError(null);
@@ -106,7 +115,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
     );
 
     return () => {
-      console.log('Cleaning up notes listener');
+      debugLog('[useNotes] Cleaning up notes listener');
       unsubscribe();
     };
   }, [user, ageRangeFilter]);
@@ -119,7 +128,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
     topicTitle: string | null = null
   ) => {
     if (!user) {
-      console.error('Cannot create note: user not authenticated');
+      debugError('[useNotes] Cannot create note: user not authenticated');
       throw new Error('User not authenticated');
     }
 
@@ -139,9 +148,9 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
         updatedAt: serverTimestamp(),
       };
 
-      console.log('Creating note:', noteData);
+      debugLog('[useNotes] Creating note:', noteData);
       const docRef = await addDoc(collection(db, 'notes'), noteData);
-      console.log('✅ Note created successfully with ID:', docRef.id);
+      debugLog('[useNotes] ✅ Note created successfully with ID:', docRef.id);
       return docRef.id;
       } catch (error) {
         reportAppError({ message: 'Не удалось создать заметку', error, context: 'useNotes.createNote' });
@@ -155,7 +164,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
   ) => {
     try {
       const noteRef = doc(db, 'notes', noteId);
-      console.log('Updating note:', noteId, updates);
+      debugLog('[useNotes] Updating note:', noteId, updates);
       const normalizedUpdates: Partial<Pick<Note, 'title' | 'content' | 'ageRange' | 'topicId' | 'topicTitle'>> = {
         ...updates,
       };
@@ -183,7 +192,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
       }
 
       await updateDoc(noteRef, payload);
-      console.log('✅ Note updated successfully');
+      debugLog('[useNotes] ✅ Note updated successfully');
     } catch (error) {
       reportAppError({ message: 'Не удалось обновить заметку', error, context: 'useNotes.updateNote' });
       throw error;
@@ -192,9 +201,9 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
 
   const deleteNote = async (noteId: string) => {
     try {
-      console.log('Deleting note:', noteId);
+      debugLog('[useNotes] Deleting note:', noteId);
       await deleteDoc(doc(db, 'notes', noteId));
-      console.log('✅ Note deleted successfully');
+      debugLog('[useNotes] ✅ Note deleted successfully');
     } catch (error) {
       reportAppError({ message: 'Не удалось удалить заметку', error, context: 'useNotes.deleteNote' });
       throw error;

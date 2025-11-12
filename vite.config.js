@@ -4,6 +4,22 @@ import react from '@vitejs/plugin-react';
 
 const chunkMapper = (id) => {
   if (!id) return null;
+
+  // node_modules should go to vendor chunk
+  if (id.includes('node_modules')) {
+    return 'vendor';
+  }
+
+  // Shared constants and types MUST be in a separate chunk that loads FIRST
+  // This prevents "Cannot access uninitialized variable" errors
+  if (id.includes('/src/types/notes') ||
+      id.includes('/src/utils/periodConfig') ||
+      id.includes('/src/utils/testAppearance') ||
+      id.includes('/src/utils/sortNotes') ||
+      id.includes('/src/constants/themePresets')) {
+    return 'shared-constants';
+  }
+
   if (id.includes('/src/pages/Timeline.tsx')) {
     return 'timeline';
   }
@@ -38,7 +54,7 @@ const chunkMapper = (id) => {
   if (id.includes('/src/pages/Profile')) {
     return 'profile';
   }
-  return null;
+  return undefined;
 };
 
 export default defineConfig(({ mode }) => {
