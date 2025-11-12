@@ -78,6 +78,11 @@
 - **Цель:** стремление к полному покрытию кода unit тестами
 - Текущее покрытие: utility functions (testChainHelpers, testAppearance)
 - Скрипты: `npm test`, `npm run test:ui`, `npm run test:coverage`
+- Дополнительно:
+- `npm run test:ci` — запускает `vitest --runInBand`, используется в CI/при sequential прогоне, чтобы избежать параллельных writes.
+- `npm run test:integration` — запускает `vitest tests/integration --runInBand`, предполагает, что Firebase эмуляторы подняты и использует helper из `tests/integration/helper.ts`.
+- `npm run lint` — линтит всё дерево через ESLint.
+- `npm run build` — проверяет, что Vite собирает проект без ошибок.
 
 ### 🏗️ Архитектура
 - **Barrel exports** для чистых импортов (components, hooks, stores, utils, lib)
