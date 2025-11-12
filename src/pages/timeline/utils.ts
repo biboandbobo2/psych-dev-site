@@ -34,27 +34,4 @@ export function parseAge(value: string): number {
   return isNaN(parsed) ? 0 : parsed;
 }
 
-/**
- * Удаляет undefined значения из объекта (Firestore их не поддерживает)
- */
-export function removeUndefined<T>(obj: T): T {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map((item) => removeUndefined(item)) as T;
-  }
-
-  if (typeof obj === 'object') {
-    const cleaned: any = {};
-    for (const key in obj) {
-      if (obj[key] !== undefined) {
-        cleaned[key] = removeUndefined(obj[key]);
-      }
-    }
-    return cleaned;
-  }
-
-  return obj;
-}
+export { removeUndefined } from '../../utils/removeUndefined';

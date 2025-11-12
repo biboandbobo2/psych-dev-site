@@ -30,8 +30,9 @@ import {
   MAX_QUESTION_ANSWERS,
   MAX_REVEAL_ATTEMPTS,
 } from '../types/tests';
-import { removeUndefined } from '../pages/timeline/utils';
+import { removeUndefined } from '../utils/removeUndefined';
 import { mergeAppearance } from '../utils/testAppearance';
+import { debugError, debugLog } from '../lib/debug';
 
 const TESTS_COLLECTION = 'tests';
 
@@ -369,14 +370,14 @@ function firestoreToTest(id: string, data: any): Test {
  * Получить все тесты
  */
 export async function getAllTests(): Promise<Test[]> {
-  console.log('🔵 [getAllTests] Загружаем все тесты...');
+  debugLog('🔵 [getAllTests] Загружаем все тесты...');
   const testsRef = collection(db, TESTS_COLLECTION);
   const q = query(testsRef, orderBy('updatedAt', 'desc'));
 
   const snapshot = await getDocs(q);
   const tests = snapshot.docs.map(doc => firestoreToTest(doc.id, doc.data()));
 
-  console.log('✅ [getAllTests] Загружено тестов:', tests.length);
+  debugLog('✅ [getAllTests] Загружено тестов:', tests.length);
   return tests;
 }
 
@@ -384,7 +385,7 @@ export async function getAllTests(): Promise<Test[]> {
  * Получить только опубликованные тесты
  */
 export async function getPublishedTests(): Promise<Test[]> {
-  console.log('🔵 [getPublishedTests] Загружаем опубликованные тесты...');
+  debugLog('🔵 [getPublishedTests] Загружаем опубликованные тесты...');
   const testsRef = collection(db, TESTS_COLLECTION);
   const q = query(
     testsRef,
@@ -395,7 +396,7 @@ export async function getPublishedTests(): Promise<Test[]> {
   const snapshot = await getDocs(q);
   const tests = snapshot.docs.map(doc => firestoreToTest(doc.id, doc.data()));
 
-  console.log('✅ [getPublishedTests] Загружено опубликованных тестов:', tests.length);
+  debugLog('✅ [getPublishedTests] Загружено опубликованных тестов:', tests.length);
   return tests;
 }
 
@@ -403,17 +404,17 @@ export async function getPublishedTests(): Promise<Test[]> {
  * Получить тест по ID
  */
 export async function getTestById(testId: string): Promise<Test | null> {
-  console.log('🔵 [getTestById] Загружаем тест:', testId);
+  debugLog('🔵 [getTestById] Загружаем тест:', testId);
   const testRef = doc(db, TESTS_COLLECTION, testId);
   const snapshot = await getDoc(testRef);
 
   if (!snapshot.exists()) {
-    console.log('❌ [getTestById] Тест не найден');
+    debugError('❌ [getTestById] Тест не найден');
     return null;
   }
 
   const test = firestoreToTest(snapshot.id, snapshot.data());
-  console.log('✅ [getTestById] Тест загружен:', test.title);
+  debugLog('✅ [getTestById] Тест загружен:', test.title);
   return test;
 }
 
@@ -424,7 +425,7 @@ export async function createTest(
   testData: CreateTestData,
   userId: string
 ): Promise<string> {
-  console.log('🔵 [createTest] Создаём новый тест:', testData.title);
+  debugLog('🔵 [createTest] Создаём новый тест:', testData.title);
 
   const testsRef = collection(db, TESTS_COLLECTION);
   const { appearance, defaultRevealPolicy, ...rest } = testData;
@@ -443,7 +444,7 @@ export async function createTest(
   });
 
   const docRef = await addDoc(testsRef, data);
-  console.log('✅ [createTest] Тест создан с ID:', docRef.id);
+  debugLog('✅ [createTest] Тест создан с ID:', docRef.id);
   return docRef.id;
 }
 
@@ -454,7 +455,7 @@ export async function updateTest(
   testId: string,
   updates: UpdateTestData
 ): Promise<void> {
-  console.log('🔵 [updateTest] Обновляем тест:', testId);
+  debugLog('🔵 [updateTest] Обновляем тест:', testId);
 
   const testRef = doc(db, TESTS_COLLECTION, testId);
   const { appearance, defaultRevealPolicy, ...rest } = updates;
@@ -472,7 +473,7 @@ export async function updateTest(
   });
 
   await updateDoc(testRef, data);
-  console.log('✅ [updateTest] Тест обновлён');
+  debugLog('✅ [updateTest] Тест обновлён');
 }
 
 /**
@@ -482,7 +483,7 @@ export async function updateTestQuestions(
   testId: string,
   questions: TestQuestion[]
 ): Promise<void> {
-  console.log('🔵 [updateTestQuestions] Обновляем вопросы теста:', testId);
+  debugLog('🔵 [updateTestQuestions] Обновляем вопросы теста:', testId);
 
   const testRef = doc(db, TESTS_COLLECTION, testId);
 
@@ -492,48 +493,48 @@ export async function updateTestQuestions(
     updatedAt: serverTimestamp(),
   });
 
-  console.log('✅ [updateTestQuestions] Вопросы обновлены, количество:', questions.length);
+  debugLog('✅ [updateTestQuestions] Вопросы обновлены, количество:', questions.length);
 }
 
 /**
  * Удалить тест
  */
 export async function deleteTest(testId: string): Promise<void> {
-  console.log('🔵 [deleteTest] Удаляем тест:', testId);
+  debugLog('🔵 [deleteTest] Удаляем тест:', testId);
 
   const testRef = doc(db, TESTS_COLLECTION, testId);
   await deleteDoc(testRef);
 
-  console.log('✅ [deleteTest] Тест удалён');
+  debugLog('✅ [deleteTest] Тест удалён');
 }
 
 /**
  * Опубликовать тест (изменить статус на 'published')
  */
 export async function publishTest(testId: string): Promise<void> {
-  console.log('🔵 [publishTest] Публикуем тест:', testId);
+  debugLog('🔵 [publishTest] Публикуем тест:', testId);
 
   await updateTest(testId, { status: 'published' });
 
-  console.log('✅ [publishTest] Тест опубликован');
+  debugLog('✅ [publishTest] Тест опубликован');
 }
 
 /**
  * Снять тест с публикации (пометить как "unpublished")
  */
 export async function unpublishTest(testId: string): Promise<void> {
-  console.log('🔵 [unpublishTest] Снимаем тест с публикации:', testId);
+  debugLog('🔵 [unpublishTest] Снимаем тест с публикации:', testId);
 
   await updateTest(testId, { status: 'unpublished' });
 
-  console.log('✅ [unpublishTest] Тест снят с публикации');
+  debugLog('✅ [unpublishTest] Тест снят с публикации');
 }
 
 /**
  * Проверить, существует ли тест с таким названием
  */
 export async function isTestTitleUnique(title: string, excludeTestId?: string): Promise<boolean> {
-  console.log('🔵 [isTestTitleUnique] Проверяем уникальность:', title);
+  debugLog('🔵 [isTestTitleUnique] Проверяем уникальность:', title);
 
   const testsRef = collection(db, TESTS_COLLECTION);
   const normalizedTitle = title.trim().toLowerCase();
@@ -552,7 +553,7 @@ export async function isTestTitleUnique(title: string, excludeTestId?: string): 
   );
 
   const isUnique = !duplicate;
-  console.log(isUnique ? '✅ [isTestTitleUnique] Название уникально' : '❌ [isTestTitleUnique] Название уже используется');
+  debugLog(isUnique ? '✅ [isTestTitleUnique] Название уникально' : '❌ [isTestTitleUnique] Название уже используется');
 
   return isUnique;
 }

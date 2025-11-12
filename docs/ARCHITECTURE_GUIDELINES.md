@@ -315,7 +315,7 @@ export function LoginForm({ onSubmit }) {
   import { debugLog } from '../lib/debug';
   debugLog('[Notes] loaded', notes.length);
   ```
-- Прямые вызовы `console.log`, `console.debug`, `console.warn`, `console.error` запрещены в `src/*`, `shared/*` и `functions/src/*` — используйте обёртки `debug*` или `functionsDebug*` (см. `functions/src/lib/debug.ts`). Например, диагностика env-переменных в `src/lib/firebase.ts` должна идти через `debugLog`, иначе `check-console` блокирует коммит.
+- Прямые вызовы `console.log`, `console.debug`, `console.warn`, `console.error` запрещены в `src/*`, `shared/*` и `functions/src/*` — используйте обёртки `debug*` или `functionsDebug*` (см. `functions/src/lib/debug.ts`). `npm run check-console` проверяет staged-файлы, а Husky pre-commit сразу отклонит коммит с `console.*`; например, диагностика env-переменых в `src/lib/firebase.ts` должна идти через `debugLog`, чтобы lint/`check-console` успешно прошли.
 - Husky `pre-commit` запускает `npm run lint && npm run check-console`: последний проверяет staged-файлы в `src/` и `functions/src/` и запрещает `console.*` вне `debug.ts`/`functions/src/lib/debug.ts`/`scripts/**`.
 - Запрещено логировать ID токены, email/UID, содержимое заметок, результаты тестов, значения env.
 - ESLint/прехуки блокируют `console.log` в `src/lib`, `src/pages`, `functions/src` (оставляйте только явные исключения).
@@ -340,6 +340,7 @@ export function LoginForm({ onSubmit }) {
 - Shared-хуки/компоненты не должны импортировать страницы и наоборот: это предотвращает попадание тяжелого JS в initial bundle.  
 - Каждый lazy-блок оборачивается в `Suspense` + `PageLoader` и имеет понятный label (напр. `PageLoader label="Загрузка таймлайна"`), это нужно учитывать на этапе дизайна фичи.  
 - При добавлении новой страницы или heavy-компонента сразу фиксируйте `manualChunks` в `vite.config.js` и описывайте chunk-архи в `docs/lazy-loading-migration.md`, чтобы сразу держать target 200-600 кБ.  
+- Утилиты и константы, которые нужны сразу нескольким ленивым страницам (`removeUndefined`, `AGE_RANGE_*`, topic-helpers и т.п.), выносите в `src/utils/*`/`shared` и импортируйте напрямую из обычных модулей, а не через page-level chunk. Иначе один ленивый chunk может импортировать другой и по цепочке пытаться прочитать `const`, ещё не инициализированный, что ведёт к `ReferenceError: Cannot access uninitialized variable` на проде.
 
 ---
 
