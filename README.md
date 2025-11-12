@@ -90,6 +90,14 @@
 - **Google OAuth** для авторизации
 - **Cloud Storage** для медиа-файлов (изображения, аудио, PDF)
 
+## Ленивые страницы и manualChunks
+- Основные ленивые точки (`/timeline`, `/notes`, `/tests`, `/admin*`, `/profile`, `/dynamic/:testId`) экспортируются из `src/pages/lazy.ts` и подгружаются через `Suspense` + `PageLoader` в `src/app/AppRoutes.tsx`.
+- После добавления `manualChunks` (см. `vite.config.js`) chunk `timeline` содержит только orchestrating logic, а визуальные блоки (`timeline-canvas`, `timeline-left-panel`, `timeline-right-panel`, `timeline-bulk`, `timeline-help`) и `tests`, `admin`, `notes`, `profile` — свои отдельные файлы.
+- При добавлении новой ленивой страницы:
+  1. Зарегистрируйте `React.lazy`-импорт в `src/pages/lazy.ts`.
+  2. Обновите маршруты и, при необходимости, `manualChunks`, чтобы chunk оставался целевым (~200–600 кБ).
+  3. Прогоняйте `npm run build`, `npm run test` и, если нужно, `npm run dev` + `npx lighthouse` (описано в `docs/lazy-loading-migration.md`).
+
 ## Основные маршруты
 
 ### Публичные

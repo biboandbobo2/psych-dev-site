@@ -7,3 +7,4 @@ export { Button } from './Button';
 export { NavigationProgress } from './NavigationProgress';
 export { Section, SectionMuted } from './Section';
 export { Skeleton } from './Skeleton';
+export { PageLoader } from './PageLoader';

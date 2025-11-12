@@ -1,9 +1,10 @@
 // Timeline component with bulk event creation support
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon, type EventIconId } from '../components/Icon';
 import { EVENT_ICON_MAP } from '../data/eventIcons';
 import { useNotes } from '../hooks/useNotes';
+import { PageLoader } from '../components/ui';
 
 // Импорт типов, констант, утилит и компонентов из модулей
 import type {
@@ -32,11 +33,6 @@ import { screenToWorld, clamp, parseAge } from './timeline/utils';
 import { IconPickerButton } from './timeline/components/IconPickerButton';
 import { PeriodizationSelector } from './timeline/components/PeriodizationSelector';
 import { PeriodBoundaryModal } from './timeline/components/PeriodBoundaryModal';
-import { BulkEventCreator } from './timeline/components/BulkEventCreator';
-import { SaveEventAsNoteButton } from './timeline/components/SaveEventAsNoteButton';
-import { TimelineLeftPanel } from './timeline/components/TimelineLeftPanel';
-import { TimelineRightPanel } from './timeline/components/TimelineRightPanel';
-import { TimelineCanvas } from './timeline/components/TimelineCanvas';
 import { PERIODIZATIONS, getPeriodizationById } from './timeline/data/periodizations';
 import { exportTimelineJSON, exportTimelinePNG, exportTimelinePDF } from './timeline/utils/exporters';
 import { useTimelineState } from './timeline/hooks/useTimelineState';
@@ -49,7 +45,21 @@ import { useTimelinePanZoom } from './timeline/hooks/useTimelinePanZoom';
 import { useTimelineDragDrop } from './timeline/hooks/useTimelineDragDrop';
 import { useTimelineBranch } from './timeline/hooks/useTimelineBranch';
 import { useTimelineCRUD } from './timeline/hooks/useTimelineCRUD';
-import { TimelineHelpModal } from './timeline/components/TimelineHelpModal';
+const TimelineLeftPanel = lazy(() =>
+  import('./timeline/components/TimelineLeftPanel').then((module) => ({ default: module.TimelineLeftPanel }))
+);
+const TimelineRightPanel = lazy(() =>
+  import('./timeline/components/TimelineRightPanel').then((module) => ({ default: module.TimelineRightPanel }))
+);
+const TimelineCanvas = lazy(() =>
+  import('./timeline/components/TimelineCanvas').then((module) => ({ default: module.TimelineCanvas }))
+);
+const BulkEventCreator = lazy(() =>
+  import('./timeline/components/BulkEventCreator').then((module) => ({ default: module.BulkEventCreator }))
+);
+const TimelineHelpModal = lazy(() =>
+  import('./timeline/components/TimelineHelpModal').then((module) => ({ default: module.TimelineHelpModal }))
+);
 
 
 // ============ MAIN COMPONENT ============
@@ -341,54 +351,59 @@ export default function Timeline() {
       transition={{ duration: 0.3 }}
       className="fixed inset-0 bg-gradient-to-br from-slate-50 to-white overflow-hidden"
     >
-      <TimelineLeftPanel
-        currentAge={currentAge}
-        ageMax={ageMax}
-        viewportAge={viewportAge}
-        scale={transform.k}
-        nodes={nodes}
-        downloadMenuOpen={downloadMenuOpen}
-        downloadButtonRef={downloadButtonRef}
-        downloadMenuRef={downloadMenuRef}
-        onCurrentAgeChange={(value) => setCurrentAge(value)}
-        onViewportAgeChange={handleViewportAgeChange}
-        onScaleChange={handleScaleChange}
-        onDownloadMenuToggle={toggleDownloadMenu}
-        onDownloadSelect={handleDownload}
-        onClearAll={crudHook.handleClearAll}
-      />
+      <Suspense fallback={<PageLoader label="Загрузка панели навигации..." />}>
+        <TimelineLeftPanel
+          currentAge={currentAge}
+          ageMax={ageMax}
+          viewportAge={viewportAge}
+          scale={transform.k}
+          nodes={nodes}
+          downloadMenuOpen={downloadMenuOpen}
+          downloadButtonRef={downloadButtonRef}
+          downloadMenuRef={downloadMenuRef}
+          onCurrentAgeChange={(value) => setCurrentAge(value)}
+          onViewportAgeChange={handleViewportAgeChange}
+          onScaleChange={handleScaleChange}
+          onDownloadMenuToggle={toggleDownloadMenu}
+          onDownloadSelect={handleDownload}
+          onClearAll={crudHook.handleClearAll}
+        />
+      </Suspense>
 
-      <TimelineCanvas
-        svgRef={svgRef}
-        transform={transform}
-        worldWidth={worldWidth}
-        worldHeight={worldHeight}
-        ageMax={ageMax}
-        currentAge={currentAge}
-        nodes={nodes}
-        edges={edges}
-        selectedPeriodization={selectedPeriodization}
-        selectedId={selectedId}
-        selectedBranchX={branchHook.selectedBranchX}
-        draggingNodeId={dragDropHook.draggingNodeId}
-        birthSelected={birthHook.birthSelected}
-        birthBaseYear={birthHook.birthBaseYear}
-        formattedCurrentAge={formattedCurrentAge}
-        currentYearLabel={currentYearLabel}
-        cursorClass={cursorClass}
-        onWheel={panZoomHook.handleWheel}
-        onPointerDown={panZoomHook.handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onNodeClick={handleNodeClick}
-        onNodeDragStart={dragDropHook.handleNodeDragStart}
-        onPeriodBoundaryClick={handlePeriodBoundaryClick}
-        onSelectBranch={handleSelectBranch}
-        onClearSelection={handleClearSelection}
-        onSelectBirth={birthHook.handleBirthSelect}
-      />
+      <Suspense fallback={<PageLoader label="Подгрузка холста..." />}>
+        <TimelineCanvas
+          svgRef={svgRef}
+          transform={transform}
+          worldWidth={worldWidth}
+          worldHeight={worldHeight}
+          ageMax={ageMax}
+          currentAge={currentAge}
+          nodes={nodes}
+          edges={edges}
+          selectedPeriodization={selectedPeriodization}
+          selectedId={selectedId}
+          selectedBranchX={branchHook.selectedBranchX}
+          draggingNodeId={dragDropHook.draggingNodeId}
+          birthSelected={birthHook.birthSelected}
+          birthBaseYear={birthHook.birthBaseYear}
+          formattedCurrentAge={formattedCurrentAge}
+          currentYearLabel={currentYearLabel}
+          cursorClass={cursorClass}
+          onWheel={panZoomHook.handleWheel}
+          onPointerDown={panZoomHook.handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onNodeClick={handleNodeClick}
+          onNodeDragStart={dragDropHook.handleNodeDragStart}
+          onPeriodBoundaryClick={handlePeriodBoundaryClick}
+          onSelectBranch={handleSelectBranch}
+          onClearSelection={handleClearSelection}
+          onSelectBirth={birthHook.handleBirthSelect}
+        />
+      </Suspense>
 
-      <TimelineRightPanel
+      <Suspense fallback={<PageLoader label="Загрузка панели деталей..." />}>
+        <TimelineRightPanel
         saveStatus={saveStatus}
         selectedPeriodization={selectedPeriodization}
         onPeriodizationChange={setSelectedPeriodization}
@@ -436,7 +451,8 @@ export default function Timeline() {
         redo={redo}
         historyIndex={historyIndex}
         historyLength={historyLength}
-      />
+        />
+      </Suspense>
 
       {/* Periodization Boundary Modal */}      {/* Periodization Boundary Modal */}
       {periodBoundaryModal && selectedPeriodization && (() => {
@@ -461,22 +477,26 @@ export default function Timeline() {
 
       {/* Bulk Event Creator Modal */}
       {showBulkCreator && (
-        <BulkEventCreator
-          onClose={() => setShowBulkCreator(false)}
-          onCreate={crudHook.handleBulkCreate}
-          onExtendBranch={branchHook.handleExtendBranchForBulk}
-          ageMax={ageMax}
-          selectedBranchX={branchHook.selectedBranchX}
-          selectedEdge={branchHook.selectedEdge}
-          branchSphere={branchHook.selectedEdge ? (() => {
-            const originNode = nodes.find((n) => n.id === branchHook.selectedEdge!.nodeId);
-            return originNode?.sphere;
-          })() : undefined}
-        />
+        <Suspense fallback={<PageLoader label="Подгрузка массового события..." />}>
+          <BulkEventCreator
+            onClose={() => setShowBulkCreator(false)}
+            onCreate={crudHook.handleBulkCreate}
+            onExtendBranch={branchHook.handleExtendBranchForBulk}
+            ageMax={ageMax}
+            selectedBranchX={branchHook.selectedBranchX}
+            selectedEdge={branchHook.selectedEdge}
+            branchSphere={branchHook.selectedEdge ? (() => {
+              const originNode = nodes.find((n) => n.id === branchHook.selectedEdge!.nodeId);
+              return originNode?.sphere;
+            })() : undefined}
+          />
+        </Suspense>
       )}
 
       {/* Help Modal */}
-      <TimelineHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+      <Suspense fallback={<PageLoader label="Загрузка справки..." />}>
+        <TimelineHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+      </Suspense>
     </motion.div>
   );
 }

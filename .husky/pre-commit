@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "🔎 ESLint…"
+npm run -s lint
+
+echo "🕵️ Поиск запрещённых console.*…"
+npm run check-console
+
+echo "✅ pre-commit OK"
