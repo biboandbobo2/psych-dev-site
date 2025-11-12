@@ -2,7 +2,8 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../auth/AuthProvider';
 import type { NodeT, EdgeT, TimelineData } from '../pages/timeline/types';
-import { removeUndefined } from '../pages/timeline/utils';
+import { removeUndefined } from '../utils/removeUndefined';
+import { debugError, debugLog } from '../lib/debug';
 
 /**
  * Хук для работы с таймлайном пользователя
@@ -18,7 +19,7 @@ export function useTimeline() {
       throw new Error('Пользователь не авторизован');
     }
 
-    console.log('🔵 useTimeline: Adding event to timeline...', event);
+    debugLog('🔵 useTimeline: Adding event to timeline...', event);
 
     const docRef = doc(db, 'timelines', user.uid);
 
@@ -74,10 +75,10 @@ export function useTimeline() {
         { merge: true }
       );
 
-      console.log('✅ useTimeline: Event added successfully!', newEvent.id);
+      debugLog('✅ useTimeline: Event added successfully!', newEvent.id);
       return newEvent.id;
     } catch (error) {
-      console.error('❌ useTimeline: Error adding event:', error);
+      debugError('❌ useTimeline: Error adding event:', error);
       throw error;
     }
   };
