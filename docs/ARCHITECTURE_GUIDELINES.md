@@ -310,16 +310,64 @@ export function LoginForm({ onSubmit }) {
 ## Security, Roles & Logging
 
 ### Logging & Privacy
-- Все продакшен-логи проходят через `src/lib/debug.ts` (`debugLog`, `debugWarn`, `debugError`, `isDebug`) — хелпер учитывает `import.meta.env.DEV` (включён автоматически в `npm run dev`) и флаг `DEVLOG`/`VITE_DEVLOG` (подхватывается из `vite.config.js`). В проде флаг не задан, `debug*`-вызовы тихо игнорируются. Включайте отладку локально командой `DEVLOG=true npm run dev` или `DEVLOG=true npm run build && npm run preview`.  
-  ```ts
-  import { debugLog } from '../lib/debug';
-  debugLog('[Notes] loaded', notes.length);
-  ```
-- Прямые вызовы `console.log`, `console.debug`, `console.warn`, `console.error` запрещены в `src/*`, `shared/*` и `functions/src/*` — используйте обёртки `debug*` или `functionsDebug*` (см. `functions/src/lib/debug.ts`). `npm run check-console` проверяет staged-файлы, а Husky pre-commit сразу отклонит коммит с `console.*`; например, диагностика env-переменых в `src/lib/firebase.ts` должна идти через `debugLog`, чтобы lint/`check-console` успешно прошли.
-- Husky `pre-commit` запускает `npm run lint && npm run check-console`: последний проверяет staged-файлы в `src/` и `functions/src/` и запрещает `console.*` вне `debug.ts`/`functions/src/lib/debug.ts`/`scripts/**`.
-- Запрещено логировать ID токены, email/UID, содержимое заметок, результаты тестов, значения env.
-- ESLint/прехуки блокируют `console.log` в `src/lib`, `src/pages`, `functions/src` (оставляйте только явные исключения).
-- Для ошибок UI/сетевых вызовов используйте `src/lib/errorHandler.ts`, `ErrorBoundary` и `ErrorToast`: сообщение логируется, показывается пользовательский тост и при необходимости отправляется в систему мониторинга.
+
+#### Правило использования debug утилит
+Все продакшен-логи проходят через `src/lib/debug.ts` — хелпер учитывает `import.meta.env.DEV` (включён автоматически в `npm run dev`) и флаг `DEVLOG`/`VITE_DEVLOG`. В проде `debug*`-вызовы тихо игнорируются.
+
+**✅ Правильно:**
+```ts
+import { debugLog, debugWarn, debugError } from '../lib/debug';
+
+function handleSaveNote() {
+  try {
+    debugLog('[Notes] Saving note...', noteData);
+    // ... логика сохранения
+    debugLog('✅ Note saved successfully');
+  } catch (err) {
+    debugError('Error saving note', err); // ✅ Используем debugError
+    alert('Ошибка при сохранении заметки');
+  }
+}
+```
+
+**❌ Неправильно:**
+```ts
+function handleSaveNote() {
+  try {
+    console.log('[Notes] Saving note...', noteData); // ❌ Запрещено!
+    // ... логика
+  } catch (err) {
+    console.error('Error saving note', err); // ❌ Заблокирует коммит!
+    alert('Ошибка при сохранении заметки');
+  }
+}
+```
+
+#### Автоматическая проверка
+- **Husky `pre-commit`** запускает `npm run lint && npm run check-console`
+- **`npm run check-console`** проверяет staged-файлы в `src/` и `functions/src/`
+- **Блокируется коммит**, если найдены `console.*` вне `debug.ts`/`scripts/**`
+
+**Пример ошибки при коммите:**
+```bash
+🚫 Обнаружены необёрнутые console.* в staged-файлах:
+  src/pages/Notes.tsx:91: console.error('Error saving note', err);
+Используйте debugLog/debugError/debugWarn или поправьте console.* в debug-утилитах.
+husky - pre-commit script failed (code 1)
+```
+
+#### Дополнительные правила
+- Прямые вызовы `console.*` запрещены в `src/*`, `shared/*` и `functions/src/*`
+- В Cloud Functions используйте `functionsDebug*` из `functions/src/lib/debug.ts`
+- Запрещено логировать: ID токены, email/UID, содержимое заметок, результаты тестов, env-переменные
+- Для ошибок UI используйте `src/lib/errorHandler.ts`, `ErrorBoundary` и `ErrorToast`
+
+**Включение отладки локально:**
+```bash
+DEVLOG=true npm run dev
+# или
+DEVLOG=true npm run build && npm run preview
+```
 
 ### Access Control & Roles
 - Роли: `student`, `admin`, `super-admin`.
@@ -664,7 +712,8 @@ it('test1')
 
 ### ✅ Качество
 
-- [ ] Нет `console.log` (кроме намеренных)?
+- [ ] Нет `console.*` (используйте `debugLog`, `debugWarn`, `debugError` из `src/lib/debug.ts`)?
+- [ ] Pre-commit hook проверки проходят (`npm run check-console`)?
 - [ ] Нет закомментированного кода?
 - [ ] Imports отсортированы?
 - [ ] Форматирование Prettier применено?
