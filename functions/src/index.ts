@@ -11,6 +11,10 @@ import {
   type ExpectedBundle,
   type PeriodDoc,
 } from "../../shared/verifyCore.js";
+import {
+  debugError as functionsDebugError,
+  debugLog as functionsDebugLog,
+} from "./lib/debug.js";
 
 if (!getApps().length) {
   initializeApp({ credential: applicationDefault() });
@@ -264,51 +268,50 @@ function mergeUniqueLeisure(current: Leisure[], additions: Leisure[]): Leisure[]
  * Требует аутентификации (Google Sign-In). Код берётся из functions:config admin.seed_code.
  */
 export const seedAdmin = functions.https.onCall(async (data, context) => {
-  console.log("🔵 seedAdmin called");
-  console.log("🔵 Context auth:", JSON.stringify(context.auth, null, 2));
-  console.log("🔵 Data received:", data);
-
   const uid = context.auth?.uid;
   const email = context.auth?.token?.email;
   const seedCode = (data?.seedCode ?? "").trim();
 
-  console.log("🔵 UID:", uid);
-  console.log("🔵 Email:", email);
-  console.log("🔵 Seed code provided:", seedCode ? "yes" : "no");
+  functionsDebugLog("🔵 seedAdmin called", {
+    hasAuth: !!context.auth,
+    hasUid: Boolean(uid),
+    hasEmail: Boolean(email),
+    hasSeedCode: Boolean(seedCode),
+  });
 
   if (!uid || !email) {
-    console.error("❌ No UID or email");
+    functionsDebugError("❌ No UID or email");
     throw new functions.https.HttpsError("unauthenticated", "Login required");
   }
 
   const expected = (functions.config().admin?.seed_code || "").trim();
-  console.log("🔵 Expected seed code configured:", expected ? "yes" : "no");
+  functionsDebugLog("🔵 Expected seed code configured:", Boolean(expected));
 
   if (!expected || seedCode !== expected) {
-    console.error("❌ Invalid seed code");
+    functionsDebugError("❌ Invalid seed code");
     throw new functions.https.HttpsError("permission-denied", "Invalid code");
   }
 
   try {
-    console.log("🔵 Writing to Firestore admins collection...");
+    functionsDebugLog("🔵 Writing to Firestore admins collection...");
     await getFirestore().collection("admins").doc(uid).set(
       { email, createdAt: FieldValue.serverTimestamp() },
       { merge: true }
     );
-    console.log("✅ Firestore write successful");
+    functionsDebugLog("✅ Firestore write successful");
 
-    console.log("🔵 Setting custom user claims...");
+    functionsDebugLog("🔵 Setting custom user claims...");
     await getAdminAuth().setCustomUserClaims(uid, { role: "admin" });
-    console.log("✅ Custom claims set successfully");
+    functionsDebugLog("✅ Custom claims set successfully");
 
     const userRecord = await getAdminAuth().getUser(uid);
-    console.log("✅ User custom claims after setting:", userRecord.customClaims);
+    functionsDebugLog("✅ User custom claims after setting:", userRecord.customClaims);
 
     return { ok: true, claims: userRecord.customClaims };
   } catch (err: any) {
-    console.error("❌ Error in seedAdmin:", err);
-    console.error("❌ Error code:", err?.code);
-    console.error("❌ Error message:", err?.message);
+    functionsDebugError("❌ Error in seedAdmin:", err);
+    functionsDebugError("❌ Error code:", err?.code);
+    functionsDebugError("❌ Error message:", err?.message);
     throw new functions.https.HttpsError("internal", "Failed to set admin role: " + err?.message);
   }
 });

@@ -1,27 +1,26 @@
 import { useState } from "react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, storage } from "../lib/firebase";
+import { debugError, debugLog } from "../lib/debug";
 
 const acceptsAdminRole = (role?: string) => role === "admin" || role === "super-admin";
 
 export async function diagnoseToken() {
   const user = auth.currentUser;
   if (!user) {
-    console.error("❌ No authenticated user");
+    debugError("❌ No authenticated user");
     return null;
   }
 
   await user.getIdToken(true);
   const tokenResult = await user.getIdTokenResult(true);
 
-  console.log("🔍 === TOKEN DIAGNOSTICS ===");
-  console.log("📧 Email:", user.email);
-  console.log("🆔 UID:", user.uid);
-  console.log("🔑 All claims:", JSON.stringify(tokenResult.claims, null, 2));
-  console.log("👑 Role claim:", tokenResult.claims.role);
-  console.log("⏰ Token issued:", new Date(tokenResult.issuedAtTime));
-  console.log("⏰ Token expires:", new Date(tokenResult.expirationTime));
-  console.log("🔍 === END DIAGNOSTICS ===");
+  debugLog("🔍 === TOKEN DIAGNOSTICS ===");
+  debugLog("Claims keys:", Object.keys(tokenResult.claims));
+  debugLog("👑 Role claim:", tokenResult.claims.role);
+  debugLog("⏰ Token issued:", new Date(tokenResult.issuedAtTime));
+  debugLog("⏰ Token expires:", new Date(tokenResult.expirationTime));
+  debugLog("🔍 === END DIAGNOSTICS ===");
 
   return tokenResult;
 }
@@ -32,33 +31,33 @@ async function uploadToAssets(file: File): Promise<{ path: string; url: string }
     throw new Error("Not authenticated");
   }
 
-  console.log("🚀 Step 1: Checking token...");
+  debugLog("🚀 Step 1: Checking token (role)");
   await user.getIdToken(true);
   const tokenResult = await user.getIdTokenResult(true);
-  console.log("🔑 Token claims:", tokenResult.claims);
+  debugLog("🔑 Token role:", tokenResult.claims.role);
 
   if (!acceptsAdminRole(tokenResult.claims.role as string | undefined)) {
     throw new Error("Admin role required. Please sign out and sign in again.");
   }
 
   const path = `assets/${crypto.randomUUID()}-${file.name}`;
-  console.log("🧱 Step 2: Path created:", path);
-  console.log("❓ Path starts with '/'?", path.startsWith("/"));
+  debugLog("🧱 Step 2: Path created:", path);
+  debugLog("❓ Path starts with '/'?", path.startsWith("/"));
 
   const storageRef = ref(storage, path);
-  console.log("📦 Step 3: Storage ref created");
+  debugLog("📦 Step 3: Storage ref created");
 
   try {
-    console.log("⬆️ Step 4: Uploading...");
+    debugLog("⬆️ Step 4: Uploading...");
     const snapshot = await uploadBytes(storageRef, file, {
       contentType: file.type,
     });
-    console.log("✅ Upload successful!");
+    debugLog("✅ Upload successful!");
     const url = await getDownloadURL(snapshot.ref);
-    console.log("🔗 Download URL:", url);
+    debugLog("🔗 Download URL:", url);
     return { path, url };
   } catch (error: any) {
-    console.error("❌ Upload failed:", error?.code, error?.message);
+    debugError("❌ Upload failed:", error?.code, error?.message);
     throw error;
   }
 }
@@ -135,7 +134,7 @@ export default function UploadAsset() {
               alert("❌ No admin role in token. Sign out and sign in again.");
             }
           } catch (error: any) {
-            console.error(error);
+            debugError("🔍 Check Token error", error);
             alert(`Error: ${error?.message ?? error}`);
           }
         }}

@@ -310,16 +310,15 @@ export function LoginForm({ onSubmit }) {
 ## Security, Roles & Logging
 
 ### Logging & Privacy
-- Все продакшен-логи должны быть обёрнуты в условие `isDebug()` (создайте/используйте `src/lib/debug.ts`).  
+- Все продакшен-логи проходят через `src/lib/debug.ts` (`debugLog`, `debugWarn`, `debugError`, `isDebug`) — хелпер учитывает `import.meta.env.DEV` (включён автоматически в `npm run dev`) и флаг `DEVLOG`/`VITE_DEVLOG` (подхватывается из `vite.config.js`). В проде флаг не задан, `debug*`-вызовы тихо игнорируются. Включайте отладку локально командой `DEVLOG=true npm run dev` или `DEVLOG=true npm run build && npm run preview`.  
   ```ts
-  import { isDebug } from '../lib/debug';
-  if (isDebug()) {
-    console.debug('[Notes] loaded', notes.length);
-  }
+  import { debugLog } from '../lib/debug';
+  debugLog('[Notes] loaded', notes.length);
   ```
+- Прямые вызовы `console.log`, `console.debug`, `console.warn`, `console.error` запрещены в `src/*`, `shared/*` и `functions/src/*` — используйте обёртки `debug*` или `functionsDebug*` (см. `functions/src/lib/debug.ts`).
+- Husky `pre-commit` запускает `npm run lint && npm run check-console`: последний проверяет staged-файлы в `src/` и `functions/src/` и запрещает `console.*` вне `debug.ts`/`functions/src/lib/debug.ts`/`scripts/**`.
 - Запрещено логировать ID токены, email/UID, содержимое заметок, результаты тестов, значения env.
 - ESLint/прехуки блокируют `console.log` в `src/lib`, `src/pages`, `functions/src` (оставляйте только явные исключения).
-- Для диагностики используйте `console.debug` или специализированный логгер, который включается только в dev.
 - Для ошибок UI/сетевых вызовов используйте `src/lib/errorHandler.ts`, `ErrorBoundary` и `ErrorToast`: сообщение логируется, показывается пользовательский тост и при необходимости отправляется в систему мониторинга.
 
 ### Access Control & Roles

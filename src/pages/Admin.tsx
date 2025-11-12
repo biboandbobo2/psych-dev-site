@@ -6,6 +6,7 @@ import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
 import { auth } from "../lib/firebase";
+import { debugError, debugLog } from "../lib/debug";
 import UploadAsset, { diagnoseToken } from "./UploadAsset";
 
 export default function Admin() {
@@ -29,7 +30,7 @@ export default function Admin() {
                   alert("❌ No admin role in token. Sign out and sign in again.");
                 }
               } catch (error: any) {
-                console.error(error);
+                debugError("🔍 Check Token error:", error);
                 alert(`Error: ${error?.message ?? error}`);
               }
             }}
@@ -43,11 +44,10 @@ export default function Admin() {
               if (!code) return;
 
               try {
-                console.log("🔄 Calling seedAdmin function...");
+                debugLog("🔄 Calling seedAdmin function...", { seedCodeProvided: Boolean(code) });
                 const fn = httpsCallable(getFunctions(), "seedAdmin");
                 const result = await fn({ seedCode: code });
-                console.log("✅ seedAdmin response:", result);
-                console.log("✅ Response data:", result.data);
+                debugLog("✅ seedAdmin response ok:", Boolean((result.data as any)?.ok));
 
                 if ((result.data as any)?.ok) {
                   alert("✅ Admin role set successfully!\n\nYou MUST sign out and sign in again for changes to take effect.");
@@ -57,10 +57,10 @@ export default function Admin() {
                   alert("❌ Unexpected response from seedAdmin");
                 }
               } catch (error: any) {
-                console.error("❌ seedAdmin error:", error);
-                console.error("❌ Error code:", error?.code);
-                console.error("❌ Error message:", error?.message);
-                console.error("❌ Full error:", JSON.stringify(error, null, 2));
+                debugError("❌ seedAdmin error:", error);
+                debugError("❌ Error code:", error?.code);
+                debugError("❌ Error message:", error?.message);
+                debugError("❌ Full error:", JSON.stringify(error, null, 2));
                 alert(`❌ Error calling seedAdmin:\n${error?.message ?? error}`);
               }
             }}
