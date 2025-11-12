@@ -315,7 +315,7 @@ export function LoginForm({ onSubmit }) {
   import { debugLog } from '../lib/debug';
   debugLog('[Notes] loaded', notes.length);
   ```
-- Прямые вызовы `console.log`, `console.debug`, `console.warn`, `console.error` запрещены в `src/*`, `shared/*` и `functions/src/*` — используйте обёртки `debug*` или `functionsDebug*` (см. `functions/src/lib/debug.ts`).
+- Прямые вызовы `console.log`, `console.debug`, `console.warn`, `console.error` запрещены в `src/*`, `shared/*` и `functions/src/*` — используйте обёртки `debug*` или `functionsDebug*` (см. `functions/src/lib/debug.ts`). Например, диагностика env-переменных в `src/lib/firebase.ts` должна идти через `debugLog`, иначе `check-console` блокирует коммит.
 - Husky `pre-commit` запускает `npm run lint && npm run check-console`: последний проверяет staged-файлы в `src/` и `functions/src/` и запрещает `console.*` вне `debug.ts`/`functions/src/lib/debug.ts`/`scripts/**`.
 - Запрещено логировать ID токены, email/UID, содержимое заметок, результаты тестов, значения env.
 - ESLint/прехуки блокируют `console.log` в `src/lib`, `src/pages`, `functions/src` (оставляйте только явные исключения).
