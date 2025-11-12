@@ -2,10 +2,18 @@ import { type Note, type AgeRange, AGE_RANGE_ORDER } from '../types/notes';
 
 export type SortOption = 'date-new' | 'date-old' | 'period';
 
-const PERIOD_PRIORITY = AGE_RANGE_ORDER.reduce<Record<AgeRange, number>>((acc, key, index) => {
-  acc[key] = index;
-  return acc;
-}, {} as Record<AgeRange, number>);
+// Lazy initialization to avoid "Cannot access uninitialized variable" in production
+let PERIOD_PRIORITY: Record<AgeRange, number> | null = null;
+
+function getPeriodPriority(): Record<AgeRange, number> {
+  if (!PERIOD_PRIORITY) {
+    PERIOD_PRIORITY = AGE_RANGE_ORDER.reduce<Record<AgeRange, number>>((acc, key, index) => {
+      acc[key] = index;
+      return acc;
+    }, {} as Record<AgeRange, number>);
+  }
+  return PERIOD_PRIORITY;
+}
 
 const getDate = (value: Date | undefined): number => {
   if (!value) return 0;
@@ -37,8 +45,9 @@ export function sortNotes(notes: Note[], sortBy: SortOption): Note[] {
         if (!periodA) return 1;
         if (!periodB) return -1;
 
-        const indexA = PERIOD_PRIORITY[periodA] ?? Number.POSITIVE_INFINITY;
-        const indexB = PERIOD_PRIORITY[periodB] ?? Number.POSITIVE_INFINITY;
+        const priority = getPeriodPriority();
+        const indexA = priority[periodA] ?? Number.POSITIVE_INFINITY;
+        const indexB = priority[periodB] ?? Number.POSITIVE_INFINITY;
 
         if (indexA !== indexB) {
           return indexA - indexB;
