@@ -221,3 +221,7 @@ VITE_FIREBASE_APP_ID
 | Под мобилку (< 640 px) нет горизонтального скролла | DevTools Responsive            |
 | Lighthouse Mobile ≥ 90                             | `npm run preview` + Lighthouse |
 | Пустые секции (нет данных) не рендерятся           | ручной переход                 |
+## Logging & Privacy — мини-приёмка
+- `npm run check-console` проверяет staged-файлы в `src/**` и `functions/src/**`, пропуская `src/lib/debug.ts`, `functions/src/lib/debug.ts` и `scripts/**`.
+- Husky pre-commit запускает `npm run -s lint` и `npm run -s check-console`, поэтому raw `console.*` блокируются до коммита;
+  подробности и политика логов описаны в [docs/ARCHITECTURE_GUIDELINES.md#logging--privacy](docs/ARCHITECTURE_GUIDELINES.md#logging--privacy).
