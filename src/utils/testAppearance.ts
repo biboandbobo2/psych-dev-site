@@ -24,28 +24,53 @@ const cloneOverrides = (overrides?: ThemeOverrides): ThemeOverrides | undefined 
   return Object.keys(next).length ? next : undefined;
 };
 
-const DEFAULT_PRESET = THEME_PRESETS[0];
-const DEFAULT_THEME_SETTINGS: ThemeSettings = {
-  presetId: DEFAULT_PRESET.id,
-  mainColor: getPresetDefaultMainColor(DEFAULT_PRESET),
-  badgeLockedToPrimary: true,
-};
+// Lazy initialization to avoid "Cannot access uninitialized variable" in production
+let _DEFAULT_PRESET: typeof THEME_PRESETS[0] | null = null;
+let _DEFAULT_THEME_SETTINGS: ThemeSettings | null = null;
+let _DEFAULT_TEST_APPEARANCE: TestAppearance | null = null;
 
-export const DEFAULT_TEST_APPEARANCE: TestAppearance = {
-  introIcon: '📝',
-  introDescription: 'Проверьте свои знания и закрепите материал курса.',
-  backgroundGradientFrom: '#f5f3ff',
-  backgroundGradientTo: '#e0f2fe',
-  accentGradientFrom: '#7c3aed',
-  accentGradientTo: '#3b82f6',
-  badgeGradientFrom: '#7c3aed',
-  badgeGradientTo: '#3b82f6',
-  theme: DEFAULT_THEME_SETTINGS,
-};
+function getDefaultPreset() {
+  if (!_DEFAULT_PRESET) {
+    _DEFAULT_PRESET = THEME_PRESETS[0];
+  }
+  return _DEFAULT_PRESET;
+}
+
+function getDefaultThemeSettings(): ThemeSettings {
+  if (!_DEFAULT_THEME_SETTINGS) {
+    const preset = getDefaultPreset();
+    _DEFAULT_THEME_SETTINGS = {
+      presetId: preset.id,
+      mainColor: getPresetDefaultMainColor(preset),
+      badgeLockedToPrimary: true,
+    };
+  }
+  return _DEFAULT_THEME_SETTINGS;
+}
+
+function getDefaultTestAppearance(): TestAppearance {
+  if (!_DEFAULT_TEST_APPEARANCE) {
+    _DEFAULT_TEST_APPEARANCE = {
+      introIcon: '📝',
+      introDescription: 'Проверьте свои знания и закрепите материал курса.',
+      backgroundGradientFrom: '#f5f3ff',
+      backgroundGradientTo: '#e0f2fe',
+      accentGradientFrom: '#7c3aed',
+      accentGradientTo: '#3b82f6',
+      badgeGradientFrom: '#7c3aed',
+      badgeGradientTo: '#3b82f6',
+      theme: getDefaultThemeSettings(),
+    };
+  }
+  return _DEFAULT_TEST_APPEARANCE;
+}
+
+// Export the appearance object directly - this module is in main chunk so it's always loaded first
+export const DEFAULT_TEST_APPEARANCE = getDefaultTestAppearance();
 
 export function mergeAppearance(appearance?: TestAppearance): TestAppearance {
   const rawTheme = appearance?.theme;
-  const preset = findPresetById(rawTheme?.presetId ?? DEFAULT_THEME_SETTINGS.presetId);
+  const preset = findPresetById(rawTheme?.presetId ?? getDefaultThemeSettings().presetId);
 
   let mainColor = rawTheme?.mainColor ?? getPresetDefaultMainColor(preset);
   if (!rawTheme?.mainColor && appearance?.accentGradientFrom && appearance?.accentGradientTo) {
@@ -112,12 +137,13 @@ export function mergeAppearance(appearance?: TestAppearance): TestAppearance {
 
   const derived = deriveTheme(preset, mainColor, badgeLocked, themeOverrides);
 
+  const defaultAppearance = getDefaultTestAppearance();
   const resolved: TestAppearance = {
-    ...DEFAULT_TEST_APPEARANCE,
+    ...defaultAppearance,
     ...(appearance ?? {}),
     bulletPoints: appearance?.bulletPoints
       ? appearance.bulletPoints.filter(Boolean)
-      : DEFAULT_TEST_APPEARANCE.bulletPoints,
+      : defaultAppearance.bulletPoints,
     theme: {
       presetId: preset.id,
       mainColor,

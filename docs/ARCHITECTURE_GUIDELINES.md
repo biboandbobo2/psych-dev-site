@@ -675,6 +675,194 @@ it('test1')
 - ⏳ Custom hooks (useNotes, useTopics, useTests)
 - ⏳ Validation functions
 
+### Module Initialization Testing
+
+**Статус:** Production smoke tests established (2025-11-13)
+
+**Контекст:** В production сборках с code splitting и минификацией может возникнуть проблема инициализации модулей - `ReferenceError: Cannot access uninitialized variable`. Это происходит, когда:
+- Shared constants попадают в несколько lazy chunks
+- Top-level инициализация использует еще не загруженные импорты
+- Порядок загрузки модулей отличается от development режима
+
+### Инструменты предотвращения
+
+#### 1. Static Analysis Script
+
+**Файл:** `scripts/check-module-initialization.cjs`
+
+Статический анализ кода для обнаружения проблемных паттернов:
+
+```bash
+npm run check:init
+```
+
+**Что проверяет:**
+- ✅ Top-level array operations (`.map()`, `.reduce()`, `.filter()`)
+- ✅ Top-level object spread с импортами
+- ✅ Top-level function calls на импортах
+- ✅ Top-level `new Set()` / `new Map()` с импортами
+- ✅ Порядок импортов и инициализации
+- ✅ Конфигурация `vite.config.js` для shared modules
+- ✅ Lazy initialization в shared modules
+
+**Пример проблемного кода:**
+```typescript
+// ❌ ОШИБКА - Top-level инициализация
+import { AGE_RANGE_ORDER } from './types';
+
+export const PERIOD_PRIORITY = AGE_RANGE_ORDER.reduce((acc, key, index) => {
+  acc[key] = index; // Может упасть в production!
+  return acc;
+}, {});
+```
+
+**Правильный код:**
+```typescript
+// ✅ ПРАВИЛЬНО - Lazy initialization
+import { AGE_RANGE_ORDER } from './types';
+
+let _PERIOD_PRIORITY: Record<AgeRange, number> | null = null;
+
+export function getPeriodPriority() {
+  if (!_PERIOD_PRIORITY) {
+    _PERIOD_PRIORITY = AGE_RANGE_ORDER.reduce((acc, key, index) => {
+      acc[key] = index;
+      return acc;
+    }, {} as Record<AgeRange, number>);
+  }
+  return _PERIOD_PRIORITY;
+}
+```
+
+#### 2. E2E Production Smoke Tests
+
+**Файл:** `tests/e2e/production-smoke.spec.ts`
+
+Playwright E2E тесты, которые запускаются против production сборки:
+
+```bash
+npm run test:e2e:prod  # Build + Preview + E2E тесты
+```
+
+**Что проверяет:**
+- ✅ Все страницы загружаются без `ReferenceError`
+- ✅ Нет `Cannot access uninitialized variable` ошибок
+- ✅ React components рендерятся корректно
+- ✅ Lazy chunks загружаются без ошибок
+- ✅ Shared constants доступны во всех chunks
+- ✅ Размер main chunk в пределах нормы (< 500KB)
+- ✅ Навигация между lazy routes работает
+
+**Покрываемые сценарии:**
+```typescript
+test('notes page loads without ReferenceError', async ({ page }) => {
+  // Проверяет, что страница notes загружается без ошибок инициализации
+});
+
+test('shared constants are available in all chunks', async ({ page }) => {
+  // Проверяет доступность PERIOD_CONFIG, AGE_RANGE_LABELS и др.
+});
+
+test('production build has correct chunk sizes', async ({ page }) => {
+  // Проверяет, что shared modules не раздувают main chunk
+});
+```
+
+### Best Practices
+
+#### 1. Shared Modules Configuration
+
+**КРИТИЧНО:** Shared constants должны быть в main chunk, не в lazy chunks.
+
+**vite.config.js:**
+```javascript
+const chunkMapper = (id) => {
+  // Shared modules ВСЕГДА в main chunk
+  if (id.includes('/src/types/notes') ||
+      id.includes('/src/utils/periodConfig') ||
+      id.includes('/src/utils/testAppearance') ||
+      id.includes('/src/constants/themePresets')) {
+    return null; // null = main chunk
+  }
+
+  // Lazy pages в отдельные chunks
+  if (id.includes('/src/pages/Timeline')) {
+    return 'timeline';
+  }
+  // ...
+};
+```
+
+#### 2. Lazy Initialization Pattern
+
+Для модулей, которые ДОЛЖНЫ быть в lazy chunks:
+
+```typescript
+// Приватная переменная для кэширования
+let _COMPUTED_VALUE: ComputedType | null = null;
+
+// Публичная функция-геттер
+export function getComputedValue(): ComputedType {
+  if (!_COMPUTED_VALUE) {
+    _COMPUTED_VALUE = expensiveComputation();
+  }
+  return _COMPUTED_VALUE;
+}
+
+// Экспортируем результат функции (безопасно)
+export const COMPUTED_VALUE = getComputedValue();
+```
+
+#### 3. Запрещенные паттерны
+
+```typescript
+// ❌ НИКОГДА так не делайте:
+export const VALUE = importedArray.map(x => x.id);
+export const SET = new Set(importedArray);
+export const SPREAD = { ...importedObject };
+export const RESULT = computeFunction(importedValue);
+```
+
+### CI/CD Integration
+
+Проверки запускаются автоматически в CI:
+
+**.github/workflows/ci.yml:**
+```yaml
+- name: Check module initialization
+  run: npm run check:init
+
+- name: Run E2E production smoke tests
+  run: npm run test:e2e:prod
+```
+
+**Pipeline:**
+1. Lint
+2. **Module initialization check** ← Static analysis
+3. Unit tests
+4. Build
+5. **E2E production smoke tests** ← Runtime verification
+
+### Troubleshooting
+
+**Ошибка в production:** `ReferenceError: Cannot access uninitialized variable`
+
+**Шаги диагностики:**
+1. Запустите `npm run check:init` - найдет проблемные паттерны
+2. Проверьте `vite.config.js` - shared modules в main chunk?
+3. Запустите `npm run test:e2e:prod` - воспроизведет ошибку локально
+4. Используйте lazy initialization для проблемных модулей
+
+**Пример исправления:**
+См. commit [ecb9bc3](https://github.com/yourrepo/commit/ecb9bc3) и документацию в `docs/lazy-loading-migration.md`
+
+### Maintenance
+
+- Запускайте `npm run check:init` перед каждым коммитом с изменениями в utils/types
+- Запускайте `npm run test:e2e:prod` перед деплоем на production
+- При добавлении новых shared modules обновляйте `vite.config.js`
+- При изменении chunk strategy обновляйте smoke tests
+
 ---
 
 ## Чеклист перед коммитом
@@ -723,6 +911,8 @@ it('test1')
 - [ ] Код вручную протестирован?
 - [ ] Edge cases учтены?
 - [ ] Unit-тесты написаны (для сложной логики)?
+- [ ] `npm run check:init` проходит (для изменений в utils/types/constants)?
+- [ ] `npm run test:e2e:prod` проходит (для критических изменений)?
 - [ ] Результаты (unit/build/smoke) записаны в `docs/qa-smoke-log.md` с ссылкой на коммит?
 - [ ] Проверки ролей и правил логирования соблюдены?
 

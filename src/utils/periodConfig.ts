@@ -8,26 +8,37 @@ type PeriodConfig = {
   colorClass: string;
 };
 
-export const PERIOD_CONFIG: Record<PeriodKey, PeriodConfig> = {
-  intro: { icon: '📖', title: AGE_RANGE_LABELS.intro, colorClass: 'border-l-slate-500' },
-  prenatal: { icon: '🤰', title: AGE_RANGE_LABELS.prenatal, colorClass: 'border-l-purple-500' },
-  'early-childhood': { icon: '👧', title: AGE_RANGE_LABELS['early-childhood'], colorClass: 'border-l-cyan-500' },
-  infancy: { icon: '👶', title: AGE_RANGE_LABELS.infancy, colorClass: 'border-l-blue-500' },
-  toddler: { icon: '👦', title: AGE_RANGE_LABELS.toddler, colorClass: 'border-l-cyan-600' },
-  preschool: { icon: '🧒', title: AGE_RANGE_LABELS.preschool, colorClass: 'border-l-green-500' },
-  'primary-school': { icon: '🎒', title: AGE_RANGE_LABELS['primary-school'], colorClass: 'border-l-amber-500' },
-  school: { icon: '📚', title: AGE_RANGE_LABELS.school, colorClass: 'border-l-yellow-500' },
-  earlyAdolescence: { icon: '🧑‍🎓', title: AGE_RANGE_LABELS.earlyAdolescence, colorClass: 'border-l-orange-500' },
-  adolescence: { icon: '👦', title: AGE_RANGE_LABELS.adolescence, colorClass: 'border-l-rose-500' },
-  emergingAdult: { icon: '💼', title: AGE_RANGE_LABELS.emergingAdult, colorClass: 'border-l-pink-500' },
-  earlyAdult: { icon: '👔', title: AGE_RANGE_LABELS.earlyAdult, colorClass: 'border-l-indigo-500' },
-  midlife: { icon: '🧠', title: AGE_RANGE_LABELS.midlife, colorClass: 'border-l-slate-600' },
-  lateAdult: { icon: '🌿', title: AGE_RANGE_LABELS.lateAdult, colorClass: 'border-l-stone-500' },
-  oldestOld: { icon: '👴', title: AGE_RANGE_LABELS.oldestOld, colorClass: 'border-l-gray-500' },
-  other: { icon: '📝', title: 'Без категории', colorClass: 'border-l-border' },
-};
+// Lazy initialization to avoid "Cannot access uninitialized variable" in production
+let _PERIOD_CONFIG: Record<PeriodKey, PeriodConfig> | null = null;
 
-export type PeriodId = keyof typeof PERIOD_CONFIG;
+export function getPeriodConfig(): Record<PeriodKey, PeriodConfig> {
+  if (!_PERIOD_CONFIG) {
+    _PERIOD_CONFIG = {
+      intro: { icon: '📖', title: AGE_RANGE_LABELS.intro, colorClass: 'border-l-slate-500' },
+      prenatal: { icon: '🤰', title: AGE_RANGE_LABELS.prenatal, colorClass: 'border-l-purple-500' },
+      'early-childhood': { icon: '👧', title: AGE_RANGE_LABELS['early-childhood'], colorClass: 'border-l-cyan-500' },
+      infancy: { icon: '👶', title: AGE_RANGE_LABELS.infancy, colorClass: 'border-l-blue-500' },
+      toddler: { icon: '👦', title: AGE_RANGE_LABELS.toddler, colorClass: 'border-l-cyan-600' },
+      preschool: { icon: '🧒', title: AGE_RANGE_LABELS.preschool, colorClass: 'border-l-green-500' },
+      'primary-school': { icon: '🎒', title: AGE_RANGE_LABELS['primary-school'], colorClass: 'border-l-amber-500' },
+      school: { icon: '📚', title: AGE_RANGE_LABELS.school, colorClass: 'border-l-yellow-500' },
+      earlyAdolescence: { icon: '🧑‍🎓', title: AGE_RANGE_LABELS.earlyAdolescence, colorClass: 'border-l-orange-500' },
+      adolescence: { icon: '👦', title: AGE_RANGE_LABELS.adolescence, colorClass: 'border-l-rose-500' },
+      emergingAdult: { icon: '💼', title: AGE_RANGE_LABELS.emergingAdult, colorClass: 'border-l-pink-500' },
+      earlyAdult: { icon: '👔', title: AGE_RANGE_LABELS.earlyAdult, colorClass: 'border-l-indigo-500' },
+      midlife: { icon: '🧠', title: AGE_RANGE_LABELS.midlife, colorClass: 'border-l-slate-600' },
+      lateAdult: { icon: '🌿', title: AGE_RANGE_LABELS.lateAdult, colorClass: 'border-l-stone-500' },
+      oldestOld: { icon: '👴', title: AGE_RANGE_LABELS.oldestOld, colorClass: 'border-l-gray-500' },
+      other: { icon: '📝', title: 'Без категории', colorClass: 'border-l-border' },
+    };
+  }
+  return _PERIOD_CONFIG;
+}
+
+// Export the config object directly - this module is in main chunk so it's always loaded first
+export const PERIOD_CONFIG = getPeriodConfig();
+
+export type PeriodId = PeriodKey;
 
 type Group = {
   label: string;
