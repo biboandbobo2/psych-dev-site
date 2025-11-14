@@ -7,7 +7,7 @@
 2. **DRY + переиспользуемые хуки:** дублирование логики (например в `Notes`/`Timeline`) стоит вынести в хуки (`useNotes`, `useTimeline`, `useContentEditor`).
 3. **Feature-based структура:** добавляйте файлы рядом с функцией (например, `src/pages/notes/components`, `src/pages/admin/topics`).
 4. **Управление состоянием:** минимизируйте глобальные контексты, используйте локальные хранилища (например, `useTimeline`) и утилиты (`notesExport.ts`).
-5. **Тестируемость:** пишите тесты для критичных потоков (см. `docs/CORE_REFACTORING_PLAN.md` и `docs/TESTS_SYSTEM_GUIDE.md`).
+5. **Тестируемость:** пишите тесты для критичных потоков (см. `docs/CORE_REFACTORING_PLAN.md` и `docs/TestingSystemGuide.md`).
 
 ## Практические пункты перед задачей
 - Проверьте, нет ли похожей логики в `src/hooks` или `src/utils`. Возможно, достаточно расширить существующий хук.

@@ -1,0 +1,42 @@
+[
+  {
+    "subsystem": "Core",
+    "plan": "Refactoring Plan",
+    "docLink": "docs/REFRACTORING_ARCHIVE.md#core",
+    "status": "✅ Все фазы 1‑6 выполнены, Phase 6 QA описана",
+    "nextStep": "Поддерживать docs/qa-smoke-log.md и обновлять audit-backlog.md",
+    "artifacts": ["Docs", "SaveNoteAsEventButton", "Notes", "notesExport.ts"]
+  },
+  {
+    "subsystem": "Timeline",
+    "plan": "Refactoring Plan",
+    "docLink": "docs/REFRACTORING_ARCHIVE.md#timeline",
+    "status": "✅ Фазы 1‑5 завершены, Phase 6 дополнил тесты/релизный блок",
+    "nextStep": "Логировать manual smoke / npm run build, синхронизировать TimelineGuide",
+    "artifacts": ["parseBulkEvents", "formatEventAsNote", "useTimeline тесты"]
+  },
+  {
+    "subsystem": "Tests",
+    "plan": "Refactoring Plan",
+    "docLink": "docs/REFRACTORING_ARCHIVE.md#tests",
+    "status": "🟢 Основные задачи (перенос утилит, разбивка тестов) завершены",
+    "nextStep": "Поддерживать TestingSystemGuide, запуск ts-prune, обновлять бэклог",
+    "artifacts": ["src/utils/test*", "tests", "guides"]
+  },
+  {
+    "subsystem": "Notes & Exports",
+    "plan": "Infrastructure",
+    "docLink": "docs/REFRACTORING_ARCHIVE.md#notes--export--ui-helpers",
+    "status": "✅ Раздел Notes реорганизован, экспорты вынесены в notesExport.ts",
+    "nextStep": "Следить, чтобы новые заметки использовали существующие хуки/принципы",
+    "artifacts": ["NotesHeader", "NoteModal", "SaveNoteAsEventButton"]
+  },
+  {
+    "subsystem": "Архитектура",
+    "plan": "Guideline",
+    "docLink": "docs/ARCHITECTURE_GUIDELINES.md",
+    "status": "✅ Актуальные гайды с SRP/DRY/композицией и checklist",
+    "nextStep": "Напоминать о принципах перед новым таском (см. README)",
+    "artifacts": ["Чеклист перед коммитом", "state/hooks рекомендации"]
+  }
+]

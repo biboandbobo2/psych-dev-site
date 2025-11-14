@@ -72,7 +72,7 @@ npm run validate:full  # validate + tests (~15-30 сек)
 - `docs/qa-smoke-log.md` — лог тестирования (фиксируй каждый запуск!)
 
 📚 **Специфичная документация:**
-- `docs/TESTS_SYSTEM_GUIDE.md` — система тестирования
+- `docs/TestingSystemGuide.md` — система тестирования
 - `docs/lazy-loading-migration.md` — миграция на lazy loading
 - `docs/TIMELINE_REFACTORING_PLAN.md` — рефакторинг Timeline
 - `docs/audit-backlog.md` — текущие задачи и приоритеты
