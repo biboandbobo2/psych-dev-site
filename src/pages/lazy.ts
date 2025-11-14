@@ -1,5 +1,7 @@
 import { lazy } from 'react';
 
+// React.lazy() is safe for top-level calls as it doesn't execute imports immediately
+// It creates a lazy component wrapper that loads on first render
 export const Admin = lazy(() => import('./Admin'));
 export const AdminUsers = lazy(() => import('./AdminUsers'));
 export const AdminContent = lazy(() => import('./AdminContent'));

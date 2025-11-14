@@ -7,4 +7,7 @@ npm run -s lint
 echo "🕵️ Поиск запрещённых console.*…"
 npm run check-console
 
+echo "🔍 Проверка инициализации модулей…"
+npm run check:init
+
 echo "✅ pre-commit OK"

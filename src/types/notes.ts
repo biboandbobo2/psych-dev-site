@@ -81,7 +81,7 @@ export const AGE_RANGE_ORDER: AgeRange[] = [
 // Lazy initialization to avoid "Cannot access uninitialized variable" in production
 let _AGE_RANGE_OPTIONS: Array<{ value: AgeRange; label: string }> | null = null;
 
-function getAgeRangeOptions(): Array<{ value: AgeRange; label: string }> {
+export function getAgeRangeOptions(): Array<{ value: AgeRange; label: string }> {
   if (!_AGE_RANGE_OPTIONS) {
     _AGE_RANGE_OPTIONS = AGE_RANGE_ORDER.map((value) => ({
       value,
@@ -91,4 +91,13 @@ function getAgeRangeOptions(): Array<{ value: AgeRange; label: string }> {
   return _AGE_RANGE_OPTIONS;
 }
 
-export const AGE_RANGE_OPTIONS = getAgeRangeOptions();
+// Export as lazy Proxy to avoid top-level function call
+export const AGE_RANGE_OPTIONS: Array<{ value: AgeRange; label: string }> = new Proxy(
+  [] as Array<{ value: AgeRange; label: string }>,
+  {
+    get(target, prop) {
+      const options = getAgeRangeOptions();
+      return options[prop as keyof typeof options];
+    },
+  }
+);

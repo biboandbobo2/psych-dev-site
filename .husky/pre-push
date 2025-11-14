@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-push validation..."
+echo ""
+
+# Run all validation checks
+npm run validate
+
+# If validation passes, suggest running tests
+if [ $? -eq 0 ]; then
+  echo ""
+  echo "✅ Validation passed!"
+  echo "💡 Tip: Run 'npm run validate:full' to include tests before pushing"
+  echo ""
+fi

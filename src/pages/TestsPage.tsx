@@ -6,6 +6,7 @@ import { isTestUnlocked } from '../lib/testAccess';
 import type { Test as FirestoreTest, TestRubric } from '../types/tests';
 import { buildTestChains } from '../utils/testChainHelpers';
 import { TestCard } from '../components/tests/TestCard';
+import { debugLog, debugError } from '../lib/debug';
 
 interface LegacyTest {
   id: string;
@@ -105,7 +106,7 @@ interface TestsPageProps {
   rubricFilter: 'full-course' | 'age-periods';
 }
 
-export const TestsPage = memo(function TestsPage({ rubricFilter }: TestsPageProps) {
+function TestsPageComponent({ rubricFilter }: TestsPageProps) {
   const { user } = useAuth();
   const [firestoreTests, setFirestoreTests] = useState<FirestoreTest[]>([]);
   const [loadingTests, setLoadingTests] = useState(true);
@@ -119,7 +120,7 @@ export const TestsPage = memo(function TestsPage({ rubricFilter }: TestsPageProp
       try {
         setLoadingTests(true);
         const tests = await getPublishedTests();
-        console.log(`🔵 [TestsPage/${rubricFilter}] Загружено тестов из Firestore:`, tests.length);
+        debugLog(`🔵 [TestsPage/${rubricFilter}] Загружено тестов из Firestore:`, tests.length);
         setFirestoreTests(tests);
 
         // Проверяем доступность тестов для пользователя
@@ -133,10 +134,10 @@ export const TestsPage = memo(function TestsPage({ rubricFilter }: TestsPageProp
             );
           }
           setTestUnlockStatus(unlockStatus);
-          console.log(`🔓 [TestsPage/${rubricFilter}] Статусы разблокировки:`, unlockStatus);
+          debugLog(`🔓 [TestsPage/${rubricFilter}] Статусы разблокировки:`, unlockStatus);
         }
       } catch (error) {
-        console.error(`❌ [TestsPage/${rubricFilter}] Ошибка загрузки тестов:`, error);
+        debugError(`❌ [TestsPage/${rubricFilter}] Ошибка загрузки тестов:`, error);
       } finally {
         setLoadingTests(false);
       }
@@ -211,7 +212,10 @@ export const TestsPage = memo(function TestsPage({ rubricFilter }: TestsPageProp
       </div>
     </div>
   );
-});
+}
+
+// Export memoized version
+export const TestsPage = memo(TestsPageComponent);
 
 // Вспомогательные компоненты, мемоизированные для оптимизации
 const LoadingSkeleton = memo(function LoadingSkeleton() {

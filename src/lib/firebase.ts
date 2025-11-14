@@ -6,7 +6,10 @@ import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 import { debugLog } from "./debug";
 
+const env = (typeof import.meta.env === "object" ? import.meta.env : process.env) as Record<string, string | undefined>;
+
 // DEBUG: проверка env переменных (удалить после проверки)
+// NOTE: debugLog is now a function, so this is safe
 debugLog('🔍 Firebase env check:', {
   hasApiKey: Boolean(import.meta.env.VITE_FIREBASE_API_KEY),
   apiKeyLength: import.meta.env.VITE_FIREBASE_API_KEY?.length,
@@ -14,8 +17,6 @@ debugLog('🔍 Firebase env check:', {
   hasProjectId: Boolean(import.meta.env.VITE_FIREBASE_PROJECT_ID),
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
 });
-
-const env = (typeof import.meta.env === "object" ? import.meta.env : process.env) as Record<string, string | undefined>;
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: env.VITE_FIREBASE_API_KEY || env.FIREBASE_API_KEY || "test-api-key",
@@ -28,7 +29,12 @@ const firebaseConfig: FirebaseOptions = {
   appId: env.VITE_FIREBASE_APP_ID || env.FIREBASE_APP_ID || "1:000:web:test",
 };
 
+// Initialize Firebase app - these calls are safe as they check if app already exists
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+// Initialize Firebase services
+// NOTE: These top-level calls are intentional and necessary for Firebase to work correctly
+// Firebase services need to be initialized before use and support multiple initializations safely
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);

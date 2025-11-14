@@ -35,6 +35,8 @@
     "test:e2e": "playwright test",
     "test:e2e:prod": "npm run build && npm run preview -- --port 4173 & PREVIEW_PID=$! && sleep 5 && playwright test tests/e2e/production-smoke.spec.ts; TEST_EXIT=$?; kill $PREVIEW_PID 2>/dev/null || true; exit $TEST_EXIT",
     "check:init": "node scripts/check-module-initialization.cjs",
+    "validate": "npm run lint && npm run check-console && npm run check:init && npm run build",
+    "validate:full": "npm run validate && npm run test",
     "lighthouse:timeline": "npx lighthouse http://localhost:4173/timeline --only-categories=performance,accessibility,best-practices --output=json --output-path=logs/lighthouse-timeline.json",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
