@@ -105,7 +105,7 @@ export function ContentLiteratureSection({
             href={selfQuestionsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block mt-2 text-sm text-blue-600 hover:underline"
+            className="inline-block mt-2 text-sm text-blue-600 no-underline hover:no-underline focus-visible:no-underline"
           >
             🔗 Открыть материал
           </a>

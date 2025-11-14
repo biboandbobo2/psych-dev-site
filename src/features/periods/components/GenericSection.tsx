@@ -19,7 +19,7 @@ export function GenericSection({ slug, title, content }: GenericSectionProps) {
             if (parsedUrl) {
               return (
                 <p key={`${slug}-string-url-${index}`} className="text-lg leading-8 text-fg">
-                  <a className="text-accent hover:underline underline-offset-4" href={parsedUrl.toString()} target="_blank" rel="noreferrer">
+                  <a className="text-accent no-underline hover:no-underline focus-visible:no-underline" href={parsedUrl.toString()} target="_blank" rel="noreferrer">
                     {item}
                   </a>
                 </p>
@@ -89,7 +89,7 @@ export function GenericSection({ slug, title, content }: GenericSectionProps) {
             return (
               <p key={`${slug}-resource-${index}`} className="text-lg leading-8 text-fg max-w-measure">
                 <a
-                  className="text-accent hover:underline underline-offset-4"
+                  className="text-accent no-underline hover:no-underline focus-visible:no-underline"
                   href={parsedUrl.toString()}
                   target="_blank"
                   rel="noreferrer"

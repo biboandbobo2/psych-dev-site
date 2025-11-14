@@ -44,7 +44,7 @@ export function VideoSection({ slug, title, content, deckUrl, defaultVideoTitle 
                   <p className="text-lg leading-8 text-muted">
                     Видео недоступно для встраивания.{' '}
                     {isUrlString(originalUrl) ? (
-                      <a className="text-accent hover:underline underline-offset-4" href={originalUrl} target="_blank" rel="noreferrer">
+                      <a className="text-accent no-underline hover:no-underline focus-visible:no-underline" href={originalUrl} target="_blank" rel="noreferrer">
                         Открыть на YouTube
                       </a>
                     ) : (
@@ -72,7 +72,7 @@ export function VideoSection({ slug, title, content, deckUrl, defaultVideoTitle 
                   <div className="flex flex-wrap items-center gap-3">
                     {videoDeckUrl ? (
                       <a
-                        className="inline-block text-sm font-semibold italic text-[color:var(--accent)] hover:underline underline-offset-4"
+                        className="inline-block text-sm font-semibold italic text-[color:var(--accent)] no-underline hover:no-underline focus-visible:no-underline"
                         href={videoDeckUrl}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -82,7 +82,7 @@ export function VideoSection({ slug, title, content, deckUrl, defaultVideoTitle 
                     ) : null}
                     {audioUrl ? (
                       <a
-                        className="inline-block text-sm font-semibold italic text-[color:var(--accent)] hover:underline underline-offset-4 ml-auto"
+                        className="inline-block text-sm font-semibold italic text-[color:var(--accent)] no-underline hover:no-underline focus-visible:no-underline ml-auto"
                         href={audioUrl}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -95,7 +95,7 @@ export function VideoSection({ slug, title, content, deckUrl, defaultVideoTitle 
                 {!isYoutube && isUrlString(originalUrl) ? (
                   <p className="text-sm leading-6 text-muted">
                     Ссылка не похожа на YouTube. Проверить источник:{' '}
-                    <a className="text-accent hover:underline underline-offset-4" href={originalUrl} target="_blank" rel="noreferrer">
+                    <a className="text-accent no-underline hover:no-underline focus-visible:no-underline" href={originalUrl} target="_blank" rel="noreferrer">
                       {originalUrl}
                     </a>
                   </p>
