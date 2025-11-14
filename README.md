@@ -137,9 +137,69 @@
 > ❗⚠️ CSV-пайплайн отключён: `public/content/*.csv`, `transformed-data.json` и связанные скрипты (`npm run transform/verify/reconcile`) больше не используются.
 
 ## Разработка
-- `npm install`
-- `npm run dev`
-- Для предпросмотра production-сборки: `npm run build && npm run preview`
+
+### Быстрый старт
+```bash
+npm install
+npm run dev
+```
+
+### Основные команды
+
+**Разработка:**
+- `npm run dev` - запуск dev сервера (port 5173)
+- `npm run build` - production сборка
+- `npm run preview` - предпросмотр production сборки (port 4173)
+
+**Тестирование и валидация:**
+- `npm run validate` - быстрая валидация (lint + check-console + check:init + build) ~5-10 сек
+- `npm run validate:full` - полная валидация с unit тестами ~15-30 сек
+- `npm run lint` - ESLint проверка
+- `npm run check-console` - проверка запрещённых console.*
+- `npm run check:init` - проверка module initialization
+- `npm test` - unit тесты (watch mode)
+- `npm run test:e2e:prod` - E2E smoke тесты на production build ~30-60 сек
+
+**Firebase:**
+- `npm run firebase:emulators:start` - запуск эмуляторов
+- `npm run firebase:deploy:all` - деплой rules + functions
+- См. полный список в `package.json`
+
+### Рекомендуемый workflow
+
+```bash
+# 1. Разработка
+npm run dev
+
+# 2. Перед коммитом (опционально)
+npm run validate
+
+# 3. Коммит - автоматически проверится (lint + check-console + check:init)
+git commit -m "feat: новая фича"
+
+# 4. Перед пушем (рекомендуется)
+npm run validate:full
+
+# 5. Пуш - автоматически запустится валидация
+git push
+```
+
+### Git Hooks (автоматические проверки)
+
+**Pre-commit** (запускается при каждом коммите):
+- ✅ ESLint
+- ✅ Проверка console.*
+- ✅ Проверка module initialization
+
+**Pre-push** (запускается при каждом пуше):
+- ✅ Полная валидация (validate)
+
+### Документация для разработчиков
+
+- **[docs/TESTING_WORKFLOW.md](docs/TESTING_WORKFLOW.md)** - полное руководство по тестированию
+- **[docs/ARCHITECTURE_GUIDELINES.md](docs/ARCHITECTURE_GUIDELINES.md)** - архитектурные правила
+- **[docs/audit-backlog.md](docs/audit-backlog.md)** - текущие задачи и приоритеты
+- **[CLAUDE.md](CLAUDE.md)** - инструкции для AI assistant
 
 ## Структура данных Firestore
 

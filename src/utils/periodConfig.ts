@@ -35,8 +35,16 @@ export function getPeriodConfig(): Record<PeriodKey, PeriodConfig> {
   return _PERIOD_CONFIG;
 }
 
-// Export the config object directly - this module is in main chunk so it's always loaded first
-export const PERIOD_CONFIG = getPeriodConfig();
+// Export as lazy Proxy to avoid top-level function call
+export const PERIOD_CONFIG: Record<PeriodKey, PeriodConfig> = new Proxy(
+  {} as Record<PeriodKey, PeriodConfig>,
+  {
+    get(target, prop) {
+      const config = getPeriodConfig();
+      return config[prop as PeriodKey];
+    },
+  }
+);
 
 export type PeriodId = PeriodKey;
 

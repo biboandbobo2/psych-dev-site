@@ -48,7 +48,7 @@ function getDefaultThemeSettings(): ThemeSettings {
   return _DEFAULT_THEME_SETTINGS;
 }
 
-function getDefaultTestAppearance(): TestAppearance {
+export function getDefaultTestAppearance(): TestAppearance {
   if (!_DEFAULT_TEST_APPEARANCE) {
     _DEFAULT_TEST_APPEARANCE = {
       introIcon: '📝',
@@ -65,8 +65,16 @@ function getDefaultTestAppearance(): TestAppearance {
   return _DEFAULT_TEST_APPEARANCE;
 }
 
-// Export the appearance object directly - this module is in main chunk so it's always loaded first
-export const DEFAULT_TEST_APPEARANCE = getDefaultTestAppearance();
+// Export as lazy Proxy to avoid top-level function call
+export const DEFAULT_TEST_APPEARANCE: TestAppearance = new Proxy(
+  {} as TestAppearance,
+  {
+    get(target, prop) {
+      const appearance = getDefaultTestAppearance();
+      return appearance[prop as keyof TestAppearance];
+    },
+  }
+);
 
 export function mergeAppearance(appearance?: TestAppearance): TestAppearance {
   const rawTheme = appearance?.theme;

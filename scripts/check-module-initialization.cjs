@@ -43,6 +43,8 @@ const PROBLEMATIC_PATTERNS = [
     pattern: /^export const \w+ = \w+\(/m,
     severity: 'warning',
     message: 'Top-level function calls may execute before imports are ready',
+    // Exclude React.lazy() and React.memo() as they are safe
+    exclude: /^export const \w+ = (lazy|memo)\(/m,
   },
   {
     name: 'Top-level new Set/Map with imports',
@@ -59,6 +61,11 @@ const SHARED_MODULES = [
   'src/utils/testAppearance.ts',
   'src/constants/themePresets.ts',
   'src/utils/sortNotes.ts',
+];
+
+// Files that are allowed to have top-level initialization
+const ALLOWED_TOP_LEVEL_FILES = [
+  'src/lib/firebase.ts', // Firebase requires top-level initialization
 ];
 
 function findFiles(dir, ext) {
@@ -87,6 +94,10 @@ function checkFile(filePath) {
 
   for (const pattern of PROBLEMATIC_PATTERNS) {
     if (pattern.pattern.test(content)) {
+      // Check if this match should be excluded
+      if (pattern.exclude && pattern.exclude.test(content)) {
+        continue;
+      }
       issues.push({
         file: filePath,
         pattern: pattern.name,
@@ -179,12 +190,17 @@ function main() {
 
   // Check each file for problematic patterns
   for (const file of files) {
+    const relativePath = path.relative(process.cwd(), file);
+
+    // Skip files that are allowed to have top-level initialization
+    if (ALLOWED_TOP_LEVEL_FILES.some(allowed => file.endsWith(allowed))) {
+      continue;
+    }
+
     const issues = checkFile(file);
     const importIssue = checkImportOrder(file);
 
     if (issues.length > 0 || importIssue) {
-      const relativePath = path.relative(process.cwd(), file);
-
       if (issues.length > 0) {
         for (const issue of issues) {
           if (issue.severity === 'error') {
