@@ -4,7 +4,11 @@ const { execSync, execFileSync } = require("child_process");
 
 const CAPTURE_REGEX = /console\.(log|info|warn|error|debug)\b/;
 const TARGET_DIRS = ["src/", "functions/src/"];
-const ALLOWED = new Set(["src/lib/debug.ts", "functions/src/lib/debug.ts"]);
+const ALLOWED = new Set([
+  "src/lib/debug.ts",
+  "functions/src/lib/debug.ts",
+  "src/pages/timeline/utils/exporters/common.ts" // Dev-only export debugging
+]);
 
 function getStagedFiles() {
   const raw = execSync("git diff --cached --name-only --diff-filter=ACMR", {

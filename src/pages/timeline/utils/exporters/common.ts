@@ -1,5 +1,4 @@
 import type { EventIconId } from '../../../../data/eventIcons';
-import { EVENT_ICON_DATA_URL_MAP } from '../../../../data/eventIconDataUrls';
 import type { BirthDetails, EdgeT, NodeT, TimelineData } from '../../types';
 import type { Periodization } from '../../data/periodizations';
 
@@ -365,6 +364,9 @@ function sanitizeText(text: string) {
 }
 
 async function inlineImages(svgClone: SVGSVGElement) {
+  // Lazy load icon data URLs (4.7 MB) only when actually exporting
+  const { EVENT_ICON_DATA_URL_MAP } = await import('../../../../data/eventIconDataUrls');
+
   const imageNodes = Array.from(svgClone.querySelectorAll<SVGImageElement>('image'));
   const cache = new Map<string, string>();
   const debugState = getDebugState();

@@ -20,6 +20,20 @@ const chunkMapper = (id) => {
     return 'shared-constants';
   }
 
+  // Timeline chunks - order matters! More specific rules first
+  // Separate exporters into their own chunk (loaded only on download)
+  if (id.includes('/src/pages/timeline/utils/exporters/')) {
+    return 'timeline-export';
+  }
+  // Separate hooks into their own chunk (heavy state management)
+  if (id.includes('/src/pages/timeline/hooks/')) {
+    return 'timeline-hooks';
+  }
+  // Timeline data and periodizations
+  if (id.includes('/src/pages/timeline/data/')) {
+    return 'timeline-data';
+  }
+  // Main Timeline component
   if (id.includes('/src/pages/Timeline.tsx')) {
     return 'timeline';
   }
