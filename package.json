@@ -16,6 +16,8 @@
     "preview": "vite preview",
     "set-bg": "node scripts/set-bg.mjs",
     "set-bg:infancy": "node scripts/set-bg.mjs --period infancy --src \"~/Downloads/infancy.png\"",
+    "docs:metrics": "tsx scripts/check-doc-metrics.ts",
+    "docs:plans": "tsx scripts/generate-plan-overview.ts",
     "firebase:login": "firebase login",
     "firebase:emulators:start": "firebase emulators:start --config tests/integration/firebase.test.json --only firestore,auth,storage",
     "firebase:deploy:rules": "firebase deploy --only firestore:rules,storage:rules",

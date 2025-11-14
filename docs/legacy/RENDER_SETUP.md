@@ -1,4 +1,7 @@
-# Render Deployment Setup
+# Render Deployment Setup (legacy)
+
+> ⚠️ Render больше не используется для production-хостинга. Держим этот гайд только для истории миграции.  
+> Актуальные инструкции по деплою и настройкам переменных находятся в `README.md` и `docs/ARCHITECTURE_GUIDELINES.md`.
 
 ## Current Status
 ✅ Code is deployed  
