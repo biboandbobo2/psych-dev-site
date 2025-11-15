@@ -52,6 +52,53 @@ input[type="radio"] {
   user-select: none !important;
 }
 
+/* Enable text selection for all text content */
+body,
+div:not([role="button"]):not([data-no-select]),
+p,
+h1, h2, h3, h4, h5, h6,
+span:not([role="button"]),
+li,
+a,
+section,
+article,
+main {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+}
+
+/* Make text selection more visible */
+body ::selection,
+div:not([role="button"]) ::selection,
+p ::selection,
+h1 ::selection, h2 ::selection, h3 ::selection,
+h4 ::selection, h5 ::selection, h6 ::selection,
+span:not([role="button"]) ::selection,
+li ::selection,
+a ::selection,
+section ::selection,
+article ::selection,
+main ::selection {
+  background: rgba(59, 130, 246, 0.3) !important;
+  color: inherit;
+}
+
+body ::-moz-selection,
+div:not([role="button"]) ::-moz-selection,
+p ::-moz-selection,
+h1 ::-moz-selection, h2 ::-moz-selection, h3 ::-moz-selection,
+h4 ::-moz-selection, h5 ::-moz-selection, h6 ::-moz-selection,
+span:not([role="button"]) ::-moz-selection,
+li ::-moz-selection,
+a ::-moz-selection,
+section ::-moz-selection,
+article ::-moz-selection,
+main ::-moz-selection {
+  background: rgba(59, 130, 246, 0.3) !important;
+  color: inherit;
+}
+
 .error-toast {
   position: fixed;
   bottom: 1.5rem;
