@@ -68,7 +68,7 @@ export function TestCard({ chain, testUnlockStatus, className = '' }: TestCardPr
           {rootUnlocked ? (
             <Link
               to={`/tests/dynamic/${root.id}`}
-              className={`text-left font-semibold text-gray-900 ${levels.length === 0 ? 'text-xl' : 'text-lg'} hover:underline focus:underline transition-colors`}
+              className={`text-left font-semibold text-gray-900 ${levels.length === 0 ? 'text-xl' : 'text-lg'} no-underline hover:no-underline focus-visible:no-underline transition-colors`}
             >
               {titleText}
             </Link>

@@ -268,7 +268,7 @@ export function TestQuestionScreen({
                                 href={resource.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-green-700 underline hover:text-green-900"
+                                className="text-green-700 no-underline hover:no-underline focus-visible:no-underline hover:text-green-900"
                               >
                                 {resource.title}
                               </a>
@@ -288,7 +288,7 @@ export function TestQuestionScreen({
                                 href={resource.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-blue-700 underline hover:text-blue-900"
+                                className="text-blue-700 no-underline hover:no-underline focus-visible:no-underline hover:text-blue-900"
                               >
                                 {resource.title}
                               </a>

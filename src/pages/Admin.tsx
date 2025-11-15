@@ -127,7 +127,7 @@ export default function Admin() {
             Подробный процесс описан в{" "}
             <a
               href="/docs/ARCHITECTURE_GUIDELINES.md#security-roles--logging"
-              className="text-accent underline"
+              className="text-accent no-underline hover:no-underline focus-visible:no-underline"
             >
               Architecture Guidelines → Security, Roles &amp; Logging
             </a>
