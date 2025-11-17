@@ -4,10 +4,12 @@ import RequireAuth from '../auth/RequireAuth';
 import RequireAdmin from '../auth/RequireAdmin';
 import Login from '../pages/Login';
 import {
+  HomePage,
   Admin,
   AdminUsers,
   AdminContent,
   AdminContentEdit,
+  AdminHomePage,
   AdminTopics,
   MigrateTopics,
   Profile,
@@ -32,7 +34,7 @@ export function AppRoutes({ location, periodMap, isSuperAdmin }: AppRoutesProps)
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<Navigate to="/prenatal" replace />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<Login />} />
         <Route
           path="/admin/content"
@@ -55,6 +57,14 @@ export function AppRoutes({ location, periodMap, isSuperAdmin }: AppRoutesProps)
           element={
             <RequireAdmin>
               <AdminContentEdit />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/homepage"
+          element={
+            <RequireAdmin>
+              <AdminHomePage />
             </RequireAdmin>
           }
         />
