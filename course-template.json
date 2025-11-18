@@ -1,0 +1,436 @@
+[
+  {
+    "period": "general-intro",
+    "title": "Введение в общую психологию",
+    "subtitle": "Вводное занятие курса общей психологии",
+    "published": true,
+    "order": 0,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": [
+          {
+            "title": "Основная лекция",
+            "url": "https://youtube.com/watch?v=XXXXX",
+            "deckUrl": "",
+            "audioUrl": ""
+          }
+        ]
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Психология",
+          "Психика",
+          "Сознание",
+          "Поведение"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Имя Автора",
+            "url": "https://ru.wikipedia.org/wiki/..."
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": [
+          {
+            "title": "Название книги",
+            "url": "https://..."
+          }
+        ]
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": [
+          {
+            "title": "Название книги",
+            "url": "https://..."
+          }
+        ]
+      }
+    }
+  },
+  {
+    "period": "general-1",
+    "title": "Занятие 1: Предмет психологии",
+    "subtitle": "Тема 1 курса общей психологии",
+    "published": true,
+    "order": 1,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": [
+          {
+            "title": "Предмет психологии",
+            "url": "https://youtube.com/watch?v=XXXXX",
+            "deckUrl": "",
+            "audioUrl": ""
+          }
+        ]
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Предмет психологии",
+          "Методы психологии"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Имя Автора",
+            "url": ""
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-2",
+    "title": "Занятие 2: Название темы",
+    "subtitle": "Тема 2 курса общей психологии",
+    "published": true,
+    "order": 2,
+    "placeholderEnabled": false,
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": []
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": []
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-3",
+    "title": "Занятие 3: Название темы",
+    "subtitle": "Тема 3 курса общей психологии",
+    "published": true,
+    "order": 3,
+    "placeholderEnabled": false,
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": []
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": []
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-4",
+    "title": "Занятие 4: Название темы",
+    "subtitle": "Тема 4 курса общей психологии",
+    "published": true,
+    "order": 4,
+    "placeholderEnabled": false,
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": []
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": []
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-5",
+    "title": "Занятие 5: Название темы",
+    "subtitle": "Тема 5 курса общей психологии",
+    "published": true,
+    "order": 5,
+    "placeholderEnabled": false,
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": []
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": []
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-6",
+    "title": "Занятие 6: Название темы",
+    "subtitle": "Тема 6 курса общей психологии",
+    "published": true,
+    "order": 6,
+    "placeholderEnabled": false,
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": []
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": []
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-7",
+    "title": "Занятие 7: Название темы",
+    "subtitle": "Тема 7 курса общей психологии",
+    "published": true,
+    "order": 7,
+    "placeholderEnabled": false,
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": []
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": []
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-8",
+    "title": "Занятие 8: Название темы",
+    "subtitle": "Тема 8 курса общей психологии",
+    "published": true,
+    "order": 8,
+    "placeholderEnabled": false,
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": []
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": []
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-9",
+    "title": "Занятие 9: Название темы",
+    "subtitle": "Тема 9 курса общей психологии",
+    "published": true,
+    "order": 9,
+    "placeholderEnabled": false,
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": []
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": []
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-10",
+    "title": "Занятие 10: Название темы",
+    "subtitle": "Тема 10 курса общей психологии",
+    "published": true,
+    "order": 10,
+    "placeholderEnabled": false,
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": []
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": []
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-11",
+    "title": "Занятие 11: Название темы",
+    "subtitle": "Тема 11 курса общей психологии",
+    "published": true,
+    "order": 11,
+    "placeholderEnabled": false,
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": []
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": []
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-12",
+    "title": "Занятие 12: Название темы",
+    "subtitle": "Тема 12 курса общей психологии",
+    "published": true,
+    "order": 12,
+    "placeholderEnabled": false,
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": []
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": []
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  }
+]

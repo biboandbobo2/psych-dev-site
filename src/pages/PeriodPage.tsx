@@ -113,17 +113,18 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const hasSections = Boolean(
     convertedSections && Object.keys(convertedSections).length > 0
   );
-  const showExplicitPlaceholder = placeholderEnabled && trimmedPlaceholder.length > 0;
-  const showFallbackPlaceholder = !hasSections && placeholderMessage.length > 0;
-  const showPlaceholder = showExplicitPlaceholder || showFallbackPlaceholder;
+
+  // Логика отображения заглушки:
+  // 1. Если placeholderEnabled = true, всегда показываем заглушку
+  // 2. Если placeholderEnabled = false, показываем контент (если есть)
+  // 3. Если placeholderEnabled = undefined и нет контента, показываем fallback заглушку
+  const showPlaceholder = placeholderEnabled || (!hasSections && placeholderMessage.length > 0);
 
   // Debug logging to understand why placeholder shows
   debugLog('🔍 PeriodPage content detection:', {
     periodId: config.periodId,
     hasSections,
     placeholderEnabled,
-    showExplicitPlaceholder,
-    showFallbackPlaceholder,
     showPlaceholder,
     convertedSectionsKeys: convertedSections ? Object.keys(convertedSections) : [],
     hasVideoPlaylist: Array.isArray(period?.video_playlist),
