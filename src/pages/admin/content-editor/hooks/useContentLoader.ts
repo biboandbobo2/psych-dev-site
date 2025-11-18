@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../../lib/firebase';
 import { getPeriod as fetchPeriod, getIntro as fetchIntro } from '../../../../lib/firestoreHelpers';
 import { DEFAULT_THEME } from '../../../../theme/periods';
 import type { Period } from '../types';
 import { createEmptyVideoEntry, createVideoEntryFromSource } from '../utils/videoHelpers';
+import { debugError } from '../../../../lib/debug';
+
+type CourseType = 'development' | 'clinical';
 
 interface UseContentLoaderParams {
   periodId: string | undefined;
+  course: CourseType;
   placeholderDefaultEnabled: boolean;
   placeholderDisplayText: string;
   fallbackTitle: string;
@@ -32,6 +38,7 @@ interface UseContentLoaderParams {
 export function useContentLoader(params: UseContentLoaderParams) {
   const {
     periodId,
+    course,
     placeholderDefaultEnabled,
     placeholderDisplayText,
     fallbackTitle,
@@ -66,20 +73,34 @@ export function useContentLoader(params: UseContentLoaderParams) {
         setLoading(true);
         let data: Period | null = null;
 
-        if (periodId === 'intro') {
-          const intro = await fetchPeriod('intro');
-          if (intro) {
-            data = intro as Period;
-          } else {
-            const legacyIntro = await fetchIntro();
-            if (legacyIntro) {
-              data = legacyIntro as Period;
-            }
+        // Для курса клинической психологии используем коллекцию clinical-topics
+        if (course === 'clinical') {
+          const collectionName = 'clinical-topics';
+          const docRef = doc(db, collectionName, periodId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            data = {
+              ...(docSnap.data() as Omit<Period, 'period'>),
+              period: periodId,
+            };
           }
         } else {
-          const fetched = await fetchPeriod(periodId);
-          if (fetched) {
-            data = fetched as Period;
+          // Для курса психологии развития используем periods
+          if (periodId === 'intro') {
+            const intro = await fetchPeriod('intro');
+            if (intro) {
+              data = intro as Period;
+            } else {
+              const legacyIntro = await fetchIntro();
+              if (legacyIntro) {
+                data = legacyIntro as Period;
+              }
+            }
+          } else {
+            const fetched = await fetchPeriod(periodId);
+            if (fetched) {
+              data = fetched as Period;
+            }
           }
         }
 
@@ -177,7 +198,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
         setLeisure(data.leisure || []);
         setSelfQuestionsUrl(data.self_questions_url || '');
       } catch (error: any) {
-        console.error('Error loading period', error);
+        debugError('Error loading period', error);
         alert('Ошибка загрузки: ' + (error?.message || error));
       } finally {
         setLoading(false);
@@ -185,7 +206,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
     }
 
     loadPeriod();
-  }, [periodId, placeholderDefaultEnabled, placeholderDisplayText, fallbackTitle]);
+  }, [periodId, course, placeholderDefaultEnabled, placeholderDisplayText, fallbackTitle]);
 
   return { period, loading };
 }

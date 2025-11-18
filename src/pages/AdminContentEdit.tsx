@@ -1,5 +1,5 @@
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ROUTE_BY_PERIOD } from '../routes';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { ROUTE_BY_PERIOD, CLINICAL_ROUTE_BY_PERIOD } from '../routes';
 import { normalizeText } from '../utils/contentHelpers';
 import { useContentForm } from './admin/content-editor/hooks/useContentForm';
 import { useContentLoader } from './admin/content-editor/hooks/useContentLoader';
@@ -14,21 +14,35 @@ import {
   ContentActionsBar,
 } from './admin/content-editor/components';
 
+type CourseType = 'development' | 'clinical';
+
 /**
  * Admin page for editing period content
  */
 export default function AdminContentEdit() {
   const { periodId } = useParams<{ periodId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Определяем курс из URL параметра
+  const courseParam = searchParams.get('course');
+  const course: CourseType = (courseParam === 'clinical' || courseParam === 'development')
+    ? courseParam
+    : 'development';
 
   // Get route config for placeholder settings
-  const routeConfig = periodId ? ROUTE_BY_PERIOD[periodId] : undefined;
+  const routesByPeriod = course === 'clinical' ? CLINICAL_ROUTE_BY_PERIOD : ROUTE_BY_PERIOD;
+  const routeConfig = periodId ? routesByPeriod[periodId] : undefined;
   const placeholderDefaultEnabled = routeConfig?.placeholderDefaultEnabled ?? false;
   const placeholderDisplayText =
-    routeConfig?.placeholderText || 'Контент для этого возраста появится в ближайшем обновлении.';
+    routeConfig?.placeholderText || (course === 'clinical'
+      ? 'Контент для этой темы появится в ближайшем обновлении.'
+      : 'Контент для этого возраста появится в ближайшем обновлении.');
   const normalizedPlaceholderText = normalizeText(placeholderDisplayText);
   const fallbackTitle =
-    routeConfig?.navLabel || (periodId ? `Период ${periodId}` : 'Новый период');
+    routeConfig?.navLabel || (periodId
+      ? (course === 'clinical' ? `Тема ${periodId}` : `Период ${periodId}`)
+      : (course === 'clinical' ? 'Новая тема' : 'Новый период'));
 
   // Form state management
   const form = useContentForm(placeholderDefaultEnabled);
@@ -36,6 +50,7 @@ export default function AdminContentEdit() {
   // Load content from Firestore
   const { period, loading } = useContentLoader({
     periodId,
+    course,
     placeholderDefaultEnabled,
     placeholderDisplayText,
     fallbackTitle,
@@ -57,7 +72,7 @@ export default function AdminContentEdit() {
   });
 
   // Save/delete handlers
-  const { saving, handleSave, handleDelete } = useContentSaver(() => navigate('/admin/content'));
+  const { saving, handleSave, handleDelete } = useContentSaver(() => navigate(`/admin/content?course=${course}`), course);
 
   const onSave = () => {
     handleSave({
@@ -110,12 +125,14 @@ export default function AdminContentEdit() {
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link to="/admin/content" className="text-gray-600 hover:text-gray-900 text-2xl">
+        <Link to={`/admin/content?course=${course}`} className="text-gray-600 hover:text-gray-900 text-2xl">
           ←
         </Link>
         <div>
           <h1 className="text-3xl font-bold">
-            {periodId === 'intro' ? '✨ Вводное занятие' : `Редактирование: ${period.title}`}
+            {periodId === 'intro' || periodId === 'clinical-intro'
+              ? '✨ Вводное занятие'
+              : `Редактирование: ${period.title}`}
           </h1>
           <p className="text-gray-600 text-sm mt-1">ID: {periodId}</p>
         </div>

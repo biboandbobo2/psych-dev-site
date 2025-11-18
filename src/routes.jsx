@@ -184,3 +184,137 @@ export const ROUTE_BY_PERIOD = ROUTE_CONFIG.reduce((acc, config) => {
   }
   return acc;
 }, {});
+
+/**
+ * Конфигурация роутов для курса клинической психологии
+ */
+export const CLINICAL_ROUTE_CONFIG = [
+  {
+    path: '/clinical/intro',
+    key: 'clinical-intro',
+    navLabel: 'Введение',
+    periodId: 'clinical-intro',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Введение в клиническую психологию — Psych Dev Site',
+      description: 'Вводное занятие курса клинической психологии.',
+    },
+  },
+  {
+    path: '/clinical/1',
+    key: 'clinical-1',
+    navLabel: 'Предмет, методы патопсихологии',
+    periodId: 'clinical-1',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Патопсихология — Psych Dev Site',
+      description: 'Предмет, методы и задачи патопсихологии. Аномалии эмоционально-личностной сферы.',
+    },
+  },
+  {
+    path: '/clinical/2',
+    key: 'clinical-2',
+    navLabel: 'Расстройства личности',
+    periodId: 'clinical-2',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Расстройства личности — Psych Dev Site',
+      description: 'Диагностика и терапия расстройств личности.',
+    },
+  },
+  {
+    path: '/clinical/3',
+    key: 'clinical-3',
+    navLabel: 'Аффективные расстройства (БАР)',
+    periodId: 'clinical-3',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Аффективные расстройства — Psych Dev Site',
+      description: 'Депрессия, мания и биполярное аффективное расстройство.',
+    },
+  },
+  {
+    path: '/clinical/4',
+    key: 'clinical-4',
+    navLabel: 'Суицидальность',
+    periodId: 'clinical-4',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Суицидальность — Psych Dev Site',
+      description: 'Аффективные расстройства и суицидальность.',
+    },
+  },
+  {
+    path: '/clinical/5',
+    key: 'clinical-5',
+    navLabel: 'Расстройства психотического спектра',
+    periodId: 'clinical-5',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Психотические расстройства — Psych Dev Site',
+      description: 'Шизофрения и расстройства психотического спектра.',
+    },
+  },
+  {
+    path: '/clinical/6',
+    key: 'clinical-6',
+    navLabel: 'Патология памяти, восприятия',
+    periodId: 'clinical-6',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Патология ВПФ — Psych Dev Site',
+      description: 'Патология памяти, восприятия и внимания.',
+    },
+  },
+  {
+    path: '/clinical/7',
+    key: 'clinical-7',
+    navLabel: 'Классификация расстройств ВПФ',
+    periodId: 'clinical-7',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Расстройства ВПФ — Psych Dev Site',
+      description: 'Классификация расстройств высших психических функций.',
+    },
+  },
+  {
+    path: '/clinical/8',
+    key: 'clinical-8',
+    navLabel: 'Патопсихологическая диагностика',
+    periodId: 'clinical-8',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Патопсихологическая диагностика — Psych Dev Site',
+      description: 'Методы патопсихологической диагностики.',
+    },
+  },
+  {
+    path: '/clinical/9',
+    key: 'clinical-9',
+    navLabel: 'Проективные методы',
+    periodId: 'clinical-9',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Проективная диагностика — Psych Dev Site',
+      description: 'Проективные методы психодиагностики.',
+    },
+  },
+  {
+    path: '/clinical/10',
+    key: 'clinical-10',
+    navLabel: 'Нарушения развития у детей',
+    periodId: 'clinical-10',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Нарушения развития — Psych Dev Site',
+      description: 'Нарушения психического развития в детском возрасте.',
+    },
+  },
+];
+
+export const CLINICAL_ROUTE_BY_PERIOD = CLINICAL_ROUTE_CONFIG.reduce((acc, config) => {
+  if (config.periodId) {
+    acc[config.periodId] = config;
+  }
+  return acc;
+}, {});

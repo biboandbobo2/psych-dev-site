@@ -19,18 +19,19 @@ import {
   TestsPage,
 } from '../pages/lazy';
 import { PageLoader } from '../components/ui';
-import { ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
+import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
 import { PeriodPage } from '../pages/PeriodPage';
 import NotFound from './NotFound';
-import type { Period } from '../types/content';
+import type { Period, ClinicalTopic } from '../types/content';
 
 interface AppRoutesProps {
   location: Location;
   periodMap: Map<string, Period>;
+  clinicalTopicsMap: Map<string, ClinicalTopic>;
   isSuperAdmin: boolean;
 }
 
-export function AppRoutes({ location, periodMap, isSuperAdmin }: AppRoutesProps) {
+export function AppRoutes({ location, periodMap, clinicalTopicsMap, isSuperAdmin }: AppRoutesProps) {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes location={location} key={location.pathname}>
@@ -145,6 +146,18 @@ export function AppRoutes({ location, periodMap, isSuperAdmin }: AppRoutesProps)
               <PeriodPage
                 config={config}
                 period={config.periodId ? periodMap.get(config.periodId) : null}
+              />
+            }
+          />
+        ))}
+        {CLINICAL_ROUTE_CONFIG.map((config) => (
+          <Route
+            key={config.path}
+            path={config.path}
+            element={
+              <PeriodPage
+                config={config}
+                period={config.periodId ? clinicalTopicsMap.get(config.periodId) : null}
               />
             }
           />

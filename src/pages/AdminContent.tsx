@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { collection, orderBy, query, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { ROUTE_CONFIG } from "../routes";
+import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG } from "../routes";
 import { getPeriodColors } from "../constants/periods";
 import { TestEditorModal } from "../components/TestEditorModal";
 import { canonicalizePeriodId } from "../lib/firestoreHelpers";
+import { debugError } from "../lib/debug";
+
+type CourseType = 'development' | 'clinical';
 
 interface Period {
   period: string;
@@ -18,30 +21,79 @@ interface Period {
   [key: string]: any;
 }
 
-const ROUTE_ORDER_MAP: Record<string, number> = ROUTE_CONFIG.reduce(
-  (acc, config, index) => {
-    if (config.periodId) {
-      acc[config.periodId] = index;
-    }
-    return acc;
-  },
-  {} as Record<string, number>
-);
-
-const getRouteOrder = (periodId: string) =>
-  ROUTE_ORDER_MAP[periodId] ?? Number.MAX_SAFE_INTEGER;
-
 const FALLBACK_PLACEHOLDER_TEXT = "Контент для этого возраста пока не создан.";
 
+// Конфигурация курсов
+const COURSES = {
+  development: {
+    id: 'development' as CourseType,
+    name: 'Психология развития',
+    collection: 'periods',
+    routes: ROUTE_CONFIG,
+    icon: '👶',
+  },
+  clinical: {
+    id: 'clinical' as CourseType,
+    name: 'Клиническая психология',
+    collection: 'clinical-topics',
+    routes: CLINICAL_ROUTE_CONFIG,
+    icon: '🧠',
+  },
+};
+
+function getRouteOrderMap(routes: typeof ROUTE_CONFIG) {
+  return routes.reduce(
+    (acc, config, index) => {
+      if (config.periodId) {
+        acc[config.periodId] = index;
+      }
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+}
+
 export default function AdminContent() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+
+  // Определяем курс из URL или из referrer
+  const getCourseFromState = (): CourseType => {
+    // 1. Проверяем URL параметр
+    const courseParam = searchParams.get('course');
+    if (courseParam === 'clinical' || courseParam === 'development') {
+      return courseParam;
+    }
+
+    // 2. Проверяем state из navigation
+    const stateC = (location.state as any)?.course;
+    if (stateC === 'clinical' || stateC === 'development') {
+      return stateC;
+    }
+
+    // 3. Проверяем referrer из document
+    if (typeof document !== 'undefined' && document.referrer) {
+      if (document.referrer.includes('/clinical/')) {
+        return 'clinical';
+      }
+    }
+
+    return 'development'; // по умолчанию
+  };
+
+  const [currentCourse, setCurrentCourse] = useState<CourseType>(getCourseFromState);
   const [periods, setPeriods] = useState<Period[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTestEditor, setShowTestEditor] = useState(false);
 
+  const course = COURSES[currentCourse];
+  const routeOrderMap = getRouteOrderMap(course.routes);
+  const getRouteOrder = (periodId: string) => routeOrderMap[periodId] ?? Number.MAX_SAFE_INTEGER;
+
   const loadPeriods = async () => {
     try {
       setLoading(true);
-      const periodsRef = collection(db, "periods");
+      const periodsRef = collection(db, course.collection);
       const q = query(periodsRef, orderBy("order", "asc"));
       const snapshot = await getDocs(q);
       const data = snapshot.docs.map((docSnap) => {
@@ -54,7 +106,7 @@ export default function AdminContent() {
       });
 
       const existingIds = new Set(data.map((period) => period.period));
-      const placeholderPeriods = ROUTE_CONFIG.filter(
+      const placeholderPeriods = course.routes.filter(
         (config) => config.periodId && !existingIds.has(config.periodId)
       ).map((config) => ({
         period: config.periodId!,
@@ -79,16 +131,23 @@ export default function AdminContent() {
 
       setPeriods(combined);
     } catch (err: any) {
-      console.error("Error loading periods:", err);
+      debugError("Error loading periods:", err);
       alert("Failed to load periods: " + (err?.message || err));
     } finally {
       setLoading(false);
     }
   };
 
+  // Перезагружаем данные при смене курса
   useEffect(() => {
     loadPeriods();
-  }, []);
+  }, [currentCourse]);
+
+  // Обновляем URL при смене курса
+  const handleCourseChange = (newCourse: CourseType) => {
+    setCurrentCourse(newCourse);
+    setSearchParams({ course: newCourse });
+  };
 
   if (loading) {
     return (
@@ -106,11 +165,31 @@ export default function AdminContent() {
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <header>
         <h1 className="text-3xl font-bold mb-2">📝 Управление контентом</h1>
-        <p className="text-gray-600">Редактирование периодов</p>
+        <p className="text-gray-600">Редактирование курсов</p>
       </header>
 
+      {/* Переключатель курсов */}
+      <div className="flex gap-2 border-b border-gray-200">
+        {Object.values(COURSES).map((courseOption) => (
+          <button
+            key={courseOption.id}
+            onClick={() => handleCourseChange(courseOption.id)}
+            className={`px-4 py-2 font-medium transition-colors relative ${
+              currentCourse === courseOption.id
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <span className="mr-2">{courseOption.icon}</span>
+            {courseOption.name}
+          </button>
+        ))}
+      </div>
+
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-700">Все периоды</h2>
+        <h2 className="text-xl font-bold text-gray-700">
+          {currentCourse === 'clinical' ? 'Все темы' : 'Все периоды'}
+        </h2>
 
         <div className="flex items-center gap-3">
           <button
@@ -144,7 +223,7 @@ export default function AdminContent() {
             return (
               <Link
                 key={period.period}
-                to={`/admin/content/edit/${period.period}`}
+                to={`/admin/content/edit/${period.period}?course=${currentCourse}`}
                 className={`block rounded-lg shadow hover:shadow-lg transition-shadow ${
                   isIntro ? "bg-gradient-to-r from-yellow-400 to-yellow-500 text-white" : "bg-white"
                 } ${isPlaceholder && !isIntro ? "border border-dashed border-blue-200" : ""}`}
@@ -192,7 +271,8 @@ export default function AdminContent() {
 
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
         <p className="text-sm text-blue-700">
-          💡 <strong>Совет:</strong> Нажмите на период чтобы редактировать его содержимое.
+          💡 <strong>Совет:</strong> Нажмите на {currentCourse === 'clinical' ? 'тему' : 'период'}, чтобы редактировать {currentCourse === 'clinical' ? 'её' : 'его'} содержимое.
+          Переключатель вверху позволяет выбрать курс для редактирования.
         </p>
       </div>
 

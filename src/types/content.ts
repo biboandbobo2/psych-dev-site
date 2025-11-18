@@ -53,5 +53,17 @@ export interface IntroContent extends Omit<Period, "period"> {
   period: "intro";
 }
 
+/**
+ * ClinicalTopic - тема клинической психологии
+ * Структура идентична Period, но используется для курса клинической психологии
+ */
+export type ClinicalTopic = Period;
+
+export interface ClinicalIntroContent extends Omit<Period, "period"> {
+  period: "clinical-intro";
+}
+
 export type PeriodFormData = Omit<Period, "updatedAt" | "createdAt">;
 export type IntroFormData = Omit<IntroContent, "updatedAt" | "createdAt">;
+export type ClinicalTopicFormData = Omit<ClinicalTopic, "updatedAt" | "createdAt">;
+export type ClinicalIntroFormData = Omit<ClinicalIntroContent, "updatedAt" | "createdAt">;

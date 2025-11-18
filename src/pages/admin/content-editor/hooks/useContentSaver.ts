@@ -9,6 +9,9 @@ import {
   normalizeVideos,
   normalizeLeisure,
 } from '../utils/contentNormalizers';
+import { debugError } from '../../../../lib/debug';
+
+type CourseType = 'development' | 'clinical';
 
 interface SaveParams {
   periodId: string | undefined;
@@ -33,7 +36,7 @@ interface SaveParams {
 /**
  * Hook for saving and deleting content
  */
-export function useContentSaver(onNavigate: () => void) {
+export function useContentSaver(onNavigate: () => void, course: CourseType = 'development') {
   const [saving, setSaving] = useState(false);
 
   const handleSave = async (params: SaveParams) => {
@@ -125,29 +128,37 @@ export function useContentSaver(onNavigate: () => void) {
         data.video_playlist = deleteField();
       }
 
-      if (periodId === 'intro') {
-        const singletonRef = doc(db, 'intro', 'singleton');
-        const singletonSnap = await getDoc(singletonRef);
-        if (singletonSnap.exists()) {
-          await setDoc(singletonRef, data, { merge: true });
-        } else {
-          const introCol = collection(db, 'intro');
-          const introSnap = await getDocs(introCol);
-          if (!introSnap.empty) {
-            await setDoc(introSnap.docs[0].ref, data, { merge: true });
-          } else {
-            await setDoc(singletonRef, data, { merge: true });
-          }
-        }
-      } else {
-        const docRef = doc(db, 'periods', periodId!);
+      // Определяем коллекцию в зависимости от курса
+      if (course === 'clinical') {
+        // Для клинической психологии используем коллекцию clinical-topics
+        const docRef = doc(db, 'clinical-topics', periodId!);
         await setDoc(docRef, data, { merge: true });
+      } else {
+        // Для психологии развития используем periods и intro
+        if (periodId === 'intro') {
+          const singletonRef = doc(db, 'intro', 'singleton');
+          const singletonSnap = await getDoc(singletonRef);
+          if (singletonSnap.exists()) {
+            await setDoc(singletonRef, data, { merge: true });
+          } else {
+            const introCol = collection(db, 'intro');
+            const introSnap = await getDocs(introCol);
+            if (!introSnap.empty) {
+              await setDoc(introSnap.docs[0].ref, data, { merge: true });
+            } else {
+              await setDoc(singletonRef, data, { merge: true });
+            }
+          }
+        } else {
+          const docRef = doc(db, 'periods', periodId!);
+          await setDoc(docRef, data, { merge: true });
+        }
       }
 
       alert('✅ Изменения сохранены!');
       onNavigate();
     } catch (error: any) {
-      console.error('Error saving:', error);
+      debugError('Error saving:', error);
       alert('❌ Ошибка сохранения: ' + (error?.message || error));
     } finally {
       setSaving(false);
@@ -155,25 +166,27 @@ export function useContentSaver(onNavigate: () => void) {
   };
 
   const handleDelete = async (periodId: string | undefined, title: string) => {
-    if (periodId === 'intro') {
+    if (periodId === 'intro' || periodId === 'clinical-intro') {
       alert('⚠️ Вводное занятие нельзя удалить, только редактировать.');
       return;
     }
 
+    const itemType = course === 'clinical' ? 'тему' : 'период';
     const confirmed = window.confirm(
-      `Вы уверены что хотите удалить период "${title}"?\n\n` + 'Это действие нельзя отменить!'
+      `Вы уверены что хотите удалить ${itemType} "${title}"?\n\n` + 'Это действие нельзя отменить!'
     );
 
     if (!confirmed) return;
 
     try {
       setSaving(true);
-      const docRef = doc(db, 'periods', periodId!);
+      const collectionName = course === 'clinical' ? 'clinical-topics' : 'periods';
+      const docRef = doc(db, collectionName, periodId!);
       await deleteDoc(docRef);
-      alert('🗑️ Период удалён');
+      alert(`🗑️ ${course === 'clinical' ? 'Тема удалена' : 'Период удалён'}`);
       onNavigate();
     } catch (error: any) {
-      console.error('Error deleting:', error);
+      debugError('Error deleting:', error);
       alert('❌ Ошибка удаления: ' + (error?.message || error));
     } finally {
       setSaving(false);

@@ -1,0 +1,847 @@
+[
+  {
+    "period": "clinical-intro",
+    "title": "Введение в клиническую психологию",
+    "subtitle": "Вводное занятие курса",
+    "video_playlist": [],
+    "concepts": [
+      "Клиническая психология",
+      "Патопсихология",
+      "Психодиагностика",
+      "Психические расстройства"
+    ],
+    "authors": [],
+    "core_literature": [],
+    "extra_literature": [],
+    "extra_videos": [],
+    "leisure": [],
+    "accent": "#8B5CF6",
+    "accent100": "#F5F3FF",
+    "published": true,
+    "order": 0
+  },
+  {
+    "period": "clinical-1",
+    "title": "Предмет, методы и задачи патопсихологии. Аномалии эмоционально-личностной сферы",
+    "subtitle": "Тема 1 курса клинической психологии",
+    "video_playlist": [
+      {
+        "title": "Основы патопсихологии (вступительная лекция) — НИУ ВШЭ / ПостНаука",
+        "url": "https://www.hse.ru/news/edu/738524367.html"
+      },
+      {
+        "title": "Психология: когда вещи идут не так — Psychopathology (Yale, PSYC 110, лекция)",
+        "url": "https://oyc.yale.edu/psychology/psyc-110/lecture-19"
+      }
+    ],
+    "concepts": [
+      "Патопсихология (https://en.wikipedia.org/wiki/Pathopsychology)",
+      "Дизонтогенез (https://ru.wikipedia.org/wiki/%D0%94%D0%B8%D0%B7%D0%BE%D0%BD%D1%82%D0%BE%D0%B3%D0%B5%D0%BD%D0%B5%D0%B7)",
+      "Эмоциональная дисрегуляция (https://en.wikipedia.org/wiki/Emotional_dysregulation)",
+      "Личностная организация (Кернберг) (https://en.wikipedia.org/wiki/Otto_Kernberg)",
+      "Параноидно-шизоидная/Депрессивная позиции (Кляйн) (https://en.wikipedia.org/wiki/Melanie_Klein)"
+    ],
+    "authors": [
+      {
+        "name": "Блюма Вульфовна Зейгарник",
+        "url": "https://ru.wikipedia.org/wiki/%D0%97%D0%B5%D0%B9%D0%B3%D0%B0%D1%80%D0%BD%D0%B8%D0%BA,_%D0%91%D0%BB%D1%8E%D0%BC%D0%B0_%D0%92%D1%83%D0%BB%D1%8C%D1%84%D0%BE%D0%B2%D0%BD%D0%B0"
+      },
+      {
+        "name": "Александр Романович Лурия",
+        "url": "https://ru.wikipedia.org/wiki/%D0%9B%D1%83%D1%80%D0%B8%D1%8F,_%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B0%D0%BD%D0%B4%D1%80_%D0%A0%D0%BE%D0%BC%D0%B0%D0%BD%D0%BE%D0%B2%D0%B8%D1%87"
+      },
+      {
+        "name": "Лев Семёнович Выготский",
+        "url": "https://ru.wikipedia.org/wiki/%D0%92%D1%8B%D0%B3%D0%BE%D1%82%D1%81%D0%BA%D0%B8%D0%B9,_%D0%9B%D0%B5%D0%B2_%D0%A1%D0%B5%D0%BC%D1%91%D0%BD%D0%BE%D0%B2%D0%B8%D1%87"
+      },
+      {
+        "name": "Отто Кернберг",
+        "url": "https://en.wikipedia.org/wiki/Otto_Kernberg"
+      }
+    ],
+    "core_literature": [
+      {
+        "title": "Зейгарник Б.В. Патопсихология",
+        "url": "https://psychlib.ru/mgppu/Zeigarnik-1986/Zei-001.htm"
+      },
+      {
+        "title": "Лурия А.Р. Высшие корковые функции человека",
+        "url": "https://www.piter.com/collection/all/product/vysshie-korkovye-funktsii-cheloveka"
+      },
+      {
+        "title": "Кляйн М. Психоанализ детей (о ранних аффективных конфликтах)",
+        "url": "https://en.wikipedia.org/wiki/Melanie_Klein"
+      }
+    ],
+    "extra_literature": [
+      {
+        "title": "Homskaya E.D. Neuropsychology (рус. Нейропсихология)",
+        "url": "https://yanko.lib.ru/books/psycho/homskaya%3Dneuropsychology.pdf"
+      },
+      {
+        "title": "Jaspers K. General Psychopathology",
+        "url": "https://en.wikipedia.org/wiki/General_Psychopathology"
+      },
+      {
+        "title": "American Psychiatric Association. DSM-5-TR (общее)",
+        "url": "https://www.psychiatry.org/psychiatrists/practice/dsm"
+      }
+    ],
+    "extra_videos": [
+      {
+        "title": "Yale PSYC110 — Mental Illness, Part I",
+        "url": "https://www.youtube.com/watch?v=rW79ZwDPKsY"
+      },
+      {
+        "title": "McLean Hospital — Embracing the complexity of Personality Disorder",
+        "url": "https://www.youtube.com/watch?v=Q6DIyPHhPms"
+      }
+    ],
+    "leisure": [
+      {
+        "title": "«Гений» (A Beautiful Mind, 2001) — о науке и уязвимости психики",
+        "url": "https://ru.wikipedia.org/wiki/%D0%98%D0%B3%D1%80%D1%8B_%D1%80%D0%B0%D0%B7%D1%83%D0%BC%D0%B0"
+      },
+      {
+        "title": "Оливер Сакс «Человек, который принял жену за шляпу»",
+        "url": "https://en.wikipedia.org/wiki/The_Man_Who_Mistook_His_Wife_for_a_Hat"
+      }
+    ],
+    "accent": "#8B5CF6",
+    "accent100": "#F5F3FF",
+    "published": true,
+    "order": 1
+  },
+  {
+    "period": "clinical-2",
+    "title": "Расстройства личности",
+    "subtitle": "Тема 2 курса клинической психологии",
+    "video_playlist": [
+      {
+        "title": "McLean Hospital — Borderline Personality Disorder 101",
+        "url": "https://www.mcleanhospital.org/video/borderline-personality-disorder-101"
+      },
+      {
+        "title": "Andrew Skodol: Personality disorders in DSM‑5 (Karolinska)",
+        "url": "https://www.youtube.com/watch?v=4mgifm3ftl8"
+      }
+    ],
+    "concepts": [
+      "ICD‑11: Personality Disorder (severity model) (https://icd.who.int/browse11/l-m/en#/http://id.who.int/icd/entity/592396245)",
+      "DSM‑5‑TR: Альтернативная модель личностных расстройств (AMPD) (https://www.psychiatry.org/psychiatrists/practice/dsm)",
+      "Диалектико‑поведенческая терапия (DBT) (https://en.wikipedia.org/wiki/Dialectical_behavior_therapy)",
+      "Ментализационно-ориентированная терапия (MBT) (https://en.wikipedia.org/wiki/Mentalization-based_treatment)",
+      "Схем‑терапия (https://en.wikipedia.org/wiki/Schema_therapy)"
+    ],
+    "authors": [
+      {
+        "name": "Отто Кернберг",
+        "url": "https://en.wikipedia.org/wiki/Otto_Kernberg"
+      },
+      {
+        "name": "Theodore Millon",
+        "url": "https://en.wikipedia.org/wiki/Theodore_Millon"
+      },
+      {
+        "name": "John Livesley",
+        "url": "https://en.wikipedia.org/wiki/John_Livesley"
+      },
+      {
+        "name": "Marsha Linehan",
+        "url": "https://en.wikipedia.org/wiki/Marsha_M._Linehan"
+      }
+    ],
+    "core_literature": [
+      {
+        "title": "ICD‑11: Personality Disorders — WHO diagnostic guidelines",
+        "url": "https://icd.who.int/browse11/l-m/en#/http://id.who.int/icd/entity/592396245"
+      },
+      {
+        "title": "Beck A.T., Freeman A. Cognitive Therapy of Personality Disorders",
+        "url": "https://www.guilford.com/books/Cognitive-Therapy-of-Personality-Disorders/Beck-Freeman-Davis/9781462551978"
+      },
+      {
+        "title": "Linehan M. Cognitive-Behavioral Treatment of Borderline Personality Disorder",
+        "url": "https://www.guilford.com/books/Cognitive-Behavioral-Treatment-of-Borderline-Personality-Disorder/Marsha-M-Linehan/9780898621839"
+      }
+    ],
+    "extra_literature": [
+      {
+        "title": "Tyrer P. et al. Development of the ICD‑11 classification of personality disorders",
+        "url": "https://www.annualreviews.org/content/journals/10.1146/annurev-clinpsy-050718-095736"
+      },
+      {
+        "title": "Kernberg O. Severe Personality Disorders",
+        "url": "https://global.oup.com/academic/product/severe-personality-disorders-9780300046099"
+      },
+      {
+        "title": "APA. DSM‑5‑TR Personality Disorders (publisher hub)",
+        "url": "https://www.psychiatry.org/psychiatrists/practice/dsm"
+      }
+    ],
+    "extra_videos": [
+      {
+        "title": "Oxford Psychiatry — Embracing the complexity of Personality Disorder",
+        "url": "https://www.youtube.com/watch?v=o3oLrXYzZTE"
+      },
+      {
+        "title": "Project Air (UOW) — Lectures & videos on PD",
+        "url": "https://www.uow.edu.au/project-air/resources/lectures--videos/"
+      }
+    ],
+    "leisure": [
+      {
+        "title": "«Прерванная жизнь» (Girl, Interrupted, 1999)",
+        "url": "https://en.wikipedia.org/wiki/Girl,_Interrupted"
+      },
+      {
+        "title": "«Камень скандала» (The Devil and Daniel Johnston, 2005) — о творчестве и уязвимости",
+        "url": "https://en.wikipedia.org/wiki/The_Devil_and_Daniel_Johnston"
+      }
+    ],
+    "accent": "#8B5CF6",
+    "accent100": "#F5F3FF",
+    "published": true,
+    "order": 2
+  },
+  {
+    "period": "clinical-3",
+    "title": "Аффективные расстройства (депрессия/мания/БАР)",
+    "subtitle": "Тема 3 курса клинической психологии",
+    "video_playlist": [
+      {
+        "title": "NIMH — Mental Health Minute: Bipolar Disorder",
+        "url": "https://www.nimh.nih.gov/news/media/2021/mental-health-minute-bipolar-disorder-in-adults"
+      },
+      {
+        "title": "Cardiff University — Introduction to Bipolar Disorder (taster lecture)",
+        "url": "https://www.youtube.com/watch?v=tnYmzYOXW8"
+      }
+    ],
+    "concepts": [
+      "Депрессивное расстройство (WHO fact sheet) (https://www.who.int/news-room/fact-sheets/detail/depression)",
+      "Биполярное расстройство — NIMH (https://www.nimh.nih.gov/health/publications/bipolar-disorder)",
+      "ИЦД‑11: Расстройства настроения (https://icd.who.int/browse11)",
+      "Когнитивная модель депрессии (Бек) (https://en.wikipedia.org/wiki/Beck%27s_cognitive_triads)",
+      "CANMAT/ISBD рекомендации по БАР (обзор) (https://pmc.ncbi.nlm.nih.gov/articles/PMC6970089/)"
+    ],
+    "authors": [
+      {
+        "name": "Аарон Бек",
+        "url": "https://en.wikipedia.org/wiki/Aaron_T._Beck"
+      },
+      {
+        "name": "Kay Redfield Jamison",
+        "url": "https://en.wikipedia.org/wiki/Kay_Redfield_Jamison"
+      },
+      {
+        "name": "Jules Angst",
+        "url": "https://en.wikipedia.org/wiki/Jules_Angst"
+      },
+      {
+        "name": "Martin Seligman",
+        "url": "https://en.wikipedia.org/wiki/Martin_Seligman"
+      }
+    ],
+    "core_literature": [
+      {
+        "title": "WHO — Depression (fact sheet)",
+        "url": "https://www.who.int/news-room/fact-sheets/detail/depression"
+      },
+      {
+        "title": "NIMH — Depression (brochure)",
+        "url": "https://www.nimh.nih.gov/health/publications/depression"
+      },
+      {
+        "title": "Bipolar disorders in ICD‑11: current status and strengths",
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6970089/"
+      }
+    ],
+    "extra_literature": [
+      {
+        "title": "American Psychiatric Association — What Is Depression?",
+        "url": "https://www.psychiatry.org/patients-families/depression/what-is-depression"
+      },
+      {
+        "title": "Cognitive Therapy of Depression (Beck et al.)",
+        "url": "https://www.guilford.com/books/Cognitive-Therapy-of-Depression/Beck-Rush-Shaw-Emery/9780898629194"
+      },
+      {
+        "title": "Jamison K.R. An Unquiet Mind (мемуары о БАР)",
+        "url": "https://www.penguinrandomhouse.com/books/87461/an-unquiet-mind-by-kay-redfield-jamison/"
+      }
+    ],
+    "extra_videos": [
+      {
+        "title": "NIMH — Bipolar Disorder playlist",
+        "url": "https://www.youtube.com/playlist?list=PLV9WJDAawyhapESf8V4Vi5unw-I8TXkHU"
+      },
+      {
+        "title": "NAMI Ask the Expert: Advances in Bipolar Disorder",
+        "url": "https://www.youtube.com/watch?v=2QZk5ZibiWc"
+      }
+    ],
+    "leisure": [
+      {
+        "title": "«Мой парень — псих» (Silver Linings Playbook, 2012)",
+        "url": "https://en.wikipedia.org/wiki/Silver_Linings_Playbook"
+      },
+      {
+        "title": "«Меланхолия» (2011)",
+        "url": "https://en.wikipedia.org/wiki/Melancholia_(2011_film)"
+      }
+    ],
+    "accent": "#8B5CF6",
+    "accent100": "#F5F3FF",
+    "published": true,
+    "order": 3
+  },
+  {
+    "period": "clinical-4",
+    "title": "Аффективные расстройства (суицидальность)",
+    "subtitle": "Тема 4 курса клинической психологии",
+    "video_playlist": [
+      {
+        "title": "NIMH — Suicide Prevention (playlist)",
+        "url": "https://www.youtube.com/playlist?list=PLA6E2001441568A69"
+      },
+      {
+        "title": "Stanley–Brown Safety Planning — короткие обучающие ролики",
+        "url": "https://suicidesafetyplan.com/training/"
+      }
+    ],
+    "concepts": [
+      "WHO — Suicide (fact sheet) (https://www.who.int/news-room/fact-sheets/detail/suicide)",
+      "NICE — Self-harm: assessment, management and preventing recurrence (NG225) (https://www.nice.org.uk/guidance/ng225)",
+      "C-SSRS — Columbia Suicide Severity Rating Scale (https://cssrs.columbia.edu/)",
+      "Safety Planning Intervention (Stanley–Brown) (https://suicidesafetyplan.com/)",
+      "CAMS — Collaborative Assessment and Management of Suicidality (https://cams-care.com/)"
+    ],
+    "authors": [
+      {
+        "name": "Edwin S. Shneidman",
+        "url": "https://en.wikipedia.org/wiki/Edwin_S._Shneidman"
+      },
+      {
+        "name": "Thomas Joiner",
+        "url": "https://en.wikipedia.org/wiki/Thomas_Joiner"
+      },
+      {
+        "name": "Barbara Stanley",
+        "url": "https://en.wikipedia.org/wiki/Barbara_Stanley"
+      },
+      {
+        "name": "M. David Rudd",
+        "url": "https://en.wikipedia.org/wiki/David_Rudd_(psychologist)"
+      }
+    ],
+    "core_literature": [
+      {
+        "title": "NICE NG225 — Self-harm: assessment, management and preventing recurrence",
+        "url": "https://www.nice.org.uk/guidance/ng225"
+      },
+      {
+        "title": "Stanley B., Brown G.K. Safety Planning Intervention (resource)",
+        "url": "https://sprc.org/resources/stanley-brown-safety-plan/"
+      },
+      {
+        "title": "Joiner T. Why People Die by Suicide",
+        "url": "https://global.oup.com/academic/product/why-people-die-by-suicide-9780674025493"
+      }
+    ],
+    "extra_literature": [
+      {
+        "title": "WHO — Suicide (fact sheet)",
+        "url": "https://www.who.int/news-room/fact-sheets/detail/suicide"
+      },
+      {
+        "title": "VA MIRECC — Crisis Response Planning & Safety Planning (overview)",
+        "url": "https://www.mirecc.va.gov/visn19/cpg/recs/7/"
+      },
+      {
+        "title": "The Joint Commission — Suicide prevention portal",
+        "url": "https://www.jointcommission.org/en-us/knowledge-library/suicide-prevention"
+      }
+    ],
+    "extra_videos": [
+      {
+        "title": "NIMH — Multimedia About Suicide",
+        "url": "https://www.nimh.nih.gov/news/media/index-suicide-prevention"
+      },
+      {
+        "title": "Facebook Live: Youth Suicide Prevention (NIMH)",
+        "url": "https://www.youtube.com/watch?v=ijmSFXh5tGI"
+      }
+    ],
+    "leisure": [
+      {
+        "title": "«Часы» (The Hours, 2002) — тема депрессии и суицидальности (контент‑предупреждение)",
+        "url": "https://en.wikipedia.org/wiki/The_Hours_(film)"
+      },
+      {
+        "title": "«На грани» (The Bridge, 2006) — документальный фильм (жесткий контент)",
+        "url": "https://en.wikipedia.org/wiki/The_Bridge_(2006_film)"
+      }
+    ],
+    "accent": "#8B5CF6",
+    "accent100": "#F5F3FF",
+    "published": true,
+    "order": 4
+  },
+  {
+    "period": "clinical-5",
+    "title": "Расстройства психотического спектра",
+    "subtitle": "Тема 5 курса клинической психологии",
+    "video_playlist": [
+      {
+        "title": "RCPsych — Mental Health Conditions (короткие ролики, в т.ч. о психозе)",
+        "url": "https://www.youtube.com/playlist?list=PLlDIbrw_s980ExN9bUFfFEprzJCS5Ekxu"
+      },
+      {
+        "title": "NICE webinar / GP: Understanding psychosis",
+        "url": "https://www.youtube.com/watch?v=7q7ER6cgRtg"
+      }
+    ],
+    "concepts": [
+      "NIMH — Understanding Psychosis (https://www.nimh.nih.gov/health/publications/understanding-psychosis)",
+      "NICE CG178 — Psychosis and schizophrenia in adults (https://www.nice.org.uk/guidance/cg178)",
+      "Шизофрения — WHO fact sheet (https://www.who.int/news-room/fact-sheets/detail/schizophrenia)",
+      "Позитивные/негативные симптомы (Andreasen) (https://en.wikipedia.org/wiki/Positive_and_negative_symptoms)",
+      "Продромальный психоз / раннее вмешательство (https://www.rcpsych.ac.uk/mental-health/mental-illnesses-and-mental-health-problems/psychosis)"
+    ],
+    "authors": [
+      {
+        "name": "Эмиль Крепелин",
+        "url": "https://en.wikipedia.org/wiki/Emil_Kraepelin"
+      },
+      {
+        "name": "Эйген Блёйлер",
+        "url": "https://en.wikipedia.org/wiki/Eugen_Bleuler"
+      },
+      {
+        "name": "Карл Ясперс",
+        "url": "https://en.wikipedia.org/wiki/Karl_Jaspers"
+      },
+      {
+        "name": "Nancy Andreasen",
+        "url": "https://en.wikipedia.org/wiki/Nancy_Coover_Andreasen"
+      }
+    ],
+    "core_literature": [
+      {
+        "title": "NICE CG178 — руководство по психозу и шизофрении",
+        "url": "https://www.nice.org.uk/guidance/cg178"
+      },
+      {
+        "title": "WHO — Schizophrenia (fact sheet)",
+        "url": "https://www.who.int/news-room/fact-sheets/detail/schizophrenia"
+      },
+      {
+        "title": "Andreasen N. — Schizophrenia: The Positive and Negative Symptoms",
+        "url": "https://global.oup.com/academic/product/schizophrenia-9780195137342"
+      }
+    ],
+    "extra_literature": [
+      {
+        "title": "Taylor & Perera (2015) — Critique of NICE CG178",
+        "url": "https://www.cambridge.org/core/journals/the-british-journal-of-psychiatry/article/nice-cg178-psychosis-and-schizophrenia-in-adults-treatment-and-management-an-evidencebased-guideline/CD4C1BE4FFE1D0155BC4ED6C36581402"
+      },
+      {
+        "title": "RCPsych — Psychosis (patient info)",
+        "url": "https://www.rcpsych.ac.uk/mental-health/mental-illnesses-and-mental-health-problems/psychosis"
+      }
+    ],
+    "extra_videos": [
+      {
+        "title": "Mindgardens — Difficult to Treat Psychosis (webinar)",
+        "url": "https://www.youtube.com/watch?v=sI0XzMDrT5g"
+      },
+      {
+        "title": "Mental State Examination: Psychosis (demo)",
+        "url": "https://www.youtube.com/watch?v=wlftjXHdWKo"
+      }
+    ],
+    "leisure": [
+      {
+        "title": "«Игры разума» (A Beautiful Mind, 2001)",
+        "url": "https://en.wikipedia.org/wiki/A_Beautiful_Mind_(film)"
+      },
+      {
+        "title": "«Чёрный лебедь» (2010) — художественная интерпретация",
+        "url": "https://en.wikipedia.org/wiki/Black_Swan_(film)"
+      }
+    ],
+    "accent": "#8B5CF6",
+    "accent100": "#F5F3FF",
+    "published": true,
+    "order": 5
+  },
+  {
+    "period": "clinical-6",
+    "title": "Патология памяти, восприятия и внимания",
+    "subtitle": "Тема 6 курса клинической психологии",
+    "video_playlist": [
+      {
+        "title": "MIT OCW — Memory I/II (лекции 10–11)",
+        "url": "https://ocw.mit.edu/courses/9-00sc-introduction-to-psychology-fall-2011/resources/lecture-videos/"
+      },
+      {
+        "title": "MIT OCW — Attention (лекция 7)",
+        "url": "https://ocw.mit.edu/courses/9-00sc-introduction-to-psychology-fall-2011/resources/lecture-videos/"
+      }
+    ],
+    "concepts": [
+      "Антероградная/ретроградная амнезия (https://www.ncbi.nlm.nih.gov/books/NBK538178/)",
+      "Прозопагнозия (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2646122/)",
+      "Геми-неглект (https://www.ncbi.nlm.nih.gov/books/NBK430713/)",
+      "Рабочая память (модель Бэддели) (https://www.taylorfrancis.com/books/mono/10.4324/9781315694390/working-memory-alan-baddeley-graham-hitch)",
+      "Галлюцинации / иллюзии (https://en.wikipedia.org/wiki/Hallucination)"
+    ],
+    "authors": [
+      {
+        "name": "Алан Бэддели",
+        "url": "https://en.wikipedia.org/wiki/Alan_Baddeley"
+      },
+      {
+        "name": "Эндел Тульвинг",
+        "url": "https://en.wikipedia.org/wiki/Endel_Tulving"
+      },
+      {
+        "name": "Анна Трейсман",
+        "url": "https://en.wikipedia.org/wiki/Anne_Treisman"
+      },
+      {
+        "name": "Александр Лурия",
+        "url": "https://en.wikipedia.org/wiki/Alexander_Luria"
+      }
+    ],
+    "core_literature": [
+      {
+        "title": "Baddeley & Hitch — Working Memory",
+        "url": "https://www.taylorfrancis.com/books/mono/10.4324/9781315694390/working-memory-alan-baddeley-graham-hitch"
+      },
+      {
+        "title": "Tulving E. Elements of Episodic Memory",
+        "url": "https://oxford.universitypressscholarship.com/view/10.1093/acprof:oso/9780198522718.001.0001/acprof-9780198522718"
+      },
+      {
+        "title": "StatPearls — Amnesia",
+        "url": "https://www.ncbi.nlm.nih.gov/books/NBK538178/"
+      }
+    ],
+    "extra_literature": [
+      {
+        "title": "Sacks O. The Man Who Mistook His Wife for a Hat",
+        "url": "https://en.wikipedia.org/wiki/The_Man_Who_Mistook_His_Wife_for_a_Hat"
+      },
+      {
+        "title": "Robertson I.H. Neglect rehabilitation (review)",
+        "url": "https://www.ncbi.nlm.nih.gov/books/NBK430713/"
+      }
+    ],
+    "extra_videos": [
+      {
+        "title": "MIT OCW — Memory I (видео)",
+        "url": "https://www.youtube.com/watch?v=76O3rulk844"
+      },
+      {
+        "title": "Stanford — Learning and Memory: How it Works and When it Fails",
+        "url": "https://www.youtube.com/watch?v=a_HfSnQqeyY"
+      }
+    ],
+    "leisure": [
+      {
+        "title": "«Помни» (Memento, 2000) — антероградная амнезия",
+        "url": "https://en.wikipedia.org/wiki/Memento"
+      },
+      {
+        "title": "«Все ещё Элис» (Still Alice, 2014)",
+        "url": "https://en.wikipedia.org/wiki/Still_Alice"
+      }
+    ],
+    "accent": "#8B5CF6",
+    "accent100": "#F5F3FF",
+    "published": true,
+    "order": 6
+  },
+  {
+    "period": "clinical-7",
+    "title": "Классификация расстройств ВПФ в клинической психологии",
+    "subtitle": "Тема 7 курса клинической психологии",
+    "video_playlist": [
+      {
+        "title": "Лурия и ВПФ — введение (короткое объяснение, MIT OCW: Memory II — системы памяти)",
+        "url": "https://ocw.mit.edu/courses/9-00sc-introduction-to-psychology-fall-2011/resources/lecture-11-memory-ii-amnesia-and-memory-systems/"
+      }
+    ],
+    "concepts": [
+      "Высшие психические функции (ВПФ) (https://ru.wikipedia.org/wiki/%D0%92%D1%8B%D1%81%D1%88%D0%B8%D0%B5_%D0%BF%D1%81%D0%B8%D1%85%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B5_%D1%84%D1%83%D0%BD%D0%BA%D1%86%D0%B8%D0%B8)",
+      "Лурия: функциональные блоки мозга (https://en.wikipedia.org/wiki/Alexander_Luria)",
+      "Афазии (классификация Лурии) (https://en.wikipedia.org/wiki/Aphasia)",
+      "Апраксии/агнозии (https://en.wikipedia.org/wiki/Apraxia)",
+      "Лурия–Небраска / Халстед–Рейтан батареи (https://en.wikipedia.org/wiki/Luria%E2%80%93Nebraska_Neuropsychological_Battery)"
+    ],
+    "authors": [
+      {
+        "name": "А. Р. Лурия",
+        "url": "https://ru.wikipedia.org/wiki/%D0%9B%D1%83%D1%80%D0%B8%D1%8F,_%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B0%D0%BD%D0%B4%D1%80_%D0%A0%D0%BE%D0%BC%D0%B0%D0%BD%D0%BE%D0%B2%D0%B8%D1%87"
+      },
+      {
+        "name": "Е. Д. Хомская",
+        "url": "https://ru.wikipedia.org/wiki/%D0%A5%D0%BE%D0%BC%D1%81%D0%BA%D0%B0%D1%8F,_%D0%95%D0%B2%D0%B3%D0%B5%D0%BD%D0%B8%D1%8F_%D0%94%D0%B0%D0%B2%D1%8B%D0%B4%D0%BE%D0%B2%D0%BD%D0%B0"
+      },
+      {
+        "name": "А. Р. Лурия — школа нейропсихологии (классики)",
+        "url": "https://yanko.lib.ru/books/psycho/homskaya%3Dneuropsychology.pdf"
+      }
+    ],
+    "core_literature": [
+      {
+        "title": "Лурия А.Р. — Высшие корковые функции человека",
+        "url": "https://www.piter.com/collection/all/product/vysshie-korkovye-funktsii-cheloveka"
+      },
+      {
+        "title": "Хомская Е.Д. — Нейропсихология (учебник)",
+        "url": "https://yanko.lib.ru/books/psycho/homskaya%3Dneuropsychology.pdf"
+      }
+    ],
+    "extra_literature": [
+      {
+        "title": "Luria–Nebraska Neuropsychological Battery (обзор)",
+        "url": "https://en.wikipedia.org/wiki/Luria%E2%80%93Nebraska_Neuropsychological_Battery"
+      }
+    ],
+    "extra_videos": [
+      {
+        "title": "Yale PSYC110 — Mental Illness (диагностика и модели)",
+        "url": "https://oyc.yale.edu/psychology/psyc-110/lecture-19"
+      }
+    ],
+    "leisure": [
+      {
+        "title": "Клинико‑нейропсихологические кейсы Оливера Сакса",
+        "url": "https://en.wikipedia.org/wiki/Oliver_Sacks"
+      }
+    ],
+    "accent": "#8B5CF6",
+    "accent100": "#F5F3FF",
+    "published": true,
+    "order": 7
+  },
+  {
+    "period": "clinical-8",
+    "title": "Психодиагностика: Патопсихологическая диагностика",
+    "subtitle": "Тема 8 курса клинической психологии",
+    "video_playlist": [
+      {
+        "title": "Что такое патопсихологическая диагностика? (кратко)",
+        "url": "https://www.youtube.com/watch?v=gS1uTY_0PpQ"
+      },
+      {
+        "title": "Разбор патопсихологического заключения (практикум)",
+        "url": "https://www.youtube.com/watch?v=Q8qoZ3dDoBI"
+      }
+    ],
+    "concepts": [
+      "Метод пиктограммы (Лурия) (https://www.researchgate.net/publication/355418084_%D0%9F%D0%98%D0%9A%D0%A2%D0%9E%D0%93%D0%A0%D0%90%D0%9C%D0%9C%D0%90_%D0%9A%D0%90%D0%9A_%D0%94%D0%98%D0%90%D0%93%D0%9D%D0%9E%D0%A1%D0%A2%D0%98%D0%A7%D0%95%D0%A1%D0%9A%D0%90%D0%AF_%D0%9C%D0%95%D0%A2%D0%9E%D0%94%D0%98%D0%9A%D0%90)",
+      "Метод «Исключение понятий» (https://studfile.net/preview/1640062/page:42/)",
+      "10 слов Лурии (опосредованная память) (https://ru.wikipedia.org/wiki/%D0%9B%D1%83%D1%80%D0%B8%D1%8F,_%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B0%D0%BD%D0%B4%D1%80_%D0%A0%D0%BE%D0%BC%D0%B0%D0%BD%D0%BE%D0%B2%D0%B8%D1%87)",
+      "Патопсихологический эксперимент (школа Зейгарник) (https://psychlib.ru/mgppu/Zeigarnik-1986/Zei-001.htm)",
+      "Симптомокомплекс и факторный анализ нарушений (https://en.wikipedia.org/wiki/Clinical_psychology)"
+    ],
+    "authors": [
+      {
+        "name": "Б.В. Зейгарник",
+        "url": "https://psychlib.ru/mgppu/Zeigarnik-1986/Zei-001.htm"
+      },
+      {
+        "name": "А.Р. Лурия",
+        "url": "https://ru.wikipedia.org/wiki/%D0%9B%D1%83%D1%80%D0%B8%D1%8F,_%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B0%D0%BD%D0%B4%D1%80_%D0%A0%D0%BE%D0%BC%D0%B0%D0%BD%D0%BE%D0%B2%D0%B8%D1%87"
+      },
+      {
+        "name": "С.Л. Рубинштейн",
+        "url": "https://en.wikipedia.org/wiki/Sergei_Rubinstein"
+      }
+    ],
+    "core_literature": [
+      {
+        "title": "Зейгарник Б.В. Патопсихология (полный текст)",
+        "url": "https://psychlib.ru/mgppu/Zeigarnik-1986/Zei-001.htm"
+      },
+      {
+        "title": "Практикум по патопсихологии (сб. методик)",
+        "url": "https://www.hse.ru/news/edu/738524367.html"
+      }
+    ],
+    "extra_literature": [
+      {
+        "title": "Лурия А.Р. — Основы нейропсихологической диагностики",
+        "url": "https://nikbook.ru/product/luriya-a-r-vysshie-korkovye-funktsii-cheloveka/"
+      }
+    ],
+    "extra_videos": [
+      {
+        "title": "Вводные ролики и примеры патопсихологического интервью",
+        "url": "https://www.youtube.com/results?search_query=%D0%BF%D0%B0%D1%82%D0%BE%D0%BF%D1%81%D0%B8%D1%85%D0%BE%D0%BB%D0%BE%D0%B3%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B0%D1%8F+%D0%B4%D0%B8%D0%B0%D0%B3%D0%BD%D0%BE%D1%81%D1%82%D0%B8%D0%BA%D0%B0"
+      }
+    ],
+    "leisure": [
+      {
+        "title": "«Эксперимент» — документальные фильмы о клинической психологии (подборка)",
+        "url": "https://www.learner.org/series/discovering-psychology/"
+      }
+    ],
+    "accent": "#8B5CF6",
+    "accent100": "#F5F3FF",
+    "published": true,
+    "order": 8
+  },
+  {
+    "period": "clinical-9",
+    "title": "Психодиагностика: Проективные методы диагностики",
+    "subtitle": "Тема 9 курса клинической психологии",
+    "video_playlist": [
+      {
+        "title": "Society for Personality Assessment — архив мастер‑лекций (Rorschach и др.)",
+        "url": "https://www.youtube.com/user/SPA1938/videos"
+      }
+    ],
+    "concepts": [
+      "Rorschach (ISR/International Society) (https://inkblot.org/)",
+      "TAT — Thematic Apperception Test (https://en.wikipedia.org/wiki/Thematic_Apperception_Test)",
+      "HTP — House‑Tree‑Person (https://en.wikipedia.org/wiki/House%E2%80%93tree%E2%80%93person_test)",
+      "R‑PAS — современная система интерпретации (https://www.r-pas.org/)",
+      "Дискуссия о валидности проективов (https://psycnet.apa.org/record/2003-02502-005)"
+    ],
+    "authors": [
+      {
+        "name": "Hermann Rorschach",
+        "url": "https://en.wikipedia.org/wiki/Hermann_Rorschach"
+      },
+      {
+        "name": "Henry A. Murray",
+        "url": "https://en.wikipedia.org/wiki/Henry_Murray"
+      },
+      {
+        "name": "Joni L. Mihura",
+        "url": "https://www.tandfonline.com/doi/abs/10.1080/00223891.2012.745922"
+      }
+    ],
+    "core_literature": [
+      {
+        "title": "Mihura et al. (2013) — Рorschach Performance Assessment System validity meta‑analysis",
+        "url": "https://www.tandfonline.com/doi/abs/10.1080/00223891.2012.745922"
+      },
+      {
+        "title": "International Society for the Rorschach — ресурсы",
+        "url": "https://inkblot.org/"
+      }
+    ],
+    "extra_literature": [
+      {
+        "title": "APA — обзор проектных методов и критика",
+        "url": "https://psycnet.apa.org/record/2003-02502-005"
+      },
+      {
+        "title": "VerywellMind — простое объяснение TAT (дополнительно)",
+        "url": "https://www.verywellmind.com/thematic-apperception-test-tat-2795584"
+      }
+    ],
+    "extra_videos": [
+      {
+        "title": "SPA — DSM‑5 and Personality Disorders (лекции)",
+        "url": "https://www.youtube.com/user/SPA1938/videos"
+      }
+    ],
+    "leisure": [
+      {
+        "title": "«Джеффри Гитомер об ассоциациях» — поп‑наука про проекции",
+        "url": "https://en.wikipedia.org/wiki/Projective_test"
+      }
+    ],
+    "accent": "#8B5CF6",
+    "accent100": "#F5F3FF",
+    "published": true,
+    "order": 9
+  },
+  {
+    "period": "clinical-10",
+    "title": "Нарушения психического развития в детском возрасте",
+    "subtitle": "Тема 10 курса клинической психологии",
+    "video_playlist": [
+      {
+        "title": "NICE — Autism (under 19s): guidance overview",
+        "url": "https://www.nice.org.uk/guidance/qs51"
+      },
+      {
+        "title": "CDC — Developmental Milestones (видео и материалы)",
+        "url": "https://www.cdc.gov/ncbddd/actearly/milestones/index.html"
+      }
+    ],
+    "concepts": [
+      "ASD — аутизм (WHO fact sheet) (https://www.who.int/news-room/fact-sheets/detail/autism-spectrum-disorders)",
+      "ADHD — NICE guideline (https://www.nice.org.uk/guidance/ng87)",
+      "Specific Learning Disorder (дислексия и др.) (https://www.bdadyslexia.org.uk/)",
+      "Developmental Language Disorder (https://www.rcslt.org/speech-and-language-therapy/clinical-information/developmental-language-disorder/)",
+      "Intellectual Disability (WHO) (https://www.who.int/news-room/fact-sheets/detail/intellectual-disabilities)"
+    ],
+    "authors": [
+      {
+        "name": "Лев Выготский (аномальное развитие и ЗПР)",
+        "url": "https://en.wikipedia.org/wiki/Lev_Vygotsky"
+      },
+      {
+        "name": "Uta Frith (аутизм, дислексия)",
+        "url": "https://en.wikipedia.org/wiki/Uta_Frith"
+      },
+      {
+        "name": "Russell Barkley (ADHD)",
+        "url": "https://en.wikipedia.org/wiki/Russell_Barkley"
+      }
+    ],
+    "core_literature": [
+      {
+        "title": "WHO — Autism Spectrum Disorders (fact sheet)",
+        "url": "https://www.who.int/news-room/fact-sheets/detail/autism-spectrum-disorders"
+      },
+      {
+        "title": "NICE — ADHD diagnosis and management (NG87)",
+        "url": "https://www.nice.org.uk/guidance/ng87"
+      },
+      {
+        "title": "NICE — Autism in under 19s (QS51 / CG)",
+        "url": "https://www.nice.org.uk/guidance/qs51"
+      }
+    ],
+    "extra_literature": [
+      {
+        "title": "CDC — Developmental Milestones",
+        "url": "https://www.cdc.gov/ncbddd/actearly/milestones/index.html"
+      },
+      {
+        "title": "RCSLT — Developmental Language Disorder",
+        "url": "https://www.rcslt.org/speech-and-language-therapy/clinical-information/developmental-language-disorder/"
+      }
+    ],
+    "extra_videos": [
+      {
+        "title": "RCPsych — Autism & ADHD (короткие ролики)",
+        "url": "https://www.youtube.com/playlist?list=PLlDIbrw_s980ExN9bUFfFEprzJCS5Ekxu"
+      }
+    ],
+    "leisure": [
+      {
+        "title": "«Храм разума» (Temple Grandin, 2010)",
+        "url": "https://en.wikipedia.org/wiki/Temple_Grandin_(film)"
+      },
+      {
+        "title": "«Скажи мне, кто ты» (Life, Animated, 2016) — документальный фильм",
+        "url": "https://en.wikipedia.org/wiki/Life,_Animated"
+      }
+    ],
+    "accent": "#8B5CF6",
+    "accent100": "#F5F3FF",
+    "published": true,
+    "order": 10
+  }
+]

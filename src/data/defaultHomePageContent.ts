@@ -133,6 +133,24 @@ export const DEFAULT_HOME_PAGE_CONTENT: HomePageContent = {
       },
     },
     {
+      type: 'cta-clinical',
+      order: 4.5,
+      enabled: true,
+      content: {
+        title: 'Курс клинической психологии',
+        subtitle:
+          'Расширьте свои знания в области клинической психологии. Изучите патопсихологию, расстройства личности, аффективные и психотические расстройства, методы психодиагностики.',
+        primaryCta: {
+          text: 'Перейти к курсу',
+          link: '/clinical/intro',
+        },
+        secondaryCta: {
+          text: 'Подробнее о курсе',
+          link: '/clinical/1',
+        },
+      },
+    },
+    {
       type: 'organization',
       order: 5,
       enabled: true,
