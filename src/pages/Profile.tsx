@@ -1,128 +1,6 @@
-import { useEffect, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
-import { collection, getCountFromServer, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { debugError } from '../lib/debug';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
 import { useAuth } from '../auth/AuthProvider';
-
-export function AdminPanel({ isSuperAdmin }: { isSuperAdmin: boolean }) {
-  const [stats, setStats] = useState({
-    totalPeriods: 0,
-    publishedPeriods: 0,
-    totalUsers: 0,
-    loading: true,
-  });
-
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const periodsSnap = await getDocs(collection(db, 'periods'));
-        const totalPeriods = periodsSnap.size;
-        const publishedPeriods = periodsSnap.docs.filter((periodDoc) => periodDoc.data().published === true).length;
-
-        const adminsQuery = query(
-          collection(db, 'users'),
-          where('role', 'in', ['admin', 'super-admin'])
-        );
-        const adminCountSnap = await getCountFromServer(adminsQuery);
-        const totalAdmins = adminCountSnap.data().count ?? 0;
-
-        setStats({
-          totalPeriods,
-          publishedPeriods,
-          totalUsers: totalAdmins,
-          loading: false,
-        });
-      } catch (error) {
-        debugError('Error loading stats:', error);
-        setStats((prev) => ({ ...prev, loading: false }));
-      }
-    };
-
-    loadStats();
-  }, []);
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <span className="text-3xl" role="img" aria-label="Администратор">
-          👑
-        </span>
-        Панель администратора
-      </h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <Link
-          to="/admin"
-          className="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl p-6 text-white hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
-        >
-          <div className="relative z-10">
-            <div className="text-4xl mb-3">🔧</div>
-            <h3 className="text-xl font-bold mb-2">Админ-панель</h3>
-            <p className="text-purple-100 text-sm">Управление пользователями и контентом</p>
-          </div>
-          <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
-        </Link>
-
-        <Link
-          to="/admin/content"
-          className="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl p-6 text-white hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
-        >
-          <div className="relative z-10">
-            <div className="text-4xl mb-3">📝</div>
-            <h3 className="text-xl font-bold mb-2">Редактор контента</h3>
-            <p className="text-blue-100 text-sm">Редактирование периодов и материалов</p>
-          </div>
-          <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
-        </Link>
-
-        {isSuperAdmin && (
-          <Link
-            to="/admin/users"
-            className="group relative overflow-hidden bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl p-6 text-white hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
-          >
-            <div className="relative z-10">
-              <div className="text-4xl mb-3">⭐</div>
-              <h3 className="text-xl font-bold mb-2">Управление пользователями</h3>
-              <p className="text-pink-100 text-sm">Назначение администраторов и контроль доступа</p>
-            </div>
-            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity" />
-          </Link>
-        )}
-      </div>
-
-      <div className="border-t pt-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-700">📊 Статистика</h3>
-
-        {stats.loading ? (
-          <div className="text-center py-8 text-gray-500">Загрузка статистики...</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
-              <div className="text-3xl font-bold text-blue-600">{stats.totalPeriods}</div>
-              <div className="text-sm text-blue-800 mt-1">Всего периодов</div>
-            </div>
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
-              <div className="text-3xl font-bold text-green-600">{stats.publishedPeriods}</div>
-              <div className="text-sm text-green-800 mt-1">Опубликовано</div>
-            </div>
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
-              <div className="text-3xl font-bold text-purple-600">{stats.totalUsers}</div>
-              <div className="text-sm text-purple-800 mt-1">Администраторов</div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-        <p className="text-sm text-purple-800">
-          💡 <strong>Подсказка:</strong> Используйте админ-панель для управления пользователями, а редактор контента — для изменения материалов курса.
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function StudentPanel() {
   const features = [
@@ -145,7 +23,7 @@ function StudentPanel() {
       title: 'Тесты - возрастной период',
       description: 'Отслеживайте какие периоды вы уже изучили и что осталось',
       color: 'from-purple-500 to-purple-600',
-      link: '/tests/age-periods',
+      link: '/tests-lesson',
     },
     {
       icon: '🗺️',
@@ -331,12 +209,6 @@ export default function Profile() {
 
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-12">
           <StudentPanel />
-
-          {isAdmin && (
-            <div className="pt-8 border-t border-border/50">
-              <AdminPanel isSuperAdmin={isSuperAdmin} />
-            </div>
-          )}
         </div>
       </div>
     </div>

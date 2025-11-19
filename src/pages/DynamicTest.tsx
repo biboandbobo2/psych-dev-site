@@ -11,6 +11,7 @@ import { useQuestionNavigation } from '../hooks/useQuestionNavigation';
 import { TestIntroScreen } from '../components/tests/TestIntroScreen';
 import { TestQuestionScreen } from '../components/tests/TestQuestionScreen';
 import { TestResultsScreen } from '../components/tests/TestResultsScreen';
+import { debugError } from '../lib/debug';
 
 function shuffleArray<T>(items: T[]): T[] {
   const result = [...items];
@@ -95,7 +96,7 @@ export default function DynamicTest() {
         setTest(loadedTest);
         setError(null);
       } catch (err) {
-        console.error('Ошибка загрузки теста:', err);
+        debugError('Ошибка загрузки теста:', err);
         setError('Не удалось загрузить тест');
       } finally {
         setLoading(false);
@@ -108,7 +109,7 @@ export default function DynamicTest() {
   // Определяем URL для возврата в зависимости от рубрики теста
   const backUrl = useMemo(() => {
     if (!test) return '/tests';
-    return test.rubric === 'full-course' ? '/tests' : '/tests/age-periods';
+    return test.rubric === 'full-course' ? '/tests' : '/tests-lesson';
   }, [test?.rubric]);
 
   // Перемешивание вариантов ответов
