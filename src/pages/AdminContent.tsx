@@ -217,6 +217,14 @@ export default function AdminContent() {
             <span aria-hidden>📚</span>
             <span>Редактировать темы заметок</span>
           </Link>
+
+          <Link
+            to="/admin/homepage"
+            className="inline-flex items-center gap-2 rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-purple-700"
+          >
+            <span aria-hidden>🏠</span>
+            <span>Редактировать главную страницу</span>
+          </Link>
         </div>
       </div>
 

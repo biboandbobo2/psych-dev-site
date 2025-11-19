@@ -79,9 +79,9 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
 
   // Логика отображения заглушки:
   // 1. Если placeholderEnabled = true, всегда показываем заглушку
-  // 2. Если placeholderEnabled = false, показываем контент (если есть)
+  // 2. Если placeholderEnabled = false, НЕ показываем заглушку (даже если контента нет)
   // 3. Если placeholderEnabled = undefined и нет контента, показываем fallback заглушку
-  const showPlaceholder = placeholderEnabled || (!hasSections && placeholderMessage.length > 0);
+  const showPlaceholder = placeholderEnabled === true || (placeholderEnabled !== false && !hasSections && placeholderMessage.length > 0);
 
   // Debug logging
   debugLog('🔍 PeriodPage content detection:', {
