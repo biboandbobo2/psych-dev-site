@@ -39,16 +39,28 @@ export function VideoSection({ slug, title, content, deckUrl, defaultVideoTitle 
         {videos.map(
           ({ key, title: videoTitle, embedUrl, originalUrl, isYoutube, deckUrl: videoDeckUrl, audioUrl }) => {
             if (!embedUrl) {
+              const isPlaylist = isUrlString(originalUrl) && originalUrl.includes('list=');
               return (
                 <div key={key} className="space-y-3">
                   <p className="text-lg leading-8 text-muted">
-                    Видео недоступно для встраивания.{' '}
-                    {isUrlString(originalUrl) ? (
-                      <a className="text-accent no-underline hover:no-underline focus-visible:no-underline" href={originalUrl} target="_blank" rel="noreferrer">
-                        Открыть на YouTube
-                      </a>
+                    {isPlaylist ? (
+                      <>
+                        Это плейлист YouTube — встраивание недоступно.{' '}
+                        <a className="text-accent no-underline hover:no-underline focus-visible:no-underline" href={originalUrl} target="_blank" rel="noreferrer">
+                          Открыть плейлист на YouTube
+                        </a>
+                      </>
                     ) : (
-                      'Проверьте URL.'
+                      <>
+                        Видео недоступно для встраивания.{' '}
+                        {isUrlString(originalUrl) ? (
+                          <a className="text-accent no-underline hover:no-underline focus-visible:no-underline" href={originalUrl} target="_blank" rel="noreferrer">
+                            Открыть на YouTube
+                          </a>
+                        ) : (
+                          'Проверьте URL.'
+                        )}
+                      </>
                     )}
                   </p>
                 </div>

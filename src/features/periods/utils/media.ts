@@ -54,10 +54,19 @@ export const buildYoutubeEmbedUrl = (rawValue: string) => {
   }
 
   const videoId = extractYoutubeId(url);
+
+  // Если есть playlist параметр, но нет video ID - это ссылка только на плейлист
+  // YouTube не позволяет встраивать плейлисты без конкретного видео
+  const playlistId = url.searchParams.get('list');
+  if (!videoId && playlistId) {
+    // Возвращаем пустую строку - VideoSection покажет ссылку на плейлист
+    return '';
+  }
+
   if (!videoId) return '';
 
   const params = new URLSearchParams();
-  if (url.searchParams.has('list')) params.set('list', url.searchParams.get('list') ?? '');
+  if (playlistId) params.set('list', playlistId);
   if (url.searchParams.has('si')) params.set('si', url.searchParams.get('si') ?? '');
 
   const start = url.searchParams.get('start') ?? parseTimeParam(url.searchParams.get('t'));
