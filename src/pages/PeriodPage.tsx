@@ -123,7 +123,10 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   // Проверяем наличие контента (используем адаптер для преобразования legacy-данных)
   const convertedSections = convertLegacyToSections(period);
   const hasSections = Boolean(
-    convertedSections && Object.keys(convertedSections).length > 0
+    convertedSections &&
+    Object.values(convertedSections).some(
+      section => Array.isArray(section.content) && section.content.length > 0
+    )
   );
 
   // Логика отображения заглушки:
