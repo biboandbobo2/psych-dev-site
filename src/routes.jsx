@@ -184,3 +184,282 @@ export const ROUTE_BY_PERIOD = ROUTE_CONFIG.reduce((acc, config) => {
   }
   return acc;
 }, {});
+
+/**
+ * Конфигурация роутов для курса клинической психологии
+ */
+export const CLINICAL_ROUTE_CONFIG = [
+  {
+    path: '/clinical/intro',
+    key: 'clinical-intro',
+    navLabel: 'Введение',
+    periodId: 'clinical-intro',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Введение в клиническую психологию — Psych Dev Site',
+      description: 'Вводное занятие курса клинической психологии.',
+    },
+  },
+  {
+    path: '/clinical/1',
+    key: 'clinical-1',
+    navLabel: 'Предмет, методы патопсихологии',
+    periodId: 'clinical-1',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Патопсихология — Psych Dev Site',
+      description: 'Предмет, методы и задачи патопсихологии. Аномалии эмоционально-личностной сферы.',
+    },
+  },
+  {
+    path: '/clinical/2',
+    key: 'clinical-2',
+    navLabel: 'Расстройства личности',
+    periodId: 'clinical-2',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Расстройства личности — Psych Dev Site',
+      description: 'Диагностика и терапия расстройств личности.',
+    },
+  },
+  {
+    path: '/clinical/3',
+    key: 'clinical-3',
+    navLabel: 'Аффективные расстройства (БАР)',
+    periodId: 'clinical-3',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Аффективные расстройства — Psych Dev Site',
+      description: 'Депрессия, мания и биполярное аффективное расстройство.',
+    },
+  },
+  {
+    path: '/clinical/4',
+    key: 'clinical-4',
+    navLabel: 'Суицидальность',
+    periodId: 'clinical-4',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Суицидальность — Psych Dev Site',
+      description: 'Аффективные расстройства и суицидальность.',
+    },
+  },
+  {
+    path: '/clinical/5',
+    key: 'clinical-5',
+    navLabel: 'Расстройства психотического спектра',
+    periodId: 'clinical-5',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Психотические расстройства — Psych Dev Site',
+      description: 'Шизофрения и расстройства психотического спектра.',
+    },
+  },
+  {
+    path: '/clinical/6',
+    key: 'clinical-6',
+    navLabel: 'Патология памяти, восприятия',
+    periodId: 'clinical-6',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Патология ВПФ — Psych Dev Site',
+      description: 'Патология памяти, восприятия и внимания.',
+    },
+  },
+  {
+    path: '/clinical/7',
+    key: 'clinical-7',
+    navLabel: 'Классификация расстройств ВПФ',
+    periodId: 'clinical-7',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Расстройства ВПФ — Psych Dev Site',
+      description: 'Классификация расстройств высших психических функций.',
+    },
+  },
+  {
+    path: '/clinical/8',
+    key: 'clinical-8',
+    navLabel: 'Патопсихологическая диагностика',
+    periodId: 'clinical-8',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Патопсихологическая диагностика — Psych Dev Site',
+      description: 'Методы патопсихологической диагностики.',
+    },
+  },
+  {
+    path: '/clinical/9',
+    key: 'clinical-9',
+    navLabel: 'Проективные методы',
+    periodId: 'clinical-9',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Проективная диагностика — Psych Dev Site',
+      description: 'Проективные методы психодиагностики.',
+    },
+  },
+  {
+    path: '/clinical/10',
+    key: 'clinical-10',
+    navLabel: 'Нарушения развития у детей',
+    periodId: 'clinical-10',
+    themeKey: 'clinical',
+    meta: {
+      title: 'Нарушения развития — Psych Dev Site',
+      description: 'Нарушения психического развития в детском возрасте.',
+    },
+  },
+];
+
+export const CLINICAL_ROUTE_BY_PERIOD = CLINICAL_ROUTE_CONFIG.reduce((acc, config) => {
+  if (config.periodId) {
+    acc[config.periodId] = config;
+  }
+  return acc;
+}, {});
+
+/**
+ * Конфигурация роутов для курса общей психологии
+ */
+export const GENERAL_ROUTE_CONFIG = [
+  {
+    path: '/general/1',
+    key: 'general-1',
+    navLabel: 'История психологии и методы',
+    periodId: 'general-1',
+    themeKey: 'general',
+    meta: {
+      title: 'История психологии и методы — Psych Dev Site',
+      description: 'История психологии, подходы и методы исследования.',
+    },
+  },
+  {
+    path: '/general/2',
+    key: 'general-2',
+    navLabel: 'Методологические проблемы',
+    periodId: 'general-2',
+    themeKey: 'general',
+    meta: {
+      title: 'Методологические проблемы — Psych Dev Site',
+      description: 'Методологические проблемы изучения психики.',
+    },
+  },
+  {
+    path: '/general/3',
+    key: 'general-3',
+    navLabel: 'Ощущение и восприятие',
+    periodId: 'general-3',
+    themeKey: 'general',
+    meta: {
+      title: 'Ощущение и восприятие — Psych Dev Site',
+      description: 'Свойства образов и теории восприятия.',
+    },
+  },
+  {
+    path: '/general/4',
+    key: 'general-4',
+    navLabel: 'Внимание',
+    periodId: 'general-4',
+    themeKey: 'general',
+    meta: {
+      title: 'Внимание — Psych Dev Site',
+      description: 'Классические и когнитивные модели внимания.',
+    },
+  },
+  {
+    path: '/general/5',
+    key: 'general-5',
+    navLabel: 'Память. Часть 1',
+    periodId: 'general-5',
+    themeKey: 'general',
+    meta: {
+      title: 'Память. Часть 1 — Psych Dev Site',
+      description: 'Классика, конструкции и искажения памяти.',
+    },
+  },
+  {
+    path: '/general/6',
+    key: 'general-6',
+    navLabel: 'Память. Часть 2',
+    periodId: 'general-6',
+    themeKey: 'general',
+    meta: {
+      title: 'Память. Часть 2 — Psych Dev Site',
+      description: 'Когнитивные модели и функции памяти.',
+    },
+  },
+  {
+    path: '/general/7',
+    key: 'general-7',
+    navLabel: 'Мышление',
+    periodId: 'general-7',
+    themeKey: 'general',
+    meta: {
+      title: 'Мышление — Psych Dev Site',
+      description: 'Развитие мышления, интериоризация и когнитивные искажения.',
+    },
+  },
+  {
+    path: '/general/8',
+    key: 'general-8',
+    navLabel: 'Речь',
+    periodId: 'general-8',
+    themeKey: 'general',
+    meta: {
+      title: 'Речь — Psych Dev Site',
+      description: 'Взаимосвязь речи и мышления, язык и билингвизм.',
+    },
+  },
+  {
+    path: '/general/9',
+    key: 'general-9',
+    navLabel: 'Эмоциональная сфера',
+    periodId: 'general-9',
+    themeKey: 'general',
+    meta: {
+      title: 'Эмоциональная сфера — Psych Dev Site',
+      description: 'Теории эмоций, классификация и эволюция.',
+    },
+  },
+  {
+    path: '/general/10',
+    key: 'general-10',
+    navLabel: 'Чувства и регуляция',
+    periodId: 'general-10',
+    themeKey: 'general',
+    meta: {
+      title: 'Чувства и регуляция — Psych Dev Site',
+      description: 'Регуляция эмоций и кросс-культурные исследования.',
+    },
+  },
+  {
+    path: '/general/11',
+    key: 'general-11',
+    navLabel: 'Мотивация',
+    periodId: 'general-11',
+    themeKey: 'general',
+    meta: {
+      title: 'Мотивация — Psych Dev Site',
+      description: 'Теории мотивации и место в структуре личности.',
+    },
+  },
+  {
+    path: '/general/12',
+    key: 'general-12',
+    navLabel: 'Саморегуляция и воля',
+    periodId: 'general-12',
+    themeKey: 'general',
+    meta: {
+      title: 'Саморегуляция и воля — Psych Dev Site',
+      description: 'Функции воли, онтогенез и практические модели.',
+    },
+  },
+];
+
+export const GENERAL_ROUTE_BY_PERIOD = GENERAL_ROUTE_CONFIG.reduce((acc, config) => {
+  if (config.periodId) {
+    acc[config.periodId] = config;
+  }
+  return acc;
+}, {});

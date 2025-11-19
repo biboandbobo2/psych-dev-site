@@ -4,10 +4,12 @@ import RequireAuth from '../auth/RequireAuth';
 import RequireAdmin from '../auth/RequireAdmin';
 import Login from '../pages/Login';
 import {
+  HomePage,
   Admin,
   AdminUsers,
   AdminContent,
   AdminContentEdit,
+  AdminHomePage,
   AdminTopics,
   MigrateTopics,
   Profile,
@@ -17,22 +19,25 @@ import {
   TestsPage,
 } from '../pages/lazy';
 import { PageLoader } from '../components/ui';
-import { ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
+import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
 import { PeriodPage } from '../pages/PeriodPage';
 import NotFound from './NotFound';
-import type { Period } from '../types/content';
+import type { Period, ClinicalTopic, GeneralTopic } from '../types/content';
 
 interface AppRoutesProps {
   location: Location;
   periodMap: Map<string, Period>;
+  clinicalTopicsMap: Map<string, ClinicalTopic>;
+  generalTopicsMap: Map<string, GeneralTopic>;
   isSuperAdmin: boolean;
 }
 
-export function AppRoutes({ location, periodMap, isSuperAdmin }: AppRoutesProps) {
+export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopicsMap, isSuperAdmin }: AppRoutesProps) {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Navigate to="/prenatal" replace />} />
+        <Route path="/homepage" element={<HomePage />} />
         <Route path="/login" element={<Login />} />
         <Route
           path="/admin/content"
@@ -55,6 +60,14 @@ export function AppRoutes({ location, periodMap, isSuperAdmin }: AppRoutesProps)
           element={
             <RequireAdmin>
               <AdminContentEdit />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/homepage"
+          element={
+            <RequireAdmin>
+              <AdminHomePage />
             </RequireAdmin>
           }
         />
@@ -135,6 +148,30 @@ export function AppRoutes({ location, periodMap, isSuperAdmin }: AppRoutesProps)
               <PeriodPage
                 config={config}
                 period={config.periodId ? periodMap.get(config.periodId) : null}
+              />
+            }
+          />
+        ))}
+        {CLINICAL_ROUTE_CONFIG.map((config) => (
+          <Route
+            key={config.path}
+            path={config.path}
+            element={
+              <PeriodPage
+                config={config}
+                period={config.periodId ? clinicalTopicsMap.get(config.periodId) : null}
+              />
+            }
+          />
+        ))}
+        {GENERAL_ROUTE_CONFIG.map((config) => (
+          <Route
+            key={config.path}
+            path={config.path}
+            element={
+              <PeriodPage
+                config={config}
+                period={config.periodId ? generalTopicsMap.get(config.periodId) : null}
               />
             }
           />

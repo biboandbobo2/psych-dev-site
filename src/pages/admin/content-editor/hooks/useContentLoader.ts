@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../../lib/firebase';
 import { getPeriod as fetchPeriod, getIntro as fetchIntro } from '../../../../lib/firestoreHelpers';
 import { DEFAULT_THEME } from '../../../../theme/periods';
 import type { Period } from '../types';
 import { createEmptyVideoEntry, createVideoEntryFromSource } from '../utils/videoHelpers';
+import { debugError } from '../../../../lib/debug';
+
+type CourseType = 'development' | 'clinical' | 'general';
 
 interface UseContentLoaderParams {
   periodId: string | undefined;
+  course: CourseType;
   placeholderDefaultEnabled: boolean;
   placeholderDisplayText: string;
   fallbackTitle: string;
@@ -32,6 +38,7 @@ interface UseContentLoaderParams {
 export function useContentLoader(params: UseContentLoaderParams) {
   const {
     periodId,
+    course,
     placeholderDefaultEnabled,
     placeholderDisplayText,
     fallbackTitle,
@@ -66,20 +73,45 @@ export function useContentLoader(params: UseContentLoaderParams) {
         setLoading(true);
         let data: Period | null = null;
 
-        if (periodId === 'intro') {
-          const intro = await fetchPeriod('intro');
-          if (intro) {
-            data = intro as Period;
-          } else {
-            const legacyIntro = await fetchIntro();
-            if (legacyIntro) {
-              data = legacyIntro as Period;
-            }
+        // Для курса клинической психологии используем коллекцию clinical-topics
+        if (course === 'clinical') {
+          const collectionName = 'clinical-topics';
+          const docRef = doc(db, collectionName, periodId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            data = {
+              ...(docSnap.data() as any),
+              period: periodId,
+            } as Period;
+          }
+        } else if (course === 'general') {
+          // Для курса общей психологии используем коллекцию general-topics
+          const collectionName = 'general-topics';
+          const docRef = doc(db, collectionName, periodId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            data = {
+              ...(docSnap.data() as any),
+              period: periodId,
+            } as Period;
           }
         } else {
-          const fetched = await fetchPeriod(periodId);
-          if (fetched) {
-            data = fetched as Period;
+          // Для курса психологии развития используем periods
+          if (periodId === 'intro') {
+            const intro = await fetchPeriod('intro');
+            if (intro) {
+              data = intro as Period;
+            } else {
+              const legacyIntro = await fetchIntro();
+              if (legacyIntro) {
+                data = legacyIntro as Period;
+              }
+            }
+          } else {
+            const fetched = await fetchPeriod(periodId);
+            if (fetched) {
+              data = fetched as Period;
+            }
           }
         }
 
@@ -137,47 +169,124 @@ export function useContentLoader(params: UseContentLoaderParams) {
             : placeholderDefaultEnabled
         );
 
-        // Load video playlist
-        const playlist = Array.isArray(data.video_playlist) ? data.video_playlist : [];
-        if (playlist.length) {
-          setVideos(
-            playlist.map((entry, index) =>
-              createVideoEntryFromSource(entry, index, data.title || placeholderDisplayText)
-            )
-          );
-        } else {
-          const fallbackVideoUrl =
-            (typeof data.video_url === 'string' && data.video_url.trim()) ||
-            (typeof (data as any).videoUrl === 'string' && (data as any).videoUrl.trim()) ||
-            '';
+        // === LOAD CONTENT (Support both Legacy and Sections) ===
 
-          if (fallbackVideoUrl) {
-            setVideos([
-              createVideoEntryFromSource(
-                {
-                  title: data.title,
-                  url: fallbackVideoUrl,
-                  deckUrl: data.deck_url || (data as any).deckUrl,
-                  audioUrl: data.audio_url || (data as any).audioUrl,
-                },
-                0,
-                data.title || placeholderDisplayText
-              ),
-            ]);
+        // 1. Try to load from sections (New Format)
+        const sections = data.sections || {};
+        const hasSections = Object.keys(sections).length > 0;
+
+        if (hasSections) {
+          // Video Section
+          const videoSection = sections.video_section || sections.video;
+          if (videoSection && Array.isArray(videoSection.content)) {
+            setVideos(
+              videoSection.content.map((entry: any, index: number) =>
+                createVideoEntryFromSource(entry, index, data.title || placeholderDisplayText)
+              )
+            );
           } else {
             setVideos([createEmptyVideoEntry(0, data.title || placeholderDisplayText)]);
           }
-        }
 
-        setConcepts(data.concepts || []);
-        setAuthors(data.authors || []);
-        setCoreLiterature(data.core_literature || []);
-        setExtraLiterature(data.extra_literature || []);
-        setExtraVideos(data.extra_videos || []);
-        setLeisure(data.leisure || []);
-        setSelfQuestionsUrl(data.self_questions_url || '');
+          // Concepts
+          const conceptsSection = sections.concepts;
+          if (conceptsSection && Array.isArray(conceptsSection.content)) {
+            setConcepts(conceptsSection.content);
+          } else {
+            setConcepts([]);
+          }
+
+          // Authors
+          const authorsSection = sections.authors;
+          if (authorsSection && Array.isArray(authorsSection.content)) {
+            setAuthors(authorsSection.content);
+          } else {
+            setAuthors([]);
+          }
+
+          // Core Literature
+          const coreLitSection = sections.core_literature;
+          if (coreLitSection && Array.isArray(coreLitSection.content)) {
+            setCoreLiterature(coreLitSection.content);
+          } else {
+            setCoreLiterature([]);
+          }
+
+          // Extra Literature
+          const extraLitSection = sections.extra_literature;
+          if (extraLitSection && Array.isArray(extraLitSection.content)) {
+            setExtraLiterature(extraLitSection.content);
+          } else {
+            setExtraLiterature([]);
+          }
+
+          // Extra Videos
+          const extraVidSection = sections.extra_videos;
+          if (extraVidSection && Array.isArray(extraVidSection.content)) {
+            setExtraVideos(extraVidSection.content);
+          } else {
+            setExtraVideos([]);
+          }
+
+          // Leisure
+          const leisureSection = sections.leisure;
+          if (leisureSection && Array.isArray(leisureSection.content)) {
+            setLeisure(leisureSection.content);
+          } else {
+            setLeisure([]);
+          }
+
+          // Self Questions
+          const selfQSection = sections.self_questions;
+          if (selfQSection && Array.isArray(selfQSection.content) && selfQSection.content[0]) {
+            setSelfQuestionsUrl(selfQSection.content[0]);
+          } else {
+            setSelfQuestionsUrl('');
+          }
+
+        } else {
+          // 2. Fallback to Legacy Fields
+          const playlist = Array.isArray(data.video_playlist) ? data.video_playlist : [];
+          if (playlist.length) {
+            setVideos(
+              playlist.map((entry, index) =>
+                createVideoEntryFromSource(entry, index, data.title || placeholderDisplayText)
+              )
+            );
+          } else {
+            const fallbackVideoUrl =
+              (typeof data.video_url === 'string' && data.video_url.trim()) ||
+              (typeof (data as any).videoUrl === 'string' && (data as any).videoUrl.trim()) ||
+              '';
+
+            if (fallbackVideoUrl) {
+              setVideos([
+                createVideoEntryFromSource(
+                  {
+                    title: data.title,
+                    url: fallbackVideoUrl,
+                    deckUrl: data.deck_url || (data as any).deckUrl,
+                    audioUrl: data.audio_url || (data as any).audioUrl,
+                  },
+                  0,
+                  data.title || placeholderDisplayText
+                ),
+              ]);
+            } else {
+              setVideos([createEmptyVideoEntry(0, data.title || placeholderDisplayText)]);
+            }
+          }
+
+          setConcepts(data.concepts || []);
+          setAuthors(data.authors || []);
+          setCoreLiterature(data.core_literature || []);
+          setExtraLiterature(data.extra_literature || []);
+          setExtraVideos(data.extra_videos || []);
+          setLeisure(data.leisure || []);
+          setSelfQuestionsUrl(data.self_questions_url || '');
+        }
       } catch (error: any) {
-        console.error('Error loading period', error);
+        debugError('Error loading period', error);
         alert('Ошибка загрузки: ' + (error?.message || error));
       } finally {
         setLoading(false);
@@ -185,7 +294,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
     }
 
     loadPeriod();
-  }, [periodId, placeholderDefaultEnabled, placeholderDisplayText, fallbackTitle]);
+  }, [periodId, course, placeholderDefaultEnabled, placeholderDisplayText, fallbackTitle]);
 
   return { period, loading };
 }
