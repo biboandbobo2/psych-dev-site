@@ -35,6 +35,69 @@ export interface PeriodPageProps {
 
 // Legacy conversion removed - all periods now use sections format
 
+function convertLegacyToSections(period: Period | null): Record<string, { title: string; content: any[] }> | undefined {
+  if (!period) return undefined;
+
+  // Если уже есть sections, возвращаем их
+  if (period.sections && Object.keys(period.sections).length > 0) {
+    return period.sections;
+  }
+
+  // Иначе создаём sections из legacy-полей
+  const sections: Record<string, { title: string; content: any[] }> = {};
+
+  if (Array.isArray(period.video_playlist) && period.video_playlist.length > 0) {
+    sections.video_section = {
+      title: 'Видео-лекция',
+      content: period.video_playlist,
+    };
+  }
+
+  if (Array.isArray(period.concepts) && period.concepts.length > 0) {
+    sections.concepts = {
+      title: 'Понятия',
+      content: period.concepts,
+    };
+  }
+
+  if (Array.isArray(period.authors) && period.authors.length > 0) {
+    sections.authors = {
+      title: 'Ключевые авторы',
+      content: period.authors,
+    };
+  }
+
+  if (Array.isArray(period.core_literature) && period.core_literature.length > 0) {
+    sections.core_literature = {
+      title: 'Основная литература',
+      content: period.core_literature,
+    };
+  }
+
+  if (Array.isArray(period.extra_literature) && period.extra_literature.length > 0) {
+    sections.extra_literature = {
+      title: 'Дополнительная литература',
+      content: period.extra_literature,
+    };
+  }
+
+  if (Array.isArray(period.extra_videos) && period.extra_videos.length > 0) {
+    sections.extra_videos = {
+      title: 'Дополнительные видео',
+      content: period.extra_videos,
+    };
+  }
+
+  if (Array.isArray(period.leisure) && period.leisure.length > 0) {
+    sections.leisure = {
+      title: 'Досуг',
+      content: period.leisure,
+    };
+  }
+
+  return Object.keys(sections).length > 0 ? sections : undefined;
+}
+
 export function PeriodPage({ config, period }: PeriodPageProps) {
   const location = useLocation();
   const themeKey = config.themeKey ?? config.periodId;
@@ -68,28 +131,28 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const trimmedPlaceholder = normalizeText(placeholderSource);
   const placeholderMessage = trimmedPlaceholder || defaultPlaceholderText;
 
-  // Проверяем наличие контента в sections
-  const sections = period?.sections;
+  // Проверяем наличие контента (используем адаптер для преобразования legacy-данных)
+  const convertedSections = convertLegacyToSections(period);
   const hasSections = Boolean(
-    sections &&
-    Object.values(sections).some(
+    convertedSections &&
+    Object.values(convertedSections).some(
       section => Array.isArray(section.content) && section.content.length > 0
     )
   );
 
   // Логика отображения заглушки:
   // 1. Если placeholderEnabled = true, всегда показываем заглушку
-  // 2. Если placeholderEnabled = false, НЕ показываем заглушку (даже если контента нет)
+  // 2. Если placeholderEnabled = false, показываем контент (если есть)
   // 3. Если placeholderEnabled = undefined и нет контента, показываем fallback заглушку
-  const showPlaceholder = placeholderEnabled === true || (placeholderEnabled !== false && !hasSections && placeholderMessage.length > 0);
+  // FIX: Reverted to simpler logic to ensure placeholder shows if content is missing
+  const showPlaceholder = placeholderEnabled || (!hasSections && placeholderMessage.length > 0);
 
-  // Debug logging
+  // Debug logging to understand why placeholder shows
   debugLog('🔍 PeriodPage content detection:', {
     periodId: config.periodId,
     hasSections,
     placeholderEnabled,
     showPlaceholder,
-    sectionsKeys: sections ? Object.keys(sections) : [],
   });
   const deckUrl = period?.deckUrl ? period.deckUrl.trim() : '';
   const defaultVideoTitle = heading.trim() || 'Видео-лекция';
@@ -125,7 +188,7 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
         </SectionMuted>
       ) : (
         <PeriodSections
-          sections={sections}
+          sections={convertedSections}
           deckUrl={deckUrl}
           defaultVideoTitle={defaultVideoTitle}
           periodTests={periodTests}
