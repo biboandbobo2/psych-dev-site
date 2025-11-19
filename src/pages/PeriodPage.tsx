@@ -111,7 +111,8 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const placeholderFromConfig = config.placeholderText;
   const placeholderDefaultEnabled = config.placeholderDefaultEnabled ?? false;
   const placeholderEnabledFromData =
-    typeof period?.placeholderEnabled === 'boolean' ? period.placeholderEnabled : undefined;
+    typeof period?.placeholder_enabled === 'boolean' ? period.placeholder_enabled :
+      typeof period?.placeholderEnabled === 'boolean' ? period.placeholderEnabled : undefined;
   const placeholderEnabled =
     placeholderEnabledFromData !== undefined ? placeholderEnabledFromData : placeholderDefaultEnabled;
 
@@ -140,12 +141,11 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
     periodId: config.periodId,
     hasSections,
     placeholderEnabled,
+    placeholderEnabledFromData,
+    placeholder_enabled_snake: period?.placeholder_enabled,
+    placeholderEnabled_camel: period?.placeholderEnabled,
     showPlaceholder,
     convertedSectionsKeys: convertedSections ? Object.keys(convertedSections) : [],
-    hasVideoPlaylist: Array.isArray(period?.video_playlist),
-    videoPlaylistLength: period?.video_playlist?.length,
-    hasConcepts: Array.isArray(period?.concepts),
-    conceptsLength: period?.concepts?.length,
   });
   const deckUrl = period?.deckUrl ? period.deckUrl.trim() : '';
   const defaultVideoTitle = heading.trim() || 'Видео-лекция';

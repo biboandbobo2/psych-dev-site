@@ -11,7 +11,7 @@ import {
 } from '../utils/contentNormalizers';
 import { debugError } from '../../../../lib/debug';
 
-type CourseType = 'development' | 'clinical';
+type CourseType = 'development' | 'clinical' | 'general';
 
 interface SaveParams {
   periodId: string | undefined;
@@ -87,12 +87,6 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
         accent,
         accent100,
         placeholder_enabled: placeholderEnabled,
-        concepts: normalizedConcepts,
-        authors: normalizedAuthors,
-        core_literature: normalizedCoreLiterature,
-        extra_literature: normalizedExtraLiterature,
-        extra_videos: normalizedExtraVideos,
-        leisure: normalizedLeisure,
         status: published ? 'published' : 'draft',
         updatedAt: serverTimestamp(),
       };
@@ -107,31 +101,108 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
         data.placeholderText = deleteField();
       }
 
-      const primaryVideo = normalizedVideos[0];
+      // Explicitly delete legacy camelCase field to prevent conflicts
+      data.placeholderEnabled = deleteField();
 
-      data.video_url = primaryVideo?.url ? primaryVideo.url : deleteField();
-      data.deck_url = primaryVideo?.deckUrl ? primaryVideo.deckUrl : deleteField();
-      data.audio_url = primaryVideo?.audioUrl ? primaryVideo.audioUrl : deleteField();
-      data.self_questions_url = trimmedSelfQuestionsUrl ? trimmedSelfQuestionsUrl : deleteField();
+      // === SECTIONS CONSTRUCTION (New Format) ===
+      const sections: Record<string, any> = {};
+
+      // Video Section
+      if (normalizedVideos.length) {
+        sections.video_section = {
+          title: 'Видео',
+          content: normalizedVideos.map((video) => ({
+            title: video.title || trimmedTitle || 'Видео-лекция',
+            url: video.url,
+            ...(video.deckUrl ? { deckUrl: video.deckUrl } : {}),
+            ...(video.audioUrl ? { audioUrl: video.audioUrl } : {}),
+          })),
+        };
+      }
+
+      // Concepts
+      if (normalizedConcepts.length) {
+        sections.concepts = {
+          title: 'Основные понятия',
+          content: normalizedConcepts,
+        };
+      }
+
+      // Authors
+      if (normalizedAuthors.length) {
+        sections.authors = {
+          title: 'Персоналии',
+          content: normalizedAuthors,
+        };
+      }
+
+      // Core Literature
+      if (normalizedCoreLiterature.length) {
+        sections.core_literature = {
+          title: 'Основная литература',
+          content: normalizedCoreLiterature,
+        };
+      }
+
+      // Extra Literature
+      if (normalizedExtraLiterature.length) {
+        sections.extra_literature = {
+          title: 'Дополнительная литература',
+          content: normalizedExtraLiterature,
+        };
+      }
+
+      // Extra Videos
+      if (normalizedExtraVideos.length) {
+        sections.extra_videos = {
+          title: 'Дополнительные видео',
+          content: normalizedExtraVideos,
+        };
+      }
+
+      // Leisure
+      if (normalizedLeisure.length) {
+        sections.leisure = {
+          title: 'Досуг',
+          content: normalizedLeisure,
+        };
+      }
+
+      // Self Questions
+      if (trimmedSelfQuestionsUrl) {
+        sections.self_questions = {
+          title: 'Вопросы для самопроверки',
+          content: [trimmedSelfQuestionsUrl],
+        };
+      }
+
+      data.sections = sections;
+
+      // === LEGACY FIELDS CLEANUP ===
+      // We delete legacy fields to avoid confusion and force usage of sections
+      data.video_url = deleteField();
+      data.deck_url = deleteField();
+      data.audio_url = deleteField();
+      data.self_questions_url = deleteField();
+      data.video_playlist = deleteField();
+      data.concepts = deleteField();
+      data.authors = deleteField();
+      data.core_literature = deleteField();
+      data.extra_literature = deleteField();
+      data.extra_videos = deleteField();
+      data.leisure = deleteField();
 
       const trimmedSubtitle = subtitle.trim();
       data.subtitle = trimmedSubtitle ? trimmedSubtitle : deleteField();
-
-      if (normalizedVideos.length) {
-        data.video_playlist = normalizedVideos.map((video) => ({
-          title: video.title || trimmedTitle || 'Видео-лекция',
-          url: video.url,
-          ...(video.deckUrl ? { deckUrl: video.deckUrl } : {}),
-          ...(video.audioUrl ? { audioUrl: video.audioUrl } : {}),
-        }));
-      } else {
-        data.video_playlist = deleteField();
-      }
 
       // Определяем коллекцию в зависимости от курса
       if (course === 'clinical') {
         // Для клинической психологии используем коллекцию clinical-topics
         const docRef = doc(db, 'clinical-topics', periodId!);
+        await setDoc(docRef, data, { merge: true });
+      } else if (course === 'general') {
+        // Для общей психологии используем коллекцию general-topics
+        const docRef = doc(db, 'general-topics', periodId!);
         await setDoc(docRef, data, { merge: true });
       } else {
         // Для психологии развития используем periods и intro
@@ -180,7 +251,8 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
 
     try {
       setSaving(true);
-      const collectionName = course === 'clinical' ? 'clinical-topics' : 'periods';
+      const collectionName = course === 'clinical' ? 'clinical-topics' :
+        course === 'general' ? 'general-topics' : 'periods';
       const docRef = doc(db, collectionName, periodId!);
       await deleteDoc(docRef);
       alert(`🗑️ ${course === 'clinical' ? 'Тема удалена' : 'Период удалён'}`);
