@@ -33,60 +33,7 @@ export interface PeriodPageProps {
   period?: Period | null;
 }
 
-// Удалено - теперь определяется динамически в компоненте
-
-/**
- * Преобразует legacy-данные (video_playlist, concepts, authors, etc.)
- * в новый формат sections для совместимости
- */
-function convertLegacyToSections(period: Period | null): Record<string, { title: string; content: any[] }> | undefined {
-  if (!period) return undefined;
-
-  // Если уже есть sections, возвращаем их
-  if (period.sections && Object.keys(period.sections).length > 0) {
-    return period.sections;
-  }
-
-  // Иначе создаём sections из legacy-полей
-  const sections: Record<string, { title: string; content: any[] }> = {};
-
-  if (Array.isArray(period.video_playlist) && period.video_playlist.length > 0) {
-    sections.video_section = {
-      title: 'Видео-лекция',
-      content: period.video_playlist,
-    };
-  }
-
-  if (Array.isArray(period.concepts) && period.concepts.length > 0) {
-    sections.concepts = {
-      title: 'Понятия',
-      content: period.concepts,
-    };
-  }
-
-  if (Array.isArray(period.authors) && period.authors.length > 0) {
-    sections.authors = {
-      title: 'Ключевые авторы',
-      content: period.authors,
-    };
-  }
-
-  if (Array.isArray(period.core_literature) && period.core_literature.length > 0) {
-    sections.core_literature = {
-      title: 'Основная литература',
-      content: period.core_literature,
-    };
-  }
-
-  if (Array.isArray(period.extra_literature) && period.extra_literature.length > 0) {
-    sections.extra_literature = {
-      title: 'Дополнительная литература',
-      content: period.extra_literature,
-    };
-  }
-
-  return Object.keys(sections).length > 0 ? sections : undefined;
-}
+// Legacy conversion removed - all periods now use sections format
 
 export function PeriodPage({ config, period }: PeriodPageProps) {
   const location = useLocation();
@@ -121,11 +68,11 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const trimmedPlaceholder = normalizeText(placeholderSource);
   const placeholderMessage = trimmedPlaceholder || defaultPlaceholderText;
 
-  // Проверяем наличие контента (используем адаптер для преобразования legacy-данных)
-  const convertedSections = convertLegacyToSections(period);
+  // Проверяем наличие контента в sections
+  const sections = period?.sections;
   const hasSections = Boolean(
-    convertedSections &&
-    Object.values(convertedSections).some(
+    sections &&
+    Object.values(sections).some(
       section => Array.isArray(section.content) && section.content.length > 0
     )
   );
@@ -136,16 +83,13 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   // 3. Если placeholderEnabled = undefined и нет контента, показываем fallback заглушку
   const showPlaceholder = placeholderEnabled || (!hasSections && placeholderMessage.length > 0);
 
-  // Debug logging to understand why placeholder shows
+  // Debug logging
   debugLog('🔍 PeriodPage content detection:', {
     periodId: config.periodId,
     hasSections,
     placeholderEnabled,
-    placeholderEnabledFromData,
-    placeholder_enabled_snake: period?.placeholder_enabled,
-    placeholderEnabled_camel: period?.placeholderEnabled,
     showPlaceholder,
-    convertedSectionsKeys: convertedSections ? Object.keys(convertedSections) : [],
+    sectionsKeys: sections ? Object.keys(sections) : [],
   });
   const deckUrl = period?.deckUrl ? period.deckUrl.trim() : '';
   const defaultVideoTitle = heading.trim() || 'Видео-лекция';
@@ -181,7 +125,7 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
         </SectionMuted>
       ) : (
         <PeriodSections
-          sections={convertedSections}
+          sections={sections}
           deckUrl={deckUrl}
           defaultVideoTitle={defaultVideoTitle}
           periodTests={periodTests}

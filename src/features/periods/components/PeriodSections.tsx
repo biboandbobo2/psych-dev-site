@@ -13,12 +13,37 @@ interface PeriodSectionsProps {
   periodTests: Test[];
 }
 
+// Фиксированный порядок отображения секций
+const SECTION_ORDER = [
+  'video',
+  'video_section',
+  'concepts',
+  'authors',
+  'core_literature',
+  'extra_literature',
+  'extra_videos',
+  'leisure',
+  'self_questions',
+];
+
 export function PeriodSections({ sections, deckUrl, defaultVideoTitle, periodTests }: PeriodSectionsProps) {
   if (!sections) return null;
 
+  // Сортируем секции по заданному порядку
+  const sortedEntries = Object.entries(sections).sort(([slugA], [slugB]) => {
+    const indexA = SECTION_ORDER.indexOf(slugA);
+    const indexB = SECTION_ORDER.indexOf(slugB);
+
+    // Если slug не найден в SECTION_ORDER, помещаем его в конец
+    const orderA = indexA === -1 ? SECTION_ORDER.length : indexA;
+    const orderB = indexB === -1 ? SECTION_ORDER.length : indexB;
+
+    return orderA - orderB;
+  });
+
   return (
     <div className="space-y-2">
-      {Object.entries(sections).map(([slug, section]) => (
+      {sortedEntries.map(([slug, section]) => (
         <SectionRenderer
           key={slug}
           slug={slug}
@@ -48,7 +73,7 @@ function SectionRenderer({ slug, section, deckUrl, defaultVideoTitle, periodTest
     ? 'Рабочая тетрадь и тесты'
     : rawTitle;
 
-  if (rawTitle === 'Видео-лекция') {
+  if (rawTitle === 'Видео-лекция' || rawTitle === 'Видео') {
     return (
       <VideoSection
         slug={slug}

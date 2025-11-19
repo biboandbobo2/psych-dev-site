@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Period } from "../types/content";
 import { getAllPeriods, getPublishedPeriods, getPeriod, getIntro } from "../lib/firestoreHelpers";
+import { debugError } from "../lib/debug";
 
 type PeriodSection = {
   title: string;
@@ -120,6 +121,11 @@ function mapFirestorePeriod(period: Period): Period {
   const placeholderText =
     trim((period as any).placeholder_text) || trim(period.placeholderText) || undefined;
 
+  // Если уже есть sections из Firestore - используем их, иначе строим из legacy полей
+  const sections = (period.sections && Object.keys(period.sections).length > 0)
+    ? period.sections
+    : buildSections(period, label, deckUrl);
+
   return {
     ...period,
     label,
@@ -128,7 +134,7 @@ function mapFirestorePeriod(period: Period): Period {
     placeholderEnabled:
       typeof period.placeholder_enabled === "boolean" ? period.placeholder_enabled : undefined,
     placeholderText,
-    sections: buildSections(period, label, deckUrl),
+    sections,
   };
 }
 
@@ -161,7 +167,7 @@ export function usePeriods(publishedOnly: boolean = false) {
 
         setPeriods(mapped);
       } catch (err: any) {
-        console.error("Error loading periods:", err);
+        debugError("Error loading periods:", err);
         setError(err.message);
       } finally {
         setLoading(false);
