@@ -143,6 +143,42 @@ export interface CTASection {
   };
 }
 
+export interface CTAClinicalSection {
+  type: 'cta-clinical';
+  order: number;
+  enabled: boolean;
+  content: {
+    title: string;
+    subtitle: string;
+    primaryCta: {
+      text: string;
+      link: string;
+    };
+    secondaryCta: {
+      text: string;
+      link: string;
+    };
+  };
+}
+
+export interface CTAGeneralSection {
+  type: 'cta-general';
+  order: number;
+  enabled: boolean;
+  content: {
+    title: string;
+    subtitle: string;
+    primaryCta: {
+      text: string;
+      link: string;
+    };
+    secondaryCta: {
+      text: string;
+      link: string;
+    };
+  };
+}
+
 // Union type для всех секций
 export type HomePageSection =
   | HeroSection
@@ -152,7 +188,9 @@ export type HomePageSection =
   | OrganizationSection
   | InstructorsSection
   | FormatSection
-  | CTASection;
+  | CTASection
+  | CTAClinicalSection
+  | CTAGeneralSection;
 
 // Основной тип для всей страницы
 export interface HomePageContent {

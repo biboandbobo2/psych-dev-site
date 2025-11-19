@@ -1,5 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 import { motion as Motion } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { SectionMuted } from '../components/ui/Section';
 import { BACKGROUND_BY_PERIOD } from '../theme/backgrounds';
 import { pageTransition } from '../theme/motion';
@@ -32,7 +33,7 @@ export interface PeriodPageProps {
   period?: Period | null;
 }
 
-const defaultPlaceholderText = 'Контент для этого возраста появится в ближайшем обновлении.';
+// Удалено - теперь определяется динамически в компоненте
 
 /**
  * Преобразует legacy-данные (video_playlist, concepts, authors, etc.)
@@ -88,10 +89,21 @@ function convertLegacyToSections(period: Period | null): Record<string, { title:
 }
 
 export function PeriodPage({ config, period }: PeriodPageProps) {
+  const location = useLocation();
   const themeKey = config.themeKey ?? config.periodId;
   usePeriodTheme(themeKey);
   const heading = period?.label || config.navLabel;
   const { tests: periodTests } = usePeriodTests(config.periodId);
+
+  // Определяем тип курса на основе пути
+  const isClinicalCourse = location.pathname.startsWith('/clinical/');
+  const isGeneralCourse = location.pathname.startsWith('/general/');
+  const isDevelopmentCourse = !isClinicalCourse && !isGeneralCourse;
+
+  // Устанавливаем дефолтный текст заглушки в зависимости от курса
+  const defaultPlaceholderText = isDevelopmentCourse
+    ? 'Контент для этого возраста появится в ближайшем обновлении.'
+    : 'Контент для этой темы появится в ближайшем обновлении.';
 
   const title = config.meta?.title ?? `${heading} — ${SITE_NAME}`;
   const description =

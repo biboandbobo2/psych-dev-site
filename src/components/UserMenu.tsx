@@ -17,7 +17,10 @@ export default function UserMenu({ user }: UserMenuProps) {
 
   // Определяем курс на основе текущего пути
   const isClinicalPage = location.pathname.startsWith('/clinical');
-  const adminContentLink = isClinicalPage ? '/admin/content?course=clinical' : '/admin/content?course=development';
+  const isGeneralPage = location.pathname.startsWith('/general');
+  const adminContentLink = isClinicalPage ? '/admin/content?course=clinical' :
+                           isGeneralPage ? '/admin/content?course=general' :
+                           '/admin/content?course=development';
 
   const handleSignOut = async () => {
     if (window.confirm("Выйти из системы?")) {

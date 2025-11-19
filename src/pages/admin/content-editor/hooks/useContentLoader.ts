@@ -7,7 +7,7 @@ import type { Period } from '../types';
 import { createEmptyVideoEntry, createVideoEntryFromSource } from '../utils/videoHelpers';
 import { debugError } from '../../../../lib/debug';
 
-type CourseType = 'development' | 'clinical';
+type CourseType = 'development' | 'clinical' | 'general';
 
 interface UseContentLoaderParams {
   periodId: string | undefined;

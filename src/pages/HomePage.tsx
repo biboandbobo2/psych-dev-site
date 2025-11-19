@@ -16,6 +16,8 @@ import type {
   InstructorsSection,
   FormatSection,
   CTASection,
+  CTAClinicalSection,
+  CTAGeneralSection,
 } from '../types/homePage';
 
 // Helper to extract background color from bgColor field
@@ -69,6 +71,10 @@ export function HomePage() {
         return renderFormatSection(section as FormatSection);
       case 'cta':
         return renderCTASection(section as CTASection);
+      case 'cta-clinical':
+        return renderSimpleCTASection(section as CTAClinicalSection);
+      case 'cta-general':
+        return renderSimpleCTASection(section as CTAGeneralSection);
       default:
         return null;
     }
@@ -298,6 +304,31 @@ export function HomePage() {
             <p>💬 Telegram: {contacts.telegram}</p>
           </div>
         )}
+      </section>
+    );
+  }
+
+  function renderSimpleCTASection(section: CTAClinicalSection | CTAGeneralSection) {
+    const { title, subtitle, primaryCta, secondaryCta } = section.content;
+    const key = section.type; // 'cta-clinical' or 'cta-general'
+    return (
+      <section key={key} className="py-16 sm:py-20 text-center bg-gradient-to-br from-[#F5F7FA] to-[#E8EFF5] rounded-2xl">
+        <h2 className="text-3xl sm:text-4xl font-bold text-[#2C3E50] mb-4">{title}</h2>
+        {subtitle && <p className="text-base text-[#7F8C8D] max-w-2xl mx-auto mb-8">{subtitle}</p>}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <NavLink
+            to={primaryCta.link}
+            className="inline-flex items-center justify-center px-8 py-3.5 bg-[#4A5FA5] text-white font-semibold rounded-lg hover:bg-[#3A4F95] transition-all duration-300 shadow-md hover:shadow-lg active:scale-[0.98]"
+          >
+            {primaryCta.text}
+          </NavLink>
+          <NavLink
+            to={secondaryCta.link}
+            className="inline-flex items-center justify-center px-8 py-3.5 bg-transparent text-[#4A5FA5] font-semibold rounded-lg border-2 border-[#4A5FA5] hover:bg-white transition-all duration-300 active:scale-[0.98]"
+          >
+            {secondaryCta.text}
+          </NavLink>
+        </div>
       </section>
     );
   }

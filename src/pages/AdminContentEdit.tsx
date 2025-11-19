@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { ROUTE_BY_PERIOD, CLINICAL_ROUTE_BY_PERIOD } from '../routes';
+import { ROUTE_BY_PERIOD, CLINICAL_ROUTE_BY_PERIOD, GENERAL_ROUTE_BY_PERIOD } from '../routes';
 import { normalizeText } from '../utils/contentHelpers';
 import { useContentForm } from './admin/content-editor/hooks/useContentForm';
 import { useContentLoader } from './admin/content-editor/hooks/useContentLoader';
@@ -14,7 +14,7 @@ import {
   ContentActionsBar,
 } from './admin/content-editor/components';
 
-type CourseType = 'development' | 'clinical';
+type CourseType = 'development' | 'clinical' | 'general';
 
 /**
  * Admin page for editing period content
@@ -26,23 +26,25 @@ export default function AdminContentEdit() {
 
   // Определяем курс из URL параметра
   const courseParam = searchParams.get('course');
-  const course: CourseType = (courseParam === 'clinical' || courseParam === 'development')
+  const course: CourseType = (courseParam === 'clinical' || courseParam === 'development' || courseParam === 'general')
     ? courseParam
     : 'development';
 
   // Get route config for placeholder settings
-  const routesByPeriod = course === 'clinical' ? CLINICAL_ROUTE_BY_PERIOD : ROUTE_BY_PERIOD;
+  const routesByPeriod = course === 'clinical' ? CLINICAL_ROUTE_BY_PERIOD :
+                         course === 'general' ? GENERAL_ROUTE_BY_PERIOD :
+                         ROUTE_BY_PERIOD;
   const routeConfig = periodId ? routesByPeriod[periodId] : undefined;
   const placeholderDefaultEnabled = routeConfig?.placeholderDefaultEnabled ?? false;
   const placeholderDisplayText =
-    routeConfig?.placeholderText || (course === 'clinical'
-      ? 'Контент для этой темы появится в ближайшем обновлении.'
-      : 'Контент для этого возраста появится в ближайшем обновлении.');
+    routeConfig?.placeholderText || (course === 'development'
+      ? 'Контент для этого возраста появится в ближайшем обновлении.'
+      : 'Контент для этой темы появится в ближайшем обновлении.');
   const normalizedPlaceholderText = normalizeText(placeholderDisplayText);
   const fallbackTitle =
     routeConfig?.navLabel || (periodId
-      ? (course === 'clinical' ? `Тема ${periodId}` : `Период ${periodId}`)
-      : (course === 'clinical' ? 'Новая тема' : 'Новый период'));
+      ? (course === 'development' ? `Период ${periodId}` : `Тема ${periodId}`)
+      : (course === 'development' ? 'Новый период' : 'Новая тема'));
 
   // Form state management
   const form = useContentForm(placeholderDefaultEnabled);

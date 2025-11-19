@@ -1,6 +1,16 @@
-import type { HomePageContent } from '../types/homePage';
+const admin = require('firebase-admin');
+const fs = require('fs');
+const path = require('path');
 
-export const DEFAULT_HOME_PAGE_CONTENT: HomePageContent = {
+admin.initializeApp({
+  projectId: 'psych-dev-site-prod'
+});
+
+const db = admin.firestore();
+
+// Импортируем дефолтный контент из TypeScript файла
+// Для этого нужно скомпилировать или использовать JSON версию
+const defaultContent = {
   id: 'home',
   version: 1,
   lastModified: new Date().toISOString(),
@@ -275,3 +285,31 @@ export const DEFAULT_HOME_PAGE_CONTENT: HomePageContent = {
     },
   ],
 };
+
+async function initHomePage() {
+  try {
+    const docRef = db.collection('pages').doc('home');
+
+    await docRef.set(defaultContent);
+
+    console.log('✅ Контент главной страницы успешно инициализирован в Firestore');
+    console.log('\n📋 Проверьте данные в Firestore Console:');
+    console.log('https://console.firebase.google.com/project/psych-dev-site-prod/firestore/data/pages/home');
+
+  } catch (error) {
+    console.error('❌ Ошибка при инициализации:', error);
+    process.exit(1);
+  } finally {
+    await admin.app().delete();
+  }
+}
+
+initHomePage()
+  .then(() => {
+    console.log('\n🎉 Инициализация завершена');
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('❌ Критическая ошибка:', err);
+    process.exit(1);
+  });

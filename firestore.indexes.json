@@ -17,6 +17,14 @@
       ]
     },
     {
+      "collectionGroup": "general-topics",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "published", "order": "ASCENDING" },
+        { "fieldPath": "order", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "testResults",
       "queryScope": "COLLECTION",
       "fields": [

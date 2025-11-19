@@ -5,9 +5,10 @@ import React, { useMemo, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { AnimatePresence } from 'framer-motion';
-import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, SITE_NAME } from '../routes';
+import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, SITE_NAME } from '../routes';
 import { usePeriods } from '../hooks/usePeriods';
 import { useClinicalTopics } from '../hooks/useClinicalTopics';
+import { useGeneralTopics } from '../hooks/useGeneralTopics';
 import { Button } from '../components/ui/Button';
 import { NavigationProgress } from '../components/ui/NavigationProgress';
 import { BackToTop } from '../components/ui/BackToTop';
@@ -28,7 +29,10 @@ function RoutePager({ currentPath }) {
 
   // Определяем, на какой странице мы находимся, и используем соответствующую конфигурацию
   const isClinical = normalizedPath.startsWith('/clinical');
-  const routes = isClinical ? CLINICAL_ROUTE_CONFIG : ROUTE_CONFIG;
+  const isGeneral = normalizedPath.startsWith('/general');
+  const routes = isClinical ? CLINICAL_ROUTE_CONFIG :
+                 isGeneral ? GENERAL_ROUTE_CONFIG :
+                 ROUTE_CONFIG;
 
   const currentIndex = routes.findIndex((route) => route.path === normalizedPath);
   if (currentIndex === -1) return null;
@@ -79,6 +83,7 @@ export function AppShell() {
   useScrollRestoration();
   const { periods, loading, error } = usePeriods();
   const { topics: clinicalTopics, loading: clinicalLoading, error: clinicalError } = useClinicalTopics();
+  const { topics: generalTopics, loading: generalLoading, error: generalError } = useGeneralTopics();
   const location = useLocation();
   const normalizedPath = normalizePath(location.pathname);
   const user = useAuthStore((state) => state.user);
@@ -91,9 +96,10 @@ export function AppShell() {
   const courseParam = searchParams.get('course');
 
   useEffect(() => {
-    // Ищем роут в обеих конфигурациях
+    // Ищем роут во всех трех конфигурациях
     const route = ROUTE_CONFIG.find((entry) => entry.path === normalizedPath) ||
-                  CLINICAL_ROUTE_CONFIG.find((entry) => entry.path === normalizedPath);
+                  CLINICAL_ROUTE_CONFIG.find((entry) => entry.path === normalizedPath) ||
+                  GENERAL_ROUTE_CONFIG.find((entry) => entry.path === normalizedPath);
 
     if (!route) {
       document.title = SITE_NAME;
@@ -120,14 +126,23 @@ export function AppShell() {
     return clinicalTopics || new Map();
   }, [clinicalTopics]);
 
-  // Определяем, находимся ли мы на странице клинической психологии
+  const generalTopicsMap = useMemo(() => {
+    return generalTopics || new Map();
+  }, [generalTopics]);
+
+  // Определяем курс: development (по умолчанию), clinical или general
   // Проверяем либо путь, либо параметр course
   const isClinicalPage = normalizedPath.startsWith('/clinical') || courseParam === 'clinical';
+  const isGeneralPage = normalizedPath.startsWith('/general') || courseParam === 'general';
 
   const navItems = useMemo(() => {
-    // Для страниц клинической психологии используем CLINICAL_ROUTE_CONFIG
-    const routes = isClinicalPage ? CLINICAL_ROUTE_CONFIG : ROUTE_CONFIG;
-    const dataMap = isClinicalPage ? clinicalTopicsMap : periodMap;
+    // Выбираем конфигурацию в зависимости от курса
+    const routes = isClinicalPage ? CLINICAL_ROUTE_CONFIG :
+                   isGeneralPage ? GENERAL_ROUTE_CONFIG :
+                   ROUTE_CONFIG;
+    const dataMap = isClinicalPage ? clinicalTopicsMap :
+                    isGeneralPage ? generalTopicsMap :
+                    periodMap;
 
     return routes.map((config) => {
       const data = config.periodId ? dataMap.get(config.periodId) : null;
@@ -136,11 +151,12 @@ export function AppShell() {
         label: data?.label || data?.title || config.navLabel,
       };
     });
-  }, [periodMap, clinicalTopicsMap, isClinicalPage]);
+  }, [periodMap, clinicalTopicsMap, generalTopicsMap, isClinicalPage, isGeneralPage]);
 
-  if (loading || clinicalLoading) return <LoadingSplash />;
+  if (loading || clinicalLoading || generalLoading) return <LoadingSplash />;
   if (error) return <ErrorState message={error.message} />;
   if (clinicalError) return <ErrorState message={clinicalError.message} />;
+  if (generalError) return <ErrorState message={generalError.message} />;
   if (!periods.length) return <EmptyState />;
 
   return (
@@ -161,7 +177,7 @@ export function AppShell() {
         onLoginClick={openModal}
       >
         <AnimatePresence mode="wait" initial={false}>
-          <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} isSuperAdmin={isSuperAdmin} />
+          <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} generalTopicsMap={generalTopicsMap} isSuperAdmin={isSuperAdmin} />
         </AnimatePresence>
         <RoutePager currentPath={location.pathname} />
       </AppLayout>

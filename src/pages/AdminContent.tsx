@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { collection, orderBy, query, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG } from "../routes";
+import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG } from "../routes";
 import { getPeriodColors } from "../constants/periods";
 import { TestEditorModal } from "../components/TestEditorModal";
 import { canonicalizePeriodId } from "../lib/firestoreHelpers";
 import { debugError } from "../lib/debug";
 
-type CourseType = 'development' | 'clinical';
+type CourseType = 'development' | 'clinical' | 'general';
 
 interface Period {
   period: string;
@@ -39,6 +39,13 @@ const COURSES = {
     routes: CLINICAL_ROUTE_CONFIG,
     icon: '🧠',
   },
+  general: {
+    id: 'general' as CourseType,
+    name: 'Общая психология',
+    collection: 'general-topics',
+    routes: GENERAL_ROUTE_CONFIG,
+    icon: '📚',
+  },
 };
 
 function getRouteOrderMap(routes: typeof ROUTE_CONFIG) {
@@ -61,13 +68,13 @@ export default function AdminContent() {
   const getCourseFromState = (): CourseType => {
     // 1. Проверяем URL параметр
     const courseParam = searchParams.get('course');
-    if (courseParam === 'clinical' || courseParam === 'development') {
+    if (courseParam === 'clinical' || courseParam === 'development' || courseParam === 'general') {
       return courseParam;
     }
 
     // 2. Проверяем state из navigation
     const stateC = (location.state as any)?.course;
-    if (stateC === 'clinical' || stateC === 'development') {
+    if (stateC === 'clinical' || stateC === 'development' || stateC === 'general') {
       return stateC;
     }
 
@@ -75,6 +82,9 @@ export default function AdminContent() {
     if (typeof document !== 'undefined' && document.referrer) {
       if (document.referrer.includes('/clinical/')) {
         return 'clinical';
+      }
+      if (document.referrer.includes('/general/')) {
+        return 'general';
       }
     }
 
@@ -188,7 +198,7 @@ export default function AdminContent() {
 
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-700">
-          {currentCourse === 'clinical' ? 'Все темы' : 'Все периоды'}
+          {currentCourse === 'development' ? 'Все периоды' : 'Все темы'}
         </h2>
 
         <div className="flex items-center gap-3">
@@ -271,7 +281,7 @@ export default function AdminContent() {
 
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
         <p className="text-sm text-blue-700">
-          💡 <strong>Совет:</strong> Нажмите на {currentCourse === 'clinical' ? 'тему' : 'период'}, чтобы редактировать {currentCourse === 'clinical' ? 'её' : 'его'} содержимое.
+          💡 <strong>Совет:</strong> Нажмите на {currentCourse === 'development' ? 'период' : 'тему'}, чтобы редактировать {currentCourse === 'development' ? 'его' : 'её'} содержимое.
           Переключатель вверху позволяет выбрать курс для редактирования.
         </p>
       </div>

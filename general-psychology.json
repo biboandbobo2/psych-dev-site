@@ -1,0 +1,616 @@
+[
+  {
+    "period": "general-1",
+    "title": "История психологии и методы исследования",
+    "subtitle": "Подходы и методы в психологии, построение исследований",
+    "published": true,
+    "order": 0,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": [
+          {
+            "title": "История психологии и методы исследования",
+            "url": "https://youtube.com/watch?v=XXXXX",
+            "deckUrl": "",
+            "audioUrl": ""
+          }
+        ]
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Эксперимент",
+          "Лонгитюд",
+          "Наблюдение (включенное/невключенное)",
+          "Тесты и опросы",
+          "Валидация"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Вильгельм Вундт",
+            "url": "https://ru.wikipedia.org/wiki/Вундт,_Вильгельм"
+          },
+          {
+            "name": "Густав Фехнер",
+            "url": "https://ru.wikipedia.org/wiki/Фехнер,_Густав_Теодор"
+          },
+          {
+            "name": "Зигмунд Фрейд",
+            "url": "https://ru.wikipedia.org/wiki/Фрейд,_Зигмунд"
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-2",
+    "title": "Методологические проблемы изучения психики",
+    "subtitle": "Природа психики, сознания и научный подход",
+    "published": true,
+    "order": 1,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Научное знание",
+          "Психофизические соотношения",
+          "Психика и биологический субстрат",
+          "Сознание",
+          "Модель психики (сознание/бессознательное)",
+          "Научный подход"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Карл Поппер",
+            "url": "https://ru.wikipedia.org/wiki/Поппер,_Карл"
+          },
+          {
+            "name": "Томас Кун",
+            "url": "https://ru.wikipedia.org/wiki/Кун,_Томас"
+          },
+          {
+            "name": "Зигмунд Фрейд",
+            "url": "https://ru.wikipedia.org/wiki/Фрейд,_Зигмунд"
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-3",
+    "title": "Ощущение и восприятие",
+    "subtitle": "Свойства образов и теории восприятия",
+    "published": true,
+    "order": 2,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Ощущение и восприятие (различия)",
+          "Чувственная ткань",
+          "Образ восприятия (свойства)",
+          "Предметность",
+          "Экологический подход (Гибсон)",
+          "Top-down/Bottom-up процессы",
+          "Константность"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Эдвард Титченер",
+            "url": "https://ru.wikipedia.org/wiki/Титченер,_Эдуард_Брэдфорд"
+          },
+          {
+            "name": "Алексей Леонтьев",
+            "url": "https://ru.wikipedia.org/wiki/Леонтьев,_Алексей_Николаевич"
+          },
+          {
+            "name": "Джеймс Гибсон",
+            "url": "https://ru.wikipedia.org/wiki/Гибсон,_Джеймс_Джером"
+          },
+          {
+            "name": "Ульрих Найссер",
+            "url": "https://ru.wikipedia.org/wiki/Найссер,_Ульрик"
+          },
+          {
+            "name": "Джером Брунер",
+            "url": "https://ru.wikipedia.org/wiki/Брунер,_Джером"
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-4",
+    "title": "Внимание",
+    "subtitle": "Классические и когнитивные модели внимания",
+    "published": true,
+    "order": 3,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Объем внимания",
+          "Перцепция и апперцепция",
+          "Гомункулус (проблема)",
+          "Селекция (фильтры)",
+          "Ресурсная модель (Канеман)",
+          "Эффект Струпа",
+          "Совместное внимание"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Вильгельм Вундт",
+            "url": "https://ru.wikipedia.org/wiki/Вундт,_Вильгельм"
+          },
+          {
+            "name": "Петр Гальперин",
+            "url": "https://ru.wikipedia.org/wiki/Гальперин,_Пётр_Яковлевич"
+          },
+          {
+            "name": "Уильям Джеймс",
+            "url": "https://ru.wikipedia.org/wiki/Джеймс,_Уильям"
+          },
+          {
+            "name": "Даниэль Канеман",
+            "url": "https://ru.wikipedia.org/wiki/Канеман,_Даниэль"
+          },
+          {
+            "name": "Ульрих Найссер",
+            "url": "https://ru.wikipedia.org/wiki/Найссер,_Ульрик"
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-5",
+    "title": "Память. Часть 1: Классика и конструкции",
+    "subtitle": "Нарушения, закономерности и искажения памяти",
+    "published": true,
+    "order": 4,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Амнезии",
+          "Забывание (произвольное/непроизвольное)",
+          "Параллелограмм развития",
+          "Законы Эббингауза",
+          "Конструктивные процессы",
+          "Схемы",
+          "Искажения памяти",
+          "Автобиографическая память"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Герман Эббингауз",
+            "url": "https://ru.wikipedia.org/wiki/Эббингауз,_Герман"
+          },
+          {
+            "name": "Теодюль Рибо",
+            "url": "https://ru.wikipedia.org/wiki/Рибо,_Теодюль"
+          },
+          {
+            "name": "Фредерик Бартлетт",
+            "url": "https://ru.wikipedia.org/wiki/Бартлетт,_Фредерик_Чарлз"
+          },
+          {
+            "name": "Элизабет Лофтус",
+            "url": "https://ru.wikipedia.org/wiki/Лофтус,_Элизабет"
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-6",
+    "title": "Память. Часть 2: Когнитивные модели и функции",
+    "subtitle": "Структурные модели и память как процесс решения задачи",
+    "published": true,
+    "order": 5,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Сенсорный регистр",
+          "Кратковременная/рабочая память",
+          "Процедурная (моторная) память",
+          "Декларативная/эпизодическая/семантическая память",
+          "Уровни переработки информации",
+          "Навык (спор Бернштейна и Павлова)",
+          "Эффект Зейгарник"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Пётр Зинченко",
+            "url": "https://ru.wikipedia.org/wiki/Зинченко,_Пётр_Иванович_(психолог)"
+          },
+          {
+            "name": "Анатолий Смирнов",
+            "url": "https://ru.wikipedia.org/wiki/Смирнов,_Анатолий_Александрович_(психолог)"
+          },
+          {
+            "name": "Алан Бэддели",
+            "url": "https://ru.wikipedia.org/wiki/Бэддели,_Алан"
+          },
+          {
+            "name": "Николай Бернштейн",
+            "url": "https://ru.wikipedia.org/wiki/Бернштейн,_Николай_Александрович"
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-7",
+    "title": "Мышление",
+    "subtitle": "Развитие мышления, интериоризация и когнитивные искажения",
+    "published": true,
+    "order": 6,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Интериоризация",
+          "Мышление как решение задачи",
+          "Операции мышления (анализ, синтез)",
+          "Когнитивные искажения (эвристики)",
+          "Инсайт",
+          "Интеллект (социальный контекст)",
+          "Мышление и сознание"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Лев Выготский",
+            "url": "https://ru.wikipedia.org/wiki/Выготский,_Лев_Семёнович"
+          },
+          {
+            "name": "Даниэль Канеман",
+            "url": "https://ru.wikipedia.org/wiki/Канеман,_Даниэль"
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-8",
+    "title": "Речь",
+    "subtitle": "Взаимосвязь речи и мышления, язык и билингвизм",
+    "published": true,
+    "order": 7,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Речь и язык (различия)",
+          "Билингвизм",
+          "Влияние ожиданий (на мышление)",
+          "Интеллект (связь с социумом)"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Лев Выготский",
+            "url": "https://ru.wikipedia.org/wiki/Выготский,_Лев_Семёнович"
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-9",
+    "title": "Эмоциональная сфера",
+    "subtitle": "Теории эмоций, классификация и эволюция",
+    "published": true,
+    "order": 8,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Эмоции, аффекты, чувства, настроение",
+          "Функции эмоций",
+          "Теории возникновения эмоций (Джеймс-Ланге, Кеннон-Бард)",
+          "Эволюционные теории (Дарвин)",
+          "Универсальные и конструктивистские теории",
+          "Тревога/тревожность"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Чарлз Дарвин",
+            "url": "https://ru.wikipedia.org/wiki/Дарвин,_Чарлз"
+          },
+          {
+            "name": "Кэрролл Изард",
+            "url": "https://ru.wikipedia.org/wiki/Изард,_Кэрролл"
+          },
+          {
+            "name": "Ричард Лазарус",
+            "url": "https://ru.wikipedia.org/wiki/Лазарус,_Ричард"
+          },
+          {
+            "name": "Уолтер Кеннон",
+            "url": "https://ru.wikipedia.org/wiki/Кеннон,_Уолтер"
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-10",
+    "title": "Чувства и регуляция эмоциональной сферы",
+    "subtitle": "Кросс-культурные исследования и связь с когнитивными процессами",
+    "published": true,
+    "order": 9,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Регуляция эмоций",
+          "Кросс-культурные исследования",
+          "Позитивные чувства (счастье, любовь)",
+          "Связь эмоций с памятью, вниманием, мышлением",
+          "Стресс, выгорание"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": []
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-11",
+    "title": "Мотивация",
+    "subtitle": "Теории мотивации, классификация и место в структуре личности",
+    "published": true,
+    "order": 10,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Мотив и потребность",
+          "Сдвиг мотива на цель",
+          "Конфликт мотивов",
+          "Внутренняя/внешняя мотивация",
+          "Мотивация достижения и близости",
+          "Место мотивации в структуре личности (связь с верой, смыслом)"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Курт Левин",
+            "url": "https://ru.wikipedia.org/wiki/Левин,_Курт"
+          },
+          {
+            "name": "Алексей Леонтьев",
+            "url": "https://ru.wikipedia.org/wiki/Леонтьев,_Алексей_Николаевич"
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  },
+  {
+    "period": "general-12",
+    "title": "Саморегуляция и воля",
+    "subtitle": "Функции воли, онтогенез и практические модели",
+    "published": true,
+    "order": 11,
+    "placeholderEnabled": false,
+    "placeholderText": "",
+    "sections": {
+      "video_section": {
+        "title": "Видео-лекция",
+        "content": []
+      },
+      "concepts": {
+        "title": "Понятия",
+        "content": [
+          "Уровни саморегуляции",
+          "Самоконтроль",
+          "Воля (понятие и функции)",
+          "Волевые качества",
+          "Онтогенез воли (созревание центров)",
+          "Модель Рубикона",
+          "Теория контроля за действием",
+          "Прокрастинация"
+        ]
+      },
+      "authors": {
+        "title": "Ключевые авторы",
+        "content": [
+          {
+            "name": "Вадим Иванников",
+            "url": "https://ru.wikipedia.org/wiki/Иванников,_Вадим_Андреевич"
+          }
+        ]
+      },
+      "core_literature": {
+        "title": "Основная литература",
+        "content": []
+      },
+      "extra_literature": {
+        "title": "Дополнительная литература",
+        "content": []
+      }
+    }
+  }
+]
