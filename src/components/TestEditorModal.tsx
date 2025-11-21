@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import type { TestStatus, TestRubric } from '../types/tests';
+import type { TestStatus, TestRubric, CourseType } from '../types/tests';
 import { AGE_RANGE_LABELS } from '../types/notes';
 import { TestEditorForm } from './TestEditorForm';
 import { useTestsList } from './tests/modal/hooks/useTestsList';
@@ -19,6 +19,7 @@ import {
 
 interface TestEditorModalProps {
   onClose: () => void;
+  defaultCourse?: CourseType;
 }
 
 type DisplayStatus = 'published' | 'draft' | 'taken_down';
@@ -45,7 +46,7 @@ function getRubricLabel(rubric: TestRubric): string {
   return AGE_RANGE_LABELS[rubric as keyof typeof AGE_RANGE_LABELS] ?? rubric;
 }
 
-export function TestEditorModal({ onClose }: TestEditorModalProps) {
+export function TestEditorModal({ onClose, defaultCourse = 'development' }: TestEditorModalProps) {
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
@@ -58,10 +59,20 @@ export function TestEditorModal({ onClose }: TestEditorModalProps) {
     testsList.refreshTests();
   });
 
+  // Filter tests by course
+  const testsForCourse = useMemo(
+    () =>
+      testsList.tests.filter((test) => {
+        const testCourse = test.course || 'development';
+        return testCourse === defaultCourse;
+      }),
+    [testsList.tests, defaultCourse]
+  );
+
   // Transform tests to list items
   const testItems: TestListItem[] = useMemo(
     () =>
-      testsList.tests.map((test) => ({
+      testsForCourse.map((test) => ({
         id: test.id,
         title: test.title,
         emoji: test.appearance?.introIcon,
@@ -72,7 +83,7 @@ export function TestEditorModal({ onClose }: TestEditorModalProps) {
         updatedAt: test.updatedAt,
         createdAt: test.createdAt,
       })),
-    [testsList.tests]
+    [testsForCourse]
   );
 
   // Calculate status counts
@@ -210,8 +221,9 @@ export function TestEditorModal({ onClose }: TestEditorModalProps) {
               testId={selectedTestId === 'new' ? null : selectedTestId}
               onClose={handleBackToList}
               onSaved={handleBackToList}
-              existingTests={testsList.tests}
+              existingTests={testsForCourse}
               importedData={importExport.importedTest}
+              defaultCourse={defaultCourse}
             />
           </div>
         </div>

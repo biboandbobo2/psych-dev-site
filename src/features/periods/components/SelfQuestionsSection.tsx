@@ -16,6 +16,11 @@ export function SelfQuestionsSection({ slug, title, content, periodTests }: Self
   const firstItem = content.find((item) => typeof item === 'string') ?? '';
   const parsedUrl = ensureUrl(firstItem);
 
+  // Если нет ни рабочей тетради, ни тестов - не показываем секцию
+  if (!parsedUrl && periodTests.length === 0) {
+    return null;
+  }
+
   return (
     <Section key={slug} title={title}>
       {parsedUrl ? (
@@ -60,7 +65,31 @@ export function SelfQuestionsSection({ slug, title, content, periodTests }: Self
           </div>
         </div>
       ) : (
-        <p className="text-lg leading-8 text-muted">Ссылка на рабочую тетрадь пока недоступна.</p>
+        // Если нет рабочей тетради, но есть тесты - показываем только тесты
+        periodTests.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {periodTests.map((test) => {
+              const appearance = mergeAppearance(test.appearance);
+              const icon = appearance.introIcon || '📖';
+              const backgroundImage = createGradient(
+                appearance.accentGradientFrom,
+                appearance.accentGradientTo,
+                appearance.resolvedTheme?.primary
+              );
+              return (
+                <Link
+                  key={test.id}
+                  to={`/tests/dynamic/${test.id}`}
+                  className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-xl text-white shadow hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
+                  title={test.title}
+                  style={{ backgroundImage }}
+                >
+                  {icon}
+                </Link>
+              );
+            })}
+          </div>
+        )
       )}
     </Section>
   );

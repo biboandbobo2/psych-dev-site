@@ -1,8 +1,35 @@
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, Link, useSearchParams } from 'react-router-dom';
+import { useEffect } from 'react';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
 import { useAuth } from '../auth/AuthProvider';
+import { useCourseStore } from '../stores';
 
-function StudentPanel() {
+type CourseType = 'development' | 'clinical' | 'general';
+
+// Конфигурация курсов
+const COURSES = {
+  development: {
+    id: 'development' as CourseType,
+    name: 'Психология развития',
+    icon: '👶',
+  },
+  clinical: {
+    id: 'clinical' as CourseType,
+    name: 'Клиническая психология',
+    icon: '🧠',
+  },
+  general: {
+    id: 'general' as CourseType,
+    name: 'Общая психология',
+    icon: '📚',
+  },
+};
+
+interface StudentPanelProps {
+  currentCourse: CourseType;
+}
+
+function StudentPanel({ currentCourse }: StudentPanelProps) {
   const features = [
     {
       icon: '📝',
@@ -10,6 +37,7 @@ function StudentPanel() {
       description: 'Создавайте заметки к каждому периоду и возвращайтесь к ним в любое время',
       color: 'from-blue-500 to-blue-600',
       link: '/notes',
+      disabled: currentCourse !== 'development',
     },
     {
       icon: '📚',
@@ -17,13 +45,15 @@ function StudentPanel() {
       description: 'История ваших результатов по тестам и самопроверкам',
       color: 'from-green-500 to-green-600',
       link: '/tests',
+      disabled: false,
     },
     {
       icon: '📊',
-      title: 'Тесты - возрастной период',
-      description: 'Отслеживайте какие периоды вы уже изучили и что осталось',
+      title: 'Тесты - занятие',
+      description: 'Отслеживайте какие занятия вы уже изучили и что осталось',
       color: 'from-purple-500 to-purple-600',
       link: '/tests-lesson',
+      disabled: false,
     },
     {
       icon: '🗺️',
@@ -31,6 +61,7 @@ function StudentPanel() {
       description: 'Визуализируйте свой жизненный путь и ключевые решения',
       color: 'from-orange-500 to-orange-600',
       link: '/timeline',
+      disabled: currentCourse !== 'development',
     },
   ];
 
@@ -43,40 +74,41 @@ function StudentPanel() {
         Панель студента
       </h2>
 
-      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm text-blue-800">
-          👋 <strong>Добро пожаловать!</strong> Здесь появятся инструменты для отслеживания вашего прогресса и работы с материалами курса.
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {features.map((feature, index) => {
+          const isDisabled = feature.disabled;
           const content = (
             <>
-              {feature.comingSoon && (
+              {isDisabled && (
                 <div className="absolute top-3 right-3">
-                  <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
+                  <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">
                     Скоро
                   </span>
                 </div>
               )}
 
               <div
-                className={`inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} text-3xl mb-4 shadow-md`}
+                className={`inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} text-3xl mb-4 shadow-md ${
+                  isDisabled ? 'opacity-50' : ''
+                }`}
               >
                 {feature.icon}
               </div>
 
-              <h3 className="text-lg font-bold text-gray-900 mb-2">{feature.title}</h3>
-              <p className="text-sm text-gray-600">{feature.description}</p>
+              <h3 className={`text-lg font-bold mb-2 ${isDisabled ? 'text-gray-500' : 'text-gray-900'}`}>
+                {feature.title}
+              </h3>
+              <p className={`text-sm ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
+                {feature.description}
+              </p>
 
-              {feature.comingSoon && (
+              {isDisabled && (
                 <div className="absolute inset-0 bg-gray-50/50 rounded-xl backdrop-blur-[1px] cursor-not-allowed" />
               )}
             </>
           );
 
-          if (feature.link) {
+          if (feature.link && !isDisabled) {
             return (
               <Link
                 key={index}
@@ -91,7 +123,7 @@ function StudentPanel() {
           return (
             <div
               key={index}
-              className="relative group bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-all duration-300 hover:shadow-lg"
+              className="relative group bg-white border-2 border-gray-200 rounded-xl p-6 transition-all duration-300"
             >
               {content}
             </div>
@@ -104,6 +136,16 @@ function StudentPanel() {
 
 export default function Profile() {
   const { user, loading, userRole, isAdmin, isSuperAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { currentCourse, setCurrentCourse } = useCourseStore();
+
+  // Синхронизация с URL параметром при первой загрузке
+  useEffect(() => {
+    const courseParam = searchParams.get('course');
+    if (courseParam === 'clinical' || courseParam === 'development' || courseParam === 'general') {
+      setCurrentCourse(courseParam);
+    }
+  }, [searchParams, setCurrentCourse]);
 
   if (loading) {
     return (
@@ -131,85 +173,96 @@ export default function Profile() {
   const role = userRole ?? 'student';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        <Link
-          to="/"
-          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors"
-        >
-          <span className="text-xl mr-2">←</span>
-          Вернуться на сайт
-        </Link>
+    <div className="space-y-6">
+      <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-32" />
 
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-32" />
+        <div className="px-8 pb-8">
+          <div className="flex items-end -mt-16 mb-6">
+            {user.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt={displayName}
+                className="w-32 h-32 rounded-full border-4 border-white shadow-lg"
+              />
+            ) : (
+              <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl">
+                {displayName.charAt(0).toUpperCase()}
+              </div>
+            )}
 
-          <div className="px-8 pb-8">
-            <div className="flex items-end -mt-16 mb-6">
-              {user.photoURL ? (
-                <img
-                  src={user.photoURL}
-                  alt={displayName}
-                  className="w-32 h-32 rounded-full border-4 border-white shadow-lg"
-                />
+            <div className="ml-6 mb-4">
+              {role === 'super-admin' ? (
+                <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-sm font-semibold text-white shadow">
+                  <span className="text-lg" role="img" aria-label="Супер-админ">
+                    ⭐
+                  </span>
+                  Супер-админ
+                </span>
+              ) : role === 'admin' ? (
+                <span className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-800">
+                  <span className="text-lg" role="img" aria-label="Администратор">
+                    👑
+                  </span>
+                  Администратор
+                </span>
               ) : (
-                <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl">
-                  {displayName.charAt(0).toUpperCase()}
-                </div>
+                <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-800">
+                  <span className="text-lg" role="img" aria-label="Студент">
+                    🎓
+                  </span>
+                  Студент
+                </span>
               )}
-
-              <div className="ml-6 mb-4">
-                {role === 'super-admin' ? (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-sm font-semibold text-white shadow">
-                    <span className="text-lg" role="img" aria-label="Супер-админ">
-                      ⭐
-                    </span>
-                    Супер-админ
-                  </span>
-                ) : role === 'admin' ? (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-800">
-                    <span className="text-lg" role="img" aria-label="Администратор">
-                      👑
-                    </span>
-                    Администратор
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-800">
-                    <span className="text-lg" role="img" aria-label="Студент">
-                      🎓
-                    </span>
-                    Студент
-                  </span>
-                )}
-              </div>
             </div>
+          </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
-                <SuperAdminBadge />
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
+              <SuperAdminBadge />
+            </div>
+            <div className="flex flex-wrap gap-6 text-gray-600">
+              <div className="flex items-center gap-2">
+                <span className="text-xl" role="img" aria-hidden="true">
+                  ✉️
+                </span>
+                <span>{user.email}</span>
               </div>
-              <div className="flex flex-wrap gap-6 text-gray-600">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl" role="img" aria-hidden="true">
-                    ✉️
-                  </span>
-                  <span>{user.email}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl" role="img" aria-hidden="true">
-                    📅
-                  </span>
-                  <span>С нами с {memberSince}</span>
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl" role="img" aria-hidden="true">
+                  📅
+                </span>
+                <span>С нами с {memberSince}</span>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-12">
-          <StudentPanel />
+      <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
+        {/* Переключатель курсов */}
+        <div>
+          <h2 className="text-xl font-bold mb-4 text-gray-700">Выберите курс</h2>
+          <div className="flex gap-2 border-b border-gray-200">
+            {Object.values(COURSES).map((courseOption) => (
+              <button
+                key={courseOption.id}
+                onClick={() => setCurrentCourse(courseOption.id)}
+                className={`px-4 py-2 font-medium transition-colors relative ${
+                  currentCourse === courseOption.id
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span className="mr-2">{courseOption.icon}</span>
+                {courseOption.name}
+              </button>
+            ))}
+          </div>
         </div>
+
+        <StudentPanel currentCourse={currentCourse} />
       </div>
     </div>
   );

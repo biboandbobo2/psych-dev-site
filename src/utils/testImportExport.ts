@@ -238,7 +238,8 @@ export function generateTestTemplate(): string {
       en: 'This is a template for creating a test. Remove this field before uploading.',
       guide: {
         title: 'Название теста (обязательно, макс 20 символов)',
-        rubric: 'Рубрика: "full-course" или возрастной период ("0-3", "3-7", "7-11", "11-15", "15-18")',
+        course: 'Курс: "development" (психология развития), "clinical" (клиническая), "general" (общая)',
+        rubric: 'Рубрика: "full-course" (весь курс) или ID занятия (период для development, тема для clinical/general)',
         prerequisiteTestId: 'ID теста-предшественника (опционально)',
         requiredPercentage: 'Процент правильных ответов для прохождения (0-100)',
         questionCount: 'Количество вопросов (автоматически вычисляется)',
@@ -270,6 +271,7 @@ export function generateTestTemplate(): string {
     exportedAt: new Date().toISOString(),
     test: {
       title: 'Название теста',
+      course: 'development',
       rubric: 'full-course',
       prerequisiteTestId: undefined,
       questionCount: 3,
