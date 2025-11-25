@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import type { Test, TestQuestion, CourseType } from '../types/tests';
 import { THEME_PRESETS } from '../constants/themePresets';
 import { debugError } from '../lib/debug';
+import { ROUTE_CONFIG } from '../routes';
 import { TestQuestionsManager } from './tests/editor/TestQuestionsManager';
 import { TestBasicMetadata } from './tests/editor/TestBasicMetadata';
 import { TestPrerequisiteConfig } from './tests/editor/TestPrerequisiteConfig';
@@ -41,10 +42,10 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
     const options: Record<string, string> = {};
 
     if (course === 'development') {
-      // For development course, use age ranges from notes types
-      const { AGE_RANGE_LABELS } = require('../types/notes');
-      Object.entries(AGE_RANGE_LABELS).forEach(([key, label]) => {
-        options[key] = label as string;
+      ROUTE_CONFIG.forEach((route) => {
+        if (route.periodId && route.navLabel) {
+          options[route.periodId] = route.navLabel;
+        }
       });
     } else if (course === 'clinical') {
       // For clinical course, use topics from clinical-topics collection

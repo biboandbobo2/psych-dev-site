@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import type { TestStatus, TestRubric, CourseType } from '../types/tests';
 import { AGE_RANGE_LABELS } from '../types/notes';
+import { ROUTE_BY_PERIOD } from '../routes';
 import { TestEditorForm } from './TestEditorForm';
 import { useTestsList } from './tests/modal/hooks/useTestsList';
 import { useTestsFilters } from './tests/modal/hooks/useTestsFilters';
@@ -29,6 +30,16 @@ interface FeedbackState {
   message: string;
 }
 
+const DEVELOPMENT_PERIOD_LABELS: Record<string, string> = Object.entries(ROUTE_BY_PERIOD).reduce(
+  (acc, [key, config]) => {
+    if (config?.navLabel) {
+      acc[key] = config.navLabel;
+    }
+    return acc;
+  },
+  {} as Record<string, string>
+);
+
 function toDisplayStatus(status: TestStatus | 'taken_down'): DisplayStatus {
   if (status === 'unpublished' || status === 'taken_down') {
     return 'taken_down';
@@ -43,6 +54,12 @@ function getRubricLabel(rubric: TestRubric): string {
   if (rubric === 'full-course') {
     return 'Весь курс';
   }
+
+  const routeLabel = DEVELOPMENT_PERIOD_LABELS[String(rubric)];
+  if (routeLabel) {
+    return routeLabel;
+  }
+
   return AGE_RANGE_LABELS[rubric as keyof typeof AGE_RANGE_LABELS] ?? rubric;
 }
 
