@@ -137,7 +137,12 @@ function enforceRateLimit(ip: string): boolean {
   return true;
 }
 
-function parseQueryParams(req: any) {
+function parseQueryParams(req: any): {
+  qRaw: string;
+  limit: number;
+  langs: string[];
+  mode: 'drawer' | 'page';
+} {
   const qRaw = (req.query?.q ?? '').toString().trim();
   const limitRaw = Number.parseInt((req.query?.limit ?? '').toString(), 10);
   const langsRaw = (req.query?.langs ?? '').toString().trim();
@@ -147,7 +152,7 @@ function parseQueryParams(req: any) {
     Number.isFinite(limitRaw) && limitRaw > 0
       ? Math.min(limitRaw, MAX_LIMIT)
       : DEFAULT_LIMIT;
-  const langs =
+  const langs: string[] =
     langsRaw.length > 0
       ? Array.from(
           new Set(
@@ -158,7 +163,7 @@ function parseQueryParams(req: any) {
           )
         )
       : DEFAULT_LANGS;
-  const mode = modeRaw === 'page' ? 'page' : 'drawer';
+  const mode: 'drawer' | 'page' = modeRaw === 'page' ? 'page' : 'drawer';
 
   return { qRaw, limit, langs, mode };
 }
