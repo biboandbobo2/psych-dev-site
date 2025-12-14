@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "notes": "Editable allow-list of open-access libraries/repositories. Used to filter landing_page_url and pdf_url hostnames. Add hosts as needed; keep enable=true to include. Keep this list OA-only.",
+  "sources": [
+    {
+      "key": "arxiv",
+      "name": "arXiv",
+      "enabled": true,
+      "hosts": [
+        "arxiv.org"
+      ]
+    },
+    {
+      "key": "osf_psyarxiv",
+      "name": "PsyArXiv (OSF)",
+      "enabled": true,
+      "hosts": [
+        "psyarxiv.com",
+        "osf.io"
+      ]
+    },
+    {
+      "key": "pubmed_central",
+      "name": "PubMed Central (NCBI)",
+      "enabled": true,
+      "hosts": [
+        "ncbi.nlm.nih.gov"
+      ],
+      "pathPrefixes": [
+        "/pmc/"
+      ]
+    },
+    {
+      "key": "europe_pmc",
+      "name": "Europe PMC",
+      "enabled": true,
+      "hosts": [
+        "europepmc.org"
+      ]
+    },
+    {
+      "key": "doaj",
+      "name": "DOAJ (Directory of Open Access Journals)",
+      "enabled": true,
+      "hosts": [
+        "doaj.org"
+      ]
+    },
+    {
+      "key": "zenodo",
+      "name": "Zenodo",
+      "enabled": true,
+      "hosts": [
+        "zenodo.org"
+      ]
+    },
+    {
+      "key": "hal",
+      "name": "HAL (France)",
+      "enabled": true,
+      "hosts": [
+        "hal.science",
+        "hal.archives-ouvertes.fr"
+      ]
+    },
+    {
+      "key": "core",
+      "name": "CORE",
+      "enabled": true,
+      "hosts": [
+        "core.ac.uk"
+      ]
+    },
+    {
+      "key": "openaire",
+      "name": "OpenAIRE",
+      "enabled": true,
+      "hosts": [
+        "openaire.eu",
+        "explore.openaire.eu"
+      ]
+    },
+    {
+      "key": "ssrn_preprints",
+      "name": "SSRN (OA only when links are open)",
+      "enabled": false,
+      "hosts": [
+        "papers.ssrn.com",
+        "ssrn.com"
+      ]
+    },
+    {
+      "key": "openreview",
+      "name": "OpenReview",
+      "enabled": true,
+      "hosts": [
+        "openreview.net"
+      ]
+    },
+    {
+      "key": "mdpi",
+      "name": "MDPI (OA journals)",
+      "enabled": true,
+      "hosts": [
+        "mdpi.com"
+      ]
+    },
+    {
+      "key": "frontiers",
+      "name": "Frontiers (OA journals)",
+      "enabled": true,
+      "hosts": [
+        "frontiersin.org"
+      ]
+    },
+    {
+      "key": "plos",
+      "name": "PLOS",
+      "enabled": true,
+      "hosts": [
+        "journals.plos.org",
+        "plos.org"
+      ]
+    },
+    {
+      "key": "biorxiv_medrxiv",
+      "name": "bioRxiv/medRxiv",
+      "enabled": true,
+      "hosts": [
+        "biorxiv.org",
+        "medrxiv.org"
+      ]
+    },
+    {
+      "key": "eric",
+      "name": "ERIC (education OA where available)",
+      "enabled": true,
+      "hosts": [
+        "eric.ed.gov"
+      ]
+    },
+    {
+      "key": "cyberleninka",
+      "name": "КиберЛенинка (RU)",
+      "enabled": true,
+      "hosts": [
+        "cyberleninka.ru"
+      ]
+    }
+  ]
+}
