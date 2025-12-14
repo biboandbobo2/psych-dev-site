@@ -17,6 +17,7 @@ import {
   Timeline,
   DynamicTest,
   TestsPage,
+  ResearchPage,
 } from '../pages/lazy';
 import { PageLoader } from '../components/ui';
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
@@ -101,6 +102,14 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           element={
             <RequireAuth>
               <TestsPage rubricFilter="age-periods" />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/research"
+          element={
+            <RequireAuth>
+              <ResearchPage />
             </RequireAuth>
           }
         />

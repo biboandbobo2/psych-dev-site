@@ -1,14 +1,17 @@
 import { Link, useLocation } from "react-router-dom";
+import { useState } from "react";
 import { signOut } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useAuthStore } from "../stores/useAuthStore";
+import { ResearchSearchDrawer } from "../features/researchSearch/components/ResearchSearchDrawer";
 
 interface UserMenuProps {
   user: User;
 }
 
 export default function UserMenu({ user }: UserMenuProps) {
+  const [isResearchOpen, setIsResearchOpen] = useState(false);
   const location = useLocation();
   const displayName = user.displayName || user.email?.split('@')[0] || "Пользователь";
   const photoURL = user.photoURL;
@@ -37,6 +40,16 @@ export default function UserMenu({ user }: UserMenuProps) {
         <span aria-hidden className="text-base">📝</span>
         <span>Заметки</span>
       </Link>
+
+      <button
+        type="button"
+        onClick={() => setIsResearchOpen(true)}
+        className="inline-flex items-center gap-2 rounded-lg bg-indigo-100 px-3 py-2 text-sm font-medium text-indigo-800 transition hover:bg-indigo-200"
+        aria-label="Открыть научный поиск"
+      >
+        <span aria-hidden className="text-base">🔍</span>
+        <span>Научный поиск</span>
+      </button>
 
       {isAdmin && (
         <Link
@@ -92,6 +105,8 @@ export default function UserMenu({ user }: UserMenuProps) {
       >
         Выйти
       </button>
+
+      <ResearchSearchDrawer open={isResearchOpen} onClose={() => setIsResearchOpen(false)} />
     </div>
   );
 }
