@@ -99,5 +99,9 @@ export const AGE_RANGE_OPTIONS: Array<{ value: AgeRange; label: string }> = new 
       const options = getAgeRangeOptions();
       return options[prop as keyof typeof options];
     },
+    has(_target, prop) {
+      const options = getAgeRangeOptions();
+      return prop in options;
+    },
   }
 );
