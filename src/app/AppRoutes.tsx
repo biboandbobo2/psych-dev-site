@@ -97,7 +97,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           }
         />
         <Route
-          path="/tests/age-periods"
+          path="/tests-lesson"
           element={
             <RequireAuth>
               <TestsPage rubricFilter="age-periods" />

@@ -83,7 +83,8 @@
 - **Zustand** - современное решение для управления состоянием приложения
   - Atomic селекторы для минимизации ре-рендеров
   - Redux DevTools integration
-  - Stores: `useAuthStore`, `useTestStore`
+  - Persist middleware для localStorage
+  - Stores: `useAuthStore`, `useTestStore`, `useCourseStore`
   - Migration от Context API завершена (2025-11)
 
 ### 🧪 Testing

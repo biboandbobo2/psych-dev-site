@@ -1,64 +1,59 @@
-import { MemoryRouter } from 'react-router-dom';
-import { render, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { AdminPanel } from '../Profile';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import AdminUsers from '../AdminUsers';
 
-vi.mock('firebase/firestore', () => ({
-  collection: vi.fn((_db, collectionName) => ({ collectionName })),
-  getDocs: vi.fn(),
-  query: vi.fn((...args) => ({ args })),
-  where: vi.fn((...args) => ({ args })),
-  getCountFromServer: vi.fn(),
-  getFirestore: vi.fn(() => ({})),
+vi.mock('../../hooks/useAllUsers', () => ({
+  useAllUsers: () => ({
+    users: [
+      {
+        uid: 'u1',
+        role: 'student',
+        email: 'student@example.com',
+        displayName: 'Student',
+        photoURL: null,
+        createdAt: null,
+        lastLoginAt: { toDate: () => new Date('2024-01-01') },
+      },
+      {
+        uid: 'u2',
+        role: 'admin',
+        email: 'admin@example.com',
+        displayName: 'Admin',
+        photoURL: null,
+        createdAt: null,
+        lastLoginAt: { toDate: () => new Date('2024-01-02') },
+      },
+      {
+        uid: 'u3',
+        role: 'super-admin',
+        email: 'super@example.com',
+        displayName: 'Super',
+        photoURL: null,
+        createdAt: null,
+        lastLoginAt: { toDate: () => new Date('2024-01-03') },
+      },
+    ],
+    loading: false,
+    error: null,
+  }),
 }));
 
-const mockPeriods = [
-  { data: () => ({ published: true }) },
-  { data: () => ({ published: false }) },
-  { data: () => ({ published: false }) },
-];
+vi.mock('../../auth/AuthProvider', () => ({
+  useAuth: () => ({
+    user: { uid: 'u3', email: 'super@example.com' },
+    isSuperAdmin: true,
+  }),
+}));
 
-describe('AdminPanel statistics', () => {
-  let firestore: Awaited<typeof import('firebase/firestore')>;
+describe('AdminUsers statistics', () => {
+  it('отображает счётчики пользователей и ролей', () => {
+    render(<AdminUsers />);
 
-  beforeEach(async () => {
-    firestore = await vi.importMock<typeof import('firebase/firestore')>('firebase/firestore');
-    firestore.collection.mockClear();
-    firestore.query.mockClear();
-    firestore.where.mockClear();
-    firestore.getDocs.mockClear();
-    firestore.getCountFromServer.mockClear();
-
-    firestore.getDocs.mockResolvedValue({
-      size: mockPeriods.length,
-      docs: mockPeriods,
-    });
-
-    firestore.getCountFromServer.mockResolvedValue({
-      data: () => ({ count: 5 }),
-    });
-  });
-
-  it('отображает правильные данные по периодам и администраторам', async () => {
-    render(
-      <MemoryRouter>
-        <AdminPanel isSuperAdmin={false} />
-      </MemoryRouter>
-    );
-
-    await waitFor(() => expect(firestore.getDocs).toHaveBeenCalled());
-    await waitFor(() => expect(firestore.getCountFromServer).toHaveBeenCalled());
-
-    const totalCard = screen.getByText('Всего периодов').parentElement;
-    const publishedCard = screen.getByText('Опубликовано').parentElement;
-    const adminsCard = screen.getByText('Администраторов').parentElement;
-
-    expect(within(totalCard!).getByText('3')).toBeInTheDocument();
-    expect(within(publishedCard!).getByText('1')).toBeInTheDocument();
-    expect(within(adminsCard!).getByText('5')).toBeInTheDocument();
-
-    expect(firestore.collection).toHaveBeenCalledWith(expect.anything(), 'periods');
-    expect(firestore.collection).toHaveBeenCalledWith(expect.anything(), 'users');
-    expect(firestore.where).toHaveBeenCalledWith('role', 'in', ['admin', 'super-admin']);
+    expect(
+      screen.getByText(/Всего пользователей:/)
+    ).toHaveTextContent('Всего пользователей: 3 (Админов: 2, Студентов: 1)');
+    expect(screen.getByText('Все (3)')).toBeInTheDocument();
+    expect(screen.getByText('Студенты (1)')).toBeInTheDocument();
+    expect(screen.getByText('Администраторы (2)')).toBeInTheDocument();
   });
 });

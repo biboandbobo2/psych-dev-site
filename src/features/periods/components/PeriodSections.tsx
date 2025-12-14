@@ -30,7 +30,7 @@ export function PeriodSections({ sections, deckUrl, defaultVideoTitle, periodTes
   if (!sections) return null;
 
   // Сортируем секции по заданному порядку
-  const sortedEntries = Object.entries(sections).sort(([slugA], [slugB]) => {
+  let sortedEntries = Object.entries(sections).sort(([slugA], [slugB]) => {
     const indexA = SECTION_ORDER.indexOf(slugA);
     const indexB = SECTION_ORDER.indexOf(slugB);
 
@@ -40,6 +40,12 @@ export function PeriodSections({ sections, deckUrl, defaultVideoTitle, periodTes
 
     return orderA - orderB;
   });
+
+  // Если нет секции self_questions, но есть тесты - добавляем фейковую секцию
+  const hasSelfQuestionsSection = sortedEntries.some(([slug]) => slug === 'self_questions');
+  if (!hasSelfQuestionsSection && periodTests.length > 0) {
+    sortedEntries.push(['self_questions', { title: 'Вопросы для самопроверки', content: [] }]);
+  }
 
   return (
     <div className="space-y-2">
@@ -66,7 +72,10 @@ interface SectionRendererProps {
 }
 
 function SectionRenderer({ slug, section, deckUrl, defaultVideoTitle, periodTests }: SectionRendererProps) {
-  if (!section?.content?.length) return null;
+  // Для self_questions делаем исключение: показываем если есть контент ИЛИ есть тесты
+  const isSelfQuestions = slug === 'self_questions';
+  if (!isSelfQuestions && !section?.content?.length) return null;
+  if (isSelfQuestions && !section?.content?.length && periodTests.length === 0) return null;
 
   const rawTitle = section.title ?? '';
   const displayTitle = rawTitle.toLowerCase().includes('вопросы для контакта с собой')
@@ -85,7 +94,7 @@ function SectionRenderer({ slug, section, deckUrl, defaultVideoTitle, periodTest
     );
   }
 
-  if (slug === 'self_questions') {
+  if (isSelfQuestions) {
     return (
       <SelfQuestionsSection
         slug={slug}

@@ -8,11 +8,13 @@ import {
   unpublishTest,
   isTestTitleUnique,
 } from '../../../../lib/tests';
-import type { TestQuestion, TestAppearance, TestRubric } from '../../../../types/tests';
+import type { TestQuestion, TestAppearance, TestRubric, CourseType } from '../../../../types/tests';
 import { MIN_QUESTION_ANSWERS } from '../../../../types/tests';
+import { debugLog, debugError } from '../../../../lib/debug';
 
 interface FormData {
   title: string;
+  course: CourseType;
   rubric: TestRubric;
   questionCount: number;
   questions: TestQuestion[];
@@ -117,7 +119,7 @@ export function useTestSave({
       return;
     }
 
-    const { title, rubric, questions, questionCountError, currentStatus } = formData;
+    const { title, course, rubric, questions, questionCountError, currentStatus } = formData;
     const { isNextLevel, prerequisiteTestId, requiredPercentage, previousTestError, thresholdError, canAttachPrerequisite } = prerequisiteData;
 
     if (!title.trim()) {
@@ -170,6 +172,7 @@ export function useTestSave({
         // Update existing test
         await updateTest(testId, {
           title: title.trim(),
+          course,
           rubric,
           prerequisiteTestId: isNextLevel ? prerequisiteTestId : undefined,
           questionCount: questions.length,
@@ -182,6 +185,7 @@ export function useTestSave({
         const newTestId = await createTest(
           {
             title: title.trim(),
+            course,
             rubric,
             prerequisiteTestId: isNextLevel ? prerequisiteTestId : undefined,
             questionCount: questions.length,
@@ -195,11 +199,11 @@ export function useTestSave({
       }
 
       const message = currentStatus === 'draft' ? 'Тест сохранён как черновик' : 'Изменения сохранены';
-      console.log(`✅ ${message}, возвращаемся к списку`);
+      debugLog(`✅ ${message}, возвращаемся к списку`);
       alert(message);
       onSaved();
     } catch (error) {
-      console.error('Ошибка сохранения:', error);
+      debugError('Ошибка сохранения:', error);
       alert('Не удалось сохранить тест');
     } finally {
       setSaving(false);
@@ -223,7 +227,7 @@ export function useTestSave({
       alert('Тест снят с публикации');
       onSaved();
     } catch (error) {
-      console.error('Ошибка снятия с публикации:', error);
+      debugError('Ошибка снятия с публикации:', error);
       alert('Не удалось снять тест с публикации');
     } finally {
       setSaving(false);
@@ -238,7 +242,7 @@ export function useTestSave({
       return;
     }
 
-    const { title, rubric, questions, questionCountError } = formData;
+    const { title, course, rubric, questions, questionCountError } = formData;
     const { isNextLevel, prerequisiteTestId, requiredPercentage, previousTestError, thresholdError, canAttachPrerequisite } = prerequisiteData;
 
     if (questionCountError) {
@@ -286,6 +290,7 @@ export function useTestSave({
         // Update and publish
         await updateTest(testId, {
           title: title.trim(),
+          course,
           rubric,
           prerequisiteTestId: isNextLevel ? prerequisiteTestId : undefined,
           questionCount: questions.length,
@@ -299,6 +304,7 @@ export function useTestSave({
         const newTestId = await createTest(
           {
             title: title.trim(),
+            course,
             rubric,
             prerequisiteTestId: isNextLevel ? prerequisiteTestId : undefined,
             questionCount: questions.length,
@@ -314,7 +320,7 @@ export function useTestSave({
       alert('Тест опубликован!');
       onSaved();
     } catch (error) {
-      console.error('Ошибка публикации:', error);
+      debugError('Ошибка публикации:', error);
       alert('Не удалось опубликовать тест');
     } finally {
       setSaving(false);

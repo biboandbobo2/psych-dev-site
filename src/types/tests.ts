@@ -2,11 +2,17 @@ import type { AgeRange } from '../hooks/useNotes';
 import type { ThemeSettings, DerivedTheme } from './themes';
 
 /**
- * Рубрика теста - на что направлен тест
+ * Тип курса
  */
-export type TestRubric =
-  | 'full-course' // Курс целиком
-  | AgeRange; // Конкретный возрастной период
+export type CourseType = 'development' | 'clinical' | 'general';
+
+/**
+ * Рубрика теста - на что направлен тест
+ * - 'full-course' - весь курс целиком
+ * - AgeRange - возрастной период (для курса development)
+ * - string - ID темы из clinical-topics или general-topics
+ */
+export type TestRubric = 'full-course' | AgeRange | string;
 
 /**
  * Статус публикации теста
@@ -80,6 +86,7 @@ export interface TestQuestion {
 export interface Test {
   id: string; // UUID теста
   title: string; // Название теста
+  course: CourseType; // Курс (психология развития, клиническая, общая)
   rubric: TestRubric; // Рубрика (курс целиком или период)
   prerequisiteTestId?: string; // ID теста-предшественника (если это следующий уровень)
   questionCount: number; // Количество вопросов (1-20)

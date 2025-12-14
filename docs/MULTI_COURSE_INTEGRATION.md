@@ -19,8 +19,80 @@
 - Простоту поддержки (изменения в одном месте)
 - Переиспользование логики (заглушки, секции, темы)
 
-### 2. **URL-based course detection**
-Определение текущего курса происходит на основе URL:
+### 2. **Персистентное хранение курса (Zustand + localStorage)**
+> **Дата добавления:** 2025-11-21
+
+Для сохранения выбранного курса между переходами используется Zustand store с persist middleware:
+
+```typescript
+// src/stores/useCourseStore.ts
+import { create } from 'zustand';
+import { devtools, persist } from 'zustand/middleware';
+import type { CourseType } from '../types/tests';
+
+interface CourseState {
+  currentCourse: CourseType;
+  setCurrentCourse: (course: CourseType) => void;
+}
+
+export const useCourseStore = create<CourseState>()(
+  devtools(
+    persist(
+      (set) => ({
+        currentCourse: 'development',
+        setCurrentCourse: (course) => set({ currentCourse: course }),
+      }),
+      {
+        name: 'course-storage', // ключ в localStorage
+      }
+    ),
+    { name: 'CourseStore' }
+  )
+);
+```
+
+**Как это работает:**
+1. Пользователь выбирает курс на странице профиля → `setCurrentCourse('clinical')`
+2. Zustand сохраняет значение в `localStorage` автоматически
+3. При переходе на страницу тестов → `useCourseStore` возвращает сохранённое значение
+4. Навигация слева остаётся на клиническом курсе
+5. После перезагрузки браузера курс сохраняется
+
+**Синхронизация с URL:**
+Для обратной совместимости при первой загрузке проверяется URL параметр:
+```typescript
+// Profile.tsx, TestsPage.tsx, AdminContent.tsx
+useEffect(() => {
+  const courseParam = searchParams.get('course');
+  if (courseParam === 'clinical' || courseParam === 'development' || courseParam === 'general') {
+    setCurrentCourse(courseParam); // синхронизируем store с URL
+  }
+}, [searchParams, setCurrentCourse]);
+```
+
+**Определение курса в AppShell.jsx:**
+```typescript
+const currentCourse = useCourseStore((state) => state.currentCourse);
+
+const isProfileOrAdmin = normalizedPath === '/profile' || normalizedPath.startsWith('/admin/content');
+const isTestsPage = normalizedPath.startsWith('/tests');
+const useCourseFromStore = isProfileOrAdmin || isTestsPage;
+
+const isClinicalPage = normalizedPath.startsWith('/clinical') ||
+                       (useCourseFromStore && currentCourse === 'clinical');
+const isGeneralPage = normalizedPath.startsWith('/general') ||
+                      (useCourseFromStore && currentCourse === 'general');
+```
+
+**Преимущества:**
+- ✅ Курс сохраняется между переходами
+- ✅ Курс сохраняется между сессиями (localStorage)
+- ✅ Навигация остаётся стабильной
+- ✅ Redux DevTools для отладки
+- ✅ Обратная совместимость с URL параметрами
+
+### 3. **URL-based course detection для страниц курсов**
+Для страниц конкретных курсов (`/clinical/*`, `/general/*`) определение происходит на основе URL:
 ```typescript
 const isClinicalCourse = location.pathname.startsWith('/clinical/');
 const isGeneralCourse = location.pathname.startsWith('/general/');
@@ -28,11 +100,11 @@ const isDevelopmentCourse = !isClinicalCourse && !isGeneralCourse;
 ```
 
 Это позволяет:
-- Избежать глобального состояния для курса
-- Сделать URL единственным источником истины
+- Сделать URL единственным источником истины для страниц курсов
 - Поддерживать прямые ссылки и навигацию браузера
+- Избежать конфликта между store и URL
 
-### 3. **Раздельные Firestore коллекции**
+### 4. **Раздельные Firestore коллекции**
 Каждый курс имеет свою коллекцию:
 - `periods` — психология развития
 - `clinical-topics` — клиническая психология
@@ -574,4 +646,6 @@ npm run dev
 ---
 
 **История изменений:**
+- 2025-11-21: Добавлена система персистентного хранения курса (useCourseStore + localStorage)
+- 2025-11-21: Добавлена интеграция тестов с мультикурсовой системой
 - 2025-11-19: Первая версия документа (интеграция 3 курсов)

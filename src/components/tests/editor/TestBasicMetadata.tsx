@@ -1,6 +1,11 @@
-import type { TestRubric } from '../../../types/tests';
-import { AGE_RANGE_LABELS } from '../../../types/notes';
+import type { TestRubric, CourseType } from '../../../types/tests';
 import { Field } from '../../Field';
+
+const COURSE_LABELS: Record<CourseType, string> = {
+  development: 'Психология развития',
+  clinical: 'Клиническая психология',
+  general: 'Общая психология',
+};
 
 const CONTROL =
   'h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-[15px] leading-none outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500';
@@ -16,8 +21,12 @@ interface TestBasicMetadataProps {
   titleMaxLength: number;
   titleHint: string;
 
+  course: CourseType;
+  onCourseChange: (value: CourseType) => void;
+
   rubric: TestRubric;
   onRubricChange: (value: TestRubric) => void;
+  rubricOptions: Record<string, string>;
 
   questionCountInput: string;
   onQuestionCountInputChange: (value: string) => void;
@@ -32,8 +41,11 @@ export function TestBasicMetadata({
   onTitleChange,
   titleMaxLength,
   titleHint,
+  course,
+  onCourseChange,
   rubric,
   onRubricChange,
+  rubricOptions,
   questionCountInput,
   onQuestionCountInputChange,
   questionCountError,
@@ -44,7 +56,7 @@ export function TestBasicMetadata({
     <div className="space-y-6 rounded-lg border border-gray-200 bg-white p-4">
       <h3 className="text-lg font-bold text-gray-900">Параметры теста</h3>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field htmlFor="test-title" label="Название теста *" hint={titleHint}>
           <input
             id="test-title"
@@ -56,36 +68,6 @@ export function TestBasicMetadata({
             className={controlClass(false)}
             disabled={saving}
           />
-        </Field>
-
-        <Field htmlFor="test-rubric" label="Рубрика *" hint="Выберите курс или возрастной период.">
-          <div className="relative">
-            <select
-              id="test-rubric"
-              value={rubric}
-              onChange={(e) => onRubricChange(e.target.value as TestRubric)}
-              className={controlClass(false, 'appearance-none pr-8')}
-              disabled={saving}
-            >
-              <option value="full-course">Курс целиком</option>
-              <optgroup label="Возрастные периоды">
-                {Object.entries(AGE_RANGE_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-            <svg
-              className="pointer-events-none absolute inset-y-0 right-3 my-auto h-4 w-4 text-zinc-500"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
         </Field>
 
         <Field
@@ -106,6 +88,67 @@ export function TestBasicMetadata({
             aria-invalid={Boolean(questionCountError)}
             disabled={saving}
           />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field htmlFor="test-course" label="Курс *" hint="Выберите курс для теста.">
+          <div className="relative">
+            <select
+              id="test-course"
+              value={course}
+              onChange={(e) => onCourseChange(e.target.value as CourseType)}
+              className={controlClass(false, 'appearance-none pr-8')}
+              disabled={saving}
+            >
+              {Object.entries(COURSE_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <svg
+              className="pointer-events-none absolute inset-y-0 right-3 my-auto h-4 w-4 text-zinc-500"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        </Field>
+
+        <Field htmlFor="test-rubric" label="Рубрика *" hint="Выберите курс целиком или конкретное занятие.">
+          <div className="relative">
+            <select
+              id="test-rubric"
+              value={rubric}
+              onChange={(e) => onRubricChange(e.target.value as TestRubric)}
+              className={controlClass(false, 'appearance-none pr-8')}
+              disabled={saving}
+            >
+              <option value="full-course">Курс целиком</option>
+              {Object.keys(rubricOptions).length > 0 && (
+                <optgroup label="Занятия">
+                  {Object.entries(rubricOptions).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <svg
+              className="pointer-events-none absolute inset-y-0 right-3 my-auto h-4 w-4 text-zinc-500"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
         </Field>
       </div>
     </div>

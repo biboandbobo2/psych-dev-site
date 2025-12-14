@@ -1,6 +1,8 @@
-import { useEffect } from 'react';
-import type { Test, TestQuestion } from '../types/tests';
+import { useEffect, useMemo } from 'react';
+import type { Test, TestQuestion, CourseType } from '../types/tests';
 import { THEME_PRESETS } from '../constants/themePresets';
+import { debugError } from '../lib/debug';
+import { ROUTE_CONFIG } from '../routes';
 import { TestQuestionsManager } from './tests/editor/TestQuestionsManager';
 import { TestBasicMetadata } from './tests/editor/TestBasicMetadata';
 import { TestPrerequisiteConfig } from './tests/editor/TestPrerequisiteConfig';
@@ -11,6 +13,8 @@ import { useTestEditorForm } from './tests/editor/hooks/useTestEditorForm';
 import { useTestTheme } from './tests/editor/hooks/useTestTheme';
 import { useTestPrerequisite } from './tests/editor/hooks/useTestPrerequisite';
 import { useTestSave } from './tests/editor/hooks/useTestSave';
+import { useClinicalTopics } from '../hooks/useClinicalTopics';
+import { useGeneralTopics } from '../hooks/useGeneralTopics';
 
 interface TestEditorFormProps {
   testId: string | null;
@@ -21,18 +25,48 @@ interface TestEditorFormProps {
     data?: Partial<Test>;
     questions?: TestQuestion[];
   } | null;
+  defaultCourse?: CourseType;
 }
 
-export function TestEditorForm({ testId, onClose, onSaved, existingTests, importedData }: TestEditorFormProps) {
+export function TestEditorForm({ testId, onClose, onSaved, existingTests, importedData, defaultCourse = 'development' }: TestEditorFormProps) {
   // Use custom hooks
-  const formHook = useTestEditorForm({ testId, importedData });
+  const formHook = useTestEditorForm({ testId, importedData, defaultCourse });
   const themeHook = useTestTheme();
   const prerequisiteHook = useTestPrerequisite({ existingTests, testId });
+  const { topics: clinicalTopics } = useClinicalTopics();
+  const { topics: generalTopics } = useGeneralTopics();
+
+  // Build rubric options based on selected course
+  const rubricOptions = useMemo(() => {
+    const course = formHook.form.course;
+    const options: Record<string, string> = {};
+
+    if (course === 'development') {
+      ROUTE_CONFIG.forEach((route) => {
+        if (route.periodId && route.navLabel) {
+          options[route.periodId] = route.navLabel;
+        }
+      });
+    } else if (course === 'clinical') {
+      // For clinical course, use topics from clinical-topics collection
+      clinicalTopics.forEach((topic) => {
+        options[topic.period] = topic.title;
+      });
+    } else if (course === 'general') {
+      // For general course, use topics from general-topics collection
+      generalTopics.forEach((topic) => {
+        options[topic.period] = topic.title;
+      });
+    }
+
+    return options;
+  }, [formHook.form.course, clinicalTopics, generalTopics]);
 
   const saveHook = useTestSave({
     testId,
     formData: {
       title: formHook.form.title,
+      course: formHook.form.course,
       rubric: formHook.form.rubric,
       questionCount: formHook.form.questionCount,
       questions: formHook.form.questions,
@@ -86,7 +120,7 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
           }
         }
       } catch (error) {
-        console.error('Error loading test appearance:', error);
+        debugError('Error loading test appearance:', error);
       }
     };
 
@@ -135,8 +169,11 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
         onTitleChange={formHook.setters.setTitle}
         titleMaxLength={formHook.form.titleMaxLength}
         titleHint={formHook.form.titleHint}
+        course={formHook.form.course}
+        onCourseChange={formHook.setters.setCourse}
         rubric={formHook.form.rubric}
         onRubricChange={formHook.setters.setRubric}
+        rubricOptions={rubricOptions}
         questionCountInput={formHook.form.questionCountInput}
         onQuestionCountInputChange={formHook.handlers.handleQuestionCountInputChange}
         questionCountError={formHook.form.questionCountError}

@@ -7,6 +7,7 @@ import { getPeriodColors } from "../constants/periods";
 import { TestEditorModal } from "../components/TestEditorModal";
 import { canonicalizePeriodId } from "../lib/firestoreHelpers";
 import { debugError } from "../lib/debug";
+import { useCourseStore } from "../stores";
 
 type CourseType = 'development' | 'clinical' | 'general';
 
@@ -48,6 +49,9 @@ const COURSES = {
   },
 };
 
+const ACTION_BUTTON_CLASS =
+  "inline-flex min-w-[220px] min-h-[52px] items-center justify-center gap-2 rounded-md px-5 py-2.5 text-base font-medium text-white transition shadow-sm whitespace-nowrap";
+
 function getRouteOrderMap(routes: typeof ROUTE_CONFIG) {
   return routes.reduce(
     (acc, config, index) => {
@@ -61,40 +65,41 @@ function getRouteOrderMap(routes: typeof ROUTE_CONFIG) {
 }
 
 export default function AdminContent() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const location = useLocation();
+  const { currentCourse, setCurrentCourse } = useCourseStore();
+  const [periods, setPeriods] = useState<Period[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showTestEditor, setShowTestEditor] = useState(false);
 
-  // Определяем курс из URL или из referrer
-  const getCourseFromState = (): CourseType => {
+  // Синхронизация с URL параметром и navigation state при первой загрузке
+  useEffect(() => {
     // 1. Проверяем URL параметр
     const courseParam = searchParams.get('course');
     if (courseParam === 'clinical' || courseParam === 'development' || courseParam === 'general') {
-      return courseParam;
+      setCurrentCourse(courseParam);
+      return;
     }
 
     // 2. Проверяем state из navigation
     const stateC = (location.state as any)?.course;
     if (stateC === 'clinical' || stateC === 'development' || stateC === 'general') {
-      return stateC;
+      setCurrentCourse(stateC);
+      return;
     }
 
     // 3. Проверяем referrer из document
     if (typeof document !== 'undefined' && document.referrer) {
       if (document.referrer.includes('/clinical/')) {
-        return 'clinical';
+        setCurrentCourse('clinical');
+        return;
       }
       if (document.referrer.includes('/general/')) {
-        return 'general';
+        setCurrentCourse('general');
+        return;
       }
     }
-
-    return 'development'; // по умолчанию
-  };
-
-  const [currentCourse, setCurrentCourse] = useState<CourseType>(getCourseFromState);
-  const [periods, setPeriods] = useState<Period[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showTestEditor, setShowTestEditor] = useState(false);
+  }, [searchParams, location.state, setCurrentCourse]);
 
   const course = COURSES[currentCourse];
   const routeOrderMap = getRouteOrderMap(course.routes);
@@ -153,12 +158,6 @@ export default function AdminContent() {
     loadPeriods();
   }, [currentCourse]);
 
-  // Обновляем URL при смене курса
-  const handleCourseChange = (newCourse: CourseType) => {
-    setCurrentCourse(newCourse);
-    setSearchParams({ course: newCourse });
-  };
-
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto p-6">
@@ -174,8 +173,7 @@ export default function AdminContent() {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <header>
-        <h1 className="text-3xl font-bold mb-2">📝 Управление контентом</h1>
-        <p className="text-gray-600">Редактирование курсов</p>
+        <h1 className="text-3xl font-bold mb-2">Управление контентом</h1>
       </header>
 
       {/* Переключатель курсов */}
@@ -183,7 +181,7 @@ export default function AdminContent() {
         {Object.values(COURSES).map((courseOption) => (
           <button
             key={courseOption.id}
-            onClick={() => handleCourseChange(courseOption.id)}
+            onClick={() => setCurrentCourse(courseOption.id)}
             className={`px-4 py-2 font-medium transition-colors relative ${
               currentCourse === courseOption.id
                 ? 'text-blue-600 border-b-2 border-blue-600'
@@ -197,14 +195,12 @@ export default function AdminContent() {
       </div>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-700">
-          {currentCourse === 'development' ? 'Все периоды' : 'Все темы'}
-        </h2>
+        <div className="flex-1" />
 
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowTestEditor(true)}
-            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+            className={`${ACTION_BUTTON_CLASS} bg-blue-600 hover:bg-blue-700`}
           >
             <span aria-hidden>📝</span>
             <span>Создать тест</span>
@@ -212,10 +208,18 @@ export default function AdminContent() {
 
           <Link
             to="/admin/topics"
-            className="inline-flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-700"
+            className={`${ACTION_BUTTON_CLASS} bg-green-600 hover:bg-green-700`}
           >
             <span aria-hidden>📚</span>
-            <span>Редактировать темы заметок</span>
+            <span>Темы заметок</span>
+          </Link>
+
+          <Link
+            to="/admin/homepage"
+            className={`${ACTION_BUTTON_CLASS} bg-purple-600 hover:bg-purple-700`}
+          >
+            <span aria-hidden>🏠</span>
+            <span>Главная страница</span>
           </Link>
         </div>
       </div>
@@ -287,7 +291,10 @@ export default function AdminContent() {
       </div>
 
       {showTestEditor && (
-        <TestEditorModal onClose={() => setShowTestEditor(false)} />
+        <TestEditorModal
+          onClose={() => setShowTestEditor(false)}
+          defaultCourse={currentCourse}
+        />
       )}
     </div>
   );

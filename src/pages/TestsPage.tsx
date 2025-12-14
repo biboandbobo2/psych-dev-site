@@ -1,12 +1,32 @@
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { getPublishedTests } from '../lib/tests';
 import { isTestUnlocked } from '../lib/testAccess';
-import type { Test as FirestoreTest, TestRubric } from '../types/tests';
+import type { Test as FirestoreTest, TestRubric, CourseType } from '../types/tests';
 import { buildTestChains } from '../utils/testChainHelpers';
 import { TestCard } from '../components/tests/TestCard';
 import { debugLog, debugError } from '../lib/debug';
+import { useCourseStore } from '../stores';
+
+// Конфигурация курсов
+const COURSES = {
+  development: {
+    id: 'development' as CourseType,
+    name: 'Психология развития',
+    icon: '👶',
+  },
+  clinical: {
+    id: 'clinical' as CourseType,
+    name: 'Клиническая психология',
+    icon: '🧠',
+  },
+  general: {
+    id: 'general' as CourseType,
+    name: 'Общая психология',
+    icon: '📚',
+  },
+};
 
 interface LegacyTest {
   id: string;
@@ -93,12 +113,12 @@ const PAGE_CONFIGS: Record<'full-course' | 'age-periods', PageConfig> = {
   },
   'age-periods': {
     icon: '📊',
-    title: 'Тесты по возрастным периодам',
+    title: 'Тесты по занятиям',
     description:
-      'Здесь собраны тесты, посвящённые конкретным возрастным периодам. Каждый тест проверяет ваши знания по определённому этапу развития человека.',
+      'Здесь собраны тесты, посвящённые конкретным занятиям курса. Каждый тест проверяет ваши знания по определённой теме.',
     tipColor: 'purple',
     tipText:
-      'Выбирайте тесты по периодам, которые вы уже изучили. Это поможет закрепить материал и проверить понимание ключевых концепций развития.',
+      'Выбирайте тесты по занятиям, которые вы уже изучили. Это поможет закрепить материал и проверить понимание ключевых концепций.',
   },
 };
 
@@ -108,9 +128,19 @@ interface TestsPageProps {
 
 function TestsPageComponent({ rubricFilter }: TestsPageProps) {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { currentCourse, setCurrentCourse } = useCourseStore();
   const [firestoreTests, setFirestoreTests] = useState<FirestoreTest[]>([]);
   const [loadingTests, setLoadingTests] = useState(true);
   const [testUnlockStatus, setTestUnlockStatus] = useState<Record<string, boolean>>({});
+
+  // Синхронизация с URL параметром при первой загрузке
+  useEffect(() => {
+    const courseParam = searchParams.get('course');
+    if (courseParam === 'clinical' || courseParam === 'development' || courseParam === 'general') {
+      setCurrentCourse(courseParam);
+    }
+  }, [searchParams, setCurrentCourse]);
 
   const pageConfig = PAGE_CONFIGS[rubricFilter];
 
@@ -146,18 +176,26 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
     loadTests();
   }, [user, rubricFilter]);
 
-  // Фильтруем тесты в зависимости от rubricFilter
+  // Фильтруем тесты в зависимости от rubricFilter и course
   const filteredTests = useMemo(() => {
+    let filtered = firestoreTests;
+
+    // Фильтр по курсу
+    filtered = filtered.filter((test) => {
+      // Если у теста нет поля course, считаем его тестом психологии развития (обратная совместимость)
+      const testCourse = test.course || 'development';
+      return testCourse === currentCourse;
+    });
+
+    // Фильтр по рубрике
     if (rubricFilter === 'full-course') {
-      return firestoreTests
-        .filter((test) => test.rubric === 'full-course')
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      filtered = filtered.filter((test) => test.rubric === 'full-course');
     } else {
-      return firestoreTests
-        .filter((test) => test.rubric !== 'full-course')
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      filtered = filtered.filter((test) => test.rubric !== 'full-course');
     }
-  }, [firestoreTests, rubricFilter]);
+
+    return filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }, [firestoreTests, rubricFilter, currentCourse]);
 
   const testChains = useMemo(() => buildTestChains(filteredTests), [filteredTests]);
 
@@ -180,6 +218,27 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
             <h1 className="text-3xl font-bold text-gray-900">{pageConfig.title}</h1>
           </div>
           <p className="text-gray-600 mb-6">{pageConfig.description}</p>
+
+          {/* Переключатель курсов */}
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold mb-3 text-gray-700">Выберите курс</h2>
+            <div className="flex gap-2 border-b border-gray-200">
+              {Object.values(COURSES).map((courseOption) => (
+                <button
+                  key={courseOption.id}
+                  onClick={() => setCurrentCourse(courseOption.id)}
+                  className={`px-4 py-2 font-medium transition-colors relative ${
+                    currentCourse === courseOption.id
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <span className="mr-2">{courseOption.icon}</span>
+                  {courseOption.name}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div
             className={`p-4 bg-${pageConfig.tipColor}-50 border border-${pageConfig.tipColor}-200 rounded-lg`}

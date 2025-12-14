@@ -13,6 +13,7 @@ import { Button } from '../components/ui/Button';
 import { NavigationProgress } from '../components/ui/NavigationProgress';
 import { BackToTop } from '../components/ui/BackToTop';
 import { useAuthStore } from '../stores/useAuthStore';
+import { useCourseStore } from '../stores/useCourseStore';
 import { useLoginModal } from '../hooks/useLoginModal';
 import LoginModal from '../components/LoginModal';
 import { useAuthSync } from '../hooks/useAuthSync';
@@ -91,9 +92,8 @@ export function AppShell() {
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const { isOpen, openModal, closeModal } = useLoginModal();
 
-  // Проверяем параметр course из URL для страниц редактирования
-  const searchParams = new URLSearchParams(location.search);
-  const courseParam = searchParams.get('course');
+  // Используем глобальный store для курса
+  const currentCourse = useCourseStore((state) => state.currentCourse);
 
   useEffect(() => {
     // Ищем роут во всех трех конфигурациях
@@ -130,10 +130,15 @@ export function AppShell() {
     return generalTopics || new Map();
   }, [generalTopics]);
 
-  // Определяем курс: development (по умолчанию), clinical или general
-  // Проверяем либо путь, либо параметр course
-  const isClinicalPage = normalizedPath.startsWith('/clinical') || courseParam === 'clinical';
-  const isGeneralPage = normalizedPath.startsWith('/general') || courseParam === 'general';
+  // Определяем курс: либо по пути (для страниц курсов), либо из store (для профиля/админки/тестов)
+  const isProfileOrAdmin = normalizedPath === '/profile' || normalizedPath.startsWith('/admin/content');
+  const isTestsPage = normalizedPath.startsWith('/tests');
+  const useCourseFromStore = isProfileOrAdmin || isTestsPage;
+
+  const isClinicalPage = normalizedPath.startsWith('/clinical') ||
+                         (useCourseFromStore && currentCourse === 'clinical');
+  const isGeneralPage = normalizedPath.startsWith('/general') ||
+                        (useCourseFromStore && currentCourse === 'general');
 
   const navItems = useMemo(() => {
     // Выбираем конфигурацию в зависимости от курса

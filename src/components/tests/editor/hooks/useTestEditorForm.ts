@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getTestById } from '../../../../lib/tests';
-import type { Test, TestQuestion, TestRubric } from '../../../../types/tests';
+import type { Test, TestQuestion, TestRubric, CourseType } from '../../../../types/tests';
 import { DEFAULT_REVEAL_POLICY } from '../../../../types/tests';
 import { importTestFromJson, readFileAsText, generateQuestionsTemplate, downloadJson } from '../../../../utils/testImportExport';
+import { debugError } from '../../../../lib/debug';
 
 interface ImportedData {
   data?: Partial<Test>;
@@ -12,6 +13,7 @@ interface ImportedData {
 interface UseTestEditorFormOptions {
   testId: string | null;
   importedData?: ImportedData | null;
+  defaultCourse?: CourseType;
 }
 
 export function createEmptyQuestion(): TestQuestion {
@@ -28,9 +30,10 @@ export function createEmptyQuestion(): TestQuestion {
   };
 }
 
-export function useTestEditorForm({ testId, importedData }: UseTestEditorFormOptions) {
+export function useTestEditorForm({ testId, importedData, defaultCourse = 'development' }: UseTestEditorFormOptions) {
   // Basic fields
   const [title, setTitle] = useState('');
+  const [course, setCourse] = useState<CourseType>(defaultCourse);
   const [rubric, setRubric] = useState<TestRubric>('full-course');
   const [questionCount, setQuestionCount] = useState(10);
   const [questions, setQuestions] = useState<TestQuestion[]>([]);
@@ -173,6 +176,7 @@ export function useTestEditorForm({ testId, importedData }: UseTestEditorFormOpt
         const test = await getTestById(testId);
         if (test) {
           setTitle(test.title);
+          setCourse(test.course || 'development');
           setRubric(test.rubric);
           setQuestionCount(test.questionCount);
           setQuestionCountInput(String(test.questionCount));
@@ -181,7 +185,7 @@ export function useTestEditorForm({ testId, importedData }: UseTestEditorFormOpt
           setCurrentStatus(test.status);
         }
       } catch (error) {
-        console.error('Ошибка загрузки теста:', error);
+        debugError('Ошибка загрузки теста:', error);
         alert('Не удалось загрузить тест');
       } finally {
         setLoading(false);
@@ -198,6 +202,7 @@ export function useTestEditorForm({ testId, importedData }: UseTestEditorFormOpt
 
       if (data) {
         if (data.title) setTitle(data.title);
+        if (data.course) setCourse(data.course);
         if (data.rubric) setRubric(data.rubric);
       }
 
@@ -227,6 +232,7 @@ export function useTestEditorForm({ testId, importedData }: UseTestEditorFormOpt
     // State
     form: {
       title,
+      course,
       rubric,
       questionCount,
       questions,
@@ -241,6 +247,7 @@ export function useTestEditorForm({ testId, importedData }: UseTestEditorFormOpt
     // Setters
     setters: {
       setTitle,
+      setCourse,
       setRubric,
       setCurrentStatus,
     },

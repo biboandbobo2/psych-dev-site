@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Test } from '../../../types/tests';
 import { getPublishedTests } from '../../../lib/tests';
+import { debugError } from '../../../lib/debug';
 
 const testsCache = new Map<string, Test[]>();
 let publishedTestsPromise: Promise<Test[]> | null = null;
@@ -49,7 +50,7 @@ export function usePeriodTests(periodId?: string) {
         setTests(filtered);
       } catch (error) {
         if (!cancelled) {
-          console.error('[usePeriodTests] Failed to load tests for period:', periodId, error);
+          debugError('[usePeriodTests] Failed to load tests for period:', periodId, error);
           setTests([]);
         }
       } finally {

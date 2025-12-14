@@ -195,6 +195,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     navLabel: 'Введение',
     periodId: 'clinical-intro',
     themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Введение в клиническую психологию — Psych Dev Site',
       description: 'Вводное занятие курса клинической психологии.',
@@ -206,6 +207,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     navLabel: 'Предмет, методы патопсихологии',
     periodId: 'clinical-1',
     themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Патопсихология — Psych Dev Site',
       description: 'Предмет, методы и задачи патопсихологии. Аномалии эмоционально-личностной сферы.',
@@ -217,6 +219,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     navLabel: 'Расстройства личности',
     periodId: 'clinical-2',
     themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Расстройства личности — Psych Dev Site',
       description: 'Диагностика и терапия расстройств личности.',
@@ -228,6 +231,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     navLabel: 'Аффективные расстройства (БАР)',
     periodId: 'clinical-3',
     themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Аффективные расстройства — Psych Dev Site',
       description: 'Депрессия, мания и биполярное аффективное расстройство.',
@@ -239,6 +243,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     navLabel: 'Суицидальность',
     periodId: 'clinical-4',
     themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Суицидальность — Psych Dev Site',
       description: 'Аффективные расстройства и суицидальность.',
@@ -250,6 +255,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     navLabel: 'Расстройства психотического спектра',
     periodId: 'clinical-5',
     themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Психотические расстройства — Psych Dev Site',
       description: 'Шизофрения и расстройства психотического спектра.',
@@ -261,6 +267,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     navLabel: 'Патология памяти, восприятия',
     periodId: 'clinical-6',
     themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Патология ВПФ — Psych Dev Site',
       description: 'Патология памяти, восприятия и внимания.',
@@ -272,6 +279,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     navLabel: 'Классификация расстройств ВПФ',
     periodId: 'clinical-7',
     themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Расстройства ВПФ — Psych Dev Site',
       description: 'Классификация расстройств высших психических функций.',
@@ -283,6 +291,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     navLabel: 'Патопсихологическая диагностика',
     periodId: 'clinical-8',
     themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Патопсихологическая диагностика — Psych Dev Site',
       description: 'Методы патопсихологической диагностики.',
@@ -294,6 +303,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     navLabel: 'Проективные методы',
     periodId: 'clinical-9',
     themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Проективная диагностика — Psych Dev Site',
       description: 'Проективные методы психодиагностики.',
@@ -305,6 +315,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     navLabel: 'Нарушения развития у детей',
     periodId: 'clinical-10',
     themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Нарушения развития — Psych Dev Site',
       description: 'Нарушения психического развития в детском возрасте.',
@@ -329,6 +340,7 @@ export const GENERAL_ROUTE_CONFIG = [
     navLabel: 'История психологии и методы',
     periodId: 'general-1',
     themeKey: 'general',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'История психологии и методы — Psych Dev Site',
       description: 'История психологии, подходы и методы исследования.',
@@ -340,6 +352,7 @@ export const GENERAL_ROUTE_CONFIG = [
     navLabel: 'Методологические проблемы',
     periodId: 'general-2',
     themeKey: 'general',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Методологические проблемы — Psych Dev Site',
       description: 'Методологические проблемы изучения психики.',
@@ -351,6 +364,7 @@ export const GENERAL_ROUTE_CONFIG = [
     navLabel: 'Ощущение и восприятие',
     periodId: 'general-3',
     themeKey: 'general',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Ощущение и восприятие — Psych Dev Site',
       description: 'Свойства образов и теории восприятия.',
@@ -362,6 +376,7 @@ export const GENERAL_ROUTE_CONFIG = [
     navLabel: 'Внимание',
     periodId: 'general-4',
     themeKey: 'general',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Внимание — Psych Dev Site',
       description: 'Классические и когнитивные модели внимания.',
@@ -373,6 +388,7 @@ export const GENERAL_ROUTE_CONFIG = [
     navLabel: 'Память. Часть 1',
     periodId: 'general-5',
     themeKey: 'general',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Память. Часть 1 — Psych Dev Site',
       description: 'Классика, конструкции и искажения памяти.',
@@ -384,6 +400,7 @@ export const GENERAL_ROUTE_CONFIG = [
     navLabel: 'Память. Часть 2',
     periodId: 'general-6',
     themeKey: 'general',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Память. Часть 2 — Psych Dev Site',
       description: 'Когнитивные модели и функции памяти.',
@@ -395,6 +412,7 @@ export const GENERAL_ROUTE_CONFIG = [
     navLabel: 'Мышление',
     periodId: 'general-7',
     themeKey: 'general',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Мышление — Psych Dev Site',
       description: 'Развитие мышления, интериоризация и когнитивные искажения.',
@@ -406,6 +424,7 @@ export const GENERAL_ROUTE_CONFIG = [
     navLabel: 'Речь',
     periodId: 'general-8',
     themeKey: 'general',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Речь — Psych Dev Site',
       description: 'Взаимосвязь речи и мышления, язык и билингвизм.',
@@ -417,6 +436,7 @@ export const GENERAL_ROUTE_CONFIG = [
     navLabel: 'Эмоциональная сфера',
     periodId: 'general-9',
     themeKey: 'general',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Эмоциональная сфера — Psych Dev Site',
       description: 'Теории эмоций, классификация и эволюция.',
@@ -428,6 +448,7 @@ export const GENERAL_ROUTE_CONFIG = [
     navLabel: 'Чувства и регуляция',
     periodId: 'general-10',
     themeKey: 'general',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Чувства и регуляция — Psych Dev Site',
       description: 'Регуляция эмоций и кросс-культурные исследования.',
@@ -439,6 +460,7 @@ export const GENERAL_ROUTE_CONFIG = [
     navLabel: 'Мотивация',
     periodId: 'general-11',
     themeKey: 'general',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Мотивация — Psych Dev Site',
       description: 'Теории мотивации и место в структуре личности.',
@@ -450,6 +472,7 @@ export const GENERAL_ROUTE_CONFIG = [
     navLabel: 'Саморегуляция и воля',
     periodId: 'general-12',
     themeKey: 'general',
+    placeholderDefaultEnabled: false,
     meta: {
       title: 'Саморегуляция и воля — Psych Dev Site',
       description: 'Функции воли, онтогенез и практические модели.',

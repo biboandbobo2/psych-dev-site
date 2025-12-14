@@ -352,6 +352,7 @@ function firestoreToTest(id: string, data: any): Test {
   return {
     id,
     title: data.title,
+    course: data.course || 'development',
     rubric: data.rubric,
     prerequisiteTestId: data.prerequisiteTestId,
     questionCount,
