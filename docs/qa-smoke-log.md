@@ -8,3 +8,6 @@
 | 2025-11-21 | Ручное тестирование: навигация между курсами | ✅ Навигация сохраняется при переходах между страницами. Store синхронизируется с URL. localStorage работает корректно | Claude Sonnet 4.5 | Реализована мультикурсовая система с useCourseStore + localStorage. Тесты интегрированы с курсами. Добавлено отображение тестов на страницах занятий |
 
 > Заполняйте таблицу после каждого запуска `npm run test`, `npm run build`, а также после ручных smoke-проверок (CRUD заметок, экспорт, создание события из заметки, сценарии администратора). Добавляйте ссылки на PR/коммиты в колонку «Примечания».
+| 2025-12-14 | Research drawer + /research: manual smoke (drawer search, open all, filters) + npm run lint && npm run check-console && npm run check:init && npm test (targeted) && npm run build | ✅ | Codex AI | dev → local |
+| 2025-12-14 | Build after chunk tweaks (event-icons manual chunk) | ✅ | Codex AI | npm run build |
+| 2025-12-14 | Wikidata query expansion + tests + build | ✅ | Codex AI | npm run lint && npm run check-console && npm run check:init && npm test (targeted) && npm run build |

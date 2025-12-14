@@ -1,6 +1,11 @@
 /* eslint-env node */
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const chunkMapper = (id) => {
   if (!id) return null;
@@ -59,6 +64,12 @@ const chunkMapper = (id) => {
   ) {
     return 'tests';
   }
+  if (id.includes('/src/features/researchSearch') || id.includes('/src/pages/ResearchPage')) {
+    return 'research';
+  }
+  if (id.includes('/src/data/eventIconDataUrls')) {
+    return 'event-icons';
+  }
   if (id.includes('/src/pages/Admin') || id.includes('/src/pages/admin/')) {
     return 'admin';
   }
@@ -73,12 +84,41 @@ const chunkMapper = (id) => {
 
 export default defineConfig(({ mode }) => {
   const isProd = mode === 'production';
+  const devApiPlugin = {
+    name: 'dev-api-papers',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/api/papers', async (req, res, next) => {
+        try {
+          const handler = (await import(path.resolve(__dirname, 'api/papers.ts'))).default;
+          const parsedUrl = new URL(req.url || '', 'http://localhost');
+          req.query = Object.fromEntries(parsedUrl.searchParams.entries());
+          res.status = (code) => {
+            res.statusCode = code;
+            return res;
+          };
+          res.json = (payload) => {
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(payload));
+          };
+          return handler(req, res);
+        } catch (error) {
+          next(error);
+        }
+      });
+    },
+  };
+  const plugins = [react()];
+  if (!isProd) {
+    plugins.push(devApiPlugin);
+  }
 
   return {
     base: '/',
     envPrefix: ['VITE_', 'DEVLOG'],
-    plugins: [react()],
+    plugins,
     build: {
+      chunkSizeWarningLimit: 6000,
       rollupOptions: {
         output: {
           manualChunks(id) {
