@@ -145,26 +145,37 @@ function buildQueryVariants({
   langsRequested: string[];
   mode: 'drawer' | 'page';
 }): string[] {
-  const maxVariants = mode === 'page' ? 4 : 2;
+  const maxVariants = mode === 'page' ? 6 : 4;
   const variants: string[] = [q];
   const seen = new Set([q.toLowerCase()]);
-  const filtered = wikidataVariants
-    .filter((v) => {
-      const variant = normalizeVariant(v.variant);
-      const lower = variant.toLowerCase();
-      if (seen.has(lower)) return false;
-      if (isStopword(variant, v.lang || detectedLang)) return false;
-      seen.add(lower);
-      return true;
-    })
-    .map((v) => normalizeVariant(v.variant));
-  const fromSameLang = filtered.filter((v) => langsRequested.includes(detectedLang)).slice(0, maxVariants - 1);
+
+  // Filter out duplicates and stopwords, keeping the objects to preserve language info
+  const filtered = wikidataVariants.filter((v) => {
+    const variant = normalizeVariant(v.variant);
+    const lower = variant.toLowerCase();
+    if (seen.has(lower)) return false;
+    if (isStopword(variant, v.lang || detectedLang)) return false;
+    seen.add(lower);
+    return true;
+  });
+
+  // Prioritize variants in the same language as the query
+  const fromSameLang = filtered
+    .filter((v) => v.lang === detectedLang)
+    .map((v) => normalizeVariant(v.variant))
+    .slice(0, maxVariants - 1);
+
   variants.push(...fromSameLang);
+
   const remaining = maxVariants - variants.length;
   if (remaining > 0) {
-    const fromOtherLangs = filtered.filter((v) => !fromSameLang.includes(v)).slice(0, remaining);
+    const fromOtherLangs = filtered
+      .filter((v) => v.lang !== detectedLang)
+      .map((v) => normalizeVariant(v.variant))
+      .slice(0, remaining);
     variants.push(...fromOtherLangs);
   }
+
   return variants.slice(0, maxVariants);
 }
 
@@ -239,8 +250,8 @@ const RATE_LIMIT_MAX = 30; // 30 requests per window
 const rateLimitStore = new Map<string, number[]>();
 
 const DEFAULT_LANGS = ['ru', 'zh', 'de', 'fr', 'es', 'en'];
-const MAX_LIMIT = 20;
-const DEFAULT_LIMIT = 15;
+const MAX_LIMIT = 30;
+const DEFAULT_LIMIT = 20;
 const MIN_RESULTS_FOR_NO_EXPANSION = 8;
 const DEFAULT_WD_LANGS = ['ru', 'en', 'de', 'fr', 'es', 'zh'];
 
