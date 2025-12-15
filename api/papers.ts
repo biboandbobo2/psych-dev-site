@@ -4,12 +4,195 @@
  */
 import type { IncomingMessage } from 'node:http';
 import { createRequire } from 'node:module';
-import { buildQueryVariants } from '../src/features/researchSearch/lib/queryVariants';
-import {
-  searchEntities as wdSearch,
-  getEntities as wdGetEntities,
-  extractLabelsAndAliases,
-} from '../src/features/researchSearch/lib/wikidata';
+
+// ============================================================================
+// INLINE WIKIDATA & QUERY VARIANTS (standalone, no src/ dependencies)
+// ============================================================================
+
+type WikidataSearchResult = {
+  id: string;
+  label?: string;
+  description?: string;
+};
+
+type WikidataEntity = {
+  id: string;
+  labels: Record<string, { value: string }>;
+  aliases?: Record<string, Array<{ value: string }>>;
+};
+
+type QueryVariantSource = {
+  variant: string;
+  lang: string;
+  source: 'wikidata' | 'original';
+};
+
+class TtlCache<T> {
+  private store = new Map<string, { value: T; expiresAt: number }>();
+  constructor(private readonly ttlMs: number) {}
+  get(key: string): T | null {
+    const entry = this.store.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+      this.store.delete(key);
+      return null;
+    }
+    return entry.value;
+  }
+  set(key: string, value: T) {
+    this.store.set(key, { value, expiresAt: Date.now() + this.ttlMs });
+  }
+}
+
+const SEARCH_CACHE = new TtlCache<WikidataSearchResult[]>(6 * 60 * 60 * 1000);
+const ENTITY_CACHE = new TtlCache<Record<string, WikidataEntity>>(6 * 60 * 60 * 1000);
+const WD_ENDPOINT = 'https://www.wikidata.org/w/api.php';
+const WD_DEFAULT_LANGS = ['ru', 'en', 'de', 'fr', 'es', 'zh'];
+
+async function fetchJson(url: string, timeoutMs: number): Promise<any> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+  if (!response.ok) throw new Error(`Wikidata ${response.status}`);
+  return response.json();
+}
+
+async function wdSearch(q: string, lang: string, limit = 3, timeoutMs = 1200): Promise<WikidataSearchResult[]> {
+  const cacheKey = `${lang}:${q}`;
+  const cached = SEARCH_CACHE.get(cacheKey);
+  if (cached) return cached;
+  const url = new URL(WD_ENDPOINT);
+  url.searchParams.set('action', 'wbsearchentities');
+  url.searchParams.set('search', q);
+  url.searchParams.set('language', lang || 'en');
+  url.searchParams.set('limit', String(limit));
+  url.searchParams.set('format', 'json');
+  const data = await fetchJson(url.toString(), timeoutMs);
+  const results: WikidataSearchResult[] = (data?.search ?? []).map((item: any) => ({
+    id: item.id,
+    label: item.label,
+    description: item.description,
+  }));
+  SEARCH_CACHE.set(cacheKey, results);
+  return results;
+}
+
+async function wdGetEntities(ids: string[], langs: string[], timeoutMs = 1500): Promise<Record<string, WikidataEntity>> {
+  if (ids.length === 0) return {};
+  const cacheKey = `${ids.join(',')}:${langs.join(',')}`;
+  const cached = ENTITY_CACHE.get(cacheKey);
+  if (cached) return cached;
+  const url = new URL(WD_ENDPOINT);
+  url.searchParams.set('action', 'wbgetentities');
+  url.searchParams.set('ids', ids.join('|'));
+  url.searchParams.set('props', 'labels|aliases');
+  url.searchParams.set('languages', langs.length > 0 ? langs.join('|') : WD_DEFAULT_LANGS.join('|'));
+  url.searchParams.set('format', 'json');
+  const data = await fetchJson(url.toString(), timeoutMs);
+  const entities: Record<string, WikidataEntity> = {};
+  for (const [qid, val] of Object.entries(data?.entities ?? {})) {
+    const e = val as any;
+    if (e.missing) continue;
+    entities[qid] = {
+      id: qid,
+      labels: e.labels ?? {},
+      aliases: e.aliases ?? {},
+    };
+  }
+  ENTITY_CACHE.set(cacheKey, entities);
+  return entities;
+}
+
+function extractLabelsAndAliases(entity: WikidataEntity): QueryVariantSource[] {
+  const variants: QueryVariantSource[] = [];
+  for (const [langCode, labelObj] of Object.entries(entity.labels ?? {})) {
+    const val = (labelObj as any).value?.trim();
+    if (val) variants.push({ variant: val, lang: langCode, source: 'wikidata' });
+  }
+  for (const [langCode, aliasArr] of Object.entries(entity.aliases ?? {})) {
+    for (const aliasObj of aliasArr as any[]) {
+      const val = aliasObj.value?.trim();
+      if (val) variants.push({ variant: val, lang: langCode, source: 'wikidata' });
+    }
+  }
+  return variants;
+}
+
+const GENERIC_STOPWORDS = new Set(['study', 'research', 'theory', 'analysis', 'review', 'science']);
+const EN_STOPWORDS = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'for', 'in']);
+const RU_STOPWORDS = new Set(['и', 'в', 'на', 'по', 'о', 'об', 'от', 'для', 'как']);
+
+function isStopword(value: string, lang: string): boolean {
+  const lower = value.toLowerCase();
+  if (GENERIC_STOPWORDS.has(lower)) return true;
+  if (lang === 'en' && EN_STOPWORDS.has(lower)) return true;
+  if (lang === 'ru' && RU_STOPWORDS.has(lower)) return true;
+  return false;
+}
+
+function normalizeVariant(value: string): string {
+  return value.trim();
+}
+
+function buildQueryVariants({
+  q,
+  detectedLang,
+  wikidataVariants,
+  langsRequested,
+  mode,
+}: {
+  q: string;
+  detectedLang: string;
+  wikidataVariants: QueryVariantSource[];
+  langsRequested: string[];
+  mode: 'drawer' | 'page';
+}): string[] {
+  const maxVariants = mode === 'page' ? 8 : 6;
+  const variants: string[] = [q];
+  const seen = new Set([q.toLowerCase()]);
+
+  // Helper to add variant if not duplicate/stopword
+  const tryAdd = (v: QueryVariantSource): boolean => {
+    const variant = normalizeVariant(v.variant);
+    const lower = variant.toLowerCase();
+    if (seen.has(lower)) return false;
+    if (isStopword(variant, v.lang || detectedLang)) return false;
+    seen.add(lower);
+    variants.push(variant);
+    return true;
+  };
+
+  // STEP 1: Add one label per language (prioritize diversity)
+  // This ensures cross-language search works
+  const targetLangs = langsRequested.filter((lang) => lang !== detectedLang);
+  for (const lang of targetLangs) {
+    if (variants.length >= maxVariants) break;
+    const labelForLang = wikidataVariants.find(
+      (v) => v.lang === lang && !seen.has(normalizeVariant(v.variant).toLowerCase())
+    );
+    if (labelForLang) {
+      tryAdd(labelForLang);
+    }
+  }
+
+  // STEP 2: Add one synonym in the original language (for synonym expansion)
+  const sameLangVariant = wikidataVariants.find(
+    (v) => v.lang === detectedLang && !seen.has(normalizeVariant(v.variant).toLowerCase())
+  );
+  if (sameLangVariant && variants.length < maxVariants) {
+    tryAdd(sameLangVariant);
+  }
+
+  // STEP 3: Fill remaining slots with any other variants
+  for (const v of wikidataVariants) {
+    if (variants.length >= maxVariants) break;
+    tryAdd(v);
+  }
+
+  return variants;
+}
+
+// ============================================================================
+// END INLINE CODE
+// ============================================================================
 
 type ResearchSource = 'openalex' | 'semanticscholar';
 
@@ -78,8 +261,8 @@ const RATE_LIMIT_MAX = 30; // 30 requests per window
 const rateLimitStore = new Map<string, number[]>();
 
 const DEFAULT_LANGS = ['ru', 'zh', 'de', 'fr', 'es', 'en'];
-const MAX_LIMIT = 20;
-const DEFAULT_LIMIT = 15;
+const MAX_LIMIT = 30;
+const DEFAULT_LIMIT = 20;
 const MIN_RESULTS_FOR_NO_EXPANSION = 8;
 const DEFAULT_WD_LANGS = ['ru', 'en', 'de', 'fr', 'es', 'zh'];
 
@@ -137,7 +320,12 @@ function enforceRateLimit(ip: string): boolean {
   return true;
 }
 
-function parseQueryParams(req: any) {
+function parseQueryParams(req: any): {
+  qRaw: string;
+  limit: number;
+  langs: string[];
+  mode: 'drawer' | 'page';
+} {
   const qRaw = (req.query?.q ?? '').toString().trim();
   const limitRaw = Number.parseInt((req.query?.limit ?? '').toString(), 10);
   const langsRaw = (req.query?.langs ?? '').toString().trim();
@@ -147,7 +335,7 @@ function parseQueryParams(req: any) {
     Number.isFinite(limitRaw) && limitRaw > 0
       ? Math.min(limitRaw, MAX_LIMIT)
       : DEFAULT_LIMIT;
-  const langs =
+  const langs: string[] =
     langsRaw.length > 0
       ? Array.from(
           new Set(
@@ -158,7 +346,7 @@ function parseQueryParams(req: any) {
           )
         )
       : DEFAULT_LANGS;
-  const mode = modeRaw === 'page' ? 'page' : 'drawer';
+  const mode: 'drawer' | 'page' = modeRaw === 'page' ? 'page' : 'drawer';
 
   return { qRaw, limit, langs, mode };
 }
@@ -210,8 +398,8 @@ function normalizeOpenAlexWork(item: OpenAlexWork): ResearchWork | null {
   const id = item.id ?? '';
   if (!id) return null;
 
-  const authors =
-    item.authorships?.map((auth) => auth.author?.display_name).filter(Boolean) ?? [];
+  const authors: string[] =
+    item.authorships?.map((auth) => auth.author?.display_name).filter((name): name is string => Boolean(name)) ?? [];
 
   const primaryUrl =
     item.primary_location?.landing_page_url ??
@@ -391,7 +579,7 @@ export default async function handler(req: any, res: any) {
         console.log(`[papers.ts] Wikidata search found QIDs: ${qids.join(', ')}`);
 
         const entities = await wdGetEntities(qids, Array.from(new Set([...DEFAULT_WD_LANGS, ...langs])), mode === 'page' ? 2200 : 1500);
-        const variantsRaw = extractLabelsAndAliases(entities, Array.from(new Set([...DEFAULT_WD_LANGS, ...langs])));
+        const variantsRaw = Object.values(entities).flatMap((entity) => extractLabelsAndAliases(entity));
         console.log(`[papers.ts] Extracted ${variantsRaw.length} label/alias variants from Wikidata`);
 
         const queryVariants = buildQueryVariants({
@@ -408,8 +596,8 @@ export default async function handler(req: any, res: any) {
         metaWikidata.variantsCount = queryVariants.length;
         queryVariantsUsed = queryVariants;
 
-        const variantLimit = mode === 'page' ? 6 : 3;
-        const variantsToFetch = queryVariants.slice(1, variantLimit);
+        // Fetch all additional variants except the first one (which is the original query)
+        const variantsToFetch = queryVariants.slice(1);
 
         console.log('[papers.ts] Fetching variants:', variantsToFetch);
 
@@ -490,7 +678,7 @@ export default async function handler(req: any, res: any) {
         cached: false,
         sourcesUsed: s2Used ? ['openalex', 'semanticscholar'] : ['openalex'],
         allowListApplied: true,
-        queryVariantsUsed: queryVariantsUsed.slice(0, mode === 'page' ? 6 : 3),
+        queryVariantsUsed: queryVariantsUsed.slice(0, mode === 'page' ? 8 : 6),
         wikidata: {
           used: metaWikidata.used,
           qids: metaWikidata.qids,

@@ -99,7 +99,7 @@ export function useResearchSearch({
       try {
         const params = new URLSearchParams({
           q: trimmed,
-          limit: mode === 'page' ? '20' : '15',
+          limit: mode === 'page' ? '30' : '20',
           langs: langs.join(','),
           mode,
         });

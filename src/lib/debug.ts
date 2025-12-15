@@ -3,9 +3,23 @@ let _enabled: boolean | null = null;
 
 function isEnabled(): boolean {
   if (_enabled === null) {
-    const rawDevLog = (import.meta.env.DEVLOG ?? import.meta.env.VITE_DEVLOG ?? '').toString().toLowerCase();
+    // Support both Vite (import.meta.env) and Node.js (process.env) environments
+    let env: any = {};
+    let isDev = false;
+
+    try {
+      // Try Vite environment (browser/dev server)
+      if (import.meta && (import.meta as any).env) {
+        env = (import.meta as any).env;
+        isDev = env.DEV === true;
+      }
+    } catch (e) {
+      // Fallback to Node.js process.env (import.meta not available)
+    }
+
+    const rawDevLog = (env.DEVLOG ?? env.VITE_DEVLOG ?? process.env?.DEVLOG ?? process.env?.VITE_DEVLOG ?? '').toString().toLowerCase();
     const flagEnabled = rawDevLog === 'true' || rawDevLog === '1';
-    _enabled = import.meta.env.DEV || flagEnabled;
+    _enabled = isDev || flagEnabled;
   }
   return _enabled;
 }

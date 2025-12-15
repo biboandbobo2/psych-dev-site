@@ -30,7 +30,7 @@ export function buildQueryVariants({
   mode: 'drawer' | 'page';
 }): string[] {
   const base = q.trim();
-  const maxTotal = mode === 'page' ? 6 : 3;
+  const maxTotal = mode === 'page' ? 6 : 4;
   const result: string[] = [];
   const seen = new Set<string>();
 

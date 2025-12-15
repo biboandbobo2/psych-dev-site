@@ -17,7 +17,8 @@ describe('buildQueryVariants', () => {
     });
 
     expect(variants[0]).toBe('привязанность');
-    expect(variants.length).toBeLessThanOrEqual(3);
+    // drawer mode: maxTotal = 4 (original query + up to 3 variants)
+    expect(variants.length).toBeLessThanOrEqual(4);
   });
 });
 
