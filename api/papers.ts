@@ -585,8 +585,8 @@ export default async function handler(req: any, res: any) {
         metaWikidata.variantsCount = queryVariants.length;
         queryVariantsUsed = queryVariants;
 
-        const variantLimit = mode === 'page' ? 6 : 3;
-        const variantsToFetch = queryVariants.slice(1, variantLimit);
+        // Fetch all additional variants except the first one (which is the original query)
+        const variantsToFetch = queryVariants.slice(1);
 
         console.log('[papers.ts] Fetching variants:', variantsToFetch);
 
