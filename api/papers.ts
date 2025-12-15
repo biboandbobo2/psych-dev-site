@@ -145,38 +145,49 @@ function buildQueryVariants({
   langsRequested: string[];
   mode: 'drawer' | 'page';
 }): string[] {
-  const maxVariants = mode === 'page' ? 6 : 4;
+  const maxVariants = mode === 'page' ? 8 : 6;
   const variants: string[] = [q];
   const seen = new Set([q.toLowerCase()]);
 
-  // Filter out duplicates and stopwords, keeping the objects to preserve language info
-  const filtered = wikidataVariants.filter((v) => {
+  // Helper to add variant if not duplicate/stopword
+  const tryAdd = (v: QueryVariantSource): boolean => {
     const variant = normalizeVariant(v.variant);
     const lower = variant.toLowerCase();
     if (seen.has(lower)) return false;
     if (isStopword(variant, v.lang || detectedLang)) return false;
     seen.add(lower);
+    variants.push(variant);
     return true;
-  });
+  };
 
-  // Prioritize variants in the same language as the query
-  const fromSameLang = filtered
-    .filter((v) => v.lang === detectedLang)
-    .map((v) => normalizeVariant(v.variant))
-    .slice(0, maxVariants - 1);
-
-  variants.push(...fromSameLang);
-
-  const remaining = maxVariants - variants.length;
-  if (remaining > 0) {
-    const fromOtherLangs = filtered
-      .filter((v) => v.lang !== detectedLang)
-      .map((v) => normalizeVariant(v.variant))
-      .slice(0, remaining);
-    variants.push(...fromOtherLangs);
+  // STEP 1: Add one label per language (prioritize diversity)
+  // This ensures cross-language search works
+  const targetLangs = langsRequested.filter((lang) => lang !== detectedLang);
+  for (const lang of targetLangs) {
+    if (variants.length >= maxVariants) break;
+    const labelForLang = wikidataVariants.find(
+      (v) => v.lang === lang && !seen.has(normalizeVariant(v.variant).toLowerCase())
+    );
+    if (labelForLang) {
+      tryAdd(labelForLang);
+    }
   }
 
-  return variants.slice(0, maxVariants);
+  // STEP 2: Add one synonym in the original language (for synonym expansion)
+  const sameLangVariant = wikidataVariants.find(
+    (v) => v.lang === detectedLang && !seen.has(normalizeVariant(v.variant).toLowerCase())
+  );
+  if (sameLangVariant && variants.length < maxVariants) {
+    tryAdd(sameLangVariant);
+  }
+
+  // STEP 3: Fill remaining slots with any other variants
+  for (const v of wikidataVariants) {
+    if (variants.length >= maxVariants) break;
+    tryAdd(v);
+  }
+
+  return variants;
 }
 
 // ============================================================================
@@ -387,8 +398,8 @@ function normalizeOpenAlexWork(item: OpenAlexWork): ResearchWork | null {
   const id = item.id ?? '';
   if (!id) return null;
 
-  const authors =
-    item.authorships?.map((auth) => auth.author?.display_name).filter(Boolean) ?? [];
+  const authors: string[] =
+    item.authorships?.map((auth) => auth.author?.display_name).filter((name): name is string => Boolean(name)) ?? [];
 
   const primaryUrl =
     item.primary_location?.landing_page_url ??
@@ -667,7 +678,7 @@ export default async function handler(req: any, res: any) {
         cached: false,
         sourcesUsed: s2Used ? ['openalex', 'semanticscholar'] : ['openalex'],
         allowListApplied: true,
-        queryVariantsUsed: queryVariantsUsed.slice(0, mode === 'page' ? 6 : 3),
+        queryVariantsUsed: queryVariantsUsed.slice(0, mode === 'page' ? 8 : 6),
         wikidata: {
           used: metaWikidata.used,
           qids: metaWikidata.qids,
