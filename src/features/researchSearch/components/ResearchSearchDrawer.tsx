@@ -22,8 +22,9 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
   const inputRef = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
   const [languageFilter, setLanguageFilter] = useState('all');
-  const { query, setQuery, langs, setLangs, psychologyOnly, setPsychologyOnly, state, runSearch } = useResearchSearch({
+  const { query, setQuery, langs, setLangs, state, runSearch } = useResearchSearch({
     mode: 'drawer',
+    initialPsychologyOnly: true, // Always filter by psychology
     trigger: 'manual',
   });
   const filtered = useFilteredResults(state.results, languageFilter);
@@ -143,16 +144,6 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
               </div>
 
               <div className="flex flex-wrap items-center gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={psychologyOnly}
-                    onChange={(e) => setPsychologyOnly(e.target.checked)}
-                    className="h-4 w-4 rounded border-border text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-fg">Только психология</span>
-                </label>
-
                 <div className="flex items-center gap-2">
                   <label className="text-sm text-muted" htmlFor="research-lang-filter">
                     Фильтр результатов:

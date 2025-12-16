@@ -12,8 +12,25 @@
       "key": "pubmed_central",
       "name": "PubMed Central (NCBI)",
       "enabled": true,
-      "hosts": ["ncbi.nlm.nih.gov"],
-      "pathPrefixes": ["/pmc/"]
+      "hosts": ["ncbi.nlm.nih.gov", "pmc.ncbi.nlm.nih.gov"]
+    },
+    {
+      "key": "cureus",
+      "name": "Cureus (open access medical)",
+      "enabled": true,
+      "hosts": ["cureus.com", "assets.cureus.com"]
+    },
+    {
+      "key": "biomedcentral",
+      "name": "BioMed Central (BMC)",
+      "enabled": true,
+      "hosts": ["biomedcentral.com", "bmcpsychology.biomedcentral.com", "bmcpsychiatry.biomedcentral.com"]
+    },
+    {
+      "key": "oxford_oup",
+      "name": "Oxford University Press OA",
+      "enabled": true,
+      "hosts": ["academic.oup.com"]
     },
     {
       "key": "europe_pmc",
@@ -237,7 +254,26 @@
       "hosts": ["voppsy.ru"],
       "tier": "B"
     },
+    {
+      "key": "vestnik_mednet",
+      "name": "Вестник Росздравнадзора",
+      "enabled": true,
+      "hosts": ["vestnik.mednet.ru"],
+      "tier": "B"
+    },
 
+    {
+      "key": "copernicus",
+      "name": "Copernicus Publications",
+      "enabled": true,
+      "hosts": ["copernicus.org", "meetingorganizer.copernicus.org"]
+    },
+    {
+      "key": "ejceel",
+      "name": "EJCEEL (education research)",
+      "enabled": true,
+      "hosts": ["ejceel.com"]
+    },
     {
       "key": "apa_psycnet",
       "name": "APA PsycNet (OA content)",
