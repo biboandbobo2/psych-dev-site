@@ -22,6 +22,14 @@ export interface PapersApiMeta {
   cached: boolean;
   sourcesUsed: ResearchSource[];
   allowListApplied: boolean;
+  psychologyFilterApplied?: boolean;
+  queryVariantsUsed?: string[];
+  wikidata?: {
+    used: boolean;
+    qids: string[];
+    variantsCount: number;
+    timedOut?: boolean;
+  };
 }
 
 export interface PapersApiResponse {

@@ -10,6 +10,7 @@ interface UseResearchSearchOptions {
   mode: 'drawer' | 'page';
   initialQuery?: string;
   initialLangs?: string[];
+  initialPsychologyOnly?: boolean;
   trigger?: 'manual' | 'auto';
   autoTriggerInitial?: boolean;
 }
@@ -25,11 +26,13 @@ export function useResearchSearch({
   mode,
   initialQuery = '',
   initialLangs = DEFAULT_LANGS,
+  initialPsychologyOnly = true,
   trigger = 'manual',
   autoTriggerInitial = true,
 }: UseResearchSearchOptions) {
   const [query, setQuery] = useState(initialQuery);
   const [langs, setLangs] = useState<string[]>(initialLangs);
+  const [psychologyOnly, setPsychologyOnly] = useState(initialPsychologyOnly);
   const [requestId, setRequestId] = useState(() =>
     initialQuery.trim().length >= 3 && autoTriggerInitial ? 1 : 0
   );
@@ -73,7 +76,7 @@ export function useResearchSearch({
       return;
     }
 
-    const cacheKey = `${trimmed}|${langs.join(',')}|${mode}`;
+    const cacheKey = `${trimmed}|${langs.join(',')}|${mode}|${psychologyOnly}`;
     if (cacheRef.current.has(cacheKey)) {
       const cached = cacheRef.current.get(cacheKey)!;
       setState({
@@ -102,6 +105,7 @@ export function useResearchSearch({
           limit: mode === 'page' ? '30' : '20',
           langs: langs.join(','),
           mode,
+          psychologyOnly: psychologyOnly ? 'true' : 'false',
         });
 
         debugLog('[useResearchSearch] fetching', params.toString());
@@ -137,7 +141,7 @@ export function useResearchSearch({
         });
       }
     }, 600);
-  }, [query, langs, mode, trigger, requestId]);
+  }, [query, langs, mode, trigger, requestId, psychologyOnly]);
 
   const runSearch = () => {
     const trimmed = query.trim();
@@ -159,6 +163,8 @@ export function useResearchSearch({
     setQuery,
     langs,
     setLangs,
+    psychologyOnly,
+    setPsychologyOnly,
     state,
     runSearch,
   };

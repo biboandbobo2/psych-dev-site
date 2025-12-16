@@ -191,6 +191,167 @@ function buildQueryVariants({
 }
 
 // ============================================================================
+// INLINE PSYCHOLOGY FILTER (post-processing)
+// ============================================================================
+
+const PSYCHOLOGY_TERMS: Record<string, string[]> = {
+  en: [
+    'psychology', 'psychological', 'psychologist', 'psychotherapy', 'psychotherapist',
+    'psychiatry', 'psychiatric', 'mental health', 'mental disorder', 'mental illness',
+    'therapy', 'therapist', 'counseling', 'counselor', 'clinical', 'treatment',
+    'developmental', 'child development', 'adolescent', 'attachment', 'parenting',
+    'cognitive', 'cognition', 'memory', 'attention', 'perception', 'learning',
+    'executive function', 'decision making', 'problem solving', 'intelligence',
+    'social psychology', 'personality', 'behavior', 'behaviour', 'emotion', 'emotional',
+    'interpersonal', 'relationship', 'motivation', 'self-esteem', 'identity',
+    'neuroscience', 'neuropsychology', 'brain', 'neural', 'neurocognitive',
+    'participants', 'subjects', 'questionnaire', 'scale', 'inventory', 'assessment',
+    'intervention', 'experiment', 'longitudinal', 'cross-sectional',
+    'anxiety', 'depression', 'ptsd', 'trauma', 'stress', 'burnout',
+    'adhd', 'autism', 'schizophrenia', 'bipolar', 'ocd', 'phobia',
+    'narcissism', 'narcissistic', 'borderline', 'dissociation',
+  ],
+  ru: [
+    'психология', 'психологический', 'психолог', 'психотерапия', 'психотерапевт',
+    'психиатрия', 'психиатр', 'психическое здоровье', 'психическое расстройство',
+    'терапия', 'терапевт', 'консультирование', 'клинический', 'лечение',
+    'развитие', 'детское развитие', 'подростковый', 'привязанность', 'воспитание',
+    'когнитивный', 'познание', 'память', 'внимание', 'восприятие', 'обучение',
+    'исполнительные функции', 'принятие решений', 'интеллект', 'мышление',
+    'социальная психология', 'личность', 'поведение', 'эмоция', 'эмоциональный',
+    'межличностный', 'отношения', 'мотивация', 'самооценка', 'идентичность',
+    'нейронаука', 'нейропсихология', 'мозг', 'нейронный', 'нейрокогнитивный',
+    'респондент', 'испытуемый', 'опросник', 'шкала', 'методика', 'диагностика',
+    'интервенция', 'эксперимент', 'лонгитюдный', 'выборка',
+    'тревога', 'тревожность', 'депрессия', 'птср', 'травма', 'стресс', 'выгорание',
+    'сдвг', 'аутизм', 'шизофрения', 'биполярный', 'окр', 'фобия',
+    'нарциссизм', 'нарциссический', 'пограничный', 'диссоциация',
+    'психика', 'сознание', 'подсознание', 'бессознательное', 'защитные механизмы',
+    'копинг', 'адаптация', 'ресилентность', 'благополучие',
+  ],
+  de: [
+    'psychologie', 'psychologisch', 'psychologe', 'psychotherapie', 'psychotherapeut',
+    'psychiatrie', 'psychiater', 'psychische gesundheit', 'psychische störung',
+    'therapie', 'therapeut', 'beratung', 'klinisch', 'behandlung',
+    'entwicklung', 'kindheitsentwicklung', 'bindung', 'erziehung',
+    'kognitiv', 'kognition', 'gedächtnis', 'aufmerksamkeit', 'wahrnehmung',
+    'sozialpsychologie', 'persönlichkeit', 'verhalten', 'emotion', 'motivation',
+    'neurowissenschaft', 'neuropsychologie', 'gehirn',
+    'angst', 'depression', 'trauma', 'stress', 'burnout', 'störung', 'syndrom',
+  ],
+  fr: [
+    'psychologie', 'psychologique', 'psychologue', 'psychothérapie', 'psychothérapeute',
+    'psychiatrie', 'psychiatre', 'santé mentale', 'trouble mental',
+    'thérapie', 'thérapeute', 'conseil', 'clinique', 'traitement',
+    'développement', 'attachement', 'éducation', 'enfance',
+    'cognitif', 'cognition', 'mémoire', 'attention', 'perception',
+    'psychologie sociale', 'personnalité', 'comportement', 'émotion', 'motivation',
+    'neuroscience', 'neuropsychologie', 'cerveau',
+    'anxiété', 'dépression', 'traumatisme', 'stress', 'trouble', 'syndrome',
+    'narcissisme', 'narcissique',
+  ],
+  es: [
+    'psicología', 'psicológico', 'psicólogo', 'psicoterapia', 'psicoterapeuta',
+    'psiquiatría', 'psiquiatra', 'salud mental', 'trastorno mental',
+    'terapia', 'terapeuta', 'consejería', 'clínico', 'tratamiento',
+    'desarrollo', 'apego', 'crianza', 'infancia',
+    'cognitivo', 'cognición', 'memoria', 'atención', 'percepción',
+    'psicología social', 'personalidad', 'comportamiento', 'emoción', 'motivación',
+    'neurociencia', 'neuropsicología', 'cerebro',
+    'ansiedad', 'depresión', 'trauma', 'estrés', 'trastorno', 'síndrome',
+    'narcisismo', 'narcisista',
+  ],
+  zh: [
+    '心理学', '心理', '心理治疗', '精神病学', '精神健康',
+    '治疗', '咨询', '临床', '发展', '依恋', '认知',
+    '记忆', '注意', '感知', '社会心理', '人格', '行为',
+    '情绪', '动机', '神经科学', '神经心理学', '大脑',
+    '焦虑', '抑郁', '创伤', '压力', '障碍', '症状', '自恋',
+  ],
+};
+
+const ALL_PSYCHOLOGY_TERMS_SET = new Set<string>();
+for (const terms of Object.values(PSYCHOLOGY_TERMS)) {
+  for (const term of terms) {
+    ALL_PSYCHOLOGY_TERMS_SET.add(term.toLowerCase());
+  }
+}
+
+// Non-psychology terms: presence indicates article is NOT about psychology
+const NON_PSYCHOLOGY_TERMS = [
+  // Agriculture / Soil science
+  'soil', 'roughness', 'tillage', 'agronomie', 'agronomy', 'agricultural', 'crop',
+  'irrigation', 'fertilizer', 'почва', 'пахота', 'агрономия', 'урожай', 'удобрение',
+  // Physics / Electronics / Engineering
+  'electrical resistance', 'ohm', 'circuit', 'voltage', 'current', 'capacitor',
+  'resistor', 'semiconductor', 'transistor', 'диод', 'транзистор', 'конденсатор',
+  'электрическое сопротивление', 'омическое', 'цепь', 'напряжение',
+  // Materials science
+  'alloy', 'corrosion', 'metallurgy', 'tensile', 'polymer', 'сплав', 'коррозия',
+  // Biology (non-psychology)
+  'bacteria', 'virus', 'antibiotic', 'enzyme', 'photosynthesis', 'бактерия', 'вирус',
+  'антибиотик', 'фермент', 'фотосинтез',
+  // Chemistry
+  'chemical reaction', 'catalyst', 'molecule', 'oxidation', 'катализатор', 'окисление',
+  // Geology
+  'geology', 'seismic', 'tectonic', 'earthquake', 'геология', 'сейсмический', 'землетрясение',
+  // Astronomy
+  'galaxy', 'asteroid', 'planetary', 'космический', 'галактика', 'астероид',
+  // Economics (without psychology focus)
+  'gdp', 'inflation rate', 'monetary policy', 'fiscal', 'денежная политика',
+];
+
+// Non-psychology venue patterns (journal names that indicate non-psychology content)
+const NON_PSYCHOLOGY_VENUES = [
+  'agronomi', 'soil', 'crop', 'plant', 'botany', 'geology', 'geophys',
+  'electric', 'electron', 'circuit', 'physics', 'chemistry', 'chemical',
+  'material', 'metallurg', 'mining', 'petroleum', 'энерг', 'физик', 'химия',
+  'агрономия', 'почвовед', 'геология', 'механика', 'машиностр',
+  'astronomy', 'astrophys', 'космос',
+];
+
+function getPsychologyScore(title: string, abstract?: string | null, lang?: string, venue?: string | null): number {
+  let score = 0;
+  const titleLower = title.toLowerCase();
+  const abstractLower = abstract?.toLowerCase() ?? '';
+  const venueLower = venue?.toLowerCase() ?? '';
+  const primaryTerms = PSYCHOLOGY_TERMS[lang ?? 'en'] ?? PSYCHOLOGY_TERMS.en;
+
+  // Positive scoring: psychology terms
+  for (const term of primaryTerms) {
+    const termLower = term.toLowerCase();
+    if (titleLower.includes(termLower)) score += 15;
+    if (abstractLower.includes(termLower)) score += 5;
+  }
+
+  for (const [termLang, terms] of Object.entries(PSYCHOLOGY_TERMS)) {
+    if (termLang === (lang ?? 'en')) continue;
+    for (const term of terms) {
+      const termLower = term.toLowerCase();
+      if (titleLower.includes(termLower)) score += 10;
+      if (abstractLower.includes(termLower)) score += 3;
+    }
+  }
+
+  // Negative scoring: non-psychology terms
+  for (const term of NON_PSYCHOLOGY_TERMS) {
+    const termLower = term.toLowerCase();
+    if (titleLower.includes(termLower)) score -= 25; // Strong penalty in title
+    if (abstractLower.includes(termLower)) score -= 10;
+  }
+
+  // Negative scoring: non-psychology venue/journal
+  for (const pattern of NON_PSYCHOLOGY_VENUES) {
+    if (venueLower.includes(pattern.toLowerCase())) {
+      score -= 30; // Strong penalty for clearly non-psychology journals
+      break; // Only penalize once
+    }
+  }
+
+  return Math.max(0, Math.min(score, 100));
+}
+
+// ============================================================================
 // END INLINE CODE
 // ============================================================================
 
@@ -246,6 +407,7 @@ type PapersApiResponse = {
     cached: boolean;
     sourcesUsed: ResearchSource[];
     allowListApplied: boolean;
+    psychologyFilterApplied?: boolean;
     queryVariantsUsed?: string[];
     wikidata?: {
       used: boolean;
@@ -325,11 +487,13 @@ function parseQueryParams(req: any): {
   limit: number;
   langs: string[];
   mode: 'drawer' | 'page';
+  psychologyOnly: boolean;
 } {
   const qRaw = (req.query?.q ?? '').toString().trim();
   const limitRaw = Number.parseInt((req.query?.limit ?? '').toString(), 10);
   const langsRaw = (req.query?.langs ?? '').toString().trim();
   const modeRaw = (req.query?.mode ?? '').toString().trim();
+  const psychologyOnlyRaw = (req.query?.psychologyOnly ?? '').toString().trim();
 
   const limit =
     Number.isFinite(limitRaw) && limitRaw > 0
@@ -341,14 +505,16 @@ function parseQueryParams(req: any): {
           new Set(
             langsRaw
               .split(',')
-              .map((lang) => lang.trim().toLowerCase())
+              .map((lang: string) => lang.trim().toLowerCase())
               .filter(Boolean)
           )
         )
       : DEFAULT_LANGS;
   const mode: 'drawer' | 'page' = modeRaw === 'page' ? 'page' : 'drawer';
+  // psychologyOnly defaults to true for psychology-focused search
+  const psychologyOnly = psychologyOnlyRaw === 'false' ? false : true;
 
-  return { qRaw, limit, langs, mode };
+  return { qRaw, limit, langs, mode, psychologyOnly };
 }
 
 function reconstructAbstractFromIndex(index?: Record<string, number[]> | null): string | null {
@@ -527,7 +693,7 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const { qRaw, limit, langs, mode } = parseQueryParams(req);
+  const { qRaw, limit, langs, mode, psychologyOnly } = parseQueryParams(req);
   if (!qRaw || qRaw.length < 3) {
     res.status(400).json({ status: 400, message: 'Query parameter q is required (min 3 chars)', code: 'INVALID_QUERY' });
     return;
@@ -665,7 +831,19 @@ export default async function handler(req: any, res: any) {
     }
 
     const enriched = enrichWithAbstractFallback(deduped, abstractMap);
-    const sliced = enriched.slice(0, limit).map((work) => ({
+
+    // Apply psychology filter if enabled (default: true)
+    const PSYCHOLOGY_SCORE_THRESHOLD = 10;
+    const psychologyFiltered = psychologyOnly
+      ? enriched.filter((work) => {
+          const score = getPsychologyScore(work.title, work.paragraph, work.language, work.venue);
+          return score >= PSYCHOLOGY_SCORE_THRESHOLD;
+        })
+      : enriched;
+
+    console.log(`[papers.ts] After psychology filter: ${psychologyFiltered.length} works (psychologyOnly=${psychologyOnly})`);
+
+    const sliced = psychologyFiltered.slice(0, limit).map((work) => ({
       ...work,
       paragraph: buildParagraph(work),
     }));
@@ -678,6 +856,7 @@ export default async function handler(req: any, res: any) {
         cached: false,
         sourcesUsed: s2Used ? ['openalex', 'semanticscholar'] : ['openalex'],
         allowListApplied: true,
+        psychologyFilterApplied: psychologyOnly,
         queryVariantsUsed: queryVariantsUsed.slice(0, mode === 'page' ? 8 : 6),
         wikidata: {
           used: metaWikidata.used,

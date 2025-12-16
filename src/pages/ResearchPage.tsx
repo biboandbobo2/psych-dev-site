@@ -5,28 +5,44 @@ import { ResearchResultsList } from '../features/researchSearch/components/Resea
 
 const DEFAULT_LANGS = ['ru', 'zh', 'de', 'fr', 'es', 'en'];
 
+const ALL_LANGUAGES = [
+  { code: 'ru', label: 'Русский' },
+  { code: 'en', label: 'English' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+  { code: 'zh', label: '中文' },
+];
+
+const CURRENT_YEAR = new Date().getFullYear();
+const MIN_YEAR = 1990;
+
 export default function ResearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const initialQuery = searchParams.get('q') ?? '';
   const initialLang = searchParams.get('lang') ?? 'all';
   const [languageFilter, setLanguageFilter] = useState(initialLang);
-  const [minYear, setMinYear] = useState<string>('');
+  const [minYear, setMinYear] = useState<number>(MIN_YEAR);
 
   const { query, setQuery, langs, setLangs, state, runSearch } = useResearchSearch({
     mode: 'page',
     initialQuery,
     initialLangs: initialLang === 'all' ? DEFAULT_LANGS : [initialLang],
+    initialPsychologyOnly: true, // Always filter by psychology
     trigger: 'manual',
     autoTriggerInitial: Boolean(initialQuery.trim().length >= 3),
   });
 
-  useEffect(() => {
-    const paramQuery = searchParams.get('q') ?? '';
-    if (paramQuery !== query) {
-      setQuery(paramQuery);
+  const toggleLang = (code: string) => {
+    if (langs.includes(code)) {
+      if (langs.length > 1) {
+        setLangs(langs.filter((l) => l !== code));
+      }
+    } else {
+      setLangs([...langs, code]);
     }
-  }, [searchParams, query, setQuery]);
+  };
 
   useEffect(() => {
     if (initialQuery.trim().length >= 3) {
@@ -34,12 +50,6 @@ export default function ResearchPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (initialLang !== languageFilter) {
-      setLanguageFilter(initialLang);
-    }
-  }, [initialLang]);
 
   const languagesFromResults = useMemo(() => {
     const langsSet = new Set<string>();
@@ -54,7 +64,7 @@ export default function ResearchPage() {
   const filteredResults = useFilteredResults(
     state.results,
     languageFilter === 'all' ? 'all' : languageFilter,
-    minYear ? Number(minYear) : undefined
+    minYear > MIN_YEAR ? minYear : undefined
   );
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -85,54 +95,88 @@ export default function ResearchPage() {
       </div>
 
       <h1 className="text-3xl font-bold text-fg mb-3">Результаты исследований</h1>
-      <p className="text-muted mb-6">Open Access выдача из OpenAlex (fallback S2 добавим позже).</p>
+      <p className="text-muted mb-6">Open Access выдача по психологии и смежным областям.</p>
 
-      <form onSubmit={handleSubmit} className="mb-6 grid gap-3 md:grid-cols-[1.4fr_0.6fr_0.6fr_auto]">
-        <input
-          type="text"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Введите запрос..."
-          className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-fg shadow-sm focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
-        />
+      <form onSubmit={handleSubmit} className="mb-6 space-y-4">
+        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+          <input
+            type="text"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Введите запрос..."
+            className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-fg shadow-sm focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={query.trim().length < 3}
+          >
+            Искать
+          </button>
+        </div>
 
-        <select
-          value={languageFilter}
-          onChange={(event) => {
-            const value = event.target.value;
-            setLanguageFilter(value);
-            if (value === 'all') {
-              setLangs(DEFAULT_LANGS);
-            } else {
-              setLangs([value]);
-            }
-          }}
-          className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30"
-        >
-          <option value="all">Все языки</option>
-          {languagesFromResults.map((lang) => (
-            <option key={lang} value={lang}>
-              {lang.toUpperCase()}
-            </option>
+        <div className="flex flex-wrap gap-2">
+          <span className="text-sm text-muted self-center mr-1">Искать на языках:</span>
+          {ALL_LANGUAGES.map(({ code, label }) => (
+            <button
+              key={code}
+              type="button"
+              onClick={() => toggleLang(code)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                langs.includes(code)
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-card border border-border text-muted hover:bg-card2'
+              }`}
+            >
+              {label}
+            </button>
           ))}
-        </select>
+        </div>
 
-        <input
-          type="number"
-          inputMode="numeric"
-          value={minYear}
-          onChange={(event) => setMinYear(event.target.value)}
-          placeholder="Год с..."
-          className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-fg shadow-sm focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
-        />
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted" htmlFor="lang-filter">
+              Фильтр по языку:
+            </label>
+            <select
+              id="lang-filter"
+              value={languageFilter}
+              onChange={(event) => setLanguageFilter(event.target.value)}
+              className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30"
+            >
+              <option value="all">Все</option>
+              {languagesFromResults.map((lang) => (
+                <option key={lang} value={lang}>
+                  {lang.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <button
-          type="submit"
-          className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={query.trim().length < 3}
-        >
-          Искать
-        </button>
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-muted" htmlFor="year-slider">
+              Год с: <span className="font-semibold text-fg">{minYear === MIN_YEAR ? 'любого' : minYear}</span>
+            </label>
+            <input
+              id="year-slider"
+              type="range"
+              min={MIN_YEAR}
+              max={CURRENT_YEAR}
+              value={minYear}
+              onChange={(e) => setMinYear(Number(e.target.value))}
+              className="w-32 h-2 bg-border rounded-lg appearance-none cursor-pointer accent-blue-600"
+            />
+            {minYear > MIN_YEAR && (
+              <button
+                type="button"
+                onClick={() => setMinYear(MIN_YEAR)}
+                className="text-xs text-muted hover:text-fg"
+              >
+                Сбросить
+              </button>
+            )}
+          </div>
+        </div>
       </form>
 
       {state.status === 'idle' ? (
@@ -158,7 +202,7 @@ export default function ResearchPage() {
         <div className="mt-4">
           <div className="mb-3 text-sm text-muted">
             Нашли {filteredResults.length} работ
-            {state.meta?.allowListApplied ? ' (фильтр по OA-источникам включён)' : ''}.
+            {state.meta?.psychologyFilterApplied ? ' (только психология)' : ''}.
           </div>
           <ResearchResultsList results={filteredResults} />
         </div>
