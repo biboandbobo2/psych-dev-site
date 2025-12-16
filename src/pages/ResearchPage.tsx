@@ -17,6 +17,14 @@ const ALL_LANGUAGES = [
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 1990;
 
+type SortOption = 'relevance' | 'year-desc' | 'year-asc';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'relevance', label: 'По релевантности' },
+  { value: 'year-desc', label: 'Сначала новые' },
+  { value: 'year-asc', label: 'Сначала старые' },
+];
+
 export default function ResearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -24,6 +32,7 @@ export default function ResearchPage() {
   const initialLang = searchParams.get('lang') ?? 'all';
   const [languageFilter, setLanguageFilter] = useState(initialLang);
   const [minYear, setMinYear] = useState<number>(MIN_YEAR);
+  const [sortBy, setSortBy] = useState<SortOption>('relevance');
 
   const { query, setQuery, langs, setLangs, state, runSearch } = useResearchSearch({
     mode: 'page',
@@ -66,6 +75,16 @@ export default function ResearchPage() {
     languageFilter === 'all' ? 'all' : languageFilter,
     minYear > MIN_YEAR ? minYear : undefined
   );
+
+  // Apply sorting
+  const sortedResults = useMemo(() => {
+    if (sortBy === 'relevance') return filteredResults;
+    return [...filteredResults].sort((a, b) => {
+      const yearA = a.year ?? 0;
+      const yearB = b.year ?? 0;
+      return sortBy === 'year-desc' ? yearB - yearA : yearA - yearB;
+    });
+  }, [filteredResults, sortBy]);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -176,6 +195,24 @@ export default function ResearchPage() {
               </button>
             )}
           </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted" htmlFor="sort-select">
+              Сортировка:
+            </label>
+            <select
+              id="sort-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </form>
 
@@ -201,10 +238,15 @@ export default function ResearchPage() {
       {state.status === 'success' ? (
         <div className="mt-4">
           <div className="mb-3 text-sm text-muted">
-            Нашли {filteredResults.length} работ
+            Нашли {sortedResults.length} работ
             {state.meta?.psychologyFilterApplied ? ' (только психология)' : ''}.
+            {state.meta?.wikidata?.used ? (
+              <span className="ml-2 text-xs text-accent">
+                Wikidata: {state.meta.wikidata.variantsCount} вариантов запроса
+              </span>
+            ) : null}
           </div>
-          <ResearchResultsList results={filteredResults} />
+          <ResearchResultsList results={sortedResults} query={query} />
         </div>
       ) : null}
     </div>

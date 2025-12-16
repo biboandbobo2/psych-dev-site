@@ -196,6 +196,7 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
             <div className="max-h-[calc(100vh-240px)] overflow-y-auto pr-1">
               <ResearchResultsList
                 results={filtered.slice(0, 15)}
+                query={query}
                 onOpenAll={() => {
                   if (!query.trim()) return;
                   navigate(`/research?q=${encodeURIComponent(query.trim())}`);
