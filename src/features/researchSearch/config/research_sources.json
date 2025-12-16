@@ -1,163 +1,346 @@
 {
-  "version": 1,
-  "notes": "Editable allow-list of open-access libraries/repositories. Used to filter landing_page_url and pdf_url hostnames. Add hosts as needed; keep enable=true to include. Keep this list OA-only.",
+  "version": 2,
+  "notes": "Editable allow-list of open-access libraries/repositories for psychology research. v2: Added RU Tier A+B, expanded EN/DE/FR/ES sources.",
   "sources": [
     {
-      "key": "arxiv",
-      "name": "arXiv",
-      "enabled": true,
-      "hosts": [
-        "arxiv.org"
-      ]
-    },
-    {
-      "key": "osf_psyarxiv",
+      "key": "psyarxiv",
       "name": "PsyArXiv (OSF)",
       "enabled": true,
-      "hosts": [
-        "psyarxiv.com",
-        "osf.io"
-      ]
+      "hosts": ["psyarxiv.com", "osf.io"]
     },
     {
       "key": "pubmed_central",
       "name": "PubMed Central (NCBI)",
       "enabled": true,
-      "hosts": [
-        "ncbi.nlm.nih.gov"
-      ],
-      "pathPrefixes": [
-        "/pmc/"
-      ]
+      "hosts": ["ncbi.nlm.nih.gov"],
+      "pathPrefixes": ["/pmc/"]
     },
     {
       "key": "europe_pmc",
       "name": "Europe PMC",
       "enabled": true,
-      "hosts": [
-        "europepmc.org"
-      ]
-    },
-    {
-      "key": "doaj",
-      "name": "DOAJ (Directory of Open Access Journals)",
-      "enabled": true,
-      "hosts": [
-        "doaj.org"
-      ]
+      "hosts": ["europepmc.org"]
     },
     {
       "key": "zenodo",
       "name": "Zenodo",
       "enabled": true,
-      "hosts": [
-        "zenodo.org"
-      ]
+      "hosts": ["zenodo.org"]
     },
     {
       "key": "hal",
       "name": "HAL (France)",
       "enabled": true,
-      "hosts": [
-        "hal.science",
-        "hal.archives-ouvertes.fr"
-      ]
+      "hosts": ["hal.science", "hal.archives-ouvertes.fr"]
     },
     {
       "key": "core",
       "name": "CORE",
       "enabled": true,
-      "hosts": [
-        "core.ac.uk"
-      ]
+      "hosts": ["core.ac.uk"]
     },
     {
       "key": "openaire",
       "name": "OpenAIRE",
       "enabled": true,
-      "hosts": [
-        "openaire.eu",
-        "explore.openaire.eu"
-      ]
-    },
-    {
-      "key": "ssrn_preprints",
-      "name": "SSRN (OA only when links are open)",
-      "enabled": false,
-      "hosts": [
-        "papers.ssrn.com",
-        "ssrn.com"
-      ]
+      "hosts": ["openaire.eu", "explore.openaire.eu"]
     },
     {
       "key": "openreview",
       "name": "OpenReview",
       "enabled": true,
-      "hosts": [
-        "openreview.net"
-      ]
+      "hosts": ["openreview.net"]
     },
     {
       "key": "mdpi",
       "name": "MDPI (OA journals)",
       "enabled": true,
-      "hosts": [
-        "mdpi.com"
-      ]
+      "hosts": ["mdpi.com"]
     },
     {
       "key": "frontiers",
       "name": "Frontiers (OA journals)",
       "enabled": true,
-      "hosts": [
-        "frontiersin.org"
-      ]
+      "hosts": ["frontiersin.org"]
     },
     {
       "key": "plos",
       "name": "PLOS",
       "enabled": true,
-      "hosts": [
-        "journals.plos.org",
-        "plos.org"
-      ]
+      "hosts": ["journals.plos.org", "plos.org"]
     },
     {
       "key": "biorxiv_medrxiv",
       "name": "bioRxiv/medRxiv",
       "enabled": true,
-      "hosts": [
-        "biorxiv.org",
-        "medrxiv.org"
-      ]
+      "hosts": ["biorxiv.org", "medrxiv.org"]
     },
     {
       "key": "eric",
-      "name": "ERIC (education OA where available)",
+      "name": "ERIC (education OA)",
       "enabled": true,
-      "hosts": [
-        "eric.ed.gov"
-      ]
+      "hosts": ["eric.ed.gov"]
+    },
+    {
+      "key": "doaj",
+      "name": "DOAJ",
+      "enabled": true,
+      "hosts": ["doaj.org"]
+    },
+
+    {
+      "key": "psyjournals_ru",
+      "name": "PsyJournals.ru (МГППУ)",
+      "enabled": true,
+      "hosts": ["psyjournals.ru"],
+      "tier": "A"
     },
     {
       "key": "cyberleninka",
-      "name": "КиберЛенинка (RU)",
+      "name": "КиберЛенинка",
       "enabled": true,
-      "hosts": [
-        "cyberleninka.ru"
-      ]
+      "hosts": ["cyberleninka.ru"],
+      "tier": "A"
     },
     {
-      "key": "ru_psych_journals",
-      "name": "RU psychology OA journals",
+      "key": "hse_psychology",
+      "name": "Psychology Journal HSE",
       "enabled": true,
-      "hosts": [
-        "psystudy.ru",
-        "psyjournals.ru",
-        "psychinedu.ru",
-        "rpj.ru.com",
-        "rrpedagogy.ru"
-      ]
+      "hosts": ["psy-journal.hse.ru"],
+      "tier": "A"
+    },
+    {
+      "key": "npsyj",
+      "name": "National Psychological Journal (МГУ)",
+      "enabled": true,
+      "hosts": ["npsyj.ru"],
+      "tier": "A"
+    },
+    {
+      "key": "hse_org_psychology",
+      "name": "Organizational Psychology (HSE)",
+      "enabled": true,
+      "hosts": ["orgpsyjournal.hse.ru"],
+      "tier": "A"
+    },
+    {
+      "key": "msupsyj",
+      "name": "МГУ Психология журнал",
+      "enabled": true,
+      "hosts": ["msupsyj.ru"],
+      "tier": "A"
+    },
+    {
+      "key": "psystudy_ru",
+      "name": "Психологические исследования",
+      "enabled": true,
+      "hosts": ["psystudy.ru"],
+      "tier": "A"
+    },
+    {
+      "key": "rudn_psychology",
+      "name": "RUDN Psychology & Pedagogics",
+      "enabled": true,
+      "hosts": ["journals.rudn.ru"],
+      "pathPrefixes": ["/psychology-pedagogics"],
+      "tier": "A"
+    },
+    {
+      "key": "ppj_spbpo",
+      "name": "Петербургский психологический журнал",
+      "enabled": true,
+      "hosts": ["ppj.spbpo.ru"],
+      "tier": "A"
+    },
+    {
+      "key": "tepsyj",
+      "name": "Теоретическая и экспериментальная психология",
+      "enabled": true,
+      "hosts": ["tepsyj.ru"],
+      "tier": "A"
+    },
+    {
+      "key": "rpj",
+      "name": "Российский психологический журнал",
+      "enabled": true,
+      "hosts": ["rpj.ru.com"],
+      "tier": "A"
+    },
+    {
+      "key": "psychinedu",
+      "name": "Вестник практической психологии образования",
+      "enabled": true,
+      "hosts": ["psychinedu.ru"],
+      "tier": "A"
+    },
+    {
+      "key": "phpp_sgu",
+      "name": "Психология СГУ",
+      "enabled": true,
+      "hosts": ["phpp.sgu.ru"],
+      "tier": "A"
+    },
+    {
+      "key": "journals_tsu_psychology",
+      "name": "Сибирский психологический журнал (ТГУ)",
+      "enabled": true,
+      "hosts": ["journals.tsu.ru"],
+      "pathPrefixes": ["/psychology"],
+      "tier": "B"
+    },
+    {
+      "key": "pedpsy_ru",
+      "name": "Педагогическая психология",
+      "enabled": true,
+      "hosts": ["pedpsy.ru"],
+      "tier": "B"
+    },
+    {
+      "key": "rrpedagogy",
+      "name": "RR Педагогика/Психология",
+      "enabled": true,
+      "hosts": ["rrpedagogy.ru"],
+      "tier": "B"
+    },
+    {
+      "key": "psymgou",
+      "name": "Вестник МГОУ Психология",
+      "enabled": true,
+      "hosts": ["psymgou.ru"],
+      "tier": "B"
+    },
+    {
+      "key": "journal_asu",
+      "name": "АлтГУ журналы",
+      "enabled": true,
+      "hosts": ["journal.asu.ru"],
+      "tier": "B"
+    },
+    {
+      "key": "snv63_platform",
+      "name": "Нац. платформа периодики",
+      "enabled": true,
+      "hosts": ["snv63.ru", "journals.rcsi.science"],
+      "tier": "B"
+    },
+    {
+      "key": "elpub_psychology",
+      "name": "Elpub психотерапия",
+      "enabled": true,
+      "hosts": ["elpub.ru", "vestpsihoterapii.elpub.ru"],
+      "tier": "B"
+    },
+    {
+      "key": "voppsy",
+      "name": "Вопросы психологии",
+      "enabled": true,
+      "hosts": ["voppsy.ru"],
+      "tier": "B"
+    },
+
+    {
+      "key": "apa_psycnet",
+      "name": "APA PsycNet (OA content)",
+      "enabled": true,
+      "hosts": ["psycnet.apa.org"]
+    },
+    {
+      "key": "wiley_psychology",
+      "name": "Wiley Psychology OA",
+      "enabled": true,
+      "hosts": ["onlinelibrary.wiley.com"]
+    },
+    {
+      "key": "springer_psychology",
+      "name": "Springer/Nature Psychology OA",
+      "enabled": true,
+      "hosts": ["link.springer.com", "nature.com"]
+    },
+    {
+      "key": "sage_psychology",
+      "name": "SAGE Psychology OA",
+      "enabled": true,
+      "hosts": ["journals.sagepub.com"]
+    },
+    {
+      "key": "taylor_francis",
+      "name": "Taylor & Francis OA",
+      "enabled": true,
+      "hosts": ["tandfonline.com"]
+    },
+    {
+      "key": "cambridge_psychology",
+      "name": "Cambridge Psychology OA",
+      "enabled": true,
+      "hosts": ["cambridge.org"]
+    },
+    {
+      "key": "scielo",
+      "name": "SciELO (ES/PT)",
+      "enabled": true,
+      "hosts": ["scielo.org", "scielo.br", "scielo.cl", "scielo.org.mx"]
+    },
+    {
+      "key": "redalyc",
+      "name": "Redalyc (ES/LA)",
+      "enabled": true,
+      "hosts": ["redalyc.org"]
+    },
+    {
+      "key": "dialnet",
+      "name": "Dialnet (ES)",
+      "enabled": true,
+      "hosts": ["dialnet.unirioja.es"]
+    },
+    {
+      "key": "revistas_uned",
+      "name": "Revistas UNED (ES)",
+      "enabled": true,
+      "hosts": ["revistas.uned.es"]
+    },
+
+    {
+      "key": "zpid_psycharchives",
+      "name": "PsychArchives (ZPID, DE)",
+      "enabled": true,
+      "hosts": ["psycharchives.org"]
+    },
+    {
+      "key": "pedocs",
+      "name": "peDOCS (DE education/psychology)",
+      "enabled": true,
+      "hosts": ["pedocs.de"]
+    },
+    {
+      "key": "dgps",
+      "name": "DGPS Publikationen (DE)",
+      "enabled": true,
+      "hosts": ["dgps.de"]
+    },
+    {
+      "key": "hogrefe_oa",
+      "name": "Hogrefe OA (DE/EN)",
+      "enabled": true,
+      "hosts": ["econtent.hogrefe.com"]
+    },
+
+    {
+      "key": "cairn_fr",
+      "name": "Cairn.info (FR)",
+      "enabled": true,
+      "hosts": ["cairn.info"]
+    },
+    {
+      "key": "persee_fr",
+      "name": "Persée (FR archives)",
+      "enabled": true,
+      "hosts": ["persee.fr"]
+    },
+    {
+      "key": "openedition_fr",
+      "name": "OpenEdition (FR)",
+      "enabled": true,
+      "hosts": ["journals.openedition.org", "books.openedition.org"]
     }
   ]
 }

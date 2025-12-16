@@ -5,6 +5,15 @@ import { ResearchResultsList } from '../features/researchSearch/components/Resea
 
 const DEFAULT_LANGS = ['ru', 'zh', 'de', 'fr', 'es', 'en'];
 
+const ALL_LANGUAGES = [
+  { code: 'ru', label: 'Русский' },
+  { code: 'en', label: 'English' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+  { code: 'zh', label: '中文' },
+];
+
 export default function ResearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -13,13 +22,23 @@ export default function ResearchPage() {
   const [languageFilter, setLanguageFilter] = useState(initialLang);
   const [minYear, setMinYear] = useState<string>('');
 
-  const { query, setQuery, langs, setLangs, state, runSearch } = useResearchSearch({
+  const { query, setQuery, langs, setLangs, psychologyOnly, setPsychologyOnly, state, runSearch } = useResearchSearch({
     mode: 'page',
     initialQuery,
     initialLangs: initialLang === 'all' ? DEFAULT_LANGS : [initialLang],
     trigger: 'manual',
     autoTriggerInitial: Boolean(initialQuery.trim().length >= 3),
   });
+
+  const toggleLang = (code: string) => {
+    if (langs.includes(code)) {
+      if (langs.length > 1) {
+        setLangs(langs.filter((l) => l !== code));
+      }
+    } else {
+      setLangs([...langs, code]);
+    }
+  };
 
   useEffect(() => {
     const paramQuery = searchParams.get('q') ?? '';
@@ -87,52 +106,87 @@ export default function ResearchPage() {
       <h1 className="text-3xl font-bold text-fg mb-3">Результаты исследований</h1>
       <p className="text-muted mb-6">Open Access выдача из OpenAlex (fallback S2 добавим позже).</p>
 
-      <form onSubmit={handleSubmit} className="mb-6 grid gap-3 md:grid-cols-[1.4fr_0.6fr_0.6fr_auto]">
-        <input
-          type="text"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Введите запрос..."
-          className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-fg shadow-sm focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
-        />
+      <form onSubmit={handleSubmit} className="mb-6 space-y-4">
+        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+          <input
+            type="text"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Введите запрос..."
+            className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-fg shadow-sm focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={query.trim().length < 3}
+          >
+            Искать
+          </button>
+        </div>
 
-        <select
-          value={languageFilter}
-          onChange={(event) => {
-            const value = event.target.value;
-            setLanguageFilter(value);
-            if (value === 'all') {
-              setLangs(DEFAULT_LANGS);
-            } else {
-              setLangs([value]);
-            }
-          }}
-          className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30"
-        >
-          <option value="all">Все языки</option>
-          {languagesFromResults.map((lang) => (
-            <option key={lang} value={lang}>
-              {lang.toUpperCase()}
-            </option>
+        <div className="flex flex-wrap gap-2">
+          <span className="text-sm text-muted self-center mr-1">Искать на языках:</span>
+          {ALL_LANGUAGES.map(({ code, label }) => (
+            <button
+              key={code}
+              type="button"
+              onClick={() => toggleLang(code)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                langs.includes(code)
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-card border border-border text-muted hover:bg-card2'
+              }`}
+            >
+              {label}
+            </button>
           ))}
-        </select>
+        </div>
 
-        <input
-          type="number"
-          inputMode="numeric"
-          value={minYear}
-          onChange={(event) => setMinYear(event.target.value)}
-          placeholder="Год с..."
-          className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-fg shadow-sm focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
-        />
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={psychologyOnly}
+              onChange={(e) => setPsychologyOnly(e.target.checked)}
+              className="h-4 w-4 rounded border-border text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-fg">Только психология и смежные области</span>
+          </label>
 
-        <button
-          type="submit"
-          className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={query.trim().length < 3}
-        >
-          Искать
-        </button>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted" htmlFor="lang-filter">
+              Фильтр по языку:
+            </label>
+            <select
+              id="lang-filter"
+              value={languageFilter}
+              onChange={(event) => setLanguageFilter(event.target.value)}
+              className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30"
+            >
+              <option value="all">Все</option>
+              {languagesFromResults.map((lang) => (
+                <option key={lang} value={lang}>
+                  {lang.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted" htmlFor="year-filter">
+              Год с:
+            </label>
+            <input
+              id="year-filter"
+              type="number"
+              inputMode="numeric"
+              value={minYear}
+              onChange={(event) => setMinYear(event.target.value)}
+              placeholder="2020"
+              className="w-24 rounded-lg border border-border bg-card px-3 py-2 text-sm text-fg shadow-sm focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
+            />
+          </div>
+        </div>
       </form>
 
       {state.status === 'idle' ? (
