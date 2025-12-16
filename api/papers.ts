@@ -281,33 +281,66 @@ for (const terms of Object.values(PSYCHOLOGY_TERMS)) {
 const NON_PSYCHOLOGY_TERMS = [
   // Agriculture / Soil science
   'soil', 'roughness', 'tillage', 'agronomie', 'agronomy', 'agricultural', 'crop',
-  'irrigation', 'fertilizer', 'почва', 'пахота', 'агрономия', 'урожай', 'удобрение',
+  'irrigation', 'fertilizer', 'agrofitocenoz', 'почва', 'пахота', 'агрономия', 'урожай',
+  'удобрение', 'агрофитоценоз', 'растениеводство',
   // Physics / Electronics / Engineering
   'electrical resistance', 'ohm', 'circuit', 'voltage', 'current', 'capacitor',
-  'resistor', 'semiconductor', 'transistor', 'диод', 'транзистор', 'конденсатор',
+  'resistor', 'semiconductor', 'transistor', 'plasma coating', 'ion-plasma',
+  'износостойкость', 'диод', 'транзистор', 'конденсатор', 'вакуумн',
   'электрическое сопротивление', 'омическое', 'цепь', 'напряжение',
   // Materials science
   'alloy', 'corrosion', 'metallurgy', 'tensile', 'polymer', 'сплав', 'коррозия',
   // Biology (non-psychology)
-  'bacteria', 'virus', 'antibiotic', 'enzyme', 'photosynthesis', 'бактерия', 'вирус',
-  'антибиотик', 'фермент', 'фотосинтез',
+  'bacteria', 'virus', 'antibiotic', 'enzyme', 'photosynthesis', 'yeast', 'dna sequencing',
+  'бактерия', 'вирус', 'антибиотик', 'фермент', 'фотосинтез', 'дрожж',
+  // Ornithology / Zoology (not psychology)
+  'bird migration', 'ornithology', 'nesting', 'passeriformes', 'миграция птиц',
+  'орнитология', 'гнездование', 'воробьинообразн',
   // Chemistry
   'chemical reaction', 'catalyst', 'molecule', 'oxidation', 'катализатор', 'окисление',
   // Geology
   'geology', 'seismic', 'tectonic', 'earthquake', 'геология', 'сейсмический', 'землетрясение',
   // Astronomy
   'galaxy', 'asteroid', 'planetary', 'космический', 'галактика', 'астероид',
-  // Economics (without psychology focus)
-  'gdp', 'inflation rate', 'monetary policy', 'fiscal', 'денежная политика',
+  // Medicine (non-psychiatry/non-psychology)
+  'spine surgery', 'vertebral', 'spinal fixation', 'transpedicular', 'echocardiography',
+  'myocardial', 'ischemia', 'cardiac stress', 'фиксация позвоночника', 'транспедикулярн',
+  'эхокардиография', 'миокард', 'ишемия',
+  // IT/AI (not cognitive psychology)
+  'cloud service', 'облачный сервис', 'робототехническ', 'autonomous robot',
+  'криптовалют', 'блокчейн', 'blockchain',
+  // Linguistics / Pure pedagogy (not educational psychology)
+  'pronunciation', 'grammar teaching', 'language instruction', 'произношение',
+  'грамматика обучени', 'методика преподавания языка',
+  // Economics/Finance (not economic psychology)
+  'gdp', 'inflation rate', 'monetary policy', 'fiscal', 'macroprudential',
+  'stress testing imf', 'денежная политика', 'макропруденциальн', 'стресс-тестирование мвф',
+  // History/Political science (not political psychology)
+  'historical memory', 'политическая идентичность региона', 'историческая память',
+  // Literature studies
+  'культурный герой', 'сказочный мир', 'натурфилософск',
 ];
 
 // Non-psychology venue patterns (journal names that indicate non-psychology content)
 const NON_PSYCHOLOGY_VENUES = [
-  'agronomi', 'soil', 'crop', 'plant', 'botany', 'geology', 'geophys',
-  'electric', 'electron', 'circuit', 'physics', 'chemistry', 'chemical',
-  'material', 'metallurg', 'mining', 'petroleum', 'энерг', 'физик', 'химия',
-  'агрономия', 'почвовед', 'геология', 'механика', 'машиностр',
+  // Agriculture / Biology
+  'agronomi', 'soil', 'crop', 'plant', 'botany', 'kemerovo state university',
+  'bulletin of kemerovo',
+  // Geology / Physics / Chemistry
+  'geology', 'geophys', 'electric', 'electron', 'circuit', 'physics', 'chemistry',
+  'chemical', 'material', 'metallurg', 'mining', 'petroleum',
+  // Russian technical
+  'энерг', 'физик', 'химия', 'агрономия', 'почвовед', 'геология', 'механика', 'машиностр',
+  // Astronomy
   'astronomy', 'astrophys', 'космос',
+  // Medical (non-psychiatric)
+  'spine surgery', 'хирургия позвоночника', 'cardiol', 'кардиол',
+  // IT
+  'program systems', 'information technolog', 'информационн', 'open information',
+  // History / Political science
+  'власть', 'revue des études slaves', 'bibliosphere',
+  // General (too broad)
+  'fundamental research', 'фундаментальные исследования',
 ];
 
 function getPsychologyScore(title: string, abstract?: string | null, lang?: string, venue?: string | null): number {
