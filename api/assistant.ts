@@ -317,15 +317,18 @@ export default async function handler(req: any, res: any) {
   if (!validation.valid) {
     const errorResponse: AssistantErrorResponse = {
       ok: false,
-      error: validation.error,
-      code: validation.code,
+      error: (validation as { valid: false; error: string; code: string }).error,
+      code: (validation as { valid: false; error: string; code: string }).code,
     };
     res.status(400).json(errorResponse);
     return;
   }
 
+  // TypeScript now knows validation.valid === true
+  const { message, locale } = validation as { valid: true; message: string; locale: string };
+
   try {
-    const geminiResponse = await callGemini(validation.message, validation.locale);
+    const geminiResponse = await callGemini(message, locale);
     const truncatedAnswer = truncateResponse(geminiResponse.answer);
 
     const response: AssistantResponse = {
