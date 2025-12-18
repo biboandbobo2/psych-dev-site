@@ -6,7 +6,7 @@ export default function handler(_req: any, res: any) {
 
   // List all env var names (not values!)
   const allEnvVarNames = Object.keys(process.env).sort();
-  const geminiVars = allEnvVarNames.filter(k => k.includes('GEMINI'));
+  const geminiVars = allEnvVarNames.filter(k => k.includes('GEMINI') || k.includes('GOOGLE') || k.includes('API_KEY'));
 
   // Check for common Vercel env vars to verify env vars work at all
   const vercelVars = allEnvVarNames.filter(k => k.startsWith('VERCEL'));
