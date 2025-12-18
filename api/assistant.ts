@@ -345,12 +345,16 @@ export default async function handler(req: any, res: any) {
     res.status(200).json(response);
   } catch (error: any) {
     console.error('[assistant] Gemini error:', error?.message || error);
+    console.error('[assistant] Error stack:', error?.stack);
+    console.error('[assistant] Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
 
     const isConfig = error?.message?.includes('GEMINI_API_KEY');
     const errorResponse: AssistantErrorResponse = {
       ok: false,
       error: isConfig ? 'Service not configured' : 'Не удалось получить ответ. Попробуйте позже.',
       code: isConfig ? 'SERVICE_NOT_CONFIGURED' : 'GEMINI_ERROR',
+      // Include error details in development/preview for debugging
+      ...(process.env.VERCEL_ENV !== 'production' && { debug: error?.message }),
     };
     res.status(isConfig ? 503 : 500).json(errorResponse);
   }
