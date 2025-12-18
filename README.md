@@ -315,13 +315,19 @@ git push
 Список переменных:
 
 ```
+# Firebase (клиент)
 VITE_FIREBASE_API_KEY
 VITE_FIREBASE_AUTH_DOMAIN
 VITE_FIREBASE_PROJECT_ID
 VITE_FIREBASE_STORAGE_BUCKET
 VITE_FIREBASE_MESSAGING_SENDER_ID
 VITE_FIREBASE_APP_ID
+
+# AI Assistant (сервер - только Vercel Env Vars)
+GEMINI_API_KEY          # Google Gemini API key для ИИ-помощника
 ```
+
+**Важно:** `GEMINI_API_KEY` используется только на сервере (Vercel Functions) и не должен попадать в клиентский бандл. Добавьте его в Vercel Dashboard → Settings → Environment Variables.
 
 Локально используйте `.env.local`, а для продакшена настройте те же ключи в панели выбранной платформы (инфраструктура обновлена, Render больше не используется).
 

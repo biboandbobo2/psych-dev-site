@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResearchSearch, useFilteredResults } from '../hooks/useResearchSearch';
 import { ResearchResultsList } from './ResearchResultsList';
+import { AiAssistantBlock } from './AiAssistantBlock';
 
 const ALL_LANGUAGES = [
   { code: 'ru', label: 'Русский' },
@@ -205,6 +206,9 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
               />
             </div>
           ) : null}
+
+          {/* AI Assistant Block */}
+          <AiAssistantBlock />
         </div>
       </section>
     </div>
