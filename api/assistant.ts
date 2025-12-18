@@ -174,7 +174,8 @@ const SYSTEM_INSTRUCTION = `Ты — ИИ-помощник по психолог
 
 async function callGemini(message: string, locale: string): Promise<GeminiStructuredResponse> {
   // Try multiple env var names in case of configuration issues
-  const apiKey = process.env.GEMINI_API_KEY || process.env.MY_GEMINI_KEY || process.env.GOOGLE_API_KEY;
+  // Note: VITE_ prefix seems to work on Vercel while others don't
+  const apiKey = process.env.GEMINI_API_KEY || process.env.MY_GEMINI_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
