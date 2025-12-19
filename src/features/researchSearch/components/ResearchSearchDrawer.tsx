@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResearchSearch, useFilteredResults } from '../hooks/useResearchSearch';
 import { ResearchResultsList } from './ResearchResultsList';
+import { AiAssistantBlock } from './AiAssistantBlock';
 
 const ALL_LANGUAGES = [
   { code: 'ru', label: 'Русский' },
@@ -196,6 +197,7 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
             <div className="max-h-[calc(100vh-240px)] overflow-y-auto pr-1">
               <ResearchResultsList
                 results={filtered.slice(0, 15)}
+                query={query}
                 onOpenAll={() => {
                   if (!query.trim()) return;
                   navigate(`/research?q=${encodeURIComponent(query.trim())}`);
@@ -204,6 +206,9 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
               />
             </div>
           ) : null}
+
+          {/* AI Assistant Block */}
+          <AiAssistantBlock />
         </div>
       </section>
     </div>

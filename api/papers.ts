@@ -281,33 +281,66 @@ for (const terms of Object.values(PSYCHOLOGY_TERMS)) {
 const NON_PSYCHOLOGY_TERMS = [
   // Agriculture / Soil science
   'soil', 'roughness', 'tillage', 'agronomie', 'agronomy', 'agricultural', 'crop',
-  'irrigation', 'fertilizer', 'почва', 'пахота', 'агрономия', 'урожай', 'удобрение',
+  'irrigation', 'fertilizer', 'agrofitocenoz', 'почва', 'пахота', 'агрономия', 'урожай',
+  'удобрение', 'агрофитоценоз', 'растениеводство',
   // Physics / Electronics / Engineering
   'electrical resistance', 'ohm', 'circuit', 'voltage', 'current', 'capacitor',
-  'resistor', 'semiconductor', 'transistor', 'диод', 'транзистор', 'конденсатор',
+  'resistor', 'semiconductor', 'transistor', 'plasma coating', 'ion-plasma',
+  'износостойкость', 'диод', 'транзистор', 'конденсатор', 'вакуумн',
   'электрическое сопротивление', 'омическое', 'цепь', 'напряжение',
   // Materials science
   'alloy', 'corrosion', 'metallurgy', 'tensile', 'polymer', 'сплав', 'коррозия',
   // Biology (non-psychology)
-  'bacteria', 'virus', 'antibiotic', 'enzyme', 'photosynthesis', 'бактерия', 'вирус',
-  'антибиотик', 'фермент', 'фотосинтез',
+  'bacteria', 'virus', 'antibiotic', 'enzyme', 'photosynthesis', 'yeast', 'dna sequencing',
+  'бактерия', 'вирус', 'антибиотик', 'фермент', 'фотосинтез', 'дрожж',
+  // Ornithology / Zoology (not psychology)
+  'bird migration', 'ornithology', 'nesting', 'passeriformes', 'миграция птиц',
+  'орнитология', 'гнездование', 'воробьинообразн',
   // Chemistry
   'chemical reaction', 'catalyst', 'molecule', 'oxidation', 'катализатор', 'окисление',
   // Geology
   'geology', 'seismic', 'tectonic', 'earthquake', 'геология', 'сейсмический', 'землетрясение',
   // Astronomy
   'galaxy', 'asteroid', 'planetary', 'космический', 'галактика', 'астероид',
-  // Economics (without psychology focus)
-  'gdp', 'inflation rate', 'monetary policy', 'fiscal', 'денежная политика',
+  // Medicine (non-psychiatry/non-psychology)
+  'spine surgery', 'vertebral', 'spinal fixation', 'transpedicular', 'echocardiography',
+  'myocardial', 'ischemia', 'cardiac stress', 'фиксация позвоночника', 'транспедикулярн',
+  'эхокардиография', 'миокард', 'ишемия',
+  // IT/AI (not cognitive psychology)
+  'cloud service', 'облачный сервис', 'робототехническ', 'autonomous robot',
+  'криптовалют', 'блокчейн', 'blockchain',
+  // Linguistics / Pure pedagogy (not educational psychology)
+  'pronunciation', 'grammar teaching', 'language instruction', 'произношение',
+  'грамматика обучени', 'методика преподавания языка',
+  // Economics/Finance (not economic psychology)
+  'gdp', 'inflation rate', 'monetary policy', 'fiscal', 'macroprudential',
+  'stress testing imf', 'денежная политика', 'макропруденциальн', 'стресс-тестирование мвф',
+  // History/Political science (not political psychology)
+  'historical memory', 'политическая идентичность региона', 'историческая память',
+  // Literature studies
+  'культурный герой', 'сказочный мир', 'натурфилософск',
 ];
 
 // Non-psychology venue patterns (journal names that indicate non-psychology content)
 const NON_PSYCHOLOGY_VENUES = [
-  'agronomi', 'soil', 'crop', 'plant', 'botany', 'geology', 'geophys',
-  'electric', 'electron', 'circuit', 'physics', 'chemistry', 'chemical',
-  'material', 'metallurg', 'mining', 'petroleum', 'энерг', 'физик', 'химия',
-  'агрономия', 'почвовед', 'геология', 'механика', 'машиностр',
+  // Agriculture / Biology
+  'agronomi', 'soil', 'crop', 'plant', 'botany', 'kemerovo state university',
+  'bulletin of kemerovo',
+  // Geology / Physics / Chemistry
+  'geology', 'geophys', 'electric', 'electron', 'circuit', 'physics', 'chemistry',
+  'chemical', 'material', 'metallurg', 'mining', 'petroleum',
+  // Russian technical
+  'энерг', 'физик', 'химия', 'агрономия', 'почвовед', 'геология', 'механика', 'машиностр',
+  // Astronomy
   'astronomy', 'astrophys', 'космос',
+  // Medical (non-psychiatric)
+  'spine surgery', 'хирургия позвоночника', 'cardiol', 'кардиол',
+  // IT
+  'program systems', 'information technolog', 'информационн', 'open information',
+  // History / Political science
+  'власть', 'revue des études slaves', 'bibliosphere',
+  // General (too broad)
+  'fundamental research', 'фундаментальные исследования',
 ];
 
 function getPsychologyScore(title: string, abstract?: string | null, lang?: string, venue?: string | null): number {
@@ -423,9 +456,9 @@ const RATE_LIMIT_MAX = 30; // 30 requests per window
 const rateLimitStore = new Map<string, number[]>();
 
 const DEFAULT_LANGS = ['ru', 'zh', 'de', 'fr', 'es', 'en'];
-const MAX_LIMIT = 30;
-const DEFAULT_LIMIT = 20;
-const MIN_RESULTS_FOR_NO_EXPANSION = 8;
+const MAX_LIMIT = 50;  // Increased: OpenAlex Concepts gives more relevant results
+const DEFAULT_LIMIT = 30;  // Increased from 20
+const MIN_RESULTS_FOR_NO_EXPANSION = 15;  // Increased threshold
 const DEFAULT_WD_LANGS = ['ru', 'en', 'de', 'fr', 'es', 'zh'];
 
 const require = createRequire(import.meta.url);
@@ -597,10 +630,35 @@ function normalizeOpenAlexWork(item: OpenAlexWork): ResearchWork | null {
   };
 }
 
-async function fetchOpenAlex(q: string, langs: string[], candidateLimit: number): Promise<ResearchWork[]> {
+// OpenAlex Psychology concept IDs for filtering
+// These are ML-classified categories that dramatically improve relevance
+const PSYCHOLOGY_CONCEPT_IDS = [
+  'C15744967',   // Psychology (main, level 0)
+  'C77805123',   // Social psychology (level 1)
+  'C138496976',  // Developmental psychology (level 1)
+  'C70410870',   // Clinical psychology (level 1)
+  'C180747234',  // Cognitive psychology (level 1)
+  'C75630572',   // Applied psychology (level 1)
+  'C126838900',  // Psychiatry (related)
+];
+
+async function fetchOpenAlex(
+  q: string,
+  langs: string[],
+  candidateLimit: number,
+  usePsychologyConceptFilter: boolean = true
+): Promise<ResearchWork[]> {
   const searchUrl = new URL('https://api.openalex.org/works');
   searchUrl.searchParams.set('search', q);
-  searchUrl.searchParams.set('filter', `is_oa:true,language:${langs.join('|')}`);
+
+  // Build filter: OA + language + optionally psychology concepts
+  const filters = [`is_oa:true`, `language:${langs.join('|')}`];
+  if (usePsychologyConceptFilter) {
+    // Use OpenAlex's ML-based concept classification for psychology
+    // This dramatically improves relevance (e.g., 53 vs 5 results for "агрессия")
+    filters.push(`concepts.id:${PSYCHOLOGY_CONCEPT_IDS.join('|')}`);
+  }
+  searchUrl.searchParams.set('filter', filters.join(','));
   searchUrl.searchParams.set('per-page', String(candidateLimit));
 
   const response = await fetch(searchUrl.toString(), {
@@ -715,15 +773,19 @@ export default async function handler(req: any, res: any) {
     console.log(`[papers.ts] Requested langs: ${langs.join(',')}`);
     console.log(`[papers.ts] Mode: ${mode}, candidateLimit: ${candidateLimit}`);
 
-    const works = await fetchOpenAlex(qRaw, langs, candidateLimit);
-    console.log(`[papers.ts] OpenAlex returned: ${works.length} works (BEFORE filter)`);
+    // When psychologyOnly is true, use OpenAlex Concepts API for filtering
+    // This gives MUCH more results (e.g., 53 vs 5 for "агрессия") while maintaining relevance
+    const works = await fetchOpenAlex(qRaw, langs, candidateLimit, psychologyOnly);
+    console.log(`[papers.ts] OpenAlex returned: ${works.length} works (psychologyConceptFilter=${psychologyOnly})`);
 
-    const filtered = filterByAllowList(works).map((work, idx) => ({
+    // When using concepts filter, skip allow-list (it's too restrictive)
+    // OpenAlex concepts already ensure psychology relevance
+    const filtered = (psychologyOnly ? works : filterByAllowList(works)).map((work, idx) => ({
       ...work,
       // score используется для мягкого interleave результатов разных вариантов запроса
       score: idx * 100,
     }));
-    console.log(`[papers.ts] After allow-list filter: ${filtered.length} works`);
+    console.log(`[papers.ts] After filtering: ${filtered.length} works (allowList=${!psychologyOnly})`);
 
     const metaWikidata = {
       used: false,
@@ -771,13 +833,15 @@ export default async function handler(req: any, res: any) {
           variantsToFetch.map(async (variant, variantIdx): Promise<ResearchWork[]> => {
             console.log(`[papers.ts] Fetching variant ${variantIdx}: "${variant}"`);
             const variantScoreOffset = variantIdx + 1;
-            const variantWorks = await fetchOpenAlex(variant, langs, candidateLimit);
+            const variantWorks = await fetchOpenAlex(variant, langs, candidateLimit, psychologyOnly);
             console.log(`[papers.ts] Variant "${variant}" returned ${variantWorks.length} works`);
-            const scored = filterByAllowList(variantWorks).map((work, idx) => ({
+            // When using concepts filter, skip allow-list
+            const worksToScore = psychologyOnly ? variantWorks : filterByAllowList(variantWorks);
+            const scored = worksToScore.map((work, idx) => ({
               ...work,
               score: idx * 100 + variantScoreOffset,
             }));
-            console.log(`[papers.ts] After filter: ${scored.length} works for "${variant}"`);
+            console.log(`[papers.ts] After processing: ${scored.length} works for "${variant}"`);
             return scored;
           })
         );
