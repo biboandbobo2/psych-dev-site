@@ -188,7 +188,7 @@ async function callGemini(message: string, locale: string): Promise<GeminiStruct
 
   // First attempt
   let response = await ai.models.generateContent({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash-lite',
     contents: userPrompt,
     config: {
       maxOutputTokens: 400,
@@ -210,7 +210,7 @@ async function callGemini(message: string, locale: string): Promise<GeminiStruct
 {"allowed": boolean, "answer": "текст"}`;
 
     response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash-lite',
       contents: retryPrompt,
       config: {
         maxOutputTokens: 400,
