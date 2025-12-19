@@ -236,9 +236,9 @@ filter=concepts.id:C161191863 // Clinical psychology
 
 ### Высокий приоритет (для релевантности 80%+)
 
-1. [ ] Расширить NON_PSYCHOLOGY_TERMS (+50 терминов)
-2. [ ] Расширить NON_PSYCHOLOGY_VENUES (+20 паттернов)
-3. [ ] Использовать OpenAlex Concepts для фильтрации
+1. [x] Расширить NON_PSYCHOLOGY_TERMS (+50 терминов) — ✅ Реализовано
+2. [x] Расширить NON_PSYCHOLOGY_VENUES (+20 паттернов) — ✅ Реализовано
+3. [x] Использовать OpenAlex Concepts для фильтрации — ✅ Реализовано (Psychology, Developmental psychology, Clinical psychology)
 4. [ ] Контекстная дисамбигуация амбивалентных терминов
 
 ### Средний приоритет (UX)
