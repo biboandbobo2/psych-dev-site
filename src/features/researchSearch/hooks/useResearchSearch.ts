@@ -4,7 +4,8 @@ import type { PapersApiResponse, ResearchWork } from '../types';
 
 type Status = 'idle' | 'loading' | 'error' | 'success';
 
-const DEFAULT_LANGS = ['ru', 'zh', 'de', 'fr', 'es', 'en'];
+// TODO: Re-enable Chinese when needed
+const DEFAULT_LANGS = ['ru', 'de', 'fr', 'es', 'en'];
 
 interface UseResearchSearchOptions {
   mode: 'drawer' | 'page';

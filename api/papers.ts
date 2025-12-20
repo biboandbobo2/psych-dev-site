@@ -119,7 +119,95 @@ function extractLabelsAndAliases(entity: WikidataEntity): QueryVariantSource[] {
 
 const GENERIC_STOPWORDS = new Set(['study', 'research', 'theory', 'analysis', 'review', 'science']);
 const EN_STOPWORDS = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'for', 'in']);
-const RU_STOPWORDS = new Set(['и', 'в', 'на', 'по', 'о', 'об', 'от', 'для', 'как']);
+const RU_STOPWORDS = new Set(['и', 'в', 'на', 'по', 'о', 'об', 'от', 'для', 'как', 'снижения', 'коррекции', 'средство']);
+
+// Dictionary for translating Russian psychology terms to English
+// OpenAlex search works much better with English terms even for Russian articles
+// Include multiple grammatical forms (cases) for better matching
+const RU_TO_EN_TERMS: Record<string, string> = {
+  // Therapy types (all cases)
+  'арт-терапия': 'art therapy', 'арт-терапии': 'art therapy', 'арт-терапию': 'art therapy',
+  'арт терапия': 'art therapy', 'арт терапии': 'art therapy',
+  'арттерапия': 'art therapy', 'арттерапии': 'art therapy',
+  'игротерапия': 'play therapy', 'игротерапии': 'play therapy',
+  'психотерапия': 'psychotherapy', 'психотерапии': 'psychotherapy',
+  'терапия': 'therapy', 'терапии': 'therapy', 'терапию': 'therapy',
+  'когнитивно-поведенческая': 'cognitive behavioral',
+  'гештальт': 'gestalt',
+  // Conditions/behaviors (all cases)
+  'агрессия': 'aggression', 'агрессии': 'aggression', 'агрессию': 'aggression',
+  'агрессивное': 'aggressive', 'агрессивного': 'aggressive', 'агрессивным': 'aggressive',
+  'агрессивность': 'aggressiveness', 'агрессивности': 'aggressiveness',
+  'тревога': 'anxiety', 'тревоги': 'anxiety', 'тревогу': 'anxiety',
+  'тревожность': 'anxiety', 'тревожности': 'anxiety',
+  'депрессия': 'depression', 'депрессии': 'depression', 'депрессию': 'depression',
+  'стресс': 'stress', 'стресса': 'stress', 'стрессом': 'stress',
+  'травма': 'trauma', 'травмы': 'trauma', 'травму': 'trauma',
+  'птср': 'ptsd',
+  'аутизм': 'autism', 'аутизма': 'autism', 'аутизмом': 'autism',
+  'сдвг': 'adhd',
+  // Age groups (all cases)
+  'дети': 'children', 'детей': 'children', 'детям': 'children', 'детьми': 'children',
+  'ребенок': 'child', 'ребёнок': 'child', 'ребенка': 'child', 'ребёнка': 'child',
+  'подростки': 'adolescents', 'подростков': 'adolescents', 'подросткам': 'adolescents',
+  'младшие школьники': 'elementary school children',
+  'младших школьников': 'elementary school children',
+  'школьники': 'schoolchildren', 'школьников': 'schoolchildren',
+  'дошкольники': 'preschoolers', 'дошкольников': 'preschoolers',
+  // Psychology terms (all cases)
+  'психология': 'psychology', 'психологии': 'psychology',
+  'психологический': 'psychological', 'психологического': 'psychological',
+  'поведение': 'behavior', 'поведения': 'behavior', 'поведением': 'behavior',
+  'развитие': 'development', 'развития': 'development', 'развитием': 'development',
+  'эмоции': 'emotions', 'эмоций': 'emotions', 'эмоциями': 'emotions',
+  'эмоциональный': 'emotional', 'эмоционального': 'emotional', 'эмоциональное': 'emotional',
+  'привязанность': 'attachment', 'привязанности': 'attachment',
+  'самооценка': 'self-esteem', 'самооценки': 'self-esteem', 'самооценку': 'self-esteem',
+  'мотивация': 'motivation', 'мотивации': 'motivation',
+};
+
+/**
+ * Translate Russian query to English for better OpenAlex search results.
+ * OpenAlex indexes Russian articles but searches them better with English terms.
+ */
+function translateRuToEn(query: string): string | null {
+  const lower = query.toLowerCase();
+  const words = lower.split(/\s+/);
+  const translated: string[] = [];
+  let hasTranslation = false;
+
+  let i = 0;
+  while (i < words.length) {
+    // Try multi-word phrases first (up to 3 words)
+    let matched = false;
+    for (let len = 3; len >= 1 && !matched; len--) {
+      if (i + len <= words.length) {
+        const phrase = words.slice(i, i + len).join(' ');
+        if (RU_TO_EN_TERMS[phrase]) {
+          translated.push(RU_TO_EN_TERMS[phrase]);
+          hasTranslation = true;
+          matched = true;
+          i += len;
+        }
+      }
+    }
+    if (!matched) {
+      // Single word lookup
+      const word = words[i];
+      if (RU_TO_EN_TERMS[word]) {
+        translated.push(RU_TO_EN_TERMS[word]);
+        hasTranslation = true;
+      } else if (!RU_STOPWORDS.has(word)) {
+        // Keep non-stopwords as-is (might be transliterated or proper nouns)
+        translated.push(word);
+      }
+      i++;
+    }
+  }
+
+  if (!hasTranslation || translated.length === 0) return null;
+  return translated.join(' ');
+}
 
 function isStopword(value: string, lang: string): boolean {
   const lower = value.toLowerCase();
@@ -805,15 +893,27 @@ export default async function handler(req: any, res: any) {
     console.log(`[papers.ts] Requested langs: ${langs.join(',')}`);
     console.log(`[papers.ts] Mode: ${mode}, candidateLimit: ${candidateLimit}`);
 
-    // When psychologyOnly is true, use OpenAlex Concepts API for filtering
-    // This gives MUCH more results (e.g., 53 vs 5 for "агрессия") while maintaining relevance
-    // NOTE: We don't require is_oa:true because OpenAlex incorrectly marks many trusted sources as non-OA
-    const works = await fetchOpenAlex(qRaw, langs, candidateLimit, psychologyOnly, false);
-    console.log(`[papers.ts] OpenAlex returned: ${works.length} works (psychologyConceptFilter=${psychologyOnly})`);
+    // For Russian queries, translate to English for better OpenAlex results
+    // OpenAlex indexes Russian articles but searches them better with English terms
+    const translatedQuery = baseLang === 'ru' ? translateRuToEn(qRaw) : null;
+    if (translatedQuery) {
+      console.log(`[papers.ts] Translated query: "${qRaw}" -> "${translatedQuery}"`);
+    }
+
+    // Search with both original and translated queries
+    const searchQueries = translatedQuery ? [translatedQuery, qRaw] : [qRaw];
+    const allSearchResults: ResearchWork[] = [];
+
+    for (const searchQuery of searchQueries) {
+      console.log(`[papers.ts] Searching OpenAlex with: "${searchQuery}"`);
+      const works = await fetchOpenAlex(searchQuery, langs, candidateLimit, psychologyOnly, false);
+      console.log(`[papers.ts] OpenAlex returned: ${works.length} works for "${searchQuery}"`);
+      allSearchResults.push(...works);
+    }
 
     // Filter by open access: pass if isOa=true OR URL is from trusted source (allow-list)
     // This ensures articles from CyberLeninka and other trusted sources pass through
-    const oaFiltered = filterByOpenAccess(works);
+    const oaFiltered = filterByOpenAccess(allSearchResults);
     console.log(`[papers.ts] After OA filter: ${oaFiltered.length} works (isOa OR allowList)`);
 
     const filtered = oaFiltered.map((work, idx) => ({
@@ -830,7 +930,7 @@ export default async function handler(req: any, res: any) {
     };
 
     let allWorks: ResearchWork[] = [...filtered];
-    let queryVariantsUsed: string[] = [qRaw];
+    let queryVariantsUsed: string[] = translatedQuery ? [translatedQuery, qRaw] : [qRaw];
 
     const shouldExpand = filtered.length < MIN_RESULTS_FOR_NO_EXPANSION || baseLang !== 'en';
     console.log(`[papers.ts] shouldExpand: ${shouldExpand} (filtered.length=${filtered.length}, MIN=${MIN_RESULTS_FOR_NO_EXPANSION}, baseLang=${baseLang})`);

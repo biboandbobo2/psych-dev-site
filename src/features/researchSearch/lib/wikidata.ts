@@ -17,7 +17,8 @@ const SEARCH_CACHE = new TtlCache<WikidataSearchResult[]>(6 * 60 * 60 * 1000); /
 const ENTITY_CACHE = new TtlCache<Record<string, WikidataEntity>>(6 * 60 * 60 * 1000); // 6h
 
 const WD_ENDPOINT = 'https://www.wikidata.org/w/api.php';
-const DEFAULT_LANGS = ['ru', 'en', 'de', 'fr', 'es', 'zh'];
+// TODO: Re-enable Chinese when needed
+const DEFAULT_LANGS = ['ru', 'en', 'de', 'fr', 'es'];
 
 async function fetchJson(url: string, timeoutMs: number): Promise<any> {
   const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
