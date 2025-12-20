@@ -24,6 +24,10 @@ export function AiAssistantBlock() {
   const chatOverLimit = chatCharCount > chatMaxLength;
   const canSendChat = input.trim().length > 0 && !chatOverLimit && !isChatLoading;
 
+  const hasTranscript =
+    (mode === 'chat' && messages.length > 0) ||
+    (mode === 'single' && Boolean(state.answer && state.answer.trim()));
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (canSubmit) {
@@ -38,6 +42,35 @@ export function AiAssistantBlock() {
     }
   };
 
+  const buildTranscript = () => {
+    if (mode === 'chat' && messages.length > 0) {
+      return messages
+        .map((msg) => `${msg.role === 'user' ? 'Вы' : 'Ассистент'}: ${msg.text}`)
+        .join('\n\n');
+    }
+    if (state.answer) {
+      const questionText = question.trim();
+      if (questionText) {
+        return `Вы: ${questionText}\n\nАссистент: ${state.answer}`;
+      }
+      return `Ассистент: ${state.answer}`;
+    }
+    return '';
+  };
+
+  const handleDownloadTranscript = () => {
+    const transcript = buildTranscript();
+    if (!transcript) return;
+    const blob = new Blob([transcript], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const date = new Date().toISOString().slice(0, 10);
+    link.download = `ai-assistant-${mode}-${date}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <section className="border-t border-border pt-6 mt-6" aria-labelledby="ai-assistant-title">
       <header className="mb-4">
@@ -45,24 +78,34 @@ export function AiAssistantBlock() {
           ИИ-помощник по психологии
         </h3>
         <p className="text-xs text-muted mt-1">Отвечает только по психологии.</p>
-        <div className="mt-2 inline-flex rounded-lg border border-border bg-card p-1 text-sm">
+        <div className="mt-2 flex flex-wrap gap-2 items-center">
+          <div className="inline-flex rounded-lg border border-border bg-card p-1 text-sm">
+            <button
+              type="button"
+              onClick={() => setMode('single')}
+              className={`rounded-md px-3 py-1.5 transition ${
+                mode === 'single' ? 'bg-emerald-600 text-white shadow-sm' : 'text-muted hover:text-fg'
+              }`}
+            >
+              Быстрый ответ
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('chat')}
+              className={`rounded-md px-3 py-1.5 transition ${
+                mode === 'chat' ? 'bg-emerald-600 text-white shadow-sm' : 'text-muted hover:text-fg'
+              }`}
+            >
+              Диалоговый режим
+            </button>
+          </div>
           <button
             type="button"
-            onClick={() => setMode('single')}
-            className={`rounded-md px-3 py-1.5 transition ${
-              mode === 'single' ? 'bg-emerald-600 text-white shadow-sm' : 'text-muted hover:text-fg'
-            }`}
+            onClick={handleDownloadTranscript}
+            disabled={!hasTranscript}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-card2 hover:text-fg disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Быстрый ответ
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('chat')}
-            className={`rounded-md px-3 py-1.5 transition ${
-              mode === 'chat' ? 'bg-emerald-600 text-white shadow-sm' : 'text-muted hover:text-fg'
-            }`}
-          >
-            Диалоговый режим
+            ⬇️ Скачать историю
           </button>
         </div>
       </header>

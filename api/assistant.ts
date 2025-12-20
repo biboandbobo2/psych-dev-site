@@ -21,6 +21,8 @@ interface AssistantResponse {
   refused?: boolean;
   meta?: {
     tookMs: number;
+    tokensUsed?: number;
+    requestsToday?: number;
   };
 }
 
@@ -98,6 +100,37 @@ function enforceDailyQuota(clientKey: string): boolean {
   entry.count += 1;
   dailyQuotaStore.set(clientKey, entry);
   return true;
+}
+
+// ============================================================================
+// USAGE TRACKING (tokens/request count, per day, in-memory)
+// ============================================================================
+
+type UsageState = { day: number; tokensUsed: number; requests: number };
+const usageState: UsageState = { day: getDayKey(), tokensUsed: 0, requests: 0 };
+
+function resetUsageIfNeeded(): UsageState {
+  const today = getDayKey();
+  if (usageState.day !== today) {
+    usageState.day = today;
+    usageState.tokensUsed = 0;
+    usageState.requests = 0;
+  }
+  return usageState;
+}
+
+function estimateTokens(text: string): number {
+  if (!text) return 0;
+  const normalized = text.trim();
+  if (!normalized) return 0;
+  return Math.max(1, Math.ceil(normalized.length / 4));
+}
+
+function addUsage(tokens: number): UsageState {
+  const state = resetUsageIfNeeded();
+  state.tokensUsed += Math.max(0, Math.floor(tokens));
+  state.requests += 1;
+  return state;
 }
 
 // ============================================================================
@@ -341,11 +374,28 @@ export default async function handler(req: any, res: any) {
 
   // CORS headers for preflight
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
+    return;
+  }
+
+  const parsedUrl = new URL(req.url ?? '/', 'http://localhost');
+  const isStatsRequest = req.method === 'GET' && parsedUrl.searchParams.get('stats') === '1';
+
+  if (isStatsRequest) {
+    const usage = resetUsageIfNeeded();
+    const statsResponse = {
+      ok: true,
+      day: usage.day,
+      tokensUsed: usage.tokensUsed,
+      requests: usage.requests,
+      perUserDailyQuota: PER_USER_DAILY_QUOTA,
+      totalDailyQuota: DAILY_TOTAL_QUOTA,
+    };
+    res.status(200).json(statsResponse);
     return;
   }
 
@@ -413,6 +463,12 @@ export default async function handler(req: any, res: any) {
   try {
     const geminiResponse = await callGemini(message, locale, history);
     const truncatedAnswer = truncateResponse(geminiResponse.answer);
+    const historyText = history.map((item) => `${item.role}: ${item.message}`).join('\n');
+    const tokensUsed =
+      estimateTokens(message) +
+      estimateTokens(historyText) +
+      estimateTokens(truncatedAnswer);
+    const usage = addUsage(tokensUsed);
 
     const response: AssistantResponse = {
       ok: true,
@@ -420,6 +476,8 @@ export default async function handler(req: any, res: any) {
       refused: !geminiResponse.allowed,
       meta: {
         tookMs: Date.now() - started,
+        tokensUsed,
+        requestsToday: usage.requests,
       },
     };
 

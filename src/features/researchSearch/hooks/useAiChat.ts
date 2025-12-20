@@ -10,7 +10,7 @@ interface AiAssistantResponse {
   ok: true;
   answer: string;
   refused?: boolean;
-  meta?: { tookMs: number };
+  meta?: { tookMs: number; tokensUsed?: number; requestsToday?: number };
 }
 
 interface AiAssistantErrorResponse {
