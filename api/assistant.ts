@@ -12,6 +12,7 @@ import { GoogleGenAI } from '@google/genai';
 interface AssistantRequest {
   message: string;
   locale?: string;
+  history?: AssistantHistoryItem[];
 }
 
 interface AssistantResponse {
@@ -33,6 +34,11 @@ interface GeminiStructuredResponse {
   allowed: boolean;
   answer: string;
 }
+
+type AssistantHistoryItem = {
+  role: 'user' | 'assistant';
+  message: string;
+};
 
 // ============================================================================
 // RATE LIMITING (in-memory, per IP)
@@ -66,18 +72,71 @@ function getClientIp(req: IncomingMessage): string {
   return (req.socket && (req.socket as any).remoteAddress) || 'unknown';
 }
 
+// ========================================================================
+// DAILY QUOTA (per client key, reset daily)
+// ========================================================================
+
+const DAILY_TOTAL_RAW = Number(process.env.ASSISTANT_DAILY_TOTAL_QUOTA ?? 500);
+const DAILY_TOTAL_QUOTA = Number.isFinite(DAILY_TOTAL_RAW) && DAILY_TOTAL_RAW > 0 ? DAILY_TOTAL_RAW : 500;
+const PER_USER_DAILY_QUOTA = Math.max(1, Math.floor(DAILY_TOTAL_QUOTA / 5));
+const dailyQuotaStore = new Map<string, { day: number; count: number }>();
+
+function getDayKey(): number {
+  return Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+}
+
+function enforceDailyQuota(clientKey: string): boolean {
+  const today = getDayKey();
+  const entry = dailyQuotaStore.get(clientKey);
+  if (!entry || entry.day !== today) {
+    dailyQuotaStore.set(clientKey, { day: today, count: 1 });
+    return true;
+  }
+  if (entry.count >= PER_USER_DAILY_QUOTA) {
+    return false;
+  }
+  entry.count += 1;
+  dailyQuotaStore.set(clientKey, entry);
+  return true;
+}
+
 // ============================================================================
 // INPUT VALIDATION
 // ============================================================================
 
 const MAX_MESSAGE_LENGTH = 200;
+const MAX_HISTORY_ITEMS = 6;
+const MAX_HISTORY_TOTAL_CHARS = 1200;
 
-function validateInput(body: unknown): { valid: true; message: string; locale: string } | { valid: false; error: string; code: string } {
+function sanitizeHistory(history: unknown): AssistantHistoryItem[] {
+  if (!Array.isArray(history)) return [];
+  const result: AssistantHistoryItem[] = [];
+  let totalChars = 0;
+
+  for (const item of history) {
+    if (!item || typeof item !== 'object') continue;
+    const role = (item as any).role;
+    const msg = typeof (item as any).message === 'string' ? (item as any).message.trim() : '';
+    if ((role === 'user' || role === 'assistant') && msg.length > 0) {
+      const clipped = msg.slice(0, MAX_MESSAGE_LENGTH);
+      const nextTotal = totalChars + clipped.length;
+      if (result.length < MAX_HISTORY_ITEMS && nextTotal <= MAX_HISTORY_TOTAL_CHARS) {
+        result.push({ role, message: clipped });
+        totalChars = nextTotal;
+      }
+    }
+    if (result.length >= MAX_HISTORY_ITEMS || totalChars >= MAX_HISTORY_TOTAL_CHARS) break;
+  }
+
+  return result;
+}
+
+function validateInput(body: unknown): { valid: true; message: string; locale: string; history: AssistantHistoryItem[] } | { valid: false; error: string; code: string } {
   if (!body || typeof body !== 'object') {
     return { valid: false, error: 'Request body is required', code: 'INVALID_BODY' };
   }
 
-  const { message, locale } = body as AssistantRequest;
+  const { message, locale, history } = body as AssistantRequest;
 
   if (!message || typeof message !== 'string') {
     return { valid: false, error: 'Message is required', code: 'MISSING_MESSAGE' };
@@ -96,6 +155,7 @@ function validateInput(body: unknown): { valid: true; message: string; locale: s
     valid: true,
     message: trimmed,
     locale: typeof locale === 'string' ? locale : 'ru',
+    history: sanitizeHistory(history),
   };
 }
 
@@ -172,7 +232,7 @@ const SYSTEM_INSTRUCTION = `Ты — ИИ-помощник по психолог
 - Признаки тревожного расстройства
 - Стадии развития по Пиаже`;
 
-async function callGemini(message: string, locale: string): Promise<GeminiStructuredResponse> {
+async function callGemini(message: string, locale: string, history: AssistantHistoryItem[]): Promise<GeminiStructuredResponse> {
   // Try multiple env var names in case of configuration issues
   // Note: VITE_ prefix seems to work on Vercel while others don't
   const apiKey = process.env.GEMINI_API_KEY || process.env.MY_GEMINI_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_KEY;
@@ -182,7 +242,16 @@ async function callGemini(message: string, locale: string): Promise<GeminiStruct
 
   const ai = new GoogleGenAI({ apiKey });
 
-  const userPrompt = `Вопрос пользователя (язык: ${locale}): ${message}
+  const historyPrompt = history.length
+    ? history
+        .map((item) => `${item.role === 'user' ? 'Пользователь' : 'Ассистент'}: ${item.message}`)
+        .join('\n')
+    : 'История отсутствует.';
+
+  const userPrompt = `Контекст диалога:
+${historyPrompt}
+
+Новый вопрос (язык: ${locale}): ${message}
 
 Ответь строго в формате JSON: {"allowed": boolean, "answer": "текст"}`;
 
@@ -290,6 +359,16 @@ export default async function handler(req: any, res: any) {
 
   // Rate limiting
   const clientIp = getClientIp(req as IncomingMessage);
+  if (!enforceDailyQuota(clientIp)) {
+    const errorResponse: AssistantErrorResponse = {
+      ok: false,
+      error: `Достигнут дневной лимит. Доступно запросов в день на пользователя: ${PER_USER_DAILY_QUOTA}`,
+      code: 'DAILY_QUOTA_EXCEEDED',
+    };
+    res.status(429).json(errorResponse);
+    return;
+  }
+
   if (!enforceRateLimit(clientIp)) {
     const errorResponse: AssistantErrorResponse = {
       ok: false,
@@ -327,10 +406,10 @@ export default async function handler(req: any, res: any) {
   }
 
   // TypeScript now knows validation.valid === true
-  const { message, locale } = validation as { valid: true; message: string; locale: string };
+  const { message, locale, history } = validation as { valid: true; message: string; locale: string; history: AssistantHistoryItem[] };
 
   try {
-    const geminiResponse = await callGemini(message, locale);
+    const geminiResponse = await callGemini(message, locale, history);
     const truncatedAnswer = truncateResponse(geminiResponse.answer);
 
     const response: AssistantResponse = {

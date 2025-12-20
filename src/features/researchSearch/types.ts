@@ -1,5 +1,5 @@
 // Типы для поиска научных работ
-export type ResearchSource = 'openalex' | 'semanticscholar';
+export type ResearchSource = 'openalex' | 'openaire' | 'semanticscholar';
 
 export interface ResearchWork {
   id: string;
@@ -24,12 +24,6 @@ export interface PapersApiMeta {
   allowListApplied: boolean;
   psychologyFilterApplied?: boolean;
   queryVariantsUsed?: string[];
-  wikidata?: {
-    used: boolean;
-    qids: string[];
-    variantsCount: number;
-    timedOut?: boolean;
-  };
 }
 
 export interface PapersApiResponse {

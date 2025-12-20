@@ -161,8 +161,8 @@ describe('api/assistant validation', () => {
     expect(res.body.code).toBe('EMPTY_MESSAGE');
   });
 
-  it('возвращает 400 для message > 100 символов', async () => {
-    const longMessage = 'a'.repeat(101);
+  it('возвращает 400 для message > 200 символов', async () => {
+    const longMessage = 'a'.repeat(201);
     const req = mockReq({ body: { message: longMessage } });
     const res = mockRes();
     await handler(req, res);
@@ -172,8 +172,8 @@ describe('api/assistant validation', () => {
     expect(res.body.code).toBe('MESSAGE_TOO_LONG');
   });
 
-  it('принимает message ровно 100 символов', async () => {
-    const exactMessage = 'a'.repeat(100);
+  it('принимает message ровно 200 символов', async () => {
+    const exactMessage = 'a'.repeat(200);
     const req = mockReq({ body: { message: exactMessage } });
     const res = mockRes();
 

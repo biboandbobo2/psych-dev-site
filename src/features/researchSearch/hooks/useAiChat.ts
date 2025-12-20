@@ -1,12 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import type { AiAssistantState } from './useAiAssistant';
+import { MAX_MESSAGE_LENGTH } from './useAiAssistant';
 
-export interface AiAssistantState {
-  status: 'idle' | 'loading' | 'success' | 'error';
-  answer: string | null;
-  refused: boolean;
-  error: string | null;
-  tookMs: number | null;
-}
+export type ChatMessage = { role: 'user' | 'assistant'; text: string };
+
+const MAX_HISTORY_ITEMS = 6;
 
 interface AiAssistantResponse {
   ok: true;
@@ -20,10 +18,9 @@ interface AiAssistantErrorResponse {
   error: string;
 }
 
-export const MAX_MESSAGE_LENGTH = 200;
-
-export function useAiAssistant() {
-  const [question, setQuestion] = useState('');
+export function useAiChat() {
+  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [state, setState] = useState<AiAssistantState>({
     status: 'idle',
     answer: null,
@@ -32,11 +29,13 @@ export function useAiAssistant() {
     tookMs: null,
   });
 
-  const askQuestion = useCallback(async () => {
-    const trimmed = question.trim();
-    if (!trimmed || trimmed.length > MAX_MESSAGE_LENGTH) {
-      return;
-    }
+  const sendMessage = useCallback(async () => {
+    const trimmed = input.trim();
+    if (!trimmed || trimmed.length > MAX_MESSAGE_LENGTH) return;
+
+    const history = messages
+      .slice(-MAX_HISTORY_ITEMS)
+      .map((message) => ({ role: message.role, message: message.text }));
 
     setState({
       status: 'loading',
@@ -46,11 +45,13 @@ export function useAiAssistant() {
       tookMs: null,
     });
 
+    setMessages((prev) => [...prev, { role: 'user', text: trimmed }]);
+
     try {
       const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed, locale: 'ru' }),
+        body: JSON.stringify({ message: trimmed, locale: 'ru', history }),
       });
 
       const data: AiAssistantResponse | AiAssistantErrorResponse = await response.json();
@@ -67,6 +68,7 @@ export function useAiAssistant() {
       }
 
       const successData = data as AiAssistantResponse;
+      setMessages((prev) => [...prev, { role: 'assistant', text: successData.answer }]);
       setState({
         status: 'success',
         answer: successData.answer,
@@ -82,11 +84,14 @@ export function useAiAssistant() {
         error: 'Не удалось связаться с сервером',
         tookMs: null,
       });
+    } finally {
+      setInput('');
     }
-  }, [question]);
+  }, [input, messages]);
 
-  const clearState = useCallback(() => {
-    setQuestion('');
+  const clearChat = useCallback(() => {
+    setInput('');
+    setMessages([]);
     setState({
       status: 'idle',
       answer: null,
@@ -97,11 +102,12 @@ export function useAiAssistant() {
   }, []);
 
   return {
-    question,
-    setQuestion,
+    input,
+    setInput,
+    messages,
     state,
-    askQuestion,
-    clearState,
+    sendMessage,
+    clearChat,
     maxLength: MAX_MESSAGE_LENGTH,
   };
 }
