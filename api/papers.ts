@@ -1096,16 +1096,16 @@ export default async function handler(req: any, res: any) {
           return filterByOpenAccess(works);
         }),
 
-      // OpenAIRE: use original query (good for Russian articles, indexes CyberLeninka)
-      fetchOpenAIRE(qRaw, candidateLimit)
+      // OpenAIRE: use translated query for better results (doesn't find Russian keywords well)
+      fetchOpenAIRE(openAlexQuery, candidateLimit)
         .then(works => {
           sourcesUsed.push('openaire');
           return works;
         })
         .catch(() => [] as ResearchWork[]), // Don't fail if OpenAIRE is down
 
-      // Semantic Scholar: use original query (AI-powered search)
-      fetchSemanticScholar(qRaw, candidateLimit)
+      // Semantic Scholar: use translated query for better results
+      fetchSemanticScholar(openAlexQuery, candidateLimit)
         .then(works => {
           sourcesUsed.push('semanticscholar');
           return works;
