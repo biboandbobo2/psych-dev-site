@@ -47,7 +47,8 @@ class TtlCache<T> {
 const SEARCH_CACHE = new TtlCache<WikidataSearchResult[]>(6 * 60 * 60 * 1000);
 const ENTITY_CACHE = new TtlCache<Record<string, WikidataEntity>>(6 * 60 * 60 * 1000);
 const WD_ENDPOINT = 'https://www.wikidata.org/w/api.php';
-const WD_DEFAULT_LANGS = ['ru', 'en', 'de', 'fr', 'es', 'zh'];
+// TODO: Re-enable Chinese when needed
+const WD_DEFAULT_LANGS = ['ru', 'en', 'de', 'fr', 'es' /* 'zh' */];
 
 async function fetchJson(url: string, timeoutMs: number): Promise<any> {
   const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
@@ -261,13 +262,14 @@ const PSYCHOLOGY_TERMS: Record<string, string[]> = {
     'ansiedad', 'depresión', 'trauma', 'estrés', 'trastorno', 'síndrome',
     'narcisismo', 'narcisista',
   ],
-  zh: [
-    '心理学', '心理', '心理治疗', '精神病学', '精神健康',
-    '治疗', '咨询', '临床', '发展', '依恋', '认知',
-    '记忆', '注意', '感知', '社会心理', '人格', '行为',
-    '情绪', '动机', '神经科学', '神经心理学', '大脑',
-    '焦虑', '抑郁', '创伤', '压力', '障碍', '症状', '自恋',
-  ],
+  // TODO: Re-enable Chinese when needed
+  // zh: [
+  //   '心理学', '心理', '心理治疗', '精神病学', '精神健康',
+  //   '治疗', '咨询', '临床', '发展', '依恋', '认知',
+  //   '记忆', '注意', '感知', '社会心理', '人格', '行为',
+  //   '情绪', '动机', '神经科学', '神经心理学', '大脑',
+  //   '焦虑', '抑郁', '创伤', '压力', '障碍', '症状', '自恋',
+  // ],
 };
 
 const ALL_PSYCHOLOGY_TERMS_SET = new Set<string>();
@@ -409,6 +411,7 @@ type OpenAlexWork = {
     source?: { display_name?: string } | null;
   } | null;
   open_access?: {
+    is_oa?: boolean;
     oa_url?: string | null;
   } | null;
   doi?: string | null;
@@ -430,6 +433,7 @@ type ResearchWork = {
   source: ResearchSource;
   score?: number;
   host?: string | null;
+  isOa?: boolean;  // OpenAlex open_access.is_oa flag
 };
 
 type PapersApiResponse = {
@@ -455,11 +459,13 @@ const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 const RATE_LIMIT_MAX = 30; // 30 requests per window
 const rateLimitStore = new Map<string, number[]>();
 
-const DEFAULT_LANGS = ['ru', 'zh', 'de', 'fr', 'es', 'en'];
+// TODO: Re-enable Chinese when needed
+const DEFAULT_LANGS = ['ru', 'de', 'fr', 'es', 'en' /* 'zh' */];
 const MAX_LIMIT = 50;  // Increased: OpenAlex Concepts gives more relevant results
 const DEFAULT_LIMIT = 30;  // Increased from 20
 const MIN_RESULTS_FOR_NO_EXPANSION = 15;  // Increased threshold
-const DEFAULT_WD_LANGS = ['ru', 'en', 'de', 'fr', 'es', 'zh'];
+// TODO: Re-enable Chinese when needed
+const DEFAULT_WD_LANGS = ['ru', 'en', 'de', 'fr', 'es' /* 'zh' */];
 
 const require = createRequire(import.meta.url);
 // Use require to load JSON without import assertions (compatible with Node ESM + Vite dev)
@@ -627,6 +633,7 @@ function normalizeOpenAlexWork(item: OpenAlexWork): ResearchWork | null {
     paragraph,
     source: 'openalex',
     host,
+    isOa: item.open_access?.is_oa ?? false,
   };
 }
 
@@ -640,19 +647,26 @@ const PSYCHOLOGY_CONCEPT_IDS = [
   'C180747234',  // Cognitive psychology (level 1)
   'C75630572',   // Applied psychology (level 1)
   'C126838900',  // Psychiatry (related)
+  'C134895398',  // Educational psychology (level 2) - for articles on child development, school psychology
 ];
 
 async function fetchOpenAlex(
   q: string,
   langs: string[],
   candidateLimit: number,
-  usePsychologyConceptFilter: boolean = true
+  usePsychologyConceptFilter: boolean = true,
+  requireOa: boolean = false  // OpenAlex incorrectly marks many open sources as non-OA
 ): Promise<ResearchWork[]> {
   const searchUrl = new URL('https://api.openalex.org/works');
   searchUrl.searchParams.set('search', q);
 
-  // Build filter: OA + language + optionally psychology concepts
-  const filters = [`is_oa:true`, `language:${langs.join('|')}`];
+  // Build filter: language + optionally OA + optionally psychology concepts
+  // NOTE: is_oa:true is now optional because OpenAlex incorrectly marks many
+  // trusted open-access sources (e.g., CyberLeninka) as non-OA
+  const filters = [`language:${langs.join('|')}`];
+  if (requireOa) {
+    filters.push('is_oa:true');
+  }
   if (usePsychologyConceptFilter) {
     // Use OpenAlex's ML-based concept classification for psychology
     // This dramatically improves relevance (e.g., 53 vs 5 results for "агрессия")
@@ -684,6 +698,23 @@ async function fetchOpenAlex(
 
 function filterByAllowList(items: ResearchWork[]): ResearchWork[] {
   return items.filter((item) => isAllowedUrl(item.oaPdfUrl) || isAllowedUrl(item.primaryUrl));
+}
+
+/**
+ * Filter by open access: article passes if:
+ * 1. OpenAlex marks it as OA (isOa=true), OR
+ * 2. URL is from a trusted source in allow-list (e.g., CyberLeninka)
+ *
+ * This is needed because OpenAlex incorrectly marks many trusted open sources as non-OA.
+ */
+function filterByOpenAccess(items: ResearchWork[]): ResearchWork[] {
+  return items.filter((item) => {
+    // Pass if OpenAlex says it's OA
+    if (item.isOa) return true;
+    // Pass if URL is from trusted source (allow-list)
+    if (isAllowedUrl(item.oaPdfUrl) || isAllowedUrl(item.primaryUrl)) return true;
+    return false;
+  });
 }
 
 async function fetchSemanticScholarAbstracts(dois: string[], maxRequests = 5): Promise<Map<string, string>> {
@@ -735,8 +766,9 @@ function detectLang(query: string): string {
   const text = query.toLowerCase();
   const hasCyrillic = /[а-яё]/i.test(text);
   if (hasCyrillic) return 'ru';
-  const hasChinese = /[\u4e00-\u9fa5]/.test(text);
-  if (hasChinese) return 'zh';
+  // TODO: Re-enable Chinese when needed
+  // const hasChinese = /[\u4e00-\u9fa5]/.test(text);
+  // if (hasChinese) return 'zh';
   if (/[äöüß]/i.test(text) || /\bder\b|\bdie\b|\bund\b/.test(text)) return 'de';
   if (/[áéíóúñ¡¿]/i.test(text) || /\bel\b|\bla\b|\bdel\b/.test(text)) return 'es';
   if (/[àâçéèêëîïôûùüÿœ]/i.test(text) || /\ble\b|\bla\b|\bet\b/.test(text)) return 'fr';
@@ -775,17 +807,20 @@ export default async function handler(req: any, res: any) {
 
     // When psychologyOnly is true, use OpenAlex Concepts API for filtering
     // This gives MUCH more results (e.g., 53 vs 5 for "агрессия") while maintaining relevance
-    const works = await fetchOpenAlex(qRaw, langs, candidateLimit, psychologyOnly);
+    // NOTE: We don't require is_oa:true because OpenAlex incorrectly marks many trusted sources as non-OA
+    const works = await fetchOpenAlex(qRaw, langs, candidateLimit, psychologyOnly, false);
     console.log(`[papers.ts] OpenAlex returned: ${works.length} works (psychologyConceptFilter=${psychologyOnly})`);
 
-    // When using concepts filter, skip allow-list (it's too restrictive)
-    // OpenAlex concepts already ensure psychology relevance
-    const filtered = (psychologyOnly ? works : filterByAllowList(works)).map((work, idx) => ({
+    // Filter by open access: pass if isOa=true OR URL is from trusted source (allow-list)
+    // This ensures articles from CyberLeninka and other trusted sources pass through
+    const oaFiltered = filterByOpenAccess(works);
+    console.log(`[papers.ts] After OA filter: ${oaFiltered.length} works (isOa OR allowList)`);
+
+    const filtered = oaFiltered.map((work, idx) => ({
       ...work,
       // score используется для мягкого interleave результатов разных вариантов запроса
       score: idx * 100,
     }));
-    console.log(`[papers.ts] After filtering: ${filtered.length} works (allowList=${!psychologyOnly})`);
 
     const metaWikidata = {
       used: false,
@@ -833,15 +868,15 @@ export default async function handler(req: any, res: any) {
           variantsToFetch.map(async (variant, variantIdx): Promise<ResearchWork[]> => {
             console.log(`[papers.ts] Fetching variant ${variantIdx}: "${variant}"`);
             const variantScoreOffset = variantIdx + 1;
-            const variantWorks = await fetchOpenAlex(variant, langs, candidateLimit, psychologyOnly);
+            const variantWorks = await fetchOpenAlex(variant, langs, candidateLimit, psychologyOnly, false);
             console.log(`[papers.ts] Variant "${variant}" returned ${variantWorks.length} works`);
-            // When using concepts filter, skip allow-list
-            const worksToScore = psychologyOnly ? variantWorks : filterByAllowList(variantWorks);
+            // Filter by open access: pass if isOa=true OR URL is from trusted source
+            const worksToScore = filterByOpenAccess(variantWorks);
             const scored = worksToScore.map((work, idx) => ({
               ...work,
               score: idx * 100 + variantScoreOffset,
             }));
-            console.log(`[papers.ts] After processing: ${scored.length} works for "${variant}"`);
+            console.log(`[papers.ts] After OA filter: ${scored.length} works for "${variant}"`);
             return scored;
           })
         );

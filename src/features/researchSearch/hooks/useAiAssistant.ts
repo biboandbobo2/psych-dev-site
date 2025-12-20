@@ -20,7 +20,7 @@ interface AiAssistantErrorResponse {
   error: string;
 }
 
-const MAX_MESSAGE_LENGTH = 100;
+const MAX_MESSAGE_LENGTH = 200;
 
 export function useAiAssistant() {
   const [question, setQuestion] = useState('');

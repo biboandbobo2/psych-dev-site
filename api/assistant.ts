@@ -70,7 +70,7 @@ function getClientIp(req: IncomingMessage): string {
 // INPUT VALIDATION
 // ============================================================================
 
-const MAX_MESSAGE_LENGTH = 100;
+const MAX_MESSAGE_LENGTH = 200;
 
 function validateInput(body: unknown): { valid: true; message: string; locale: string } | { valid: false; error: string; code: string } {
   if (!body || typeof body !== 'object') {
@@ -103,11 +103,11 @@ function validateInput(body: unknown): { valid: true; message: string; locale: s
 // RESPONSE TRUNCATION
 // ============================================================================
 
-const MAX_PARAGRAPHS = 4;
-const MAX_CHARS = 1600;
+const MAX_PARAGRAPHS = 6;
+const MAX_CHARS = 3000;
 
 /**
- * Truncates response to max 4 paragraphs and 1600 characters.
+ * Truncates response to max 6 paragraphs and 3000 characters.
  * Adds ellipsis if truncated.
  */
 export function truncateResponse(text: string): string {
@@ -152,7 +152,7 @@ const SYSTEM_INSTRUCTION = `Ты — ИИ-помощник по психолог
 2. Если вопрос НЕ относится к психологии — установи allowed=false и вежливо откажи, предложив переформулировать вопрос.
 3. НЕ давай медицинских диагнозов и не заменяй консультацию специалиста.
 4. При обсуждении клинических тем добавляй дисклеймер о необходимости консультации с профессионалом.
-5. Ответ должен быть кратким: максимум 4 абзаца, около 1200-1600 символов.
+5. Ответ должен быть информативным но компактным: максимум 6 абзацев, до 3000 символов.
 6. Отвечай на языке вопроса (русский/английский).
 
 ФОРМАТ ОТВЕТА — строго JSON:
@@ -191,7 +191,7 @@ async function callGemini(message: string, locale: string): Promise<GeminiStruct
     model: 'gemini-2.5-flash-lite',
     contents: userPrompt,
     config: {
-      maxOutputTokens: 400,
+      maxOutputTokens: 1000,
       temperature: 0.5,
       systemInstruction: SYSTEM_INSTRUCTION,
     },
@@ -213,7 +213,7 @@ async function callGemini(message: string, locale: string): Promise<GeminiStruct
       model: 'gemini-2.5-flash-lite',
       contents: retryPrompt,
       config: {
-        maxOutputTokens: 400,
+        maxOutputTokens: 1000,
         temperature: 0.3,
         systemInstruction: SYSTEM_INSTRUCTION,
       },
