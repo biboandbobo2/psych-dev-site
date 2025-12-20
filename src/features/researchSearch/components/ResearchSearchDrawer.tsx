@@ -1,18 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useResearchSearch, useFilteredResults } from '../hooks/useResearchSearch';
+import { useResearchSearch } from '../hooks/useResearchSearch';
 import { ResearchResultsList } from './ResearchResultsList';
 import { AiAssistantBlock } from './AiAssistantBlock';
 
-// TODO: Re-enable Chinese when needed
-const ALL_LANGUAGES = [
-  { code: 'ru', label: 'Русский' },
-  { code: 'en', label: 'English' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'fr', label: 'Français' },
-  { code: 'es', label: 'Español' },
-  // { code: 'zh', label: '中文' },
-];
+// Drawer uses only ru+en for simplicity
+// Full language selection is available on the dedicated research page
+const DRAWER_LANGS = ['ru', 'en'];
 
 interface ResearchSearchDrawerProps {
   open: boolean;
@@ -23,33 +17,13 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
-  const [languageFilter, setLanguageFilter] = useState('all');
-  const { query, setQuery, langs, setLangs, state, runSearch } = useResearchSearch({
+  const { query, setQuery, state, runSearch } = useResearchSearch({
     mode: 'drawer',
-    initialPsychologyOnly: true, // Always filter by psychology
+    initialLangs: DRAWER_LANGS,
+    initialPsychologyOnly: true,
     trigger: 'manual',
+    autoTriggerInitial: false,
   });
-  const filtered = useFilteredResults(state.results, languageFilter);
-
-  const toggleLang = (code: string) => {
-    if (langs.includes(code)) {
-      if (langs.length > 1) {
-        setLangs(langs.filter((l) => l !== code));
-      }
-    } else {
-      setLangs([...langs, code]);
-    }
-  };
-
-  const languageOptions = useMemo(() => {
-    const langsFromData = new Set<string>();
-    state.results.forEach((item) => {
-      if (item.language && item.language !== 'unknown') {
-        langsFromData.add(item.language);
-      }
-    });
-    return Array.from(langsFromData);
-  }, [state.results]);
 
   useEffect(() => {
     if (!open) return;
@@ -126,52 +100,15 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
               <p className="text-xs text-muted">Минимум 3 символа. Источники: OpenAlex, Semantic Scholar (fallback позже).</p>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <span className="text-sm text-muted self-center mr-1">Языки:</span>
-                {ALL_LANGUAGES.map(({ code, label }) => (
-                  <button
-                    key={code}
-                    type="button"
-                    onClick={() => toggleLang(code)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                      langs.includes(code)
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-card border border-border text-muted hover:bg-card2'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-muted" htmlFor="research-lang-filter">
-                    Фильтр результатов:
-                  </label>
-                  <select
-                    id="research-lang-filter"
-                    value={languageFilter}
-                    onChange={(event) => setLanguageFilter(event.target.value)}
-                    className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30"
-                  >
-                    <option value="all">Все языки</option>
-                    {languageOptions.map((lang) => (
-                      <option key={lang} value={lang}>
-                        {lang.toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  className="ml-auto inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Искать
-                </button>
-              </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted">Поиск по русским и английским источникам</p>
+              <button
+                type="submit"
+                disabled={query.trim().length < 3}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Искать
+              </button>
             </div>
 
             {state.status === 'idle' ? (
@@ -197,7 +134,7 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
           {state.status === 'success' ? (
             <div className="max-h-[calc(100vh-240px)] overflow-y-auto pr-1">
               <ResearchResultsList
-                results={filtered.slice(0, 15)}
+                results={state.results.slice(0, 15)}
                 query={query}
                 onOpenAll={() => {
                   if (!query.trim()) return;

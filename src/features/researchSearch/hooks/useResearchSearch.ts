@@ -13,6 +13,7 @@ interface UseResearchSearchOptions {
   initialLangs?: string[];
   initialPsychologyOnly?: boolean;
   trigger?: 'manual' | 'auto';
+  /** Whether to auto-trigger search on mount if initialQuery is provided. Defaults to false. */
   autoTriggerInitial?: boolean;
 }
 
@@ -29,7 +30,7 @@ export function useResearchSearch({
   initialLangs = DEFAULT_LANGS,
   initialPsychologyOnly = true,
   trigger = 'manual',
-  autoTriggerInitial = true,
+  autoTriggerInitial = false,
 }: UseResearchSearchOptions) {
   const [query, setQuery] = useState(initialQuery);
   const [langs, setLangs] = useState<string[]>(initialLangs);

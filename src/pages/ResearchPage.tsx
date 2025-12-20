@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useResearchSearch, useFilteredResults } from '../features/researchSearch/hooks/useResearchSearch';
 import { ResearchResultsList } from '../features/researchSearch/components/ResearchResultsList';
 
-const DEFAULT_LANGS = ['ru', 'zh', 'de', 'fr', 'es', 'en'];
+// Default languages for search (Chinese disabled for now)
+const DEFAULT_LANGS = ['ru', 'en', 'de', 'fr', 'es'];
 
 const ALL_LANGUAGES = [
   { code: 'ru', label: 'Русский' },
@@ -11,7 +12,7 @@ const ALL_LANGUAGES = [
   { code: 'de', label: 'Deutsch' },
   { code: 'fr', label: 'Français' },
   { code: 'es', label: 'Español' },
-  { code: 'zh', label: '中文' },
+  // { code: 'zh', label: '中文' }, // TODO: Re-enable when needed
 ];
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -53,12 +54,8 @@ export default function ResearchPage() {
     }
   };
 
-  useEffect(() => {
-    if (initialQuery.trim().length >= 3) {
-      runSearch();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Search is auto-triggered by the hook when autoTriggerInitial is true
+  // No need for manual useEffect trigger here
 
   const languagesFromResults = useMemo(() => {
     const langsSet = new Set<string>();
@@ -240,9 +237,9 @@ export default function ResearchPage() {
           <div className="mb-3 text-sm text-muted">
             Нашли {sortedResults.length} работ
             {state.meta?.psychologyFilterApplied ? ' (только психология)' : ''}.
-            {state.meta?.wikidata?.used ? (
+            {state.meta?.queryVariantsUsed && state.meta.queryVariantsUsed.length > 1 ? (
               <span className="ml-2 text-xs text-accent">
-                Wikidata: {state.meta.wikidata.variantsCount} вариантов запроса
+                Запросы: {state.meta.queryVariantsUsed.join(', ')}
               </span>
             ) : null}
           </div>
