@@ -7,7 +7,7 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenAI } from '@google/genai';
 
-import { BOOK_COLLECTIONS, BOOK_SEARCH_CONFIG } from '../../src/constants/books';
+import { BOOK_COLLECTIONS, BOOK_SEARCH_CONFIG } from '../lib/books';
 
 // ============================================================================
 // TYPES

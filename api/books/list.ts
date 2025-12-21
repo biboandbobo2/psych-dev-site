@@ -6,7 +6,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-import { BOOK_COLLECTIONS } from '../../src/constants/books';
+import { BOOK_COLLECTIONS } from '../lib/books';
 
 // ============================================================================
 // TYPES

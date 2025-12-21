@@ -8,7 +8,7 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
-import { BOOK_COLLECTIONS, INGESTION_STEP_LABELS } from '../../../src/constants/books';
+import { BOOK_COLLECTIONS, INGESTION_STEP_LABELS } from '../../lib/books';
 
 // ============================================================================
 // TYPES

@@ -9,7 +9,7 @@ import { getStorage } from 'firebase-admin/storage';
 import * as zlib from 'zlib';
 import { promisify } from 'util';
 
-import { BOOK_COLLECTIONS, BOOK_SEARCH_CONFIG, BOOK_STORAGE_PATHS } from '../../src/constants/books';
+import { BOOK_COLLECTIONS, BOOK_SEARCH_CONFIG, BOOK_STORAGE_PATHS } from '../lib/books';
 
 const gunzip = promisify(zlib.gunzip);
 

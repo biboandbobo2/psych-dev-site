@@ -9,7 +9,7 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { getAuth } from 'firebase-admin/auth';
 
-import { BOOK_COLLECTIONS, BOOK_STORAGE_PATHS, MAX_BOOK_FILE_SIZE } from '../../../src/constants/books';
+import { BOOK_COLLECTIONS, BOOK_STORAGE_PATHS, MAX_BOOK_FILE_SIZE } from '../../lib/books';
 
 // ============================================================================
 // TYPES
