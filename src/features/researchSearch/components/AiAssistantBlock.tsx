@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAiAssistant } from '../hooks/useAiAssistant';
 import { useAiChat } from '../hooks/useAiChat';
+import { BookSearchBlock } from '../../bookSearch';
 
 export function AiAssistantBlock() {
   const [mode, setMode] = useState<'single' | 'chat'>('single');
@@ -297,6 +298,9 @@ export function AiAssistantBlock() {
           )}
         </div>
       )}
+
+      {/* Book Search Section */}
+      <BookSearchBlock />
     </section>
   );
 }

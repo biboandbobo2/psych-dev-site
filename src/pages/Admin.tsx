@@ -153,6 +153,17 @@ export default function Admin() {
             📝 Content
           </Link>
 
+          <Link
+            to="/admin/books"
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              location.pathname.startsWith('/admin/books')
+                ? 'bg-amber-600 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            📚 Books
+          </Link>
+
         </nav>
       )}
 

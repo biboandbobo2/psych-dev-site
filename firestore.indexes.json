@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "book_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bookId", "order": "ASCENDING" },
+        { "fieldPath": "embedding", "vectorConfig": { "dimension": 768, "flat": {} } }
+      ]
+    },
+    {
       "collectionGroup": "periods",
       "queryScope": "COLLECTION",
       "fields": [

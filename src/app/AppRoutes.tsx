@@ -11,6 +11,7 @@ import {
   AdminContentEdit,
   AdminHomePage,
   AdminTopics,
+  AdminBooks,
   MigrateTopics,
   Profile,
   Notes,
@@ -136,6 +137,14 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
               element={
                 <RequireAdmin>
                   <AdminUsers />
+                </RequireAdmin>
+              }
+            />
+            <Route
+              path="/admin/books"
+              element={
+                <RequireAdmin>
+                  <AdminBooks />
                 </RequireAdmin>
               }
             />

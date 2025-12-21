@@ -11,6 +11,7 @@ export const AdminContent = lazy(() => import('./AdminContent'));
 export const AdminContentEdit = lazy(() => import('./AdminContentEdit'));
 export const AdminHomePage = lazy(() => import('./AdminHomePage'));
 export const AdminTopics = lazy(() => import('./AdminTopics'));
+export const AdminBooks = lazy(() => import('./AdminBooks'));
 export const MigrateTopics = lazy(() => import('./MigrateTopics'));
 export const Profile = lazy(() => import('./Profile'));
 export const Notes = lazy(() => import('./Notes'));
