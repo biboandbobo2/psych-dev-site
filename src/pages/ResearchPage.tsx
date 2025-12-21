@@ -114,7 +114,7 @@ export default function ResearchPage() {
       <p className="text-muted mb-6">Open Access выдача по психологии и смежным областям.</p>
 
       <form onSubmit={handleSubmit} className="mb-6 space-y-4">
-        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
           <input
             type="text"
             value={query}
@@ -129,10 +129,19 @@ export default function ResearchPage() {
           >
             Искать
           </button>
+          <button
+            type="button"
+            onClick={() => alert('Глубокий поиск (Wikidata + мультиязычный) — в разработке')}
+            className="rounded-lg border-2 border-purple-500 bg-purple-50 px-4 py-3 text-sm font-semibold text-purple-700 shadow-sm transition hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={query.trim().length < 3}
+            title="Поиск через Wikidata с автоматическим переводом на все языки"
+          >
+            Глубокий поиск
+          </button>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <span className="text-sm text-muted self-center mr-1">Искать на языках:</span>
+          <span className="text-sm text-muted self-center mr-1">Фильтр по языкам статей:</span>
           {ALL_LANGUAGES.map(({ code, label }) => (
             <button
               key={code}
