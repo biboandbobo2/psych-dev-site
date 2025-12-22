@@ -138,7 +138,8 @@ export default async function handler(
 
     try {
       const storage = getStorage();
-      const bucket = storage.bucket();
+      const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'psych-dev-site-prod.firebasestorage.app';
+      const bucket = storage.bucket(bucketName);
       const pagesPath = BOOK_STORAGE_PATHS.pages(bookId);
       const file = bucket.file(pagesPath);
 
