@@ -216,7 +216,7 @@ export default async function handler(
       return;
     }
 
-    // Generate signed URL using @google-cloud/storage directly
+    // Generate resumable upload URL using @google-cloud/storage
     const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
     const serviceAccount = JSON.parse(serviceAccountJson!);
 
@@ -230,14 +230,14 @@ export default async function handler(
     const storagePath = BOOK_STORAGE_PATHS.raw(data.bookId);
     const file = bucket.file(storagePath);
 
-    // URL expires in 15 minutes
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-
-    const [uploadUrl] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'write',
-      expires: expiresAt,
+    // Create resumable upload URI
+    const [uploadUrl] = await file.createResumableUpload({
+      metadata: {
+        contentType: 'application/pdf',
+      },
     });
+
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     // Update book status to indicate upload is expected
     await bookRef.update({

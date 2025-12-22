@@ -208,30 +208,35 @@ export default function AdminBooks() {
     setUploadError(null);
 
     try {
-      // Convert file to base64
-      const fileData = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const base64 = (reader.result as string).split(',')[1];
-          resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      setUploadProgress(50);
-
-      // Upload via API
-      await apiCall<{ storagePath: string }>(
-        `/api/admin/books/upload?bookId=${bookId}`,
+      // Get resumable upload URL
+      const urlData = await apiCall<{ uploadUrl: string; storagePath: string }>(
+        '/api/admin/books/uploadUrl',
         {
           method: 'POST',
           body: JSON.stringify({
-            fileData,
+            bookId,
             contentType: file.type,
+            fileSize: file.size,
           }),
         }
       );
+
+      setUploadProgress(25);
+
+      // Upload directly to Storage using resumable upload URL
+      const uploadRes = await fetch(urlData.uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Length': String(file.size),
+        },
+        body: file,
+      });
+
+      if (!uploadRes.ok) {
+        const text = await uploadRes.text();
+        throw new Error(`Upload failed: ${text}`);
+      }
 
       setUploadProgress(100);
       debugLog('[AdminBooks] Upload complete for book:', bookId);
