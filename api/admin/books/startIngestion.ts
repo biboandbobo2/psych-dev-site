@@ -225,14 +225,16 @@ export default async function handler(
     const cloudFunctionUrl = process.env.INGEST_BOOK_FUNCTION_URL;
 
     if (cloudFunctionUrl) {
-      // Fire-and-forget call to Cloud Function
-      fetch(cloudFunctionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookId, jobId }),
-      }).catch(() => {
+      // Call Cloud Function (await to ensure request is sent before function ends)
+      try {
+        await fetch(cloudFunctionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookId, jobId }),
+        });
+      } catch {
         // Ignore errors - the job status will reflect any issues
-      });
+      }
     } else {
       // If no Cloud Function URL, update job to indicate manual processing needed
       await jobRef.update({
