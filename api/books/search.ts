@@ -7,7 +7,23 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenAI } from '@google/genai';
 
-import { BOOK_COLLECTIONS, BOOK_SEARCH_CONFIG } from '../lib/books';
+// ============================================================================
+// CONSTANTS (inline for serverless)
+// ============================================================================
+
+const BOOK_COLLECTIONS = {
+  books: 'books',
+  chunks: 'book_chunks',
+  jobs: 'ingestion_jobs',
+} as const;
+
+const BOOK_SEARCH_CONFIG = {
+  maxBooksPerSearch: 10,
+  candidateK: 50,
+  contextK: 10,
+  embeddingModel: 'text-embedding-004',
+  embeddingDims: 768,
+} as const;
 
 // ============================================================================
 // TYPES

@@ -9,9 +9,26 @@ import { getStorage } from 'firebase-admin/storage';
 import * as zlib from 'zlib';
 import { promisify } from 'util';
 
-import { BOOK_COLLECTIONS, BOOK_SEARCH_CONFIG, BOOK_STORAGE_PATHS } from '../lib/books';
-
 const gunzip = promisify(zlib.gunzip);
+
+// ============================================================================
+// CONSTANTS (inline for serverless)
+// ============================================================================
+
+const BOOK_COLLECTIONS = {
+  books: 'books',
+  chunks: 'book_chunks',
+  jobs: 'ingestion_jobs',
+} as const;
+
+const BOOK_SEARCH_CONFIG = {
+  snippetMaxChars: 5000,
+  snippetDefaultChars: 3000,
+} as const;
+
+const BOOK_STORAGE_PATHS = {
+  pages: (bookId: string) => `books/text/${bookId}/pages.json.gz`,
+} as const;
 
 // ============================================================================
 // TYPES

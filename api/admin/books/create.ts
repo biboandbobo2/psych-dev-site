@@ -8,7 +8,19 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
-import { BOOK_COLLECTIONS, BOOK_STORAGE_PATHS } from '../../lib/books';
+// ============================================================================
+// CONSTANTS (inline for serverless)
+// ============================================================================
+
+const BOOK_COLLECTIONS = {
+  books: 'books',
+  chunks: 'book_chunks',
+  jobs: 'ingestion_jobs',
+} as const;
+
+const BOOK_STORAGE_PATHS = {
+  raw: (bookId: string) => `books/raw/${bookId}/original.pdf`,
+} as const;
 
 // ============================================================================
 // TYPES

@@ -6,7 +6,15 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-import { BOOK_COLLECTIONS } from '../lib/books';
+// ============================================================================
+// CONSTANTS (inline for serverless)
+// ============================================================================
+
+const BOOK_COLLECTIONS = {
+  books: 'books',
+  chunks: 'book_chunks',
+  jobs: 'ingestion_jobs',
+} as const;
 
 // ============================================================================
 // TYPES

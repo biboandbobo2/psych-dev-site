@@ -9,7 +9,21 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { getAuth } from 'firebase-admin/auth';
 
-import { BOOK_COLLECTIONS, BOOK_STORAGE_PATHS, MAX_BOOK_FILE_SIZE } from '../../lib/books';
+// ============================================================================
+// CONSTANTS (inline for serverless)
+// ============================================================================
+
+const BOOK_COLLECTIONS = {
+  books: 'books',
+  chunks: 'book_chunks',
+  jobs: 'ingestion_jobs',
+} as const;
+
+const BOOK_STORAGE_PATHS = {
+  raw: (bookId: string) => `books/raw/${bookId}/original.pdf`,
+} as const;
+
+const MAX_BOOK_FILE_SIZE = 50 * 1024 * 1024;
 
 // ============================================================================
 // TYPES

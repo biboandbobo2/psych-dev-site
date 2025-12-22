@@ -8,7 +8,23 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
-import { BOOK_COLLECTIONS, INGESTION_STEP_LABELS } from '../../lib/books';
+// ============================================================================
+// CONSTANTS (inline for serverless)
+// ============================================================================
+
+const BOOK_COLLECTIONS = {
+  books: 'books',
+  chunks: 'book_chunks',
+  jobs: 'ingestion_jobs',
+} as const;
+
+const INGESTION_STEP_LABELS = {
+  download: 'Загрузка PDF',
+  extract: 'Извлечение текста',
+  chunk: 'Разбиение на части',
+  embed: 'Создание эмбеддингов',
+  save: 'Сохранение в базу',
+} as const;
 
 // ============================================================================
 // TYPES
