@@ -237,8 +237,6 @@ export default async function handler(
       version: 'v4',
       action: 'write',
       expires: expiresAt,
-      contentType: 'application/pdf',
-      virtualHostedStyle: true,
     });
 
     // Update book status to indicate upload is expected
