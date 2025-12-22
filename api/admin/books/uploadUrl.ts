@@ -66,7 +66,7 @@ function initFirebaseAdmin() {
     const serviceAccount = JSON.parse(serviceAccountJson);
     initializeApp({
       credential: cert(serviceAccount),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.appspot.com`,
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`,
     });
   } catch (e) {
     throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY');
