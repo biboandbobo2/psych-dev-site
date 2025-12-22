@@ -6,8 +6,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
 import { getAuth } from 'firebase-admin/auth';
+import { Storage } from '@google-cloud/storage';
 
 // ============================================================================
 // CONSTANTS (inline for serverless)
@@ -216,10 +216,17 @@ export default async function handler(
       return;
     }
 
-    // Generate signed URL
-    const storage = getStorage();
-    // Use default bucket from initialization (set via storageBucket in initializeApp)
-    const bucket = storage.bucket();
+    // Generate signed URL using @google-cloud/storage directly
+    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    const serviceAccount = JSON.parse(serviceAccountJson!);
+
+    const storage = new Storage({
+      projectId: serviceAccount.project_id,
+      credentials: serviceAccount,
+    });
+
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`;
+    const bucket = storage.bucket(bucketName);
     const storagePath = BOOK_STORAGE_PATHS.raw(data.bookId);
     const file = bucket.file(storagePath);
 
@@ -230,8 +237,7 @@ export default async function handler(
       version: 'v4',
       action: 'write',
       expires: expiresAt,
-      // Don't include contentType in signature to avoid CORS issues
-      // contentType: data.contentType,
+      contentType: 'application/pdf',
     });
 
     // Update book status to indicate upload is expected
