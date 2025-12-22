@@ -180,8 +180,7 @@ export default async function handler(
 
     // Check file exists in Storage
     const storage = getStorage();
-    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'psych-dev-site-prod.firebasestorage.app';
-    const bucket = storage.bucket(bucketName);
+    const bucket = storage.bucket();
     const storagePath = BOOK_STORAGE_PATHS.raw(bookId);
     const file = bucket.file(storagePath);
 

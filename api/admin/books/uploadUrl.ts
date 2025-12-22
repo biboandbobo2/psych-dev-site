@@ -218,9 +218,8 @@ export default async function handler(
 
     // Generate signed URL
     const storage = getStorage();
-    // Use explicit bucket name for new Firebase Storage format
-    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'psych-dev-site-prod.firebasestorage.app';
-    const bucket = storage.bucket(bucketName);
+    // Use default bucket from initialization (set via storageBucket in initializeApp)
+    const bucket = storage.bucket();
     const storagePath = BOOK_STORAGE_PATHS.raw(data.bookId);
     const file = bucket.file(storagePath);
 

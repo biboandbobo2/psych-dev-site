@@ -138,7 +138,7 @@ export const ingestBook = onRequest(
       await updateJob(jobId, { step: 'download', log: 'Downloading PDF...' });
 
       const storage = getStorage();
-      const bucket = storage.bucket('psych-dev-site-prod.firebasestorage.app');
+      const bucket = storage.bucket();
       const pdfPath = `books/raw/${bookId}/original.pdf`;
       const file = bucket.file(pdfPath);
 
