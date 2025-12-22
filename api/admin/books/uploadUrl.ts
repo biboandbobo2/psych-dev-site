@@ -229,7 +229,8 @@ export default async function handler(
       version: 'v4',
       action: 'write',
       expires: expiresAt,
-      contentType: data.contentType,
+      // Don't include contentType in signature to avoid CORS issues
+      // contentType: data.contentType,
     });
 
     // Update book status to indicate upload is expected

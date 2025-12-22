@@ -19,10 +19,14 @@ const BOOK_COLLECTIONS = {
 
 const BOOK_SEARCH_CONFIG = {
   maxBooksPerSearch: 10,
+  minBooksPerSearch: 1,
+  maxQuestionLength: 500,
+  minQuestionLength: 3,
   candidateK: 50,
   contextK: 10,
   embeddingModel: 'text-embedding-004',
   embeddingDims: 768,
+  answerMaxParagraphs: 4,
 } as const;
 
 // ============================================================================
