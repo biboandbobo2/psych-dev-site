@@ -2,6 +2,7 @@
  * Chunker - разбиение текста на чанки для RAG
  */
 import * as crypto from 'crypto';
+import { debugLog } from './debug.js';
 export const DEFAULT_CHUNK_CONFIG = {
     minChars: 1500,
     maxChars: 2500,
@@ -27,10 +28,12 @@ export function chunkPages(pages, config = DEFAULT_CHUNK_CONFIG) {
         }
     }
     if (segments.length === 0) {
+        debugLog('[chunker] No segments with text - all pages empty');
         return [];
     }
     // Полный текст
     const fullText = segments.map((s) => s.text).join('\n');
+    debugLog(`[chunker] Segments: ${segments.length}, fullText length: ${fullText.length}`);
     // Разбиваем на чанки
     let position = 0;
     while (position < fullText.length) {
@@ -82,6 +85,7 @@ export function chunkPages(pages, config = DEFAULT_CHUNK_CONFIG) {
             position = endPosition; // Избегаем бесконечного цикла
         }
     }
+    debugLog(`[chunker] Created ${chunks.length} chunks from ${fullText.length} chars`);
     return chunks;
 }
 /**

@@ -3,6 +3,7 @@
  */
 
 import * as crypto from 'crypto';
+import { debugLog } from './debug.js';
 
 export interface ChunkConfig {
   minChars: number;
@@ -64,11 +65,13 @@ export function chunkPages(
   }
 
   if (segments.length === 0) {
+    debugLog('[chunker] No segments with text - all pages empty');
     return [];
   }
 
   // Полный текст
   const fullText = segments.map((s) => s.text).join('\n');
+  debugLog(`[chunker] Segments: ${segments.length}, fullText length: ${fullText.length}`);
 
   // Разбиваем на чанки
   let position = 0;
@@ -131,6 +134,7 @@ export function chunkPages(
     }
   }
 
+  debugLog(`[chunker] Created ${chunks.length} chunks from ${fullText.length} chars`);
   return chunks;
 }
 

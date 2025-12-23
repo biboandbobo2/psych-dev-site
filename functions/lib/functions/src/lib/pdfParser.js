@@ -1,38 +1,52 @@
 /**
  * PDF Parser - извлечение текста из PDF
- * Использует pdf-parse v2 для извлечения текста постранично
+ * Использует unpdf для извлечения текста постранично (serverless-friendly)
  */
-import { PDFParse } from 'pdf-parse';
+import { extractText, getMeta } from 'unpdf';
+import { debugLog } from './debug.js';
 /**
  * Извлекает текст из PDF буфера постранично
  */
 export async function parsePdf(buffer) {
-    // Create parser instance with buffer data
-    const parser = new PDFParse({ data: buffer });
+    // Extract text using unpdf (serverless-friendly)
+    const result = await extractText(buffer, { mergePages: false });
+    // unpdf returns { totalPages, text: string[] }
+    const rawPages = result.text;
+    const rawTotalChars = rawPages.reduce((sum, p) => sum + p.length, 0);
+    const rawPagesWithText = rawPages.filter((p) => p.trim().length > 0).length;
+    debugLog(`[pdfParser] RAW - Pages: ${rawPages.length}, with text: ${rawPagesWithText}, total chars: ${rawTotalChars}`);
+    // Sample first page with text
+    const firstPageIdx = rawPages.findIndex((p) => p.trim().length > 0);
+    if (firstPageIdx >= 0) {
+        debugLog(`[pdfParser] Sample page ${firstPageIdx + 1}: "${rawPages[firstPageIdx].slice(0, 200)}..."`);
+    }
+    // Convert to PageText format
+    const pages = rawPages.map((text, index) => ({
+        page: index + 1,
+        text: normalizeText(text),
+    }));
+    // Debug logging after normalization
+    const totalChars = pages.reduce((sum, p) => sum + p.text.length, 0);
+    const pagesWithText = pages.filter(p => p.text.trim().length > 0).length;
+    debugLog(`[pdfParser] NORMALIZED - Pages: ${pages.length}, with text: ${pagesWithText}, total chars: ${totalChars}`);
+    // Get metadata separately
+    let metadata = { title: undefined, author: undefined, creator: undefined };
     try {
-        // Get text result with page-by-page data
-        const textResult = await parser.getText();
-        // Get document info for metadata
-        const infoResult = await parser.getInfo();
-        // Extract pages
-        const pages = textResult.pages.map((page) => ({
-            page: page.num,
-            text: normalizeText(page.text),
-        }));
-        return {
-            pages,
-            totalPages: textResult.total,
-            metadata: {
-                title: infoResult.info?.Title,
-                author: infoResult.info?.Author,
-                creator: infoResult.info?.Creator,
-            },
+        const meta = await getMeta(buffer);
+        metadata = {
+            title: meta.info?.Title,
+            author: meta.info?.Author,
+            creator: meta.info?.Creator,
         };
     }
-    finally {
-        // Clean up resources
-        await parser.destroy();
+    catch (e) {
+        debugLog('[pdfParser] Failed to get metadata:', e);
     }
+    return {
+        pages,
+        totalPages: result.totalPages,
+        metadata,
+    };
 }
 /**
  * Нормализация текста:
