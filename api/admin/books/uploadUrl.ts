@@ -230,8 +230,10 @@ export default async function handler(
     const storagePath = BOOK_STORAGE_PATHS.raw(data.bookId);
     const file = bucket.file(storagePath);
 
-    // Create resumable upload URI
+    // Create resumable upload URI with CORS origin
+    const origin = req.headers.origin || '*';
     const [uploadUrl] = await file.createResumableUpload({
+      origin,
       metadata: {
         contentType: 'application/pdf',
       },
