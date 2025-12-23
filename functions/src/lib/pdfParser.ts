@@ -25,8 +25,11 @@ export interface ParsedPdf {
  * Извлекает текст из PDF буфера постранично
  */
 export async function parsePdf(buffer: Buffer): Promise<ParsedPdf> {
+  // Convert Buffer to Uint8Array (unpdf requirement)
+  const uint8Array = new Uint8Array(buffer);
+
   // Extract text using unpdf (serverless-friendly)
-  const result = await extractText(buffer, { mergePages: false });
+  const result = await extractText(uint8Array, { mergePages: false });
 
   // unpdf returns { totalPages, text: string[] }
   const rawPages = result.text;
@@ -54,7 +57,7 @@ export async function parsePdf(buffer: Buffer): Promise<ParsedPdf> {
   // Get metadata separately
   let metadata = { title: undefined, author: undefined, creator: undefined };
   try {
-    const meta = await getMeta(buffer);
+    const meta = await getMeta(uint8Array);
     metadata = {
       title: meta.info?.Title,
       author: meta.info?.Author,
