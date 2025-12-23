@@ -287,6 +287,39 @@ export default function AdminBooks() {
   };
 
   // ============================================================================
+  // DELETE BOOK
+  // ============================================================================
+
+  const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
+
+  const handleDeleteBook = async (bookId: string) => {
+    if (!confirm('Вы уверены? Удалятся книга, все чанки, задания и PDF файл. Это действие необратимо.')) {
+      return;
+    }
+
+    setDeletingBookId(bookId);
+    setError(null);
+
+    try {
+      await apiCall('/api/admin/books/delete', {
+        method: 'DELETE',
+        body: JSON.stringify({ bookId }),
+      });
+
+      debugLog('[AdminBooks] Book deleted:', bookId);
+
+      // Remove from local state
+      setBooks((prev) => prev.filter((b) => b.id !== bookId));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to delete book';
+      setError(msg);
+      debugError('[AdminBooks] deleteBook error:', e);
+    } finally {
+      setDeletingBookId(null);
+    }
+  };
+
+  // ============================================================================
   // WATCH JOB STATUS
   // ============================================================================
 
@@ -635,6 +668,16 @@ export default function AdminBooks() {
                           {book.active ? 'Активна' : 'Скрыта'}
                         </span>
                       )}
+
+                      {/* Delete button - always available */}
+                      <button
+                        onClick={() => handleDeleteBook(book.id)}
+                        disabled={deletingBookId === book.id}
+                        className="px-3 py-1 bg-red-100 text-red-800 rounded text-xs hover:bg-red-200 disabled:opacity-50"
+                        title="Удалить книгу и все данные"
+                      >
+                        {deletingBookId === book.id ? '...' : 'Удалить'}
+                      </button>
                     </div>
                   </td>
                 </tr>

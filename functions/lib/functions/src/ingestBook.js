@@ -19,7 +19,9 @@ import { debugLog, debugError } from './lib/debug.js';
 // INIT
 // ============================================================================
 if (getApps().length === 0) {
-    initializeApp();
+    initializeApp({
+        storageBucket: 'psych-dev-site-prod.firebasestorage.app',
+    });
 }
 // ============================================================================
 // CONSTANTS
@@ -95,7 +97,7 @@ export const ingestBook = onRequest({
         // ============================================================
         await updateJob(jobId, { step: 'download', log: 'Downloading PDF...' });
         const storage = getStorage();
-        const bucket = storage.bucket();
+        const bucket = storage.bucket('psych-dev-site-prod.firebasestorage.app');
         const pdfPath = `books/raw/${bookId}/original.pdf`;
         const file = bucket.file(pdfPath);
         const [exists] = await file.exists();

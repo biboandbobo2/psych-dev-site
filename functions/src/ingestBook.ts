@@ -23,7 +23,9 @@ import { debugLog, debugError } from './lib/debug.js';
 // ============================================================================
 
 if (getApps().length === 0) {
-  initializeApp();
+  initializeApp({
+    storageBucket: 'psych-dev-site-prod.firebasestorage.app',
+  });
 }
 
 // ============================================================================

@@ -1,13 +1,10 @@
 /**
  * PDF Parser - извлечение текста из PDF
- * Использует pdf-parse для извлечения текста постранично
+ * Использует pdf-parse v2 для извлечения текста постранично
  */
 
-import { createRequire } from 'module';
-
-// pdf-parse не поддерживает ESM, используем createRequire
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+import { PDFParse } from 'pdf-parse';
+import type { TextResult } from 'pdf-parse';
 
 export interface PageText {
   page: number;
@@ -28,67 +25,35 @@ export interface ParsedPdf {
  * Извлекает текст из PDF буфера постранично
  */
 export async function parsePdf(buffer: Buffer): Promise<ParsedPdf> {
-  const pages: PageText[] = [];
-  let currentPage = 0;
-  let currentText = '';
+  // Create parser instance with buffer data
+  const parser = new PDFParse({ data: buffer });
 
-  // Custom page render function to get text per page
-  const renderPage = (pageData: any) => {
-    return pageData.getTextContent().then((textContent: any) => {
-      let lastY: number | null = null;
-      let text = '';
+  try {
+    // Get text result with page-by-page data
+    const textResult = await parser.getText();
 
-      for (const item of textContent.items) {
-        if (lastY !== null && Math.abs(item.transform[5] - lastY) > 5) {
-          text += '\n';
-        }
-        text += item.str;
-        lastY = item.transform[5];
-      }
+    // Get document info for metadata
+    const infoResult = await parser.getInfo();
 
-      return text;
-    });
-  };
+    // Extract pages
+    const pages: PageText[] = textResult.pages.map((page) => ({
+      page: page.num,
+      text: normalizeText(page.text),
+    }));
 
-  const options = {
-    pagerender: renderPage,
-  };
-
-  // Parse PDF
-  const data = await pdfParse(buffer, options);
-
-  // pdf-parse returns all text concatenated, but we can use numpages
-  // For better page-by-page extraction, we use a different approach
-  const totalPages = data.numpages;
-
-  // Split text by form feeds (page breaks) if present
-  const rawText = data.text || '';
-
-  // Simple heuristic: split by double newlines and distribute across pages
-  // This is a simplified approach - for production, consider using pdf.js directly
-  const paragraphs = rawText.split(/\n{3,}/);
-  const avgParagraphsPerPage = Math.ceil(paragraphs.length / totalPages);
-
-  for (let i = 0; i < totalPages; i++) {
-    const start = i * avgParagraphsPerPage;
-    const end = Math.min(start + avgParagraphsPerPage, paragraphs.length);
-    const pageText = paragraphs.slice(start, end).join('\n\n');
-
-    pages.push({
-      page: i + 1,
-      text: normalizeText(pageText),
-    });
+    return {
+      pages,
+      totalPages: textResult.total,
+      metadata: {
+        title: infoResult.info?.Title,
+        author: infoResult.info?.Author,
+        creator: infoResult.info?.Creator,
+      },
+    };
+  } finally {
+    // Clean up resources
+    await parser.destroy();
   }
-
-  return {
-    pages,
-    totalPages,
-    metadata: {
-      title: data.info?.Title,
-      author: data.info?.Author,
-      creator: data.info?.Creator,
-    },
-  };
 }
 
 /**
