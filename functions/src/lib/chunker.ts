@@ -95,7 +95,15 @@ export function chunkPages(
     // Извлекаем текст чанка
     const chunkText = fullText.slice(position, endPosition).trim();
 
-    if (chunkText.length >= config.minChars / 2) {
+    // Создаем чанк если:
+    // 1. Он достаточно большой (>= minChars / 2)
+    // 2. Или это последний чанк и в книге вообще нет чанков (книга с малым количеством текста)
+    const isLastChunk = endPosition >= fullText.length;
+    const shouldCreateChunk =
+      chunkText.length >= config.minChars / 2 ||
+      (isLastChunk && chunks.length === 0 && chunkText.length > 0);
+
+    if (shouldCreateChunk) {
       // Определяем страницы
       const pageRange = findPageRange(segments, position, endPosition);
 
