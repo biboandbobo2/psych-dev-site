@@ -287,6 +287,35 @@ export default function AdminBooks() {
   };
 
   // ============================================================================
+  // TOGGLE ACTIVE
+  // ============================================================================
+
+  const [togglingBookId, setTogglingBookId] = useState<string | null>(null);
+
+  const handleToggleActive = async (bookId: string) => {
+    setTogglingBookId(bookId);
+    setError(null);
+
+    try {
+      const data = await apiCall<{ active: boolean }>('/api/admin/books/toggleActive', {
+        method: 'POST',
+        body: JSON.stringify({ bookId }),
+      });
+
+      debugLog('[AdminBooks] Book active toggled:', bookId, data.active);
+
+      // Update local state
+      setBooks((prev) => prev.map((b) => (b.id === bookId ? { ...b, active: data.active } : b)));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to toggle active';
+      setError(msg);
+      debugError('[AdminBooks] toggleActive error:', e);
+    } finally {
+      setTogglingBookId(null);
+    }
+  };
+
+  // ============================================================================
   // DELETE BOOK
   // ============================================================================
 
@@ -658,15 +687,18 @@ export default function AdminBooks() {
 
                       {/* Ready: show active toggle */}
                       {book.status === 'ready' && (
-                        <span
-                          className={`px-3 py-1 rounded text-xs ${
+                        <button
+                          onClick={() => handleToggleActive(book.id)}
+                          disabled={togglingBookId === book.id}
+                          className={`px-3 py-1 rounded text-xs hover:opacity-80 transition disabled:opacity-50 ${
                             book.active
                               ? 'bg-emerald-100 text-emerald-800'
                               : 'bg-gray-100 text-gray-600'
                           }`}
+                          title={book.active ? 'Скрыть из поиска' : 'Показать в поиске'}
                         >
-                          {book.active ? 'Активна' : 'Скрыта'}
-                        </span>
+                          {togglingBookId === book.id ? '...' : book.active ? 'Активна' : 'Скрыта'}
+                        </button>
                       )}
 
                       {/* Delete button - always available */}

@@ -66,6 +66,7 @@ export const ingestBook = onRequest({
     timeoutSeconds: 540, // 9 minutes
     memory: '2GiB',
     region: 'europe-west1',
+    secrets: ['GEMINI_API_KEY'],
 }, async (req, res) => {
     // CORS
     res.set('Access-Control-Allow-Origin', '*');
@@ -130,9 +131,20 @@ export const ingestBook = onRequest({
         // STEP 3: Chunk
         // ============================================================
         await updateJob(jobId, { step: 'chunk', log: 'Creating chunks...' });
-        const chunks = chunkPages(parsed.pages, DEFAULT_CHUNK_CONFIG);
-        debugLog(`[ingestBook] Created ${chunks.length} chunks`);
+        let chunks;
+        try {
+            debugLog(`[ingestBook] About to chunk ${parsed.pages.length} pages`);
+            chunks = chunkPages(parsed.pages, DEFAULT_CHUNK_CONFIG);
+            debugLog(`[ingestBook] Chunking completed, got ${chunks.length} chunks`);
+        }
+        catch (chunkError) {
+            const msg = chunkError instanceof Error ? chunkError.message : String(chunkError);
+            debugError(`[ingestBook] Chunking failed: ${msg}`);
+            await updateJob(jobId, { log: `Chunking error: ${msg}` });
+            throw new Error(`Chunking failed: ${msg}`);
+        }
         if (chunks.length === 0) {
+            await updateJob(jobId, { log: 'Error: No chunks created' });
             throw new Error('No chunks created - PDF might be empty or unreadable');
         }
         await updateJob(jobId, {
@@ -143,14 +155,24 @@ export const ingestBook = onRequest({
         // STEP 4: Get embeddings
         // ============================================================
         await updateJob(jobId, { step: 'embed', log: 'Getting embeddings...' });
-        const texts = chunks.map((c) => c.text);
-        const embeddings = await getEmbeddingsBatch(texts, (done, total) => {
-            // Update progress every 10 chunks
-            if (done % 10 === 0 || done === total) {
-                updateJob(jobId, { progress: { done, total } }).catch(() => { });
-            }
-        });
-        debugLog(`[ingestBook] Got ${embeddings.length} embeddings`);
+        let embeddings;
+        try {
+            const texts = chunks.map((c) => c.text);
+            debugLog(`[ingestBook] About to get embeddings for ${texts.length} chunks`);
+            embeddings = await getEmbeddingsBatch(texts, (done, total) => {
+                // Update progress every 10 chunks
+                if (done % 10 === 0 || done === total) {
+                    updateJob(jobId, { progress: { done, total } }).catch(() => { });
+                }
+            });
+            debugLog(`[ingestBook] Embeddings completed, got ${embeddings.length} vectors`);
+        }
+        catch (embedError) {
+            const msg = embedError instanceof Error ? embedError.message : String(embedError);
+            debugError(`[ingestBook] Embeddings failed: ${msg}`);
+            await updateJob(jobId, { log: `Embeddings error: ${msg}` });
+            throw new Error(`Embeddings failed: ${msg}`);
+        }
         await updateJob(jobId, { log: `Got ${embeddings.length} embeddings` });
         // ============================================================
         // STEP 5: Save to Firestore
