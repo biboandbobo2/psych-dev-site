@@ -224,16 +224,15 @@ export default async function handler(
     const cloudFunctionUrl = process.env.INGEST_BOOK_FUNCTION_URL;
 
     if (cloudFunctionUrl) {
-      // Call Cloud Function (await to ensure request is sent before function ends)
-      try {
-        await fetch(cloudFunctionUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bookId, jobId }),
-        });
-      } catch {
+      // Call Cloud Function asynchronously (fire-and-forget)
+      // Don't await - Cloud Function runs for up to 9 minutes, would timeout Vercel function
+      fetch(cloudFunctionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookId, jobId }),
+      }).catch(() => {
         // Ignore errors - the job status will reflect any issues
-      }
+      });
     } else {
       // If no Cloud Function URL, update job to indicate manual processing needed
       await jobRef.update({
