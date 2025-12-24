@@ -117,7 +117,7 @@ export default function AdminBooks() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiCall<{ books: BookListItem[] }>('/api/admin/books/list');
+      const data = await apiCall<{ books: BookListItem[] }>('/api/admin/books?action=list');
       setBooks(data.books);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to load books';
@@ -153,9 +153,10 @@ export default function AdminBooks() {
         throw new Error('Укажите хотя бы одного автора');
       }
 
-      const data = await apiCall<{ bookId: string }>('/api/admin/books/create', {
+      const data = await apiCall<{ bookId: string }>('/api/admin/books', {
         method: 'POST',
         body: JSON.stringify({
+          action: 'create',
           title: formTitle.trim(),
           authors,
           language: formLanguage,
@@ -210,10 +211,11 @@ export default function AdminBooks() {
     try {
       // Get resumable upload URL
       const urlData = await apiCall<{ uploadUrl: string; storagePath: string }>(
-        '/api/admin/books/uploadUrl',
+        '/api/admin/books',
         {
           method: 'POST',
           body: JSON.stringify({
+            action: 'uploadUrl',
             bookId,
             contentType: file.type,
             fileSize: file.size,
@@ -265,9 +267,9 @@ export default function AdminBooks() {
   const handleStartIngestion = async (bookId: string) => {
     setError(null);
     try {
-      const data = await apiCall<{ jobId: string }>('/api/admin/books/startIngestion', {
+      const data = await apiCall<{ jobId: string }>('/api/admin/books', {
         method: 'POST',
-        body: JSON.stringify({ bookId }),
+        body: JSON.stringify({ action: 'startIngestion', bookId }),
       });
 
       debugLog('[AdminBooks] Ingestion started:', data.jobId);
@@ -297,9 +299,9 @@ export default function AdminBooks() {
     setError(null);
 
     try {
-      const data = await apiCall<{ active: boolean }>('/api/admin/books/manage', {
+      const data = await apiCall<{ active: boolean }>('/api/admin/books', {
         method: 'POST',
-        body: JSON.stringify({ action: 'toggleActive', bookId }),
+        body: JSON.stringify({ action: 'manage', subAction: 'toggleActive', bookId }),
       });
 
       debugLog('[AdminBooks] Book active toggled:', bookId, data.active);
@@ -330,9 +332,9 @@ export default function AdminBooks() {
     setError(null);
 
     try {
-      await apiCall('/api/admin/books/manage', {
+      await apiCall('/api/admin/books', {
         method: 'POST',
-        body: JSON.stringify({ action: 'delete', bookId }),
+        body: JSON.stringify({ action: 'manage', subAction: 'delete', bookId }),
       });
 
       debugLog('[AdminBooks] Book deleted:', bookId);
@@ -364,7 +366,7 @@ export default function AdminBooks() {
 
       try {
         const data = await apiCall<{ job: JobStatus }>(
-          `/api/admin/books/jobStatus?jobId=${watchingJobId}`
+          `/api/admin/books?action=jobStatus&jobId=${watchingJobId}`
         );
 
         if (cancelled) return;

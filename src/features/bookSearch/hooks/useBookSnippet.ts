@@ -30,7 +30,7 @@ export function useBookSnippet(): UseBookSnippetReturn {
     setError(null);
 
     try {
-      const res = await fetch(`/api/books/snippet?chunkId=${chunkId}&maxChars=${maxChars}`);
+      const res = await fetch(`/api/books?action=snippet&chunkId=${chunkId}&maxChars=${maxChars}`);
       const result = await res.json();
 
       if (!result.ok) {

@@ -79,10 +79,11 @@ export function useBookAnswer(): UseBookAnswerReturn {
     });
 
     try {
-      const res = await fetch('/api/books/answer', {
+      const res = await fetch('/api/books', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'answer',
           query: trimmed,
           bookIds: selectedBooks,
         }),

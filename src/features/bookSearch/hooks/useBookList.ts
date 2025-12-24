@@ -30,7 +30,7 @@ export function useBookList(): UseBookListReturn {
     setError(null);
 
     try {
-      const res = await fetch('/api/books/list');
+      const res = await fetch('/api/books?action=list');
       const data = await res.json();
 
       if (!data.ok) {

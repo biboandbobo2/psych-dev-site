@@ -1,0 +1,485 @@
+/**
+ * GET/POST /api/books
+ * Unified endpoint for all public book operations
+ * Actions: list, search, answer, snippet
+ */
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
+import { GoogleGenAI } from '@google/genai';
+import * as zlib from 'zlib';
+import { promisify } from 'util';
+
+const gunzip = promisify(zlib.gunzip);
+
+const BOOK_COLLECTIONS = { books: 'books', chunks: 'book_chunks', jobs: 'ingestion_jobs' } as const;
+const BOOK_SEARCH_CONFIG = {
+  maxBooksPerSearch: 10,
+  minBooksPerSearch: 1,
+  maxQuestionLength: 500,
+  minQuestionLength: 3,
+  candidateK: 50,
+  contextK: 10,
+  embeddingModel: 'text-embedding-004',
+  embeddingDims: 768,
+  answerMaxParagraphs: 4,
+  snippetMaxChars: 5000,
+  snippetDefaultChars: 3000,
+} as const;
+
+const BOOK_STORAGE_PATHS = { pages: (bookId: string) => `books/text/${bookId}/pages.json.gz` } as const;
+
+function initFirebaseAdmin() {
+  if (getApps().length > 0) return;
+  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!json) throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured');
+  const sa = JSON.parse(json);
+  initializeApp({
+    credential: cert(sa),
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${sa.project_id}.firebasestorage.app`,
+  });
+}
+
+let genaiClient: GoogleGenAI | null = null;
+
+function getGenAI(): GoogleGenAI {
+  if (!genaiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
+    genaiClient = new GoogleGenAI({ apiKey });
+  }
+  return genaiClient;
+}
+
+async function embedQuery(query: string): Promise<number[]> {
+  const client = getGenAI();
+  const result = await client.models.embedContent({
+    model: BOOK_SEARCH_CONFIG.embeddingModel,
+    contents: [{ role: 'user', parts: [{ text: query }] }],
+    config: { outputDimensionality: BOOK_SEARCH_CONFIG.embeddingDims },
+  });
+  const embedding = result.embeddings?.[0]?.values;
+  if (!embedding) throw new Error('Failed to get embedding');
+  return embedding;
+}
+
+function computeLexicalScore(query: string, preview: string): number {
+  const queryTerms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+  const previewLower = preview.toLowerCase();
+  let matches = 0;
+  for (const term of queryTerms) {
+    if (previewLower.includes(term)) matches++;
+  }
+  return queryTerms.length > 0 ? matches / queryTerms.length : 0;
+}
+
+const SYSTEM_PROMPT = `Ты — ИИ-помощник по психологии. Отвечай на вопрос, опираясь ТОЛЬКО на предоставленные источники.
+
+ПРАВИЛА:
+1. Ответ должен быть до 4 абзацев максимум
+2. Опирайся только на предоставленные источники [SOURCE]
+3. Для каждого утверждения указывай chunkId источника
+4. Если информации недостаточно — честно скажи об этом
+5. Отвечай на русском языке
+
+ФОРМАТ ОТВЕТА (строго JSON):
+{
+  "answer": "Ваш ответ здесь. Максимум 4 абзаца.",
+  "citations": [
+    {"chunkId": "abc123", "claim": "К какому утверждению относится"}
+  ]
+}
+
+Верни ТОЛЬКО валидный JSON, без markdown блоков.`;
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    initFirebaseAdmin();
+    const action = req.query.action as string || req.body?.action as string || '';
+
+    // LIST: GET public books
+    if (action === 'list' && req.method === 'GET') {
+      res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+
+      const db = getFirestore();
+      const snapshot = await db
+        .collection(BOOK_COLLECTIONS.books)
+        .where('status', '==', 'ready')
+        .where('active', '==', true)
+        .orderBy('title', 'asc')
+        .get();
+
+      const books = snapshot.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          title: d.title || '',
+          authors: d.authors || [],
+          language: d.language || 'ru',
+          year: d.year ?? null,
+          tags: d.tags || [],
+        };
+      });
+
+      res.status(200).json({ ok: true, books });
+      return;
+    }
+
+    // SNIPPET: GET chunk snippet
+    if (action === 'snippet' && req.method === 'GET') {
+      const { chunkId, maxChars: maxCharsParam } = req.query;
+
+      if (!chunkId || typeof chunkId !== 'string') {
+        res.status(400).json({ ok: false, error: 'chunkId is required', code: 'VALIDATION_ERROR' });
+        return;
+      }
+
+      const maxChars = Math.min(
+        Number(maxCharsParam) || BOOK_SEARCH_CONFIG.snippetDefaultChars,
+        BOOK_SEARCH_CONFIG.snippetMaxChars
+      );
+
+      const db = getFirestore();
+      const chunkDoc = await db.collection(BOOK_COLLECTIONS.chunks).doc(chunkId).get();
+
+      if (!chunkDoc.exists) {
+        res.status(404).json({ ok: false, error: 'Chunk not found', code: 'NOT_FOUND' });
+        return;
+      }
+
+      const chunkData = chunkDoc.data()!;
+      const bookId = chunkData.bookId;
+      const pageStart = chunkData.pageStart || 1;
+      const pageEnd = chunkData.pageEnd || 1;
+      const chapterTitle = chunkData.chapterTitle;
+
+      const bookDoc = await db.collection(BOOK_COLLECTIONS.books).doc(bookId).get();
+      const bookTitle = bookDoc.exists ? (bookDoc.data()?.title || 'Untitled') : 'Untitled';
+
+      let text = chunkData.preview || '';
+
+      try {
+        const storage = getStorage();
+        const bucket = storage.bucket();
+        const pagesPath = BOOK_STORAGE_PATHS.pages(bookId);
+        const file = bucket.file(pagesPath);
+        const [exists] = await file.exists();
+
+        if (exists) {
+          const [buffer] = await file.download();
+          let pagesData: Array<{ page: number; text: string }>;
+
+          try {
+            const decompressed = await gunzip(buffer);
+            pagesData = JSON.parse(decompressed.toString('utf-8'));
+          } catch {
+            pagesData = JSON.parse(buffer.toString('utf-8'));
+          }
+
+          const relevantPages = pagesData.filter((p) => p.page >= pageStart && p.page <= pageEnd);
+          if (relevantPages.length > 0) {
+            text = relevantPages.map((p) => p.text).join('\n\n');
+          }
+        }
+      } catch {}
+
+      if (text.length > maxChars) {
+        const truncated = text.slice(0, maxChars);
+        const lastSentence = Math.max(
+          truncated.lastIndexOf('. '),
+          truncated.lastIndexOf('! '),
+          truncated.lastIndexOf('? ')
+        );
+
+        if (lastSentence > maxChars * 0.7) {
+          text = truncated.slice(0, lastSentence + 1);
+        } else {
+          const lastSpace = truncated.lastIndexOf(' ');
+          if (lastSpace > maxChars * 0.8) {
+            text = truncated.slice(0, lastSpace) + '…';
+          } else {
+            text = truncated + '…';
+          }
+        }
+      }
+
+      res.status(200).json({
+        ok: true,
+        text,
+        bookTitle,
+        pageStart,
+        pageEnd,
+        ...(chapterTitle ? { chapterTitle } : {}),
+      });
+      return;
+    }
+
+    // All other actions require POST
+    if (req.method !== 'POST') {
+      res.status(405).json({ ok: false, error: 'Method not allowed' });
+      return;
+    }
+
+    const db = getFirestore();
+    const body = req.body as Record<string, unknown>;
+
+    // SEARCH
+    if (action === 'search') {
+      const startTime = Date.now();
+
+      const query = typeof body?.query === 'string' ? body.query.trim() : '';
+      const bookIds = Array.isArray(body?.bookIds) ? body.bookIds : [];
+
+      if (query.length < BOOK_SEARCH_CONFIG.minQuestionLength) {
+        res.status(400).json({ ok: false, error: 'Query too short', code: 'VALIDATION_ERROR' });
+        return;
+      }
+
+      if (bookIds.length < BOOK_SEARCH_CONFIG.minBooksPerSearch || bookIds.length > BOOK_SEARCH_CONFIG.maxBooksPerSearch) {
+        res.status(400).json({ ok: false, error: 'Invalid bookIds', code: 'VALIDATION_ERROR' });
+        return;
+      }
+
+      const booksSnapshot = await db
+        .collection(BOOK_COLLECTIONS.books)
+        .where('__name__', 'in', bookIds)
+        .get();
+
+      const bookTitles = new Map<string, string>();
+      booksSnapshot.docs.forEach((doc) => {
+        bookTitles.set(doc.id, doc.data().title || 'Untitled');
+      });
+
+      const queryEmbedding = await embedQuery(query);
+
+      const allResults: Array<{
+        id: string;
+        bookId: string;
+        pageStart: number;
+        pageEnd: number;
+        preview: string;
+        vectorScore: number;
+      }> = [];
+
+      for (const bookId of bookIds) {
+        try {
+          const chunksQuery = db
+            .collection(BOOK_COLLECTIONS.chunks)
+            .where('bookId', '==', bookId)
+            .findNearest('embedding', FieldValue.vector(queryEmbedding), {
+              limit: Math.ceil(BOOK_SEARCH_CONFIG.candidateK / bookIds.length),
+              distanceMeasure: 'COSINE',
+            });
+
+          const snapshot = await chunksQuery.get();
+
+          snapshot.docs.forEach((doc, index) => {
+            const data = doc.data();
+            const vectorScore = 1 - (index / snapshot.docs.length) * 0.5;
+
+            allResults.push({
+              id: doc.id,
+              bookId: data.bookId,
+              pageStart: data.pageStart || 1,
+              pageEnd: data.pageEnd || 1,
+              preview: data.preview || '',
+              vectorScore,
+            });
+          });
+        } catch {}
+      }
+
+      const reranked = allResults.map((result) => {
+        const lexicalScore = computeLexicalScore(query, result.preview);
+        const combinedScore = result.vectorScore * 0.7 + lexicalScore * 0.3;
+        return { ...result, score: combinedScore };
+      });
+
+      reranked.sort((a, b) => b.score - a.score);
+      const topResults = reranked.slice(0, BOOK_SEARCH_CONFIG.contextK);
+
+      const results = topResults.map((r) => ({
+        id: r.id,
+        bookId: r.bookId,
+        bookTitle: bookTitles.get(r.bookId) || 'Untitled',
+        pageStart: r.pageStart,
+        pageEnd: r.pageEnd,
+        preview: r.preview,
+        score: Math.round(r.score * 100) / 100,
+      }));
+
+      const tookMs = Date.now() - startTime;
+      res.status(200).json({ ok: true, results, tookMs });
+      return;
+    }
+
+    // ANSWER
+    if (action === 'answer') {
+      const startTime = Date.now();
+
+      const query = typeof body?.query === 'string' ? body.query.trim() : '';
+      const bookIds = Array.isArray(body?.bookIds) ? body.bookIds : [];
+
+      if (query.length < BOOK_SEARCH_CONFIG.minQuestionLength) {
+        res.status(400).json({ ok: false, error: 'Query too short', code: 'VALIDATION_ERROR' });
+        return;
+      }
+
+      if (bookIds.length === 0 || bookIds.length > BOOK_SEARCH_CONFIG.maxBooksPerSearch) {
+        res.status(400).json({ ok: false, error: 'Invalid bookIds', code: 'VALIDATION_ERROR' });
+        return;
+      }
+
+      const booksSnapshot = await db
+        .collection(BOOK_COLLECTIONS.books)
+        .where('__name__', 'in', bookIds)
+        .get();
+
+      const bookTitles = new Map<string, string>();
+      booksSnapshot.docs.forEach((doc) => {
+        bookTitles.set(doc.id, doc.data().title || 'Untitled');
+      });
+
+      const queryEmbedding = await embedQuery(query);
+
+      const allChunks: Array<{
+        id: string;
+        bookId: string;
+        pageStart: number;
+        pageEnd: number;
+        preview: string;
+      }> = [];
+
+      for (const bookId of bookIds) {
+        try {
+          const chunksQuery = db
+            .collection(BOOK_COLLECTIONS.chunks)
+            .where('bookId', '==', bookId)
+            .findNearest('embedding', FieldValue.vector(queryEmbedding), {
+              limit: Math.ceil(BOOK_SEARCH_CONFIG.contextK / bookIds.length) + 2,
+              distanceMeasure: 'COSINE',
+            });
+
+          const snapshot = await chunksQuery.get();
+
+          snapshot.docs.forEach((doc) => {
+            const data = doc.data();
+            allChunks.push({
+              id: doc.id,
+              bookId: data.bookId,
+              pageStart: data.pageStart || 1,
+              pageEnd: data.pageEnd || 1,
+              preview: data.preview || '',
+            });
+          });
+        } catch {}
+      }
+
+      const topChunks = allChunks.slice(0, BOOK_SEARCH_CONFIG.contextK);
+
+      if (topChunks.length === 0) {
+        res.status(200).json({
+          ok: true,
+          answer: 'К сожалению, в выбранных книгах не найдено релевантной информации по вашему вопросу.',
+          citations: [],
+          tookMs: Date.now() - startTime,
+        });
+        return;
+      }
+
+      const context = topChunks
+        .map((chunk) => {
+          const bookTitle = bookTitles.get(chunk.bookId) || 'Untitled';
+          return `[SOURCE chunkId="${chunk.id}" book="${bookTitle}" pages="${chunk.pageStart}-${chunk.pageEnd}"]
+${chunk.preview}
+[/SOURCE]`;
+        })
+        .join('\n\n');
+
+      const client = getGenAI();
+      const prompt = `${SYSTEM_PROMPT}
+
+ИСТОЧНИКИ:
+${context}
+
+ВОПРОС: ${query}`;
+
+      let geminiResponse: { answer: string; citations: Array<{ chunkId: string; claim: string }> };
+      let attempts = 0;
+
+      while (attempts < 2) {
+        attempts++;
+        try {
+          const result = await client.models.generateContent({
+            model: 'gemini-2.5-flash-preview-05-20',
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { temperature: 0.3, maxOutputTokens: 2000 },
+          });
+
+          const text = result.text || '';
+          let jsonText = text.trim();
+
+          const codeBlockMatch = jsonText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+          if (codeBlockMatch) {
+            jsonText = codeBlockMatch[1].trim();
+          } else {
+            jsonText = jsonText.replace(/```json\s*\n?|\n?```/g, '').trim();
+          }
+
+          if (!jsonText.startsWith('{')) {
+            const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) jsonText = jsonMatch[0];
+          }
+
+          geminiResponse = JSON.parse(jsonText);
+          break;
+        } catch (parseError) {
+          if (attempts >= 2) throw new Error('Failed to parse Gemini response as JSON');
+        }
+      }
+
+      const validChunkIds = new Set(topChunks.map((c) => c.id));
+      const chunkMap = new Map(topChunks.map((c) => [c.id, c]));
+
+      const citations = (geminiResponse!.citations || [])
+        .filter((c) => validChunkIds.has(c.chunkId))
+        .map((c) => {
+          const chunk = chunkMap.get(c.chunkId)!;
+          return {
+            chunkId: c.chunkId,
+            bookId: chunk.bookId,
+            bookTitle: bookTitles.get(chunk.bookId) || 'Untitled',
+            pageStart: chunk.pageStart,
+            pageEnd: chunk.pageEnd,
+            claim: c.claim || '',
+          };
+        });
+
+      let answer = geminiResponse!.answer || '';
+      const paragraphs = answer.split(/\n\n+/).filter((p) => p.trim().length > 0);
+      if (paragraphs.length > BOOK_SEARCH_CONFIG.answerMaxParagraphs) {
+        answer = paragraphs.slice(0, BOOK_SEARCH_CONFIG.answerMaxParagraphs).join('\n\n') + '…';
+      }
+
+      const tookMs = Date.now() - startTime;
+
+      res.status(200).json({ ok: true, answer, citations, tookMs });
+      return;
+    }
+
+    res.status(400).json({ ok: false, error: 'Invalid action' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    res.status(500).json({ ok: false, error: message });
+  }
+}
