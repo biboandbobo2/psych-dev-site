@@ -101,6 +101,7 @@ export const ingestBook = onRequest(
     timeoutSeconds: 540, // 9 minutes
     memory: '2GiB',
     region: 'europe-west1',
+    secrets: ['GEMINI_API_KEY'],
   },
   async (req, res) => {
     // CORS
