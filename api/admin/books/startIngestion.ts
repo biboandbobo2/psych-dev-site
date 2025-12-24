@@ -224,15 +224,24 @@ export default async function handler(
     const cloudFunctionUrl = process.env.INGEST_BOOK_FUNCTION_URL;
 
     if (cloudFunctionUrl) {
-      // Call Cloud Function asynchronously (fire-and-forget)
-      // Don't await - Cloud Function runs for up to 9 minutes, would timeout Vercel function
-      fetch(cloudFunctionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookId, jobId }),
-      }).catch(() => {
-        // Ignore errors - the job status will reflect any issues
-      });
+      // Call Cloud Function with timeout - we only care that request is SENT, not the response
+      // Cloud Function runs for up to 9 minutes, so we abort after 3s to avoid Vercel timeout
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+        await fetch(cloudFunctionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookId, jobId }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+      } catch (e) {
+        // Ignore timeout and network errors - as long as request was sent, Cloud Function will process
+        // Job status will reflect any processing errors
+      }
     } else {
       // If no Cloud Function URL, update job to indicate manual processing needed
       await jobRef.update({
