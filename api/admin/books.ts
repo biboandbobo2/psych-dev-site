@@ -213,8 +213,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
 
+      const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+      const bucketName = process.env.FIREBASE_STORAGE_BUCKET || `${sa.project_id}.firebasestorage.app`;
+
       const storage = getStorage();
-      const bucket = storage.bucket();
+      const bucket = storage.bucket(bucketName);
       const storagePath = BOOK_STORAGE_PATHS.raw(bookId);
       const file = bucket.file(storagePath);
 
