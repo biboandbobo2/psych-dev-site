@@ -356,7 +356,7 @@ export default function AdminBooks() {
 
   useEffect(() => {
     if (!watchingJobId) {
-      setJobStatus(null);
+      // Don't clear jobStatus here - keep it visible for error review
       return;
     }
 
@@ -372,10 +372,11 @@ export default function AdminBooks() {
         if (cancelled) return;
         setJobStatus(data.job);
 
-        // If done or error, stop polling and reload
+        // If done or error, stop polling and reload books list
         if (data.job.status === 'done' || data.job.status === 'error') {
           setWatchingJobId(null);
           loadBooks();
+          // Keep jobStatus visible so user can see error logs!
         }
       } catch (e) {
         debugError('[AdminBooks] jobStatus poll error:', e);
@@ -390,6 +391,9 @@ export default function AdminBooks() {
       clearInterval(interval);
     };
   }, [watchingJobId, loadBooks]);
+
+  // Clear job status manually
+  const clearJobStatus = () => setJobStatus(null);
 
   // ============================================================================
   // RENDER
@@ -553,20 +557,38 @@ export default function AdminBooks() {
 
       {/* Job Status Modal */}
       {jobStatus && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 space-y-3">
+        <div className={`rounded-2xl border p-5 space-y-3 ${
+          jobStatus.status === 'error'
+            ? 'border-red-200 bg-red-50'
+            : 'border-amber-200 bg-amber-50'
+        }`}>
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-amber-900">Обработка книги</h3>
-            <span className="text-sm text-amber-700">{jobStatus.stepLabel}</span>
+            <h3 className={`font-semibold ${jobStatus.status === 'error' ? 'text-red-900' : 'text-amber-900'}`}>
+              {jobStatus.status === 'error' ? 'Ошибка обработки' : 'Обработка книги'}
+            </h3>
+            <div className="flex items-center gap-2">
+              <span className={`text-sm ${jobStatus.status === 'error' ? 'text-red-700' : 'text-amber-700'}`}>
+                {jobStatus.stepLabel}
+              </span>
+              {(jobStatus.status === 'done' || jobStatus.status === 'error') && (
+                <button
+                  onClick={clearJobStatus}
+                  className="text-xs px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded"
+                >
+                  Закрыть
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="w-full bg-amber-200 rounded-full h-2">
+          <div className={`w-full rounded-full h-2 ${jobStatus.status === 'error' ? 'bg-red-200' : 'bg-amber-200'}`}>
             <div
-              className="bg-amber-600 h-2 rounded-full transition-all"
+              className={`h-2 rounded-full transition-all ${jobStatus.status === 'error' ? 'bg-red-600' : 'bg-amber-600'}`}
               style={{ width: `${jobStatus.progressPercent}%` }}
             />
           </div>
 
-          <p className="text-sm text-amber-800">
+          <p className={`text-sm ${jobStatus.status === 'error' ? 'text-red-800' : 'text-amber-800'}`}>
             Прогресс: {jobStatus.progress.done} / {jobStatus.progress.total} (
             {jobStatus.progressPercent}%)
           </p>
@@ -578,9 +600,9 @@ export default function AdminBooks() {
           )}
 
           {jobStatus.logs.length > 0 && (
-            <details className="text-xs text-amber-700">
-              <summary className="cursor-pointer">Логи ({jobStatus.logs.length})</summary>
-              <pre className="mt-2 p-2 bg-white/50 rounded overflow-x-auto">
+            <details className={`text-xs ${jobStatus.status === 'error' ? 'text-red-700' : 'text-amber-700'}`} open={jobStatus.status === 'error'}>
+              <summary className="cursor-pointer font-medium">Логи ({jobStatus.logs.length})</summary>
+              <pre className="mt-2 p-2 bg-white/50 rounded overflow-x-auto max-h-64 overflow-y-auto">
                 {jobStatus.logs.join('\n')}
               </pre>
             </details>
