@@ -127,10 +127,12 @@ export function chunkPages(
     }
 
     // Следующая позиция с overlap
+    const prevPosition = position;
     position = endPosition - config.overlap;
-    const lastIndex = chunks.length > 0 ? chunks[chunks.length - 1].index : -1;
-    if (position <= lastIndex) {
-      position = endPosition; // Избегаем бесконечного цикла
+
+    // Избегаем бесконечного цикла: если позиция не продвинулась вперёд, двигаемся на 1 символ
+    if (position <= prevPosition) {
+      position = endPosition;
     }
   }
 
