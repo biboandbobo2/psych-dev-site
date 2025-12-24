@@ -415,37 +415,39 @@ ${context}
 ВОПРОС: ${query}`;
 
       let geminiResponse: { answer: string; citations: Array<{ chunkId: string; claim: string }> };
-      let attempts = 0;
+      let rawText = '';
 
-      while (attempts < 2) {
-        attempts++;
-        try {
-          const result = await client.models.generateContent({
-            model: 'gemini-2.5-flash-preview-05-20',
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            config: { temperature: 0.3, maxOutputTokens: 2000 },
-          });
+      try {
+        const result = await client.models.generateContent({
+          model: 'gemini-2.0-flash',
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: { temperature: 0.3, maxOutputTokens: 2000 },
+        });
 
-          const text = result.text || '';
-          let jsonText = text.trim();
+        rawText = result.text || '';
+        let jsonText = rawText.trim();
 
-          const codeBlockMatch = jsonText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-          if (codeBlockMatch) {
-            jsonText = codeBlockMatch[1].trim();
-          } else {
-            jsonText = jsonText.replace(/```json\s*\n?|\n?```/g, '').trim();
-          }
-
-          if (!jsonText.startsWith('{')) {
-            const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) jsonText = jsonMatch[0];
-          }
-
-          geminiResponse = JSON.parse(jsonText);
-          break;
-        } catch (parseError) {
-          if (attempts >= 2) throw new Error('Failed to parse Gemini response as JSON');
+        // Try to extract JSON from markdown code block
+        const codeBlockMatch = jsonText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+        if (codeBlockMatch) {
+          jsonText = codeBlockMatch[1].trim();
+        } else {
+          jsonText = jsonText.replace(/```json\s*\n?|\n?```/g, '').trim();
         }
+
+        // If still has non-JSON text, try to extract JSON object
+        if (!jsonText.startsWith('{')) {
+          const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) jsonText = jsonMatch[0];
+        }
+
+        geminiResponse = JSON.parse(jsonText);
+      } catch (parseError) {
+        // Fallback: return raw text as answer without citations
+        geminiResponse = {
+          answer: rawText || 'Не удалось сгенерировать ответ. Попробуйте переформулировать вопрос.',
+          citations: []
+        };
       }
 
       const validChunkIds = new Set(topChunks.map((c) => c.id));
