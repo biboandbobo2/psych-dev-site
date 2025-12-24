@@ -116,16 +116,20 @@ export const ingestBook = onRequest({
         await updateJob(jobId, { step: 'extract', log: 'Extracting text...' });
         const parsed = await parsePdf(pdfBuffer);
         debugLog(`[ingestBook] Parsed ${parsed.totalPages} pages`);
+        // Calculate total text length
+        const totalChars = parsed.pages.reduce((sum, p) => sum + p.text.length, 0);
+        const avgCharsPerPage = totalChars / parsed.totalPages;
+        debugLog(`[ingestBook] Total text: ${totalChars} chars, avg per page: ${avgCharsPerPage.toFixed(0)}`);
         // Check for scan
         if (isProbablyScan(parsed.pages)) {
             await updateJob(jobId, {
-                log: 'Warning: Low text density, might be a scanned PDF',
+                log: `Warning: Low text density (${totalChars} chars total, avg ${avgCharsPerPage.toFixed(0)}/page)`,
             });
         }
         // Update book with page count
         await updateBook(bookId, { pageCount: parsed.totalPages });
         await updateJob(jobId, {
-            log: `Extracted text from ${parsed.totalPages} pages`,
+            log: `Extracted text from ${parsed.totalPages} pages (${totalChars} chars)`,
         });
         // ============================================================
         // STEP 3: Chunk

@@ -297,9 +297,9 @@ export default function AdminBooks() {
     setError(null);
 
     try {
-      const data = await apiCall<{ active: boolean }>('/api/admin/books/toggleActive', {
+      const data = await apiCall<{ active: boolean }>('/api/admin/books/manage', {
         method: 'POST',
-        body: JSON.stringify({ bookId }),
+        body: JSON.stringify({ action: 'toggleActive', bookId }),
       });
 
       debugLog('[AdminBooks] Book active toggled:', bookId, data.active);
@@ -330,9 +330,9 @@ export default function AdminBooks() {
     setError(null);
 
     try {
-      await apiCall('/api/admin/books/delete', {
-        method: 'DELETE',
-        body: JSON.stringify({ bookId }),
+      await apiCall('/api/admin/books/manage', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete', bookId }),
       });
 
       debugLog('[AdminBooks] Book deleted:', bookId);
