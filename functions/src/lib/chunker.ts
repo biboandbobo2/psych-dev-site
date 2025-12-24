@@ -72,6 +72,7 @@ export function chunkPages(
   // Полный текст
   const fullText = segments.map((s) => s.text).join('\n');
   debugLog(`[chunker] Segments: ${segments.length}, fullText length: ${fullText.length}`);
+  debugLog(`[chunker] Config: minChars=${config.minChars}, maxChars=${config.maxChars}, overlap=${config.overlap}`);
 
   // Разбиваем на чанки
   let position = 0;
@@ -105,6 +106,11 @@ export function chunkPages(
     const shouldCreateChunk =
       chunkText.length >= config.minChars / 2 ||
       (isLastChunk && chunks.length === 0 && chunkText.length > 0);
+
+    debugLog(
+      `[chunker] pos=${position}, end=${endPosition}, chunkLen=${chunkText.length}, ` +
+        `isLast=${isLastChunk}, shouldCreate=${shouldCreateChunk}, chunksCount=${chunks.length}`
+    );
 
     if (shouldCreateChunk) {
       // Определяем страницы
