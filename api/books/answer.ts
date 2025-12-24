@@ -290,9 +290,25 @@ ${context}
 
         const text = result.text || '';
 
-        // Parse JSON from response
-        // Remove markdown code blocks if present
-        const jsonText = text.replace(/```json\n?|\n?```/g, '').trim();
+        // Parse JSON from response - handle various formats
+        let jsonText = text.trim();
+
+        // Try to extract JSON from markdown code block
+        const codeBlockMatch = jsonText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+        if (codeBlockMatch) {
+          jsonText = codeBlockMatch[1].trim();
+        } else {
+          // Remove any markdown code block markers
+          jsonText = jsonText.replace(/```json\s*\n?|\n?```/g, '').trim();
+        }
+
+        // If still has non-JSON text, try to extract JSON object
+        if (!jsonText.startsWith('{')) {
+          const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            jsonText = jsonMatch[0];
+          }
+        }
 
         geminiResponse = JSON.parse(jsonText);
         break;
