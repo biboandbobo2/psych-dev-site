@@ -57,8 +57,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     initFirebaseAdmin();
     const action = req.query.action as string || req.body?.action as string || '';
 
-    // Public endpoint: list books (admin view)
-    if (action === 'list' && req.method === 'GET') {
+    // GET endpoints: list, jobStatus
+    if (req.method === 'GET') {
       const authResult = await verifyAuth(req);
       if (!authResult.valid) {
         res.status(authResult.code === 'FORBIDDEN' ? 403 : 401).json({ ok: false, error: authResult.error });
@@ -66,29 +66,82 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const db = getFirestore();
-      const snapshot = await db.collection(BOOK_COLLECTIONS.books).orderBy('createdAt', 'desc').get();
-      const books = snapshot.docs.map((doc) => {
-        const d = doc.data();
-        return {
-          id: doc.id,
-          title: d.title || '',
-          authors: d.authors || [],
-          language: d.language || 'ru',
-          year: d.year ?? null,
-          tags: d.tags || [],
-          status: d.status || 'draft',
-          active: d.active ?? false,
-          chunksCount: d.chunksCount ?? null,
-          createdAt: d.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
-          updatedAt: d.updatedAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
-        };
-      });
 
-      res.status(200).json({ ok: true, books });
+      // LIST
+      if (action === 'list') {
+        const snapshot = await db.collection(BOOK_COLLECTIONS.books).orderBy('createdAt', 'desc').get();
+        const books = snapshot.docs.map((doc) => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            title: d.title || '',
+            authors: d.authors || [],
+            language: d.language || 'ru',
+            year: d.year ?? null,
+            tags: d.tags || [],
+            status: d.status || 'draft',
+            active: d.active ?? false,
+            chunksCount: d.chunksCount ?? null,
+            createdAt: d.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
+            updatedAt: d.updatedAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
+          };
+        });
+        res.status(200).json({ ok: true, books });
+        return;
+      }
+
+      // JOB STATUS (GET)
+      if (action === 'jobStatus') {
+        const jobId = (req.query.jobId as string) || '';
+        if (!jobId) {
+          res.status(400).json({ ok: false, error: 'jobId required' });
+          return;
+        }
+
+        const jobRef = db.collection(BOOK_COLLECTIONS.jobs).doc(jobId);
+        const jobDoc = await jobRef.get();
+
+        if (!jobDoc.exists) {
+          res.status(404).json({ ok: false, error: 'Job not found' });
+          return;
+        }
+
+        const jobData = jobDoc.data()!;
+        const progress = jobData.progress || { done: 0, total: 0 };
+        const progressPercent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+
+        const STEP_LABELS: Record<string, string> = {
+          download: 'Загрузка PDF',
+          extract: 'Извлечение текста',
+          chunk: 'Разбиение на части',
+          embed: 'Создание эмбеддингов',
+          save: 'Сохранение',
+        };
+
+        res.status(200).json({
+          ok: true,
+          job: {
+            id: jobDoc.id,
+            bookId: jobData.bookId,
+            status: jobData.status,
+            step: jobData.step,
+            stepLabel: STEP_LABELS[jobData.step] || jobData.step,
+            progress,
+            progressPercent,
+            startedAt: jobData.startedAt?.toDate?.()?.toISOString?.(),
+            finishedAt: jobData.finishedAt?.toDate?.()?.toISOString?.() || null,
+            logs: jobData.logs || [],
+            error: jobData.error || null,
+          },
+        });
+        return;
+      }
+
+      res.status(400).json({ ok: false, error: 'Invalid GET action' });
       return;
     }
 
-    // All other actions require POST and auth
+    // All other actions require POST
     if (req.method !== 'POST') {
       res.status(405).json({ ok: false, error: 'Method not allowed' });
       return;
@@ -216,7 +269,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
       const bucketName = process.env.FIREBASE_STORAGE_BUCKET || `${sa.project_id}.firebasestorage.app`;
 
-      // Use direct Storage initialization for signed URLs (Firebase Admin SDK has issues)
+      // Use direct Storage initialization with createResumableUpload (not getSignedUrl!)
       const storage = new Storage({
         projectId: sa.project_id,
         credentials: sa
@@ -225,14 +278,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const storagePath = BOOK_STORAGE_PATHS.raw(bookId);
       const file = bucket.file(storagePath);
 
-      const [uploadUrl] = await file.getSignedUrl({
-        version: 'v4',
-        action: 'write',
-        expires: Date.now() + 15 * 60 * 1000,
-        contentType: 'application/pdf',
+      // Create resumable upload URI with CORS origin
+      const origin = req.headers.origin || '*';
+      const [uploadUrl] = await file.createResumableUpload({
+        origin,
+        metadata: {
+          contentType: 'application/pdf',
+        },
       });
 
-      await bookRef.update({ status: 'uploaded', updatedAt: Timestamp.now() });
+      await bookRef.update({ updatedAt: Timestamp.now() });
 
       res.status(200).json({ ok: true, uploadUrl, storagePath });
       return;
@@ -323,54 +378,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       res.status(200).json({ ok: true, jobId, message: 'Ingestion started' });
-      return;
-    }
-
-    // JOB STATUS
-    if (action === 'jobStatus') {
-      const jobId = (req.query.jobId as string) || '';
-
-      if (!jobId) {
-        res.status(400).json({ ok: false, error: 'jobId required' });
-        return;
-      }
-
-      const jobRef = db.collection(BOOK_COLLECTIONS.jobs).doc(jobId);
-      const jobDoc = await jobRef.get();
-
-      if (!jobDoc.exists) {
-        res.status(404).json({ ok: false, error: 'Job not found' });
-        return;
-      }
-
-      const jobData = jobDoc.data()!;
-      const progress = jobData.progress || { done: 0, total: 0 };
-      const progressPercent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
-
-      const STEP_LABELS: Record<string, string> = {
-        download: 'Загрузка PDF',
-        extract: 'Извлечение текста',
-        chunk: 'Разбиение на части',
-        embed: 'Создание эмбеддингов',
-        save: 'Сохранение',
-      };
-
-      res.status(200).json({
-        ok: true,
-        job: {
-          id: jobDoc.id,
-          bookId: jobData.bookId,
-          status: jobData.status,
-          step: jobData.step,
-          stepLabel: STEP_LABELS[jobData.step] || jobData.step,
-          progress,
-          progressPercent,
-          startedAt: jobData.startedAt?.toDate?.()?.toISOString?.(),
-          finishedAt: jobData.finishedAt?.toDate?.()?.toISOString?.() || null,
-          logs: jobData.logs || [],
-          error: jobData.error || null,
-        },
-      });
       return;
     }
 
