@@ -216,7 +216,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
       const bucketName = process.env.FIREBASE_STORAGE_BUCKET || `${sa.project_id}.firebasestorage.app`;
 
-      const storage = getStorage();
+      // Use direct Storage initialization for signed URLs (Firebase Admin SDK has issues)
+      const storage = new Storage({
+        projectId: sa.project_id,
+        credentials: sa
+      });
       const bucket = storage.bucket(bucketName);
       const storagePath = BOOK_STORAGE_PATHS.raw(bookId);
       const file = bucket.file(storagePath);
