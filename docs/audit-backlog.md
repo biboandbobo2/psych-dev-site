@@ -14,6 +14,7 @@
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
 | MP-4 | M (S) | Документация и tooling вокруг тестов | Скрипт `ts:prune`, README policy, обновление lazy-docов и perf метрик |
 | LP-1 | L (M) | Observability / telemetry | Базовый logger (Sentry/PostHog), описание процессов |
+| LP-5 | L (S-M) | Firebase/GCP Warnings | Миграция functions.config, обновление пакетов, cleanup policy, индексы |
 | RS-1 | M (M) | Глубокий поиск через Wikidata | Кнопка + API параметр `deep=true`, расширение запроса через Wikidata |
 | RS-2 | M (S) | Расширение словаря терминов | 500+ терминов RU→EN, словари для DE/FR/ES, JSON файлы |
 | RS-3 | M (L) | Мультиязычный поиск (не фильтр) | Переключатель режима, перевод запроса на выбранные языки |
@@ -136,6 +137,66 @@
 - **Контекст:** Добавлено при отладке, когда Vercel Dashboard не сохранял env vars
 - **Решение:** Сейчас работает GEMINI_API_KEY, остальные можно удалить
 - **Статус:** 🟢 Не критично — fallbacks не мешают, но добавляют шум в код
+
+### LP‑5. Firebase/GCP Warnings (P: L, E: S-M)
+- **Warnings от Firebase deploy (2025-12-25):**
+
+#### 1. functions.config() API Deprecated (Deadline: March 2026)
+- **Проблема:** Cloud Runtime Configuration API будет отключён в марте 2026
+- **Влияние:** После March 2026 деплой функций с `functions.config()` будет падать
+- **Решение:**
+  - [ ] Мигрировать с `functions.config()` на `.env` файлы и Secret Manager
+  - [ ] Документация: https://firebase.google.com/docs/functions/config-env#migrate-to-dotenv
+  - [ ] Проверить все функции в `functions/src/` на использование `functions.config()`
+  - [ ] Обновить документацию по деплою
+- **Приоритет:** 🟡 Средний (есть 1+ год), но не забыть
+- **Оценка:** 1-2 часа (если env vars уже настроены)
+
+#### 2. firebase-functions Package Outdated
+- **Проблема:** `package.json` указывает на устаревшую версию `firebase-functions`
+- **Текущая версия:** (нужно проверить в `functions/package.json`)
+- **Последняя версия:** `firebase-functions@latest`
+- **Решение:**
+  - [ ] `cd functions && npm install --save firebase-functions@latest`
+  - [ ] Проверить breaking changes: https://firebase.google.com/support/release-notes/functions
+  - [ ] Протестировать все функции после обновления (особенно Gen2 ingestBook)
+  - [ ] Обновить тайпинги и импорты при необходимости
+- **Предупреждение:** ⚠️ Могут быть breaking changes
+- **Приоритет:** 🟡 Средний
+- **Оценка:** 2-4 часа (с тестированием)
+
+#### 3. Container Images Cleanup Policy (europe-west1)
+- **Проблема:** Нет cleanup policy для Docker образов Cloud Functions в region `europe-west1`
+- **Влияние:** Небольшой месячный счёт (~$1-5/месяц) из-за накопления старых образов
+- **Решение (опция 1):** Автоматическая настройка при деплое
+  ```bash
+  firebase deploy --only functions --force
+  ```
+- **Решение (опция 2):** Ручная настройка
+  ```bash
+  firebase functions:artifacts:setpolicy
+  ```
+- **Решение (опция 3):** Через GCP Console
+  - Artifact Registry → Repositories → gcf-artifacts (europe-west1) → Cleanup Policies
+  - Создать политику: Keep last 10 images, delete older than 30 days
+- **Приоритет:** 🟢 Низкий (только деньги, не функциональность)
+- **Оценка:** 15 минут
+- **Статус:** 🟡 Можно сделать при следующем деплое с `--force`
+
+#### 4. Firestore Composite Indexes Missing
+- **Проблема:** Нет composite индексов для adjacent chunks queries в `book_chunks`
+- **Ошибка:** `9 FAILED_PRECONDITION: The query requires an index`
+- **Нужные индексы:**
+  1. `book_chunks`: `bookId` (ASC) + `pageEnd` (DESC) + `__name__` (ASC)
+  2. `book_chunks`: `bookId` (ASC) + `pageStart` (ASC) + `__name__` (ASC)
+- **Решение:**
+  - [x] Обновлён `firestore.indexes.json` с индексами
+  - [ ] Создать индексы через Firebase Console (ссылка в ошибке)
+  - [ ] Альтернатива: `firebase deploy --only firestore:indexes --force`
+- **Ссылка из ошибки:** https://console.firebase.google.com/v1/r/project/psych-dev-site-prod/firestore/indexes?create_composite=Cldwcm9qZWN0cy9wc3ljaC1kZXYtc2l0ZS1wcm9kL2RhdGFiYXNlcy8oZGVmYXVsdCkvY29sbGVjdGlvbkdyb3Vwcy9ib29rX2NodW5rcy9pbmRleGVzL18QARoKCgZib29rSWQQARoLCgdwYWdlRW5kEAIaDAoIX19uYW1lX18QAg
+- **Приоритет:** 🔴 Высокий (блокирует функцию "раскрыть цитату")
+- **Оценка:** 5 минут (клик в консоли, индексация 2-10 минут)
+- **Статус:** ⏳ В процессе (индексы создаются)
 
 ---
 
