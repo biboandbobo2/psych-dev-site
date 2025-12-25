@@ -2,102 +2,33 @@
  * Админ-страница управления библиотекой книг для RAG
  * Доступна только superadmin
  */
-import { useState, useEffect, useCallback, type FormEvent, type ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { ref, uploadBytesResumable } from 'firebase/storage';
 
 import { useAuth } from '../auth/AuthProvider';
-import { storage, auth } from '../lib/firebase';
 import { debugLog, debugError } from '../lib/debug';
+import { MAX_BOOK_FILE_SIZE } from '../constants/books';
 import {
-  BOOK_STATUS_LABELS,
-  BOOK_LANGUAGE_LABELS,
-  BOOK_TAG_LABELS,
-  MAX_BOOK_FILE_SIZE,
-  INGESTION_STEP_LABELS,
-} from '../constants/books';
-import type { BookLanguage, BookTag, BookStatus, IngestionStep } from '../types/books';
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-interface BookListItem {
-  id: string;
-  title: string;
-  authors: string[];
-  language: string;
-  year: number | null;
-  tags: string[];
-  status: BookStatus;
-  active: boolean;
-  chunksCount: number | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface JobStatus {
-  id: string;
-  bookId: string;
-  status: string;
-  step: IngestionStep;
-  stepLabel: string;
-  progress: { done: number; total: number };
-  progressPercent: number;
-  logs: string[];
-  error: { message: string; step: string } | null;
-}
-
-// ============================================================================
-// API HELPERS
-// ============================================================================
-
-async function getAuthToken(): Promise<string> {
-  const user = auth.currentUser;
-  if (!user) throw new Error('Not authenticated');
-  return user.getIdToken();
-}
-
-async function apiCall<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const token = await getAuthToken();
-  const res = await fetch(endpoint, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
-  });
-  const data = await res.json();
-  if (!data.ok) {
-    throw new Error(data.error || 'API error');
-  }
-  return data;
-}
-
-// ============================================================================
-// COMPONENT
-// ============================================================================
+  BookCreateForm,
+  BookEditModal,
+  JobStatusPanel,
+  BookTableRow,
+  apiCall,
+  type BookListItem,
+  type JobStatus,
+} from './admin/books';
 
 export default function AdminBooks() {
-  const { user, isSuperAdmin } = useAuth();
+  const { isSuperAdmin } = useAuth();
 
   // State
   const [books, setBooks] = useState<BookListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Create form
+  // Forms
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [formTitle, setFormTitle] = useState('');
-  const [formAuthors, setFormAuthors] = useState('');
-  const [formLanguage, setFormLanguage] = useState<BookLanguage>('ru');
-  const [formYear, setFormYear] = useState('');
-  const [formTags, setFormTags] = useState<BookTag[]>([]);
-  const [creating, setCreating] = useState(false);
+  const [editingBook, setEditingBook] = useState<BookListItem | null>(null);
 
   // Upload state
   const [uploadBookId, setUploadBookId] = useState<string | null>(null);
@@ -107,6 +38,10 @@ export default function AdminBooks() {
   // Job status
   const [watchingJobId, setWatchingJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
+
+  // Action states
+  const [togglingBookId, setTogglingBookId] = useState<string | null>(null);
+  const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
 
   // ============================================================================
   // LOAD BOOKS
@@ -133,60 +68,6 @@ export default function AdminBooks() {
   }, [loadBooks]);
 
   // ============================================================================
-  // CREATE BOOK
-  // ============================================================================
-
-  const handleCreateSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (creating) return;
-
-    setCreating(true);
-    setError(null);
-
-    try {
-      const authors = formAuthors
-        .split(',')
-        .map((a) => a.trim())
-        .filter((a) => a.length > 0);
-
-      if (authors.length === 0) {
-        throw new Error('Укажите хотя бы одного автора');
-      }
-
-      const data = await apiCall<{ bookId: string }>('/api/admin/books', {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'create',
-          title: formTitle.trim(),
-          authors,
-          language: formLanguage,
-          year: formYear ? parseInt(formYear, 10) : undefined,
-          tags: formTags,
-        }),
-      });
-
-      debugLog('[AdminBooks] Book created:', data.bookId);
-
-      // Reset form
-      setFormTitle('');
-      setFormAuthors('');
-      setFormLanguage('ru');
-      setFormYear('');
-      setFormTags([]);
-      setShowCreateForm(false);
-
-      // Reload list
-      await loadBooks();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to create book';
-      setError(msg);
-      debugError('[AdminBooks] createBook error:', e);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  // ============================================================================
   // UPLOAD FILE
   // ============================================================================
 
@@ -194,7 +75,6 @@ export default function AdminBooks() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate
     if (file.type !== 'application/pdf') {
       setUploadError('Только PDF файлы');
       return;
@@ -209,7 +89,6 @@ export default function AdminBooks() {
     setUploadError(null);
 
     try {
-      // Get resumable upload URL
       const urlData = await apiCall<{ uploadUrl: string; storagePath: string }>(
         '/api/admin/books',
         {
@@ -225,7 +104,6 @@ export default function AdminBooks() {
 
       setUploadProgress(25);
 
-      // Upload directly to Storage using resumable upload URL
       const uploadRes = await fetch(urlData.uploadUrl, {
         method: 'PUT',
         headers: {
@@ -243,12 +121,10 @@ export default function AdminBooks() {
       setUploadProgress(100);
       debugLog('[AdminBooks] Upload complete for book:', bookId);
 
-      // Update book status in local state
       setBooks((prev) =>
-        prev.map((b) => (b.id === bookId ? { ...b, status: 'uploaded' as BookStatus } : b))
+        prev.map((b) => (b.id === bookId ? { ...b, status: 'uploaded' } : b))
       );
 
-      // Clear upload state after delay
       setTimeout(() => {
         setUploadBookId(null);
         setUploadProgress(0);
@@ -261,7 +137,7 @@ export default function AdminBooks() {
   };
 
   // ============================================================================
-  // START INGESTION
+  // ACTIONS
   // ============================================================================
 
   const handleStartIngestion = async (bookId: string) => {
@@ -274,12 +150,10 @@ export default function AdminBooks() {
 
       debugLog('[AdminBooks] Ingestion started:', data.jobId);
 
-      // Update book status
       setBooks((prev) =>
-        prev.map((b) => (b.id === bookId ? { ...b, status: 'processing' as BookStatus } : b))
+        prev.map((b) => (b.id === bookId ? { ...b, status: 'processing' } : b))
       );
 
-      // Start watching job
       setWatchingJobId(data.jobId);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to start ingestion';
@@ -287,12 +161,6 @@ export default function AdminBooks() {
       debugError('[AdminBooks] startIngestion error:', e);
     }
   };
-
-  // ============================================================================
-  // TOGGLE ACTIVE
-  // ============================================================================
-
-  const [togglingBookId, setTogglingBookId] = useState<string | null>(null);
 
   const handleToggleActive = async (bookId: string) => {
     setTogglingBookId(bookId);
@@ -305,8 +173,6 @@ export default function AdminBooks() {
       });
 
       debugLog('[AdminBooks] Book active toggled:', bookId, data.active);
-
-      // Update local state
       setBooks((prev) => prev.map((b) => (b.id === bookId ? { ...b, active: data.active } : b)));
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to toggle active';
@@ -316,21 +182,6 @@ export default function AdminBooks() {
       setTogglingBookId(null);
     }
   };
-
-  // ============================================================================
-  // DELETE BOOK
-  // ============================================================================
-
-  const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
-
-  // Edit state
-  const [editingBook, setEditingBook] = useState<BookListItem | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editAuthors, setEditAuthors] = useState('');
-  const [editYear, setEditYear] = useState('');
-  const [editLanguage, setEditLanguage] = useState<BookLanguage>('ru');
-  const [editTags, setEditTags] = useState<BookTag[]>([]);
-  const [saving, setSaving] = useState(false);
 
   const handleDeleteBook = async (bookId: string) => {
     if (!confirm('Вы уверены? Удалятся книга, все чанки, задания и PDF файл. Это действие необратимо.')) {
@@ -347,8 +198,6 @@ export default function AdminBooks() {
       });
 
       debugLog('[AdminBooks] Book deleted:', bookId);
-
-      // Remove from local state
       setBooks((prev) => prev.filter((b) => b.id !== bookId));
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to delete book';
@@ -360,76 +209,15 @@ export default function AdminBooks() {
   };
 
   // ============================================================================
-  // EDIT BOOK
+  // EDIT HANDLERS
   // ============================================================================
 
-  const startEditing = (book: BookListItem) => {
-    setEditingBook(book);
-    setEditTitle(book.title);
-    setEditAuthors(book.authors.join(', '));
-    setEditYear(book.year?.toString() || '');
-    setEditLanguage(book.language as BookLanguage);
-    setEditTags(book.tags as BookTag[]);
-  };
-
-  const cancelEditing = () => {
+  const handleEditSaved = (updates: Partial<BookListItem>) => {
+    if (!editingBook) return;
+    setBooks((prev) =>
+      prev.map((b) => (b.id === editingBook.id ? { ...b, ...updates } : b))
+    );
     setEditingBook(null);
-    setEditTitle('');
-    setEditAuthors('');
-    setEditYear('');
-    setEditLanguage('ru');
-    setEditTags([]);
-  };
-
-  const handleEditSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!editingBook || saving) return;
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      const authors = editAuthors
-        .split(',')
-        .map((a) => a.trim())
-        .filter((a) => a.length > 0);
-
-      if (authors.length === 0) {
-        throw new Error('Укажите хотя бы одного автора');
-      }
-
-      await apiCall('/api/admin/books', {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'update',
-          bookId: editingBook.id,
-          title: editTitle.trim(),
-          authors,
-          year: editYear ? parseInt(editYear, 10) : null,
-          language: editLanguage,
-          tags: editTags,
-        }),
-      });
-
-      debugLog('[AdminBooks] Book updated:', editingBook.id);
-
-      // Update local state
-      setBooks((prev) =>
-        prev.map((b) =>
-          b.id === editingBook.id
-            ? { ...b, title: editTitle.trim(), authors, year: editYear ? parseInt(editYear, 10) : null, language: editLanguage, tags: editTags }
-            : b
-        )
-      );
-
-      cancelEditing();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to update book';
-      setError(msg);
-      debugError('[AdminBooks] updateBook error:', e);
-    } finally {
-      setSaving(false);
-    }
   };
 
   // ============================================================================
@@ -437,10 +225,7 @@ export default function AdminBooks() {
   // ============================================================================
 
   useEffect(() => {
-    if (!watchingJobId) {
-      // Don't clear jobStatus here - keep it visible for error review
-      return;
-    }
+    if (!watchingJobId) return;
 
     let cancelled = false;
     const poll = async () => {
@@ -454,11 +239,9 @@ export default function AdminBooks() {
         if (cancelled) return;
         setJobStatus(data.job);
 
-        // If done or error, stop polling and reload books list
         if (data.job.status === 'done' || data.job.status === 'error') {
           setWatchingJobId(null);
           loadBooks();
-          // Keep jobStatus visible so user can see error logs!
         }
       } catch (e) {
         debugError('[AdminBooks] jobStatus poll error:', e);
@@ -473,9 +256,6 @@ export default function AdminBooks() {
       clearInterval(interval);
     };
   }, [watchingJobId, loadBooks]);
-
-  // Clear job status manually
-  const clearJobStatus = () => setJobStatus(null);
 
   // ============================================================================
   // RENDER
@@ -495,12 +275,11 @@ export default function AdminBooks() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Библиотека книг</h1>
-          <p className="text-sm text-muted mt-1">
-            Управление книгами для RAG-поиска
-          </p>
+          <p className="text-sm text-muted mt-1">Управление книгами для RAG-поиска</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -528,280 +307,29 @@ export default function AdminBooks() {
 
       {/* Create Form */}
       {showCreateForm && (
-        <form
-          onSubmit={handleCreateSubmit}
-          className="rounded-2xl border border-border bg-card p-5 space-y-4"
-        >
-          <h2 className="text-lg font-semibold">Новая книга</h2>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium mb-1">Название *</label>
-              <input
-                type="text"
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-border rounded-lg bg-card focus:ring-2 focus:ring-accent/30"
-                placeholder="Психология развития"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Авторы * (через запятую)</label>
-              <input
-                type="text"
-                value={formAuthors}
-                onChange={(e) => setFormAuthors(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-border rounded-lg bg-card focus:ring-2 focus:ring-accent/30"
-                placeholder="Выготский Л.С., Леонтьев А.Н."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Язык</label>
-              <select
-                value={formLanguage}
-                onChange={(e) => setFormLanguage(e.target.value as BookLanguage)}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-card"
-              >
-                {Object.entries(BOOK_LANGUAGE_LABELS).map(([code, label]) => (
-                  <option key={code} value={code}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Год издания</label>
-              <input
-                type="number"
-                value={formYear}
-                onChange={(e) => setFormYear(e.target.value)}
-                min="1800"
-                max={new Date().getFullYear() + 1}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-card"
-                placeholder="2020"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Теги</label>
-            <div className="flex flex-wrap gap-2">
-              {(Object.entries(BOOK_TAG_LABELS) as [BookTag, string][]).map(([tag, label]) => (
-                <label
-                  key={tag}
-                  className={`px-3 py-1 rounded-full text-sm cursor-pointer transition ${
-                    formTags.includes(tag)
-                      ? 'bg-accent text-white'
-                      : 'bg-card2 text-muted hover:bg-card2/80'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={formTags.includes(tag)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setFormTags([...formTags, tag]);
-                      } else {
-                        setFormTags(formTags.filter((t) => t !== tag));
-                      }
-                    }}
-                    className="sr-only"
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setShowCreateForm(false)}
-              className="px-4 py-2 border border-border rounded-lg hover:bg-card2"
-            >
-              Отмена
-            </button>
-            <button
-              type="submit"
-              disabled={creating || !formTitle.trim() || !formAuthors.trim()}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {creating ? 'Создание...' : 'Создать'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Job Status Modal */}
-      {jobStatus && (
-        <div className={`rounded-2xl border p-5 space-y-3 ${
-          jobStatus.status === 'error'
-            ? 'border-red-200 bg-red-50'
-            : 'border-amber-200 bg-amber-50'
-        }`}>
-          <div className="flex items-center justify-between">
-            <h3 className={`font-semibold ${jobStatus.status === 'error' ? 'text-red-900' : 'text-amber-900'}`}>
-              {jobStatus.status === 'error' ? 'Ошибка обработки' : 'Обработка книги'}
-            </h3>
-            <div className="flex items-center gap-2">
-              <span className={`text-sm ${jobStatus.status === 'error' ? 'text-red-700' : 'text-amber-700'}`}>
-                {jobStatus.stepLabel}
-              </span>
-              {(jobStatus.status === 'done' || jobStatus.status === 'error') && (
-                <button
-                  onClick={clearJobStatus}
-                  className="text-xs px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded"
-                >
-                  Закрыть
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className={`w-full rounded-full h-2 ${jobStatus.status === 'error' ? 'bg-red-200' : 'bg-amber-200'}`}>
-            <div
-              className={`h-2 rounded-full transition-all ${jobStatus.status === 'error' ? 'bg-red-600' : 'bg-amber-600'}`}
-              style={{ width: `${jobStatus.progressPercent}%` }}
-            />
-          </div>
-
-          <p className={`text-sm ${jobStatus.status === 'error' ? 'text-red-800' : 'text-amber-800'}`}>
-            Прогресс: {jobStatus.progress.done} / {jobStatus.progress.total} (
-            {jobStatus.progressPercent}%)
-          </p>
-
-          {jobStatus.error && (
-            <div className="text-sm text-red-800 bg-red-100 rounded p-2">
-              Ошибка: {jobStatus.error.message}
-            </div>
-          )}
-
-          {jobStatus.logs.length > 0 && (
-            <details className={`text-xs ${jobStatus.status === 'error' ? 'text-red-700' : 'text-amber-700'}`} open={jobStatus.status === 'error'}>
-              <summary className="cursor-pointer font-medium">Логи ({jobStatus.logs.length})</summary>
-              <pre className="mt-2 p-2 bg-white/50 rounded overflow-x-auto max-h-64 overflow-y-auto">
-                {jobStatus.logs.join('\n')}
-              </pre>
-            </details>
-          )}
-        </div>
+        <BookCreateForm
+          onCreated={() => {
+            setShowCreateForm(false);
+            loadBooks();
+          }}
+          onCancel={() => setShowCreateForm(false)}
+          onError={setError}
+        />
       )}
 
       {/* Edit Modal */}
       {editingBook && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <form
-            onSubmit={handleEditSubmit}
-            className="w-full max-w-lg mx-4 rounded-2xl border border-border bg-card p-5 space-y-4 shadow-xl"
-          >
-            <h2 className="text-lg font-semibold">Редактирование книги</h2>
+        <BookEditModal
+          book={editingBook}
+          onSaved={handleEditSaved}
+          onCancel={() => setEditingBook(null)}
+          onError={setError}
+        />
+      )}
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Название *</label>
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-card focus:ring-2 focus:ring-accent/30"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Авторы * (через запятую)</label>
-                <input
-                  type="text"
-                  value={editAuthors}
-                  onChange={(e) => setEditAuthors(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-card focus:ring-2 focus:ring-accent/30"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Год издания</label>
-                  <input
-                    type="number"
-                    value={editYear}
-                    onChange={(e) => setEditYear(e.target.value)}
-                    min="1800"
-                    max={new Date().getFullYear() + 1}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-card"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Язык</label>
-                  <select
-                    value={editLanguage}
-                    onChange={(e) => setEditLanguage(e.target.value as BookLanguage)}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-card"
-                  >
-                    {Object.entries(BOOK_LANGUAGE_LABELS).map(([code, label]) => (
-                      <option key={code} value={code}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Теги</label>
-                <div className="flex flex-wrap gap-2">
-                  {(Object.entries(BOOK_TAG_LABELS) as [BookTag, string][]).map(([tag, label]) => (
-                    <label
-                      key={tag}
-                      className={`px-3 py-1 rounded-full text-sm cursor-pointer transition ${
-                        editTags.includes(tag)
-                          ? 'bg-accent text-white'
-                          : 'bg-card2 text-muted hover:bg-card2/80'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={editTags.includes(tag)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setEditTags([...editTags, tag]);
-                          } else {
-                            setEditTags(editTags.filter((t) => t !== tag));
-                          }
-                        }}
-                        className="sr-only"
-                      />
-                      {label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={cancelEditing}
-                className="px-4 py-2 border border-border rounded-lg hover:bg-card2"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={saving || !editTitle.trim() || !editAuthors.trim()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                {saving ? 'Сохранение...' : 'Сохранить'}
-              </button>
-            </div>
-          </form>
-        </div>
+      {/* Job Status */}
+      {jobStatus && (
+        <JobStatusPanel job={jobStatus} onClose={() => setJobStatus(null)} />
       )}
 
       {/* Books Table */}
@@ -825,121 +353,19 @@ export default function AdminBooks() {
             </thead>
             <tbody>
               {books.map((book) => (
-                <tr key={book.id} className="border-t border-border hover:bg-card2/50">
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{book.title}</div>
-                    <div className="text-xs text-muted">
-                      {book.language.toUpperCase()}
-                      {book.year && ` • ${book.year}`}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-muted">
-                    {book.authors.slice(0, 2).join(', ')}
-                    {book.authors.length > 2 && ` +${book.authors.length - 2}`}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                        book.status === 'ready'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : book.status === 'processing'
-                            ? 'bg-amber-100 text-amber-800'
-                            : book.status === 'error'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {BOOK_STATUS_LABELS[book.status] || book.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-muted">
-                    {book.chunksCount ?? '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      {/* Draft: show upload */}
-                      {book.status === 'draft' && (
-                        <label className="px-3 py-1 bg-blue-100 text-blue-800 rounded text-xs cursor-pointer hover:bg-blue-200">
-                          {uploadBookId === book.id ? `${uploadProgress}%` : 'Загрузить PDF'}
-                          <input
-                            type="file"
-                            accept=".pdf,application/pdf"
-                            onChange={(e) => handleFileSelect(book.id, e)}
-                            className="sr-only"
-                            disabled={uploadBookId === book.id}
-                          />
-                        </label>
-                      )}
-
-                      {/* Uploaded: show start ingestion */}
-                      {book.status === 'uploaded' && (
-                        <button
-                          onClick={() => handleStartIngestion(book.id)}
-                          className="px-3 py-1 bg-amber-100 text-amber-800 rounded text-xs hover:bg-amber-200"
-                        >
-                          Обработать
-                        </button>
-                      )}
-
-                      {/* Processing: show spinner */}
-                      {book.status === 'processing' && (
-                        <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded text-xs">
-                          Обработка...
-                        </span>
-                      )}
-
-                      {/* Error: show retry */}
-                      {book.status === 'error' && (
-                        <>
-                          <label className="px-3 py-1 bg-blue-100 text-blue-800 rounded text-xs cursor-pointer hover:bg-blue-200">
-                            Загрузить снова
-                            <input
-                              type="file"
-                              accept=".pdf,application/pdf"
-                              onChange={(e) => handleFileSelect(book.id, e)}
-                              className="sr-only"
-                            />
-                          </label>
-                        </>
-                      )}
-
-                      {/* Ready: show active toggle */}
-                      {book.status === 'ready' && (
-                        <button
-                          onClick={() => handleToggleActive(book.id)}
-                          disabled={togglingBookId === book.id}
-                          className={`px-3 py-1 rounded text-xs hover:opacity-80 transition disabled:opacity-50 ${
-                            book.active
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                          title={book.active ? 'Скрыть из поиска' : 'Показать в поиске'}
-                        >
-                          {togglingBookId === book.id ? '...' : book.active ? 'Активна' : 'Скрыта'}
-                        </button>
-                      )}
-
-                      {/* Edit button */}
-                      <button
-                        onClick={() => startEditing(book)}
-                        className="px-3 py-1 bg-slate-100 text-slate-700 rounded text-xs hover:bg-slate-200"
-                        title="Редактировать метаданные"
-                      >
-                        Ред.
-                      </button>
-
-                      {/* Delete button - always available */}
-                      <button
-                        onClick={() => handleDeleteBook(book.id)}
-                        disabled={deletingBookId === book.id}
-                        className="px-3 py-1 bg-red-100 text-red-800 rounded text-xs hover:bg-red-200 disabled:opacity-50"
-                        title="Удалить книгу и все данные"
-                      >
-                        {deletingBookId === book.id ? '...' : 'Удалить'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                <BookTableRow
+                  key={book.id}
+                  book={book}
+                  uploadBookId={uploadBookId}
+                  uploadProgress={uploadProgress}
+                  onFileSelect={handleFileSelect}
+                  onStartIngestion={handleStartIngestion}
+                  onToggleActive={handleToggleActive}
+                  onEdit={setEditingBook}
+                  onDelete={handleDeleteBook}
+                  togglingBookId={togglingBookId}
+                  deletingBookId={deletingBookId}
+                />
               ))}
             </tbody>
           </table>
