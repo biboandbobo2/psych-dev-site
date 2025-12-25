@@ -230,52 +230,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const bookDoc = await db.collection(BOOK_COLLECTIONS.books).doc(bookId).get();
       const bookTitle = bookDoc.exists ? (bookDoc.data()?.title || 'Untitled') : 'Untitled';
 
-      let text = chunkData.preview || '';
-
-      try {
-        const storage = getStorage();
-        const bucket = storage.bucket();
-        const pagesPath = BOOK_STORAGE_PATHS.pages(bookId);
-        const file = bucket.file(pagesPath);
-        const [exists] = await file.exists();
-
-        if (exists) {
-          const [buffer] = await file.download();
-          let pagesData: Array<{ page: number; text: string }>;
-
-          try {
-            const decompressed = await gunzip(buffer);
-            pagesData = JSON.parse(decompressed.toString('utf-8'));
-          } catch {
-            pagesData = JSON.parse(buffer.toString('utf-8'));
-          }
-
-          const relevantPages = pagesData.filter((p) => p.page >= pageStart && p.page <= pageEnd);
-          if (relevantPages.length > 0) {
-            text = relevantPages.map((p) => p.text).join('\n\n');
-          }
-        }
-      } catch {}
-
-      if (text.length > maxChars) {
-        const truncated = text.slice(0, maxChars);
-        const lastSentence = Math.max(
-          truncated.lastIndexOf('. '),
-          truncated.lastIndexOf('! '),
-          truncated.lastIndexOf('? ')
-        );
-
-        if (lastSentence > maxChars * 0.7) {
-          text = truncated.slice(0, lastSentence + 1);
-        } else {
-          const lastSpace = truncated.lastIndexOf(' ');
-          if (lastSpace > maxChars * 0.8) {
-            text = truncated.slice(0, lastSpace) + '…';
-          } else {
-            text = truncated + '…';
-          }
-        }
-      }
+      // Use full text from chunk (no truncation for citation display)
+      const text = chunkData.text || chunkData.preview || '';
 
       // Get adjacent chunks for context
       const adjacentChunks = await getAdjacentChunks(db, bookId, chunkData.pageStart);
