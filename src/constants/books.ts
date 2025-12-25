@@ -19,7 +19,7 @@ export const BOOK_SEARCH_CONFIG = {
   chunkPreviewChars: 400, // Для UI preview
 
   // Response параметры
-  answerMaxParagraphs: 4,
+  answerMaxParagraphs: 6,
   snippetMaxChars: 5000,
   snippetDefaultChars: 3000,
 
@@ -95,9 +95,10 @@ export const BOOK_COLLECTIONS = {
 } as const;
 
 /**
- * Максимальный размер файла (50 MB)
+ * Максимальный размер файла (100 MB)
+ * ВАЖНО: Синхронизировано с api/admin/books.ts
  */
-export const MAX_BOOK_FILE_SIZE = 50 * 1024 * 1024;
+export const MAX_BOOK_FILE_SIZE = 100 * 1024 * 1024;
 
 /**
  * Допустимые MIME типы

@@ -64,6 +64,57 @@ async function embedQuery(query: string): Promise<number[]> {
   return embedding;
 }
 
+interface AdjacentChunk {
+  id: string;
+  pageStart: number;
+  pageEnd: number;
+  preview: string;
+}
+
+async function getAdjacentChunks(
+  db: FirebaseFirestore.Firestore,
+  bookId: string,
+  currentPageStart: number
+): Promise<{ prev: AdjacentChunk | null; next: AdjacentChunk | null }> {
+  // Get previous chunk (page before current)
+  const prevQuery = db
+    .collection(BOOK_COLLECTIONS.chunks)
+    .where('bookId', '==', bookId)
+    .where('pageEnd', '<', currentPageStart)
+    .orderBy('pageEnd', 'desc')
+    .limit(1);
+
+  // Get next chunk (page after current)
+  const nextQuery = db
+    .collection(BOOK_COLLECTIONS.chunks)
+    .where('bookId', '==', bookId)
+    .where('pageStart', '>', currentPageStart)
+    .orderBy('pageStart', 'asc')
+    .limit(1);
+
+  const [prevSnap, nextSnap] = await Promise.all([prevQuery.get(), nextQuery.get()]);
+
+  const prev = prevSnap.docs[0]
+    ? {
+        id: prevSnap.docs[0].id,
+        pageStart: prevSnap.docs[0].data().pageStart || 1,
+        pageEnd: prevSnap.docs[0].data().pageEnd || 1,
+        preview: prevSnap.docs[0].data().preview || '',
+      }
+    : null;
+
+  const next = nextSnap.docs[0]
+    ? {
+        id: nextSnap.docs[0].id,
+        pageStart: nextSnap.docs[0].data().pageStart || 1,
+        pageEnd: nextSnap.docs[0].data().pageEnd || 1,
+        preview: nextSnap.docs[0].data().preview || '',
+      }
+    : null;
+
+  return { prev, next };
+}
+
 function computeLexicalScore(query: string, preview: string): number {
   const queryTerms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
   const previewLower = preview.toLowerCase();
@@ -74,24 +125,34 @@ function computeLexicalScore(query: string, preview: string): number {
   return queryTerms.length > 0 ? matches / queryTerms.length : 0;
 }
 
-const SYSTEM_PROMPT = `Ты — ИИ-помощник по психологии. Отвечай на вопрос, опираясь ТОЛЬКО на предоставленные источники.
+const SYSTEM_PROMPT = `Ты — эксперт-психолог и преподаватель. Твоя задача — дать развёрнутый, информативный ответ на вопрос студента, основываясь ИСКЛЮЧИТЕЛЬНО на предоставленных источниках.
 
-ПРАВИЛА:
-1. Ответ должен быть до 4 абзацев максимум
-2. Опирайся только на предоставленные источники [SOURCE]
-3. Для каждого утверждения указывай chunkId источника
-4. Если информации недостаточно — честно скажи об этом
-5. Отвечай на русском языке
+ПРАВИЛА ОТВЕТА:
+1. Пиши развёрнуто — от 3 до 6 абзацев. Раскрой тему полноценно.
+2. Используй только информацию из предоставленных источников.
+3. Пиши ЧИСТЫМ ТЕКСТОМ для чтения человеком. НИКАКИХ:
+   - Ссылок на источники в тексте ответа (НЕ пиши [chunkId=...], [SOURCE], [1], (источник) и т.п.)
+   - Технических символов (**, *, #, \`, [], {}, <>)
+   - Маркеров списка (-, •, 1., 2.)
+   - Markdown-разметки
+4. Структурируй ответ абзацами. Каждый абзац — отдельный аспект темы.
+5. Ссылки на источники указывай ТОЛЬКО в массиве citations, НЕ в тексте ответа.
+6. Если информации недостаточно — честно укажи это.
+7. Отвечай на русском языке.
 
 ФОРМАТ ОТВЕТА (строго JSON):
 {
-  "answer": "Ваш ответ здесь. Максимум 4 абзаца.",
+  "answer": "Чистый текст ответа БЕЗ каких-либо ссылок и технических символов. Только абзацы с пробелами между ними.",
   "citations": [
-    {"chunkId": "abc123", "claim": "К какому утверждению относится"}
+    {"chunkId": "abc123", "claim": "К какому утверждению в ответе относится этот источник"}
   ]
 }
 
-Верни ТОЛЬКО валидный JSON, без markdown блоков.`;
+КРИТИЧЕСКИ ВАЖНО:
+- В поле "answer" должен быть ТОЛЬКО читаемый текст
+- НЕ вставляй chunkId, номера источников или любые ссылки в текст ответа
+- Все ссылки на источники — ТОЛЬКО в массиве citations
+- Верни ТОЛЬКО валидный JSON без markdown-блоков`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -213,6 +274,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
+      // Get adjacent chunks for context
+      const adjacentChunks = await getAdjacentChunks(db, bookId, chunkData.pageStart);
+
       res.status(200).json({
         ok: true,
         text,
@@ -220,6 +284,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         pageStart,
         pageEnd,
         ...(chapterTitle ? { chapterTitle } : {}),
+        prevChunk: adjacentChunks.prev,
+        nextChunk: adjacentChunks.next,
       });
       return;
     }
@@ -419,9 +485,9 @@ ${context}
 
       try {
         const result = await client.models.generateContent({
-          model: 'gemini-2.0-flash',
+          model: 'gemini-2.5-flash-lite',
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: { temperature: 0.3, maxOutputTokens: 2000 },
+          config: { temperature: 0.4, maxOutputTokens: 4000 },
         });
 
         rawText = result.text || '';
@@ -468,9 +534,34 @@ ${context}
         });
 
       let answer = geminiResponse!.answer || '';
+      // Clean up any remaining markdown symbols and source references
+      answer = answer
+        // Remove chunkId references like [chunkId=abc123] or (chunkId: abc123)
+        .replace(/\[chunkId[=:][^\]]+\]/gi, '')
+        .replace(/\(chunkId[=:][^\)]+\)/gi, '')
+        // Remove SOURCE references
+        .replace(/\[SOURCE[^\]]*\]/gi, '')
+        .replace(/\[\/SOURCE\]/gi, '')
+        // Remove numbered references like [1], [2], (1), (2)
+        .replace(/\[\d+\]/g, '')
+        .replace(/\(\d+\)/g, '')
+        // Remove markdown
+        .replace(/\*\*/g, '')
+        .replace(/\*/g, '')
+        .replace(/^#+\s*/gm, '')
+        .replace(/`/g, '')
+        .replace(/^\s*[-•]\s*/gm, '')
+        .replace(/^\s*\d+\.\s*/gm, '')
+        // Clean up extra spaces
+        .replace(/\s{2,}/g, ' ')
+        .replace(/\s+\./g, '.')
+        .replace(/\s+,/g, ',')
+        .trim();
+
       const paragraphs = answer.split(/\n\n+/).filter((p) => p.trim().length > 0);
-      if (paragraphs.length > BOOK_SEARCH_CONFIG.answerMaxParagraphs) {
-        answer = paragraphs.slice(0, BOOK_SEARCH_CONFIG.answerMaxParagraphs).join('\n\n') + '…';
+      const maxParagraphs = 6; // Allow longer answers
+      if (paragraphs.length > maxParagraphs) {
+        answer = paragraphs.slice(0, maxParagraphs).join('\n\n') + '…';
       }
 
       const tookMs = Date.now() - startTime;

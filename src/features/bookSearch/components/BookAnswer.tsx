@@ -85,15 +85,42 @@ export function BookAnswer({ answer, citations, tookMs }: BookAnswerProps) {
                         Ошибка: {error}
                       </div>
                     ) : data ? (
-                      <div className="py-3">
-                        <div className="text-xs text-muted mb-2">
-                          {data.bookTitle}, стр. {data.pageStart}
-                          {data.pageEnd !== data.pageStart && `–${data.pageEnd}`}
-                          {data.chapterTitle && ` • ${data.chapterTitle}`}
+                      <div className="py-3 space-y-3">
+                        {/* Previous chunk context */}
+                        {data.prevChunk && (
+                          <details className="text-xs">
+                            <summary className="cursor-pointer text-muted hover:text-fg transition">
+                              ← Предыдущий фрагмент (стр. {data.prevChunk.pageStart}–{data.prevChunk.pageEnd})
+                            </summary>
+                            <div className="mt-2 p-2 bg-slate-100 rounded text-fg/70 text-sm leading-relaxed">
+                              {data.prevChunk.preview}
+                            </div>
+                          </details>
+                        )}
+
+                        {/* Main citation */}
+                        <div>
+                          <div className="text-xs text-muted mb-2">
+                            {data.bookTitle}, стр. {data.pageStart}
+                            {data.pageEnd !== data.pageStart && `–${data.pageEnd}`}
+                            {data.chapterTitle && ` • ${data.chapterTitle}`}
+                          </div>
+                          <div className="text-sm text-fg leading-relaxed whitespace-pre-wrap bg-white/50 rounded p-3 max-h-64 overflow-y-auto">
+                            {data.text}
+                          </div>
                         </div>
-                        <div className="text-sm text-fg leading-relaxed whitespace-pre-wrap bg-white/50 rounded p-3 max-h-64 overflow-y-auto">
-                          {data.text}
-                        </div>
+
+                        {/* Next chunk context */}
+                        {data.nextChunk && (
+                          <details className="text-xs">
+                            <summary className="cursor-pointer text-muted hover:text-fg transition">
+                              Следующий фрагмент (стр. {data.nextChunk.pageStart}–{data.nextChunk.pageEnd}) →
+                            </summary>
+                            <div className="mt-2 p-2 bg-slate-100 rounded text-fg/70 text-sm leading-relaxed">
+                              {data.nextChunk.preview}
+                            </div>
+                          </details>
+                        )}
                       </div>
                     ) : null}
                   </div>

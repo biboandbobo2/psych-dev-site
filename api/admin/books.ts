@@ -381,6 +381,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    // UPDATE METADATA
+    if (action === 'update') {
+      const bookId = typeof body?.bookId === 'string' ? body.bookId.trim() : '';
+      if (!bookId) {
+        res.status(400).json({ ok: false, error: 'bookId required' });
+        return;
+      }
+
+      const bookRef = db.collection(BOOK_COLLECTIONS.books).doc(bookId);
+      const bookDoc = await bookRef.get();
+
+      if (!bookDoc.exists) {
+        res.status(404).json({ ok: false, error: 'Book not found' });
+        return;
+      }
+
+      const updates: Record<string, unknown> = { updatedAt: Timestamp.now() };
+
+      // Title
+      if (typeof body?.title === 'string' && body.title.trim()) {
+        updates.title = body.title.trim();
+      }
+
+      // Authors
+      if (Array.isArray(body?.authors) && body.authors.length > 0) {
+        const authors = body.authors.filter((a): a is string => typeof a === 'string' && a.trim().length > 0);
+        if (authors.length > 0) {
+          updates.authors = authors;
+        }
+      }
+
+      // Year
+      if (body?.year !== undefined) {
+        if (body.year === null) {
+          updates.year = null;
+        } else if (typeof body.year === 'number' && body.year >= 1800 && body.year <= new Date().getFullYear() + 1) {
+          updates.year = body.year;
+        }
+      }
+
+      // Language
+      if (typeof body?.language === 'string' && ['ru', 'en', 'de', 'fr', 'es'].includes(body.language)) {
+        updates.language = body.language;
+      }
+
+      // Tags
+      if (Array.isArray(body?.tags)) {
+        updates.tags = body.tags.filter((t): t is string => typeof t === 'string');
+      }
+
+      await bookRef.update(updates);
+      res.status(200).json({ ok: true, updated: Object.keys(updates).filter(k => k !== 'updatedAt') });
+      return;
+    }
+
     res.status(400).json({ ok: false, error: 'Invalid action' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal server error';

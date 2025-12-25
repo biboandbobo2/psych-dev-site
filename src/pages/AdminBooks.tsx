@@ -323,6 +323,15 @@ export default function AdminBooks() {
 
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
 
+  // Edit state
+  const [editingBook, setEditingBook] = useState<BookListItem | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAuthors, setEditAuthors] = useState('');
+  const [editYear, setEditYear] = useState('');
+  const [editLanguage, setEditLanguage] = useState<BookLanguage>('ru');
+  const [editTags, setEditTags] = useState<BookTag[]>([]);
+  const [saving, setSaving] = useState(false);
+
   const handleDeleteBook = async (bookId: string) => {
     if (!confirm('Вы уверены? Удалятся книга, все чанки, задания и PDF файл. Это действие необратимо.')) {
       return;
@@ -347,6 +356,79 @@ export default function AdminBooks() {
       debugError('[AdminBooks] deleteBook error:', e);
     } finally {
       setDeletingBookId(null);
+    }
+  };
+
+  // ============================================================================
+  // EDIT BOOK
+  // ============================================================================
+
+  const startEditing = (book: BookListItem) => {
+    setEditingBook(book);
+    setEditTitle(book.title);
+    setEditAuthors(book.authors.join(', '));
+    setEditYear(book.year?.toString() || '');
+    setEditLanguage(book.language as BookLanguage);
+    setEditTags(book.tags as BookTag[]);
+  };
+
+  const cancelEditing = () => {
+    setEditingBook(null);
+    setEditTitle('');
+    setEditAuthors('');
+    setEditYear('');
+    setEditLanguage('ru');
+    setEditTags([]);
+  };
+
+  const handleEditSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingBook || saving) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const authors = editAuthors
+        .split(',')
+        .map((a) => a.trim())
+        .filter((a) => a.length > 0);
+
+      if (authors.length === 0) {
+        throw new Error('Укажите хотя бы одного автора');
+      }
+
+      await apiCall('/api/admin/books', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'update',
+          bookId: editingBook.id,
+          title: editTitle.trim(),
+          authors,
+          year: editYear ? parseInt(editYear, 10) : null,
+          language: editLanguage,
+          tags: editTags,
+        }),
+      });
+
+      debugLog('[AdminBooks] Book updated:', editingBook.id);
+
+      // Update local state
+      setBooks((prev) =>
+        prev.map((b) =>
+          b.id === editingBook.id
+            ? { ...b, title: editTitle.trim(), authors, year: editYear ? parseInt(editYear, 10) : null, language: editLanguage, tags: editTags }
+            : b
+        )
+      );
+
+      cancelEditing();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to update book';
+      setError(msg);
+      debugError('[AdminBooks] updateBook error:', e);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -610,6 +692,118 @@ export default function AdminBooks() {
         </div>
       )}
 
+      {/* Edit Modal */}
+      {editingBook && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <form
+            onSubmit={handleEditSubmit}
+            className="w-full max-w-lg mx-4 rounded-2xl border border-border bg-card p-5 space-y-4 shadow-xl"
+          >
+            <h2 className="text-lg font-semibold">Редактирование книги</h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Название *</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-card focus:ring-2 focus:ring-accent/30"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Авторы * (через запятую)</label>
+                <input
+                  type="text"
+                  value={editAuthors}
+                  onChange={(e) => setEditAuthors(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-card focus:ring-2 focus:ring-accent/30"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Год издания</label>
+                  <input
+                    type="number"
+                    value={editYear}
+                    onChange={(e) => setEditYear(e.target.value)}
+                    min="1800"
+                    max={new Date().getFullYear() + 1}
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-card"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Язык</label>
+                  <select
+                    value={editLanguage}
+                    onChange={(e) => setEditLanguage(e.target.value as BookLanguage)}
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-card"
+                  >
+                    {Object.entries(BOOK_LANGUAGE_LABELS).map(([code, label]) => (
+                      <option key={code} value={code}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Теги</label>
+                <div className="flex flex-wrap gap-2">
+                  {(Object.entries(BOOK_TAG_LABELS) as [BookTag, string][]).map(([tag, label]) => (
+                    <label
+                      key={tag}
+                      className={`px-3 py-1 rounded-full text-sm cursor-pointer transition ${
+                        editTags.includes(tag)
+                          ? 'bg-accent text-white'
+                          : 'bg-card2 text-muted hover:bg-card2/80'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={editTags.includes(tag)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setEditTags([...editTags, tag]);
+                          } else {
+                            setEditTags(editTags.filter((t) => t !== tag));
+                          }
+                        }}
+                        className="sr-only"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={cancelEditing}
+                className="px-4 py-2 border border-border rounded-lg hover:bg-card2"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                disabled={saving || !editTitle.trim() || !editAuthors.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {saving ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Books Table */}
       {loading ? (
         <div className="text-center py-8 text-muted">Загрузка...</div>
@@ -724,6 +918,15 @@ export default function AdminBooks() {
                           {togglingBookId === book.id ? '...' : book.active ? 'Активна' : 'Скрыта'}
                         </button>
                       )}
+
+                      {/* Edit button */}
+                      <button
+                        onClick={() => startEditing(book)}
+                        className="px-3 py-1 bg-slate-100 text-slate-700 rounded text-xs hover:bg-slate-200"
+                        title="Редактировать метаданные"
+                      >
+                        Ред.
+                      </button>
 
                       {/* Delete button - always available */}
                       <button

@@ -1,8 +1,15 @@
 /**
- * Хук для загрузки длинной цитаты
+ * Хук для загрузки длинной цитаты с контекстом
  */
 import { useState, useCallback } from 'react';
 import { debugLog, debugError } from '../../../lib/debug';
+
+export interface AdjacentChunk {
+  id: string;
+  pageStart: number;
+  pageEnd: number;
+  preview: string;
+}
 
 export interface SnippetData {
   text: string;
@@ -10,6 +17,8 @@ export interface SnippetData {
   pageStart: number;
   pageEnd: number;
   chapterTitle?: string;
+  prevChunk?: AdjacentChunk | null;
+  nextChunk?: AdjacentChunk | null;
 }
 
 interface UseBookSnippetReturn {
@@ -43,6 +52,8 @@ export function useBookSnippet(): UseBookSnippetReturn {
         pageStart: result.pageStart,
         pageEnd: result.pageEnd,
         chapterTitle: result.chapterTitle,
+        prevChunk: result.prevChunk || null,
+        nextChunk: result.nextChunk || null,
       });
 
       debugLog('[useBookSnippet] Loaded snippet:', result.text.length, 'chars');
