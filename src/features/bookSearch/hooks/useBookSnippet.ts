@@ -9,6 +9,7 @@ export interface AdjacentChunk {
   pageStart: number;
   pageEnd: number;
   preview: string;
+  text: string;
 }
 
 export interface SnippetData {

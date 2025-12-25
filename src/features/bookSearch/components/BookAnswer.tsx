@@ -112,7 +112,7 @@ export function BookAnswer({ answer, citations, tookMs }: BookAnswerProps) {
                                 <div className="text-xs text-muted mb-1">
                                   ← Предыдущий фрагмент (стр. {data.prevChunk.pageStart}–{data.prevChunk.pageEnd})
                                 </div>
-                                <div className="text-fg/70">{data.prevChunk.preview}</div>
+                                <div className="text-fg/70">{data.prevChunk.text}</div>
                               </div>
                             )}
                             <div className="p-3 bg-white">
@@ -123,7 +123,7 @@ export function BookAnswer({ answer, citations, tookMs }: BookAnswerProps) {
                                 <div className="text-xs text-muted mb-1">
                                   Следующий фрагмент (стр. {data.nextChunk.pageStart}–{data.nextChunk.pageEnd}) →
                                 </div>
-                                <div className="text-fg/70">{data.nextChunk.preview}</div>
+                                <div className="text-fg/70">{data.nextChunk.text}</div>
                               </div>
                             )}
                           </div>

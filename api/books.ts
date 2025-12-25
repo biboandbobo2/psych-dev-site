@@ -69,6 +69,7 @@ interface AdjacentChunk {
   pageStart: number;
   pageEnd: number;
   preview: string;
+  text: string;
 }
 
 async function getAdjacentChunks(
@@ -100,6 +101,7 @@ async function getAdjacentChunks(
         pageStart: prevSnap.docs[0].data().pageStart || 1,
         pageEnd: prevSnap.docs[0].data().pageEnd || 1,
         preview: prevSnap.docs[0].data().preview || '',
+        text: prevSnap.docs[0].data().text || '',
       }
     : null;
 
@@ -109,6 +111,7 @@ async function getAdjacentChunks(
         pageStart: nextSnap.docs[0].data().pageStart || 1,
         pageEnd: nextSnap.docs[0].data().pageEnd || 1,
         preview: nextSnap.docs[0].data().preview || '',
+        text: nextSnap.docs[0].data().text || '',
       }
     : null;
 
