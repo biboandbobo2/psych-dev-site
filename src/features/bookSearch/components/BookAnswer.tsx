@@ -13,17 +13,27 @@ interface BookAnswerProps {
 
 export function BookAnswer({ answer, citations, tookMs }: BookAnswerProps) {
   const [expandedChunkId, setExpandedChunkId] = useState<string | null>(null);
+  const [showFullContext, setShowFullContext] = useState<Record<string, boolean>>({});
   const { loading, data, error, loadSnippet, clear } = useBookSnippet();
 
   const handleExpandCitation = async (citation: Citation) => {
     if (expandedChunkId === citation.chunkId) {
       setExpandedChunkId(null);
+      setShowFullContext({});
       clear();
       return;
     }
 
     setExpandedChunkId(citation.chunkId);
+    setShowFullContext({});
     await loadSnippet(citation.chunkId);
+  };
+
+  const toggleFullContext = (chunkId: string) => {
+    setShowFullContext((prev) => ({
+      ...prev,
+      [chunkId]: !prev[chunkId],
+    }));
   };
 
   return (
@@ -86,40 +96,55 @@ export function BookAnswer({ answer, citations, tookMs }: BookAnswerProps) {
                       </div>
                     ) : data ? (
                       <div className="py-3 space-y-3">
-                        {/* Previous chunk context */}
-                        {data.prevChunk && (
-                          <details className="text-xs">
-                            <summary className="cursor-pointer text-muted hover:text-fg transition">
-                              ← Предыдущий фрагмент (стр. {data.prevChunk.pageStart}–{data.prevChunk.pageEnd})
-                            </summary>
-                            <div className="mt-2 p-2 bg-slate-100 rounded text-fg/70 text-sm leading-relaxed">
-                              {data.prevChunk.preview}
-                            </div>
-                          </details>
-                        )}
+                        {/* Header with book info */}
+                        <div className="text-xs text-muted">
+                          {data.bookTitle}, стр. {data.pageStart}
+                          {data.pageEnd !== data.pageStart && `–${data.pageEnd}`}
+                          {data.chapterTitle && ` • ${data.chapterTitle}`}
+                        </div>
 
-                        {/* Main citation */}
-                        <div>
-                          <div className="text-xs text-muted mb-2">
-                            {data.bookTitle}, стр. {data.pageStart}
-                            {data.pageEnd !== data.pageStart && `–${data.pageEnd}`}
-                            {data.chapterTitle && ` • ${data.chapterTitle}`}
+                        {/* Citation text */}
+                        {showFullContext[citation.chunkId] ? (
+                          /* Full context: prev + current + next */
+                          <div className="text-sm text-fg leading-relaxed whitespace-pre-wrap bg-white/50 rounded overflow-hidden max-h-96 overflow-y-auto">
+                            {data.prevChunk && (
+                              <div className="p-3 bg-slate-50 border-b border-slate-200">
+                                <div className="text-xs text-muted mb-1">
+                                  ← Предыдущий фрагмент (стр. {data.prevChunk.pageStart}–{data.prevChunk.pageEnd})
+                                </div>
+                                <div className="text-fg/70">{data.prevChunk.preview}</div>
+                              </div>
+                            )}
+                            <div className="p-3 bg-white">
+                              {data.text}
+                            </div>
+                            {data.nextChunk && (
+                              <div className="p-3 bg-slate-50 border-t border-slate-200">
+                                <div className="text-xs text-muted mb-1">
+                                  Следующий фрагмент (стр. {data.nextChunk.pageStart}–{data.nextChunk.pageEnd}) →
+                                </div>
+                                <div className="text-fg/70">{data.nextChunk.preview}</div>
+                              </div>
+                            )}
                           </div>
+                        ) : (
+                          /* Compact: only current */
                           <div className="text-sm text-fg leading-relaxed whitespace-pre-wrap bg-white/50 rounded p-3 max-h-64 overflow-y-auto">
                             {data.text}
                           </div>
-                        </div>
+                        )}
 
-                        {/* Next chunk context */}
-                        {data.nextChunk && (
-                          <details className="text-xs">
-                            <summary className="cursor-pointer text-muted hover:text-fg transition">
-                              Следующий фрагмент (стр. {data.nextChunk.pageStart}–{data.nextChunk.pageEnd}) →
-                            </summary>
-                            <div className="mt-2 p-2 bg-slate-100 rounded text-fg/70 text-sm leading-relaxed">
-                              {data.nextChunk.preview}
-                            </div>
-                          </details>
+                        {/* Toggle button for full context */}
+                        {(data.prevChunk || data.nextChunk) && (
+                          <button
+                            type="button"
+                            onClick={() => toggleFullContext(citation.chunkId)}
+                            className="text-xs text-accent hover:underline"
+                          >
+                            {showFullContext[citation.chunkId]
+                              ? '↑ Свернуть контекст'
+                              : '↓ Показать полный контекст'}
+                          </button>
                         )}
                       </div>
                     ) : null}
