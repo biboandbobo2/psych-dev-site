@@ -174,8 +174,15 @@ export default function AdminContent() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
-      <header>
-        <h1 className="text-3xl font-bold mb-2">Управление контентом</h1>
+      <header className="flex items-center justify-between mb-2">
+        <h1 className="text-3xl font-bold">Управление контентом</h1>
+        <Link
+          to="/admin/homepage"
+          className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-700 transition-colors"
+          title="Редактировать входную страницу"
+        >
+          <span className="text-xl" aria-hidden>🏠</span>
+        </Link>
       </header>
 
       {/* Переключатель курсов */}
@@ -222,14 +229,6 @@ export default function AdminContent() {
           >
             <span aria-hidden>📚</span>
             <span>Темы заметок</span>
-          </Link>
-
-          <Link
-            to="/admin/homepage"
-            className={`${ACTION_BUTTON_CLASS} bg-purple-600 hover:bg-purple-700`}
-          >
-            <span aria-hidden>🏠</span>
-            <span>Главная страница</span>
           </Link>
         </div>
       </div>
