@@ -19,6 +19,7 @@ import {
   DynamicTest,
   TestsPage,
   ResearchPage,
+  DynamicPeriodPage,
 } from '../pages/lazy';
 import { PageLoader } from '../components/ui';
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
@@ -194,6 +195,19 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             }
           />
         ))}
+        {/* Динамические роуты для занятий, созданных через админку */}
+        <Route
+          path="/clinical/:periodId"
+          element={<DynamicPeriodPage course="clinical" topicsMap={clinicalTopicsMap} />}
+        />
+        <Route
+          path="/general/:periodId"
+          element={<DynamicPeriodPage course="general" topicsMap={generalTopicsMap} />}
+        />
+        <Route
+          path="/:periodId"
+          element={<DynamicPeriodPage course="development" topicsMap={periodMap} />}
+        />
         <Route
           path="*"
           element={

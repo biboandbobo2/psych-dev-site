@@ -148,14 +148,42 @@ export function AppShell() {
     const dataMap = isClinicalPage ? clinicalTopicsMap :
                     isGeneralPage ? generalTopicsMap :
                     periodMap;
+    const basePath = isClinicalPage ? '/clinical/' :
+                     isGeneralPage ? '/general/' : '/';
 
-    return routes.map((config) => {
-      const data = config.periodId ? dataMap.get(config.periodId) : null;
-      return {
-        path: config.path,
-        label: data?.label || data?.title || config.navLabel,
-      };
+    // Собираем ID статических роутов
+    const staticIds = new Set(routes.map(r => r.periodId).filter(Boolean));
+
+    // Начинаем с статических роутов (только опубликованные или те, что есть в dataMap)
+    const items = routes
+      .filter((config) => {
+        if (!config.periodId) return true;
+        const data = dataMap.get(config.periodId);
+        // Показываем только если есть данные и опубликовано
+        return data && data.published !== false;
+      })
+      .map((config) => {
+        const data = config.periodId ? dataMap.get(config.periodId) : null;
+        return {
+          path: config.path,
+          label: data?.label || data?.title || config.navLabel,
+          order: data?.order ?? 999,
+        };
+      });
+
+    // Добавляем динамические занятия (которых нет в статических роутах)
+    dataMap.forEach((topic, periodId) => {
+      if (!staticIds.has(periodId) && topic.published !== false) {
+        items.push({
+          path: `${basePath}${periodId}`,
+          label: topic.title || topic.label,
+          order: topic.order ?? 999,
+        });
+      }
     });
+
+    // Сортируем по order
+    return items.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
   }, [periodMap, clinicalTopicsMap, generalTopicsMap, isClinicalPage, isGeneralPage]);
 
   if (loading || clinicalLoading || generalLoading) return <LoadingSplash />;

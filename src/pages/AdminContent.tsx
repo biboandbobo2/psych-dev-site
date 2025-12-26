@@ -5,6 +5,7 @@ import { db } from "../lib/firebase";
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG } from "../routes";
 import { getPeriodColors } from "../constants/periods";
 import { TestEditorModal } from "../components/TestEditorModal";
+import { CreateLessonModal } from "../components/CreateLessonModal";
 import { canonicalizePeriodId } from "../lib/firestoreHelpers";
 import { debugError } from "../lib/debug";
 import { useCourseStore } from "../stores";
@@ -71,6 +72,7 @@ export default function AdminContent() {
   const [periods, setPeriods] = useState<Period[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTestEditor, setShowTestEditor] = useState(false);
+  const [showCreateLesson, setShowCreateLesson] = useState(false);
 
   // Синхронизация с URL параметром и navigation state при первой загрузке
   useEffect(() => {
@@ -199,6 +201,14 @@ export default function AdminContent() {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setShowCreateLesson(true)}
+            className={`${ACTION_BUTTON_CLASS} bg-emerald-600 hover:bg-emerald-700`}
+          >
+            <span aria-hidden>➕</span>
+            <span>Добавить занятие</span>
+          </button>
+
+          <button
             onClick={() => setShowTestEditor(true)}
             className={`${ACTION_BUTTON_CLASS} bg-blue-600 hover:bg-blue-700`}
           >
@@ -293,6 +303,16 @@ export default function AdminContent() {
       {showTestEditor && (
         <TestEditorModal
           onClose={() => setShowTestEditor(false)}
+          defaultCourse={currentCourse}
+        />
+      )}
+
+      {showCreateLesson && (
+        <CreateLessonModal
+          onClose={() => {
+            setShowCreateLesson(false);
+            loadPeriods(); // Перезагружаем список после создания
+          }}
           defaultCourse={currentCourse}
         />
       )}

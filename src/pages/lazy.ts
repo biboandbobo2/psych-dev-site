@@ -21,3 +21,6 @@ export const TestsPage = lazy(() =>
   import('./TestsPage').then((module) => ({ default: module.TestsPage }))
 );
 export const ResearchPage = lazy(() => import('./ResearchPage'));
+export const DynamicPeriodPage = lazy(() =>
+  import('./DynamicPeriodPage').then((module) => ({ default: module.DynamicPeriodPage }))
+);
