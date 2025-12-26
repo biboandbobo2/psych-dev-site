@@ -91,6 +91,7 @@ interface SortableItemProps {
 
 function SortableItem({ period, currentCourse }: SortableItemProps) {
   const navigate = useNavigate();
+  const isPlaceholder = Boolean(period.isPlaceholder);
   const {
     attributes,
     listeners,
@@ -98,7 +99,10 @@ function SortableItem({ period, currentCourse }: SortableItemProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: period.period });
+  } = useSortable({
+    id: period.period,
+    disabled: isPlaceholder, // Запрещаем перетаскивание placeholder'ов
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -109,7 +113,6 @@ function SortableItem({ period, currentCourse }: SortableItemProps) {
 
   const colors = getPeriodColors(period.period);
   const isIntro = period.period === "intro";
-  const isPlaceholder = Boolean(period.isPlaceholder);
 
   const handleClick = () => {
     navigate(`/admin/content/edit/${period.period}?course=${currentCourse}`);
@@ -119,9 +122,11 @@ function SortableItem({ period, currentCourse }: SortableItemProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`block rounded-lg shadow hover:shadow-lg transition-shadow cursor-grab active:cursor-grabbing ${
+      className={`block rounded-lg shadow hover:shadow-lg transition-shadow ${
+        isPlaceholder ? "cursor-default" : "cursor-grab active:cursor-grabbing"
+      } ${
         isIntro ? "bg-gradient-to-r from-yellow-400 to-yellow-500 text-white" : "bg-white"
-      } ${isPlaceholder && !isIntro ? "border border-dashed border-blue-200" : ""} ${
+      } ${isPlaceholder && !isIntro ? "border border-dashed border-blue-200 opacity-70" : ""} ${
         isDragging ? "shadow-xl ring-2 ring-blue-400" : ""
       }`}
       {...attributes}
