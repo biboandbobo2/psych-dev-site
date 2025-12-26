@@ -14,3 +14,4 @@ export { useTimeline } from './useTimeline';
 export { useTopics } from './useTopics';
 export { useVerificationSummary } from './useVerificationSummary';
 export { useCreateLesson } from './useCreateLesson';
+export { useReorderLessons } from './useReorderLessons';

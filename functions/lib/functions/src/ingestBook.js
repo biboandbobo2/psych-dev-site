@@ -200,6 +200,7 @@ export const ingestBook = onRequest({
                     bookId,
                     pageStart: chunk.pageStart,
                     pageEnd: chunk.pageEnd,
+                    text: chunk.text,
                     preview: chunk.preview,
                     textHash: chunk.textHash,
                     embedding: FieldValue.vector(embedding),
