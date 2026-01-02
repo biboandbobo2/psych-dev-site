@@ -24,7 +24,7 @@ import { getPeriodColors } from "../constants/periods";
 import { TestEditorModal } from "../components/TestEditorModal";
 import { CreateLessonModal } from "../components/CreateLessonModal";
 import { canonicalizePeriodId } from "../lib/firestoreHelpers";
-import { debugError } from "../lib/debug";
+import { debugError, debugLog } from "../lib/debug";
 import { useCourseStore } from "../stores";
 import { useReorderLessons } from "../hooks/useReorderLessons";
 
@@ -306,8 +306,16 @@ export default function AdminContent() {
     // Защита: не обрабатываем drag с участием placeholder'ов
     const activePeriod = periods[oldIndex];
     const overPeriod = periods[newIndex];
+
+    debugLog('handleDragEnd details', {
+      activeId: active.id,
+      overId: over.id,
+      activePeriod: { id: activePeriod?.period, isPlaceholder: activePeriod?.isPlaceholder },
+      overPeriod: { id: overPeriod?.period, isPlaceholder: overPeriod?.isPlaceholder },
+    });
+
     if (activePeriod?.isPlaceholder || overPeriod?.isPlaceholder) {
-      debugLog('Drag cancelled: placeholder involved', { active: active.id, over: over.id });
+      debugLog('Drag cancelled: placeholder involved');
       return;
     }
 
@@ -321,6 +329,12 @@ export default function AdminContent() {
       periodId: p.period,
       order: index,
     }));
+
+    debugLog('Saving new order', {
+      totalPeriods: newPeriods.length,
+      realPeriods: realPeriods.length,
+      newOrder: newOrder.map(o => o.periodId),
+    });
 
     // Сохраняем в Firestore
     const result = await reorderLessons(currentCourse, newOrder);
