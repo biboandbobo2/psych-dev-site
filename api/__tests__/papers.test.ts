@@ -55,7 +55,8 @@ describe('api/papers', () => {
 
     expect(res.statusCode).toBe(200);
     const calledUrl = new URL(fetchMock.mock.calls[0][0] as string);
-    expect(calledUrl.searchParams.get('per-page')).toBe('50'); // mode drawer default
+    // candidateLimit для drawer mode (default) = 30
+    expect(calledUrl.searchParams.get('per-page')).toBe('30');
   });
 
   it('ограничивает fallback S2 до 5 запросов', async () => {
