@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { doc, writeBatch } from 'firebase/firestore';
+import { doc, writeBatch, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { debugLog, debugError } from '../lib/debug';
+import { debugLog, debugError, debugWarn } from '../lib/debug';
 import type { CourseType } from '../types/tests';
 
 const COURSE_COLLECTIONS: Record<CourseType, string> = {
@@ -37,16 +37,40 @@ export function useReorderLessons() {
     try {
       setSaving(true);
       const collectionName = COURSE_COLLECTIONS[course];
-      const batch = writeBatch(db);
 
-      newOrder.forEach(({ periodId, order }) => {
+      // Проверяем существование всех документов параллельно
+      const existenceChecks = await Promise.all(
+        newOrder.map(async ({ periodId }) => {
+          const docRef = doc(db, collectionName, periodId);
+          const docSnap = await getDoc(docRef);
+          return { periodId, exists: docSnap.exists() };
+        })
+      );
+
+      // Фильтруем только существующие документы
+      const existingPeriods = newOrder.filter(({ periodId }) => {
+        const check = existenceChecks.find((c) => c.periodId === periodId);
+        if (!check?.exists) {
+          debugWarn(`⚠️ Skipping update for non-existent document: ${periodId}`);
+        }
+        return check?.exists;
+      });
+
+      if (existingPeriods.length === 0) {
+        debugWarn('⚠️ No existing documents to update');
+        return { success: true };
+      }
+
+      // Создаём batch только для существующих документов
+      const batch = writeBatch(db);
+      existingPeriods.forEach(({ periodId, order }) => {
         const docRef = doc(db, collectionName, periodId);
         batch.update(docRef, { order });
       });
 
       await batch.commit();
 
-      debugLog('Lessons reordered:', { course, count: newOrder.length });
+      debugLog('Lessons reordered:', { course, count: existingPeriods.length });
       return { success: true };
     } catch (err) {
       debugError('Error reordering lessons:', err);
