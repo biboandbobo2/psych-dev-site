@@ -27,7 +27,7 @@ export const makeUserAdmin = functions.https.onCall(async (data, context) => {
                 const userRecord = await adminAuth.getUserByEmail(targetEmail);
                 userUid = userRecord.uid;
             }
-            catch {
+            catch (error) {
                 throw new functions.https.HttpsError('not-found', `Пользователь с email ${targetEmail} не найден. Он должен хотя бы раз войти на сайт.`);
             }
         }

@@ -52,29 +52,31 @@ describe('truncateResponse', () => {
     expect(truncateResponse(shortText)).toBe(shortText);
   });
 
-  it('ограничивает до 4 абзацев', () => {
-    const fiveParagraphs = [
+  it('ограничивает до 6 абзацев', () => {
+    const sevenParagraphs = [
       'Первый абзац про теорию привязанности.',
       'Второй абзац про стадии развития.',
       'Третий абзац про когнитивное развитие.',
       'Четвертый абзац про эмоциональный интеллект.',
       'Пятый абзац про социализацию.',
+      'Шестой абзац про нейропсихологию.',
+      'Седьмой абзац про психотерапию.',
     ].join('\n\n');
 
-    const result = truncateResponse(fiveParagraphs);
+    const result = truncateResponse(sevenParagraphs);
     const paragraphs = result.split('\n\n');
 
-    expect(paragraphs.length).toBe(4);
+    expect(paragraphs.length).toBe(6);
     expect(result.endsWith('…')).toBe(true);
-    expect(result).not.toContain('Пятый абзац');
+    expect(result).not.toContain('Седьмой абзац');
   });
 
-  it('ограничивает до 1600 символов', () => {
-    // Create text longer than 1600 chars
-    const longParagraph = 'Это очень длинный абзац. '.repeat(100); // ~2500 chars
+  it('ограничивает до 3000 символов', () => {
+    // Create text longer than 3000 chars
+    const longParagraph = 'Это очень длинный абзац. '.repeat(150); // ~3750 chars
     const result = truncateResponse(longParagraph);
 
-    expect(result.length).toBeLessThanOrEqual(1601); // 1600 + ellipsis
+    expect(result.length).toBeLessThanOrEqual(3001); // 3000 + ellipsis
     expect(result.endsWith('…')).toBe(true);
   });
 
@@ -95,11 +97,16 @@ describe('truncateResponse', () => {
   });
 
   it('обрезает на границе предложения если возможно', () => {
-    const text = 'Первое предложение. Второе предложение. ' + 'Дополнение. '.repeat(200);
+    // Create text that's long enough to be truncated (>3000 chars)
+    // with sentence boundaries after 70% of MAX_CHARS (2100)
+    const base = 'Предложение про психологию развития. ';
+    const text = base.repeat(100); // ~3700 chars, many sentence boundaries
+
     const result = truncateResponse(text);
 
     // Should end with period + ellipsis, not in middle of word
     expect(result).toMatch(/\.\s*…$/);
+    expect(result.length).toBeLessThanOrEqual(3001);
   });
 });
 
@@ -161,8 +168,8 @@ describe('api/assistant validation', () => {
     expect(res.body.code).toBe('EMPTY_MESSAGE');
   });
 
-  it('возвращает 400 для message > 100 символов', async () => {
-    const longMessage = 'a'.repeat(101);
+  it('возвращает 400 для message > 200 символов', async () => {
+    const longMessage = 'a'.repeat(201);
     const req = mockReq({ body: { message: longMessage } });
     const res = mockRes();
     await handler(req, res);
@@ -172,8 +179,8 @@ describe('api/assistant validation', () => {
     expect(res.body.code).toBe('MESSAGE_TOO_LONG');
   });
 
-  it('принимает message ровно 100 символов', async () => {
-    const exactMessage = 'a'.repeat(100);
+  it('принимает message ровно 200 символов', async () => {
+    const exactMessage = 'a'.repeat(200);
     const req = mockReq({ body: { message: exactMessage } });
     const res = mockRes();
 

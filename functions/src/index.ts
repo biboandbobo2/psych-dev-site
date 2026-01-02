@@ -601,3 +601,4 @@ export const runReconcile = functions.https.onCall(async (data, context) => {
 export { onUserCreate } from './onUserCreate.js';
 export { migrateAdmins } from './migrateAdmins.js';
 export { makeUserAdmin, removeAdmin } from './makeAdmin.js';
+export { ingestBook } from './ingestBook.js';

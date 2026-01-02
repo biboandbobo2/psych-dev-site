@@ -12,6 +12,7 @@ import { GoogleGenAI } from '@google/genai';
 interface AssistantRequest {
   message: string;
   locale?: string;
+  history?: AssistantHistoryItem[];
 }
 
 interface AssistantResponse {
@@ -20,6 +21,8 @@ interface AssistantResponse {
   refused?: boolean;
   meta?: {
     tookMs: number;
+    tokensUsed?: number;
+    requestsToday?: number;
   };
 }
 
@@ -33,6 +36,11 @@ interface GeminiStructuredResponse {
   allowed: boolean;
   answer: string;
 }
+
+type AssistantHistoryItem = {
+  role: 'user' | 'assistant';
+  message: string;
+};
 
 // ============================================================================
 // RATE LIMITING (in-memory, per IP)
@@ -66,18 +74,102 @@ function getClientIp(req: IncomingMessage): string {
   return (req.socket && (req.socket as any).remoteAddress) || 'unknown';
 }
 
+// ========================================================================
+// DAILY QUOTA (per client key, reset daily)
+// ========================================================================
+
+const DAILY_TOTAL_RAW = Number(process.env.ASSISTANT_DAILY_TOTAL_QUOTA ?? 500);
+const DAILY_TOTAL_QUOTA = Number.isFinite(DAILY_TOTAL_RAW) && DAILY_TOTAL_RAW > 0 ? DAILY_TOTAL_RAW : 500;
+const PER_USER_DAILY_QUOTA = Math.max(1, Math.floor(DAILY_TOTAL_QUOTA / 5));
+const dailyQuotaStore = new Map<string, { day: number; count: number }>();
+
+function getDayKey(): number {
+  return Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+}
+
+function enforceDailyQuota(clientKey: string): boolean {
+  const today = getDayKey();
+  const entry = dailyQuotaStore.get(clientKey);
+  if (!entry || entry.day !== today) {
+    dailyQuotaStore.set(clientKey, { day: today, count: 1 });
+    return true;
+  }
+  if (entry.count >= PER_USER_DAILY_QUOTA) {
+    return false;
+  }
+  entry.count += 1;
+  dailyQuotaStore.set(clientKey, entry);
+  return true;
+}
+
+// ============================================================================
+// USAGE TRACKING (tokens/request count, per day, in-memory)
+// ============================================================================
+
+type UsageState = { day: number; tokensUsed: number; requests: number };
+const usageState: UsageState = { day: getDayKey(), tokensUsed: 0, requests: 0 };
+
+function resetUsageIfNeeded(): UsageState {
+  const today = getDayKey();
+  if (usageState.day !== today) {
+    usageState.day = today;
+    usageState.tokensUsed = 0;
+    usageState.requests = 0;
+  }
+  return usageState;
+}
+
+function estimateTokens(text: string): number {
+  if (!text) return 0;
+  const normalized = text.trim();
+  if (!normalized) return 0;
+  return Math.max(1, Math.ceil(normalized.length / 4));
+}
+
+function addUsage(tokens: number): UsageState {
+  const state = resetUsageIfNeeded();
+  state.tokensUsed += Math.max(0, Math.floor(tokens));
+  state.requests += 1;
+  return state;
+}
+
 // ============================================================================
 // INPUT VALIDATION
 // ============================================================================
 
-const MAX_MESSAGE_LENGTH = 100;
+const MAX_MESSAGE_LENGTH = 200;
+const MAX_HISTORY_ITEMS = 6;
+const MAX_HISTORY_TOTAL_CHARS = 1200;
 
-function validateInput(body: unknown): { valid: true; message: string; locale: string } | { valid: false; error: string; code: string } {
+function sanitizeHistory(history: unknown): AssistantHistoryItem[] {
+  if (!Array.isArray(history)) return [];
+  const result: AssistantHistoryItem[] = [];
+  let totalChars = 0;
+
+  for (const item of history) {
+    if (!item || typeof item !== 'object') continue;
+    const role = (item as any).role;
+    const msg = typeof (item as any).message === 'string' ? (item as any).message.trim() : '';
+    if ((role === 'user' || role === 'assistant') && msg.length > 0) {
+      const clipped = msg.slice(0, MAX_MESSAGE_LENGTH);
+      const nextTotal = totalChars + clipped.length;
+      if (result.length < MAX_HISTORY_ITEMS && nextTotal <= MAX_HISTORY_TOTAL_CHARS) {
+        result.push({ role, message: clipped });
+        totalChars = nextTotal;
+      }
+    }
+    if (result.length >= MAX_HISTORY_ITEMS || totalChars >= MAX_HISTORY_TOTAL_CHARS) break;
+  }
+
+  return result;
+}
+
+function validateInput(body: unknown): { valid: true; message: string; locale: string; history: AssistantHistoryItem[] } | { valid: false; error: string; code: string } {
   if (!body || typeof body !== 'object') {
     return { valid: false, error: 'Request body is required', code: 'INVALID_BODY' };
   }
 
-  const { message, locale } = body as AssistantRequest;
+  const { message, locale, history } = body as AssistantRequest;
 
   if (!message || typeof message !== 'string') {
     return { valid: false, error: 'Message is required', code: 'MISSING_MESSAGE' };
@@ -96,6 +188,7 @@ function validateInput(body: unknown): { valid: true; message: string; locale: s
     valid: true,
     message: trimmed,
     locale: typeof locale === 'string' ? locale : 'ru',
+    history: sanitizeHistory(history),
   };
 }
 
@@ -103,11 +196,11 @@ function validateInput(body: unknown): { valid: true; message: string; locale: s
 // RESPONSE TRUNCATION
 // ============================================================================
 
-const MAX_PARAGRAPHS = 4;
-const MAX_CHARS = 1600;
+const MAX_PARAGRAPHS = 6;
+const MAX_CHARS = 3000;
 
 /**
- * Truncates response to max 4 paragraphs and 1600 characters.
+ * Truncates response to max 6 paragraphs and 3000 characters.
  * Adds ellipsis if truncated.
  */
 export function truncateResponse(text: string): string {
@@ -152,8 +245,9 @@ const SYSTEM_INSTRUCTION = `Ты — ИИ-помощник по психолог
 2. Если вопрос НЕ относится к психологии — установи allowed=false и вежливо откажи, предложив переформулировать вопрос.
 3. НЕ давай медицинских диагнозов и не заменяй консультацию специалиста.
 4. При обсуждении клинических тем добавляй дисклеймер о необходимости консультации с профессионалом.
-5. Ответ должен быть кратким: максимум 4 абзаца, около 1200-1600 символов.
-6. Отвечай на языке вопроса (русский/английский).
+5. Биографии известных психологов допустимы, если связываешь факты биографии с их идеями/теориями/вкладом в психологию.
+6. Ответ должен быть информативным но компактным: максимум 6 абзацев, до 3000 символов.
+7. Отвечай на языке вопроса (русский/английский).
 
 ФОРМАТ ОТВЕТА — строго JSON:
 {
@@ -170,9 +264,10 @@ const SYSTEM_INSTRUCTION = `Ты — ИИ-помощник по психолог
 - Что такое теория привязанности?
 - Как развивается память у детей?
 - Признаки тревожного расстройства
-- Стадии развития по Пиаже`;
+- Стадии развития по Пиаже
+- Как биография Эриксона повлияла на его теорию развития`;
 
-async function callGemini(message: string, locale: string): Promise<GeminiStructuredResponse> {
+async function callGemini(message: string, locale: string, history: AssistantHistoryItem[]): Promise<GeminiStructuredResponse> {
   // Try multiple env var names in case of configuration issues
   // Note: VITE_ prefix seems to work on Vercel while others don't
   const apiKey = process.env.GEMINI_API_KEY || process.env.MY_GEMINI_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_KEY;
@@ -182,7 +277,16 @@ async function callGemini(message: string, locale: string): Promise<GeminiStruct
 
   const ai = new GoogleGenAI({ apiKey });
 
-  const userPrompt = `Вопрос пользователя (язык: ${locale}): ${message}
+  const historyPrompt = history.length
+    ? history
+        .map((item) => `${item.role === 'user' ? 'Пользователь' : 'Ассистент'}: ${item.message}`)
+        .join('\n')
+    : 'История отсутствует.';
+
+  const userPrompt = `Контекст диалога:
+${historyPrompt}
+
+Новый вопрос (язык: ${locale}): ${message}
 
 Ответь строго в формате JSON: {"allowed": boolean, "answer": "текст"}`;
 
@@ -191,7 +295,7 @@ async function callGemini(message: string, locale: string): Promise<GeminiStruct
     model: 'gemini-2.5-flash-lite',
     contents: userPrompt,
     config: {
-      maxOutputTokens: 400,
+      maxOutputTokens: 1000,
       temperature: 0.5,
       systemInstruction: SYSTEM_INSTRUCTION,
     },
@@ -213,7 +317,7 @@ async function callGemini(message: string, locale: string): Promise<GeminiStruct
       model: 'gemini-2.5-flash-lite',
       contents: retryPrompt,
       config: {
-        maxOutputTokens: 400,
+        maxOutputTokens: 1000,
         temperature: 0.3,
         systemInstruction: SYSTEM_INSTRUCTION,
       },
@@ -270,11 +374,28 @@ export default async function handler(req: any, res: any) {
 
   // CORS headers for preflight
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
+    return;
+  }
+
+  const parsedUrl = new URL(req.url ?? '/', 'http://localhost');
+  const isStatsRequest = req.method === 'GET' && parsedUrl.searchParams.get('stats') === '1';
+
+  if (isStatsRequest) {
+    const usage = resetUsageIfNeeded();
+    const statsResponse = {
+      ok: true,
+      day: usage.day,
+      tokensUsed: usage.tokensUsed,
+      requests: usage.requests,
+      perUserDailyQuota: PER_USER_DAILY_QUOTA,
+      totalDailyQuota: DAILY_TOTAL_QUOTA,
+    };
+    res.status(200).json(statsResponse);
     return;
   }
 
@@ -290,6 +411,16 @@ export default async function handler(req: any, res: any) {
 
   // Rate limiting
   const clientIp = getClientIp(req as IncomingMessage);
+  if (!enforceDailyQuota(clientIp)) {
+    const errorResponse: AssistantErrorResponse = {
+      ok: false,
+      error: `Достигнут дневной лимит. Доступно запросов в день на пользователя: ${PER_USER_DAILY_QUOTA}`,
+      code: 'DAILY_QUOTA_EXCEEDED',
+    };
+    res.status(429).json(errorResponse);
+    return;
+  }
+
   if (!enforceRateLimit(clientIp)) {
     const errorResponse: AssistantErrorResponse = {
       ok: false,
@@ -327,11 +458,17 @@ export default async function handler(req: any, res: any) {
   }
 
   // TypeScript now knows validation.valid === true
-  const { message, locale } = validation as { valid: true; message: string; locale: string };
+  const { message, locale, history } = validation as { valid: true; message: string; locale: string; history: AssistantHistoryItem[] };
 
   try {
-    const geminiResponse = await callGemini(message, locale);
+    const geminiResponse = await callGemini(message, locale, history);
     const truncatedAnswer = truncateResponse(geminiResponse.answer);
+    const historyText = history.map((item) => `${item.role}: ${item.message}`).join('\n');
+    const tokensUsed =
+      estimateTokens(message) +
+      estimateTokens(historyText) +
+      estimateTokens(truncatedAnswer);
+    const usage = addUsage(tokensUsed);
 
     const response: AssistantResponse = {
       ok: true,
@@ -339,6 +476,8 @@ export default async function handler(req: any, res: any) {
       refused: !geminiResponse.allowed,
       meta: {
         tookMs: Date.now() - started,
+        tokensUsed,
+        requestsToday: usage.requests,
       },
     };
 

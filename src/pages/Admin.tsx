@@ -1,17 +1,58 @@
 import { httpsCallable, getFunctions } from "firebase/functions";
-import { doc } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { User } from "firebase/auth";
 import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
 import { auth } from "../lib/firebase";
-import { debugError, debugLog } from "../lib/debug";
+import { debugError, debugLog, debugWarn } from "../lib/debug";
 import UploadAsset, { diagnoseToken } from "./UploadAsset";
+
+type AssistantStats = {
+  ok: boolean;
+  day: number;
+  tokensUsed: number;
+  requests: number;
+  perUserDailyQuota: number;
+  totalDailyQuota: number;
+};
 
 export default function Admin() {
   const { user, isAdmin, logout } = useAuth();
   const location = useLocation();
+  const [assistantStats, setAssistantStats] = useState<AssistantStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  const fetchAssistantStats = useCallback(async () => {
+    if (!isAdmin) return;
+    const controller = new AbortController();
+    setStatsLoading(true);
+    setStatsError(null);
+    try {
+      const res = await fetch('/api/assistant?stats=1', { signal: controller.signal });
+      if (!res.ok) {
+        throw new Error(`Ошибка запроса (${res.status})`);
+      }
+      const data: AssistantStats = await res.json();
+      if (data?.ok) {
+        setAssistantStats(data);
+      } else {
+        setStatsError('Не удалось получить данные ассистента');
+      }
+    } catch (error: any) {
+      if (error?.name === 'AbortError') return;
+      debugWarn('[admin] assistant stats error', error);
+      setStatsError(error?.message ?? 'Ошибка запроса');
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchAssistantStats();
+  }, [isAdmin, fetchAssistantStats]);
 
   return (
     <div className="p-6 space-y-6">
@@ -112,7 +153,66 @@ export default function Admin() {
             📝 Content
           </Link>
 
+          <Link
+            to="/admin/books"
+            className={`px-4 py-2 rounded font-medium transition-colors ${
+              location.pathname.startsWith('/admin/books')
+                ? 'bg-amber-600 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            📚 Books
+          </Link>
+
         </nav>
+      )}
+
+      {isAdmin && (
+        <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-5 space-y-3">
+          <div className="flex flex-wrap items-center gap-3 justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">ИИ ассистент — суточное потребление</h2>
+              <p className="text-sm text-muted">
+                Оценка по длине запросов/ответов. Квота на пользователя: {assistantStats?.perUserDailyQuota ?? '—'} из {assistantStats?.totalDailyQuota ?? '—'}.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={fetchAssistantStats}
+              className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-muted transition hover:bg-card2 hover:text-fg disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={statsLoading}
+            >
+              {statsLoading ? 'Обновляю…' : 'Обновить'}
+            </button>
+          </div>
+
+          {statsError ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              {statsError}
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-lg border border-border bg-card2 px-4 py-3">
+                <p className="text-sm text-muted">Запросов сегодня</p>
+                <p className="text-2xl font-semibold text-fg">
+                  {assistantStats ? assistantStats.requests : statsLoading ? '…' : '—'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-card2 px-4 py-3">
+                <p className="text-sm text-muted">Токенов (оценка)</p>
+                <p className="text-2xl font-semibold text-fg">
+                  {assistantStats ? assistantStats.tokensUsed : statsLoading ? '…' : '—'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-card2 px-4 py-3">
+                <p className="text-sm text-muted">День</p>
+                <p className="text-lg font-semibold text-fg">
+                  {assistantStats ? assistantStats.day : statsLoading ? '…' : '—'}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {!isAdmin ? (

@@ -12,3 +12,4 @@ export * from './testChainHelpers';
 export * from './testImportExport';
 export * from './theme';
 export * from './topicParser';
+export * from './transliterate';

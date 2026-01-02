@@ -47,7 +47,8 @@ class TtlCache<T> {
 const SEARCH_CACHE = new TtlCache<WikidataSearchResult[]>(6 * 60 * 60 * 1000);
 const ENTITY_CACHE = new TtlCache<Record<string, WikidataEntity>>(6 * 60 * 60 * 1000);
 const WD_ENDPOINT = 'https://www.wikidata.org/w/api.php';
-const WD_DEFAULT_LANGS = ['ru', 'en', 'de', 'fr', 'es', 'zh'];
+// TODO: Re-enable Chinese when needed
+const WD_DEFAULT_LANGS = ['ru', 'en', 'de', 'fr', 'es' /* 'zh' */];
 
 async function fetchJson(url: string, timeoutMs: number): Promise<any> {
   const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
@@ -118,7 +119,95 @@ function extractLabelsAndAliases(entity: WikidataEntity): QueryVariantSource[] {
 
 const GENERIC_STOPWORDS = new Set(['study', 'research', 'theory', 'analysis', 'review', 'science']);
 const EN_STOPWORDS = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'for', 'in']);
-const RU_STOPWORDS = new Set(['и', 'в', 'на', 'по', 'о', 'об', 'от', 'для', 'как']);
+const RU_STOPWORDS = new Set(['и', 'в', 'на', 'по', 'о', 'об', 'от', 'для', 'как', 'снижения', 'коррекции', 'средство']);
+
+// Dictionary for translating Russian psychology terms to English
+// OpenAlex search works much better with English terms even for Russian articles
+// Include multiple grammatical forms (cases) for better matching
+const RU_TO_EN_TERMS: Record<string, string> = {
+  // Therapy types (all cases)
+  'арт-терапия': 'art therapy', 'арт-терапии': 'art therapy', 'арт-терапию': 'art therapy',
+  'арт терапия': 'art therapy', 'арт терапии': 'art therapy',
+  'арттерапия': 'art therapy', 'арттерапии': 'art therapy',
+  'игротерапия': 'play therapy', 'игротерапии': 'play therapy',
+  'психотерапия': 'psychotherapy', 'психотерапии': 'psychotherapy',
+  'терапия': 'therapy', 'терапии': 'therapy', 'терапию': 'therapy',
+  'когнитивно-поведенческая': 'cognitive behavioral',
+  'гештальт': 'gestalt',
+  // Conditions/behaviors (all cases)
+  'агрессия': 'aggression', 'агрессии': 'aggression', 'агрессию': 'aggression',
+  'агрессивное': 'aggressive', 'агрессивного': 'aggressive', 'агрессивным': 'aggressive',
+  'агрессивность': 'aggressiveness', 'агрессивности': 'aggressiveness',
+  'тревога': 'anxiety', 'тревоги': 'anxiety', 'тревогу': 'anxiety',
+  'тревожность': 'anxiety', 'тревожности': 'anxiety',
+  'депрессия': 'depression', 'депрессии': 'depression', 'депрессию': 'depression',
+  'стресс': 'stress', 'стресса': 'stress', 'стрессом': 'stress',
+  'травма': 'trauma', 'травмы': 'trauma', 'травму': 'trauma',
+  'птср': 'ptsd',
+  'аутизм': 'autism', 'аутизма': 'autism', 'аутизмом': 'autism',
+  'сдвг': 'adhd',
+  // Age groups (all cases)
+  'дети': 'children', 'детей': 'children', 'детям': 'children', 'детьми': 'children',
+  'ребенок': 'child', 'ребёнок': 'child', 'ребенка': 'child', 'ребёнка': 'child',
+  'подростки': 'adolescents', 'подростков': 'adolescents', 'подросткам': 'adolescents',
+  'младшие школьники': 'elementary school children',
+  'младших школьников': 'elementary school children',
+  'школьники': 'schoolchildren', 'школьников': 'schoolchildren',
+  'дошкольники': 'preschoolers', 'дошкольников': 'preschoolers',
+  // Psychology terms (all cases)
+  'психология': 'psychology', 'психологии': 'psychology',
+  'психологический': 'psychological', 'психологического': 'psychological',
+  'поведение': 'behavior', 'поведения': 'behavior', 'поведением': 'behavior',
+  'развитие': 'development', 'развития': 'development', 'развитием': 'development',
+  'эмоции': 'emotions', 'эмоций': 'emotions', 'эмоциями': 'emotions',
+  'эмоциональный': 'emotional', 'эмоционального': 'emotional', 'эмоциональное': 'emotional',
+  'привязанность': 'attachment', 'привязанности': 'attachment',
+  'самооценка': 'self-esteem', 'самооценки': 'self-esteem', 'самооценку': 'self-esteem',
+  'мотивация': 'motivation', 'мотивации': 'motivation',
+};
+
+/**
+ * Translate Russian query to English for better OpenAlex search results.
+ * OpenAlex indexes Russian articles but searches them better with English terms.
+ */
+function translateRuToEn(query: string): string | null {
+  const lower = query.toLowerCase();
+  const words = lower.split(/\s+/);
+  const translated: string[] = [];
+  let hasTranslation = false;
+
+  let i = 0;
+  while (i < words.length) {
+    // Try multi-word phrases first (up to 3 words)
+    let matched = false;
+    for (let len = 3; len >= 1 && !matched; len--) {
+      if (i + len <= words.length) {
+        const phrase = words.slice(i, i + len).join(' ');
+        if (RU_TO_EN_TERMS[phrase]) {
+          translated.push(RU_TO_EN_TERMS[phrase]);
+          hasTranslation = true;
+          matched = true;
+          i += len;
+        }
+      }
+    }
+    if (!matched) {
+      // Single word lookup
+      const word = words[i];
+      if (RU_TO_EN_TERMS[word]) {
+        translated.push(RU_TO_EN_TERMS[word]);
+        hasTranslation = true;
+      } else if (!RU_STOPWORDS.has(word)) {
+        // Keep non-stopwords as-is (might be transliterated or proper nouns)
+        translated.push(word);
+      }
+      i++;
+    }
+  }
+
+  if (!hasTranslation || translated.length === 0) return null;
+  return translated.join(' ');
+}
 
 function isStopword(value: string, lang: string): boolean {
   const lower = value.toLowerCase();
@@ -261,13 +350,14 @@ const PSYCHOLOGY_TERMS: Record<string, string[]> = {
     'ansiedad', 'depresión', 'trauma', 'estrés', 'trastorno', 'síndrome',
     'narcisismo', 'narcisista',
   ],
-  zh: [
-    '心理学', '心理', '心理治疗', '精神病学', '精神健康',
-    '治疗', '咨询', '临床', '发展', '依恋', '认知',
-    '记忆', '注意', '感知', '社会心理', '人格', '行为',
-    '情绪', '动机', '神经科学', '神经心理学', '大脑',
-    '焦虑', '抑郁', '创伤', '压力', '障碍', '症状', '自恋',
-  ],
+  // TODO: Re-enable Chinese when needed
+  // zh: [
+  //   '心理学', '心理', '心理治疗', '精神病学', '精神健康',
+  //   '治疗', '咨询', '临床', '发展', '依恋', '认知',
+  //   '记忆', '注意', '感知', '社会心理', '人格', '行为',
+  //   '情绪', '动机', '神经科学', '神经心理学', '大脑',
+  //   '焦虑', '抑郁', '创伤', '压力', '障碍', '症状', '自恋',
+  // ],
 };
 
 const ALL_PSYCHOLOGY_TERMS_SET = new Set<string>();
@@ -388,7 +478,7 @@ function getPsychologyScore(title: string, abstract?: string | null, lang?: stri
 // END INLINE CODE
 // ============================================================================
 
-type ResearchSource = 'openalex' | 'semanticscholar';
+type ResearchSource = 'openalex' | 'openaire' | 'semanticscholar';
 
 type AllowedSource = {
   key: string;
@@ -409,6 +499,7 @@ type OpenAlexWork = {
     source?: { display_name?: string } | null;
   } | null;
   open_access?: {
+    is_oa?: boolean;
     oa_url?: string | null;
   } | null;
   doi?: string | null;
@@ -430,6 +521,7 @@ type ResearchWork = {
   source: ResearchSource;
   score?: number;
   host?: string | null;
+  isOa?: boolean;  // OpenAlex open_access.is_oa flag
 };
 
 type PapersApiResponse = {
@@ -442,12 +534,6 @@ type PapersApiResponse = {
     allowListApplied: boolean;
     psychologyFilterApplied?: boolean;
     queryVariantsUsed?: string[];
-    wikidata?: {
-      used: boolean;
-      qids: string[];
-      variantsCount: number;
-      timedOut?: boolean;
-    };
   };
 };
 
@@ -455,11 +541,13 @@ const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 const RATE_LIMIT_MAX = 30; // 30 requests per window
 const rateLimitStore = new Map<string, number[]>();
 
-const DEFAULT_LANGS = ['ru', 'zh', 'de', 'fr', 'es', 'en'];
+// TODO: Re-enable Chinese when needed
+const DEFAULT_LANGS = ['ru', 'de', 'fr', 'es', 'en' /* 'zh' */];
 const MAX_LIMIT = 50;  // Increased: OpenAlex Concepts gives more relevant results
 const DEFAULT_LIMIT = 30;  // Increased from 20
 const MIN_RESULTS_FOR_NO_EXPANSION = 15;  // Increased threshold
-const DEFAULT_WD_LANGS = ['ru', 'en', 'de', 'fr', 'es', 'zh'];
+// TODO: Re-enable Chinese when needed
+const DEFAULT_WD_LANGS = ['ru', 'en', 'de', 'fr', 'es' /* 'zh' */];
 
 const require = createRequire(import.meta.url);
 // Use require to load JSON without import assertions (compatible with Node ESM + Vite dev)
@@ -627,6 +715,7 @@ function normalizeOpenAlexWork(item: OpenAlexWork): ResearchWork | null {
     paragraph,
     source: 'openalex',
     host,
+    isOa: item.open_access?.is_oa ?? false,
   };
 }
 
@@ -640,19 +729,26 @@ const PSYCHOLOGY_CONCEPT_IDS = [
   'C180747234',  // Cognitive psychology (level 1)
   'C75630572',   // Applied psychology (level 1)
   'C126838900',  // Psychiatry (related)
+  'C134895398',  // Educational psychology (level 2) - for articles on child development, school psychology
 ];
 
 async function fetchOpenAlex(
   q: string,
   langs: string[],
   candidateLimit: number,
-  usePsychologyConceptFilter: boolean = true
+  usePsychologyConceptFilter: boolean = true,
+  requireOa: boolean = false  // OpenAlex incorrectly marks many open sources as non-OA
 ): Promise<ResearchWork[]> {
   const searchUrl = new URL('https://api.openalex.org/works');
   searchUrl.searchParams.set('search', q);
 
-  // Build filter: OA + language + optionally psychology concepts
-  const filters = [`is_oa:true`, `language:${langs.join('|')}`];
+  // Build filter: language + optionally OA + optionally psychology concepts
+  // NOTE: is_oa:true is now optional because OpenAlex incorrectly marks many
+  // trusted open-access sources (e.g., CyberLeninka) as non-OA
+  const filters = [`language:${langs.join('|')}`];
+  if (requireOa) {
+    filters.push('is_oa:true');
+  }
   if (usePsychologyConceptFilter) {
     // Use OpenAlex's ML-based concept classification for psychology
     // This dramatically improves relevance (e.g., 53 vs 5 results for "агрессия")
@@ -684,6 +780,218 @@ async function fetchOpenAlex(
 
 function filterByAllowList(items: ResearchWork[]): ResearchWork[] {
   return items.filter((item) => isAllowedUrl(item.oaPdfUrl) || isAllowedUrl(item.primaryUrl));
+}
+
+// ============================================================================
+// OpenAIRE API - European open access aggregator, indexes CyberLeninka
+// ============================================================================
+
+type OpenAIREResult = {
+  header?: { 'dri:objIdentifier'?: { $?: string } };
+  metadata?: {
+    'oaf:entity'?: {
+      'oaf:result'?: {
+        title?: { $?: string } | Array<{ $?: string }>;
+        creator?: { $?: string } | Array<{ $?: string; '@rank'?: string }>;
+        dateofacceptance?: { $?: string };
+        description?: { $?: string };
+        language?: { '@classname'?: string };
+        pid?: { '@classid'?: string; $?: string } | Array<{ '@classid'?: string; $?: string }>;
+        children?: {
+          instance?: Array<{
+            webresource?: { url?: { $?: string } };
+            accessright?: { '@classid'?: string };
+          }>;
+        };
+      };
+    };
+  };
+};
+
+function normalizeOpenAIREWork(result: OpenAIREResult): ResearchWork | null {
+  const meta = result?.metadata?.['oaf:entity']?.['oaf:result'];
+  if (!meta) return null;
+
+  // Extract title
+  let title = '';
+  if (meta.title) {
+    if (Array.isArray(meta.title)) {
+      title = meta.title[0]?.['$'] ?? '';
+    } else {
+      title = meta.title['$'] ?? '';
+    }
+  }
+  if (!title) return null;
+
+  // Extract DOI
+  let doi: string | null = null;
+  const pids = meta.pid;
+  if (pids) {
+    const pidArray = Array.isArray(pids) ? pids : [pids];
+    for (const pid of pidArray) {
+      if (pid['@classid'] === 'doi' && pid['$']) {
+        doi = pid['$'].toLowerCase();
+        break;
+      }
+    }
+  }
+
+  // Extract authors
+  const authors: string[] = [];
+  if (meta.creator) {
+    const creators = Array.isArray(meta.creator) ? meta.creator : [meta.creator];
+    for (const c of creators) {
+      const name = typeof c === 'string' ? c : c['$'];
+      if (name) authors.push(name);
+    }
+  }
+
+  // Extract year
+  let year: number | null = null;
+  if (meta.dateofacceptance?.['$']) {
+    const match = meta.dateofacceptance['$'].match(/^(\d{4})/);
+    if (match) year = parseInt(match[1], 10);
+  }
+
+  // Extract URL
+  let primaryUrl: string | null = null;
+  let oaPdfUrl: string | null = null;
+  const instances = meta.children?.instance;
+  if (instances && Array.isArray(instances)) {
+    for (const inst of instances) {
+      const url = inst.webresource?.url?.['$'];
+      if (url) {
+        if (!primaryUrl) primaryUrl = url;
+        if (inst.accessright?.['@classid'] === 'OPEN' && !oaPdfUrl) {
+          oaPdfUrl = url;
+        }
+      }
+    }
+  }
+
+  // Extract language
+  const langClass = meta.language?.['@classname'] ?? 'unknown';
+  const language = langClass === 'English' ? 'en' : langClass === 'Russian' ? 'ru' : langClass.toLowerCase().slice(0, 2);
+
+  // Extract description/abstract
+  const paragraph = meta.description?.['$'] ?? null;
+
+  const id = result.header?.['dri:objIdentifier']?.['$'] ?? `openaire-${doi ?? title.slice(0, 30)}`;
+
+  return {
+    id,
+    title,
+    year,
+    authors: authors.slice(0, 5),
+    venue: null,
+    language: language || 'unknown',
+    doi: doi ? `https://doi.org/${doi}` : null,
+    primaryUrl,
+    oaPdfUrl,
+    paragraph,
+    source: 'openaire' as ResearchSource,
+    host: cleanHost(oaPdfUrl || primaryUrl),
+    isOa: Boolean(oaPdfUrl),
+  };
+}
+
+async function fetchOpenAIRE(q: string, limit: number = 30): Promise<ResearchWork[]> {
+  const url = new URL('https://api.openaire.eu/search/publications');
+  url.searchParams.set('keywords', q);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('size', String(limit));
+
+  const response = await fetch(url.toString(), {
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAIRE ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const results: OpenAIREResult[] = payload?.response?.results?.result ?? [];
+
+  return results
+    .map(normalizeOpenAIREWork)
+    .filter((w): w is ResearchWork => w !== null);
+}
+
+// ============================================================================
+// Semantic Scholar API - AI-powered academic search
+// ============================================================================
+
+type SemanticScholarPaper = {
+  paperId?: string;
+  title?: string;
+  year?: number;
+  authors?: Array<{ name?: string }>;
+  abstract?: string;
+  externalIds?: { DOI?: string };
+  openAccessPdf?: { url?: string };
+  venue?: string;
+};
+
+function normalizeSemanticScholarWork(paper: SemanticScholarPaper): ResearchWork | null {
+  if (!paper.title) return null;
+
+  const doi = paper.externalIds?.DOI?.toLowerCase();
+  const oaPdfUrl = paper.openAccessPdf?.url ?? null;
+
+  return {
+    id: paper.paperId ?? `ss-${doi ?? paper.title.slice(0, 30)}`,
+    title: paper.title,
+    year: paper.year ?? null,
+    authors: (paper.authors ?? []).map(a => a.name ?? '').filter(Boolean).slice(0, 5),
+    venue: paper.venue ?? null,
+    language: 'unknown', // Semantic Scholar doesn't reliably return language
+    doi: doi ? `https://doi.org/${doi}` : null,
+    primaryUrl: doi ? `https://doi.org/${doi}` : null,
+    oaPdfUrl,
+    paragraph: paper.abstract ?? null,
+    source: 'semanticscholar' as ResearchSource,
+    host: cleanHost(oaPdfUrl || (doi ? `https://doi.org/${doi}` : null)),
+    isOa: Boolean(oaPdfUrl),
+  };
+}
+
+async function fetchSemanticScholar(q: string, limit: number = 30): Promise<ResearchWork[]> {
+  const url = new URL('https://api.semanticscholar.org/graph/v1/paper/search');
+  url.searchParams.set('query', q);
+  url.searchParams.set('limit', String(Math.min(limit, 100))); // SS max is 100
+  url.searchParams.set('fields', 'paperId,title,year,authors,abstract,externalIds,openAccessPdf,venue');
+
+  const response = await fetch(url.toString(), {
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Semantic Scholar ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const papers: SemanticScholarPaper[] = payload?.data ?? [];
+
+  return papers
+    .map(normalizeSemanticScholarWork)
+    .filter((w): w is ResearchWork => w !== null);
+}
+
+/**
+ * Filter by open access: article passes if:
+ * 1. OpenAlex marks it as OA (isOa=true), OR
+ * 2. URL is from a trusted source in allow-list (e.g., CyberLeninka)
+ *
+ * This is needed because OpenAlex incorrectly marks many trusted open sources as non-OA.
+ */
+function filterByOpenAccess(items: ResearchWork[]): ResearchWork[] {
+  return items.filter((item) => {
+    // Pass if OpenAlex says it's OA
+    if (item.isOa) return true;
+    // Pass if URL is from trusted source (allow-list)
+    if (isAllowedUrl(item.oaPdfUrl) || isAllowedUrl(item.primaryUrl)) return true;
+    return false;
+  });
 }
 
 async function fetchSemanticScholarAbstracts(dois: string[], maxRequests = 5): Promise<Map<string, string>> {
@@ -735,8 +1043,9 @@ function detectLang(query: string): string {
   const text = query.toLowerCase();
   const hasCyrillic = /[а-яё]/i.test(text);
   if (hasCyrillic) return 'ru';
-  const hasChinese = /[\u4e00-\u9fa5]/.test(text);
-  if (hasChinese) return 'zh';
+  // TODO: Re-enable Chinese when needed
+  // const hasChinese = /[\u4e00-\u9fa5]/.test(text);
+  // if (hasChinese) return 'zh';
   if (/[äöüß]/i.test(text) || /\bder\b|\bdie\b|\bund\b/.test(text)) return 'de';
   if (/[áéíóúñ¡¿]/i.test(text) || /\bel\b|\bla\b|\bdel\b/.test(text)) return 'es';
   if (/[àâçéèêëîïôûùüÿœ]/i.test(text) || /\ble\b|\bla\b|\bet\b/.test(text)) return 'fr';
@@ -764,149 +1073,107 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const candidateLimit = mode === 'page' ? 80 : 50;
+    const candidateLimit = mode === 'page' ? 50 : 30;
     const baseLang = detectLang(qRaw);
 
-    console.log('='.repeat(60));
-    console.log(`[papers.ts] NEW REQUEST: "${qRaw}"`);
-    console.log(`[papers.ts] Detected language: ${baseLang}`);
-    console.log(`[papers.ts] Requested langs: ${langs.join(',')}`);
-    console.log(`[papers.ts] Mode: ${mode}, candidateLimit: ${candidateLimit}`);
+    // For Russian queries, translate to English for better results
+    const translatedQuery = baseLang === 'ru' ? translateRuToEn(qRaw) : null;
 
-    // When psychologyOnly is true, use OpenAlex Concepts API for filtering
-    // This gives MUCH more results (e.g., 53 vs 5 for "агрессия") while maintaining relevance
-    const works = await fetchOpenAlex(qRaw, langs, candidateLimit, psychologyOnly);
-    console.log(`[papers.ts] OpenAlex returned: ${works.length} works (psychologyConceptFilter=${psychologyOnly})`);
+    // Build search queries: use translated for OpenAlex, original for all
+    const openAlexQuery = translatedQuery || qRaw;
+    const queryVariantsUsed: string[] = translatedQuery ? [translatedQuery, qRaw] : [qRaw];
 
-    // When using concepts filter, skip allow-list (it's too restrictive)
-    // OpenAlex concepts already ensure psychology relevance
-    const filtered = (psychologyOnly ? works : filterByAllowList(works)).map((work, idx) => ({
-      ...work,
-      // score используется для мягкого interleave результатов разных вариантов запроса
-      score: idx * 100,
-    }));
-    console.log(`[papers.ts] After filtering: ${filtered.length} works (allowList=${!psychologyOnly})`);
+    // =========================================================================
+    // PARALLEL SEARCH: OpenAlex + OpenAIRE + Semantic Scholar
+    // =========================================================================
+    const sourcesUsed: ResearchSource[] = [];
 
-    const metaWikidata = {
-      used: false,
-      qids: [] as string[],
-      variantsCount: 1,
-      timedOut: false,
-    };
+    const [openAlexResult, openAIREResult, semanticScholarResult] = await Promise.allSettled([
+      // OpenAlex: use translated query for better Russian results
+      fetchOpenAlex(openAlexQuery, langs, candidateLimit, psychologyOnly, false)
+        .then(works => {
+          sourcesUsed.push('openalex');
+          return filterByOpenAccess(works);
+        }),
 
-    let allWorks: ResearchWork[] = [...filtered];
-    let queryVariantsUsed: string[] = [qRaw];
+      // OpenAIRE: use translated query for better results (doesn't find Russian keywords well)
+      fetchOpenAIRE(openAlexQuery, candidateLimit)
+        .then(works => {
+          sourcesUsed.push('openaire');
+          return works;
+        })
+        .catch(() => [] as ResearchWork[]), // Don't fail if OpenAIRE is down
 
-    const shouldExpand = filtered.length < MIN_RESULTS_FOR_NO_EXPANSION || baseLang !== 'en';
-    console.log(`[papers.ts] shouldExpand: ${shouldExpand} (filtered.length=${filtered.length}, MIN=${MIN_RESULTS_FOR_NO_EXPANSION}, baseLang=${baseLang})`);
-    if (shouldExpand) {
-      try {
-        console.log(`[papers.ts] 🔍 Expanding query with Wikidata...`);
-        const searchResults = await wdSearch(qRaw, baseLang || 'en', 2, mode === 'page' ? 2000 : 1200);
-        const qids = searchResults.map((r) => r.id);
-        console.log(`[papers.ts] Wikidata search found QIDs: ${qids.join(', ')}`);
+      // Semantic Scholar: use translated query for better results
+      fetchSemanticScholar(openAlexQuery, candidateLimit)
+        .then(works => {
+          sourcesUsed.push('semanticscholar');
+          return works;
+        })
+        .catch(() => [] as ResearchWork[]), // Don't fail if SS is down
+    ]);
 
-        const entities = await wdGetEntities(qids, Array.from(new Set([...DEFAULT_WD_LANGS, ...langs])), mode === 'page' ? 2200 : 1500);
-        const variantsRaw = Object.values(entities).flatMap((entity) => extractLabelsAndAliases(entity));
-        console.log(`[papers.ts] Extracted ${variantsRaw.length} label/alias variants from Wikidata`);
+    // Collect all results with source-based scoring
+    // Lower score = higher priority (OpenAlex first, then OpenAIRE, then SS)
+    const allWorks: ResearchWork[] = [];
 
-        const queryVariants = buildQueryVariants({
-          q: qRaw,
-          detectedLang: baseLang,
-          wikidataVariants: variantsRaw,
-          langsRequested: langs,
-          mode,
-        });
-        console.log(`[papers.ts] Built query variants (${queryVariants.length}):`, queryVariants);
-
-        metaWikidata.used = queryVariants.length > 1;
-        metaWikidata.qids = qids;
-        metaWikidata.variantsCount = queryVariants.length;
-        queryVariantsUsed = queryVariants;
-
-        // Fetch all additional variants except the first one (which is the original query)
-        const variantsToFetch = queryVariants.slice(1);
-
-        console.log('[papers.ts] Fetching variants:', variantsToFetch);
-
-        const variantResults: PromiseSettledResult<ResearchWork[]>[] = await Promise.allSettled(
-          variantsToFetch.map(async (variant, variantIdx): Promise<ResearchWork[]> => {
-            console.log(`[papers.ts] Fetching variant ${variantIdx}: "${variant}"`);
-            const variantScoreOffset = variantIdx + 1;
-            const variantWorks = await fetchOpenAlex(variant, langs, candidateLimit, psychologyOnly);
-            console.log(`[papers.ts] Variant "${variant}" returned ${variantWorks.length} works`);
-            // When using concepts filter, skip allow-list
-            const worksToScore = psychologyOnly ? variantWorks : filterByAllowList(variantWorks);
-            const scored = worksToScore.map((work, idx) => ({
-              ...work,
-              score: idx * 100 + variantScoreOffset,
-            }));
-            console.log(`[papers.ts] After processing: ${scored.length} works for "${variant}"`);
-            return scored;
-          })
-        );
-
-        console.log('[papers.ts] All variant requests completed');
-
-        variantResults.forEach((result, idx) => {
-          if (result.status === 'fulfilled') {
-            console.log(`[papers.ts] Adding ${result.value.length} results from variant ${idx}`);
-            allWorks.push(...(result.value as ResearchWork[]));
-          } else {
-            console.log(`[papers.ts] Variant ${idx} failed:`, result.reason);
-          }
-        });
-
-        console.log(`[papers.ts] Total works after variants: ${allWorks.length}`);
-      } catch (error) {
-        metaWikidata.timedOut = true;
-        metaWikidata.used = false;
-        queryVariantsUsed = [qRaw];
-      }
+    if (openAlexResult.status === 'fulfilled') {
+      openAlexResult.value.forEach((work, idx) => {
+        allWorks.push({ ...work, score: idx });
+      });
     }
 
-    // Deduplicate by DOI or OpenAlex id
+    if (openAIREResult.status === 'fulfilled') {
+      openAIREResult.value.forEach((work, idx) => {
+        allWorks.push({ ...work, score: 1000 + idx });
+      });
+    }
+
+    if (semanticScholarResult.status === 'fulfilled') {
+      semanticScholarResult.value.forEach((work, idx) => {
+        allWorks.push({ ...work, score: 2000 + idx });
+      });
+    }
+
+    // =========================================================================
+    // DEDUPLICATION by DOI (case-insensitive)
+    // Keep the one with lower score (higher priority source)
+    // =========================================================================
     const dedupedMap = new Map<string, ResearchWork>();
+
     allWorks.forEach((work) => {
-      const key = work.doi?.toLowerCase() || work.id;
+      // Use DOI as primary key, fallback to normalized title
+      const doiKey = work.doi?.toLowerCase().replace('https://doi.org/', '');
+      const titleKey = work.title.toLowerCase().replace(/[^a-zа-яё0-9]/g, '').slice(0, 50);
+      const key = doiKey || titleKey;
+
       const existing = dedupedMap.get(key);
-      const incomingScore = typeof work.score === 'number' ? work.score : Number.MAX_SAFE_INTEGER;
-      const existingScore =
-        existing && typeof existing.score === 'number' ? existing.score : Number.MAX_SAFE_INTEGER;
+      const incomingScore = work.score ?? Number.MAX_SAFE_INTEGER;
+      const existingScore = existing?.score ?? Number.MAX_SAFE_INTEGER;
+
       if (!existing || incomingScore < existingScore) {
         dedupedMap.set(key, work);
       }
     });
 
     const deduped = Array.from(dedupedMap.values()).sort((a, b) => {
-      const aScore = typeof a.score === 'number' ? a.score : Number.MAX_SAFE_INTEGER;
-      const bScore = typeof b.score === 'number' ? b.score : Number.MAX_SAFE_INTEGER;
-      return aScore - bScore;
+      return (a.score ?? 0) - (b.score ?? 0);
     });
-    const needsFallback = deduped.filter((item) => !item.paragraph && item.doi);
-    let s2Used = false;
-    let abstractMap = new Map<string, string>();
-    if (needsFallback.length > 0) {
-      abstractMap = await fetchSemanticScholarAbstracts(
-        needsFallback.map((item) => item.doi!).filter(Boolean),
-        5
-      );
-      s2Used = abstractMap.size > 0;
-    }
 
-    const enriched = enrichWithAbstractFallback(deduped, abstractMap);
-
-    // Apply psychology filter if enabled (default: true)
+    // =========================================================================
+    // PSYCHOLOGY FILTER (if enabled)
+    // =========================================================================
     const PSYCHOLOGY_SCORE_THRESHOLD = 10;
     const psychologyFiltered = psychologyOnly
-      ? enriched.filter((work) => {
+      ? deduped.filter((work) => {
           const score = getPsychologyScore(work.title, work.paragraph, work.language, work.venue);
           return score >= PSYCHOLOGY_SCORE_THRESHOLD;
         })
-      : enriched;
+      : deduped;
 
-    console.log(`[papers.ts] After psychology filter: ${psychologyFiltered.length} works (psychologyOnly=${psychologyOnly})`);
-
+    // =========================================================================
+    // FINAL PROCESSING
+    // =========================================================================
     const sliced = psychologyFiltered.slice(0, limit).map((work) => ({
       ...work,
       paragraph: buildParagraph(work),
@@ -918,29 +1185,22 @@ export default async function handler(req: any, res: any) {
       meta: {
         tookMs: Date.now() - started,
         cached: false,
-        sourcesUsed: s2Used ? ['openalex', 'semanticscholar'] : ['openalex'],
+        sourcesUsed: Array.from(new Set(sourcesUsed)),
         allowListApplied: true,
         psychologyFilterApplied: psychologyOnly,
-        queryVariantsUsed: queryVariantsUsed.slice(0, mode === 'page' ? 8 : 6),
-        wikidata: {
-          used: metaWikidata.used,
-          qids: metaWikidata.qids,
-          variantsCount: metaWikidata.variantsCount,
-          timedOut: metaWikidata.timedOut || undefined,
-        },
+        queryVariantsUsed,
       },
     };
 
-    res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800');
+    res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
     res.status(200).json(response);
   } catch (error: any) {
     const message = error?.message || 'Upstream unavailable';
-    const isUpstream = message.includes('OpenAlex');
-    res.status(isUpstream ? 502 : 500).json({
-      status: isUpstream ? 502 : 500,
-      message: isUpstream ? 'Upstream unavailable' : 'Internal error',
-      code: isUpstream ? 'UPSTREAM_UNAVAILABLE' : 'INTERNAL_ERROR',
-      detail: isUpstream ? undefined : message,
+    res.status(502).json({
+      status: 502,
+      message: 'Search service temporarily unavailable',
+      code: 'UPSTREAM_UNAVAILABLE',
+      detail: message,
     });
   }
 }

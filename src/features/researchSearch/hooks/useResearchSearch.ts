@@ -4,7 +4,8 @@ import type { PapersApiResponse, ResearchWork } from '../types';
 
 type Status = 'idle' | 'loading' | 'error' | 'success';
 
-const DEFAULT_LANGS = ['ru', 'zh', 'de', 'fr', 'es', 'en'];
+// TODO: Re-enable Chinese when needed
+const DEFAULT_LANGS = ['ru', 'de', 'fr', 'es', 'en'];
 
 interface UseResearchSearchOptions {
   mode: 'drawer' | 'page';
@@ -12,6 +13,7 @@ interface UseResearchSearchOptions {
   initialLangs?: string[];
   initialPsychologyOnly?: boolean;
   trigger?: 'manual' | 'auto';
+  /** Whether to auto-trigger search on mount if initialQuery is provided. Defaults to false. */
   autoTriggerInitial?: boolean;
 }
 
@@ -28,7 +30,7 @@ export function useResearchSearch({
   initialLangs = DEFAULT_LANGS,
   initialPsychologyOnly = true,
   trigger = 'manual',
-  autoTriggerInitial = true,
+  autoTriggerInitial = false,
 }: UseResearchSearchOptions) {
   const [query, setQuery] = useState(initialQuery);
   const [langs, setLangs] = useState<string[]>(initialLangs);

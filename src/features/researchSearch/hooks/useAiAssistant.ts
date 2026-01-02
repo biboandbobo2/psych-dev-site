@@ -12,7 +12,7 @@ interface AiAssistantResponse {
   ok: true;
   answer: string;
   refused?: boolean;
-  meta?: { tookMs: number };
+  meta?: { tookMs: number; tokensUsed?: number; requestsToday?: number };
 }
 
 interface AiAssistantErrorResponse {
@@ -20,7 +20,7 @@ interface AiAssistantErrorResponse {
   error: string;
 }
 
-const MAX_MESSAGE_LENGTH = 100;
+export const MAX_MESSAGE_LENGTH = 200;
 
 export function useAiAssistant() {
   const [question, setQuestion] = useState('');

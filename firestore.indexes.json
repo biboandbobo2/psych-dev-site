@@ -1,6 +1,30 @@
 {
   "indexes": [
     {
+      "collectionGroup": "book_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bookId", "order": "ASCENDING" },
+        { "fieldPath": "embedding", "vectorConfig": { "dimension": 768, "flat": {} } }
+      ]
+    },
+    {
+      "collectionGroup": "book_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bookId", "order": "ASCENDING" },
+        { "fieldPath": "pageEnd", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "book_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bookId", "order": "ASCENDING" },
+        { "fieldPath": "pageStart", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "periods",
       "queryScope": "COLLECTION",
       "fields": [
