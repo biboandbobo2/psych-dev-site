@@ -303,6 +303,14 @@ export default function AdminContent() {
       return;
     }
 
+    // Защита: не обрабатываем drag с участием placeholder'ов
+    const activePeriod = periods[oldIndex];
+    const overPeriod = periods[newIndex];
+    if (activePeriod?.isPlaceholder || overPeriod?.isPlaceholder) {
+      debugLog('Drag cancelled: placeholder involved', { active: active.id, over: over.id });
+      return;
+    }
+
     // Оптимистичное обновление UI
     const newPeriods = arrayMove(periods, oldIndex, newIndex);
     setPeriods(newPeriods);
