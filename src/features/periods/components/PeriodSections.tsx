@@ -1,9 +1,10 @@
-import type { Test } from '../../../types/tests';
+import type { Test, CourseType } from '../../../types/tests';
 import { BadgeSection } from './BadgeSection';
 import { ListSection } from './ListSection';
 import { SelfQuestionsSection } from './SelfQuestionsSection';
 import { GenericSection } from './GenericSection';
 import { VideoSection } from './VideoSection';
+import { PaywallGuard } from '../../../components/PaywallGuard';
 import type { PeriodSectionData } from './types';
 
 interface PeriodSectionsProps {
@@ -11,6 +12,8 @@ interface PeriodSectionsProps {
   deckUrl: string;
   defaultVideoTitle: string;
   periodTests: Test[];
+  /** Тип курса для проверки доступа к видео */
+  courseType: CourseType;
 }
 
 // Фиксированный порядок отображения секций
@@ -26,7 +29,7 @@ const SECTION_ORDER = [
   'self_questions',
 ];
 
-export function PeriodSections({ sections, deckUrl, defaultVideoTitle, periodTests }: PeriodSectionsProps) {
+export function PeriodSections({ sections, deckUrl, defaultVideoTitle, periodTests, courseType }: PeriodSectionsProps) {
   if (!sections) return null;
 
   // Сортируем секции по заданному порядку
@@ -57,6 +60,7 @@ export function PeriodSections({ sections, deckUrl, defaultVideoTitle, periodTes
           deckUrl={deckUrl}
           defaultVideoTitle={defaultVideoTitle}
           periodTests={periodTests}
+          courseType={courseType}
         />
       ))}
     </div>
@@ -69,9 +73,11 @@ interface SectionRendererProps {
   deckUrl: string;
   defaultVideoTitle: string;
   periodTests: Test[];
+  /** Тип курса для проверки доступа к видео */
+  courseType: CourseType;
 }
 
-function SectionRenderer({ slug, section, deckUrl, defaultVideoTitle, periodTests }: SectionRendererProps) {
+function SectionRenderer({ slug, section, deckUrl, defaultVideoTitle, periodTests, courseType }: SectionRendererProps) {
   // Для self_questions делаем исключение: показываем если есть контент ИЛИ есть тесты
   const isSelfQuestions = slug === 'self_questions';
   if (!isSelfQuestions && !section?.content?.length) return null;
@@ -83,14 +89,17 @@ function SectionRenderer({ slug, section, deckUrl, defaultVideoTitle, periodTest
     : rawTitle;
 
   if (rawTitle === 'Видео-лекция' || rawTitle === 'Видео') {
+    // Оборачиваем видео в PaywallGuard для проверки доступа
     return (
-      <VideoSection
-        slug={slug}
-        title={displayTitle}
-        content={section.content}
-        deckUrl={deckUrl}
-        defaultVideoTitle={defaultVideoTitle}
-      />
+      <PaywallGuard courseType={courseType} sectionTitle={displayTitle}>
+        <VideoSection
+          slug={slug}
+          title={displayTitle}
+          content={section.content}
+          deckUrl={deckUrl}
+          defaultVideoTitle={defaultVideoTitle}
+        />
+      </PaywallGuard>
     );
   }
 

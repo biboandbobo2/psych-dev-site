@@ -2,13 +2,17 @@ import { useState, useEffect } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
+import { debugError } from "../lib/debug";
+import type { CourseAccessMap, UserRole } from "../types/user";
 
 export interface UserRecord {
   uid: string;
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  role: "student" | "admin" | "super-admin" | string;
+  role: UserRole;
+  /** Гранулярный доступ к курсам (для guest) */
+  courseAccess?: CourseAccessMap;
   createdAt: any;
   lastLoginAt: any;
 }
@@ -38,7 +42,7 @@ export function useAllUsers() {
         setError(null);
       },
       (err) => {
-        console.error("Error loading users:", err);
+        debugError("Error loading users:", err);
         setError(err.message);
         setLoading(false);
       }

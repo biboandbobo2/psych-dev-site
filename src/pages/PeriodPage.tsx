@@ -8,6 +8,7 @@ import { SITE_NAME } from '../routes';
 import { normalizeText } from '../utils/contentHelpers';
 import { cn } from '../lib/cn';
 import type { Period } from '../types/content';
+import type { CourseType } from '../types/tests';
 import { usePeriodTheme } from '../features/periods/hooks/usePeriodTheme';
 import { usePeriodTests } from '../features/periods/hooks/usePeriodTests';
 import { PeriodSections } from '../features/periods/components/PeriodSections';
@@ -110,6 +111,13 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const isGeneralCourse = location.pathname.startsWith('/general/');
   const isDevelopmentCourse = !isClinicalCourse && !isGeneralCourse;
 
+  // Определяем courseType для проверки доступа к видео
+  const courseType: CourseType = isClinicalCourse
+    ? 'clinical'
+    : isGeneralCourse
+    ? 'general'
+    : 'development';
+
   // Устанавливаем дефолтный текст заглушки в зависимости от курса
   const defaultPlaceholderText = isDevelopmentCourse
     ? 'Контент для этого возраста появится в ближайшем обновлении.'
@@ -192,6 +200,7 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
           deckUrl={deckUrl}
           defaultVideoTitle={defaultVideoTitle}
           periodTests={periodTests}
+          courseType={courseType}
         />
       )}
     </Motion.div>
