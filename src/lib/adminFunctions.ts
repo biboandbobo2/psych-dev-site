@@ -47,3 +47,33 @@ export async function updateCourseAccess(params: UpdateCourseAccessParams) {
   const result = await update(params);
   return result.data;
 }
+
+export interface SetUserRoleParams {
+  targetUid: string;
+  role: "guest" | "student";
+}
+
+interface SetUserRoleResponse {
+  success: boolean;
+  targetUid: string;
+  targetEmail: string | null;
+  previousRole: string;
+  newRole: string;
+  message: string;
+}
+
+/**
+ * Меняет роль пользователя между guest и student.
+ * Только super-admin может вызывать эту функцию.
+ *
+ * @param params - параметры: targetUid и role
+ * @returns результат операции
+ */
+export async function setUserRole(params: SetUserRoleParams) {
+  const setRole = httpsCallable<SetUserRoleParams, SetUserRoleResponse>(
+    functions,
+    "setUserRole"
+  );
+  const result = await setRole(params);
+  return result.data;
+}

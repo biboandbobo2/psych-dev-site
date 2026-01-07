@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAllUsers, type UserRecord } from "../hooks/useAllUsers";
 import { useAuth } from "../auth/AuthProvider";
-import { makeUserAdmin, removeAdmin, updateCourseAccess } from "../lib/adminFunctions";
+import { makeUserAdmin, removeAdmin, updateCourseAccess, setUserRole } from "../lib/adminFunctions";
 import { AddAdminModal } from "../components/AddAdminModal";
 import { SuperAdminBadge } from "../components/SuperAdminBadge";
 import type { CourseAccessMap, UserRole } from "../types/user";
@@ -171,6 +171,22 @@ export default function AdminUsers() {
     }
   };
 
+  const handleSetRole = async (targetUid: string, newRole: 'guest' | 'student') => {
+    const roleLabel = newRole === 'guest' ? 'гостем' : 'студентом';
+    if (!window.confirm(`Сделать этого пользователя ${roleLabel}?`)) return;
+
+    setActionLoading(targetUid);
+    try {
+      await setUserRole({ targetUid, role: newRole });
+      window.alert(`Пользователь теперь ${roleLabel}. Изменения вступят в силу после перелогина.`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Ошибка смены роли';
+      window.alert(message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8 flex items-start justify-between gap-4">
@@ -270,6 +286,7 @@ export default function AdminUsers() {
                 onRemoveAdmin={() => handleRemoveAdmin(user.uid)}
                 onCourseAccessChange={handleCourseAccessChange}
                 onSaveCourseAccess={() => handleSaveCourseAccess(user.uid)}
+                onSetRole={(role) => handleSetRole(user.uid, role)}
               />
             ))}
           </tbody>
@@ -302,6 +319,7 @@ interface UserRowProps {
   onRemoveAdmin: () => void;
   onCourseAccessChange: (course: keyof CourseAccessMap, value: boolean) => void;
   onSaveCourseAccess: () => void;
+  onSetRole: (role: 'guest' | 'student') => void;
 }
 
 function UserRow({
@@ -317,14 +335,28 @@ function UserRow({
   onRemoveAdmin,
   onCourseAccessChange,
   onSaveCourseAccess,
+  onSetRole,
 }: UserRowProps) {
   const isCurrentUser = user.uid === currentUserUid;
-  const hasFullAccess = user.role === 'student' || user.role === 'admin' || user.role === 'super-admin';
+  // admin/super-admin имеют полный доступ, для student/guest - проверяем courseAccess
+  const isAdminRole = user.role === 'admin' || user.role === 'super-admin';
+  const canEditCourseAccess = user.role === 'student' || user.role === 'guest';
 
-  // Подсчитываем количество открытых курсов для guest
-  const openCoursesCount = user.role === 'guest'
-    ? ALL_COURSE_TYPES.filter((c) => user.courseAccess?.[c]).length
-    : ALL_COURSE_TYPES.length;
+  // Подсчитываем количество открытых курсов
+  const getOpenCoursesCount = () => {
+    if (isAdminRole) return ALL_COURSE_TYPES.length;
+    if (!user.courseAccess) {
+      // student без courseAccess имеет полный доступ
+      return user.role === 'student' ? ALL_COURSE_TYPES.length : 0;
+    }
+    // Для student: undefined = доступ есть, false = нет доступа
+    // Для guest: нужен explicit true
+    if (user.role === 'student') {
+      return ALL_COURSE_TYPES.filter((c) => user.courseAccess?.[c] !== false).length;
+    }
+    return ALL_COURSE_TYPES.filter((c) => user.courseAccess?.[c] === true).length;
+  };
+  const openCoursesCount = getOpenCoursesCount();
 
   return (
     <>
@@ -362,11 +394,15 @@ function UserRow({
           </span>
         </td>
         <td className="whitespace-nowrap px-6 py-4">
-          {hasFullAccess ? (
+          {isAdminRole ? (
             <span className="text-sm text-green-600">Полный доступ</span>
+          ) : openCoursesCount === ALL_COURSE_TYPES.length ? (
+            <span className="text-sm text-green-600">Все курсы</span>
+          ) : openCoursesCount === 0 ? (
+            <span className="text-sm text-red-600">Нет доступа</span>
           ) : (
-            <span className="text-sm text-gray-600">
-              {openCoursesCount} из {ALL_COURSE_TYPES.length} курсов
+            <span className="text-sm text-yellow-600">
+              {openCoursesCount} из {ALL_COURSE_TYPES.length}
             </span>
           )}
         </td>
@@ -375,17 +411,51 @@ function UserRow({
         </td>
         <td className="whitespace-nowrap px-6 py-4 text-sm" onClick={(e) => e.stopPropagation()}>
           {isSuperAdmin && user.uid !== currentUserUid ? (
-            <div className="flex gap-2">
-              {user.role === 'student' || user.role === 'guest' ? (
-                <button
-                  type="button"
-                  onClick={onMakeAdmin}
-                  disabled={actionLoading === user.uid}
-                  className="rounded bg-green-600 px-3 py-1 text-white transition hover:bg-green-700 disabled:bg-gray-400"
-                >
-                  {actionLoading === user.uid ? 'Ждите...' : 'Сделать админом'}
-                </button>
-              ) : user.role === 'admin' ? (
+            <div className="flex flex-wrap gap-2">
+              {/* Кнопки для guest */}
+              {user.role === 'guest' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onSetRole('student')}
+                    disabled={actionLoading === user.uid}
+                    className="rounded bg-blue-600 px-3 py-1 text-white transition hover:bg-blue-700 disabled:bg-gray-400"
+                  >
+                    {actionLoading === user.uid ? 'Ждите...' : 'Студент'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onMakeAdmin}
+                    disabled={actionLoading === user.uid}
+                    className="rounded bg-green-600 px-3 py-1 text-white transition hover:bg-green-700 disabled:bg-gray-400"
+                  >
+                    {actionLoading === user.uid ? 'Ждите...' : 'Админ'}
+                  </button>
+                </>
+              )}
+              {/* Кнопки для student */}
+              {user.role === 'student' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onSetRole('guest')}
+                    disabled={actionLoading === user.uid}
+                    className="rounded bg-yellow-600 px-3 py-1 text-white transition hover:bg-yellow-700 disabled:bg-gray-400"
+                  >
+                    {actionLoading === user.uid ? 'Ждите...' : 'Гость'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onMakeAdmin}
+                    disabled={actionLoading === user.uid}
+                    className="rounded bg-green-600 px-3 py-1 text-white transition hover:bg-green-700 disabled:bg-gray-400"
+                  >
+                    {actionLoading === user.uid ? 'Ждите...' : 'Админ'}
+                  </button>
+                </>
+              )}
+              {/* Кнопка для admin */}
+              {user.role === 'admin' && (
                 <button
                   type="button"
                   onClick={onRemoveAdmin}
@@ -394,7 +464,9 @@ function UserRow({
                 >
                   {actionLoading === user.uid ? 'Ждите...' : 'Снять права'}
                 </button>
-              ) : (
+              )}
+              {/* super-admin нельзя менять */}
+              {user.role === 'super-admin' && (
                 <span className="text-gray-400">Super-admin</span>
               )}
             </div>
@@ -411,9 +483,14 @@ function UserRow({
             <div className="rounded-lg border border-gray-200 bg-white p-4">
               <h4 className="mb-3 text-sm font-semibold text-gray-700">
                 Доступ к курсам
-                {hasFullAccess && (
+                {isAdminRole && (
                   <span className="ml-2 text-xs font-normal text-gray-500">
                     (роль {getRoleLabel(user.role)} имеет полный доступ)
+                  </span>
+                )}
+                {user.role === 'student' && (
+                  <span className="ml-2 text-xs font-normal text-blue-500">
+                    (снятие галочки ограничит доступ)
                   </span>
                 )}
               </h4>
@@ -423,17 +500,17 @@ function UserRow({
                   <label
                     key={course}
                     className={`flex items-center gap-2 rounded-lg border p-3 transition ${
-                      hasFullAccess
+                      isAdminRole
                         ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60'
                         : editingCourseAccess[course]
                         ? 'border-green-300 bg-green-50'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
+                        : 'border-red-200 bg-red-50 hover:border-red-300'
                     }`}
                   >
                     <input
                       type="checkbox"
-                      checked={hasFullAccess || editingCourseAccess[course] || false}
-                      disabled={hasFullAccess}
+                      checked={isAdminRole || editingCourseAccess[course] || false}
+                      disabled={isAdminRole}
                       onChange={(e) => onCourseAccessChange(course, e.target.checked)}
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                     />
@@ -442,7 +519,7 @@ function UserRow({
                 ))}
               </div>
 
-              {!hasFullAccess && (
+              {canEditCourseAccess && (
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -458,9 +535,9 @@ function UserRow({
                 </div>
               )}
 
-              {hasFullAccess && (
+              {isAdminRole && (
                 <p className="text-xs text-gray-500">
-                  Для изменения доступа к отдельным курсам измените роль пользователя на &quot;Гость&quot;.
+                  Администраторы имеют полный доступ ко всем курсам.
                 </p>
               )}
             </div>

@@ -15,8 +15,9 @@ export type UserRole = 'guest' | 'student' | 'admin' | 'super-admin';
  * Используется для гранулярного контроля доступа к видео-контенту
  *
  * Логика:
- * - Если role === 'student', 'admin' или 'super-admin' → полный доступ ко всем курсам
- * - Если role === 'guest' → проверяется courseAccess[courseType]
+ * - admin/super-admin → всегда полный доступ
+ * - student → проверяется courseAccess (если курс явно false — нет доступа, иначе — есть)
+ * - guest → проверяется courseAccess (нужен явный true для доступа)
  */
 export interface CourseAccessMap {
   /** Психология развития (возрастная психология) */
@@ -74,12 +75,23 @@ export function hasCourseAccess(
   // Неавторизованные пользователи не имеют доступа
   if (!role) return false;
 
-  // student, admin и super-admin имеют полный доступ
-  if (role === 'student' || role === 'admin' || role === 'super-admin') {
+  // admin и super-admin всегда имеют полный доступ
+  if (role === 'admin' || role === 'super-admin') {
     return true;
   }
 
-  // guest проверяется по courseAccess
+  // student: если courseAccess не задан или курс не указан → доступ есть (обратная совместимость)
+  // если курс явно false → доступа нет
+  if (role === 'student') {
+    // Нет courseAccess → полный доступ (старые пользователи)
+    if (!courseAccess) return true;
+    // Курс явно запрещён → нет доступа
+    if (courseAccess[courseType] === false) return false;
+    // Курс разрешён или не указан → есть доступ
+    return true;
+  }
+
+  // guest: нужен явный true для доступа
   if (role === 'guest') {
     return courseAccess?.[courseType] === true;
   }

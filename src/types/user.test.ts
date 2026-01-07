@@ -10,10 +10,10 @@ describe('hasCourseAccess', () => {
     });
   });
 
-  describe('returns true for privileged roles', () => {
-    const privilegedRoles: UserRole[] = ['student', 'admin', 'super-admin'];
+  describe('returns true for admin roles regardless of courseAccess', () => {
+    const adminRoles: UserRole[] = ['admin', 'super-admin'];
 
-    privilegedRoles.forEach((role) => {
+    adminRoles.forEach((role) => {
       it(`returns true for ${role} regardless of courseAccess`, () => {
         // With null courseAccess
         expect(hasCourseAccess(role, null, 'development')).toBe(true);
@@ -35,6 +35,63 @@ describe('hasCourseAccess', () => {
         expect(hasCourseAccess(role, deniedAccess, 'clinical')).toBe(true);
         expect(hasCourseAccess(role, deniedAccess, 'general')).toBe(true);
       });
+    });
+  });
+
+  describe('student role checks courseAccess with default true', () => {
+    it('returns true when courseAccess is null (backwards compatibility)', () => {
+      expect(hasCourseAccess('student', null, 'development')).toBe(true);
+      expect(hasCourseAccess('student', null, 'clinical')).toBe(true);
+      expect(hasCourseAccess('student', null, 'general')).toBe(true);
+    });
+
+    it('returns true when courseAccess is empty', () => {
+      expect(hasCourseAccess('student', {}, 'development')).toBe(true);
+      expect(hasCourseAccess('student', {}, 'clinical')).toBe(true);
+      expect(hasCourseAccess('student', {}, 'general')).toBe(true);
+    });
+
+    it('returns false when course is explicitly denied', () => {
+      const access: CourseAccessMap = {
+        development: false,
+        clinical: false,
+        general: false,
+      };
+      expect(hasCourseAccess('student', access, 'development')).toBe(false);
+      expect(hasCourseAccess('student', access, 'clinical')).toBe(false);
+      expect(hasCourseAccess('student', access, 'general')).toBe(false);
+    });
+
+    it('returns true when course is explicitly granted', () => {
+      const access: CourseAccessMap = {
+        development: true,
+        clinical: true,
+        general: true,
+      };
+      expect(hasCourseAccess('student', access, 'development')).toBe(true);
+      expect(hasCourseAccess('student', access, 'clinical')).toBe(true);
+      expect(hasCourseAccess('student', access, 'general')).toBe(true);
+    });
+
+    it('returns correct value for partial access', () => {
+      const partialAccess: CourseAccessMap = {
+        development: true,
+        clinical: false,
+        general: true,
+      };
+      expect(hasCourseAccess('student', partialAccess, 'development')).toBe(true);
+      expect(hasCourseAccess('student', partialAccess, 'clinical')).toBe(false);
+      expect(hasCourseAccess('student', partialAccess, 'general')).toBe(true);
+    });
+
+    it('returns true when field is undefined (not explicitly denied)', () => {
+      const access: CourseAccessMap = {
+        development: true,
+        // clinical and general are undefined
+      };
+      expect(hasCourseAccess('student', access, 'development')).toBe(true);
+      expect(hasCourseAccess('student', access, 'clinical')).toBe(true);
+      expect(hasCourseAccess('student', access, 'general')).toBe(true);
     });
   });
 
