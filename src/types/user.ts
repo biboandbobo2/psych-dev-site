@@ -112,3 +112,19 @@ export const COURSE_LABELS: Record<CourseType, string> = {
  * Все типы курсов в порядке отображения
  */
 export const ALL_COURSE_TYPES: CourseType[] = ['development', 'clinical', 'general'];
+
+/**
+ * Подсчитывает количество доступных курсов для пользователя
+ *
+ * @param role - роль пользователя
+ * @param courseAccess - карта доступа к курсам
+ * @returns количество доступных курсов
+ */
+export function countAccessibleCourses(
+  role: UserRole | null,
+  courseAccess: CourseAccessMap | null | undefined
+): number {
+  return ALL_COURSE_TYPES.filter((courseType) =>
+    hasCourseAccess(role, courseAccess, courseType)
+  ).length;
+}

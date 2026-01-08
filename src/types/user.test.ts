@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hasCourseAccess, type CourseAccessMap, type UserRole } from './user';
+import { hasCourseAccess, countAccessibleCourses, type CourseAccessMap, type UserRole } from './user';
 
 describe('hasCourseAccess', () => {
   describe('returns false for unauthenticated users', () => {
@@ -150,5 +150,76 @@ describe('hasCourseAccess', () => {
       expect(hasCourseAccess('guest', access, 'clinical')).toBe(false);
       expect(hasCourseAccess('guest', access, 'general')).toBe(false);
     });
+  });
+});
+
+describe('countAccessibleCourses', () => {
+  it('returns 0 for unauthenticated users', () => {
+    expect(countAccessibleCourses(null, null)).toBe(0);
+    expect(countAccessibleCourses(null, { development: true })).toBe(0);
+  });
+
+  it('returns 3 for admin roles regardless of courseAccess', () => {
+    const adminRoles: UserRole[] = ['admin', 'super-admin'];
+    const deniedAccess: CourseAccessMap = {
+      development: false,
+      clinical: false,
+      general: false,
+    };
+
+    adminRoles.forEach((role) => {
+      expect(countAccessibleCourses(role, null)).toBe(3);
+      expect(countAccessibleCourses(role, {})).toBe(3);
+      expect(countAccessibleCourses(role, deniedAccess)).toBe(3);
+    });
+  });
+
+  it('returns 3 for student without courseAccess (backwards compatibility)', () => {
+    expect(countAccessibleCourses('student', null)).toBe(3);
+    expect(countAccessibleCourses('student', {})).toBe(3);
+  });
+
+  it('counts correctly for student with partial access', () => {
+    expect(countAccessibleCourses('student', {
+      development: false,
+      clinical: true,
+      general: false,
+    })).toBe(1);
+
+    expect(countAccessibleCourses('student', {
+      development: true,
+      clinical: false,
+      // general undefined = allowed
+    })).toBe(2);
+  });
+
+  it('returns 0 for guest without access', () => {
+    expect(countAccessibleCourses('guest', null)).toBe(0);
+    expect(countAccessibleCourses('guest', {})).toBe(0);
+    expect(countAccessibleCourses('guest', {
+      development: false,
+      clinical: false,
+      general: false,
+    })).toBe(0);
+  });
+
+  it('counts correctly for guest with partial access', () => {
+    expect(countAccessibleCourses('guest', {
+      development: true,
+      clinical: false,
+      general: true,
+    })).toBe(2);
+
+    expect(countAccessibleCourses('guest', {
+      development: true,
+    })).toBe(1);
+  });
+
+  it('returns 3 for guest with full access', () => {
+    expect(countAccessibleCourses('guest', {
+      development: true,
+      clinical: true,
+      general: true,
+    })).toBe(3);
   });
 });
