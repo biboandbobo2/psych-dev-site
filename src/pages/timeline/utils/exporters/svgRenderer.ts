@@ -3,7 +3,7 @@
  */
 import type { EventIconId } from '../../../../data/eventIcons';
 import { debugExport } from './common';
-import { debugWarn } from '@/lib/debug';
+import { debugWarn } from '../../../../lib/debug';
 
 type ExportDebugIcon = {
   index: number;
