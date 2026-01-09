@@ -14,6 +14,7 @@ import {
 import { db } from '../lib/firebase';
 import { useAuth } from '../auth/AuthProvider';
 import { type AgeRange, type Topic, type TopicInput } from '../types/notes';
+import { debugLog, debugError } from '../lib/debug';
 
 export function useTopics(ageRangeFilter?: AgeRange | null) {
   const { user } = useAuth();
@@ -52,7 +53,7 @@ export function useTopics(ageRangeFilter?: AgeRange | null) {
         setError(null);
       },
       (err) => {
-        console.error('Error loading topics:', err);
+        debugError('Error loading topics:', err);
         setError(err.message);
         setLoading(false);
       }
@@ -73,7 +74,7 @@ export function useTopics(ageRangeFilter?: AgeRange | null) {
     };
 
     const docRef = await addDoc(collection(db, 'topics'), docData);
-    console.log('✅ Topic created with ID:', docRef.id);
+    debugLog('✅ Topic created with ID:', docRef.id);
     return docRef.id;
   };
 
@@ -94,7 +95,7 @@ export function useTopics(ageRangeFilter?: AgeRange | null) {
     });
 
     await batch.commit();
-    console.log('✅ Created', topicsInput.length, 'topics');
+    debugLog('✅ Created', topicsInput.length, 'topics');
   };
 
   const updateTopic = async (
@@ -103,12 +104,12 @@ export function useTopics(ageRangeFilter?: AgeRange | null) {
   ) => {
     const topicRef = doc(db, 'topics', topicId);
     await updateDoc(topicRef, updates);
-    console.log('✅ Topic updated');
+    debugLog('✅ Topic updated');
   };
 
   const deleteTopic = async (topicId: string) => {
     await deleteDoc(doc(db, 'topics', topicId));
-    console.log('✅ Topic deleted');
+    debugLog('✅ Topic deleted');
   };
 
   return {

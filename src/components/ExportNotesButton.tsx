@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { Note } from '../types/notes';
 import { generateNotesMarkdown, generateNotesText, downloadPlainText } from '../utils/notesExport';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 interface ExportNotesButtonProps {
   notes: Note[];
@@ -10,18 +11,8 @@ export function ExportNotesButton({ notes }: ExportNotesButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isOpen]);
+  const closeDropdown = useCallback(() => setIsOpen(false), []);
+  useClickOutside(dropdownRef, closeDropdown, isOpen);
 
   const filenameBase = useMemo(() => new Date().toISOString().split('T')[0], []);
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LINE_X_POSITION } from '../pages/timeline/constants';
 import type { NodeT } from '../pages/timeline/types';
+import { debugLog, debugError } from '../lib/debug';
 
 interface SaveNoteAsEventButtonProps {
   noteTitle: string;
@@ -47,7 +48,7 @@ export function SaveNoteAsEventButton({
 
     setSaving(true);
     try {
-      console.log('🔵 SaveNoteAsEvent: Creating event from note...');
+      debugLog('🔵 SaveNoteAsEvent: Creating event from note...');
 
       const event: Omit<NodeT, 'id'> = {
         age: ageNum,
@@ -61,11 +62,11 @@ export function SaveNoteAsEventButton({
 
       await onEventCreate(event);
 
-      console.log('✅ Event created successfully!');
+      debugLog('✅ Event created successfully!');
       setShowModal(false);
       onSuccess?.();
     } catch (error) {
-      console.error('❌ Error creating event:', error);
+      debugError('❌ Error creating event:', error);
       alert('Ошибка при создании события: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setSaving(false);

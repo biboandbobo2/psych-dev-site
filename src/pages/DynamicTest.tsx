@@ -5,6 +5,7 @@ import { getTestById } from '../lib/tests';
 import { isTestUnlocked } from '../lib/testAccess';
 import type { Test, QuestionAnswer } from '../types/tests';
 import { mergeAppearance, createGradient, hexToRgba } from '../utils/testAppearance';
+import { shuffleArray } from '../utils/array';
 import { useTestProgress } from '../hooks/useTestProgress';
 import { useAnswerValidation } from '../hooks/useAnswerValidation';
 import { useQuestionNavigation } from '../hooks/useQuestionNavigation';
@@ -12,15 +13,6 @@ import { TestIntroScreen } from '../components/tests/TestIntroScreen';
 import { TestQuestionScreen } from '../components/tests/TestQuestionScreen';
 import { TestResultsScreen } from '../components/tests/TestResultsScreen';
 import { debugError } from '../lib/debug';
-
-function shuffleArray<T>(items: T[]): T[] {
-  const result = [...items];
-  for (let i = result.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
 
 export default function DynamicTest() {
   const { testId } = useParams<{ testId: string }>();
