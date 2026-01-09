@@ -50,9 +50,10 @@ describe('AdminUsers statistics', () => {
     render(<AdminUsers />);
 
     expect(
-      screen.getByText(/Всего пользователей:/)
-    ).toHaveTextContent('Всего пользователей: 3 (Админов: 2, Студентов: 1)');
+      screen.getByText(/Всего:/)
+    ).toHaveTextContent('Всего: 3 (Админов: 2, Студентов: 1, Гостей: 0)');
     expect(screen.getByText('Все (3)')).toBeInTheDocument();
+    expect(screen.getByText('Гости (0)')).toBeInTheDocument();
     expect(screen.getByText('Студенты (1)')).toBeInTheDocument();
     expect(screen.getByText('Администраторы (2)')).toBeInTheDocument();
   });

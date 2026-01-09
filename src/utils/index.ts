@@ -2,6 +2,7 @@
  * Barrel export for utility functions
  * Allows cleaner imports: import { normalizeText, buildTestChains } from './utils'
  */
+export * from './array';
 export * from './color';
 export * from './contentHelpers';
 export * from './mediaUpload';

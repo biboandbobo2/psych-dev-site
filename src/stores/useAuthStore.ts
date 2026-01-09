@@ -2,18 +2,22 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
 import { auth, googleProvider, db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { SUPER_ADMIN_EMAIL } from '../constants/superAdmin';
 import { reportAppError } from '../lib/errorHandler';
-
-type UserRole = 'student' | 'admin' | 'super-admin' | null;
+import type { CourseType } from '../types/tests';
+import type { CourseAccessMap, UserRole } from '../types/user';
+import { hasCourseAccess as checkCourseAccess } from '../types/user';
 
 interface AuthState {
   user: User | null;
   loading: boolean;
-  userRole: UserRole;
+  userRole: UserRole | null;
+  /** Гранулярный доступ к курсам (для guest) */
+  courseAccess: CourseAccessMap | null;
 
   // Computed properties
+  isGuest: boolean;
   isStudent: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
@@ -21,10 +25,18 @@ interface AuthState {
   // Actions
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
-  setUserRole: (role: UserRole) => void;
+  setUserRole: (role: UserRole | null) => void;
+  setCourseAccess: (access: CourseAccessMap | null) => void;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   initializeAuth: () => () => void;
+
+  /**
+   * Проверяет, есть ли у пользователя доступ к видео-контенту курса
+   * @param courseType - тип курса
+   * @returns true если доступ разрешён
+   */
+  hasCourseAccess: (courseType: CourseType) => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -33,6 +45,8 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       loading: true,
       userRole: null,
+      courseAccess: null,
+      isGuest: false,
       isStudent: false,
       isAdmin: false,
       isSuperAdmin: false,
@@ -45,13 +59,22 @@ export const useAuthStore = create<AuthState>()(
         const isSuperAdmin = userRole === 'super-admin';
         const isAdmin = userRole === 'admin' || isSuperAdmin;
         const isStudent = userRole === 'student';
+        const isGuest = userRole === 'guest';
 
         set({
           userRole,
           isSuperAdmin,
           isAdmin,
           isStudent,
+          isGuest,
         });
+      },
+
+      setCourseAccess: (courseAccess) => set({ courseAccess }),
+
+      hasCourseAccess: (courseType: CourseType) => {
+        const { userRole, courseAccess } = get();
+        return checkCourseAccess(userRole, courseAccess, courseType);
       },
 
       signInWithGoogle: async () => {
@@ -74,14 +97,22 @@ export const useAuthStore = create<AuthState>()(
 
       initializeAuth: () => {
         let cancelled = false;
+        let userDocUnsubscribe: Unsubscribe | null = null;
 
         const unsubscribe = onAuthStateChanged(auth, async (next) => {
           if (cancelled) return;
+
+          // Отписываемся от предыдущего пользователя
+          if (userDocUnsubscribe) {
+            userDocUnsubscribe();
+            userDocUnsubscribe = null;
+          }
 
           get().setUser(next);
 
           if (!next) {
             get().setUserRole(null);
+            get().setCourseAccess(null);
             get().setLoading(false);
             return;
           }
@@ -89,7 +120,7 @@ export const useAuthStore = create<AuthState>()(
           get().setLoading(true);
 
           try {
-            let resolvedRole: Exclude<UserRole, null> = 'student';
+            let resolvedRole: UserRole = 'guest';
 
             if (next.email === SUPER_ADMIN_EMAIL) {
               resolvedRole = 'super-admin';
@@ -98,20 +129,57 @@ export const useAuthStore = create<AuthState>()(
               const claimRole = tokenResult.claims.role;
 
               if (claimRole === 'admin' || claimRole === 'super-admin') {
-                resolvedRole = claimRole as Exclude<UserRole, null>;
+                resolvedRole = claimRole as UserRole;
+              } else if (claimRole === 'student') {
+                resolvedRole = 'student';
+              } else if (claimRole === 'guest') {
+                resolvedRole = 'guest';
               } else {
+                // Проверяем Firestore для legacy пользователей
                 const snap = await getDoc(doc(db, 'users', next.uid));
                 const firestoreRole = snap.data()?.role;
                 if (firestoreRole === 'admin' || firestoreRole === 'super-admin') {
                   resolvedRole = firestoreRole;
+                } else if (firestoreRole === 'student') {
+                  resolvedRole = 'student';
+                } else if (firestoreRole === 'guest') {
+                  resolvedRole = 'guest';
+                } else {
+                  // Legacy пользователи без явной роли считаются student
+                  resolvedRole = 'student';
                 }
               }
             }
 
             get().setUserRole(resolvedRole);
+
+            // Подписываемся на изменения courseAccess в реальном времени
+            userDocUnsubscribe = onSnapshot(
+              doc(db, 'users', next.uid),
+              (docSnap) => {
+                if (cancelled) return;
+                const data = docSnap.data();
+                const courseAccess = data?.courseAccess as CourseAccessMap | undefined;
+                get().setCourseAccess(courseAccess ?? null);
+
+                // Обновляем роль если изменилась
+                const newRole = data?.role as UserRole | undefined;
+                if (newRole && newRole !== get().userRole) {
+                  get().setUserRole(newRole);
+                }
+              },
+              (error) => {
+                reportAppError({
+                  message: 'Ошибка подписки на данные пользователя',
+                  error,
+                  context: 'useAuthStore.initializeAuth.onSnapshot',
+                });
+              }
+            );
           } catch (error) {
             reportAppError({ message: 'Не удалось определить роль пользователя', error, context: 'useAuthStore.initializeAuth' });
-            get().setUserRole('student');
+            get().setUserRole('guest');
+            get().setCourseAccess(null);
           } finally {
             if (!cancelled) {
               get().setLoading(false);
@@ -122,6 +190,9 @@ export const useAuthStore = create<AuthState>()(
         return () => {
           cancelled = true;
           unsubscribe();
+          if (userDocUnsubscribe) {
+            userDocUnsubscribe();
+          }
         };
       },
     }),

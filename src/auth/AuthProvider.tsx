@@ -17,23 +17,29 @@ export function useAuth() {
   const user = useAuthStore((state) => state.user);
   const loading = useAuthStore((state) => state.loading);
   const userRole = useAuthStore((state) => state.userRole);
+  const courseAccess = useAuthStore((state) => state.courseAccess);
+  const isGuest = useAuthStore((state) => state.isGuest);
   const isStudent = useAuthStore((state) => state.isStudent);
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
   const logout = useAuthStore((state) => state.logout);
+  const hasCourseAccess = useAuthStore((state) => state.hasCourseAccess);
 
   return useMemo(
     () => ({
       user,
       loading,
       userRole,
+      courseAccess,
+      isGuest,
       isStudent,
       isAdmin,
       isSuperAdmin,
       signInWithGoogle,
       logout,
+      hasCourseAccess,
     }),
-    [user, loading, userRole, isStudent, isAdmin, isSuperAdmin, signInWithGoogle, logout]
+    [user, loading, userRole, courseAccess, isGuest, isStudent, isAdmin, isSuperAdmin, signInWithGoogle, logout, hasCourseAccess]
   );
 }

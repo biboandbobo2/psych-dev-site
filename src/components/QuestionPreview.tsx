@@ -1,26 +1,11 @@
 import { useState, useMemo } from 'react';
 import type { TestQuestion, RevealPolicy } from '../types/tests';
 import { getYouTubeEmbedUrl } from '../utils/mediaUpload';
+import { shuffleArraySeeded } from '../utils/array';
 
 interface QuestionPreviewProps {
   question: TestQuestion;
   questionNumber: number;
-}
-
-function shuffleArray<T>(items: T[], seed: number): T[] {
-  const result = [...items];
-  let currentSeed = seed;
-
-  const random = () => {
-    currentSeed = (currentSeed * 9301 + 49297) % 233280;
-    return currentSeed / 233280;
-  };
-
-  for (let i = result.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
 }
 
 export function QuestionPreview({ question, questionNumber }: QuestionPreviewProps) {
@@ -32,7 +17,7 @@ export function QuestionPreview({ question, questionNumber }: QuestionPreviewPro
 
   const displayedAnswers = useMemo(() => {
     if (!question.shuffleAnswers) return question.answers;
-    return shuffleArray(question.answers, seed);
+    return shuffleArraySeeded(question.answers, seed);
   }, [question.answers, question.shuffleAnswers, seed]);
 
   const isCorrect = selectedAnswerId === question.correctAnswerId;

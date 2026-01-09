@@ -1,4 +1,4 @@
-import type { PointerEvent, RefObject, WheelEvent } from 'react';
+import { memo, useMemo, type PointerEvent, type RefObject, type WheelEvent } from 'react';
 import type { NodeT, EdgeT, Transform } from '../types';
 import { PeriodizationLayer } from './PeriodizationLayer';
 import { getPeriodizationById } from '../data/periodizations';
@@ -43,7 +43,7 @@ interface TimelineCanvasProps {
   cursorClass: string;
 }
 
-export function TimelineCanvas(props: TimelineCanvasProps) {
+export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvasProps) {
   const {
     svgRef,
     transform,
@@ -74,8 +74,43 @@ export function TimelineCanvas(props: TimelineCanvasProps) {
     cursorClass,
   } = props;
 
-  const adaptiveRadius = clamp(BASE_NODE_RADIUS / transform.k, MIN_NODE_RADIUS, MAX_NODE_RADIUS);
-  const periodization = selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null;
+  // Мемоизация вычислений для предотвращения лишних ре-рендеров
+  const adaptiveRadius = useMemo(
+    () => clamp(BASE_NODE_RADIUS / transform.k, MIN_NODE_RADIUS, MAX_NODE_RADIUS),
+    [transform.k]
+  );
+
+  const periodization = useMemo(
+    () => (selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null),
+    [selectedPeriodization]
+  );
+
+  // Мемоизация меток возраста — пересчитываются только при изменении ageMax
+  const ageLabels = useMemo(
+    () => Array.from({ length: Math.floor(ageMax / 5) + 1 }, (_, i) => i * 5),
+    [ageMax]
+  );
+
+  // Мемоизация валидных рёбер — фильтрация только при изменении edges
+  const validEdges = useMemo(
+    () =>
+      edges.filter(
+        (edge) =>
+          typeof edge.x === 'number' &&
+          typeof edge.startAge === 'number' &&
+          typeof edge.endAge === 'number' &&
+          !isNaN(edge.x) &&
+          !isNaN(edge.startAge) &&
+          !isNaN(edge.endAge)
+      ),
+    [edges]
+  );
+
+  // Мемоизация валидных узлов — фильтрация только при изменении nodes
+  const validNodes = useMemo(
+    () => nodes.filter((node) => typeof node.age === 'number' && !isNaN(node.age)),
+    [nodes]
+  );
 
   return (
     <div className="absolute inset-0">
@@ -100,7 +135,7 @@ export function TimelineCanvas(props: TimelineCanvasProps) {
             onBoundaryClick={onPeriodBoundaryClick}
           />
 
-          {Array.from({ length: Math.floor(ageMax / 5) + 1 }, (_, i) => i * 5).map((age) => {
+          {ageLabels.map((age) => {
             const rightLabel = birthBaseYear !== null ? `${birthBaseYear + age}` : null;
             return (
               <g key={age}>
@@ -231,16 +266,7 @@ export function TimelineCanvas(props: TimelineCanvasProps) {
             )}
           </g>
 
-          {edges
-            .filter((edge) =>
-              typeof edge.x === 'number' &&
-              typeof edge.startAge === 'number' &&
-              typeof edge.endAge === 'number' &&
-              !isNaN(edge.x) &&
-              !isNaN(edge.startAge) &&
-              !isNaN(edge.endAge)
-            )
-            .map((edge) => {
+          {validEdges.map((edge) => {
               const isSelected = selectedBranchX === edge.x;
               return (
                 <g key={edge.id}>
@@ -274,9 +300,7 @@ export function TimelineCanvas(props: TimelineCanvasProps) {
               );
             })}
 
-          {nodes
-            .filter((node) => typeof node.age === 'number' && !isNaN(node.age))
-            .map((node) => {
+          {validNodes.map((node) => {
               const isSelected = node.id === selectedId;
               const isDragging = node.id === draggingNodeId;
               const meta = node.sphere ? SPHERE_META[node.sphere] : SPHERE_META.other;
@@ -387,4 +411,4 @@ export function TimelineCanvas(props: TimelineCanvasProps) {
       </svg>
     </div>
   );
-}
+});

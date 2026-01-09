@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { saveTestResult } from '../lib/testResults';
 import type { Test } from '../types/tests';
+import { debugError } from '../lib/debug';
 
 interface UseTestProgressParams {
   test: Test | null;
@@ -71,7 +72,7 @@ export function useTestProgress({ test, user }: UseTestProgressParams) {
 
           setResultSaved(true);
         } catch (error) {
-          console.error('Ошибка при сохранении результата:', error);
+          debugError('Ошибка при сохранении результата:', error);
         }
       };
 

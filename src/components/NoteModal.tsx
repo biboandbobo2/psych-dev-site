@@ -3,6 +3,7 @@ import { type AgeRange } from '../types/notes';
 import { TopicSelector } from './TopicSelector';
 import { SaveNoteAsEventButton } from './SaveNoteAsEventButton';
 import { useTimeline } from '../hooks/useTimeline';
+import { debugError } from '../lib/debug';
 
 interface NoteModalProps {
   isOpen: boolean;
@@ -67,7 +68,7 @@ export function NoteModal({
       setSaving(false);
       onClose();
     } catch (error) {
-      console.error('Error saving note:', error);
+      debugError('Error saving note:', error);
       alert('Ошибка при сохранении заметки: ' + (error as Error).message);
       setSaving(false);
     }

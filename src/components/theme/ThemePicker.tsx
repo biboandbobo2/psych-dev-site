@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import type { DerivedTheme, Gradient, ThemeOverrides, ThemePreset } from '../../types/themes';
 import { gradientToCss, cloneGradient } from '../../utils/theme';
+import { hexRegex, gradientsEqual, sanitizeHex, clampValue } from './themePickerUtils';
+import { GradientEditor } from './GradientEditor';
 
 interface ThemePickerProps {
   presets: ThemePreset[];
@@ -39,75 +41,6 @@ interface ThemePreviewProps {
   contrastWarning?: string | null;
 }
 
-interface GradientEditorProps {
-  label: string;
-  gradient: Gradient;
-  onChange: (gradient: Gradient) => void;
-  disabled?: boolean;
-}
-
-const hexRegex = /^#?[0-9a-f]{6}$/i;
-
-const gradientsEqual = (a: Gradient, b: Gradient): boolean => {
-  if (a.type !== b.type) return false;
-  if ((a.angle ?? 0) !== (b.angle ?? 0)) return false;
-  if (a.stops.length !== b.stops.length) return false;
-  return a.stops.every((stop, index) => {
-    const other = b.stops[index];
-    return stop.color.toLowerCase() === other.color.toLowerCase() && stop.position === other.position;
-  });
-};
-
-const sanitizeHex = (value: string): string => {
-  const normalized = value.startsWith('#') ? value : `#${value}`;
-  return normalized.toUpperCase();
-};
-
-const clampValue = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
-const addStop = (gradient: Gradient): Gradient => {
-  const stops = [...gradient.stops];
-  if (stops.length >= 8) return gradient;
-  const midpoint = stops.length > 1 ? (stops[0].position + stops[stops.length - 1].position) / 2 : 50;
-  const insertAt = stops.findIndex((stop) => stop.position > midpoint);
-  const newStop = {
-    color: stops[Math.max(0, stops.length - 1)].color,
-    position: Math.round(midpoint),
-  };
-  if (insertAt === -1) {
-    stops.push(newStop);
-  } else {
-    stops.splice(insertAt, 0, newStop);
-  }
-  return {
-    ...gradient,
-    stops,
-  };
-};
-
-const removeStop = (gradient: Gradient, index: number): Gradient => {
-  if (gradient.stops.length <= 2) return gradient;
-  const stops = gradient.stops.filter((_, idx) => idx !== index);
-  return {
-    ...gradient,
-    stops,
-  };
-};
-
-const updateStop = (gradient: Gradient, index: number, updates: Partial<{ color: string; position: number }>): Gradient => {
-  const stops = gradient.stops.map((stop, idx) => {
-    if (idx !== index) return stop;
-    return {
-      color: updates.color ?? stop.color,
-      position: updates.position ?? stop.position,
-    };
-  });
-  stops.sort((a, b) => a.position - b.position);
-  return {
-    ...gradient,
-    stops,
-  };
-};
 
 const PresetSelector = ({ presets, activeId, onSelect }: PresetSelectorProps) => {
   return (
@@ -230,116 +163,6 @@ const ThemePreview = ({ theme, buttonTextColor, contrastWarning }: ThemePreviewP
           ⚠️ {contrastWarning}
         </div>
       )}
-    </div>
-  );
-};
-
-const GradientEditor = ({ label, gradient, onChange, disabled }: GradientEditorProps) => {
-  const handleTypeChange = (type: Gradient['type']) => {
-    onChange({
-      ...gradient,
-      type,
-    });
-  };
-
-  const handleAngleChange = (angle: number) => {
-    onChange({
-      ...gradient,
-      angle,
-    });
-  };
-
-  return (
-    <div className={`rounded-2xl border border-zinc-200 p-4 ${disabled ? 'opacity-60' : ''}`}>
-      <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-zinc-800">{label}</h4>
-        <span className="text-xs text-zinc-500">{gradient.type === 'linear' ? 'Линейный' : 'Радиальный'}</span>
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <select
-            value={gradient.type}
-            onChange={(event) => handleTypeChange(event.target.value as Gradient['type'])}
-            className="h-10 flex-1 rounded-lg border border-zinc-300 px-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
-            disabled={disabled}
-          >
-            <option value="linear">Линейный</option>
-            <option value="radial">Радиальный</option>
-          </select>
-          {gradient.type === 'linear' && (
-            <div className="flex items-center gap-2 text-sm text-zinc-600">
-              <span>Угол</span>
-              <input
-                type="number"
-                min={0}
-                max={360}
-                value={gradient.angle ?? 135}
-                onChange={(event) => handleAngleChange(Number(event.target.value))}
-                className="h-10 w-20 rounded-lg border border-zinc-300 px-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
-                disabled={disabled}
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-3">
-          {gradient.stops.map((stop, index) => (
-            <div key={index} className="flex items-center gap-3">
-              <input
-                type="color"
-                value={stop.color}
-                onChange={(event) =>
-                  onChange(
-                    updateStop(gradient, index, {
-                      color: sanitizeHex(event.target.value),
-                    })
-                  )
-                }
-                className="h-10 w-12 rounded border border-zinc-300"
-                disabled={disabled}
-              />
-              <div className="flex flex-1 flex-col">
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={stop.position}
-                  onChange={(event) =>
-                    onChange(
-                      updateStop(gradient, index, {
-                        position: Number(event.target.value),
-                      })
-                    )
-                  }
-                  className="w-full"
-                  disabled={disabled}
-                />
-                <span className="text-xs text-zinc-500">Позиция: {stop.position}%</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => onChange(removeStop(gradient, index))}
-                className="h-10 rounded-lg border border-zinc-300 px-2 text-sm text-zinc-600 transition hover:border-red-400 hover:text-red-500 disabled:opacity-50"
-                disabled={disabled || gradient.stops.length <= 2}
-              >
-                −
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex justify-between">
-          <button
-            type="button"
-            onClick={() => onChange(addStop(gradient))}
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-700 transition hover:border-indigo-400 hover:text-indigo-600 disabled:opacity-50"
-            disabled={disabled || gradient.stops.length >= 8}
-          >
-            Добавить стоп
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

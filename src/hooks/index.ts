@@ -4,6 +4,7 @@
  */
 export { useAllUsers } from './useAllUsers';
 export { useAnswerValidation } from './useAnswerValidation';
+export { useClickOutside } from './useClickOutside';
 export { useAuthSync } from './useAuthSync';
 export { useLoginModal } from './useLoginModal';
 export { useNotes } from './useNotes';
