@@ -89,7 +89,22 @@ export function useContentSearch(
       setState((prev) => ({ ...prev, status: 'searching', query }));
 
       // Разбиваем запрос на слова для более гибкого поиска
-      const queryWords = trimmedQuery.split(/\s+/).filter((w) => w.length >= 2);
+      // Фильтруем стоп-слова (предлоги, союзы, артикли)
+      const stopWords = new Set([
+        // English
+        'and', 'or', 'the', 'a', 'an', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'as', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'it', 'its',
+        // Russian
+        'и', 'в', 'на', 'с', 'по', 'для', 'из', 'к', 'о', 'об', 'от', 'до', 'за', 'при', 'во', 'не', 'как', 'что', 'это', 'или', 'но', 'а', 'же', 'ли', 'бы', 'его', 'её', 'их', 'то', 'все', 'вся', 'всё',
+      ]);
+      const queryWords = trimmedQuery
+        .split(/\s+/)
+        .filter((w) => w.length >= 2 && !stopWords.has(w));
+
+      // Если после фильтрации не осталось значимых слов
+      if (queryWords.length === 0) {
+        setState({ status: 'success', results: [], query });
+        return;
+      }
 
       const results: SearchResult[] = [];
 
@@ -168,10 +183,19 @@ export function useContentSearch(
 }
 
 /**
- * Проверяет, содержит ли текст все слова из запроса
+ * Проверяет, содержит ли текст слова из запроса
+ * Для одного слова — достаточно его наличия
+ * Для нескольких слов — требуется совпадение всех слов
  */
 function matchesQuery(text: string | undefined, queryWords: string[]): boolean {
-  if (!text) return false;
+  if (!text || queryWords.length === 0) return false;
   const lowerText = text.toLowerCase();
-  return queryWords.some((word) => lowerText.includes(word));
+
+  // Для одного слова — ищем его вхождение
+  if (queryWords.length === 1) {
+    return lowerText.includes(queryWords[0]);
+  }
+
+  // Для нескольких слов — требуем наличия всех слов
+  return queryWords.every((word) => lowerText.includes(word));
 }
