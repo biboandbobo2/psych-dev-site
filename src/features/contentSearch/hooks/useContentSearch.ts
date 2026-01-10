@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import type { Period } from '../../../types/content';
+import type { Period, Author, ContentLink } from '../../../types/content';
 import type { SearchResult, CourseType, MatchField, ContentSearchState } from '../types';
 
 interface ContentData {
@@ -10,6 +10,28 @@ interface ContentData {
 
 interface UseContentSearchOptions {
   minQueryLength?: number;
+}
+
+/**
+ * Извлекает данные из sections или legacy полей
+ * Данные могут быть в period.sections.X.content или в period.X
+ */
+function extractSectionData<T>(
+  period: Period,
+  sectionKey: string,
+  legacyKey: keyof Period
+): T[] {
+  // Сначала проверяем sections (новый формат после миграции)
+  const sectionData = period.sections?.[sectionKey]?.content;
+  if (Array.isArray(sectionData) && sectionData.length > 0) {
+    return sectionData as T[];
+  }
+  // Fallback на legacy поля
+  const legacyData = period[legacyKey];
+  if (Array.isArray(legacyData)) {
+    return legacyData as T[];
+  }
+  return [];
 }
 
 /**
@@ -88,23 +110,24 @@ export function useContentSearch(
           score += 5;
         }
 
-        // Поиск в concepts
-        if (data.concepts?.some((c) => matchesQuery(c, queryWords))) {
+        // Поиск в concepts (sections или legacy)
+        const concepts = extractSectionData<string>(data, 'concepts', 'concepts');
+        if (concepts.some((c) => matchesQuery(c, queryWords))) {
           matchedIn.push('concepts');
           score += 8;
         }
 
-        // Поиск в authors
-        if (data.authors?.some((a) => matchesQuery(a.name, queryWords))) {
+        // Поиск в authors (sections или legacy)
+        const authors = extractSectionData<Author>(data, 'authors', 'authors');
+        if (authors.some((a) => matchesQuery(a.name, queryWords))) {
           matchedIn.push('authors');
           score += 6;
         }
 
-        // Поиск в литературе
-        const allLiterature = [
-          ...(data.core_literature || []),
-          ...(data.extra_literature || []),
-        ];
+        // Поиск в литературе (sections или legacy)
+        const coreLit = extractSectionData<ContentLink>(data, 'core_literature', 'core_literature');
+        const extraLit = extractSectionData<ContentLink>(data, 'extra_literature', 'extra_literature');
+        const allLiterature = [...coreLit, ...extraLit];
         if (allLiterature.some((l) => matchesQuery(l.title, queryWords))) {
           matchedIn.push('literature');
           score += 4;
