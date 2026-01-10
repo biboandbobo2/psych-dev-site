@@ -5,6 +5,7 @@ import type { User } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useAuthStore } from "../stores/useAuthStore";
 import { ResearchSearchDrawer } from "../features/researchSearch/components/ResearchSearchDrawer";
+import { ContentSearchDrawer } from "../features/contentSearch";
 
 interface UserMenuProps {
   user: User;
@@ -12,6 +13,7 @@ interface UserMenuProps {
 
 export default function UserMenu({ user }: UserMenuProps) {
   const [isResearchOpen, setIsResearchOpen] = useState(false);
+  const [isContentSearchOpen, setIsContentSearchOpen] = useState(false);
   const location = useLocation();
   const displayName = user.displayName || user.email?.split('@')[0] || "Пользователь";
   const photoURL = user.photoURL;
@@ -43,12 +45,22 @@ export default function UserMenu({ user }: UserMenuProps) {
 
       <button
         type="button"
+        onClick={() => setIsContentSearchOpen(true)}
+        className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800 transition hover:bg-amber-200"
+        aria-label="Поиск по сайту"
+      >
+        <span aria-hidden className="text-base">🔎</span>
+        <span className="hidden sm:inline">Поиск</span>
+      </button>
+
+      <button
+        type="button"
         onClick={() => setIsResearchOpen(true)}
         className="inline-flex items-center gap-2 rounded-lg bg-indigo-100 px-3 py-2 text-sm font-medium text-indigo-800 transition hover:bg-indigo-200"
         aria-label="Открыть научный поиск"
       >
         <span aria-hidden className="text-base">🔍</span>
-        <span>Научный поиск</span>
+        <span className="hidden sm:inline">Научный поиск</span>
       </button>
 
       {isAdmin && (
@@ -107,6 +119,7 @@ export default function UserMenu({ user }: UserMenuProps) {
       </button>
 
       <ResearchSearchDrawer open={isResearchOpen} onClose={() => setIsResearchOpen(false)} />
+      <ContentSearchDrawer open={isContentSearchOpen} onClose={() => setIsContentSearchOpen(false)} />
     </div>
   );
 }
