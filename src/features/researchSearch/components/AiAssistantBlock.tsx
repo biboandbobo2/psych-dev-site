@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useAiAssistant } from '../hooks/useAiAssistant';
 import { useAiChat } from '../hooks/useAiChat';
 import { BookSearchBlock } from '../../bookSearch';
+import { useSearchHistory } from '../../../hooks';
 
 export function AiAssistantBlock() {
   const [mode, setMode] = useState<'single' | 'chat'>('single');
@@ -24,6 +25,37 @@ export function AiAssistantBlock() {
   const chatCharCount = input.length;
   const chatOverLimit = chatCharCount > chatMaxLength;
   const canSendChat = input.trim().length > 0 && !chatOverLimit && !isChatLoading;
+
+  const { saveSearch } = useSearchHistory();
+
+  // Сохранение быстрого ответа в историю
+  const lastSavedSingleRef = useRef<string>('');
+  useEffect(() => {
+    if (state.status === 'success' && question.trim() && question !== lastSavedSingleRef.current) {
+      lastSavedSingleRef.current = question;
+      saveSearch({
+        type: 'ai_chat',
+        query: question.trim(),
+        hasAnswer: !state.refused,
+      });
+    }
+  }, [state.status, state.refused, question, saveSearch]);
+
+  // Сохранение диалоговых сообщений в историю
+  const lastSavedChatIndexRef = useRef<number>(0);
+  useEffect(() => {
+    // Сохраняем только новые сообщения пользователя
+    const userMessages = messages.filter((m) => m.role === 'user');
+    if (userMessages.length > lastSavedChatIndexRef.current) {
+      const newMessage = userMessages[userMessages.length - 1];
+      lastSavedChatIndexRef.current = userMessages.length;
+      saveSearch({
+        type: 'ai_chat',
+        query: newMessage.text,
+        hasAnswer: chatState.status === 'success' && !chatState.refused,
+      });
+    }
+  }, [messages, chatState.status, chatState.refused, saveSearch]);
 
   const hasTranscript =
     (mode === 'chat' && messages.length > 0) ||

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useResearchSearch } from '../hooks/useResearchSearch';
 import { ResearchResultsList } from './ResearchResultsList';
 import { AiAssistantBlock } from './AiAssistantBlock';
+import { useSearchHistory } from '../../../hooks';
 
 // Drawer uses only ru+en for simplicity
 // Full language selection is available on the dedicated research page
@@ -24,6 +25,24 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
     trigger: 'manual',
     autoTriggerInitial: false,
   });
+  const { saveSearch } = useSearchHistory();
+
+  // Сохранение поиска в историю при успешном результате
+  const lastSavedQueryRef = useRef<string>('');
+  useEffect(() => {
+    if (
+      state.status === 'success' &&
+      query.trim().length >= 3 &&
+      query !== lastSavedQueryRef.current
+    ) {
+      lastSavedQueryRef.current = query;
+      saveSearch({
+        type: 'research',
+        query: query.trim(),
+        resultsCount: state.results.length,
+      });
+    }
+  }, [state.status, state.results.length, query, saveSearch]);
 
   useEffect(() => {
     if (!open) return;

@@ -5,6 +5,7 @@ import { ContentSearchResults } from './ContentSearchResults';
 import { usePeriods } from '../../../hooks/usePeriods';
 import { useClinicalTopics } from '../../../hooks/useClinicalTopics';
 import { useGeneralTopics } from '../../../hooks/useGeneralTopics';
+import { useSearchHistory } from '../../../hooks';
 import { getPublishedTests } from '../../../lib/tests';
 import type { Test } from '../../../types/tests';
 
@@ -53,6 +54,24 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
   );
 
   const { state, search, reset, isReady } = useContentSearch(contentData, tests);
+  const { saveSearch } = useSearchHistory();
+
+  // Сохранение поиска в историю при успешном результате
+  const lastSavedQueryRef = useRef<string>('');
+  useEffect(() => {
+    if (
+      state.status === 'success' &&
+      state.query.trim().length >= 2 &&
+      state.query !== lastSavedQueryRef.current
+    ) {
+      lastSavedQueryRef.current = state.query;
+      saveSearch({
+        type: 'content',
+        query: state.query,
+        resultsCount: state.results.length,
+      });
+    }
+  }, [state.status, state.query, state.results.length, saveSearch]);
 
   // Обработка Escape и фокус на input при открытии
   useEffect(() => {

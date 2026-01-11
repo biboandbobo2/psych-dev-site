@@ -114,6 +114,14 @@ service cloud.firestore {
       allow write: if isAdmin(); // Only admins can edit
     }
 
+    // История поисков пользователя
+    match /searchHistory/{entryId} {
+      allow read, delete: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+    }
+
     match /{document=**} {
       allow read: if true;
       allow write: if isAdmin();

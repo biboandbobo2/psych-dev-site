@@ -16,3 +16,5 @@ export { useTopics } from './useTopics';
 export { useVerificationSummary } from './useVerificationSummary';
 export { useCreateLesson } from './useCreateLesson';
 export { useReorderLessons } from './useReorderLessons';
+export { useSearchHistory } from './useSearchHistory';
+export type { SearchHistoryType, SearchHistoryEntry } from './useSearchHistory';

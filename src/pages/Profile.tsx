@@ -1,6 +1,7 @@
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { useEffect } from 'react';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
+import { SearchHistorySection } from '../components/profile';
 import { useAuth } from '../auth/AuthProvider';
 import { useCourseStore } from '../stores';
 
@@ -264,6 +265,9 @@ export default function Profile() {
 
         <StudentPanel currentCourse={currentCourse} />
       </div>
+
+      {/* История поисков */}
+      <SearchHistorySection />
     </div>
   );
 }
