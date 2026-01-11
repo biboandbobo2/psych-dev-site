@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSearchHistory, type SearchHistoryType, type SearchHistoryEntry } from '../../hooks';
 
 // Конфигурация типов истории
@@ -17,9 +18,20 @@ const HISTORY_TYPES: Array<{
 const VISIBLE_ITEMS = 5;
 
 export function SearchHistorySection() {
+  const navigate = useNavigate();
   const { entriesByType, loading, hasHistory, deleteEntry, clearHistory } = useSearchHistory();
   const [activeType, setActiveType] = useState<SearchHistoryType | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // Повторить поиск — для research переходим на страницу, для остальных копируем
+  const handleRepeatSearch = (entry: SearchHistoryEntry) => {
+    if (entry.type === 'research' || entry.type === 'book_rag') {
+      navigate(`/research?q=${encodeURIComponent(entry.query)}`);
+    } else {
+      // Для content и ai_chat — копируем запрос в буфер обмена
+      navigator.clipboard.writeText(entry.query);
+    }
+  };
 
   // Определяем типы с данными
   const typesWithData = useMemo(
@@ -137,7 +149,12 @@ export function SearchHistorySection() {
       {currentEntries.length > 0 ? (
         <ul className="space-y-2">
           {currentEntries.map((entry) => (
-            <SearchHistoryItem key={entry.id} entry={entry} onDelete={deleteEntry} />
+            <SearchHistoryItem
+              key={entry.id}
+              entry={entry}
+              onDelete={deleteEntry}
+              onRepeat={handleRepeatSearch}
+            />
           ))}
         </ul>
       ) : (
@@ -158,10 +175,12 @@ export function SearchHistorySection() {
 interface SearchHistoryItemProps {
   entry: SearchHistoryEntry;
   onDelete: (id: string) => void;
+  onRepeat: (entry: SearchHistoryEntry) => void;
 }
 
-function SearchHistoryItem({ entry, onDelete }: SearchHistoryItemProps) {
+function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps) {
   const timeAgo = formatTimeAgo(entry.createdAt);
+  const isNavigable = entry.type === 'research' || entry.type === 'book_rag';
 
   return (
     <li className="group flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
@@ -173,15 +192,34 @@ function SearchHistoryItem({ entry, onDelete }: SearchHistoryItemProps) {
           {entry.hasAnswer && <span>• Ответ получен</span>}
         </div>
       </div>
-      <button
-        onClick={() => onDelete(entry.id)}
-        className="opacity-0 group-hover:opacity-100 ml-2 p-1 text-gray-400 hover:text-red-500 transition-all"
-        title="Удалить"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+      <div className="flex items-center gap-1 ml-2">
+        {/* Кнопка повторить */}
+        <button
+          onClick={() => onRepeat(entry)}
+          className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-blue-600 transition-all"
+          title={isNavigable ? 'Перейти к поиску' : 'Скопировать запрос'}
+        >
+          {isNavigable ? (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          )}
+        </button>
+        {/* Кнопка удалить */}
+        <button
+          onClick={() => onDelete(entry.id)}
+          className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-500 transition-all"
+          title="Удалить"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
     </li>
   );
 }

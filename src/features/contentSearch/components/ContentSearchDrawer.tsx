@@ -56,22 +56,8 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
   const { state, search, reset, isReady } = useContentSearch(contentData, tests);
   const { saveSearch } = useSearchHistory();
 
-  // Сохранение поиска в историю при успешном результате
-  const lastSavedQueryRef = useRef<string>('');
-  useEffect(() => {
-    if (
-      state.status === 'success' &&
-      state.query.trim().length >= 2 &&
-      state.query !== lastSavedQueryRef.current
-    ) {
-      lastSavedQueryRef.current = state.query;
-      saveSearch({
-        type: 'content',
-        query: state.query,
-        resultsCount: state.results.length,
-      });
-    }
-  }, [state.status, state.query, state.results.length, saveSearch]);
+  // Ref для отслеживания сохранённого запроса (сохраняем только при клике на результат)
+  const savedQueryRef = useRef<string>('');
 
   // Обработка Escape и фокус на input при открытии
   useEffect(() => {
@@ -125,6 +111,15 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
   };
 
   const handleResultClick = (path: string) => {
+    // Сохраняем поиск только при клике на результат (пользователь нашёл что искал)
+    if (state.query && state.query !== savedQueryRef.current) {
+      savedQueryRef.current = state.query;
+      saveSearch({
+        type: 'content',
+        query: state.query,
+        resultsCount: state.results.length,
+      });
+    }
     navigate(path);
     onClose();
   };
