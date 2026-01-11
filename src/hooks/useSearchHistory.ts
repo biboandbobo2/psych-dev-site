@@ -3,8 +3,6 @@ import {
   collection,
   query,
   where,
-  orderBy,
-  limit,
   onSnapshot,
   addDoc,
   deleteDoc,
@@ -61,29 +59,33 @@ export function useSearchHistory() {
 
     debugLog('[useSearchHistory] Starting listener for user:', user.uid);
 
+    // Простой запрос без orderBy — не требует индекса
     const historyQuery = query(
       collection(db, 'searchHistory'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-      limit(HISTORY_LIMIT)
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(
       historyQuery,
       (snapshot) => {
-        const data = snapshot.docs.map((docSnap) => {
-          const d = docSnap.data();
-          return {
-            id: docSnap.id,
-            userId: d.userId,
-            type: d.type as SearchHistoryType,
-            query: d.query,
-            createdAt: d.createdAt?.toDate?.() || new Date(),
-            resultsCount: d.resultsCount,
-            hasAnswer: d.hasAnswer,
-            selectedBooks: d.selectedBooks,
-          } as SearchHistoryEntry;
-        });
+        const data = snapshot.docs
+          .map((docSnap) => {
+            const d = docSnap.data();
+            return {
+              id: docSnap.id,
+              userId: d.userId,
+              type: d.type as SearchHistoryType,
+              query: d.query,
+              createdAt: d.createdAt?.toDate?.() || new Date(),
+              resultsCount: d.resultsCount,
+              hasAnswer: d.hasAnswer,
+              selectedBooks: d.selectedBooks,
+            } as SearchHistoryEntry;
+          })
+          // Сортировка на клиенте (новые первыми)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          // Ограничиваем количество
+          .slice(0, HISTORY_LIMIT);
 
         debugLog('[useSearchHistory] Loaded entries:', data.length);
         setEntries(data);

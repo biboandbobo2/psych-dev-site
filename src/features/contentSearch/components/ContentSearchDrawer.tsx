@@ -56,8 +56,54 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
   const { state, search, reset, isReady } = useContentSearch(contentData, tests);
   const { saveSearch } = useSearchHistory();
 
-  // Ref для отслеживания сохранённого запроса (сохраняем только при клике на результат)
+  // Ref для отслеживания сохранённого запроса
   const savedQueryRef = useRef<string>('');
+  const saveTimeoutRef = useRef<number | null>(null);
+
+  // Функция сохранения поиска
+  const doSaveSearch = (query: string, resultsCount: number) => {
+    if (query.trim().length >= 2 && query !== savedQueryRef.current) {
+      savedQueryRef.current = query;
+      saveSearch({
+        type: 'content',
+        query: query.trim(),
+        resultsCount,
+      });
+    }
+  };
+
+  // Сохранение через 10 секунд после последнего изменения запроса
+  useEffect(() => {
+    if (state.status === 'success' && state.query.trim().length >= 2) {
+      // Отменяем предыдущий таймер
+      if (saveTimeoutRef.current) {
+        window.clearTimeout(saveTimeoutRef.current);
+      }
+      // Запускаем новый таймер на 10 секунд
+      saveTimeoutRef.current = window.setTimeout(() => {
+        doSaveSearch(state.query, state.results.length);
+      }, 10000);
+    }
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        window.clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [state.status, state.query, state.results.length]);
+
+  // Сохранение при закрытии drawer
+  useEffect(() => {
+    if (!open && state.query.trim().length >= 2) {
+      // Очищаем таймер
+      if (saveTimeoutRef.current) {
+        window.clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      // Сохраняем поиск при закрытии
+      doSaveSearch(state.query, state.results.length);
+    }
+  }, [open]);
 
   // Обработка Escape и фокус на input при открытии
   useEffect(() => {
@@ -111,14 +157,9 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
   };
 
   const handleResultClick = (path: string) => {
-    // Сохраняем поиск только при клике на результат (пользователь нашёл что искал)
-    if (state.query && state.query !== savedQueryRef.current) {
-      savedQueryRef.current = state.query;
-      saveSearch({
-        type: 'content',
-        query: state.query,
-        resultsCount: state.results.length,
-      });
+    // Сохраняем поиск при клике на результат
+    if (state.query) {
+      doSaveSearch(state.query, state.results.length);
     }
     navigate(path);
     onClose();
