@@ -21,8 +21,8 @@ export interface TestSearchResult {
   course: CourseType;
   matchedIn: TestMatchField[];
   relevanceScore: number;
-  // Дополнительная информация о совпадении
-  matchedQuestion?: string;
+  // Иконка теста из appearance
+  icon?: string;
 }
 
 export type SearchResult = ContentSearchResult | TestSearchResult;

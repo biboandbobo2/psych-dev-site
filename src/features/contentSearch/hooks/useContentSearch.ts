@@ -165,7 +165,6 @@ function searchInTests(tests: Test[], queryWords: string[]): TestSearchResult[] 
 
     const matchedIn: TestMatchField[] = [];
     let score = 0;
-    let matchedQuestion: string | undefined;
 
     // Поиск в названии теста
     if (matchesQuery(test.title, queryWords)) {
@@ -181,9 +180,6 @@ function searchInTests(tests: Test[], queryWords: string[]): TestSearchResult[] 
           matchedIn.push('question');
           score += 7;
         }
-        if (!matchedQuestion) {
-          matchedQuestion = question.questionText;
-        }
       }
 
       // Варианты ответов
@@ -193,9 +189,6 @@ function searchInTests(tests: Test[], queryWords: string[]): TestSearchResult[] 
             matchedIn.push('answer');
             score += 5;
           }
-          if (!matchedQuestion) {
-            matchedQuestion = question.questionText;
-          }
         }
       }
 
@@ -204,9 +197,6 @@ function searchInTests(tests: Test[], queryWords: string[]): TestSearchResult[] 
         if (!matchedIn.includes('explanation')) {
           matchedIn.push('explanation');
           score += 4;
-        }
-        if (!matchedQuestion) {
-          matchedQuestion = question.questionText;
         }
       }
     }
@@ -220,7 +210,7 @@ function searchInTests(tests: Test[], queryWords: string[]): TestSearchResult[] 
         course: test.course,
         matchedIn,
         relevanceScore: score,
-        matchedQuestion,
+        icon: test.appearance?.introIcon || test.appearance?.badgeIcon,
       });
     }
   }
@@ -296,13 +286,14 @@ export function useContentSearch(
 
       // Поиск по контенту
       const contentResults = searchInContent(allContent, queryWords);
+      contentResults.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
       // Поиск по тестам
       const testResults = searchInTests(tests, queryWords);
+      testResults.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
-      // Объединяем и сортируем по релевантности
+      // Контент сначала, тесты в конце
       const allResults: SearchResult[] = [...contentResults, ...testResults];
-      allResults.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
       setState({ status: 'success', results: allResults, query });
     },

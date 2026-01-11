@@ -4,7 +4,6 @@ import type {
   TestSearchResult,
   CourseType,
   ContentMatchField,
-  TestMatchField,
 } from '../types';
 
 interface ContentSearchResultsProps {
@@ -41,13 +40,6 @@ const CONTENT_MATCH_LABELS: Record<ContentMatchField, string> = {
   leisure: 'досуг',
 };
 
-const TEST_MATCH_LABELS: Record<TestMatchField, string> = {
-  testTitle: 'название теста',
-  question: 'вопрос',
-  answer: 'ответ',
-  explanation: 'объяснение',
-};
-
 function getContentPath(result: ContentSearchResult): string {
   switch (result.course) {
     case 'development':
@@ -63,52 +55,54 @@ function getTestPath(result: TestSearchResult): string {
   return `/tests/dynamic/${result.testId}`;
 }
 
-function isContentResult(result: SearchResult): result is ContentSearchResult {
-  return result.type === 'content';
-}
-
-function isTestResult(result: SearchResult): result is TestSearchResult {
-  return result.type === 'test';
-}
-
 export function ContentSearchResults({
   results,
   query,
   onResultClick,
 }: ContentSearchResultsProps) {
+  // Разделяем результаты на контент и тесты
+  const contentResults = results.filter((r): r is ContentSearchResult => r.type === 'content');
+  const testResults = results.filter((r): r is TestSearchResult => r.type === 'test');
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted">
           Найдено: <span className="font-medium text-fg">{results.length}</span>
         </span>
       </div>
 
-      <ul className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
-        {results.map((result) => {
-          if (isContentResult(result)) {
-            return (
+      <div className="max-h-[calc(100vh-280px)] overflow-y-auto pr-1 space-y-4">
+        {/* Результаты по контенту */}
+        {contentResults.length > 0 && (
+          <ul className="space-y-2">
+            {contentResults.map((result) => (
               <ContentResultItem
                 key={result.id}
                 result={result}
                 query={query}
                 onResultClick={onResultClick}
               />
-            );
-          }
-          if (isTestResult(result)) {
-            return (
-              <TestResultItem
-                key={result.id}
-                result={result}
-                query={query}
-                onResultClick={onResultClick}
-              />
-            );
-          }
-          return null;
-        })}
-      </ul>
+            ))}
+          </ul>
+        )}
+
+        {/* Результаты по тестам */}
+        {testResults.length > 0 && (
+          <div className="pt-2 border-t border-border">
+            <p className="text-xs text-muted mb-2 uppercase tracking-wide">Тесты</p>
+            <div className="flex flex-wrap gap-2">
+              {testResults.map((result) => (
+                <TestResultItem
+                  key={result.id}
+                  result={result}
+                  onResultClick={onResultClick}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -163,52 +157,26 @@ function ContentResultItem({ result, query, onResultClick }: ContentResultItemPr
 
 interface TestResultItemProps {
   result: TestSearchResult;
-  query: string;
   onResultClick: (path: string) => void;
 }
 
-function TestResultItem({ result, query, onResultClick }: TestResultItemProps) {
-  const courseInfo = COURSE_LABELS[result.course];
+function TestResultItem({ result, onResultClick }: TestResultItemProps) {
   const path = getTestPath(result);
+  const icon = result.icon || '📝';
 
   return (
-    <li>
-      <button
-        onClick={() => onResultClick(path)}
-        className="w-full text-left rounded-lg border border-amber-200 bg-amber-50 p-4 hover:border-amber-400 hover:shadow-sm transition-all group"
-      >
-        <div className="flex items-start gap-3">
-          <span className="text-xl" aria-hidden>
-            📝
-          </span>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-200 text-amber-900">
-                Тест
-              </span>
-              <span
-                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${courseInfo.color}`}
-              >
-                {courseInfo.label}
-              </span>
-            </div>
-            <h3 className="font-medium text-fg group-hover:text-amber-700 transition-colors line-clamp-1">
-              {highlightMatch(result.title, query)}
-            </h3>
-            {result.matchedQuestion && (
-              <p className="text-sm text-muted mt-0.5 line-clamp-2">
-                {highlightMatch(result.matchedQuestion, query)}
-              </p>
-            )}
-            <p className="text-xs text-muted mt-2">
-              Найдено в:{' '}
-              {result.matchedIn.map((field) => TEST_MATCH_LABELS[field]).join(', ')}
-            </p>
-          </div>
-          <ChevronIcon />
-        </div>
-      </button>
-    </li>
+    <button
+      onClick={() => onResultClick(path)}
+      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card hover:border-accent/40 hover:shadow-sm transition-all text-sm"
+      title={result.title}
+    >
+      <span className="text-lg" aria-hidden>
+        {icon}
+      </span>
+      <span className="text-fg font-medium truncate max-w-[180px]">
+        {result.title}
+      </span>
+    </button>
   );
 }
 
