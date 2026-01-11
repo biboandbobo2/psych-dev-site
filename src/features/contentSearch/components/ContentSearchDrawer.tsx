@@ -5,6 +5,8 @@ import { ContentSearchResults } from './ContentSearchResults';
 import { usePeriods } from '../../../hooks/usePeriods';
 import { useClinicalTopics } from '../../../hooks/useClinicalTopics';
 import { useGeneralTopics } from '../../../hooks/useGeneralTopics';
+import { getPublishedTests } from '../../../lib/tests';
+import type { Test } from '../../../types/tests';
 
 interface ContentSearchDrawerProps {
   open: boolean;
@@ -22,7 +24,24 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
   const { topics: clinicalTopics, loading: clinicalLoading } = useClinicalTopics();
   const { topics: generalTopics, loading: generalLoading } = useGeneralTopics();
 
-  const isLoading = periodsLoading || clinicalLoading || generalLoading;
+  // Загружаем тесты
+  const [tests, setTests] = useState<Test[]>([]);
+  const [testsLoading, setTestsLoading] = useState(false);
+  const testsLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open || testsLoadedRef.current) return;
+
+    setTestsLoading(true);
+    getPublishedTests()
+      .then((loadedTests) => {
+        setTests(loadedTests);
+        testsLoadedRef.current = true;
+      })
+      .finally(() => setTestsLoading(false));
+  }, [open]);
+
+  const isLoading = periodsLoading || clinicalLoading || generalLoading || testsLoading;
 
   const contentData = useMemo(
     () => ({
@@ -33,7 +52,7 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
     [periods, clinicalTopics, generalTopics]
   );
 
-  const { state, search, reset, isReady } = useContentSearch(contentData);
+  const { state, search, reset, isReady } = useContentSearch(contentData, tests);
 
   // Обработка Escape и фокус на input при открытии
   useEffect(() => {
@@ -133,7 +152,7 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
                 autoComplete="off"
               />
               <p className="text-xs text-muted">
-                Поиск по заголовкам, понятиям, авторам и литературе
+                Поиск по заголовкам, понятиям, авторам, литературе и тестам
               </p>
             </div>
           </form>
