@@ -6,6 +6,7 @@ import { usePeriods } from '../../../hooks/usePeriods';
 import { useClinicalTopics } from '../../../hooks/useClinicalTopics';
 import { useGeneralTopics } from '../../../hooks/useGeneralTopics';
 import { useSearchHistory } from '../../../hooks';
+import { useContentSearchStore } from '../../../stores';
 import { getPublishedTests } from '../../../lib/tests';
 import type { Test } from '../../../types/tests';
 
@@ -55,6 +56,16 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
 
   const { state, search, reset, isReady } = useContentSearch(contentData, tests);
   const { saveSearch } = useSearchHistory();
+  const { initialQuery, clearInitialQuery } = useContentSearchStore();
+
+  // Применяем начальный запрос при открытии drawer
+  useEffect(() => {
+    if (open && initialQuery && isReady) {
+      setInputValue(initialQuery);
+      search(initialQuery);
+      clearInitialQuery();
+    }
+  }, [open, initialQuery, isReady, search, clearInitialQuery]);
 
   // Ref для отслеживания сохранённого запроса
   const savedQueryRef = useRef<string>('');

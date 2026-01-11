@@ -5,3 +5,4 @@
 export { useAuthStore } from './useAuthStore';
 export { useTestStore } from './useTestStore';
 export { useCourseStore } from './useCourseStore';
+export { useContentSearchStore } from './useContentSearchStore';

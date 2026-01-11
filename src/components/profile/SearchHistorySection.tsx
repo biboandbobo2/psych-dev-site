@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSearchHistory, type SearchHistoryType, type SearchHistoryEntry } from '../../hooks';
+import { useContentSearchStore } from '../../stores';
 
 // Конфигурация типов истории
 const HISTORY_TYPES: Array<{
@@ -20,15 +21,19 @@ const VISIBLE_ITEMS = 5;
 export function SearchHistorySection() {
   const navigate = useNavigate();
   const { entriesByType, loading, hasHistory, deleteEntry, clearHistory } = useSearchHistory();
+  const { openSearch } = useContentSearchStore();
   const [activeType, setActiveType] = useState<SearchHistoryType | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Повторить поиск — для research переходим на страницу, для остальных копируем
+  // Повторить поиск
   const handleRepeatSearch = (entry: SearchHistoryEntry) => {
-    if (entry.type === 'research' || entry.type === 'book_rag') {
+    if (entry.type === 'content') {
+      // Открываем drawer с запросом
+      openSearch(entry.query);
+    } else if (entry.type === 'research' || entry.type === 'book_rag') {
       navigate(`/research?q=${encodeURIComponent(entry.query)}`);
     } else {
-      // Для content и ai_chat — копируем запрос в буфер обмена
+      // Для ai_chat — копируем запрос в буфер обмена
       navigator.clipboard.writeText(entry.query);
     }
   };
@@ -180,7 +185,14 @@ interface SearchHistoryItemProps {
 
 function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps) {
   const timeAgo = formatTimeAgo(entry.createdAt);
-  const isNavigable = entry.type === 'research' || entry.type === 'book_rag';
+  // content открывает drawer, research/book_rag переходят на страницу, ai_chat копирует
+  const hasAction = entry.type !== 'ai_chat';
+
+  const getButtonTitle = () => {
+    if (entry.type === 'content') return 'Повторить поиск';
+    if (entry.type === 'research' || entry.type === 'book_rag') return 'Перейти к поиску';
+    return 'Скопировать запрос';
+  };
 
   return (
     <li className="group flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
@@ -197,11 +209,11 @@ function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps
         <button
           onClick={() => onRepeat(entry)}
           className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-blue-600 transition-all"
-          title={isNavigable ? 'Перейти к поиску' : 'Скопировать запрос'}
+          title={getButtonTitle()}
         >
-          {isNavigable ? (
+          {hasAction ? (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           ) : (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

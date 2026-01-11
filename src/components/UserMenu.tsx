@@ -3,7 +3,7 @@ import { useState } from "react";
 import { signOut } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { auth } from "../lib/firebase";
-import { useAuthStore } from "../stores/useAuthStore";
+import { useAuthStore, useContentSearchStore } from "../stores";
 import { ResearchSearchDrawer } from "../features/researchSearch/components/ResearchSearchDrawer";
 import { ContentSearchDrawer } from "../features/contentSearch";
 
@@ -13,12 +13,12 @@ interface UserMenuProps {
 
 export default function UserMenu({ user }: UserMenuProps) {
   const [isResearchOpen, setIsResearchOpen] = useState(false);
-  const [isContentSearchOpen, setIsContentSearchOpen] = useState(false);
   const location = useLocation();
   const displayName = user.displayName || user.email?.split('@')[0] || "Пользователь";
   const photoURL = user.photoURL;
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+  const { isOpen: isContentSearchOpen, openSearch, closeSearch } = useContentSearchStore();
 
   // Определяем курс на основе текущего пути
   const isClinicalPage = location.pathname.startsWith('/clinical');
@@ -45,7 +45,7 @@ export default function UserMenu({ user }: UserMenuProps) {
 
       <button
         type="button"
-        onClick={() => setIsContentSearchOpen(true)}
+        onClick={() => openSearch()}
         className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800 transition hover:bg-amber-200"
         aria-label="Поиск по сайту"
       >
@@ -119,7 +119,7 @@ export default function UserMenu({ user }: UserMenuProps) {
       </button>
 
       <ResearchSearchDrawer open={isResearchOpen} onClose={() => setIsResearchOpen(false)} />
-      <ContentSearchDrawer open={isContentSearchOpen} onClose={() => setIsContentSearchOpen(false)} />
+      <ContentSearchDrawer open={isContentSearchOpen} onClose={closeSearch} />
     </div>
   );
 }
