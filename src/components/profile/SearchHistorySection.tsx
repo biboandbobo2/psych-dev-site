@@ -184,54 +184,108 @@ interface SearchHistoryItemProps {
 }
 
 function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const timeAgo = formatTimeAgo(entry.createdAt);
-  // content открывает drawer, research/book_rag переходят на страницу, ai_chat копирует
-  const hasAction = entry.type !== 'ai_chat';
+
+  // Для ai_chat с ответом — раскрываем по клику
+  const isExpandable = entry.type === 'ai_chat' && Boolean(entry.aiResponse);
+  // content открывает drawer, research/book_rag переходят на страницу
+  const hasSearchAction = entry.type === 'content' || entry.type === 'research' || entry.type === 'book_rag';
 
   const getButtonTitle = () => {
     if (entry.type === 'content') return 'Повторить поиск';
     if (entry.type === 'research' || entry.type === 'book_rag') return 'Перейти к поиску';
-    return 'Скопировать запрос';
+    return '';
+  };
+
+  const handleCopyDialog = () => {
+    const text = `Вы: ${entry.query}\n\nАссистент: ${entry.aiResponse}`;
+    navigator.clipboard.writeText(text);
+  };
+
+  const handleRowClick = () => {
+    if (isExpandable) {
+      setIsExpanded(!isExpanded);
+    }
   };
 
   return (
-    <li className="group flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-900 truncate">{entry.query}</p>
-        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-          <span>{timeAgo}</span>
-          {entry.resultsCount !== undefined && <span>• {entry.resultsCount} результатов</span>}
-          {entry.hasAnswer && <span>• Ответ получен</span>}
+    <li className="bg-gray-50 rounded-lg transition-colors">
+      {/* Основная строка */}
+      <div
+        className={`group flex items-center justify-between py-2 px-3 ${isExpandable ? 'cursor-pointer hover:bg-gray-100' : ''}`}
+        onClick={handleRowClick}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            {isExpandable && (
+              <svg
+                className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            )}
+            <p className="text-sm text-gray-900 truncate">{entry.query}</p>
+          </div>
+          <div className={`flex items-center gap-2 text-xs text-gray-500 mt-0.5 ${isExpandable ? 'ml-6' : ''}`}>
+            <span>{timeAgo}</span>
+            {entry.resultsCount !== undefined && <span>• {entry.resultsCount} результатов</span>}
+            {entry.hasAnswer && !isExpandable && <span>• Ответ получен</span>}
+            {isExpandable && <span>• Нажмите, чтобы раскрыть</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 ml-2" onClick={(e) => e.stopPropagation()}>
+          {/* Кнопка повторить/копировать — только для не-ai_chat */}
+          {hasSearchAction && (
+            <button
+              onClick={() => onRepeat(entry)}
+              className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-blue-600 transition-all"
+              title={getButtonTitle()}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          )}
+          {/* Кнопка удалить */}
+          <button
+            onClick={() => onDelete(entry.id)}
+            className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-500 transition-all"
+            title="Удалить"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
-      <div className="flex items-center gap-1 ml-2">
-        {/* Кнопка повторить */}
-        <button
-          onClick={() => onRepeat(entry)}
-          className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-blue-600 transition-all"
-          title={getButtonTitle()}
-        >
-          {hasAction ? (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          )}
-        </button>
-        {/* Кнопка удалить */}
-        <button
-          onClick={() => onDelete(entry.id)}
-          className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-500 transition-all"
-          title="Удалить"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+
+      {/* Раскрытый AI ответ */}
+      {isExpanded && entry.aiResponse && (
+        <div className="px-3 pb-3 pt-1 border-t border-gray-200 mx-3">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+              Ответ AI
+            </span>
+            <button
+              onClick={handleCopyDialog}
+              className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors"
+              title="Скопировать диалог"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Копировать
+            </button>
+          </div>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+            {entry.aiResponse}
+          </p>
+        </div>
+      )}
     </li>
   );
 }

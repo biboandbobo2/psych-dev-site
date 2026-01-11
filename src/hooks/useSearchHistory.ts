@@ -27,6 +27,7 @@ export interface SearchHistoryEntry {
   resultsCount?: number;
   hasAnswer?: boolean;
   selectedBooks?: string[];
+  aiResponse?: string; // Ответ AI для ai_chat
 }
 
 interface SaveSearchParams {
@@ -35,6 +36,7 @@ interface SaveSearchParams {
   resultsCount?: number;
   hasAnswer?: boolean;
   selectedBooks?: string[];
+  aiResponse?: string;
 }
 
 // === КОНСТАНТЫ ===
@@ -80,6 +82,7 @@ export function useSearchHistory() {
               resultsCount: d.resultsCount,
               hasAnswer: d.hasAnswer,
               selectedBooks: d.selectedBooks,
+              aiResponse: d.aiResponse,
             } as SearchHistoryEntry;
           })
           // Сортировка на клиенте (новые первыми)
@@ -146,6 +149,7 @@ export function useSearchHistory() {
           ...(params.resultsCount !== undefined && { resultsCount: params.resultsCount }),
           ...(params.hasAnswer !== undefined && { hasAnswer: params.hasAnswer }),
           ...(params.selectedBooks && { selectedBooks: params.selectedBooks }),
+          ...(params.aiResponse && { aiResponse: params.aiResponse }),
         });
         debugLog('[useSearchHistory] Saved search:', params.type, params.query);
       } catch (err) {

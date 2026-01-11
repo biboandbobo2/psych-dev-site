@@ -37,23 +37,31 @@ export function AiAssistantBlock() {
         type: 'ai_chat',
         query: question.trim(),
         hasAnswer: !state.refused,
+        aiResponse: state.answer || undefined,
       });
     }
-  }, [state.status, state.refused, question, saveSearch]);
+  }, [state.status, state.refused, state.answer, question, saveSearch]);
 
-  // Сохранение диалоговых сообщений в историю
+  // Сохранение диалоговых сообщений в историю (после получения ответа)
   const lastSavedChatIndexRef = useRef<number>(0);
   useEffect(() => {
-    // Сохраняем только новые сообщения пользователя
-    const userMessages = messages.filter((m) => m.role === 'user');
-    if (userMessages.length > lastSavedChatIndexRef.current) {
-      const newMessage = userMessages[userMessages.length - 1];
-      lastSavedChatIndexRef.current = userMessages.length;
-      saveSearch({
-        type: 'ai_chat',
-        query: newMessage.text,
-        hasAnswer: chatState.status === 'success' && !chatState.refused,
-      });
+    // Сохраняем пару вопрос-ответ после получения ответа от ассистента
+    const assistantMessages = messages.filter((m) => m.role === 'assistant');
+    if (assistantMessages.length > lastSavedChatIndexRef.current && chatState.status === 'success') {
+      const lastAssistantMsg = assistantMessages[assistantMessages.length - 1];
+      // Находим соответствующий вопрос пользователя (предыдущее сообщение)
+      const msgIndex = messages.findIndex((m) => m === lastAssistantMsg);
+      const userMsg = msgIndex > 0 ? messages[msgIndex - 1] : null;
+
+      if (userMsg && userMsg.role === 'user') {
+        lastSavedChatIndexRef.current = assistantMessages.length;
+        saveSearch({
+          type: 'ai_chat',
+          query: userMsg.text,
+          hasAnswer: !chatState.refused,
+          aiResponse: lastAssistantMsg.text,
+        });
+      }
     }
   }, [messages, chatState.status, chatState.refused, saveSearch]);
 
