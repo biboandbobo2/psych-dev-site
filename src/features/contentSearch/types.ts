@@ -17,7 +17,9 @@ export type MatchField =
   | 'subtitle'
   | 'concepts'
   | 'authors'
-  | 'literature';
+  | 'literature'
+  | 'videos'
+  | 'leisure';
 
 export interface ContentSearchState {
   status: 'idle' | 'searching' | 'success';

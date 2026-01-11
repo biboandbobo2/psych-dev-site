@@ -148,6 +148,26 @@ export function useContentSearch(
           score += 4;
         }
 
+        // Поиск в дополнительных видео (sections или legacy)
+        const extraVideos = extractSectionData<ContentLink>(data, 'extra_videos', 'extra_videos');
+        // Также проверяем video_playlist
+        const videoPlaylist = data.video_playlist || [];
+        const allVideos = [
+          ...extraVideos,
+          ...videoPlaylist.filter((v): v is { title: string; url?: string } => !!v.title),
+        ];
+        if (allVideos.some((v) => matchesQuery(v.title, queryWords))) {
+          matchedIn.push('videos');
+          score += 4;
+        }
+
+        // Поиск в досуге (sections или legacy)
+        const leisure = extractSectionData<{ title: string; url?: string }>(data, 'leisure', 'leisure');
+        if (leisure.some((l) => matchesQuery(l.title, queryWords))) {
+          matchedIn.push('leisure');
+          score += 3;
+        }
+
         if (matchedIn.length > 0) {
           results.push({
             id: `${course}-${data.period}`,

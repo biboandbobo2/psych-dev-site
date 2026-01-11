@@ -30,6 +30,8 @@ const MATCH_LABELS: Record<MatchField, string> = {
   concepts: 'понятия',
   authors: 'авторы',
   literature: 'литература',
+  videos: 'видео',
+  leisure: 'досуг',
 };
 
 function getResultPath(result: SearchResult): string {
