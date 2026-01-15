@@ -1,4 +1,4 @@
-import { Navigate, Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect } from 'react';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
 import { SearchHistorySection } from '../components/profile';
@@ -159,18 +159,14 @@ export default function Profile() {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/" replace />;
-  }
-
-  const displayName = user.displayName || user.email?.split('@')[0] || 'Пользователь';
-  const memberSince = user.metadata.creationTime
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Гость';
+  const memberSince = user?.metadata.creationTime
     ? new Date(user.metadata.creationTime).toLocaleDateString('ru-RU', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       })
-    : 'Неизвестно';
+    : null;
   const role = userRole ?? 'student';
 
   return (
@@ -180,7 +176,7 @@ export default function Profile() {
 
         <div className="px-8 pb-8">
           <div className="flex items-end -mt-16 mb-6">
-            {user.photoURL ? (
+            {user?.photoURL ? (
               <img
                 src={user.photoURL}
                 alt={displayName}
@@ -193,7 +189,14 @@ export default function Profile() {
             )}
 
             <div className="ml-6 mb-4">
-              {role === 'super-admin' ? (
+              {!user ? (
+                <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700">
+                  <span className="text-lg" role="img" aria-label="Гость">
+                    👤
+                  </span>
+                  Гость
+                </span>
+              ) : role === 'super-admin' ? (
                 <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-sm font-semibold text-white shadow">
                   <span className="text-lg" role="img" aria-label="Супер-админ">
                     ⭐
@@ -219,24 +222,44 @@ export default function Profile() {
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
-              <SuperAdminBadge />
-            </div>
-            <div className="flex flex-wrap gap-6 text-gray-600">
-              <div className="flex items-center gap-2">
-                <span className="text-xl" role="img" aria-hidden="true">
-                  ✉️
-                </span>
-                <span>{user.email}</span>
+            {user ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
+                  <SuperAdminBadge />
+                </div>
+                <div className="flex flex-wrap gap-6 text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl" role="img" aria-hidden="true">
+                      ✉️
+                    </span>
+                    <span>{user.email}</span>
+                  </div>
+                  {memberSince && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl" role="img" aria-hidden="true">
+                        📅
+                      </span>
+                      <span>С нами с {memberSince}</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <h1 className="text-3xl font-bold text-gray-900">Добро пожаловать!</h1>
+                <p className="text-gray-600 max-w-lg">
+                  Зарегистрируйтесь или войдите в аккаунт, чтобы получить доступ к видео-лекциям,
+                  заметкам и другим материалам курсов.
+                </p>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Войти / Зарегистрироваться
+                </Link>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xl" role="img" aria-hidden="true">
-                  📅
-                </span>
-                <span>С нами с {memberSince}</span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -266,8 +289,8 @@ export default function Profile() {
         <StudentPanel currentCourse={currentCourse} />
       </div>
 
-      {/* История поисков */}
-      <SearchHistorySection />
+      {/* История поисков — только для авторизованных */}
+      {user && <SearchHistorySection />}
     </div>
   );
 }
