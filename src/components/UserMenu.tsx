@@ -4,21 +4,21 @@ import { signOut } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useAuthStore, useContentSearchStore } from "../stores";
-import { ResearchSearchDrawer } from "../features/researchSearch/components/ResearchSearchDrawer";
-import { ContentSearchDrawer } from "../features/contentSearch";
+import { CombinedSearchDrawer } from "./CombinedSearchDrawer";
+import { AiAssistantDrawer } from "../features/researchSearch/components/AiAssistantDrawer";
 
 interface UserMenuProps {
   user: User;
 }
 
 export default function UserMenu({ user }: UserMenuProps) {
-  const [isResearchOpen, setIsResearchOpen] = useState(false);
+  const [isAiOpen, setIsAiOpen] = useState(false);
   const location = useLocation();
   const displayName = user.displayName || user.email?.split('@')[0] || "Пользователь";
   const photoURL = user.photoURL;
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
-  const { isOpen: isContentSearchOpen, openSearch, closeSearch } = useContentSearchStore();
+  const { isOpen: isSearchOpen, openSearch, closeSearch } = useContentSearchStore();
 
   // Определяем курс на основе текущего пути
   const isClinicalPage = location.pathname.startsWith('/clinical');
@@ -47,7 +47,7 @@ export default function UserMenu({ user }: UserMenuProps) {
         type="button"
         onClick={() => openSearch()}
         className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800 transition hover:bg-amber-200"
-        aria-label="Поиск по сайту"
+        aria-label="Поиск"
       >
         <span aria-hidden className="text-base">🔎</span>
         <span className="hidden sm:inline">Поиск</span>
@@ -55,12 +55,12 @@ export default function UserMenu({ user }: UserMenuProps) {
 
       <button
         type="button"
-        onClick={() => setIsResearchOpen(true)}
-        className="inline-flex items-center gap-2 rounded-lg bg-indigo-100 px-3 py-2 text-sm font-medium text-indigo-800 transition hover:bg-indigo-200"
-        aria-label="Открыть научный поиск"
+        onClick={() => setIsAiOpen(true)}
+        className="inline-flex items-center gap-2 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-200"
+        aria-label="AI помощник"
       >
-        <span aria-hidden className="text-base">🔍</span>
-        <span className="hidden sm:inline">Научный поиск</span>
+        <span aria-hidden className="text-base">🤖</span>
+        <span className="hidden sm:inline">AI</span>
       </button>
 
       {isAdmin && (
@@ -118,8 +118,8 @@ export default function UserMenu({ user }: UserMenuProps) {
         Выйти
       </button>
 
-      <ResearchSearchDrawer open={isResearchOpen} onClose={() => setIsResearchOpen(false)} />
-      <ContentSearchDrawer open={isContentSearchOpen} onClose={closeSearch} />
+      <CombinedSearchDrawer open={isSearchOpen} onClose={closeSearch} />
+      <AiAssistantDrawer open={isAiOpen} onClose={() => setIsAiOpen(false)} />
     </div>
   );
 }

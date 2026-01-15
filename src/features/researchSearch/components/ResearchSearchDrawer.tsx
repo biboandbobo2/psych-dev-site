@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResearchSearch } from '../hooks/useResearchSearch';
 import { ResearchResultsList } from './ResearchResultsList';
-import { AiAssistantBlock } from './AiAssistantBlock';
 import { useSearchHistory } from '../../../hooks';
 
 // Drawer uses only ru+en for simplicity
@@ -173,9 +172,6 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
               />
             </div>
           ) : null}
-
-          {/* AI Assistant Block */}
-          <AiAssistantBlock />
         </div>
       </section>
     </div>
