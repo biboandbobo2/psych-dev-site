@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useSearchHistory, type SearchHistoryType, type SearchHistoryEntry } from '../../hooks';
 import { useContentSearchStore } from '../../stores';
 
@@ -19,21 +18,17 @@ const HISTORY_TYPES: Array<{
 const VISIBLE_ITEMS = 5;
 
 export function SearchHistorySection() {
-  const navigate = useNavigate();
   const { entriesByType, loading, hasHistory, deleteEntry, clearHistory } = useSearchHistory();
   const { openSearch } = useContentSearchStore();
   const [activeType, setActiveType] = useState<SearchHistoryType | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Повторить поиск
+  // Повторить поиск — только для content
   const handleRepeatSearch = (entry: SearchHistoryEntry) => {
     if (entry.type === 'content') {
-      // Открываем drawer с запросом
       openSearch(entry.query);
-    } else if (entry.type === 'research') {
-      navigate(`/research?q=${encodeURIComponent(entry.query)}`);
     }
-    // ai_chat и book_rag раскрываются по клику на строку
+    // research, ai_chat и book_rag раскрываются по клику на строку
   };
 
   // Определяем типы с данными
@@ -185,20 +180,29 @@ function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps
   const [isExpanded, setIsExpanded] = useState(false);
   const timeAgo = formatTimeAgo(entry.createdAt);
 
-  // Для ai_chat и book_rag с ответом — раскрываем по клику
-  const isExpandable = (entry.type === 'ai_chat' || entry.type === 'book_rag') && Boolean(entry.aiResponse);
-  // content открывает drawer, research переходит на страницу
-  const hasSearchAction = entry.type === 'content' || entry.type === 'research';
+  // Раскрываемые типы: ai_chat/book_rag с ответом, research с результатами
+  const hasAiResponse = (entry.type === 'ai_chat' || entry.type === 'book_rag') && Boolean(entry.aiResponse);
+  const hasSearchResults = entry.type === 'research' && entry.searchResults && entry.searchResults.length > 0;
+  const isExpandable = hasAiResponse || hasSearchResults;
+
+  // content открывает drawer
+  const hasSearchAction = entry.type === 'content';
 
   const getButtonTitle = () => {
     if (entry.type === 'content') return 'Повторить поиск';
-    if (entry.type === 'research') return 'Перейти к поиску';
     return '';
   };
 
-  const handleCopyDialog = () => {
-    const text = `Вы: ${entry.query}\n\nАссистент: ${entry.aiResponse}`;
-    navigator.clipboard.writeText(text);
+  const handleCopyContent = () => {
+    if (entry.aiResponse) {
+      const text = `Вы: ${entry.query}\n\nАссистент: ${entry.aiResponse}`;
+      navigator.clipboard.writeText(text);
+    } else if (entry.searchResults) {
+      const text = `Поиск: ${entry.query}\n\nРезультаты:\n${entry.searchResults
+        .map((r, i) => `${i + 1}. ${r.title}${r.year ? ` (${r.year})` : ''}${r.url ? `\n   ${r.url}` : ''}`)
+        .join('\n\n')}`;
+      navigator.clipboard.writeText(text);
+    }
   };
 
   const handleRowClick = () => {
@@ -230,13 +234,13 @@ function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps
           </div>
           <div className={`flex items-center gap-2 text-xs text-gray-500 mt-0.5 ${isExpandable ? 'ml-6' : ''}`}>
             <span>{timeAgo}</span>
-            {entry.resultsCount !== undefined && <span>• {entry.resultsCount} результатов</span>}
+            {entry.resultsCount !== undefined && !isExpandable && <span>• {entry.resultsCount} результатов</span>}
             {entry.hasAnswer && !isExpandable && <span>• Ответ получен</span>}
             {isExpandable && <span>• Нажмите, чтобы раскрыть</span>}
           </div>
         </div>
         <div className="flex items-center gap-1 ml-2" onClick={(e) => e.stopPropagation()}>
-          {/* Кнопка повторить/копировать — только для не-ai_chat */}
+          {/* Кнопка повторить — только для content */}
           {hasSearchAction && (
             <button
               onClick={() => onRepeat(entry)}
@@ -269,7 +273,7 @@ function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps
               Ответ AI
             </span>
             <button
-              onClick={handleCopyDialog}
+              onClick={handleCopyContent}
               className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors"
               title="Скопировать диалог"
             >
@@ -282,6 +286,49 @@ function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps
           <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
             {entry.aiResponse}
           </p>
+        </div>
+      )}
+
+      {/* Раскрытые результаты поиска */}
+      {isExpanded && entry.searchResults && entry.searchResults.length > 0 && (
+        <div className="px-3 pb-3 pt-1 border-t border-gray-200 mx-3">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <span className="text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+              Найдено статей: {entry.resultsCount}
+            </span>
+            <button
+              onClick={handleCopyContent}
+              className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 transition-colors"
+              title="Скопировать результаты"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Копировать
+            </button>
+          </div>
+          <ul className="space-y-2 max-h-48 overflow-y-auto">
+            {entry.searchResults.map((result, idx) => (
+              <li key={idx} className="text-sm">
+                {result.url ? (
+                  <a
+                    href={result.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline line-clamp-2"
+                  >
+                    {result.title}
+                  </a>
+                ) : (
+                  <span className="text-gray-700 line-clamp-2">{result.title}</span>
+                )}
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {result.authors && <span>{result.authors}</span>}
+                  {result.year && <span> • {result.year}</span>}
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </li>

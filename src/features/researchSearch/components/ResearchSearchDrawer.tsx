@@ -36,13 +36,23 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
       query !== lastSavedQueryRef.current
     ) {
       lastSavedQueryRef.current = query;
+
+      // Сохраняем первые 5 результатов в упрощённом формате
+      const simplifiedResults = state.results.slice(0, 5).map((r) => ({
+        title: r.title,
+        url: r.primaryUrl || r.oaPdfUrl || (r.doi ? `https://doi.org/${r.doi}` : undefined),
+        year: r.year,
+        authors: r.authors.slice(0, 2).join(', ') + (r.authors.length > 2 ? ' и др.' : ''),
+      }));
+
       saveSearch({
         type: 'research',
         query: query.trim(),
         resultsCount: state.results.length,
+        searchResults: simplifiedResults,
       });
     }
-  }, [state.status, state.results.length, query, saveSearch]);
+  }, [state.status, state.results, query, saveSearch]);
 
   useEffect(() => {
     if (!open) return;

@@ -18,6 +18,14 @@ import { debugLog, debugError } from '../lib/debug';
 // === ТИПЫ ===
 export type SearchHistoryType = 'content' | 'research' | 'ai_chat' | 'book_rag';
 
+// Упрощённый результат поиска для хранения в истории
+export interface SearchResultItem {
+  title: string;
+  url?: string;
+  year?: number | null;
+  authors?: string;
+}
+
 export interface SearchHistoryEntry {
   id: string;
   userId: string;
@@ -27,7 +35,8 @@ export interface SearchHistoryEntry {
   resultsCount?: number;
   hasAnswer?: boolean;
   selectedBooks?: string[];
-  aiResponse?: string; // Ответ AI для ai_chat
+  aiResponse?: string; // Ответ AI для ai_chat и book_rag
+  searchResults?: SearchResultItem[]; // Результаты поиска для research
 }
 
 interface SaveSearchParams {
@@ -37,6 +46,7 @@ interface SaveSearchParams {
   hasAnswer?: boolean;
   selectedBooks?: string[];
   aiResponse?: string;
+  searchResults?: SearchResultItem[];
 }
 
 // === КОНСТАНТЫ ===
@@ -83,6 +93,7 @@ export function useSearchHistory() {
               hasAnswer: d.hasAnswer,
               selectedBooks: d.selectedBooks,
               aiResponse: d.aiResponse,
+              searchResults: d.searchResults,
             } as SearchHistoryEntry;
           })
           // Сортировка на клиенте (новые первыми)
@@ -150,6 +161,7 @@ export function useSearchHistory() {
           ...(params.hasAnswer !== undefined && { hasAnswer: params.hasAnswer }),
           ...(params.selectedBooks && { selectedBooks: params.selectedBooks }),
           ...(params.aiResponse && { aiResponse: params.aiResponse }),
+          ...(params.searchResults && params.searchResults.length > 0 && { searchResults: params.searchResults }),
         });
         debugLog('[useSearchHistory] Saved search:', params.type, params.query);
       } catch (err) {
