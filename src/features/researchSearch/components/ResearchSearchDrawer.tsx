@@ -36,8 +36,8 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
     ) {
       lastSavedQueryRef.current = query;
 
-      // Сохраняем первые 5 результатов в упрощённом формате
-      const simplifiedResults = state.results.slice(0, 5).map((r) => ({
+      // Сохраняем до 20 результатов в упрощённом формате
+      const simplifiedResults = state.results.slice(0, 20).map((r) => ({
         title: r.title,
         url: r.primaryUrl || r.oaPdfUrl || (r.doi ? `https://doi.org/${r.doi}` : undefined),
         year: r.year,

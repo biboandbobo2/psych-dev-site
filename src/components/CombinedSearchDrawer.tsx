@@ -108,7 +108,7 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
   useEffect(() => {
     if (researchState.status === 'success' && researchQuery.trim().length >= 3 && researchQuery !== savedResearchQueryRef.current) {
       savedResearchQueryRef.current = researchQuery;
-      const simplifiedResults = researchState.results.slice(0, 5).map((r) => ({
+      const simplifiedResults = researchState.results.slice(0, 20).map((r) => ({
         title: r.title,
         url: r.primaryUrl || r.oaPdfUrl || (r.doi ? `https://doi.org/${r.doi}` : undefined),
         year: r.year,
