@@ -41,6 +41,7 @@ export function BookSearchBlock() {
         query: query.trim(),
         hasAnswer: Boolean(state.answer),
         selectedBooks,
+        aiResponse: state.answer || undefined,
       });
     }
   }, [state.status, state.answer, query, selectedBooks, saveSearch]);

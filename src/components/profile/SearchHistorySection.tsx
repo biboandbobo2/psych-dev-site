@@ -30,12 +30,10 @@ export function SearchHistorySection() {
     if (entry.type === 'content') {
       // Открываем drawer с запросом
       openSearch(entry.query);
-    } else if (entry.type === 'research' || entry.type === 'book_rag') {
+    } else if (entry.type === 'research') {
       navigate(`/research?q=${encodeURIComponent(entry.query)}`);
-    } else {
-      // Для ai_chat — копируем запрос в буфер обмена
-      navigator.clipboard.writeText(entry.query);
     }
+    // ai_chat и book_rag раскрываются по клику на строку
   };
 
   // Определяем типы с данными
@@ -187,14 +185,14 @@ function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps
   const [isExpanded, setIsExpanded] = useState(false);
   const timeAgo = formatTimeAgo(entry.createdAt);
 
-  // Для ai_chat с ответом — раскрываем по клику
-  const isExpandable = entry.type === 'ai_chat' && Boolean(entry.aiResponse);
-  // content открывает drawer, research/book_rag переходят на страницу
-  const hasSearchAction = entry.type === 'content' || entry.type === 'research' || entry.type === 'book_rag';
+  // Для ai_chat и book_rag с ответом — раскрываем по клику
+  const isExpandable = (entry.type === 'ai_chat' || entry.type === 'book_rag') && Boolean(entry.aiResponse);
+  // content открывает drawer, research переходит на страницу
+  const hasSearchAction = entry.type === 'content' || entry.type === 'research';
 
   const getButtonTitle = () => {
     if (entry.type === 'content') return 'Повторить поиск';
-    if (entry.type === 'research' || entry.type === 'book_rag') return 'Перейти к поиску';
+    if (entry.type === 'research') return 'Перейти к поиску';
     return '';
   };
 
