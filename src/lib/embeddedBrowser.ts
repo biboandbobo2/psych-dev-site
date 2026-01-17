@@ -12,9 +12,3 @@ export function isEmbeddedMobileBrowser(userAgent?: string) {
 
   return isMobile && (isWebViewIOS || isWebViewAndroid || isInAppBrowser);
 }
-
-export function isMobileDevice(userAgent?: string) {
-  const ua = userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent || '' : '');
-  if (!ua) return false;
-  return /iP(hone|od|ad)|Android/.test(ua);
-}
