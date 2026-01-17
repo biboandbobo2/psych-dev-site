@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { makeUserAdmin, removeAdmin, updateCourseAccess, setUserRole } from '../../../../lib/adminFunctions';
+import { makeUserAdmin, removeAdmin, updateCourseAccess, setUserRole, toggleUserDisabled } from '../../../../lib/adminFunctions';
 import type { CourseAccessMap } from '../../../../types/user';
 import type { UserRecord } from '../../../../hooks/useAllUsers';
 
@@ -20,6 +20,7 @@ interface UseUserManagementReturn {
   handleMakeAdmin: (uid: string) => Promise<void>;
   handleRemoveAdmin: (uid: string) => Promise<void>;
   handleSetRole: (targetUid: string, newRole: 'guest' | 'student') => Promise<void>;
+  handleToggleDisabled: (uid: string, currentDisabled: boolean) => Promise<void>;
   handleRowClick: (user: UserRecord) => void;
   handleCourseAccessChange: (course: keyof CourseAccessMap, value: boolean) => void;
   handleSaveCourseAccess: (targetUid: string) => Promise<void>;
@@ -83,6 +84,30 @@ export function useUserManagement({ isSuperAdmin }: UseUserManagementOptions): U
     }
   }, []);
 
+  const handleToggleDisabled = useCallback(async (uid: string, currentDisabled: boolean) => {
+    if (!isSuperAdmin) return;
+
+    const action = currentDisabled ? 'включить' : 'отключить';
+    const confirmMessage = currentDisabled
+      ? 'Включить пользователя? Он сможет снова войти.'
+      : 'Отключить пользователя? Он не сможет войти, но все данные сохранятся.';
+
+    if (!window.confirm(confirmMessage)) return;
+
+    setActionLoading(uid);
+    try {
+      const result = await toggleUserDisabled({ targetUid: uid, disabled: !currentDisabled });
+      window.alert(result.message);
+      // Перезагружаем страницу чтобы увидеть изменения
+      window.location.reload();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : `Ошибка: не удалось ${action} пользователя`;
+      window.alert(message);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [isSuperAdmin]);
+
   const handleRowClick = useCallback((user: UserRecord) => {
     if (expandedUserId === user.uid) {
       // Закрываем
@@ -132,6 +157,7 @@ export function useUserManagement({ isSuperAdmin }: UseUserManagementOptions): U
     handleMakeAdmin,
     handleRemoveAdmin,
     handleSetRole,
+    handleToggleDisabled,
     handleRowClick,
     handleCourseAccessChange,
     handleSaveCourseAccess,

@@ -77,3 +77,33 @@ export async function setUserRole(params: SetUserRoleParams) {
   const result = await setRole(params);
   return result.data;
 }
+
+export interface ToggleUserDisabledParams {
+  targetUid: string;
+  disabled: boolean;
+}
+
+interface ToggleUserDisabledResponse {
+  success: boolean;
+  targetUid: string;
+  targetEmail: string;
+  disabled: boolean;
+  message: string;
+}
+
+/**
+ * Отключает или включает пользователя.
+ * Отключённый пользователь не может войти, но все его данные сохраняются.
+ * Только super-admin может вызывать эту функцию.
+ *
+ * @param params - параметры: targetUid и disabled (true = отключить)
+ * @returns результат операции
+ */
+export async function toggleUserDisabled(params: ToggleUserDisabledParams) {
+  const toggle = httpsCallable<ToggleUserDisabledParams, ToggleUserDisabledResponse>(
+    functions,
+    "toggleUserDisabled"
+  );
+  const result = await toggle(params);
+  return result.data;
+}

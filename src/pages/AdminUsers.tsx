@@ -21,6 +21,7 @@ export default function AdminUsers() {
     handleMakeAdmin,
     handleRemoveAdmin,
     handleSetRole,
+    handleToggleDisabled,
     handleRowClick,
     handleCourseAccessChange,
     handleSaveCourseAccess,
@@ -134,6 +135,7 @@ export default function AdminUsers() {
                 onCourseAccessChange={handleCourseAccessChange}
                 onSaveCourseAccess={() => handleSaveCourseAccess(user.uid)}
                 onSetRole={(role) => handleSetRole(user.uid, role)}
+                onToggleDisabled={() => handleToggleDisabled(user.uid, user.disabled === true)}
               />
             ))}
           </tbody>

@@ -13,6 +13,8 @@ export interface UserRecord {
   role: UserRole;
   /** Гранулярный доступ к курсам (для guest) */
   courseAccess?: CourseAccessMap;
+  /** Пользователь отключён (не может войти, но данные сохранены) */
+  disabled?: boolean;
   createdAt: any;
   lastLoginAt: any;
 }

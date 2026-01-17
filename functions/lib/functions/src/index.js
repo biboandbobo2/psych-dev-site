@@ -156,6 +156,79 @@ export const setRole = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError("internal", `Failed to set role: ${error?.message}`);
     }
 });
+/**
+ * toggleUserDisabled - отключает/включает пользователя (только для super-admin)
+ * Отключённый пользователь не может войти, но все его данные сохраняются.
+ * При повторном включении — пользователь входит с тем же uid и данными.
+ *
+ * @param data.targetUid - UID пользователя
+ * @param data.disabled - true = отключить, false = включить
+ */
+export const toggleUserDisabled = functions.https.onCall(async (data, context) => {
+    functions.logger.info("🔵 toggleUserDisabled called", {
+        caller: context.auth?.uid,
+        target: data?.targetUid,
+        disabled: data?.disabled,
+    });
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+    }
+    // Только super-admin может отключать пользователей
+    const callerEmail = context.auth.token?.email;
+    if (callerEmail !== "biboandbobo2@gmail.com") {
+        functions.logger.error("❌ Caller is not super-admin", { callerEmail });
+        throw new functions.https.HttpsError("permission-denied", "Только super-admin может отключать/включать пользователей");
+    }
+    const targetUid = data?.targetUid;
+    const disabled = data?.disabled;
+    if (!targetUid || typeof targetUid !== "string") {
+        throw new functions.https.HttpsError("invalid-argument", "targetUid is required");
+    }
+    if (typeof disabled !== "boolean") {
+        throw new functions.https.HttpsError("invalid-argument", "disabled must be boolean");
+    }
+    // Нельзя отключить самого себя
+    if (context.auth.uid === targetUid) {
+        throw new functions.https.HttpsError("invalid-argument", "Нельзя отключить самого себя");
+    }
+    try {
+        const authAdmin = getAdminAuth();
+        const firestore = getFirestore();
+        // Проверяем что пользователь существует
+        const targetUser = await authAdmin.getUser(targetUid);
+        functions.logger.info("✅ Target user found", { email: targetUser.email });
+        // Обновляем статус disabled
+        await authAdmin.updateUser(targetUid, { disabled });
+        functions.logger.info("✅ User disabled status updated", { targetUid, disabled });
+        // Записываем в Firestore для отображения в UI
+        await firestore.collection("users").doc(targetUid).set({
+            disabled,
+            disabledAt: disabled ? FieldValue.serverTimestamp() : null,
+            disabledBy: disabled ? context.auth.uid : null,
+            enabledAt: disabled ? null : FieldValue.serverTimestamp(),
+            enabledBy: disabled ? null : context.auth.uid,
+        }, { merge: true });
+        return {
+            success: true,
+            targetUid,
+            targetEmail: targetUser.email,
+            disabled,
+            message: disabled
+                ? "Пользователь отключён. Он не сможет войти, но все данные сохранены."
+                : "Пользователь включён. Он может войти и все его данные на месте.",
+        };
+    }
+    catch (error) {
+        functions.logger.error("❌ Error in toggleUserDisabled", {
+            error: error?.message,
+            code: error?.code,
+        });
+        if (error?.code === "auth/user-not-found") {
+            throw new functions.https.HttpsError("not-found", `Пользователь не найден`);
+        }
+        throw new functions.https.HttpsError("internal", `Ошибка: ${error?.message}`);
+    }
+});
 // Re-export functions from separate modules
 export { onUserCreate } from './onUserCreate.js';
 export { migrateAdmins } from './migrateAdmins.js';

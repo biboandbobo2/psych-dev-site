@@ -17,6 +17,7 @@ export interface UserRowProps {
   onCourseAccessChange: (course: keyof CourseAccessMap, value: boolean) => void;
   onSaveCourseAccess: () => void;
   onSetRole: (role: 'guest' | 'student') => void;
+  onToggleDisabled: () => void;
 }
 
 export function UserRow({
@@ -33,6 +34,7 @@ export function UserRow({
   onCourseAccessChange,
   onSaveCourseAccess,
   onSetRole,
+  onToggleDisabled,
 }: UserRowProps) {
   const isCurrentUser = user.uid === currentUserUid;
   const userIsAdmin = isAdminRole(user.role);
@@ -95,6 +97,7 @@ export function UserRow({
             onMakeAdmin={onMakeAdmin}
             onRemoveAdmin={onRemoveAdmin}
             onSetRole={onSetRole}
+            onToggleDisabled={onToggleDisabled}
           />
         </td>
       </tr>
@@ -154,6 +157,7 @@ function RoleActions({
   onMakeAdmin,
   onRemoveAdmin,
   onSetRole,
+  onToggleDisabled,
 }: {
   user: UserRecord;
   currentUserUid: string | undefined;
@@ -162,15 +166,28 @@ function RoleActions({
   onMakeAdmin: () => void;
   onRemoveAdmin: () => void;
   onSetRole: (role: 'guest' | 'student') => void;
+  onToggleDisabled: () => void;
 }) {
   if (!isSuperAdmin || user.uid === currentUserUid) {
     return <span className="text-gray-400">—</span>;
   }
 
   const isLoading = actionLoading === user.uid;
+  const isDisabled = user.disabled === true;
 
   return (
     <div className="flex flex-wrap gap-2">
+      {/* Кнопка отключения/включения пользователя */}
+      {user.role !== 'super-admin' && (
+        <ActionButton
+          onClick={onToggleDisabled}
+          disabled={isLoading}
+          variant={isDisabled ? 'green' : 'gray'}
+          label={isLoading ? 'Ждите...' : isDisabled ? 'Включить' : 'Отключить'}
+          title={isDisabled ? 'Включить пользователя' : 'Отключить (данные сохранятся)'}
+        />
+      )}
+
       {user.role === 'guest' && (
         <>
           <ActionButton
@@ -226,17 +243,20 @@ function ActionButton({
   disabled,
   variant,
   label,
+  title,
 }: {
   onClick: () => void;
   disabled: boolean;
-  variant: 'blue' | 'green' | 'yellow' | 'red';
+  variant: 'blue' | 'green' | 'yellow' | 'red' | 'gray';
   label: string;
+  title?: string;
 }) {
   const variantClasses = {
     blue: 'bg-blue-600 hover:bg-blue-700',
     green: 'bg-green-600 hover:bg-green-700',
     yellow: 'bg-yellow-600 hover:bg-yellow-700',
     red: 'bg-red-600 hover:bg-red-700',
+    gray: 'bg-gray-500 hover:bg-gray-600',
   };
 
   return (
@@ -244,6 +264,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={`rounded px-3 py-1 text-white transition ${variantClasses[variant]} disabled:bg-gray-400`}
     >
       {label}
