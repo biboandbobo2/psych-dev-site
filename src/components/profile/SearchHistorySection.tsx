@@ -22,6 +22,7 @@ export function SearchHistorySection() {
   const { openSearch } = useContentSearchStore();
   const [activeType, setActiveType] = useState<SearchHistoryType | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // Повторить поиск — только для content
   const handleRepeatSearch = (entry: SearchHistoryEntry) => {
@@ -53,62 +54,8 @@ export function SearchHistorySection() {
     setShowClearConfirm(false);
   };
 
-  if (loading) {
-    return (
-      <div className="bg-white rounded-2xl shadow-xl p-6">
-        <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-48 mb-4" />
-          <div className="h-10 bg-gray-100 rounded mb-4" />
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 bg-gray-100 rounded" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6">
-      {/* Заголовок с кнопкой очистки */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <span role="img" aria-hidden="true">
-            🔍
-          </span>
-          История поисков
-        </h2>
-        {hasHistory && (
-          <div className="relative">
-            {showClearConfirm ? (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Удалить всё?</span>
-                <button
-                  onClick={handleClearHistory}
-                  className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                >
-                  Да
-                </button>
-                <button
-                  onClick={() => setShowClearConfirm(false)}
-                  className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Нет
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowClearConfirm(true)}
-                className="text-sm text-gray-500 hover:text-red-500 transition-colors"
-              >
-                Очистить
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
+  const renderContent = () => (
+    <>
       {/* Табы — только типы с данными */}
       {typesWithData.length > 1 && (
         <div className="flex flex-wrap gap-2 mb-4 sm:flex-nowrap sm:overflow-x-auto sm:pb-1">
@@ -174,6 +121,120 @@ export function SearchHistorySection() {
           Показать все ({totalForType})
         </button>
       )}
+    </>
+  );
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl shadow-xl p-6">
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-48 mb-4" />
+          <div className="h-10 bg-gray-100 rounded mb-4" />
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-12 bg-gray-100 rounded" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6">
+      {/* Заголовок с кнопкой очистки */}
+      <div className="mb-4 hidden items-center justify-between sm:flex">
+        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <span role="img" aria-hidden="true">
+            🔍
+          </span>
+          История поисков
+        </h2>
+        {hasHistory && (
+          <div className="relative">
+            {showClearConfirm ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Удалить всё?</span>
+                <button
+                  onClick={handleClearHistory}
+                  className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Да
+                </button>
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Нет
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="text-sm text-gray-500 hover:text-red-500 transition-colors"
+              >
+                Очистить
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <details className="group sm:hidden" open={isMobileOpen} onToggle={(e) => setIsMobileOpen(e.currentTarget.open)}>
+        <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 [&::-webkit-details-marker]:hidden">
+          <span className="flex items-center gap-2">
+            <span role="img" aria-hidden="true">🔍</span>
+            История поисков
+          </span>
+          <svg
+            className="h-4 w-4 text-gray-500 transition-transform group-open:rotate-90"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </summary>
+        <div className="mt-4">
+          {hasHistory && (
+            <div className="mb-3">
+              {showClearConfirm ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600">Удалить всё?</span>
+                  <button
+                    onClick={handleClearHistory}
+                    className="px-2 py-1 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  >
+                    Да
+                  </button>
+                  <button
+                    onClick={() => setShowClearConfirm(false)}
+                    className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Нет
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowClearConfirm(true)}
+                  className="text-xs text-gray-500 hover:text-red-500 transition-colors"
+                >
+                  Очистить
+                </button>
+              )}
+            </div>
+          )}
+          <div className="space-y-4">
+            {renderContent()}
+          </div>
+        </div>
+      </details>
+
+      <div className="hidden sm:block">
+        {renderContent()}
+      </div>
+
     </div>
   );
 }
