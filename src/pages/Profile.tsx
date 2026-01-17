@@ -294,7 +294,7 @@ export default function Profile() {
       </div>
 
       <div className="sm:hidden bg-white rounded-2xl shadow-xl p-4">
-        <details className="group">
+        <details className="group" open>
           <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 [&::-webkit-details-marker]:hidden">
             <span className="flex items-center gap-2">
               <span role="img" aria-hidden="true">🎓</span>
