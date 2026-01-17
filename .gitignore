@@ -24,3 +24,16 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Security ignores
+.env
+.env.*
+!.env.example
+.safety/
+*.pem
+*.key
+*service-account*.json
+*sa*.json
+playwright-report/
+test-results/
+backups/periods-backup-*.json
