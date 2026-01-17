@@ -1,6 +1,6 @@
 # PREVIEW_CHECKLIST_VERCEL.md
 
-Цель: проверить ветку `safety-prep-test` на Vercel Preview до переноса изменений в `main`.
+Цель: проверить ветку в Vercel Preview до переноса изменений в `main`.
 
 ## 1) Проверка логов деплоя (Vercel)
 - Build successful (нет ошибок "Missing env" или "undefined" для VITE_* переменных).
@@ -30,5 +30,4 @@
 - При наличии других серверных ключей (например Google/GenAI) — убедиться, что они заданы только в Server/Preview окружении.
 
 ## 4) Важно
-После удаления `.env.production` из Git сборка в Preview будет зависеть от настроенных Environment Variables. Если ранее build брал значения из файла — теперь их нужно задать в Vercel для Preview.
-
+После удаления `.env.production` из Git сборка в Preview зависит от настроенных Environment Variables. Если ранее build брал значения из файла — теперь их нужно задать в Vercel для Preview.

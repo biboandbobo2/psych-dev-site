@@ -1,7 +1,7 @@
 # Render Deployment Setup (legacy)
 
-> ⚠️ Render больше не используется для production-хостинга. Держим этот гайд только для истории миграции.  
-> Актуальные инструкции по деплою и настройкам переменных находятся в `README.md` и `docs/ARCHITECTURE_GUIDELINES.md`.
+> ⚠️ Legacy: Render больше не используется для production-хостинга. Держим этот гайд только для истории миграции.  
+> Актуальные инструкции смотри в `docs/QUICK_START.md`, `docs/SECURITY_BASELINE.md` и `docs/COST_GUARDRAILS.md`.
 
 ## Current Status
 ✅ Code is deployed  
@@ -27,7 +27,7 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=1006911372271
 VITE_FIREBASE_APP_ID=1:1006911372271:web:b7e9b4371c8ece412e941a
 ```
 
-> Seed-код теперь управляется только в Cloud Functions (`functions.config().admin.seed_code`) — клиент больше не спрашивает его. См. `docs/ARCHITECTURE_GUIDELINES.md#security-roles--logging`.
+> Seed-код теперь управляется только в Cloud Functions (`functions.config().admin.seed_code`) — клиент больше не спрашивает его. См. `docs/architecture/guidelines.md#security-roles--logging`.
 
 ### Step 2: Verify Build Settings
 - **Build Command**: `npm ci && npm run build`
@@ -35,7 +35,7 @@ VITE_FIREBASE_APP_ID=1:1006911372271:web:b7e9b4371c8ece412e941a
 - **Auto-Deploy**: включен
 
 ### Step 3: Deploy
-1. Убедитесь, что `.env.production` присутствует в репозитории
+1. Убедитесь, что переменные окружения заданы в Render (env vars), **не** храните `.env.production` в Git
 2. `git push`
 3. Render автоматически запустит билд или выполните **Manual Deploy → Deploy latest commit**
 
@@ -62,8 +62,8 @@ VITE_FIREBASE_APP_ID=1:1006911372271:web:b7e9b4371c8ece412e941a
 3. Сбросьте кэш билда: Settings → Clear Build Cache → Manual Deploy
 
 ### Переменные `undefined`
-1. Убедитесь, что `.env.production` закоммичен
-2. Проверьте `.gitignore` — в нём не должно быть `.env.production`
+1. Убедитесь, что все переменные заданы в Render Environment
+2. Проверьте, что build запускается с нужными переменными
 3. Убедитесь, что Build Command запускает `npm run build`
 
 ### Билд падает

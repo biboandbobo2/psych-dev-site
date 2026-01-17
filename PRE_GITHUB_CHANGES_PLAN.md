@@ -1,6 +1,7 @@
 # PRE_GITHUB_CHANGES_PLAN.md
 
-Контекст: работаем в отдельной ветке `safety-prep-test` (локально). Изменения минимальные, обратимые, без переписывания истории.
+Исторический план подготовки репозитория к публикации (без переписывания истории).  
+Актуальные правила: `docs/SECURITY_BASELINE.md`, контроль затрат: `docs/COST_GUARDRAILS.md`.
 
 ## A) MUST — обязательное перед публикацией
 
@@ -33,7 +34,7 @@
 - Откат: удалить `.env.example` или восстановить бэкап.
 
 ### 4) Удалить реальные ключи из README/docs
-- Что: заменить `VITE_FIREBASE_API_KEY=AIz...` на плейсхолдер.
+- Что: заменить `VITE_FIREBASE_API_KEY=...` на плейсхолдер.
 - Почему: ключы в документации утекут в public репозиторий.
 - Файлы: `README.md`, `docs/QUICK_START.md`, `docs/archive/legacy/RENDER_SETUP.md`.
 - Команды:
@@ -76,4 +77,3 @@
 - Для `git rm --cached .env.production`: `UNTRACK_ENV_PROD`.
 - Для снятия артефактов: `UNTRACK_ARTIFACTS`.
 - Для запуска всего набора изменений: `APPLY_SAFETY_CHANGES`.
-
