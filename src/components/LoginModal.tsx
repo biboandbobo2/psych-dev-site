@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";
+import { debugError } from "../lib/debug";
+import { logClientEvent } from "../lib/clientLog";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -15,13 +17,15 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     try {
       setLoading(true);
       setError(null);
+      logClientEvent("login.click", { source: "login_modal" });
 
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
 
       onClose();
     } catch (err: any) {
-      console.error("Login error:", err);
+      logClientEvent("login.error", { code: err?.code ?? "unknown" });
+      debugError("Login error:", err);
       setError(err?.message || "Ошибка входа");
     } finally {
       setLoading(false);
