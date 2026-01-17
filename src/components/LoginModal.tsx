@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { signInWithPopup, signInWithRedirect, GoogleAuthProvider } from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";
-import { debugError } from "../lib/debug";
-import { isEmbeddedMobileBrowser } from "../lib/embeddedBrowser";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -19,14 +17,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       setError(null);
 
       const provider = new GoogleAuthProvider();
-      if (isEmbeddedMobileBrowser()) {
-        await signInWithRedirect(auth, provider);
-        return;
-      }
       await signInWithPopup(auth, provider);
+
       onClose();
     } catch (err: any) {
-      debugError("Login error:", err);
+      console.error("Login error:", err);
       setError(err?.message || "Ошибка входа");
     } finally {
       setLoading(false);

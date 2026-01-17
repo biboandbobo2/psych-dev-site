@@ -1,11 +1,10 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut, type User } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
 import { auth, googleProvider, db } from '../lib/firebase';
 import { doc, getDoc, onSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { SUPER_ADMIN_EMAIL } from '../constants/superAdmin';
 import { reportAppError } from '../lib/errorHandler';
-import { isEmbeddedMobileBrowser } from '../lib/embeddedBrowser';
 import type { CourseType } from '../types/tests';
 import type { CourseAccessMap, UserRole } from '../types/user';
 import { hasCourseAccess as checkCourseAccess } from '../types/user';
@@ -86,10 +85,6 @@ export const useAuthStore = create<AuthState>()(
 
       signInWithGoogle: async () => {
         try {
-          if (isEmbeddedMobileBrowser()) {
-            await signInWithRedirect(auth, googleProvider);
-            return;
-          }
           await signInWithPopup(auth, googleProvider);
         } catch (error) {
           reportAppError({ message: 'Ошибка входа через Google', error, context: 'useAuthStore.signInWithGoogle' });
