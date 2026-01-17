@@ -116,7 +116,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
     <div className="absolute inset-0">
       <svg
         ref={svgRef}
-        className={`w-full h-full ${cursorClass}`}
+        className={`w-full h-full touch-none ${cursorClass}`}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

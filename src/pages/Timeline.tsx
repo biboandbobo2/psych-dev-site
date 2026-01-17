@@ -286,9 +286,9 @@ export default function Timeline() {
     panZoomHook.handlePointerMove(e);
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
     dragDropHook.handleNodeDragEnd();
-    panZoomHook.handlePointerUp();
+    panZoomHook.handlePointerUp(e);
   };
 
   // ============ KEYBOARD SHORTCUTS ============
