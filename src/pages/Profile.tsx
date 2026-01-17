@@ -68,7 +68,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+      <h2 className="hidden sm:flex text-2xl font-bold mb-6 items-center gap-2">
         <span className="text-3xl" role="img" aria-label="Студент">
           🎓
         </span>
@@ -288,7 +288,32 @@ export default function Profile() {
           </div>
         </div>
 
-        <StudentPanel currentCourse={currentCourse} />
+        <div className="hidden sm:block">
+          <StudentPanel currentCourse={currentCourse} />
+        </div>
+      </div>
+
+      <div className="sm:hidden bg-white rounded-2xl shadow-xl p-4">
+        <details className="group">
+          <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center gap-2">
+              <span role="img" aria-hidden="true">🎓</span>
+              Панель студента
+            </span>
+            <svg
+              className="h-4 w-4 text-gray-500 transition-transform group-open:rotate-90"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </summary>
+          <div className="mt-4">
+            <StudentPanel currentCourse={currentCourse} />
+          </div>
+        </details>
       </div>
 
       {/* История поисков — только для авторизованных */}
