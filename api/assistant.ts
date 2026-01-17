@@ -9,13 +9,13 @@ import { GoogleGenAI } from '@google/genai';
 // TYPES
 // ============================================================================
 
-interface AssistantRequest {
+export interface AssistantRequest {
   message: string;
   locale?: string;
   history?: AssistantHistoryItem[];
 }
 
-interface AssistantResponse {
+export interface AssistantResponse {
   ok: true;
   answer: string;
   refused?: boolean;
@@ -26,18 +26,18 @@ interface AssistantResponse {
   };
 }
 
-interface AssistantErrorResponse {
+export interface AssistantErrorResponse {
   ok: false;
   error: string;
   code?: string;
 }
 
-interface GeminiStructuredResponse {
+export interface GeminiStructuredResponse {
   allowed: boolean;
   answer: string;
 }
 
-type AssistantHistoryItem = {
+export type AssistantHistoryItem = {
   role: 'user' | 'assistant';
   message: string;
 };
@@ -46,11 +46,12 @@ type AssistantHistoryItem = {
 // RATE LIMITING (in-memory, per IP)
 // ============================================================================
 
-const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-const RATE_LIMIT_MAX = 10; // 10 requests per window
-const rateLimitStore = new Map<string, number[]>();
+// Exported for testing
+export const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+export const RATE_LIMIT_MAX = 10; // 10 requests per window
+export const rateLimitStore = new Map<string, number[]>();
 
-function enforceRateLimit(ip: string): boolean {
+export function enforceRateLimit(ip: string): boolean {
   const now = Date.now();
   const windowStart = now - RATE_LIMIT_WINDOW_MS;
   const entries = rateLimitStore.get(ip)?.filter((ts) => ts >= windowStart) ?? [];
@@ -79,15 +80,15 @@ function getClientIp(req: IncomingMessage): string {
 // ========================================================================
 
 const DAILY_TOTAL_RAW = Number(process.env.ASSISTANT_DAILY_TOTAL_QUOTA ?? 500);
-const DAILY_TOTAL_QUOTA = Number.isFinite(DAILY_TOTAL_RAW) && DAILY_TOTAL_RAW > 0 ? DAILY_TOTAL_RAW : 500;
-const PER_USER_DAILY_QUOTA = Math.max(1, Math.floor(DAILY_TOTAL_QUOTA / 5));
-const dailyQuotaStore = new Map<string, { day: number; count: number }>();
+export const DAILY_TOTAL_QUOTA = Number.isFinite(DAILY_TOTAL_RAW) && DAILY_TOTAL_RAW > 0 ? DAILY_TOTAL_RAW : 500;
+export const PER_USER_DAILY_QUOTA = Math.max(1, Math.floor(DAILY_TOTAL_QUOTA / 5));
+export const dailyQuotaStore = new Map<string, { day: number; count: number }>();
 
-function getDayKey(): number {
+export function getDayKey(): number {
   return Math.floor(Date.now() / (24 * 60 * 60 * 1000));
 }
 
-function enforceDailyQuota(clientKey: string): boolean {
+export function enforceDailyQuota(clientKey: string): boolean {
   const today = getDayKey();
   const entry = dailyQuotaStore.get(clientKey);
   if (!entry || entry.day !== today) {
@@ -106,10 +107,10 @@ function enforceDailyQuota(clientKey: string): boolean {
 // USAGE TRACKING (tokens/request count, per day, in-memory)
 // ============================================================================
 
-type UsageState = { day: number; tokensUsed: number; requests: number };
-const usageState: UsageState = { day: getDayKey(), tokensUsed: 0, requests: 0 };
+export type UsageState = { day: number; tokensUsed: number; requests: number };
+export const usageState: UsageState = { day: getDayKey(), tokensUsed: 0, requests: 0 };
 
-function resetUsageIfNeeded(): UsageState {
+export function resetUsageIfNeeded(): UsageState {
   const today = getDayKey();
   if (usageState.day !== today) {
     usageState.day = today;
@@ -119,14 +120,14 @@ function resetUsageIfNeeded(): UsageState {
   return usageState;
 }
 
-function estimateTokens(text: string): number {
+export function estimateTokens(text: string): number {
   if (!text) return 0;
   const normalized = text.trim();
   if (!normalized) return 0;
   return Math.max(1, Math.ceil(normalized.length / 4));
 }
 
-function addUsage(tokens: number): UsageState {
+export function addUsage(tokens: number): UsageState {
   const state = resetUsageIfNeeded();
   state.tokensUsed += Math.max(0, Math.floor(tokens));
   state.requests += 1;
@@ -137,11 +138,11 @@ function addUsage(tokens: number): UsageState {
 // INPUT VALIDATION
 // ============================================================================
 
-const MAX_MESSAGE_LENGTH = 200;
-const MAX_HISTORY_ITEMS = 6;
-const MAX_HISTORY_TOTAL_CHARS = 1200;
+export const MAX_MESSAGE_LENGTH = 200;
+export const MAX_HISTORY_ITEMS = 6;
+export const MAX_HISTORY_TOTAL_CHARS = 1200;
 
-function sanitizeHistory(history: unknown): AssistantHistoryItem[] {
+export function sanitizeHistory(history: unknown): AssistantHistoryItem[] {
   if (!Array.isArray(history)) return [];
   const result: AssistantHistoryItem[] = [];
   let totalChars = 0;
@@ -164,7 +165,7 @@ function sanitizeHistory(history: unknown): AssistantHistoryItem[] {
   return result;
 }
 
-function validateInput(body: unknown): { valid: true; message: string; locale: string; history: AssistantHistoryItem[] } | { valid: false; error: string; code: string } {
+export function validateInput(body: unknown): { valid: true; message: string; locale: string; history: AssistantHistoryItem[] } | { valid: false; error: string; code: string } {
   if (!body || typeof body !== 'object') {
     return { valid: false, error: 'Request body is required', code: 'INVALID_BODY' };
   }
@@ -196,8 +197,8 @@ function validateInput(body: unknown): { valid: true; message: string; locale: s
 // RESPONSE TRUNCATION
 // ============================================================================
 
-const MAX_PARAGRAPHS = 6;
-const MAX_CHARS = 3000;
+export const MAX_PARAGRAPHS = 6;
+export const MAX_CHARS = 3000;
 
 /**
  * Truncates response to max 6 paragraphs and 3000 characters.
@@ -267,10 +268,21 @@ const SYSTEM_INSTRUCTION = `Ты — ИИ-помощник по психолог
 - Стадии развития по Пиаже
 - Как биография Эриксона повлияла на его теорию развития`;
 
-async function callGemini(message: string, locale: string, history: AssistantHistoryItem[]): Promise<GeminiStructuredResponse> {
-  // Try multiple env var names in case of configuration issues
-  // Note: VITE_ prefix seems to work on Vercel while others don't
-  const apiKey = process.env.GEMINI_API_KEY || process.env.MY_GEMINI_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_KEY;
+/**
+ * Извлекает API ключ Gemini из заголовка запроса или fallback на env
+ */
+export function getGeminiApiKey(req: any): string {
+  // 1. Проверяем заголовок X-Gemini-Api-Key (пользовательский ключ)
+  const userKey = req.headers?.['x-gemini-api-key'];
+  if (userKey && typeof userKey === 'string' && userKey.trim()) {
+    return userKey.trim();
+  }
+
+  // 2. Fallback на дефолтный ключ из env
+  return process.env.GEMINI_API_KEY || process.env.MY_GEMINI_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_KEY || '';
+}
+
+async function callGemini(message: string, locale: string, history: AssistantHistoryItem[], apiKey: string): Promise<GeminiStructuredResponse> {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
@@ -338,7 +350,7 @@ ${historyPrompt}
   return parsed;
 }
 
-function tryParseGeminiResponse(text: string): GeminiStructuredResponse | null {
+export function tryParseGeminiResponse(text: string): GeminiStructuredResponse | null {
   if (!text) return null;
 
   // Remove markdown code blocks if present
@@ -375,7 +387,7 @@ export default async function handler(req: any, res: any) {
   // CORS headers for preflight
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Gemini-Api-Key');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -460,8 +472,11 @@ export default async function handler(req: any, res: any) {
   // TypeScript now knows validation.valid === true
   const { message, locale, history } = validation as { valid: true; message: string; locale: string; history: AssistantHistoryItem[] };
 
+  // Получаем API ключ (пользовательский или дефолтный)
+  const apiKey = getGeminiApiKey(req);
+
   try {
-    const geminiResponse = await callGemini(message, locale, history);
+    const geminiResponse = await callGemini(message, locale, history, apiKey);
     const truncatedAnswer = truncateResponse(geminiResponse.answer);
     const historyText = history.map((item) => `${item.role}: ${item.message}`).join('\n');
     const tokensUsed =
@@ -488,6 +503,26 @@ export default async function handler(req: any, res: any) {
     console.error('[assistant] Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
 
     const isConfig = error?.message?.includes('GEMINI_API_KEY');
+
+    // Определяем ошибку неверного API ключа
+    const isInvalidKey =
+      error?.status === 400 ||
+      error?.status === 401 ||
+      error?.status === 403 ||
+      error?.message?.includes('API key') ||
+      error?.message?.includes('invalid') ||
+      error?.message?.includes('Invalid');
+
+    if (isInvalidKey && !isConfig) {
+      const errorResponse: AssistantErrorResponse = {
+        ok: false,
+        error: 'Неверный API ключ Gemini. Проверьте ключ и попробуйте снова.',
+        code: 'INVALID_API_KEY',
+      };
+      res.status(401).json(errorResponse);
+      return;
+    }
+
     const errorResponse: AssistantErrorResponse = {
       ok: false,
       error: isConfig ? 'Service not configured' : 'Не удалось получить ответ. Попробуйте позже.',

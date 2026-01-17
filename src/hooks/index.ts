@@ -4,6 +4,8 @@
  */
 export { useAllUsers } from './useAllUsers';
 export { useAnswerValidation } from './useAnswerValidation';
+export { useGeminiKey } from './useGeminiKey';
+export type { GeminiKeyStatus } from './useGeminiKey';
 export { useClickOutside } from './useClickOutside';
 export { useAuthSync } from './useAuthSync';
 export { useLoginModal } from './useLoginModal';

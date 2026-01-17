@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect } from 'react';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
-import { SearchHistorySection } from '../components/profile';
+import { GeminiKeySection, SearchHistorySection } from '../components/profile';
 import { useAuth } from '../auth/AuthProvider';
 import { useCourseStore } from '../stores';
 
@@ -291,6 +291,9 @@ export default function Profile() {
 
       {/* История поисков — только для авторизованных */}
       {user && <SearchHistorySection />}
+
+      {/* API ключ Gemini (BYOK) — только для авторизованных */}
+      {user && <GeminiKeySection />}
     </div>
   );
 }
