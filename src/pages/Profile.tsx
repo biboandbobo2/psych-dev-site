@@ -266,22 +266,22 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
-        {/* Переключатель курсов */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
+          {/* Переключатель курсов */}
         <div>
           <h2 className="text-xl font-bold mb-4 text-gray-700">Выберите курс</h2>
-          <div className="flex gap-2 border-b border-gray-200">
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 sm:border-b sm:border-gray-200">
             {Object.values(COURSES).map((courseOption) => (
               <button
                 key={courseOption.id}
                 onClick={() => setCurrentCourse(courseOption.id)}
-                className={`px-4 py-2 font-medium transition-colors relative ${
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors sm:w-auto sm:justify-start sm:rounded-none sm:border-0 sm:px-4 sm:py-2 sm:text-base ${
                   currentCourse === courseOption.id
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 sm:bg-transparent sm:text-blue-600 sm:border-b-2 sm:border-blue-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 sm:bg-transparent sm:text-gray-600 sm:border-b-2 sm:border-transparent sm:hover:text-gray-900'
                 }`}
               >
-                <span className="mr-2">{courseOption.icon}</span>
+                <span className="text-base">{courseOption.icon}</span>
                 {courseOption.name}
               </button>
             ))}
