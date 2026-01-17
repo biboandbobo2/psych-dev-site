@@ -5,6 +5,10 @@ import { ContentSearchResults } from './ContentSearchResults';
 import { usePeriods } from '../../../hooks/usePeriods';
 import { useClinicalTopics } from '../../../hooks/useClinicalTopics';
 import { useGeneralTopics } from '../../../hooks/useGeneralTopics';
+import { useSearchHistory } from '../../../hooks';
+import { useContentSearchStore } from '../../../stores';
+import { getPublishedTests } from '../../../lib/tests';
+import type { Test } from '../../../types/tests';
 
 interface ContentSearchDrawerProps {
   open: boolean;
@@ -22,7 +26,24 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
   const { topics: clinicalTopics, loading: clinicalLoading } = useClinicalTopics();
   const { topics: generalTopics, loading: generalLoading } = useGeneralTopics();
 
-  const isLoading = periodsLoading || clinicalLoading || generalLoading;
+  // Загружаем тесты
+  const [tests, setTests] = useState<Test[]>([]);
+  const [testsLoading, setTestsLoading] = useState(false);
+  const testsLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open || testsLoadedRef.current) return;
+
+    setTestsLoading(true);
+    getPublishedTests()
+      .then((loadedTests) => {
+        setTests(loadedTests);
+        testsLoadedRef.current = true;
+      })
+      .finally(() => setTestsLoading(false));
+  }, [open]);
+
+  const isLoading = periodsLoading || clinicalLoading || generalLoading || testsLoading;
 
   const contentData = useMemo(
     () => ({
@@ -33,7 +54,67 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
     [periods, clinicalTopics, generalTopics]
   );
 
-  const { state, search, reset, isReady } = useContentSearch(contentData);
+  const { state, search, reset, isReady } = useContentSearch(contentData, tests);
+  const { saveSearch } = useSearchHistory();
+  const { initialQuery, clearInitialQuery } = useContentSearchStore();
+
+  // Применяем начальный запрос при открытии drawer
+  useEffect(() => {
+    if (open && initialQuery && isReady) {
+      setInputValue(initialQuery);
+      search(initialQuery);
+      clearInitialQuery();
+    }
+  }, [open, initialQuery, isReady, search, clearInitialQuery]);
+
+  // Ref для отслеживания сохранённого запроса
+  const savedQueryRef = useRef<string>('');
+  const saveTimeoutRef = useRef<number | null>(null);
+
+  // Функция сохранения поиска
+  const doSaveSearch = (query: string, resultsCount: number) => {
+    if (query.trim().length >= 2 && query !== savedQueryRef.current) {
+      savedQueryRef.current = query;
+      saveSearch({
+        type: 'content',
+        query: query.trim(),
+        resultsCount,
+      });
+    }
+  };
+
+  // Сохранение через 10 секунд после последнего изменения запроса
+  useEffect(() => {
+    if (state.status === 'success' && state.query.trim().length >= 2) {
+      // Отменяем предыдущий таймер
+      if (saveTimeoutRef.current) {
+        window.clearTimeout(saveTimeoutRef.current);
+      }
+      // Запускаем новый таймер на 10 секунд
+      saveTimeoutRef.current = window.setTimeout(() => {
+        doSaveSearch(state.query, state.results.length);
+      }, 10000);
+    }
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        window.clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [state.status, state.query, state.results.length]);
+
+  // Сохранение при закрытии drawer
+  useEffect(() => {
+    if (!open && state.query.trim().length >= 2) {
+      // Очищаем таймер
+      if (saveTimeoutRef.current) {
+        window.clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      // Сохраняем поиск при закрытии
+      doSaveSearch(state.query, state.results.length);
+    }
+  }, [open]);
 
   // Обработка Escape и фокус на input при открытии
   useEffect(() => {
@@ -87,6 +168,10 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
   };
 
   const handleResultClick = (path: string) => {
+    // Сохраняем поиск при клике на результат
+    if (state.query) {
+      doSaveSearch(state.query, state.results.length);
+    }
     navigate(path);
     onClose();
   };
@@ -133,7 +218,7 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
                 autoComplete="off"
               />
               <p className="text-xs text-muted">
-                Поиск по заголовкам, понятиям, авторам и литературе
+                Поиск по заголовкам, понятиям, авторам, литературе и тестам
               </p>
             </div>
           </form>

@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useAiAssistant } from '../hooks/useAiAssistant';
 import { useAiChat } from '../hooks/useAiChat';
 import { BookSearchBlock } from '../../bookSearch';
+import { useSearchHistory } from '../../../hooks';
 
 export function AiAssistantBlock() {
   const [mode, setMode] = useState<'single' | 'chat'>('single');
@@ -24,6 +25,45 @@ export function AiAssistantBlock() {
   const chatCharCount = input.length;
   const chatOverLimit = chatCharCount > chatMaxLength;
   const canSendChat = input.trim().length > 0 && !chatOverLimit && !isChatLoading;
+
+  const { saveSearch } = useSearchHistory();
+
+  // Сохранение быстрого ответа в историю
+  const lastSavedSingleRef = useRef<string>('');
+  useEffect(() => {
+    if (state.status === 'success' && question.trim() && question !== lastSavedSingleRef.current) {
+      lastSavedSingleRef.current = question;
+      saveSearch({
+        type: 'ai_chat',
+        query: question.trim(),
+        hasAnswer: !state.refused,
+        aiResponse: state.answer || undefined,
+      });
+    }
+  }, [state.status, state.refused, state.answer, question, saveSearch]);
+
+  // Сохранение диалоговых сообщений в историю (после получения ответа)
+  const lastSavedChatIndexRef = useRef<number>(0);
+  useEffect(() => {
+    // Сохраняем пару вопрос-ответ после получения ответа от ассистента
+    const assistantMessages = messages.filter((m) => m.role === 'assistant');
+    if (assistantMessages.length > lastSavedChatIndexRef.current && chatState.status === 'success') {
+      const lastAssistantMsg = assistantMessages[assistantMessages.length - 1];
+      // Находим соответствующий вопрос пользователя (предыдущее сообщение)
+      const msgIndex = messages.findIndex((m) => m === lastAssistantMsg);
+      const userMsg = msgIndex > 0 ? messages[msgIndex - 1] : null;
+
+      if (userMsg && userMsg.role === 'user') {
+        lastSavedChatIndexRef.current = assistantMessages.length;
+        saveSearch({
+          type: 'ai_chat',
+          query: userMsg.text,
+          hasAnswer: !chatState.refused,
+          aiResponse: lastAssistantMsg.text,
+        });
+      }
+    }
+  }, [messages, chatState.status, chatState.refused, saveSearch]);
 
   const hasTranscript =
     (mode === 'chat' && messages.length > 0) ||

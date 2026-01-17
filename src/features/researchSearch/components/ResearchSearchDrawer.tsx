@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useResearchSearch } from '../hooks/useResearchSearch';
 import { ResearchResultsList } from './ResearchResultsList';
-import { AiAssistantBlock } from './AiAssistantBlock';
+import { useSearchHistory } from '../../../hooks';
 
 // Drawer uses only ru+en for simplicity
 // Full language selection is available on the dedicated research page
@@ -24,6 +24,34 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
     trigger: 'manual',
     autoTriggerInitial: false,
   });
+  const { saveSearch } = useSearchHistory();
+
+  // Сохранение поиска в историю при успешном результате
+  const lastSavedQueryRef = useRef<string>('');
+  useEffect(() => {
+    if (
+      state.status === 'success' &&
+      query.trim().length >= 3 &&
+      query !== lastSavedQueryRef.current
+    ) {
+      lastSavedQueryRef.current = query;
+
+      // Сохраняем до 20 результатов в упрощённом формате
+      const simplifiedResults = state.results.slice(0, 20).map((r) => ({
+        title: r.title,
+        url: r.primaryUrl || r.oaPdfUrl || (r.doi ? `https://doi.org/${r.doi}` : undefined),
+        year: r.year,
+        authors: r.authors.slice(0, 2).join(', ') + (r.authors.length > 2 ? ' и др.' : ''),
+      }));
+
+      saveSearch({
+        type: 'research',
+        query: query.trim(),
+        resultsCount: state.results.length,
+        searchResults: simplifiedResults,
+      });
+    }
+  }, [state.status, state.results, query, saveSearch]);
 
   useEffect(() => {
     if (!open) return;
@@ -144,9 +172,6 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
               />
             </div>
           ) : null}
-
-          {/* AI Assistant Block */}
-          <AiAssistantBlock />
         </div>
       </section>
     </div>

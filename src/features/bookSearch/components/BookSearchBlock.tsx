@@ -1,10 +1,11 @@
 /**
  * Основной компонент поиска по книгам
  */
-import { type FormEvent } from 'react';
+import { useEffect, useRef, type FormEvent } from 'react';
 import { useBookAnswer } from '../hooks/useBookAnswer';
 import { BookSelector } from './BookSelector';
 import { BookAnswer } from './BookAnswer';
+import { useSearchHistory } from '../../../hooks';
 
 export function BookSearchBlock() {
   const {
@@ -27,6 +28,23 @@ export function BookSearchBlock() {
     !isOverLimit &&
     !isLoading &&
     selectedBooks.length > 0;
+
+  const { saveSearch } = useSearchHistory();
+
+  // Сохранение поиска по книгам в историю
+  const lastSavedQueryRef = useRef<string>('');
+  useEffect(() => {
+    if (state.status === 'success' && query.trim() && query !== lastSavedQueryRef.current) {
+      lastSavedQueryRef.current = query;
+      saveSearch({
+        type: 'book_rag',
+        query: query.trim(),
+        hasAnswer: Boolean(state.answer),
+        selectedBooks,
+        aiResponse: state.answer || undefined,
+      });
+    }
+  }, [state.status, state.answer, query, selectedBooks, saveSearch]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();

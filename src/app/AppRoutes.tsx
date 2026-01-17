@@ -39,7 +39,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<Navigate to="/prenatal" replace />} />
+        <Route path="/" element={<Profile />} />
         <Route path="/homepage" element={<HomePage />} />
         <Route path="/login" element={<Login />} />
         <Route

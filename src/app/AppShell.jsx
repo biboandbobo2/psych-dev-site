@@ -131,7 +131,7 @@ export function AppShell() {
   }, [generalTopics]);
 
   // Определяем курс: либо по пути (для страниц курсов), либо из store (для профиля/админки/тестов)
-  const isProfileOrAdmin = normalizedPath === '/profile' || normalizedPath.startsWith('/admin/content');
+  const isProfileOrAdmin = normalizedPath === '/' || normalizedPath === '/profile' || normalizedPath.startsWith('/admin/content');
   const isTestsPage = normalizedPath.startsWith('/tests');
   const useCourseFromStore = isProfileOrAdmin || isTestsPage;
 
