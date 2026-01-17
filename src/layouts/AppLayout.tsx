@@ -70,9 +70,18 @@ export function AppLayout({
                 Навигация
               </p>
               <div className="hidden lg:block">{navList}</div>
-              <details className="lg:hidden">
-                <summary className="cursor-pointer text-sm font-semibold text-muted uppercase tracking-[0.3em]">
-                  Навигация
+              <details className="group lg:hidden">
+                <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-border/60 bg-card2 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted [&::-webkit-details-marker]:hidden">
+                  <span>Навигация</span>
+                  <svg
+                    className="h-4 w-4 text-muted transition-transform group-open:rotate-90"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </summary>
                 <div className="mt-3">{navList}</div>
               </details>
