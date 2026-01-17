@@ -24,6 +24,7 @@ export default function UserMenu({ user }: UserMenuProps) {
   // Определяем курс на основе текущего пути
   const isClinicalPage = location.pathname.startsWith('/clinical');
   const isGeneralPage = location.pathname.startsWith('/general');
+  const isProfilePage = location.pathname === '/' || location.pathname === '/profile';
   const adminContentLink = isClinicalPage ? '/admin/content?course=clinical' :
                            isGeneralPage ? '/admin/content?course=general' :
                            '/admin/content?course=development';
@@ -47,6 +48,21 @@ export default function UserMenu({ user }: UserMenuProps) {
           <span aria-hidden className="text-base">🔎</span>
           <span className="sr-only">Поиск</span>
         </button>
+        {!isProfilePage && (
+          <Link
+            to="/profile"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-gray-200"
+            aria-label="Профиль"
+          >
+            {photoURL ? (
+              <img src={photoURL} alt={displayName} className="h-8 w-8 rounded-full" />
+            ) : (
+              <span className="text-sm font-semibold text-gray-700">
+                {displayName.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </Link>
+        )}
         <button
           type="button"
           onClick={() => setIsMobileMenuOpen(true)}
