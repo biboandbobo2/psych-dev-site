@@ -111,7 +111,7 @@ export function SearchHistorySection() {
 
       {/* Табы — только типы с данными */}
       {typesWithData.length > 1 && (
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+        <div className="flex flex-wrap gap-2 mb-4 sm:flex-nowrap sm:overflow-x-auto sm:pb-1">
           {typesWithData.map(({ type, label, icon }) => {
             const isActive = effectiveType === type;
             return (
