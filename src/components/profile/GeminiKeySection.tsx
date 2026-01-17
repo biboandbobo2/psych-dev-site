@@ -8,6 +8,7 @@ export function GeminiKeySection() {
   const { currentKey, status, error, saveKey, removeKey, hasKey } = useGeminiKey();
   const [inputValue, setInputValue] = useState('');
   const [showConfirmRemove, setShowConfirmRemove] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const isLoading = status === 'validating' || status === 'saving';
 
@@ -153,7 +154,11 @@ export function GeminiKeySection() {
       ) : (
         // Режим добавления ключа
         <>
-          <details className="sm:hidden rounded-xl border border-gray-200 bg-gray-50 p-3">
+          <details
+            className="sm:hidden rounded-xl border border-gray-200 bg-gray-50 p-3"
+            open={isMobileOpen}
+            onToggle={(event) => setIsMobileOpen(event.currentTarget.open)}
+          >
             <summary className="cursor-pointer text-sm font-semibold text-blue-600 hover:underline">
               Добавить личный ключ ИИ
             </summary>
