@@ -70,7 +70,7 @@ export function SearchHistorySection() {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-6">
+    <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6">
       {/* Заголовок с кнопкой очистки */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -111,24 +111,33 @@ export function SearchHistorySection() {
 
       {/* Табы — только типы с данными */}
       {typesWithData.length > 1 && (
-        <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
-          {typesWithData.map(({ type, label, icon }) => (
-            <button
-              key={type}
-              onClick={() => setActiveType(type)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                effectiveType === type
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <span role="img" aria-hidden="true">
-                {icon}
-              </span>
-              <span>{label}</span>
-              <span className="text-xs opacity-70">({entriesByType[type].length})</span>
-            </button>
-          ))}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          {typesWithData.map(({ type, label, icon }) => {
+            const isActive = effectiveType === type;
+            return (
+              <button
+                key={type}
+                onClick={() => setActiveType(type)}
+                className={`flex flex-1 min-w-[130px] items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-semibold whitespace-nowrap transition-colors sm:flex-none sm:text-sm ${
+                  isActive
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <span role="img" aria-hidden="true">
+                  {icon}
+                </span>
+                <span>{label}</span>
+                <span
+                  className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    isActive ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
+                  {entriesByType[type].length}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -145,7 +154,7 @@ export function SearchHistorySection() {
 
       {/* Список запросов */}
       {currentEntries.length > 0 ? (
-        <ul className="space-y-2">
+        <ul className="space-y-1.5 sm:space-y-2">
           {currentEntries.map((entry) => (
             <SearchHistoryItem
               key={entry.id}
@@ -212,17 +221,17 @@ function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps
   };
 
   return (
-    <li className="bg-gray-50 rounded-lg transition-colors">
+    <li className="bg-gray-50 rounded-lg transition-colors sm:rounded-xl">
       {/* Основная строка */}
       <div
-        className={`group flex items-center justify-between py-2 px-3 ${isExpandable ? 'cursor-pointer hover:bg-gray-100' : ''}`}
+        className={`group flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 ${isExpandable ? 'cursor-pointer hover:bg-gray-100' : ''}`}
         onClick={handleRowClick}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             {isExpandable && (
               <svg
-                className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`}
+                className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -230,9 +239,9 @@ function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             )}
-            <p className="text-sm text-gray-900 truncate">{entry.query}</p>
+            <p className="text-[13px] text-gray-900 truncate sm:text-sm">{entry.query}</p>
           </div>
-          <div className={`flex items-center gap-2 text-xs text-gray-500 mt-0.5 ${isExpandable ? 'ml-6' : ''}`}>
+          <div className={`mt-0.5 flex items-center gap-2 text-xs text-gray-500 ${isExpandable ? 'ml-5 sm:ml-6' : ''}`}>
             <span>{timeAgo}</span>
             {entry.resultsCount !== undefined && !isExpandable && <span>• {entry.resultsCount} результатов</span>}
             {entry.hasAnswer && !isExpandable && <span>• Ответ получен</span>}
