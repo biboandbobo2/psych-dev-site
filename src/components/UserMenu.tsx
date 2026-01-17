@@ -66,20 +66,20 @@ export default function UserMenu({ user }: UserMenuProps) {
       {isAdmin && (
         <Link
           to={adminContentLink}
-          className="hidden sm:inline-flex items-center gap-2 rounded-lg bg-teal-100 px-3 py-2 text-sm font-medium text-teal-800 transition hover:bg-teal-200"
+          className="inline-flex items-center gap-2 rounded-lg bg-teal-100 px-3 py-2 text-sm font-medium text-teal-800 transition hover:bg-teal-200"
         >
           <span aria-hidden className="text-base">✏️</span>
-          <span>Редактор</span>
+          <span className="hidden sm:inline">Редактор</span>
         </Link>
       )}
 
       {isSuperAdmin && (
         <Link
           to="/admin"
-          className="hidden sm:inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-accent-600"
+          className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-accent-600"
         >
           <span aria-hidden className="text-base">⚙️</span>
-          <span>Админ-панель</span>
+          <span className="hidden sm:inline">Админ-панель</span>
         </Link>
       )}
 
