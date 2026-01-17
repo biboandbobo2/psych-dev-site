@@ -24,6 +24,28 @@ export function AppLayout({
   onLoginClick,
   children,
 }: AppLayoutProps) {
+  const navList = (
+    <nav className="flex flex-col gap-2">
+      {navItems.map((item) => (
+        <NavLink
+          key={item.path}
+          to={item.path}
+          end
+          className={({ isActive }) =>
+            cn(
+              'block rounded-2xl px-4 py-3 text-base font-medium transition-colors duration-150 border border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20',
+              isActive
+                ? 'bg-accent-100 text-accent border-accent/30 shadow-sm'
+                : 'text-muted hover:text-fg hover:bg-card2'
+            )
+          }
+        >
+          {item.label}
+        </NavLink>
+      ))}
+    </nav>
+  );
+
   return (
     <main className="relative bg-bg text-fg min-h-screen">
       <div id="page-top" aria-hidden="true" />
@@ -44,28 +66,16 @@ export function AppLayout({
         <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 lg:gap-12">
           <aside className="lg:w-72 flex-shrink-0 lg:sticky lg:top-8">
             <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-3 sm:p-4 md:p-5 space-y-2">
-              <p className="text-sm leading-6 text-muted uppercase tracking-[0.3em]">
+              <p className="hidden text-sm leading-6 text-muted uppercase tracking-[0.3em] lg:block">
                 Навигация
               </p>
-              <nav className="flex flex-col gap-2">
-                {navItems.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    end
-                    className={({ isActive }) =>
-                      cn(
-                        'block rounded-2xl px-4 py-3 text-base font-medium transition-colors duration-150 border border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20',
-                        isActive
-                          ? 'bg-accent-100 text-accent border-accent/30 shadow-sm'
-                          : 'text-muted hover:text-fg hover:bg-card2'
-                      )
-                    }
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
-              </nav>
+              <div className="hidden lg:block">{navList}</div>
+              <details className="lg:hidden">
+                <summary className="cursor-pointer text-sm font-semibold text-muted uppercase tracking-[0.3em]">
+                  Навигация
+                </summary>
+                <div className="mt-3">{navList}</div>
+              </details>
             </div>
           </aside>
 
