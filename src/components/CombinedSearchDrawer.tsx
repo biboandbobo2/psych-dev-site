@@ -186,6 +186,7 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
       <section
         className="relative h-full max-h-screen w-full max-w-[640px] overflow-y-auto bg-white shadow-2xl border-l border-border"
         aria-label="Поиск"
+        data-testid="combined-search-drawer"
       >
         <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-4">
           <div className="space-y-1">
