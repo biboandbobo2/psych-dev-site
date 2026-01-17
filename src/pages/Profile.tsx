@@ -104,7 +104,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
               </p>
 
               {isDisabled && (
-                <div className="absolute inset-0 bg-gray-50/50 rounded-xl backdrop-blur-[1px] cursor-not-allowed" />
+                <div className="absolute inset-0 hidden rounded-xl bg-gray-50/50 backdrop-blur-[1px] cursor-not-allowed sm:block" />
               )}
             </>
           );
