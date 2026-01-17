@@ -2,7 +2,7 @@ import { useState } from "react";
 import { signInWithPopup, signInWithRedirect, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { debugError } from "../lib/debug";
-import { isEmbeddedMobileBrowser } from "../lib/embeddedBrowser";
+import { isEmbeddedMobileBrowser, isMobileDevice } from "../lib/embeddedBrowser";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -14,20 +14,36 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [error, setError] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
+
     try {
       setLoading(true);
       setError(null);
 
-      const provider = new GoogleAuthProvider();
       if (isEmbeddedMobileBrowser()) {
         await signInWithRedirect(auth, provider);
         return;
       }
+
       await signInWithPopup(auth, provider);
       onClose();
     } catch (err: any) {
+      const errorCode = err?.code as string | undefined;
+      const shouldRedirect = isMobileDevice() && [
+        "auth/popup-closed-by-user",
+        "auth/popup-blocked",
+        "auth/cancelled-popup-request",
+        "auth/operation-not-supported-in-this-environment",
+      ].includes(errorCode ?? "");
+
+      if (shouldRedirect) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
       debugError("Login error:", err);
       setError(err?.message || "Ошибка входа");
+      return;
     } finally {
       setLoading(false);
     }

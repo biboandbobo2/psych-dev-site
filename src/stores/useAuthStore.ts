@@ -5,7 +5,7 @@ import { auth, googleProvider, db } from '../lib/firebase';
 import { doc, getDoc, onSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { SUPER_ADMIN_EMAIL } from '../constants/superAdmin';
 import { reportAppError } from '../lib/errorHandler';
-import { isEmbeddedMobileBrowser } from '../lib/embeddedBrowser';
+import { isEmbeddedMobileBrowser, isMobileDevice } from '../lib/embeddedBrowser';
 import type { CourseType } from '../types/tests';
 import type { CourseAccessMap, UserRole } from '../types/user';
 import { hasCourseAccess as checkCourseAccess } from '../types/user';
@@ -91,7 +91,19 @@ export const useAuthStore = create<AuthState>()(
             return;
           }
           await signInWithPopup(auth, googleProvider);
-        } catch (error) {
+        } catch (error: any) {
+          const errorCode = error?.code as string | undefined;
+          const shouldRedirect = isMobileDevice() && [
+            'auth/popup-closed-by-user',
+            'auth/popup-blocked',
+            'auth/cancelled-popup-request',
+            'auth/operation-not-supported-in-this-environment',
+          ].includes(errorCode ?? '');
+
+          if (shouldRedirect) {
+            await signInWithRedirect(auth, googleProvider);
+            return;
+          }
           reportAppError({ message: 'Ошибка входа через Google', error, context: 'useAuthStore.signInWithGoogle' });
           throw error;
         }
