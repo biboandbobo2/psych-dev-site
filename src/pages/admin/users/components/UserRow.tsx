@@ -61,8 +61,14 @@ export function UserRow({
               />
             )}
             <div>
-              <div className="text-sm font-medium text-gray-900">
+              <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
                 {user.displayName || 'Без имени'}
+                {user.geminiApiKey && (
+                  <span
+                    className="inline-block w-2 h-2 rounded-full bg-emerald-500"
+                    title="Свой API ключ Gemini"
+                  />
+                )}
               </div>
               <div className="text-sm text-gray-500">UID: {user.uid.substring(0, 8)}...</div>
             </div>

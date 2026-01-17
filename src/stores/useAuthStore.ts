@@ -15,6 +15,8 @@ interface AuthState {
   userRole: UserRole | null;
   /** Гранулярный доступ к курсам (для guest) */
   courseAccess: CourseAccessMap | null;
+  /** API ключ Gemini пользователя (BYOK) */
+  geminiApiKey: string | null;
 
   // Computed properties
   isGuest: boolean;
@@ -27,6 +29,7 @@ interface AuthState {
   setLoading: (loading: boolean) => void;
   setUserRole: (role: UserRole | null) => void;
   setCourseAccess: (access: CourseAccessMap | null) => void;
+  setGeminiApiKey: (key: string | null) => void;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   initializeAuth: () => () => void;
@@ -46,6 +49,7 @@ export const useAuthStore = create<AuthState>()(
       loading: true,
       userRole: null,
       courseAccess: null,
+      geminiApiKey: null,
       isGuest: false,
       isStudent: false,
       isAdmin: false,
@@ -71,6 +75,8 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setCourseAccess: (courseAccess) => set({ courseAccess }),
+
+      setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey }),
 
       hasCourseAccess: (courseType: CourseType) => {
         const { userRole, courseAccess } = get();
@@ -113,6 +119,7 @@ export const useAuthStore = create<AuthState>()(
           if (!next) {
             get().setUserRole(null);
             get().setCourseAccess(null);
+            get().setGeminiApiKey(null);
             get().setLoading(false);
             return;
           }
@@ -162,6 +169,10 @@ export const useAuthStore = create<AuthState>()(
                 const courseAccess = data?.courseAccess as CourseAccessMap | undefined;
                 get().setCourseAccess(courseAccess ?? null);
 
+                // Синхронизируем Gemini API ключ (BYOK)
+                const geminiApiKey = data?.geminiApiKey as string | undefined;
+                get().setGeminiApiKey(geminiApiKey ?? null);
+
                 // Обновляем роль если изменилась
                 const newRole = data?.role as UserRole | undefined;
                 if (newRole && newRole !== get().userRole) {
@@ -180,6 +191,7 @@ export const useAuthStore = create<AuthState>()(
             reportAppError({ message: 'Не удалось определить роль пользователя', error, context: 'useAuthStore.initializeAuth' });
             get().setUserRole('guest');
             get().setCourseAccess(null);
+            get().setGeminiApiKey(null);
           } finally {
             if (!cancelled) {
               get().setLoading(false);

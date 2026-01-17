@@ -15,6 +15,8 @@ export interface UserRecord {
   courseAccess?: CourseAccessMap;
   /** Пользователь отключён (не может войти, но данные сохранены) */
   disabled?: boolean;
+  /** API ключ Gemini пользователя (BYOK) */
+  geminiApiKey?: string;
   createdAt: any;
   lastLoginAt: any;
 }

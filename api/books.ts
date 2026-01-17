@@ -13,8 +13,8 @@ import { promisify } from 'util';
 
 const gunzip = promisify(zlib.gunzip);
 
-const BOOK_COLLECTIONS = { books: 'books', chunks: 'book_chunks', jobs: 'ingestion_jobs' } as const;
-const BOOK_SEARCH_CONFIG = {
+export const BOOK_COLLECTIONS = { books: 'books', chunks: 'book_chunks', jobs: 'ingestion_jobs' } as const;
+export const BOOK_SEARCH_CONFIG = {
   maxBooksPerSearch: 10,
   minBooksPerSearch: 1,
   maxQuestionLength: 500,
@@ -28,7 +28,7 @@ const BOOK_SEARCH_CONFIG = {
   snippetDefaultChars: 3000,
 } as const;
 
-const BOOK_STORAGE_PATHS = { pages: (bookId: string) => `books/text/${bookId}/pages.json.gz` } as const;
+export const BOOK_STORAGE_PATHS = { pages: (bookId: string) => `books/text/${bookId}/pages.json.gz` } as const;
 
 function initFirebaseAdmin() {
   if (getApps().length > 0) return;
@@ -118,7 +118,7 @@ async function getAdjacentChunks(
   return { prev, next };
 }
 
-function computeLexicalScore(query: string, preview: string): number {
+export function computeLexicalScore(query: string, preview: string): number {
   const queryTerms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
   const previewLower = preview.toLowerCase();
   let matches = 0;
@@ -128,7 +128,7 @@ function computeLexicalScore(query: string, preview: string): number {
   return queryTerms.length > 0 ? matches / queryTerms.length : 0;
 }
 
-const SYSTEM_PROMPT = `Ты — эксперт-психолог и преподаватель. Твоя задача — дать развёрнутый, информативный ответ на вопрос студента, основываясь ИСКЛЮЧИТЕЛЬНО на предоставленных источниках.
+export const SYSTEM_PROMPT = `Ты — эксперт-психолог и преподаватель. Твоя задача — дать развёрнутый, информативный ответ на вопрос студента, основываясь ИСКЛЮЧИТЕЛЬНО на предоставленных источниках.
 
 ПРАВИЛА ОТВЕТА:
 1. Пиши развёрнуто — от 3 до 6 абзацев. Раскрой тему полноценно.

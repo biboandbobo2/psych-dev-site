@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useAuthStore } from '../../../stores/useAuthStore';
 
 export interface AiAssistantState {
   status: 'idle' | 'loading' | 'success' | 'error';
@@ -23,6 +24,7 @@ interface AiAssistantErrorResponse {
 export const MAX_MESSAGE_LENGTH = 200;
 
 export function useAiAssistant() {
+  const geminiApiKey = useAuthStore((s) => s.geminiApiKey);
   const [question, setQuestion] = useState('');
   const [state, setState] = useState<AiAssistantState>({
     status: 'idle',
@@ -49,7 +51,10 @@ export function useAiAssistant() {
     try {
       const response = await fetch('/api/assistant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(geminiApiKey && { 'X-Gemini-Api-Key': geminiApiKey }),
+        },
         body: JSON.stringify({ message: trimmed, locale: 'ru' }),
       });
 
@@ -83,7 +88,7 @@ export function useAiAssistant() {
         tookMs: null,
       });
     }
-  }, [question]);
+  }, [question, geminiApiKey]);
 
   const clearState = useCallback(() => {
     setQuestion('');

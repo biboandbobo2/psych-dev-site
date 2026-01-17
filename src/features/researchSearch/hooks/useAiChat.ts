@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { AiAssistantState } from './useAiAssistant';
 import { MAX_MESSAGE_LENGTH } from './useAiAssistant';
+import { useAuthStore } from '../../../stores/useAuthStore';
 
 export type ChatMessage = { role: 'user' | 'assistant'; text: string };
 
@@ -19,6 +20,7 @@ interface AiAssistantErrorResponse {
 }
 
 export function useAiChat() {
+  const geminiApiKey = useAuthStore((s) => s.geminiApiKey);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [state, setState] = useState<AiAssistantState>({
@@ -50,7 +52,10 @@ export function useAiChat() {
     try {
       const response = await fetch('/api/assistant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(geminiApiKey && { 'X-Gemini-Api-Key': geminiApiKey }),
+        },
         body: JSON.stringify({ message: trimmed, locale: 'ru', history }),
       });
 
@@ -87,7 +92,7 @@ export function useAiChat() {
     } finally {
       setInput('');
     }
-  }, [input, messages]);
+  }, [input, messages, geminiApiKey]);
 
   const clearChat = useCallback(() => {
     setInput('');
