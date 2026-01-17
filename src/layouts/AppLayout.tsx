@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import type { User } from 'firebase/auth';
 import { cn } from '../lib/cn';
@@ -24,13 +24,22 @@ export function AppLayout({
   onLoginClick,
   children,
 }: AppLayoutProps) {
-  const navList = (
+  const mobileNavRef = useRef<HTMLDetailsElement | null>(null);
+
+  const handleMobileNavClick = () => {
+    if (mobileNavRef.current) {
+      mobileNavRef.current.open = false;
+    }
+  };
+
+  const renderNavList = (onItemClick?: () => void) => (
     <nav className="flex flex-col gap-2">
       {navItems.map((item) => (
         <NavLink
           key={item.path}
           to={item.path}
           end
+          onClick={onItemClick}
           className={({ isActive }) =>
             cn(
               'block rounded-2xl px-4 py-3 text-base font-medium transition-colors duration-150 border border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20',
@@ -69,8 +78,8 @@ export function AppLayout({
               <p className="hidden text-sm leading-6 text-muted uppercase tracking-[0.3em] lg:block">
                 Навигация
               </p>
-              <div className="hidden lg:block">{navList}</div>
-              <details className="group lg:hidden">
+              <div className="hidden lg:block">{renderNavList()}</div>
+              <details ref={mobileNavRef} className="group lg:hidden">
                 <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-border/60 bg-card2 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted [&::-webkit-details-marker]:hidden">
                   <span>Навигация</span>
                   <svg
@@ -83,7 +92,7 @@ export function AppLayout({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </summary>
-                <div className="mt-3">{navList}</div>
+                <div className="mt-3">{renderNavList(handleMobileNavClick)}</div>
               </details>
             </div>
           </aside>
