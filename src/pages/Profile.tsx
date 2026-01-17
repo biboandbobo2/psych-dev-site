@@ -88,20 +88,20 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
                 </div>
               )}
 
-              <div className="flex items-start gap-4 sm:block">
+              <div className="flex items-center gap-3 sm:block">
                 <div
-                  className={`inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br ${feature.color} text-2xl sm:text-3xl sm:mb-4 shadow-md ${
+                  className={`inline-flex shrink-0 items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} text-3xl sm:mb-4 shadow-md ${
                     isDisabled ? 'opacity-50' : ''
                   }`}
                 >
                   {feature.icon}
                 </div>
 
-                <div className="min-w-0">
-                  <h3 className={`text-base sm:text-lg font-bold mb-1 sm:mb-2 ${isDisabled ? 'text-gray-500' : 'text-gray-900'}`}>
+                <div className="min-w-0 flex-1">
+                  <h3 className={`text-base sm:text-lg font-bold mb-1 sm:mb-2 leading-snug ${isDisabled ? 'text-gray-500' : 'text-gray-900'}`}>
                     {feature.title}
                   </h3>
-                  <p className={`text-xs sm:text-sm ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p className={`text-xs sm:text-sm leading-snug ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
                     {feature.description}
                   </p>
                 </div>
@@ -118,7 +118,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
               <Link
                 key={index}
                 to={feature.link}
-                className="relative group bg-white border-2 border-gray-200 rounded-xl p-4 sm:p-6 hover:border-blue-400 transition-all duration-300 hover:shadow-lg cursor-pointer"
+                className="relative group bg-white border-2 border-gray-200 rounded-xl px-4 py-5 sm:p-6 hover:border-blue-400 transition-all duration-300 hover:shadow-lg cursor-pointer"
               >
                 {content}
               </Link>
@@ -128,7 +128,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
           return (
             <div
               key={index}
-              className="relative group bg-white border-2 border-gray-200 rounded-xl p-4 sm:p-6 transition-all duration-300"
+              className="relative group bg-white border-2 border-gray-200 rounded-xl px-4 py-5 sm:p-6 transition-all duration-300"
             >
               {content}
             </div>
