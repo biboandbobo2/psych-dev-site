@@ -1,10 +1,51 @@
 import { useState } from "react";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";
+import { debugError } from "../lib/debug";
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+/**
+ * Преобразует код ошибки Firebase в понятное сообщение
+ */
+function getErrorMessage(error: any): string {
+  const code = error?.code || '';
+  const message = error?.message || '';
+
+  // Проверяем на internal assertion error (баг Firebase SDK)
+  if (message.includes('INTERNAL ASSERTION FAILED')) {
+    return 'Произошла ошибка соединения. Обновите страницу и попробуйте снова.';
+  }
+
+  switch (code) {
+    case 'auth/popup-closed-by-user':
+      return 'Окно авторизации было закрыто. Попробуйте ещё раз.';
+    case 'auth/popup-blocked':
+      return 'Всплывающее окно заблокировано браузером. Разрешите всплывающие окна для этого сайта.';
+    case 'auth/network-request-failed':
+      return 'Проблема с сетью. Проверьте интернет-соединение и попробуйте снова.';
+    case 'auth/cancelled-popup-request':
+      return 'Запрос авторизации был отменён. Попробуйте ещё раз.';
+    case 'auth/user-cancelled':
+      return 'Авторизация отменена. Попробуйте ещё раз.';
+    case 'auth/account-exists-with-different-credential':
+      return 'Аккаунт с этим email уже существует с другим способом входа.';
+    case 'auth/invalid-credential':
+      return 'Неверные учётные данные. Попробуйте ещё раз.';
+    case 'auth/operation-not-allowed':
+      return 'Этот способ входа временно недоступен.';
+    case 'auth/timeout':
+      return 'Время ожидания истекло. Проверьте соединение и попробуйте снова.';
+    default:
+      // Если сообщение содержит "network" или "connection"
+      if (message.toLowerCase().includes('network') || message.toLowerCase().includes('connection')) {
+        return 'Проблема с сетью. Проверьте интернет-соединение и попробуйте снова.';
+      }
+      return 'Не удалось войти. Попробуйте ещё раз или обновите страницу.';
+  }
 }
 
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
@@ -21,11 +62,16 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
       onClose();
     } catch (err: any) {
-      console.error("Login error:", err);
-      setError(err?.message || "Ошибка входа");
+      debugError("Login error:", err);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    handleGoogleSignIn();
   };
 
   if (!isOpen) return null;
@@ -79,8 +125,15 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           </button>
 
           {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-              {error}
+            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-800 mb-3">{error}</p>
+              <button
+                onClick={handleRetry}
+                disabled={loading}
+                className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+              >
+                Попробовать снова
+              </button>
             </div>
           )}
 
