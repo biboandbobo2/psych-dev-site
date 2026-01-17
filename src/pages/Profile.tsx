@@ -226,7 +226,9 @@ export default function Profile() {
               <>
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
-                  <SuperAdminBadge />
+                  <span className="hidden sm:inline-flex">
+                    <SuperAdminBadge />
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-6 text-gray-600">
                   <div className="flex items-center gap-2">
