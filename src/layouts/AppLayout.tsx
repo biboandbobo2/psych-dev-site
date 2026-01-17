@@ -27,8 +27,8 @@ export function AppLayout({
   return (
     <main className="relative bg-bg text-fg min-h-screen">
       <div id="page-top" aria-hidden="true" />
-      <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12">
-        <div className="mb-8 flex flex-wrap items-center justify-end gap-2">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 md:py-12">
+        <div className="mb-6 flex flex-wrap items-center justify-end gap-2 sm:mb-8">
           {!user ? (
             <button
               onClick={onLoginClick}
@@ -41,9 +41,9 @@ export function AppLayout({
             <UserMenu user={user} />
           )}
         </div>
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+        <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 lg:gap-12">
           <aside className="lg:w-72 flex-shrink-0 lg:sticky lg:top-8">
-            <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-4 md:p-5 space-y-2">
+            <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-3 sm:p-4 md:p-5 space-y-2">
               <p className="text-sm leading-6 text-muted uppercase tracking-[0.3em]">
                 Навигация
               </p>
