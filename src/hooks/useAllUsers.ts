@@ -13,6 +13,8 @@ export interface UserRecord {
   role: UserRole;
   /** Гранулярный доступ к курсам (для guest) */
   courseAccess?: CourseAccessMap;
+  /** API ключ Gemini пользователя (BYOK) */
+  geminiApiKey?: string;
   createdAt: any;
   lastLoginAt: any;
 }
