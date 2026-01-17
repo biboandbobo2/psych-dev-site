@@ -1,9 +1,10 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
 import { GeminiKeySection, SearchHistorySection } from '../components/profile';
 import { useAuth } from '../auth/AuthProvider';
 import { useCourseStore } from '../stores';
+import { triggerHaptic } from '../lib/haptics';
 
 type CourseType = 'development' | 'clinical' | 'general';
 
@@ -173,8 +174,18 @@ export default function Profile() {
     : null;
   const role = userRole ?? 'student';
 
+  const handleHapticClick = useCallback((event: React.MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    const clickable = target.closest('button, a, summary, [role="button"]') as HTMLElement | null;
+    if (!clickable) return;
+    if (clickable.getAttribute('aria-disabled') === 'true') return;
+    if (clickable instanceof HTMLButtonElement && clickable.disabled) return;
+    triggerHaptic();
+  }, []);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onClickCapture={handleHapticClick}>
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
         <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-32" />
 
