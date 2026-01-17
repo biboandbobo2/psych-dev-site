@@ -29,13 +29,13 @@ describe('UserMenu research search entry', () => {
       </MemoryRouter>
     );
 
-    const button = screen.getByRole('button', { name: /научный поиск/i });
+    const button = screen.getByTestId('user-menu-search-button');
     expect(button).toBeInTheDocument();
 
     fireEvent.click(button);
-    expect(screen.getByRole('heading', { name: /open access источники/i })).toBeInTheDocument();
+    expect(screen.getByTestId('combined-search-drawer')).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByRole('heading', { name: /open access источники/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('combined-search-drawer')).not.toBeInTheDocument();
   });
 });

@@ -48,6 +48,7 @@ export default function UserMenu({ user }: UserMenuProps) {
         onClick={() => openSearch()}
         className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800 transition hover:bg-amber-200"
         aria-label="Поиск"
+        data-testid="user-menu-search-button"
       >
         <span aria-hidden className="text-base">🔎</span>
         <span className="hidden sm:inline">Поиск</span>

@@ -21,7 +21,7 @@ npm install
 
 ```bash
 # Firebase (клиент)
-VITE_FIREBASE_API_KEY=AIzaSyCJrB77CvgaZQ6Ig8DG0p3d9N5S5ZH5srw
+VITE_FIREBASE_API_KEY=<YOUR_FIREBASE_API_KEY>
 VITE_FIREBASE_AUTH_DOMAIN=psych-dev-site-prod.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=psych-dev-site-prod
 VITE_FIREBASE_STORAGE_BUCKET=psych-dev-site-prod.firebasestorage.app
