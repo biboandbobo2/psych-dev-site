@@ -69,7 +69,7 @@ const COURSES = {
 };
 
 const ACTION_BUTTON_CLASS =
-  "inline-flex min-w-[220px] min-h-[52px] items-center justify-center gap-2 rounded-md px-5 py-2.5 text-base font-medium text-white transition shadow-sm whitespace-nowrap";
+  "inline-flex w-full min-h-[44px] items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition shadow-sm whitespace-nowrap sm:min-w-[220px] sm:min-h-[52px] sm:px-5 sm:py-2.5 sm:text-base";
 
 function getRouteOrderMap(routes: typeof ROUTE_CONFIG) {
   return routes.reduce(
@@ -360,7 +360,7 @@ export default function AdminContent() {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <header className="flex items-center justify-between mb-2">
-        <h1 className="text-3xl font-bold">Управление контентом</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">Управление контентом</h1>
         <Link
           to="/admin/homepage"
           className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-700 transition-colors"
@@ -371,12 +371,12 @@ export default function AdminContent() {
       </header>
 
       {/* Переключатель курсов */}
-      <div className="flex gap-2 border-b border-gray-200">
+      <div className="flex flex-nowrap gap-2 border-b border-gray-200 overflow-x-auto sm:flex-wrap sm:overflow-visible">
         {Object.values(COURSES).map((courseOption) => (
           <button
             key={courseOption.id}
             onClick={() => setCurrentCourse(courseOption.id)}
-            className={`px-4 py-2 font-medium transition-colors relative ${
+            className={`px-4 py-2 font-medium transition-colors relative whitespace-nowrap ${
               currentCourse === courseOption.id
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-600 hover:text-gray-900'
@@ -388,7 +388,7 @@ export default function AdminContent() {
         ))}
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1">
           {saving && (
             <span className="text-sm text-blue-600 animate-pulse">
@@ -397,7 +397,7 @@ export default function AdminContent() {
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <button
             onClick={() => setShowCreateLesson(true)}
             className={`${ACTION_BUTTON_CLASS} bg-emerald-600 hover:bg-emerald-700`}
