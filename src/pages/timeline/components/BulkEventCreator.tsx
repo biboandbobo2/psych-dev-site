@@ -241,7 +241,7 @@ export function BulkEventCreator({
           {hasErrors && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
               <p className="text-xs text-amber-900" style={{ fontFamily: 'Georgia, serif' }}>
-                <EmojiText text="💡 Совет: Убедитесь, что каждая строка имеет формат \"возраст, название события\"" />
+                <EmojiText text={'💡 Совет: Убедитесь, что каждая строка имеет формат "возраст, название события"'} />
               </p>
             </div>
           )}
