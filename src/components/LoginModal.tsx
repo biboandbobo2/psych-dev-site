@@ -52,7 +52,7 @@ function getErrorMessage(error: any): string {
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { isInTelegramMobile, notice, openInBrowser } = useTelegramBrowser();
+  const { isInTelegramMobile } = useTelegramBrowser();
 
   const handleGoogleSignIn = async () => {
     try {
@@ -74,11 +74,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const handleRetry = () => {
     setError(null);
     handleGoogleSignIn();
-  };
-
-  const handleOpenInBrowser = async () => {
-    setError(null);
-    await openInBrowser();
   };
 
   if (!isOpen) return null;
@@ -115,22 +110,10 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     Вход невозможен в этом браузере
                   </p>
                   <p className="mt-1 text-sm text-red-700">
-                    Google блокирует авторизацию во встроенных браузерах приложений. Откройте сайт в Safari или Chrome.
+                    Google блокирует авторизацию во встроенных браузерах.
                   </p>
-                  {notice && (
-                    <p className="mt-2 text-sm font-medium text-blue-700">
-                      {notice.message}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleOpenInBrowser}
-                    className="mt-3 w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white"
-                  >
-                    Открыть в браузере
-                  </button>
-                  <p className="mt-2 text-xs text-red-600">
-                    Или нажмите ⋯ → «Открыть в Safari/Chrome»
+                  <p className="mt-3 text-sm font-semibold text-red-900">
+                    Нажмите <span className="inline-block rounded bg-gray-200 px-1.5 py-0.5 font-mono text-gray-800">⋯</span> вверху справа → «Открыть в Safari»
                   </p>
                 </div>
               </div>

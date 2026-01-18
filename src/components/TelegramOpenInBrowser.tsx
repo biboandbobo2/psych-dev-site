@@ -14,7 +14,7 @@ function setDismissed(): void {
 }
 
 export default function TelegramOpenInBrowser() {
-  const { isInTelegramMobile, notice, openInBrowser, clearNotice } = useTelegramBrowser();
+  const { isInTelegramMobile } = useTelegramBrowser();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -26,11 +26,6 @@ export default function TelegramOpenInBrowser() {
   const handleDismiss = () => {
     setDismissed();
     setVisible(false);
-    clearNotice();
-  };
-
-  const handleOpen = async () => {
-    await openInBrowser();
   };
 
   if (!visible) return null;
@@ -45,29 +40,18 @@ export default function TelegramOpenInBrowser() {
               Встроенный браузер
             </p>
             <p className="mt-1 text-sm text-amber-700">
-              Вход через Google может не работать. Откройте сайт в Safari или Chrome для авторизации.
+              Для входа через Google откройте сайт в Safari/Chrome:
             </p>
-            {notice && (
-              <p className="mt-2 text-sm font-medium text-blue-700">
-                {notice.message}
-              </p>
-            )}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleOpen}
-                className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white"
-              >
-                Открыть в браузере
-              </button>
-              <button
-                type="button"
-                onClick={handleDismiss}
-                className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-sm text-amber-700"
-              >
-                Понятно
-              </button>
-            </div>
+            <p className="mt-2 text-sm font-semibold text-amber-900">
+              <span className="inline-block rounded bg-gray-200 px-1.5 py-0.5 font-mono text-gray-800">⋯</span> → «Открыть в Safari»
+            </p>
+            <button
+              type="button"
+              onClick={handleDismiss}
+              className="mt-3 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-sm text-amber-700"
+            >
+              Понятно
+            </button>
           </div>
         </div>
       </div>
