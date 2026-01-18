@@ -1,4 +1,4 @@
-import { Emoji } from '../../Emoji';
+import { Emoji } from '../../../Emoji';
 
 interface TestsListHeaderProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
