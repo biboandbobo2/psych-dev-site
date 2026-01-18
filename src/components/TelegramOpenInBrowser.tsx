@@ -42,10 +42,10 @@ export default function TelegramOpenInBrowser() {
           <span className="text-xl" aria-hidden="true">⚠️</span>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-amber-900">
-              Браузер Telegram
+              Встроенный браузер
             </p>
             <p className="mt-1 text-sm text-amber-700">
-              Вход через Google может не работать. Для авторизации откройте сайт в Safari/Chrome.
+              Вход через Google может не работать. Откройте сайт в Safari или Chrome для авторизации.
             </p>
             {notice && (
               <p className="mt-2 text-sm font-medium text-blue-700">

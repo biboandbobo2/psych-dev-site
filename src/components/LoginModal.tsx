@@ -105,17 +105,17 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             Войдите через Google, чтобы получить доступ к личному кабинету
           </p>
 
-          {/* Активное предупреждение для Telegram */}
+          {/* Предупреждение для in-app браузеров (Telegram, Instagram, etc.) */}
           {isInTelegramMobile && (
             <div className="mb-6 rounded-xl border-2 border-red-200 bg-red-50 p-4 text-left">
               <div className="flex items-start gap-3">
                 <span className="text-xl" aria-hidden="true">🚫</span>
                 <div className="flex-1">
                   <p className="font-semibold text-red-900">
-                    Вход невозможен в браузере Telegram
+                    Вход невозможен в этом браузере
                   </p>
                   <p className="mt-1 text-sm text-red-700">
-                    Google блокирует авторизацию во встроенных браузерах. Откройте сайт в Safari или Chrome.
+                    Google блокирует авторизацию во встроенных браузерах приложений. Откройте сайт в Safari или Chrome.
                   </p>
                   {notice && (
                     <p className="mt-2 text-sm font-medium text-blue-700">

@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   isMobileDevice,
-  isTelegramInAppBrowser,
+  isInAppBrowser,
   requestExternalBrowserOpen,
   type ExternalOpenResult,
 } from '../lib/inAppBrowser';
@@ -26,31 +26,31 @@ function getNoticeForResult(result: ExternalOpenResult): OpenResultNotice {
     case 'opened':
       return {
         type: 'info',
-        message: 'Если страница всё ещё в Telegram, откройте её через меню ⋯ → «Открыть в Safari/Chrome».',
+        message: 'Если страница не открылась в браузере, используйте меню ⋯ → «Открыть в Safari/Chrome».',
       };
     case 'cancelled':
       return {
         type: 'warning',
-        message: 'Открытие отменено. Можно открыть страницу через меню ⋯ в Telegram.',
+        message: 'Открытие отменено. Используйте меню ⋯ → «Открыть в Safari/Chrome».',
       };
     case 'blocked':
       return {
         type: 'warning',
-        message: 'Не удалось открыть браузер. В меню ⋯ выберите «Открыть в Safari/Chrome».',
+        message: 'Не удалось открыть браузер. Используйте меню ⋯ → «Открыть в Safari/Chrome».',
       };
     default:
       return {
         type: 'warning',
-        message: 'Не удалось открыть браузер. Попробуйте открыть ссылку в Safari/Chrome вручную.',
+        message: 'Не удалось открыть браузер. Откройте Safari/Chrome вручную и введите адрес сайта.',
       };
   }
 }
 
 export function useTelegramBrowser() {
   const [notice, setNotice] = useState<OpenResultNotice | null>(null);
-  const isTelegram = useMemo(() => isTelegramInAppBrowser(), []);
+  const isInApp = useMemo(() => isInAppBrowser(), []);
   const isMobile = useMemo(() => isMobileDevice(), []);
-  const isInTelegramMobile = isTelegram && isMobile;
+  const isInTelegramMobile = isInApp && isMobile;
 
   const openInBrowser = useCallback(async (url?: string) => {
     if (typeof window === 'undefined') return;
@@ -66,7 +66,7 @@ export function useTelegramBrowser() {
   }, []);
 
   return {
-    isTelegram,
+    isTelegram: isInApp, // оставляем для совместимости
     isMobile,
     isInTelegramMobile,
     notice,
