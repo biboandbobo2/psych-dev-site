@@ -1,5 +1,9 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { isMobileDevice, isTelegramInAppBrowser } from '../lib/inAppBrowser';
+import {
+  isMobileDevice,
+  isTelegramInAppBrowser,
+  requestExternalBrowserOpen,
+} from '../lib/inAppBrowser';
 import { logClientEvent, formatClientLog, clearClientLog } from '../lib/clientLog';
 
 function getCurrentUrl() {
@@ -10,19 +14,38 @@ function getCurrentUrl() {
 export default function TelegramOpenInBrowser() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [logVisible, setLogVisible] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const isTelegram = useMemo(() => isTelegramInAppBrowser(), []);
   const isMobile = useMemo(() => isMobileDevice(), []);
 
-  const handleOpen = useCallback(() => {
+  const handleOpen = useCallback(async () => {
     const url = getCurrentUrl();
     if (!url) return;
     logClientEvent('telegram.open_attempt', { url });
-    const opened = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!opened) {
-      logClientEvent('telegram.open_blocked');
-      // Fallback: keep the prompt so user can use the in-app menu to open in Safari/Chrome.
-      setShowPrompt(true);
+    setNotice(null);
+    const result = await requestExternalBrowserOpen(url);
+    logClientEvent('telegram.open_result', { status: result });
+    if (result === 'shared') {
+      setNotice('Откройте ссылку в Safari/Chrome через меню «Поделиться».');
+      return;
     }
+    if (result === 'copied') {
+      setNotice('Ссылка скопирована. Откройте Safari/Chrome и вставьте её в адресную строку.');
+      return;
+    }
+    if (result === 'opened') {
+      setNotice('Если страница всё ещё в Telegram, используйте меню ⋯ → «Открыть в Safari/Chrome».');
+      return;
+    }
+    if (result === 'cancelled') {
+      setNotice('Открытие отменено. Можно открыть страницу через меню ⋯ в Telegram.');
+      return;
+    }
+    if (result === 'blocked') {
+      setNotice('Не удалось открыть браузер. В меню ⋯ выберите «Открыть в Safari/Chrome».');
+      return;
+    }
+    setNotice('Не удалось открыть браузер. Попробуйте открыть ссылку в Safari/Chrome вручную.');
   }, []);
 
   useEffect(() => {
@@ -31,9 +54,7 @@ export default function TelegramOpenInBrowser() {
       ua: typeof navigator !== 'undefined' ? navigator.userAgent : '',
     });
     setShowPrompt(true);
-    // Try opening immediately; if blocked, user can tap the button.
-    handleOpen();
-  }, [handleOpen, isMobile, isTelegram]);
+  }, [isMobile, isTelegram]);
 
   if (!showPrompt) return null;
 
@@ -68,6 +89,11 @@ export default function TelegramOpenInBrowser() {
             {logVisible ? 'Скрыть диагностику' : 'Показать диагностику'}
           </button>
         </div>
+        {notice && (
+          <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700">
+            {notice}
+          </div>
+        )}
         {logVisible && (
           <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-left">
             <div className="flex items-center justify-between">

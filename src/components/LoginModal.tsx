@@ -3,7 +3,7 @@ import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { debugError } from "../lib/debug";
 import { logClientEvent } from "../lib/clientLog";
-import { isMobileDevice } from "../lib/inAppBrowser";
+import { isMobileDevice, requestExternalBrowserOpen } from "../lib/inAppBrowser";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -53,11 +53,13 @@ function getErrorMessage(error: any): string {
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
       setError(null);
+      setNotice(null);
       logClientEvent("login.click", { source: "login_modal" });
 
       const provider = new GoogleAuthProvider();
@@ -78,14 +80,34 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     handleGoogleSignIn();
   };
 
-  const handleOpenInBrowser = () => {
+  const handleOpenInBrowser = async () => {
     if (typeof window === "undefined") return;
     logClientEvent("open_in_browser.click");
-    const opened = window.open(window.location.href, "_blank", "noopener,noreferrer");
-    if (!opened) {
-      logClientEvent("open_in_browser.blocked");
-      setError("Не удалось открыть браузер. В меню ⋯ выберите «Открыть в Safari/Chrome».");
+    setError(null);
+    setNotice(null);
+    const result = await requestExternalBrowserOpen(window.location.href);
+    logClientEvent("open_in_browser.result", { status: result });
+    if (result === "shared") {
+      setNotice("Откройте ссылку в Safari/Chrome через меню «Поделиться».");
+      return;
     }
+    if (result === "copied") {
+      setNotice("Ссылка скопирована. Откройте Safari/Chrome и вставьте её в адресную строку.");
+      return;
+    }
+    if (result === "opened") {
+      setNotice("Если страница всё ещё в Telegram, откройте её через меню ⋯ → «Открыть в Safari/Chrome».");
+      return;
+    }
+    if (result === "cancelled") {
+      setNotice("Открытие отменено. Можно открыть страницу через меню ⋯ в Telegram.");
+      return;
+    }
+    if (result === "blocked") {
+      setNotice("Не удалось открыть браузер. В меню ⋯ выберите «Открыть в Safari/Chrome».");
+      return;
+    }
+    setNotice("Не удалось открыть браузер. Попробуйте открыть ссылку в Safari/Chrome вручную.");
   };
 
   if (!isOpen) return null;
@@ -150,6 +172,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               <p className="mt-2 text-xs text-gray-500">
                 Если вход не работает в мессенджере, откройте страницу в Safari/Chrome.
               </p>
+            </div>
+          )}
+
+          {notice && (
+            <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700">
+              {notice}
             </div>
           )}
 
