@@ -1,5 +1,5 @@
 import type { DisplayStatus } from '../hooks/useTestsFilters';
-import { Emoji, EmojiText } from '../../Emoji';
+import { Emoji, EmojiText } from '../../../Emoji';
 
 export interface TestListItem {
   id: string;
