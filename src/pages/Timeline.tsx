@@ -1,10 +1,12 @@
 // Timeline component with bulk event creation support
 import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon, type EventIconId } from '../components/Icon';
 import { EVENT_ICON_MAP } from '../data/eventIcons';
 import { useNotes } from '../hooks/useNotes';
 import { PageLoader } from '../components/ui';
+import { debugError } from '../lib/debug';
 
 // Импорт типов, констант, утилит и компонентов из модулей
 import type {
@@ -67,6 +69,7 @@ const TimelineHelpModal = lazy(() =>
 export default function Timeline() {
   const svgRef = useRef<SVGSVGElement>(null);
   const { createNote } = useNotes();
+  const [isMobile, setIsMobile] = useState(false);
 
   // ============ STATE HOOKS ============
 
@@ -246,7 +249,7 @@ export default function Timeline() {
       const periodization = selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null;
       await exportTimelinePDF(svgRef.current, exportPayload, periodization, `${exportFilenamePrefix}.pdf`);
     } catch (error) {
-      console.error('Export failed', error);
+      debugError('Export failed', error);
     }
   };
 
@@ -283,9 +286,9 @@ export default function Timeline() {
     panZoomHook.handlePointerMove(e);
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
     dragDropHook.handleNodeDragEnd();
-    panZoomHook.handlePointerUp();
+    panZoomHook.handlePointerUp(e);
   };
 
   // ============ KEYBOARD SHORTCUTS ============
@@ -343,6 +346,15 @@ export default function Timeline() {
   // ============ RENDER ============
 
   const cursorClass = panZoomHook.isPanning ? 'cursor-grabbing' : 'cursor-grab';
+  const readOnly = isMobile;
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 639px)');
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   return (
     <motion.div
@@ -351,24 +363,47 @@ export default function Timeline() {
       transition={{ duration: 0.3 }}
       className="fixed inset-0 bg-gradient-to-br from-slate-50 to-white overflow-hidden"
     >
-      <Suspense fallback={<PageLoader label="Загрузка панели навигации..." />}>
-        <TimelineLeftPanel
-          currentAge={currentAge}
-          ageMax={ageMax}
-          viewportAge={viewportAge}
-          scale={transform.k}
-          nodes={nodes}
-          downloadMenuOpen={downloadMenuOpen}
-          downloadButtonRef={downloadButtonRef}
-          downloadMenuRef={downloadMenuRef}
-          onCurrentAgeChange={(value) => setCurrentAge(value)}
-          onViewportAgeChange={handleViewportAgeChange}
-          onScaleChange={handleScaleChange}
-          onDownloadMenuToggle={toggleDownloadMenu}
-          onDownloadSelect={handleDownload}
-          onClearAll={crudHook.handleClearAll}
-        />
-      </Suspense>
+      {readOnly && (
+        <div className="absolute top-4 left-4 right-4 z-10 sm:hidden">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-700 shadow-sm backdrop-blur">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold">Таймлайн в режиме просмотра</p>
+                <p className="text-xs text-slate-500">
+                  Редактирование доступно в веб-версии на компьютере.
+                </p>
+              </div>
+              <Link
+                to="/profile"
+                className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+              >
+                Выход
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!readOnly && (
+        <Suspense fallback={<PageLoader label="Загрузка панели навигации..." />}>
+          <TimelineLeftPanel
+            currentAge={currentAge}
+            ageMax={ageMax}
+            viewportAge={viewportAge}
+            scale={transform.k}
+            nodes={nodes}
+            downloadMenuOpen={downloadMenuOpen}
+            downloadButtonRef={downloadButtonRef}
+            downloadMenuRef={downloadMenuRef}
+            onCurrentAgeChange={(value) => setCurrentAge(value)}
+            onViewportAgeChange={handleViewportAgeChange}
+            onScaleChange={handleScaleChange}
+            onDownloadMenuToggle={toggleDownloadMenu}
+            onDownloadSelect={handleDownload}
+            onClearAll={crudHook.handleClearAll}
+          />
+        </Suspense>
+      )}
 
       <Suspense fallback={<PageLoader label="Подгрузка холста..." />}>
         <TimelineCanvas
@@ -393,66 +428,68 @@ export default function Timeline() {
           onPointerDown={panZoomHook.handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          onNodeClick={handleNodeClick}
-          onNodeDragStart={dragDropHook.handleNodeDragStart}
-          onPeriodBoundaryClick={handlePeriodBoundaryClick}
-          onSelectBranch={handleSelectBranch}
-          onClearSelection={handleClearSelection}
-          onSelectBirth={birthHook.handleBirthSelect}
+          onNodeClick={readOnly ? () => {} : handleNodeClick}
+          onNodeDragStart={readOnly ? () => {} : dragDropHook.handleNodeDragStart}
+          onPeriodBoundaryClick={readOnly ? () => {} : handlePeriodBoundaryClick}
+          onSelectBranch={readOnly ? () => {} : handleSelectBranch}
+          onClearSelection={readOnly ? () => {} : handleClearSelection}
+          onSelectBirth={readOnly ? () => {} : birthHook.handleBirthSelect}
         />
       </Suspense>
 
-      <Suspense fallback={<PageLoader label="Загрузка панели деталей..." />}>
-        <TimelineRightPanel
-        saveStatus={saveStatus}
-        selectedPeriodization={selectedPeriodization}
-        onPeriodizationChange={setSelectedPeriodization}
-        birthSelected={birthHook.birthSelected}
-        birthFormDate={birthHook.birthFormDate}
-        birthFormPlace={birthHook.birthFormPlace}
-        birthFormNotes={birthHook.birthFormNotes}
-        onBirthDateChange={birthHook.setBirthFormDate}
-        onBirthPlaceChange={birthHook.setBirthFormPlace}
-        onBirthNotesChange={birthHook.setBirthFormNotes}
-        onBirthSave={() => birthHook.handleBirthSave(recordHistory)}
-        onBirthCancel={birthHook.handleBirthCancel}
-        birthHasChanges={birthHook.birthHasChanges}
-        formEventId={formHook.formEventId}
-        formEventAge={formHook.formEventAge}
-        onFormEventAgeChange={formHook.setFormEventAge}
-        formEventLabel={formHook.formEventLabel}
-        onFormEventLabelChange={formHook.setFormEventLabel}
-        formEventSphere={formHook.formEventSphere}
-        onFormEventSphereChange={formHook.setFormEventSphere}
-        formEventIsDecision={formHook.formEventIsDecision}
-        onFormEventIsDecisionChange={formHook.setFormEventIsDecision}
-        formEventIcon={formHook.formEventIcon}
-        onFormEventIconChange={formHook.setFormEventIcon}
-        formEventNotes={formHook.formEventNotes}
-        onFormEventNotesChange={formHook.setFormEventNotes}
-        hasFormChanges={formHook.hasFormChanges}
-        onEventFormSubmit={handleFormSubmit}
-        onClearForm={formHook.clearForm}
-        onDeleteEvent={crudHook.deleteNode}
-        createNote={createNote}
-        selectedBranchX={branchHook.selectedBranchX}
-        selectedEdge={branchHook.selectedEdge}
-        branchYears={branchHook.branchYears}
-        onBranchYearsChange={branchHook.setBranchYears}
-        onUpdateBranchLength={branchHook.updateBranchLength}
-        onDeleteBranch={branchHook.deleteBranch}
-        onHideBranchEditor={branchHook.handleHideBranchEditor}
-        onExtendBranch={() => branchHook.extendBranch(selectedNode)}
-        selectedNode={selectedNode}
-        edges={edges}
-        ageMax={ageMax}
-        onOpenBulkCreator={handleOpenBulkCreator}
-        undo={undo}
-        redo={redo}
-        historyIndex={historyIndex}
-        historyLength={historyLength}
-        />
-      </Suspense>
+      {!readOnly && (
+        <Suspense fallback={<PageLoader label="Загрузка панели деталей..." />}>
+          <TimelineRightPanel
+          saveStatus={saveStatus}
+          selectedPeriodization={selectedPeriodization}
+          onPeriodizationChange={setSelectedPeriodization}
+          birthSelected={birthHook.birthSelected}
+          birthFormDate={birthHook.birthFormDate}
+          birthFormPlace={birthHook.birthFormPlace}
+          birthFormNotes={birthHook.birthFormNotes}
+          onBirthDateChange={birthHook.setBirthFormDate}
+          onBirthPlaceChange={birthHook.setBirthFormPlace}
+          onBirthNotesChange={birthHook.setBirthFormNotes}
+          onBirthSave={() => birthHook.handleBirthSave(recordHistory)}
+          onBirthCancel={birthHook.handleBirthCancel}
+          birthHasChanges={birthHook.birthHasChanges}
+          formEventId={formHook.formEventId}
+          formEventAge={formHook.formEventAge}
+          onFormEventAgeChange={formHook.setFormEventAge}
+          formEventLabel={formHook.formEventLabel}
+          onFormEventLabelChange={formHook.setFormEventLabel}
+          formEventSphere={formHook.formEventSphere}
+          onFormEventSphereChange={formHook.setFormEventSphere}
+          formEventIsDecision={formHook.formEventIsDecision}
+          onFormEventIsDecisionChange={formHook.setFormEventIsDecision}
+          formEventIcon={formHook.formEventIcon}
+          onFormEventIconChange={formHook.setFormEventIcon}
+          formEventNotes={formHook.formEventNotes}
+          onFormEventNotesChange={formHook.setFormEventNotes}
+          hasFormChanges={formHook.hasFormChanges}
+          onEventFormSubmit={handleFormSubmit}
+          onClearForm={formHook.clearForm}
+          onDeleteEvent={crudHook.deleteNode}
+          createNote={createNote}
+          selectedBranchX={branchHook.selectedBranchX}
+          selectedEdge={branchHook.selectedEdge}
+          branchYears={branchHook.branchYears}
+          onBranchYearsChange={branchHook.setBranchYears}
+          onUpdateBranchLength={branchHook.updateBranchLength}
+          onDeleteBranch={branchHook.deleteBranch}
+          onHideBranchEditor={branchHook.handleHideBranchEditor}
+          onExtendBranch={() => branchHook.extendBranch(selectedNode)}
+          selectedNode={selectedNode}
+          edges={edges}
+          ageMax={ageMax}
+          onOpenBulkCreator={handleOpenBulkCreator}
+          undo={undo}
+          redo={redo}
+          historyIndex={historyIndex}
+          historyLength={historyLength}
+          />
+        </Suspense>
+      )}
 
       {/* Periodization Boundary Modal */}      {/* Periodization Boundary Modal */}
       {periodBoundaryModal && selectedPeriodization && (() => {
@@ -476,7 +513,7 @@ export default function Timeline() {
       })()}
 
       {/* Bulk Event Creator Modal */}
-      {showBulkCreator && (
+      {showBulkCreator && !readOnly && (
         <Suspense fallback={<PageLoader label="Подгрузка массового события..." />}>
           <BulkEventCreator
             onClose={() => setShowBulkCreator(false)}
@@ -494,9 +531,11 @@ export default function Timeline() {
       )}
 
       {/* Help Modal */}
-      <Suspense fallback={<PageLoader label="Загрузка справки..." />}>
-        <TimelineHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
-      </Suspense>
+      {!readOnly && (
+        <Suspense fallback={<PageLoader label="Загрузка справки..." />}>
+          <TimelineHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+        </Suspense>
+      )}
     </motion.div>
   );
 }

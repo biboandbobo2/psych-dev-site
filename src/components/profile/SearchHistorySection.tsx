@@ -22,6 +22,7 @@ export function SearchHistorySection() {
   const { openSearch } = useContentSearchStore();
   const [activeType, setActiveType] = useState<SearchHistoryType | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // Повторить поиск — только для content
   const handleRepeatSearch = (entry: SearchHistoryEntry) => {
@@ -53,6 +54,76 @@ export function SearchHistorySection() {
     setShowClearConfirm(false);
   };
 
+  const renderContent = () => (
+    <>
+      {/* Табы — только типы с данными */}
+      {typesWithData.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-4 sm:flex-nowrap sm:overflow-x-auto sm:pb-1">
+          {typesWithData.map(({ type, label, icon }) => {
+            const isActive = effectiveType === type;
+            return (
+              <button
+                key={type}
+                onClick={() => setActiveType(type)}
+                className={`flex flex-1 min-w-[130px] items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-semibold whitespace-nowrap transition-colors sm:flex-none sm:text-sm ${
+                  isActive
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <span role="img" aria-hidden="true">
+                  {icon}
+                </span>
+                <span>{label}</span>
+                <span
+                  className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    isActive ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-600'
+                  }`}
+                >
+                  {entriesByType[type].length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Заголовок для единственного типа */}
+      {typesWithData.length === 1 && currentConfig && (
+        <div className="flex items-center gap-2 mb-4 text-gray-600">
+          <span role="img" aria-hidden="true">
+            {currentConfig.icon}
+          </span>
+          <span className="font-medium">{currentConfig.label}</span>
+          <span className="text-sm opacity-70">({totalForType})</span>
+        </div>
+      )}
+
+      {/* Список запросов */}
+      {currentEntries.length > 0 ? (
+        <ul className="space-y-1.5 sm:space-y-2">
+          {currentEntries.map((entry) => (
+            <SearchHistoryItem
+              key={entry.id}
+              entry={entry}
+              onDelete={deleteEntry}
+              onRepeat={handleRepeatSearch}
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="text-gray-500 text-sm py-4 text-center">{currentConfig?.emptyText ?? 'Нет данных'}</p>
+      )}
+
+      {/* Показать больше */}
+      {totalForType > VISIBLE_ITEMS && (
+        <button className="mt-3 text-sm text-blue-600 hover:underline w-full text-center">
+          Показать все ({totalForType})
+        </button>
+      )}
+    </>
+  );
+
   if (loading) {
     return (
       <div className="bg-white rounded-2xl shadow-xl p-6">
@@ -70,9 +141,9 @@ export function SearchHistorySection() {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-6">
+    <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6">
       {/* Заголовок с кнопкой очистки */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 hidden items-center justify-between sm:flex">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <span role="img" aria-hidden="true">
             🔍
@@ -109,62 +180,61 @@ export function SearchHistorySection() {
         )}
       </div>
 
-      {/* Табы — только типы с данными */}
-      {typesWithData.length > 1 && (
-        <div className="flex gap-1 mb-4 overflow-x-auto pb-1">
-          {typesWithData.map(({ type, label, icon }) => (
-            <button
-              key={type}
-              onClick={() => setActiveType(type)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                effectiveType === type
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <span role="img" aria-hidden="true">
-                {icon}
-              </span>
-              <span>{label}</span>
-              <span className="text-xs opacity-70">({entriesByType[type].length})</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Заголовок для единственного типа */}
-      {typesWithData.length === 1 && currentConfig && (
-        <div className="flex items-center gap-2 mb-4 text-gray-600">
-          <span role="img" aria-hidden="true">
-            {currentConfig.icon}
+      <details className="group sm:hidden" open={isMobileOpen} onToggle={(e) => setIsMobileOpen(e.currentTarget.open)}>
+        <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 [&::-webkit-details-marker]:hidden">
+          <span className="flex items-center gap-2">
+            <span role="img" aria-hidden="true">🔍</span>
+            История поисков
           </span>
-          <span className="font-medium">{currentConfig.label}</span>
-          <span className="text-sm opacity-70">({totalForType})</span>
+          <svg
+            className="h-4 w-4 text-gray-500 transition-transform group-open:rotate-90"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </summary>
+        <div className="mt-4">
+          {hasHistory && (
+            <div className="mb-3">
+              {showClearConfirm ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600">Удалить всё?</span>
+                  <button
+                    onClick={handleClearHistory}
+                    className="px-2 py-1 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  >
+                    Да
+                  </button>
+                  <button
+                    onClick={() => setShowClearConfirm(false)}
+                    className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Нет
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowClearConfirm(true)}
+                  className="text-xs text-gray-500 hover:text-red-500 transition-colors"
+                >
+                  Очистить
+                </button>
+              )}
+            </div>
+          )}
+          <div className="space-y-4">
+            {renderContent()}
+          </div>
         </div>
-      )}
+      </details>
 
-      {/* Список запросов */}
-      {currentEntries.length > 0 ? (
-        <ul className="space-y-2">
-          {currentEntries.map((entry) => (
-            <SearchHistoryItem
-              key={entry.id}
-              entry={entry}
-              onDelete={deleteEntry}
-              onRepeat={handleRepeatSearch}
-            />
-          ))}
-        </ul>
-      ) : (
-        <p className="text-gray-500 text-sm py-4 text-center">{currentConfig?.emptyText ?? 'Нет данных'}</p>
-      )}
+      <div className="hidden sm:block">
+        {renderContent()}
+      </div>
 
-      {/* Показать больше */}
-      {totalForType > VISIBLE_ITEMS && (
-        <button className="mt-3 text-sm text-blue-600 hover:underline w-full text-center">
-          Показать все ({totalForType})
-        </button>
-      )}
     </div>
   );
 }
@@ -212,17 +282,17 @@ function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps
   };
 
   return (
-    <li className="bg-gray-50 rounded-lg transition-colors">
+    <li className="bg-gray-50 rounded-lg transition-colors sm:rounded-xl">
       {/* Основная строка */}
       <div
-        className={`group flex items-center justify-between py-2 px-3 ${isExpandable ? 'cursor-pointer hover:bg-gray-100' : ''}`}
+        className={`group flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 ${isExpandable ? 'cursor-pointer hover:bg-gray-100' : ''}`}
         onClick={handleRowClick}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             {isExpandable && (
               <svg
-                className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`}
+                className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -230,9 +300,9 @@ function SearchHistoryItem({ entry, onDelete, onRepeat }: SearchHistoryItemProps
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             )}
-            <p className="text-sm text-gray-900 truncate">{entry.query}</p>
+            <p className="text-[13px] text-gray-900 truncate sm:text-sm">{entry.query}</p>
           </div>
-          <div className={`flex items-center gap-2 text-xs text-gray-500 mt-0.5 ${isExpandable ? 'ml-6' : ''}`}>
+          <div className={`mt-0.5 flex items-center gap-2 text-xs text-gray-500 ${isExpandable ? 'ml-5 sm:ml-6' : ''}`}>
             <span>{timeAgo}</span>
             {entry.resultsCount !== undefined && !isExpandable && <span>• {entry.resultsCount} результатов</span>}
             {entry.hasAnswer && !isExpandable && <span>• Ответ получен</span>}

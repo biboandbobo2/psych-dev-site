@@ -2,6 +2,8 @@ import { useState } from "react";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { debugError } from "../lib/debug";
+import { logClientEvent } from "../lib/clientLog";
+import { isMobileDevice } from "../lib/inAppBrowser";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -56,12 +58,14 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     try {
       setLoading(true);
       setError(null);
+      logClientEvent("login.click", { source: "login_modal" });
 
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
 
       onClose();
     } catch (err: any) {
+      logClientEvent("login.error", { code: err?.code ?? "unknown" });
       debugError("Login error:", err);
       setError(getErrorMessage(err));
     } finally {
@@ -72,6 +76,16 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const handleRetry = () => {
     setError(null);
     handleGoogleSignIn();
+  };
+
+  const handleOpenInBrowser = () => {
+    if (typeof window === "undefined") return;
+    logClientEvent("open_in_browser.click");
+    const opened = window.open(window.location.href, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      logClientEvent("open_in_browser.blocked");
+      setError("Не удалось открыть браузер. В меню ⋯ выберите «Открыть в Safari/Chrome».");
+    }
   };
 
   if (!isOpen) return null;
@@ -123,6 +137,21 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </svg>
             {loading ? "Вход..." : "Войти через Google"}
           </button>
+
+          {isMobileDevice() && (
+            <div className="mt-3 sm:hidden">
+              <button
+                type="button"
+                onClick={handleOpenInBrowser}
+                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Открыть в браузере
+              </button>
+              <p className="mt-2 text-xs text-gray-500">
+                Если вход не работает в мессенджере, откройте страницу в Safari/Chrome.
+              </p>
+            </div>
+          )}
 
           {error && (
             <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">

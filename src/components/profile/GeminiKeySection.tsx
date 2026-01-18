@@ -8,6 +8,7 @@ export function GeminiKeySection() {
   const { currentKey, status, error, saveKey, removeKey, hasKey } = useGeminiKey();
   const [inputValue, setInputValue] = useState('');
   const [showConfirmRemove, setShowConfirmRemove] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const isLoading = status === 'validating' || status === 'saving';
 
@@ -28,6 +29,72 @@ export function GeminiKeySection() {
     if (key.length <= 14) return key;
     return `${key.slice(0, 10)}...${key.slice(-4)}`;
   };
+
+  const addKeyForm = (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-600">
+        Добавьте свой API ключ Gemini, чтобы AI запросы использовали ваш аккаунт Google Cloud.
+        Это позволяет не ограничиваться лимитами сайта.
+      </p>
+
+      <div className="space-y-2">
+        <input
+          type="password"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder="AIzaSy..."
+          disabled={isLoading}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed font-mono text-sm"
+        />
+
+        {error && (
+          <p className="text-sm text-red-600 flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {error}
+          </p>
+        )}
+
+        {status === 'success' && (
+          <p className="text-sm text-emerald-600 flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Ключ сохранён
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between">
+        <a
+          href="https://aistudio.google.com/apikey"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          Получить ключ
+        </a>
+
+        <button
+          onClick={handleSave}
+          disabled={isLoading || !inputValue.trim()}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {isLoading && (
+            <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+          )}
+          {status === 'validating' ? 'Проверка...' : status === 'saving' ? 'Сохранение...' : 'Сохранить'}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-white rounded-2xl shadow-xl p-6">
@@ -86,69 +153,19 @@ export function GeminiKeySection() {
         </div>
       ) : (
         // Режим добавления ключа
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Добавьте свой API ключ Gemini, чтобы AI запросы использовали ваш аккаунт Google Cloud.
-            Это позволяет не ограничиваться лимитами сайта.
-          </p>
-
-          <div className="space-y-2">
-            <input
-              type="password"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="AIzaSy..."
-              disabled={isLoading}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed font-mono text-sm"
-            />
-
-            {error && (
-              <p className="text-sm text-red-600 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {error}
-              </p>
-            )}
-
-            {status === 'success' && (
-              <p className="text-sm text-emerald-600 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Ключ сохранён
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <a
-              href="https://aistudio.google.com/apikey"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-blue-600 hover:underline flex items-center gap-1"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              Получить ключ
-            </a>
-
-            <button
-              onClick={handleSave}
-              disabled={isLoading || !inputValue.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {isLoading && (
-                <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              )}
-              {status === 'validating' ? 'Проверка...' : status === 'saving' ? 'Сохранение...' : 'Сохранить'}
-            </button>
-          </div>
-        </div>
+        <>
+          <details
+            className="sm:hidden rounded-xl border border-gray-200 bg-gray-50 p-3"
+            open={isMobileOpen}
+            onToggle={(event) => setIsMobileOpen(event.currentTarget.open)}
+          >
+            <summary className="cursor-pointer text-sm font-semibold text-blue-600 hover:underline">
+              Добавить личный ключ ИИ
+            </summary>
+            <div className="mt-3">{addKeyForm}</div>
+          </details>
+          <div className="hidden sm:block">{addKeyForm}</div>
+        </>
       )}
     </div>
   );

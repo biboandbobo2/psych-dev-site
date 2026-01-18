@@ -16,6 +16,7 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { useCourseStore } from '../stores/useCourseStore';
 import { useLoginModal } from '../hooks/useLoginModal';
 import LoginModal from '../components/LoginModal';
+import TelegramOpenInBrowser from '../components/TelegramOpenInBrowser';
 import { useAuthSync } from '../hooks/useAuthSync';
 import { AppLayout } from '../layouts/AppLayout';
 import { LoadingSplash, ErrorState, EmptyState } from '../shared/ui/states';
@@ -203,6 +204,7 @@ export function AppShell() {
       </Helmet>
       <NavigationProgress />
       <LoginModal isOpen={isOpen} onClose={closeModal} />
+      <TelegramOpenInBrowser />
       <AppLayout
         navItems={navItems}
         user={user}

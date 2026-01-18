@@ -1,9 +1,10 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
 import { GeminiKeySection, SearchHistorySection } from '../components/profile';
 import { useAuth } from '../auth/AuthProvider';
 import { useCourseStore } from '../stores';
+import { triggerHaptic } from '../lib/haptics';
 
 type CourseType = 'development' | 'clinical' | 'general';
 
@@ -68,7 +69,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+      <h2 className="hidden sm:flex text-2xl font-bold mb-6 items-center gap-2">
         <span className="text-3xl" role="img" aria-label="Студент">
           🎓
         </span>
@@ -88,23 +89,27 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
                 </div>
               )}
 
-              <div
-                className={`inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} text-3xl mb-4 shadow-md ${
-                  isDisabled ? 'opacity-50' : ''
-                }`}
-              >
-                {feature.icon}
+              <div className="flex items-center gap-3 sm:block">
+                <div
+                  className={`inline-flex shrink-0 items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} text-3xl sm:mb-4 shadow-md ${
+                    isDisabled ? 'opacity-50' : ''
+                  }`}
+                >
+                  {feature.icon}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <h3 className={`text-base sm:text-lg font-bold mb-1 sm:mb-2 leading-snug ${isDisabled ? 'text-gray-500' : 'text-gray-900'}`}>
+                    {feature.title}
+                  </h3>
+                  <p className={`text-xs sm:text-sm leading-snug ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {feature.description}
+                  </p>
+                </div>
               </div>
 
-              <h3 className={`text-lg font-bold mb-2 ${isDisabled ? 'text-gray-500' : 'text-gray-900'}`}>
-                {feature.title}
-              </h3>
-              <p className={`text-sm ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
-                {feature.description}
-              </p>
-
               {isDisabled && (
-                <div className="absolute inset-0 bg-gray-50/50 rounded-xl backdrop-blur-[1px] cursor-not-allowed" />
+                <div className="absolute inset-0 hidden rounded-xl bg-gray-50/50 backdrop-blur-[1px] cursor-not-allowed sm:block" />
               )}
             </>
           );
@@ -114,7 +119,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
               <Link
                 key={index}
                 to={feature.link}
-                className="relative group bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-blue-400 transition-all duration-300 hover:shadow-lg cursor-pointer"
+                className="relative group bg-white border-2 border-gray-200 rounded-xl px-4 py-5 sm:p-6 hover:border-blue-400 transition-all duration-300 hover:shadow-lg cursor-pointer"
               >
                 {content}
               </Link>
@@ -124,7 +129,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
           return (
             <div
               key={index}
-              className="relative group bg-white border-2 border-gray-200 rounded-xl p-6 transition-all duration-300"
+              className="relative group bg-white border-2 border-gray-200 rounded-xl px-4 py-5 sm:p-6 transition-all duration-300"
             >
               {content}
             </div>
@@ -169,8 +174,18 @@ export default function Profile() {
     : null;
   const role = userRole ?? 'student';
 
+  const handleHapticClick = useCallback((event: React.MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    const clickable = target.closest('button, a, summary, [role="button"]') as HTMLElement | null;
+    if (!clickable) return;
+    if (clickable.getAttribute('aria-disabled') === 'true') return;
+    if (clickable instanceof HTMLButtonElement && clickable.disabled) return;
+    triggerHaptic();
+  }, []);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onClickCapture={handleHapticClick}>
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
         <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-32" />
 
@@ -226,7 +241,9 @@ export default function Profile() {
               <>
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
-                  <SuperAdminBadge />
+                  <span className="hidden sm:inline-flex">
+                    <SuperAdminBadge />
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-6 text-gray-600">
                   <div className="flex items-center gap-2">
@@ -264,29 +281,54 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
-        {/* Переключатель курсов */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
+          {/* Переключатель курсов */}
         <div>
           <h2 className="text-xl font-bold mb-4 text-gray-700">Выберите курс</h2>
-          <div className="flex gap-2 border-b border-gray-200">
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 sm:border-b sm:border-gray-200">
             {Object.values(COURSES).map((courseOption) => (
               <button
                 key={courseOption.id}
                 onClick={() => setCurrentCourse(courseOption.id)}
-                className={`px-4 py-2 font-medium transition-colors relative ${
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors sm:w-auto sm:justify-start sm:rounded-none sm:border-0 sm:px-4 sm:py-2 sm:text-base ${
                   currentCourse === courseOption.id
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 sm:bg-transparent sm:text-blue-600 sm:border-b-2 sm:border-blue-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 sm:bg-transparent sm:text-gray-600 sm:border-b-2 sm:border-transparent sm:hover:text-gray-900'
                 }`}
               >
-                <span className="mr-2">{courseOption.icon}</span>
+                <span className="text-base">{courseOption.icon}</span>
                 {courseOption.name}
               </button>
             ))}
           </div>
         </div>
 
-        <StudentPanel currentCourse={currentCourse} />
+        <div className="hidden sm:block">
+          <StudentPanel currentCourse={currentCourse} />
+        </div>
+      </div>
+
+      <div className="sm:hidden bg-white rounded-2xl shadow-xl p-4">
+        <details className="group" open>
+          <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center gap-2">
+              <span role="img" aria-hidden="true">🎓</span>
+              Панель студента
+            </span>
+            <svg
+              className="h-4 w-4 text-gray-500 transition-transform group-open:rotate-90"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </summary>
+          <div className="mt-4">
+            <StudentPanel currentCourse={currentCourse} />
+          </div>
+        </details>
       </div>
 
       {/* История поисков — только для авторизованных */}
