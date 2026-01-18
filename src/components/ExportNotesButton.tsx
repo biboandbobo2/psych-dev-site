@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import type { Note } from '../types/notes';
 import { generateNotesMarkdown, generateNotesText, downloadPlainText } from '../utils/notesExport';
 import { useClickOutside } from '../hooks/useClickOutside';
+import { Emoji } from './Emoji';
 
 interface ExportNotesButtonProps {
   notes: Note[];
@@ -34,7 +35,7 @@ export function ExportNotesButton({ notes }: ExportNotesButtonProps) {
         onClick={() => setIsOpen((prev) => !prev)}
         className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-fg shadow-sm transition hover:bg-card2"
       >
-        <span>💾</span>
+        <Emoji token="💾" size={18} />
         <span className="hidden sm:inline">Экспорт</span>
         <span className="text-xs">{isOpen ? '▲' : '▼'}</span>
       </button>
@@ -49,7 +50,7 @@ export function ExportNotesButton({ notes }: ExportNotesButtonProps) {
               onClick={() => handleExport('markdown')}
               className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition hover:bg-card2"
             >
-              <span className="text-lg">📝</span>
+              <Emoji token="📝" size={20} />
               <div>
                 <p className="font-medium text-fg">Markdown (.md)</p>
                 <p className="text-xs text-muted">Файл с форматированием</p>
@@ -59,7 +60,7 @@ export function ExportNotesButton({ notes }: ExportNotesButtonProps) {
               onClick={() => handleExport('txt')}
               className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition hover:bg-card2"
             >
-              <span className="text-lg">📄</span>
+              <Emoji token="📄" size={20} />
               <div>
                 <p className="font-medium text-fg">Текст (.txt)</p>
                 <p className="text-xs text-muted">Простой текстовый файл</p>

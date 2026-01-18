@@ -6,6 +6,8 @@ import {
   validateYouTubeUrl,
   getYouTubeEmbedUrl,
 } from '../../../utils/mediaUpload';
+import { debugError } from '../../../lib/debug';
+import { Emoji, EmojiText } from '../../Emoji';
 
 interface QuestionMediaUploaderProps {
   questionId: string;
@@ -59,7 +61,7 @@ export function QuestionMediaUploader({
       await deleteMediaFile(imageUrl);
       onImageChange(undefined);
     } catch (error) {
-      console.error('Ошибка удаления изображения:', error);
+      debugError('Ошибка удаления изображения:', error);
     }
   };
 
@@ -87,7 +89,7 @@ export function QuestionMediaUploader({
       await deleteMediaFile(audioUrl);
       onAudioChange(undefined);
     } catch (error) {
-      console.error('Ошибка удаления аудио:', error);
+      debugError('Ошибка удаления аудио:', error);
     }
   };
 
@@ -137,13 +139,15 @@ export function QuestionMediaUploader({
         {/* Картинка */}
         {imageUrl ? (
           <div className="flex items-center gap-1 rounded-md border border-green-300 bg-green-50 px-2 py-1 text-xs">
-            <span className="text-green-700">🖼️ Картинка</span>
+            <span className="text-green-700">
+              <EmojiText text="🖼️ Картинка" />
+            </span>
             <button
               onClick={handleImageRemove}
               className="ml-1 text-red-600 hover:text-red-800"
               title="Удалить"
             >
-              ✕
+              <Emoji token="✕" size={12} />
             </button>
           </div>
         ) : (
@@ -153,20 +157,22 @@ export function QuestionMediaUploader({
             className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
             title="Добавить картинку"
           >
-            {uploadingImage ? '⏳ Загрузка...' : '🖼️ Картинка'}
+            <EmojiText text={uploadingImage ? '⏳ Загрузка...' : '🖼️ Картинка'} />
           </button>
         )}
 
         {/* Аудио */}
         {audioUrl ? (
           <div className="flex items-center gap-1 rounded-md border border-green-300 bg-green-50 px-2 py-1 text-xs">
-            <span className="text-green-700">🔊 Аудио</span>
+            <span className="text-green-700">
+              <EmojiText text="🔊 Аудио" />
+            </span>
             <button
               onClick={handleAudioRemove}
               className="ml-1 text-red-600 hover:text-red-800"
               title="Удалить"
             >
-              ✕
+              <Emoji token="✕" size={12} />
             </button>
           </div>
         ) : (
@@ -176,7 +182,7 @@ export function QuestionMediaUploader({
             className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs transition hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
             title="Добавить аудио"
           >
-            {uploadingAudio ? '⏳ Загрузка...' : '🔊 Аудио'}
+            <EmojiText text={uploadingAudio ? '⏳ Загрузка...' : '🔊 Аудио'} />
           </button>
         )}
 
@@ -185,7 +191,7 @@ export function QuestionMediaUploader({
           {videoUrl ? (
             <div className="flex flex-1 items-center gap-1 rounded-md border border-green-300 bg-green-50 px-2 py-1 text-xs">
               <span className="flex-1 truncate text-green-700" title={videoUrl}>
-                🎬 {videoUrl}
+                <Emoji token="🎬" size={12} /> {videoUrl}
               </span>
               <button
                 onClick={() => {
@@ -195,7 +201,7 @@ export function QuestionMediaUploader({
                 className="ml-1 text-red-600 hover:text-red-800"
                 title="Удалить"
               >
-                ✕
+                <Emoji token="✕" size={12} />
               </button>
             </div>
           ) : (
@@ -226,7 +232,7 @@ export function QuestionMediaUploader({
       </div>
       {!testId && (
         <div className="mt-2 text-xs text-amber-600">
-          ⚠️ Сначала сохраните тест, чтобы загрузить медиа
+          <EmojiText text="⚠️ Сначала сохраните тест, чтобы загрузить медиа" />
         </div>
       )}
 

@@ -1,3 +1,4 @@
+import { EmojiText } from '../../../../components/Emoji';
 import { SELECTABLE_TEXT_STYLE } from '../utils/constants';
 
 interface ContentThemeEditorProps {
@@ -13,7 +14,9 @@ interface ContentThemeEditorProps {
 export function ContentThemeEditor({ accent, setAccent, accent100, setAccent100 }: ContentThemeEditorProps) {
   return (
     <div className="bg-white rounded-lg shadow p-6 space-y-4">
-      <h2 className="text-xl font-bold">🎨 Цвета темы</h2>
+      <h2 className="text-xl font-bold">
+        <EmojiText text="🎨 Цвета темы" />
+      </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-2">Основной цвет (accent)</label>

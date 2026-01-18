@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { EmojiText } from '../../Emoji';
 
 const QUESTION_TEXT_LIMIT = 280;
 
@@ -42,7 +43,7 @@ export function QuestionTextEditor({
           questionError ? 'text-red-600' : 'text-gray-500'
         } min-h-[20px]`}
       >
-        <span>{questionError ?? questionHintText}</span>
+        <span>{questionError ? questionError : <EmojiText text={questionHintText} />}</span>
         <span>
           {questionText.length}/{QUESTION_TEXT_LIMIT}
         </span>

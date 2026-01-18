@@ -2,6 +2,7 @@ import { type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import type { Test, TestAppearance } from '../../types/tests';
 import TestHistory from '../TestHistory';
+import { Emoji, EmojiText } from '../Emoji';
 
 interface TestIntroScreenProps {
   test: Test;
@@ -65,11 +66,15 @@ export function TestIntroScreen({
                 className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-full font-bold text-sm mb-4"
                 style={badgeGradientStyle}
               >
-                {appearance.badgeIcon ? <span>{appearance.badgeIcon}</span> : null}
+                {appearance.badgeIcon ? <EmojiText text={appearance.badgeIcon} /> : null}
                 {appearance.badgeLabel ? <span>{appearance.badgeLabel}</span> : null}
               </div>
             )}
-            {appearance.introIcon && <div className="text-6xl mb-6">{appearance.introIcon}</div>}
+            {appearance.introIcon && (
+              <div className="mb-6">
+                <Emoji token={appearance.introIcon} size={56} />
+              </div>
+            )}
             <h1 className="text-4xl font-bold text-gray-900 mb-4">{test.title}</h1>
             <p className="text-xl text-gray-600 mb-8">{appearance.introDescription}</p>
 
@@ -78,7 +83,7 @@ export function TestIntroScreen({
                 className="font-semibold mb-3 flex items-center gap-2"
                 style={{ color: accentColor }}
               >
-                <span>📋</span>
+                <Emoji token="📋" size={18} />
                 {bulletHeading}
               </h3>
               <ul className="space-y-2 text-gray-700">

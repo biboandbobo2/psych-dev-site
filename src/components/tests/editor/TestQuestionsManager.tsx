@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import type { TestQuestion } from '../../../types/tests';
 import { QuestionEditor } from '../../QuestionEditor';
+import { EmojiText } from '../../Emoji';
 
 interface TestQuestionsManagerProps {
   questions: TestQuestion[];
@@ -55,7 +56,7 @@ export function TestQuestionsManager({
             className="rounded-md bg-blue-600 px-3 py-1 text-sm text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             title="Скачать шаблон JSON вопросов"
           >
-            📄 Шаблон
+            <EmojiText text="📄 Шаблон" />
           </button>
 
           {/* Кнопка импорта */}
@@ -65,7 +66,7 @@ export function TestQuestionsManager({
             className="rounded-md bg-purple-600 px-3 py-1 text-sm text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
             title="Импортировать вопросы из JSON"
           >
-            📥 Импорт
+            <EmojiText text="📥 Импорт" />
           </button>
 
           {/* Кнопка добавить вопрос */}
@@ -83,7 +84,7 @@ export function TestQuestionsManager({
       {/* Подсказка о лимите */}
       {questions.length >= 20 && (
         <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-800">
-          ⚠️ Достигнут максимальный лимит: 20 вопросов
+          <EmojiText text="⚠️ Достигнут максимальный лимит: 20 вопросов" />
         </div>
       )}
 

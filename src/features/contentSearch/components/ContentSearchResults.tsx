@@ -5,6 +5,7 @@ import type {
   CourseType,
   ContentMatchField,
 } from '../types';
+import { Emoji } from '../../../components/Emoji';
 
 interface ContentSearchResultsProps {
   results: SearchResult[];
@@ -124,9 +125,7 @@ function ContentResultItem({ result, query, onResultClick }: ContentResultItemPr
         className="w-full text-left rounded-lg border border-border bg-card p-4 hover:border-accent/40 hover:shadow-sm transition-all group"
       >
         <div className="flex items-start gap-3">
-          <span className="text-xl" aria-hidden>
-            {courseInfo.icon}
-          </span>
+          <Emoji token={courseInfo.icon} size={20} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span
@@ -170,9 +169,7 @@ function TestResultItem({ result, onResultClick }: TestResultItemProps) {
       className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card hover:border-accent/40 hover:shadow-sm transition-all text-sm"
       title={result.title}
     >
-      <span className="text-lg" aria-hidden>
-        {icon}
-      </span>
+      <Emoji token={icon} size={18} />
       <span className="text-fg font-medium truncate max-w-[180px]">
         {result.title}
       </span>

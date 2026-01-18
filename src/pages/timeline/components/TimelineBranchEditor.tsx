@@ -1,4 +1,5 @@
 import type { EdgeT } from '../types';
+import { Emoji } from '../../../components/Emoji';
 import type { ChangeEvent } from 'react';
 
 interface TimelineBranchEditorProps {
@@ -70,7 +71,7 @@ export function TimelineBranchEditor({
               style={{ fontFamily: 'Georgia, serif' }}
               title="Применить"
             >
-              ✓
+              <Emoji token="✓" size={12} />
             </button>
             <button
               type="button"
@@ -79,7 +80,7 @@ export function TimelineBranchEditor({
               style={{ fontFamily: 'Georgia, serif' }}
               title="Удалить ветку"
             >
-              🗑️
+              <Emoji token="🗑️" size={12} />
             </button>
           </div>
         </label>

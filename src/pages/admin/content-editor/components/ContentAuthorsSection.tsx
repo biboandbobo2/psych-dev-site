@@ -1,3 +1,4 @@
+import { EmojiText } from '../../../../components/Emoji';
 import { EditableList } from './EditableList';
 
 interface ContentAuthorsSectionProps {
@@ -11,7 +12,9 @@ interface ContentAuthorsSectionProps {
 export function ContentAuthorsSection({ authors, setAuthors }: ContentAuthorsSectionProps) {
   return (
     <div className="bg-white rounded-lg shadow p-6 space-y-2">
-      <h2 className="text-xl font-bold">👤 Ключевые авторы</h2>
+      <h2 className="text-xl font-bold">
+        <EmojiText text="👤 Ключевые авторы" />
+      </h2>
       <EditableList
         items={authors}
         onChange={(items) => setAuthors(items as Array<{ name: string; url?: string }>)}

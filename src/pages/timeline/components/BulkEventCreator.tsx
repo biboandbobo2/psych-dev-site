@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Emoji, EmojiText } from '../../../components/Emoji';
 import type { NodeT, EdgeT, Sphere } from '../types';
 import { parseBulkEventsText } from '../utils/parseBulkEvents';
 import { LINE_X_POSITION } from '../constants';
@@ -126,7 +127,10 @@ export function BulkEventCreator({
             {selectedEdge && (
               <div className="mt-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg">
                 <p className="text-xs text-purple-900" style={{ fontFamily: 'Georgia, serif' }}>
-                  <span className="font-semibold">📍 Ветка:</span> возраст {minAge}–{maxAge} лет
+                  <span className="font-semibold inline-flex items-center gap-1">
+                    <Emoji token="📍" size={14} /> Ветка:
+                  </span>{' '}
+                  возраст {minAge}–{maxAge} лет
                   {branchSphere && <span className="ml-2">• Сфера будет установлена автоматически</span>}
                 </p>
               </div>
@@ -175,7 +179,9 @@ export function BulkEventCreator({
                     style={{ fontFamily: 'Georgia, serif' }}
                   >
                     {event.error ? (
-                      <span className="text-red-600">⚠️ {event.error}</span>
+                      <span className="text-red-600 inline-flex items-center gap-1">
+                        <Emoji token="⚠️" size={14} /> {event.error}
+                      </span>
                     ) : (
                       <div className="flex items-center gap-3">
                         <span className="font-semibold text-slate-900 w-12">{event.age} лет</span>
@@ -193,7 +199,9 @@ export function BulkEventCreator({
             {needsExtension && onExtendBranch && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                 <p className="text-sm text-amber-900 mb-2" style={{ fontFamily: 'Georgia, serif' }}>
-                  <span className="font-semibold">⚠️ Некоторые события выходят за пределы ветки</span>
+                  <span className="font-semibold inline-flex items-center gap-1">
+                    <Emoji token="⚠️" size={14} /> Некоторые события выходят за пределы ветки
+                  </span>
                   <br />
                   Ветка будет автоматически продлена до {maxRequiredAge} лет
                 </p>
@@ -214,7 +222,10 @@ export function BulkEventCreator({
                 className="flex-1 px-4 py-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ fontFamily: 'Georgia, serif' }}
               >
-                ✓ Создать {validEvents.length > 0 ? `${validEvents.length} событий` : ''}
+                <span className="inline-flex items-center gap-1">
+                  <Emoji token="✓" size={12} /> Создать{' '}
+                  {validEvents.length > 0 ? `${validEvents.length} событий` : ''}
+                </span>
               </button>
               <button
                 onClick={onClose}
@@ -230,7 +241,7 @@ export function BulkEventCreator({
           {hasErrors && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
               <p className="text-xs text-amber-900" style={{ fontFamily: 'Georgia, serif' }}>
-                💡 Совет: Убедитесь, что каждая строка имеет формат "возраст, название события"
+                <EmojiText text="💡 Совет: Убедитесь, что каждая строка имеет формат \"возраст, название события\"" />
               </p>
             </div>
           )}

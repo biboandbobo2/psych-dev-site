@@ -1,6 +1,8 @@
 import { useRef } from 'react';
 import type { Test } from '../../../types/tests';
+import { debugError } from '../../../lib/debug';
 import { exportTestToJson, importTestFromJson, readFileAsText, downloadJson } from '../../../utils/testImportExport';
+import { Emoji, EmojiText } from '../../Emoji';
 
 interface TestImportExportProps {
   // Данные текущего теста для экспорта
@@ -37,7 +39,7 @@ export function TestImportExport({
       downloadJson(JSON.parse(json), filename);
     } catch (error) {
       alert('Ошибка экспорта теста');
-      console.error(error);
+      debugError('Ошибка экспорта теста:', error);
     }
   };
 
@@ -80,7 +82,7 @@ export function TestImportExport({
       alert(`Тест успешно импортирован! Загружено ${result.questions?.length || 0} вопросов.`);
     } catch (error) {
       alert('Не удалось прочитать файл');
-      console.error(error);
+      debugError('Не удалось прочитать файл:', error);
     } finally {
       // Reset file input
       if (fileInputRef.current) {
@@ -120,7 +122,7 @@ export function TestImportExport({
           className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           title="Экспортировать весь тест в JSON файл"
         >
-          <span>📤</span>
+          <Emoji token="📤" size={16} />
           <span>Экспортировать тест</span>
         </button>
 
@@ -131,7 +133,7 @@ export function TestImportExport({
           className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
           title="Импортировать тест из JSON файла"
         >
-          <span>📥</span>
+          <Emoji token="📥" size={16} />
           <span>Импортировать тест</span>
         </button>
       </div>
@@ -149,14 +151,14 @@ export function TestImportExport({
       {/* Предупреждение */}
       {testId && (
         <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-800">
-          ⚠️ <strong>Внимание:</strong> Импорт заменит все текущие данные теста. Рекомендуется сначала экспортировать
+          <EmojiText text="⚠️ Внимание:" /> Импорт заменит все текущие данные теста. Рекомендуется сначала экспортировать
           текущую версию для создания резервной копии.
         </div>
       )}
 
       {/* Полезная информация */}
       <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
-        💡 <strong>Совет:</strong> Используйте экспорт для создания шаблонов тестов или переноса
+        <EmojiText text="💡 Совет:" /> Используйте экспорт для создания шаблонов тестов или переноса
         тестов между разными окружениями.
       </div>
     </div>

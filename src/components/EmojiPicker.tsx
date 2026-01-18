@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Emoji } from './Emoji';
 
 const CONTROL =
   'h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-[15px] leading-none outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500';
@@ -28,6 +29,7 @@ export function EmojiPicker({
 }: EmojiPickerProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const previewEmoji = value ?? '😊';
 
   useEffect(() => {
     if (!open) return;
@@ -56,11 +58,11 @@ export function EmojiPicker({
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
-          className="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-300 bg-white text-xl shadow-sm outline-none transition hover:bg-zinc-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-300 bg-white shadow-sm outline-none transition hover:bg-zinc-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           disabled={disabled}
           aria-label="Выбрать эмодзи"
         >
-          😊
+          <Emoji token={previewEmoji} size={22} />
         </button>
       </div>
       {open && (
@@ -74,11 +76,11 @@ export function EmojiPicker({
                   onChange(emoji);
                   setOpen(false);
                 }}
-                className={`flex h-9 w-9 items-center justify-center rounded text-2xl hover:bg-gray-100 ${
+                className={`flex h-9 w-9 items-center justify-center rounded hover:bg-gray-100 ${
                   value === emoji ? 'bg-blue-100' : ''
                 }`}
               >
-                {emoji}
+                <Emoji token={emoji} size={22} />
               </button>
             ))}
           </div>

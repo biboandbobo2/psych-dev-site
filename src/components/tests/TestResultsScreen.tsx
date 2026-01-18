@@ -2,6 +2,7 @@ import { type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import type { Test, TestAppearance } from '../../types/tests';
 import TestHistory from '../TestHistory';
+import { Emoji, EmojiText } from '../Emoji';
 
 interface TestResultsScreenProps {
   test: Test;
@@ -64,11 +65,13 @@ export function TestResultsScreen({
                 className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-full font-bold text-sm mb-4"
                 style={badgeGradientStyle}
               >
-                {appearance.badgeIcon ? <span>{appearance.badgeIcon}</span> : null}
+                {appearance.badgeIcon ? <EmojiText text={appearance.badgeIcon} /> : null}
                 {appearance.badgeLabel ? <span>{appearance.badgeLabel}</span> : null}
               </div>
             )}
-            <div className="text-8xl mb-6">{scoreEmoji()}</div>
+            <div className="mb-6">
+              <Emoji token={scoreEmoji()} size={64} />
+            </div>
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
               {passed ? 'Тест пройден!' : 'Тест завершён'}
             </h1>

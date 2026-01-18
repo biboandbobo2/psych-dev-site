@@ -1,3 +1,4 @@
+import { Emoji } from '../../../../components/Emoji';
 import type { SimpleListProps } from '../types';
 import { SELECTABLE_TEXT_STYLE } from '../utils/constants';
 
@@ -57,7 +58,7 @@ export function SimpleList({ items, onChange, label, placeholder, maxItems = 10 
                 className="text-red-600 hover:text-red-700 text-sm"
                 title="Удалить"
               >
-                🗑️
+                <Emoji token="🗑️" size={14} />
               </button>
             </div>
           ))}

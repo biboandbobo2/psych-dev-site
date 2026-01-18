@@ -12,6 +12,7 @@ import {
 } from '../constants';
 import { clamp } from '../utils';
 import { EVENT_ICON_MAP } from '../../../data/eventIcons';
+import { getEmojiSrc } from '../../../components/Emoji';
 
 interface TimelineCanvasProps {
   svgRef: RefObject<SVGSVGElement>;
@@ -84,6 +85,8 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
     () => (selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null),
     [selectedPeriodization]
   );
+
+  const birthEmojiSrc = useMemo(() => getEmojiSrc('👶'), []);
 
   // Мемоизация меток возраста — пересчитываются только при изменении ageMax
   const ageLabels = useMemo(
@@ -225,17 +228,23 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
               stroke={birthSelected ? '#38bdf8' : '#0f172a'}
               strokeWidth={birthSelected ? 5 : 3}
             />
-            <text
-              x={LINE_X_POSITION}
-              y={worldHeight + adaptiveRadius * 1.8}
-              fontSize={16}
-              textAnchor="middle"
-              fontWeight={birthSelected ? '700' : '600'}
-              fill={birthSelected ? '#0ea5e9' : '#0f172a'}
-              fontFamily="Georgia, serif"
-            >
-              👶 Рождение
-            </text>
+            <g transform={`translate(${LINE_X_POSITION}, ${worldHeight + adaptiveRadius * 1.8})`}>
+              {birthEmojiSrc ? (
+                <image href={birthEmojiSrc} x={-28} y={-10} width={16} height={16} />
+              ) : null}
+              <text
+                x={birthEmojiSrc ? -6 : 0}
+                y={0}
+                fontSize={16}
+                textAnchor="start"
+                fontWeight={birthSelected ? '700' : '600'}
+                fill={birthSelected ? '#0ea5e9' : '#0f172a'}
+                fontFamily="Georgia, serif"
+                dominantBaseline="middle"
+              >
+                {birthEmojiSrc ? 'Рождение' : '👶 Рождение'}
+              </text>
+            </g>
           </g>
 
           <g>

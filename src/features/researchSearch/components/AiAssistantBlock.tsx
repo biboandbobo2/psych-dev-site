@@ -3,6 +3,7 @@ import { useAiAssistant } from '../hooks/useAiAssistant';
 import { useAiChat } from '../hooks/useAiChat';
 import { BookSearchBlock } from '../../bookSearch';
 import { useSearchHistory } from '../../../hooks';
+import { EmojiText } from '../../../components/Emoji';
 
 export function AiAssistantBlock() {
   const [mode, setMode] = useState<'single' | 'chat'>('single');
@@ -146,7 +147,7 @@ export function AiAssistantBlock() {
             disabled={!hasTranscript}
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-card2 hover:text-fg disabled:cursor-not-allowed disabled:opacity-60"
           >
-            ⬇️ Скачать историю
+            <EmojiText text="⬇️ Скачать историю" />
           </button>
         </div>
       </header>

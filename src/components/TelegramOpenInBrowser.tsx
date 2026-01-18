@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTelegramBrowser } from '../hooks/useTelegramBrowser';
+import { Emoji } from './Emoji';
 
 const STORAGE_KEY = 'psd:telegramBannerDismissed';
 
@@ -34,7 +35,7 @@ export default function TelegramOpenInBrowser() {
     <div className="fixed bottom-0 left-0 right-0 z-40 p-3 sm:hidden">
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-lg">
         <div className="flex items-start gap-3">
-          <span className="text-xl" aria-hidden="true">⚠️</span>
+          <Emoji token="⚠️" size={20} />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-amber-900">
               Встроенный браузер

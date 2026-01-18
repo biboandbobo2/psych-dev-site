@@ -4,6 +4,7 @@ import { Section } from '../../../components/ui/Section';
 import { Button } from '../../../components/ui/Button';
 import { ensureUrl } from '../utils/media';
 import { mergeAppearance, createGradient } from '../../../utils/testAppearance';
+import { Emoji } from '../../../components/Emoji';
 
 interface SelfQuestionsSectionProps {
   slug: string;
@@ -56,7 +57,7 @@ export function SelfQuestionsSection({ slug, title, content, periodTests }: Self
                       title={test.title}
                       style={{ backgroundImage }}
                     >
-                      {icon}
+                      <Emoji token={icon} size={20} />
                     </Link>
                   );
                 })}
@@ -84,7 +85,7 @@ export function SelfQuestionsSection({ slug, title, content, periodTests }: Self
                   title={test.title}
                   style={{ backgroundImage }}
                 >
-                  {icon}
+                  <Emoji token={icon} size={20} />
                 </Link>
               );
             })}

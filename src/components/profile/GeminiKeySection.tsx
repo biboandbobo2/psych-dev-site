@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGeminiKey } from '../../hooks';
+import { Emoji } from '../Emoji';
 
 /**
  * Секция профиля для управления API ключом Gemini (BYOK)
@@ -99,9 +100,7 @@ export function GeminiKeySection() {
   return (
     <div className="bg-white rounded-2xl shadow-xl p-6">
       <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-        <span role="img" aria-hidden="true">
-          🔑
-        </span>
+        <Emoji token="🔑" size={18} />
         API ключ Gemini
       </h2>
 

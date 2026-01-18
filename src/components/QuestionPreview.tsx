@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import type { TestQuestion, RevealPolicy } from '../types/tests';
 import { getYouTubeEmbedUrl } from '../utils/mediaUpload';
 import { shuffleArraySeeded } from '../utils/array';
+import { Emoji } from './Emoji';
 
 interface QuestionPreviewProps {
   question: TestQuestion;
@@ -226,7 +227,7 @@ export function QuestionPreview({ question, questionNumber }: QuestionPreviewPro
         {showSystemMessages && isAnswered && (
           <div className={`mb-4 rounded-xl border-2 p-4 ${isCorrect ? 'border-green-300 bg-green-50' : 'border-blue-300 bg-blue-50'}`}>
             <div className="mb-2 flex items-center gap-2">
-              <span className="text-2xl">{isCorrect ? '✅' : 'ℹ️'}</span>
+              <Emoji token={isCorrect ? '✅' : 'ℹ️'} size={20} />
               <span className={`font-bold ${isCorrect ? 'text-green-900' : 'text-blue-900'}`}>
                 {isCorrect ? 'Правильно!' : 'Не совсем...'}
               </span>

@@ -5,6 +5,7 @@ import { GeminiKeySection, SearchHistorySection } from '../components/profile';
 import { useAuth } from '../auth/AuthProvider';
 import { useCourseStore } from '../stores';
 import { triggerHaptic } from '../lib/haptics';
+import { Emoji } from '../components/Emoji';
 
 type CourseType = 'development' | 'clinical' | 'general';
 
@@ -70,9 +71,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
   return (
     <div>
       <h2 className="hidden sm:flex text-2xl font-bold mb-6 items-center gap-2">
-        <span className="text-3xl" role="img" aria-label="Студент">
-          🎓
-        </span>
+        <Emoji token="🎓" size={24} />
         Панель студента
       </h2>
 
@@ -95,7 +94,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
                     isDisabled ? 'opacity-50' : ''
                   }`}
                 >
-                  {feature.icon}
+                  <Emoji token={feature.icon} size={28} />
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -206,30 +205,22 @@ export default function Profile() {
             <div className="ml-6 mb-4">
               {!user ? (
                 <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700">
-                  <span className="text-lg" role="img" aria-label="Гость">
-                    👤
-                  </span>
+                  <Emoji token="👤" size={18} />
                   Гость
                 </span>
               ) : role === 'super-admin' ? (
                 <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-sm font-semibold text-white shadow">
-                  <span className="text-lg" role="img" aria-label="Супер-админ">
-                    ⭐
-                  </span>
+                  <Emoji token="⭐" size={18} />
                   Супер-админ
                 </span>
               ) : role === 'admin' ? (
                 <span className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-800">
-                  <span className="text-lg" role="img" aria-label="Администратор">
-                    👑
-                  </span>
+                  <Emoji token="👑" size={18} />
                   Администратор
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-800">
-                  <span className="text-lg" role="img" aria-label="Студент">
-                    🎓
-                  </span>
+                  <Emoji token="🎓" size={18} />
                   Студент
                 </span>
               )}
@@ -247,16 +238,12 @@ export default function Profile() {
                 </div>
                 <div className="flex flex-wrap gap-6 text-gray-600">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl" role="img" aria-hidden="true">
-                      ✉️
-                    </span>
+                    <Emoji token="✉️" size={18} />
                     <span>{user.email}</span>
                   </div>
                   {memberSince && (
                     <div className="flex items-center gap-2">
-                      <span className="text-xl" role="img" aria-hidden="true">
-                        📅
-                      </span>
+                      <Emoji token="📅" size={18} />
                       <span>С нами с {memberSince}</span>
                     </div>
                   )}
@@ -296,7 +283,7 @@ export default function Profile() {
                     : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 sm:bg-transparent sm:text-gray-600 sm:border-b-2 sm:border-transparent sm:hover:text-gray-900'
                 }`}
               >
-                <span className="text-base">{courseOption.icon}</span>
+                <Emoji token={courseOption.icon} size={16} />
                 {courseOption.name}
               </button>
             ))}
@@ -312,7 +299,7 @@ export default function Profile() {
         <details className="group" open>
           <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 [&::-webkit-details-marker]:hidden">
             <span className="flex items-center gap-2">
-              <span role="img" aria-hidden="true">🎓</span>
+              <Emoji token="🎓" size={16} />
               Панель студента
             </span>
             <svg

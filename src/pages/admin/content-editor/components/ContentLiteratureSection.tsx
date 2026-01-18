@@ -1,3 +1,4 @@
+import { EmojiText } from '../../../../components/Emoji';
 import { EditableList } from './EditableList';
 import { SELECTABLE_TEXT_STYLE } from '../utils/constants';
 
@@ -34,7 +35,9 @@ export function ContentLiteratureSection({
   return (
     <>
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-bold mb-4">📚 Основная литература</h2>
+        <h2 className="text-xl font-bold mb-4">
+          <EmojiText text="📚 Основная литература" />
+        </h2>
         <EditableList
           items={coreLiterature}
           onChange={(items) => setCoreLiterature(items as Array<{ title: string; url: string }>)}
@@ -46,7 +49,9 @@ export function ContentLiteratureSection({
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-bold mb-4">📖 Дополнительная литература</h2>
+        <h2 className="text-xl font-bold mb-4">
+          <EmojiText text="📖 Дополнительная литература" />
+        </h2>
         <EditableList
           items={extraLiterature}
           onChange={(items) => setExtraLiterature(items as Array<{ title: string; url: string }>)}
@@ -58,7 +63,9 @@ export function ContentLiteratureSection({
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-bold mb-4">🎬 Дополнительные видео</h2>
+        <h2 className="text-xl font-bold mb-4">
+          <EmojiText text="🎬 Дополнительные видео" />
+        </h2>
         <EditableList
           items={extraVideos}
           onChange={(items) => setExtraVideos(items as Array<{ title: string; url: string }>)}
@@ -70,7 +77,9 @@ export function ContentLiteratureSection({
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-bold mb-4">🎲 Досуговое</h2>
+        <h2 className="text-xl font-bold mb-4">
+          <EmojiText text="🎲 Досуговое" />
+        </h2>
         <EditableList
           items={leisure}
           onChange={(items) =>
@@ -90,7 +99,9 @@ export function ContentLiteratureSection({
       </div>
 
       <div className="bg-white rounded-lg shadow p-6 space-y-2">
-        <h2 className="text-xl font-bold">✏️ Вопросы для самопроверки</h2>
+        <h2 className="text-xl font-bold">
+          <EmojiText text="✏️ Вопросы для самопроверки" />
+        </h2>
         <label className="block text-sm font-medium mb-2">Ссылка на квиз/рабочую тетрадь</label>
         <input
           type="url"
@@ -107,7 +118,7 @@ export function ContentLiteratureSection({
             rel="noopener noreferrer"
             className="inline-block mt-2 text-sm text-blue-600 no-underline hover:no-underline focus-visible:no-underline"
           >
-            🔗 Открыть материал
+            <EmojiText text="🔗 Открыть материал" />
           </a>
         )}
       </div>

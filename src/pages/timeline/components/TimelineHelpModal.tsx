@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { SPHERE_META } from '../constants';
+import { Emoji, EmojiText } from '../../../components/Emoji';
 
 interface TimelineHelpModalProps {
   open: boolean;
@@ -37,14 +38,18 @@ export function TimelineHelpModal({ open, onClose }: TimelineHelpModalProps) {
 
             <div className="space-y-4 text-slate-700">
               <section>
-                <h3 className="font-semibold text-lg mb-2">🎯 Что это?</h3>
+                <h3 className="font-semibold text-lg mb-2">
+                  <EmojiText text="🎯 Что это?" />
+                </h3>
                 <p className="leading-relaxed">
                   Таймлайн жизни растет снизу вверх. Сплошная линия — ваша прожитая жизнь, пунктир — будущее.
                 </p>
               </section>
 
               <section>
-                <h3 className="font-semibold text-lg mb-2">📝 Как добавлять события</h3>
+                <h3 className="font-semibold text-lg mb-2">
+                  <EmojiText text="📝 Как добавлять события" />
+                </h3>
                 <ul className="space-y-2">
                   <li>1. Укажите свой текущий возраст слева</li>
                   <li>2. Используйте форму справа для добавления событий</li>
@@ -54,13 +59,15 @@ export function TimelineHelpModal({ open, onClose }: TimelineHelpModalProps) {
               </section>
 
               <section>
-                <h3 className="font-semibold text-lg mb-2">🎨 Сферы жизни</h3>
+                <h3 className="font-semibold text-lg mb-2">
+                  <EmojiText text="🎨 Сферы жизни" />
+                </h3>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   {Object.entries(SPHERE_META).map(([key, meta]) => (
                     <div key={key} className="flex items-center gap-2">
                       <div className="w-4 h-4 rounded-full" style={{ backgroundColor: meta.color }} />
-                      <span>
-                        {meta.emoji} {meta.label}
+                      <span className="flex items-center gap-1">
+                        <Emoji token={meta.emoji} size={14} /> {meta.label}
                       </span>
                     </div>
                   ))}
@@ -68,7 +75,9 @@ export function TimelineHelpModal({ open, onClose }: TimelineHelpModalProps) {
               </section>
 
               <section className="bg-amber-50 rounded-xl p-4 border border-amber-200">
-                <h3 className="font-semibold text-amber-900 mb-2">⚠️ Важно</h3>
+                <h3 className="font-semibold text-amber-900 mb-2">
+                  <EmojiText text="⚠️ Важно" />
+                </h3>
                 <p className="text-sm text-amber-800 leading-relaxed">
                   Данные автоматически сохраняются каждые 10 секунд. Используйте колесико мыши для масштабирования и перетаскивайте
                   холст для перемещения.

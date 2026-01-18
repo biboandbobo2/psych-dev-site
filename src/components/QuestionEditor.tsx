@@ -6,11 +6,13 @@ import {
 import type { RevealPolicy, TestQuestion, TestResource } from '../types/tests';
 import { MAX_REVEAL_ATTEMPTS } from '../types/tests';
 import { QuestionPreview } from './QuestionPreview';
+import { Emoji } from './Emoji';
 import { QuestionTextEditor } from './questions/editor/QuestionTextEditor';
 import { QuestionMediaUploader } from './questions/editor/QuestionMediaUploader';
 import { QuestionAnswersManager } from './questions/editor/QuestionAnswersManager';
 import { QuestionRevealPolicyEditor } from './questions/editor/QuestionRevealPolicyEditor';
 import { QuestionFeedbackEditor } from './questions/editor/QuestionFeedbackEditor';
+import { debugError } from '../lib/debug';
 
 type CopyState = 'idle' | 'success' | 'error';
 
@@ -229,7 +231,7 @@ export function QuestionEditor({
 
       setCopyState('success');
     } catch (error) {
-      console.error('Не удалось скопировать вопрос в буфер обмена:', error);
+      debugError('Не удалось скопировать вопрос в буфер обмена:', error);
       setCopyState('error');
     }
   };
@@ -280,7 +282,13 @@ export function QuestionEditor({
                 : 'border border-gray-300 text-gray-600 hover:border-purple-300 hover:text-purple-600'
             }`}
           >
-            {viewMode === 'preview' ? '← Редактор' : '👁️ Предпросмотр'}
+            {viewMode === 'preview' ? (
+              '← Редактор'
+            ) : (
+              <>
+                <Emoji token="👁️" size={14} /> Предпросмотр
+              </>
+            )}
           </button>
           <button
             type="button"

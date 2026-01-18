@@ -2,6 +2,7 @@ import { Helmet } from 'react-helmet-async';
 import { motion as Motion } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
 import { pageTransition } from '../theme/motion';
+import { Emoji, EmojiText } from '../components/Emoji';
 import { SITE_NAME } from '../routes';
 import { cn } from '../lib/cn';
 import { useHomePageContent } from '../hooks/useHomePageContent';
@@ -238,7 +239,9 @@ export function HomePage() {
         </div>
         {guestSpeakers && (
           <div className="bg-[#FAFAFA] rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-[#2C3E50] mb-3">👥 Приглашённые спикеры</h3>
+            <h3 className="text-lg font-semibold text-[#2C3E50] mb-3">
+              <EmojiText text="👥 Приглашённые спикеры" />
+            </h3>
             <p className="text-sm leading-relaxed text-[#7F8C8D]">{guestSpeakers}</p>
           </div>
         )}
@@ -290,18 +293,20 @@ export function HomePage() {
           <div className="text-sm text-[#7F8C8D] space-y-1 max-w-md mx-auto">
             <p className="font-semibold text-[#2C3E50]">Контакты организаторов:</p>
             <p>
-              📞{' '}
+              <Emoji token="📞" size={16} />{' '}
               <a href={`tel:${contacts.phone.replace(/\s/g, '')}`} className="text-[#4A5FA5] hover:underline">
                 {contacts.phone}
               </a>
             </p>
             <p>
-              📧{' '}
+              <Emoji token="📧" size={16} />{' '}
               <a href={`mailto:${contacts.email}`} className="text-[#4A5FA5] hover:underline">
                 {contacts.email}
               </a>
             </p>
-            <p>💬 Telegram: {contacts.telegram}</p>
+            <p>
+              <Emoji token="💬" size={16} /> Telegram: {contacts.telegram}
+            </p>
           </div>
         )}
       </section>

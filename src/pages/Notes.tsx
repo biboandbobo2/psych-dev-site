@@ -7,6 +7,7 @@ import { NotesList } from './notes/components/NotesList';
 import { NotesEmpty } from './notes/components/NotesEmpty';
 import { NotesEditor } from './notes/components/NotesEditor';
 import { debugError } from '../lib/debug';
+import { EmojiText } from '../components/Emoji';
 
 const SORT_STORAGE_KEY = 'notesSortPreference';
 
@@ -117,7 +118,9 @@ export default function Notes() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-2xl rounded-2xl border border-red-200 bg-red-50 p-6">
-          <h2 className="mb-2 text-xl font-semibold text-red-900">❌ Ошибка загрузки заметок</h2>
+          <h2 className="mb-2 text-xl font-semibold text-red-900">
+            <EmojiText text="❌ Ошибка загрузки заметок" />
+          </h2>
           <p className="mb-4 text-red-700">{error}</p>
           <button
             onClick={() => window.location.reload()}

@@ -4,6 +4,7 @@ import { useHomePageContent } from '../hooks/useHomePageContent';
 import { Button } from '../components/ui/Button';
 import { debugLog, debugError } from '../lib/debug';
 import type { HomePageContent } from '../types/homePage';
+import { EmojiText } from '../components/Emoji';
 
 export default function AdminHomePage() {
   const navigate = useNavigate();
@@ -115,7 +116,9 @@ export default function AdminHomePage() {
       {/* Status Messages */}
       {saveSuccess && (
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-green-800 font-medium">✓ Изменения успешно сохранены!</p>
+          <p className="text-green-800 font-medium">
+            <EmojiText text="✓ Изменения успешно сохранены!" />
+          </p>
         </div>
       )}
 
@@ -167,7 +170,9 @@ export default function AdminHomePage() {
 
       {/* Info */}
       <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="text-blue-900 font-semibold mb-2">ℹ️ Информация</h4>
+        <h4 className="text-blue-900 font-semibold mb-2">
+          <EmojiText text="ℹ️ Информация" />
+        </h4>
         <ul className="text-blue-800 text-sm space-y-1">
           <li>• Секции отображаются в порядке, заданном полем <code className="px-1 bg-blue-100 rounded">order</code></li>
           <li>• Поле <code className="px-1 bg-blue-100 rounded">enabled: false</code> скрывает секцию</li>

@@ -13,6 +13,7 @@ import { TestIntroScreen } from '../components/tests/TestIntroScreen';
 import { TestQuestionScreen } from '../components/tests/TestQuestionScreen';
 import { TestResultsScreen } from '../components/tests/TestResultsScreen';
 import { debugError } from '../lib/debug';
+import { Emoji } from '../components/Emoji';
 
 export default function DynamicTest() {
   const { testId } = useParams<{ testId: string }>();
@@ -168,7 +169,9 @@ export default function DynamicTest() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 px-4 py-12">
         <div className="mx-auto max-w-3xl">
           <div className="rounded-2xl border-2 border-red-200 bg-white p-8 text-center shadow-lg">
-            <div className="mb-4 text-6xl">❌</div>
+            <div className="mb-4">
+              <Emoji token="❌" size={48} />
+            </div>
             <h1 className="mb-2 text-2xl font-bold text-gray-900">{error}</h1>
             <Link
               to="/tests"

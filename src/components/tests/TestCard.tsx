@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import type { Test } from '../../types/tests';
 import { mergeAppearance, createGradient } from '../../utils/testAppearance';
 import { formatLevelLabel, type TestChain } from '../../utils/testChainHelpers';
+import { Emoji, EmojiText } from '../Emoji';
 
 interface TestCardProps {
   chain: TestChain;
@@ -50,7 +51,7 @@ export function TestCard({ chain, testUnlockStatus, className = '' }: TestCardPr
           className="flex h-14 w-14 items-center justify-center rounded-xl text-2xl text-white shadow"
           style={iconGradientStyle}
         >
-          {appearance.introIcon || '📖'}
+          <Emoji token={appearance.introIcon || '📖'} size={28} />
         </div>
 
         <div className="flex-1 flex flex-col gap-2">
@@ -58,7 +59,7 @@ export function TestCard({ chain, testUnlockStatus, className = '' }: TestCardPr
           {showBadge && (
             <div className="flex items-center gap-2 text-xs font-semibold text-white">
               <span className="inline-flex items-center gap-1 rounded-full px-3 py-1" style={badgeGradientStyle}>
-                {appearance.badgeIcon && <span>{appearance.badgeIcon}</span>}
+                {appearance.badgeIcon && <EmojiText text={appearance.badgeIcon} />}
                 <span>{badgeLabel}</span>
               </span>
             </div>
@@ -88,12 +89,12 @@ export function TestCard({ chain, testUnlockStatus, className = '' }: TestCardPr
           {/* Метаданные */}
           <div className="mt-auto flex flex-wrap items-center gap-4 text-xs font-medium text-gray-500">
             <span className="flex items-center gap-1">
-              <span>📋</span>
+              <Emoji token="📋" size={14} />
               <span>{root.questionCount} вопросов</span>
             </span>
             {levels.length > 0 && (
               <span className="flex items-center gap-1">
-                <span>🔥</span>
+                <Emoji token="🔥" size={14} />
                 <span>{levels.length} уровня</span>
               </span>
             )}
@@ -127,7 +128,7 @@ export function TestCard({ chain, testUnlockStatus, className = '' }: TestCardPr
                 className="flex items-center justify-between rounded-lg border-2 border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-gray-400"
               >
                 <span>{label}</span>
-                <span className="text-xs text-gray-400">🔒</span>
+                <Emoji token="🔒" size={12} />
               </div>
             );
           })}

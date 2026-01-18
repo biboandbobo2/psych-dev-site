@@ -1,6 +1,7 @@
 import type { RevealPolicy } from '../../../types/tests';
 import { Field } from '../../Field';
 import { MAX_REVEAL_ATTEMPTS } from '../../../types/tests';
+import { EmojiText } from '../../Emoji';
 
 interface TestPolicyEditorProps {
   defaultRevealPolicy: RevealPolicy;
@@ -108,7 +109,7 @@ export function TestPolicyEditor({
 
       {/* Дополнительная информация */}
       <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
-        💡 <strong>Совет:</strong> Для обучающих тестов рекомендуется режим "Сразу после ответа",
+        <EmojiText text="💡 Совет:" /> Для обучающих тестов рекомендуется режим "Сразу после ответа",
         для экзаменационных - "После завершения теста".
       </div>
     </div>

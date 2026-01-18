@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { type AgeRange, AGE_RANGE_OPTIONS, AGE_RANGE_LABELS } from '../types/notes';
 import { useTopics } from '../hooks/useTopics';
+import { EmojiText } from './Emoji';
 
 interface TopicSelectorProps {
   selectedAgeRange: AgeRange | null;
@@ -34,6 +35,13 @@ export function TopicSelector({
   const selectedTopic = selectedTopicId
     ? topics.find((topic) => topic.id === selectedTopicId)
     : null;
+  const buttonLabel = topicsLoading
+    ? '⏳ Загрузка тем...'
+    : selectedTopicId
+      ? '✅ Тема выбрана (изменить)'
+      : topics.length > 0
+        ? `💡 Выбрать тему для размышлений (${topics.length})`
+        : '💡 Выбрать тему для размышлений';
 
   return (
     <div className="space-y-4">
@@ -62,15 +70,7 @@ export function TopicSelector({
             disabled={topicsLoading}
             className="flex w-full items-center justify-between rounded-md bg-green-100 px-4 py-2 text-green-800 transition hover:bg-green-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span>
-              {topicsLoading
-                ? '⏳ Загрузка тем...'
-                : selectedTopicId
-                ? '✅ Тема выбрана (изменить)'
-                : topics.length > 0
-                ? `💡 Выбрать тему для размышлений (${topics.length})`
-                : '💡 Выбрать тему для размышлений'}
-            </span>
+            <EmojiText text={buttonLabel} />
             <span>{showTopics ? '▲' : '▼'}</span>
           </button>
 
@@ -84,7 +84,9 @@ export function TopicSelector({
               ) : (
                 <>
                   <div className="border-b bg-blue-50 p-4">
-                    <p className="font-medium text-blue-900">📚 Вопросы для размышлений о себе</p>
+                    <p className="font-medium text-blue-900">
+                      <EmojiText text="📚 Вопросы для размышлений о себе" />
+                    </p>
                     <p className="mt-1 text-xs text-blue-700">
                       Выберите вопрос, который вас интересует ({topics.length} доступно)
                     </p>
@@ -111,7 +113,9 @@ export function TopicSelector({
 
       {selectedTopic && (
         <div className="rounded-md border border-green-200 bg-green-50 p-4">
-          <p className="mb-1 text-sm font-medium text-green-900">💡 Выбранная тема:</p>
+          <p className="mb-1 text-sm font-medium text-green-900">
+            <EmojiText text="💡 Выбранная тема:" />
+          </p>
           <p className="text-sm text-green-800">{selectedTopic.text}</p>
         </div>
       )}

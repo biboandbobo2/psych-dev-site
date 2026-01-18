@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { LINE_X_POSITION } from '../pages/timeline/constants';
 import type { NodeT } from '../pages/timeline/types';
 import { debugLog, debugError } from '../lib/debug';
+import { Emoji } from './Emoji';
 
 interface SaveNoteAsEventButtonProps {
   noteTitle: string;
@@ -81,7 +82,7 @@ export function SaveNoteAsEventButton({
         className="rounded-md border border-blue-300 px-4 py-2 text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
         title="Сохранить заметку как событие на таймлайне"
       >
-        📍 На таймлайн
+        <Emoji token="📍" size={16} /> На таймлайн
       </button>
 
       {/* Модальное окно */}
@@ -108,7 +109,7 @@ export function SaveNoteAsEventButton({
                   onClick={() => setShowModal(false)}
                   className="p-2 rounded-xl hover:bg-slate-100 transition text-slate-500 hover:text-slate-900"
                 >
-                  ✕
+                  <Emoji token="✕" size={16} />
                 </button>
               )}
             </div>
@@ -172,7 +173,11 @@ export function SaveNoteAsEventButton({
                 className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ fontFamily: 'Georgia, serif' }}
               >
-                {saving ? 'Создание...' : '✓ Создать событие'}
+                {saving ? 'Создание...' : (
+                  <>
+                    <Emoji token="✓" size={14} /> Создать событие
+                  </>
+                )}
               </button>
               <button
                 onClick={() => setShowModal(false)}

@@ -9,6 +9,7 @@ import { useSearchHistory } from '../../../hooks';
 import { useContentSearchStore } from '../../../stores';
 import { getPublishedTests } from '../../../lib/tests';
 import type { Test } from '../../../types/tests';
+import { Emoji } from '../../../components/Emoji';
 
 interface ContentSearchDrawerProps {
   open: boolean;
@@ -197,7 +198,7 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
             className="rounded-full p-2 text-muted hover:text-fg hover:bg-card transition"
             aria-label="Закрыть поиск"
           >
-            ✕
+            <Emoji token="✕" size={16} />
           </button>
         </header>
 

@@ -1,3 +1,4 @@
+import { EmojiText } from '../../../../components/Emoji';
 import type { VideoPlaylistEditorProps, VideoFormEntry } from '../types';
 import { SELECTABLE_TEXT_STYLE } from '../utils/constants';
 import { createEmptyVideoEntry, normalizeEmbedUrl } from '../utils/videoHelpers';
@@ -65,7 +66,7 @@ export function VideoPlaylistEditor({ items, onChange, defaultTitle }: VideoPlay
                     className="text-sm text-red-600 hover:text-red-700"
                     title="Удалить видео"
                   >
-                    🗑️ Удалить
+                    <EmojiText text="🗑️ Удалить" />
                   </button>
                 </div>
 

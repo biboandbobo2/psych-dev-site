@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useResearchSearch } from '../hooks/useResearchSearch';
 import { ResearchResultsList } from './ResearchResultsList';
 import { useSearchHistory } from '../../../hooks';
+import { Emoji } from '../../../components/Emoji';
 
 // Drawer uses only ru+en for simplicity
 // Full language selection is available on the dedicated research page
@@ -100,7 +101,7 @@ export function ResearchSearchDrawer({ open, onClose }: ResearchSearchDrawerProp
             className="rounded-full p-2 text-muted hover:text-fg hover:bg-card transition"
             aria-label="Закрыть поиск"
           >
-            ✕
+            <Emoji token="✕" size={16} />
           </button>
         </header>
 

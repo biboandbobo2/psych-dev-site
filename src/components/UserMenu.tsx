@@ -6,6 +6,7 @@ import { auth } from "../lib/firebase";
 import { useAuthStore, useContentSearchStore } from "../stores";
 import { CombinedSearchDrawer } from "./CombinedSearchDrawer";
 import { AiAssistantDrawer } from "../features/researchSearch/components/AiAssistantDrawer";
+import { Emoji } from "./Emoji";
 
 interface UserMenuProps {
   user: User;
@@ -45,7 +46,7 @@ export default function UserMenu({ user }: UserMenuProps) {
           aria-label="Поиск"
           data-testid="user-menu-search-button"
         >
-          <span aria-hidden className="text-base">🔎</span>
+          <Emoji token="🔎" size={16} />
           <span className="sr-only">Поиск</span>
         </button>
         {!isProfilePage && (
@@ -69,7 +70,7 @@ export default function UserMenu({ user }: UserMenuProps) {
           className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
           aria-label="Меню пользователя"
         >
-          <span aria-hidden className="text-base">☰</span>
+          <Emoji token="☰" size={16} />
           <span>Меню</span>
         </button>
       </div>
@@ -79,7 +80,7 @@ export default function UserMenu({ user }: UserMenuProps) {
           to="/notes"
           className="inline-flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-800 transition hover:bg-blue-200"
         >
-          <span aria-hidden className="text-base">📝</span>
+          <Emoji token="📝" size={16} />
           <span>Заметки</span>
         </Link>
 
@@ -90,7 +91,7 @@ export default function UserMenu({ user }: UserMenuProps) {
           aria-label="Поиск"
           data-testid="user-menu-search-button"
         >
-          <span aria-hidden className="text-base">🔎</span>
+          <Emoji token="🔎" size={16} />
           <span>Поиск</span>
         </button>
 
@@ -100,7 +101,7 @@ export default function UserMenu({ user }: UserMenuProps) {
           className="inline-flex items-center gap-2 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-200"
           aria-label="AI помощник"
         >
-          <span aria-hidden className="text-base">🤖</span>
+          <Emoji token="🤖" size={16} />
           <span>AI</span>
         </button>
 
@@ -109,7 +110,7 @@ export default function UserMenu({ user }: UserMenuProps) {
             to={adminContentLink}
             className="inline-flex items-center gap-2 rounded-lg bg-teal-100 px-3 py-2 text-sm font-medium text-teal-800 transition hover:bg-teal-200"
           >
-            <span aria-hidden className="text-base">✏️</span>
+            <Emoji token="✏️" size={16} />
             <span>Редактор</span>
           </Link>
         )}
@@ -119,7 +120,7 @@ export default function UserMenu({ user }: UserMenuProps) {
             to="/admin"
             className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-accent-600"
           >
-            <span aria-hidden className="text-base">⚙️</span>
+            <Emoji token="⚙️" size={16} />
             <span>Админ-панель</span>
           </Link>
         )}
@@ -172,7 +173,7 @@ export default function UserMenu({ user }: UserMenuProps) {
                 className="rounded-full p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
                 aria-label="Закрыть"
               >
-                ✕
+                <Emoji token="✕" size={16} />
               </button>
             </div>
 
@@ -182,7 +183,7 @@ export default function UserMenu({ user }: UserMenuProps) {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800"
               >
-                <span aria-hidden>📝</span>
+                <Emoji token="📝" size={16} />
                 Заметки
               </Link>
               <button
@@ -193,7 +194,7 @@ export default function UserMenu({ user }: UserMenuProps) {
                 }}
                 className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800"
               >
-                <span aria-hidden>🔎</span>
+                <Emoji token="🔎" size={16} />
                 Поиск
               </button>
               <button
@@ -204,7 +205,7 @@ export default function UserMenu({ user }: UserMenuProps) {
                 }}
                 className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800"
               >
-                <span aria-hidden>🤖</span>
+                <Emoji token="🤖" size={16} />
                 AI помощник
               </button>
               {isAdmin && (
@@ -213,7 +214,7 @@ export default function UserMenu({ user }: UserMenuProps) {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800"
                 >
-                  <span aria-hidden>✏️</span>
+                  <Emoji token="✏️" size={16} />
                   Редактор
                 </Link>
               )}
@@ -223,7 +224,7 @@ export default function UserMenu({ user }: UserMenuProps) {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800"
                 >
-                  <span aria-hidden>⚙️</span>
+                  <Emoji token="⚙️" size={16} />
                   Админ-панель
                 </Link>
               )}
@@ -232,7 +233,7 @@ export default function UserMenu({ user }: UserMenuProps) {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800"
               >
-                <span aria-hidden>👤</span>
+                <Emoji token="👤" size={16} />
                 Профиль
               </Link>
               <button
@@ -243,7 +244,7 @@ export default function UserMenu({ user }: UserMenuProps) {
                 }}
                 className="flex items-center gap-2 rounded-lg border border-red-100 px-3 py-2 text-sm font-medium text-red-600"
               >
-                <span aria-hidden>🚪</span>
+                <Emoji token="🚪" size={16} />
                 Выйти
               </button>
             </div>

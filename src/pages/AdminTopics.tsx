@@ -4,6 +4,8 @@ import { useTopics } from '../hooks/useTopics';
 import { useAuth } from '../auth/AuthProvider';
 import { AGE_RANGE_OPTIONS, AGE_RANGE_LABELS, type AgeRange, type TopicInput } from '../types/notes';
 import { parseTopicsText, previewTopics } from '../utils/topicParser';
+import { EmojiText } from '../components/Emoji';
+import { debugError } from '../lib/debug';
 
 export default function AdminTopics() {
   const { user, isAdmin } = useAuth();
@@ -55,7 +57,7 @@ export default function AdminTopics() {
       setBulkText('');
       setShowPreview(false);
     } catch (error) {
-      console.error(error);
+      debugError('Ошибка при добавлении тем:', error);
       alert('Ошибка при добавлении тем');
     } finally {
       setSaving(false);
@@ -67,7 +69,7 @@ export default function AdminTopics() {
     try {
       await deleteTopic(topicId);
     } catch (error) {
-      console.error(error);
+      debugError('Ошибка при удалении темы:', error);
       alert('Ошибка при удалении темы');
     }
   };
@@ -91,7 +93,9 @@ export default function AdminTopics() {
           <span className="font-medium text-gray-900">Темы для заметок</span>
         </nav>
 
-        <h1 className="text-3xl font-bold">📚 Управление темами для размышлений</h1>
+        <h1 className="text-3xl font-bold">
+          <EmojiText text="📚 Управление темами для размышлений" />
+        </h1>
 
         <section className="rounded-lg bg-white p-6 shadow">
           <label className="mb-2 block text-sm font-medium text-gray-700">Возрастной период</label>
@@ -125,7 +129,7 @@ export default function AdminTopics() {
                     onClick={() => handleDelete(topic.id)}
                     className="flex-shrink-0 rounded bg-red-100 px-2 py-1 text-xs text-red-700 transition hover:bg-red-200"
                   >
-                    🗑️ Удалить
+                    <EmojiText text="🗑️ Удалить" />
                   </button>
                 </div>
               ))}
@@ -135,7 +139,9 @@ export default function AdminTopics() {
 
         <section className="rounded-lg bg-white p-6 shadow space-y-4">
           <div>
-            <h2 className="mb-2 text-xl font-bold">➕ Добавить новые темы</h2>
+            <h2 className="mb-2 text-xl font-bold">
+              <EmojiText text="➕ Добавить новые темы" />
+            </h2>
             <p className="text-sm text-gray-600">
               Вставьте вопросы, каждый на новой строке. Нумерация (1., 2) будет удалена автоматически.
             </p>
@@ -159,11 +165,15 @@ export default function AdminTopics() {
 
           {preview && preview.count > 0 && (
             <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-              <p className="mb-2 font-medium text-green-900">📝 Будет добавлено тем: {preview.count}</p>
+              <p className="mb-2 font-medium text-green-900">
+                <EmojiText text={`📝 Будет добавлено тем: ${preview.count}`} />
+              </p>
 
               {preview.warnings.length > 0 && (
                 <div className="mb-3 rounded border border-yellow-200 bg-yellow-50 p-3">
-                  <p className="mb-1 text-sm font-medium text-yellow-900">⚠️ Предупреждения:</p>
+                  <p className="mb-1 text-sm font-medium text-yellow-900">
+                    <EmojiText text="⚠️ Предупреждения:" />
+                  </p>
                   <ul className="space-y-1 text-xs text-yellow-800">
                     {preview.warnings.map((warning, index) => (
                       <li key={index}>{warning}</li>
@@ -191,7 +201,9 @@ export default function AdminTopics() {
               disabled={saving || !bulkText.trim()}
               className="rounded-md bg-blue-600 px-6 py-2 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
             >
-              {saving ? 'Добавление...' : `➕ Добавить темы ${preview ? `(${preview.count})` : ''}`}
+              {saving ? 'Добавление...' : (
+                <EmojiText text={`➕ Добавить темы ${preview ? `(${preview.count})` : ''}`} />
+              )}
             </button>
             {bulkText && (
               <button

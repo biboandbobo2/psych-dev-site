@@ -7,6 +7,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { auth } from "../lib/firebase";
 import { debugError, debugLog, debugWarn } from "../lib/debug";
 import UploadAsset, { diagnoseToken } from "./UploadAsset";
+import { EmojiText } from "../components/Emoji";
 
 type AssistantStats = {
   ok: boolean;
@@ -77,7 +78,7 @@ export default function Admin() {
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded"
           >
-            🔍 Check Token
+            <EmojiText text="🔍 Check Token" />
           </button>
           <button
             onClick={async () => {
@@ -107,7 +108,7 @@ export default function Admin() {
             }}
             className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
           >
-            🔄 Set Admin Role
+            <EmojiText text="🔄 Set Admin Role" />
           </button>
           <button
             onClick={logout}
@@ -128,7 +129,7 @@ export default function Admin() {
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            📊 Dashboard
+            <EmojiText text="📊 Dashboard" />
           </Link>
 
           <Link
@@ -139,7 +140,7 @@ export default function Admin() {
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            👥 Users
+            <EmojiText text="👥 Users" />
           </Link>
 
           <Link
@@ -150,7 +151,7 @@ export default function Admin() {
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            📝 Content
+            <EmojiText text="📝 Content" />
           </Link>
 
           <Link
@@ -161,7 +162,7 @@ export default function Admin() {
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            📚 Books
+            <EmojiText text="📚 Books" />
           </Link>
 
         </nav>

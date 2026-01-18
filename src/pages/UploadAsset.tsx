@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, storage } from "../lib/firebase";
 import { debugError, debugLog } from "../lib/debug";
+import { EmojiText } from "../components/Emoji";
 
 const acceptsAdminRole = (role?: string) => role === "admin" || role === "super-admin";
 
@@ -140,7 +141,7 @@ export default function UploadAsset() {
         }}
         className="px-4 py-2 bg-blue-600 text-white rounded"
       >
-        🔍 Check Token
+        <EmojiText text="🔍 Check Token" />
       </button>
       <button
         type="button"

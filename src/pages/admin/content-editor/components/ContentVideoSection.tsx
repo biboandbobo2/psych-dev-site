@@ -1,3 +1,4 @@
+import { EmojiText } from '../../../../components/Emoji';
 import type { VideoFormEntry } from '../types';
 import { VideoPlaylistEditor } from './VideoPlaylistEditor';
 
@@ -13,7 +14,9 @@ interface ContentVideoSectionProps {
 export function ContentVideoSection({ videos, setVideos, defaultTitle }: ContentVideoSectionProps) {
   return (
     <div className="bg-white rounded-lg shadow p-6 space-y-4">
-      <h2 className="text-xl font-bold">🎥 Видео-лекция</h2>
+      <h2 className="text-xl font-bold">
+        <EmojiText text="🎥 Видео-лекция" />
+      </h2>
       <VideoPlaylistEditor items={videos} onChange={setVideos} defaultTitle={defaultTitle} />
     </div>
   );

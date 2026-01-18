@@ -19,7 +19,7 @@ describe('SaveNoteAsEventButton', () => {
       <SaveNoteAsEventButton noteTitle="Sample" noteContent="" onEventCreate={vi.fn()} />
     );
 
-    fireEvent.click(screen.getByText('📍 На таймлайн'));
+    fireEvent.click(screen.getByRole('button', { name: /на таймлайн/i }));
 
     expect(screen.getByText('Добавить на таймлайн?')).toBeInTheDocument();
   });
@@ -37,7 +37,7 @@ describe('SaveNoteAsEventButton', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('📍 На таймлайн'));
+    fireEvent.click(screen.getByRole('button', { name: /на таймлайн/i }));
 
     fireEvent.change(screen.getByLabelText(/Возраст события/i), { target: { value: '25' } });
     fireEvent.change(screen.getByLabelText(/Название события/i), { target: { value: '  Чекпоинт  ' } });

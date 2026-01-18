@@ -1,3 +1,4 @@
+import { EmojiText } from '../../../components/Emoji';
 import type { Periodization, Period } from '../types';
 
 interface PeriodBoundaryModalProps {
@@ -108,7 +109,7 @@ export function PeriodBoundaryModal({
         {periodization.flexibleBoundaries && periodization.boundaryNote && (
           <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
             <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-amber-700">
-              ⚠️ О границах
+              <EmojiText text="⚠️ О границах" />
             </div>
             <div className="text-sm text-amber-900">{periodization.boundaryNote}</div>
           </div>
@@ -123,7 +124,7 @@ export function PeriodBoundaryModal({
               rel="noopener noreferrer"
               className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              {linkLabel}
+              <EmojiText text={linkLabel} />
             </a>
           )}
           <button

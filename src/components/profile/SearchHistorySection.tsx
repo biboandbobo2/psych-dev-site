@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useSearchHistory, type SearchHistoryType, type SearchHistoryEntry } from '../../hooks';
 import { useContentSearchStore } from '../../stores';
+import { Emoji } from '../Emoji';
 
 // Конфигурация типов истории
 const HISTORY_TYPES: Array<{
@@ -71,9 +72,7 @@ export function SearchHistorySection() {
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                <span role="img" aria-hidden="true">
-                  {icon}
-                </span>
+                <Emoji token={icon} size={16} />
                 <span>{label}</span>
                 <span
                   className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
@@ -91,9 +90,7 @@ export function SearchHistorySection() {
       {/* Заголовок для единственного типа */}
       {typesWithData.length === 1 && currentConfig && (
         <div className="flex items-center gap-2 mb-4 text-gray-600">
-          <span role="img" aria-hidden="true">
-            {currentConfig.icon}
-          </span>
+          <Emoji token={currentConfig.icon} size={16} />
           <span className="font-medium">{currentConfig.label}</span>
           <span className="text-sm opacity-70">({totalForType})</span>
         </div>
@@ -145,9 +142,7 @@ export function SearchHistorySection() {
       {/* Заголовок с кнопкой очистки */}
       <div className="mb-4 hidden items-center justify-between sm:flex">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <span role="img" aria-hidden="true">
-            🔍
-          </span>
+          <Emoji token="🔍" size={18} />
           История поисков
         </h2>
         {hasHistory && (
@@ -183,7 +178,7 @@ export function SearchHistorySection() {
       <details className="group sm:hidden" open={isMobileOpen} onToggle={(e) => setIsMobileOpen(e.currentTarget.open)}>
         <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 [&::-webkit-details-marker]:hidden">
           <span className="flex items-center gap-2">
-            <span role="img" aria-hidden="true">🔍</span>
+            <Emoji token="🔍" size={16} />
             История поисков
           </span>
           <svg

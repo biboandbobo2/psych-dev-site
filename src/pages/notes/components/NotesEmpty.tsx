@@ -1,3 +1,5 @@
+import { Emoji } from '../../../components/Emoji';
+
 interface NotesEmptyProps {
   hasQuery: boolean;
   query: string;
@@ -8,7 +10,9 @@ interface NotesEmptyProps {
 export function NotesEmpty({ hasQuery, query, onResetSearch, onCreate }: NotesEmptyProps) {
   return (
     <div className="rounded-lg border-2 border-dashed border-border/80 bg-card2 px-6 py-16 text-center">
-      <div className="mb-4 text-6xl opacity-60">{hasQuery ? '🔍' : '📝'}</div>
+      <div className="mb-4 text-6xl opacity-60">
+        <Emoji token={hasQuery ? '🔍' : '📝'} size={64} />
+      </div>
       <h3 className="mb-2 text-2xl font-semibold text-fg">
         {hasQuery ? 'Ничего не найдено' : 'Пока нет заметок'}
       </h3>

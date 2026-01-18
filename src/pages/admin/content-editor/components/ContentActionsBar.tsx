@@ -1,3 +1,4 @@
+import { EmojiText } from '../../../../components/Emoji';
 import { Link } from 'react-router-dom';
 
 interface ContentActionsBarProps {
@@ -28,7 +29,7 @@ export function ContentActionsBar({ periodId, saving, title, onSave, onDelete }:
               disabled={saving}
               className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
-              🗑️ Удалить период
+              <EmojiText text="🗑️ Удалить период" />
             </button>
           )}
         </div>
@@ -38,14 +39,15 @@ export function ContentActionsBar({ periodId, saving, title, onSave, onDelete }:
           disabled={saving || !title.trim()}
           className="px-8 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
         >
-          {saving ? '💾 Сохранение...' : '💾 Сохранить изменения'}
+          {saving ? <EmojiText text="💾 Сохранение..." /> : <EmojiText text="💾 Сохранить изменения" />}
         </button>
       </div>
 
       {periodId === 'intro' && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <p className="text-sm text-yellow-800">
-            ℹ️ <strong>Вводное занятие</strong> нельзя удалить, только редактировать.
+            <EmojiText text="ℹ️ " />
+            <strong>Вводное занятие</strong> нельзя удалить, только редактировать.
           </p>
         </div>
       )}

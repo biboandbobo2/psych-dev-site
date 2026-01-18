@@ -1,3 +1,4 @@
+import { EmojiText } from '../../../../components/Emoji';
 import { SELECTABLE_TEXT_STYLE } from '../utils/constants';
 
 interface ContentMetadataFormProps {
@@ -34,7 +35,9 @@ export function ContentMetadataForm({
 }: ContentMetadataFormProps) {
   return (
     <div className="bg-white rounded-lg shadow p-6 space-y-4">
-      <h2 className="text-xl font-bold">📋 Основная информация</h2>
+      <h2 className="text-xl font-bold">
+        <EmojiText text="📋 Основная информация" />
+      </h2>
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Название *</label>

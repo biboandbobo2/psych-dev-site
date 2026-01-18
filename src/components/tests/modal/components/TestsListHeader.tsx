@@ -1,3 +1,5 @@
+import { Emoji } from '../../Emoji';
+
 interface TestsListHeaderProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
   onCreateNew: () => void;
@@ -30,7 +32,7 @@ export function TestsListHeader({
             onClick={onCreateNew}
             className="flex flex-1 items-center gap-3 px-6 py-4 text-left transition hover:bg-blue-100"
           >
-            <span className="text-3xl">➕</span>
+            <Emoji token="➕" size={24} />
             <div>
               <h3 className="text-lg font-bold text-blue-700">
                 Создать новый тест
@@ -47,14 +49,14 @@ export function TestsListHeader({
               className="flex-1 px-4 py-2 text-blue-700 transition hover:bg-blue-100"
               title="Импортировать тест из JSON"
             >
-              <span className="text-xl">📥</span>
+              <Emoji token="📥" size={18} />
             </button>
             <button
               onClick={onDownloadTemplate}
               className="flex-1 border-t-2 border-blue-300 px-4 py-2 text-blue-700 transition hover:bg-blue-100"
               title="Скачать шаблон JSON теста"
             >
-              <span className="text-xl">📄</span>
+              <Emoji token="📄" size={18} />
             </button>
           </div>
         </div>

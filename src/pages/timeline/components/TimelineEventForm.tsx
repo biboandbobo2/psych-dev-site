@@ -1,6 +1,7 @@
 import { IconPickerButton } from './IconPickerButton';
 import { SaveEventAsNoteButton } from './SaveEventAsNoteButton';
 import { SPHERE_META } from '../constants';
+import { Emoji, EmojiText } from '../../../components/Emoji';
 import type { EventIconId, Sphere } from '../types';
 import type { ChangeEvent, FormEvent } from 'react';
 
@@ -196,8 +197,9 @@ export function TimelineEventForm({
             onClick={onDeleteEvent}
             className="px-4 py-2.5 bg-red-200 hover:bg-red-300 text-red-800 rounded-xl transition font-medium text-sm"
             style={{ fontFamily: 'Georgia, serif' }}
+            aria-label="Удалить событие"
           >
-            🗑️
+            <Emoji token="🗑️" size={16} />
           </button>
         )}
       </form>
@@ -209,7 +211,7 @@ export function TimelineEventForm({
           className="w-full mt-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 text-blue-700 rounded-xl hover:from-blue-100 hover:to-cyan-100 transition font-medium text-xs"
           style={{ fontFamily: 'Georgia, serif' }}
         >
-          📝 Создать много событий
+          <EmojiText text="📝 Создать много событий" />
         </button>
       )}
     </div>

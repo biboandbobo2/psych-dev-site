@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { makeUserAdmin } from "../lib/adminFunctions";
+import { Emoji } from "./Emoji";
 
 interface AddAdminModalProps {
   isOpen: boolean;
@@ -44,7 +45,7 @@ export function AddAdminModal({ isOpen, onClose, onSuccess }: AddAdminModalProps
             disabled={loading}
             aria-label="Закрыть"
           >
-            ✕
+            <Emoji token="✕" size={16} />
           </button>
         </div>
 

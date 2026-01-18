@@ -3,6 +3,7 @@ import type { DerivedTheme, Gradient, ThemeOverrides, ThemePreset } from '../../
 import { gradientToCss, cloneGradient } from '../../utils/theme';
 import { hexRegex, gradientsEqual, sanitizeHex, clampValue } from './themePickerUtils';
 import { GradientEditor } from './GradientEditor';
+import { EmojiText } from '../Emoji';
 
 interface ThemePickerProps {
   presets: ThemePreset[];
@@ -160,7 +161,7 @@ const ThemePreview = ({ theme, buttonTextColor, contrastWarning }: ThemePreviewP
       </div>
       {contrastWarning && (
         <div className="absolute inset-x-0 bottom-0 bg-white/90 p-3 text-xs text-amber-700">
-          ⚠️ {contrastWarning}
+          <EmojiText text={`⚠️ ${contrastWarning}`} />
         </div>
       )}
     </div>

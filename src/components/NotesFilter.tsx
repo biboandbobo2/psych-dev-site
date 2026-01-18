@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { type SortOption } from '../utils/sortNotes';
+import { Emoji } from './Emoji';
 
 interface NotesFilterProps {
   currentSort: SortOption;
@@ -7,9 +8,9 @@ interface NotesFilterProps {
 }
 
 const SORT_OPTIONS: Array<{ value: SortOption; label: string; icon: string }> = [
-  { value: 'date-new', label: '📅 Сначала новые', icon: '🔽' },
-  { value: 'date-old', label: '📅 Сначала старые', icon: '🔼' },
-  { value: 'period', label: '👶 По возрастным периодам', icon: '📊' },
+  { value: 'date-new', label: 'Сначала новые', icon: '🔽' },
+  { value: 'date-old', label: 'Сначала старые', icon: '🔼' },
+  { value: 'period', label: 'По возрастным периодам', icon: '📊' },
 ];
 
 export function NotesFilter({ currentSort, onSortChange }: NotesFilterProps) {
@@ -27,7 +28,7 @@ export function NotesFilter({ currentSort, onSortChange }: NotesFilterProps) {
         onClick={() => setIsOpen((prev) => !prev)}
         className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-fg shadow-sm transition hover:bg-card"
       >
-        <span>{currentOption.icon}</span>
+        <Emoji token={currentOption.icon} size={16} />
         <span>{currentOption.label}</span>
         <span className="text-muted">{isOpen ? '▲' : '▼'}</span>
       </button>
@@ -50,9 +51,9 @@ export function NotesFilter({ currentSort, onSortChange }: NotesFilterProps) {
                         : 'text-muted hover:bg-card2 hover:text-fg'
                     }`}
                   >
-                    <span className="text-base">{option.icon}</span>
+                    <Emoji token={option.icon} size={16} />
                     <span className="flex-1">{option.label}</span>
-                    {currentSort === option.value ? <span className="text-accent">✓</span> : null}
+                    {currentSort === option.value ? <Emoji token="✓" size={14} /> : null}
                   </button>
                 ))}
               </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { AiAssistantBlock } from './AiAssistantBlock';
+import { Emoji } from '../../../components/Emoji';
 
 interface AiAssistantDrawerProps {
   open: boolean;
@@ -54,7 +55,7 @@ export function AiAssistantDrawer({ open, onClose }: AiAssistantDrawerProps) {
             className="rounded-full p-2 text-muted hover:text-fg hover:bg-card transition"
             aria-label="Закрыть"
           >
-            ✕
+            <Emoji token="✕" size={16} />
           </button>
         </header>
 

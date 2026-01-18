@@ -6,6 +6,7 @@ import { isTestUnlocked } from '../lib/testAccess';
 import type { Test as FirestoreTest, TestRubric, CourseType } from '../types/tests';
 import { buildTestChains } from '../utils/testChainHelpers';
 import { TestCard } from '../components/tests/TestCard';
+import { Emoji } from '../components/Emoji';
 import { debugLog, debugError } from '../lib/debug';
 import { useCourseStore } from '../stores';
 
@@ -214,7 +215,7 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
 
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
           <div className="flex items-center gap-3 mb-4">
-            <span className="text-4xl">{pageConfig.icon}</span>
+            <Emoji token={pageConfig.icon} size={36} />
             <h1 className="text-3xl font-bold text-gray-900">{pageConfig.title}</h1>
           </div>
           <p className="text-gray-600 mb-6">{pageConfig.description}</p>
@@ -233,20 +234,22 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  <span className="mr-2">{courseOption.icon}</span>
+                  <span className="mr-2">
+                    <Emoji token={courseOption.icon} size={16} />
+                  </span>
                   {courseOption.name}
                 </button>
               ))}
             </div>
           </div>
 
-          <div
-            className={`p-4 bg-${pageConfig.tipColor}-50 border border-${pageConfig.tipColor}-200 rounded-lg`}
-          >
-            <p className={`text-sm text-${pageConfig.tipColor}-800`}>
-              💡 <strong>Совет:</strong> {pageConfig.tipText}
-            </p>
-          </div>
+        <div
+          className={`p-4 bg-${pageConfig.tipColor}-50 border border-${pageConfig.tipColor}-200 rounded-lg`}
+        >
+          <p className={`text-sm text-${pageConfig.tipColor}-800`}>
+            <Emoji token="💡" size={14} /> <strong>Совет:</strong> {pageConfig.tipText}
+          </p>
+        </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -303,7 +306,9 @@ const EmptyState = memo(function EmptyState({
 
   return (
     <div className="col-span-2 text-center py-12">
-      <div className="text-6xl mb-4">📚</div>
+      <div className="text-6xl mb-4">
+        <Emoji token="📚" size={64} />
+      </div>
       <p className="text-xl font-semibold text-gray-700 mb-2">
         Тесты по возрастным периодам скоро появятся
       </p>
@@ -328,7 +333,7 @@ const PlaceholderCard = memo(function PlaceholderCard({ test }: { test: LegacyTe
       <div
         className={`inline-flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-br ${test.color} text-4xl mb-4 shadow-md`}
       >
-        {test.icon}
+        <Emoji token={test.icon} size={32} />
       </div>
 
       <h3 className="text-xl font-bold text-gray-900 mb-2">{test.title}</h3>
@@ -337,13 +342,13 @@ const PlaceholderCard = memo(function PlaceholderCard({ test }: { test: LegacyTe
       <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
         {test.questionCount && (
           <div className="flex items-center gap-1">
-            <span>📋</span>
+            <Emoji token="📋" size={14} />
             <span>{test.questionCount} вопросов</span>
           </div>
         )}
         {test.duration && (
           <div className="flex items-center gap-1">
-            <span>⏱️</span>
+            <Emoji token="⏱️" size={14} />
             <span>{test.duration}</span>
           </div>
         )}

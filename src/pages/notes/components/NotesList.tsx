@@ -1,5 +1,6 @@
 import { PERIOD_CONFIG } from '../../../utils/periodConfig';
 import { AGE_RANGE_LABELS } from '../../../types/notes';
+import { Emoji, EmojiText } from '../../../components/Emoji';
 import type { Note } from '../../../types/notes';
 
 interface NotesListProps {
@@ -47,7 +48,9 @@ function NoteListItem({ note, onEdit, onDelete }: { note: Note; onEdit: (note: N
         <span className="whitespace-nowrap text-sm text-muted">{formatDate(note.createdAt)}</span>
       </div>
       <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="flex-1 text-sm text-muted line-clamp-1">{note.content || '💭 Описание не добавлено'}</p>
+        <p className="flex-1 text-sm text-muted line-clamp-1">
+          {note.content ? note.content : <EmojiText text="💭 Описание не добавлено" />}
+        </p>
         <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
           <button
             onClick={(event) => {
@@ -57,7 +60,7 @@ function NoteListItem({ note, onEdit, onDelete }: { note: Note; onEdit: (note: N
             className="rounded-md p-1.5 text-muted transition hover:bg-white hover:text-accent hover:shadow"
             title="Редактировать"
           >
-            ✏️
+            <Emoji token="✏️" size={14} />
           </button>
           <button
             onClick={(event) => {
@@ -67,17 +70,21 @@ function NoteListItem({ note, onEdit, onDelete }: { note: Note; onEdit: (note: N
             className="rounded-md p-1.5 text-muted transition hover:bg-white hover:text-red-600 hover:shadow"
             title="Удалить"
           >
-            🗑️
+            <Emoji token="🗑️" size={14} />
           </button>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-sm text-fg/80">
         {periodLabel ? (
           <span>
-            {meta.icon} {periodLabel}
+            <Emoji token={meta.icon} size={14} /> {periodLabel}
           </span>
         ) : null}
-        {note.topicTitle ? <span>• 📚 {note.topicTitle}</span> : null}
+        {note.topicTitle ? (
+          <span className="inline-flex items-center gap-1">
+            • <Emoji token="📚" size={14} /> {note.topicTitle}
+          </span>
+        ) : null}
       </div>
     </div>
   );

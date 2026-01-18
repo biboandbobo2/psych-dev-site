@@ -13,6 +13,7 @@ import {
   ContentLiteratureSection,
   ContentActionsBar,
 } from './admin/content-editor/components';
+import { EmojiText } from '../components/Emoji';
 
 type CourseType = 'development' | 'clinical' | 'general';
 
@@ -133,7 +134,7 @@ export default function AdminContentEdit() {
         <div>
           <h1 className="text-3xl font-bold">
             {periodId === 'intro' || periodId === 'clinical-intro'
-              ? '✨ Вводное занятие'
+              ? <EmojiText text="✨ Вводное занятие" />
               : `Редактирование: ${period.title}`}
           </h1>
           <p className="text-gray-600 text-sm mt-1">ID: {periodId}</p>

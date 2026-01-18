@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import type { CourseType } from '../types/tests';
 import { useCreateLesson } from '../hooks/useCreateLesson';
 import { generateLessonId } from '../utils/transliterate';
+import { Emoji } from './Emoji';
 
 interface CreateLessonModalProps {
   onClose: () => void;
@@ -118,7 +119,7 @@ export function CreateLessonModal({ onClose, defaultCourse = 'development' }: Cr
             className="text-2xl text-gray-400 transition hover:text-gray-600"
             aria-label="Закрыть"
           >
-            ×
+            <Emoji token="✕" size={18} />
           </button>
         </header>
 
@@ -141,7 +142,7 @@ export function CreateLessonModal({ onClose, defaultCourse = 'development' }: Cr
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <span>{course.icon}</span>
+                  <Emoji token={course.icon} size={18} />
                   <span>{course.name}</span>
                 </button>
               ))}

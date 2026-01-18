@@ -27,6 +27,7 @@ import { canonicalizePeriodId } from "../lib/firestoreHelpers";
 import { debugError, debugLog } from "../lib/debug";
 import { useCourseStore } from "../stores";
 import { useReorderLessons } from "../hooks/useReorderLessons";
+import { Emoji, EmojiText } from "../components/Emoji";
 
 type CourseType = 'development' | 'clinical' | 'general';
 
@@ -144,7 +145,11 @@ function SortableItem({ period, currentCourse }: SortableItemProps) {
         <div className="flex-1" onClick={handleClick}>
           <div className="flex items-center gap-3 mb-1">
             <h3 className="text-lg font-bold">
-              {isIntro ? `✨ ${period.title || "Вводное занятие"}` : period.title}
+              {isIntro ? (
+                <EmojiText text={`✨ ${period.title || "Вводное занятие"}`} />
+              ) : (
+                period.title
+              )}
             </h3>
             <span
               className={`px-2 py-1 text-xs rounded ${
@@ -173,7 +178,7 @@ function SortableItem({ period, currentCourse }: SortableItemProps) {
           onClick={handleClick}
           className={`text-2xl ml-4 ${isIntro ? "text-white" : "text-gray-400"} hover:scale-110 transition-transform`}
         >
-          ✏️
+          <Emoji token="✏️" size={18} />
         </button>
       </div>
     </div>
@@ -366,7 +371,7 @@ export default function AdminContent() {
           className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-700 transition-colors"
           title="Редактировать входную страницу"
         >
-          <span className="text-xl" aria-hidden>🏠</span>
+          <Emoji token="🏠" size={18} />
         </Link>
       </header>
 
@@ -382,7 +387,9 @@ export default function AdminContent() {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <span className="mr-2">{courseOption.icon}</span>
+            <span className="mr-2">
+              <Emoji token={courseOption.icon} size={16} />
+            </span>
             {courseOption.name}
           </button>
         ))}
@@ -402,7 +409,7 @@ export default function AdminContent() {
             onClick={() => setShowCreateLesson(true)}
             className={`${ACTION_BUTTON_CLASS} bg-emerald-600 hover:bg-emerald-700`}
           >
-            <span aria-hidden>➕</span>
+            <Emoji token="➕" size={16} />
             <span>Добавить занятие</span>
           </button>
 
@@ -410,7 +417,7 @@ export default function AdminContent() {
             onClick={() => setShowTestEditor(true)}
             className={`${ACTION_BUTTON_CLASS} bg-blue-600 hover:bg-blue-700`}
           >
-            <span aria-hidden>📝</span>
+            <Emoji token="📝" size={16} />
             <span>Создать тест</span>
           </button>
 
@@ -418,7 +425,7 @@ export default function AdminContent() {
             to="/admin/topics"
             className={`${ACTION_BUTTON_CLASS} bg-green-600 hover:bg-green-700`}
           >
-            <span aria-hidden>📚</span>
+            <Emoji token="📚" size={16} />
             <span>Темы заметок</span>
           </Link>
         </div>
@@ -453,8 +460,8 @@ export default function AdminContent() {
 
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
         <p className="text-sm text-blue-700">
-          💡 <strong>Совет:</strong> Перетащите {currentCourse === 'development' ? 'период' : 'тему'}, чтобы изменить порядок.
-          Нажмите на карандаш ✏️ для редактирования содержимого.
+          <EmojiText text="💡 Совет:" /> Перетащите {currentCourse === 'development' ? 'период' : 'тему'}, чтобы изменить порядок.
+          Нажмите на карандаш <Emoji token="✏️" size={14} /> для редактирования содержимого.
         </p>
       </div>
 

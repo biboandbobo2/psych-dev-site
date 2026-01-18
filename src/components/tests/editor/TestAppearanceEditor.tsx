@@ -5,6 +5,7 @@ import type { ThemePreset } from '../../../constants/themePresets';
 import { ThemePicker } from '../../theme/ThemePicker';
 import { EmojiPicker } from '../../EmojiPicker';
 import { Field } from '../../Field';
+import { EmojiText } from '../../Emoji';
 
 const TEXTAREA = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200';
 const CONTROL_CLASS = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200';
@@ -204,7 +205,7 @@ export function TestAppearanceEditor({
 
       {/* Подсказка */}
       <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-800">
-        💡 <strong>Совет:</strong> Настройка темы позволяет создать уникальный визуальный стиль для каждого теста.
+        <EmojiText text="💡 Совет:" /> Настройка темы позволяет создать уникальный визуальный стиль для каждого теста.
         Используйте контрастные цвета для лучшей читаемости.
       </div>
     </div>

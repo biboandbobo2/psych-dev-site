@@ -2,6 +2,7 @@ import { useMemo, type CSSProperties } from 'react';
 import type { TestQuestion, QuestionAnswer, TestAppearance, RevealPolicy } from '../../types/tests';
 import { getYouTubeEmbedUrl } from '../../utils/mediaUpload';
 import { hexToRgba } from '../../utils/testAppearance';
+import { Emoji } from '../Emoji';
 
 type AnswerState = 'idle' | 'correct' | 'incorrect';
 
@@ -115,7 +116,7 @@ export function TestQuestionScreen({
               className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
               style={{ backgroundColor: hexToRgba(accentColor, 0.15) }}
             >
-              <span className="text-3xl">{appearance.introIcon || '👤'}</span>
+              <Emoji token={appearance.introIcon || '👤'} size={28} />
             </div>
             {renderQuestionHeading(currentQuestion.questionText)}
 
@@ -205,9 +206,7 @@ export function TestQuestionScreen({
                 }`}
               >
                 <div className="flex items-start gap-3 mb-3">
-                  <span className="text-2xl">
-                    {answerState === 'correct' ? '✅' : 'ℹ️'}
-                  </span>
+                  <Emoji token={answerState === 'correct' ? '✅' : 'ℹ️'} size={20} />
                   <div>
                     <div
                       className={`font-bold mb-2 ${

@@ -3,6 +3,7 @@ import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { debugError } from "../lib/debug";
 import { useTelegramBrowser } from "../hooks/useTelegramBrowser";
+import { Emoji } from "./Emoji";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -91,7 +92,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl"
           aria-label="Закрыть модальное окно"
         >
-          ×
+          <Emoji token="✕" size={18} />
         </button>
 
         <div className="text-center">
@@ -104,7 +105,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           {isInTelegramMobile && (
             <div className="mb-6 rounded-xl border-2 border-red-200 bg-red-50 p-4 text-left">
               <div className="flex items-start gap-3">
-                <span className="text-xl" aria-hidden="true">🚫</span>
+                <Emoji token="🚫" size={20} />
                 <div className="flex-1">
                   <p className="font-semibold text-red-900">
                     Вход невозможен в этом браузере

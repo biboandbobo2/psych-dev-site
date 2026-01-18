@@ -1,4 +1,5 @@
 import type { DisplayStatus } from '../hooks/useTestsFilters';
+import { Emoji, EmojiText } from '../../Emoji';
 
 export interface TestListItem {
   id: string;
@@ -70,7 +71,7 @@ export function TestsListTable({
   if (tests.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-50 p-10 text-center text-gray-500">
-        <span className="text-4xl mb-3">🔍</span>
+        <Emoji token="🔍" size={32} />
         <p className="text-sm font-medium">
           Ничего не найдено. Измените фильтры.
         </p>
@@ -106,7 +107,7 @@ export function TestsListTable({
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
                 <div className="h-10 w-10 flex-shrink-0 select-none text-2xl leading-none">
-                  {item.emoji ?? ''}
+                  {item.emoji ? <EmojiText text={item.emoji} /> : ''}
                 </div>
                 <div className="min-w-0 space-y-2">
                   <h4
@@ -142,9 +143,7 @@ export function TestsListTable({
                 className="rounded-md p-1 text-gray-700 transition hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 aria-label={`Удалить тест «${item.title}»`}
               >
-                <span aria-hidden className="text-lg leading-none">
-                  🗑️
-                </span>
+                <Emoji token="🗑️" size={16} />
               </button>
             </div>
             <div className="mt-4 text-xs text-zinc-600">

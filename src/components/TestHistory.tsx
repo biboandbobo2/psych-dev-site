@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { getTestResults, groupResultsByTest } from '../lib/testResults';
+import { debugError, debugLog } from '../lib/debug';
 import type { TestResult } from '../types/testResults';
+import { Emoji } from './Emoji';
 
 interface TestHistoryProps {
   testId: string;
@@ -15,19 +17,19 @@ export default function TestHistory({ testId }: TestHistoryProps) {
 
   useEffect(() => {
     if (!user) {
-      console.log('🟡 [TestHistory] User не авторизован');
+      debugLog('🟡 [TestHistory] User не авторизован');
       return;
     }
 
-    console.log('🔵 [TestHistory] Загружаем результаты для:', { userId: user.uid, testId });
+    debugLog('🔵 [TestHistory] Загружаем результаты для:', { userId: user.uid, testId });
 
     const loadResults = async () => {
       try {
         const data = await getTestResults(user.uid, testId);
-        console.log('✅ [TestHistory] Результаты загружены:', data);
+        debugLog('✅ [TestHistory] Результаты загружены:', data);
         setResults(data);
       } catch (error) {
-        console.error('❌ [TestHistory] Ошибка при загрузке результатов:', error);
+        debugError('❌ [TestHistory] Ошибка при загрузке результатов:', error);
       } finally {
         setLoading(false);
       }
@@ -48,11 +50,13 @@ export default function TestHistory({ testId }: TestHistoryProps) {
     return (
       <div className="bg-white rounded-xl shadow-lg p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span>📊</span>
+          <Emoji token="📊" size={18} />
           История результатов
         </h2>
         <div className="text-center py-12 text-gray-500">
-          <div className="text-5xl mb-4">🎯</div>
+          <div className="mb-4">
+            <Emoji token="🎯" size={40} />
+          </div>
           <p className="text-lg">У вас пока нет результатов по этому тесту</p>
           <p className="text-sm mt-2">Пройдите тест, чтобы увидеть здесь свою статистику</p>
         </div>
@@ -88,7 +92,7 @@ export default function TestHistory({ testId }: TestHistoryProps) {
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-        <span>📊</span>
+        <Emoji token="📊" size={18} />
         История результатов
       </h2>
 
@@ -142,7 +146,7 @@ export default function TestHistory({ testId }: TestHistoryProps) {
       {expanded && (
         <div className="space-y-3 animate-fadeIn">
           <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <span>📋</span>
+            <Emoji token="📋" size={16} />
             Все попытки
           </h4>
           {results.map((result, index) => (
@@ -164,7 +168,7 @@ export default function TestHistory({ testId }: TestHistoryProps) {
                     {result.score === bestResult.score &&
                       result.completedAt === bestResult.completedAt && (
                         <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-semibold">
-                          🏆 Лучшая
+                          <Emoji token="🏆" size={12} /> Лучшая
                         </span>
                       )}
                   </div>
@@ -183,7 +187,7 @@ export default function TestHistory({ testId }: TestHistoryProps) {
 
               {result.timeSpent && (
                 <div className="mt-2 text-xs text-gray-500">
-                  ⏱️ Время: {Math.floor(result.timeSpent / 60)} мин{' '}
+                  <Emoji token="⏱️" size={12} /> Время: {Math.floor(result.timeSpent / 60)} мин{' '}
                   {result.timeSpent % 60} сек
                 </div>
               )}

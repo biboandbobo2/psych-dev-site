@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import { Emoji, EmojiText } from '../components/Emoji';
 
 export default function ContentEditor() {
   const { user, isAdmin } = useAuth();
@@ -20,7 +21,9 @@ export default function ContentEditor() {
     <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-5xl space-y-8">
         <header>
-          <h1 className="text-3xl font-bold">📝 Редактор контента</h1>
+          <h1 className="text-3xl font-bold">
+            <EmojiText text="📝 Редактор контента" />
+          </h1>
           <p className="mt-2 text-gray-600">
             Здесь собраны все инструменты управления сайтом: добавляйте, изменяйте и публикуйте материалы, управляйте темами для заметок.
           </p>
@@ -33,7 +36,7 @@ export default function ContentEditor() {
           >
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 text-2xl">
-                📄
+                <Emoji token="📄" size={24} />
               </div>
               <h2 className="text-xl font-bold text-gray-900 transition group-hover:text-blue-600">
                 Управление контентом
@@ -53,7 +56,7 @@ export default function ContentEditor() {
           >
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 text-2xl">
-                📚
+                <Emoji token="📚" size={24} />
               </div>
               <h2 className="text-xl font-bold text-gray-900 transition group-hover:text-green-600">
                 Темы для заметок
@@ -69,7 +72,9 @@ export default function ContentEditor() {
         </section>
 
         <section className="rounded-lg border border-blue-200 bg-blue-50 p-6">
-          <h3 className="mb-3 text-lg font-bold text-blue-900">ℹ️ О редакторе</h3>
+          <h3 className="mb-3 text-lg font-bold text-blue-900">
+            <EmojiText text="ℹ️ О редакторе" />
+          </h3>
           <ul className="space-y-2 text-sm text-blue-800">
             <li>• Изменения синхронизируются с сайтом в реальном времени.</li>
             <li>• Темы для заметок становятся доступны пользователям сразу после сохранения.</li>
