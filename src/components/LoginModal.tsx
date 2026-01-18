@@ -2,8 +2,7 @@ import { useState } from "react";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { debugError } from "../lib/debug";
-import { logClientEvent } from "../lib/clientLog";
-import { isMobileDevice, requestExternalBrowserOpen } from "../lib/inAppBrowser";
+import { useTelegramBrowser } from "../hooks/useTelegramBrowser";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -53,21 +52,18 @@ function getErrorMessage(error: any): string {
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const { isInTelegramMobile, notice, openInBrowser } = useTelegramBrowser();
 
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
       setError(null);
-      setNotice(null);
-      logClientEvent("login.click", { source: "login_modal" });
 
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
 
       onClose();
     } catch (err: any) {
-      logClientEvent("login.error", { code: err?.code ?? "unknown" });
       debugError("Login error:", err);
       setError(getErrorMessage(err));
     } finally {
@@ -81,33 +77,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   };
 
   const handleOpenInBrowser = async () => {
-    if (typeof window === "undefined") return;
-    logClientEvent("open_in_browser.click");
     setError(null);
-    setNotice(null);
-    const result = await requestExternalBrowserOpen(window.location.href);
-    logClientEvent("open_in_browser.result", { status: result });
-    if (result === "shared") {
-      setNotice("Откройте ссылку в Safari/Chrome через меню «Поделиться».");
-      return;
-    }
-    if (result === "copied") {
-      setNotice("Ссылка скопирована. Откройте Safari/Chrome и вставьте её в адресную строку.");
-      return;
-    }
-    if (result === "opened") {
-      setNotice("Если страница всё ещё в Telegram, откройте её через меню ⋯ → «Открыть в Safari/Chrome».");
-      return;
-    }
-    if (result === "cancelled") {
-      setNotice("Открытие отменено. Можно открыть страницу через меню ⋯ в Telegram.");
-      return;
-    }
-    if (result === "blocked") {
-      setNotice("Не удалось открыть браузер. В меню ⋯ выберите «Открыть в Safari/Chrome».");
-      return;
-    }
-    setNotice("Не удалось открыть браузер. Попробуйте открыть ссылку в Safari/Chrome вручную.");
+    await openInBrowser();
   };
 
   if (!isOpen) return null;
@@ -134,6 +105,38 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             Войдите через Google, чтобы получить доступ к личному кабинету
           </p>
 
+          {/* Активное предупреждение для Telegram */}
+          {isInTelegramMobile && (
+            <div className="mb-6 rounded-xl border-2 border-red-200 bg-red-50 p-4 text-left">
+              <div className="flex items-start gap-3">
+                <span className="text-xl" aria-hidden="true">🚫</span>
+                <div className="flex-1">
+                  <p className="font-semibold text-red-900">
+                    Вход невозможен в браузере Telegram
+                  </p>
+                  <p className="mt-1 text-sm text-red-700">
+                    Google блокирует авторизацию во встроенных браузерах. Откройте сайт в Safari или Chrome.
+                  </p>
+                  {notice && (
+                    <p className="mt-2 text-sm font-medium text-blue-700">
+                      {notice.message}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleOpenInBrowser}
+                    className="mt-3 w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white"
+                  >
+                    Открыть в браузере
+                  </button>
+                  <p className="mt-2 text-xs text-red-600">
+                    Или нажмите ⋯ → «Открыть в Safari/Chrome»
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={handleGoogleSignIn}
             disabled={loading}
@@ -159,27 +162,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </svg>
             {loading ? "Вход..." : "Войти через Google"}
           </button>
-
-          {isMobileDevice() && (
-            <div className="mt-3 sm:hidden">
-              <button
-                type="button"
-                onClick={handleOpenInBrowser}
-                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
-              >
-                Открыть в браузере
-              </button>
-              <p className="mt-2 text-xs text-gray-500">
-                Если вход не работает в мессенджере, откройте страницу в Safari/Chrome.
-              </p>
-            </div>
-          )}
-
-          {notice && (
-            <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700">
-              {notice}
-            </div>
-          )}
 
           {error && (
             <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
