@@ -50,7 +50,7 @@ export default function MigrateTopics() {
           <h2 className="mb-4 text-xl font-bold text-blue-900">Что сделает миграция:</h2>
           <ul className="mb-6 space-y-2 text-blue-800">
             <li><EmojiText text="✅ Перенесёт 18 тем для возраста 7-10 лет в Firestore" /></li>
-            <li><EmojiText text="✅ Создаст коллекцию \"topics\"" /></li>
+            <li><EmojiText text={'✅ Создаст коллекцию "topics"'} /></li>
             <li><EmojiText text="✅ Каждая тема получит ID и порядковый номер" /></li>
             <li><EmojiText text="⚠️ Запускать только один раз!" /></li>
           </ul>
