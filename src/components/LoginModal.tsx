@@ -3,6 +3,7 @@ import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { debugError } from "../lib/debug";
 import { logClientEvent } from "../lib/clientLog";
+import { isMobileDevice } from "../lib/inAppBrowser";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -29,6 +30,16 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       setError(err?.message || "Ошибка входа");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenInBrowser = () => {
+    if (typeof window === "undefined") return;
+    logClientEvent("open_in_browser.click");
+    const opened = window.open(window.location.href, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      logClientEvent("open_in_browser.blocked");
+      setError("Не удалось открыть браузер. В меню ⋯ выберите «Открыть в Safari/Chrome».");
     }
   };
 
@@ -81,6 +92,21 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </svg>
             {loading ? "Вход..." : "Войти через Google"}
           </button>
+
+          {isMobileDevice() && (
+            <div className="mt-3 sm:hidden">
+              <button
+                type="button"
+                onClick={handleOpenInBrowser}
+                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Открыть в браузере
+              </button>
+              <p className="mt-2 text-xs text-gray-500">
+                Если вход не работает в мессенджере, откройте страницу в Safari/Chrome.
+              </p>
+            </div>
+          )}
 
           {error && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
