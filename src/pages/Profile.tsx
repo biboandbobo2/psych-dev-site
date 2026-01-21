@@ -331,6 +331,34 @@ export default function Profile() {
         </details>
       </div>
 
+      {/* Ссылка на страницу возможностей */}
+      <Link
+        to="/features"
+        className="block bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-shadow"
+      >
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4 sm:px-8 sm:py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl sm:text-3xl">💡</span>
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-white">Возможности платформы</h3>
+                <p className="text-sm text-white/80 hidden sm:block">
+                  Узнайте обо всех функциях: тесты, заметки, таймлайн, научный поиск
+                </p>
+              </div>
+            </div>
+            <svg
+              className="w-6 h-6 text-white/80"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      </Link>
+
       {/* История поисков — только для авторизованных */}
       {user && <SearchHistorySection />}
 
