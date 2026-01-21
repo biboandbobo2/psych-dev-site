@@ -49,6 +49,7 @@ export function normalizeVideos(
   url: string;
   deckUrl: string;
   audioUrl: string;
+  isPublic: boolean;
 }> {
   return videos
     .map((video) => ({
@@ -56,6 +57,7 @@ export function normalizeVideos(
       url: video.url.trim(),
       deckUrl: video.deckUrl.trim(),
       audioUrl: video.audioUrl.trim(),
+      isPublic: video.isPublic,
     }))
     .filter((video) => Boolean(video.url));
 }

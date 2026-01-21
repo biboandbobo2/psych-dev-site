@@ -89,9 +89,21 @@ function SectionRenderer({ slug, section, deckUrl, defaultVideoTitle, periodTest
     : rawTitle;
 
   if (rawTitle === 'Видео-лекция' || rawTitle === 'Видео') {
+    // Проверяем есть ли публичные видео для показа без оплаты
+    const publicVideos = section.content.filter((video: any) => video?.isPublic === true);
+    const publicContent = publicVideos.length > 0 ? (
+      <VideoSection
+        slug={slug}
+        title={displayTitle}
+        content={publicVideos}
+        deckUrl={deckUrl}
+        defaultVideoTitle={defaultVideoTitle}
+      />
+    ) : undefined;
+
     // Оборачиваем видео в PaywallGuard для проверки доступа
     return (
-      <PaywallGuard courseType={courseType} sectionTitle={displayTitle}>
+      <PaywallGuard courseType={courseType} sectionTitle={displayTitle} publicContent={publicContent}>
         <VideoSection
           slug={slug}
           title={displayTitle}
