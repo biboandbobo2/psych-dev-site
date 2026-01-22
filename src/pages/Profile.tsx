@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useCallback } from 'react';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
 import { GeminiKeySection, SearchHistorySection } from '../components/profile';
+import { FeedbackButton } from '../components/FeedbackModal';
 import { useAuth } from '../auth/AuthProvider';
 import { useCourseStore } from '../stores';
 import { triggerHaptic } from '../lib/haptics';
@@ -358,6 +359,9 @@ export default function Profile() {
           </div>
         </div>
       </Link>
+
+      {/* Обратная связь */}
+      <FeedbackButton variant="profile" />
 
       {/* История поисков — только для авторизованных */}
       {user && <SearchHistorySection />}
