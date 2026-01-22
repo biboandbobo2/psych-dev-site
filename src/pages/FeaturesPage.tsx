@@ -19,14 +19,16 @@ function FeatureCard({ icon, title, description, details, color, link }: Feature
       </div>
       <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
       <p className="text-gray-600 mb-4">{description}</p>
-      <ul className="space-y-2">
-        {details.map((detail, index) => (
-          <li key={index} className="flex items-start gap-2 text-sm text-gray-600">
-            <span className="text-green-500 mt-0.5">✓</span>
-            <span>{detail}</span>
-          </li>
-        ))}
-      </ul>
+      {details.length > 0 && (
+        <ul className="space-y-2">
+          {details.map((detail, index) => (
+            <li key={index} className="flex items-start gap-2 text-sm text-gray-600">
+              <span className="text-green-500 mt-0.5">✓</span>
+              <span>{detail}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 
@@ -86,36 +88,21 @@ export default function FeaturesPage() {
               title="Психология развития"
               description="14 возрастных периодов от пренатального до 80+"
               color="from-blue-500 to-blue-600"
-              details={[
-                'Видеолекции к каждому периоду',
-                'Ключевые понятия и персоналии',
-                'Основная и дополнительная литература',
-                'Тесты для самопроверки',
-              ]}
+              details={[]}
             />
             <FeatureCard
               icon="🧠"
               title="Клиническая психология"
               description="12 тематических разделов о патопсихологии"
               color="from-purple-500 to-purple-600"
-              details={[
-                'Расстройства личности и аффективные',
-                'Психодиагностические методы',
-                'Детская клиническая психология',
-                'Современные подходы к терапии',
-              ]}
+              details={[]}
             />
             <FeatureCard
               icon="📖"
               title="Общая психология"
               description="12 занятий по основам психологии"
               color="from-green-500 to-green-600"
-              details={[
-                'История и методология',
-                'Когнитивные процессы',
-                'Эмоции и мотивация',
-                'Личность и деятельность',
-              ]}
+              details={[]}
             />
           </div>
         </FeatureSection>
@@ -408,20 +395,12 @@ export default function FeaturesPage() {
           <p className="text-lg opacity-90 mb-6 max-w-xl mx-auto">
             Войдите в аккаунт, чтобы получить доступ ко всем возможностям платформы
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              to="/profile"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
-            >
-              👤 Перейти в профиль
-            </Link>
-            <Link
-              to="/homepage"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/20 text-white rounded-lg font-semibold hover:bg-white/30 transition-colors"
-            >
-              🏠 На главную
-            </Link>
-          </div>
+          <Link
+            to="/profile"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+          >
+            👤 Перейти в профиль
+          </Link>
         </div>
       </div>
     </div>
