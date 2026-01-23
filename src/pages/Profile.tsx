@@ -38,7 +38,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
       icon: '📝',
       title: 'Мои заметки',
       description: 'Создавайте заметки к каждому периоду и возвращайтесь к ним в любое время',
-      color: 'from-blue-500 to-blue-600',
+      color: 'from-emerald-500 to-emerald-600',
       link: '/notes',
       disabled: currentCourse !== 'development',
     },
@@ -54,7 +54,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
       icon: '📊',
       title: 'Тесты - занятие',
       description: 'Отслеживайте какие занятия вы уже изучили и что осталось',
-      color: 'from-purple-500 to-purple-600',
+      color: 'from-teal-500 to-teal-600',
       link: '/tests-lesson',
       disabled: false,
     },
@@ -62,7 +62,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
       icon: '🗺️',
       title: 'Таймлайн жизни',
       description: 'Визуализируйте свой жизненный путь и ключевые решения',
-      color: 'from-orange-500 to-orange-600',
+      color: 'from-cyan-500 to-cyan-600',
       link: '/timeline',
       disabled: currentCourse !== 'development',
     },
@@ -70,8 +70,8 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
 
   return (
     <div>
-      <h2 className="hidden sm:flex text-2xl font-bold mb-6 items-center gap-2">
-        <span className="text-3xl" role="img" aria-label="Студент">
+      <h2 className="hidden sm:flex text-lg font-semibold mb-6 items-center gap-2 text-gray-700 uppercase tracking-wide">
+        <span className="text-2xl" role="img" aria-label="Студент">
           🎓
         </span>
         Панель студента
@@ -120,7 +120,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
               <Link
                 key={index}
                 to={feature.link}
-                className="relative group bg-white border-2 border-gray-200 rounded-xl px-4 py-5 sm:p-6 hover:border-blue-400 transition-all duration-300 hover:shadow-lg cursor-pointer"
+                className="relative group bg-white border-2 border-gray-200 rounded-xl px-4 py-5 sm:p-6 hover:border-green-400 transition-all duration-300 hover:shadow-lg cursor-pointer"
               >
                 {content}
               </Link>
@@ -158,7 +158,7 @@ export default function Profile() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4" />
           <p className="text-gray-600">Загрузка профиля...</p>
         </div>
       </div>
@@ -188,7 +188,7 @@ export default function Profile() {
   return (
     <div className="space-y-6" onClickCapture={handleHapticClick}>
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-32" />
+        <div className="bg-gradient-to-r from-green-600 to-emerald-500 h-32" />
 
         <div className="px-8 pb-8">
           <div className="flex items-end -mt-16 mb-6">
@@ -199,7 +199,7 @@ export default function Profile() {
                 className="w-32 h-32 rounded-full border-4 border-white shadow-lg"
               />
             ) : (
-              <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl">
+              <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-gradient-to-br from-green-600 to-emerald-500 flex items-center justify-center text-white font-bold text-4xl">
                 {displayName.charAt(0).toUpperCase()}
               </div>
             )}
@@ -227,7 +227,7 @@ export default function Profile() {
                   Администратор
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-800">
+                <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-2 text-sm font-semibold text-green-800">
                   <span className="text-lg" role="img" aria-label="Студент">
                     🎓
                   </span>
@@ -241,7 +241,7 @@ export default function Profile() {
             {user ? (
               <>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{displayName}</h1>
                   <span className="hidden sm:inline-flex">
                     <SuperAdminBadge />
                   </span>
@@ -265,14 +265,14 @@ export default function Profile() {
               </>
             ) : (
               <div className="space-y-4">
-                <h1 className="text-3xl font-bold text-gray-900">Добро пожаловать!</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Добро пожаловать!</h1>
                 <p className="text-gray-600 max-w-lg">
                   Зарегистрируйтесь или войдите в аккаунт, чтобы получить доступ к видео-лекциям,
                   заметкам и другим материалам курсов.
                 </p>
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
                 >
                   Войти / Зарегистрироваться
                 </Link>
@@ -285,7 +285,7 @@ export default function Profile() {
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
           {/* Переключатель курсов */}
         <div>
-          <h2 className="text-xl font-bold mb-4 text-gray-700">Выберите курс</h2>
+          <h2 className="text-lg font-semibold mb-4 text-gray-700 uppercase tracking-wide">Выберите курс</h2>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 sm:border-b sm:border-gray-200">
             {Object.values(COURSES).map((courseOption) => (
               <button
@@ -293,7 +293,7 @@ export default function Profile() {
                 onClick={() => setCurrentCourse(courseOption.id)}
                 className={`inline-flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors sm:w-auto sm:justify-start sm:rounded-none sm:border-0 sm:px-4 sm:py-2 sm:text-base ${
                   currentCourse === courseOption.id
-                    ? 'bg-blue-50 text-blue-700 border-blue-200 sm:bg-transparent sm:text-blue-600 sm:border-b-2 sm:border-blue-600'
+                    ? 'bg-green-50 text-green-700 border-green-200 sm:bg-transparent sm:text-green-600 sm:border-b-2 sm:border-green-600'
                     : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 sm:bg-transparent sm:text-gray-600 sm:border-b-2 sm:border-transparent sm:hover:text-gray-900'
                 }`}
               >
@@ -337,7 +337,7 @@ export default function Profile() {
         to="/features"
         className="block bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-shadow"
       >
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4 sm:px-8 sm:py-5">
+        <div className="bg-gradient-to-r from-green-600 to-emerald-500 px-6 py-4 sm:px-8 sm:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl sm:text-3xl">💡</span>
