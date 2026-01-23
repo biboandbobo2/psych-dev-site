@@ -116,6 +116,7 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
             url: video.url,
             ...(video.deckUrl ? { deckUrl: video.deckUrl } : {}),
             ...(video.audioUrl ? { audioUrl: video.audioUrl } : {}),
+            ...(video.isPublic ? { isPublic: true } : {}),
           })),
         };
       }
