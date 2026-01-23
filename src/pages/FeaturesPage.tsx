@@ -11,7 +11,7 @@ interface FeatureCardProps {
 
 function FeatureCard({ icon, title, description, details, color, link }: FeatureCardProps) {
   const content = (
-    <div className="relative bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-green-400 transition-all duration-300 hover:shadow-lg h-full">
+    <div className="relative bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-blue-400 transition-all duration-300 hover:shadow-lg h-full">
       <div
         className={`inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${color} text-3xl mb-4 shadow-md`}
       >
@@ -66,7 +66,7 @@ export default function FeaturesPage() {
     <div className="space-y-6">
       {/* Hero секция */}
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="bg-gradient-to-r from-green-600 to-emerald-500 px-6 py-12 sm:px-8 sm:py-16 text-center text-white">
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-12 sm:px-8 sm:py-16 text-center text-white">
           <h1 className="text-3xl sm:text-4xl font-bold mb-4">Возможности платформы</h1>
           <p className="text-lg sm:text-xl opacity-90 max-w-2xl mx-auto">
             Всё, что нужно для изучения психологии — видеолекции, тесты, заметки, научный поиск и
@@ -87,21 +87,21 @@ export default function FeaturesPage() {
               icon="👶"
               title="Психология развития"
               description="14 возрастных периодов от пренатального до 80+"
-              color="from-green-500 to-green-600"
+              color="from-blue-500 to-blue-600"
               details={[]}
             />
             <FeatureCard
               icon="🧠"
               title="Клиническая психология"
               description="12 тематических разделов о патопсихологии"
-              color="from-teal-500 to-teal-600"
+              color="from-purple-500 to-purple-600"
               details={[]}
             />
             <FeatureCard
               icon="📖"
               title="Общая психология"
               description="12 занятий по основам психологии"
-              color="from-emerald-500 to-emerald-600"
+              color="from-green-500 to-green-600"
               details={[]}
             />
           </div>
@@ -183,7 +183,7 @@ export default function FeaturesPage() {
               icon="📝"
               title="Тесты по занятиям"
               description="Тесты привязанные к конкретным темам и периодам"
-              color="from-teal-500 to-teal-600"
+              color="from-orange-500 to-orange-600"
               link="/tests-lesson"
               details={[
                 'Проверка после каждого занятия',
@@ -200,7 +200,7 @@ export default function FeaturesPage() {
           title="📝 Личные заметки"
           subtitle="Создавайте конспекты и возвращайтесь к ним в любое время"
         >
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-100">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -208,19 +208,19 @@ export default function FeaturesPage() {
                 </h4>
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex items-center gap-2">
-                    <span className="text-green-500">•</span>
+                    <span className="text-blue-500">•</span>
                     Привязка к возрастным периодам
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-green-500">•</span>
+                    <span className="text-blue-500">•</span>
                     Выбор тем для размышления
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-green-500">•</span>
+                    <span className="text-blue-500">•</span>
                     Полнотекстовый поиск
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-green-500">•</span>
+                    <span className="text-blue-500">•</span>
                     Сортировка и фильтрация
                   </li>
                 </ul>
@@ -231,28 +231,28 @@ export default function FeaturesPage() {
                 </h4>
                 <ul className="space-y-2 text-sm text-gray-600">
                   <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">•</span>
+                    <span className="text-purple-500">•</span>
                     Количество изученных периодов
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">•</span>
+                    <span className="text-purple-500">•</span>
                     Заметки за сегодня и неделю
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">•</span>
+                    <span className="text-purple-500">•</span>
                     Экспорт в JSON и PDF
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-emerald-500">•</span>
+                    <span className="text-purple-500">•</span>
                     Приватное хранение
                   </li>
                 </ul>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-green-100">
+            <div className="mt-4 pt-4 border-t border-blue-100">
               <Link
                 to="/notes"
-                className="inline-flex items-center gap-2 text-green-600 font-medium hover:text-green-700"
+                className="inline-flex items-center gap-2 text-blue-600 font-medium hover:text-blue-700"
               >
                 Перейти к заметкам →
               </Link>
@@ -382,7 +382,7 @@ export default function FeaturesPage() {
           <div className="mt-4">
             <Link
               to="/research"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
             >
               🔍 Открыть научный поиск
             </Link>
@@ -390,14 +390,14 @@ export default function FeaturesPage() {
         </FeatureSection>
 
         {/* CTA */}
-        <div className="bg-gradient-to-r from-green-600 to-emerald-500 rounded-xl p-6 sm:p-8 text-white text-center">
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 sm:p-8 text-white text-center">
           <h2 className="text-xl sm:text-2xl font-bold mb-4">Готовы начать обучение?</h2>
           <p className="text-lg opacity-90 mb-6 max-w-xl mx-auto">
             Войдите в аккаунт, чтобы получить доступ ко всем возможностям платформы
           </p>
           <Link
             to="/profile"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-green-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
           >
             👤 Перейти в профиль
           </Link>

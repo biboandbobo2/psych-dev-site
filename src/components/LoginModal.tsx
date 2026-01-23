@@ -98,7 +98,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               <button
                 type="button"
                 onClick={handleOpenInBrowser}
-                className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white"
+                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
               >
                 Открыть в браузере
               </button>
