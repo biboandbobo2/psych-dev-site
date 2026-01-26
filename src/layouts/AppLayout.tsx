@@ -15,6 +15,7 @@ interface AppLayoutProps {
   authLoading: boolean;
   onLoginClick: () => void;
   hideNavigation?: boolean;
+  sidebar?: ReactNode;
   children: ReactNode;
 }
 
@@ -24,10 +25,12 @@ export function AppLayout({
   authLoading,
   onLoginClick,
   hideNavigation = false,
+  sidebar,
   children,
 }: AppLayoutProps) {
   const mobileNavRef = useRef<HTMLDetailsElement | null>(null);
   const showNavigation = !hideNavigation && navItems.length > 0;
+  const showAside = Boolean(sidebar) || showNavigation;
 
   const handleMobileNavClick = () => {
     if (mobileNavRef.current) {
@@ -76,29 +79,31 @@ export function AppLayout({
           )}
         </div>
         <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 lg:gap-12">
-          {showNavigation && (
+          {showAside && (
             <aside className="lg:w-72 flex-shrink-0 lg:sticky lg:top-8">
-              <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-3 sm:p-4 md:p-5 space-y-2">
-                <p className="hidden text-sm leading-6 text-muted uppercase tracking-[0.3em] lg:block">
-                  Навигация
-                </p>
-                <div className="hidden lg:block">{renderNavList()}</div>
-                <details ref={mobileNavRef} className="group lg:hidden">
-                  <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-border/60 bg-card2 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted [&::-webkit-details-marker]:hidden">
-                    <span>Навигация</span>
-                    <svg
-                      className="h-4 w-4 text-muted transition-transform group-open:rotate-90"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </summary>
-                  <div className="mt-3">{renderNavList(handleMobileNavClick)}</div>
-                </details>
-              </div>
+              {sidebar ?? (
+                <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-3 sm:p-4 md:p-5 space-y-2">
+                  <p className="hidden text-sm leading-6 text-muted uppercase tracking-[0.3em] lg:block">
+                    Навигация
+                  </p>
+                  <div className="hidden lg:block">{renderNavList()}</div>
+                  <details ref={mobileNavRef} className="group lg:hidden">
+                    <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-border/60 bg-card2 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted [&::-webkit-details-marker]:hidden">
+                      <span>Навигация</span>
+                      <svg
+                        className="h-4 w-4 text-muted transition-transform group-open:rotate-90"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </summary>
+                    <div className="mt-3">{renderNavList(handleMobileNavClick)}</div>
+                  </details>
+                </div>
+              )}
             </aside>
           )}
 

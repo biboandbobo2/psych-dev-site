@@ -1,6 +1,7 @@
 import { httpsCallable, getFunctions } from "firebase/functions";
 import { Link } from "react-router-dom";
 
+import { useAuth } from "../auth/AuthProvider";
 import { auth } from "../lib/firebase";
 import { debugError, debugLog } from "../lib/debug";
 import UploadAsset, { diagnoseToken } from "./UploadAsset";
@@ -8,6 +9,9 @@ import UploadAsset, { diagnoseToken } from "./UploadAsset";
 const hasAdminRole = (role?: string) => role === "admin" || role === "super-admin";
 
 export default function AdminArchive() {
+  const { isSuperAdmin } = useAuth();
+  const backLink = isSuperAdmin ? "/superadmin" : "/admin/content";
+
   return (
     <div className="p-6 space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -15,7 +19,7 @@ export default function AdminArchive() {
           <h1 className="text-2xl font-semibold">Архив функций</h1>
           <p className="text-sm text-muted">Редко используемые инструменты администратора.</p>
         </div>
-        <Link to="/admin" className="text-accent text-sm">
+        <Link to={backLink} className="text-accent text-sm">
           ← Вернуться в админку
         </Link>
       </header>

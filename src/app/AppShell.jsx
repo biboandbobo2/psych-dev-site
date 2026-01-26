@@ -22,6 +22,7 @@ import { AppLayout } from '../layouts/AppLayout';
 import { LoadingSplash, ErrorState, EmptyState } from '../shared/ui/states';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { AppRoutes } from './AppRoutes';
+import SuperAdminTaskPanel from '../components/SuperAdminTaskPanel';
 
 const normalizePath = (path) =>
   path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
@@ -91,7 +92,10 @@ export function AppShell() {
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.loading);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
-  const hideNavigation = normalizedPath.startsWith('/admin');
+  const isSuperAdminPage = normalizedPath === '/superadmin';
+  const hideNavigation =
+    normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/superadmin');
+  const sidebar = isSuperAdmin && isSuperAdminPage ? <SuperAdminTaskPanel /> : undefined;
   const { isOpen, openModal, closeModal } = useLoginModal();
 
   // Используем глобальный store для курса
@@ -212,6 +216,7 @@ export function AppShell() {
         authLoading={authLoading}
         onLoginClick={openModal}
         hideNavigation={hideNavigation}
+        sidebar={sidebar}
       >
         <AnimatePresence mode="wait" initial={false}>
           <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} generalTopicsMap={generalTopicsMap} isSuperAdmin={isSuperAdmin} />

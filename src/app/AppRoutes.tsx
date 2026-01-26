@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Location } from 'react-router-dom';
 import RequireAuth from '../auth/RequireAuth';
 import RequireAdmin from '../auth/RequireAdmin';
 import Login from '../pages/Login';
+import { useAuthStore } from '../stores/useAuthStore';
 import {
   HomePage,
   Admin,
@@ -36,6 +37,11 @@ interface AppRoutesProps {
   isSuperAdmin: boolean;
 }
 
+function AdminLanding() {
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+  return <Navigate to={isSuperAdmin ? "/superadmin" : "/admin/content"} replace />;
+}
+
 export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopicsMap, isSuperAdmin }: AppRoutesProps) {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -44,6 +50,22 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route path="/homepage" element={<HomePage />} />
         <Route path="/features" element={<FeaturesPage />} />
         <Route path="/login" element={<Login />} />
+        <Route
+          path="/admin"
+          element={
+            <RequireAdmin>
+              <AdminLanding />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/superadmin"
+          element={
+            <RequireAdmin>
+              {isSuperAdmin ? <Admin /> : <Navigate to="/admin/content" replace />}
+            </RequireAdmin>
+          }
+        />
         <Route
           path="/admin/content"
           element={
@@ -127,14 +149,6 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         />
         {isSuperAdmin && (
           <>
-            <Route
-              path="/admin"
-              element={
-                <RequireAdmin>
-                  <Admin />
-                </RequireAdmin>
-              }
-            />
             <Route
               path="/admin/archive"
               element={

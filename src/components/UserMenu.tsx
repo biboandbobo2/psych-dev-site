@@ -129,7 +129,7 @@ export default function UserMenu({ user }: UserMenuProps) {
 
         {isSuperAdmin && (
           <Link
-            to="/admin"
+            to="/superadmin"
             className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-accent-600"
           >
             <span aria-hidden className="text-base">⚙️</span>
@@ -243,7 +243,7 @@ export default function UserMenu({ user }: UserMenuProps) {
               )}
               {isSuperAdmin && (
                 <Link
-                  to="/admin"
+                  to="/superadmin"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800"
                 >
