@@ -137,6 +137,18 @@ function SortableRole({
   onDeleteRole: () => void;
   disabled: boolean;
 }) {
+  const colorSeed = role.id.charCodeAt(0) % 3;
+  const cardGradient = [
+    "from-amber-50/90 via-white/90 to-amber-100/50 border-amber-200/60",
+    "from-emerald-50/80 via-white/90 to-emerald-100/40 border-emerald-200/60",
+    "from-sky-50/80 via-white/90 to-sky-100/40 border-sky-200/60",
+  ][colorSeed];
+  const markerColors = [
+    "bg-amber-300/60",
+    "bg-emerald-300/60",
+    "bg-sky-300/60",
+  ][colorSeed];
+
   const {
     attributes,
     listeners,
@@ -157,11 +169,12 @@ function SortableRole({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-2xl border border-slate-200/70 bg-gradient-to-b from-white/95 to-slate-50/80 px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.08)] ${
+      className={`rounded-2xl border bg-gradient-to-b px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.08)] ${cardGradient} ${
         isDragging ? "ring-2 ring-amber-200" : ""
       }`}
     >
       <div className="flex items-start gap-2">
+        <span className={`mt-1 h-6 w-1.5 rounded-full ${markerColors}`} aria-hidden />
         <button
           type="button"
           onClick={onToggle}
@@ -543,11 +556,11 @@ export default function SuperAdminTaskPanel() {
           </span>
         </div>
         {archivedTasks.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-3 py-3 text-xs text-slate-500">
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-amber-50/40 px-3 py-3 text-xs text-slate-500">
             Выполненные задачи будут появляться здесь.
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 rounded-2xl border border-amber-200/50 bg-gradient-to-b from-amber-50/70 via-white/90 to-amber-100/50 p-3">
             {archivedTasks.map((task) => (
               <div
                 key={task.id}
