@@ -91,6 +91,7 @@ export function AppShell() {
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.loading);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+  const hideNavigation = normalizedPath.startsWith('/admin');
   const { isOpen, openModal, closeModal } = useLoginModal();
 
   // Используем глобальный store для курса
@@ -210,6 +211,7 @@ export function AppShell() {
         user={user}
         authLoading={authLoading}
         onLoginClick={openModal}
+        hideNavigation={hideNavigation}
       >
         <AnimatePresence mode="wait" initial={false}>
           <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} generalTopicsMap={generalTopicsMap} isSuperAdmin={isSuperAdmin} />

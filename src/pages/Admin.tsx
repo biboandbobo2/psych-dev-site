@@ -16,7 +16,7 @@ type AssistantStats = {
 };
 
 export default function Admin() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin } = useAuth();
   const location = useLocation();
   const [assistantStats, setAssistantStats] = useState<AssistantStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -59,12 +59,6 @@ export default function Admin() {
         <div className="space-y-2 text-sm sm:text-right">
           <div className="opacity-70">{user?.email}</div>
           <AdminHeaderStatus user={user} isAdmin={isAdmin} />
-          <button
-            onClick={logout}
-            className="px-3 py-1 rounded-xl border border-border shadow-sm hover:bg-card2"
-          >
-            Выйти
-          </button>
         </div>
       </div>
 

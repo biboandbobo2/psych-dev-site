@@ -1,7 +1,6 @@
 import { httpsCallable, getFunctions } from "firebase/functions";
 import { Link } from "react-router-dom";
 
-import { useAuth } from "../auth/AuthProvider";
 import { auth } from "../lib/firebase";
 import { debugError, debugLog } from "../lib/debug";
 import UploadAsset, { diagnoseToken } from "./UploadAsset";
@@ -9,8 +8,6 @@ import UploadAsset, { diagnoseToken } from "./UploadAsset";
 const hasAdminRole = (role?: string) => role === "admin" || role === "super-admin";
 
 export default function AdminArchive() {
-  const { user } = useAuth();
-
   return (
     <div className="p-6 space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -24,7 +21,6 @@ export default function AdminArchive() {
       </header>
 
       <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-5 space-y-4">
-        <div className="text-sm opacity-70">{user?.email}</div>
         <div className="flex flex-wrap gap-3">
           <button
             onClick={async () => {
