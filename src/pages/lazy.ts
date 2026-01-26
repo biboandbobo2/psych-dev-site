@@ -6,6 +6,7 @@ export const HomePage = lazy(() =>
   import('./HomePage').then((module) => ({ default: module.HomePage }))
 );
 export const Admin = lazy(() => import('./Admin'));
+export const AdminArchive = lazy(() => import('./AdminArchive'));
 export const AdminUsers = lazy(() => import('./AdminUsers'));
 export const AdminContent = lazy(() => import('./AdminContent'));
 export const AdminContentEdit = lazy(() => import('./AdminContentEdit'));

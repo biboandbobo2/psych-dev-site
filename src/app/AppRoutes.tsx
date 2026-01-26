@@ -6,10 +6,10 @@ import Login from '../pages/Login';
 import {
   HomePage,
   Admin,
+  AdminArchive,
   AdminUsers,
   AdminContent,
   AdminContentEdit,
-  AdminHomePage,
   AdminTopics,
   AdminBooks,
   MigrateTopics,
@@ -69,10 +69,10 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           }
         />
         <Route
-          path="/admin/homepage"
+          path="/admin/books"
           element={
             <RequireAdmin>
-              <AdminHomePage />
+              <AdminBooks />
             </RequireAdmin>
           }
         />
@@ -136,18 +136,18 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
               }
             />
             <Route
-              path="/admin/users"
+              path="/admin/archive"
               element={
                 <RequireAdmin>
-                  <AdminUsers />
+                  <AdminArchive />
                 </RequireAdmin>
               }
             />
             <Route
-              path="/admin/books"
+              path="/admin/users"
               element={
                 <RequireAdmin>
-                  <AdminBooks />
+                  <AdminUsers />
                 </RequireAdmin>
               }
             />
