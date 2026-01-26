@@ -96,6 +96,7 @@ export function AppShell() {
   const hideNavigation =
     normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/superadmin');
   const sidebar = isSuperAdmin && isSuperAdminPage ? <SuperAdminTaskPanel /> : undefined;
+  const sidebarWidthClass = isSuperAdmin && isSuperAdminPage ? "lg:w-[360px] xl:w-[420px]" : undefined;
   const { isOpen, openModal, closeModal } = useLoginModal();
 
   // Используем глобальный store для курса
@@ -217,6 +218,7 @@ export function AppShell() {
         onLoginClick={openModal}
         hideNavigation={hideNavigation}
         sidebar={sidebar}
+        sidebarWidthClass={sidebarWidthClass}
       >
         <AnimatePresence mode="wait" initial={false}>
           <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} generalTopicsMap={generalTopicsMap} isSuperAdmin={isSuperAdmin} />
