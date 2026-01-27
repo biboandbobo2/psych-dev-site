@@ -1,6 +1,6 @@
 /**
  * Админ-страница управления библиотекой книг для RAG
- * Доступна только superadmin
+ * Доступна только admin / super-admin
  */
 import { useState, useEffect, useCallback, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
@@ -19,7 +19,8 @@ import {
 } from './admin/books';
 
 export default function AdminBooks() {
-  const { isSuperAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
+  const backLink = isSuperAdmin ? "/superadmin" : "/admin/content";
 
   // State
   const [books, setBooks] = useState<BookListItem[]>([]);
@@ -48,7 +49,7 @@ export default function AdminBooks() {
   // ============================================================================
 
   const loadBooks = useCallback(async () => {
-    if (!isSuperAdmin) return;
+    if (!isAdmin) return;
     setLoading(true);
     setError(null);
     try {
@@ -61,7 +62,7 @@ export default function AdminBooks() {
     } finally {
       setLoading(false);
     }
-  }, [isSuperAdmin]);
+  }, [isAdmin]);
 
   useEffect(() => {
     loadBooks();
@@ -261,12 +262,12 @@ export default function AdminBooks() {
   // RENDER
   // ============================================================================
 
-  if (!isSuperAdmin) {
+  if (!isAdmin) {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-semibold mb-4">Доступ запрещён</h1>
-        <p className="text-muted">Эта страница доступна только супер-админам.</p>
-        <Link to="/admin" className="text-accent mt-4 inline-block">
+        <p className="text-muted">Эта страница доступна только администраторам.</p>
+        <Link to={backLink} className="text-accent mt-4 inline-block">
           ← Вернуться в админку
         </Link>
       </div>
@@ -381,7 +382,7 @@ export default function AdminBooks() {
 
       {/* Navigation */}
       <div className="pt-4">
-        <Link to="/admin" className="text-accent text-sm">
+        <Link to={backLink} className="text-accent text-sm">
           ← Вернуться в админку
         </Link>
       </div>

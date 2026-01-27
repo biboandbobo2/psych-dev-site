@@ -6,6 +6,7 @@ import { auth } from "../lib/firebase";
 import { useAuthStore, useContentSearchStore } from "../stores";
 import { CombinedSearchDrawer } from "./CombinedSearchDrawer";
 import { AiAssistantDrawer } from "../features/researchSearch/components/AiAssistantDrawer";
+import { FeedbackButton, FeedbackModal } from "./FeedbackModal";
 
 interface UserMenuProps {
   user: User;
@@ -14,6 +15,7 @@ interface UserMenuProps {
 export default function UserMenu({ user }: UserMenuProps) {
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const location = useLocation();
   const displayName = user.displayName || user.email?.split('@')[0] || "Пользователь";
   const photoURL = user.photoURL;
@@ -104,6 +106,17 @@ export default function UserMenu({ user }: UserMenuProps) {
           <span>AI</span>
         </button>
 
+        {!isAdmin && (
+          <button
+            type="button"
+            onClick={() => setIsFeedbackOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-teal-100 px-3 py-2 text-sm font-medium text-teal-800 transition hover:bg-teal-200"
+          >
+            <span aria-hidden className="text-base">💬</span>
+            <span>Обратная связь</span>
+          </button>
+        )}
+
         {isAdmin && (
           <Link
             to={adminContentLink}
@@ -116,7 +129,7 @@ export default function UserMenu({ user }: UserMenuProps) {
 
         {isSuperAdmin && (
           <Link
-            to="/admin"
+            to="/superadmin"
             className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-accent-600"
           >
             <span aria-hidden className="text-base">⚙️</span>
@@ -207,6 +220,17 @@ export default function UserMenu({ user }: UserMenuProps) {
                 <span aria-hidden>🤖</span>
                 AI помощник
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFeedbackOpen(true);
+                  setIsMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800"
+              >
+                <span aria-hidden>💬</span>
+                Обратная связь
+              </button>
               {isAdmin && (
                 <Link
                   to={adminContentLink}
@@ -219,7 +243,7 @@ export default function UserMenu({ user }: UserMenuProps) {
               )}
               {isSuperAdmin && (
                 <Link
-                  to="/admin"
+                  to="/superadmin"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800"
                 >
@@ -253,6 +277,7 @@ export default function UserMenu({ user }: UserMenuProps) {
 
       <CombinedSearchDrawer open={isSearchOpen} onClose={closeSearch} />
       <AiAssistantDrawer open={isAiOpen} onClose={() => setIsAiOpen(false)} />
+      <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
     </>
   );
 }

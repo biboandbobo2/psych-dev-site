@@ -10,6 +10,7 @@ export function createEmptyVideoEntry(seed: number, defaultTitle: string): Video
     url: '',
     deckUrl: '',
     audioUrl: '',
+    isPublic: false,
   };
 }
 
@@ -44,6 +45,7 @@ export function createVideoEntryFromSource(
     url: rawUrl,
     deckUrl: rawDeck,
     audioUrl: rawAudio,
+    isPublic: Boolean(source?.isPublic),
   };
 }
 

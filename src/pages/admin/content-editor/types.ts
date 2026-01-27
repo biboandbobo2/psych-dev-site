@@ -20,6 +20,8 @@ export interface VideoFormEntry {
   url: string;
   deckUrl: string;
   audioUrl: string;
+  /** Видео доступно без оплаты курса (для рекламных целей) */
+  isPublic: boolean;
 }
 
 export interface ListItem {

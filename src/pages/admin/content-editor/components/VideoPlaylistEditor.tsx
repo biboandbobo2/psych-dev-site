@@ -14,7 +14,7 @@ export function VideoPlaylistEditor({ items, onChange, defaultTitle }: VideoPlay
     onChange(items.filter((item) => item.id !== id));
   };
 
-  const updateVideo = (id: string, field: keyof Omit<VideoFormEntry, 'id'>, value: string) => {
+  const updateVideo = (id: string, field: keyof Omit<VideoFormEntry, 'id'>, value: string | boolean) => {
     onChange(
       items.map((item) =>
         item.id === id
@@ -53,11 +53,27 @@ export function VideoPlaylistEditor({ items, onChange, defaultTitle }: VideoPlay
             return (
               <div key={item.id} className="rounded-lg border border-gray-200 p-4 space-y-4">
                 <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h4 className="text-base font-semibold">Видео {index + 1}</h4>
-                    <p className="text-xs text-gray-500">
-                      Заполните ссылку на YouTube и дополнительные материалы.
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <h4 className="text-base font-semibold">Видео {index + 1}</h4>
+                      <p className="text-xs text-gray-500">
+                        Заполните ссылку на YouTube и дополнительные материалы.
+                      </p>
+                    </div>
+                    {hasEmbed && (
+                      <label
+                        className="flex items-center gap-1.5 cursor-pointer"
+                        title="Сделать видео публичным — доступным без оплаты курса (для рекламы)"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={item.isPublic}
+                          onChange={(e) => updateVideo(item.id, 'isPublic', e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                        />
+                        <span className="text-xs text-gray-500">👁</span>
+                      </label>
+                    )}
                   </div>
                   <button
                     type="button"

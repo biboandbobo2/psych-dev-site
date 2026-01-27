@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useCallback } from 'react';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
 import { GeminiKeySection, SearchHistorySection } from '../components/profile';
+import { FeedbackButton } from '../components/FeedbackModal';
 import { useAuth } from '../auth/AuthProvider';
 import { useCourseStore } from '../stores';
 import { triggerHaptic } from '../lib/haptics';
@@ -69,8 +70,8 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
 
   return (
     <div>
-      <h2 className="hidden sm:flex text-2xl font-bold mb-6 items-center gap-2">
-        <span className="text-3xl" role="img" aria-label="Студент">
+      <h2 className="hidden sm:flex text-lg font-semibold mb-6 items-center gap-2 text-gray-700 uppercase tracking-wide">
+        <span className="text-2xl" role="img" aria-label="Студент">
           🎓
         </span>
         Панель студента
@@ -240,7 +241,7 @@ export default function Profile() {
             {user ? (
               <>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{displayName}</h1>
                   <span className="hidden sm:inline-flex">
                     <SuperAdminBadge />
                   </span>
@@ -264,7 +265,7 @@ export default function Profile() {
               </>
             ) : (
               <div className="space-y-4">
-                <h1 className="text-3xl font-bold text-gray-900">Добро пожаловать!</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Добро пожаловать!</h1>
                 <p className="text-gray-600 max-w-lg">
                   Зарегистрируйтесь или войдите в аккаунт, чтобы получить доступ к видео-лекциям,
                   заметкам и другим материалам курсов.
@@ -284,7 +285,7 @@ export default function Profile() {
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
           {/* Переключатель курсов */}
         <div>
-          <h2 className="text-xl font-bold mb-4 text-gray-700">Выберите курс</h2>
+          <h2 className="text-lg font-semibold mb-4 text-gray-700 uppercase tracking-wide">Выберите курс</h2>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 sm:border-b sm:border-gray-200">
             {Object.values(COURSES).map((courseOption) => (
               <button
@@ -330,6 +331,37 @@ export default function Profile() {
           </div>
         </details>
       </div>
+
+      {/* Ссылка на страницу возможностей */}
+      <Link
+        to="/features"
+        className="block bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-shadow"
+      >
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4 sm:px-8 sm:py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl sm:text-3xl">💡</span>
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-white">Возможности платформы</h3>
+                <p className="text-sm text-white/80 hidden sm:block">
+                  Узнайте обо всех функциях: тесты, заметки, таймлайн, научный поиск
+                </p>
+              </div>
+            </div>
+            <svg
+              className="w-6 h-6 text-white/80"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      </Link>
+
+      {/* Обратная связь */}
+      <FeedbackButton variant="profile" />
 
       {/* История поисков — только для авторизованных */}
       {user && <SearchHistorySection />}

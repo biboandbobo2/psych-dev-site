@@ -29,13 +29,13 @@ describe('UserMenu research search entry', () => {
       </MemoryRouter>
     );
 
-    const button = screen.getByTestId('user-menu-search-button');
-    expect(button).toBeInTheDocument();
+    const buttons = screen.getAllByTestId('user-menu-search-button');
+    expect(buttons.length).toBeGreaterThan(0);
 
-    fireEvent.click(button);
-    expect(screen.getByTestId('combined-search-drawer')).toBeInTheDocument();
+    fireEvent.click(buttons[0]);
+    expect(screen.getByRole('heading', { name: /по сайту и статьям/i })).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByTestId('combined-search-drawer')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /по сайту и статьям/i })).not.toBeInTheDocument();
   });
 });

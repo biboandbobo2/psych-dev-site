@@ -362,11 +362,12 @@ export default function AdminContent() {
       <header className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold sm:text-3xl">Управление контентом</h1>
         <Link
-          to="/admin/homepage"
-          className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-700 transition-colors"
-          title="Редактировать входную страницу"
+          to="/admin/books"
+          className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-4 py-2 text-amber-900 transition-colors hover:bg-amber-200"
+          title="Управление книгами"
         >
-          <span className="text-xl" aria-hidden>🏠</span>
+          <span className="text-lg" aria-hidden>📚</span>
+          <span className="text-sm font-medium">Books</span>
         </Link>
       </header>
 

@@ -3,13 +3,14 @@ import { Routes, Route, Navigate, Location } from 'react-router-dom';
 import RequireAuth from '../auth/RequireAuth';
 import RequireAdmin from '../auth/RequireAdmin';
 import Login from '../pages/Login';
+import { useAuthStore } from '../stores/useAuthStore';
 import {
   HomePage,
   Admin,
+  AdminArchive,
   AdminUsers,
   AdminContent,
   AdminContentEdit,
-  AdminHomePage,
   AdminTopics,
   AdminBooks,
   MigrateTopics,
@@ -20,6 +21,7 @@ import {
   TestsPage,
   ResearchPage,
   DynamicPeriodPage,
+  FeaturesPage,
 } from '../pages/lazy';
 import { PageLoader } from '../components/ui';
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
@@ -35,13 +37,35 @@ interface AppRoutesProps {
   isSuperAdmin: boolean;
 }
 
+function AdminLanding() {
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+  return <Navigate to={isSuperAdmin ? "/superadmin" : "/admin/content"} replace />;
+}
+
 export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopicsMap, isSuperAdmin }: AppRoutesProps) {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Profile />} />
         <Route path="/homepage" element={<HomePage />} />
+        <Route path="/features" element={<FeaturesPage />} />
         <Route path="/login" element={<Login />} />
+        <Route
+          path="/admin"
+          element={
+            <RequireAdmin>
+              <AdminLanding />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/superadmin"
+          element={
+            <RequireAdmin>
+              {isSuperAdmin ? <Admin /> : <Navigate to="/admin/content" replace />}
+            </RequireAdmin>
+          }
+        />
         <Route
           path="/admin/content"
           element={
@@ -67,10 +91,10 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           }
         />
         <Route
-          path="/admin/homepage"
+          path="/admin/books"
           element={
             <RequireAdmin>
-              <AdminHomePage />
+              <AdminBooks />
             </RequireAdmin>
           }
         />
@@ -126,10 +150,10 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         {isSuperAdmin && (
           <>
             <Route
-              path="/admin"
+              path="/admin/archive"
               element={
                 <RequireAdmin>
-                  <Admin />
+                  <AdminArchive />
                 </RequireAdmin>
               }
             />
@@ -138,14 +162,6 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
               element={
                 <RequireAdmin>
                   <AdminUsers />
-                </RequireAdmin>
-              }
-            />
-            <Route
-              path="/admin/books"
-              element={
-                <RequireAdmin>
-                  <AdminBooks />
                 </RequireAdmin>
               }
             />

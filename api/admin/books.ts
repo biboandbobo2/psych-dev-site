@@ -34,7 +34,8 @@ async function verifyAuth(req: VercelRequest) {
     const decodedToken = await getAuth().verifyIdToken(token);
     const email = decodedToken.email || '';
     const role = decodedToken.role as string | undefined;
-    if (email !== SUPER_ADMIN_EMAIL && role !== 'super-admin') {
+    const isAllowed = email === SUPER_ADMIN_EMAIL || role === 'super-admin' || role === 'admin';
+    if (!isAllowed) {
       return { valid: false, error: 'Insufficient permissions', code: 'FORBIDDEN' } as const;
     }
     return { valid: true, uid: decodedToken.uid, email } as const;

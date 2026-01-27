@@ -12,6 +12,8 @@ interface PaywallGuardProps {
   message?: string;
   /** Заголовок секции (если нужно обернуть в Section) */
   sectionTitle?: string;
+  /** Публичный контент, показывается пользователям без доступа (например, публичные видео) */
+  publicContent?: ReactNode;
 }
 
 /**
@@ -34,6 +36,7 @@ export function PaywallGuard({
   children,
   message = 'Доступно при оплате курса',
   sectionTitle,
+  publicContent,
 }: PaywallGuardProps) {
   const hasCourseAccess = useAuthStore((state) => state.hasCourseAccess);
   const user = useAuthStore((state) => state.user);
@@ -44,6 +47,11 @@ export function PaywallGuard({
   // Если есть доступ — показываем контент
   if (hasAccess) {
     return <>{children}</>;
+  }
+
+  // Если есть публичный контент — показываем его
+  if (publicContent) {
+    return <>{publicContent}</>;
   }
 
   // Иначе показываем заглушку

@@ -1,12 +1,10 @@
-import { httpsCallable, getFunctions } from "firebase/functions";
 import { useEffect, useState, useCallback } from "react";
 import type { User } from "firebase/auth";
 import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
 import { auth } from "../lib/firebase";
-import { debugError, debugLog, debugWarn } from "../lib/debug";
-import UploadAsset, { diagnoseToken } from "./UploadAsset";
+import { debugWarn } from "../lib/debug";
 
 type AssistantStats = {
   ok: boolean;
@@ -18,7 +16,7 @@ type AssistantStats = {
 };
 
 export default function Admin() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin } = useAuth();
   const location = useLocation();
   const [assistantStats, setAssistantStats] = useState<AssistantStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -61,76 +59,11 @@ export default function Admin() {
         <div className="space-y-2 text-sm sm:text-right">
           <div className="opacity-70">{user?.email}</div>
           <AdminHeaderStatus user={user} isAdmin={isAdmin} />
-          <button
-            onClick={async () => {
-              try {
-                const res = await diagnoseToken();
-                if (res?.claims.role === "admin") {
-                  alert("✅ Token OK! Role: admin found");
-                } else {
-                  alert("❌ No admin role in token. Sign out and sign in again.");
-                }
-              } catch (error: any) {
-                debugError("🔍 Check Token error:", error);
-                alert(`Error: ${error?.message ?? error}`);
-              }
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
-          >
-            🔍 Check Token
-          </button>
-          <button
-            onClick={async () => {
-              const code = prompt("Enter admin seed code:");
-              if (!code) return;
-
-              try {
-                debugLog("🔄 Calling seedAdmin function...", { seedCodeProvided: Boolean(code) });
-                const fn = httpsCallable(getFunctions(), "seedAdmin");
-                const result = await fn({ seedCode: code });
-                debugLog("✅ seedAdmin response ok:", Boolean((result.data as any)?.ok));
-
-                if ((result.data as any)?.ok) {
-                  alert("✅ Admin role set successfully!\n\nYou MUST sign out and sign in again for changes to take effect.");
-                  await auth.signOut();
-                  window.location.href = "/";
-                } else {
-                  alert("❌ Unexpected response from seedAdmin");
-                }
-              } catch (error: any) {
-                debugError("❌ seedAdmin error:", error);
-                debugError("❌ Error code:", error?.code);
-                debugError("❌ Error message:", error?.message);
-                debugError("❌ Full error:", JSON.stringify(error, null, 2));
-                alert(`❌ Error calling seedAdmin:\n${error?.message ?? error}`);
-              }
-            }}
-            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-          >
-            🔄 Set Admin Role
-          </button>
-          <button
-            onClick={logout}
-            className="px-3 py-1 rounded-xl border border-border shadow-sm hover:bg-card2"
-          >
-            Выйти
-          </button>
         </div>
       </div>
 
       {isAdmin && (
         <nav className="flex gap-3 mb-6 flex-wrap">
-          <Link
-            to="/admin"
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              location.pathname === '/admin'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            📊 Dashboard
-          </Link>
-
           <Link
             to="/admin/users"
             className={`px-4 py-2 rounded font-medium transition-colors ${
@@ -141,29 +74,16 @@ export default function Admin() {
           >
             👥 Users
           </Link>
-
           <Link
-            to="/admin/content"
+            to="/admin/archive"
             className={`px-4 py-2 rounded font-medium transition-colors ${
-              location.pathname.startsWith('/admin/content')
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            📝 Content
-          </Link>
-
-          <Link
-            to="/admin/books"
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              location.pathname.startsWith('/admin/books')
+              location.pathname.startsWith('/admin/archive')
                 ? 'bg-amber-600 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            📚 Books
+            🗄️ Архив функций
           </Link>
-
         </nav>
       )}
 
@@ -215,7 +135,7 @@ export default function Admin() {
         </div>
       )}
 
-      {!isAdmin ? (
+      {!isAdmin && (
         <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-5 space-y-3">
           <h2 className="text-xl font-semibold">Доступ администратора</h2>
           <p className="text-sm text-muted">
@@ -234,8 +154,6 @@ export default function Admin() {
             .
           </p>
         </div>
-      ) : (
-        <UploadAsset />
       )}
     </div>
   );
