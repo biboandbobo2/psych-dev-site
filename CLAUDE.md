@@ -65,11 +65,11 @@ npm run validate:full  # validate + tests (~15-30 сек)
 
 ## Тестирование и деплой
 
-**Ветка:** `red-background`
+**Основная ветка:** `main`
 
-**Тестовый URL:** https://psych-dev-site-git-red-background-alexey-zykovs-projects.vercel.app
+**Production URL:** https://psych-dev-site.vercel.app
 
-⚠️ **ВАЖНО:** Тестируем на этом адресе, а не локально! Каждый push в ветку автоматически деплоится на Vercel.
+⚠️ **ВАЖНО:** Каждый push в main автоматически деплоится на Vercel. Для тестирования создавай feature-ветки.
 
 ## Документация
 
@@ -88,8 +88,10 @@ npm run validate:full  # validate + tests (~15-30 сек)
 - `docs/guides/timeline.md` — система Timeline
 - `docs/guides/multi-course.md` — мультикурсовая система
 - `docs/guides/book-rag.md` — Book RAG поиск
+- `docs/guides/feedback-system.md` — система обратной связи (Telegram)
 - `docs/processes/audit-backlog.md` — текущие задачи и приоритеты
 - `README.md` — обзор проекта, маршруты, Firestore коллекции
+- `CHANGELOG.md` — история изменений проекта
 
 ## Быстрые команды
 
@@ -125,4 +127,4 @@ npm run firebase:deploy:all  # Деплой (storage + rules + functions)
 
 ---
 
-**Последнее обновление:** 2026-01-08
+**Последнее обновление:** 2026-01-27
