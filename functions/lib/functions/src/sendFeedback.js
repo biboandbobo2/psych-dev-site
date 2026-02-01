@@ -2,9 +2,7 @@
  * Cloud Function для отправки обратной связи в Telegram
  */
 import * as functions from "firebase-functions";
-// Telegram Bot конфигурация
-const TELEGRAM_BOT_TOKEN = "8358033723:AAEbjL108SbE35R-2C551VkNEV6iUS5McxU";
-const TELEGRAM_CHAT_ID = "262080441";
+import { sendTelegramMessage } from "./lib/telegram.js";
 const FEEDBACK_EMOJI = {
     bug: "🐛",
     idea: "💡",
@@ -65,26 +63,9 @@ export const sendFeedback = functions.https.onCall(async (data, context) => {
     const timeStr = now.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" });
     telegramMessage += `🕐 ${timeStr}`;
     try {
-        // Отправляем в Telegram
-        const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-        const response = await fetch(telegramUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                chat_id: TELEGRAM_CHAT_ID,
-                text: telegramMessage,
-                parse_mode: "Markdown",
-            }),
-        });
-        const result = await response.json();
-        if (!result.ok) {
-            functions.logger.error("❌ Telegram API error", result);
-            throw new functions.https.HttpsError("internal", "Failed to send message to Telegram");
-        }
+        await sendTelegramMessage(telegramMessage);
         functions.logger.info("✅ Feedback sent successfully", {
-            messageId: result.result?.message_id,
+            hasMessage: true,
         });
         return {
             success: true,

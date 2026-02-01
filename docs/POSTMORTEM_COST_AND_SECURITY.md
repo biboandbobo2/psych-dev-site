@@ -1,7 +1,7 @@
 # Postmortem: Cost & Security Prep
 
 > Краткий разбор двух задач: снижение расходов на хранение в GCP и подготовка репозитория к публикации.
-> **Последнее обновление:** 2026-01-17
+> **Последнее обновление:** 2026-02-01
 
 ## Контекст
 
@@ -43,6 +43,12 @@
 - Удалены из индекса артефакты (`playwright-report`, `test-results`, backup-файл).
 - Тест `UserMenu` стабилизирован через `data-testid` (не зависит от текста UI).
 - Добавлен чек-лист Vercel Preview: `PREVIEW_CHECKLIST_VERCEL.md`.
+
+### 3) Отключено платное сканирование контейнеров (2026-02-01)
+- Отключено vulnerability scanning в Artifact Registry:
+  - `gcf-artifacts` (us-central1)
+  - `gcf-artifacts` (europe-west1)
+- Отключен API `containerscanning.googleapis.com` на уровне проекта.
 
 ## Риски и контроль
 

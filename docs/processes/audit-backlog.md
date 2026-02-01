@@ -9,6 +9,7 @@
 |----|----------|-------|-----------------------|
 | HP-1 | H (M) | Nightly интеграционные тесты (Firebase) | GH Actions job + артефакты прогонов |
 | HP-2 | H (L) | Расширенное Playwright покрытие | Seed-данные, full auth flow, stress-тесты, отчётность |
+| HP-3 | H (M) | Remediate container image vulnerabilities | Обновление зависимостей/рантайма + пересборка функций + снижение HIGH |
 | MP-1 | M (M) | Изоляция бизнес-логики Timeline (lazy-hooks) | План 4.4 `docs/legacy/lazy-loading-migration.md`, обновлённый билд-отчёт |
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
@@ -56,6 +57,30 @@
   - Сохранён Playwright тест `tests/text-selection.spec.ts` от Codex
 - **Результат:** ✅ **РЕШЕНО** - текст выделяется на всех страницах, подтверждено пользователем
 - **Полная документация:** См. `docs/legacy/TEXT_SELECTION_ISSUE.md` для истории всех попыток и финального решения
+
+---
+
+### HP‑3. Уязвимости в контейнерных образах функций (P: H, E: M)
+- **Контекст:** Автоматическое сканирование Artifact Registry выявило у последних образов `send_feedback` и `toggle_user_disabled` уровень **HIGH** (без CRITICAL) по состоянию на **2026-02-01**.  
+- **Источник данных:** `docs/security/container-scanning-2026-02-01.md` (сводка сканов + top CVE).  
+- **Затронутые образы:**  
+  - `us-central1-docker.pkg.dev/.../send_feedback@sha256:a54d...`  
+  - `us-central1-docker.pkg.dev/.../send_feedback/cache@sha256:042e...`  
+  - `us-central1-docker.pkg.dev/.../toggle_user_disabled@sha256:55e4...`  
+  - `us-central1-docker.pkg.dev/.../toggle_user_disabled/cache@sha256:24f8...`  
+- **Типы уязвимостей:** уязвимости в NPM пакетах (qs, glob, tar, node-forge, jws) и Go stdlib/OS packages. Для большинства доступен фикс.  
+- **Сводка сканов (2026-02-01, UTC):**  
+  - `send_feedback` — HIGH 15 / MEDIUM 131 / LOW 45 / MINIMAL 2 (lastScanTime: 2026-02-01T16:42:35Z)  
+  - `send_feedback/cache` — HIGH 9 / MEDIUM 1 / LOW 2 (lastScanTime: 2026-02-01T17:26:01Z)  
+  - `toggle_user_disabled` — HIGH 15 / MEDIUM 131 / LOW 45 / MINIMAL 2 (lastScanTime: 2026-02-01T15:52:58Z)  
+  - `toggle_user_disabled/cache` — HIGH 9 / MEDIUM 1 / LOW 2 (lastScanTime: 2026-02-01T20:11:06Z)  
+  - `ingest_book` — нет данных скана (lastScanTime: none)  
+
+- [ ] Обновить зависимости в функциях (NPM/Go) до версий с исправлениями; проверить базовый рантайм и buildpack (Node/Go) на обновления.  
+- [ ] Пересобрать и задеплоить функции, чтобы Artifact Registry получил новые образы и пересканировал их.  
+- [ ] Перепроверить сканы: убедиться, что `HIGH` снижены (цель: 0 HIGH или документированное принятие риска).  
+- [ ] Задокументировать итог в `docs/security/container-scanning-2026-02-01.md` (новая дата, новые counts).  
+- [ ] Добавить процесс: ежемесячный security-review образов (скрипт/команда + место фиксации отчёта).  
 
 ---
 

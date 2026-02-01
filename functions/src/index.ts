@@ -298,3 +298,4 @@ export { ingestBook } from './ingestBook.js';
 export { runVerify, runReconcile } from './verify.js';
 export { updateCourseAccess, setUserRole } from './courseAccess.js';
 export { sendFeedback } from './sendFeedback.js';
+export { billingBudgetAlert } from './billingBudgetAlert.js';
