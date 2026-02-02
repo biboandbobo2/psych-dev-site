@@ -1,7 +1,7 @@
-import type { TestRubric, CourseType } from '../../../types/tests';
+import type { TestRubric, CourseType, CoreCourseType } from '../../../types/tests';
 import { Field } from '../../Field';
 
-const COURSE_LABELS: Record<CourseType, string> = {
+const COURSE_LABELS: Record<CoreCourseType, string> = {
   development: 'Психология развития',
   clinical: 'Клиническая психология',
   general: 'Общая психология',

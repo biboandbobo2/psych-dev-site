@@ -13,8 +13,8 @@ import {
   ContentLiteratureSection,
   ContentActionsBar,
 } from './admin/content-editor/components';
-
-type CourseType = 'development' | 'clinical' | 'general';
+import { isCoreCourse } from '../constants/courses';
+import type { CourseType } from '../types/tests';
 
 /**
  * Admin page for editing period content
@@ -26,25 +26,28 @@ export default function AdminContentEdit() {
 
   // Определяем курс из URL параметра
   const courseParam = searchParams.get('course');
-  const course: CourseType = (courseParam === 'clinical' || courseParam === 'development' || courseParam === 'general')
-    ? courseParam
-    : 'development';
+  const course: CourseType = courseParam && courseParam.trim() ? courseParam : 'development';
+  const isCore = isCoreCourse(course);
 
   // Get route config for placeholder settings
-  const routesByPeriod = course === 'clinical' ? CLINICAL_ROUTE_BY_PERIOD :
-                         course === 'general' ? GENERAL_ROUTE_BY_PERIOD :
-                         ROUTE_BY_PERIOD;
-  const routeConfig = periodId ? routesByPeriod[periodId] : undefined;
+  const routesByPeriod = isCore
+    ? (course === 'clinical' ? CLINICAL_ROUTE_BY_PERIOD :
+       course === 'general' ? GENERAL_ROUTE_BY_PERIOD :
+       ROUTE_BY_PERIOD)
+    : null;
+  const routeConfig = isCore && periodId ? routesByPeriod?.[periodId] : undefined;
   const placeholderDefaultEnabled = routeConfig?.placeholderDefaultEnabled ?? false;
   const placeholderDisplayText =
     routeConfig?.placeholderText || (course === 'development'
       ? 'Контент для этого возраста появится в ближайшем обновлении.'
-      : 'Контент для этой темы появится в ближайшем обновлении.');
+      : isCore
+        ? 'Контент для этой темы появится в ближайшем обновлении.'
+        : 'Контент для этого занятия появится в ближайшем обновлении.');
   const normalizedPlaceholderText = normalizeText(placeholderDisplayText);
   const fallbackTitle =
     routeConfig?.navLabel || (periodId
-      ? (course === 'development' ? `Период ${periodId}` : `Тема ${periodId}`)
-      : (course === 'development' ? 'Новый период' : 'Новая тема'));
+      ? (course === 'development' ? `Период ${periodId}` : isCore ? `Тема ${periodId}` : `Занятие ${periodId}`)
+      : (course === 'development' ? 'Новый период' : isCore ? 'Новая тема' : 'Новое занятие'));
 
   // Form state management
   const form = useContentForm(placeholderDefaultEnabled);

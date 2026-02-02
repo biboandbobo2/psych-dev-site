@@ -109,10 +109,14 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   // Определяем тип курса на основе пути
   const isClinicalCourse = location.pathname.startsWith('/clinical/');
   const isGeneralCourse = location.pathname.startsWith('/general/');
-  const isDevelopmentCourse = !isClinicalCourse && !isGeneralCourse;
+  const isDynamicCourse = location.pathname.startsWith('/course/');
+  const dynamicCourseId = isDynamicCourse ? location.pathname.split('/')[2] : null;
+  const isDevelopmentCourse = !isClinicalCourse && !isGeneralCourse && !isDynamicCourse;
 
   // Определяем courseType для проверки доступа к видео
-  const courseType: CourseType = isClinicalCourse
+  const courseType: CourseType = isDynamicCourse && dynamicCourseId
+    ? dynamicCourseId
+    : isClinicalCourse
     ? 'clinical'
     : isGeneralCourse
     ? 'general'
@@ -121,6 +125,8 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   // Устанавливаем дефолтный текст заглушки в зависимости от курса
   const defaultPlaceholderText = isDevelopmentCourse
     ? 'Контент для этого возраста появится в ближайшем обновлении.'
+    : isDynamicCourse
+    ? 'Контент для этого занятия появится в ближайшем обновлении.'
     : 'Контент для этой темы появится в ближайшем обновлении.';
 
   const title = config.meta?.title ?? `${heading} — ${SITE_NAME}`;

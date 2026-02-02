@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams, useLocation, useNavigate } from "react-router-dom";
-import { collection, orderBy, query, getDocs } from "firebase/firestore";
+import { orderBy, query, getDocs } from "firebase/firestore";
 import {
   DndContext,
   closestCenter,
@@ -18,7 +18,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { db } from "../lib/firebase";
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG } from "../routes";
 import { getPeriodColors } from "../constants/periods";
 import { TestEditorModal } from "../components/TestEditorModal";
@@ -27,8 +26,10 @@ import { canonicalizePeriodId } from "../lib/firestoreHelpers";
 import { debugError, debugLog } from "../lib/debug";
 import { useCourseStore } from "../stores";
 import { useReorderLessons } from "../hooks/useReorderLessons";
-
-type CourseType = 'development' | 'clinical' | 'general';
+import { getCourseLessonsCollectionRef } from "../lib/courseLessons";
+import { isCoreCourse } from "../constants/courses";
+import { useCourses } from "../hooks/useCourses";
+import type { CourseType } from "../types/tests";
 
 interface Period {
   period: string;
@@ -43,30 +44,10 @@ interface Period {
 
 const FALLBACK_PLACEHOLDER_TEXT = "Контент для этого возраста пока не создан.";
 
-// Конфигурация курсов
-const COURSES = {
-  development: {
-    id: 'development' as CourseType,
-    name: 'Психология развития',
-    collection: 'periods',
-    routes: ROUTE_CONFIG,
-    icon: '👶',
-  },
-  clinical: {
-    id: 'clinical' as CourseType,
-    name: 'Клиническая психология',
-    collection: 'clinical-topics',
-    routes: CLINICAL_ROUTE_CONFIG,
-    icon: '🧠',
-  },
-  general: {
-    id: 'general' as CourseType,
-    name: 'Общая психология',
-    collection: 'general-topics',
-    routes: GENERAL_ROUTE_CONFIG,
-    icon: '📚',
-  },
-};
+const getCoreRoutes = (courseId: CourseType) =>
+  courseId === 'clinical' ? CLINICAL_ROUTE_CONFIG :
+  courseId === 'general' ? GENERAL_ROUTE_CONFIG :
+  ROUTE_CONFIG;
 
 const ACTION_BUTTON_CLASS =
   "inline-flex w-full min-h-[44px] items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition shadow-sm whitespace-nowrap sm:min-w-[220px] sm:min-h-[52px] sm:px-5 sm:py-2.5 sm:text-base";
@@ -184,6 +165,7 @@ export default function AdminContent() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const { currentCourse, setCurrentCourse } = useCourseStore();
+  const { courses, loading: coursesLoading } = useCourses({ includeUnpublished: true });
   const [periods, setPeriods] = useState<Period[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTestEditor, setShowTestEditor] = useState(false);
@@ -206,15 +188,15 @@ export default function AdminContent() {
   useEffect(() => {
     // 1. Проверяем URL параметр
     const courseParam = searchParams.get('course');
-    if (courseParam === 'clinical' || courseParam === 'development' || courseParam === 'general') {
-      setCurrentCourse(courseParam);
+    if (courseParam) {
+      setCurrentCourse(courseParam as CourseType);
       return;
     }
 
     // 2. Проверяем state из navigation
     const stateC = (location.state as any)?.course;
-    if (stateC === 'clinical' || stateC === 'development' || stateC === 'general') {
-      setCurrentCourse(stateC);
+    if (typeof stateC === 'string' && stateC.trim()) {
+      setCurrentCourse(stateC as CourseType);
       return;
     }
 
@@ -231,50 +213,65 @@ export default function AdminContent() {
     }
   }, [searchParams, location.state, setCurrentCourse]);
 
-  const course = COURSES[currentCourse];
-  const routeOrderMap = getRouteOrderMap(course.routes);
+  const activeCourse =
+    courses.find((courseOption) => courseOption.id === currentCourse)?.id ??
+    currentCourse ??
+    courses[0]?.id ??
+    'development';
+  const isCore = isCoreCourse(activeCourse);
+  const coreRoutes = isCore ? getCoreRoutes(activeCourse) : [];
+  const routeOrderMap = isCore ? getRouteOrderMap(coreRoutes) : {};
   const getRouteOrder = (periodId: string) => routeOrderMap[periodId] ?? Number.MAX_SAFE_INTEGER;
 
   const loadPeriods = async () => {
     try {
       setLoading(true);
-      const periodsRef = collection(db, course.collection);
-      const q = query(periodsRef, orderBy("order", "asc"));
+      const lessonsRef = getCourseLessonsCollectionRef(activeCourse);
+      const q = query(lessonsRef, orderBy("order", "asc"));
       const snapshot = await getDocs(q);
       const data = snapshot.docs.map((docSnap) => {
         const docData = docSnap.data() as Period;
-        const canonicalId = canonicalizePeriodId(docSnap.id);
+        const canonicalId = isCore ? canonicalizePeriodId(docSnap.id) : docSnap.id;
         return {
           ...docData,
           period: canonicalId,
         };
       });
 
-      const existingIds = new Set(data.map((period) => period.period));
-      const placeholderPeriods = course.routes.filter(
-        (config) => config.periodId && !existingIds.has(config.periodId)
-      ).map((config) => ({
-        period: config.periodId!,
-        title: config.navLabel,
-        subtitle:
-          config.placeholderText ||
-          config.meta?.description ||
-          FALLBACK_PLACEHOLDER_TEXT,
-        published: false,
-        order: getRouteOrder(config.periodId!),
-        accent: "",
-        isPlaceholder: true,
-      }));
+      if (isCore) {
+        const existingIds = new Set(data.map((period) => period.period));
+        const placeholderPeriods = coreRoutes.filter(
+          (config) => config.periodId && !existingIds.has(config.periodId)
+        ).map((config) => ({
+          period: config.periodId!,
+          title: config.navLabel,
+          subtitle:
+            config.placeholderText ||
+            config.meta?.description ||
+            FALLBACK_PLACEHOLDER_TEXT,
+          published: false,
+          order: getRouteOrder(config.periodId!),
+          accent: "",
+          isPlaceholder: true,
+        }));
 
-      const combined = [...data, ...placeholderPeriods].sort((a, b) => {
-        const orderA =
-          typeof a.order === "number" ? a.order : getRouteOrder(a.period);
-        const orderB =
-          typeof b.order === "number" ? b.order : getRouteOrder(b.period);
-        return orderA - orderB;
-      });
+        const combined = [...data, ...placeholderPeriods].sort((a, b) => {
+          const orderA =
+            typeof a.order === "number" ? a.order : getRouteOrder(a.period);
+          const orderB =
+            typeof b.order === "number" ? b.order : getRouteOrder(b.period);
+          return orderA - orderB;
+        });
 
-      setPeriods(combined);
+        setPeriods(combined);
+      } else {
+        const combined = [...data].sort((a, b) => {
+          const orderA = typeof a.order === "number" ? a.order : 0;
+          const orderB = typeof b.order === "number" ? b.order : 0;
+          return orderA - orderB;
+        });
+        setPeriods(combined);
+      }
     } catch (err: any) {
       debugError("Error loading periods:", err);
       alert("Failed to load periods: " + (err?.message || err));
@@ -286,7 +283,15 @@ export default function AdminContent() {
   // Перезагружаем данные при смене курса
   useEffect(() => {
     loadPeriods();
-  }, [currentCourse]);
+  }, [activeCourse]);
+
+  useEffect(() => {
+    if (coursesLoading || !courses.length) return;
+    const hasCurrent = courses.some((courseOption) => courseOption.id === currentCourse);
+    if (!hasCurrent && courses[0]?.id) {
+      setCurrentCourse(courses[0].id as CourseType);
+    }
+  }, [courses, coursesLoading, currentCourse, setCurrentCourse]);
 
   // Handle drag end
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -337,7 +342,7 @@ export default function AdminContent() {
     });
 
     // Сохраняем в Firestore
-    const result = await reorderLessons(currentCourse, newOrder);
+    const result = await reorderLessons(activeCourse, newOrder);
     if (!result.success) {
       // Откатываем при ошибке
       alert("Не удалось сохранить порядок: " + result.error);
@@ -345,7 +350,7 @@ export default function AdminContent() {
     }
   };
 
-  if (loading) {
+  if (loading || coursesLoading) {
     return (
       <div className="max-w-6xl mx-auto p-6">
         <div className="animate-pulse space-y-4">
@@ -426,7 +431,7 @@ export default function AdminContent() {
                 <SortableItem
                   key={period.period}
                   period={period}
-                  currentCourse={currentCourse}
+                  currentCourse={activeCourse}
                 />
               ))
             )}
@@ -436,7 +441,7 @@ export default function AdminContent() {
 
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
         <p className="text-sm text-blue-700">
-          💡 <strong>Совет:</strong> Перетащите {currentCourse === 'development' ? 'период' : 'тему'}, чтобы изменить порядок.
+          💡 <strong>Совет:</strong> Перетащите {isCore ? (activeCourse === 'development' ? 'период' : 'тему') : 'занятие'}, чтобы изменить порядок.
           Нажмите на карандаш ✏️ для редактирования содержимого.
         </p>
       </div>
@@ -444,7 +449,7 @@ export default function AdminContent() {
       {showTestEditor && (
         <TestEditorModal
           onClose={() => setShowTestEditor(false)}
-          defaultCourse={currentCourse}
+          defaultCourse={isCore ? activeCourse : 'development'}
         />
       )}
 
@@ -454,7 +459,7 @@ export default function AdminContent() {
             setShowCreateLesson(false);
             loadPeriods(); // Перезагружаем список после создания
           }}
-          defaultCourse={currentCourse}
+          defaultCourse={activeCourse}
         />
       )}
     </div>

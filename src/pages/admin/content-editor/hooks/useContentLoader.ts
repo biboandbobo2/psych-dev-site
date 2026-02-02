@@ -6,8 +6,9 @@ import { DEFAULT_THEME } from '../../../../theme/periods';
 import type { Period } from '../types';
 import { createEmptyVideoEntry, createVideoEntryFromSource } from '../utils/videoHelpers';
 import { debugError } from '../../../../lib/debug';
-
-type CourseType = 'development' | 'clinical' | 'general';
+import { getCourseLessonDocRef } from '../../../../lib/courseLessons';
+import { isCoreCourse } from '../../../../constants/courses';
+import type { CourseType } from '../../../../types/tests';
 
 interface UseContentLoaderParams {
   periodId: string | undefined;
@@ -95,7 +96,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
               period: periodId,
             } as Period;
           }
-        } else {
+        } else if (isCoreCourse(course)) {
           // Для курса психологии развития используем periods
           if (periodId === 'intro') {
             const intro = await fetchPeriod('intro');
@@ -112,6 +113,15 @@ export function useContentLoader(params: UseContentLoaderParams) {
             if (fetched) {
               data = fetched as Period;
             }
+          }
+        } else {
+          const docRef = getCourseLessonDocRef(course, periodId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            data = {
+              ...(docSnap.data() as any),
+              period: periodId,
+            } as Period;
           }
         }
 

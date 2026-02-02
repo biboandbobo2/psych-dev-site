@@ -1,42 +1,45 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import type { CourseType } from '../types/tests';
 import { useCourseStore } from '../stores/useCourseStore';
 import { cn } from '../lib/cn';
-
-type CourseOption = {
-  id: CourseType;
-  name: string;
-  icon: string;
-};
-
-const COURSE_OPTIONS: CourseOption[] = [
-  { id: 'development', name: 'Психология развития', icon: '👶' },
-  { id: 'clinical', name: 'Клиническая психология', icon: '🧠' },
-  { id: 'general', name: 'Общая психология', icon: '📚' },
-];
-
-const isCourseType = (value: string | null): value is CourseType =>
-  value === 'development' || value === 'clinical' || value === 'general';
+import { useCourses } from '../hooks/useCourses';
+import { CreateLessonModal } from './CreateLessonModal';
+import CreateCourseModal from './CreateCourseModal';
 
 export default function AdminCourseSidebar() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { currentCourse, setCurrentCourse } = useCourseStore();
+  const { courses, loading: coursesLoading, reload } = useCourses({ includeUnpublished: true });
+  const [showCreateLesson, setShowCreateLesson] = useState(false);
+  const [showCreateCourse, setShowCreateCourse] = useState(false);
 
   const courseParam = searchParams.get('course');
-  const queryCourse = isCourseType(courseParam) ? courseParam : null;
-  const activeCourse = queryCourse ?? currentCourse;
+  const queryCourse = courseParam && courseParam.trim() ? courseParam : null;
+  const activeCourse =
+    courses.find((courseOption) => courseOption.id === currentCourse)?.id ??
+    currentCourse ??
+    courses[0]?.id ??
+    'development';
 
   useEffect(() => {
     if (queryCourse && queryCourse !== currentCourse) {
-      setCurrentCourse(queryCourse);
+      setCurrentCourse(queryCourse as CourseType);
     }
   }, [queryCourse, currentCourse, setCurrentCourse]);
 
-  const handleCourseSelect = (courseId: CourseType) => {
-    setCurrentCourse(courseId);
+  useEffect(() => {
+    if (coursesLoading || !courses.length) return;
+    const hasCurrent = courses.some((courseOption) => courseOption.id === currentCourse);
+    if (!hasCurrent && courses[0]?.id) {
+      setCurrentCourse(courses[0].id as CourseType);
+    }
+  }, [courses, coursesLoading, currentCourse, setCurrentCourse]);
+
+  const handleCourseSelect = (courseId: string) => {
+    setCurrentCourse(courseId as CourseType);
     const target = `/admin/content?course=${courseId}`;
     if (location.pathname !== '/admin/content' || location.search !== `?course=${courseId}`) {
       navigate(target);
@@ -50,8 +53,29 @@ export default function AdminCourseSidebar() {
         <h3 className="text-lg font-semibold text-fg">Курсы</h3>
         <p className="text-xs text-muted">Выберите курс для редактуры материалов.</p>
       </div>
+
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => setShowCreateCourse(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-accent/30 bg-accent-100 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-accent/20"
+        >
+          <span aria-hidden>➕</span>
+          <span>Добавить курс</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowCreateLesson(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border/60 bg-card2 px-4 py-2 text-sm font-medium text-muted transition hover:text-fg hover:bg-card"
+          disabled={coursesLoading}
+        >
+          <span aria-hidden>＋</span>
+          <span>Добавить занятие</span>
+        </button>
+      </div>
+
       <nav className="flex flex-col gap-2">
-        {COURSE_OPTIONS.map((course) => {
+        {courses.map((course) => {
           const isActive = activeCourse === course.id;
           return (
             <button
@@ -74,6 +98,25 @@ export default function AdminCourseSidebar() {
           );
         })}
       </nav>
+
+      {showCreateLesson && (
+        <CreateLessonModal
+          onClose={() => setShowCreateLesson(false)}
+          defaultCourse={activeCourse as CourseType}
+        />
+      )}
+
+      {showCreateCourse && (
+        <CreateCourseModal
+          onClose={() => setShowCreateCourse(false)}
+          onCreated={(courseId) => {
+            setShowCreateCourse(false);
+            reload();
+            setCurrentCourse(courseId as CourseType);
+            navigate(`/admin/content?course=${courseId}`);
+          }}
+        />
+      )}
     </div>
   );
 }

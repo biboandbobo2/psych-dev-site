@@ -1,4 +1,5 @@
-export type CourseType = 'development' | 'clinical' | 'general';
+import type { CourseType } from '../../types/tests';
+export type { CourseType } from '../../types/tests';
 
 // Результат поиска по контенту (периоды/темы)
 export interface ContentSearchResult {

@@ -10,8 +10,9 @@ import {
   normalizeLeisure,
 } from '../utils/contentNormalizers';
 import { debugError } from '../../../../lib/debug';
-
-type CourseType = 'development' | 'clinical' | 'general';
+import { getCourseLessonDocRef } from '../../../../lib/courseLessons';
+import { isCoreCourse } from '../../../../constants/courses';
+import type { CourseType } from '../../../../types/tests';
 
 interface SaveParams {
   periodId: string | undefined;
@@ -206,7 +207,7 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
         // Для общей психологии используем коллекцию general-topics
         const docRef = doc(db, 'general-topics', periodId!);
         await setDoc(docRef, data, { merge: true });
-      } else {
+      } else if (isCoreCourse(course)) {
         // Для психологии развития используем periods и intro
         if (periodId === 'intro') {
           const singletonRef = doc(db, 'intro', 'singleton');
@@ -226,6 +227,10 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
           const docRef = doc(db, 'periods', periodId!);
           await setDoc(docRef, data, { merge: true });
         }
+      } else {
+        data.courseId = course;
+        const docRef = getCourseLessonDocRef(course, periodId!);
+        await setDoc(docRef, data, { merge: true });
       }
 
       alert('✅ Изменения сохранены!');
@@ -244,7 +249,7 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
       return;
     }
 
-    const itemType = course === 'clinical' ? 'тему' : 'период';
+    const itemType = course === 'clinical' ? 'тему' : isCoreCourse(course) ? 'период' : 'занятие';
     const confirmed = window.confirm(
       `Вы уверены что хотите удалить ${itemType} "${title}"?\n\n` + 'Это действие нельзя отменить!'
     );
@@ -254,10 +259,14 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
     try {
       setSaving(true);
       const collectionName = course === 'clinical' ? 'clinical-topics' :
-        course === 'general' ? 'general-topics' : 'periods';
-      const docRef = doc(db, collectionName, periodId!);
+        course === 'general' ? 'general-topics' :
+        isCoreCourse(course) ? 'periods' :
+        null;
+      const docRef = collectionName
+        ? doc(db, collectionName, periodId!)
+        : getCourseLessonDocRef(course, periodId!);
       await deleteDoc(docRef);
-      alert(`🗑️ ${course === 'clinical' ? 'Тема удалена' : 'Период удалён'}`);
+      alert(`🗑️ ${course === 'clinical' ? 'Тема удалена' : isCoreCourse(course) ? 'Период удалён' : 'Занятие удалено'}`);
       onNavigate();
     } catch (error: any) {
       debugError('Error deleting:', error);

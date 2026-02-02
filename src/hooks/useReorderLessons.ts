@@ -1,14 +1,9 @@
 import { useState } from 'react';
-import { doc, writeBatch, getDoc } from 'firebase/firestore';
+import { writeBatch, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { debugLog, debugError, debugWarn } from '../lib/debug';
 import type { CourseType } from '../types/tests';
-
-const COURSE_COLLECTIONS: Record<CourseType, string> = {
-  development: 'periods',
-  clinical: 'clinical-topics',
-  general: 'general-topics',
-};
+import { getCourseLessonDocRef } from '../lib/courseLessons';
 
 interface LessonOrder {
   periodId: string;
@@ -36,12 +31,11 @@ export function useReorderLessons() {
 
     try {
       setSaving(true);
-      const collectionName = COURSE_COLLECTIONS[course];
 
       // Проверяем существование всех документов параллельно
       const existenceChecks = await Promise.all(
         newOrder.map(async ({ periodId }) => {
-          const docRef = doc(db, collectionName, periodId);
+          const docRef = getCourseLessonDocRef(course, periodId);
           const docSnap = await getDoc(docRef);
           return { periodId, exists: docSnap.exists() };
         })
@@ -64,7 +58,7 @@ export function useReorderLessons() {
       // Создаём batch только для существующих документов
       const batch = writeBatch(db);
       existingPeriods.forEach(({ periodId, order }) => {
-        const docRef = doc(db, collectionName, periodId);
+        const docRef = getCourseLessonDocRef(course, periodId);
         batch.update(docRef, { order });
       });
 

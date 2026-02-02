@@ -9,6 +9,7 @@ import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, SITE_NAME } 
 import { usePeriods } from '../hooks/usePeriods';
 import { useClinicalTopics } from '../hooks/useClinicalTopics';
 import { useGeneralTopics } from '../hooks/useGeneralTopics';
+import { useDynamicCourseLessons } from '../hooks/useDynamicCourseLessons';
 import { Button } from '../components/ui/Button';
 import { NavigationProgress } from '../components/ui/NavigationProgress';
 import { BackToTop } from '../components/ui/BackToTop';
@@ -24,6 +25,7 @@ import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { AppRoutes } from './AppRoutes';
 import SuperAdminTaskPanel from '../components/SuperAdminTaskPanel';
 import AdminCourseSidebar from '../components/AdminCourseSidebar';
+import { isCoreCourse } from '../constants/courses';
 
 const normalizePath = (path) =>
   path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
@@ -156,17 +158,28 @@ export function AppShell() {
                          (useCourseFromStore && currentCourse === 'clinical');
   const isGeneralPage = normalizedPath.startsWith('/general') ||
                         (useCourseFromStore && currentCourse === 'general');
+  const dynamicCourseIdFromPath = normalizedPath.startsWith('/course/')
+    ? normalizedPath.split('/')[2] || null
+    : null;
+  const isDynamicCourseFromStore = useCourseFromStore && currentCourse && !isCoreCourse(currentCourse);
+  const dynamicCourseId = dynamicCourseIdFromPath ?? (isDynamicCourseFromStore ? currentCourse : null);
+  const isDynamicCoursePage = Boolean(dynamicCourseId);
+  const { topics: dynamicLessonsMap, loading: dynamicLoading, error: dynamicError } = useDynamicCourseLessons(dynamicCourseId, true);
 
   const navItems = useMemo(() => {
     // Выбираем конфигурацию в зависимости от курса
     const routes = isClinicalPage ? CLINICAL_ROUTE_CONFIG :
                    isGeneralPage ? GENERAL_ROUTE_CONFIG :
+                   isDynamicCoursePage ? [] :
                    ROUTE_CONFIG;
     const dataMap = isClinicalPage ? clinicalTopicsMap :
                     isGeneralPage ? generalTopicsMap :
+                    isDynamicCoursePage ? dynamicLessonsMap :
                     periodMap;
     const basePath = isClinicalPage ? '/clinical/' :
-                     isGeneralPage ? '/general/' : '/';
+                     isGeneralPage ? '/general/' :
+                     isDynamicCoursePage ? `/course/${dynamicCourseId}/` :
+                     '/';
 
     // Собираем ID статических роутов
     const staticIds = new Set(routes.map(r => r.periodId).filter(Boolean));
@@ -201,13 +214,14 @@ export function AppShell() {
 
     // Сортируем по order
     return items.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-  }, [periodMap, clinicalTopicsMap, generalTopicsMap, isClinicalPage, isGeneralPage]);
+  }, [periodMap, clinicalTopicsMap, generalTopicsMap, dynamicLessonsMap, isClinicalPage, isGeneralPage, isDynamicCoursePage, dynamicCourseId]);
 
-  if (loading || clinicalLoading || generalLoading) return <LoadingSplash />;
+  if (loading || clinicalLoading || generalLoading || (isDynamicCoursePage && dynamicLoading)) return <LoadingSplash />;
   if (error) return <ErrorState message={error.message} />;
   if (clinicalError) return <ErrorState message={clinicalError.message} />;
   if (generalError) return <ErrorState message={generalError.message} />;
-  if (!periods.length) return <EmptyState />;
+  if (dynamicError && isDynamicCoursePage) return <ErrorState message={dynamicError.message} />;
+  if (!periods.length && !isDynamicCoursePage) return <EmptyState />;
 
   return (
     <>

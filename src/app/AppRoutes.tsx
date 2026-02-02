@@ -27,6 +27,7 @@ import { PageLoader } from '../components/ui';
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
 import { PeriodPage } from '../pages/PeriodPage';
 import NotFound from './NotFound';
+import DynamicCoursePeriodPage from '../pages/DynamicCoursePeriodPage';
 import type { Period, ClinicalTopic, GeneralTopic } from '../types/content';
 
 interface AppRoutesProps {
@@ -219,6 +220,10 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route
           path="/general/:periodId"
           element={<DynamicPeriodPage course="general" topicsMap={generalTopicsMap} />}
+        />
+        <Route
+          path="/course/:courseId/:periodId"
+          element={<DynamicCoursePeriodPage />}
         />
         <Route
           path="/:periodId"

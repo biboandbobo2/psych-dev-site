@@ -4,28 +4,18 @@ import { useNavigate } from 'react-router-dom';
 import type { CourseType } from '../types/tests';
 import { useCreateLesson } from '../hooks/useCreateLesson';
 import { generateLessonId } from '../utils/transliterate';
+import { useCourses } from '../hooks/useCourses';
+import { getCourseBasePath } from '../constants/courses';
 
 interface CreateLessonModalProps {
   onClose: () => void;
   defaultCourse?: CourseType;
 }
 
-interface CourseOption {
-  id: CourseType;
-  name: string;
-  icon: string;
-  basePath: string;
-}
-
-const COURSES: CourseOption[] = [
-  { id: 'development', name: 'Психология развития', icon: '👶', basePath: '' },
-  { id: 'clinical', name: 'Клиническая психология', icon: '🧠', basePath: 'clinical/' },
-  { id: 'general', name: 'Общая психология', icon: '📚', basePath: 'general/' },
-];
-
 export function CreateLessonModal({ onClose, defaultCourse = 'development' }: CreateLessonModalProps) {
   const navigate = useNavigate();
   const { createLesson, checkIdExists, creating } = useCreateLesson();
+  const { courses, loading: coursesLoading } = useCourses({ includeUnpublished: true });
 
   const [selectedCourse, setSelectedCourse] = useState<CourseType>(defaultCourse);
   const [title, setTitle] = useState('');
@@ -40,6 +30,14 @@ export function CreateLessonModal({ onClose, defaultCourse = 'development' }: Cr
       setPeriodId(generateLessonId(title));
     }
   }, [title, idManuallyEdited]);
+
+  useEffect(() => {
+    if (!courses.length) return;
+    const hasSelected = courses.some((course) => course.id === selectedCourse);
+    if (!hasSelected && courses[0]?.id) {
+      setSelectedCourse(courses[0].id as CourseType);
+    }
+  }, [courses, selectedCourse]);
 
   // Проверка уникальности ID с debounce
   useEffect(() => {
@@ -69,8 +67,8 @@ export function CreateLessonModal({ onClose, defaultCourse = 'development' }: Cr
     setError(null);
   };
 
-  const handleCourseChange = (course: CourseType) => {
-    setSelectedCourse(course);
+  const handleCourseChange = (course: string) => {
+    setSelectedCourse(course as CourseType);
     setError(null);
     // Сбрасываем проверку ID при смене курса
     setIdExists(false);
@@ -104,8 +102,7 @@ export function CreateLessonModal({ onClose, defaultCourse = 'development' }: Cr
     }
   };
 
-  const selectedCourseData = COURSES.find(c => c.id === selectedCourse);
-  const previewUrl = `/${selectedCourseData?.basePath ?? ''}${periodId || 'id'}`;
+  const previewUrl = `${getCourseBasePath(selectedCourse)}${periodId || 'id'}`;
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
@@ -130,7 +127,7 @@ export function CreateLessonModal({ onClose, defaultCourse = 'development' }: Cr
               Курс
             </label>
             <div className="flex flex-wrap gap-2">
-              {COURSES.map((course) => (
+              {courses.map((course) => (
                 <button
                   key={course.id}
                   type="button"
@@ -140,6 +137,7 @@ export function CreateLessonModal({ onClose, defaultCourse = 'development' }: Cr
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
                       : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                   }`}
+                  disabled={coursesLoading}
                 >
                   <span>{course.icon}</span>
                   <span>{course.name}</span>

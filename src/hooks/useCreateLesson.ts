@@ -1,14 +1,8 @@
 import { useState } from 'react';
-import { doc, setDoc, getDoc, collection, getDocs, query, orderBy, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { setDoc, getDoc, getDocs, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { debugLog, debugError } from '../lib/debug';
 import type { CourseType } from '../types/tests';
-
-const COURSE_COLLECTIONS: Record<CourseType, string> = {
-  development: 'periods',
-  clinical: 'clinical-topics',
-  general: 'general-topics',
-};
+import { getCourseLessonDocRef, getCourseLessonsCollectionRef } from '../lib/courseLessons';
 
 interface CreateLessonResult {
   success: boolean;
@@ -25,8 +19,7 @@ export function useCreateLesson() {
    * Проверяет, существует ли занятие с таким ID
    */
   async function checkIdExists(course: CourseType, periodId: string): Promise<boolean> {
-    const collectionName = COURSE_COLLECTIONS[course];
-    const docRef = doc(db, collectionName, periodId);
+    const docRef = getCourseLessonDocRef(course, periodId);
     const docSnap = await getDoc(docRef);
     return docSnap.exists();
   }
@@ -35,8 +28,8 @@ export function useCreateLesson() {
    * Получает следующий порядковый номер для занятия
    */
   async function getNextOrder(course: CourseType): Promise<number> {
-    const collectionName = COURSE_COLLECTIONS[course];
-    const q = query(collection(db, collectionName), orderBy('order', 'desc'));
+    const lessonsRef = getCourseLessonsCollectionRef(course);
+    const q = query(lessonsRef, orderBy('order', 'desc'));
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
@@ -81,11 +74,11 @@ export function useCreateLesson() {
       const nextOrder = await getNextOrder(course);
 
       // Создаём документ
-      const collectionName = COURSE_COLLECTIONS[course];
-      const docRef = doc(db, collectionName, periodId);
+      const docRef = getCourseLessonDocRef(course, periodId);
 
       const data = {
         period: periodId,
+        courseId: course,
         title: title.trim(),
         label: title.trim(),
         subtitle: '',

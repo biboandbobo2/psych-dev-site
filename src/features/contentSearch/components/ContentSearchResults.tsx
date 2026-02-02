@@ -5,6 +5,8 @@ import type {
   CourseType,
   ContentMatchField,
 } from '../types';
+import type { CoreCourseType } from '../../../types/tests';
+import { isCoreCourse } from '../../../constants/courses';
 
 interface ContentSearchResultsProps {
   results: SearchResult[];
@@ -12,7 +14,7 @@ interface ContentSearchResultsProps {
   onResultClick: (path: string) => void;
 }
 
-const COURSE_LABELS: Record<CourseType, { label: string; color: string; icon: string }> = {
+const COURSE_LABELS: Record<CoreCourseType, { label: string; color: string; icon: string }> = {
   development: {
     label: 'Психология развития',
     color: 'bg-blue-100 text-blue-800',
@@ -29,6 +31,7 @@ const COURSE_LABELS: Record<CourseType, { label: string; color: string; icon: st
     icon: '📚',
   },
 };
+const DEFAULT_COURSE_BADGE = { label: 'Курс', color: 'bg-slate-100 text-slate-700', icon: '🎓' };
 
 const CONTENT_MATCH_LABELS: Record<ContentMatchField, string> = {
   title: 'заголовок',
@@ -48,6 +51,8 @@ function getContentPath(result: ContentSearchResult): string {
       return `/clinical/${result.period}`;
     case 'general':
       return `/general/${result.period}`;
+    default:
+      return `/course/${result.course}/${result.period}`;
   }
 }
 
@@ -114,7 +119,7 @@ interface ContentResultItemProps {
 }
 
 function ContentResultItem({ result, query, onResultClick }: ContentResultItemProps) {
-  const courseInfo = COURSE_LABELS[result.course];
+  const courseInfo = isCoreCourse(result.course) ? COURSE_LABELS[result.course] : DEFAULT_COURSE_BADGE;
   const path = getContentPath(result);
 
   return (

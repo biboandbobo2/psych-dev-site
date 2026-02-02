@@ -6,27 +6,8 @@ import { FeedbackButton } from '../components/FeedbackModal';
 import { useAuth } from '../auth/AuthProvider';
 import { useCourseStore } from '../stores';
 import { triggerHaptic } from '../lib/haptics';
-
-type CourseType = 'development' | 'clinical' | 'general';
-
-// Конфигурация курсов
-const COURSES = {
-  development: {
-    id: 'development' as CourseType,
-    name: 'Психология развития',
-    icon: '👶',
-  },
-  clinical: {
-    id: 'clinical' as CourseType,
-    name: 'Клиническая психология',
-    icon: '🧠',
-  },
-  general: {
-    id: 'general' as CourseType,
-    name: 'Общая психология',
-    icon: '📚',
-  },
-};
+import { useCourses } from '../hooks/useCourses';
+import type { CourseType } from '../types/tests';
 
 interface StudentPanelProps {
   currentCourse: CourseType;
@@ -145,14 +126,23 @@ export default function Profile() {
   const { user, loading, userRole, isAdmin, isSuperAdmin } = useAuth();
   const [searchParams] = useSearchParams();
   const { currentCourse, setCurrentCourse } = useCourseStore();
+  const { courses, loading: coursesLoading } = useCourses();
 
   // Синхронизация с URL параметром при первой загрузке
   useEffect(() => {
     const courseParam = searchParams.get('course');
-    if (courseParam === 'clinical' || courseParam === 'development' || courseParam === 'general') {
-      setCurrentCourse(courseParam);
+    if (courseParam) {
+      setCurrentCourse(courseParam as CourseType);
     }
   }, [searchParams, setCurrentCourse]);
+
+  useEffect(() => {
+    if (coursesLoading || !courses.length) return;
+    const hasCurrent = courses.some((course) => course.id === currentCourse);
+    if (!hasCurrent && courses[0]?.id) {
+      setCurrentCourse(courses[0].id as CourseType);
+    }
+  }, [courses, coursesLoading, currentCourse, setCurrentCourse]);
 
   if (loading) {
     return (
@@ -287,7 +277,7 @@ export default function Profile() {
         <div>
           <h2 className="text-lg font-semibold mb-4 text-gray-700 uppercase tracking-wide">Выберите курс</h2>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 sm:border-b sm:border-gray-200">
-            {Object.values(COURSES).map((courseOption) => (
+            {courses.map((courseOption) => (
               <button
                 key={courseOption.id}
                 onClick={() => setCurrentCourse(courseOption.id)}
@@ -296,6 +286,7 @@ export default function Profile() {
                     ? 'bg-blue-50 text-blue-700 border-blue-200 sm:bg-transparent sm:text-blue-600 sm:border-b-2 sm:border-blue-600'
                     : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 sm:bg-transparent sm:text-gray-600 sm:border-b-2 sm:border-transparent sm:hover:text-gray-900'
                 }`}
+                disabled={coursesLoading}
               >
                 <span className="text-base">{courseOption.icon}</span>
                 {courseOption.name}

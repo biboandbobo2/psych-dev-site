@@ -8,25 +8,7 @@ import { buildTestChains } from '../utils/testChainHelpers';
 import { TestCard } from '../components/tests/TestCard';
 import { debugLog, debugError } from '../lib/debug';
 import { useCourseStore } from '../stores';
-
-// Конфигурация курсов
-const COURSES = {
-  development: {
-    id: 'development' as CourseType,
-    name: 'Психология развития',
-    icon: '👶',
-  },
-  clinical: {
-    id: 'clinical' as CourseType,
-    name: 'Клиническая психология',
-    icon: '🧠',
-  },
-  general: {
-    id: 'general' as CourseType,
-    name: 'Общая психология',
-    icon: '📚',
-  },
-};
+import { useCourses } from '../hooks/useCourses';
 
 interface LegacyTest {
   id: string;
@@ -130,6 +112,7 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const { currentCourse, setCurrentCourse } = useCourseStore();
+  const { courses, loading: coursesLoading } = useCourses();
   const [firestoreTests, setFirestoreTests] = useState<FirestoreTest[]>([]);
   const [loadingTests, setLoadingTests] = useState(true);
   const [testUnlockStatus, setTestUnlockStatus] = useState<Record<string, boolean>>({});
@@ -137,10 +120,18 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
   // Синхронизация с URL параметром при первой загрузке
   useEffect(() => {
     const courseParam = searchParams.get('course');
-    if (courseParam === 'clinical' || courseParam === 'development' || courseParam === 'general') {
-      setCurrentCourse(courseParam);
+    if (courseParam) {
+      setCurrentCourse(courseParam as CourseType);
     }
   }, [searchParams, setCurrentCourse]);
+
+  useEffect(() => {
+    if (coursesLoading || !courses.length) return;
+    const hasCurrent = courses.some((course) => course.id === currentCourse);
+    if (!hasCurrent && courses[0]?.id) {
+      setCurrentCourse(courses[0].id as CourseType);
+    }
+  }, [courses, coursesLoading, currentCourse, setCurrentCourse]);
 
   const pageConfig = PAGE_CONFIGS[rubricFilter];
 
@@ -223,7 +214,7 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
           <div className="mb-6">
             <h2 className="text-lg font-semibold mb-3 text-gray-700">Выберите курс</h2>
             <div className="flex gap-2 border-b border-gray-200">
-              {Object.values(COURSES).map((courseOption) => (
+              {courses.map((courseOption) => (
                 <button
                   key={courseOption.id}
                   onClick={() => setCurrentCourse(courseOption.id)}
@@ -232,6 +223,7 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
                       ? 'text-blue-600 border-b-2 border-blue-600'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
+                  disabled={coursesLoading}
                 >
                   <span className="mr-2">{courseOption.icon}</span>
                   {courseOption.name}

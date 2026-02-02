@@ -1,5 +1,6 @@
 import type { Timestamp } from 'firebase/firestore';
-import type { CourseType } from './tests';
+import type { CoreCourseType, CourseType } from './tests';
+import { CORE_COURSE_ORDER, CORE_COURSE_META } from '../constants/courses';
 
 /**
  * Роль пользователя в системе
@@ -20,6 +21,7 @@ export type UserRole = 'guest' | 'student' | 'admin' | 'super-admin';
  * - guest → проверяется courseAccess (нужен явный true для доступа)
  */
 export interface CourseAccessMap {
+  [courseId: string]: boolean | undefined;
   /** Психология развития (возрастная психология) */
   development?: boolean;
   /** Клиническая психология */
@@ -102,16 +104,16 @@ export function hasCourseAccess(
 /**
  * Названия курсов для UI
  */
-export const COURSE_LABELS: Record<CourseType, string> = {
-  development: 'Психология развития',
-  clinical: 'Клиническая психология',
-  general: 'Общая психология',
+export const COURSE_LABELS: Record<CoreCourseType, string> = {
+  development: CORE_COURSE_META.development.name,
+  clinical: CORE_COURSE_META.clinical.name,
+  general: CORE_COURSE_META.general.name,
 };
 
 /**
  * Все типы курсов в порядке отображения
  */
-export const ALL_COURSE_TYPES: CourseType[] = ['development', 'clinical', 'general'];
+export const ALL_COURSE_TYPES: CoreCourseType[] = CORE_COURSE_ORDER;
 
 /**
  * Подсчитывает количество доступных курсов для пользователя
