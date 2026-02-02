@@ -4,7 +4,6 @@ import type { CourseType } from '../types/tests';
 import { useCourseStore } from '../stores/useCourseStore';
 import { cn } from '../lib/cn';
 import { useCourses } from '../hooks/useCourses';
-import { CreateLessonModal } from './CreateLessonModal';
 import CreateCourseModal from './CreateCourseModal';
 
 export default function AdminCourseSidebar() {
@@ -13,7 +12,6 @@ export default function AdminCourseSidebar() {
   const navigate = useNavigate();
   const { currentCourse, setCurrentCourse } = useCourseStore();
   const { courses, loading: coursesLoading, reload } = useCourses({ includeUnpublished: true });
-  const [showCreateLesson, setShowCreateLesson] = useState(false);
   const [showCreateCourse, setShowCreateCourse] = useState(false);
 
   const courseParam = searchParams.get('course');
@@ -63,15 +61,6 @@ export default function AdminCourseSidebar() {
           <span aria-hidden>➕</span>
           <span>Добавить курс</span>
         </button>
-        <button
-          type="button"
-          onClick={() => setShowCreateLesson(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border/60 bg-card2 px-4 py-2 text-sm font-medium text-muted transition hover:text-fg hover:bg-card"
-          disabled={coursesLoading}
-        >
-          <span aria-hidden>＋</span>
-          <span>Добавить занятие</span>
-        </button>
       </div>
 
       <nav className="flex flex-col gap-2">
@@ -98,13 +87,6 @@ export default function AdminCourseSidebar() {
           );
         })}
       </nav>
-
-      {showCreateLesson && (
-        <CreateLessonModal
-          onClose={() => setShowCreateLesson(false)}
-          defaultCourse={activeCourse as CourseType}
-        />
-      )}
 
       {showCreateCourse && (
         <CreateCourseModal

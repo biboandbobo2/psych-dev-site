@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { orderBy, query, getDocs } from "firebase/firestore";
 import {
@@ -219,26 +219,29 @@ export default function AdminContent() {
     courses[0]?.id ??
     'development';
   const isCore = isCoreCourse(activeCourse);
-  const coreRoutes = isCore ? getCoreRoutes(activeCourse) : [];
-  const routeOrderMap = isCore ? getRouteOrderMap(coreRoutes) : {};
-  const getRouteOrder = (periodId: string) => routeOrderMap[periodId] ?? Number.MAX_SAFE_INTEGER;
+  const loadRequestId = useRef(0);
 
-  const loadPeriods = async () => {
+  const loadPeriods = async (courseId: string = activeCourse) => {
+    const requestId = ++loadRequestId.current;
     try {
       setLoading(true);
-      const lessonsRef = getCourseLessonsCollectionRef(activeCourse);
+      const lessonsRef = getCourseLessonsCollectionRef(courseId);
       const q = query(lessonsRef, orderBy("order", "asc"));
       const snapshot = await getDocs(q);
       const data = snapshot.docs.map((docSnap) => {
         const docData = docSnap.data() as Period;
-        const canonicalId = isCore ? canonicalizePeriodId(docSnap.id) : docSnap.id;
+        const canonicalId = isCoreCourse(courseId) ? canonicalizePeriodId(docSnap.id) : docSnap.id;
         return {
           ...docData,
           period: canonicalId,
         };
       });
 
-      if (isCore) {
+      if (isCoreCourse(courseId)) {
+        const coreRoutes = getCoreRoutes(courseId);
+        const routeOrderMap = getRouteOrderMap(coreRoutes);
+        const getRouteOrder = (periodId: string) =>
+          routeOrderMap[periodId] ?? Number.MAX_SAFE_INTEGER;
         const existingIds = new Set(data.map((period) => period.period));
         const placeholderPeriods = coreRoutes.filter(
           (config) => config.periodId && !existingIds.has(config.periodId)
@@ -263,20 +266,26 @@ export default function AdminContent() {
           return orderA - orderB;
         });
 
-        setPeriods(combined);
+        if (requestId === loadRequestId.current) {
+          setPeriods(combined);
+        }
       } else {
         const combined = [...data].sort((a, b) => {
           const orderA = typeof a.order === "number" ? a.order : 0;
           const orderB = typeof b.order === "number" ? b.order : 0;
           return orderA - orderB;
         });
-        setPeriods(combined);
+        if (requestId === loadRequestId.current) {
+          setPeriods(combined);
+        }
       }
     } catch (err: any) {
       debugError("Error loading periods:", err);
       alert("Failed to load periods: " + (err?.message || err));
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestId.current) {
+        setLoading(false);
+      }
     }
   };
 

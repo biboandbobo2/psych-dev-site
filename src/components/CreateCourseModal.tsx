@@ -13,24 +13,18 @@ export default function CreateCourseModal({ onClose, onCreated }: CreateCourseMo
   const { createCourse, checkCourseIdExists, creating } = useCreateCourse();
   const [courseName, setCourseName] = useState('');
   const [courseId, setCourseId] = useState('');
-  const [lessonName, setLessonName] = useState('');
-  const [lessonId, setLessonId] = useState('');
   const [courseIdManuallyEdited, setCourseIdManuallyEdited] = useState(false);
-  const [lessonIdManuallyEdited, setLessonIdManuallyEdited] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [courseIdExists, setCourseIdExists] = useState(false);
+  const [lessons, setLessons] = useState<Array<{ title: string; id: string; idManuallyEdited: boolean }>>([
+    { title: '', id: '', idManuallyEdited: false },
+  ]);
 
   useEffect(() => {
     if (!courseIdManuallyEdited && courseName) {
       setCourseId(generateLessonId(courseName));
     }
   }, [courseName, courseIdManuallyEdited]);
-
-  useEffect(() => {
-    if (!lessonIdManuallyEdited && lessonName) {
-      setLessonId(generateLessonId(lessonName));
-    }
-  }, [lessonName, lessonIdManuallyEdited]);
 
   useEffect(() => {
     if (!courseId) {
@@ -53,11 +47,33 @@ export default function CreateCourseModal({ onClose, onCreated }: CreateCourseMo
     setError(null);
   };
 
-  const handleLessonIdChange = (value: string) => {
-    const normalized = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-    setLessonId(normalized);
-    setLessonIdManuallyEdited(true);
+  const updateLessonTitle = (index: number, value: string) => {
+    setLessons((prev) =>
+      prev.map((lesson, idx) => {
+        if (idx !== index) return lesson;
+        const nextId = lesson.idManuallyEdited ? lesson.id : generateLessonId(value);
+        return { ...lesson, title: value, id: nextId };
+      })
+    );
     setError(null);
+  };
+
+  const updateLessonId = (index: number, value: string) => {
+    const normalized = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    setLessons((prev) =>
+      prev.map((lesson, idx) =>
+        idx === index ? { ...lesson, id: normalized, idManuallyEdited: true } : lesson
+      )
+    );
+    setError(null);
+  };
+
+  const addLesson = () => {
+    setLessons((prev) => [...prev, { title: '', id: '', idManuallyEdited: false }]);
+  };
+
+  const removeLesson = (index: number) => {
+    setLessons((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== index) : prev));
   };
 
   const handleSubmit = async () => {
@@ -68,18 +84,8 @@ export default function CreateCourseModal({ onClose, onCreated }: CreateCourseMo
       return;
     }
 
-    if (!lessonName.trim()) {
-      setError('Введите название первого занятия');
-      return;
-    }
-
     if (!courseId.trim()) {
       setError('ID курса не может быть пустым');
-      return;
-    }
-
-    if (!lessonId.trim()) {
-      setError('ID первого занятия не может быть пустым');
       return;
     }
 
@@ -93,7 +99,28 @@ export default function CreateCourseModal({ onClose, onCreated }: CreateCourseMo
       return;
     }
 
-    const result = await createCourse(courseId, courseName, lessonId, lessonName);
+    const normalizedLessons = lessons.map((lesson) => ({
+      id: lesson.id.trim(),
+      title: lesson.title.trim(),
+    }));
+
+    if (normalizedLessons.some((lesson) => !lesson.title)) {
+      setError('Заполните название каждого занятия');
+      return;
+    }
+
+    if (normalizedLessons.some((lesson) => !lesson.id)) {
+      setError('Заполните ID каждого занятия');
+      return;
+    }
+
+    const lessonIdSet = new Set(normalizedLessons.map((lesson) => lesson.id));
+    if (lessonIdSet.size !== normalizedLessons.length) {
+      setError('ID занятий должны быть уникальны');
+      return;
+    }
+
+    const result = await createCourse(courseId, courseName, normalizedLessons);
     if (result.success) {
       onCreated(courseId);
     } else {
@@ -101,7 +128,8 @@ export default function CreateCourseModal({ onClose, onCreated }: CreateCourseMo
     }
   };
 
-  const previewUrl = `/course/${courseId || 'course-id'}/${lessonId || 'lesson-id'}`;
+  const previewLessonId = lessons[0]?.id || 'lesson-id';
+  const previewUrl = `/course/${courseId || 'course-id'}/${previewLessonId}`;
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
@@ -154,35 +182,55 @@ export default function CreateCourseModal({ onClose, onCreated }: CreateCourseMo
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Название первого занятия *</label>
-            <input
-              type="text"
-              value={lessonName}
-              onChange={(e) => {
-                setLessonName(e.target.value);
-                setError(null);
-              }}
-              placeholder="Например: Введение в курс"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">Занятия курса *</label>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">ID первого занятия</label>
-            <input
-              type="text"
-              value={lessonId}
-              onChange={(e) => handleLessonIdChange(e.target.value)}
-              placeholder="intro"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            {lessons.map((lesson, index) => (
+              <div key={index} className="rounded-md border border-gray-200 bg-gray-50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-600">Занятие {index + 1}</span>
+                  {lessons.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeLesson(index)}
+                      className="text-xs text-red-600 hover:text-red-700"
+                    >
+                      Удалить
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={lesson.title}
+                    onChange={(e) => updateLessonTitle(index, e.target.value)}
+                    placeholder="Название занятия"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <input
+                    type="text"
+                    value={lesson.id}
+                    onChange={(e) => updateLessonId(index, e.target.value)}
+                    placeholder="ID занятия"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addLesson}
+              className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+            >
+              <span aria-hidden>＋</span>
+              <span>Добавить ещё занятие</span>
+            </button>
           </div>
 
           <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-700">
             <p>
-              <strong>По умолчанию:</strong> первое занятие создаётся с заглушкой и сразу видно студентам. Вы
-              сможете изменить публикацию и содержимое в редакторе.
+              <strong>По умолчанию:</strong> занятия создаются с заглушкой и сразу видны студентам. Вы сможете
+              изменить публикацию и содержимое в редакторе.
             </p>
           </div>
 
@@ -204,7 +252,7 @@ export default function CreateCourseModal({ onClose, onCreated }: CreateCourseMo
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={creating || !courseName.trim() || !lessonName.trim() || !courseId.trim() || !lessonId.trim() || courseIdExists}
+            disabled={creating || !courseName.trim() || !courseId.trim() || courseIdExists}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
           >
             {creating ? 'Создание...' : 'Создать курс'}

@@ -11,6 +11,11 @@ interface CreateCourseResult {
   error?: string;
 }
 
+interface CourseLessonInput {
+  id: string;
+  title: string;
+}
+
 export function useCreateCourse() {
   const [creating, setCreating] = useState(false);
 
@@ -34,31 +39,44 @@ export function useCreateCourse() {
   async function createCourse(
     courseId: string,
     courseName: string,
-    firstLessonId: string,
-    firstLessonTitle: string
+    lessons: CourseLessonInput[]
   ): Promise<CreateCourseResult> {
     if (!courseName.trim()) {
       return { success: false, error: 'Название курса обязательно' };
-    }
-
-    if (!firstLessonTitle.trim()) {
-      return { success: false, error: 'Название первого занятия обязательно' };
     }
 
     if (!courseId.trim()) {
       return { success: false, error: 'ID курса обязателен' };
     }
 
-    if (!firstLessonId.trim()) {
-      return { success: false, error: 'ID первого занятия обязателен' };
-    }
-
     if (!/^[a-z0-9-]+$/.test(courseId)) {
       return { success: false, error: 'ID курса может содержать только латинские буквы, цифры и дефисы' };
     }
 
-    if (!/^[a-z0-9-]+$/.test(firstLessonId)) {
+    if (!Array.isArray(lessons) || lessons.length === 0) {
+      return { success: false, error: 'Добавьте хотя бы одно занятие' };
+    }
+
+    const normalizedLessons = lessons.map((lesson) => ({
+      id: lesson.id.trim(),
+      title: lesson.title.trim(),
+    }));
+
+    if (normalizedLessons.some((lesson) => !lesson.id)) {
+      return { success: false, error: 'ID занятия обязателен' };
+    }
+
+    if (normalizedLessons.some((lesson) => !lesson.title)) {
+      return { success: false, error: 'Название занятия обязательно' };
+    }
+
+    if (normalizedLessons.some((lesson) => !/^[a-z0-9-]+$/.test(lesson.id))) {
       return { success: false, error: 'ID занятия может содержать только латинские буквы, цифры и дефисы' };
+    }
+
+    const lessonIdSet = new Set(normalizedLessons.map((lesson) => lesson.id));
+    if (lessonIdSet.size !== normalizedLessons.length) {
+      return { success: false, error: 'ID занятий должны быть уникальны' };
     }
 
     try {
@@ -82,26 +100,28 @@ export function useCreateCourse() {
         updatedAt: serverTimestamp(),
       });
 
-      const lessonRef = getCourseLessonDocRef(courseId, firstLessonId);
-      await setDoc(lessonRef, {
-        period: firstLessonId,
-        courseId,
-        title: firstLessonTitle.trim(),
-        label: firstLessonTitle.trim(),
-        subtitle: '',
-        published: true,
-        placeholder_enabled: true,
-        placeholder_text: 'Контент для этого занятия появится в ближайшем обновлении.',
-        order: 0,
-        accent: DEFAULT_THEME.accent,
-        accent100: DEFAULT_THEME.accent100,
-        status: 'published',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        sections: {},
-      });
+      for (const [index, lesson] of normalizedLessons.entries()) {
+        const lessonRef = getCourseLessonDocRef(courseId, lesson.id);
+        await setDoc(lessonRef, {
+          period: lesson.id,
+          courseId,
+          title: lesson.title,
+          label: lesson.title,
+          subtitle: '',
+          published: true,
+          placeholder_enabled: true,
+          placeholder_text: 'Контент для этого занятия появится в ближайшем обновлении.',
+          order: index,
+          accent: DEFAULT_THEME.accent,
+          accent100: DEFAULT_THEME.accent100,
+          status: 'published',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          sections: {},
+        });
+      }
 
-      debugLog('Course created:', { courseId, courseName, firstLessonId });
+      debugLog('Course created:', { courseId, courseName, lessonCount: normalizedLessons.length });
       return { success: true };
     } catch (err) {
       debugError('Error creating course:', err);
