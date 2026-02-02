@@ -82,6 +82,7 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
       const data: Record<string, unknown> = {
         period: periodId,
         title: trimmedTitle,
+        label: trimmedTitle,
         published,
         order,
         accent,

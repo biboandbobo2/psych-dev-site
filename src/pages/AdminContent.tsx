@@ -371,24 +371,6 @@ export default function AdminContent() {
         </Link>
       </header>
 
-      {/* Переключатель курсов */}
-      <div className="flex flex-nowrap gap-2 border-b border-gray-200 overflow-x-auto sm:flex-wrap sm:overflow-visible">
-        {Object.values(COURSES).map((courseOption) => (
-          <button
-            key={courseOption.id}
-            onClick={() => setCurrentCourse(courseOption.id)}
-            className={`px-4 py-2 font-medium transition-colors relative whitespace-nowrap ${
-              currentCourse === courseOption.id
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <span className="mr-2">{courseOption.icon}</span>
-            {courseOption.name}
-          </button>
-        ))}
-      </div>
-
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1">
           {saving && (

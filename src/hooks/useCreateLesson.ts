@@ -87,6 +87,7 @@ export function useCreateLesson() {
       const data = {
         period: periodId,
         title: title.trim(),
+        label: title.trim(),
         subtitle: '',
         published: false,
         placeholder_enabled: true,

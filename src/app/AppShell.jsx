@@ -23,6 +23,7 @@ import { LoadingSplash, ErrorState, EmptyState } from '../shared/ui/states';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { AppRoutes } from './AppRoutes';
 import SuperAdminTaskPanel from '../components/SuperAdminTaskPanel';
+import AdminCourseSidebar from '../components/AdminCourseSidebar';
 
 const normalizePath = (path) =>
   path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
@@ -93,10 +94,19 @@ export function AppShell() {
   const authLoading = useAuthStore((state) => state.loading);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const isSuperAdminPage = normalizedPath === '/superadmin';
+  const isAdminContentPage = normalizedPath.startsWith('/admin/content');
   const hideNavigation =
     normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/superadmin');
-  const sidebar = isSuperAdmin && isSuperAdminPage ? <SuperAdminTaskPanel /> : undefined;
-  const sidebarWidthClass = isSuperAdmin && isSuperAdminPage ? "lg:w-[360px] xl:w-[420px]" : undefined;
+  const sidebar = isSuperAdmin && isSuperAdminPage
+    ? <SuperAdminTaskPanel />
+    : isAdminContentPage
+      ? <AdminCourseSidebar />
+      : undefined;
+  const sidebarWidthClass = isSuperAdmin && isSuperAdminPage
+    ? "lg:w-[360px] xl:w-[420px]"
+    : isAdminContentPage
+      ? "lg:w-64 xl:w-72"
+      : undefined;
   const { isOpen, openModal, closeModal } = useLoginModal();
 
   // Используем глобальный store для курса

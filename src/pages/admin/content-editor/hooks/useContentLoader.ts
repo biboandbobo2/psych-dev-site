@@ -157,7 +157,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
 
         setPeriod(data);
 
-        setTitle(data.title || '');
+        setTitle(data.title || data.label || '');
         setSubtitle(data.subtitle || '');
         setPublished(data.published ?? true);
         setOrder(typeof data.order === 'number' ? data.order : 0);
