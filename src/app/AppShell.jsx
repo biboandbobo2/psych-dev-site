@@ -25,6 +25,7 @@ import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { AppRoutes } from './AppRoutes';
 import SuperAdminTaskPanel from '../components/SuperAdminTaskPanel';
 import AdminCourseSidebar from '../components/AdminCourseSidebar';
+import StudentCourseSidebar from '../components/StudentCourseSidebar';
 import { isCoreCourse } from '../constants/courses';
 
 const normalizePath = (path) =>
@@ -97,18 +98,9 @@ export function AppShell() {
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const isSuperAdminPage = normalizedPath === '/superadmin';
   const isAdminContentPage = normalizedPath.startsWith('/admin/content');
+  const isProfilePage = normalizedPath === '/profile';
   const hideNavigation =
     normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/superadmin');
-  const sidebar = isSuperAdmin && isSuperAdminPage
-    ? <SuperAdminTaskPanel />
-    : isAdminContentPage
-      ? <AdminCourseSidebar />
-      : undefined;
-  const sidebarWidthClass = isSuperAdmin && isSuperAdminPage
-    ? "lg:w-[360px] xl:w-[420px]"
-    : isAdminContentPage
-      ? "lg:w-64 xl:w-72"
-      : undefined;
   const { isOpen, openModal, closeModal } = useLoginModal();
 
   // Используем глобальный store для курса
@@ -215,6 +207,19 @@ export function AppShell() {
     // Сортируем по order
     return items.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
   }, [periodMap, clinicalTopicsMap, generalTopicsMap, dynamicLessonsMap, isClinicalPage, isGeneralPage, isDynamicCoursePage, dynamicCourseId]);
+
+  const sidebar = isSuperAdmin && isSuperAdminPage
+    ? <SuperAdminTaskPanel />
+    : isAdminContentPage
+      ? <AdminCourseSidebar />
+      : isProfilePage
+        ? <StudentCourseSidebar navItems={navItems} />
+        : undefined;
+  const sidebarWidthClass = isSuperAdmin && isSuperAdminPage
+    ? "lg:w-[360px] xl:w-[420px]"
+    : isAdminContentPage || isProfilePage
+      ? "lg:w-64 xl:w-72"
+      : undefined;
 
   if (loading || clinicalLoading || generalLoading || (isDynamicCoursePage && dynamicLoading)) return <LoadingSplash />;
   if (error) return <ErrorState message={error.message} />;

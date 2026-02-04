@@ -273,8 +273,8 @@ export default function Profile() {
       </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
-          {/* Переключатель курсов */}
-        <div>
+          {/* Переключатель курсов (мобильная версия) */}
+        <div className="sm:hidden">
           <h2 className="text-lg font-semibold mb-4 text-gray-700 uppercase tracking-wide">Выберите курс</h2>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 sm:border-b sm:border-gray-200">
             {courses.map((courseOption) => (
