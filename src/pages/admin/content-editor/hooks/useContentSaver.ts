@@ -244,8 +244,8 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
   };
 
   const handleDelete = async (periodId: string | undefined, title: string) => {
-    if (periodId === 'intro' || periodId === 'clinical-intro') {
-      alert('⚠️ Вводное занятие нельзя удалить, только редактировать.');
+    if (!periodId) {
+      alert('⚠️ Не удалось определить ID занятия для удаления.');
       return;
     }
 
@@ -258,14 +258,26 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
 
     try {
       setSaving(true);
-      const collectionName = course === 'clinical' ? 'clinical-topics' :
-        course === 'general' ? 'general-topics' :
-        isCoreCourse(course) ? 'periods' :
-        null;
-      const docRef = collectionName
-        ? doc(db, collectionName, periodId!)
-        : getCourseLessonDocRef(course, periodId!);
-      await deleteDoc(docRef);
+
+      if (isCoreCourse(course) && periodId === 'intro') {
+        // Intro can live in both legacy and current locations.
+        const introDocs = await getDocs(collection(db, 'intro'));
+        const deletionTasks = [
+          deleteDoc(doc(db, 'periods', 'intro')),
+          ...introDocs.docs.map((docSnap) => deleteDoc(docSnap.ref)),
+        ];
+        await Promise.allSettled(deletionTasks);
+      } else {
+        const collectionName = course === 'clinical' ? 'clinical-topics' :
+          course === 'general' ? 'general-topics' :
+          isCoreCourse(course) ? 'periods' :
+          null;
+        const docRef = collectionName
+          ? doc(db, collectionName, periodId)
+          : getCourseLessonDocRef(course, periodId);
+        await deleteDoc(docRef);
+      }
+
       alert(`🗑️ ${course === 'clinical' ? 'Тема удалена' : isCoreCourse(course) ? 'Период удалён' : 'Занятие удалено'}`);
       onNavigate();
     } catch (error: any) {
