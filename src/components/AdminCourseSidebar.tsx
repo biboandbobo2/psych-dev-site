@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDocs, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
 import type { CourseType } from '../types/tests';
 import { useCourseStore } from '../stores/useCourseStore';
 import { cn } from '../lib/cn';
@@ -8,6 +8,16 @@ import { useCourses } from '../hooks/useCourses';
 import CreateCourseModal from './CreateCourseModal';
 import { db } from '../lib/firebase';
 import { debugError } from '../lib/debug';
+import { getCourseLessonsCollectionRef } from '../lib/courseLessons';
+import { canonicalizePeriodId } from '../lib/firestoreHelpers';
+import { isCoreCourse } from '../constants/courses';
+
+interface LessonNavItem {
+  id: string;
+  label: string;
+  order: number;
+  published: boolean;
+}
 
 export default function AdminCourseSidebar() {
   const [searchParams] = useSearchParams();
@@ -20,6 +30,8 @@ export default function AdminCourseSidebar() {
   const [editingCourseName, setEditingCourseName] = useState('');
   const [renamingCourseId, setRenamingCourseId] = useState<string | null>(null);
   const [renameError, setRenameError] = useState<string | null>(null);
+  const [lessonItems, setLessonItems] = useState<LessonNavItem[]>([]);
+  const [lessonsLoading, setLessonsLoading] = useState(false);
 
   const courseParam = searchParams.get('course');
   const queryCourse = courseParam && courseParam.trim() ? courseParam : null;
@@ -32,6 +44,10 @@ export default function AdminCourseSidebar() {
     () => courses.find((courseOption) => courseOption.id === editingCourseId) ?? null,
     [courses, editingCourseId]
   );
+  const activeLessonId = useMemo(() => {
+    const match = location.pathname.match(/^\/admin\/content\/edit\/([^/?#]+)/);
+    return match?.[1] ? decodeURIComponent(match[1]) : null;
+  }, [location.pathname]);
 
   useEffect(() => {
     if (queryCourse && queryCourse !== currentCourse) {
@@ -47,12 +63,76 @@ export default function AdminCourseSidebar() {
     }
   }, [courses, coursesLoading, currentCourse, setCurrentCourse]);
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadLessons = async () => {
+      if (!activeCourse) {
+        setLessonItems([]);
+        return;
+      }
+
+      try {
+        setLessonsLoading(true);
+        const lessonsRef = getCourseLessonsCollectionRef(activeCourse);
+        const snapshot = await getDocs(query(lessonsRef, orderBy('order', 'asc')));
+        const map = new Map<string, LessonNavItem>();
+
+        snapshot.docs.forEach((docSnap, index) => {
+          const data = docSnap.data() as Record<string, unknown>;
+          const lessonId = isCoreCourse(activeCourse)
+            ? canonicalizePeriodId(docSnap.id)
+            : docSnap.id;
+          const current = map.get(lessonId);
+          if (current) return;
+
+          map.set(lessonId, {
+            id: lessonId,
+            label:
+              (typeof data.title === 'string' && data.title.trim()) ||
+              (typeof data.label === 'string' && data.label.trim()) ||
+              lessonId,
+            order: typeof data.order === 'number' ? data.order : index,
+            published: data.published !== false,
+          });
+        });
+
+        if (!isCancelled) {
+          setLessonItems(
+            [...map.values()].sort((a, b) => {
+              if (a.order !== b.order) return a.order - b.order;
+              return a.label.localeCompare(b.label, 'ru');
+            })
+          );
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          debugError('Failed to load course lessons for sidebar', error);
+          setLessonItems([]);
+        }
+      } finally {
+        if (!isCancelled) {
+          setLessonsLoading(false);
+        }
+      }
+    };
+
+    loadLessons();
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeCourse]);
+
   const handleCourseSelect = (courseId: string) => {
     setCurrentCourse(courseId as CourseType);
     const target = `/admin/content?course=${courseId}`;
     if (location.pathname !== '/admin/content' || location.search !== `?course=${courseId}`) {
       navigate(target);
     }
+  };
+
+  const handleLessonSelect = (lessonId: string) => {
+    navigate(`/admin/content/edit/${lessonId}?course=${activeCourse}`);
   };
 
   const startRename = (courseId: string, currentName: string) => {
@@ -230,6 +310,40 @@ export default function AdminCourseSidebar() {
           );
         })}
       </nav>
+
+      <div className="rounded-2xl border border-border/60 bg-card2 p-2 sm:p-3">
+        <div className="mb-2 px-2">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted">Навигация курса</p>
+        </div>
+        {lessonsLoading ? (
+          <p className="px-2 py-2 text-xs text-muted">Загружаю занятия...</p>
+        ) : lessonItems.length === 0 ? (
+          <p className="px-2 py-2 text-xs text-muted">Пока нет занятий.</p>
+        ) : (
+          <nav className="flex flex-col gap-1">
+            {lessonItems.map((lesson) => (
+              <button
+                key={lesson.id}
+                type="button"
+                onClick={() => handleLessonSelect(lesson.id)}
+                className={cn(
+                  'rounded-xl px-3 py-2 text-left text-sm font-medium leading-snug transition-colors border border-transparent',
+                  activeLessonId === lesson.id
+                    ? 'bg-accent-100 text-accent border-accent/30 shadow-sm'
+                    : 'text-muted hover:text-fg hover:bg-card'
+                )}
+              >
+                <span className="block whitespace-normal break-words">{lesson.label}</span>
+                {!lesson.published && (
+                  <span className="mt-0.5 inline-block text-[10px] uppercase tracking-[0.16em] text-amber-700">
+                    Черновик
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        )}
+      </div>
 
       {showCreateCourse && (
         <CreateCourseModal
