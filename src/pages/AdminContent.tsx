@@ -44,6 +44,26 @@ interface Period {
 
 const FALLBACK_PLACEHOLDER_TEXT = "Контент для этого возраста пока не создан.";
 
+const getPeriodSortWeight = (period: Period, fallbackOrder: number) =>
+  typeof period.order === "number" ? period.order : fallbackOrder;
+
+const sortPeriods = (items: Period[], getFallbackOrder: (periodId: string) => number): Period[] =>
+  [...items].sort((a, b) => {
+    const draftRankA = a.published === false ? 1 : 0;
+    const draftRankB = b.published === false ? 1 : 0;
+    if (draftRankA !== draftRankB) {
+      return draftRankA - draftRankB;
+    }
+
+    const orderA = getPeriodSortWeight(a, getFallbackOrder(a.period));
+    const orderB = getPeriodSortWeight(b, getFallbackOrder(b.period));
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+
+    return String(a.title || a.period).localeCompare(String(b.title || b.period), "ru");
+  });
+
 const getCoreRoutes = (courseId: CourseType) =>
   courseId === 'clinical' ? CLINICAL_ROUTE_CONFIG :
   courseId === 'general' ? GENERAL_ROUTE_CONFIG :
@@ -243,8 +263,9 @@ export default function AdminContent() {
         const getRouteOrder = (periodId: string) =>
           routeOrderMap[periodId] ?? Number.MAX_SAFE_INTEGER;
         const existingIds = new Set(data.map((period) => period.period));
+        const introIds = new Set(["intro", "clinical-intro"]);
         const placeholderPeriods = coreRoutes.filter(
-          (config) => config.periodId && !existingIds.has(config.periodId)
+          (config) => config.periodId && !existingIds.has(config.periodId) && !introIds.has(config.periodId)
         ).map((config) => ({
           period: config.periodId!,
           title: config.navLabel,
@@ -258,23 +279,13 @@ export default function AdminContent() {
           isPlaceholder: true,
         }));
 
-        const combined = [...data, ...placeholderPeriods].sort((a, b) => {
-          const orderA =
-            typeof a.order === "number" ? a.order : getRouteOrder(a.period);
-          const orderB =
-            typeof b.order === "number" ? b.order : getRouteOrder(b.period);
-          return orderA - orderB;
-        });
+        const combined = sortPeriods([...data, ...placeholderPeriods], getRouteOrder);
 
         if (requestId === loadRequestId.current) {
           setPeriods(combined);
         }
       } else {
-        const combined = [...data].sort((a, b) => {
-          const orderA = typeof a.order === "number" ? a.order : 0;
-          const orderB = typeof b.order === "number" ? b.order : 0;
-          return orderA - orderB;
-        });
+        const combined = sortPeriods([...data], () => 0);
         if (requestId === loadRequestId.current) {
           setPeriods(combined);
         }

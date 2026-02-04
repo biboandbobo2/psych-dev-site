@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import type { CourseType } from '../types/tests';
@@ -28,6 +28,10 @@ export default function AdminCourseSidebar() {
     currentCourse ??
     courses[0]?.id ??
     'development';
+  const activeEditingCourse = useMemo(
+    () => courses.find((courseOption) => courseOption.id === editingCourseId) ?? null,
+    [courses, editingCourseId]
+  );
 
   useEffect(() => {
     if (queryCourse && queryCourse !== currentCourse) {
@@ -63,7 +67,9 @@ export default function AdminCourseSidebar() {
     setRenameError(null);
   };
 
-  const saveCourseName = async (courseId: string) => {
+  const saveCourseName = async () => {
+    if (!activeEditingCourse) return;
+
     const trimmedName = editingCourseName.trim();
     if (!trimmedName) {
       setRenameError('Название курса не может быть пустым');
@@ -71,14 +77,24 @@ export default function AdminCourseSidebar() {
     }
 
     try {
-      setRenamingCourseId(courseId);
+      setRenamingCourseId(activeEditingCourse.id);
       setRenameError(null);
+
+      const updatePayload: Record<string, unknown> = {
+        name: trimmedName,
+        updatedAt: serverTimestamp(),
+      };
+
+      if (activeEditingCourse.isCore) {
+        // Keep core docs queryable as explicit overrides in Firestore.
+        updatePayload.order = activeEditingCourse.order;
+        updatePayload.icon = activeEditingCourse.icon;
+        updatePayload.published = true;
+      }
+
       await setDoc(
-        doc(db, 'courses', courseId),
-        {
-          name: trimmedName,
-          updatedAt: serverTimestamp(),
-        },
+        doc(db, 'courses', activeEditingCourse.id),
+        updatePayload,
         { merge: true }
       );
       await reload();
@@ -118,39 +134,52 @@ export default function AdminCourseSidebar() {
 
           if (isEditing) {
             return (
-              <div key={course.id} className="rounded-2xl border border-accent/30 bg-accent-100/70 p-3 space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                  Переименовать курс
-                </label>
-                <input
-                  type="text"
-                  value={editingCourseName}
-                  onChange={(event) => {
-                    setEditingCourseName(event.target.value);
-                    setRenameError(null);
-                  }}
-                  className="w-full rounded-xl border border-accent/20 bg-white px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
-                  placeholder="Название курса"
-                  autoFocus
-                />
-                {renameError && <p className="text-xs text-red-600">{renameError}</p>}
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={cancelRename}
-                    disabled={isRenaming}
-                    className="rounded-lg border border-border/70 px-3 py-1.5 text-xs text-muted transition hover:bg-card2 disabled:opacity-50"
-                  >
-                    Отмена
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => saveCourseName(course.id)}
-                    disabled={isRenaming}
-                    className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-                  >
-                    {isRenaming ? 'Сохранение...' : 'Сохранить'}
-                  </button>
+              <div
+                key={course.id}
+                className="rounded-2xl border border-accent/30 bg-accent-100/70 p-3"
+              >
+                <div className="flex items-start gap-2">
+                  <span className="mt-2 inline-flex w-6 justify-center text-base" aria-hidden>
+                    {course.icon}
+                  </span>
+                  <span className="mt-2 inline-flex w-6 justify-center text-sm text-accent" aria-hidden>
+                    ✏️
+                  </span>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+                      Переименовать курс
+                    </label>
+                    <input
+                      type="text"
+                      value={editingCourseName}
+                      onChange={(event) => {
+                        setEditingCourseName(event.target.value);
+                        setRenameError(null);
+                      }}
+                      className="w-full rounded-xl border border-accent/20 bg-white px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
+                      placeholder="Название курса"
+                      autoFocus
+                    />
+                    {renameError && <p className="text-xs text-red-600">{renameError}</p>}
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={cancelRename}
+                        disabled={isRenaming}
+                        className="rounded-lg border border-border/70 px-3 py-1.5 text-xs text-muted transition hover:bg-card2 disabled:opacity-50"
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveCourseName}
+                        disabled={isRenaming}
+                        className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                      >
+                        {isRenaming ? 'Сохранение...' : 'Сохранить'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
@@ -160,37 +189,42 @@ export default function AdminCourseSidebar() {
             <div
               key={course.id}
               className={cn(
-                'flex items-center gap-2 rounded-2xl border px-2 py-2 transition-colors',
+                'flex items-center gap-2 rounded-2xl border px-3 py-2 transition-colors',
                 isActive
                   ? 'bg-accent-100 border-accent/30 shadow-sm'
                   : 'border-transparent hover:bg-card2'
               )}
             >
-              <button
-                type="button"
-                onClick={() => handleCourseSelect(course.id)}
-                aria-pressed={isActive}
-                className={cn(
-                  'flex flex-1 items-center gap-3 rounded-xl px-2 py-1.5 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20',
-                  isActive ? 'text-accent' : 'text-muted hover:text-fg'
-                )}
-              >
-                <span className="text-base" aria-hidden>
-                  {course.icon}
-                </span>
-                <span className="truncate">{course.name}</span>
-              </button>
+              <span className="inline-flex w-6 justify-center text-base" aria-hidden>
+                {course.icon}
+              </span>
               <button
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
                   startRename(course.id, course.name);
                 }}
-                className="rounded-lg px-2 py-1 text-sm text-muted transition hover:bg-white hover:text-fg"
+                className={cn(
+                  'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sm transition',
+                  isActive
+                    ? 'text-accent hover:bg-accent/15'
+                    : 'text-muted hover:bg-white hover:text-fg'
+                )}
                 title={`Переименовать курс ${course.name}`}
                 aria-label={`Переименовать курс ${course.name}`}
               >
                 ✏️
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCourseSelect(course.id)}
+                aria-pressed={isActive}
+                className={cn(
+                  'min-w-0 flex-1 rounded-xl px-2 py-1.5 text-left text-sm font-medium leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20',
+                  isActive ? 'text-accent' : 'text-muted hover:text-fg'
+                )}
+              >
+                <span className="block whitespace-normal break-words">{course.name}</span>
               </button>
             </div>
           );

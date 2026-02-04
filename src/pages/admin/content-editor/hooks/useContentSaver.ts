@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { doc, setDoc, deleteDoc, deleteField, serverTimestamp, collection, getDocs, getDoc } from 'firebase/firestore';
+import {
+  doc,
+  setDoc,
+  deleteDoc,
+  deleteField,
+  serverTimestamp,
+  collection,
+  getDocs,
+  getDoc,
+  writeBatch,
+} from 'firebase/firestore';
 import { db } from '../../../../lib/firebase';
 import type { VideoFormEntry } from '../types';
 import {
@@ -39,6 +49,50 @@ interface SaveParams {
  */
 export function useContentSaver(onNavigate: () => void, course: CourseType = 'development') {
   const [saving, setSaving] = useState(false);
+
+  const normalizeLessonOrder = async () => {
+    const collectionRef =
+      course === 'clinical'
+        ? collection(db, 'clinical-topics')
+        : course === 'general'
+          ? collection(db, 'general-topics')
+          : isCoreCourse(course)
+            ? collection(db, 'periods')
+            : collection(db, 'courses', course, 'lessons');
+
+    const snapshot = await getDocs(collectionRef);
+    const docs = [...snapshot.docs].sort((a, b) => {
+      const orderA = typeof a.data().order === 'number' ? a.data().order : Number.MAX_SAFE_INTEGER;
+      const orderB = typeof b.data().order === 'number' ? b.data().order : Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return a.id.localeCompare(b.id, 'ru');
+    });
+    const batch = writeBatch(db);
+    let changedCount = 0;
+
+    docs.forEach((docSnap, index) => {
+      const currentOrder = docSnap.data().order;
+      if (typeof currentOrder === 'number' && currentOrder === index) {
+        return;
+      }
+
+      batch.set(
+        docSnap.ref,
+        {
+          order: index,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      changedCount += 1;
+    });
+
+    if (changedCount > 0) {
+      await batch.commit();
+    }
+  };
 
   const handleSave = async (params: SaveParams) => {
     const {
@@ -277,6 +331,8 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
           : getCourseLessonDocRef(course, periodId);
         await deleteDoc(docRef);
       }
+
+      await normalizeLessonOrder();
 
       alert(`🗑️ ${course === 'clinical' ? 'Тема удалена' : isCoreCourse(course) ? 'Период удалён' : 'Занятие удалено'}`);
       onNavigate();

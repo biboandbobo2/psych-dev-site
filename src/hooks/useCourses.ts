@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { CORE_COURSE_LIST, isCoreCourse } from '../constants/courses';
 import { debugError } from '../lib/debug';
@@ -98,8 +98,7 @@ export function useCourses(options: UseCoursesOptions = {}) {
       setLoading(true);
       setError(null);
 
-      const q = query(collection(db, 'courses'), orderBy('order', 'asc'));
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocs(collection(db, 'courses'));
       const docs = snapshot.docs.map((docSnap) => ({
         id: docSnap.id,
         data: docSnap.data() as Record<string, unknown>,
