@@ -13,6 +13,24 @@ const adminAuth = getAuth();
 
 const SUPER_ADMIN_EMAIL = "biboandbobo2@gmail.com";
 
+function toPendingUid(email: string): string {
+  return `pending_${Buffer.from(email.trim().toLowerCase()).toString("base64url")}`;
+}
+
+function extractCourseAccess(value: unknown): Record<string, boolean> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const source = value as Record<string, unknown>;
+  const result: Record<string, boolean> = {};
+  for (const [key, access] of Object.entries(source)) {
+    if (typeof access === "boolean") {
+      result[key] = access;
+    }
+  }
+  return result;
+}
+
 /**
  * Роли пользователей:
  * - guest: новый пользователь, без доступа к видео (может получить доступ к отдельным курсам)
@@ -24,9 +42,25 @@ export const onUserCreate = functions.auth.user().onCreate(async (user) => {
   const { uid, email, displayName, photoURL } = user;
   // Новые пользователи получают роль guest (без доступа к видео)
   // Super-admin по email получает полные права
-  const role = email === SUPER_ADMIN_EMAIL ? "super-admin" : "guest";
+  let role = email === SUPER_ADMIN_EMAIL ? "super-admin" : "guest";
+  let invitedCourseAccess: Record<string, boolean> | null = null;
+  let pendingDocRef: any = null;
 
   try {
+    if (email) {
+      const pendingUid = toPendingUid(email);
+      pendingDocRef = db.collection("users").doc(pendingUid);
+      const pendingSnap = await pendingDocRef.get();
+      if (pendingSnap.exists) {
+        const pendingData = pendingSnap.data() ?? {};
+        const pendingRole = pendingData.role;
+        if (pendingRole === "student") {
+          role = "student";
+        }
+        invitedCourseAccess = extractCourseAccess(pendingData.courseAccess);
+      }
+    }
+
     // Создаём документ пользователя
     // courseAccess инициализируется пустым объектом для guest
     // (super-admin получает полный доступ через роль, не через courseAccess)
@@ -49,8 +83,15 @@ export const onUserCreate = functions.auth.user().onCreate(async (user) => {
         general: false,
       };
     }
+    if (role === "student" && invitedCourseAccess && Object.keys(invitedCourseAccess).length > 0) {
+      userData.courseAccess = invitedCourseAccess;
+    }
 
     await db.collection("users").doc(uid).set(userData);
+
+    if (pendingDocRef) {
+      await pendingDocRef.delete().catch(() => {});
+    }
 
     await adminAuth.setCustomUserClaims(uid, { role });
 

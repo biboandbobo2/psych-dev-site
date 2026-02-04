@@ -20,6 +20,45 @@ interface UpdateCourseAccessResponse {
   message: string;
 }
 
+export interface StudentEmailList {
+  id: string;
+  name: string;
+  emails: string[];
+  emailCount: number;
+  updatedAtMs: number | null;
+}
+
+interface GetStudentEmailListsResponse {
+  lists: StudentEmailList[];
+}
+
+export interface SaveStudentEmailListParams {
+  name: string;
+  emails: string[];
+}
+
+interface SaveStudentEmailListResponse {
+  success: boolean;
+  listId: string;
+}
+
+export interface BulkEnrollStudentsParams {
+  emails: string[];
+  courseIds: string[];
+  saveList?: {
+    enabled: boolean;
+    name?: string;
+  };
+}
+
+interface BulkEnrollStudentsResponse {
+  success: boolean;
+  updatedExisting: number;
+  createdPending: number;
+  totalProcessed: number;
+  savedListId: string | null;
+}
+
 export async function makeUserAdmin(params: MakeAdminParams) {
   const makeAdmin = httpsCallable<MakeAdminParams, AdminActionResponse>(functions, "makeUserAdmin");
   const result = await makeAdmin(params);
@@ -45,6 +84,33 @@ export async function updateCourseAccess(params: UpdateCourseAccessParams) {
     "updateCourseAccess"
   );
   const result = await update(params);
+  return result.data;
+}
+
+export async function getStudentEmailLists() {
+  const fn = httpsCallable<Record<string, never>, GetStudentEmailListsResponse>(
+    functions,
+    "getStudentEmailLists"
+  );
+  const result = await fn({});
+  return result.data;
+}
+
+export async function saveStudentEmailList(params: SaveStudentEmailListParams) {
+  const fn = httpsCallable<SaveStudentEmailListParams, SaveStudentEmailListResponse>(
+    functions,
+    "saveStudentEmailList"
+  );
+  const result = await fn(params);
+  return result.data;
+}
+
+export async function bulkEnrollStudents(params: BulkEnrollStudentsParams) {
+  const fn = httpsCallable<BulkEnrollStudentsParams, BulkEnrollStudentsResponse>(
+    functions,
+    "bulkEnrollStudents"
+  );
+  const result = await fn(params);
   return result.data;
 }
 

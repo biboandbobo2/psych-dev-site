@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAllUsers } from "../hooks/useAllUsers";
 import { useAuth } from "../auth/AuthProvider";
 import { AddAdminModal } from "../components/AddAdminModal";
+import { BulkStudentAccessModal } from "../components/BulkStudentAccessModal";
 import { SuperAdminBadge } from "../components/SuperAdminBadge";
 import { useCourses } from "../hooks/useCourses";
 import { UserRow, useUserManagement } from "./admin/users";
@@ -14,6 +15,7 @@ export default function AdminUsers() {
   const { courses } = useCourses({ includeUnpublished: true });
   const [filter, setFilter] = useState<UserFilter>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
   const {
     actionLoading,
@@ -87,13 +89,22 @@ export default function AdminUsers() {
         </div>
 
         {isSuperAdmin && (
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700"
-          >
-            + Добавить админа
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsBulkModalOpen(true)}
+              className="rounded-md bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-700"
+            >
+              + Массово открыть курсы
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700"
+            >
+              + Добавить админа
+            </button>
+          </div>
         )}
       </div>
 
@@ -156,6 +167,12 @@ export default function AdminUsers() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => window.alert('Администратор добавлен!')}
+      />
+
+      <BulkStudentAccessModal
+        isOpen={isBulkModalOpen}
+        onClose={() => setIsBulkModalOpen(false)}
+        courseOptions={courses.map((course) => ({ id: course.id, name: course.name }))}
       />
     </div>
   );

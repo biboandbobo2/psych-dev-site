@@ -236,5 +236,6 @@ export { makeUserAdmin, removeAdmin } from './makeAdmin.js';
 export { ingestBook } from './ingestBook.js';
 export { runVerify, runReconcile } from './verify.js';
 export { updateCourseAccess, setUserRole } from './courseAccess.js';
+export { bulkEnrollStudents, getStudentEmailLists, saveStudentEmailList } from './bulkEnrollment.js';
 export { sendFeedback } from './sendFeedback.js';
 export { billingBudgetAlert } from './billingBudgetAlert.js';
