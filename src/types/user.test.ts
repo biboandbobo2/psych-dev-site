@@ -38,7 +38,7 @@ describe('hasCourseAccess', () => {
     });
   });
 
-  describe('student role checks courseAccess with default true', () => {
+  describe('student role checks courseAccess', () => {
     it('returns true when courseAccess is null (backwards compatibility)', () => {
       expect(hasCourseAccess('student', null, 'development')).toBe(true);
       expect(hasCourseAccess('student', null, 'clinical')).toBe(true);
@@ -84,14 +84,14 @@ describe('hasCourseAccess', () => {
       expect(hasCourseAccess('student', partialAccess, 'general')).toBe(true);
     });
 
-    it('returns true when field is undefined (not explicitly denied)', () => {
+    it('returns false when field is undefined in non-empty map', () => {
       const access: CourseAccessMap = {
         development: true,
         // clinical and general are undefined
       };
       expect(hasCourseAccess('student', access, 'development')).toBe(true);
-      expect(hasCourseAccess('student', access, 'clinical')).toBe(true);
-      expect(hasCourseAccess('student', access, 'general')).toBe(true);
+      expect(hasCourseAccess('student', access, 'clinical')).toBe(false);
+      expect(hasCourseAccess('student', access, 'general')).toBe(false);
     });
   });
 
@@ -189,8 +189,8 @@ describe('countAccessibleCourses', () => {
     expect(countAccessibleCourses('student', {
       development: true,
       clinical: false,
-      // general undefined = allowed
-    })).toBe(2);
+      // general undefined = denied when map is non-empty
+    })).toBe(1);
   });
 
   it('returns 0 for guest without access', () => {

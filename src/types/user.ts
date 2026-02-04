@@ -17,7 +17,7 @@ export type UserRole = 'guest' | 'student' | 'admin' | 'super-admin';
  *
  * Логика:
  * - admin/super-admin → всегда полный доступ
- * - student → проверяется courseAccess (если курс явно false — нет доступа, иначе — есть)
+ * - student → если courseAccess не задан (legacy) — полный доступ, иначе доступ только к явно true
  * - guest → проверяется courseAccess (нужен явный true для доступа)
  */
 export interface CourseAccessMap {
@@ -82,15 +82,13 @@ export function hasCourseAccess(
     return true;
   }
 
-  // student: если courseAccess не задан или курс не указан → доступ есть (обратная совместимость)
-  // если курс явно false → доступа нет
+  // student:
+  // - нет courseAccess (legacy аккаунты) -> полный доступ
+  // - есть courseAccess -> доступ только к явно разрешённым курсам
   if (role === 'student') {
-    // Нет courseAccess → полный доступ (старые пользователи)
     if (!courseAccess) return true;
-    // Курс явно запрещён → нет доступа
-    if (courseAccess[courseType] === false) return false;
-    // Курс разрешён или не указан → есть доступ
-    return true;
+    if (Object.keys(courseAccess).length === 0) return true;
+    return courseAccess[courseType] === true;
   }
 
   // guest: нужен явный true для доступа
