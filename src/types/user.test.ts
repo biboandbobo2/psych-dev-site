@@ -222,4 +222,18 @@ describe('countAccessibleCourses', () => {
       general: true,
     })).toBe(3);
   });
+
+  it('supports dynamic course list for custom courses', () => {
+    expect(
+      countAccessibleCourses(
+        'guest',
+        {
+          development: true,
+          'social-psychology': true,
+          'cognitive-science': false,
+        },
+        ['development', 'social-psychology', 'cognitive-science']
+      )
+    ).toBe(2);
+  });
 });

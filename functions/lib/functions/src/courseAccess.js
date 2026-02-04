@@ -12,7 +12,7 @@ const SUPER_ADMIN_EMAIL = "biboandbobo2@gmail.com";
  * Используется для гранулярного управления доступом к видео-контенту.
  *
  * @param data.targetUid - UID пользователя
- * @param data.courseAccess - карта доступа { development?: boolean, clinical?: boolean, general?: boolean }
+ * @param data.courseAccess - карта доступа { [courseId]: boolean }
  */
 export const updateCourseAccess = functions.https.onCall(async (data, context) => {
     functions.logger.info("🔵 updateCourseAccess called", {
@@ -47,16 +47,17 @@ export const updateCourseAccess = functions.https.onCall(async (data, context) =
         throw new functions.https.HttpsError("invalid-argument", "courseAccess is required and must be an object");
     }
     // Валидация значений courseAccess
-    const validCourses = ["development", "clinical", "general"];
+    const normalizedCourseAccess = {};
     for (const [key, value] of Object.entries(courseAccess)) {
-        if (!validCourses.includes(key)) {
+        if (!key || !key.trim()) {
             functions.logger.error("❌ Invalid course key", { key });
-            throw new functions.https.HttpsError("invalid-argument", `Invalid course key: ${key}. Valid keys: ${validCourses.join(", ")}`);
+            throw new functions.https.HttpsError("invalid-argument", "Course key cannot be empty");
         }
         if (typeof value !== "boolean") {
             functions.logger.error("❌ Invalid course value", { key, value });
             throw new functions.https.HttpsError("invalid-argument", `Course access value must be boolean, got ${typeof value} for ${key}`);
         }
+        normalizedCourseAccess[key] = value;
     }
     try {
         const firestore = getFirestore();
@@ -71,11 +72,7 @@ export const updateCourseAccess = functions.https.onCall(async (data, context) =
         const currentRole = userData?.role;
         // Обновляем courseAccess
         await userDocRef.update({
-            courseAccess: {
-                development: courseAccess.development ?? false,
-                clinical: courseAccess.clinical ?? false,
-                general: courseAccess.general ?? false,
-            },
+            courseAccess: normalizedCourseAccess,
             courseAccessUpdatedAt: FieldValue.serverTimestamp(),
             courseAccessUpdatedBy: context.auth.uid,
         });
@@ -89,11 +86,7 @@ export const updateCourseAccess = functions.https.onCall(async (data, context) =
             success: true,
             targetUid,
             targetEmail: userData?.email,
-            courseAccess: {
-                development: courseAccess.development ?? false,
-                clinical: courseAccess.clinical ?? false,
-                general: courseAccess.general ?? false,
-            },
+            courseAccess: normalizedCourseAccess,
             message: "Course access updated successfully",
         };
     }

@@ -3,6 +3,7 @@ import { useAllUsers } from "../hooks/useAllUsers";
 import { useAuth } from "../auth/AuthProvider";
 import { AddAdminModal } from "../components/AddAdminModal";
 import { SuperAdminBadge } from "../components/SuperAdminBadge";
+import { useCourses } from "../hooks/useCourses";
 import { UserRow, useUserManagement } from "./admin/users";
 
 type UserFilter = 'all' | 'students' | 'admins' | 'guests';
@@ -10,6 +11,7 @@ type UserFilter = 'all' | 'students' | 'admins' | 'guests';
 export default function AdminUsers() {
   const { users, loading, error } = useAllUsers();
   const { user: currentUser, isSuperAdmin } = useAuth();
+  const { courses } = useCourses({ includeUnpublished: true });
   const [filter, setFilter] = useState<UserFilter>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -25,7 +27,10 @@ export default function AdminUsers() {
     handleRowClick,
     handleCourseAccessChange,
     handleSaveCourseAccess,
-  } = useUserManagement({ isSuperAdmin });
+  } = useUserManagement({
+    isSuperAdmin,
+    availableCourseIds: courses.map((course) => course.id),
+  });
 
   if (!isSuperAdmin) {
     return (
@@ -136,6 +141,7 @@ export default function AdminUsers() {
                 onSaveCourseAccess={() => handleSaveCourseAccess(user.uid)}
                 onSetRole={(role) => handleSetRole(user.uid, role)}
                 onToggleDisabled={() => handleToggleDisabled(user.uid, user.disabled === true)}
+                courseOptions={courses.map((course) => ({ id: course.id, name: course.name }))}
               />
             ))}
           </tbody>

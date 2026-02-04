@@ -5,6 +5,7 @@ import type { UserRecord } from '../../../../hooks/useAllUsers';
 
 interface UseUserManagementOptions {
   isSuperAdmin: boolean;
+  availableCourseIds: string[];
 }
 
 interface UseUserManagementReturn {
@@ -22,7 +23,7 @@ interface UseUserManagementReturn {
   handleSetRole: (targetUid: string, newRole: 'guest' | 'student') => Promise<void>;
   handleToggleDisabled: (uid: string, currentDisabled: boolean) => Promise<void>;
   handleRowClick: (user: UserRecord) => void;
-  handleCourseAccessChange: (course: keyof CourseAccessMap, value: boolean) => void;
+  handleCourseAccessChange: (courseId: string, value: boolean) => void;
   handleSaveCourseAccess: (targetUid: string) => Promise<void>;
 }
 
@@ -30,7 +31,10 @@ interface UseUserManagementReturn {
  * Хук для управления пользователями в админ-панели
  * Инкапсулирует всю логику работы с ролями и доступом к курсам
  */
-export function useUserManagement({ isSuperAdmin }: UseUserManagementOptions): UseUserManagementReturn {
+export function useUserManagement({
+  isSuperAdmin,
+  availableCourseIds,
+}: UseUserManagementOptions): UseUserManagementReturn {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [editingCourseAccess, setEditingCourseAccess] = useState<CourseAccessMap | null>(null);
@@ -116,29 +120,41 @@ export function useUserManagement({ isSuperAdmin }: UseUserManagementOptions): U
     } else {
       // Открываем
       setExpandedUserId(user.uid);
-      setEditingCourseAccess(user.courseAccess ?? {
-        development: false,
-        clinical: false,
-        general: false,
-      });
+      const currentAccess = user.courseAccess ?? {};
+      const mergedAccess: CourseAccessMap = { ...currentAccess };
+      for (const courseId of availableCourseIds) {
+        if (typeof mergedAccess[courseId] !== 'boolean') {
+          mergedAccess[courseId] = false;
+        }
+      }
+      setEditingCourseAccess(mergedAccess);
     }
-  }, [expandedUserId]);
+  }, [expandedUserId, availableCourseIds]);
 
-  const handleCourseAccessChange = useCallback((course: keyof CourseAccessMap, value: boolean) => {
+  const handleCourseAccessChange = useCallback((courseId: string, value: boolean) => {
     setEditingCourseAccess((prev) => {
       if (!prev) return null;
-      return { ...prev, [course]: value };
+      return { ...prev, [courseId]: value };
     });
   }, []);
 
   const handleSaveCourseAccess = useCallback(async (targetUid: string) => {
     if (!editingCourseAccess) return;
 
+    const normalizedAccess: CourseAccessMap = {};
+    const allKnownCourseIds = new Set<string>([
+      ...availableCourseIds,
+      ...Object.keys(editingCourseAccess),
+    ]);
+    for (const courseId of allKnownCourseIds) {
+      normalizedAccess[courseId] = Boolean(editingCourseAccess[courseId]);
+    }
+
     setCourseAccessSaving(true);
     try {
       await updateCourseAccess({
         targetUid,
-        courseAccess: editingCourseAccess,
+        courseAccess: normalizedAccess,
       });
       window.alert('Доступ к курсам обновлён');
     } catch (err) {
@@ -147,7 +163,7 @@ export function useUserManagement({ isSuperAdmin }: UseUserManagementOptions): U
     } finally {
       setCourseAccessSaving(false);
     }
-  }, [editingCourseAccess]);
+  }, [editingCourseAccess, availableCourseIds]);
 
   return {
     actionLoading,

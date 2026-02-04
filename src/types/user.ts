@@ -124,9 +124,10 @@ export const ALL_COURSE_TYPES: CoreCourseType[] = CORE_COURSE_ORDER;
  */
 export function countAccessibleCourses(
   role: UserRole | null,
-  courseAccess: CourseAccessMap | null | undefined
+  courseAccess: CourseAccessMap | null | undefined,
+  courseTypes: ReadonlyArray<CourseType> = ALL_COURSE_TYPES
 ): number {
-  return ALL_COURSE_TYPES.filter((courseType) =>
+  return courseTypes.filter((courseType) =>
     hasCourseAccess(role, courseAccess, courseType)
   ).length;
 }

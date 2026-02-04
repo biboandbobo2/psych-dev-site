@@ -1,12 +1,18 @@
 import type { UserRecord } from '../../../../hooks/useAllUsers';
 import type { CourseAccessMap } from '../../../../types/user';
-import { ALL_COURSE_TYPES, COURSE_LABELS, countAccessibleCourses } from '../../../../types/user';
+import { countAccessibleCourses } from '../../../../types/user';
 import { getRoleLabel, getRoleBadgeClasses, isAdminRole, canEditCourseAccess } from '../utils/roleHelpers';
+
+interface CourseOption {
+  id: string;
+  name: string;
+}
 
 export interface UserRowProps {
   user: UserRecord;
   currentUserUid: string | undefined;
   isSuperAdmin: boolean;
+  courseOptions: CourseOption[];
   isExpanded: boolean;
   actionLoading: string | null;
   editingCourseAccess: CourseAccessMap | null;
@@ -14,7 +20,7 @@ export interface UserRowProps {
   onRowClick: () => void;
   onMakeAdmin: () => void;
   onRemoveAdmin: () => void;
-  onCourseAccessChange: (course: keyof CourseAccessMap, value: boolean) => void;
+  onCourseAccessChange: (courseId: string, value: boolean) => void;
   onSaveCourseAccess: () => void;
   onSetRole: (role: 'guest' | 'student') => void;
   onToggleDisabled: () => void;
@@ -24,6 +30,7 @@ export function UserRow({
   user,
   currentUserUid,
   isSuperAdmin,
+  courseOptions,
   isExpanded,
   actionLoading,
   editingCourseAccess,
@@ -41,7 +48,8 @@ export function UserRow({
   const userCanEditCourseAccess = canEditCourseAccess(user.role);
 
   // Используем единую утилиту для подсчёта курсов
-  const openCoursesCount = countAccessibleCourses(user.role, user.courseAccess);
+  const courseIds = courseOptions.map((course) => course.id);
+  const openCoursesCount = countAccessibleCourses(user.role, user.courseAccess, courseIds);
 
   return (
     <>
@@ -88,7 +96,7 @@ export function UserRow({
           <CourseAccessBadge
             isAdmin={userIsAdmin}
             count={openCoursesCount}
-            total={ALL_COURSE_TYPES.length}
+            total={courseIds.length}
           />
         </td>
         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
@@ -116,6 +124,7 @@ export function UserRow({
           canEdit={userCanEditCourseAccess}
           editingCourseAccess={editingCourseAccess}
           courseAccessSaving={courseAccessSaving}
+          courseOptions={courseOptions}
           onCourseAccessChange={onCourseAccessChange}
           onSaveCourseAccess={onSaveCourseAccess}
         />
@@ -287,6 +296,7 @@ function CourseAccessPanel({
   canEdit,
   editingCourseAccess,
   courseAccessSaving,
+  courseOptions,
   onCourseAccessChange,
   onSaveCourseAccess,
 }: {
@@ -295,7 +305,8 @@ function CourseAccessPanel({
   canEdit: boolean;
   editingCourseAccess: CourseAccessMap;
   courseAccessSaving: boolean;
-  onCourseAccessChange: (course: keyof CourseAccessMap, value: boolean) => void;
+  courseOptions: CourseOption[];
+  onCourseAccessChange: (courseId: string, value: boolean) => void;
   onSaveCourseAccess: () => void;
 }) {
   return (
@@ -317,25 +328,25 @@ function CourseAccessPanel({
           </h4>
 
           <div className="mb-4 flex flex-wrap gap-4">
-            {ALL_COURSE_TYPES.map((course) => (
+            {courseOptions.map((course) => (
               <label
-                key={course}
+                key={course.id}
                 className={`flex items-center gap-2 rounded-lg border p-3 transition ${
                   isAdmin
                     ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60'
-                    : editingCourseAccess[course]
+                    : editingCourseAccess[course.id]
                     ? 'border-green-300 bg-green-50'
                     : 'border-red-200 bg-red-50 hover:border-red-300'
                 }`}
               >
                 <input
                   type="checkbox"
-                  checked={isAdmin || editingCourseAccess[course] || false}
+                  checked={isAdmin || editingCourseAccess[course.id] || false}
                   disabled={isAdmin}
-                  onChange={(e) => onCourseAccessChange(course, e.target.checked)}
+                  onChange={(e) => onCourseAccessChange(course.id, e.target.checked)}
                   className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                 />
-                <span className="text-sm font-medium text-gray-700">{COURSE_LABELS[course]}</span>
+                <span className="text-sm font-medium text-gray-700">{course.name}</span>
               </label>
             ))}
           </div>
