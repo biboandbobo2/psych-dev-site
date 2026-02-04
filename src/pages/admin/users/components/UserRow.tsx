@@ -46,6 +46,12 @@ export function UserRow({
   const isCurrentUser = user.uid === currentUserUid;
   const userIsAdmin = isAdminRole(user.role);
   const userCanEditCourseAccess = canEditCourseAccess(user.role);
+  const displayName =
+    user.displayName && user.displayName.trim()
+      ? user.displayName
+      : user.pendingRegistration
+        ? "Ожидает регистрацию"
+        : "Без имени";
 
   // Используем единую утилиту для подсчёта курсов
   const courseIds = courseOptions.map((course) => course.id);
@@ -70,7 +76,12 @@ export function UserRow({
             )}
             <div>
               <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
-                {user.displayName || 'Без имени'}
+                {displayName}
+                {user.pendingRegistration && (
+                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                    invite
+                  </span>
+                )}
                 {user.geminiApiKey && (
                   <span
                     className="inline-block w-2 h-2 rounded-full bg-emerald-500"

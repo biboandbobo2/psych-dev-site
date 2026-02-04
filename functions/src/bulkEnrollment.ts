@@ -195,6 +195,8 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
   let createdPending = 0;
 
   for (const email of emails) {
+    const pendingUid = toPendingUid(email);
+    const pendingRef = firestore.collection("users").doc(pendingUid);
     const userQuery = await firestore
       .collection("users")
       .where("email", "==", email)
@@ -222,6 +224,7 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
         },
         { merge: true }
       );
+      await pendingRef.delete().catch(() => {});
       updatedExisting += 1;
       continue;
     }
@@ -239,8 +242,12 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
         {
           uid: authUser.uid,
           email,
-          displayName: authUser.displayName ?? null,
-          photoURL: authUser.photoURL ?? null,
+          displayName:
+            authUser.displayName ??
+            (typeof existingData.displayName === "string" ? existingData.displayName : null),
+          photoURL:
+            authUser.photoURL ??
+            (typeof existingData.photoURL === "string" ? existingData.photoURL : null),
           role: nextRole,
           courseAccess: {
             ...extractCourseAccess(existingData),
@@ -254,6 +261,7 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
         },
         { merge: true }
       );
+      await pendingRef.delete().catch(() => {});
       updatedExisting += 1;
       continue;
     } catch (error: any) {
@@ -262,8 +270,6 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
       }
     }
 
-    const pendingUid = toPendingUid(email);
-    const pendingRef = firestore.collection("users").doc(pendingUid);
     const pendingSnap = await pendingRef.get();
     const pendingData = pendingSnap.exists ? (pendingSnap.data() as Record<string, unknown>) : {};
 
@@ -271,7 +277,9 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
       {
         uid: pendingUid,
         email,
-        displayName: pendingData.displayName ?? null,
+        displayName:
+          pendingData.displayName ??
+          email.split("@")[0],
         photoURL: pendingData.photoURL ?? null,
         role: "student",
         pendingRegistration: true,

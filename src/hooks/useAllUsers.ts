@@ -17,6 +17,8 @@ export interface UserRecord {
   disabled?: boolean;
   /** API ключ Gemini пользователя (BYOK) */
   geminiApiKey?: string;
+  /** Пользователь приглашён массово, но ещё не зарегистрировался */
+  pendingRegistration?: boolean;
   createdAt: any;
   lastLoginAt: any;
 }
