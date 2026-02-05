@@ -41,7 +41,13 @@ export interface BookFormData {
 // BULK UPLOAD
 // ============================================================================
 
-export type BulkUploadFileStatus = 'pending' | 'creating' | 'uploading' | 'done' | 'error';
+export type BulkUploadFileStatus =
+  | 'pending'
+  | 'creating'
+  | 'uploading'
+  | 'processing'
+  | 'done'
+  | 'error';
 
 export interface BulkUploadFileItem {
   file: File;

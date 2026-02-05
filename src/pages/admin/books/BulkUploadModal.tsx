@@ -231,16 +231,18 @@ export function BulkUploadModal({ onComplete, onClose }: BulkUploadModalProps) {
                     {item.status === 'pending' && isRunning && (
                       <span className="text-xs text-muted">В очереди</span>
                     )}
-                    {(item.status === 'creating' || item.status === 'uploading') && (
+                    {(item.status === 'creating' || item.status === 'uploading' || item.status === 'processing') && (
                       <div className="w-full bg-card2 rounded-full h-2">
                         <div
-                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            item.status === 'processing' ? 'bg-amber-500' : 'bg-blue-500'
+                          }`}
                           style={{ width: `${item.progress}%` }}
                         />
                       </div>
                     )}
                     {item.status === 'done' && (
-                      <span className="text-xs text-emerald-600 font-medium">{'\u2713'} Готово</span>
+                      <span className="text-xs text-emerald-600 font-medium">{'\u2713'} Обработка</span>
                     )}
                     {item.status === 'error' && (
                       <span className="text-xs text-red-600" title={item.error ?? undefined}>

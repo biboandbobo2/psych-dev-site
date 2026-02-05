@@ -147,11 +147,21 @@ export function useBulkUpload({ language, tags, onComplete }: UseBulkUploadOptio
 
         // Step 3: Upload file to Storage
         await uploadFileWithProgress(urlData.uploadUrl, item.file, (percent) => {
-          updateFile(index, { progress: 25 + Math.round(percent * 0.75) });
+          updateFile(index, { progress: 25 + Math.round(percent * 0.5) });
+        });
+
+        debugLog('[BulkUpload] Upload complete:', bookId, item.title);
+
+        // Step 4: Start ingestion (chunking + embeddings)
+        updateFile(index, { status: 'processing', progress: 80 });
+
+        await apiCall<{ jobId: string }>('/api/admin/books', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'startIngestion', bookId }),
         });
 
         updateFile(index, { status: 'done', progress: 100 });
-        debugLog('[BulkUpload] Upload complete:', bookId, item.title);
+        debugLog('[BulkUpload] Ingestion started:', bookId, item.title);
         return { status: 'done' };
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Неизвестная ошибка';
