@@ -11,6 +11,7 @@ import { MAX_BOOK_FILE_SIZE } from '../constants/books';
 import {
   BookCreateForm,
   BookEditModal,
+  BulkUploadModal,
   JobStatusPanel,
   BookTableRow,
   apiCall,
@@ -29,6 +30,7 @@ export default function AdminBooks() {
 
   // Forms
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [editingBook, setEditingBook] = useState<BookListItem | null>(null);
 
   // Upload state
@@ -284,6 +286,12 @@ export default function AdminBooks() {
         </div>
         <div className="flex gap-2">
           <button
+            onClick={() => setShowBulkUpload(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            + Добавить много книг
+          </button>
+          <button
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
           >
@@ -325,6 +333,14 @@ export default function AdminBooks() {
           onSaved={handleEditSaved}
           onCancel={() => setEditingBook(null)}
           onError={setError}
+        />
+      )}
+
+      {/* Bulk Upload Modal */}
+      {showBulkUpload && (
+        <BulkUploadModal
+          onComplete={loadBooks}
+          onClose={() => setShowBulkUpload(false)}
         />
       )}
 

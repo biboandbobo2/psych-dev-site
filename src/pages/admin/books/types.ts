@@ -36,3 +36,26 @@ export interface BookFormData {
   year: string;
   tags: BookTag[];
 }
+
+// ============================================================================
+// BULK UPLOAD
+// ============================================================================
+
+export type BulkUploadFileStatus = 'pending' | 'creating' | 'uploading' | 'done' | 'error';
+
+export interface BulkUploadFileItem {
+  file: File;
+  title: string;
+  status: BulkUploadFileStatus;
+  /** 0-100 */
+  progress: number;
+  bookId: string | null;
+  error: string | null;
+}
+
+export interface BulkUploadResult {
+  total: number;
+  success: number;
+  failed: number;
+  items: Array<{ title: string; status: 'done' | 'error'; error?: string }>;
+}
