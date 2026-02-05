@@ -5,6 +5,7 @@ import type { CourseType } from '../types/tests';
 import { useCourseStore } from '../stores/useCourseStore';
 import { cn } from '../lib/cn';
 import { useCourses } from '../hooks/useCourses';
+import { useActiveCourse } from '../hooks/useActiveCourse';
 import CreateCourseModal from './CreateCourseModal';
 import { db } from '../lib/firebase';
 import { debugError } from '../lib/debug';
@@ -35,11 +36,7 @@ export default function AdminCourseSidebar() {
 
   const courseParam = searchParams.get('course');
   const queryCourse = courseParam && courseParam.trim() ? courseParam : null;
-  const activeCourse =
-    courses.find((courseOption) => courseOption.id === currentCourse)?.id ??
-    currentCourse ??
-    courses[0]?.id ??
-    'development';
+  const activeCourse = useActiveCourse(courses, coursesLoading);
   const activeEditingCourse = useMemo(
     () => courses.find((courseOption) => courseOption.id === editingCourseId) ?? null,
     [courses, editingCourseId]
@@ -54,14 +51,6 @@ export default function AdminCourseSidebar() {
       setCurrentCourse(queryCourse as CourseType);
     }
   }, [queryCourse, currentCourse, setCurrentCourse]);
-
-  useEffect(() => {
-    if (coursesLoading || !courses.length) return;
-    const hasCurrent = courses.some((courseOption) => courseOption.id === currentCourse);
-    if (!hasCurrent && courses[0]?.id) {
-      setCurrentCourse(courses[0].id as CourseType);
-    }
-  }, [courses, coursesLoading, currentCourse, setCurrentCourse]);
 
   useEffect(() => {
     let isCancelled = false;

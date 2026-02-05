@@ -102,8 +102,6 @@ export function useUserManagement({
     try {
       const result = await toggleUserDisabled({ targetUid: uid, disabled: !currentDisabled });
       window.alert(result.message);
-      // Перезагружаем страницу чтобы увидеть изменения
-      window.location.reload();
     } catch (err) {
       const message = err instanceof Error ? err.message : `Ошибка: не удалось ${action} пользователя`;
       window.alert(message);

@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '../lib/cn';
 import { useCourses } from '../hooks/useCourses';
 import { useCourseStore } from '../stores';
+import { useActiveCourse } from '../hooks/useActiveCourse';
 import type { CourseType } from '../types/tests';
 
 interface NavigationItem {
@@ -16,21 +16,8 @@ interface StudentCourseSidebarProps {
 
 export default function StudentCourseSidebar({ navItems }: StudentCourseSidebarProps) {
   const { courses, loading } = useCourses();
-  const { currentCourse, setCurrentCourse } = useCourseStore();
-
-  const activeCourse =
-    courses.find((courseOption) => courseOption.id === currentCourse)?.id ??
-    currentCourse ??
-    courses[0]?.id ??
-    'development';
-
-  useEffect(() => {
-    if (loading || !courses.length) return;
-    const hasCurrent = courses.some((courseOption) => courseOption.id === currentCourse);
-    if (!hasCurrent && courses[0]?.id) {
-      setCurrentCourse(courses[0].id as CourseType);
-    }
-  }, [courses, loading, currentCourse, setCurrentCourse]);
+  const { setCurrentCourse } = useCourseStore();
+  const activeCourse = useActiveCourse(courses, loading);
 
   return (
     <div className="space-y-4">

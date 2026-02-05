@@ -1,14 +1,17 @@
 import * as functions from "firebase-functions";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import {
+  ensureSuperAdmin,
+  toPendingUid,
+  extractCourseAccess,
+  normalizeEmailList,
+  normalizeCourseIds,
+  CORE_COURSE_IDS,
+  type CourseAccessMap,
+} from "./lib/shared.js";
 
-const SUPER_ADMIN_EMAIL = "biboandbobo2@gmail.com";
 const EMAIL_LISTS_COLLECTION = "studentEmailLists";
-const CORE_COURSE_IDS = ["development", "clinical", "general"];
-
-interface CourseAccessMap {
-  [courseId: string]: boolean | undefined;
-}
 
 interface BulkEnrollData {
   emails?: unknown;
@@ -22,76 +25,6 @@ interface BulkEnrollData {
 interface StudentEmailListData {
   name?: unknown;
   emails?: unknown;
-}
-
-function ensureSuperAdmin(context: functions.https.CallableContext) {
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Authentication required");
-  }
-
-  if (context.auth.token?.email !== SUPER_ADMIN_EMAIL) {
-    throw new functions.https.HttpsError(
-      "permission-denied",
-      "Only super-admin can manage bulk student enrollment"
-    );
-  }
-}
-
-function normalizeEmail(raw: string): string {
-  return raw.trim().toLowerCase();
-}
-
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function normalizeEmailList(rawEmails: unknown): string[] {
-  if (!Array.isArray(rawEmails)) {
-    return [];
-  }
-
-  const dedupe = new Set<string>();
-  for (const item of rawEmails) {
-    if (typeof item !== "string") continue;
-    const normalized = normalizeEmail(item);
-    if (!normalized || !isValidEmail(normalized)) continue;
-    dedupe.add(normalized);
-  }
-  return Array.from(dedupe);
-}
-
-function normalizeCourseIds(rawCourseIds: unknown): string[] {
-  if (!Array.isArray(rawCourseIds)) {
-    return [];
-  }
-
-  const dedupe = new Set<string>();
-  for (const item of rawCourseIds) {
-    if (typeof item !== "string") continue;
-    const normalized = item.trim();
-    if (!normalized) continue;
-    dedupe.add(normalized);
-  }
-  return Array.from(dedupe);
-}
-
-function toPendingUid(email: string): string {
-  return `pending_${Buffer.from(email).toString("base64url")}`;
-}
-
-function extractCourseAccess(data: Record<string, unknown> | undefined): CourseAccessMap {
-  const value = data?.courseAccess;
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-  const source = value as Record<string, unknown>;
-  const result: CourseAccessMap = {};
-  for (const [key, access] of Object.entries(source)) {
-    if (typeof access === "boolean") {
-      result[key] = access;
-    }
-  }
-  return result;
 }
 
 async function getValidCourseIds() {
@@ -194,7 +127,8 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
   let updatedExisting = 0;
   let createdPending = 0;
 
-  for (const email of emails) {
+  // Process a single email: resolve user, update or create pending doc.
+  const processEmail = async (email: string): Promise<"existing" | "pending"> => {
     const pendingUid = toPendingUid(email);
     const pendingRef = firestore.collection("users").doc(pendingUid);
     const userQuery = await firestore
@@ -214,7 +148,7 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
         {
           role: nextRole,
           courseAccess: {
-            ...extractCourseAccess(userData),
+            ...extractCourseAccess(userData.courseAccess),
             ...courseAccessPatch,
           },
           updatedAt: FieldValue.serverTimestamp(),
@@ -225,8 +159,7 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
         { merge: true }
       );
       await pendingRef.delete().catch(() => {});
-      updatedExisting += 1;
-      continue;
+      return "existing";
     }
 
     try {
@@ -250,7 +183,7 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
             (typeof existingData.photoURL === "string" ? existingData.photoURL : null),
           role: nextRole,
           courseAccess: {
-            ...extractCourseAccess(existingData),
+            ...extractCourseAccess(existingData.courseAccess),
             ...courseAccessPatch,
           },
           createdAt: userSnap.exists ? existingData.createdAt ?? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
@@ -262,11 +195,12 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
         { merge: true }
       );
       await pendingRef.delete().catch(() => {});
-      updatedExisting += 1;
-      continue;
-    } catch (error: any) {
-      if (error?.code !== "auth/user-not-found") {
-        throw new functions.https.HttpsError("internal", `Failed to resolve user ${email}: ${error?.message}`);
+      return "existing";
+    } catch (error: unknown) {
+      const code = error instanceof Error && "code" in error ? (error as { code: string }).code : undefined;
+      if (code !== "auth/user-not-found") {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new functions.https.HttpsError("internal", `Failed to resolve user ${email}: ${message}`);
       }
     }
 
@@ -287,7 +221,7 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
         invitedBy: context.auth?.uid ?? null,
         invitedByEmail: context.auth?.token?.email ?? null,
         courseAccess: {
-          ...extractCourseAccess(pendingData),
+          ...extractCourseAccess(pendingData.courseAccess),
           ...courseAccessPatch,
         },
         createdAt: pendingData.createdAt ?? FieldValue.serverTimestamp(),
@@ -297,7 +231,18 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
       { merge: true }
     );
 
-    createdPending += 1;
+    return "pending";
+  };
+
+  // Process emails in parallel chunks of 10 to avoid timeouts on large lists.
+  const CHUNK_SIZE = 10;
+  for (let i = 0; i < emails.length; i += CHUNK_SIZE) {
+    const chunk = emails.slice(i, i + CHUNK_SIZE);
+    const results = await Promise.all(chunk.map(processEmail));
+    for (const result of results) {
+      if (result === "existing") updatedExisting += 1;
+      else createdPending += 1;
+    }
   }
 
   const shouldSaveList = data?.saveList && data.saveList.enabled === true;

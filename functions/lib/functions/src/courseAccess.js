@@ -4,7 +4,7 @@
 import * as functions from "firebase-functions";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-const SUPER_ADMIN_EMAIL = "biboandbobo2@gmail.com";
+import { SUPER_ADMIN_EMAIL } from "./lib/shared.js";
 /**
  * updateCourseAccess - обновление доступа пользователя к курсам
  *
@@ -95,12 +95,12 @@ export const updateCourseAccess = functions.https.onCall(async (data, context) =
         if (error instanceof functions.https.HttpsError) {
             throw error;
         }
+        const message = error instanceof Error ? error.message : String(error);
         functions.logger.error("❌ Error in updateCourseAccess", {
-            error: error?.message,
-            code: error?.code,
+            error: message,
             targetUid,
         });
-        throw new functions.https.HttpsError("internal", `Failed to update course access: ${error?.message}`);
+        throw new functions.https.HttpsError("internal", `Failed to update course access: ${message}`);
     }
 });
 /**
@@ -203,11 +203,11 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
         if (error instanceof functions.https.HttpsError) {
             throw error;
         }
+        const message = error instanceof Error ? error.message : String(error);
         functions.logger.error("❌ Error in setUserRole", {
-            error: error?.message,
-            code: error?.code,
+            error: message,
             targetUid,
         });
-        throw new functions.https.HttpsError("internal", `Failed to change user role: ${error?.message}`);
+        throw new functions.https.HttpsError("internal", `Failed to change user role: ${message}`);
     }
 });

@@ -546,6 +546,116 @@ interface CourseTopic {
 }
 ```
 
+## Динамические курсы
+
+> **Дата добавления:** 2026-02-05
+
+Помимо трёх core-курсов (development, clinical, general) с фиксированными коллекциями, платформа поддерживает **динамические курсы**, создаваемые админами через UI.
+
+### Отличия от core-курсов
+
+| | Core-курсы | Динамические курсы |
+|---|---|---|
+| Создание | Захардкожены в коде | Через модалку «Добавить курс» |
+| Firestore | `periods`, `clinical-topics`, `general-topics` | `courses/{courseId}/lessons/{lessonId}` |
+| Маршруты | `/`, `/clinical/*`, `/general/*` | `/course/{courseId}/{lessonId}` |
+| Метаданные | `src/constants/courses.ts` | `courses/{courseId}` (Firestore) |
+
+### Firestore-схема
+
+```
+courses/{courseId}          # метаданные курса
+  ├── name: string          # название
+  ├── icon: string          # иконка
+  ├── order: number         # порядок в списке
+  └── published: boolean    # опубликован ли
+
+courses/{courseId}/lessons/{lessonId}   # уроки
+  ├── title, subtitle, sections...     # тот же формат, что и core-курсы
+  ├── order: number
+  └── published: boolean
+```
+
+### Ключевые файлы
+
+- **`src/constants/courses.ts`** — утилиты `isCoreCourse()`, `getCourseBasePath()`, метаданные core-курсов
+- **`src/components/CreateCourseModal.tsx`** — модалка создания курса
+- **`src/hooks/useCourses.ts`** — хук загрузки всех курсов (core + динамические)
+- **`src/pages/admin/content-editor/utils/courseCollectionRef.ts`** — маппинг курс → Firestore коллекция
+
+### Создание динамического курса
+
+1. Админ открывает `/admin/content`
+2. В сайдбаре нажимает «Добавить курс»
+3. Вводит название → создаётся документ в `courses/{courseId}`
+4. Уроки добавляются через кнопку «Создать урок» внутри курса
+5. Уроки хранятся в `courses/{courseId}/lessons/{lessonId}`
+
+## Sidebar-компоненты
+
+> **Дата добавления:** 2026-02-05
+
+### StudentCourseSidebar (`/profile`)
+Отображает список курсов для студента и навигацию по урокам выбранного курса. Использует `useActiveCourse` для определения текущего курса.
+
+### AdminCourseSidebar (`/admin/content`)
+Управление курсами для админов: список курсов, переименование (inline edit), индикатор публикации уроков, навигация. Использует `useActiveCourse`.
+
+### useActiveCourse (shared hook)
+
+```typescript
+// src/hooks/useActiveCourse.ts
+export function useActiveCourse(courses: CourseOption[], loading: boolean): string
+```
+
+Общий хук, используемый обоими сайдбарами:
+1. Читает `currentCourse` из `useCourseStore`
+2. Если текущий курс есть в списке — возвращает его
+3. Если нет — переключает store на первый доступный курс
+4. Фоллбэк: `'development'`
+
+## Массовое открытие курсов (Bulk Enrollment)
+
+> **Дата добавления:** 2026-02-05
+
+Позволяет super-admin массово выдавать доступ к курсам для списка студентов.
+
+### Как работает
+
+1. Super-admin открывает `/admin/users` → «Массово открыть курсы»
+2. Вводит список email (через запятую, новую строку или `;`)
+3. Выбирает курсы для открытия
+4. Нажимает «Применить»
+
+### Cloud Functions
+
+- **`bulkEnrollStudents`** — основная функция:
+  - Для существующих пользователей: обновляет роль на `student`, добавляет `courseAccess`
+  - Для незарегистрированных: создаёт pending-приглашение (`users/pending_{base64(email)}`)
+  - Обработка идёт параллельно чанками по 10 email
+- **`getStudentEmailLists`** — получение сохранённых списков email
+- **`saveStudentEmailList`** — сохранение списка для повторного использования
+
+### Pending-приглашения
+
+Для незарегистрированных email создаётся документ:
+```
+users/pending_{base64url(email)}
+  ├── email: string
+  ├── role: "student"
+  ├── courseAccess: { [courseId]: true }
+  └── createdAt: Timestamp
+```
+
+При регистрации (`onUserCreate`) проверяется наличие pending-документа. Если найден — пользователь получает роль и доступ к курсам автоматически.
+
+### Ключевые файлы
+
+- **`src/components/BulkStudentAccessModal.tsx`** — UI модалки
+- **`src/lib/adminFunctions.ts`** — клиентские обёртки Cloud Functions
+- **`functions/src/bulkEnrollment.ts`** — Cloud Functions
+- **`functions/src/lib/shared.ts`** — общие утилиты (`toPendingUid`, `extractCourseAccess`, `normalizeEmailList`)
+
 ## Известные проблемы
 
 ### MP-5: Заглушка не работает в clinical/general курсах
@@ -646,6 +756,7 @@ npm run dev
 ---
 
 **История изменений:**
+- 2026-02-05: Добавлены динамические курсы, sidebar-компоненты, useActiveCourse, bulk enrollment
 - 2025-11-21: Добавлена система персистентного хранения курса (useCourseStore + localStorage)
 - 2025-11-21: Добавлена интеграция тестов с мультикурсовой системой
 - 2025-11-19: Первая версия документа (интеграция 3 курсов)

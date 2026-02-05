@@ -3,28 +3,12 @@ import { getApps, initializeApp, applicationDefault } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { debugLog, debugError } from "./lib/debug.js";
+import { SUPER_ADMIN_EMAIL, toPendingUid, extractCourseAccess } from "./lib/shared.js";
 if (!getApps().length) {
     initializeApp({ credential: applicationDefault() });
 }
 const db = getFirestore();
 const adminAuth = getAuth();
-const SUPER_ADMIN_EMAIL = "biboandbobo2@gmail.com";
-function toPendingUid(email) {
-    return `pending_${Buffer.from(email.trim().toLowerCase()).toString("base64url")}`;
-}
-function extractCourseAccess(value) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-        return {};
-    }
-    const source = value;
-    const result = {};
-    for (const [key, access] of Object.entries(source)) {
-        if (typeof access === "boolean") {
-            result[key] = access;
-        }
-    }
-    return result;
-}
 /**
  * Роли пользователей:
  * - guest: новый пользователь, без доступа к видео (может получить доступ к отдельным курсам)
@@ -41,7 +25,7 @@ export const onUserCreate = functions.auth.user().onCreate(async (user) => {
     let pendingDocRef = null;
     try {
         if (email) {
-            const pendingUid = toPendingUid(email);
+            const pendingUid = toPendingUid(email.trim().toLowerCase());
             pendingDocRef = db.collection("users").doc(pendingUid);
             const pendingSnap = await pendingDocRef.get();
             if (pendingSnap.exists) {

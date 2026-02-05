@@ -3,6 +3,7 @@ import { getApps, initializeApp, applicationDefault } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { debugLog, debugError } from "./lib/debug.js";
+import { SUPER_ADMIN_EMAIL, toPendingUid, extractCourseAccess } from "./lib/shared.js";
 
 if (!getApps().length) {
   initializeApp({ credential: applicationDefault() });
@@ -10,26 +11,6 @@ if (!getApps().length) {
 
 const db = getFirestore();
 const adminAuth = getAuth();
-
-const SUPER_ADMIN_EMAIL = "biboandbobo2@gmail.com";
-
-function toPendingUid(email: string): string {
-  return `pending_${Buffer.from(email.trim().toLowerCase()).toString("base64url")}`;
-}
-
-function extractCourseAccess(value: unknown): Record<string, boolean> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-  const source = value as Record<string, unknown>;
-  const result: Record<string, boolean> = {};
-  for (const [key, access] of Object.entries(source)) {
-    if (typeof access === "boolean") {
-      result[key] = access;
-    }
-  }
-  return result;
-}
 
 /**
  * Роли пользователей:
@@ -43,12 +24,12 @@ export const onUserCreate = functions.auth.user().onCreate(async (user) => {
   // Новые пользователи получают роль guest (без доступа к видео)
   // Super-admin по email получает полные права
   let role = email === SUPER_ADMIN_EMAIL ? "super-admin" : "guest";
-  let invitedCourseAccess: Record<string, boolean> | null = null;
-  let pendingDocRef: any = null;
+  let invitedCourseAccess: import("./lib/shared.js").CourseAccessMap | null = null;
+  let pendingDocRef: FirebaseFirestore.DocumentReference | null = null;
 
   try {
     if (email) {
-      const pendingUid = toPendingUid(email);
+      const pendingUid = toPendingUid(email.trim().toLowerCase());
       pendingDocRef = db.collection("users").doc(pendingUid);
       const pendingSnap = await pendingDocRef.get();
       if (pendingSnap.exists) {

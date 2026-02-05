@@ -2,6 +2,7 @@ import * as functions from "firebase-functions";
 import { getApps, initializeApp, applicationDefault } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth, type UserRecord } from "firebase-admin/auth";
+import { SUPER_ADMIN_EMAIL } from "./lib/shared.js";
 
 if (!getApps().length) {
   initializeApp({ credential: applicationDefault() });
@@ -9,8 +10,6 @@ if (!getApps().length) {
 
 const db = getFirestore();
 const adminAuth = getAuth();
-
-const SUPER_ADMIN_EMAIL = "biboandbobo2@gmail.com";
 
 type Role = "student" | "admin" | "super-admin";
 
@@ -25,14 +24,14 @@ async function listAllUsers(nextPageToken?: string, acc: UserRecord[] = []): Pro
 
 export const migrateAdmins = functions.https.onRequest(async (_req, res) => {
   try {
-    console.log("🚀 Starting admin migration...");
+    functions.logger.info("🚀 Starting admin migration...");
 
     const allUsers = await listAllUsers();
     const adminsSnapshot = await db.collection("admins").get();
     const adminUids = new Set(adminsSnapshot.docs.map((doc) => doc.id));
 
-    console.log(`Found ${adminUids.size} admins in old collection`);
-    console.log(`Found ${allUsers.length} users in Authentication`);
+    functions.logger.info(`Found ${adminUids.size} admins in old collection`);
+    functions.logger.info(`Found ${allUsers.length} users in Authentication`);
 
     let migrated = 0;
     let created = 0;
@@ -56,7 +55,7 @@ export const migrateAdmins = functions.https.onRequest(async (_req, res) => {
           migratedAt: FieldValue.serverTimestamp(),
         });
         migrated += 1;
-        console.log(`✅ Updated: ${email ?? uid} → ${role}`);
+        functions.logger.info(`✅ Updated: ${email ?? uid} → ${role}`);
       } else {
         await userRef.set({
           uid,
@@ -69,7 +68,7 @@ export const migrateAdmins = functions.https.onRequest(async (_req, res) => {
           migratedAt: FieldValue.serverTimestamp(),
         });
         created += 1;
-        console.log(`✨ Created: ${email ?? uid} → ${role}`);
+        functions.logger.info(`✨ Created: ${email ?? uid} → ${role}`);
       }
 
       await adminAuth.setCustomUserClaims(uid, { role });
@@ -87,10 +86,10 @@ export const migrateAdmins = functions.https.onRequest(async (_req, res) => {
       },
     };
 
-    console.log("🎉 Migration summary:", summary);
+    functions.logger.info("🎉 Migration summary:", summary);
     res.json(summary);
   } catch (error) {
-    console.error("❌ Migration error:", error);
+    functions.logger.error("❌ Migration error:", error);
     res.status(500).json({ success: false, error: String(error) });
   }
 });

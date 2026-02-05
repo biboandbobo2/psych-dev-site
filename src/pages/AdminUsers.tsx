@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAllUsers } from "../hooks/useAllUsers";
 import { useAuth } from "../auth/AuthProvider";
 import { AddAdminModal } from "../components/AddAdminModal";
@@ -13,6 +13,10 @@ export default function AdminUsers() {
   const { users, loading, error } = useAllUsers();
   const { user: currentUser, isSuperAdmin } = useAuth();
   const { courses } = useCourses({ includeUnpublished: true });
+  const courseOptions = useMemo(
+    () => courses.map((course) => ({ id: course.id, name: course.name })),
+    [courses]
+  );
   const [filter, setFilter] = useState<UserFilter>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -31,7 +35,7 @@ export default function AdminUsers() {
     handleSaveCourseAccess,
   } = useUserManagement({
     isSuperAdmin,
-    availableCourseIds: courses.map((course) => course.id),
+    availableCourseIds: courseOptions.map((c) => c.id),
   });
 
   if (!isSuperAdmin) {
@@ -152,7 +156,7 @@ export default function AdminUsers() {
                 onSaveCourseAccess={() => handleSaveCourseAccess(user.uid)}
                 onSetRole={(role) => handleSetRole(user.uid, role)}
                 onToggleDisabled={() => handleToggleDisabled(user.uid, user.disabled === true)}
-                courseOptions={courses.map((course) => ({ id: course.id, name: course.name }))}
+                courseOptions={courseOptions}
               />
             ))}
           </tbody>
@@ -172,7 +176,7 @@ export default function AdminUsers() {
       <BulkStudentAccessModal
         isOpen={isBulkModalOpen}
         onClose={() => setIsBulkModalOpen(false)}
-        courseOptions={courses.map((course) => ({ id: course.id, name: course.name }))}
+        courseOptions={courseOptions}
       />
     </div>
   );

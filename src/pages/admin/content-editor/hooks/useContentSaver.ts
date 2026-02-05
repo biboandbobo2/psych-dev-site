@@ -20,8 +20,9 @@ import {
   normalizeLeisure,
 } from '../utils/contentNormalizers';
 import { debugError } from '../../../../lib/debug';
-import { getCourseLessonDocRef } from '../../../../lib/courseLessons';
+import { getCourseLessonDocRef, getCourseLessonsCollectionRef } from '../../../../lib/courseLessons';
 import { isCoreCourse } from '../../../../constants/courses';
+import { getCourseCollectionName } from '../utils/courseCollectionRef';
 import type { CourseType } from '../../../../types/tests';
 
 interface SaveParams {
@@ -51,14 +52,7 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
   const [saving, setSaving] = useState(false);
 
   const normalizeLessonOrder = async () => {
-    const collectionRef =
-      course === 'clinical'
-        ? collection(db, 'clinical-topics')
-        : course === 'general'
-          ? collection(db, 'general-topics')
-          : isCoreCourse(course)
-            ? collection(db, 'periods')
-            : collection(db, 'courses', course, 'lessons');
+    const collectionRef = getCourseLessonsCollectionRef(course);
 
     const snapshot = await getDocs(collectionRef);
     const docs = [...snapshot.docs].sort((a, b) => {
@@ -161,7 +155,7 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
       data.placeholderEnabled = deleteField();
 
       // === SECTIONS CONSTRUCTION (New Format) ===
-      const sections: Record<string, any> = {};
+      const sections: Record<string, unknown> = {};
 
       // Video Section
       if (normalizedVideos.length) {
@@ -253,45 +247,38 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
       data.subtitle = trimmedSubtitle ? trimmedSubtitle : deleteField();
 
       // Определяем коллекцию в зависимости от курса
-      if (course === 'clinical') {
-        // Для клинической психологии используем коллекцию clinical-topics
-        const docRef = doc(db, 'clinical-topics', periodId!);
-        await setDoc(docRef, data, { merge: true });
-      } else if (course === 'general') {
-        // Для общей психологии используем коллекцию general-topics
-        const docRef = doc(db, 'general-topics', periodId!);
-        await setDoc(docRef, data, { merge: true });
-      } else if (isCoreCourse(course)) {
-        // Для психологии развития используем periods и intro
-        if (periodId === 'intro') {
-          const singletonRef = doc(db, 'intro', 'singleton');
-          const singletonSnap = await getDoc(singletonRef);
-          if (singletonSnap.exists()) {
-            await setDoc(singletonRef, data, { merge: true });
-          } else {
-            const introCol = collection(db, 'intro');
-            const introSnap = await getDocs(introCol);
-            if (!introSnap.empty) {
-              await setDoc(introSnap.docs[0].ref, data, { merge: true });
-            } else {
-              await setDoc(singletonRef, data, { merge: true });
-            }
-          }
+      if (isCoreCourse(course) && periodId === 'intro') {
+        // Intro can live in both legacy and current locations.
+        const singletonRef = doc(db, 'intro', 'singleton');
+        const singletonSnap = await getDoc(singletonRef);
+        if (singletonSnap.exists()) {
+          await setDoc(singletonRef, data, { merge: true });
         } else {
-          const docRef = doc(db, 'periods', periodId!);
-          await setDoc(docRef, data, { merge: true });
+          const introCol = collection(db, 'intro');
+          const introSnap = await getDocs(introCol);
+          if (!introSnap.empty) {
+            await setDoc(introSnap.docs[0].ref, data, { merge: true });
+          } else {
+            await setDoc(singletonRef, data, { merge: true });
+          }
         }
       } else {
-        data.courseId = course;
-        const docRef = getCourseLessonDocRef(course, periodId!);
+        const collectionName = getCourseCollectionName(course);
+        if (!collectionName) {
+          data.courseId = course;
+        }
+        const docRef = collectionName
+          ? doc(db, collectionName, periodId!)
+          : getCourseLessonDocRef(course, periodId!);
         await setDoc(docRef, data, { merge: true });
       }
 
       alert('✅ Изменения сохранены!');
       onNavigate();
-    } catch (error: any) {
+    } catch (error: unknown) {
       debugError('Error saving:', error);
-      alert('❌ Ошибка сохранения: ' + (error?.message || error));
+      const message = error instanceof Error ? error.message : String(error);
+      alert('❌ Ошибка сохранения: ' + message);
     } finally {
       setSaving(false);
     }
@@ -322,10 +309,7 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
         ];
         await Promise.allSettled(deletionTasks);
       } else {
-        const collectionName = course === 'clinical' ? 'clinical-topics' :
-          course === 'general' ? 'general-topics' :
-          isCoreCourse(course) ? 'periods' :
-          null;
+        const collectionName = getCourseCollectionName(course);
         const docRef = collectionName
           ? doc(db, collectionName, periodId)
           : getCourseLessonDocRef(course, periodId);
@@ -336,9 +320,10 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
 
       alert(`🗑️ ${course === 'clinical' ? 'Тема удалена' : isCoreCourse(course) ? 'Период удалён' : 'Занятие удалено'}`);
       onNavigate();
-    } catch (error: any) {
+    } catch (error: unknown) {
       debugError('Error deleting:', error);
-      alert('❌ Ошибка удаления: ' + (error?.message || error));
+      const message = error instanceof Error ? error.message : String(error);
+      alert('❌ Ошибка удаления: ' + message);
     } finally {
       setSaving(false);
     }
