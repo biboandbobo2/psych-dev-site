@@ -24,7 +24,7 @@ interface UseContentLoaderParams {
   setAccent100: (value: string) => void;
   setPlaceholderEnabled: (value: boolean) => void;
   setVideos: (value: any[]) => void;
-  setConcepts: (value: string[]) => void;
+  setConcepts: (value: Array<{ name: string; url?: string }>) => void;
   setAuthors: (value: Array<{ name: string; url?: string }>) => void;
   setCoreLiterature: (value: Array<{ title: string; url: string }>) => void;
   setExtraLiterature: (value: Array<{ title: string; url: string }>) => void;
@@ -198,10 +198,14 @@ export function useContentLoader(params: UseContentLoaderParams) {
             setVideos([createEmptyVideoEntry(0, data.title || placeholderDisplayText)]);
           }
 
-          // Concepts
+          // Concepts (backward compat: strings → { name })
           const conceptsSection = sections.concepts;
           if (conceptsSection && Array.isArray(conceptsSection.content)) {
-            setConcepts(conceptsSection.content);
+            setConcepts(
+              conceptsSection.content.map((item: any) =>
+                typeof item === 'string' ? { name: item } : item
+              )
+            );
           } else {
             setConcepts([]);
           }
@@ -287,7 +291,11 @@ export function useContentLoader(params: UseContentLoaderParams) {
             }
           }
 
-          setConcepts(data.concepts || []);
+          setConcepts(
+            (data.concepts || []).map((item: any) =>
+              typeof item === 'string' ? { name: item } : item
+            )
+          );
           setAuthors(data.authors || []);
           setCoreLiterature(data.core_literature || []);
           setExtraLiterature(data.extra_literature || []);

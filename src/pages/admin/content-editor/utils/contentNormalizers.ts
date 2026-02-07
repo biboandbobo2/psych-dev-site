@@ -1,10 +1,19 @@
 import type { VideoFormEntry } from '../types';
 
 /**
- * Normalizes concepts array by trimming and filtering empty strings
+ * Normalizes concepts array, filtering out entries without names
  */
-export function normalizeConcepts(concepts: string[]): string[] {
-  return concepts.map((concept) => concept.trim()).filter(Boolean);
+export function normalizeConcepts(
+  concepts: Array<{ name: string; url?: string }>
+): Array<{ name: string; url?: string }> {
+  return concepts
+    .map((concept) => {
+      const name = concept.name?.trim();
+      const url = concept.url?.trim();
+      if (!name) return null;
+      return url ? { name, url } : { name };
+    })
+    .filter((concept): concept is { name: string; url?: string } => Boolean(concept));
 }
 
 /**

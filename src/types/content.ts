@@ -10,13 +10,18 @@ export interface Author {
   url?: string;
 }
 
+export interface Concept {
+  name: string;
+  url?: string;
+}
+
 export interface Period {
   period: string;
   title: string;
   subtitle: string;
   video_url?: string;
   video_playlist?: Array<{ title?: string; url?: string; deckUrl?: string; deck_url?: string; audioUrl?: string; audio_url?: string }>;
-  concepts: string[];
+  concepts: Concept[];
   authors: Author[];
   core_literature: ContentLink[];
   extra_literature: ContentLink[];

@@ -129,9 +129,8 @@ function SectionRenderer({ slug, section, deckUrl, defaultVideoTitle, periodTest
   const lowerTitle = rawTitle.toLowerCase();
   const allStrings = section.content.every((item) => typeof item === 'string');
 
-  if (lowerTitle.includes('понят') && allStrings) {
-    const badgeItems = section.content as string[];
-    return <BadgeSection slug={slug} title={displayTitle} items={badgeItems} />;
+  if (lowerTitle.includes('понят')) {
+    return <BadgeSection slug={slug} title={displayTitle} items={section.content} />;
   }
 
   if (lowerTitle.includes('вопрос') && allStrings) {

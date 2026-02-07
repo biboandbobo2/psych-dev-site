@@ -95,9 +95,9 @@ function searchInContent(
       score += 5;
     }
 
-    // Поиск в concepts (sections или legacy)
-    const concepts = extractSectionData<string>(data, 'concepts', 'concepts');
-    if (concepts.some((c) => matchesQuery(c, queryWords))) {
+    // Поиск в concepts (sections или legacy, поддержка string и { name })
+    const concepts = extractSectionData<string | { name: string }>(data, 'concepts', 'concepts');
+    if (concepts.some((c) => matchesQuery(typeof c === 'string' ? c : c.name, queryWords))) {
       matchedIn.push('concepts');
       score += 8;
     }

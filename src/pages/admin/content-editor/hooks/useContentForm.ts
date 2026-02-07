@@ -14,7 +14,7 @@ export function useContentForm(placeholderDefaultEnabled: boolean) {
   const [accent100, setAccent100] = useState(DEFAULT_THEME.accent100);
   const [placeholderEnabled, setPlaceholderEnabled] = useState(placeholderDefaultEnabled);
   const [videos, setVideos] = useState<VideoFormEntry[]>([]);
-  const [concepts, setConcepts] = useState<string[]>([]);
+  const [concepts, setConcepts] = useState<Array<{ name: string; url?: string }>>([]);
   const [authors, setAuthors] = useState<Array<{ name: string; url?: string }>>([]);
   const [coreLiterature, setCoreLiterature] = useState<Array<{ title: string; url: string }>>([]);
   const [extraLiterature, setExtraLiterature] = useState<Array<{ title: string; url: string }>>([]);

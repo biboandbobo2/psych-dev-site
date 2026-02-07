@@ -36,7 +36,7 @@ interface SaveParams {
   placeholderEnabled: boolean;
   normalizedPlaceholderText: string;
   videos: VideoFormEntry[];
-  concepts: string[];
+  concepts: Array<{ name: string; url?: string }>;
   authors: Array<{ name: string; url?: string }>;
   coreLiterature: Array<{ title: string; url: string }>;
   extraLiterature: Array<{ title: string; url: string }>;
