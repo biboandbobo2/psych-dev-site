@@ -2,6 +2,26 @@ import type { ReactNode } from 'react';
 import { useAuthStore } from '../stores/useAuthStore';
 import type { CourseType } from '../types/tests';
 import { Section } from './ui/Section';
+import { Skeleton } from './ui/Skeleton';
+
+/**
+ * Скелетон-заглушка для PaywallGuard, пока авторизация загружается.
+ * Повторяет форму PaywallPlaceholder, чтобы не было layout shift.
+ */
+function PaywallSkeleton() {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-gray-50 to-gray-100 p-8 shadow-sm">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-10 w-10 rounded-full" />
+          <Skeleton className="h-6 w-36" />
+        </div>
+        <Skeleton className="h-5 w-56" />
+      </div>
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200" />
+    </div>
+  );
+}
 
 interface PaywallGuardProps {
   /** Тип курса для проверки доступа */
@@ -23,6 +43,7 @@ interface PaywallGuardProps {
  * - student, admin, super-admin → полный доступ
  * - guest → проверяется courseAccess[courseType]
  * - неавторизованный → заглушка
+ * - loading (auth ещё не определён) → скелетон вместо замка
  *
  * @example
  * ```tsx
@@ -40,6 +61,17 @@ export function PaywallGuard({
 }: PaywallGuardProps) {
   const hasCourseAccess = useAuthStore((state) => state.hasCourseAccess);
   const user = useAuthStore((state) => state.user);
+  const loading = useAuthStore((state) => state.loading);
+
+  // Пока авторизация грузится и пользователь залогинен — показываем скелетон,
+  // а не замок. Это предотвращает «мелькание» paywall на мобильных.
+  if (loading && user) {
+    const skeleton = <PaywallSkeleton />;
+    if (sectionTitle) {
+      return <Section title={sectionTitle}>{skeleton}</Section>;
+    }
+    return skeleton;
+  }
 
   // Проверяем доступ
   const hasAccess = hasCourseAccess(courseType);

@@ -5,6 +5,7 @@ import { auth, googleProvider, db } from '../lib/firebase';
 import { doc, getDoc, onSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { SUPER_ADMIN_EMAIL } from '../constants/superAdmin';
 import { reportAppError } from '../lib/errorHandler';
+import { debugLog } from '../lib/debug';
 import type { CourseType } from '../types/tests';
 import type { CourseAccessMap, UserRole } from '../types/user';
 import { hasCourseAccess as checkCourseAccess } from '../types/user';
@@ -132,17 +133,19 @@ export const useAuthStore = create<AuthState>()(
             if (next.email === SUPER_ADMIN_EMAIL) {
               resolvedRole = 'super-admin';
             } else {
-              const tokenResult = await next.getIdTokenResult(true);
-              const claimRole = tokenResult.claims.role;
+              // Фаза 1: пробуем кешированный токен (без сетевого запроса).
+              // Это позволяет мгновенно определить роль на мобильных.
+              const cachedToken = await next.getIdTokenResult(false);
+              const cachedRole = cachedToken.claims.role;
 
-              if (claimRole === 'admin' || claimRole === 'super-admin') {
-                resolvedRole = claimRole as UserRole;
-              } else if (claimRole === 'student') {
+              if (cachedRole === 'admin' || cachedRole === 'super-admin') {
+                resolvedRole = cachedRole as UserRole;
+              } else if (cachedRole === 'student') {
                 resolvedRole = 'student';
-              } else if (claimRole === 'guest') {
+              } else if (cachedRole === 'guest') {
                 resolvedRole = 'guest';
               } else {
-                // Проверяем Firestore для legacy пользователей
+                // Нет role в claims — проверяем Firestore для legacy пользователей
                 const snap = await getDoc(doc(db, 'users', next.uid));
                 const firestoreRole = snap.data()?.role;
                 if (firestoreRole === 'admin' || firestoreRole === 'super-admin') {
@@ -159,6 +162,25 @@ export const useAuthStore = create<AuthState>()(
             }
 
             get().setUserRole(resolvedRole);
+
+            // Фаза 2: обновляем токен в фоне (подхватит изменения claims).
+            // Не блокирует UI — роль уже установлена из кеша.
+            if (next.email !== SUPER_ADMIN_EMAIL) {
+              next.getIdTokenResult(true).then((freshToken) => {
+                if (cancelled) return;
+                const freshRole = freshToken.claims.role as UserRole | undefined;
+                if (freshRole && freshRole !== get().userRole) {
+                  debugLog('🔄 Auth: role updated from fresh token:', freshRole);
+                  get().setUserRole(freshRole);
+                }
+              }).catch((err) => {
+                reportAppError({
+                  message: 'Фоновое обновление токена не удалось',
+                  error: err,
+                  context: 'useAuthStore.initializeAuth.backgroundRefresh',
+                });
+              });
+            }
 
             // Подписываемся на изменения courseAccess в реальном времени
             userDocUnsubscribe = onSnapshot(
