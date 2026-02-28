@@ -1,8 +1,8 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
 import { GeminiKeySection, SearchHistorySection } from '../components/profile';
-import { FeedbackButton } from '../components/FeedbackModal';
+import { FeedbackButton, FeedbackModal } from '../components/FeedbackModal';
 import { useAuth } from '../auth/AuthProvider';
 import { useCourseStore } from '../stores';
 import { triggerHaptic } from '../lib/haptics';
@@ -124,6 +124,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
 
 export default function Profile() {
   const { user, loading, userRole, isAdmin, isSuperAdmin } = useAuth();
+  const [isCoopModalOpen, setIsCoopModalOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const { currentCourse, setCurrentCourse } = useCourseStore();
   const { courses, loading: coursesLoading } = useCourses();
@@ -353,6 +354,35 @@ export default function Profile() {
 
       {/* Обратная связь */}
       <FeedbackButton variant="profile" />
+
+      {/* Призыв к сотрудничеству */}
+      <button
+        onClick={() => setIsCoopModalOpen(true)}
+        className="w-full text-left bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-shadow"
+      >
+        <div className="bg-gradient-to-r from-indigo-500 to-blue-500 px-6 py-4 sm:px-8 sm:py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl sm:text-3xl">🤝</span>
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-white">Призываем к сотрудничеству</h3>
+                <p className="text-sm text-white/80 hidden sm:block">
+                  Предложите идею партнёрства или совместного проекта
+                </p>
+              </div>
+            </div>
+            <svg
+              className="w-6 h-6 text-white/80"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      </button>
+      <FeedbackModal isOpen={isCoopModalOpen} onClose={() => setIsCoopModalOpen(false)} />
 
       {/* История поисков — только для авторизованных */}
       {user && <SearchHistorySection />}
