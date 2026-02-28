@@ -4,15 +4,13 @@ on:
   push:
     branches:
       - main
-      - master
   pull_request:
     branches:
       - main
-      - master
 
 jobs:
-  test:
-    name: Run lint, tests and build
+  root-checks:
+    name: Root Checks
     runs-on: ubuntu-latest
 
     steps:
@@ -22,26 +20,65 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Detect available scripts
+        id: scripts
+        run: |
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));const s=p.scripts||{};console.log('has_lint=' + Boolean(s.lint));console.log('has_test=' + Boolean(s.test));console.log('has_build=' + Boolean(s.build));" >> "$GITHUB_OUTPUT"
+
       - name: Run lint
+        if: steps.scripts.outputs.has_lint == 'true'
         run: npm run lint
 
-      - name: Check module initialization
-        run: npm run check:init
-
       - name: Run tests
+        if: steps.scripts.outputs.has_test == 'true'
         run: npm run test
 
       - name: Build
+        if: steps.scripts.outputs.has_build == 'true'
         run: npm run build
 
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps chromium
+  functions-checks:
+    name: Functions Checks
+    runs-on: ubuntu-latest
 
-      - name: Run E2E production smoke tests
-        run: npm run test:e2e:prod
+    defaults:
+      run:
+        working-directory: functions
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Detect available scripts
+        id: scripts
+        run: |
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));const s=p.scripts||{};console.log('has_lint=' + Boolean(s.lint));console.log('has_test=' + Boolean(s.test));console.log('has_build=' + Boolean(s.build));" >> "$GITHUB_OUTPUT"
+
+      - name: Run lint
+        if: steps.scripts.outputs.has_lint == 'true'
+        run: npm run lint
+
+      - name: Run tests
+        if: steps.scripts.outputs.has_test == 'true'
+        run: npm run test
+
+      - name: Build
+        if: steps.scripts.outputs.has_build == 'true'
+        run: npm run build

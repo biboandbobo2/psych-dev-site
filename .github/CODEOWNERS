@@ -1,0 +1,23 @@
+# Replace @MY_GITHUB_USERNAME with your real GitHub username before enabling:
+# "Require review from Code Owners" in branch protection.
+
+/src/ @MY_GITHUB_USERNAME
+/functions/ @MY_GITHUB_USERNAME
+/api/ @MY_GITHUB_USERNAME
+/docs/ @MY_GITHUB_USERNAME
+/.github/ @MY_GITHUB_USERNAME
+
+/package.json @MY_GITHUB_USERNAME
+/package-lock.json @MY_GITHUB_USERNAME
+/vite.config.js @MY_GITHUB_USERNAME
+/eslint.config.js @MY_GITHUB_USERNAME
+/tsconfig.json @MY_GITHUB_USERNAME
+/vercel.json @MY_GITHUB_USERNAME
+/firebase.json @MY_GITHUB_USERNAME
+/.firebaserc @MY_GITHUB_USERNAME
+/firestore.rules @MY_GITHUB_USERNAME
+/firestore.indexes.json @MY_GITHUB_USERNAME
+/storage.rules @MY_GITHUB_USERNAME
+/tailwind.config.js @MY_GITHUB_USERNAME
+/postcss.config.js @MY_GITHUB_USERNAME
+/render.yaml @MY_GITHUB_USERNAME
