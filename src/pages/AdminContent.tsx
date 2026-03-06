@@ -22,11 +22,10 @@ import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG } from "../ro
 import { getPeriodColors } from "../constants/periods";
 import { TestEditorModal } from "../components/TestEditorModal";
 import { CreateLessonModal } from "../components/CreateLessonModal";
-import { canonicalizePeriodId } from "../lib/firestoreHelpers";
 import { debugError, debugLog } from "../lib/debug";
 import { useCourseStore } from "../stores";
 import { useReorderLessons } from "../hooks/useReorderLessons";
-import { getCourseLessonsCollectionRef } from "../lib/courseLessons";
+import { getCanonicalCourseLessonId, getCourseLessonsCollectionRef } from "../lib/courseLessons";
 import { isCoreCourse } from "../constants/courses";
 import { useCourses } from "../hooks/useCourses";
 import type { CourseType } from "../types/tests";
@@ -59,6 +58,12 @@ const sortPeriods = (items: Period[], getFallbackOrder: (periodId: string) => nu
     const orderB = getPeriodSortWeight(b, getFallbackOrder(b.period));
     if (orderA !== orderB) {
       return orderA - orderB;
+    }
+
+    const fallbackOrderA = getFallbackOrder(a.period);
+    const fallbackOrderB = getFallbackOrder(b.period);
+    if (fallbackOrderA !== fallbackOrderB) {
+      return fallbackOrderA - fallbackOrderB;
     }
 
     return String(a.title || a.period).localeCompare(String(b.title || b.period), "ru");
@@ -248,14 +253,27 @@ export default function AdminContent() {
       const lessonsRef = getCourseLessonsCollectionRef(courseId);
       const q = query(lessonsRef, orderBy("order", "asc"));
       const snapshot = await getDocs(q);
-      const data = snapshot.docs.map((docSnap) => {
+      const lessonMap = new Map<string, (Period & { sourceDocId: string })>();
+
+      snapshot.docs.forEach((docSnap) => {
         const docData = docSnap.data() as Period;
-        const canonicalId = isCoreCourse(courseId) ? canonicalizePeriodId(docSnap.id) : docSnap.id;
-        return {
+        const canonicalId = getCanonicalCourseLessonId(courseId, docSnap.id, docData);
+        const current = lessonMap.get(canonicalId);
+        const nextIsCanonicalDoc = docSnap.id === canonicalId;
+        const currentIsCanonicalDoc = current?.sourceDocId === canonicalId;
+
+        if (current && currentIsCanonicalDoc && !nextIsCanonicalDoc) {
+          return;
+        }
+
+        lessonMap.set(canonicalId, {
           ...docData,
           period: canonicalId,
-        };
+          sourceDocId: docSnap.id,
+        });
       });
+
+      const data = [...lessonMap.values()].map(({ sourceDocId, ...period }) => period);
 
       if (isCoreCourse(courseId)) {
         const coreRoutes = getCoreRoutes(courseId);

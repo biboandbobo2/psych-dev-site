@@ -20,7 +20,11 @@ import {
   normalizeLeisure,
 } from '../utils/contentNormalizers';
 import { debugError } from '../../../../lib/debug';
-import { getCourseLessonDocRef, getCourseLessonsCollectionRef } from '../../../../lib/courseLessons';
+import {
+  findCourseLessonDoc,
+  getCourseLessonDocRef,
+  getCourseLessonsCollectionRef,
+} from '../../../../lib/courseLessons';
 import { isCoreCourse } from '../../../../constants/courses';
 import { getCourseCollectionName } from '../utils/courseCollectionRef';
 import type { CourseType } from '../../../../types/tests';
@@ -267,9 +271,9 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
         if (!collectionName) {
           data.courseId = course;
         }
-        const docRef = collectionName
-          ? doc(db, collectionName, periodId!)
-          : getCourseLessonDocRef(course, periodId!);
+        const resolvedDoc = collectionName ? await findCourseLessonDoc(course, periodId!) : null;
+        const docRef = resolvedDoc?.ref
+          ?? (collectionName ? doc(db, collectionName, periodId!) : getCourseLessonDocRef(course, periodId!));
         await setDoc(docRef, data, { merge: true });
       }
 
@@ -310,9 +314,9 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
         await Promise.allSettled(deletionTasks);
       } else {
         const collectionName = getCourseCollectionName(course);
-        const docRef = collectionName
-          ? doc(db, collectionName, periodId)
-          : getCourseLessonDocRef(course, periodId);
+        const resolvedDoc = collectionName ? await findCourseLessonDoc(course, periodId) : null;
+        const docRef = resolvedDoc?.ref
+          ?? (collectionName ? doc(db, collectionName, periodId) : getCourseLessonDocRef(course, periodId));
         await deleteDoc(docRef);
       }
 

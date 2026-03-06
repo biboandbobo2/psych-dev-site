@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { writeBatch, getDoc } from 'firebase/firestore';
+import { writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { debugLog, debugError, debugWarn } from '../lib/debug';
 import type { CourseType } from '../types/tests';
-import { getCourseLessonDocRef } from '../lib/courseLessons';
+import { findCourseLessonDoc } from '../lib/courseLessons';
 
 interface LessonOrder {
   periodId: string;
@@ -33,21 +33,21 @@ export function useReorderLessons() {
       setSaving(true);
 
       // Проверяем существование всех документов параллельно
-      const existenceChecks = await Promise.all(
+      const resolvedDocs = await Promise.all(
         newOrder.map(async ({ periodId }) => {
-          const docRef = getCourseLessonDocRef(course, periodId);
-          const docSnap = await getDoc(docRef);
-          return { periodId, exists: docSnap.exists() };
+          const resolvedDoc = await findCourseLessonDoc(course, periodId);
+          return { periodId, resolvedDoc };
         })
       );
 
       // Фильтруем только существующие документы
-      const existingPeriods = newOrder.filter(({ periodId }) => {
-        const check = existenceChecks.find((c) => c.periodId === periodId);
-        if (!check?.exists) {
+      const existingPeriods = newOrder.flatMap(({ periodId, order }) => {
+        const match = resolvedDocs.find((entry) => entry.periodId === periodId);
+        if (!match?.resolvedDoc) {
           debugWarn(`⚠️ Skipping update for non-existent document: ${periodId}`);
+          return [];
         }
-        return check?.exists;
+        return [{ order, resolvedDoc: match.resolvedDoc }];
       });
 
       if (existingPeriods.length === 0) {
@@ -57,9 +57,8 @@ export function useReorderLessons() {
 
       // Создаём batch только для существующих документов
       const batch = writeBatch(db);
-      existingPeriods.forEach(({ periodId, order }) => {
-        const docRef = getCourseLessonDocRef(course, periodId);
-        batch.update(docRef, { order });
+      existingPeriods.forEach(({ resolvedDoc, order }) => {
+        batch.update(resolvedDoc.ref, { order });
       });
 
       await batch.commit();
