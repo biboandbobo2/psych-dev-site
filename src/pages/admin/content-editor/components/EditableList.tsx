@@ -11,11 +11,16 @@ export function EditableList({
   placeholder,
   maxItems = 10,
   showUrl = true,
+  primaryField = 'title',
   extraFields = [],
 }: EditableListProps) {
   const addItem = () => {
     if (items.length < maxItems) {
-      onChange([...items, showUrl ? { title: '', url: '' } : { name: '' }]);
+      const newItem: ListItem = { [primaryField]: '' };
+      if (showUrl) {
+        newItem.url = '';
+      }
+      onChange([...items, newItem]);
     }
   };
 
@@ -25,7 +30,14 @@ export function EditableList({
 
   const updateItem = (index: number, field: string, value: string) => {
     const updated = [...items];
-    updated[index] = { ...updated[index], [field]: value };
+    const nextItem: ListItem = { ...updated[index], [field]: value };
+    if (field === 'name' && nextItem.title !== undefined) {
+      delete nextItem.title;
+    }
+    if (field === 'title' && nextItem.name !== undefined) {
+      delete nextItem.name;
+    }
+    updated[index] = nextItem;
     onChange(updated);
   };
 
@@ -54,10 +66,12 @@ export function EditableList({
               <div className="flex-1 space-y-2">
                 <input
                   type="text"
-                  value={item.title ?? item.name ?? ''}
-                  onChange={(event) =>
-                    updateItem(index, item.title !== undefined ? 'title' : 'name', event.target.value)
+                  value={
+                    primaryField === 'name'
+                      ? item.name ?? item.title ?? ''
+                      : item.title ?? item.name ?? ''
                   }
+                  onChange={(event) => updateItem(index, primaryField, event.target.value)}
                   placeholder={placeholder}
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                   style={SELECTABLE_TEXT_STYLE}
