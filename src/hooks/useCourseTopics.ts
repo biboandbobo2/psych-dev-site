@@ -3,7 +3,7 @@ import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Period } from '../types/content';
 import { debugLog, debugError } from '../lib/debug';
-import { getCanonicalCourseLessonId } from '../lib/courseLessons';
+import { mapCanonicalCourseLessons } from '../lib/courseLessons';
 
 type CourseCollection = 'periods' | 'clinical-topics' | 'general-topics';
 
@@ -43,31 +43,14 @@ export function useCourseTopics<T extends Period>(
       );
 
       const snapshot = await getDocs(q);
-      const topicsMap = new Map<string, { topic: T; sourceDocId: string }>();
       const courseId = COURSE_BY_COLLECTION[collectionName];
-
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data() as T;
-        const lessonId = getCanonicalCourseLessonId(courseId, docSnap.id, data);
-        const current = topicsMap.get(lessonId);
-        const nextIsCanonicalDoc = docSnap.id === lessonId;
-        const currentIsCanonicalDoc = current?.sourceDocId === lessonId;
-
-        if (current && currentIsCanonicalDoc && !nextIsCanonicalDoc) {
-          return;
-        }
-
-        topicsMap.set(lessonId, {
-          topic: {
-            ...data,
-            period: lessonId,
-          },
-          sourceDocId: docSnap.id,
-        });
-      });
+      const normalizedLessons = mapCanonicalCourseLessons(courseId, snapshot.docs);
 
       const normalizedTopics = new Map<string, T>();
-      topicsMap.forEach(({ topic }, lessonId) => {
+      normalizedLessons.forEach((lesson) => {
+        const topic = { ...lesson } as T & { sourceDocId?: string };
+        delete topic.sourceDocId;
+        const lessonId = topic.period;
         normalizedTopics.set(lessonId, topic);
       });
 

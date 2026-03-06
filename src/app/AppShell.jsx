@@ -27,6 +27,7 @@ import SuperAdminTaskPanel from '../components/SuperAdminTaskPanel';
 import AdminCourseSidebar from '../components/AdminCourseSidebar';
 import StudentCourseSidebar from '../components/StudentCourseSidebar';
 import { isCoreCourse } from '../constants/courses';
+import { sortNavItemsWithRouteFallback } from '../lib/courseLessons';
 
 const normalizePath = (path) =>
   path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
@@ -164,7 +165,6 @@ export function AppShell() {
                      isGeneralPage ? '/general/' :
                      isDynamicCoursePage ? `/course/${dynamicCourseId}/` :
                      '/';
-    const routeOrderMap = new Map(routes.map((route, index) => [route.path, index]));
 
     // Собираем ID статических роутов
     const staticIds = new Set(routes.map(r => r.periodId).filter(Boolean));
@@ -198,21 +198,7 @@ export function AppShell() {
     });
 
     // Сортируем по order
-    return items.sort((a, b) => {
-      const orderA = typeof a.order === 'number' ? a.order : Number.MAX_SAFE_INTEGER;
-      const orderB = typeof b.order === 'number' ? b.order : Number.MAX_SAFE_INTEGER;
-      if (orderA !== orderB) {
-        return orderA - orderB;
-      }
-
-      const routeOrderA = routeOrderMap.get(a.path) ?? Number.MAX_SAFE_INTEGER;
-      const routeOrderB = routeOrderMap.get(b.path) ?? Number.MAX_SAFE_INTEGER;
-      if (routeOrderA !== routeOrderB) {
-        return routeOrderA - routeOrderB;
-      }
-
-      return String(a.label || a.path).localeCompare(String(b.label || b.path), 'ru');
-    });
+    return sortNavItemsWithRouteFallback(routes, items);
   }, [periodMap, clinicalTopicsMap, generalTopicsMap, dynamicLessonsMap, isClinicalPage, isGeneralPage, isDynamicCoursePage, dynamicCourseId]);
 
   const sidebar = isSuperAdmin && isSuperAdminPage

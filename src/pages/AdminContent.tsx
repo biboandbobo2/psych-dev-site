@@ -25,7 +25,13 @@ import { CreateLessonModal } from "../components/CreateLessonModal";
 import { debugError, debugLog } from "../lib/debug";
 import { useCourseStore } from "../stores";
 import { useReorderLessons } from "../hooks/useReorderLessons";
-import { getCanonicalCourseLessonId, getCourseLessonsCollectionRef } from "../lib/courseLessons";
+import {
+  getCourseLessonsCollectionRef,
+  getLessonRouteOrderMap,
+  getCoreCourseRoutes,
+  mapCanonicalCourseLessons,
+  sortCourseLessonItems,
+} from "../lib/courseLessons";
 import { isCoreCourse } from "../constants/courses";
 import { useCourses } from "../hooks/useCourses";
 import type { CourseType } from "../types/tests";
@@ -43,51 +49,8 @@ interface Period {
 
 const FALLBACK_PLACEHOLDER_TEXT = "Контент для этого возраста пока не создан.";
 
-const getPeriodSortWeight = (period: Period, fallbackOrder: number) =>
-  typeof period.order === "number" ? period.order : fallbackOrder;
-
-const sortPeriods = (items: Period[], getFallbackOrder: (periodId: string) => number): Period[] =>
-  [...items].sort((a, b) => {
-    const draftRankA = a.published === false ? 1 : 0;
-    const draftRankB = b.published === false ? 1 : 0;
-    if (draftRankA !== draftRankB) {
-      return draftRankA - draftRankB;
-    }
-
-    const orderA = getPeriodSortWeight(a, getFallbackOrder(a.period));
-    const orderB = getPeriodSortWeight(b, getFallbackOrder(b.period));
-    if (orderA !== orderB) {
-      return orderA - orderB;
-    }
-
-    const fallbackOrderA = getFallbackOrder(a.period);
-    const fallbackOrderB = getFallbackOrder(b.period);
-    if (fallbackOrderA !== fallbackOrderB) {
-      return fallbackOrderA - fallbackOrderB;
-    }
-
-    return String(a.title || a.period).localeCompare(String(b.title || b.period), "ru");
-  });
-
-const getCoreRoutes = (courseId: CourseType) =>
-  courseId === 'clinical' ? CLINICAL_ROUTE_CONFIG :
-  courseId === 'general' ? GENERAL_ROUTE_CONFIG :
-  ROUTE_CONFIG;
-
 const ACTION_BUTTON_CLASS =
   "inline-flex w-full min-h-[44px] items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition shadow-sm whitespace-nowrap sm:min-w-[220px] sm:min-h-[52px] sm:px-5 sm:py-2.5 sm:text-base";
-
-function getRouteOrderMap(routes: typeof ROUTE_CONFIG) {
-  return routes.reduce(
-    (acc, config, index) => {
-      if (config.periodId) {
-        acc[config.periodId] = index;
-      }
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-}
 
 // Sortable item component
 interface SortableItemProps {
@@ -253,33 +216,11 @@ export default function AdminContent() {
       const lessonsRef = getCourseLessonsCollectionRef(courseId);
       const q = query(lessonsRef, orderBy("order", "asc"));
       const snapshot = await getDocs(q);
-      const lessonMap = new Map<string, (Period & { sourceDocId: string })>();
-
-      snapshot.docs.forEach((docSnap) => {
-        const docData = docSnap.data() as Period;
-        const canonicalId = getCanonicalCourseLessonId(courseId, docSnap.id, docData);
-        const current = lessonMap.get(canonicalId);
-        const nextIsCanonicalDoc = docSnap.id === canonicalId;
-        const currentIsCanonicalDoc = current?.sourceDocId === canonicalId;
-
-        if (current && currentIsCanonicalDoc && !nextIsCanonicalDoc) {
-          return;
-        }
-
-        lessonMap.set(canonicalId, {
-          ...docData,
-          period: canonicalId,
-          sourceDocId: docSnap.id,
-        });
-      });
-
-      const data = [...lessonMap.values()].map(({ sourceDocId, ...period }) => period);
+      const data = mapCanonicalCourseLessons(courseId, snapshot.docs).map(({ sourceDocId, ...period }) => period);
 
       if (isCoreCourse(courseId)) {
-        const coreRoutes = getCoreRoutes(courseId);
-        const routeOrderMap = getRouteOrderMap(coreRoutes);
-        const getRouteOrder = (periodId: string) =>
-          routeOrderMap[periodId] ?? Number.MAX_SAFE_INTEGER;
+        const coreRoutes = getCoreCourseRoutes(courseId);
+        const routeOrderMap = getLessonRouteOrderMap(courseId);
         const existingIds = new Set(data.map((period) => period.period));
         const introIds = new Set(["intro", "clinical-intro"]);
         const placeholderPeriods = coreRoutes.filter(
@@ -292,18 +233,22 @@ export default function AdminContent() {
             config.meta?.description ||
             FALLBACK_PLACEHOLDER_TEXT,
           published: false,
-          order: getRouteOrder(config.periodId!),
+          order: routeOrderMap[config.periodId!] ?? Number.MAX_SAFE_INTEGER,
           accent: "",
           isPlaceholder: true,
         }));
 
-        const combined = sortPeriods([...data, ...placeholderPeriods], getRouteOrder);
+        const combined = sortCourseLessonItems(courseId, [...data, ...placeholderPeriods], {
+          draftsLast: true,
+        });
 
         if (requestId === loadRequestId.current) {
           setPeriods(combined);
         }
       } else {
-        const combined = sortPeriods([...data], () => 0);
+        const combined = sortCourseLessonItems(courseId, [...data], {
+          draftsLast: true,
+        });
         if (requestId === loadRequestId.current) {
           setPeriods(combined);
         }
