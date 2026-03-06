@@ -6,7 +6,7 @@ import { DEFAULT_THEME } from '../../../../theme/periods';
 import type { Period } from '../types';
 import { createEmptyVideoEntry, createVideoEntryFromSource } from '../utils/videoHelpers';
 import { debugError } from '../../../../lib/debug';
-import { getCourseLessonDocRef } from '../../../../lib/courseLessons';
+import { findCourseLessonDoc, getCanonicalCourseLessonId, getCourseLessonDocRef } from '../../../../lib/courseLessons';
 import { isCoreCourse } from '../../../../constants/courses';
 import type { CourseType } from '../../../../types/tests';
 
@@ -76,24 +76,27 @@ export function useContentLoader(params: UseContentLoaderParams) {
 
         // Для курса клинической психологии используем коллекцию clinical-topics
         if (course === 'clinical') {
-          const collectionName = 'clinical-topics';
-          const docRef = doc(db, collectionName, periodId);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
+          const resolvedDoc = await findCourseLessonDoc(course, periodId);
+          if (resolvedDoc?.snapshot.exists()) {
             data = {
-              ...(docSnap.data() as any),
-              period: periodId,
+              ...(resolvedDoc.snapshot.data() as any),
+              period: getCanonicalCourseLessonId(
+                course,
+                resolvedDoc.snapshot.id,
+                resolvedDoc.snapshot.data()
+              ),
             } as Period;
           }
         } else if (course === 'general') {
-          // Для курса общей психологии используем коллекцию general-topics
-          const collectionName = 'general-topics';
-          const docRef = doc(db, collectionName, periodId);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
+          const resolvedDoc = await findCourseLessonDoc(course, periodId);
+          if (resolvedDoc?.snapshot.exists()) {
             data = {
-              ...(docSnap.data() as any),
-              period: periodId,
+              ...(resolvedDoc.snapshot.data() as any),
+              period: getCanonicalCourseLessonId(
+                course,
+                resolvedDoc.snapshot.id,
+                resolvedDoc.snapshot.data()
+              ),
             } as Period;
           }
         } else if (isCoreCourse(course)) {

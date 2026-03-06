@@ -3,8 +3,15 @@ import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Period } from '../types/content';
 import { debugLog, debugError } from '../lib/debug';
+import { getCanonicalCourseLessonId } from '../lib/courseLessons';
 
 type CourseCollection = 'periods' | 'clinical-topics' | 'general-topics';
+
+const COURSE_BY_COLLECTION: Record<CourseCollection, string> = {
+  periods: 'development',
+  'clinical-topics': 'clinical',
+  'general-topics': 'general',
+};
 
 /**
  * Generic hook для загрузки контента курса из Firestore
@@ -36,15 +43,36 @@ export function useCourseTopics<T extends Period>(
       );
 
       const snapshot = await getDocs(q);
-      const topicsMap = new Map<string, T>();
+      const topicsMap = new Map<string, { topic: T; sourceDocId: string }>();
+      const courseId = COURSE_BY_COLLECTION[collectionName];
 
-      snapshot.forEach((doc) => {
-        const data = doc.data() as T;
-        topicsMap.set(data.period, data);
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() as T;
+        const lessonId = getCanonicalCourseLessonId(courseId, docSnap.id, data);
+        const current = topicsMap.get(lessonId);
+        const nextIsCanonicalDoc = docSnap.id === lessonId;
+        const currentIsCanonicalDoc = current?.sourceDocId === lessonId;
+
+        if (current && currentIsCanonicalDoc && !nextIsCanonicalDoc) {
+          return;
+        }
+
+        topicsMap.set(lessonId, {
+          topic: {
+            ...data,
+            period: lessonId,
+          },
+          sourceDocId: docSnap.id,
+        });
       });
 
-      debugLog(`${debugLabel} loaded`, topicsMap.size);
-      setTopics(topicsMap);
+      const normalizedTopics = new Map<string, T>();
+      topicsMap.forEach(({ topic }, lessonId) => {
+        normalizedTopics.set(lessonId, topic);
+      });
+
+      debugLog(`${debugLabel} loaded`, normalizedTopics.size);
+      setTopics(normalizedTopics);
     } catch (err) {
       debugError(`Error loading ${debugLabel}`, err);
       setError(err as Error);

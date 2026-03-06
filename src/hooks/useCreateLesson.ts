@@ -1,8 +1,12 @@
 import { useState } from 'react';
-import { setDoc, getDoc, getDocs, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { setDoc, getDocs, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import { debugLog, debugError } from '../lib/debug';
 import type { CourseType } from '../types/tests';
-import { getCourseLessonDocRef, getCourseLessonsCollectionRef } from '../lib/courseLessons';
+import {
+  findCourseLessonDoc,
+  getCourseLessonDocRef,
+  getCourseLessonsCollectionRef,
+} from '../lib/courseLessons';
 
 interface CreateLessonResult {
   success: boolean;
@@ -19,9 +23,8 @@ export function useCreateLesson() {
    * Проверяет, существует ли занятие с таким ID
    */
   async function checkIdExists(course: CourseType, periodId: string): Promise<boolean> {
-    const docRef = getCourseLessonDocRef(course, periodId);
-    const docSnap = await getDoc(docRef);
-    return docSnap.exists();
+    const resolvedDoc = await findCourseLessonDoc(course, periodId);
+    return Boolean(resolvedDoc?.snapshot.exists());
   }
 
   /**
