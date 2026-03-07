@@ -78,8 +78,21 @@ export const AGE_RANGE_ORDER: AgeRange[] = [
   'oldestOld',
 ];
 
+const LEGACY_AGE_RANGE_MAP: Record<string, AgeRange> = {
+  'early-childhood': 'infancy',
+  school: 'primary-school',
+};
+
 // Lazy initialization to avoid "Cannot access uninitialized variable" in production
+let _VALID_AGE_RANGES: Set<AgeRange> | null = null;
 let _AGE_RANGE_OPTIONS: Array<{ value: AgeRange; label: string }> | null = null;
+
+function getValidAgeRanges(): Set<AgeRange> {
+  if (!_VALID_AGE_RANGES) {
+    _VALID_AGE_RANGES = new Set<AgeRange>(AGE_RANGE_ORDER);
+  }
+  return _VALID_AGE_RANGES;
+}
 
 export function getAgeRangeOptions(): Array<{ value: AgeRange; label: string }> {
   if (!_AGE_RANGE_OPTIONS) {
@@ -89,6 +102,17 @@ export function getAgeRangeOptions(): Array<{ value: AgeRange; label: string }> 
     }));
   }
   return _AGE_RANGE_OPTIONS;
+}
+
+export function normalizeAgeRange(value: unknown): AgeRange | null {
+  if (!value || typeof value !== 'string') return null;
+
+  const mapped = LEGACY_AGE_RANGE_MAP[value] ?? value;
+  if (getValidAgeRanges().has(mapped as AgeRange)) {
+    return mapped as AgeRange;
+  }
+
+  return null;
 }
 
 // Export as lazy Proxy to avoid top-level function call

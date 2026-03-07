@@ -12,36 +12,9 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../auth/AuthProvider';
-import { type Note, type AgeRange, AGE_RANGE_ORDER, AGE_RANGE_LABELS } from '../types/notes';
+import { type Note, type AgeRange, AGE_RANGE_LABELS, normalizeAgeRange } from '../types/notes';
 import { reportAppError } from '../lib/errorHandler';
 import { debugLog, debugError } from '../lib/debug';
-
-const LEGACY_AGE_RANGE_MAP: Record<string, AgeRange> = {
-  'early-childhood': 'infancy',
-  school: 'primary-school',
-};
-
-// Lazy initialization to avoid "Cannot access uninitialized variable" in production
-let VALID_AGE_RANGES: Set<AgeRange> | null = null;
-
-function getValidAgeRanges(): Set<AgeRange> {
-  if (!VALID_AGE_RANGES) {
-    VALID_AGE_RANGES = new Set<AgeRange>(AGE_RANGE_ORDER);
-  }
-  return VALID_AGE_RANGES;
-}
-
-const normalizeAgeRangeValue = (value: unknown): AgeRange | null => {
-  if (!value) return null;
-  if (typeof value !== 'string') return null;
-
-  const mapped = LEGACY_AGE_RANGE_MAP[value] ?? value;
-  if (mapped && getValidAgeRanges().has(mapped as AgeRange)) {
-    return mapped as AgeRange;
-  }
-
-  return null;
-};
 
 export function useNotes(ageRangeFilter?: AgeRange | null) {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -78,8 +51,8 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
         let notesData = snapshot.docs.map((docSnap) => {
           const data = docSnap.data();
           debugLog('[useNotes] Note document:', docSnap.id, data);
-          const ageRange = normalizeAgeRangeValue(data.ageRange ?? data.periodId);
-          const periodId = normalizeAgeRangeValue(data.periodId ?? ageRange);
+          const ageRange = normalizeAgeRange(data.ageRange ?? data.periodId);
+          const periodId = normalizeAgeRange(data.periodId ?? ageRange);
           const periodTitle = data.periodTitle ?? (periodId ? AGE_RANGE_LABELS[periodId] : null);
           return {
             id: docSnap.id,
@@ -133,7 +106,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
     }
 
     try {
-      const normalizedAgeRange = normalizeAgeRangeValue(ageRange);
+      const normalizedAgeRange = normalizeAgeRange(ageRange);
       const derivedPeriodTitle = normalizedAgeRange ? AGE_RANGE_LABELS[normalizedAgeRange] : null;
       const noteData = {
         userId: user.uid,
@@ -171,7 +144,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
 
       let normalizedAgeRange: AgeRange | null | undefined;
       if ('ageRange' in normalizedUpdates) {
-        normalizedAgeRange = normalizeAgeRangeValue(normalizedUpdates.ageRange ?? null);
+        normalizedAgeRange = normalizeAgeRange(normalizedUpdates.ageRange ?? null);
         normalizedUpdates.ageRange = normalizedAgeRange;
       }
 

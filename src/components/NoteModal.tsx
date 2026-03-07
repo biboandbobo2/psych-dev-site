@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { type AgeRange } from '../types/notes';
-import { TopicSelector } from './TopicSelector';
+import { NoteFormFields } from './NoteFormFields';
 import { SaveNoteAsEventButton } from './SaveNoteAsEventButton';
 import { useTimeline } from '../hooks/useTimeline';
 import { debugError } from '../lib/debug';
@@ -90,36 +90,18 @@ export function NoteModal({
         <NoteModalHeader title={headerTitle} onClose={onClose} disabled={saving} />
 
         <div className="space-y-4 p-6">
-          <TopicSelector
-            selectedAgeRange={ageRange}
-            selectedTopicId={topicId}
+          <NoteFormFields
+            title={title}
+            content={content}
+            ageRange={ageRange}
+            topicId={topicId}
+            saving={saving}
+            autoFocus
+            onTitleChange={setTitle}
+            onContentChange={setContent}
             onAgeRangeChange={setAgeRange}
             onTopicSelect={handleTopicSelect}
           />
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">Заголовок заметки</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Введите заголовок..."
-              className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={saving}
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">Ваши размышления</label>
-            <textarea
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-              placeholder="Напишите свои мысли..."
-              className="min-h-[300px] w-full resize-y rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={saving}
-            />
-          </div>
         </div>
 
         <NoteModalFooter
