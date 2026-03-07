@@ -38,7 +38,7 @@ describe('VideoSection', () => {
 
     expect(screen.getByText('Study panel for Лекция 1')).not.toBeVisible();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Видео + заметки' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть конспект' }));
     await waitFor(() => {
       expect(screen.getByText('Study panel for Лекция 1')).toBeVisible();
     });
@@ -47,8 +47,8 @@ describe('VideoSection', () => {
       target: { value: 'Черновик заметки' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Только видео' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Видео + заметки' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Скрыть конспект' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть конспект' }));
 
     expect(screen.getByLabelText('Draft')).toHaveValue('Черновик заметки');
   });

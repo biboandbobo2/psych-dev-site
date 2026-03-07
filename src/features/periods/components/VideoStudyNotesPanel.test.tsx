@@ -22,39 +22,6 @@ vi.mock('../../../components/LoginModal', () => ({
   default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div>Login modal</div> : null),
 }));
 
-vi.mock('../../../components/NoteFormFields', () => ({
-  NoteFormFields: ({
-    title,
-    content,
-    onTitleChange,
-    onContentChange,
-  }: {
-    title: string;
-    content: string;
-    onTitleChange: (value: string) => void;
-    onContentChange: (value: string) => void;
-  }) => (
-    <div>
-      <label>
-        Заголовок заметки
-        <input
-          aria-label="Заголовок заметки"
-          value={title}
-          onChange={(event) => onTitleChange(event.target.value)}
-        />
-      </label>
-      <label>
-        Ваши размышления
-        <textarea
-          aria-label="Ваши размышления"
-          value={content}
-          onChange={(event) => onContentChange(event.target.value)}
-        />
-      </label>
-    </div>
-  ),
-}));
-
 describe('VideoStudyNotesPanel', () => {
   beforeEach(() => {
     mocks.createNote.mockReset();
@@ -71,14 +38,14 @@ describe('VideoStudyNotesPanel', () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText('Ваши размышления'), {
+    fireEvent.change(screen.getByLabelText('Заметки по лекции'), {
       target: { value: 'Ключевой тезис из лекции' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Сохранить заметку' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() =>
       expect(mocks.createNote).toHaveBeenCalledWith(
-        'Младший школьный возраст: Лекция 1',
+        'Заметки по лекции',
         'Ключевой тезис из лекции',
         'primary-school',
         null,
@@ -86,7 +53,7 @@ describe('VideoStudyNotesPanel', () => {
       )
     );
 
-    expect(screen.getByText('Заметка сохранена. Можно продолжать конспект.')).toBeInTheDocument();
+    expect(screen.getByText('Сохранено в /notes')).toBeInTheDocument();
   });
 
   it('открывает логин-модалку для неавторизованного пользователя', async () => {
@@ -100,7 +67,7 @@ describe('VideoStudyNotesPanel', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Войти и сохранить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
     expect(mocks.createNote).not.toHaveBeenCalled();
     expect(await screen.findByText('Login modal')).toBeInTheDocument();

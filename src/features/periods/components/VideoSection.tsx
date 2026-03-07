@@ -131,38 +131,38 @@ function VideoSectionCard({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-2">
+        <div className="space-y-1">
           {showVideoHeading && effectiveVideoTitle ? (
             <h3 className="text-2xl font-semibold leading-tight text-fg">{effectiveVideoTitle}</h3>
           ) : null}
-          <p className="text-sm leading-6 text-muted">
-            Можно смотреть во встроенном режиме или открыть режим конспекта и писать заметки параллельно.
-          </p>
         </div>
-        <div
-          className="inline-flex rounded-full border border-border/70 bg-card2 p-1"
-          role="tablist"
-          aria-label={`Режим отображения для ${effectiveVideoTitle}`}
-        >
-          <VideoModeButton
-            label="Только видео"
-            isActive={mode === 'embed'}
-            onClick={() => setMode('embed')}
-          />
-          <VideoModeButton
-            label="Видео + заметки"
-            isActive={mode === 'study'}
-            onClick={() => setMode('study')}
-          />
-        </div>
+        <VideoModeButton
+          label={mode === 'study' ? 'Скрыть конспект' : 'Открыть конспект'}
+          isActive={mode === 'study'}
+          onClick={() => setMode((current) => (current === 'study' ? 'embed' : 'study'))}
+          controlsId={`${effectiveVideoTitle}-study-panel`}
+        />
       </div>
 
       <div
         className={cn(
-          'gap-6',
-          mode === 'study' ? 'grid xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,1fr)] xl:items-start' : 'space-y-4'
+          'gap-5 lg:gap-6',
+          mode === 'study'
+            ? 'grid lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start xl:grid-cols-[320px_minmax(0,1fr)]'
+            : 'space-y-4'
         )}
       >
+        <div
+          id={`${effectiveVideoTitle}-study-panel`}
+          className={cn(mode === 'study' ? 'lg:order-1' : 'hidden')}
+        >
+          <VideoStudyNotesPanel
+            periodId={periodId}
+            periodTitle={periodTitle}
+            videoTitle={effectiveVideoTitle}
+          />
+        </div>
+
         <div className="space-y-4">
           <iframe
             title={effectiveVideoTitle}
@@ -170,7 +170,10 @@ function VideoSectionCard({
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
-            className="aspect-video w-full rounded-2xl border border-border shadow-brand"
+            className={cn(
+              'aspect-video w-full rounded-2xl border border-border shadow-brand',
+              mode === 'study' ? 'lg:min-h-[32rem]' : undefined
+            )}
           />
           {deckUrl || audioUrl ? (
             <div className="flex flex-wrap items-center gap-3">
@@ -205,14 +208,6 @@ function VideoSectionCard({
             </p>
           ) : null}
         </div>
-
-        <div className={mode === 'study' ? undefined : 'hidden'}>
-          <VideoStudyNotesPanel
-            periodId={periodId}
-            periodTitle={periodTitle}
-            videoTitle={effectiveVideoTitle}
-          />
-        </div>
       </div>
     </div>
   );
@@ -222,20 +217,25 @@ function VideoModeButton({
   label,
   isActive,
   onClick,
+  controlsId,
 }: {
   label: string;
   isActive: boolean;
   onClick: () => void;
+  controlsId: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'rounded-full px-4 py-2 text-sm font-medium transition',
-        isActive ? 'bg-accent text-white shadow-sm' : 'text-fg hover:bg-card'
+        'rounded-full border px-4 py-2 text-sm font-medium transition',
+        isActive
+          ? 'border-[color:var(--accent)] bg-[color:var(--accent)] text-white shadow-sm'
+          : 'border-border/70 bg-card2 text-fg hover:bg-card'
       )}
-      aria-pressed={isActive}
+      aria-expanded={isActive}
+      aria-controls={controlsId}
     >
       {label}
     </button>
