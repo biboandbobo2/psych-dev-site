@@ -9,6 +9,16 @@ type FeedbackType = 'bug' | 'idea' | 'thanks';
 interface FeedbackModalProps {
   isOpen: boolean;
   onClose: () => void;
+  title?: string;
+  introText?: string[];
+  lockedType?: FeedbackType;
+  messagePrefix?: string;
+  messageLabel?: string;
+  placeholder?: string;
+  successTitle?: string;
+  successMessage?: string;
+  cancelLabel?: string;
+  submitLabel?: string;
 }
 
 const FEEDBACK_OPTIONS: Array<{ type: FeedbackType; emoji: string; label: string; color: string }> = [
@@ -24,18 +34,32 @@ const ROLE_LABELS: Record<string, string> = {
   'super-admin': 'Супер-админ',
 };
 
-export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
+export function FeedbackModal({
+  isOpen,
+  onClose,
+  title = 'Обратная связь',
+  introText,
+  lockedType,
+  messagePrefix = '',
+  messageLabel = 'Сообщение',
+  placeholder,
+  successTitle = 'Спасибо!',
+  successMessage = 'Ваше сообщение отправлено',
+  cancelLabel = 'Отмена',
+  submitLabel = 'Отправить',
+}: FeedbackModalProps) {
   const { user, userRole } = useAuth();
-  const [feedbackType, setFeedbackType] = useState<FeedbackType>('idea');
+  const [feedbackType, setFeedbackType] = useState<FeedbackType>(lockedType ?? 'idea');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isTypeLocked = Boolean(lockedType);
 
   const handleClose = () => {
     if (sending) return;
     setMessage('');
-    setFeedbackType('idea');
+    setFeedbackType(lockedType ?? 'idea');
     setSuccess(false);
     setError(null);
     onClose();
@@ -52,9 +76,10 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 
     try {
       const sendFeedback = httpsCallable(functions, 'sendFeedback');
+      const finalMessage = `${messagePrefix}${message.trim()}`;
       await sendFeedback({
-        type: feedbackType,
-        message: message.trim(),
+        type: lockedType ?? feedbackType,
+        message: finalMessage,
         userEmail: user?.email || undefined,
         userName: user?.displayName || undefined,
         userRole: userRole ? ROLE_LABELS[userRole] || userRole : undefined,
@@ -74,11 +99,11 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 
   if (success) {
     return (
-      <BaseModal isOpen={isOpen} onClose={handleClose} title="Обратная связь" maxWidth="md">
+      <BaseModal isOpen={isOpen} onClose={handleClose} title={title} maxWidth="md">
         <div className="text-center py-8">
           <div className="text-6xl mb-4">✅</div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Спасибо!</h3>
-          <p className="text-gray-600">Ваше сообщение отправлено</p>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">{successTitle}</h3>
+          <p className="text-gray-600">{successMessage}</p>
         </div>
       </BaseModal>
     );
@@ -88,59 +113,70 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     <BaseModal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Обратная связь"
+      title={title}
       maxWidth="md"
       disabled={sending}
       footer={
         <>
           <ModalCancelButton onClick={handleClose} disabled={sending}>
-            Отмена
+            {cancelLabel}
           </ModalCancelButton>
           <ModalSaveButton
             onClick={handleSend}
             disabled={!message.trim() || message.trim().length < 3}
             loading={sending}
           >
-            Отправить
+            {submitLabel}
           </ModalSaveButton>
         </>
       }
     >
       <div className="space-y-4">
-        {/* Тип сообщения */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Тип сообщения</label>
-          <div className="flex gap-2">
-            {FEEDBACK_OPTIONS.map((option) => (
-              <button
-                key={option.type}
-                type="button"
-                onClick={() => setFeedbackType(option.type)}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
-                  feedbackType === option.type
-                    ? option.color + ' border-current'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <span className="text-lg">{option.emoji}</span>
-                <span className="text-sm font-medium">{option.label}</span>
-              </button>
+        {introText?.length ? (
+          <div className="space-y-2 text-sm leading-relaxed text-gray-700">
+            {introText.map((paragraph, index) => (
+              <p key={index}>{paragraph}</p>
             ))}
           </div>
-        </div>
+        ) : null}
+
+        {/* Тип сообщения */}
+        {!isTypeLocked && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Тип сообщения</label>
+            <div className="flex gap-2">
+              {FEEDBACK_OPTIONS.map((option) => (
+                <button
+                  key={option.type}
+                  type="button"
+                  onClick={() => setFeedbackType(option.type)}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
+                    feedbackType === option.type
+                      ? option.color + ' border-current'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="text-lg">{option.emoji}</span>
+                  <span className="text-sm font-medium">{option.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Сообщение */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Сообщение</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">{messageLabel}</label>
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={
-              feedbackType === 'bug'
+              placeholder ||
+              (feedbackType === 'bug'
                 ? 'Опишите проблему: что произошло, на какой странице, какие действия выполняли...'
                 : feedbackType === 'idea'
                 ? 'Расскажите о вашей идее...'
-                : 'Напишите что вам понравилось...'
+                : 'Напишите что вам понравилось...')
             }
             rows={4}
             maxLength={2000}
