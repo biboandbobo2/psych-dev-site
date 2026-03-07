@@ -2,6 +2,7 @@ import { type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import type { Test, TestAppearance } from '../../types/tests';
 import TestHistory from '../TestHistory';
+import { getCompletionRevealItems } from '../../utils/testRevealPolicy';
 
 interface TestResultsScreenProps {
   test: Test;
@@ -37,6 +38,7 @@ export function TestResultsScreen({
   const percentage = Math.round((score / totalQuestions) * 100);
   const passThreshold = test.requiredPercentage ?? 70;
   const passed = percentage >= passThreshold;
+  const completionRevealItems = getCompletionRevealItems(test);
 
   const scoreEmoji = () => {
     if (percentage === 100) return '🏆';
@@ -86,6 +88,32 @@ export function TestResultsScreen({
                 Требуемый порог для следующего уровня: {passThreshold}%
               </div>
             </div>
+
+            {completionRevealItems.length > 0 ? (
+              <div className="mb-8 rounded-2xl border p-6 text-left" style={infoBoxStyle}>
+                <h2 className="text-2xl font-bold text-gray-900">Верные ответы</h2>
+                <p className="mt-2 text-sm text-gray-600">
+                  Для этого теста правильные ответы открываются после завершения.
+                </p>
+                <div className="mt-6 space-y-4">
+                  {completionRevealItems.map(({ question, correctAnswerText }, index) => (
+                    <div key={question.id} className="rounded-xl border border-white/70 bg-white/70 p-4">
+                      <div className="text-sm font-semibold text-gray-500">
+                        Вопрос {index + 1}
+                      </div>
+                      <p className="mt-1 font-semibold text-gray-900">{question.questionText}</p>
+                      <p className="mt-2 text-gray-700">
+                        <span className="font-semibold">Правильный ответ:</span>{' '}
+                        {correctAnswerText}
+                      </p>
+                      {question.explanation ? (
+                        <p className="mt-2 text-sm text-gray-600">{question.explanation}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <div className="space-y-4">
               <button

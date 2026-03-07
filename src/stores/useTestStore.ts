@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { Test, TestQuestion, RevealPolicy } from '../types/tests';
-import { DEFAULT_REVEAL_POLICY, MAX_REVEAL_ATTEMPTS } from '../types/tests';
+import { DEFAULT_REVEAL_POLICY } from '../types/tests';
 import { saveTestResult } from '../lib/testResults';
+import { debugError } from '../lib/debug';
+import { resolveRevealPolicy } from '../utils/testRevealPolicy';
 
 type AnswerState = 'idle' | 'correct' | 'incorrect';
 
@@ -51,26 +53,6 @@ interface TestState {
   // Computed
   getEffectiveRevealPolicy: () => RevealPolicy;
   getShouldRevealCorrectAnswer: () => boolean;
-}
-
-function resolveRevealPolicy(
-  question: TestQuestion,
-  defaultPolicy?: RevealPolicy | null
-): RevealPolicy {
-  const base: RevealPolicy =
-    question.revealPolicySource === 'inherit'
-      ? defaultPolicy ?? question.revealPolicy ?? DEFAULT_REVEAL_POLICY
-      : question.revealPolicy ?? defaultPolicy ?? DEFAULT_REVEAL_POLICY;
-
-  if (base.mode === 'after_attempts') {
-    const attempts = Math.min(
-      Math.max(base.attempts ?? 1, 1),
-      MAX_REVEAL_ATTEMPTS
-    );
-    return { mode: 'after_attempts', attempts };
-  }
-
-  return { mode: base.mode };
 }
 
 export const useTestStore = create<TestState>()(
@@ -223,7 +205,7 @@ export const useTestStore = create<TestState>()(
 
           set({ resultSaved: true });
         } catch (error) {
-          console.error('Ошибка при сохранении результата:', error);
+          debugError('Ошибка при сохранении результата:', error);
         }
       },
 

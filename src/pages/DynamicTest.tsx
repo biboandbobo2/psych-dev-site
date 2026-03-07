@@ -3,9 +3,10 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { getTestById } from '../lib/tests';
 import { isTestUnlocked } from '../lib/testAccess';
-import type { Test, QuestionAnswer } from '../types/tests';
+import type { Test, QuestionAnswer, TestAppearance } from '../types/tests';
 import { mergeAppearance, createGradient, hexToRgba } from '../utils/testAppearance';
 import { shuffleArray } from '../utils/array';
+import { isFirstLevelTest } from '../utils/testRevealPolicy';
 import { useTestProgress } from '../hooks/useTestProgress';
 import { useAnswerValidation } from '../hooks/useAnswerValidation';
 import { useQuestionNavigation } from '../hooks/useQuestionNavigation';
@@ -245,6 +246,7 @@ export default function DynamicTest() {
       showExplanation={answerValidation.showExplanation}
       shouldRevealCorrectAnswer={answerValidation.shouldRevealCorrectAnswer}
       effectiveRevealPolicy={answerValidation.effectiveRevealPolicy}
+      canShowPostTestAnswerNote={isFirstLevelTest(test)}
       attemptCount={answerValidation.attemptCount}
       onAnswer={answerValidation.handleAnswer}
       onNext={questionNavigation.handleNext}
