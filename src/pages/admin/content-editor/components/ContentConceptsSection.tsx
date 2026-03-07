@@ -19,6 +19,7 @@ export function ContentConceptsSection({ concepts, setConcepts }: ContentConcept
         placeholder="Введите понятие"
         maxItems={10}
         showUrl={true}
+        primaryField="name"
       />
       <p className="text-xs text-gray-500">URL необязателен — можно указать только название</p>
     </div>

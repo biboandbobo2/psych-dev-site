@@ -11,3 +11,5 @@
 | 2025-12-14 | Research drawer + /research: manual smoke (drawer search, open all, filters) + npm run lint && npm run check-console && npm run check:init && npm test (targeted) && npm run build | ✅ | Codex AI | dev → local |
 | 2025-12-14 | Build after chunk tweaks (event-icons manual chunk) | ✅ | Codex AI | npm run build |
 | 2025-12-14 | Wikidata query expansion + tests + build | ✅ | Codex AI | npm run lint && npm run check-console && npm run check:init && npm test (targeted) && npm run build |
+| 2026-03-07 | `npx vitest run src/utils/testRevealPolicy.test.ts src/components/tests/__tests__/TestQuestionScreen.test.tsx src/components/tests/__tests__/TestResultsScreen.test.tsx` | 8 тестов, 3 файла — ✅ | Codex AI | Проверка логики показа верных ответов для 1 уровня и скрытия обещания для 2+ уровней |
+| 2026-03-07 | `npm run lint`, `npm run check-console`, `npm run check:init`, `npm run build` | ✅ | Codex AI | Сборка успешна; есть штатные предупреждения `baseline-browser-mapping` и `caniuse-lite`, без ошибок |

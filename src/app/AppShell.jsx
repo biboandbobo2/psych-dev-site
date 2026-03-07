@@ -27,24 +27,17 @@ import SuperAdminTaskPanel from '../components/SuperAdminTaskPanel';
 import AdminCourseSidebar from '../components/AdminCourseSidebar';
 import StudentCourseSidebar from '../components/StudentCourseSidebar';
 import { isCoreCourse } from '../constants/courses';
+import { sortNavItemsWithRouteFallback } from '../lib/courseLessons';
 
 const normalizePath = (path) =>
   path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
 
-function RoutePager({ currentPath }) {
+function RoutePager({ currentPath, navItems }) {
   const normalizedPath = normalizePath(currentPath);
-
-  // Определяем, на какой странице мы находимся, и используем соответствующую конфигурацию
-  const isClinical = normalizedPath.startsWith('/clinical');
-  const isGeneral = normalizedPath.startsWith('/general');
-  const routes = isClinical ? CLINICAL_ROUTE_CONFIG :
-                 isGeneral ? GENERAL_ROUTE_CONFIG :
-                 ROUTE_CONFIG;
-
-  const currentIndex = routes.findIndex((route) => route.path === normalizedPath);
+  const currentIndex = navItems.findIndex((item) => normalizePath(item.path) === normalizedPath);
   if (currentIndex === -1) return null;
-  const prev = currentIndex > 0 ? routes[currentIndex - 1] : null;
-  const next = currentIndex < routes.length - 1 ? routes[currentIndex + 1] : null;
+  const prev = currentIndex > 0 ? navItems[currentIndex - 1] : null;
+  const next = currentIndex < navItems.length - 1 ? navItems[currentIndex + 1] : null;
   if (!prev && !next) return null;
 
   return (
@@ -205,7 +198,7 @@ export function AppShell() {
     });
 
     // Сортируем по order
-    return items.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+    return sortNavItemsWithRouteFallback(routes, items);
   }, [periodMap, clinicalTopicsMap, generalTopicsMap, dynamicLessonsMap, isClinicalPage, isGeneralPage, isDynamicCoursePage, dynamicCourseId]);
 
   const sidebar = isSuperAdmin && isSuperAdminPage
@@ -252,7 +245,7 @@ export function AppShell() {
         <AnimatePresence mode="wait" initial={false}>
           <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} generalTopicsMap={generalTopicsMap} isSuperAdmin={isSuperAdmin} />
         </AnimatePresence>
-        <RoutePager currentPath={location.pathname} />
+        <RoutePager currentPath={location.pathname} navItems={navItems} />
       </AppLayout>
     </>
   );

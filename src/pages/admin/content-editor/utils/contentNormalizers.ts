@@ -4,11 +4,11 @@ import type { VideoFormEntry } from '../types';
  * Normalizes concepts array, filtering out entries without names
  */
 export function normalizeConcepts(
-  concepts: Array<{ name: string; url?: string }>
+  concepts: Array<{ name?: string; title?: string; url?: string }>
 ): Array<{ name: string; url?: string }> {
   return concepts
     .map((concept) => {
-      const name = concept.name?.trim();
+      const name = concept.name?.trim() || concept.title?.trim();
       const url = concept.url?.trim();
       if (!name) return null;
       return url ? { name, url } : { name };
@@ -20,11 +20,11 @@ export function normalizeConcepts(
  * Normalizes authors array, filtering out entries without names
  */
 export function normalizeAuthors(
-  authors: Array<{ name: string; url?: string }>
+  authors: Array<{ name?: string; title?: string; url?: string }>
 ): Array<{ name: string; url?: string }> {
   return authors
     .map((author) => {
-      const name = author.name?.trim();
+      const name = author.name?.trim() || author.title?.trim();
       const url = author.url?.trim();
       if (!name) return null;
       return url ? { name, url } : { name };

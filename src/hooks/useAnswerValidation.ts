@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { TestQuestion, RevealPolicy } from '../types/tests';
-import { DEFAULT_REVEAL_POLICY, MAX_REVEAL_ATTEMPTS } from '../types/tests';
+import { DEFAULT_REVEAL_POLICY } from '../types/tests';
+import { resolveRevealPolicy } from '../utils/testRevealPolicy';
 
 type AnswerState = 'idle' | 'correct' | 'incorrect';
 
@@ -8,26 +9,6 @@ interface UseAnswerValidationParams {
   currentQuestion: TestQuestion | undefined;
   testRevealPolicy?: RevealPolicy | null;
   onScoreIncrement: () => void;
-}
-
-function resolveRevealPolicy(
-  question: TestQuestion,
-  defaultPolicy?: RevealPolicy | null
-): RevealPolicy {
-  const base: RevealPolicy =
-    question.revealPolicySource === 'inherit'
-      ? defaultPolicy ?? question.revealPolicy ?? DEFAULT_REVEAL_POLICY
-      : question.revealPolicy ?? defaultPolicy ?? DEFAULT_REVEAL_POLICY;
-
-  if (base.mode === 'after_attempts') {
-    const attempts = Math.min(
-      Math.max(base.attempts ?? 1, 1),
-      MAX_REVEAL_ATTEMPTS
-    );
-    return { mode: 'after_attempts', attempts };
-  }
-
-  return { mode: base.mode };
 }
 
 export function useAnswerValidation({

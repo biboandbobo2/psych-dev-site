@@ -3,8 +3,15 @@ import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Period } from '../types/content';
 import { debugLog, debugError } from '../lib/debug';
+import { mapCanonicalCourseLessons } from '../lib/courseLessons';
 
 type CourseCollection = 'periods' | 'clinical-topics' | 'general-topics';
+
+const COURSE_BY_COLLECTION: Record<CourseCollection, string> = {
+  periods: 'development',
+  'clinical-topics': 'clinical',
+  'general-topics': 'general',
+};
 
 /**
  * Generic hook для загрузки контента курса из Firestore
@@ -36,15 +43,19 @@ export function useCourseTopics<T extends Period>(
       );
 
       const snapshot = await getDocs(q);
-      const topicsMap = new Map<string, T>();
+      const courseId = COURSE_BY_COLLECTION[collectionName];
+      const normalizedLessons = mapCanonicalCourseLessons(courseId, snapshot.docs);
 
-      snapshot.forEach((doc) => {
-        const data = doc.data() as T;
-        topicsMap.set(data.period, data);
+      const normalizedTopics = new Map<string, T>();
+      normalizedLessons.forEach((lesson) => {
+        const topic = { ...lesson } as T & { sourceDocId?: string };
+        delete topic.sourceDocId;
+        const lessonId = topic.period;
+        normalizedTopics.set(lessonId, topic);
       });
 
-      debugLog(`${debugLabel} loaded`, topicsMap.size);
-      setTopics(topicsMap);
+      debugLog(`${debugLabel} loaded`, normalizedTopics.size);
+      setTopics(normalizedTopics);
     } catch (err) {
       debugError(`Error loading ${debugLabel}`, err);
       setError(err as Error);

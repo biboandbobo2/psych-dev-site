@@ -40,6 +40,7 @@ export interface EditableListProps {
   placeholder: string;
   maxItems?: number;
   showUrl?: boolean;
+  primaryField?: 'title' | 'name';
   extraFields?: Array<{
     key: string;
     placeholder: string;

@@ -19,6 +19,7 @@ export function ContentAuthorsSection({ authors, setAuthors }: ContentAuthorsSec
         placeholder="Имя автора"
         maxItems={10}
         showUrl={true}
+        primaryField="name"
       />
       <p className="text-xs text-gray-500">URL необязателен — можно указать только имя</p>
     </div>

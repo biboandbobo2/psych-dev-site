@@ -11,6 +11,7 @@ export * from './sortNotes';
 export * from './testAppearance';
 export * from './testChainHelpers';
 export * from './testImportExport';
+export * from './testRevealPolicy';
 export * from './theme';
 export * from './topicParser';
 export * from './transliterate';

@@ -21,6 +21,7 @@ interface TestQuestionScreenProps {
   showExplanation: boolean;
   shouldRevealCorrectAnswer: boolean;
   effectiveRevealPolicy: RevealPolicy;
+  canShowPostTestAnswerNote: boolean;
   attemptCount: number;
   onAnswer: (answerId: string) => void;
   onNext: () => void;
@@ -80,6 +81,7 @@ export function TestQuestionScreen({
   showExplanation,
   shouldRevealCorrectAnswer,
   effectiveRevealPolicy,
+  canShowPostTestAnswerNote,
   attemptCount,
   onAnswer,
   onNext,
@@ -241,7 +243,10 @@ export function TestQuestionScreen({
                       </div>
                     ) : null}
 
-                    {!shouldRevealCorrectAnswer && answerState === 'incorrect' && effectiveRevealPolicy.mode === 'after_test' ? (
+                    {!shouldRevealCorrectAnswer &&
+                    answerState === 'incorrect' &&
+                    effectiveRevealPolicy.mode === 'after_test' &&
+                    canShowPostTestAnswerNote ? (
                       <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                         <p className="text-sm text-yellow-800">
                           Правильный ответ будет показан после завершения теста

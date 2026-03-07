@@ -9,8 +9,11 @@ import { useActiveCourse } from '../hooks/useActiveCourse';
 import CreateCourseModal from './CreateCourseModal';
 import { db } from '../lib/firebase';
 import { debugError } from '../lib/debug';
-import { getCourseLessonsCollectionRef } from '../lib/courseLessons';
-import { canonicalizePeriodId } from '../lib/firestoreHelpers';
+import {
+  getCourseLessonsCollectionRef,
+  mapCanonicalCourseLessons,
+  sortCourseLessonItems,
+} from '../lib/courseLessons';
 import { getCourseBasePath, isCoreCourse } from '../constants/courses';
 
 interface LessonNavItem {
@@ -65,34 +68,26 @@ export default function AdminCourseSidebar() {
         setLessonsLoading(true);
         const lessonsRef = getCourseLessonsCollectionRef(activeCourse);
         const snapshot = await getDocs(query(lessonsRef, orderBy('order', 'asc')));
-        const map = new Map<string, LessonNavItem>();
-
-        snapshot.docs.forEach((docSnap, index) => {
-          const data = docSnap.data() as Record<string, unknown>;
-          const lessonId = isCoreCourse(activeCourse)
-            ? canonicalizePeriodId(docSnap.id)
-            : docSnap.id;
-          const current = map.get(lessonId);
-          if (current) return;
-
-          map.set(lessonId, {
-            id: lessonId,
-            label:
-              (typeof data.title === 'string' && data.title.trim()) ||
-              (typeof data.label === 'string' && data.label.trim()) ||
-              lessonId,
-            order: typeof data.order === 'number' ? data.order : index,
-            published: data.published !== false,
-          });
-        });
+        const lessonItems = mapCanonicalCourseLessons(activeCourse, snapshot.docs).map((lesson, index) => ({
+          id: lesson.period,
+          label:
+            (typeof lesson.title === 'string' && lesson.title.trim()) ||
+            (typeof lesson.label === 'string' && lesson.label.trim()) ||
+            lesson.period,
+          order: typeof lesson.order === 'number' ? lesson.order : index,
+          published: lesson.published !== false,
+        }));
 
         if (!isCancelled) {
-          setLessonItems(
-            [...map.values()].sort((a, b) => {
-              if (a.order !== b.order) return a.order - b.order;
-              return a.label.localeCompare(b.label, 'ru');
-            })
-          );
+          const sortedItems = sortCourseLessonItems(
+            activeCourse,
+            lessonItems.map((item) => ({
+              period: item.id,
+              title: item.label,
+              ...item,
+            }))
+          ).map(({ period, title, ...item }) => item);
+          setLessonItems(sortedItems);
         }
       } catch (error) {
         if (!isCancelled) {
