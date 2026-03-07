@@ -36,13 +36,21 @@ export default function DisorderTable() {
   const [filterColumnIds, setFilterColumnIds] = useState<string[]>([]);
   const [filterDraftRowIds, setFilterDraftRowIds] = useState<string[]>([]);
   const [filterDraftColumnIds, setFilterDraftColumnIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showOnlyFilledCells, setShowOnlyFilledCells] = useState(false);
 
   const [listError, setListError] = useState<string | null>(null);
 
-  const filteredEntries = useMemo(
+  const selectionFilteredEntries = useMemo(
     () => applyDisorderTableFilters(entries, { rowIds: filterRowIds, columnIds: filterColumnIds }),
     [entries, filterRowIds, filterColumnIds]
   );
+  const filteredEntries = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) return selectionFilteredEntries;
+
+    return selectionFilteredEntries.filter((entry) => entry.text.toLowerCase().includes(normalizedQuery));
+  }, [selectionFilteredEntries, searchQuery]);
   const tableMatrix = useMemo(() => buildDisorderTableMatrix(filteredEntries), [filteredEntries]);
 
   const rowLabels = useMemo(() => new Map(DISORDER_TABLE_ROWS.map((row) => [row.id, row.label])), []);
@@ -113,6 +121,16 @@ export default function DisorderTable() {
     setFilterColumnIds([]);
     setFilterDraftRowIds([]);
     setFilterDraftColumnIds([]);
+  };
+
+  const quickToggleRowFilter = (rowId: string) => {
+    setFilterRowIds((prev) => (prev.includes(rowId) ? prev.filter((item) => item !== rowId) : [...prev, rowId]));
+  };
+
+  const quickToggleColumnFilter = (columnId: string) => {
+    setFilterColumnIds((prev) => (
+      prev.includes(columnId) ? prev.filter((item) => item !== columnId) : [...prev, columnId]
+    ));
   };
 
   const startEdit = (entryId: string) => {
@@ -201,6 +219,7 @@ export default function DisorderTable() {
   );
   const isFormValid = isValidDisorderTableEntryInput(formPreviewInput);
   const hasActiveFilters = filterRowIds.length > 0 || filterColumnIds.length > 0;
+  const hasActiveSearch = searchQuery.trim().length > 0;
   const singleSelectedRowId = formRowIds[0] ?? '';
   const singleSelectedColumnId = formColumnIds[0] ?? '';
   const canChooseDisorders = formSelectionMode === 'one-row-many-columns' && formRowIds.length === 1;
@@ -208,15 +227,34 @@ export default function DisorderTable() {
 
   const truncateText = (text: string, max = 100) => (text.length > max ? `${text.slice(0, max)}...` : text);
 
-  const visibleRowIds = useMemo(() => {
+  const filledRowIds = useMemo(
+    () => new Set(filteredEntries.flatMap((entry) => entry.rowIds)),
+    [filteredEntries]
+  );
+  const filledColumnIds = useMemo(
+    () => new Set(filteredEntries.flatMap((entry) => entry.columnIds)),
+    [filteredEntries]
+  );
+
+  const baseVisibleRowIds = useMemo(() => {
     if (filterRowIds.length > 0) return filterRowIds;
     return Array.from(new Set(filteredEntries.flatMap((entry) => entry.rowIds)));
   }, [filterRowIds, filteredEntries]);
 
-  const visibleColumnIds = useMemo(() => {
+  const baseVisibleColumnIds = useMemo(() => {
     if (filterColumnIds.length > 0) return filterColumnIds;
     return Array.from(new Set(filteredEntries.flatMap((entry) => entry.columnIds)));
   }, [filterColumnIds, filteredEntries]);
+
+  const visibleRowIds = useMemo(() => {
+    if (!showOnlyFilledCells) return baseVisibleRowIds;
+    return baseVisibleRowIds.filter((rowId) => filledRowIds.has(rowId));
+  }, [baseVisibleRowIds, filledRowIds, showOnlyFilledCells]);
+
+  const visibleColumnIds = useMemo(() => {
+    if (!showOnlyFilledCells) return baseVisibleColumnIds;
+    return baseVisibleColumnIds.filter((columnId) => filledColumnIds.has(columnId));
+  }, [baseVisibleColumnIds, filledColumnIds, showOnlyFilledCells]);
 
   const visibleRows = useMemo(
     () => DISORDER_TABLE_ROWS.filter((row) => visibleRowIds.includes(row.id)),
@@ -341,6 +379,10 @@ export default function DisorderTable() {
     const cellEntries = tableMatrix.get(key) ?? [];
 
     if (cellEntries.length === 0) {
+      if (showOnlyFilledCells) {
+        return <span className="text-[11px] text-slate-300">—</span>;
+      }
+
       return (
         <button
           type="button"
@@ -389,7 +431,7 @@ export default function DisorderTable() {
         Нажмите на текст в ячейке, чтобы открыть запись на редактирование.
       </p>
       <p className="mb-4 text-xs text-gray-500">
-        В таблице показываются только категории из активных фильтров или из текущих найденных записей.
+        Клик по заголовкам строки/столбца применяет быстрый фильтр. Поиск и фильтры применяются сразу.
       </p>
 
       {error && (
@@ -420,33 +462,56 @@ export default function DisorderTable() {
                 <th className="w-[180px] border-b border-r border-slate-200 bg-slate-100 px-2.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-600">
                   Функции / Типы расстройств
                 </th>
-                {visibleColumns.map((column) => (
-                  <th
-                    key={column.id}
-                    className="w-[155px] border-b border-r border-slate-200 px-2.5 py-2.5 text-left text-[11px] font-semibold text-blue-900"
-                    title={column.label}
-                  >
-                    {column.label}
-                  </th>
-                ))}
+                {visibleColumns.map((column) => {
+                  const isColumnFilterActive = filterColumnIds.includes(column.id);
+                  return (
+                    <th
+                      key={column.id}
+                      className="w-[155px] border-b border-r border-slate-200 px-1.5 py-1.5 text-left"
+                      title={column.label}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => quickToggleColumnFilter(column.id)}
+                        className={`w-full rounded px-2 py-1.5 text-left text-[11px] font-semibold transition ${
+                          isColumnFilterActive
+                            ? 'bg-blue-100 text-blue-900'
+                            : 'text-blue-900 hover:bg-blue-50'
+                        }`}
+                      >
+                        {column.label}
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {visibleRows.map((row) => (
-                <tr key={row.id} className="align-top">
-                  <th
-                    className="border-b border-r border-slate-200 bg-white px-2.5 py-2.5 text-left text-[11px] font-semibold text-teal-900"
-                    title={row.label}
-                  >
-                    {row.label}
-                  </th>
-                  {visibleColumns.map((column) => (
-                    <td key={`${row.id}-${column.id}`} className="border-b border-r border-slate-200 bg-white px-1.5 py-1.5 align-top">
-                      {renderMatrixCell(row.id, column.id)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {visibleRows.map((row) => {
+                const isRowFilterActive = filterRowIds.includes(row.id);
+                return (
+                  <tr key={row.id} className="align-top">
+                    <th className="border-b border-r border-slate-200 bg-white px-1.5 py-1.5 text-left" title={row.label}>
+                      <button
+                        type="button"
+                        onClick={() => quickToggleRowFilter(row.id)}
+                        className={`w-full rounded px-2 py-1.5 text-left text-[11px] font-semibold transition ${
+                          isRowFilterActive
+                            ? 'bg-teal-100 text-teal-900'
+                            : 'text-teal-900 hover:bg-teal-50'
+                        }`}
+                      >
+                        {row.label}
+                      </button>
+                    </th>
+                    {visibleColumns.map((column) => (
+                      <td key={`${row.id}-${column.id}`} className="border-b border-r border-slate-200 bg-white px-1.5 py-1.5 align-top">
+                        {renderMatrixCell(row.id, column.id)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
             </tbody>
             </table>
           </div>
@@ -486,7 +551,8 @@ export default function DisorderTable() {
           <p>3. Сначала выберите один пункт в выпадающем списке, после этого откроется второй список.</p>
           <p>4. Опишите наблюдение и сохраните запись.</p>
           <p>5. Переключайте режим «Таблица / Список» для разных сценариев просмотра.</p>
-          <p>6. Используйте «Фильтры», чтобы быстро найти нужные записи.</p>
+          <p>6. Используйте поиск и клик по заголовкам в таблице для быстрого отбора.</p>
+          <p>7. Включите «Только заполненные», чтобы видеть только полезные категории.</p>
         </div>
       </div>
 
@@ -504,6 +570,27 @@ export default function DisorderTable() {
           className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
         >
           Фильтры
+        </button>
+        <label className="flex min-w-[240px] flex-1 items-center rounded-lg border border-gray-300 bg-white px-3 py-2">
+          <span className="mr-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Поиск</span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Поиск по тексту записей..."
+            className="w-full border-none bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => setShowOnlyFilledCells((prev) => !prev)}
+          className={`inline-flex items-center rounded-lg border px-4 py-2 text-sm font-medium transition ${
+            showOnlyFilledCells
+              ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          Только заполненные
         </button>
         <div className="inline-flex overflow-hidden rounded-lg border border-gray-300 bg-white">
           <button
@@ -526,21 +613,29 @@ export default function DisorderTable() {
           </button>
         </div>
 
-        {hasActiveFilters && (
+        {(hasActiveFilters || hasActiveSearch) && (
           <button
             type="button"
-            onClick={resetFilters}
+            onClick={() => {
+              resetFilters();
+              setSearchQuery('');
+            }}
             className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
           >
-            Сбросить фильтры
+            Сбросить фильтры и поиск
           </button>
         )}
       </div>
 
-      {hasActiveFilters && (
+      {(hasActiveFilters || hasActiveSearch) && (
         <div className="rounded-2xl bg-white p-4 shadow-xl">
           <p className="mb-2 text-sm font-semibold text-gray-700">Активные фильтры</p>
           <div className="flex flex-wrap gap-2">
+            {hasActiveSearch && (
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">
+                Поиск: {searchQuery.trim()}
+              </span>
+            )}
             {filterColumnIds.map((columnId) => (
               <span key={`filter-column-${columnId}`} className="rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700">
                 {columnLabels.get(columnId) ?? columnId}
