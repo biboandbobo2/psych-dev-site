@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import {
   applySelectionModeToEntryInput,
   applyDisorderTableFilters,
+  buildDisorderTableCellKey,
+  buildDisorderTableMatrix,
   DISORDER_TABLE_COLUMNS,
   DISORDER_TABLE_COLUMN_GROUPS,
   DISORDER_TABLE_ROWS,
@@ -11,7 +13,7 @@ import {
   resolveSelectionModeFromEntry,
   useDisorderTableEntries,
 } from '../features/disorderTable';
-import type { DisorderTableSelectionMode } from '../features/disorderTable';
+import type { DisorderTableEntry, DisorderTableSelectionMode } from '../features/disorderTable';
 import { BaseModal, ModalCancelButton, ModalSaveButton } from '../components/ui/BaseModal';
 import { useCourseStore } from '../stores';
 
@@ -19,6 +21,7 @@ export default function DisorderTable() {
   const { currentCourse } = useCourseStore();
   const { entries, loading, saving, error, createEntry, updateEntry, removeEntry } = useDisorderTableEntries(currentCourse);
 
+  const [viewMode, setViewMode] = useState<'table' | 'list'>('table');
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
 
@@ -40,6 +43,7 @@ export default function DisorderTable() {
     () => applyDisorderTableFilters(entries, { rowIds: filterRowIds, columnIds: filterColumnIds }),
     [entries, filterRowIds, filterColumnIds]
   );
+  const tableMatrix = useMemo(() => buildDisorderTableMatrix(filteredEntries), [filteredEntries]);
 
   const rowLabels = useMemo(() => new Map(DISORDER_TABLE_ROWS.map((row) => [row.id, row.label])), []);
   const columnLabels = useMemo(() => new Map(DISORDER_TABLE_COLUMNS.map((column) => [column.id, column.label])), []);
@@ -194,6 +198,10 @@ export default function DisorderTable() {
   const canChooseDisorders = formSelectionMode === 'one-row-many-columns' && formRowIds.length === 1;
   const canChooseFunctions = formSelectionMode === 'one-column-many-rows' && formColumnIds.length === 1;
 
+  const truncateText = (text: string, max = 140) => (text.length > max ? `${text.slice(0, max)}...` : text);
+
+  const formatCellTimestamp = (entry: DisorderTableEntry) => entry.updatedAt.toLocaleDateString('ru-RU');
+
   const renderFunctionSelection = (
     selectedIds: string[],
     setSelectedIds: (next: string[]) => void,
@@ -303,6 +311,97 @@ export default function DisorderTable() {
     </section>
   );
 
+  const renderMatrixCell = (rowId: string, columnId: string) => {
+    const key = buildDisorderTableCellKey(rowId, columnId);
+    const cellEntries = tableMatrix.get(key) ?? [];
+
+    if (cellEntries.length === 0) {
+      return <span className="text-xs text-gray-300">—</span>;
+    }
+
+    return (
+      <div className="space-y-1.5">
+        {cellEntries.slice(0, 2).map((entry) => (
+          <button
+            key={`${key}-${entry.id}`}
+            type="button"
+            onClick={() => startEdit(entry.id)}
+            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-left transition hover:bg-slate-50"
+            title="Открыть запись для редактирования"
+          >
+            <p className="text-[11px] leading-snug text-gray-700">{truncateText(entry.text)}</p>
+            <p className="mt-1 text-[10px] text-gray-400">{formatCellTimestamp(entry)}</p>
+          </button>
+        ))}
+        {cellEntries.length > 2 && (
+          <p className="text-[11px] font-medium text-blue-700">+{cellEntries.length - 2} ещё</p>
+        )}
+      </div>
+    );
+  };
+
+  const renderTableView = () => (
+    <div className="rounded-2xl bg-white p-6 shadow-xl">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-gray-900">Табличный вид</h2>
+        <span className="text-sm text-gray-500">
+          Показано: {filteredEntries.length} из {entries.length}
+        </span>
+      </div>
+      <p className="mb-4 text-sm text-gray-600">
+        Нажмите на текст в ячейке, чтобы открыть запись на редактирование.
+      </p>
+
+      {error && (
+        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+      )}
+      {listError && (
+        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{listError}</div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-gray-600">Загрузка записей...</p>
+      ) : filteredEntries.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-600">
+          {entries.length === 0
+            ? 'Пока нет записей. Нажмите «Новая запись», чтобы добавить первую заметку.'
+            : 'По текущим фильтрам ничего не найдено. Измените фильтры или сбросьте их.'}
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-[960px] border-collapse">
+            <thead>
+              <tr className="bg-slate-100">
+                <th className="sticky left-0 z-10 border-b border-r border-slate-200 bg-slate-100 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  Функции / Типы расстройств
+                </th>
+                {DISORDER_TABLE_COLUMNS.map((column) => (
+                  <th key={column.id} className="min-w-[190px] border-b border-r border-slate-200 px-3 py-3 text-left text-xs font-semibold text-blue-900">
+                    {column.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {DISORDER_TABLE_ROWS.map((row) => (
+                <tr key={row.id} className="align-top">
+                  <th className="sticky left-0 z-10 border-b border-r border-slate-200 bg-slate-50 px-3 py-3 text-left text-xs font-semibold text-teal-900">
+                    {row.label}
+                  </th>
+                  {DISORDER_TABLE_COLUMNS.map((column) => (
+                    <td key={`${row.id}-${column.id}`} className="border-b border-r border-slate-200 px-2 py-2 align-top">
+                      {renderMatrixCell(row.id, column.id)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+
   if (!isDisorderTableCourse(currentCourse)) {
     return (
       <div className="space-y-4 rounded-2xl bg-white p-6 shadow-xl">
@@ -333,7 +432,8 @@ export default function DisorderTable() {
           <p>2. Выберите режим: одна функция + несколько расстройств или наоборот.</p>
           <p>3. Сначала выберите один пункт в выпадающем списке, после этого откроется второй список.</p>
           <p>4. Опишите наблюдение и сохраните запись.</p>
-          <p>5. Используйте «Фильтры», чтобы быстро найти нужные записи.</p>
+          <p>5. Переключайте режим «Таблица / Список» для разных сценариев просмотра.</p>
+          <p>6. Используйте «Фильтры», чтобы быстро найти нужные записи.</p>
         </div>
       </div>
 
@@ -352,6 +452,26 @@ export default function DisorderTable() {
         >
           Фильтры
         </button>
+        <div className="inline-flex overflow-hidden rounded-lg border border-gray-300 bg-white">
+          <button
+            type="button"
+            onClick={() => setViewMode('table')}
+            className={`px-3 py-2 text-sm font-medium transition ${
+              viewMode === 'table' ? 'bg-slate-800 text-white' : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Таблица
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={`px-3 py-2 text-sm font-medium transition ${
+              viewMode === 'list' ? 'bg-slate-800 text-white' : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Список
+          </button>
+        </div>
 
         {hasActiveFilters && (
           <button
@@ -382,6 +502,7 @@ export default function DisorderTable() {
         </div>
       )}
 
+      {viewMode === 'table' ? renderTableView() : (
       <div className="rounded-2xl bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-gray-900">Ваши записи</h2>
@@ -457,6 +578,7 @@ export default function DisorderTable() {
           </div>
         )}
       </div>
+      )}
 
       <BaseModal
         isOpen={isEntryModalOpen}

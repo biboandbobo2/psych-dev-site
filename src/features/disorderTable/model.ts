@@ -85,3 +85,27 @@ export function applyDisorderTableFilters(
 ): DisorderTableEntry[] {
   return entries.filter((entry) => matchEntryByFilters(entry, filters));
 }
+
+export function buildDisorderTableCellKey(rowId: string, columnId: string): string {
+  return `${rowId}::${columnId}`;
+}
+
+export function buildDisorderTableMatrix(entries: DisorderTableEntry[]): Map<string, DisorderTableEntry[]> {
+  const matrix = new Map<string, DisorderTableEntry[]>();
+
+  for (const entry of entries) {
+    for (const rowId of entry.rowIds) {
+      for (const columnId of entry.columnIds) {
+        const key = buildDisorderTableCellKey(rowId, columnId);
+        const bucket = matrix.get(key);
+        if (bucket) {
+          bucket.push(entry);
+        } else {
+          matrix.set(key, [entry]);
+        }
+      }
+    }
+  }
+
+  return matrix;
+}

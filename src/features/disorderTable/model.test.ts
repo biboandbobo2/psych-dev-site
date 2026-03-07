@@ -7,6 +7,8 @@ import {
 } from './config';
 import {
   applySelectionModeToEntryInput,
+  buildDisorderTableCellKey,
+  buildDisorderTableMatrix,
   applyDisorderTableFilters,
   buildDisorderTableDocId,
   isDisorderTableCourse,
@@ -168,6 +170,34 @@ describe('disorderTable model', () => {
         columnIds: ['anxiety'],
       })
     ).toEqual([]);
+  });
+
+  it('строит матрицу пересечений строк и столбцов', () => {
+    const entries: DisorderTableEntry[] = [
+      {
+        id: 'e1',
+        rowIds: ['memory'],
+        columnIds: ['depression-bipolar', 'anxiety'],
+        text: 'entry 1',
+        createdAt: new Date('2026-03-08T10:00:00.000Z'),
+        updatedAt: new Date('2026-03-08T10:00:00.000Z'),
+      },
+      {
+        id: 'e2',
+        rowIds: ['memory', 'thinking'],
+        columnIds: ['anxiety'],
+        text: 'entry 2',
+        createdAt: new Date('2026-03-08T10:00:00.000Z'),
+        updatedAt: new Date('2026-03-08T10:00:00.000Z'),
+      },
+    ];
+
+    const matrix = buildDisorderTableMatrix(entries);
+
+    expect(matrix.get(buildDisorderTableCellKey('memory', 'depression-bipolar'))?.map((entry) => entry.id)).toEqual(['e1']);
+    expect(matrix.get(buildDisorderTableCellKey('memory', 'anxiety'))?.map((entry) => entry.id)).toEqual(['e1', 'e2']);
+    expect(matrix.get(buildDisorderTableCellKey('thinking', 'anxiety'))?.map((entry) => entry.id)).toEqual(['e2']);
+    expect(matrix.get(buildDisorderTableCellKey('thinking', 'depression-bipolar'))).toBeUndefined();
   });
 
   it('конфиг строк и столбцов содержит уникальные id и валидные группы', () => {
