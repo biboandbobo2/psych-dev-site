@@ -3,7 +3,7 @@ import { cn } from '../../lib/cn';
 
 const transition = { duration: 0.25, ease: [0.16, 1, 0.3, 1] };
 
-export function Section({ title, children, muted = false, className }) {
+export function Section({ title, children, muted = false, className, contentClassName }) {
   return (
     <Motion.section
       initial={{ opacity: 0, y: 12 }}
@@ -23,7 +23,9 @@ export function Section({ title, children, muted = false, className }) {
           <div className="border-t border-border/60" />
         </header>
       ) : null}
-      <div className="space-y-4 text-lg leading-8 text-fg max-w-measure">{children}</div>
+      <div className={cn('space-y-4 text-lg leading-8 text-fg max-w-measure', contentClassName)}>
+        {children}
+      </div>
     </Motion.section>
   );
 }

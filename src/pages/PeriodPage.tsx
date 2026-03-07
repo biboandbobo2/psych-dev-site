@@ -206,6 +206,8 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
           deckUrl={deckUrl}
           defaultVideoTitle={defaultVideoTitle}
           periodTests={periodTests}
+          periodId={config.periodId}
+          periodTitle={heading}
           courseType={courseType}
         />
       )}
