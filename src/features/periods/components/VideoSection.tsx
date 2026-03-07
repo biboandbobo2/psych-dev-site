@@ -206,13 +206,13 @@ function VideoSectionCard({
           ) : null}
         </div>
 
-        {mode === 'study' ? (
+        <div className={mode === 'study' ? undefined : 'hidden'}>
           <VideoStudyNotesPanel
             periodId={periodId}
             periodTitle={periodTitle}
             videoTitle={effectiveVideoTitle}
           />
-        ) : null}
+        </div>
       </div>
     </div>
   );

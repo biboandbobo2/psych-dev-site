@@ -16,13 +16,25 @@ import { type Note, type AgeRange, AGE_RANGE_LABELS, normalizeAgeRange } from '.
 import { reportAppError } from '../lib/errorHandler';
 import { debugLog, debugError } from '../lib/debug';
 
-export function useNotes(ageRangeFilter?: AgeRange | null) {
+interface UseNotesOptions {
+  subscribe?: boolean;
+}
+
+export function useNotes(ageRangeFilter?: AgeRange | null, options: UseNotesOptions = {}) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const subscribe = options.subscribe ?? true;
 
   useEffect(() => {
+    if (!subscribe) {
+      setNotes([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     if (!user) {
       setNotes([]);
       setLoading(false);
@@ -91,7 +103,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null) {
       debugLog('[useNotes] Cleaning up notes listener');
       unsubscribe();
     };
-  }, [user, ageRangeFilter]);
+  }, [user, ageRangeFilter, subscribe]);
 
   const createNote = async (
     title: string,

@@ -32,7 +32,7 @@ export function VideoStudyNotesPanel({
   videoTitle,
 }: VideoStudyNotesPanelProps) {
   const user = useAuthStore((state) => state.user);
-  const { createNote } = useNotes();
+  const { createNote } = useNotes(undefined, { subscribe: false });
   const resolvedAgeRange = useMemo(() => normalizeAgeRange(periodId), [periodId]);
   const defaultTitle = useMemo(
     () => buildDefaultTitle(videoTitle, periodTitle),

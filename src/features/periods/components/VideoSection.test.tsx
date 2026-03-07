@@ -1,15 +1,29 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { VideoSection } from './VideoSection';
 
-vi.mock('./VideoStudyNotesPanel', () => ({
-  VideoStudyNotesPanel: ({ videoTitle }: { videoTitle: string }) => (
-    <div>Study panel for {videoTitle}</div>
-  ),
-}));
+vi.mock('./VideoStudyNotesPanel', async () => {
+  const React = await import('react');
+
+  return {
+    VideoStudyNotesPanel: ({ videoTitle }: { videoTitle: string }) => {
+      const [draft, setDraft] = React.useState('');
+
+      return (
+        <div>
+          <div>Study panel for {videoTitle}</div>
+          <label>
+            Draft
+            <input value={draft} onChange={(event) => setDraft(event.target.value)} />
+          </label>
+        </div>
+      );
+    },
+  };
+});
 
 describe('VideoSection', () => {
-  it('переключает карточку видео в режим конспекта', () => {
+  it('сохраняет черновик при переключении между режимами видео', async () => {
     render(
       <VideoSection
         slug="video"
@@ -22,10 +36,20 @@ describe('VideoSection', () => {
       />
     );
 
-    expect(screen.queryByText('Study panel for Лекция 1')).not.toBeInTheDocument();
+    expect(screen.getByText('Study panel for Лекция 1')).not.toBeVisible();
 
     fireEvent.click(screen.getByRole('button', { name: 'Видео + заметки' }));
+    await waitFor(() => {
+      expect(screen.getByText('Study panel for Лекция 1')).toBeVisible();
+    });
 
-    expect(screen.getByText('Study panel for Лекция 1')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Draft'), {
+      target: { value: 'Черновик заметки' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Только видео' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Видео + заметки' }));
+
+    expect(screen.getByLabelText('Draft')).toHaveValue('Черновик заметки');
   });
 });
