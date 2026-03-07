@@ -63,33 +63,38 @@ export function VideoStudyNotesPanel({
 
   return (
     <>
-      <aside className="rounded-[1.4rem] border border-border/70 bg-card/95 p-4 shadow-brand backdrop-blur-sm lg:h-full lg:min-h-[28rem]">
-        <div className="mb-3 space-y-2">
+      <aside className="flex h-full min-h-[22rem] flex-col px-4 py-4 text-white lg:min-h-[calc(100vh-16rem)] lg:px-5 lg:py-5">
+        <div className="border-b border-white/10 pb-4">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-semibold text-fg">{LECTURE_NOTE_TITLE}</h3>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/45">
+              Режим конспекта
+            </p>
             {resolvedPeriodTitle ? (
-              <span className="rounded-full border border-border/70 bg-card2 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted">
+              <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-white/60">
                 {resolvedPeriodTitle}
               </span>
             ) : null}
           </div>
-          <p className="text-sm leading-6 text-muted line-clamp-2">{videoTitle}</p>
+          <h3 className="mt-3 text-lg font-semibold text-white">{LECTURE_NOTE_TITLE}</h3>
+          <p className="mt-2 text-sm leading-6 text-white/55 line-clamp-2">{videoTitle}</p>
         </div>
 
-        <textarea
-          value={content}
-          onChange={(event) => {
-            setContent(event.target.value);
-            setSaveState('idle');
-          }}
-          placeholder="Пишите короткий конспект по ходу лекции..."
-          className="min-h-[18rem] w-full resize-none rounded-[1.1rem] border border-border/80 bg-white/80 px-4 py-3 text-sm leading-7 text-fg outline-none transition placeholder:text-muted focus:border-[color:var(--accent)] focus:bg-white lg:min-h-[22rem]"
-          disabled={saving}
-          aria-label="Заметки по лекции"
-        />
+        <div className="flex-1 py-4">
+          <textarea
+            value={content}
+            onChange={(event) => {
+              setContent(event.target.value);
+              setSaveState('idle');
+            }}
+            placeholder="Пишите короткий конспект по ходу лекции..."
+            className="h-full min-h-[18rem] w-full resize-none rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-7 text-white outline-none transition placeholder:text-white/30 focus:border-[color:var(--accent)] focus:bg-black/30"
+            disabled={saving}
+            aria-label="Заметки по лекции"
+          />
+        </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <span className="text-xs text-muted">
+        <div className="mt-auto flex items-center justify-between gap-3 border-t border-white/10 pt-4">
+          <span className="text-xs text-white/55">
             {saveState === 'saved'
               ? 'Сохранено в /notes'
               : user

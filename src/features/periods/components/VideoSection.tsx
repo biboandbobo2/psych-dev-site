@@ -146,67 +146,119 @@ function VideoSectionCard({
 
       <div
         className={cn(
-          'gap-5 lg:gap-6',
           mode === 'study'
-            ? 'grid lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start xl:grid-cols-[320px_minmax(0,1fr)]'
+            ? 'overflow-hidden rounded-[2rem] border border-slate-950/90 bg-[#05070a] shadow-[0_28px_80px_rgba(5,7,10,0.24)]'
             : 'space-y-4'
         )}
       >
         <div
-          id={`${effectiveVideoTitle}-study-panel`}
-          className={cn(mode === 'study' ? 'lg:order-1' : 'hidden')}
+          className={cn(
+            mode === 'study'
+              ? 'grid lg:min-h-[calc(100vh-16rem)] lg:grid-cols-[minmax(0,1fr)_23rem] xl:grid-cols-[minmax(0,1fr)_25rem]'
+              : 'space-y-4'
+          )}
         >
-          <VideoStudyNotesPanel
-            periodId={periodId}
-            periodTitle={periodTitle}
-            videoTitle={effectiveVideoTitle}
-          />
-        </div>
-
-        <div className="space-y-4">
-          <iframe
-            title={effectiveVideoTitle}
-            src={embedUrl}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
+          <div
             className={cn(
-              'aspect-video w-full rounded-2xl border border-border shadow-brand',
-              mode === 'study' ? 'lg:min-h-[32rem]' : undefined
+              mode === 'study'
+                ? 'flex min-h-[22rem] flex-col bg-[#05070a] lg:min-h-[calc(100vh-16rem)]'
+                : 'space-y-4'
             )}
-          />
-          {deckUrl || audioUrl ? (
-            <div className="flex flex-wrap items-center gap-3">
-              {deckUrl ? (
-                <a
-                  className="inline-block text-sm font-semibold italic text-[color:var(--accent)] no-underline hover:no-underline focus-visible:no-underline"
-                  href={deckUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Скачать презентацию
-                </a>
-              ) : null}
-              {audioUrl ? (
-                <a
-                  className="ml-auto inline-block text-sm font-semibold italic text-[color:var(--accent)] no-underline hover:no-underline focus-visible:no-underline"
-                  href={audioUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Слушать аудио
-                </a>
-              ) : null}
+          >
+            <div className={cn(mode === 'study' ? 'flex-1 p-3 md:p-4 xl:p-5' : undefined)}>
+              <div
+                className={cn(
+                  mode === 'study'
+                    ? 'flex h-full min-h-[22rem] items-center justify-center overflow-hidden rounded-[1.5rem] bg-black ring-1 ring-white/10'
+                    : undefined
+                )}
+              >
+                <iframe
+                  title={effectiveVideoTitle}
+                  src={embedUrl}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  className={cn(
+                    mode === 'study'
+                      ? 'h-full min-h-[22rem] w-full lg:min-h-[calc(100vh-22rem)]'
+                      : 'aspect-video w-full rounded-2xl border border-border shadow-brand'
+                  )}
+                />
+              </div>
             </div>
-          ) : null}
-          {!isYoutube && isUrlString(originalUrl) ? (
-            <p className="text-sm leading-6 text-muted">
-              Ссылка не похожа на YouTube. Проверить источник:{' '}
-              <a className="text-accent no-underline hover:no-underline focus-visible:no-underline" href={originalUrl} target="_blank" rel="noreferrer">
-                {originalUrl}
-              </a>
-            </p>
-          ) : null}
+
+            {(deckUrl || audioUrl || (!isYoutube && isUrlString(originalUrl))) ? (
+              <div
+                className={cn(
+                  'flex flex-wrap items-center gap-3',
+                  mode === 'study'
+                    ? 'border-t border-white/10 px-4 py-3 text-white/70 md:px-5'
+                    : undefined
+                )}
+              >
+                {deckUrl ? (
+                  <a
+                    className={cn(
+                      'inline-block text-sm font-semibold italic no-underline hover:no-underline focus-visible:no-underline',
+                      mode === 'study' ? 'text-white/80 hover:text-white' : 'text-[color:var(--accent)]'
+                    )}
+                    href={deckUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Скачать презентацию
+                  </a>
+                ) : null}
+                {audioUrl ? (
+                  <a
+                    className={cn(
+                      'inline-block text-sm font-semibold italic no-underline hover:no-underline focus-visible:no-underline',
+                      mode === 'study'
+                        ? 'text-white/80 hover:text-white lg:ml-auto'
+                        : 'text-[color:var(--accent)] lg:ml-auto'
+                    )}
+                    href={audioUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Слушать аудио
+                  </a>
+                ) : null}
+                {!isYoutube && isUrlString(originalUrl) ? (
+                  <p className={cn('text-sm leading-6', mode === 'study' ? 'w-full text-white/60' : 'text-muted')}>
+                    Ссылка не похожа на YouTube. Проверить источник:{' '}
+                    <a
+                      className={cn(
+                        'no-underline hover:no-underline focus-visible:no-underline',
+                        mode === 'study' ? 'text-white' : 'text-accent'
+                      )}
+                      href={originalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {originalUrl}
+                    </a>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div
+            id={`${effectiveVideoTitle}-study-panel`}
+            className={cn(
+              mode === 'study'
+                ? 'border-t border-white/10 bg-white/[0.03] lg:border-l lg:border-t-0'
+                : 'hidden'
+            )}
+          >
+            <VideoStudyNotesPanel
+              periodId={periodId}
+              periodTitle={periodTitle}
+              videoTitle={effectiveVideoTitle}
+            />
+          </div>
         </div>
       </div>
     </div>
