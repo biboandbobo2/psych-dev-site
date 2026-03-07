@@ -13,7 +13,7 @@ import {
   resolveSelectionModeFromEntry,
   useDisorderTableEntries,
 } from '../features/disorderTable';
-import type { DisorderTableEntry, DisorderTableSelectionMode } from '../features/disorderTable';
+import type { DisorderTableSelectionMode } from '../features/disorderTable';
 import { BaseModal, ModalCancelButton, ModalSaveButton } from '../components/ui/BaseModal';
 import { useCourseStore } from '../stores';
 
@@ -75,6 +75,14 @@ export default function DisorderTable() {
 
   const openCreateModal = () => {
     resetForm();
+    setIsEntryModalOpen(true);
+  };
+
+  const openCreateFromCell = (rowId: string, columnId: string) => {
+    resetForm();
+    setFormSelectionMode('one-row-many-columns');
+    setFormRowIds([rowId]);
+    setFormColumnIds([columnId]);
     setIsEntryModalOpen(true);
   };
 
@@ -199,8 +207,6 @@ export default function DisorderTable() {
   const canChooseFunctions = formSelectionMode === 'one-column-many-rows' && formColumnIds.length === 1;
 
   const truncateText = (text: string, max = 100) => (text.length > max ? `${text.slice(0, max)}...` : text);
-
-  const formatCellTimestamp = (entry: DisorderTableEntry) => entry.updatedAt.toLocaleDateString('ru-RU');
 
   const visibleRowIds = useMemo(() => {
     if (filterRowIds.length > 0) return filterRowIds;
@@ -335,7 +341,15 @@ export default function DisorderTable() {
     const cellEntries = tableMatrix.get(key) ?? [];
 
     if (cellEntries.length === 0) {
-      return <span className="text-xs text-gray-300">Нет записи</span>;
+      return (
+        <button
+          type="button"
+          onClick={() => openCreateFromCell(rowId, columnId)}
+          className="rounded-md border border-dashed border-slate-300 px-2 py-1 text-[11px] font-medium text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+        >
+          + Добавить
+        </button>
+      );
     }
 
     return (
@@ -349,10 +363,9 @@ export default function DisorderTable() {
             title="Открыть запись для редактирования"
           >
             <p className="text-[11px] leading-snug text-slate-700">{truncateText(entry.text)}</p>
-            <div className="mt-1.5 flex items-center justify-between gap-2">
-              <p className="text-[10px] text-slate-400">{formatCellTimestamp(entry)}</p>
+            <div className="mt-1.5 text-right">
               <span className="text-[10px] font-medium text-blue-700 opacity-0 transition group-hover:opacity-100">
-                Открыть
+                Редактировать
               </span>
             </div>
           </button>
