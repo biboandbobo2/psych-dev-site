@@ -6,6 +6,7 @@ import {
   DISORDER_TABLE_ROWS,
 } from './config';
 import {
+  applySelectionModeToEntryInput,
   applyDisorderTableFilters,
   buildDisorderTableDocId,
   isDisorderTableCourse,
@@ -13,6 +14,7 @@ import {
   matchEntryByFilters,
   normalizeEntryInput,
   normalizeSelectionIds,
+  resolveSelectionModeFromEntry,
 } from './model';
 import type { DisorderTableEntry } from './types';
 
@@ -61,6 +63,62 @@ describe('disorderTable model', () => {
         text: 'Текст валиден',
       })
     ).toBe(true);
+
+    expect(
+      isValidDisorderTableEntryInput({
+        rowIds: ['memory', 'attention'],
+        columnIds: ['depression', 'anxiety'],
+        text: 'Текст валиден',
+      })
+    ).toBe(false);
+  });
+
+  it('применяет режим выбора 1 + many', () => {
+    expect(
+      applySelectionModeToEntryInput(
+        {
+          rowIds: ['memory', 'attention'],
+          columnIds: ['depression', 'anxiety'],
+          text: '  Заметка  ',
+        },
+        'one-row-many-columns'
+      )
+    ).toEqual({
+      rowIds: ['memory'],
+      columnIds: ['depression', 'anxiety'],
+      text: 'Заметка',
+    });
+
+    expect(
+      applySelectionModeToEntryInput(
+        {
+          rowIds: ['memory', 'attention'],
+          columnIds: ['depression', 'anxiety'],
+          text: 'Заметка',
+        },
+        'one-column-many-rows'
+      )
+    ).toEqual({
+      rowIds: ['memory', 'attention'],
+      columnIds: ['depression'],
+      text: 'Заметка',
+    });
+  });
+
+  it('определяет режим выбора по записи', () => {
+    expect(
+      resolveSelectionModeFromEntry({
+        rowIds: ['memory'],
+        columnIds: ['depression', 'anxiety'],
+      })
+    ).toBe('one-row-many-columns');
+
+    expect(
+      resolveSelectionModeFromEntry({
+        rowIds: ['memory', 'attention'],
+        columnIds: ['depression'],
+      })
+    ).toBe('one-column-many-rows');
   });
 
   it('фильтрует записи по строкам и столбцам', () => {

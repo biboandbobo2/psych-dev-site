@@ -104,7 +104,7 @@ export function useDisorderTableEntries(courseId: string) {
 
       const normalized = normalizeEntryInput(input);
       if (!isValidDisorderTableEntryInput(normalized)) {
-        throw new Error('Выберите минимум одну строку, один столбец и введите сообщение от 3 символов');
+        throw new Error('Выберите одну категорию с одной стороны и минимум одну с другой, затем введите текст от 3 символов');
       }
 
       setSaving(true);
@@ -133,7 +133,7 @@ export function useDisorderTableEntries(courseId: string) {
 
       const normalized = normalizeEntryInput(input);
       if (!isValidDisorderTableEntryInput(normalized)) {
-        throw new Error('Выберите минимум одну строку, один столбец и введите сообщение от 3 символов');
+        throw new Error('Выберите одну категорию с одной стороны и минимум одну с другой, затем введите текст от 3 символов');
       }
 
       setSaving(true);
@@ -189,4 +189,3 @@ export function useDisorderTableEntries(courseId: string) {
     removeEntry,
   };
 }
-

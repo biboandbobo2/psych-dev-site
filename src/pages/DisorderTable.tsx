@@ -1,13 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  applySelectionModeToEntryInput,
   applyDisorderTableFilters,
   DISORDER_TABLE_COLUMNS,
   DISORDER_TABLE_COLUMN_GROUPS,
   DISORDER_TABLE_ROWS,
   isDisorderTableCourse,
+  isValidDisorderTableEntryInput,
+  resolveSelectionModeFromEntry,
   useDisorderTableEntries,
 } from '../features/disorderTable';
+import type { DisorderTableSelectionMode } from '../features/disorderTable';
 import { BaseModal, ModalCancelButton, ModalSaveButton } from '../components/ui/BaseModal';
 import { useCourseStore } from '../stores';
 
@@ -21,6 +25,7 @@ export default function DisorderTable() {
   const [formRowIds, setFormRowIds] = useState<string[]>([]);
   const [formColumnIds, setFormColumnIds] = useState<string[]>([]);
   const [formText, setFormText] = useState('');
+  const [formSelectionMode, setFormSelectionMode] = useState<DisorderTableSelectionMode>('one-row-many-columns');
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -38,6 +43,14 @@ export default function DisorderTable() {
 
   const rowLabels = useMemo(() => new Map(DISORDER_TABLE_ROWS.map((row) => [row.id, row.label])), []);
   const columnLabels = useMemo(() => new Map(DISORDER_TABLE_COLUMNS.map((column) => [column.id, column.label])), []);
+  const columnGroupsWithColumns = useMemo(
+    () =>
+      DISORDER_TABLE_COLUMN_GROUPS.map((group) => ({
+        ...group,
+        columns: DISORDER_TABLE_COLUMNS.filter((column) => column.groupId === group.id),
+      })),
+    []
+  );
 
   const toggleId = (ids: string[], id: string, setter: (next: string[]) => void) => {
     if (ids.includes(id)) {
@@ -49,6 +62,7 @@ export default function DisorderTable() {
 
   const resetForm = () => {
     setEditingEntryId(null);
+    setFormSelectionMode('one-row-many-columns');
     setFormRowIds([]);
     setFormColumnIds([]);
     setFormText('');
@@ -92,29 +106,56 @@ export default function DisorderTable() {
   const startEdit = (entryId: string) => {
     const entry = entries.find((item) => item.id === entryId);
     if (!entry) return;
+    const mode = resolveSelectionModeFromEntry(entry);
+    const normalizedEntry = applySelectionModeToEntryInput(
+      {
+        rowIds: entry.rowIds,
+        columnIds: entry.columnIds,
+        text: entry.text,
+      },
+      mode
+    );
+
     setEditingEntryId(entry.id);
-    setFormRowIds(entry.rowIds);
-    setFormColumnIds(entry.columnIds);
-    setFormText(entry.text);
+    setFormSelectionMode(mode);
+    setFormRowIds(normalizedEntry.rowIds);
+    setFormColumnIds(normalizedEntry.columnIds);
+    setFormText(normalizedEntry.text);
     setSubmitError(null);
     setIsEntryModalOpen(true);
   };
 
+  const setSingleSelection = (
+    value: string,
+    setSelectedIds: (next: string[]) => void
+  ) => {
+    setSelectedIds(value ? [value] : []);
+  };
+
+  const changeEntrySelectionMode = (mode: DisorderTableSelectionMode) => {
+    if (mode === formSelectionMode) return;
+    setFormSelectionMode(mode);
+    setFormRowIds([]);
+    setFormColumnIds([]);
+    setSubmitError(null);
+  };
+
   const handleSubmit = async () => {
     setSubmitError(null);
+    const normalizedInput = applySelectionModeToEntryInput(
+      {
+        rowIds: formRowIds,
+        columnIds: formColumnIds,
+        text: formText,
+      },
+      formSelectionMode
+    );
+
     try {
       if (editingEntryId) {
-        await updateEntry(editingEntryId, {
-          rowIds: formRowIds,
-          columnIds: formColumnIds,
-          text: formText,
-        });
+        await updateEntry(editingEntryId, normalizedInput);
       } else {
-        await createEntry({
-          rowIds: formRowIds,
-          columnIds: formColumnIds,
-          text: formText,
-        });
+        await createEntry(normalizedInput);
       }
 
       closeEntryModal();
@@ -138,61 +179,128 @@ export default function DisorderTable() {
     }
   };
 
-  const isFormValid = formRowIds.length > 0 && formColumnIds.length > 0 && formText.trim().length >= 3;
+  const formPreviewInput = applySelectionModeToEntryInput(
+    {
+      rowIds: formRowIds,
+      columnIds: formColumnIds,
+      text: formText,
+    },
+    formSelectionMode
+  );
+  const isFormValid = isValidDisorderTableEntryInput(formPreviewInput);
   const hasActiveFilters = filterRowIds.length > 0 || filterColumnIds.length > 0;
+  const singleSelectedRowId = formRowIds[0] ?? '';
+  const singleSelectedColumnId = formColumnIds[0] ?? '';
+  const canChooseDisorders = formSelectionMode === 'one-row-many-columns' && formRowIds.length === 1;
+  const canChooseFunctions = formSelectionMode === 'one-column-many-rows' && formColumnIds.length === 1;
 
   const renderFunctionSelection = (
     selectedIds: string[],
-    setSelectedIds: (next: string[]) => void
+    setSelectedIds: (next: string[]) => void,
+    disabled = false
   ) => (
-    <div>
-      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">Нарушенные функции и сферы</h3>
+    <section className="rounded-xl border-2 border-teal-200 bg-teal-50/70 p-4">
+      <h3 className="mb-2 text-sm font-semibold text-teal-900">Нарушенные функции и сферы</h3>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {DISORDER_TABLE_ROWS.map((row) => (
-          <label key={row.id} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
+          <label
+            key={row.id}
+            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
+              disabled
+                ? 'cursor-not-allowed border-teal-100 bg-white/60 text-teal-300'
+                : 'border-teal-200 bg-white text-teal-900'
+            }`}
+          >
             <input
               type="checkbox"
               checked={selectedIds.includes(row.id)}
               onChange={() => toggleId(selectedIds, row.id, setSelectedIds)}
               className="h-4 w-4"
+              disabled={disabled}
             />
-            <span className="text-sm text-gray-700">{row.label}</span>
+            <span>{row.label}</span>
           </label>
         ))}
       </div>
-    </div>
+    </section>
   );
 
   const renderDisorderSelection = (
     selectedIds: string[],
-    setSelectedIds: (next: string[]) => void
+    setSelectedIds: (next: string[]) => void,
+    disabled = false
   ) => (
-    <div>
-      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">Типы расстройств</h3>
+    <section className="rounded-xl border-2 border-blue-200 bg-blue-50/70 p-4">
+      <h3 className="mb-2 text-sm font-semibold text-blue-900">Типы расстройств</h3>
       <div className="space-y-3">
-        {DISORDER_TABLE_COLUMN_GROUPS.map((group) => {
-          const columns = DISORDER_TABLE_COLUMNS.filter((column) => column.groupId === group.id);
-          return (
-            <div key={group.id}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{group.label}</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {columns.map((column) => (
-                  <label key={column.id} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(column.id)}
-                      onChange={() => toggleId(selectedIds, column.id, setSelectedIds)}
-                      className="h-4 w-4"
-                    />
-                    <span className="text-sm text-gray-700">{column.label}</span>
-                  </label>
-                ))}
-              </div>
+        {columnGroupsWithColumns.map((group) => (
+          <div key={group.id}>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-600">{group.label}</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {group.columns.map((column) => (
+                <label
+                  key={column.id}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
+                    disabled
+                      ? 'cursor-not-allowed border-blue-100 bg-white/60 text-blue-300'
+                      : 'border-blue-200 bg-white text-blue-900'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(column.id)}
+                    onChange={() => toggleId(selectedIds, column.id, setSelectedIds)}
+                    className="h-4 w-4"
+                    disabled={disabled}
+                  />
+                  <span>{column.label}</span>
+                </label>
+              ))}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
-    </div>
+    </section>
+  );
+
+  const renderFunctionDropdown = (selectedId: string, onSelect: (value: string) => void) => (
+    <section className="rounded-xl border-2 border-teal-300 bg-teal-50 p-4">
+      <label className="mb-2 block text-sm font-semibold text-teal-900">Выберите одну функцию</label>
+      <select
+        value={selectedId}
+        onChange={(event) => onSelect(event.target.value)}
+        className="w-full rounded-lg border border-teal-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200"
+      >
+        <option value="">Выберите функцию...</option>
+        {DISORDER_TABLE_ROWS.map((row) => (
+          <option key={row.id} value={row.id}>
+            {row.label}
+          </option>
+        ))}
+      </select>
+    </section>
+  );
+
+  const renderDisorderDropdown = (selectedId: string, onSelect: (value: string) => void) => (
+    <section className="rounded-xl border-2 border-blue-300 bg-blue-50 p-4">
+      <label className="mb-2 block text-sm font-semibold text-blue-900">Выберите один тип расстройства</label>
+      <select
+        value={selectedId}
+        onChange={(event) => onSelect(event.target.value)}
+        className="w-full rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+      >
+        <option value="">Выберите тип расстройства...</option>
+        {columnGroupsWithColumns.map((group) => (
+          <optgroup key={group.id} label={group.label}>
+            {group.columns.map((column) => (
+              <option key={column.id} value={column.id}>
+                {column.label}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+    </section>
   );
 
   if (!isDisorderTableCourse(currentCourse)) {
@@ -222,8 +330,10 @@ export default function DisorderTable() {
         <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-900">
           <p className="font-semibold">Как пользоваться:</p>
           <p>1. Нажмите «Новая запись».</p>
-          <p>2. Выберите нужные категории и опишите наблюдение.</p>
-          <p>3. Используйте «Фильтры», чтобы быстро найти нужные записи.</p>
+          <p>2. Выберите режим: одна функция + несколько расстройств или наоборот.</p>
+          <p>3. Сначала выберите один пункт в выпадающем списке, после этого откроется второй список.</p>
+          <p>4. Опишите наблюдение и сохраните запись.</p>
+          <p>5. Используйте «Фильтры», чтобы быстро найти нужные записи.</p>
         </div>
       </div>
 
@@ -364,8 +474,57 @@ export default function DisorderTable() {
         )}
       >
         <div className="space-y-5">
-          {renderDisorderSelection(formColumnIds, setFormColumnIds)}
-          {renderFunctionSelection(formRowIds, setFormRowIds)}
+          <section className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+            <p className="mb-2 text-sm font-semibold text-amber-900">Режим выбора</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => changeEntrySelectionMode('one-row-many-columns')}
+                className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
+                  formSelectionMode === 'one-row-many-columns'
+                    ? 'border-amber-500 bg-white font-semibold text-amber-900'
+                    : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                }`}
+              >
+                1 функция + несколько расстройств
+              </button>
+              <button
+                type="button"
+                onClick={() => changeEntrySelectionMode('one-column-many-rows')}
+                className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
+                  formSelectionMode === 'one-column-many-rows'
+                    ? 'border-amber-500 bg-white font-semibold text-amber-900'
+                    : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                }`}
+              >
+                1 расстройство + несколько функций
+              </button>
+            </div>
+          </section>
+
+          {formSelectionMode === 'one-row-many-columns' ? (
+            <>
+              {renderFunctionDropdown(singleSelectedRowId, (value) => setSingleSelection(value, setFormRowIds))}
+              {!canChooseDisorders ? (
+                <div className="rounded-xl border border-dashed border-blue-300 bg-blue-50/60 p-4 text-sm text-blue-800">
+                  Выберите одну функцию в выпадающем списке, чтобы открыть список типов расстройств.
+                </div>
+              ) : (
+                renderDisorderSelection(formColumnIds, setFormColumnIds)
+              )}
+            </>
+          ) : (
+            <>
+              {renderDisorderDropdown(singleSelectedColumnId, (value) => setSingleSelection(value, setFormColumnIds))}
+              {!canChooseFunctions ? (
+                <div className="rounded-xl border border-dashed border-teal-300 bg-teal-50/60 p-4 text-sm text-teal-800">
+                  Выберите один тип расстройства в выпадающем списке, чтобы открыть список функций.
+                </div>
+              ) : (
+                renderFunctionSelection(formRowIds, setFormRowIds)
+              )}
+            </>
+          )}
 
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">Ваши наблюдения</label>

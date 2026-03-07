@@ -1,6 +1,8 @@
 import { DISORDER_TABLE_COURSE_IDS } from './config';
 import type { DisorderTableEntry, DisorderTableEntryInput, DisorderTableFilters } from './types';
 
+export type DisorderTableSelectionMode = 'one-row-many-columns' | 'one-column-many-rows';
+
 export function isDisorderTableCourse(courseId: string): boolean {
   return DISORDER_TABLE_COURSE_IDS.includes(courseId as (typeof DISORDER_TABLE_COURSE_IDS)[number]);
 }
@@ -21,9 +23,50 @@ export function normalizeEntryInput(input: DisorderTableEntryInput): DisorderTab
   };
 }
 
+export function applySelectionModeToEntryInput(
+  input: DisorderTableEntryInput,
+  mode: DisorderTableSelectionMode
+): DisorderTableEntryInput {
+  const normalized = normalizeEntryInput(input);
+
+  if (mode === 'one-row-many-columns') {
+    return {
+      rowIds: normalized.rowIds.slice(0, 1),
+      columnIds: normalized.columnIds,
+      text: normalized.text,
+    };
+  }
+
+  return {
+    rowIds: normalized.rowIds,
+    columnIds: normalized.columnIds.slice(0, 1),
+    text: normalized.text,
+  };
+}
+
+export function resolveSelectionModeFromEntry(input: Pick<DisorderTableEntryInput, 'rowIds' | 'columnIds'>): DisorderTableSelectionMode {
+  if (input.rowIds.length === 1 && input.columnIds.length !== 1) {
+    return 'one-row-many-columns';
+  }
+  if (input.columnIds.length === 1 && input.rowIds.length !== 1) {
+    return 'one-column-many-rows';
+  }
+  if (input.rowIds.length === 1) {
+    return 'one-row-many-columns';
+  }
+  if (input.columnIds.length === 1) {
+    return 'one-column-many-rows';
+  }
+  return 'one-row-many-columns';
+}
+
 export function isValidDisorderTableEntryInput(input: DisorderTableEntryInput): boolean {
   const normalized = normalizeEntryInput(input);
-  return normalized.rowIds.length > 0 && normalized.columnIds.length > 0 && normalized.text.length >= 3;
+  const hasSingleAxisSelection =
+    (normalized.rowIds.length === 1 && normalized.columnIds.length >= 1) ||
+    (normalized.columnIds.length === 1 && normalized.rowIds.length >= 1);
+
+  return hasSingleAxisSelection && normalized.text.length >= 3;
 }
 
 export function matchEntryByFilters(entry: DisorderTableEntry, filters: DisorderTableFilters): boolean {
