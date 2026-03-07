@@ -202,6 +202,25 @@ export default function DisorderTable() {
 
   const formatCellTimestamp = (entry: DisorderTableEntry) => entry.updatedAt.toLocaleDateString('ru-RU');
 
+  const visibleRowIds = useMemo(() => {
+    if (filterRowIds.length > 0) return filterRowIds;
+    return Array.from(new Set(filteredEntries.flatMap((entry) => entry.rowIds)));
+  }, [filterRowIds, filteredEntries]);
+
+  const visibleColumnIds = useMemo(() => {
+    if (filterColumnIds.length > 0) return filterColumnIds;
+    return Array.from(new Set(filteredEntries.flatMap((entry) => entry.columnIds)));
+  }, [filterColumnIds, filteredEntries]);
+
+  const visibleRows = useMemo(
+    () => DISORDER_TABLE_ROWS.filter((row) => visibleRowIds.includes(row.id)),
+    [visibleRowIds]
+  );
+  const visibleColumns = useMemo(
+    () => DISORDER_TABLE_COLUMNS.filter((column) => visibleColumnIds.includes(column.id)),
+    [visibleColumnIds]
+  );
+
   const renderFunctionSelection = (
     selectedIds: string[],
     setSelectedIds: (next: string[]) => void,
@@ -351,6 +370,9 @@ export default function DisorderTable() {
       <p className="mb-4 text-sm text-gray-600">
         Нажмите на текст в ячейке, чтобы открыть запись на редактирование.
       </p>
+      <p className="mb-4 text-xs text-gray-500">
+        В таблице показываются только категории из активных фильтров или из текущих найденных записей.
+      </p>
 
       {error && (
         <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
@@ -367,28 +389,32 @@ export default function DisorderTable() {
             ? 'Пока нет записей. Нажмите «Новая запись», чтобы добавить первую заметку.'
             : 'По текущим фильтрам ничего не найдено. Измените фильтры или сбросьте их.'}
         </div>
+      ) : visibleRows.length === 0 || visibleColumns.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-600">
+          Для выбранных фильтров нет подходящих строк или типов расстройств.
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="min-w-[960px] border-collapse">
+        <div className="max-w-full overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full min-w-[680px] table-fixed border-collapse">
             <thead>
               <tr className="bg-slate-100">
-                <th className="sticky left-0 z-10 border-b border-r border-slate-200 bg-slate-100 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <th className="w-[210px] border-b border-r border-slate-200 bg-slate-100 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                   Функции / Типы расстройств
                 </th>
-                {DISORDER_TABLE_COLUMNS.map((column) => (
-                  <th key={column.id} className="min-w-[190px] border-b border-r border-slate-200 px-3 py-3 text-left text-xs font-semibold text-blue-900">
+                {visibleColumns.map((column) => (
+                  <th key={column.id} className="w-[170px] border-b border-r border-slate-200 px-3 py-3 text-left text-xs font-semibold text-blue-900">
                     {column.label}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {DISORDER_TABLE_ROWS.map((row) => (
+              {visibleRows.map((row) => (
                 <tr key={row.id} className="align-top">
-                  <th className="sticky left-0 z-10 border-b border-r border-slate-200 bg-slate-50 px-3 py-3 text-left text-xs font-semibold text-teal-900">
+                  <th className="border-b border-r border-slate-200 bg-slate-50 px-3 py-3 text-left text-xs font-semibold text-teal-900">
                     {row.label}
                   </th>
-                  {DISORDER_TABLE_COLUMNS.map((column) => (
+                  {visibleColumns.map((column) => (
                     <td key={`${row.id}-${column.id}`} className="border-b border-r border-slate-200 px-2 py-2 align-top">
                       {renderMatrixCell(row.id, column.id)}
                     </td>
