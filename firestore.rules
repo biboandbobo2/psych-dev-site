@@ -108,6 +108,15 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Таблица по расстройствам (личные записи студента)
+    match /disorderTables/{docId} {
+      allow read, write: if isAuthenticated() && docId.matches('^' + request.auth.uid + '_[A-Za-z0-9-]+$');
+
+      match /entries/{entryId} {
+        allow read, write: if isAuthenticated() && docId.matches('^' + request.auth.uid + '_[A-Za-z0-9-]+$');
+      }
+    }
+
     // HomePage content and other public pages
     match /pages/{pageId} {
       allow read: if true; // Public read access for homepage
