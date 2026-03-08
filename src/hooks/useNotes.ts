@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
   query,
@@ -168,7 +168,7 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
       }
     };
 
-  const upsertLectureNote = async (content: string, context: LectureNoteContext) => {
+  const upsertLectureNote = useCallback(async (content: string, context: LectureNoteContext) => {
     if (!user) {
       debugError('[useNotes] Cannot upsert lecture note: user not authenticated');
       throw new Error('User not authenticated');
@@ -210,7 +210,7 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
       reportAppError({ message: 'Не удалось сохранить заметку по лекции', error, context: 'useNotes.upsertLectureNote' });
       throw error;
     }
-  };
+  }, [user]);
 
   const createManualNote = async (
     title: string,
@@ -252,7 +252,7 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
     }
   };
 
-  const getLectureNote = async (context: LectureNoteContext) => {
+  const getLectureNote = useCallback(async (context: LectureNoteContext) => {
     if (!user) {
       return null;
     }
@@ -271,7 +271,7 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
       reportAppError({ message: 'Не удалось загрузить заметку по лекции', error, context: 'useNotes.getLectureNote' });
       throw error;
     }
-  };
+  }, [user]);
 
   const updateNote = async (
     noteId: string,

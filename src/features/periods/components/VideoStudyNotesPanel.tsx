@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import LoginModal from '../../../components/LoginModal';
 import { useNotes } from '../../../hooks/useNotes';
 import { debugError } from '../../../lib/debug';
@@ -15,7 +15,7 @@ interface VideoStudyNotesPanelProps {
   videoTitle: string;
 }
 
-type SaveState = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 const LECTURE_NOTE_TITLE = 'Заметки по лекции';
 
@@ -55,6 +55,51 @@ export function VideoStudyNotesPanel({
     draftRef.current = draftContent;
   }, [draftContent]);
 
+  const saveLectureNote = useCallback(
+    async (nextContent: string, options?: { silent?: boolean }) => {
+      if (!user) {
+        if (!options?.silent) {
+          setIsLoginOpen(true);
+        }
+        return false;
+      }
+
+      if (!nextContent.trim()) {
+        if (!options?.silent) {
+          setSaveState('idle');
+        }
+        return false;
+      }
+
+      if (!options?.silent) {
+        setSaving(true);
+        setSaveState('saving');
+      }
+
+      try {
+        await upsertLectureNote(nextContent, lectureContext);
+        lastSavedContentRef.current = nextContent;
+
+        if (!options?.silent) {
+          setSaveState('saved');
+        }
+
+        return true;
+      } catch (error) {
+        debugError('[VideoStudyNotesPanel] Failed to save note', error);
+        if (!options?.silent) {
+          setSaveState('error');
+        }
+        return false;
+      } finally {
+        if (!options?.silent) {
+          setSaving(false);
+        }
+      }
+    },
+    [lectureContext, upsertLectureNote, user]
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -70,7 +115,6 @@ export function VideoStudyNotesPanel({
 
     const loadSavedNote = async () => {
       setIsHydrating(true);
-      setSaveState('loading');
       try {
         const note = await getLectureNote(lectureContext);
         const savedContent = note?.content ?? '';
@@ -119,32 +163,28 @@ export function VideoStudyNotesPanel({
       return undefined;
     }
 
-    setSaving(true);
-    setSaveState('saving');
-
-    const timeoutId = window.setTimeout(async () => {
-      try {
-        await upsertLectureNote(draftContent, lectureContext);
-        lastSavedContentRef.current = draftContent;
-        setSaveState('saved');
-      } catch (error) {
-        debugError('[VideoStudyNotesPanel] Failed to autosave note', error);
-        setSaveState('error');
-      } finally {
-        setSaving(false);
-      }
+    const timeoutId = window.setTimeout(() => {
+      void saveLectureNote(draftContent);
     }, 900);
 
     return () => {
-      setSaving(false);
       window.clearTimeout(timeoutId);
     };
-  }, [draftContent, isHydrating, lectureContext, upsertLectureNote, user]);
+  }, [draftContent, isHydrating, saveLectureNote, user]);
+
+  useEffect(() => {
+    return () => {
+      const pendingContent = draftRef.current;
+      if (!user || isHydrating || !pendingContent.trim() || pendingContent === lastSavedContentRef.current) {
+        return;
+      }
+
+      void saveLectureNote(pendingContent, { silent: true });
+    };
+  }, [isHydrating, saveLectureNote, user]);
 
   const statusLabel = user
-    ? saveState === 'loading'
-      ? 'Загружаем прошлый конспект...'
-      : saveState === 'saving'
+    ? saveState === 'saving'
       ? 'Автосохранение...'
       : saveState === 'saved'
       ? 'Сохранено в /notes'
@@ -186,7 +226,18 @@ export function VideoStudyNotesPanel({
 
         <div className="mt-auto flex items-center justify-between gap-3 border-t border-white/10 pt-4">
           <span className="text-xs text-white/55">{statusLabel}</span>
-          {!user ? (
+          {user ? (
+            <button
+              type="button"
+              onClick={() => {
+                void saveLectureNote(draftContent);
+              }}
+              disabled={saving || !draftContent.trim()}
+              className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? 'Сохранение...' : 'Сохранить'}
+            </button>
+          ) : (
             <button
               type="button"
               onClick={() => setIsLoginOpen(true)}
@@ -194,7 +245,7 @@ export function VideoStudyNotesPanel({
             >
               Войти
             </button>
-          ) : null}
+          )}
         </div>
       </aside>
 

@@ -73,6 +73,8 @@ describe('VideoStudyNotesPanel', () => {
     await act(async () => {});
 
     expect(screen.getByLabelText('Заметки по лекции')).toHaveValue('Старый конспект');
+    expect(screen.getByRole('button', { name: 'Сохранить' })).toBeInTheDocument();
+    expect(screen.queryByText('Загружаем прошлый конспект...')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Заметки по лекции'), {
       target: { value: 'Старый конспект\nКлючевой тезис из лекции' },
