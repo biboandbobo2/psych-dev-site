@@ -1,6 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoSection } from './VideoSection';
+
+const mocks = vi.hoisted(() => ({
+  transcriptError: null as string | null,
+  transcriptLoading: false,
+  transcriptReady: false,
+}));
 
 vi.mock('./VideoStudyNotesPanel', async () => {
   return {
@@ -26,7 +32,32 @@ vi.mock('./VideoStudyNotesPanel', async () => {
   };
 });
 
+vi.mock('./VideoTranscriptPanel', async () => {
+  return {
+    VideoTranscriptPanel: () => <div>Transcript panel</div>,
+  };
+});
+
+vi.mock('../../../hooks', async () => {
+  return {
+    useVideoTranscript: () => ({
+      error: mocks.transcriptError,
+      hasTranscript: mocks.transcriptReady,
+      isChecking: false,
+      isLoading: mocks.transcriptLoading,
+      metadata: null,
+      transcript: mocks.transcriptReady ? { segments: [] } : null,
+    }),
+  };
+});
+
 describe('VideoSection', () => {
+  beforeEach(() => {
+    mocks.transcriptError = null;
+    mocks.transcriptLoading = false;
+    mocks.transcriptReady = false;
+  });
+
   it('сохраняет черновик при переключении между режимами видео', async () => {
     render(
       <VideoSection
@@ -62,5 +93,32 @@ describe('VideoSection', () => {
 
     expect(screen.getByLabelText('Draft')).toHaveValue('Черновик заметки');
     expect(document.body.style.overflow).toBe('hidden');
+  });
+
+  it('переключает правую панель на транскрипт, если он доступен', async () => {
+    mocks.transcriptReady = true;
+
+    render(
+      <VideoSection
+        slug="video"
+        title="Видео"
+        content={[{ title: 'Лекция 1', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }]}
+        deckUrl=""
+        defaultVideoTitle="Видео-лекция"
+        periodId="preschool"
+        periodTitle="Дошкольный возраст"
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть конспект' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Показать транскрипт' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Показать транскрипт' }));
+
+    expect(screen.getByText('Transcript panel')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Показать конспект' })).toBeInTheDocument();
   });
 });

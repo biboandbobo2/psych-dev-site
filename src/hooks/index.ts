@@ -15,6 +15,7 @@ export { useQuestionNavigation } from './useQuestionNavigation';
 export { useTestProgress } from './useTestProgress';
 export { useTimeline } from './useTimeline';
 export { useTopics } from './useTopics';
+export { useVideoTranscript } from './useVideoTranscript';
 export { useVerificationSummary } from './useVerificationSummary';
 export { useCreateLesson } from './useCreateLesson';
 export { useReorderLessons } from './useReorderLessons';
