@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNotes } from '../hooks/useNotes';
 import { usePublishedLessonOptions } from '../hooks';
-import { type Note } from '../types/notes';
+import { buildNotePeriodKey, type Note } from '../types/notes';
 import { sortNotes, type SortOption } from '../utils/sortNotes';
 import { NotesHeader } from './notes/components/NotesHeader';
 import { NotesList } from './notes/components/NotesList';
@@ -30,7 +30,7 @@ export default function Notes() {
 
   const activePeriod = selectedPeriod === 'all' ? null : selectedPeriod;
   const { lessonGroups } = usePublishedLessonOptions();
-  const { notes, loading, error, createNote, updateNote, deleteNote } = useNotes(activePeriod);
+  const { notes, loading, error, createManualNote, updateNote, deleteNote } = useNotes(activePeriod);
 
   const sortedNotes = useMemo(() => sortNotes(notes, sortBy), [notes, sortBy]);
 
@@ -80,16 +80,43 @@ export default function Notes() {
   const handleSaveNote = async (data: {
     title: string;
     content: string;
-    ageRange: AgeRange | null;
+    courseId: string | null;
+    periodId: string | null;
+    periodTitle: string | null;
     topicId: string | null;
     topicTitle: string | null;
   }) => {
     try {
-      if (editingNote) {
-        await updateNote(editingNote.id, data);
-      } else {
-        await createNote(data.title, data.content, data.ageRange, data.topicId, data.topicTitle);
+      if (!data.courseId || !data.periodId || !data.periodTitle) {
+        throw new Error('Выберите курс и занятие');
       }
+
+      if (editingNote) {
+        await updateNote(editingNote.id, {
+          title: data.title,
+          content: data.content,
+          courseId: data.courseId,
+          periodId: data.periodId,
+          periodTitle: data.periodTitle,
+          topicId: data.topicId,
+          topicTitle: data.topicTitle,
+          noteScope: editingNote.noteScope ?? 'manual',
+        });
+      } else {
+        await createManualNote(
+          data.title,
+          data.content,
+          {
+            courseId: data.courseId,
+            periodId: data.periodId,
+            periodTitle: data.periodTitle,
+          },
+          data.topicId,
+          data.topicTitle
+        );
+      }
+
+      setSelectedPeriod(buildNotePeriodKey(data.courseId, data.periodId));
     } catch (err) {
       debugError('Error saving note', err);
       alert('Ошибка при сохранении заметки');
@@ -176,7 +203,6 @@ export default function Notes() {
       <NotesEditor
         isOpen={isModalOpen}
         editingNote={editingNote}
-        activeAgeRange={null}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveNote}
       />

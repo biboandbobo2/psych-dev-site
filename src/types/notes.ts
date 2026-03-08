@@ -37,6 +37,7 @@ export interface Note {
   content: string;
   ageRange: AgeRange | null;
   periodId?: string | null;
+  periodKey?: string | null;
   periodTitle?: string | null;
   courseId?: string | null;
   noteScope?: 'manual' | 'lecture' | 'timeline';
@@ -54,6 +55,12 @@ export interface LectureNoteContext {
   periodTitle: string;
   lectureTitle: string;
   lectureVideoId: string;
+}
+
+export interface ManualNoteContext {
+  courseId: string;
+  periodId: string;
+  periodTitle: string;
 }
 
 export const AGE_RANGE_LABELS: Record<AgeRange, string> = {
@@ -140,6 +147,10 @@ export function buildLectureNoteDocumentId(
   context: Pick<LectureNoteContext, 'courseId' | 'periodId' | 'lectureVideoId'>
 ) {
   return `lecture__${userId}__${encodeURIComponent(buildLectureNoteKey(context))}`;
+}
+
+export function buildNotePeriodKey(courseId: string, periodId: string) {
+  return `${courseId}::${periodId}`;
 }
 
 // Export as lazy Proxy to avoid top-level function call

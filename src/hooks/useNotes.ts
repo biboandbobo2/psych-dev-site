@@ -18,9 +18,11 @@ import {
   type Note,
   type AgeRange,
   type LectureNoteContext,
+  type ManualNoteContext,
   AGE_RANGE_LABELS,
   buildLectureNoteDocumentId,
   buildLectureNoteKey,
+  buildNotePeriodKey,
   normalizeAgeRange,
 } from '../types/notes';
 import { reportAppError } from '../lib/errorHandler';
@@ -57,7 +59,7 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
       notesQuery = query(
         collection(db, 'notes'),
         where('userId', '==', user.uid),
-        where('periodId', '==', periodFilter)
+        where('periodKey', '==', periodFilter)
       );
     } else {
       notesQuery = query(collection(db, 'notes'), where('userId', '==', user.uid));
@@ -83,6 +85,7 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
             content: data.content || '',
             ageRange,
             periodId: periodId ?? null,
+            periodKey: typeof data.periodKey === 'string' ? data.periodKey : null,
             periodTitle: periodTitle ?? null,
             courseId: typeof data.courseId === 'string' ? data.courseId : null,
             noteScope: data.noteScope === 'lecture' || data.noteScope === 'timeline' ? data.noteScope : 'manual',
@@ -140,7 +143,10 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
         content: content || '',
         ageRange: normalizedAgeRange,
         periodId: normalizedAgeRange ?? null,
+        periodKey: normalizedAgeRange ? buildNotePeriodKey('development', normalizedAgeRange) : null,
         periodTitle: derivedPeriodTitle,
+        courseId: normalizedAgeRange ? 'development' : null,
+        noteScope: 'manual' as const,
         topicId: topicId || null,
         topicTitle: topicTitle || null,
         createdAt: serverTimestamp(),
@@ -174,6 +180,7 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
         content: content || '',
         ageRange: normalizedAgeRange,
         periodId: context.periodId,
+        periodKey: buildNotePeriodKey(context.courseId, context.periodId),
         periodTitle: context.periodTitle || (normalizedAgeRange ? AGE_RANGE_LABELS[normalizedAgeRange] : null),
         courseId: context.courseId,
         noteScope: 'lecture' as const,
@@ -200,14 +207,80 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
     }
   };
 
+  const createManualNote = async (
+    title: string,
+    content: string,
+    context: ManualNoteContext,
+    topicId: string | null = null,
+    topicTitle: string | null = null
+  ) => {
+    if (!user) {
+      debugError('[useNotes] Cannot create manual note: user not authenticated');
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const normalizedAgeRange = normalizeAgeRange(context.periodId);
+      const noteData = {
+        userId: user.uid,
+        title: title || 'Без названия',
+        content: content || '',
+        ageRange: normalizedAgeRange,
+        periodId: context.periodId,
+        periodKey: buildNotePeriodKey(context.courseId, context.periodId),
+        periodTitle: context.periodTitle,
+        courseId: context.courseId,
+        noteScope: 'manual' as const,
+        lectureVideoId: null,
+        lectureKey: null,
+        topicId: topicId || null,
+        topicTitle: topicTitle || null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      const docRef = await addDoc(collection(db, 'notes'), noteData);
+      return docRef.id;
+    } catch (error) {
+      reportAppError({ message: 'Не удалось создать заметку', error, context: 'useNotes.createManualNote' });
+      throw error;
+    }
+  };
+
   const updateNote = async (
     noteId: string,
-    updates: Partial<Pick<Note, 'title' | 'content' | 'ageRange' | 'topicId' | 'topicTitle'>>
+    updates: Partial<
+      Pick<
+        Note,
+        | 'title'
+        | 'content'
+        | 'ageRange'
+        | 'periodId'
+        | 'periodTitle'
+        | 'courseId'
+        | 'topicId'
+        | 'topicTitle'
+        | 'noteScope'
+      >
+    >
   ) => {
     try {
       const noteRef = doc(db, 'notes', noteId);
       debugLog('[useNotes] Updating note:', noteId, updates);
-      const normalizedUpdates: Partial<Pick<Note, 'title' | 'content' | 'ageRange' | 'topicId' | 'topicTitle'>> = {
+      const normalizedUpdates: Partial<
+        Pick<
+          Note,
+          | 'title'
+          | 'content'
+          | 'ageRange'
+          | 'periodId'
+          | 'periodTitle'
+          | 'courseId'
+          | 'topicId'
+          | 'topicTitle'
+          | 'noteScope'
+        >
+      > = {
         ...updates,
       };
 
@@ -225,6 +298,19 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
       if ('ageRange' in normalizedUpdates) {
         payload.periodId = normalizedAgeRange ?? null;
         payload.periodTitle = normalizedAgeRange ? AGE_RANGE_LABELS[normalizedAgeRange] : null;
+      }
+
+      const nextCourseId =
+        typeof normalizedUpdates.courseId === 'string' ? normalizedUpdates.courseId :
+        typeof updates.courseId === 'string' ? updates.courseId :
+        null;
+      const nextPeriodId =
+        typeof normalizedUpdates.periodId === 'string' ? normalizedUpdates.periodId :
+        typeof payload.periodId === 'string' ? (payload.periodId as string) :
+        null;
+
+      if (nextCourseId && nextPeriodId) {
+        payload.periodKey = buildNotePeriodKey(nextCourseId, nextPeriodId);
       }
 
       if ('topicId' in normalizedUpdates && !normalizedUpdates.topicId) {
@@ -257,6 +343,7 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
     loading,
     error,
     createNote,
+    createManualNote,
     upsertLectureNote,
     updateNote,
     deleteNote,

@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../../auth/AuthProvider';
 import { useNotes } from '../useNotes';
 import {
@@ -32,6 +32,7 @@ vi.mock('../../lib/firebase', () => ({
 
 describe('useNotes', () => {
   const onSnapshotMock = vi.mocked(onSnapshot);
+  const addDocMock = vi.mocked(addDoc);
   const getDocMock = vi.mocked(getDoc);
   const setDocMock = vi.mocked(setDoc);
   const updateDocMock = vi.mocked(updateDoc);
@@ -39,6 +40,7 @@ describe('useNotes', () => {
 
   beforeEach(() => {
     onSnapshotMock.mockClear();
+    addDocMock.mockReset();
     getDocMock.mockReset();
     setDocMock.mockReset();
     updateDocMock.mockReset();
@@ -97,6 +99,32 @@ describe('useNotes', () => {
       })
     );
     expect(updateDocMock).not.toHaveBeenCalled();
+  });
+
+  it('создаёт manual note c course и period context', async () => {
+    authMock.mockReturnValue({ user: { uid: 'user-123' } });
+    addDocMock.mockResolvedValue({ id: 'note-1' } as never);
+
+    const { result } = renderHook(() => useNotes(null, { subscribe: false }));
+
+    await result.current.createManualNote('Моя заметка', 'Содержимое', {
+      courseId: 'development',
+      periodId: 'seminary',
+      periodTitle: 'Семинары',
+    });
+
+    expect(addDocMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        title: 'Моя заметка',
+        content: 'Содержимое',
+        courseId: 'development',
+        periodId: 'seminary',
+        periodKey: 'development::seminary',
+        periodTitle: 'Семинары',
+        noteScope: 'manual',
+      })
+    );
   });
 
   it('обновляет существующую lecture note вместо создания новой', async () => {

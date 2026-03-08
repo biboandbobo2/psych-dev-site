@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { type AgeRange } from '../types/notes';
 import { NoteFormFields } from './NoteFormFields';
 import { SaveNoteAsEventButton } from './SaveNoteAsEventButton';
 import { useTimeline } from '../hooks/useTimeline';
@@ -10,14 +9,18 @@ interface NoteModalProps {
   noteId?: string;
   initialTitle?: string;
   initialContent?: string;
-  initialAgeRange?: AgeRange | null;
+  initialCourseId?: string | null;
+  initialPeriodId?: string | null;
+  initialPeriodTitle?: string | null;
   initialTopicId?: string | null;
   initialTopicTitle?: string | null;
   onClose: () => void;
   onSave: (data: {
     title: string;
     content: string;
-    ageRange: AgeRange | null;
+    courseId: string | null;
+    periodId: string | null;
+    periodTitle: string | null;
     topicId: string | null;
     topicTitle: string | null;
   }) => Promise<void>;
@@ -28,7 +31,9 @@ export function NoteModal({
   noteId,
   initialTitle = '',
   initialContent = '',
-  initialAgeRange = null,
+  initialCourseId = null,
+  initialPeriodId = null,
+  initialPeriodTitle = null,
   initialTopicId = null,
   initialTopicTitle = null,
   onClose,
@@ -36,7 +41,9 @@ export function NoteModal({
 }: NoteModalProps) {
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
-  const [ageRange, setAgeRange] = useState<AgeRange | null>(initialAgeRange);
+  const [courseId, setCourseId] = useState<string | null>(initialCourseId);
+  const [periodId, setPeriodId] = useState<string | null>(initialPeriodId);
+  const [periodTitle, setPeriodTitle] = useState<string | null>(initialPeriodTitle);
   const [topicId, setTopicId] = useState<string | null>(initialTopicId);
   const [topicTitle, setTopicTitle] = useState<string | null>(initialTopicTitle);
   const [saving, setSaving] = useState(false);
@@ -47,11 +54,13 @@ export function NoteModal({
     if (!isOpen) return;
     setTitle(initialTitle);
     setContent(initialContent);
-    setAgeRange(initialAgeRange);
+    setCourseId(initialCourseId);
+    setPeriodId(initialPeriodId);
+    setPeriodTitle(initialPeriodTitle);
     setTopicId(initialTopicId);
     setTopicTitle(initialTopicTitle);
     setSaving(false);
-  }, [isOpen, initialTitle, initialContent, initialAgeRange, initialTopicId, initialTopicTitle]);
+  }, [isOpen, initialTitle, initialContent, initialCourseId, initialPeriodId, initialPeriodTitle, initialTopicId, initialTopicTitle]);
 
   const headerTitle = useMemo(() => (noteId ? 'Редактировать заметку' : 'Новая заметка'), [noteId]);
 
@@ -61,9 +70,22 @@ export function NoteModal({
       return;
     }
 
+    if (!courseId || !periodId || !periodTitle) {
+      alert('Выберите курс и занятие');
+      return;
+    }
+
     setSaving(true);
     try {
-      await onSave({ title, content, ageRange, topicId, topicTitle: topicTitle ?? null });
+      await onSave({
+        title,
+        content,
+        courseId,
+        periodId,
+        periodTitle,
+        topicId,
+        topicTitle: topicTitle ?? null,
+      });
       await new Promise((resolve) => setTimeout(resolve, 800));
       setSaving(false);
       onClose();
@@ -71,14 +93,6 @@ export function NoteModal({
       debugError('Error saving note:', error);
       alert('Ошибка при сохранении заметки: ' + (error as Error).message);
       setSaving(false);
-    }
-  };
-
-  const handleTopicSelect = (newTopicId: string | null, newTopicTitle: string | null) => {
-    setTopicId(newTopicId);
-    setTopicTitle(newTopicTitle);
-    if (newTopicTitle && !title.trim()) {
-      setTitle(newTopicTitle);
     }
   };
 
@@ -93,14 +107,19 @@ export function NoteModal({
           <NoteFormFields
             title={title}
             content={content}
-            ageRange={ageRange}
-            topicId={topicId}
+            selectedCourseId={courseId}
+            selectedPeriodId={periodId}
             saving={saving}
             autoFocus
             onTitleChange={setTitle}
             onContentChange={setContent}
-            onAgeRangeChange={setAgeRange}
-            onTopicSelect={handleTopicSelect}
+            onCourseChange={setCourseId}
+            onPeriodChange={(nextPeriodId, nextPeriodTitle) => {
+              setPeriodId(nextPeriodId);
+              setPeriodTitle(nextPeriodTitle);
+              setTopicId(null);
+              setTopicTitle(null);
+            }}
           />
         </div>
 

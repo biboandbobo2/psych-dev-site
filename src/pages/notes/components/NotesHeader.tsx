@@ -59,7 +59,7 @@ export function NotesHeader({
           {lessonGroups.map((group) => (
             <optgroup key={group.courseId} label={group.courseLabel}>
               {group.lessons.map((lesson) => (
-                <option key={`${group.courseId}-${lesson.periodId}`} value={lesson.periodId}>
+                <option key={lesson.periodKey} value={lesson.periodKey}>
                   {lesson.periodTitle}
                 </option>
               ))}

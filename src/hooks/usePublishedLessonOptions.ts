@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getDocs } from 'firebase/firestore';
 import { getCourseLessonsCollectionRef, mapCanonicalCourseLessons, sortCourseLessonItems } from '../lib/courseLessons';
+import { buildNotePeriodKey } from '../types/notes';
 import { useClinicalTopics } from './useClinicalTopics';
 import { useCourses } from './useCourses';
 import { useGeneralTopics } from './useGeneralTopics';
@@ -10,6 +11,7 @@ import { debugError } from '../lib/debug';
 export interface PublishedLessonOption {
   courseId: string;
   courseLabel: string;
+  periodKey: string;
   periodId: string;
   periodTitle: string;
 }
@@ -22,6 +24,7 @@ function buildCourseLessons(
   return sortCourseLessonItems(courseId, entries).map((entry) => ({
     courseId,
     courseLabel,
+    periodKey: buildNotePeriodKey(courseId, entry.period),
     periodId: entry.period,
     periodTitle: String(entry.title || entry.label || entry.period).trim(),
   }));

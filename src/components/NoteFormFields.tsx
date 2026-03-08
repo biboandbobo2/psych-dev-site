@@ -1,42 +1,42 @@
-import { type AgeRange } from '../types/notes';
-import { TopicSelector } from './TopicSelector';
+import { NoteContextSelector } from './NoteContextSelector';
 
 interface NoteFormFieldsProps {
   title: string;
   content: string;
-  ageRange: AgeRange | null;
-  topicId: string | null;
+  selectedCourseId: string | null;
+  selectedPeriodId: string | null;
   saving: boolean;
   autoFocus?: boolean;
   titlePlaceholder?: string;
   contentPlaceholder?: string;
   onTitleChange: (value: string) => void;
   onContentChange: (value: string) => void;
-  onAgeRangeChange: (ageRange: AgeRange | null) => void;
-  onTopicSelect: (topicId: string | null, topicTitle: string | null) => void;
+  onCourseChange: (courseId: string | null) => void;
+  onPeriodChange: (periodId: string | null, periodTitle: string | null) => void;
 }
 
 export function NoteFormFields({
   title,
   content,
-  ageRange,
-  topicId,
+  selectedCourseId,
+  selectedPeriodId,
   saving,
   autoFocus = false,
   titlePlaceholder = 'Введите заголовок...',
   contentPlaceholder = 'Напишите свои мысли...',
   onTitleChange,
   onContentChange,
-  onAgeRangeChange,
-  onTopicSelect,
+  onCourseChange,
+  onPeriodChange,
 }: NoteFormFieldsProps) {
   return (
     <div className="space-y-4">
-      <TopicSelector
-        selectedAgeRange={ageRange}
-        selectedTopicId={topicId}
-        onAgeRangeChange={onAgeRangeChange}
-        onTopicSelect={onTopicSelect}
+      <NoteContextSelector
+        selectedCourseId={selectedCourseId}
+        selectedPeriodId={selectedPeriodId}
+        saving={saving}
+        onCourseChange={onCourseChange}
+        onPeriodChange={onPeriodChange}
       />
 
       <div>
