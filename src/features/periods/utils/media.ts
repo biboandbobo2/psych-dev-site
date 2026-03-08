@@ -1,3 +1,5 @@
+import { getYouTubeVideoIdFromUrl, isYouTubeHost } from '../../../lib/youtube';
+
 export const ensureUrl = (value: unknown): URL | null => {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -22,28 +24,6 @@ const parseTimeParam = (raw: string | null): string | undefined => {
   return total ? String(total) : undefined;
 };
 
-const extractYoutubeId = (url: URL | null) => {
-  if (!url) return null;
-  const host = url.hostname.replace(/^www\./, '');
-  if (host === 'youtu.be') {
-    return url.pathname.replace(/\//g, '');
-  }
-  if (['youtube.com', 'm.youtube.com', 'music.youtube.com'].includes(host)) {
-    if (url.pathname.startsWith('/embed/')) {
-      const [, , videoId] = url.pathname.split('/');
-      return videoId || null;
-    }
-    if (url.pathname.startsWith('/watch')) {
-      return url.searchParams.get('v');
-    }
-    if (url.pathname.startsWith('/shorts/') || url.pathname.startsWith('/live/')) {
-      const [, , videoId] = url.pathname.split('/');
-      return videoId || null;
-    }
-  }
-  return null;
-};
-
 export const buildYoutubeEmbedUrl = (rawValue: string) => {
   const url = ensureUrl(rawValue);
   if (!url) return '';
@@ -53,7 +33,7 @@ export const buildYoutubeEmbedUrl = (rawValue: string) => {
     return url.toString();
   }
 
-  const videoId = extractYoutubeId(url);
+  const videoId = getYouTubeVideoIdFromUrl(url);
 
   // Если есть playlist параметр, но нет video ID - это ссылка только на плейлист
   // YouTube не позволяет встраивать плейлисты без конкретного видео
@@ -97,22 +77,24 @@ export const normalizeVideoEntry = (entry: unknown) => {
 
   if (typeof entry === 'string') {
     const trimmed = entry.trim();
+    const parsedUrl = ensureUrl(trimmed);
     return {
       title: 'Видео-лекция',
       embedUrl: buildYoutubeEmbedUrl(trimmed),
       originalUrl: trimmed,
-      isYoutube: Boolean(ensureUrl(trimmed)?.hostname.includes('youtu')),
+      isYoutube: Boolean(parsedUrl && isYouTubeHost(parsedUrl.hostname)),
       deckUrl: '',
       audioUrl: '',
     };
   }
 
   const rawUrl = typeof (entry as any).url === 'string' ? (entry as any).url.trim() : '';
+  const parsedUrl = ensureUrl(rawUrl);
   return {
     title: (entry as any).title ?? 'Видео-лекция',
     embedUrl: buildYoutubeEmbedUrl(rawUrl),
     originalUrl: rawUrl,
-    isYoutube: Boolean(ensureUrl(rawUrl)?.hostname.includes('youtu')),
+    isYoutube: Boolean(parsedUrl && isYouTubeHost(parsedUrl.hostname)),
     deckUrl: typeof (entry as any).deckUrl === 'string' ? (entry as any).deckUrl.trim() : '',
     audioUrl: typeof (entry as any).audioUrl === 'string' ? (entry as any).audioUrl.trim() : '',
   };

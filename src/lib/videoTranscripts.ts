@@ -3,60 +3,9 @@ import {
   VIDEO_TRANSCRIPT_VERSION,
   type VideoTranscriptSegment,
 } from '../types/videoTranscripts';
+import { getYouTubeVideoId as getSharedYouTubeVideoId } from './youtube';
 
-const YOUTUBE_HOSTS = new Set([
-  'youtube.com',
-  'www.youtube.com',
-  'm.youtube.com',
-  'music.youtube.com',
-  'youtu.be',
-]);
-
-function parseUrl(value: string): URL | null {
-  try {
-    return new URL(value.trim());
-  } catch {
-    return null;
-  }
-}
-
-export function getYouTubeVideoId(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  const url = parseUrl(trimmed);
-  if (!url || !YOUTUBE_HOSTS.has(url.hostname)) {
-    return null;
-  }
-
-  if (url.hostname === 'youtu.be') {
-    return url.pathname.replace(/\//g, '') || null;
-  }
-
-  if (url.pathname.startsWith('/watch')) {
-    return url.searchParams.get('v');
-  }
-
-  if (url.pathname.startsWith('/embed/')) {
-    return url.pathname.split('/')[2] || null;
-  }
-
-  if (url.pathname.startsWith('/shorts/') || url.pathname.startsWith('/live/')) {
-    return url.pathname.split('/')[2] || null;
-  }
-
-  return null;
-}
+export const getYouTubeVideoId = getSharedYouTubeVideoId;
 
 export function buildVideoTranscriptStoragePath(
   youtubeVideoId: string,

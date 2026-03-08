@@ -11,3 +11,4 @@ export * from './testAccess';
 export * from './testResults';
 export * from './tests';
 export * from './videoTranscripts';
+export * from './youtube';
