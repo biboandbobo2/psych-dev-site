@@ -202,28 +202,34 @@ export function VideoStudyNotesPanel({
     <>
       <aside className="flex h-full min-h-0 flex-col px-4 py-4 text-white lg:px-5 lg:py-5">
         <div className="flex-1 pb-4">
-          <textarea
-            value={draftContent}
-            onChange={(event) => {
-              hasUserEditedRef.current = true;
-              onDraftChange(event.target.value);
-            }}
-            placeholder="Пишите короткий конспект по ходу лекции..."
-            className="h-full min-h-[18rem] w-full resize-none rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-7 text-white outline-none transition placeholder:text-white/30 focus:border-[color:var(--accent)] focus:bg-black/30"
-            aria-label="Заметки по лекции"
-          />
+          <div className="group relative h-full min-h-[18rem]">
+            <button
+              type="button"
+              className="absolute right-4 top-4 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]"
+              aria-label={statusLabel}
+            >
+              <span className={`h-2.5 w-2.5 rounded-full ${indicatorClassName}`} />
+            </button>
+
+            <div className="pointer-events-none absolute right-4 top-12 z-10 max-w-[12rem] translate-y-1 rounded-xl border border-white/10 bg-[#11161d]/95 px-3 py-2 text-xs leading-5 text-white/80 opacity-0 shadow-2xl transition duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
+              {statusLabel}
+            </div>
+
+            <textarea
+              value={draftContent}
+              onChange={(event) => {
+                hasUserEditedRef.current = true;
+                onDraftChange(event.target.value);
+              }}
+              placeholder="Пишите короткий конспект по ходу лекции..."
+              className="h-full min-h-[18rem] w-full resize-none rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-4 pr-12 text-sm leading-7 text-white outline-none transition placeholder:text-white/30 focus:border-[color:var(--accent)] focus:bg-black/30"
+              aria-label="Заметки по лекции"
+            />
+          </div>
         </div>
 
-        <div className="mt-auto flex items-center justify-between gap-3 border-t border-white/10 pt-4">
-          <span
-            className="inline-flex h-3 w-3 shrink-0 rounded-full transition"
-            title={statusLabel}
-            aria-label={statusLabel}
-            role="status"
-          >
-            <span className={`h-3 w-3 rounded-full ${indicatorClassName}`} />
-          </span>
-          {!user ? (
+        {!user ? (
+          <div className="mt-auto flex justify-end border-t border-white/10 pt-4">
             <button
               type="button"
               onClick={() => setIsLoginOpen(true)}
@@ -231,8 +237,8 @@ export function VideoStudyNotesPanel({
             >
               Войти
             </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </aside>
 
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />

@@ -97,7 +97,8 @@ describe('VideoStudyNotesPanel', () => {
     );
 
     expect(screen.getByLabelText('Заметки по лекции')).toHaveValue('Старый конспект\nКлючевой тезис из лекции');
-    expect(screen.getByRole('status', { name: 'Конспект сохранён' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Конспект сохранён' })).toBeInTheDocument();
+    expect(screen.getByText('Конспект сохранён')).toBeInTheDocument();
   });
 
   it('открывает логин-модалку для неавторизованного пользователя', async () => {
