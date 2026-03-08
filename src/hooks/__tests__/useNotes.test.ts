@@ -1,8 +1,12 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { onSnapshot } from 'firebase/firestore';
+import { getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../../auth/AuthProvider';
 import { useNotes } from '../useNotes';
+import {
+  buildLectureNoteDocumentId,
+  buildLectureNoteKey,
+} from '../../types/notes';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(() => ({})),
@@ -10,9 +14,11 @@ vi.mock('firebase/firestore', () => ({
   where: vi.fn(() => ({})),
   onSnapshot: vi.fn(() => vi.fn()),
   addDoc: vi.fn(),
+  getDoc: vi.fn(),
+  setDoc: vi.fn(),
   updateDoc: vi.fn(),
   deleteDoc: vi.fn(),
-  doc: vi.fn(),
+  doc: vi.fn((_db, collectionName, id) => ({ collectionName, id })),
   serverTimestamp: vi.fn(() => 'ts'),
 }));
 
@@ -26,10 +32,16 @@ vi.mock('../../lib/firebase', () => ({
 
 describe('useNotes', () => {
   const onSnapshotMock = vi.mocked(onSnapshot);
+  const getDocMock = vi.mocked(getDoc);
+  const setDocMock = vi.mocked(setDoc);
+  const updateDocMock = vi.mocked(updateDoc);
   const authMock = vi.mocked(useAuth);
 
   beforeEach(() => {
     onSnapshotMock.mockClear();
+    getDocMock.mockReset();
+    setDocMock.mockReset();
+    updateDocMock.mockReset();
     authMock.mockReset();
   });
 
@@ -45,5 +57,77 @@ describe('useNotes', () => {
     expect(onSnapshotMock).not.toHaveBeenCalled();
     expect(result.current.notes).toEqual([]);
     expect(result.current.error).toBeNull();
+  });
+
+  it('создаёт lecture note c детерминированным id и универсальным контекстом', async () => {
+    authMock.mockReturnValue({ user: { uid: 'user-123' } });
+    getDocMock.mockResolvedValue({ exists: () => false } as never);
+
+    const { result } = renderHook(() => useNotes(null, { subscribe: false }));
+
+    await result.current.upsertLectureNote('Новый конспект', {
+      courseId: 'development',
+      periodId: 'seminary',
+      periodTitle: 'Семинары',
+      lectureTitle: 'Семинары',
+      lectureVideoId: 'eGCP_Fk7AeU',
+    });
+
+    const expectedId = buildLectureNoteDocumentId('user-123', {
+      courseId: 'development',
+      periodId: 'seminary',
+      lectureVideoId: 'eGCP_Fk7AeU',
+    });
+
+    expect(setDocMock).toHaveBeenCalledWith(
+      { collectionName: 'notes', id: expectedId },
+      expect.objectContaining({
+        title: 'Семинары',
+        content: 'Новый конспект',
+        courseId: 'development',
+        periodId: 'seminary',
+        periodTitle: 'Семинары',
+        lectureVideoId: 'eGCP_Fk7AeU',
+        lectureKey: buildLectureNoteKey({
+          courseId: 'development',
+          periodId: 'seminary',
+          lectureVideoId: 'eGCP_Fk7AeU',
+        }),
+        noteScope: 'lecture',
+      })
+    );
+    expect(updateDocMock).not.toHaveBeenCalled();
+  });
+
+  it('обновляет существующую lecture note вместо создания новой', async () => {
+    authMock.mockReturnValue({ user: { uid: 'user-123' } });
+    getDocMock.mockResolvedValue({ exists: () => true } as never);
+
+    const { result } = renderHook(() => useNotes(null, { subscribe: false }));
+
+    await result.current.upsertLectureNote('Обновлённый конспект', {
+      courseId: 'development',
+      periodId: 'seminary',
+      periodTitle: 'Семинары',
+      lectureTitle: 'Семинары',
+      lectureVideoId: 'eGCP_Fk7AeU',
+    });
+
+    const expectedId = buildLectureNoteDocumentId('user-123', {
+      courseId: 'development',
+      periodId: 'seminary',
+      lectureVideoId: 'eGCP_Fk7AeU',
+    });
+
+    expect(updateDocMock).toHaveBeenCalledWith(
+      { collectionName: 'notes', id: expectedId },
+      expect.objectContaining({
+        content: 'Обновлённый конспект',
+        courseId: 'development',
+        periodId: 'seminary',
+        noteScope: 'lecture',
+      })
+    );
+    expect(setDocMock).not.toHaveBeenCalled();
   });
 });

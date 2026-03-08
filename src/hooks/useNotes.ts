@@ -8,11 +8,21 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  getDoc,
   serverTimestamp,
+  setDoc,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../auth/AuthProvider';
-import { type Note, type AgeRange, AGE_RANGE_LABELS, normalizeAgeRange } from '../types/notes';
+import {
+  type Note,
+  type AgeRange,
+  type LectureNoteContext,
+  AGE_RANGE_LABELS,
+  buildLectureNoteDocumentId,
+  buildLectureNoteKey,
+  normalizeAgeRange,
+} from '../types/notes';
 import { reportAppError } from '../lib/errorHandler';
 import { debugLog, debugError } from '../lib/debug';
 
@@ -64,8 +74,8 @@ export function useNotes(ageRangeFilter?: AgeRange | null, options: UseNotesOpti
           const data = docSnap.data();
           debugLog('[useNotes] Note document:', docSnap.id, data);
           const ageRange = normalizeAgeRange(data.ageRange ?? data.periodId);
-          const periodId = normalizeAgeRange(data.periodId ?? ageRange);
-          const periodTitle = data.periodTitle ?? (periodId ? AGE_RANGE_LABELS[periodId] : null);
+          const periodId = typeof data.periodId === 'string' ? data.periodId : ageRange;
+          const periodTitle = data.periodTitle ?? (ageRange ? AGE_RANGE_LABELS[ageRange] : null);
           return {
             id: docSnap.id,
             userId: data.userId || '',
@@ -74,6 +84,10 @@ export function useNotes(ageRangeFilter?: AgeRange | null, options: UseNotesOpti
             ageRange,
             periodId: periodId ?? null,
             periodTitle: periodTitle ?? null,
+            courseId: typeof data.courseId === 'string' ? data.courseId : null,
+            noteScope: data.noteScope === 'lecture' || data.noteScope === 'timeline' ? data.noteScope : 'manual',
+            lectureVideoId: typeof data.lectureVideoId === 'string' ? data.lectureVideoId : null,
+            lectureKey: typeof data.lectureKey === 'string' ? data.lectureKey : null,
             topicId: data.topicId || null,
             topicTitle: data.topicTitle ?? null,
             createdAt: data.createdAt?.toDate?.() || new Date(),
@@ -143,6 +157,49 @@ export function useNotes(ageRangeFilter?: AgeRange | null, options: UseNotesOpti
       }
     };
 
+  const upsertLectureNote = async (content: string, context: LectureNoteContext) => {
+    if (!user) {
+      debugError('[useNotes] Cannot upsert lecture note: user not authenticated');
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      const normalizedAgeRange = normalizeAgeRange(context.periodId);
+      const lectureDocId = buildLectureNoteDocumentId(user.uid, context);
+      const noteRef = doc(db, 'notes', lectureDocId);
+      const existingNote = await getDoc(noteRef);
+      const payload = {
+        userId: user.uid,
+        title: context.lectureTitle || 'Без названия',
+        content: content || '',
+        ageRange: normalizedAgeRange,
+        periodId: context.periodId,
+        periodTitle: context.periodTitle || (normalizedAgeRange ? AGE_RANGE_LABELS[normalizedAgeRange] : null),
+        courseId: context.courseId,
+        noteScope: 'lecture' as const,
+        lectureVideoId: context.lectureVideoId,
+        lectureKey: buildLectureNoteKey(context),
+        topicId: null,
+        topicTitle: null,
+        updatedAt: serverTimestamp(),
+      };
+
+      if (existingNote.exists()) {
+        await updateDoc(noteRef, payload);
+        return lectureDocId;
+      }
+
+      await setDoc(noteRef, {
+        ...payload,
+        createdAt: serverTimestamp(),
+      });
+      return lectureDocId;
+    } catch (error) {
+      reportAppError({ message: 'Не удалось сохранить заметку по лекции', error, context: 'useNotes.upsertLectureNote' });
+      throw error;
+    }
+  };
+
   const updateNote = async (
     noteId: string,
     updates: Partial<Pick<Note, 'title' | 'content' | 'ageRange' | 'topicId' | 'topicTitle'>>
@@ -200,6 +257,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null, options: UseNotesOpti
     loading,
     error,
     createNote,
+    upsertLectureNote,
     updateNote,
     deleteNote,
   };
