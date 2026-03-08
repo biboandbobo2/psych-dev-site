@@ -10,3 +10,4 @@ export * from './firestoreHelpers';
 export * from './testAccess';
 export * from './testResults';
 export * from './tests';
+export * from './videoTranscripts';
