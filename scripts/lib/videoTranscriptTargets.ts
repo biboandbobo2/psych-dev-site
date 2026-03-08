@@ -44,6 +44,26 @@ function getVideoEntries(data: Record<string, any>, fallbackTitle: string) {
   return candidates;
 }
 
+export function buildManualTranscriptTarget(video: string): TranscriptImportTarget {
+  const youtubeVideoId = getYouTubeVideoId(video);
+  if (!youtubeVideoId) {
+    throw new Error(`Не удалось извлечь YouTube videoId из: ${video}`);
+  }
+
+  return {
+    youtubeVideoId,
+    references: [
+      {
+        courseId: 'manual',
+        lessonId: youtubeVideoId,
+        sourcePath: 'manual',
+        title: youtubeVideoId,
+        url: video,
+      },
+    ],
+  };
+}
+
 export async function collectTranscriptTargets(db: FirebaseFirestore.Firestore) {
   const targets = new Map<string, TranscriptImportTarget>();
 

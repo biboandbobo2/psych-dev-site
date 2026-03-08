@@ -1,114 +1,25 @@
 import { Timestamp } from 'firebase-admin/firestore';
-import {
-  YoutubeTranscriptDisabledError,
-  YoutubeTranscriptInvalidVideoIdError,
-  YoutubeTranscriptNotAvailableError,
-  YoutubeTranscriptNotAvailableLanguageError,
-  YoutubeTranscriptTooManyRequestError,
-  YoutubeTranscriptVideoUnavailableError,
-  fetchTranscript,
-  type TranscriptResponse,
-} from 'youtube-transcript-plus';
 import { initAdmin } from './_adminInit';
 import { parseTranscriptImportArgs } from './lib/videoTranscriptImportArgs';
-import { collectTranscriptTargets } from './lib/videoTranscriptTargets';
-import {
-  buildTranscriptFullText,
-  buildTranscriptPreview,
-  buildVideoTranscriptStoragePath,
-  getTranscriptDurationMs,
-  getYouTubeVideoId,
-} from '../src/lib/videoTranscripts';
-import {
-  VIDEO_TRANSCRIPTS_COLLECTION,
-  VIDEO_TRANSCRIPT_VERSION,
-  type VideoTranscriptSegment,
-  type VideoTranscriptStoragePayload,
-} from '../src/types/videoTranscripts';
+import { VIDEO_TRANSCRIPTS_COLLECTION } from '../src/types/videoTranscripts';
 import type {
   ImportOptions,
   ImportStatus,
-  TranscriptImportResult,
   TranscriptImportTarget,
 } from './lib/videoTranscriptImportTypes';
-
-function normalizeSegments(transcript: TranscriptResponse[]): VideoTranscriptSegment[] {
-  return transcript.map((segment, index) => {
-    const startMs = Math.round(segment.offset * 1000);
-    const durationMs = Math.max(0, Math.round(segment.duration * 1000));
-
-    return {
-      index,
-      startMs,
-      endMs: startMs + durationMs,
-      durationMs,
-      text: segment.text.trim(),
-    };
-  });
-}
-
-function mapErrorCode(error: unknown) {
-  if (error instanceof YoutubeTranscriptDisabledError) return 'TRANSCRIPT_DISABLED';
-  if (error instanceof YoutubeTranscriptNotAvailableError) return 'TRANSCRIPT_NOT_AVAILABLE';
-  if (error instanceof YoutubeTranscriptNotAvailableLanguageError) return 'TRANSCRIPT_LANGUAGE_NOT_AVAILABLE';
-  if (error instanceof YoutubeTranscriptVideoUnavailableError) return 'VIDEO_UNAVAILABLE';
-  if (error instanceof YoutubeTranscriptTooManyRequestError) return 'YOUTUBE_RATE_LIMITED';
-  if (error instanceof YoutubeTranscriptInvalidVideoIdError) return 'INVALID_VIDEO_ID';
-  return 'UNKNOWN';
-}
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return String(error);
-}
-
-function isUnavailableError(error: unknown) {
-  return (
-    error instanceof YoutubeTranscriptDisabledError ||
-    error instanceof YoutubeTranscriptNotAvailableError ||
-    error instanceof YoutubeTranscriptNotAvailableLanguageError ||
-    error instanceof YoutubeTranscriptVideoUnavailableError ||
-    error instanceof YoutubeTranscriptInvalidVideoIdError
-  );
-}
-
-async function fetchTranscriptWithFallbacks(
-  youtubeVideoId: string,
-  langs: string[]
-): Promise<TranscriptImportResult> {
-  const availableLanguages = new Set<string>();
-
-  for (const lang of langs) {
-    try {
-      const transcript = await fetchTranscript(youtubeVideoId, { lang });
-      return {
-        availableLanguages: [...availableLanguages, lang],
-        language: transcript[0]?.lang ?? lang,
-        segments: normalizeSegments(transcript),
-      };
-    } catch (error) {
-      if (error instanceof YoutubeTranscriptNotAvailableLanguageError) {
-        error.availableLangs.forEach((availableLang) => availableLanguages.add(availableLang));
-        continue;
-      }
-      throw error;
-    }
-  }
-
-  const transcript = await fetchTranscript(youtubeVideoId);
-  const detectedLanguage = transcript[0]?.lang ?? null;
-  if (detectedLanguage) {
-    availableLanguages.add(detectedLanguage);
-  }
-
-  return {
-    availableLanguages: [...availableLanguages],
-    language: detectedLanguage,
-    segments: normalizeSegments(transcript),
-  };
-}
+import { buildManualTranscriptTarget, collectTranscriptTargets } from './lib/videoTranscriptTargets';
+import {
+  buildTranscriptAvailablePayload,
+  buildTranscriptFailedDoc,
+  buildTranscriptPendingDoc,
+} from './lib/videoTranscriptPersistence';
+import {
+  fetchTranscriptWithFallbacks,
+  getAvailableLanguagesFromError,
+  getTranscriptErrorMessage,
+  mapTranscriptErrorCode,
+  resolveTranscriptFailureStatus,
+} from './lib/youtubeTranscriptFetcher';
 
 async function upsertTranscript(
   admin: ReturnType<typeof initAdmin>,
@@ -133,13 +44,7 @@ async function upsertTranscript(
   }
 
   const now = Timestamp.now();
-  const pendingPayload = {
-    youtubeVideoId: target.youtubeVideoId,
-    source: 'youtube' as const,
-    status: 'pending' as const,
-    updatedAt: now,
-    lastCheckedAt: now,
-  };
+  const pendingPayload = buildTranscriptPendingDoc(target.youtubeVideoId, now);
 
   if (!options.dryRun && docRef) {
     await docRef.set(pendingPayload, { merge: true });
@@ -147,55 +52,15 @@ async function upsertTranscript(
 
   try {
     const transcript = await fetchTranscriptWithFallbacks(target.youtubeVideoId, options.langs);
-    const fullText = buildTranscriptFullText(transcript.segments);
-    const durationMs = getTranscriptDurationMs(transcript.segments);
-    const storagePath = buildVideoTranscriptStoragePath(
-      target.youtubeVideoId,
-      VIDEO_TRANSCRIPT_VERSION
-    );
-
-    const payload: VideoTranscriptStoragePayload = {
-      youtubeVideoId: target.youtubeVideoId,
-      version: VIDEO_TRANSCRIPT_VERSION,
-      source: 'youtube',
-      language: transcript.language,
-      languageName: null,
-      isAutoGenerated: null,
-      fetchedAt: new Date().toISOString(),
-      durationMs,
-      fullText,
-      segments: transcript.segments,
-    };
+    const availablePayload = buildTranscriptAvailablePayload(target, transcript, now);
 
     if (!options.dryRun && docRef && bucket) {
-      await bucket.file(storagePath).save(JSON.stringify(payload, null, 2), {
+      await bucket.file(availablePayload.storagePath).save(JSON.stringify(availablePayload.storagePayload, null, 2), {
         contentType: 'application/json; charset=utf-8',
         resumable: false,
       });
 
-      await docRef.set(
-        {
-          availableLanguages: transcript.availableLanguages,
-          durationMs,
-          errorCode: null,
-          errorMessage: null,
-          fetchedAt: now,
-          fullTextPreview: buildTranscriptPreview(fullText),
-          isAutoGenerated: null,
-          language: transcript.language,
-          languageName: null,
-          lastCheckedAt: now,
-          segmentCount: transcript.segments.length,
-          source: 'youtube',
-          status: 'available',
-          storagePath,
-          textLength: fullText.length,
-          updatedAt: now,
-          version: VIDEO_TRANSCRIPT_VERSION,
-          youtubeVideoId: target.youtubeVideoId,
-        },
-        { merge: true }
-      );
+      await docRef.set(availablePayload.docPayload, { merge: true });
     }
 
     return {
@@ -205,31 +70,20 @@ async function upsertTranscript(
       youtubeVideoId: target.youtubeVideoId,
     };
   } catch (error) {
-    const status: ImportStatus = isUnavailableError(error) ? 'unavailable' : 'failed';
-    const errorCode = mapErrorCode(error);
-    const errorMessage = getErrorMessage(error);
+    const status: ImportStatus = resolveTranscriptFailureStatus(error);
+    const errorCode = mapTranscriptErrorCode(error);
+    const errorMessage = getTranscriptErrorMessage(error);
 
     if (!options.dryRun && docRef) {
       await docRef.set(
-        {
-          availableLanguages:
-            error instanceof YoutubeTranscriptNotAvailableLanguageError ? error.availableLangs : [],
-          durationMs: null,
+        buildTranscriptFailedDoc(
+          target.youtubeVideoId,
+          status,
           errorCode,
           errorMessage,
-          fullTextPreview: null,
-          language: null,
-          languageName: null,
-          lastCheckedAt: now,
-          segmentCount: 0,
-          source: 'youtube',
-          status,
-          storagePath: null,
-          textLength: 0,
-          updatedAt: now,
-          version: VIDEO_TRANSCRIPT_VERSION,
-          youtubeVideoId: target.youtubeVideoId,
-        },
+          getAvailableLanguagesFromError(error),
+          now
+        ),
         { merge: true }
       );
     }
@@ -258,27 +112,7 @@ async function run() {
   );
 
   const targets = options.video
-    ? (() => {
-        const youtubeVideoId = getYouTubeVideoId(options.video);
-        if (!youtubeVideoId) {
-          throw new Error(`Не удалось извлечь YouTube videoId из: ${options.video}`);
-        }
-
-        return [
-          {
-            youtubeVideoId,
-            references: [
-              {
-                courseId: 'manual',
-                lessonId: youtubeVideoId,
-                sourcePath: 'manual',
-                title: youtubeVideoId,
-                url: options.video,
-              },
-            ],
-          },
-        ] satisfies TranscriptImportTarget[];
-      })()
+    ? [buildManualTranscriptTarget(options.video)]
     : await collectTranscriptTargets(admin.db);
 
   const limitedTargets = options.limit ? targets.slice(0, options.limit) : targets;
