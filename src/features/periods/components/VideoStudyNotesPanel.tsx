@@ -211,7 +211,7 @@ export function VideoStudyNotesPanel({
               <span className={`h-2.5 w-2.5 rounded-full ${indicatorClassName}`} />
             </button>
 
-            <div className="pointer-events-none absolute right-4 top-12 z-10 max-w-[12rem] translate-y-1 rounded-xl border border-white/10 bg-[#11161d]/95 px-3 py-2 text-xs leading-5 text-white/80 opacity-0 shadow-2xl transition duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
+            <div className="pointer-events-none absolute right-4 top-12 z-10 max-w-[12rem] translate-y-1 rounded-xl border border-white/10 bg-[#11161d]/95 px-3 py-2 text-xs leading-5 text-white/80 opacity-0 shadow-2xl transition duration-150 group-hover:translate-y-0 group-hover:opacity-100">
               {statusLabel}
             </div>
 
