@@ -10,6 +10,8 @@ import {
   type TranscriptResponse,
 } from 'youtube-transcript-plus';
 import { initAdmin } from './_adminInit';
+import { parseTranscriptImportArgs } from './lib/videoTranscriptImportArgs';
+import { collectTranscriptTargets } from './lib/videoTranscriptTargets';
 import {
   buildTranscriptFullText,
   buildTranscriptPreview,
@@ -23,175 +25,12 @@ import {
   type VideoTranscriptSegment,
   type VideoTranscriptStoragePayload,
 } from '../src/types/videoTranscripts';
-
-type ImportStatus = 'available' | 'unavailable' | 'failed';
-
-interface ImportOptions {
-  dryRun: boolean;
-  force: boolean;
-  langs: string[];
-  limit: number | null;
-  video: string | null;
-}
-
-interface VideoReference {
-  courseId: string;
-  lessonId: string;
-  sourcePath: string;
-  title: string;
-  url: string;
-}
-
-interface TranscriptImportTarget {
-  youtubeVideoId: string;
-  references: VideoReference[];
-}
-
-interface TranscriptImportResult {
-  availableLanguages: string[];
-  language: string | null;
-  segments: VideoTranscriptSegment[];
-}
-
-function parseArgs(argv: string[]): ImportOptions {
-  const args = new Map<string, string>();
-  const flags = new Set<string>();
-
-  argv.forEach((arg) => {
-    if (!arg.startsWith('--')) {
-      return;
-    }
-
-    const normalized = arg.slice(2);
-    const separatorIndex = normalized.indexOf('=');
-    if (separatorIndex === -1) {
-      flags.add(normalized);
-      return;
-    }
-
-    args.set(normalized.slice(0, separatorIndex), normalized.slice(separatorIndex + 1));
-  });
-
-  const rawLimit = args.get('limit');
-  const parsedLimit = rawLimit ? Number.parseInt(rawLimit, 10) : null;
-
-  return {
-    dryRun: flags.has('dry-run'),
-    force: flags.has('force'),
-    langs: (args.get('langs') ?? 'ru,en')
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean),
-    limit: Number.isFinite(parsedLimit) ? parsedLimit : null,
-    video: args.get('video')?.trim() || null,
-  };
-}
-
-function getVideoEntries(data: Record<string, any>, fallbackTitle: string) {
-  const candidates: Array<{ title: string; url: string }> = [];
-  const sections = data.sections ?? {};
-  const sectionEntries = sections.video_section?.content ?? sections.video?.content;
-
-  if (Array.isArray(sectionEntries)) {
-    sectionEntries.forEach((entry: any) => {
-      const url = typeof entry?.url === 'string' ? entry.url.trim() : '';
-      if (!url) return;
-      candidates.push({
-        title: typeof entry?.title === 'string' && entry.title.trim() ? entry.title.trim() : fallbackTitle,
-        url,
-      });
-    });
-  }
-
-  if (!candidates.length && typeof data.video_url === 'string' && data.video_url.trim()) {
-    candidates.push({
-      title: fallbackTitle,
-      url: data.video_url.trim(),
-    });
-  }
-
-  if (!candidates.length && Array.isArray(data.video_playlist)) {
-    data.video_playlist.forEach((entry: any) => {
-      const url = typeof entry?.url === 'string' ? entry.url.trim() : '';
-      if (!url) return;
-      candidates.push({
-        title: typeof entry?.title === 'string' && entry.title.trim() ? entry.title.trim() : fallbackTitle,
-        url,
-      });
-    });
-  }
-
-  return candidates;
-}
-
-async function collectTranscriptTargets() {
-  const { db } = initAdmin();
-  const targets = new Map<string, TranscriptImportTarget>();
-
-  const registerDocVideos = (
-    docPath: string,
-    courseId: string,
-    lessonId: string,
-    data: Record<string, any>
-  ) => {
-    const fallbackTitle =
-      (typeof data.title === 'string' && data.title.trim()) ||
-      (typeof data.label === 'string' && data.label.trim()) ||
-      lessonId;
-
-    getVideoEntries(data, fallbackTitle).forEach((video) => {
-      const youtubeVideoId = getYouTubeVideoId(video.url);
-      if (!youtubeVideoId) {
-        return;
-      }
-
-      const current = targets.get(youtubeVideoId) ?? {
-        youtubeVideoId,
-        references: [],
-      };
-
-      current.references.push({
-        courseId,
-        lessonId,
-        sourcePath: docPath,
-        title: video.title,
-        url: video.url,
-      });
-      targets.set(youtubeVideoId, current);
-    });
-  };
-
-  const scanCollection = async (collectionName: string, courseId: string) => {
-    const snapshot = await db.collection(collectionName).get();
-    snapshot.forEach((docSnap) => {
-      registerDocVideos(`${collectionName}/${docSnap.id}`, courseId, docSnap.id, docSnap.data());
-    });
-  };
-
-  await scanCollection('periods', 'development');
-  await scanCollection('clinical-topics', 'clinical');
-  await scanCollection('general-topics', 'general');
-
-  const introSingleton = await db.collection('intro').doc('singleton').get();
-  if (introSingleton.exists) {
-    registerDocVideos('intro/singleton', 'development', 'intro', introSingleton.data() ?? {});
-  }
-
-  const coursesSnapshot = await db.collection('courses').get();
-  for (const courseSnap of coursesSnapshot.docs) {
-    const lessonsSnapshot = await db.collection('courses').doc(courseSnap.id).collection('lessons').get();
-    lessonsSnapshot.forEach((lessonSnap) => {
-      registerDocVideos(
-        `courses/${courseSnap.id}/lessons/${lessonSnap.id}`,
-        courseSnap.id,
-        lessonSnap.id,
-        lessonSnap.data()
-      );
-    });
-  }
-
-  return [...targets.values()].sort((a, b) => a.youtubeVideoId.localeCompare(b.youtubeVideoId));
-}
+import type {
+  ImportOptions,
+  ImportStatus,
+  TranscriptImportResult,
+  TranscriptImportTarget,
+} from './lib/videoTranscriptImportTypes';
 
 function normalizeSegments(transcript: TranscriptResponse[]): VideoTranscriptSegment[] {
   return transcript.map((segment, index) => {
@@ -272,16 +111,19 @@ async function fetchTranscriptWithFallbacks(
 }
 
 async function upsertTranscript(
+  admin: ReturnType<typeof initAdmin>,
   target: TranscriptImportTarget,
   options: ImportOptions
 ) {
   let docRef: FirebaseFirestore.DocumentReference | null = null;
-  let bucket: ReturnType<typeof initAdmin>['bucket'] | null = null;
+  const { bucket, db } = admin;
 
   if (!options.dryRun) {
-    const admin = initAdmin();
-    bucket = admin.bucket;
-    docRef = admin.db.collection(VIDEO_TRANSCRIPTS_COLLECTION).doc(target.youtubeVideoId);
+    if (!bucket) {
+      throw new Error('Storage bucket не настроен. Укажите FIREBASE_STORAGE_BUCKET или VITE_FIREBASE_STORAGE_BUCKET.');
+    }
+
+    docRef = db.collection(VIDEO_TRANSCRIPTS_COLLECTION).doc(target.youtubeVideoId);
     const existingSnapshot = await docRef.get();
     const existingData = existingSnapshot.data() as Record<string, any> | undefined;
 
@@ -402,11 +244,12 @@ async function upsertTranscript(
 }
 
 async function run() {
-  const options = parseArgs(process.argv.slice(2));
+  const options = parseTranscriptImportArgs(process.argv.slice(2));
+  const admin = initAdmin();
 
   console.log('🎬 Импорт транскриптов YouTube');
   if (!options.dryRun || !options.video) {
-    const { projectId, storageBucket } = initAdmin();
+    const { projectId, storageBucket } = admin;
     console.log(`Project: ${projectId ?? 'unknown'}`);
     console.log(`Storage bucket: ${storageBucket ?? 'unknown'}`);
   }
@@ -436,7 +279,7 @@ async function run() {
           },
         ] satisfies TranscriptImportTarget[];
       })()
-    : await collectTranscriptTargets();
+    : await collectTranscriptTargets(admin.db);
 
   const limitedTargets = options.limit ? targets.slice(0, options.limit) : targets;
   console.log(`Найдено YouTube видео: ${targets.length}. К обработке: ${limitedTargets.length}`);
@@ -462,7 +305,7 @@ async function run() {
 
   for (const [index, target] of limitedTargets.entries()) {
     console.log(`[${index + 1}/${limitedTargets.length}] ${target.youtubeVideoId}`);
-    const result = await upsertTranscript(target, options);
+    const result = await upsertTranscript(admin, target, options);
 
     if (result.status === 'available') {
       summary.available += 1;

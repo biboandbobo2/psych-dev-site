@@ -38,13 +38,13 @@ export function initAdmin() {
   const app = getApp();
   const db = getFirestore();
   const storage = getStorage(app);
-  const bucket = storage.bucket();
+  const bucket = app.options.storageBucket ? storage.bucket(app.options.storageBucket) : null;
   return {
     app,
     bucket,
     db,
     projectId,
     storage,
-    storageBucket: app.options.storageBucket ?? bucket.name,
+    storageBucket: app.options.storageBucket ?? null,
   };
 }
