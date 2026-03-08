@@ -73,7 +73,6 @@ describe('VideoStudyNotesPanel', () => {
     await act(async () => {});
 
     expect(screen.getByLabelText('Заметки по лекции')).toHaveValue('Старый конспект');
-    expect(screen.getByRole('button', { name: 'Сохранить' })).toBeInTheDocument();
     expect(screen.queryByText('Загружаем прошлый конспект...')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Заметки по лекции'), {
@@ -92,13 +91,13 @@ describe('VideoStudyNotesPanel', () => {
           lectureTitle: 'Лекция 1',
           lectureVideoId: 'video-1',
           periodId: 'school',
-          periodTitle: 'Младший школьный возраст (7-10 лет)',
+          periodTitle: 'Младший школьный возраст',
         }
       )
     );
 
     expect(screen.getByLabelText('Заметки по лекции')).toHaveValue('Старый конспект\nКлючевой тезис из лекции');
-    expect(screen.getByText('Сохранено в /notes')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Конспект сохранён' })).toBeInTheDocument();
   });
 
   it('открывает логин-модалку для неавторизованного пользователя', async () => {

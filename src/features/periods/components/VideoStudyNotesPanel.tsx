@@ -3,7 +3,6 @@ import LoginModal from '../../../components/LoginModal';
 import { useNotes } from '../../../hooks/useNotes';
 import { debugError } from '../../../lib/debug';
 import { useAuthStore } from '../../../stores/useAuthStore';
-import { AGE_RANGE_LABELS, normalizeAgeRange } from '../../../types/notes';
 
 interface VideoStudyNotesPanelProps {
   courseId: string;
@@ -17,8 +16,6 @@ interface VideoStudyNotesPanelProps {
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
-const LECTURE_NOTE_TITLE = 'Заметки по лекции';
-
 export function VideoStudyNotesPanel({
   courseId,
   draftContent,
@@ -30,17 +27,15 @@ export function VideoStudyNotesPanel({
 }: VideoStudyNotesPanelProps) {
   const user = useAuthStore((state) => state.user);
   const { getLectureNote, upsertLectureNote } = useNotes(undefined, { subscribe: false });
-  const resolvedAgeRange = useMemo(() => normalizeAgeRange(periodId), [periodId]);
-  const resolvedPeriodTitle = resolvedAgeRange ? AGE_RANGE_LABELS[resolvedAgeRange] : periodTitle.trim();
   const lectureContext = useMemo(
     () => ({
       courseId,
       periodId: periodId ?? lectureResourceId,
-      periodTitle: resolvedPeriodTitle || periodTitle.trim() || videoTitle,
+      periodTitle: periodTitle.trim() || videoTitle,
       lectureTitle: videoTitle,
       lectureVideoId: lectureResourceId,
     }),
-    [courseId, lectureResourceId, periodId, periodTitle, resolvedPeriodTitle, videoTitle]
+    [courseId, lectureResourceId, periodId, periodTitle, videoTitle]
   );
 
   const [saving, setSaving] = useState(false);
@@ -187,31 +182,26 @@ export function VideoStudyNotesPanel({
     ? saveState === 'saving'
       ? 'Автосохранение...'
       : saveState === 'saved'
-      ? 'Сохранено в /notes'
+      ? 'Конспект сохранён'
       : saveState === 'error'
-      ? 'Ошибка автосохранения'
-      : 'Автосохранение включено'
-    : 'Нужен вход для автосохранения';
+      ? 'Ошибка сохранения'
+      : 'Есть несохранённые изменения'
+    : 'Войдите, чтобы сохранять конспект';
+
+  const indicatorClassName = user
+    ? saveState === 'saved'
+      ? 'bg-emerald-400 shadow-[0_0_0_4px_rgba(52,211,153,0.15)]'
+      : saveState === 'saving'
+      ? 'bg-amber-300 shadow-[0_0_0_4px_rgba(252,211,77,0.15)]'
+      : saveState === 'error'
+      ? 'bg-rose-400 shadow-[0_0_0_4px_rgba(251,113,133,0.15)]'
+      : 'bg-white/35 shadow-[0_0_0_4px_rgba(255,255,255,0.08)]'
+    : 'bg-white/20 shadow-[0_0_0_4px_rgba(255,255,255,0.08)]';
 
   return (
     <>
       <aside className="flex h-full min-h-0 flex-col px-4 py-4 text-white lg:px-5 lg:py-5">
-        <div className="border-b border-white/10 pb-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/45">
-              Режим конспекта
-            </p>
-            {resolvedPeriodTitle ? (
-              <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-white/60">
-                {resolvedPeriodTitle}
-              </span>
-            ) : null}
-          </div>
-          <h3 className="mt-3 text-lg font-semibold text-white">{LECTURE_NOTE_TITLE}</h3>
-          <p className="mt-2 text-sm leading-6 text-white/55 line-clamp-2">{videoTitle}</p>
-        </div>
-
-        <div className="flex-1 py-4">
+        <div className="flex-1 pb-4">
           <textarea
             value={draftContent}
             onChange={(event) => {
@@ -225,19 +215,15 @@ export function VideoStudyNotesPanel({
         </div>
 
         <div className="mt-auto flex items-center justify-between gap-3 border-t border-white/10 pt-4">
-          <span className="text-xs text-white/55">{statusLabel}</span>
-          {user ? (
-            <button
-              type="button"
-              onClick={() => {
-                void saveLectureNote(draftContent);
-              }}
-              disabled={saving || !draftContent.trim()}
-              className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving ? 'Сохранение...' : 'Сохранить'}
-            </button>
-          ) : (
+          <span
+            className="inline-flex h-3 w-3 shrink-0 rounded-full transition"
+            title={statusLabel}
+            aria-label={statusLabel}
+            role="status"
+          >
+            <span className={`h-3 w-3 rounded-full ${indicatorClassName}`} />
+          </span>
+          {!user ? (
             <button
               type="button"
               onClick={() => setIsLoginOpen(true)}
@@ -245,7 +231,7 @@ export function VideoStudyNotesPanel({
             >
               Войти
             </button>
-          )}
+          ) : null}
         </div>
       </aside>
 
