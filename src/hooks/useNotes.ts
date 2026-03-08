@@ -30,7 +30,7 @@ interface UseNotesOptions {
   subscribe?: boolean;
 }
 
-export function useNotes(ageRangeFilter?: AgeRange | null, options: UseNotesOptions = {}) {
+export function useNotes(periodFilter?: string | null, options: UseNotesOptions = {}) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,17 +53,17 @@ export function useNotes(ageRangeFilter?: AgeRange | null, options: UseNotesOpti
 
     let notesQuery;
 
-    if (ageRangeFilter !== undefined && ageRangeFilter !== null) {
+    if (periodFilter !== undefined && periodFilter !== null) {
       notesQuery = query(
         collection(db, 'notes'),
         where('userId', '==', user.uid),
-        where('ageRange', '==', ageRangeFilter)
+        where('periodId', '==', periodFilter)
       );
     } else {
       notesQuery = query(collection(db, 'notes'), where('userId', '==', user.uid));
     }
 
-    debugLog('[useNotes] Starting notes listener for user:', user.uid, 'ageRange:', ageRangeFilter);
+    debugLog('[useNotes] Starting notes listener for user:', user.uid, 'period:', periodFilter);
 
     const unsubscribe = onSnapshot(
       notesQuery,
@@ -117,7 +117,7 @@ export function useNotes(ageRangeFilter?: AgeRange | null, options: UseNotesOpti
       debugLog('[useNotes] Cleaning up notes listener');
       unsubscribe();
     };
-  }, [user, ageRangeFilter, subscribe]);
+  }, [user, periodFilter, subscribe]);
 
   const createNote = async (
     title: string,

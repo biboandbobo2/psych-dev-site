@@ -2,7 +2,6 @@ import { useEffect, useMemo } from 'react';
 import type { Test, TestQuestion, CourseType } from '../types/tests';
 import { THEME_PRESETS } from '../constants/themePresets';
 import { debugError } from '../lib/debug';
-import { ROUTE_CONFIG } from '../routes';
 import { TestQuestionsManager } from './tests/editor/TestQuestionsManager';
 import { TestBasicMetadata } from './tests/editor/TestBasicMetadata';
 import { TestPrerequisiteConfig } from './tests/editor/TestPrerequisiteConfig';
@@ -13,8 +12,7 @@ import { useTestEditorForm } from './tests/editor/hooks/useTestEditorForm';
 import { useTestTheme } from './tests/editor/hooks/useTestTheme';
 import { useTestPrerequisite } from './tests/editor/hooks/useTestPrerequisite';
 import { useTestSave } from './tests/editor/hooks/useTestSave';
-import { useClinicalTopics } from '../hooks/useClinicalTopics';
-import { useGeneralTopics } from '../hooks/useGeneralTopics';
+import { usePublishedLessonOptions } from '../hooks';
 
 interface TestEditorFormProps {
   testId: string | null;
@@ -33,34 +31,13 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
   const formHook = useTestEditorForm({ testId, importedData, defaultCourse });
   const themeHook = useTestTheme();
   const prerequisiteHook = useTestPrerequisite({ existingTests, testId });
-  const { topics: clinicalTopics } = useClinicalTopics();
-  const { topics: generalTopics } = useGeneralTopics();
+  const { courseOptions, rubricOptions } = usePublishedLessonOptions();
 
   // Build rubric options based on selected course
-  const rubricOptions = useMemo(() => {
-    const course = formHook.form.course;
-    const options: Record<string, string> = {};
-
-    if (course === 'development') {
-      ROUTE_CONFIG.forEach((route) => {
-        if (route.periodId && route.navLabel) {
-          options[route.periodId] = route.navLabel;
-        }
-      });
-    } else if (course === 'clinical') {
-      // For clinical course, use topics from clinical-topics collection
-      clinicalTopics.forEach((topic) => {
-        options[topic.period] = topic.title;
-      });
-    } else if (course === 'general') {
-      // For general course, use topics from general-topics collection
-      generalTopics.forEach((topic) => {
-        options[topic.period] = topic.title;
-      });
-    }
-
-    return options;
-  }, [formHook.form.course, clinicalTopics, generalTopics]);
+  const selectedRubricOptions = useMemo(
+    () => rubricOptions[formHook.form.course] ?? {},
+    [formHook.form.course, rubricOptions]
+  );
 
   const saveHook = useTestSave({
     testId,
@@ -171,9 +148,10 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
         titleHint={formHook.form.titleHint}
         course={formHook.form.course}
         onCourseChange={formHook.setters.setCourse}
+        courseOptions={courseOptions.map((course) => ({ id: course.id, name: course.name }))}
         rubric={formHook.form.rubric}
         onRubricChange={formHook.setters.setRubric}
-        rubricOptions={rubricOptions}
+        rubricOptions={selectedRubricOptions}
         questionCountInput={formHook.form.questionCountInput}
         onQuestionCountInputChange={formHook.handlers.handleQuestionCountInputChange}
         questionCountError={formHook.form.questionCountError}

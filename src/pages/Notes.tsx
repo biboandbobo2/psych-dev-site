@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNotes } from '../hooks/useNotes';
-import { type AgeRange, type Note } from '../types/notes';
+import { usePublishedLessonOptions } from '../hooks';
+import { type Note } from '../types/notes';
 import { sortNotes, type SortOption } from '../utils/sortNotes';
 import { NotesHeader } from './notes/components/NotesHeader';
 import { NotesList } from './notes/components/NotesList';
@@ -11,7 +12,7 @@ import { debugError } from '../lib/debug';
 const SORT_STORAGE_KEY = 'notesSortPreference';
 
 export default function Notes() {
-  const [selectedPeriod, setSelectedPeriod] = useState<'all' | AgeRange>('all');
+  const [selectedPeriod, setSelectedPeriod] = useState<'all' | string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>(() => {
     if (typeof window === 'undefined') return 'date-new';
@@ -27,8 +28,9 @@ export default function Notes() {
     window.localStorage.setItem(SORT_STORAGE_KEY, sortBy);
   }, [sortBy]);
 
-  const activeAgeRange = selectedPeriod === 'all' ? null : selectedPeriod;
-  const { notes, loading, error, createNote, updateNote, deleteNote } = useNotes(activeAgeRange);
+  const activePeriod = selectedPeriod === 'all' ? null : selectedPeriod;
+  const { lessonGroups } = usePublishedLessonOptions();
+  const { notes, loading, error, createNote, updateNote, deleteNote } = useNotes(activePeriod);
 
   const sortedNotes = useMemo(() => sortNotes(notes, sortBy), [notes, sortBy]);
 
@@ -151,6 +153,7 @@ export default function Notes() {
         onToggleStats={() => setShowStats((prev) => !prev)}
         onCreate={handleCreateNote}
         notesForExport={displayNotes}
+        lessonGroups={lessonGroups}
       />
 
       {displayNotes.length === 0 ? (
@@ -173,7 +176,7 @@ export default function Notes() {
       <NotesEditor
         isOpen={isModalOpen}
         editingNote={editingNote}
-        activeAgeRange={selectedPeriod === 'all' ? null : selectedPeriod}
+        activeAgeRange={null}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveNote}
       />

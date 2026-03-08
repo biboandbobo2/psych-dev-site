@@ -1,11 +1,5 @@
-import type { TestRubric, CourseType, CoreCourseType } from '../../../types/tests';
+import type { TestRubric, CourseType } from '../../../types/tests';
 import { Field } from '../../Field';
-
-const COURSE_LABELS: Record<CoreCourseType, string> = {
-  development: 'Психология развития',
-  clinical: 'Клиническая психология',
-  general: 'Общая психология',
-};
 
 const CONTROL =
   'h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-[15px] leading-none outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500';
@@ -23,6 +17,7 @@ interface TestBasicMetadataProps {
 
   course: CourseType;
   onCourseChange: (value: CourseType) => void;
+  courseOptions: Array<{ id: string; name: string }>;
 
   rubric: TestRubric;
   onRubricChange: (value: TestRubric) => void;
@@ -43,6 +38,7 @@ export function TestBasicMetadata({
   titleHint,
   course,
   onCourseChange,
+  courseOptions,
   rubric,
   onRubricChange,
   rubricOptions,
@@ -101,9 +97,9 @@ export function TestBasicMetadata({
               className={controlClass(false, 'appearance-none pr-8')}
               disabled={saving}
             >
-              {Object.entries(COURSE_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
+              {courseOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
                 </option>
               ))}
             </select>

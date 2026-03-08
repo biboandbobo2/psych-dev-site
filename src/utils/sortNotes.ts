@@ -1,4 +1,4 @@
-import { type Note, type AgeRange, AGE_RANGE_ORDER } from '../types/notes';
+import { type Note, type AgeRange, AGE_RANGE_ORDER, normalizeAgeRange } from '../types/notes';
 
 export type SortOption = 'date-new' | 'date-old' | 'period';
 
@@ -23,9 +23,11 @@ const getDate = (value: Date | undefined): number => {
 const compareDateDesc = (a: Note, b: Note) => getDate(b.createdAt) - getDate(a.createdAt);
 const compareDateAsc = (a: Note, b: Note) => getDate(a.createdAt) - getDate(b.createdAt);
 
-const getPeriodKey = (note: Note): AgeRange | null => {
-  return (note.periodId ?? note.ageRange ?? null) as AgeRange | null;
-};
+const getPeriodKey = (note: Note): AgeRange | null =>
+  normalizeAgeRange(note.ageRange ?? note.periodId ?? null);
+
+const getPeriodLabel = (note: Note): string =>
+  String(note.periodTitle || note.title || note.periodId || '').trim().toLowerCase();
 
 export function sortNotes(notes: Note[], sortBy: SortOption): Note[] {
   const copy = [...notes];
@@ -51,6 +53,11 @@ export function sortNotes(notes: Note[], sortBy: SortOption): Note[] {
 
         if (indexA !== indexB) {
           return indexA - indexB;
+        }
+
+        const labelCompare = getPeriodLabel(a).localeCompare(getPeriodLabel(b), 'ru');
+        if (labelCompare !== 0) {
+          return labelCompare;
         }
 
         return compareDateDesc(a, b);

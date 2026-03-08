@@ -11,6 +11,7 @@ export { useAuthSync } from './useAuthSync';
 export { useLoginModal } from './useLoginModal';
 export { useNotes } from './useNotes';
 export { usePeriods } from './usePeriods';
+export { usePublishedLessonOptions } from './usePublishedLessonOptions';
 export { useQuestionNavigation } from './useQuestionNavigation';
 export { useTestProgress } from './useTestProgress';
 export { useTimeline } from './useTimeline';

@@ -1,11 +1,11 @@
-import { PERIOD_FILTER_GROUPS } from '../../../utils/periodConfig';
 import { ExportNotesButton } from '../../../components/ExportNotesButton';
-import type { AgeRange, Note } from '../../types/notes';
+import type { Note } from '../../types/notes';
 import type { SortOption } from '../../utils/sortNotes';
+import type { PublishedLessonOption } from '../../../hooks/usePublishedLessonOptions';
 
 interface NotesHeaderProps {
-  selectedPeriod: 'all' | AgeRange;
-  onPeriodChange: (value: 'all' | AgeRange) => void;
+  selectedPeriod: 'all' | string;
+  onPeriodChange: (value: 'all' | string) => void;
   sortBy: SortOption;
   onSortChange: (value: SortOption) => void;
   searchQuery: string;
@@ -15,6 +15,11 @@ interface NotesHeaderProps {
   onToggleStats: () => void;
   onCreate: () => void;
   notesForExport: Note[];
+  lessonGroups: Array<{
+    courseId: string;
+    courseLabel: string;
+    lessons: PublishedLessonOption[];
+  }>;
 }
 
 export function NotesHeader({
@@ -29,6 +34,7 @@ export function NotesHeader({
   onToggleStats,
   onCreate,
   notesForExport,
+  lessonGroups,
 }: NotesHeaderProps) {
   return (
     <>
@@ -46,15 +52,15 @@ export function NotesHeader({
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <select
           value={selectedPeriod}
-          onChange={(event) => onPeriodChange(event.target.value as 'all' | AgeRange)}
+          onChange={(event) => onPeriodChange(event.target.value as 'all' | string)}
           className="w-full rounded-lg border border-border bg-card px-4 py-2 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 sm:flex-1"
         >
-          <option value="all">Все возрастные периоды</option>
-          {PERIOD_FILTER_GROUPS.map((group) => (
-            <optgroup key={group.label} label={group.label}>
-              {group.options.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+          <option value="all">Все занятия</option>
+          {lessonGroups.map((group) => (
+            <optgroup key={group.courseId} label={group.courseLabel}>
+              {group.lessons.map((lesson) => (
+                <option key={`${group.courseId}-${lesson.periodId}`} value={lesson.periodId}>
+                  {lesson.periodTitle}
                 </option>
               ))}
             </optgroup>
