@@ -66,6 +66,7 @@ describe('VideoSection', () => {
         content={[{ title: 'Лекция 1', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }]}
         deckUrl=""
         defaultVideoTitle="Видео-лекция"
+        courseId="development"
         periodId="preschool"
         periodTitle="Дошкольный возраст"
       />
@@ -105,6 +106,7 @@ describe('VideoSection', () => {
         content={[{ title: 'Лекция 1', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }]}
         deckUrl=""
         defaultVideoTitle="Видео-лекция"
+        courseId="development"
         periodId="preschool"
         periodTitle="Дошкольный возраст"
       />

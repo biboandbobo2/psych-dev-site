@@ -4,13 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
 
 const mocks = vi.hoisted(() => ({
-  createNote: vi.fn(),
+  upsertLectureNote: vi.fn(),
   user: { uid: 'user-1' } as { uid: string } | null,
 }));
 
 vi.mock('../../../hooks/useNotes', () => ({
   useNotes: () => ({
-    createNote: mocks.createNote,
+    upsertLectureNote: mocks.upsertLectureNote,
   }),
 }));
 
@@ -23,7 +23,13 @@ vi.mock('../../../components/LoginModal', () => ({
   default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div>Login modal</div> : null),
 }));
 
-function renderPanel(props: { periodId?: string; periodTitle: string; videoTitle: string }) {
+function renderPanel(props: {
+  courseId: string;
+  lectureResourceId: string;
+  periodId?: string;
+  periodTitle: string;
+  videoTitle: string;
+}) {
   function TestPanel() {
     const [draftContent, setDraftContent] = useState('');
 
@@ -41,13 +47,15 @@ function renderPanel(props: { periodId?: string; periodTitle: string; videoTitle
 
 describe('VideoStudyNotesPanel', () => {
   beforeEach(() => {
-    mocks.createNote.mockReset();
-    mocks.createNote.mockResolvedValue('note-id');
+    mocks.upsertLectureNote.mockReset();
+    mocks.upsertLectureNote.mockResolvedValue('note-id');
     mocks.user = { uid: 'user-1' };
   });
 
   it('сохраняет заметку с нормализованным возрастным периодом', async () => {
     renderPanel({
+      courseId: 'development',
+      lectureResourceId: 'video-1',
       periodId: 'school',
       periodTitle: 'Младший школьный возраст',
       videoTitle: 'Лекция 1',
@@ -59,12 +67,15 @@ describe('VideoStudyNotesPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() =>
-      expect(mocks.createNote).toHaveBeenCalledWith(
-        'Заметки по лекции',
+      expect(mocks.upsertLectureNote).toHaveBeenCalledWith(
         'Ключевой тезис из лекции',
-        'primary-school',
-        null,
-        null
+        {
+          courseId: 'development',
+          lectureTitle: 'Лекция 1',
+          lectureVideoId: 'video-1',
+          periodId: 'school',
+          periodTitle: 'Младший школьный возраст (7-10 лет)',
+        }
       )
     );
 
@@ -75,6 +86,8 @@ describe('VideoStudyNotesPanel', () => {
     mocks.user = null;
 
     renderPanel({
+      courseId: 'development',
+      lectureResourceId: 'video-2',
       periodId: 'preschool',
       periodTitle: 'Дошкольный возраст',
       videoTitle: 'Лекция 2',
@@ -82,7 +95,7 @@ describe('VideoStudyNotesPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
-    expect(mocks.createNote).not.toHaveBeenCalled();
+    expect(mocks.upsertLectureNote).not.toHaveBeenCalled();
     expect(await screen.findByText('Login modal')).toBeInTheDocument();
   });
 });

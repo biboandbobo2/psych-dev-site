@@ -8,6 +8,7 @@ import { useVideoTranscript } from '../../../hooks';
 
 interface VideoStudyOverlayProps {
   audioUrl: string;
+  courseId: string;
   deckUrl: string;
   draftContent: string;
   embedUrl: string;
@@ -25,6 +26,7 @@ type SidebarMode = 'notes' | 'transcript';
 
 export function VideoStudyOverlay({
   audioUrl,
+  courseId,
   deckUrl,
   draftContent,
   embedUrl,
@@ -42,6 +44,7 @@ export function VideoStudyOverlay({
     () => getYouTubeVideoId(originalUrl) ?? getYouTubeVideoId(embedUrl),
     [embedUrl, originalUrl]
   );
+  const lectureResourceId = (youtubeVideoId ?? originalUrl) || embedUrl;
   const isTranscriptMode = sidebarMode === 'transcript';
   const transcriptState = useVideoTranscript(youtubeVideoId, isOpen, isTranscriptMode);
 
@@ -182,7 +185,9 @@ export function VideoStudyOverlay({
             />
           ) : (
             <VideoStudyNotesPanel
+              courseId={courseId}
               draftContent={draftContent}
+              lectureResourceId={lectureResourceId}
               onDraftChange={onDraftChange}
               periodId={periodId}
               periodTitle={periodTitle}

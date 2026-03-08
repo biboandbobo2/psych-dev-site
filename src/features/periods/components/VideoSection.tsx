@@ -10,6 +10,7 @@ interface VideoSectionProps {
   content: any[];
   deckUrl: string;
   defaultVideoTitle: string;
+  courseId: string;
   periodId?: string;
   periodTitle: string;
 }
@@ -22,6 +23,7 @@ export function VideoSection({
   content,
   deckUrl,
   defaultVideoTitle,
+  courseId,
   periodId,
   periodTitle,
 }: VideoSectionProps) {
@@ -61,6 +63,7 @@ export function VideoSection({
             deckUrl={videoDeckUrl}
             audioUrl={audioUrl}
             showVideoHeading={showVideoHeadings}
+            courseId={courseId}
             periodId={periodId}
             periodTitle={periodTitle}
             defaultVideoTitle={defaultVideoTitle}
@@ -79,6 +82,7 @@ interface VideoSectionCardProps {
   deckUrl: string;
   audioUrl: string;
   showVideoHeading: boolean;
+  courseId: string;
   periodId?: string;
   periodTitle: string;
   defaultVideoTitle: string;
@@ -92,6 +96,7 @@ function VideoSectionCard({
   deckUrl,
   audioUrl,
   showVideoHeading,
+  courseId,
   periodId,
   periodTitle,
   defaultVideoTitle,
@@ -198,6 +203,7 @@ function VideoSectionCard({
         onClose={() => setMode('embed')}
         onDraftChange={setStudyDraft}
         originalUrl={originalUrl}
+        courseId={courseId}
         periodId={periodId}
         periodTitle={periodTitle}
         videoTitle={effectiveVideoTitle}

@@ -6,7 +6,9 @@ import { useAuthStore } from '../../../stores/useAuthStore';
 import { AGE_RANGE_LABELS, normalizeAgeRange } from '../../../types/notes';
 
 interface VideoStudyNotesPanelProps {
+  courseId: string;
   draftContent: string;
+  lectureResourceId: string;
   onDraftChange: (value: string) => void;
   periodId?: string;
   periodTitle: string;
@@ -18,14 +20,16 @@ type SaveState = 'idle' | 'saved';
 const LECTURE_NOTE_TITLE = 'Заметки по лекции';
 
 export function VideoStudyNotesPanel({
+  courseId,
   draftContent,
+  lectureResourceId,
   onDraftChange,
   periodId,
   periodTitle,
   videoTitle,
 }: VideoStudyNotesPanelProps) {
   const user = useAuthStore((state) => state.user);
-  const { createNote } = useNotes(undefined, { subscribe: false });
+  const { upsertLectureNote } = useNotes(undefined, { subscribe: false });
   const resolvedAgeRange = useMemo(() => normalizeAgeRange(periodId), [periodId]);
   const resolvedPeriodTitle = resolvedAgeRange ? AGE_RANGE_LABELS[resolvedAgeRange] : periodTitle.trim();
 
@@ -53,7 +57,13 @@ export function VideoStudyNotesPanel({
 
     setSaving(true);
     try {
-      await createNote(LECTURE_NOTE_TITLE, trimmedContent, resolvedAgeRange, null, null);
+      await upsertLectureNote(trimmedContent, {
+        courseId,
+        periodId: periodId ?? lectureResourceId,
+        periodTitle: resolvedPeriodTitle || periodTitle.trim() || videoTitle,
+        lectureTitle: videoTitle,
+        lectureVideoId: lectureResourceId,
+      });
       onDraftChange('');
       setSaveState('saved');
     } catch (error) {

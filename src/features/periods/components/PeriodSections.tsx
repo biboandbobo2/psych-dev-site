@@ -123,6 +123,7 @@ function SectionRenderer({
         defaultVideoTitle={defaultVideoTitle}
         periodId={periodId}
         periodTitle={periodTitle}
+        courseId={courseType}
       />
     ) : undefined;
 
@@ -137,6 +138,7 @@ function SectionRenderer({
           defaultVideoTitle={defaultVideoTitle}
           periodId={periodId}
           periodTitle={periodTitle}
+          courseId={courseType}
         />
       </PaywallGuard>
     );
