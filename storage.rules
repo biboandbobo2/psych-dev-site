@@ -11,6 +11,10 @@ service firebase.storage {
       allow write: if isAdminOrSuperAdmin();
     }
 
+    match /video-transcripts/{path=**} {
+      allow read: if true;
+    }
+
     match /uploads/{userId}/{path=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
