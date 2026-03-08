@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
 
@@ -22,6 +23,22 @@ vi.mock('../../../components/LoginModal', () => ({
   default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div>Login modal</div> : null),
 }));
 
+function renderPanel(props: { periodId?: string; periodTitle: string; videoTitle: string }) {
+  function TestPanel() {
+    const [draftContent, setDraftContent] = useState('');
+
+    return (
+      <VideoStudyNotesPanel
+        draftContent={draftContent}
+        onDraftChange={setDraftContent}
+        {...props}
+      />
+    );
+  }
+
+  return render(<TestPanel />);
+}
+
 describe('VideoStudyNotesPanel', () => {
   beforeEach(() => {
     mocks.createNote.mockReset();
@@ -30,13 +47,11 @@ describe('VideoStudyNotesPanel', () => {
   });
 
   it('сохраняет заметку с нормализованным возрастным периодом', async () => {
-    render(
-      <VideoStudyNotesPanel
-        periodId="school"
-        periodTitle="Младший школьный возраст"
-        videoTitle="Лекция 1"
-      />
-    );
+    renderPanel({
+      periodId: 'school',
+      periodTitle: 'Младший школьный возраст',
+      videoTitle: 'Лекция 1',
+    });
 
     fireEvent.change(screen.getByLabelText('Заметки по лекции'), {
       target: { value: 'Ключевой тезис из лекции' },
@@ -59,13 +74,11 @@ describe('VideoStudyNotesPanel', () => {
   it('открывает логин-модалку для неавторизованного пользователя', async () => {
     mocks.user = null;
 
-    render(
-      <VideoStudyNotesPanel
-        periodId="preschool"
-        periodTitle="Дошкольный возраст"
-        videoTitle="Лекция 2"
-      />
-    );
+    renderPanel({
+      periodId: 'preschool',
+      periodTitle: 'Дошкольный возраст',
+      videoTitle: 'Лекция 2',
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 

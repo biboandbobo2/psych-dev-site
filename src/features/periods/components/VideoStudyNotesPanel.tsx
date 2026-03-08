@@ -6,6 +6,8 @@ import { useAuthStore } from '../../../stores/useAuthStore';
 import { AGE_RANGE_LABELS, normalizeAgeRange } from '../../../types/notes';
 
 interface VideoStudyNotesPanelProps {
+  draftContent: string;
+  onDraftChange: (value: string) => void;
   periodId?: string;
   periodTitle: string;
   videoTitle: string;
@@ -16,6 +18,8 @@ type SaveState = 'idle' | 'saved';
 const LECTURE_NOTE_TITLE = 'Заметки по лекции';
 
 export function VideoStudyNotesPanel({
+  draftContent,
+  onDraftChange,
   periodId,
   periodTitle,
   videoTitle,
@@ -25,16 +29,15 @@ export function VideoStudyNotesPanel({
   const resolvedAgeRange = useMemo(() => normalizeAgeRange(periodId), [periodId]);
   const resolvedPeriodTitle = resolvedAgeRange ? AGE_RANGE_LABELS[resolvedAgeRange] : periodTitle.trim();
 
-  const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
 
   useEffect(() => {
-    setContent('');
+    onDraftChange('');
     setSaving(false);
     setSaveState('idle');
-  }, [resolvedAgeRange, periodTitle, videoTitle]);
+  }, [onDraftChange, resolvedAgeRange, periodTitle, videoTitle]);
 
   const handleSave = async () => {
     if (!user) {
@@ -42,7 +45,7 @@ export function VideoStudyNotesPanel({
       return;
     }
 
-    const trimmedContent = content.trim();
+    const trimmedContent = draftContent.trim();
     if (!trimmedContent) {
       alert('Напишите заметку');
       return;
@@ -51,7 +54,7 @@ export function VideoStudyNotesPanel({
     setSaving(true);
     try {
       await createNote(LECTURE_NOTE_TITLE, trimmedContent, resolvedAgeRange, null, null);
-      setContent('');
+      onDraftChange('');
       setSaveState('saved');
     } catch (error) {
       debugError('[VideoStudyNotesPanel] Failed to save note', error);
@@ -63,7 +66,7 @@ export function VideoStudyNotesPanel({
 
   return (
     <>
-      <aside className="flex h-full min-h-[22rem] flex-col px-4 py-4 text-white lg:min-h-[calc(100vh-16rem)] lg:px-5 lg:py-5">
+      <aside className="flex h-full min-h-0 flex-col px-4 py-4 text-white lg:px-5 lg:py-5">
         <div className="border-b border-white/10 pb-4">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/45">
@@ -81,9 +84,9 @@ export function VideoStudyNotesPanel({
 
         <div className="flex-1 py-4">
           <textarea
-            value={content}
+            value={draftContent}
             onChange={(event) => {
-              setContent(event.target.value);
+              onDraftChange(event.target.value);
               setSaveState('idle');
             }}
             placeholder="Пишите короткий конспект по ходу лекции..."
