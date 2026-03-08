@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import LoginModal from '../../../components/LoginModal';
 import { useNotes } from '../../../hooks/useNotes';
 import { debugError } from '../../../lib/debug';
@@ -15,7 +15,7 @@ interface VideoStudyNotesPanelProps {
   videoTitle: string;
 }
 
-type SaveState = 'idle' | 'saved';
+type SaveState = 'idle' | 'loading' | 'saving' | 'saved' | 'error';
 
 const LECTURE_NOTE_TITLE = 'Заметки по лекции';
 
@@ -29,50 +29,129 @@ export function VideoStudyNotesPanel({
   videoTitle,
 }: VideoStudyNotesPanelProps) {
   const user = useAuthStore((state) => state.user);
-  const { upsertLectureNote } = useNotes(undefined, { subscribe: false });
+  const { getLectureNote, upsertLectureNote } = useNotes(undefined, { subscribe: false });
   const resolvedAgeRange = useMemo(() => normalizeAgeRange(periodId), [periodId]);
   const resolvedPeriodTitle = resolvedAgeRange ? AGE_RANGE_LABELS[resolvedAgeRange] : periodTitle.trim();
+  const lectureContext = useMemo(
+    () => ({
+      courseId,
+      periodId: periodId ?? lectureResourceId,
+      periodTitle: resolvedPeriodTitle || periodTitle.trim() || videoTitle,
+      lectureTitle: videoTitle,
+      lectureVideoId: lectureResourceId,
+    }),
+    [courseId, lectureResourceId, periodId, periodTitle, resolvedPeriodTitle, videoTitle]
+  );
 
   const [saving, setSaving] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const draftRef = useRef(draftContent);
+  const lastSavedContentRef = useRef('');
+  const hasUserEditedRef = useRef(false);
 
   useEffect(() => {
-    onDraftChange('');
-    setSaving(false);
-    setSaveState('idle');
-  }, [onDraftChange, resolvedAgeRange, periodTitle, videoTitle]);
+    draftRef.current = draftContent;
+  }, [draftContent]);
 
-  const handleSave = async () => {
+  useEffect(() => {
+    let cancelled = false;
+
+    hasUserEditedRef.current = false;
+    setSaving(false);
+
     if (!user) {
-      setIsLoginOpen(true);
-      return;
+      lastSavedContentRef.current = '';
+      setIsHydrating(false);
+      setSaveState('idle');
+      return undefined;
     }
 
-    const trimmedContent = draftContent.trim();
-    if (!trimmedContent) {
-      alert('Напишите заметку');
-      return;
+    const loadSavedNote = async () => {
+      setIsHydrating(true);
+      setSaveState('loading');
+      try {
+        const note = await getLectureNote(lectureContext);
+        const savedContent = note?.content ?? '';
+        lastSavedContentRef.current = savedContent;
+
+        if (!cancelled && !hasUserEditedRef.current && !draftRef.current.trim()) {
+          onDraftChange(savedContent);
+        }
+
+        if (!cancelled) {
+          setSaveState(savedContent ? 'saved' : 'idle');
+        }
+      } catch (error) {
+        debugError('[VideoStudyNotesPanel] Failed to load note', error);
+        if (!cancelled) {
+          setSaveState('error');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsHydrating(false);
+        }
+      }
+    };
+
+    void loadSavedNote();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getLectureNote, lectureContext, onDraftChange, user]);
+
+  useEffect(() => {
+    if (!user || isHydrating) {
+      return undefined;
+    }
+
+    if (draftContent === lastSavedContentRef.current) {
+      if (draftContent.trim()) {
+        setSaveState('saved');
+      }
+      return undefined;
+    }
+
+    if (!draftContent.trim()) {
+      setSaveState('idle');
+      return undefined;
     }
 
     setSaving(true);
-    try {
-      await upsertLectureNote(trimmedContent, {
-        courseId,
-        periodId: periodId ?? lectureResourceId,
-        periodTitle: resolvedPeriodTitle || periodTitle.trim() || videoTitle,
-        lectureTitle: videoTitle,
-        lectureVideoId: lectureResourceId,
-      });
-      onDraftChange('');
-      setSaveState('saved');
-    } catch (error) {
-      debugError('[VideoStudyNotesPanel] Failed to save note', error);
-      alert('Ошибка при сохранении заметки');
-    } finally {
+    setSaveState('saving');
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        await upsertLectureNote(draftContent, lectureContext);
+        lastSavedContentRef.current = draftContent;
+        setSaveState('saved');
+      } catch (error) {
+        debugError('[VideoStudyNotesPanel] Failed to autosave note', error);
+        setSaveState('error');
+      } finally {
+        setSaving(false);
+      }
+    }, 900);
+
+    return () => {
       setSaving(false);
-    }
-  };
+      window.clearTimeout(timeoutId);
+    };
+  }, [draftContent, isHydrating, lectureContext, upsertLectureNote, user]);
+
+  const statusLabel = user
+    ? saveState === 'loading'
+      ? 'Загружаем прошлый конспект...'
+      : saveState === 'saving'
+      ? 'Автосохранение...'
+      : saveState === 'saved'
+      ? 'Сохранено в /notes'
+      : saveState === 'error'
+      ? 'Ошибка автосохранения'
+      : 'Автосохранение включено'
+    : 'Нужен вход для автосохранения';
 
   return (
     <>
@@ -96,32 +175,26 @@ export function VideoStudyNotesPanel({
           <textarea
             value={draftContent}
             onChange={(event) => {
+              hasUserEditedRef.current = true;
               onDraftChange(event.target.value);
-              setSaveState('idle');
             }}
             placeholder="Пишите короткий конспект по ходу лекции..."
             className="h-full min-h-[18rem] w-full resize-none rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-7 text-white outline-none transition placeholder:text-white/30 focus:border-[color:var(--accent)] focus:bg-black/30"
-            disabled={saving}
             aria-label="Заметки по лекции"
           />
         </div>
 
         <div className="mt-auto flex items-center justify-between gap-3 border-t border-white/10 pt-4">
-          <span className="text-xs text-white/55">
-            {saveState === 'saved'
-              ? 'Сохранено в /notes'
-              : user
-              ? 'Сохранится в заметках'
-              : 'Нужен вход для сохранения'}
-          </span>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saving ? 'Сохранение...' : user ? 'Сохранить' : 'Войти'}
-          </button>
+          <span className="text-xs text-white/55">{statusLabel}</span>
+          {!user ? (
+            <button
+              type="button"
+              onClick={() => setIsLoginOpen(true)}
+              className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+            >
+              Войти
+            </button>
+          ) : null}
         </div>
       </aside>
 

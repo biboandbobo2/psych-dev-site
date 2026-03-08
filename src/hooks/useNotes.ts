@@ -32,6 +32,31 @@ interface UseNotesOptions {
   subscribe?: boolean;
 }
 
+function mapNoteRecord(id: string, data: Record<string, any>): Note {
+  const ageRange = normalizeAgeRange(data.ageRange ?? data.periodId);
+  const periodId = typeof data.periodId === 'string' ? data.periodId : ageRange;
+  const periodTitle = data.periodTitle ?? (ageRange ? AGE_RANGE_LABELS[ageRange] : null);
+
+  return {
+    id,
+    userId: data.userId || '',
+    title: data.title || 'Без названия',
+    content: data.content || '',
+    ageRange,
+    periodId: periodId ?? null,
+    periodKey: typeof data.periodKey === 'string' ? data.periodKey : null,
+    periodTitle: periodTitle ?? null,
+    courseId: typeof data.courseId === 'string' ? data.courseId : null,
+    noteScope: data.noteScope === 'lecture' || data.noteScope === 'timeline' ? data.noteScope : 'manual',
+    lectureVideoId: typeof data.lectureVideoId === 'string' ? data.lectureVideoId : null,
+    lectureKey: typeof data.lectureKey === 'string' ? data.lectureKey : null,
+    topicId: data.topicId || null,
+    topicTitle: data.topicTitle ?? null,
+    createdAt: data.createdAt?.toDate?.() || new Date(),
+    updatedAt: data.updatedAt?.toDate?.() || new Date(),
+  } as Note;
+}
+
 export function useNotes(periodFilter?: string | null, options: UseNotesOptions = {}) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,27 +100,7 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
         let notesData = snapshot.docs.map((docSnap) => {
           const data = docSnap.data();
           debugLog('[useNotes] Note document:', docSnap.id, data);
-          const ageRange = normalizeAgeRange(data.ageRange ?? data.periodId);
-          const periodId = typeof data.periodId === 'string' ? data.periodId : ageRange;
-          const periodTitle = data.periodTitle ?? (ageRange ? AGE_RANGE_LABELS[ageRange] : null);
-          return {
-            id: docSnap.id,
-            userId: data.userId || '',
-            title: data.title || 'Без названия',
-            content: data.content || '',
-            ageRange,
-            periodId: periodId ?? null,
-            periodKey: typeof data.periodKey === 'string' ? data.periodKey : null,
-            periodTitle: periodTitle ?? null,
-            courseId: typeof data.courseId === 'string' ? data.courseId : null,
-            noteScope: data.noteScope === 'lecture' || data.noteScope === 'timeline' ? data.noteScope : 'manual',
-            lectureVideoId: typeof data.lectureVideoId === 'string' ? data.lectureVideoId : null,
-            lectureKey: typeof data.lectureKey === 'string' ? data.lectureKey : null,
-            topicId: data.topicId || null,
-            topicTitle: data.topicTitle ?? null,
-            createdAt: data.createdAt?.toDate?.() || new Date(),
-            updatedAt: data.updatedAt?.toDate?.() || new Date(),
-          } as Note;
+          return mapNoteRecord(docSnap.id, data);
         });
 
         notesData = notesData.sort((a, b) => {
@@ -247,6 +252,27 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
     }
   };
 
+  const getLectureNote = async (context: LectureNoteContext) => {
+    if (!user) {
+      return null;
+    }
+
+    try {
+      const lectureDocId = buildLectureNoteDocumentId(user.uid, context);
+      const noteRef = doc(db, 'notes', lectureDocId);
+      const noteSnap = await getDoc(noteRef);
+
+      if (!noteSnap.exists()) {
+        return null;
+      }
+
+      return mapNoteRecord(lectureDocId, noteSnap.data());
+    } catch (error) {
+      reportAppError({ message: 'Не удалось загрузить заметку по лекции', error, context: 'useNotes.getLectureNote' });
+      throw error;
+    }
+  };
+
   const updateNote = async (
     noteId: string,
     updates: Partial<
@@ -344,6 +370,7 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
     error,
     createNote,
     createManualNote,
+    getLectureNote,
     upsertLectureNote,
     updateNote,
     deleteNote,

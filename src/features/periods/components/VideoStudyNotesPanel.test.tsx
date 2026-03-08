@@ -1,15 +1,17 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
 
 const mocks = vi.hoisted(() => ({
+  getLectureNote: vi.fn(),
   upsertLectureNote: vi.fn(),
   user: { uid: 'user-1' } as { uid: string } | null,
 }));
 
 vi.mock('../../../hooks/useNotes', () => ({
   useNotes: () => ({
+    getLectureNote: mocks.getLectureNote,
     upsertLectureNote: mocks.upsertLectureNote,
   }),
 }));
@@ -47,12 +49,19 @@ function renderPanel(props: {
 
 describe('VideoStudyNotesPanel', () => {
   beforeEach(() => {
+    mocks.getLectureNote.mockReset();
+    mocks.getLectureNote.mockResolvedValue(null);
     mocks.upsertLectureNote.mockReset();
     mocks.upsertLectureNote.mockResolvedValue('note-id');
     mocks.user = { uid: 'user-1' };
   });
 
-  it('сохраняет заметку с нормализованным возрастным периодом', async () => {
+  it('подгружает прошлый конспект и автосохраняет полный текст в ту же lecture note', async () => {
+    mocks.getLectureNote.mockResolvedValue({
+      id: 'note-1',
+      content: 'Старый конспект',
+    });
+
     renderPanel({
       courseId: 'development',
       lectureResourceId: 'video-1',
@@ -61,14 +70,21 @@ describe('VideoStudyNotesPanel', () => {
       videoTitle: 'Лекция 1',
     });
 
+    await act(async () => {});
+
+    expect(screen.getByLabelText('Заметки по лекции')).toHaveValue('Старый конспект');
+
     fireEvent.change(screen.getByLabelText('Заметки по лекции'), {
-      target: { value: 'Ключевой тезис из лекции' },
+      target: { value: 'Старый конспект\nКлючевой тезис из лекции' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 950));
+    });
 
     await waitFor(() =>
       expect(mocks.upsertLectureNote).toHaveBeenCalledWith(
-        'Ключевой тезис из лекции',
+        'Старый конспект\nКлючевой тезис из лекции',
         {
           courseId: 'development',
           lectureTitle: 'Лекция 1',
@@ -79,6 +95,7 @@ describe('VideoStudyNotesPanel', () => {
       )
     );
 
+    expect(screen.getByLabelText('Заметки по лекции')).toHaveValue('Старый конспект\nКлючевой тезис из лекции');
     expect(screen.getByText('Сохранено в /notes')).toBeInTheDocument();
   });
 

@@ -127,6 +127,51 @@ describe('useNotes', () => {
     );
   });
 
+  it('читает существующую lecture note по детерминированному id', async () => {
+    authMock.mockReturnValue({ user: { uid: 'user-123' } });
+    getDocMock.mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        userId: 'user-123',
+        title: 'Семинары',
+        content: 'Сохранённый конспект',
+        courseId: 'development',
+        periodId: 'seminary',
+        periodKey: 'development::seminary',
+        periodTitle: 'Семинары',
+        noteScope: 'lecture',
+        lectureVideoId: 'eGCP_Fk7AeU',
+        lectureKey: buildLectureNoteKey({
+          courseId: 'development',
+          periodId: 'seminary',
+          lectureVideoId: 'eGCP_Fk7AeU',
+        }),
+        createdAt: { toDate: () => new Date('2026-03-08T10:00:00.000Z') },
+        updatedAt: { toDate: () => new Date('2026-03-08T10:05:00.000Z') },
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useNotes(null, { subscribe: false }));
+
+    const note = await result.current.getLectureNote({
+      courseId: 'development',
+      periodId: 'seminary',
+      periodTitle: 'Семинары',
+      lectureTitle: 'Семинары',
+      lectureVideoId: 'eGCP_Fk7AeU',
+    });
+
+    expect(note).toEqual(
+      expect.objectContaining({
+        title: 'Семинары',
+        content: 'Сохранённый конспект',
+        courseId: 'development',
+        periodId: 'seminary',
+        noteScope: 'lecture',
+      })
+    );
+  });
+
   it('обновляет существующую lecture note вместо создания новой', async () => {
     authMock.mockReturnValue({ user: { uid: 'user-123' } });
     getDocMock.mockResolvedValue({ exists: () => true } as never);
