@@ -202,17 +202,19 @@ export function VideoStudyNotesPanel({
     <>
       <aside className="flex h-full min-h-0 flex-col px-4 py-4 text-white lg:px-5 lg:py-5">
         <div className="flex-1 pb-4">
-          <div className="group relative h-full min-h-[18rem]">
-            <button
-              type="button"
-              className="absolute right-4 top-4 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]"
-              aria-label={statusLabel}
-            >
-              <span className={`h-2.5 w-2.5 rounded-full ${indicatorClassName}`} />
-            </button>
+          <div className="relative h-full min-h-[18rem]">
+            <div className="group absolute right-4 top-4 z-10">
+              <button
+                type="button"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]"
+                aria-label={statusLabel}
+              >
+                <span className={`h-2.5 w-2.5 rounded-full ${indicatorClassName}`} />
+              </button>
 
-            <div className="pointer-events-none absolute right-4 top-12 z-10 max-w-[12rem] translate-y-1 rounded-xl border border-white/10 bg-[#11161d]/95 px-3 py-2 text-xs leading-5 text-white/80 opacity-0 shadow-2xl transition duration-150 group-hover:translate-y-0 group-hover:opacity-100">
-              {statusLabel}
+              <div className="pointer-events-none absolute right-0 top-8 z-10 max-w-[12rem] translate-y-1 rounded-xl border border-white/10 bg-[#11161d]/95 px-3 py-2 text-xs leading-5 text-white/80 opacity-0 shadow-2xl transition duration-150 group-hover:translate-y-0 group-hover:opacity-100">
+                {statusLabel}
+              </div>
             </div>
 
             <textarea
