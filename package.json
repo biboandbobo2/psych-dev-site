@@ -18,6 +18,7 @@
     "set-bg:infancy": "node scripts/set-bg.mjs --period infancy --src \"~/Downloads/infancy.png\"",
     "docs:metrics": "tsx scripts/check-doc-metrics.ts",
     "docs:plans": "tsx scripts/generate-plan-overview.ts",
+    "transcripts:import": "tsx scripts/importVideoTranscripts.ts",
     "firebase:login": "firebase login",
     "firebase:emulators:start": "firebase emulators:start --config tests/integration/firebase.test.json --only firestore,auth,storage",
     "firebase:deploy:rules": "firebase deploy --only firestore:rules,storage:rules",
@@ -90,6 +91,7 @@
     "typescript": "^5.9.3",
     "vite": "^7.0.0",
     "vite-plugin-full-reload": "^1.2.0",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.8",
+    "youtube-transcript-plus": "^1.2.0"
   }
 }

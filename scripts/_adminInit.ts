@@ -1,5 +1,6 @@
-import { initializeApp, applicationDefault, cert, getApps } from 'firebase-admin/app';
+import { initializeApp, applicationDefault, cert, getApps, getApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import fs from 'fs';
 
 function resolveProjectId(): string | undefined {
@@ -10,20 +11,40 @@ function resolveProjectId(): string | undefined {
   );
 }
 
+function resolveStorageBucket(projectId?: string): string | undefined {
+  return (
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    process.env.VITE_FIREBASE_STORAGE_BUCKET ||
+    (projectId ? `${projectId}.firebasestorage.app` : undefined)
+  );
+}
+
 export function initAdmin() {
   let projectId = resolveProjectId();
+  let storageBucket = resolveStorageBucket(projectId);
   const saPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
   if (!getApps().length) {
     if (saPath && fs.existsSync(saPath)) {
       const json = JSON.parse(fs.readFileSync(saPath, 'utf8'));
       if (!projectId && json.project_id) projectId = json.project_id;
-      initializeApp({ credential: cert(json), projectId });
+      if (!storageBucket && json.storage_bucket) storageBucket = json.storage_bucket;
+      initializeApp({ credential: cert(json), projectId, storageBucket });
     } else {
-      initializeApp({ credential: applicationDefault(), projectId });
+      initializeApp({ credential: applicationDefault(), projectId, storageBucket });
     }
   }
 
+  const app = getApp();
   const db = getFirestore();
-  return { db, projectId };
+  const storage = getStorage(app);
+  const bucket = storage.bucket();
+  return {
+    app,
+    bucket,
+    db,
+    projectId,
+    storage,
+    storageBucket: app.options.storageBucket ?? bucket.name,
+  };
 }
