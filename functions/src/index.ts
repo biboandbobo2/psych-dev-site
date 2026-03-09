@@ -1,4 +1,4 @@
-// Cloud Functions (Node 20, ESM), firebase-admin v12+.
+// Cloud Functions (Node 22, ESM), firebase-admin v12+.
 
 import * as functions from "firebase-functions";
 import { initializeApp, applicationDefault, getApps } from "firebase-admin/app";
