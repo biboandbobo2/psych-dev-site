@@ -18,6 +18,8 @@ export interface TranscriptRefreshCandidate {
   existingStatus: VideoTranscriptStatus | null;
 }
 
+const TRANSCRIPT_DOC_BATCH_SIZE = 400;
+
 function getTimestampMillis(value: AdminTimestamp | null | undefined) {
   return value instanceof Timestamp ? value.toMillis() : null;
 }
@@ -42,6 +44,25 @@ export function getTranscriptRefreshReason(
   return doc.status;
 }
 
+async function getTranscriptDocSnapshots(
+  db: FirebaseFirestore.Firestore,
+  docRefs: FirebaseFirestore.DocumentReference[]
+) {
+  if (!docRefs.length) {
+    return [];
+  }
+
+  const chunkPromises: Promise<FirebaseFirestore.DocumentSnapshot[]>[] = [];
+
+  for (let index = 0; index < docRefs.length; index += TRANSCRIPT_DOC_BATCH_SIZE) {
+    const chunk = docRefs.slice(index, index + TRANSCRIPT_DOC_BATCH_SIZE);
+    chunkPromises.push(db.getAll(...chunk));
+  }
+
+  const chunkSnapshots = await Promise.all(chunkPromises);
+  return chunkSnapshots.flat();
+}
+
 export async function collectTranscriptRefreshCandidates(
   db: FirebaseFirestore.Firestore,
   now: AdminTimestamp,
@@ -51,7 +72,7 @@ export async function collectTranscriptRefreshCandidates(
   const docRefs = targets.map((target) =>
     db.collection(VIDEO_TRANSCRIPTS_COLLECTION).doc(target.youtubeVideoId)
   );
-  const docSnapshots = docRefs.length ? await db.getAll(...docRefs) : [];
+  const docSnapshots = await getTranscriptDocSnapshots(db, docRefs);
   const docsById = new Map<string, TranscriptDoc | undefined>();
 
   docSnapshots.forEach((snapshot) => {

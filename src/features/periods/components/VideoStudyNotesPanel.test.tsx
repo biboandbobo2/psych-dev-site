@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
 import type { LectureNoteSegment } from '../../../types/notes';
 
@@ -56,12 +56,29 @@ function renderPanel(props: {
 }
 
 describe('VideoStudyNotesPanel', () => {
+  let requestAnimationFrameSpy: ReturnType<typeof vi.spyOn>;
+  let cancelAnimationFrameSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     mocks.getLectureNote.mockReset();
     mocks.getLectureNote.mockResolvedValue(null);
     mocks.upsertLectureNote.mockReset();
     mocks.upsertLectureNote.mockResolvedValue('note-id');
     mocks.user = { uid: 'user-1' };
+    requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+    cancelAnimationFrameSpy = vi
+      .spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    requestAnimationFrameSpy.mockRestore();
+    cancelAnimationFrameSpy.mockRestore();
   });
 
   it('подгружает прошлый конспект, сохраняет сегменты и показывает таймкоды по запросу', async () => {
@@ -176,6 +193,54 @@ describe('VideoStudyNotesPanel', () => {
         }
       )
     );
+  });
+
+  it('не тянет скролл вниз при редактировании существующего сегмента', async () => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+      configurable: true,
+      get: () => 480,
+    });
+
+    mocks.getLectureNote.mockResolvedValue({
+      id: 'note-2',
+      content: 'Первый сегмент\n\nВторой сегмент',
+      lectureSegments: [
+        {
+          id: 'segment-1',
+          startMs: 1000,
+          text: 'Первый сегмент',
+        },
+        {
+          id: 'segment-2',
+          startMs: 2000,
+          text: 'Второй сегмент',
+        },
+      ],
+    });
+
+    const { container } = renderPanel({
+      courseId: 'development',
+      getPlaybackSnapshot: () => ({ currentTimeMs: 3000, paused: false }),
+      lectureResourceId: 'video-4',
+      periodId: 'school',
+      periodTitle: 'Младший школьный возраст',
+      videoTitle: 'Лекция 4',
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const scrollContainer = container.querySelector('.overflow-y-auto') as HTMLDivElement;
+    expect(scrollContainer).toBeTruthy();
+    scrollContainer.scrollTop = 120;
+
+    const segmentEditors = screen.getAllByLabelText('Сегмент конспекта');
+    fireEvent.change(segmentEditors[0], {
+      target: { value: 'Первый сегмент, исправленный' },
+    });
+
+    expect(scrollContainer.scrollTop).toBe(120);
   });
 
   it('открывает логин-модалку для неавторизованного пользователя', async () => {

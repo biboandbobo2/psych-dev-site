@@ -87,4 +87,28 @@ describe("sendTelegramMessage", () => {
     expect(url).toContain("secret-token");
     expect(options.body).toContain("secret-chat");
   });
+
+  it("does not cache a rejected config lookup forever", async () => {
+    delete process.env.TELEGRAM_BOT_TOKEN;
+    delete process.env.TELEGRAM_CHAT_ID;
+    delete process.env.GCLOUD_PROJECT;
+    getClientMock.mockRejectedValue(new Error("no auth"));
+
+    await expect(sendTelegramMessage("first")).rejects.toThrow(
+      "Telegram config missing: Secret Manager"
+    );
+
+    process.env.TELEGRAM_BOT_TOKEN = "retry-token";
+    process.env.TELEGRAM_CHAT_ID = "retry-chat";
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: async () => ({ ok: true, result: { message_id: 789 } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendTelegramMessage("second");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toContain("retry-token");
+  });
 });

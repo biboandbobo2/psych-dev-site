@@ -46,16 +46,35 @@ function loadYouTubeIframeApi() {
   }
 
   youtubeIframeApiPromise = new Promise((resolve, reject) => {
+    const resolveIfReady = () => {
+      if (!youtubeWindow.YT?.Player) {
+        return false;
+      }
+
+      resolve(youtubeWindow.YT);
+      return true;
+    };
+
+    const handleLoadError = () => {
+      youtubeIframeApiPromise = null;
+      reject(new Error('Failed to load YouTube IFrame API'));
+    };
+
+    if (resolveIfReady()) {
+      return;
+    }
+
     const existingReady = youtubeWindow.onYouTubeIframeAPIReady;
     youtubeWindow.onYouTubeIframeAPIReady = () => {
       existingReady?.();
-      if (youtubeWindow.YT?.Player) {
-        resolve(youtubeWindow.YT);
-      }
+      resolveIfReady();
     };
 
-    const existingScript = document.getElementById('youtube-iframe-api');
+    const existingScript = document.getElementById(
+      'youtube-iframe-api'
+    ) as HTMLScriptElement | null;
     if (existingScript) {
+      existingScript.addEventListener('error', handleLoadError, { once: true });
       return;
     }
 
@@ -63,7 +82,7 @@ function loadYouTubeIframeApi() {
     script.id = 'youtube-iframe-api';
     script.src = 'https://www.youtube.com/iframe_api';
     script.async = true;
-    script.onerror = () => reject(new Error('Failed to load YouTube IFrame API'));
+    script.onerror = handleLoadError;
     document.head.appendChild(script);
   });
 

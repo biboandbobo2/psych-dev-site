@@ -44,7 +44,10 @@ async function getTelegramConfig() {
                 return envConfig;
             }
             throw new Error("Telegram config missing: Secret Manager (telegram-bot-token / telegram-chat-id) or TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID");
-        })();
+        })().catch((error) => {
+            telegramConfigPromise = null;
+            throw error;
+        });
     }
     return telegramConfigPromise;
 }

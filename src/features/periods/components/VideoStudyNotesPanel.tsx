@@ -234,7 +234,7 @@ export function VideoStudyNotesPanel({
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [composer.text, persistedSignature, viewMode]);
+  }, [composer.text, segments.length, viewMode]);
 
   useEffect(() => {
     return () => {

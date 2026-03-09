@@ -192,6 +192,15 @@
 - **Приоритет:** 🟡 Средний
 - **Оценка:** 2-4 часа (с тестированием)
 
+#### 2.A Telegram Markdown escaping cleanup
+- **Проблема:** `escapeMarkdown` в weekly transcript report экранирует не весь набор специальных символов Telegram Markdown, из-за чего будущие error/message строки могут ломать форматирование уведомления.
+- **Решение:**
+  - [ ] Выбрать и зафиксировать один режим форматирования (`Markdown` vs `MarkdownV2`) для Telegram-уведомлений
+  - [ ] Доработать helper экранирования под выбранный режим и покрыть его unit-тестами
+  - [ ] Прогнать smoke weekly report после правки
+- **Приоритет:** 🟢 Низкий
+- **Оценка:** 20-40 минут
+
 #### 3. Container Images Cleanup Policy (europe-west1)
 - **Проблема:** Нет cleanup policy для Docker образов Cloud Functions в region `europe-west1`
 - **Влияние:** Небольшой месячный счёт (~$1-5/месяц) из-за накопления старых образов
