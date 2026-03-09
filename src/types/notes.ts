@@ -30,6 +30,12 @@ export interface TopicInput {
   order: number;
 }
 
+export interface LectureNoteSegment {
+  id: string;
+  startMs: number | null;
+  text: string;
+}
+
 export interface Note {
   id: string;
   userId: string;
@@ -43,6 +49,7 @@ export interface Note {
   noteScope?: 'manual' | 'lecture' | 'timeline';
   lectureVideoId?: string | null;
   lectureKey?: string | null;
+  lectureSegments?: LectureNoteSegment[] | null;
   topicId: string | null;
   topicTitle?: string | null;
   createdAt: Date;
@@ -62,6 +69,8 @@ export interface ManualNoteContext {
   periodId: string;
   periodTitle: string;
 }
+
+export const LECTURE_NOTE_IDLE_THRESHOLD_MS = 30_000;
 
 export const AGE_RANGE_LABELS: Record<AgeRange, string> = {
   intro: 'Вводное занятие',
@@ -151,6 +160,96 @@ export function buildLectureNoteDocumentId(
 
 export function buildNotePeriodKey(courseId: string, periodId: string) {
   return `${courseId}::${periodId}`;
+}
+
+export function buildLectureSegmentId(seed = Date.now()) {
+  return `segment_${seed}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function formatLectureTimestamp(startMs: number | null) {
+  if (startMs === null || Number.isNaN(startMs)) {
+    return null;
+  }
+
+  const totalSeconds = Math.max(0, Math.floor(startMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return [hours, minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
+  }
+
+  return [minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
+}
+
+export function buildLectureContentFromSegments(segments: LectureNoteSegment[]) {
+  return segments
+    .map((segment) => segment.text)
+    .join('\n\n')
+    .trim();
+}
+
+export function buildTimestampedLectureContent(segments: LectureNoteSegment[]) {
+  return segments
+    .map((segment) => {
+      const timestamp = formatLectureTimestamp(segment.startMs);
+      const normalizedText = segment.text.trim();
+
+      if (!normalizedText) {
+        return '';
+      }
+
+      return timestamp ? `[${timestamp}] ${normalizedText}` : normalizedText;
+    })
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+export function normalizeLectureNoteSegments(
+  value: unknown,
+  fallbackContent = ''
+): LectureNoteSegment[] {
+  if (Array.isArray(value)) {
+    const normalizedSegments = value
+      .map((segment, index) => {
+        if (!segment || typeof segment !== 'object') {
+          return null;
+        }
+
+        const text = typeof (segment as any).text === 'string' ? (segment as any).text : '';
+        if (!text.trim()) {
+          return null;
+        }
+
+        const rawStartMs = (segment as any).startMs;
+        return {
+          id:
+            typeof (segment as any).id === 'string' && (segment as any).id.trim()
+              ? (segment as any).id
+              : `segment_${index}`,
+          startMs: typeof rawStartMs === 'number' && Number.isFinite(rawStartMs) ? rawStartMs : null,
+          text,
+        } satisfies LectureNoteSegment;
+      })
+      .filter(Boolean) as LectureNoteSegment[];
+
+    if (normalizedSegments.length > 0) {
+      return normalizedSegments;
+    }
+  }
+
+  if (!fallbackContent.trim()) {
+    return [];
+  }
+
+  return [
+    {
+      id: 'segment_legacy',
+      startMs: null,
+      text: fallbackContent,
+    },
+  ];
 }
 
 // Export as lazy Proxy to avoid top-level function call
