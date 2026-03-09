@@ -21,10 +21,10 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
     {
       icon: '📝',
       title: 'Мои заметки',
-      description: 'Создавайте заметки к каждому периоду и возвращайтесь к ним в любое время',
+      description: 'Создавайте заметки к занятиям и лекциям курса и возвращайтесь к ним в любое время',
       color: 'from-blue-500 to-blue-600',
       link: '/notes',
-      disabled: currentCourse !== 'development',
+      disabled: false,
     },
     {
       icon: '📚',
