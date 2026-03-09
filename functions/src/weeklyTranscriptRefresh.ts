@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
-import { ensureAdminApp } from "./lib/adminApp.js";
+import { ensureAdminApp, resolveAdminStorageBucket } from "./lib/adminApp.js";
 import { sendTelegramMessage } from "./lib/telegram.js";
 import { getTranscriptRefreshConfigFromEnv } from "./transcriptRefreshConfig.js";
 import { collectTranscriptRefreshCandidates } from "./transcriptRefreshCandidates.js";
@@ -23,7 +23,8 @@ export async function runWeeklyTranscriptRefresh(deps?: {
   const app = ensureAdminApp();
   const db = getFirestore(app);
   const storage = getStorage(app);
-  const bucket = app.options.storageBucket ? storage.bucket(app.options.storageBucket) : null;
+  const bucketName = resolveAdminStorageBucket();
+  const bucket = bucketName ? storage.bucket(bucketName) : null;
   const startedAt = Timestamp.now();
   const lock = await acquireTranscriptRefreshLock(
     db,
