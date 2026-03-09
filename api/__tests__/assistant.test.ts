@@ -1,5 +1,23 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import handler, { truncateResponse } from '../assistant';
+
+const geminiMocks = vi.hoisted(() => ({
+  generateContent: vi.fn(),
+}));
+
+vi.mock('@google/genai', () => {
+  class MockGoogleGenAI {
+    models = {
+      generateContent: geminiMocks.generateContent,
+    };
+
+    constructor(_options: { apiKey: string }) {}
+  }
+
+  return {
+    GoogleGenAI: MockGoogleGenAI,
+  };
+});
 
 // ============================================================================
 // MOCK HELPERS
@@ -117,6 +135,14 @@ describe('truncateResponse', () => {
 describe('api/assistant validation', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(globalThis['console'], 'error').mockImplementation(() => {});
+    geminiMocks.generateContent.mockReset();
+    geminiMocks.generateContent.mockResolvedValue({
+      text: JSON.stringify({
+        allowed: true,
+        answer: 'Краткий ответ по психологии.',
+      }),
+    });
   });
 
   it('возвращает 405 для не-POST запросов', async () => {
@@ -184,15 +210,12 @@ describe('api/assistant validation', () => {
     const req = mockReq({ body: { message: exactMessage } });
     const res = mockRes();
 
-    // Mock Gemini to avoid actual API call
-    vi.stubGlobal('fetch', vi.fn());
     process.env.GEMINI_API_KEY = 'test-key';
 
-    // Will fail at Gemini call, but validation should pass
     await handler(req, res);
 
-    // Should not be 400 (validation error) - could be 500/503 due to mocked Gemini
-    expect(res.statusCode).not.toBe(400);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.ok).toBe(true);
   });
 
   it('возвращает 400 для невалидного JSON', async () => {
@@ -214,6 +237,14 @@ describe('api/assistant validation', () => {
 describe('api/assistant rate limiting', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(globalThis['console'], 'error').mockImplementation(() => {});
+    geminiMocks.generateContent.mockReset();
+    geminiMocks.generateContent.mockResolvedValue({
+      text: JSON.stringify({
+        allowed: true,
+        answer: 'Ответ по теме психологии.',
+      }),
+    });
   });
 
   it('возвращает 429 после превышения лимита запросов', async () => {
@@ -228,8 +259,6 @@ describe('api/assistant rate limiting', () => {
       req.socket = { remoteAddress: '192.168.99.99' };
       const res = mockRes();
 
-      // Mock Gemini to return quickly
-      vi.stubGlobal('fetch', vi.fn());
       process.env.GEMINI_API_KEY = 'test-key';
 
       await handler(req, res);
@@ -248,28 +277,18 @@ describe('api/assistant rate limiting', () => {
 describe('api/assistant Gemini response handling', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(globalThis['console'], 'error').mockImplementation(() => {});
+    geminiMocks.generateContent.mockReset();
     process.env.GEMINI_API_KEY = 'test-key';
   });
 
   it('возвращает refused=true когда модель отклоняет вопрос', async () => {
-    // Mock GoogleGenAI to return allowed=false
-    const mockGenerate = vi.fn().mockResolvedValue({
+    geminiMocks.generateContent.mockResolvedValue({
       text: JSON.stringify({
         allowed: false,
         answer: 'Извините, этот вопрос не относится к психологии.',
       }),
     });
-
-    vi.mock('@google/genai', () => ({
-      GoogleGenAI: vi.fn().mockImplementation(() => ({
-        models: {
-          generateContent: mockGenerate,
-        },
-      })),
-    }));
-
-    // Need to re-import after mock
-    const { default: handlerWithMock } = await import('../assistant');
 
     const req = mockReq({
       body: { message: 'Как приготовить борщ?' },
@@ -277,13 +296,12 @@ describe('api/assistant Gemini response handling', () => {
     req.socket = { remoteAddress: '10.0.0.1' };
     const res = mockRes();
 
-    await handlerWithMock(req, res);
+    await handler(req, res);
 
-    // Due to mocking complexity, just verify structure expectations
-    if (res.statusCode === 200) {
-      expect(res.body.ok).toBe(true);
-      expect(typeof res.body.answer).toBe('string');
-    }
+    expect(res.statusCode).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.refused).toBe(true);
+    expect(res.body.answer).toContain('не относится к психологии');
   });
 
   it('возвращает 503 когда GEMINI_API_KEY не настроен', async () => {
