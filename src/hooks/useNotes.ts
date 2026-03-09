@@ -32,6 +32,21 @@ interface UseNotesOptions {
   subscribe?: boolean;
 }
 
+type NoteUpdatePayload = Partial<
+  Pick<
+    Note,
+    | 'title'
+    | 'content'
+    | 'ageRange'
+    | 'periodId'
+    | 'periodTitle'
+    | 'courseId'
+    | 'topicId'
+    | 'topicTitle'
+    | 'noteScope'
+  >
+>;
+
 function mapNoteRecord(id: string, data: Record<string, any>): Note {
   const ageRange = normalizeAgeRange(data.ageRange ?? data.periodId);
   const periodId = typeof data.periodId === 'string' ? data.periodId : ageRange;
@@ -273,40 +288,11 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
     }
   }, [user]);
 
-  const updateNote = async (
-    noteId: string,
-    updates: Partial<
-      Pick<
-        Note,
-        | 'title'
-        | 'content'
-        | 'ageRange'
-        | 'periodId'
-        | 'periodTitle'
-        | 'courseId'
-        | 'topicId'
-        | 'topicTitle'
-        | 'noteScope'
-      >
-    >
-  ) => {
+  const updateNote = async (noteId: string, updates: NoteUpdatePayload) => {
     try {
       const noteRef = doc(db, 'notes', noteId);
       debugLog('[useNotes] Updating note:', noteId, updates);
-      const normalizedUpdates: Partial<
-        Pick<
-          Note,
-          | 'title'
-          | 'content'
-          | 'ageRange'
-          | 'periodId'
-          | 'periodTitle'
-          | 'courseId'
-          | 'topicId'
-          | 'topicTitle'
-          | 'noteScope'
-        >
-      > = {
+      const normalizedUpdates: NoteUpdatePayload = {
         ...updates,
       };
 
