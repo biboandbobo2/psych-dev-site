@@ -49,19 +49,52 @@ const checks = [
 ];
 
 const failures = checks.filter((check) => check.actual !== check.expected);
+const legacyConfigHits = [];
 
-if (failures.length === 0) {
-  process.stdout.write('Functions runtime check passed: project is pinned to Node 22.\n');
+function walk(dirPath) {
+  for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+    const fullPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === 'lib' || entry.name === 'node_modules') {
+        continue;
+      }
+      walk(fullPath);
+      continue;
+    }
+
+    if (!fullPath.endsWith('.ts')) {
+      continue;
+    }
+
+    const content = fs.readFileSync(fullPath, 'utf8');
+    if (content.includes('functions.config(')) {
+      legacyConfigHits.push(path.relative(projectRoot, fullPath));
+    }
+  }
+}
+
+walk(path.join(projectRoot, 'functions', 'src'));
+
+if (failures.length === 0 && legacyConfigHits.length === 0) {
+  process.stdout.write('Functions runtime check passed: project is pinned to Node 22 and legacy config is not used.\n');
   process.exit(0);
 }
 
 const lines = [
-  'Deploy blocked: Cloud Functions runtime must stay on Node 22.',
+  'Deploy blocked: Cloud Functions must stay on Node 22 and avoid legacy functions.config().',
   '',
   ...failures.flatMap((failure) => [
     `- ${failure.label}: expected "${failure.expected}", got "${failure.actual ?? 'undefined'}"`,
     `  ${failure.fix}`,
   ]),
+  ...(legacyConfigHits.length > 0
+    ? [
+        ...legacyConfigHits.map(
+          (file) => `- legacy functions.config() detected in ${file}`
+        ),
+        '  Перенесите конфиг в Secret Manager или env/params и уберите functions.config().',
+      ]
+    : []),
   '',
   'Исправьте конфиг и повторите команду.',
 ];

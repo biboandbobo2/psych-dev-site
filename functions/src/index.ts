@@ -8,6 +8,7 @@ import {
   resolveAdminProjectId,
   resolveAdminStorageBucket,
 } from "./lib/adminApp.js";
+import { getAdminSeedCode } from "./lib/adminSeedCode.js";
 import {
   debugError as functionsDebugError,
   debugLog as functionsDebugLog,
@@ -37,7 +38,7 @@ export function ensureAdmin(context: functions.https.CallableContext) {
  * По одноразовому коду добавляет пользователя в коллекцию admins/{uid}
  * и выставляет custom claim role: "admin".
  *
- * Требует аутентификации (Google Sign-In). Код берётся из functions:config admin.seed_code.
+ * Требует аутентификации (Google Sign-In). Код берётся из Secret Manager.
  */
 export const seedAdmin = functions.https.onCall(async (data, context) => {
   const uid = context.auth?.uid;
@@ -56,7 +57,7 @@ export const seedAdmin = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError("unauthenticated", "Login required");
   }
 
-  const expected = (functions.config().admin?.seed_code || "").trim();
+  const expected = await getAdminSeedCode();
   functionsDebugLog("🔵 Expected seed code configured:", Boolean(expected));
 
   if (!expected || seedCode !== expected) {

@@ -1,6 +1,6 @@
 import * as functions from "firebase-functions";
-import { GoogleAuth } from "google-auth-library";
 import { resolveAdminProjectId } from "./adminApp.js";
+import { readLatestSecretValue } from "./secrets.js";
 
 const TELEGRAM_BOT_TOKEN_SECRET =
   process.env.TELEGRAM_BOT_TOKEN_SECRET_NAME || "telegram-bot-token";
@@ -25,22 +25,6 @@ function getTelegramEnvConfig(): TelegramConfig | null {
   return { token, chatId };
 }
 
-async function readSecretValue(projectId: string, secretName: string) {
-  const auth = new GoogleAuth({
-    scopes: ["https://www.googleapis.com/auth/cloud-platform"],
-  });
-  const client = await auth.getClient();
-  const url = `https://secretmanager.googleapis.com/v1/projects/${projectId}/secrets/${secretName}/versions/latest:access`;
-  const response = await client.request<{ payload?: { data?: string } }>({ url });
-  const encoded = response.data.payload?.data;
-
-  if (!encoded) {
-    throw new Error(`Secret ${secretName} payload is empty`);
-  }
-
-  return Buffer.from(encoded, "base64").toString("utf8");
-}
-
 async function getTelegramSecretConfig(): Promise<TelegramConfig | null> {
   const projectId = resolveAdminProjectId();
   if (!projectId) {
@@ -49,8 +33,8 @@ async function getTelegramSecretConfig(): Promise<TelegramConfig | null> {
 
   try {
     const [token, chatId] = await Promise.all([
-      readSecretValue(projectId, TELEGRAM_BOT_TOKEN_SECRET),
-      readSecretValue(projectId, TELEGRAM_CHAT_ID_SECRET),
+      readLatestSecretValue(TELEGRAM_BOT_TOKEN_SECRET, projectId),
+      readLatestSecretValue(TELEGRAM_CHAT_ID_SECRET, projectId),
     ]);
 
     return { token, chatId };

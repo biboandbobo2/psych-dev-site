@@ -4,6 +4,7 @@ import { initializeApp, applicationDefault, getApps } from "firebase-admin/app";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { resolveAdminProjectId, resolveAdminStorageBucket, } from "./lib/adminApp.js";
+import { getAdminSeedCode } from "./lib/adminSeedCode.js";
 import { debugError as functionsDebugError, debugLog as functionsDebugLog, } from "./lib/debug.js";
 // Инициализация Firebase Admin
 if (!getApps().length) {
@@ -27,7 +28,7 @@ export function ensureAdmin(context) {
  * По одноразовому коду добавляет пользователя в коллекцию admins/{uid}
  * и выставляет custom claim role: "admin".
  *
- * Требует аутентификации (Google Sign-In). Код берётся из functions:config admin.seed_code.
+ * Требует аутентификации (Google Sign-In). Код берётся из Secret Manager.
  */
 export const seedAdmin = functions.https.onCall(async (data, context) => {
     const uid = context.auth?.uid;
@@ -43,7 +44,7 @@ export const seedAdmin = functions.https.onCall(async (data, context) => {
         functionsDebugError("❌ No UID or email");
         throw new functions.https.HttpsError("unauthenticated", "Login required");
     }
-    const expected = (functions.config().admin?.seed_code || "").trim();
+    const expected = await getAdminSeedCode();
     functionsDebugLog("🔵 Expected seed code configured:", Boolean(expected));
     if (!expected || seedCode !== expected) {
         functionsDebugError("❌ Invalid seed code");
