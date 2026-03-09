@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useNotes } from '../hooks/useNotes';
-import { usePublishedLessonOptions } from '../hooks';
+import { useActiveCourse, usePublishedLessonOptions } from '../hooks';
 import { buildNotePeriodKey, type Note } from '../types/notes';
 import { sortNotes, type SortOption } from '../utils/sortNotes';
 import { NotesHeader } from './notes/components/NotesHeader';
 import { NotesList } from './notes/components/NotesList';
 import { NotesEmpty } from './notes/components/NotesEmpty';
 import { NotesEditor } from './notes/components/NotesEditor';
+import { NotesSidebar } from './notes/components/NotesSidebar';
 import { debugError } from '../lib/debug';
+import { useCourseStore } from '../stores';
+import type { CourseType } from '../types/tests';
 
 const SORT_STORAGE_KEY = 'notesSortPreference';
 
 export default function Notes() {
-  const [selectedPeriod, setSelectedPeriod] = useState<'all' | string>('all');
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>(() => {
     if (typeof window === 'undefined') return 'date-new';
@@ -22,17 +26,78 @@ export default function Notes() {
   const [showStats, setShowStats] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const { currentCourse, setCurrentCourse } = useCourseStore();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(SORT_STORAGE_KEY, sortBy);
   }, [sortBy]);
 
-  const activePeriod = selectedPeriod === 'all' ? null : selectedPeriod;
-  const { lessonGroups } = usePublishedLessonOptions();
-  const { notes, loading, error, createManualNote, updateNote, deleteNote } = useNotes(activePeriod);
+  const { courseOptions, lessonsByCourse, loading: lessonsLoading } = usePublishedLessonOptions();
+  const activeCourse = useActiveCourse(courseOptions, lessonsLoading);
+  const courseParam = searchParams.get('course');
+  const periodParam = searchParams.get('period');
+  const activeLessons = lessonsByCourse[activeCourse] ?? [];
+  const selectedPeriod =
+    periodParam && activeLessons.some((lesson) => lesson.periodKey === periodParam)
+      ? periodParam
+      : 'all';
+  const selectedLesson =
+    selectedPeriod === 'all'
+      ? null
+      : activeLessons.find((lesson) => lesson.periodKey === selectedPeriod) ?? null;
+  const { notes, loading, error, createManualNote, updateNote, deleteNote } = useNotes();
 
-  const sortedNotes = useMemo(() => sortNotes(notes, sortBy), [notes, sortBy]);
+  useEffect(() => {
+    if (!courseParam || courseParam === currentCourse || !courseOptions.some((course) => course.id === courseParam)) {
+      return;
+    }
+
+    setCurrentCourse(courseParam as CourseType);
+  }, [courseOptions, courseParam, currentCourse, setCurrentCourse]);
+
+  useEffect(() => {
+    if (lessonsLoading || !courseOptions.length) {
+      return;
+    }
+
+    const nextParams = new URLSearchParams(searchParams);
+    let changed = false;
+
+    if (courseParam !== activeCourse) {
+      nextParams.set('course', activeCourse);
+      changed = true;
+    }
+
+    if (periodParam && !activeLessons.some((lesson) => lesson.periodKey === periodParam)) {
+      nextParams.delete('period');
+      changed = true;
+    }
+
+    if (changed) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [
+    activeCourse,
+    activeLessons,
+    courseOptions.length,
+    courseParam,
+    lessonsLoading,
+    periodParam,
+    searchParams,
+    setSearchParams,
+  ]);
+
+  const scopedNotes = useMemo(() => {
+    const courseNotes = notes.filter((note) => note.courseId === activeCourse);
+    if (selectedPeriod === 'all') {
+      return courseNotes;
+    }
+
+    return courseNotes.filter((note) => note.periodKey === selectedPeriod);
+  }, [activeCourse, notes, selectedPeriod]);
+
+  const sortedNotes = useMemo(() => sortNotes(scopedNotes, sortBy), [scopedNotes, sortBy]);
 
   const displayNotes = useMemo(() => {
     if (!searchQuery.trim()) return sortedNotes;
@@ -46,26 +111,26 @@ export default function Notes() {
     });
   }, [sortedNotes, searchQuery]);
 
-  const totalNotes = notes.length;
+  const totalNotes = scopedNotes.length;
   const studiedPeriods = useMemo(() => {
     const set = new Set(
-      notes
+      scopedNotes
         .map((note) => note.periodId ?? note.ageRange ?? null)
         .filter(Boolean) as string[]
     );
     return set.size;
-  }, [notes]);
+  }, [scopedNotes]);
 
   const createdToday = useMemo(() => {
     const today = new Date();
-    return notes.filter((note) => isSameDay(note.createdAt, today)).length;
-  }, [notes]);
+    return scopedNotes.filter((note) => isSameDay(note.createdAt, today)).length;
+  }, [scopedNotes]);
 
   const createdThisWeek = useMemo(() => {
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    return notes.filter((note) => getNoteDate(note.createdAt) >= weekAgo).length;
-  }, [notes]);
+    return scopedNotes.filter((note) => getNoteDate(note.createdAt) >= weekAgo).length;
+  }, [scopedNotes]);
 
   const handleCreateNote = () => {
     setEditingNote(null);
@@ -116,7 +181,14 @@ export default function Notes() {
         );
       }
 
-      setSelectedPeriod(buildNotePeriodKey(data.courseId, data.periodId));
+      setCurrentCourse(data.courseId as CourseType);
+      setSearchParams(
+        {
+          course: data.courseId,
+          period: buildNotePeriodKey(data.courseId, data.periodId),
+        },
+        { replace: true }
+      );
     } catch (err) {
       debugError('Error saving note', err);
       alert('Ошибка при сохранении заметки');
@@ -165,47 +237,79 @@ export default function Notes() {
     today: createdToday,
     week: createdThisWeek,
   };
+  const activeCourseLabel =
+    courseOptions.find((course) => course.id === activeCourse)?.name ?? activeCourse;
+
+  const handleCourseSelect = (courseId: string) => {
+    setCurrentCourse(courseId as CourseType);
+    setSearchParams({ course: courseId }, { replace: true });
+  };
+
+  const handleLessonSelect = (periodKey: 'all' | string) => {
+    if (periodKey === 'all') {
+      setSearchParams({ course: activeCourse }, { replace: true });
+      return;
+    }
+
+    setSearchParams({ course: activeCourse, period: periodKey }, { replace: true });
+  };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <NotesHeader
-        selectedPeriod={selectedPeriod}
-        onPeriodChange={setSelectedPeriod}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-        onClearSearch={() => setSearchQuery('')}
-        showStats={showStats}
-        onToggleStats={() => setShowStats((prev) => !prev)}
-        onCreate={handleCreateNote}
-        notesForExport={displayNotes}
-        lessonGroups={lessonGroups}
-      />
+    <div className="mx-auto max-w-6xl px-4 py-8">
+      <div className="flex flex-col gap-6 lg:flex-row lg:gap-10">
+        <aside className="lg:w-80 lg:flex-shrink-0 lg:self-start lg:sticky lg:top-8">
+          <NotesSidebar
+            activeCourseId={activeCourse}
+            activeLessonKey={selectedPeriod}
+            courses={courseOptions}
+            lessons={activeLessons}
+            onCourseSelect={handleCourseSelect}
+            onLessonSelect={handleLessonSelect}
+          />
+        </aside>
 
-      {displayNotes.length === 0 ? (
-        <NotesEmpty
-          hasQuery={Boolean(searchQuery.trim())}
-          query={searchQuery}
-          onResetSearch={() => setSearchQuery('')}
-          onCreate={handleCreateNote}
-        />
-      ) : (
-        <NotesList
-          notes={displayNotes}
-          showStats={showStats}
-          stats={stats}
-          onEdit={handleEditNote}
-          onDelete={handleDeleteNote}
-        />
-      )}
+        <div className="min-w-0 flex-1">
+          <NotesHeader
+            activeCourseLabel={activeCourseLabel}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            onClearSearch={() => setSearchQuery('')}
+            showStats={showStats}
+            onToggleStats={() => setShowStats((prev) => !prev)}
+            onCreate={handleCreateNote}
+            notesForExport={displayNotes}
+          />
 
-      <NotesEditor
-        isOpen={isModalOpen}
-        editingNote={editingNote}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveNote}
-      />
+          {displayNotes.length === 0 ? (
+            <NotesEmpty
+              hasQuery={Boolean(searchQuery.trim())}
+              query={searchQuery}
+              onResetSearch={() => setSearchQuery('')}
+              onCreate={handleCreateNote}
+            />
+          ) : (
+            <NotesList
+              notes={displayNotes}
+              showStats={showStats}
+              stats={stats}
+              onEdit={handleEditNote}
+              onDelete={handleDeleteNote}
+            />
+          )}
+
+          <NotesEditor
+            isOpen={isModalOpen}
+            editingNote={editingNote}
+            defaultCourseId={activeCourse}
+            defaultPeriodId={selectedLesson?.periodId ?? null}
+            defaultPeriodTitle={selectedLesson?.periodTitle ?? null}
+            onClose={() => setIsModalOpen(false)}
+            onSave={handleSaveNote}
+          />
+        </div>
+      </div>
     </div>
   );
 }

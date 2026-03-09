@@ -4,6 +4,7 @@
  */
 export { useAllUsers } from './useAllUsers';
 export { useAnswerValidation } from './useAnswerValidation';
+export { useActiveCourse } from './useActiveCourse';
 export { useGeminiKey } from './useGeminiKey';
 export type { GeminiKeyStatus } from './useGeminiKey';
 export { useClickOutside } from './useClickOutside';

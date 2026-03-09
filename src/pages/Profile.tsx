@@ -17,13 +17,14 @@ interface StudentPanelProps {
 }
 
 function StudentPanel({ currentCourse }: StudentPanelProps) {
+  const notesLink = `/notes?course=${encodeURIComponent(currentCourse)}`;
   const features = [
     {
       icon: '📝',
       title: 'Мои заметки',
       description: 'Создавайте заметки к занятиям и лекциям курса и возвращайтесь к ним в любое время',
       color: 'from-blue-500 to-blue-600',
-      link: '/notes',
+      link: notesLink,
       disabled: false,
     },
     {

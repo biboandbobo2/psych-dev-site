@@ -4,6 +4,9 @@ import type { Note } from '../../types/notes';
 interface NotesEditorProps {
   isOpen: boolean;
   editingNote: Note | null;
+  defaultCourseId: string | null;
+  defaultPeriodId: string | null;
+  defaultPeriodTitle: string | null;
   onClose: () => void;
   onSave: (data: {
     title: string;
@@ -19,6 +22,9 @@ interface NotesEditorProps {
 export function NotesEditor({
   isOpen,
   editingNote,
+  defaultCourseId,
+  defaultPeriodId,
+  defaultPeriodTitle,
   onClose,
   onSave,
 }: NotesEditorProps) {
@@ -28,9 +34,9 @@ export function NotesEditor({
       noteId={editingNote?.id}
       initialTitle={editingNote?.title}
       initialContent={editingNote?.content}
-      initialCourseId={editingNote?.courseId ?? null}
-      initialPeriodId={editingNote?.periodId ?? null}
-      initialPeriodTitle={editingNote?.periodTitle ?? null}
+      initialCourseId={editingNote?.courseId ?? defaultCourseId}
+      initialPeriodId={editingNote?.periodId ?? defaultPeriodId}
+      initialPeriodTitle={editingNote?.periodTitle ?? defaultPeriodTitle}
       initialTopicId={editingNote?.topicId}
       initialTopicTitle={editingNote?.topicTitle ?? null}
       onClose={onClose}

@@ -4,9 +4,11 @@ import { signOut } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useAuthStore, useContentSearchStore } from "../stores";
+import { useCourseStore } from "../stores/useCourseStore";
 import { CombinedSearchDrawer } from "./CombinedSearchDrawer";
 import { AiAssistantDrawer } from "../features/researchSearch/components/AiAssistantDrawer";
 import { FeedbackButton, FeedbackModal } from "./FeedbackModal";
+import type { CourseType } from "../types/tests";
 
 interface UserMenuProps {
   user: User;
@@ -22,13 +24,17 @@ export default function UserMenu({ user }: UserMenuProps) {
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const { isOpen: isSearchOpen, openSearch, closeSearch } = useContentSearchStore();
+  const currentCourse = useCourseStore((state) => state.currentCourse);
 
   // Определяем курс на основе текущего пути
   const isClinicalPage = location.pathname.startsWith('/clinical');
   const isGeneralPage = location.pathname.startsWith('/general');
+  const isDynamicCoursePage = location.pathname.startsWith('/course/');
   const isProfilePage = location.pathname === '/' || location.pathname === '/profile';
+  const notesLink = `/notes?course=${encodeURIComponent(currentCourse as CourseType)}`;
   const adminContentLink = isClinicalPage ? '/admin/content?course=clinical' :
                            isGeneralPage ? '/admin/content?course=general' :
+                           isDynamicCoursePage ? `/admin/content?course=${encodeURIComponent(currentCourse as CourseType)}` :
                            '/admin/content?course=development';
 
   const handleSignOut = async () => {
@@ -78,7 +84,7 @@ export default function UserMenu({ user }: UserMenuProps) {
 
       <div className="hidden sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
         <Link
-          to="/notes"
+          to={notesLink}
           className="inline-flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-800 transition hover:bg-blue-200"
         >
           <span aria-hidden className="text-base">📝</span>
@@ -191,7 +197,7 @@ export default function UserMenu({ user }: UserMenuProps) {
 
             <div className="mt-4 grid gap-2">
               <Link
-                to="/notes"
+                to={notesLink}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800"
               >
