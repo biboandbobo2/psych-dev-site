@@ -44,6 +44,6 @@ export function getTranscriptRefreshConfigFromEnv(): TranscriptRefreshConfig {
       "TRANSCRIPT_REFRESH_LOCK_TTL_MINUTES"
     ),
     schedule: process.env.TRANSCRIPT_REFRESH_CRON || "0 9 * * 0",
-    timeZone: process.env.TRANSCRIPT_REFRESH_TIME_ZONE || "Europe/Tbilisi",
+    timeZone: process.env.TRANSCRIPT_REFRESH_TIME_ZONE || "Asia/Tbilisi",
   };
 }

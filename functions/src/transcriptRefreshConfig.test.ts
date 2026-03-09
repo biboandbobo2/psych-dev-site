@@ -16,7 +16,7 @@ describe("getTranscriptRefreshConfigFromEnv", () => {
 
     expect(config.batchSize).toBe(25);
     expect(config.langs).toEqual(["ru", "en"]);
-    expect(config.timeZone).toBe("Europe/Tbilisi");
+    expect(config.timeZone).toBe("Asia/Tbilisi");
   });
 
   it("parses custom env values", () => {
