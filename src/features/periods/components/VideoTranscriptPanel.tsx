@@ -4,6 +4,7 @@ interface VideoTranscriptPanelProps {
   error: string | null;
   isChecking: boolean;
   isLoading: boolean;
+  onTimestampClick: (startMs: number) => void;
   transcript: VideoTranscriptStoragePayload | null;
 }
 
@@ -24,6 +25,7 @@ export function VideoTranscriptPanel({
   error,
   isChecking,
   isLoading,
+  onTimestampClick,
   transcript,
 }: VideoTranscriptPanelProps) {
   return (
@@ -56,9 +58,13 @@ export function VideoTranscriptPanel({
                 key={`${segment.index}-${segment.startMs}`}
                 className="rounded-[1.1rem] border border-white/10 bg-black/20 px-4 py-3"
               >
-                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/40">
+                <button
+                  type="button"
+                  onClick={() => onTimestampClick(segment.startMs)}
+                  className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/40 transition hover:text-white focus:outline-none focus:text-white"
+                >
                   {formatTranscriptTimestamp(segment.startMs)}
-                </div>
+                </button>
                 <p className="mt-2 text-sm leading-6 text-white/85">{segment.text}</p>
               </div>
             ))}

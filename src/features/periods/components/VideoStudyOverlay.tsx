@@ -155,6 +155,7 @@ export function VideoStudyOverlay({
               error={transcriptState.error}
               isChecking={transcriptState.isChecking}
               isLoading={transcriptState.isLoading}
+              onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
               transcript={transcriptState.transcript}
             />
           ) : (
