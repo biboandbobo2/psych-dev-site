@@ -29,6 +29,7 @@ vi.mock('../../../components/LoginModal', () => ({
 function renderPanel(props: {
   courseId: string;
   getPlaybackSnapshot?: () => { currentTimeMs: number | null; paused: boolean };
+  initialDraftSegments?: LectureNoteSegment[];
   lectureResourceId: string;
   onTimestampClick?: (startMs: number) => void;
   periodId?: string;
@@ -36,7 +37,9 @@ function renderPanel(props: {
   videoTitle: string;
 }) {
   function TestPanel() {
-    const [draftSegments, setDraftSegments] = useState<LectureNoteSegment[]>([]);
+    const [draftSegments, setDraftSegments] = useState<LectureNoteSegment[]>(
+      () => props.initialDraftSegments ?? []
+    );
 
     return (
       <VideoStudyNotesPanel
@@ -78,6 +81,13 @@ describe('VideoStudyNotesPanel', () => {
     renderPanel({
       courseId: 'development',
       getPlaybackSnapshot: () => ({ currentTimeMs: 317000, paused: false }),
+      initialDraftSegments: [
+        {
+          id: 'segment-1',
+          startMs: 120000,
+          text: 'Старый конспект',
+        },
+      ],
       lectureResourceId: 'video-1',
       onTimestampClick: handleTimestampClick,
       periodId: 'school',
@@ -130,6 +140,42 @@ describe('VideoStudyNotesPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: '02:00' }));
     expect(handleTimestampClick).toHaveBeenCalledWith(120000);
     expect(screen.getByRole('button', { name: 'Конспект сохранён' })).toBeInTheDocument();
+  });
+
+  it('не разбивает непрерывный ввод на отдельные сегменты по символам', async () => {
+    renderPanel({
+      courseId: 'development',
+      getPlaybackSnapshot: () => ({ currentTimeMs: 45000, paused: false }),
+      lectureResourceId: 'video-3',
+      periodId: 'school',
+      periodTitle: 'Младший школьный возраст',
+      videoTitle: 'Лекция 3',
+    });
+
+    const textarea = screen.getByLabelText('Заметки по лекции');
+
+    fireEvent.change(textarea, { target: { value: 'П' } });
+    fireEvent.change(textarea, { target: { value: 'Пр' } });
+    fireEvent.change(textarea, { target: { value: 'При' } });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 950));
+    });
+
+    await waitFor(() =>
+      expect(mocks.upsertLectureNote).toHaveBeenCalledWith(
+        'При',
+        expect.any(Object),
+        {
+          lectureSegments: [
+            expect.objectContaining({
+              startMs: 45000,
+              text: 'При',
+            }),
+          ],
+        }
+      )
+    );
   });
 
   it('открывает логин-модалку для неавторизованного пользователя', async () => {

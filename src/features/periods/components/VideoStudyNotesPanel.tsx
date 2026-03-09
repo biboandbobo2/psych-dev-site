@@ -3,6 +3,7 @@ import LoginModal from '../../../components/LoginModal';
 import { useNotes } from '../../../hooks/useNotes';
 import { debugError } from '../../../lib/debug';
 import {
+  buildLectureContentFromSegments,
   normalizeLectureNoteSegments,
   type LectureNoteSegment,
 } from '../../../types/notes';
@@ -51,17 +52,18 @@ export function VideoStudyNotesPanel({
   );
 
   const draftSignature = useMemo(() => JSON.stringify(draftSegments), [draftSegments]);
+  const hasInitialDraftRef = useRef(draftSegments.length > 0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isHydrating, setIsHydrating] = useState(false);
   const [viewMode, setViewMode] = useState<NoteViewMode>('plain');
   const hasUserEditedRef = useRef(false);
-  const lastPublishedDraftSignatureRef = useRef(draftSignature);
   const lastSavedSignatureRef = useRef(draftSignature);
   const {
     composer,
     persistedSegments,
     plainText,
+    resetDraft,
     segments,
     updateComposerText,
     updateSegmentText,
@@ -76,6 +78,11 @@ export function VideoStudyNotesPanel({
   );
   const hasContent = persistedSegments.length > 0;
   const isDirty = persistedSignature !== lastSavedSignatureRef.current;
+  const persistedSegmentsRef = useRef(persistedSegments);
+
+  useEffect(() => {
+    persistedSegmentsRef.current = persistedSegments;
+  }, [persistedSegments]);
 
   const saveLectureNote = useCallback(
     async (
@@ -118,19 +125,6 @@ export function VideoStudyNotesPanel({
   );
 
   useEffect(() => {
-    lastPublishedDraftSignatureRef.current = draftSignature;
-  }, [draftSignature]);
-
-  useEffect(() => {
-    if (lastPublishedDraftSignatureRef.current === persistedSignature) {
-      return;
-    }
-
-    lastPublishedDraftSignatureRef.current = persistedSignature;
-    onDraftSegmentsChange(persistedSegments);
-  }, [onDraftSegmentsChange, persistedSegments, persistedSignature]);
-
-  useEffect(() => {
     let cancelled = false;
 
     hasUserEditedRef.current = false;
@@ -153,7 +147,8 @@ export function VideoStudyNotesPanel({
         const savedSignature = JSON.stringify(savedSegments);
         lastSavedSignatureRef.current = savedSignature;
 
-        if (!cancelled && !hasUserEditedRef.current && draftSignature === '[]') {
+        if (!cancelled && !hasUserEditedRef.current && !hasInitialDraftRef.current) {
+          resetDraft(savedSegments);
           onDraftSegmentsChange(savedSegments);
         }
 
@@ -177,7 +172,7 @@ export function VideoStudyNotesPanel({
     return () => {
       cancelled = true;
     };
-  }, [draftSignature, getLectureNote, lectureContext, onDraftSegmentsChange, user]);
+  }, [getLectureNote, lectureContext, onDraftSegmentsChange, resetDraft, user]);
 
   useEffect(() => {
     if (!user || isHydrating) {
@@ -213,25 +208,24 @@ export function VideoStudyNotesPanel({
 
   useEffect(() => {
     return () => {
+      onDraftSegmentsChange(persistedSegmentsRef.current);
+
       if (
         !user ||
         isHydrating ||
-        persistedSignature === lastSavedSignatureRef.current ||
-        (!plainText.trim() && lastSavedSignatureRef.current === '[]')
+        JSON.stringify(persistedSegmentsRef.current) === lastSavedSignatureRef.current ||
+        (!persistedSegmentsRef.current.length && lastSavedSignatureRef.current === '[]')
       ) {
         return;
       }
 
-      void saveLectureNote(plainText, persistedSegments, { silent: true });
+      void saveLectureNote(
+        buildLectureContentFromSegments(persistedSegmentsRef.current),
+        persistedSegmentsRef.current,
+        { silent: true }
+      );
     };
-  }, [
-    isHydrating,
-    persistedSegments,
-    persistedSignature,
-    plainText,
-    saveLectureNote,
-    user,
-  ]);
+  }, [isHydrating, onDraftSegmentsChange, saveLectureNote, user]);
 
   const statusLabel = !user
     ? 'Войдите, чтобы сохранять конспект'

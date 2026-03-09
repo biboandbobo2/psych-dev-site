@@ -49,6 +49,11 @@ export function useTimestampedLectureDraft({
     setComposer(createEmptySegment());
   }, [normalizedInitialSegments]);
 
+  const resetDraft = useCallback((nextSegments: LectureNoteSegment[]) => {
+    setSegments(sanitizeSegments(nextSegments));
+    setComposer(createEmptySegment());
+  }, []);
+
   const finalizeComposer = useCallback(() => {
     setSegments((current) => {
       if (!composerRef.current.text.trim()) {
@@ -131,6 +136,7 @@ export function useTimestampedLectureDraft({
     finalizeComposer,
     persistedSegments,
     plainText: buildLectureContentFromSegments(persistedSegments),
+    resetDraft,
     segments,
     timestampedText: buildTimestampedLectureContent(persistedSegments),
     updateComposerText,
