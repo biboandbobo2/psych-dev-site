@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getYouTubeVideoId } from '../../../lib/videoTranscripts';
-import { isUrlString } from '../utils/media';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
+import { VideoResourceLinks } from './VideoResourceLinks';
 import { VideoTranscriptPanel } from './VideoTranscriptPanel';
 import { useVideoTranscript } from '../../../hooks';
 
@@ -135,43 +135,17 @@ export function VideoStudyOverlay({
               </div>
             </div>
 
-            {deckUrl || audioUrl || (!isYoutube && isUrlString(originalUrl)) ? (
-              <div className="flex flex-wrap items-center gap-3 border-t border-white/10 px-4 py-3 text-white/75 md:px-5">
-                {deckUrl ? (
-                  <a
-                    className="inline-block text-sm font-semibold italic text-white/85 no-underline hover:text-white hover:no-underline focus-visible:no-underline"
-                    href={deckUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Скачать презентацию
-                  </a>
-                ) : null}
-                {audioUrl ? (
-                  <a
-                    className="inline-block text-sm font-semibold italic text-white/85 no-underline hover:text-white hover:no-underline focus-visible:no-underline lg:ml-auto"
-                    href={audioUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Слушать аудио
-                  </a>
-                ) : null}
-                {!isYoutube && isUrlString(originalUrl) ? (
-                  <p className="w-full text-sm leading-6 text-white/60">
-                    Ссылка не похожа на YouTube. Проверить источник:{' '}
-                    <a
-                      className="text-white no-underline hover:no-underline focus-visible:no-underline"
-                      href={originalUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {originalUrl}
-                    </a>
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
+            <VideoResourceLinks
+              audioUrl={audioUrl}
+              deckUrl={deckUrl}
+              originalUrl={originalUrl}
+              isYoutube={isYoutube}
+              className="flex flex-wrap items-center gap-3 border-t border-white/10 px-4 py-3 text-white/75 md:px-5"
+              deckLinkClassName="inline-block text-sm font-semibold italic text-white/85 no-underline hover:text-white hover:no-underline focus-visible:no-underline"
+              audioLinkClassName="inline-block text-sm font-semibold italic text-white/85 no-underline hover:text-white hover:no-underline focus-visible:no-underline lg:ml-auto"
+              sourceTextClassName="w-full text-sm leading-6 text-white/60"
+              sourceLinkClassName="text-white no-underline hover:no-underline focus-visible:no-underline"
+            />
           </div>
         </div>
 

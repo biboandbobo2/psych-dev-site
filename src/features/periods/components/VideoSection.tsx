@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Section } from '../../../components/ui/Section';
 import { cn } from '../../../lib/cn';
 import { isUrlString, normalizeVideoEntry } from '../utils/media';
+import { VideoResourceLinks } from './VideoResourceLinks';
 import { VideoStudyOverlay } from './VideoStudyOverlay';
 
 interface VideoSectionProps {
@@ -159,38 +160,17 @@ function VideoSectionCard({
           referrerPolicy="strict-origin-when-cross-origin"
           className="aspect-video w-full rounded-2xl border border-border shadow-brand"
         />
-        {deckUrl || audioUrl ? (
-          <div className="flex flex-wrap items-center gap-3">
-            {deckUrl ? (
-              <a
-                className="inline-block text-sm font-semibold italic text-[color:var(--accent)] no-underline hover:no-underline focus-visible:no-underline"
-                href={deckUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Скачать презентацию
-              </a>
-            ) : null}
-            {audioUrl ? (
-              <a
-                className="ml-auto inline-block text-sm font-semibold italic text-[color:var(--accent)] no-underline hover:no-underline focus-visible:no-underline"
-                href={audioUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Слушать аудио
-              </a>
-            ) : null}
-          </div>
-        ) : null}
-        {!isYoutube && isUrlString(originalUrl) ? (
-          <p className="text-sm leading-6 text-muted">
-            Ссылка не похожа на YouTube. Проверить источник:{' '}
-            <a className="text-accent no-underline hover:no-underline focus-visible:no-underline" href={originalUrl} target="_blank" rel="noreferrer">
-              {originalUrl}
-            </a>
-          </p>
-        ) : null}
+        <VideoResourceLinks
+          audioUrl={audioUrl}
+          deckUrl={deckUrl}
+          originalUrl={originalUrl}
+          isYoutube={isYoutube}
+          className="flex flex-wrap items-center gap-3"
+          deckLinkClassName="inline-block text-sm font-semibold italic text-[color:var(--accent)] no-underline hover:no-underline focus-visible:no-underline"
+          audioLinkClassName="ml-auto inline-block text-sm font-semibold italic text-[color:var(--accent)] no-underline hover:no-underline focus-visible:no-underline"
+          sourceTextClassName="w-full text-sm leading-6 text-muted"
+          sourceLinkClassName="text-accent no-underline hover:no-underline focus-visible:no-underline"
+        />
       </div>
 
       <VideoStudyOverlay
