@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getYouTubeVideoId } from '../../../lib/videoTranscripts';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
 import { VideoResourceLinks } from './VideoResourceLinks';
+import { StudyVideoPlayer, type StudyVideoPlayerHandle } from './StudyVideoPlayer';
 import { VideoTranscriptPanel } from './VideoTranscriptPanel';
 import { useVideoTranscript } from '../../../hooks';
 
@@ -40,6 +41,7 @@ export function VideoStudyOverlay({
   videoTitle,
 }: VideoStudyOverlayProps) {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>('notes');
+  const playerRef = useRef<StudyVideoPlayerHandle | null>(null);
   const youtubeVideoId = useMemo(
     () => getYouTubeVideoId(originalUrl) ?? getYouTubeVideoId(embedUrl),
     [embedUrl, originalUrl]
@@ -124,13 +126,10 @@ export function VideoStudyOverlay({
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex-1 p-3 md:p-5">
               <div className="h-full min-h-[16rem] overflow-hidden rounded-[1.6rem] bg-black ring-1 ring-white/10">
-                <iframe
+                <StudyVideoPlayer
+                  ref={playerRef}
                   title={`${videoTitle} fullscreen`}
-                  src={embedUrl}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  className="h-full w-full"
+                  embedUrl={embedUrl}
                 />
               </div>
             </div>
