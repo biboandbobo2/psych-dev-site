@@ -11,12 +11,14 @@ const mocks = vi.hoisted(() => ({
 vi.mock('./VideoStudyNotesPanel', async () => {
   return {
     VideoStudyNotesPanel: ({
-      draftContent,
-      onDraftChange,
+      draftSegments,
+      onDraftSegmentsChange,
       videoTitle,
     }: {
-      draftContent: string;
-      onDraftChange: (value: string) => void;
+      draftSegments: Array<{ id: string; startMs: number | null; text: string }>;
+      onDraftSegmentsChange: (
+        segments: Array<{ id: string; startMs: number | null; text: string }>
+      ) => void;
       videoTitle: string;
     }) => {
       return (
@@ -24,7 +26,18 @@ vi.mock('./VideoStudyNotesPanel', async () => {
           <div>Study panel for {videoTitle}</div>
           <label>
             Draft
-            <input value={draftContent} onChange={(event) => onDraftChange(event.target.value)} />
+            <input
+              value={draftSegments[0]?.text ?? ''}
+              onChange={(event) =>
+                onDraftSegmentsChange([
+                  {
+                    id: 'segment-1',
+                    startMs: null,
+                    text: event.target.value,
+                  },
+                ])
+              }
+            />
           </label>
         </div>
       );

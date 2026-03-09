@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
+import type { LectureNoteSegment } from '../../../types/notes';
 
 const mocks = vi.hoisted(() => ({
   getLectureNote: vi.fn(),
@@ -27,18 +28,22 @@ vi.mock('../../../components/LoginModal', () => ({
 
 function renderPanel(props: {
   courseId: string;
+  getPlaybackSnapshot?: () => { currentTimeMs: number | null; paused: boolean };
   lectureResourceId: string;
+  onTimestampClick?: (startMs: number) => void;
   periodId?: string;
   periodTitle: string;
   videoTitle: string;
 }) {
   function TestPanel() {
-    const [draftContent, setDraftContent] = useState('');
+    const [draftSegments, setDraftSegments] = useState<LectureNoteSegment[]>([]);
 
     return (
       <VideoStudyNotesPanel
-        draftContent={draftContent}
-        onDraftChange={setDraftContent}
+        draftSegments={draftSegments}
+        onDraftSegmentsChange={setDraftSegments}
+        getPlaybackSnapshot={props.getPlaybackSnapshot}
+        onTimestampClick={props.onTimestampClick ?? vi.fn()}
         {...props}
       />
     );
@@ -56,27 +61,39 @@ describe('VideoStudyNotesPanel', () => {
     mocks.user = { uid: 'user-1' };
   });
 
-  it('подгружает прошлый конспект и автосохраняет полный текст в ту же lecture note', async () => {
+  it('подгружает прошлый конспект, сохраняет сегменты и показывает таймкоды по запросу', async () => {
     mocks.getLectureNote.mockResolvedValue({
       id: 'note-1',
       content: 'Старый конспект',
+      lectureSegments: [
+        {
+          id: 'segment-1',
+          startMs: 120000,
+          text: 'Старый конспект',
+        },
+      ],
     });
+    const handleTimestampClick = vi.fn();
 
     renderPanel({
       courseId: 'development',
+      getPlaybackSnapshot: () => ({ currentTimeMs: 317000, paused: false }),
       lectureResourceId: 'video-1',
+      onTimestampClick: handleTimestampClick,
       periodId: 'school',
       periodTitle: 'Младший школьный возраст',
       videoTitle: 'Лекция 1',
     });
 
-    await act(async () => {});
+    await act(async () => {
+      await Promise.resolve();
+    });
 
-    expect(screen.getByLabelText('Заметки по лекции')).toHaveValue('Старый конспект');
+    expect(screen.getByDisplayValue('Старый конспект')).toBeInTheDocument();
     expect(screen.queryByText('Загружаем прошлый конспект...')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Заметки по лекции'), {
-      target: { value: 'Старый конспект\nКлючевой тезис из лекции' },
+      target: { value: 'Ключевой тезис из лекции' },
     });
 
     await act(async () => {
@@ -85,20 +102,34 @@ describe('VideoStudyNotesPanel', () => {
 
     await waitFor(() =>
       expect(mocks.upsertLectureNote).toHaveBeenCalledWith(
-        'Старый конспект\nКлючевой тезис из лекции',
+        'Старый конспект\n\nКлючевой тезис из лекции',
         {
           courseId: 'development',
           lectureTitle: 'Лекция 1',
           lectureVideoId: 'video-1',
           periodId: 'school',
           periodTitle: 'Младший школьный возраст',
+        },
+        {
+          lectureSegments: [
+            {
+              id: 'segment-1',
+              startMs: 120000,
+              text: 'Старый конспект',
+            },
+            expect.objectContaining({
+              startMs: 317000,
+              text: 'Ключевой тезис из лекции',
+            }),
+          ],
         }
       )
     );
 
-    expect(screen.getByLabelText('Заметки по лекции')).toHaveValue('Старый конспект\nКлючевой тезис из лекции');
+    fireEvent.click(screen.getByRole('button', { name: 'Таймкоды' }));
+    fireEvent.click(screen.getByRole('button', { name: '02:00' }));
+    expect(handleTimestampClick).toHaveBeenCalledWith(120000);
     expect(screen.getByRole('button', { name: 'Конспект сохранён' })).toBeInTheDocument();
-    expect(screen.getByText('Конспект сохранён')).toBeInTheDocument();
   });
 
   it('открывает логин-модалку для неавторизованного пользователя', async () => {

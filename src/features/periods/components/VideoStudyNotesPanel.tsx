@@ -2,25 +2,37 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import LoginModal from '../../../components/LoginModal';
 import { useNotes } from '../../../hooks/useNotes';
 import { debugError } from '../../../lib/debug';
+import {
+  normalizeLectureNoteSegments,
+  type LectureNoteSegment,
+} from '../../../types/notes';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import type { StudyVideoPlaybackSnapshot } from './StudyVideoPlayer';
+import { LectureNoteSegmentsEditor } from './LectureNoteSegmentsEditor';
+import { useTimestampedLectureDraft } from '../hooks/useTimestampedLectureDraft';
 
 interface VideoStudyNotesPanelProps {
   courseId: string;
-  draftContent: string;
+  draftSegments: LectureNoteSegment[];
+  getPlaybackSnapshot?: () => StudyVideoPlaybackSnapshot;
   lectureResourceId: string;
-  onDraftChange: (value: string) => void;
+  onDraftSegmentsChange: (segments: LectureNoteSegment[]) => void;
+  onTimestampClick: (startMs: number) => void;
   periodId?: string;
   periodTitle: string;
   videoTitle: string;
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+type NoteViewMode = 'plain' | 'timestamped';
 
 export function VideoStudyNotesPanel({
   courseId,
-  draftContent,
+  draftSegments,
+  getPlaybackSnapshot,
   lectureResourceId,
-  onDraftChange,
+  onDraftSegmentsChange,
+  onTimestampClick,
   periodId,
   periodTitle,
   videoTitle,
@@ -38,30 +50,44 @@ export function VideoStudyNotesPanel({
     [courseId, lectureResourceId, periodId, periodTitle, videoTitle]
   );
 
-  const [isHydrating, setIsHydrating] = useState(false);
+  const draftSignature = useMemo(() => JSON.stringify(draftSegments), [draftSegments]);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const draftRef = useRef(draftContent);
-  const lastSavedContentRef = useRef('');
+  const [isHydrating, setIsHydrating] = useState(false);
+  const [viewMode, setViewMode] = useState<NoteViewMode>('plain');
   const hasUserEditedRef = useRef(false);
-
-  useEffect(() => {
-    draftRef.current = draftContent;
-  }, [draftContent]);
+  const lastPublishedDraftSignatureRef = useRef(draftSignature);
+  const lastSavedSignatureRef = useRef(draftSignature);
+  const {
+    composer,
+    persistedSegments,
+    plainText,
+    segments,
+    updateComposerText,
+    updateSegmentText,
+    removeEmptySegment,
+  } = useTimestampedLectureDraft({
+    getPlaybackSnapshot,
+    initialSegments: draftSegments,
+  });
+  const persistedSignature = useMemo(
+    () => JSON.stringify(persistedSegments),
+    [persistedSegments]
+  );
+  const hasContent = persistedSegments.length > 0;
+  const isDirty = persistedSignature !== lastSavedSignatureRef.current;
 
   const saveLectureNote = useCallback(
-    async (nextContent: string, options?: { silent?: boolean }) => {
+    async (
+      nextContent: string,
+      nextSegments: LectureNoteSegment[],
+      options?: { silent?: boolean }
+    ) => {
       if (!user) {
-        if (!options?.silent) {
-          setIsLoginOpen(true);
-        }
         return false;
       }
 
-      if (!nextContent.trim()) {
-        if (!options?.silent) {
-          setSaveState('idle');
-        }
+      if (!nextContent.trim() && lastSavedSignatureRef.current === '[]') {
         return false;
       }
 
@@ -70,11 +96,13 @@ export function VideoStudyNotesPanel({
       }
 
       try {
-        await upsertLectureNote(nextContent, lectureContext);
-        lastSavedContentRef.current = nextContent;
+        await upsertLectureNote(nextContent, lectureContext, {
+          lectureSegments: nextSegments,
+        });
+        lastSavedSignatureRef.current = JSON.stringify(nextSegments);
 
         if (!options?.silent) {
-          setSaveState('saved');
+          setSaveState(nextSegments.length > 0 ? 'saved' : 'idle');
         }
 
         return true;
@@ -90,12 +118,25 @@ export function VideoStudyNotesPanel({
   );
 
   useEffect(() => {
+    lastPublishedDraftSignatureRef.current = draftSignature;
+  }, [draftSignature]);
+
+  useEffect(() => {
+    if (lastPublishedDraftSignatureRef.current === persistedSignature) {
+      return;
+    }
+
+    lastPublishedDraftSignatureRef.current = persistedSignature;
+    onDraftSegmentsChange(persistedSegments);
+  }, [onDraftSegmentsChange, persistedSegments, persistedSignature]);
+
+  useEffect(() => {
     let cancelled = false;
 
     hasUserEditedRef.current = false;
 
     if (!user) {
-      lastSavedContentRef.current = '';
+      lastSavedSignatureRef.current = draftSignature;
       setIsHydrating(false);
       setSaveState('idle');
       return undefined;
@@ -105,15 +146,19 @@ export function VideoStudyNotesPanel({
       setIsHydrating(true);
       try {
         const note = await getLectureNote(lectureContext);
-        const savedContent = note?.content ?? '';
-        lastSavedContentRef.current = savedContent;
+        const savedSegments = normalizeLectureNoteSegments(
+          note?.lectureSegments,
+          note?.content ?? ''
+        );
+        const savedSignature = JSON.stringify(savedSegments);
+        lastSavedSignatureRef.current = savedSignature;
 
-        if (!cancelled && !hasUserEditedRef.current && !draftRef.current.trim()) {
-          onDraftChange(savedContent);
+        if (!cancelled && !hasUserEditedRef.current && draftSignature === '[]') {
+          onDraftSegmentsChange(savedSegments);
         }
 
         if (!cancelled) {
-          setSaveState(savedContent ? 'saved' : 'idle');
+          setSaveState(savedSegments.length > 0 ? 'saved' : 'idle');
         }
       } catch (error) {
         debugError('[VideoStudyNotesPanel] Failed to load note', error);
@@ -132,70 +177,130 @@ export function VideoStudyNotesPanel({
     return () => {
       cancelled = true;
     };
-  }, [getLectureNote, lectureContext, onDraftChange, user]);
+  }, [draftSignature, getLectureNote, lectureContext, onDraftSegmentsChange, user]);
 
   useEffect(() => {
     if (!user || isHydrating) {
       return undefined;
     }
 
-    if (draftContent === lastSavedContentRef.current) {
-      if (draftContent.trim()) {
-        setSaveState('saved');
-      }
+    if (!isDirty) {
+      setSaveState(hasContent ? 'saved' : 'idle');
       return undefined;
     }
 
-    if (!draftContent.trim()) {
+    if (!plainText.trim() && lastSavedSignatureRef.current === '[]') {
       setSaveState('idle');
       return undefined;
     }
 
     const timeoutId = window.setTimeout(() => {
-      void saveLectureNote(draftContent);
+      void saveLectureNote(plainText, persistedSegments);
     }, 900);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [draftContent, isHydrating, saveLectureNote, user]);
+  }, [
+    hasContent,
+    isDirty,
+    isHydrating,
+    persistedSegments,
+    plainText,
+    saveLectureNote,
+    user,
+  ]);
 
   useEffect(() => {
     return () => {
-      const pendingContent = draftRef.current;
-      if (!user || isHydrating || !pendingContent.trim() || pendingContent === lastSavedContentRef.current) {
+      if (
+        !user ||
+        isHydrating ||
+        persistedSignature === lastSavedSignatureRef.current ||
+        (!plainText.trim() && lastSavedSignatureRef.current === '[]')
+      ) {
         return;
       }
 
-      void saveLectureNote(pendingContent, { silent: true });
+      void saveLectureNote(plainText, persistedSegments, { silent: true });
     };
-  }, [isHydrating, saveLectureNote, user]);
+  }, [
+    isHydrating,
+    persistedSegments,
+    persistedSignature,
+    plainText,
+    saveLectureNote,
+    user,
+  ]);
 
-  const statusLabel = user
-    ? saveState === 'saving'
-      ? 'Автосохранение...'
-      : saveState === 'saved'
-      ? 'Конспект сохранён'
-      : saveState === 'error'
-      ? 'Ошибка сохранения'
-      : 'Есть несохранённые изменения'
-    : 'Войдите, чтобы сохранять конспект';
+  const statusLabel = !user
+    ? 'Войдите, чтобы сохранять конспект'
+    : saveState === 'saving'
+    ? 'Автосохранение...'
+    : saveState === 'error'
+    ? 'Ошибка сохранения'
+    : isDirty
+    ? 'Есть несохранённые изменения'
+    : hasContent
+    ? 'Конспект сохранён'
+    : 'Автосохранение включено';
 
-  const indicatorClassName = user
-    ? saveState === 'saved'
-      ? 'bg-emerald-400 shadow-[0_0_0_4px_rgba(52,211,153,0.15)]'
-      : saveState === 'saving'
-      ? 'bg-amber-300 shadow-[0_0_0_4px_rgba(252,211,77,0.15)]'
-      : saveState === 'error'
-      ? 'bg-rose-400 shadow-[0_0_0_4px_rgba(251,113,133,0.15)]'
-      : 'bg-white/35 shadow-[0_0_0_4px_rgba(255,255,255,0.08)]'
-    : 'bg-white/20 shadow-[0_0_0_4px_rgba(255,255,255,0.08)]';
+  const indicatorClassName = !user
+    ? 'bg-white/20 shadow-[0_0_0_4px_rgba(255,255,255,0.08)]'
+    : saveState === 'saving'
+    ? 'bg-amber-300 shadow-[0_0_0_4px_rgba(252,211,77,0.15)]'
+    : saveState === 'error'
+    ? 'bg-rose-400 shadow-[0_0_0_4px_rgba(251,113,133,0.15)]'
+    : !isDirty && hasContent
+    ? 'bg-emerald-400 shadow-[0_0_0_4px_rgba(52,211,153,0.15)]'
+    : 'bg-white/35 shadow-[0_0_0_4px_rgba(255,255,255,0.08)]';
+
+  const markUserEdited = useCallback(() => {
+    hasUserEditedRef.current = true;
+  }, []);
 
   return (
     <>
       <aside className="flex h-full min-h-0 flex-col px-4 py-4 text-white lg:px-5 lg:py-5">
-        <div className="flex-1 pb-4">
-          <div className="relative h-full min-h-[18rem]">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('plain')}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                viewMode === 'plain'
+                  ? 'bg-white/14 text-white'
+                  : 'text-white/55 hover:text-white'
+              }`}
+            >
+              Обычный
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('timestamped')}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                viewMode === 'timestamped'
+                  ? 'bg-white/14 text-white'
+                  : 'text-white/55 hover:text-white'
+              }`}
+            >
+              Таймкоды
+            </button>
+          </div>
+
+          {!user ? (
+            <button
+              type="button"
+              onClick={() => setIsLoginOpen(true)}
+              className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+            >
+              Войти
+            </button>
+          ) : null}
+        </div>
+
+        <div className="flex-1 min-h-0">
+          <div className="relative h-full min-h-[18rem] rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-4">
             <div className="group absolute right-4 top-4 z-10">
               <button
                 type="button"
@@ -210,30 +315,25 @@ export function VideoStudyNotesPanel({
               </div>
             </div>
 
-            <textarea
-              value={draftContent}
-              onChange={(event) => {
-                hasUserEditedRef.current = true;
-                onDraftChange(event.target.value);
-              }}
-              placeholder="Пишите короткий конспект по ходу лекции..."
-              className="h-full min-h-[18rem] w-full resize-none rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-4 pr-12 text-sm leading-7 text-white outline-none transition placeholder:text-white/30 focus:border-[color:var(--accent)] focus:bg-black/30"
-              aria-label="Заметки по лекции"
-            />
+            <div className="h-full overflow-y-auto pr-2 pt-1">
+              <LectureNoteSegmentsEditor
+                composer={composer}
+                onComposerChange={(value) => {
+                  markUserEdited();
+                  updateComposerText(value);
+                }}
+                onSegmentBlur={removeEmptySegment}
+                onSegmentChange={(segmentId, value) => {
+                  markUserEdited();
+                  updateSegmentText(segmentId, value);
+                }}
+                onTimestampClick={onTimestampClick}
+                segments={segments}
+                showTimestamps={viewMode === 'timestamped'}
+              />
+            </div>
           </div>
         </div>
-
-        {!user ? (
-          <div className="mt-auto flex justify-end border-t border-white/10 pt-4">
-            <button
-              type="button"
-              onClick={() => setIsLoginOpen(true)}
-              className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-            >
-              Войти
-            </button>
-          </div>
-        ) : null}
       </aside>
 
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />

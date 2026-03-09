@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Section } from '../../../components/ui/Section';
 import { cn } from '../../../lib/cn';
+import type { LectureNoteSegment } from '../../../types/notes';
 import { isUrlString, normalizeVideoEntry } from '../utils/media';
 import { VideoResourceLinks } from './VideoResourceLinks';
 import { VideoStudyOverlay } from './VideoStudyOverlay';
@@ -103,7 +104,7 @@ function VideoSectionCard({
   defaultVideoTitle,
 }: VideoSectionCardProps) {
   const [mode, setMode] = useState<VideoLayoutMode>('embed');
-  const [studyDraft, setStudyDraft] = useState('');
+  const [studyDraftSegments, setStudyDraftSegments] = useState<LectureNoteSegment[]>([]);
   const effectiveVideoTitle = videoTitle?.trim() || defaultVideoTitle;
 
   if (!embedUrl) {
@@ -176,12 +177,12 @@ function VideoSectionCard({
       <VideoStudyOverlay
         audioUrl={audioUrl}
         deckUrl={deckUrl}
-        draftContent={studyDraft}
+        draftSegments={studyDraftSegments}
         embedUrl={embedUrl}
         isOpen={mode === 'study'}
         isYoutube={isYoutube}
         onClose={() => setMode('embed')}
-        onDraftChange={setStudyDraft}
+        onDraftSegmentsChange={setStudyDraftSegments}
         originalUrl={originalUrl}
         courseId={courseId}
         periodId={periodId}

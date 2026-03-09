@@ -18,6 +18,7 @@ import {
   type Note,
   type AgeRange,
   type LectureNoteContext,
+  type LectureNoteSegment,
   normalizeLectureNoteSegments,
   type ManualNoteContext,
   AGE_RANGE_LABELS,
@@ -185,7 +186,11 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
       }
     };
 
-  const upsertLectureNote = useCallback(async (content: string, context: LectureNoteContext) => {
+  const upsertLectureNote = useCallback(async (
+    content: string,
+    context: LectureNoteContext,
+    options?: { lectureSegments?: LectureNoteSegment[] }
+  ) => {
     if (!user) {
       debugError('[useNotes] Cannot upsert lecture note: user not authenticated');
       throw new Error('User not authenticated');
@@ -208,6 +213,7 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
         noteScope: 'lecture' as const,
         lectureVideoId: context.lectureVideoId,
         lectureKey: buildLectureNoteKey(context),
+        lectureSegments: options?.lectureSegments ?? [],
         topicId: null,
         topicTitle: null,
         updatedAt: serverTimestamp(),

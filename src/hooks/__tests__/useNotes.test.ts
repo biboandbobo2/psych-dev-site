@@ -73,6 +73,14 @@ describe('useNotes', () => {
       periodTitle: 'Семинары',
       lectureTitle: 'Семинары',
       lectureVideoId: 'eGCP_Fk7AeU',
+    }, {
+      lectureSegments: [
+        {
+          id: 'segment-1',
+          startMs: 120000,
+          text: 'Новый конспект',
+        },
+      ],
     });
 
     const expectedId = buildLectureNoteDocumentId('user-123', {
@@ -95,6 +103,13 @@ describe('useNotes', () => {
           periodId: 'seminary',
           lectureVideoId: 'eGCP_Fk7AeU',
         }),
+        lectureSegments: [
+          {
+            id: 'segment-1',
+            startMs: 120000,
+            text: 'Новый конспект',
+          },
+        ],
         noteScope: 'lecture',
       })
     );
@@ -184,6 +199,14 @@ describe('useNotes', () => {
       periodTitle: 'Семинары',
       lectureTitle: 'Семинары',
       lectureVideoId: 'eGCP_Fk7AeU',
+    }, {
+      lectureSegments: [
+        {
+          id: 'segment-2',
+          startMs: 90000,
+          text: 'Обновлённый конспект',
+        },
+      ],
     });
 
     const expectedId = buildLectureNoteDocumentId('user-123', {
@@ -197,6 +220,13 @@ describe('useNotes', () => {
       expect.objectContaining({
         content: 'Обновлённый конспект',
         courseId: 'development',
+        lectureSegments: [
+          {
+            id: 'segment-2',
+            startMs: 90000,
+            text: 'Обновлённый конспект',
+          },
+        ],
         periodId: 'seminary',
         noteScope: 'lecture',
       })

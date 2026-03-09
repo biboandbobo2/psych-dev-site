@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getYouTubeVideoId } from '../../../lib/videoTranscripts';
+import type { LectureNoteSegment } from '../../../types/notes';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
 import { VideoResourceLinks } from './VideoResourceLinks';
 import { StudyVideoPlayer, type StudyVideoPlayerHandle } from './StudyVideoPlayer';
@@ -11,12 +12,12 @@ interface VideoStudyOverlayProps {
   audioUrl: string;
   courseId: string;
   deckUrl: string;
-  draftContent: string;
+  draftSegments: LectureNoteSegment[];
   embedUrl: string;
   isOpen: boolean;
   isYoutube: boolean;
   onClose: () => void;
-  onDraftChange: (value: string) => void;
+  onDraftSegmentsChange: (segments: LectureNoteSegment[]) => void;
   originalUrl: string;
   periodId?: string;
   periodTitle: string;
@@ -29,12 +30,12 @@ export function VideoStudyOverlay({
   audioUrl,
   courseId,
   deckUrl,
-  draftContent,
+  draftSegments,
   embedUrl,
   isOpen,
   isYoutube,
   onClose,
-  onDraftChange,
+  onDraftSegmentsChange,
   originalUrl,
   periodId,
   periodTitle,
@@ -159,9 +160,16 @@ export function VideoStudyOverlay({
           ) : (
             <VideoStudyNotesPanel
               courseId={courseId}
-              draftContent={draftContent}
+              draftSegments={draftSegments}
+              getPlaybackSnapshot={() =>
+                playerRef.current?.getPlaybackSnapshot() ?? {
+                  currentTimeMs: null,
+                  paused: true,
+                }
+              }
               lectureResourceId={lectureResourceId}
-              onDraftChange={onDraftChange}
+              onDraftSegmentsChange={onDraftSegmentsChange}
+              onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
               periodId={periodId}
               periodTitle={periodTitle}
               videoTitle={videoTitle}
