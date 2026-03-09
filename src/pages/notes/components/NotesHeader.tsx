@@ -2,7 +2,6 @@ import { ExportNotesButton } from '../../../components/ExportNotesButton';
 import type { Note } from '../../../types/notes';
 import type { SortOption } from '../../../utils/sortNotes';
 interface NotesHeaderProps {
-  activeCourseLabel: string;
   lessons: Array<{
     periodKey: string;
     periodTitle: string;
@@ -21,7 +20,6 @@ interface NotesHeaderProps {
 }
 
 export function NotesHeader({
-  activeCourseLabel,
   lessons,
   selectedPeriod,
   onPeriodChange,
@@ -38,27 +36,43 @@ export function NotesHeader({
   return (
     <>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-fg">📝 Мои заметки</h1>
-          <p className="text-sm text-muted">Сейчас показаны заметки по курсу: {activeCourseLabel}</p>
-        </div>
+        <h1 className="text-3xl font-bold text-fg">📝 Мои заметки</h1>
+        <button
+          onClick={onCreate}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 sm:w-48"
+        >
+          <span className="text-lg">＋</span>
+          <span>Новая заметка</span>
+        </button>
+      </div>
+
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <select
+          value={selectedPeriod}
+          onChange={(event) => onPeriodChange(event.target.value as 'all' | string)}
+          className="w-full rounded-lg border border-border bg-card px-4 py-2 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 sm:flex-1"
+        >
+          <option value="all">Все занятия курса</option>
+          {lessons.map((lesson) => (
+            <option key={lesson.periodKey} value={lesson.periodKey}>
+              {lesson.periodTitle}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={sortBy}
+          onChange={(event) => onSortChange(event.target.value as SortOption)}
+          className="w-full rounded-lg border border-border bg-card px-4 py-2 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 sm:w-48"
+        >
+          <option value="date-new">Сначала новые</option>
+          <option value="date-old">Сначала старые</option>
+          <option value="period">По периодам</option>
+        </select>
       </div>
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-1 sm:items-center">
-          <select
-            value={selectedPeriod}
-            onChange={(event) => onPeriodChange(event.target.value as 'all' | string)}
-            className="w-full rounded-lg border border-border bg-card px-4 py-2 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 sm:w-64"
-          >
-            <option value="all">Все занятия курса</option>
-            {lessons.map((lesson) => (
-              <option key={lesson.periodKey} value={lesson.periodKey}>
-                {lesson.periodTitle}
-              </option>
-            ))}
-          </select>
-
           <div className="relative flex-1">
             <input
               type="text"
@@ -86,27 +100,9 @@ export function NotesHeader({
             <span className="hidden sm:inline">Статистика</span>
             <span className="text-xs">{showStats ? '▲' : '▼'}</span>
           </button>
-          <select
-            value={sortBy}
-            onChange={(event) => onSortChange(event.target.value as SortOption)}
-            className="w-full rounded-lg border border-border bg-card px-4 py-2 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 sm:w-48"
-          >
-            <option value="date-new">Сначала новые</option>
-            <option value="date-old">Сначала старые</option>
-            <option value="period">По периодам</option>
-          </select>
         </div>
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <div className="sm:w-48">
-            <ExportNotesButton notes={notesForExport} />
-          </div>
-          <button
-            onClick={onCreate}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 sm:w-48"
-          >
-            <span className="text-lg">＋</span>
-            <span>Новая заметка</span>
-          </button>
+        <div className="w-full sm:w-48">
+          <ExportNotesButton notes={notesForExport} />
         </div>
       </div>
     </>

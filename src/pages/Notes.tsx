@@ -205,13 +205,10 @@ export default function Notes() {
     today: createdToday,
     week: createdThisWeek,
   };
-  const activeCourseLabel =
-    courseOptions.find((course) => course.id === activeCourse)?.name ?? activeCourse;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <NotesHeader
-        activeCourseLabel={activeCourseLabel}
         lessons={activeLessons}
         selectedPeriod={selectedPeriod}
         onPeriodChange={setSelectedPeriod}

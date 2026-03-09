@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/cn';
 import { useCourses } from '../hooks/useCourses';
 import { useCourseStore } from '../stores';
@@ -18,6 +18,16 @@ export default function StudentCourseSidebar({ navItems }: StudentCourseSidebarP
   const { courses, loading } = useCourses();
   const { setCurrentCourse } = useCourseStore();
   const activeCourse = useActiveCourse(courses, loading);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isNotesPage = location.pathname === '/notes';
+
+  const handleCourseSelect = (courseId: string) => {
+    setCurrentCourse(courseId as CourseType);
+    if (isNotesPage) {
+      navigate(`/notes?course=${encodeURIComponent(courseId)}`);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -31,7 +41,7 @@ export default function StudentCourseSidebar({ navItems }: StudentCourseSidebarP
             <button
               key={course.id}
               type="button"
-              onClick={() => setCurrentCourse(course.id as CourseType)}
+              onClick={() => handleCourseSelect(course.id)}
               aria-pressed={activeCourse === course.id}
               disabled={loading}
               className={cn(
