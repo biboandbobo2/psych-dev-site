@@ -38,7 +38,6 @@ export function VideoStudyNotesPanel({
     [courseId, lectureResourceId, periodId, periodTitle, videoTitle]
   );
 
-  const [saving, setSaving] = useState(false);
   const [isHydrating, setIsHydrating] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -67,7 +66,6 @@ export function VideoStudyNotesPanel({
       }
 
       if (!options?.silent) {
-        setSaving(true);
         setSaveState('saving');
       }
 
@@ -86,10 +84,6 @@ export function VideoStudyNotesPanel({
           setSaveState('error');
         }
         return false;
-      } finally {
-        if (!options?.silent) {
-          setSaving(false);
-        }
       }
     },
     [lectureContext, upsertLectureNote, user]
@@ -99,7 +93,6 @@ export function VideoStudyNotesPanel({
     let cancelled = false;
 
     hasUserEditedRef.current = false;
-    setSaving(false);
 
     if (!user) {
       lastSavedContentRef.current = '';
