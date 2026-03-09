@@ -1,101 +1,8 @@
-import { Timestamp } from 'firebase-admin/firestore';
 import { initAdmin } from './_adminInit';
 import { parseTranscriptImportArgs } from './lib/videoTranscriptImportArgs';
-import { VIDEO_TRANSCRIPTS_COLLECTION } from '../src/types/videoTranscripts';
-import type {
-  ImportOptions,
-  ImportStatus,
-  TranscriptImportTarget,
-} from './lib/videoTranscriptImportTypes';
+import type { ImportOptions } from './lib/videoTranscriptImportTypes';
 import { buildManualTranscriptTarget, collectTranscriptTargets } from './lib/videoTranscriptTargets';
-import {
-  buildTranscriptAvailablePayload,
-  buildTranscriptFailedDoc,
-  buildTranscriptPendingDoc,
-} from './lib/videoTranscriptPersistence';
-import {
-  fetchTranscriptWithFallbacks,
-  getAvailableLanguagesFromError,
-  getTranscriptErrorMessage,
-  mapTranscriptErrorCode,
-  resolveTranscriptFailureStatus,
-} from './lib/youtubeTranscriptFetcher';
-
-async function upsertTranscript(
-  admin: ReturnType<typeof initAdmin>,
-  target: TranscriptImportTarget,
-  options: ImportOptions
-) {
-  let docRef: FirebaseFirestore.DocumentReference | null = null;
-  const { bucket, db } = admin;
-
-  if (!options.dryRun) {
-    if (!bucket) {
-      throw new Error('Storage bucket не настроен. Укажите FIREBASE_STORAGE_BUCKET или VITE_FIREBASE_STORAGE_BUCKET.');
-    }
-
-    docRef = db.collection(VIDEO_TRANSCRIPTS_COLLECTION).doc(target.youtubeVideoId);
-    const existingSnapshot = await docRef.get();
-    const existingData = existingSnapshot.data() as Record<string, any> | undefined;
-
-    if (!options.force && existingData?.status === 'available') {
-      return { status: 'skipped' as const, youtubeVideoId: target.youtubeVideoId };
-    }
-  }
-
-  const now = Timestamp.now();
-  const pendingPayload = buildTranscriptPendingDoc(target.youtubeVideoId, now);
-
-  if (!options.dryRun && docRef) {
-    await docRef.set(pendingPayload, { merge: true });
-  }
-
-  try {
-    const transcript = await fetchTranscriptWithFallbacks(target.youtubeVideoId, options.langs);
-    const availablePayload = buildTranscriptAvailablePayload(target, transcript, now);
-
-    if (!options.dryRun && docRef && bucket) {
-      await bucket.file(availablePayload.storagePath).save(JSON.stringify(availablePayload.storagePayload, null, 2), {
-        contentType: 'application/json; charset=utf-8',
-        resumable: false,
-      });
-
-      await docRef.set(availablePayload.docPayload, { merge: true });
-    }
-
-    return {
-      language: transcript.language,
-      segmentCount: transcript.segments.length,
-      status: 'available' as const,
-      youtubeVideoId: target.youtubeVideoId,
-    };
-  } catch (error) {
-    const status: ImportStatus = resolveTranscriptFailureStatus(error);
-    const errorCode = mapTranscriptErrorCode(error);
-    const errorMessage = getTranscriptErrorMessage(error);
-
-    if (!options.dryRun && docRef) {
-      await docRef.set(
-        buildTranscriptFailedDoc(
-          target.youtubeVideoId,
-          status,
-          errorCode,
-          errorMessage,
-          getAvailableLanguagesFromError(error),
-          now
-        ),
-        { merge: true }
-      );
-    }
-
-    return {
-      errorCode,
-      errorMessage,
-      status,
-      youtubeVideoId: target.youtubeVideoId,
-    };
-  }
-}
+import { upsertTranscript } from '../shared/videoTranscripts/runner';
 
 async function run() {
   const options = parseTranscriptImportArgs(process.argv.slice(2));
@@ -139,7 +46,11 @@ async function run() {
 
   for (const [index, target] of limitedTargets.entries()) {
     console.log(`[${index + 1}/${limitedTargets.length}] ${target.youtubeVideoId}`);
-    const result = await upsertTranscript(admin, target, options);
+    const result = await upsertTranscript(admin, target, {
+      dryRun: options.dryRun,
+      force: options.force,
+      langs: options.langs,
+    });
 
     if (result.status === 'available') {
       summary.available += 1;
