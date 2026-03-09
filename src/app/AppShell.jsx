@@ -92,6 +92,7 @@ export function AppShell() {
   const isSuperAdminPage = normalizedPath === '/superadmin';
   const isAdminContentPage = normalizedPath.startsWith('/admin/content');
   const isProfilePage = normalizedPath === '/profile';
+  const isNotesPage = normalizedPath === '/notes';
   const hideNavigation =
     normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/superadmin');
   const { isOpen, openModal, closeModal } = useLoginModal();
@@ -137,7 +138,7 @@ export function AppShell() {
   // Определяем курс: либо по пути (для страниц курсов), либо из store (для профиля/админки/тестов)
   const isProfileOrAdmin = normalizedPath === '/' || normalizedPath === '/profile' || normalizedPath.startsWith('/admin/content');
   const isTestsPage = normalizedPath.startsWith('/tests');
-  const useCourseFromStore = isProfileOrAdmin || isTestsPage;
+  const useCourseFromStore = isProfileOrAdmin || isTestsPage || isNotesPage;
 
   const isClinicalPage = normalizedPath.startsWith('/clinical') ||
                          (useCourseFromStore && currentCourse === 'clinical');
@@ -205,12 +206,12 @@ export function AppShell() {
     ? <SuperAdminTaskPanel />
     : isAdminContentPage
       ? <AdminCourseSidebar />
-      : isProfilePage
+      : isProfilePage || isNotesPage
         ? <StudentCourseSidebar navItems={navItems} />
         : undefined;
   const sidebarWidthClass = isSuperAdmin && isSuperAdminPage
     ? "lg:w-[360px] xl:w-[420px]"
-    : isAdminContentPage || isProfilePage
+    : isAdminContentPage || isProfilePage || isNotesPage
       ? "lg:w-64 xl:w-72"
       : undefined;
 
