@@ -58,7 +58,9 @@ export function VideoStudyNotesPanel({
   const [isHydrating, setIsHydrating] = useState(false);
   const [viewMode, setViewMode] = useState<NoteViewMode>('plain');
   const hasUserEditedRef = useRef(false);
+  const lastPublishedDraftSignatureRef = useRef(draftSignature);
   const lastSavedSignatureRef = useRef(draftSignature);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const {
     composer,
     persistedSegments,
@@ -83,6 +85,15 @@ export function VideoStudyNotesPanel({
   useEffect(() => {
     persistedSegmentsRef.current = persistedSegments;
   }, [persistedSegments]);
+
+  useEffect(() => {
+    if (lastPublishedDraftSignatureRef.current === persistedSignature) {
+      return;
+    }
+
+    lastPublishedDraftSignatureRef.current = persistedSignature;
+    onDraftSegmentsChange(persistedSegments);
+  }, [onDraftSegmentsChange, persistedSegments, persistedSignature]);
 
   const saveLectureNote = useCallback(
     async (
@@ -207,6 +218,25 @@ export function VideoStudyNotesPanel({
   ]);
 
   useEffect(() => {
+    if (!scrollContainerRef.current) {
+      return undefined;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      const container = scrollContainerRef.current;
+      if (!container) {
+        return;
+      }
+
+      container.scrollTop = container.scrollHeight;
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [composer.text, persistedSignature, viewMode]);
+
+  useEffect(() => {
     return () => {
       onDraftSegmentsChange(persistedSegmentsRef.current);
 
@@ -309,7 +339,7 @@ export function VideoStudyNotesPanel({
               </div>
             </div>
 
-            <div className="h-full overflow-y-auto pr-2 pt-1">
+            <div ref={scrollContainerRef} className="h-full overflow-y-auto pr-2 pt-1">
               <LectureNoteSegmentsEditor
                 composer={composer}
                 onComposerChange={(value) => {

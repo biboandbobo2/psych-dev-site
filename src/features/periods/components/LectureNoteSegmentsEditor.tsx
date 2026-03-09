@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, type TextareaHTMLAttributes } from 'react';
 import {
   formatLectureTimestamp,
   type LectureNoteSegment,
@@ -35,6 +36,30 @@ function TimestampButton({
   );
 }
 
+function AutoSizeTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const value = typeof props.value === 'string' ? props.value : '';
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height = '0px';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      {...props}
+      ref={textareaRef}
+      rows={1}
+      className={`${props.className ?? ''} overflow-hidden`}
+    />
+  );
+}
+
 export function LectureNoteSegmentsEditor({
   composer,
   onComposerChange,
@@ -53,7 +78,7 @@ export function LectureNoteSegmentsEditor({
               <TimestampButton startMs={segment.startMs} onClick={onTimestampClick} />
             </div>
           ) : null}
-          <textarea
+          <AutoSizeTextarea
             value={segment.text}
             onChange={(event) => onSegmentChange(segment.id, event.target.value)}
             onBlur={() => onSegmentBlur(segment.id)}
@@ -69,7 +94,7 @@ export function LectureNoteSegmentsEditor({
             <TimestampButton startMs={composer.startMs} onClick={onTimestampClick} />
           </div>
         ) : null}
-        <textarea
+        <AutoSizeTextarea
           value={composer.text}
           onChange={(event) => onComposerChange(event.target.value)}
           placeholder="Пишите короткий конспект по ходу лекции..."

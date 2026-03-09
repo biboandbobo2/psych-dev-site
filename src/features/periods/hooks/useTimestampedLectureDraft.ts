@@ -44,11 +44,6 @@ export function useTimestampedLectureDraft({
     composerRef.current = composer;
   }, [composer]);
 
-  useEffect(() => {
-    setSegments(normalizedInitialSegments);
-    setComposer(createEmptySegment());
-  }, [normalizedInitialSegments]);
-
   const resetDraft = useCallback((nextSegments: LectureNoteSegment[]) => {
     setSegments(sanitizeSegments(nextSegments));
     setComposer(createEmptySegment());
