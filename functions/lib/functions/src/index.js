@@ -3,10 +3,15 @@ import * as functions from "firebase-functions";
 import { initializeApp, applicationDefault, getApps } from "firebase-admin/app";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { resolveAdminProjectId, resolveAdminStorageBucket, } from "./lib/adminApp.js";
 import { debugError as functionsDebugError, debugLog as functionsDebugLog, } from "./lib/debug.js";
 // Инициализация Firebase Admin
 if (!getApps().length) {
-    initializeApp({ credential: applicationDefault() });
+    initializeApp({
+        credential: applicationDefault(),
+        projectId: resolveAdminProjectId(),
+        storageBucket: resolveAdminStorageBucket(),
+    });
 }
 /**
  * Проверяет, что вызывающий имеет роль admin или super-admin
