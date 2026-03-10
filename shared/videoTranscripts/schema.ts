@@ -1,6 +1,9 @@
 export const VIDEO_TRANSCRIPTS_COLLECTION = "videoTranscripts";
 export const VIDEO_TRANSCRIPT_STORAGE_PREFIX = "video-transcripts";
 export const VIDEO_TRANSCRIPT_VERSION = 1;
+export const VIDEO_TRANSCRIPT_SEARCH_COLLECTION = "videoTranscriptSearch";
+export const VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION = "searchChunks";
+export const VIDEO_TRANSCRIPT_SEARCH_VERSION = 1;
 export const VIDEO_TRANSCRIPT_JOBS_COLLECTION = "transcriptJobs";
 export const WEEKLY_TRANSCRIPT_REFRESH_JOB = "weeklyRefresh";
 export const VIDEO_TRANSCRIPT_JOB_RUNS_SUBCOLLECTION = "runs";
@@ -30,6 +33,44 @@ export interface VideoTranscriptStoragePayload {
   durationMs: number | null;
   fullText: string;
   segments: VideoTranscriptSegment[];
+}
+
+export interface VideoTranscriptSearchChunk {
+  chunkIndex: number;
+  endMs: number;
+  normalizedText: string;
+  segmentCount: number;
+  startMs: number;
+  text: string;
+  timestampLabel: string;
+}
+
+export interface VideoTranscriptSearchDocShape<TTimestamp> {
+  youtubeVideoId: string;
+  chunkCount: number;
+  referenceCount: number;
+  updatedAt: TTimestamp;
+  version: number;
+}
+
+export interface VideoTranscriptSearchChunkDocShape<TTimestamp> {
+  youtubeVideoId: string;
+  referenceKey: string;
+  courseId: string;
+  periodId: string;
+  periodTitle: string;
+  lectureTitle: string;
+  sourcePath: string;
+  sourceUrl: string;
+  chunkIndex: number;
+  startMs: number;
+  endMs: number;
+  timestampLabel: string;
+  segmentCount: number;
+  text: string;
+  normalizedText: string;
+  updatedAt: TTimestamp;
+  version: number;
 }
 
 export interface VideoTranscriptRetryFields<TTimestamp> {

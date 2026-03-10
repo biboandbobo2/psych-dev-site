@@ -79,6 +79,7 @@ export function registerTranscriptTarget(
     current.references.push({
       courseId,
       lessonId,
+      lessonTitle: fallbackTitle,
       sourcePath: docPath,
       title: video.title,
       url: video.url,
@@ -154,6 +155,7 @@ export function buildManualTranscriptTarget(video: string): TranscriptImportTarg
       {
         courseId: "manual",
         lessonId: youtubeVideoId,
+        lessonTitle: youtubeVideoId,
         sourcePath: "manual",
         title: youtubeVideoId,
         url: video,

@@ -13,6 +13,7 @@ export interface ImportOptions {
 export interface VideoReference {
   courseId: string;
   lessonId: string;
+  lessonTitle: string;
   sourcePath: string;
   title: string;
   url: string;
