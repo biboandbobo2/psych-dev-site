@@ -38,9 +38,13 @@ export interface TranscriptSearchResult {
   matchedIn: ['transcript'];
   relevanceScore: number;
   startMs: number;
-  timestampLabel: string;
   snippet: string;
   path: string;
+  timestamps: Array<{
+    path: string;
+    startMs: number;
+    timestampLabel: string;
+  }>;
 }
 
 export type SearchResult = ContentSearchResult | TestSearchResult | TranscriptSearchResult;

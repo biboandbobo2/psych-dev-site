@@ -43,7 +43,18 @@ export function VideoTranscriptPanel({
     const highlightedNode = containerRef.current.querySelector<HTMLElement>(
       `[data-start-ms="${highlightedStartMs}"]`
     );
-    highlightedNode?.scrollIntoView({ block: 'center' });
+    if (!highlightedNode) {
+      return;
+    }
+
+    const container = containerRef.current;
+    const targetTop =
+      highlightedNode.offsetTop - container.clientHeight / 2 + highlightedNode.offsetHeight / 2;
+
+    container.scrollTo({
+      top: Math.max(0, targetTop),
+      behavior: 'auto',
+    });
   }, [highlightedStartMs, transcript]);
 
   return (

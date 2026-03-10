@@ -253,21 +253,19 @@ function searchInTranscript(
   const matches = transcriptSearchChunks
     .filter((chunk) => matchesQuery(chunk.normalizedText, queryWords))
     .map((chunk) => ({
-      type: 'transcript' as const,
-      id: `${chunk.referenceKey}-${chunk.chunkIndex}`,
       youtubeVideoId: chunk.youtubeVideoId,
-      title: chunk.lectureTitle,
       period: chunk.periodId,
       periodTitle: chunk.periodTitle,
       lectureTitle: chunk.lectureTitle,
       course: chunk.courseId as CourseType,
-      matchedIn: ['transcript'] as ['transcript'],
       relevanceScore: 6 + countMatches(chunk.normalizedText, queryWords),
       startMs: chunk.startMs,
       timestampLabel: chunk.timestampLabel,
       snippet: chunk.text,
       path: buildTranscriptSearchPath(chunk, rawQuery),
       referenceKey: chunk.referenceKey,
+      matchedIn: ['transcript'] as ['transcript'],
+      title: chunk.lectureTitle,
     }))
     .sort((a, b) => {
       if (b.relevanceScore !== a.relevanceScore) {
@@ -277,20 +275,65 @@ function searchInTranscript(
       return a.startMs - b.startMs;
     });
 
-  const transcriptResults: TranscriptSearchResult[] = [];
-  const resultsPerReference = new Map<string, number>();
+  const groupedResults = new Map<
+    string,
+    TranscriptSearchResult & {
+      _seenStarts: Set<number>;
+    }
+  >();
 
-  matches.forEach(({ referenceKey, ...result }) => {
-    const currentCount = resultsPerReference.get(referenceKey) ?? 0;
-    if (currentCount >= 2) {
+  matches.forEach((match) => {
+    const existing = groupedResults.get(match.referenceKey);
+    if (!existing) {
+      groupedResults.set(match.referenceKey, {
+        type: 'transcript',
+        id: match.referenceKey,
+        youtubeVideoId: match.youtubeVideoId,
+        title: match.lectureTitle,
+        period: match.period,
+        periodTitle: match.periodTitle,
+        lectureTitle: match.lectureTitle,
+        course: match.course,
+        matchedIn: ['transcript'],
+        relevanceScore: match.relevanceScore,
+        startMs: match.startMs,
+        snippet: match.snippet,
+        path: match.path,
+        timestamps: [
+          {
+            path: match.path,
+            startMs: match.startMs,
+            timestampLabel: match.timestampLabel,
+          },
+        ],
+        _seenStarts: new Set([match.startMs]),
+      });
       return;
     }
 
-    resultsPerReference.set(referenceKey, currentCount + 1);
-    transcriptResults.push(result);
+    existing.relevanceScore += match.relevanceScore;
+    if (!existing._seenStarts.has(match.startMs)) {
+      existing._seenStarts.add(match.startMs);
+      existing.timestamps.push({
+        path: match.path,
+        startMs: match.startMs,
+        timestampLabel: match.timestampLabel,
+      });
+    }
   });
 
-  return transcriptResults;
+  return [...groupedResults.values()]
+    .map(({ _seenStarts, ...result }) => ({
+      ...result,
+      timestamps: result.timestamps.sort((a, b) => a.startMs - b.startMs),
+    }))
+    .sort((a, b) => {
+      if (b.relevanceScore !== a.relevanceScore) {
+        return b.relevanceScore - a.relevanceScore;
+      }
+
+      return a.startMs - b.startMs;
+    });
 }
 
 /**

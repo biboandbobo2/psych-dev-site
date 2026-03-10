@@ -230,7 +230,9 @@ function TranscriptResultItem({ result, query, onResultClick }: TranscriptResult
                 {courseInfo.label}
               </span>
               <span className="rounded-full border border-accent/20 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
-                {result.timestampLabel}
+                {result.timestamps.length === 1
+                  ? '1 таймкод'
+                  : `${result.timestamps.length} таймкода`}
               </span>
             </div>
             <h3 className="line-clamp-1 font-medium text-fg transition-colors group-hover:text-accent">
@@ -242,6 +244,21 @@ function TranscriptResultItem({ result, query, onResultClick }: TranscriptResult
             <p className="mt-2 line-clamp-2 text-sm text-fg/85">
               {highlightMatch(result.snippet, query)}
             </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {result.timestamps.map((timestamp) => (
+                <button
+                  key={`${result.id}-${timestamp.startMs}`}
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onResultClick(timestamp.path);
+                  }}
+                  className="rounded-full border border-accent/20 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent transition hover:bg-accent/15"
+                >
+                  {timestamp.timestampLabel}
+                </button>
+              ))}
+            </div>
           </div>
           <ChevronIcon />
         </div>
