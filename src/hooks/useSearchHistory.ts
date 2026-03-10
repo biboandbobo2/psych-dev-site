@@ -163,6 +163,15 @@ export function useSearchHistory() {
           ...(params.aiResponse && { aiResponse: params.aiResponse }),
           ...(params.searchResults && params.searchResults.length > 0 && { searchResults: params.searchResults }),
         });
+
+        if (entries.length >= HISTORY_LIMIT) {
+          const oldestEntry = entries[entries.length - 1];
+          if (oldestEntry) {
+            await deleteDoc(doc(db, 'searchHistory', oldestEntry.id));
+            debugLog('[useSearchHistory] Trimmed oldest entry:', oldestEntry.id);
+          }
+        }
+
         debugLog('[useSearchHistory] Saved search:', params.type, params.query);
       } catch (err) {
         debugError('[useSearchHistory] Failed to save:', err);

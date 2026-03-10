@@ -21,6 +21,9 @@ export function SearchHistorySection() {
   const { entriesByType, loading, hasHistory, deleteEntry, clearHistory } = useSearchHistory();
   const { openSearch } = useContentSearchStore();
   const [activeType, setActiveType] = useState<SearchHistoryType | null>(null);
+  const [expandedTypes, setExpandedTypes] = useState<
+    Partial<Record<SearchHistoryType, boolean>>
+  >({});
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -45,7 +48,10 @@ export function SearchHistorySection() {
 
   // Авто-выбор первого таба с данными
   const effectiveType = activeType ?? typesWithData[0]?.type ?? null;
-  const currentEntries = effectiveType ? entriesByType[effectiveType].slice(0, VISIBLE_ITEMS) : [];
+  const isExpanded = effectiveType ? Boolean(expandedTypes[effectiveType]) : false;
+  const currentEntries = effectiveType
+    ? entriesByType[effectiveType].slice(0, isExpanded ? 50 : VISIBLE_ITEMS)
+    : [];
   const currentConfig = HISTORY_TYPES.find((t) => t.type === effectiveType);
   const totalForType = effectiveType ? entriesByType[effectiveType].length : 0;
 
@@ -115,10 +121,27 @@ export function SearchHistorySection() {
         <p className="text-gray-500 text-sm py-4 text-center">{currentConfig?.emptyText ?? 'Нет данных'}</p>
       )}
 
+      <p className="mt-3 text-center text-xs text-gray-500">
+        Сохраняем и показываем только последние 50 поисков.
+      </p>
+
       {/* Показать больше */}
       {totalForType > VISIBLE_ITEMS && (
-        <button className="mt-3 text-sm text-blue-600 hover:underline w-full text-center">
-          Показать все ({totalForType})
+        <button
+          type="button"
+          onClick={() => {
+            if (!effectiveType) {
+              return;
+            }
+
+            setExpandedTypes((current) => ({
+              ...current,
+              [effectiveType]: !current[effectiveType],
+            }));
+          }}
+          className="mt-2 w-full text-center text-sm text-blue-600 hover:underline"
+        >
+          {isExpanded ? 'Свернуть' : `Показать все (${Math.min(totalForType, 50)})`}
         </button>
       )}
     </>
