@@ -47,20 +47,36 @@ import { useTimelinePanZoom } from './timeline/hooks/useTimelinePanZoom';
 import { useTimelineDragDrop } from './timeline/hooks/useTimelineDragDrop';
 import { useTimelineBranch } from './timeline/hooks/useTimelineBranch';
 import { useTimelineCRUD } from './timeline/hooks/useTimelineCRUD';
+import { lazyWithReload } from '../lib/lazyWithReload';
 const TimelineLeftPanel = lazy(() =>
-  import('./timeline/components/TimelineLeftPanel').then((module) => ({ default: module.TimelineLeftPanel }))
+  lazyWithReload(
+    () => import('./timeline/components/TimelineLeftPanel').then((module) => ({ default: module.TimelineLeftPanel })),
+    'TimelineLeftPanel'
+  )
 );
 const TimelineRightPanel = lazy(() =>
-  import('./timeline/components/TimelineRightPanel').then((module) => ({ default: module.TimelineRightPanel }))
+  lazyWithReload(
+    () => import('./timeline/components/TimelineRightPanel').then((module) => ({ default: module.TimelineRightPanel })),
+    'TimelineRightPanel'
+  )
 );
 const TimelineCanvas = lazy(() =>
-  import('./timeline/components/TimelineCanvas').then((module) => ({ default: module.TimelineCanvas }))
+  lazyWithReload(
+    () => import('./timeline/components/TimelineCanvas').then((module) => ({ default: module.TimelineCanvas })),
+    'TimelineCanvas'
+  )
 );
 const BulkEventCreator = lazy(() =>
-  import('./timeline/components/BulkEventCreator').then((module) => ({ default: module.BulkEventCreator }))
+  lazyWithReload(
+    () => import('./timeline/components/BulkEventCreator').then((module) => ({ default: module.BulkEventCreator })),
+    'BulkEventCreator'
+  )
 );
 const TimelineHelpModal = lazy(() =>
-  import('./timeline/components/TimelineHelpModal').then((module) => ({ default: module.TimelineHelpModal }))
+  lazyWithReload(
+    () => import('./timeline/components/TimelineHelpModal').then((module) => ({ default: module.TimelineHelpModal })),
+    'TimelineHelpModal'
+  )
 );
 
 
