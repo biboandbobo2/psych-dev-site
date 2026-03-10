@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LECTURE_COLLECTIONS,
   LECTURE_SEARCH_CONFIG,
+  buildLectureAiUnavailableMessage,
   buildLectureDeepLink,
   computeLexicalScore,
   groupLectureSourcesByCourse,
@@ -135,5 +136,11 @@ describe('validateLectureScope', () => {
     if (!result.valid) {
       expect(result.code).toBe('VALIDATION_ERROR');
     }
+  });
+});
+
+describe('buildLectureAiUnavailableMessage', () => {
+  it('возвращает понятный fallback-текст для неподготовленных lecture chunks', () => {
+    expect(buildLectureAiUnavailableMessage()).toContain('ещё не подготовлены данные');
   });
 });

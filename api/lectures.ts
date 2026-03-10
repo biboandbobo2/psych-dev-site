@@ -63,6 +63,8 @@ type ValidatedLectureScope = {
   query: string;
 };
 
+type LectureRetrievalMode = 'hybrid' | 'vector-only';
+
 const SYSTEM_PROMPT = `Ты — преподаватель психологии. Отвечай на вопрос студента, опираясь ИСКЛЮЧИТЕЛЬНО на предоставленные фрагменты транскриптов лекций.
 
 ПРАВИЛА:
@@ -258,13 +260,14 @@ async function getLectureSourcesByKeys(
 async function resolveLectureSources(
   db: FirebaseFirestore.Firestore,
   courseId: string,
-  lectureKeys: string[]
+  lectureKeys: string[],
+  mode: LectureRetrievalMode
 ) {
   const primarySources = lectureKeys.length > 0
     ? await getLectureSourcesByKeys(db, courseId, lectureKeys)
     : await getLectureSourcesByCourse(db, courseId);
 
-  if (primarySources.length > 0) {
+  if (primarySources.length > 0 || mode === 'vector-only') {
     return {
       fallbackOnly: false,
       sources: primarySources,
@@ -371,12 +374,14 @@ function capMatchesPerLecture(matches: LectureSearchMatch[]) {
 
 async function retrieveLectureMatches(
   db: FirebaseFirestore.Firestore,
-  input: ValidatedLectureScope
+  input: ValidatedLectureScope,
+  mode: LectureRetrievalMode = 'hybrid'
 ) {
   const { sources, fallbackOnly } = await resolveLectureSources(
     db,
     input.courseId,
-    input.lectureKeys
+    input.lectureKeys,
+    mode
   );
 
   if (!sources.length) {
@@ -417,7 +422,11 @@ async function retrieveLectureMatches(
 
     const filteredMatches = rawMatches.filter((match) => allowedKeys.has(match.lectureKey));
     rerankedMatches = rerankLectureMatches(input.query, filteredMatches);
-  } catch {
+  } catch (error) {
+    if (mode === 'vector-only') {
+      throw error;
+    }
+
     const fallbackMatches = await searchFallbackTranscriptChunks(
       db,
       input.courseId,
@@ -440,6 +449,10 @@ async function retrieveLectureMatches(
     matches: capMatchesPerLecture(rerankedMatches),
     sources,
   };
+}
+
+export function buildLectureAiUnavailableMessage() {
+  return 'Для выбранных лекций ещё не подготовлены данные для ответа ИИ. Попробуйте выбрать другие лекции или весь курс.';
 }
 
 function buildLectureContext(match: LectureSearchMatch) {
@@ -547,7 +560,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (action === 'answer') {
       const startedAt = Date.now();
-      const { matches } = await retrieveLectureMatches(db, validation.value);
+      const { matches, sources } = await retrieveLectureMatches(db, validation.value, 'vector-only');
+
+      if (!sources.length) {
+        res.status(200).json({
+          ok: true,
+          answer: buildLectureAiUnavailableMessage(),
+          citations: [],
+          tookMs: Date.now() - startedAt,
+        });
+        return;
+      }
 
       if (!matches.length) {
         res.status(200).json({
