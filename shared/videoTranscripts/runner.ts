@@ -14,6 +14,10 @@ import {
   buildTranscriptPendingDoc,
 } from "./persistence.js";
 import {
+  deleteTranscriptSearchIndex,
+  upsertTranscriptSearchIndex,
+} from "./searchPersistence.js";
+import {
   fetchTranscriptWithFallbacks,
   getAvailableLanguagesFromError,
   getTranscriptErrorMessage,
@@ -93,6 +97,7 @@ export async function upsertTranscript(
         }
       );
 
+      await upsertTranscriptSearchIndex(db, target, transcript, now);
       await docRef.set(availablePayload.docPayload, { merge: true });
     }
 
@@ -110,6 +115,10 @@ export async function upsertTranscript(
     const nextRetryAt = Timestamp.fromDate(buildNextRetryDate(new Date(), retryCount));
 
     if (!options.dryRun && docRef) {
+      if (status === "unavailable") {
+        await deleteTranscriptSearchIndex(db, target.youtubeVideoId);
+      }
+
       await docRef.set(
         buildTranscriptFailedDoc(
           target.youtubeVideoId,

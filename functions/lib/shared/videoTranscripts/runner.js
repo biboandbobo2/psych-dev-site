@@ -1,6 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { VIDEO_TRANSCRIPTS_COLLECTION, } from "./schema.js";
 import { buildTranscriptAvailablePayload, buildTranscriptFailedDoc, buildTranscriptPendingDoc, } from "./persistence.js";
+import { deleteTranscriptSearchIndex, upsertTranscriptSearchIndex, } from "./searchPersistence.js";
 import { fetchTranscriptWithFallbacks, getAvailableLanguagesFromError, getTranscriptErrorMessage, mapTranscriptErrorCode, resolveTranscriptFailureStatus, } from "./fetcher.js";
 import { buildNextRetryDate, getExistingRetryCount } from "./retry.js";
 export async function upsertTranscript(admin, target, options) {
@@ -37,6 +38,7 @@ export async function upsertTranscript(admin, target, options) {
                 contentType: "application/json; charset=utf-8",
                 resumable: false,
             });
+            await upsertTranscriptSearchIndex(db, target, transcript, now);
             await docRef.set(availablePayload.docPayload, { merge: true });
         }
         return {
@@ -53,6 +55,9 @@ export async function upsertTranscript(admin, target, options) {
         const retryCount = getExistingRetryCount(existingData) + 1;
         const nextRetryAt = Timestamp.fromDate(buildNextRetryDate(new Date(), retryCount));
         if (!options.dryRun && docRef) {
+            if (status === "unavailable") {
+                await deleteTranscriptSearchIndex(db, target.youtubeVideoId);
+            }
             await docRef.set(buildTranscriptFailedDoc(target.youtubeVideoId, status, errorCode, errorMessage, getAvailableLanguagesFromError(error), retryCount, now, nextRetryAt), { merge: true });
         }
         return {
