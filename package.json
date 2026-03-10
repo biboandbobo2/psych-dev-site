@@ -20,6 +20,7 @@
     "docs:metrics": "tsx scripts/check-doc-metrics.ts",
     "docs:plans": "tsx scripts/generate-plan-overview.ts",
     "transcripts:import": "tsx scripts/importVideoTranscripts.ts",
+    "lectures:ingest": "tsx scripts/importLectureRag.ts",
     "firebase:login": "firebase login",
     "firebase:emulators:start": "firebase emulators:start --config tests/integration/firebase.test.json --only firestore,auth,storage",
     "firebase:deploy:rules": "firebase deploy --only firestore:rules,storage:rules",
