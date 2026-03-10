@@ -16,6 +16,8 @@ import { CORE_COURSE_META, isCoreCourse } from '../constants/courses';
 import { canonicalizePeriodId } from './firestoreHelpers';
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG } from '../routes';
 
+export { buildCourseLessonPath } from './courseLessonPaths';
+
 const normalizeLessonId = (value: unknown): string =>
   typeof value === 'string' ? value.trim() : '';
 
@@ -174,27 +176,6 @@ export function sortNavItemsWithRouteFallback<
 
     return String(a.label || a.path).localeCompare(String(b.label || b.path), 'ru');
   });
-}
-
-export function buildCourseLessonPath(courseId: string, periodId: string) {
-  const staticRoute = getCoreCourseRoutes(courseId).find((route) => route.periodId === periodId);
-  if (staticRoute) {
-    return staticRoute.path;
-  }
-
-  if (courseId === 'development') {
-    return `/${periodId}`;
-  }
-
-  if (courseId === 'clinical') {
-    return `/clinical/${periodId}`;
-  }
-
-  if (courseId === 'general') {
-    return `/general/${periodId}`;
-  }
-
-  return `/course/${encodeURIComponent(courseId)}/${encodeURIComponent(periodId)}`;
 }
 
 export async function findCourseLessonDoc(

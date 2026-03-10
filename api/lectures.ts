@@ -1,0 +1,556 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { GoogleGenAI } from '@google/genai';
+import { buildCourseLessonPath } from '../src/lib/courseLessonPaths';
+
+export const LECTURE_COLLECTIONS = {
+  chunks: 'lecture_chunks',
+  sources: 'lecture_sources',
+} as const;
+
+export const LECTURE_SEARCH_CONFIG = {
+  answerMaxParagraphs: 5,
+  candidateK: 36,
+  contextK: 8,
+  embeddingDims: 768,
+  embeddingModel: 'text-embedding-004',
+  maxChunksPerLecture: 3,
+  maxLectureSelections: 24,
+  maxQuestionLength: 500,
+  minQuestionLength: 3,
+} as const;
+
+type LectureSourceRecord = {
+  lectureKey: string;
+  youtubeVideoId: string;
+  courseId: string;
+  periodId: string;
+  periodTitle: string;
+  lectureTitle: string;
+  chunkCount: number;
+  durationMs: number | null;
+  active?: boolean;
+};
+
+type LectureChunkRecord = {
+  lectureKey: string;
+  youtubeVideoId: string;
+  courseId: string;
+  periodId: string;
+  periodTitle: string;
+  lectureTitle: string;
+  chunkIndex: number;
+  startMs: number;
+  endMs: number;
+  timestampLabel: string;
+  text: string;
+  normalizedText: string;
+};
+
+type LectureSearchMatch = LectureChunkRecord & {
+  id: string;
+  score: number;
+};
+
+type ValidatedLectureScope = {
+  courseId: string;
+  lectureKeys: string[];
+  query: string;
+};
+
+const SYSTEM_PROMPT = `Ты — преподаватель психологии. Отвечай на вопрос студента, опираясь ИСКЛЮЧИТЕЛЬНО на предоставленные фрагменты транскриптов лекций.
+
+ПРАВИЛА:
+1. Не выдумывай информацию вне источников.
+2. Пиши на русском языке.
+3. Ответ должен быть содержательным, но компактным: до 5 абзацев.
+4. Не используй markdown, списки или технические ссылки в тексте ответа.
+5. Ссылки на источники указывай только в массиве citations.
+
+ФОРМАТ ОТВЕТА — строго JSON:
+{
+  "answer": "чистый текст ответа",
+  "citations": [
+    { "chunkId": "lecture-key::0", "claim": "к какому утверждению относится источник" }
+  ]
+}`;
+
+let genaiClient: GoogleGenAI | null = null;
+
+function initFirebaseAdmin() {
+  if (getApps().length > 0) {
+    return;
+  }
+
+  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!json) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured');
+  }
+
+  const sa = JSON.parse(json);
+  initializeApp({ credential: cert(sa) });
+}
+
+function getGenAI(): GoogleGenAI {
+  if (!genaiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY not configured');
+    }
+
+    genaiClient = new GoogleGenAI({ apiKey });
+  }
+
+  return genaiClient;
+}
+
+async function embedQuery(query: string): Promise<number[]> {
+  const client = getGenAI();
+  const result = await client.models.embedContent({
+    model: LECTURE_SEARCH_CONFIG.embeddingModel,
+    contents: [{ role: 'user', parts: [{ text: query }] }],
+    config: { outputDimensionality: LECTURE_SEARCH_CONFIG.embeddingDims },
+  });
+
+  const embedding = result.embeddings?.[0]?.values;
+  if (!embedding) {
+    throw new Error('Failed to get embedding');
+  }
+
+  return embedding;
+}
+
+function normalizeLectureKeys(input: unknown) {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  return [...new Set(
+    input
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.trim())
+      .filter(Boolean)
+  )].slice(0, LECTURE_SEARCH_CONFIG.maxLectureSelections);
+}
+
+export function computeLexicalScore(query: string, text: string) {
+  const queryTerms = query.toLowerCase().split(/\s+/).filter((term) => term.length > 2);
+  if (!queryTerms.length) {
+    return 0;
+  }
+
+  const haystack = text.toLowerCase();
+  const matches = queryTerms.reduce((count, term) => {
+    return count + (haystack.includes(term) ? 1 : 0);
+  }, 0);
+
+  return matches / queryTerms.length;
+}
+
+export function buildLectureDeepLink(
+  courseId: string,
+  periodId: string,
+  youtubeVideoId: string,
+  startMs: number
+) {
+  const params = new URLSearchParams({
+    panel: 'transcript',
+    study: '1',
+    t: String(Math.max(0, Math.floor(startMs / 1000))),
+    video: youtubeVideoId,
+  });
+
+  return `${buildCourseLessonPath(courseId, periodId)}?${params.toString()}`;
+}
+
+export function groupLectureSourcesByCourse(sources: LectureSourceRecord[]) {
+  const groups = new Map<string, LectureSourceRecord[]>();
+
+  sources.forEach((source) => {
+    const list = groups.get(source.courseId) ?? [];
+    list.push(source);
+    groups.set(source.courseId, list);
+  });
+
+  return [...groups.entries()]
+    .sort(([courseA], [courseB]) => courseA.localeCompare(courseB, 'ru'))
+    .map(([courseId, lectures]) => ({
+      courseId,
+      lectures: [...lectures].sort((a, b) => {
+        const periodTitleCompare = a.periodTitle.localeCompare(b.periodTitle, 'ru');
+        if (periodTitleCompare !== 0) {
+          return periodTitleCompare;
+        }
+        return a.lectureTitle.localeCompare(b.lectureTitle, 'ru');
+      }),
+    }));
+}
+
+export function validateLectureScope(body: unknown):
+  | { valid: true; value: ValidatedLectureScope }
+  | { valid: false; error: string; code: string } {
+  if (!body || typeof body !== 'object') {
+    return { valid: false, error: 'Request body is required', code: 'INVALID_BODY' };
+  }
+
+  const data = body as Record<string, unknown>;
+  const query = typeof data.query === 'string' ? data.query.trim() : '';
+  const courseId = typeof data.courseId === 'string' ? data.courseId.trim() : '';
+  const lectureKeys = normalizeLectureKeys(data.lectureKeys);
+
+  if (!courseId) {
+    return { valid: false, error: 'courseId is required', code: 'VALIDATION_ERROR' };
+  }
+
+  if (query.length < LECTURE_SEARCH_CONFIG.minQuestionLength) {
+    return { valid: false, error: 'Query too short', code: 'VALIDATION_ERROR' };
+  }
+
+  if (query.length > LECTURE_SEARCH_CONFIG.maxQuestionLength) {
+    return { valid: false, error: 'Query too long', code: 'VALIDATION_ERROR' };
+  }
+
+  return {
+    valid: true,
+    value: {
+      courseId,
+      lectureKeys,
+      query,
+    },
+  };
+}
+
+async function getLectureSourcesByCourse(
+  db: FirebaseFirestore.Firestore,
+  courseId: string
+) {
+  const snapshot = await db
+    .collection(LECTURE_COLLECTIONS.sources)
+    .where('courseId', '==', courseId)
+    .where('active', '==', true)
+    .get();
+
+  return snapshot.docs.map((doc) => doc.data() as LectureSourceRecord);
+}
+
+async function getLectureSourcesByKeys(
+  db: FirebaseFirestore.Firestore,
+  courseId: string,
+  lectureKeys: string[]
+) {
+  const refs = lectureKeys.map((lectureKey) => db.collection(LECTURE_COLLECTIONS.sources).doc(lectureKey));
+  if (!refs.length) {
+    return [];
+  }
+
+  const docs = await db.getAll(...refs);
+  return docs
+    .filter((doc) => doc.exists)
+    .map((doc) => doc.data() as LectureSourceRecord)
+    .filter((source) => source.active !== false && source.courseId === courseId);
+}
+
+async function resolveLectureSources(
+  db: FirebaseFirestore.Firestore,
+  courseId: string,
+  lectureKeys: string[]
+) {
+  if (lectureKeys.length > 0) {
+    return getLectureSourcesByKeys(db, courseId, lectureKeys);
+  }
+
+  return getLectureSourcesByCourse(db, courseId);
+}
+
+async function searchChunksForCourse(
+  db: FirebaseFirestore.Firestore,
+  courseId: string,
+  embedding: number[]
+) {
+  const snapshot = await db
+    .collection(LECTURE_COLLECTIONS.chunks)
+    .where('courseId', '==', courseId)
+    .findNearest('embedding', FieldValue.vector(embedding), {
+      distanceMeasure: 'COSINE',
+      limit: LECTURE_SEARCH_CONFIG.candidateK,
+    })
+    .get();
+
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...(doc.data() as LectureChunkRecord),
+  }));
+}
+
+async function searchChunksForLectures(
+  db: FirebaseFirestore.Firestore,
+  lectureKeys: string[],
+  embedding: number[]
+) {
+  const perLectureLimit = Math.max(
+    2,
+    Math.ceil(LECTURE_SEARCH_CONFIG.candidateK / Math.max(lectureKeys.length, 1))
+  );
+
+  const snapshots = await Promise.all(
+    lectureKeys.map((lectureKey) =>
+      db
+        .collection(LECTURE_COLLECTIONS.chunks)
+        .where('lectureKey', '==', lectureKey)
+        .findNearest('embedding', FieldValue.vector(embedding), {
+          distanceMeasure: 'COSINE',
+          limit: perLectureLimit,
+        })
+        .get()
+    )
+  );
+
+  return snapshots.flatMap((snapshot) =>
+    snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as LectureChunkRecord),
+    }))
+  );
+}
+
+function rerankLectureMatches(query: string, matches: Array<{ id: string } & LectureChunkRecord>) {
+  return matches
+    .map((match, index) => {
+      const vectorScore = 1 - (index / Math.max(matches.length, 1)) * 0.5;
+      const lexicalScore = computeLexicalScore(query, match.normalizedText || match.text);
+
+      return {
+        ...match,
+        score: vectorScore * 0.7 + lexicalScore * 0.3,
+      };
+    })
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return a.startMs - b.startMs;
+    });
+}
+
+function capMatchesPerLecture(matches: LectureSearchMatch[]) {
+  const perLecture = new Map<string, number>();
+  const capped: LectureSearchMatch[] = [];
+
+  matches.forEach((match) => {
+    const current = perLecture.get(match.lectureKey) ?? 0;
+    if (current >= LECTURE_SEARCH_CONFIG.maxChunksPerLecture) {
+      return;
+    }
+
+    perLecture.set(match.lectureKey, current + 1);
+    capped.push(match);
+  });
+
+  return capped.slice(0, LECTURE_SEARCH_CONFIG.contextK);
+}
+
+async function retrieveLectureMatches(
+  db: FirebaseFirestore.Firestore,
+  input: ValidatedLectureScope
+) {
+  const sources = await resolveLectureSources(db, input.courseId, input.lectureKeys);
+  if (!sources.length) {
+    return {
+      matches: [] as LectureSearchMatch[],
+      sources: [] as LectureSourceRecord[],
+    };
+  }
+
+  const allowedKeys = new Set(sources.map((source) => source.lectureKey));
+  const queryEmbedding = await embedQuery(input.query);
+  const rawMatches = input.lectureKeys.length > 0
+    ? await searchChunksForLectures(db, [...allowedKeys], queryEmbedding)
+    : await searchChunksForCourse(db, input.courseId, queryEmbedding);
+
+  const filteredMatches = rawMatches.filter((match) => allowedKeys.has(match.lectureKey));
+  const rerankedMatches = rerankLectureMatches(input.query, filteredMatches);
+
+  return {
+    matches: capMatchesPerLecture(rerankedMatches),
+    sources,
+  };
+}
+
+function buildLectureContext(match: LectureSearchMatch) {
+  return `[SOURCE chunkId="${match.id}" lecture="${match.lectureTitle}" period="${match.periodTitle}" timestamp="${match.timestampLabel}"]
+${match.text}
+[/SOURCE]`;
+}
+
+function parseGeminiJson(rawText: string) {
+  const trimmed = rawText.trim();
+  const codeBlockMatch = trimmed.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  const candidate = codeBlockMatch ? codeBlockMatch[1].trim() : trimmed.replace(/```json\s*\n?|\n?```/g, '').trim();
+  const jsonText = candidate.startsWith('{')
+    ? candidate
+    : (candidate.match(/\{[\s\S]*\}/)?.[0] ?? candidate);
+
+  return JSON.parse(jsonText);
+}
+
+function sanitizeLectureAnswer(answer: string) {
+  return answer
+    .replace(/\[SOURCE[^\]]*\]/gi, '')
+    .replace(/\[\/SOURCE\]/gi, '')
+    .replace(/\[chunkId[=:][^\]]+\]/gi, '')
+    .replace(/\(chunkId[=:][^\)]+\)/gi, '')
+    .replace(/\*\*/g, '')
+    .replace(/\*/g, '')
+    .replace(/`/g, '')
+    .replace(/^\s*[-•]\s*/gm, '')
+    .replace(/^\s*\d+\.\s*/gm, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    initFirebaseAdmin();
+    const db = getFirestore();
+    const action = (req.query.action as string) || (req.body?.action as string) || '';
+
+    if (action === 'list' && req.method === 'GET') {
+      const snapshot = await db
+        .collection(LECTURE_COLLECTIONS.sources)
+        .where('active', '==', true)
+        .get();
+
+      const sources = snapshot.docs.map((doc) => doc.data() as LectureSourceRecord);
+      res.status(200).json({
+        ok: true,
+        courses: groupLectureSourcesByCourse(sources),
+      });
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ ok: false, error: 'Method not allowed' });
+      return;
+    }
+
+    const validation = validateLectureScope(req.body);
+    if (!validation.valid) {
+      res.status(400).json({ ok: false, error: validation.error, code: validation.code });
+      return;
+    }
+
+    if (action === 'search') {
+      const startedAt = Date.now();
+      const { matches, sources } = await retrieveLectureMatches(db, validation.value);
+
+      const results = matches.map((match) => ({
+        chunkId: match.id,
+        lectureKey: match.lectureKey,
+        courseId: match.courseId,
+        periodId: match.periodId,
+        periodTitle: match.periodTitle,
+        lectureTitle: match.lectureTitle,
+        youtubeVideoId: match.youtubeVideoId,
+        startMs: match.startMs,
+        endMs: match.endMs,
+        timestampLabel: match.timestampLabel,
+        excerpt: match.text,
+        score: Math.round(match.score * 100) / 100,
+        path: buildLectureDeepLink(match.courseId, match.periodId, match.youtubeVideoId, match.startMs),
+      }));
+
+      res.status(200).json({
+        ok: true,
+        lectures: sources,
+        results,
+        tookMs: Date.now() - startedAt,
+      });
+      return;
+    }
+
+    if (action === 'answer') {
+      const startedAt = Date.now();
+      const { matches } = await retrieveLectureMatches(db, validation.value);
+
+      if (!matches.length) {
+        res.status(200).json({
+          ok: true,
+          answer: 'В выбранных лекциях не нашлось релевантных фрагментов для ответа на этот вопрос.',
+          citations: [],
+          tookMs: Date.now() - startedAt,
+        });
+        return;
+      }
+
+      const prompt = `${SYSTEM_PROMPT}
+
+ИСТОЧНИКИ:
+${matches.map(buildLectureContext).join('\n\n')}
+
+ВОПРОС: ${validation.value.query}`;
+
+      const client = getGenAI();
+      const result = await client.models.generateContent({
+        model: 'gemini-2.5-flash-lite',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: { maxOutputTokens: 4000, temperature: 0.3 },
+      });
+
+      const rawText = result.text || '';
+      let parsed: { answer: string; citations: Array<{ chunkId: string; claim: string }> };
+
+      try {
+        parsed = parseGeminiJson(rawText);
+      } catch {
+        parsed = {
+          answer: rawText || 'Не удалось сгенерировать ответ. Попробуйте переформулировать вопрос.',
+          citations: [],
+        };
+      }
+
+      const chunkMap = new Map(matches.map((match) => [match.id, match]));
+      const citations = (parsed.citations || [])
+        .filter((citation) => chunkMap.has(citation.chunkId))
+        .map((citation) => {
+          const match = chunkMap.get(citation.chunkId)!;
+          return {
+            chunkId: citation.chunkId,
+            lectureKey: match.lectureKey,
+            lectureTitle: match.lectureTitle,
+            courseId: match.courseId,
+            periodId: match.periodId,
+            periodTitle: match.periodTitle,
+            youtubeVideoId: match.youtubeVideoId,
+            startMs: match.startMs,
+            timestampLabel: match.timestampLabel,
+            excerpt: match.text,
+            claim: citation.claim || '',
+            path: buildLectureDeepLink(match.courseId, match.periodId, match.youtubeVideoId, match.startMs),
+          };
+        });
+
+      res.status(200).json({
+        ok: true,
+        answer: sanitizeLectureAnswer(parsed.answer || ''),
+        citations,
+        tookMs: Date.now() - startedAt,
+      });
+      return;
+    }
+
+    res.status(400).json({ ok: false, error: 'Invalid action' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    res.status(500).json({ ok: false, error: message });
+  }
+}

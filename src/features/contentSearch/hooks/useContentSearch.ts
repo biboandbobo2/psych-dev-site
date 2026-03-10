@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { Period, Author, ContentLink } from '../../../types/content';
 import type { Test } from '../../../types/tests';
 import type { VideoTranscriptSearchChunkDoc } from '../../../types/videoTranscripts';
-import { buildCourseLessonPath } from '../../../lib/courseLessons';
+import { buildCourseLessonPath } from '../../../lib/courseLessonPaths';
 import type {
   SearchResult,
   ContentSearchResult,
