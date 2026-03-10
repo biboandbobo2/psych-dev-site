@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useContentSearch } from '../hooks/useContentSearch';
+import { useTranscriptSearchChunks } from '../hooks/useTranscriptSearchChunks';
 import { ContentSearchResults } from './ContentSearchResults';
 import { usePeriods } from '../../../hooks/usePeriods';
 import { useClinicalTopics } from '../../../hooks/useClinicalTopics';
@@ -25,6 +26,7 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
   const { periods, loading: periodsLoading } = usePeriods(true);
   const { topics: clinicalTopics, loading: clinicalLoading } = useClinicalTopics();
   const { topics: generalTopics, loading: generalLoading } = useGeneralTopics();
+  const { chunks: transcriptSearchChunks, loading: transcriptSearchLoading } = useTranscriptSearchChunks(open);
 
   // Загружаем тесты
   const [tests, setTests] = useState<Test[]>([]);
@@ -43,15 +45,17 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
       .finally(() => setTestsLoading(false));
   }, [open]);
 
-  const isLoading = periodsLoading || clinicalLoading || generalLoading || testsLoading;
+  const isLoading =
+    periodsLoading || clinicalLoading || generalLoading || testsLoading || transcriptSearchLoading;
 
   const contentData = useMemo(
     () => ({
       periods,
       clinicalTopics,
       generalTopics,
+      transcriptSearchChunks,
     }),
-    [periods, clinicalTopics, generalTopics]
+    [periods, clinicalTopics, generalTopics, transcriptSearchChunks]
   );
 
   const { state, search, reset, isReady } = useContentSearch(contentData, tests);
@@ -218,7 +222,7 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
                 autoComplete="off"
               />
               <p className="text-xs text-muted">
-                Поиск по заголовкам, понятиям, авторам, литературе и тестам
+                Поиск по заголовкам, понятиям, авторам, литературе, тестам и транскриптам
               </p>
             </div>
           </form>

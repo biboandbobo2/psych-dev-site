@@ -176,6 +176,27 @@ export function sortNavItemsWithRouteFallback<
   });
 }
 
+export function buildCourseLessonPath(courseId: string, periodId: string) {
+  const staticRoute = getCoreCourseRoutes(courseId).find((route) => route.periodId === periodId);
+  if (staticRoute) {
+    return staticRoute.path;
+  }
+
+  if (courseId === 'development') {
+    return `/${periodId}`;
+  }
+
+  if (courseId === 'clinical') {
+    return `/clinical/${periodId}`;
+  }
+
+  if (courseId === 'general') {
+    return `/general/${periodId}`;
+  }
+
+  return `/course/${encodeURIComponent(courseId)}/${encodeURIComponent(periodId)}`;
+}
+
 export async function findCourseLessonDoc(
   courseId: string,
   lessonId: string

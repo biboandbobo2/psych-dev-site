@@ -26,7 +26,24 @@ export interface TestSearchResult {
   icon?: string;
 }
 
-export type SearchResult = ContentSearchResult | TestSearchResult;
+export interface TranscriptSearchResult {
+  type: 'transcript';
+  id: string;
+  youtubeVideoId: string;
+  title: string;
+  period: string;
+  periodTitle: string;
+  lectureTitle: string;
+  course: CourseType;
+  matchedIn: ['transcript'];
+  relevanceScore: number;
+  startMs: number;
+  timestampLabel: string;
+  snippet: string;
+  path: string;
+}
+
+export type SearchResult = ContentSearchResult | TestSearchResult | TranscriptSearchResult;
 
 export type ContentMatchField =
   | 'title'

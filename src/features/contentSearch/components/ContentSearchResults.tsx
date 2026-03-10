@@ -2,6 +2,7 @@ import type {
   SearchResult,
   ContentSearchResult,
   TestSearchResult,
+  TranscriptSearchResult,
   CourseType,
   ContentMatchField,
 } from '../types';
@@ -67,6 +68,7 @@ export function ContentSearchResults({
 }: ContentSearchResultsProps) {
   // Разделяем результаты на контент и тесты
   const contentResults = results.filter((r): r is ContentSearchResult => r.type === 'content');
+  const transcriptResults = results.filter((r): r is TranscriptSearchResult => r.type === 'transcript');
   const testResults = results.filter((r): r is TestSearchResult => r.type === 'test');
 
   return (
@@ -90,6 +92,22 @@ export function ContentSearchResults({
               />
             ))}
           </ul>
+        )}
+
+        {transcriptResults.length > 0 && (
+          <div className="pt-2 border-t border-border">
+            <p className="text-xs text-muted mb-2 uppercase tracking-wide">Транскрипты лекций</p>
+            <ul className="space-y-2">
+              {transcriptResults.map((result) => (
+                <TranscriptResultItem
+                  key={result.id}
+                  result={result}
+                  query={query}
+                  onResultClick={onResultClick}
+                />
+              ))}
+            </ul>
+          </div>
         )}
 
         {/* Результаты по тестам */}
@@ -182,6 +200,53 @@ function TestResultItem({ result, onResultClick }: TestResultItemProps) {
         {result.title}
       </span>
     </button>
+  );
+}
+
+interface TranscriptResultItemProps {
+  result: TranscriptSearchResult;
+  query: string;
+  onResultClick: (path: string) => void;
+}
+
+function TranscriptResultItem({ result, query, onResultClick }: TranscriptResultItemProps) {
+  const courseInfo = isCoreCourse(result.course) ? COURSE_LABELS[result.course] : DEFAULT_COURSE_BADGE;
+
+  return (
+    <li>
+      <button
+        onClick={() => onResultClick(result.path)}
+        className="w-full rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent/40 hover:shadow-sm group"
+      >
+        <div className="flex items-start gap-3">
+          <span className="text-xl" aria-hidden>
+            {courseInfo.icon}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${courseInfo.color}`}
+              >
+                {courseInfo.label}
+              </span>
+              <span className="rounded-full border border-accent/20 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
+                {result.timestampLabel}
+              </span>
+            </div>
+            <h3 className="line-clamp-1 font-medium text-fg transition-colors group-hover:text-accent">
+              {result.periodTitle}
+            </h3>
+            <p className="mt-0.5 line-clamp-1 text-sm text-muted">
+              {result.lectureTitle}
+            </p>
+            <p className="mt-2 line-clamp-2 text-sm text-fg/85">
+              {highlightMatch(result.snippet, query)}
+            </p>
+          </div>
+          <ChevronIcon />
+        </div>
+      </button>
+    </li>
   );
 }
 

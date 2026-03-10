@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useContentSearch } from '../features/contentSearch/hooks/useContentSearch';
+import { useTranscriptSearchChunks } from '../features/contentSearch/hooks/useTranscriptSearchChunks';
 import { ContentSearchResults } from '../features/contentSearch/components/ContentSearchResults';
 import { useResearchSearch } from '../features/researchSearch/hooks/useResearchSearch';
 import { ResearchResultsList } from '../features/researchSearch/components/ResearchResultsList';
@@ -37,6 +38,7 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
   const [tests, setTests] = useState<Test[]>([]);
   const [testsLoading, setTestsLoading] = useState(false);
   const testsLoadedRef = useRef(false);
+  const { chunks: transcriptSearchChunks, loading: transcriptSearchLoading } = useTranscriptSearchChunks(open);
 
   useEffect(() => {
     if (!open || testsLoadedRef.current) return;
@@ -49,11 +51,12 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
       .finally(() => setTestsLoading(false));
   }, [open]);
 
-  const isContentLoading = periodsLoading || clinicalLoading || generalLoading || testsLoading;
+  const isContentLoading =
+    periodsLoading || clinicalLoading || generalLoading || testsLoading || transcriptSearchLoading;
 
   const contentData = useMemo(
-    () => ({ periods, clinicalTopics, generalTopics }),
-    [periods, clinicalTopics, generalTopics]
+    () => ({ periods, clinicalTopics, generalTopics, transcriptSearchChunks }),
+    [periods, clinicalTopics, generalTopics, transcriptSearchChunks]
   );
 
   const { state: contentState, search: contentSearch, reset: contentReset } = useContentSearch(contentData, tests);
@@ -246,7 +249,7 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
                     autoComplete="off"
                   />
                   <p className="text-xs text-muted">
-                    Поиск по заголовкам, понятиям, авторам, литературе и тестам
+                    Поиск по заголовкам, понятиям, авторам, литературе, тестам и транскриптам
                   </p>
                 </div>
               </form>

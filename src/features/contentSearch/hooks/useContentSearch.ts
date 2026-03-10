@@ -1,10 +1,13 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Period, Author, ContentLink } from '../../../types/content';
 import type { Test } from '../../../types/tests';
+import type { VideoTranscriptSearchChunkDoc } from '../../../types/videoTranscripts';
+import { buildCourseLessonPath } from '../../../lib/courseLessons';
 import type {
   SearchResult,
   ContentSearchResult,
   TestSearchResult,
+  TranscriptSearchResult,
   CourseType,
   ContentMatchField,
   TestMatchField,
@@ -15,6 +18,7 @@ interface ContentData {
   periods: Period[];
   clinicalTopics: Map<string, Period>;
   generalTopics: Map<string, Period>;
+  transcriptSearchChunks: VideoTranscriptSearchChunkDoc[];
 }
 
 interface UseContentSearchOptions {
@@ -218,6 +222,77 @@ function searchInTests(tests: Test[], queryWords: string[]): TestSearchResult[] 
   return results;
 }
 
+function countMatches(text: string, queryWords: string[]) {
+  return queryWords.reduce((count, word) => {
+    const matches = text.match(new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'));
+    return count + (matches?.length ?? 0);
+  }, 0);
+}
+
+function buildTranscriptSearchPath(result: VideoTranscriptSearchChunkDoc, query: string) {
+  const basePath = buildCourseLessonPath(result.courseId, result.periodId);
+  const params = new URLSearchParams({
+    panel: 'transcript',
+    study: '1',
+    t: String(Math.floor(result.startMs / 1000)),
+    video: result.youtubeVideoId,
+  });
+
+  if (query.trim()) {
+    params.set('q', query.trim());
+  }
+
+  return `${basePath}?${params.toString()}`;
+}
+
+function searchInTranscript(
+  transcriptSearchChunks: VideoTranscriptSearchChunkDoc[],
+  queryWords: string[],
+  rawQuery: string
+): TranscriptSearchResult[] {
+  const matches = transcriptSearchChunks
+    .filter((chunk) => matchesQuery(chunk.normalizedText, queryWords))
+    .map((chunk) => ({
+      type: 'transcript' as const,
+      id: `${chunk.referenceKey}-${chunk.chunkIndex}`,
+      youtubeVideoId: chunk.youtubeVideoId,
+      title: chunk.lectureTitle,
+      period: chunk.periodId,
+      periodTitle: chunk.periodTitle,
+      lectureTitle: chunk.lectureTitle,
+      course: chunk.courseId as CourseType,
+      matchedIn: ['transcript'] as ['transcript'],
+      relevanceScore: 6 + countMatches(chunk.normalizedText, queryWords),
+      startMs: chunk.startMs,
+      timestampLabel: chunk.timestampLabel,
+      snippet: chunk.text,
+      path: buildTranscriptSearchPath(chunk, rawQuery),
+      referenceKey: chunk.referenceKey,
+    }))
+    .sort((a, b) => {
+      if (b.relevanceScore !== a.relevanceScore) {
+        return b.relevanceScore - a.relevanceScore;
+      }
+
+      return a.startMs - b.startMs;
+    });
+
+  const transcriptResults: TranscriptSearchResult[] = [];
+  const resultsPerReference = new Map<string, number>();
+
+  matches.forEach(({ referenceKey, ...result }) => {
+    const currentCount = resultsPerReference.get(referenceKey) ?? 0;
+    if (currentCount >= 2) {
+      return;
+    }
+
+    resultsPerReference.set(referenceKey, currentCount + 1);
+    transcriptResults.push(result);
+  });
+
+  return transcriptResults;
+}
+
 /**
  * Простой клиентский поиск по контенту всех курсов и тестам
  * Индексирует: title, subtitle, concepts, authors, literature, videos, leisure, тесты
@@ -292,12 +367,18 @@ export function useContentSearch(
       const testResults = searchInTests(tests, queryWords);
       testResults.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
-      // Контент сначала, тесты в конце
-      const allResults: SearchResult[] = [...contentResults, ...testResults];
+      const transcriptResults = searchInTranscript(
+        contentData.transcriptSearchChunks,
+        queryWords,
+        query
+      );
+
+      // Контент сначала, затем transcript, потом тесты
+      const allResults: SearchResult[] = [...contentResults, ...transcriptResults, ...testResults];
 
       setState({ status: 'success', results: allResults, query });
     },
-    [allContent, tests, minQueryLength]
+    [allContent, contentData.transcriptSearchChunks, tests, minQueryLength]
   );
 
   const reset = useCallback(() => {
