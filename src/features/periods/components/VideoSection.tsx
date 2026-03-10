@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Section } from '../../../components/ui/Section';
 import { cn } from '../../../lib/cn';
+import { getYouTubeVideoId } from '../../../lib/videoTranscripts';
 import type { LectureNoteSegment } from '../../../types/notes';
 import { isUrlString, normalizeVideoEntry } from '../utils/media';
 import { VideoResourceLinks } from './VideoResourceLinks';
@@ -15,6 +16,12 @@ interface VideoSectionProps {
   courseId: string;
   periodId?: string;
   periodTitle: string;
+  studyLaunch?: {
+    requestedVideoId: string;
+    initialPanel: 'notes' | 'transcript';
+    initialSeekMs: number | null;
+    initialQuery: string | null;
+  } | null;
 }
 
 type VideoLayoutMode = 'embed' | 'study';
@@ -28,6 +35,7 @@ export function VideoSection({
   courseId,
   periodId,
   periodTitle,
+  studyLaunch,
 }: VideoSectionProps) {
   const videos = content.map((entry, index) => {
     const normalized = normalizeVideoEntry(entry);
@@ -69,6 +77,7 @@ export function VideoSection({
             periodId={periodId}
             periodTitle={periodTitle}
             defaultVideoTitle={defaultVideoTitle}
+            studyLaunch={studyLaunch}
           />
         ))}
       </div>
@@ -88,6 +97,7 @@ interface VideoSectionCardProps {
   periodId?: string;
   periodTitle: string;
   defaultVideoTitle: string;
+  studyLaunch?: VideoSectionProps['studyLaunch'];
 }
 
 function VideoSectionCard({
@@ -102,10 +112,33 @@ function VideoSectionCard({
   periodId,
   periodTitle,
   defaultVideoTitle,
+  studyLaunch,
 }: VideoSectionCardProps) {
   const [mode, setMode] = useState<VideoLayoutMode>('embed');
   const [studyDraftSegments, setStudyDraftSegments] = useState<LectureNoteSegment[]>([]);
+  const consumedStudyLaunchRef = useRef<string | null>(null);
   const effectiveVideoTitle = videoTitle?.trim() || defaultVideoTitle;
+  const youtubeVideoId = useMemo(
+    () => getYouTubeVideoId(originalUrl) ?? getYouTubeVideoId(embedUrl),
+    [embedUrl, originalUrl]
+  );
+  const isStudyLaunchTarget =
+    Boolean(studyLaunch?.requestedVideoId) &&
+    youtubeVideoId === studyLaunch?.requestedVideoId;
+  const studyLaunchKey = isStudyLaunchTarget
+    ? `${studyLaunch?.requestedVideoId ?? ''}::${studyLaunch?.initialPanel ?? 'notes'}::${studyLaunch?.initialSeekMs ?? 'none'}`
+    : null;
+  const shouldAutoOpenStudy =
+    mode !== 'study' &&
+    Boolean(studyLaunchKey) &&
+    consumedStudyLaunchRef.current !== studyLaunchKey;
+
+  useEffect(() => {
+    if (shouldAutoOpenStudy) {
+      consumedStudyLaunchRef.current = studyLaunchKey;
+      setMode('study');
+    }
+  }, [shouldAutoOpenStudy, studyLaunchKey]);
 
   if (!embedUrl) {
     const isPlaylist = isUrlString(originalUrl) && originalUrl.includes('list=');
@@ -188,6 +221,10 @@ function VideoSectionCard({
         periodId={periodId}
         periodTitle={periodTitle}
         videoTitle={effectiveVideoTitle}
+        initialPanel={isStudyLaunchTarget ? studyLaunch?.initialPanel ?? 'notes' : 'notes'}
+        initialQuery={isStudyLaunchTarget ? studyLaunch?.initialQuery ?? null : null}
+        initialSeekMs={isStudyLaunchTarget ? studyLaunch?.initialSeekMs ?? null : null}
+        highlightedStartMs={isStudyLaunchTarget ? studyLaunch?.initialSeekMs ?? null : null}
       />
     </div>
   );

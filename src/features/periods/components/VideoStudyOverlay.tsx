@@ -22,6 +22,10 @@ interface VideoStudyOverlayProps {
   periodId?: string;
   periodTitle: string;
   videoTitle: string;
+  initialPanel?: SidebarMode;
+  initialSeekMs?: number | null;
+  initialQuery?: string | null;
+  highlightedStartMs?: number | null;
 }
 
 type SidebarMode = 'notes' | 'transcript';
@@ -40,8 +44,12 @@ export function VideoStudyOverlay({
   periodId,
   periodTitle,
   videoTitle,
+  initialPanel = 'notes',
+  initialSeekMs = null,
+  initialQuery = null,
+  highlightedStartMs = null,
 }: VideoStudyOverlayProps) {
-  const [sidebarMode, setSidebarMode] = useState<SidebarMode>('notes');
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(initialPanel);
   const playerRef = useRef<StudyVideoPlayerHandle | null>(null);
   const youtubeVideoId = useMemo(
     () => getYouTubeVideoId(originalUrl) ?? getYouTubeVideoId(embedUrl),
@@ -77,6 +85,14 @@ export function VideoStudyOverlay({
       setSidebarMode('notes');
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setSidebarMode(initialPanel);
+  }, [initialPanel, isOpen]);
 
   useEffect(() => {
     if (!transcriptState.hasTranscript && sidebarMode === 'transcript') {
@@ -131,6 +147,7 @@ export function VideoStudyOverlay({
                   ref={playerRef}
                   title={`${videoTitle} fullscreen`}
                   embedUrl={embedUrl}
+                  initialSeekMs={initialSeekMs}
                 />
               </div>
             </div>
@@ -153,9 +170,11 @@ export function VideoStudyOverlay({
           {isTranscriptMode ? (
             <VideoTranscriptPanel
               error={transcriptState.error}
+              highlightedStartMs={highlightedStartMs}
               isChecking={transcriptState.isChecking}
               isLoading={transcriptState.isLoading}
               onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
+              query={initialQuery}
               transcript={transcriptState.transcript}
             />
           ) : (

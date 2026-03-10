@@ -101,13 +101,15 @@ export interface StudyVideoPlayerHandle {
 
 interface StudyVideoPlayerProps {
   embedUrl: string;
+  initialSeekMs?: number | null;
   title: string;
 }
 
 export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPlayerProps>(
-  function StudyVideoPlayer({ embedUrl, title }, ref) {
+  function StudyVideoPlayer({ embedUrl, initialSeekMs = null, title }, ref) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const playerRef = useRef<InstanceType<YouTubePlayerApi['Player']> | null>(null);
+    const pendingSeekMsRef = useRef<number | null>(null);
     const playerConfig = useMemo(() => parseYouTubeEmbedConfig(embedUrl), [embedUrl]);
 
     useImperativeHandle(
@@ -128,14 +130,28 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
         },
         seekToMs: (ms: number) => {
           if (!playerRef.current) {
+            pendingSeekMsRef.current = ms;
             return;
           }
 
+          pendingSeekMsRef.current = null;
           playerRef.current.seekTo(Math.max(0, ms / 1000), true);
         },
       }),
       []
     );
+
+    useEffect(() => {
+      if (initialSeekMs === null) {
+        return;
+      }
+
+      pendingSeekMsRef.current = initialSeekMs;
+      if (playerRef.current) {
+        playerRef.current.seekTo(Math.max(0, initialSeekMs / 1000), true);
+        pendingSeekMsRef.current = null;
+      }
+    }, [initialSeekMs]);
 
     useEffect(() => {
       if (!containerRef.current || !playerConfig) {
@@ -155,6 +171,17 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
             height: '100%',
             videoId: playerConfig.videoId,
             playerVars: playerConfig.playerVars,
+            events: {
+              onReady: () => {
+                if (pendingSeekMsRef.current === null || !playerRef.current) {
+                  return;
+                }
+
+                const pendingSeekMs = pendingSeekMsRef.current;
+                pendingSeekMsRef.current = null;
+                playerRef.current.seekTo(Math.max(0, pendingSeekMs / 1000), true);
+              },
+            },
           });
         })
         .catch(() => {

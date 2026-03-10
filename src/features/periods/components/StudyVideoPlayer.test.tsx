@@ -41,4 +41,36 @@ describe('StudyVideoPlayer', () => {
       expect(playerMock).toHaveBeenCalledTimes(1);
     });
   });
+
+  it('сохраняет seek до готовности youtube player', async () => {
+    const seekToMock = vi.fn();
+    const playerMock = vi.fn(function Player(
+      _element: HTMLElement,
+      options: { events?: { onReady?: () => void } }
+    ) {
+      queueMicrotask(() => options.events?.onReady?.());
+      return {
+        destroy: vi.fn(),
+        getCurrentTime: vi.fn(() => 0),
+        getPlayerState: vi.fn(() => 2),
+        seekTo: seekToMock,
+      };
+    });
+
+    (window as typeof window & { YT?: unknown }).YT = {
+      Player: playerMock,
+    };
+
+    render(
+      <StudyVideoPlayer
+        embedUrl="https://www.youtube.com/embed/video-1?si=test"
+        initialSeekMs={65_000}
+        title="Тестовое видео"
+      />
+    );
+
+    await waitFor(() => {
+      expect(seekToMock).toHaveBeenCalledWith(65, true);
+    });
+  });
 });

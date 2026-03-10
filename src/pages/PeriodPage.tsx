@@ -29,6 +29,13 @@ interface PeriodRouteConfig {
   meta?: RouteMeta;
 }
 
+interface StudyLaunchParams {
+  initialPanel: 'notes' | 'transcript';
+  initialQuery: string | null;
+  initialSeekMs: number | null;
+  requestedVideoId: string;
+}
+
 export interface PeriodPageProps {
   config: PeriodRouteConfig;
   period?: Period | null;
@@ -174,6 +181,7 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const backgroundImage = config.periodId ? BACKGROUND_BY_PERIOD[config.periodId] : undefined;
   const backgroundClass = backgroundImage ? 'bg-repeat bg-[length:180px]' : '';
   const backgroundStyle = backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined;
+  const studyLaunch = getStudyLaunchParams(location.search);
 
   return (
     <Motion.div
@@ -209,8 +217,32 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
           periodId={config.periodId}
           periodTitle={heading}
           courseType={courseType}
+          studyLaunch={studyLaunch}
         />
       )}
     </Motion.div>
   );
+}
+
+function getStudyLaunchParams(search: string): StudyLaunchParams | null {
+  const params = new URLSearchParams(search);
+  if (params.get('study') !== '1') {
+    return null;
+  }
+
+  const requestedVideoId = params.get('video');
+  if (!requestedVideoId) {
+    return null;
+  }
+
+  const initialPanel = params.get('panel') === 'notes' ? 'notes' : 'transcript';
+  const rawTime = Number(params.get('t'));
+  const initialSeekMs = Number.isFinite(rawTime) && rawTime >= 0 ? Math.floor(rawTime * 1000) : null;
+
+  return {
+    initialPanel,
+    initialQuery: params.get('q'),
+    initialSeekMs,
+    requestedVideoId,
+  };
 }

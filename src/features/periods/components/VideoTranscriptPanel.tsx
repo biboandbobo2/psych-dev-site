@@ -1,10 +1,13 @@
+import { useEffect, useRef } from 'react';
 import type { VideoTranscriptStoragePayload } from '../../../types/videoTranscripts';
 
 interface VideoTranscriptPanelProps {
   error: string | null;
+  highlightedStartMs?: number | null;
   isChecking: boolean;
   isLoading: boolean;
   onTimestampClick: (startMs: number) => void;
+  query?: string | null;
   transcript: VideoTranscriptStoragePayload | null;
 }
 
@@ -23,11 +26,26 @@ function formatTranscriptTimestamp(ms: number) {
 
 export function VideoTranscriptPanel({
   error,
+  highlightedStartMs = null,
   isChecking,
   isLoading,
   onTimestampClick,
+  query = null,
   transcript,
 }: VideoTranscriptPanelProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (highlightedStartMs === null || !containerRef.current) {
+      return;
+    }
+
+    const highlightedNode = containerRef.current.querySelector<HTMLElement>(
+      `[data-start-ms="${highlightedStartMs}"]`
+    );
+    highlightedNode?.scrollIntoView({ block: 'center' });
+  }, [highlightedStartMs, transcript]);
+
   return (
     <aside className="flex h-full min-h-0 flex-col px-4 py-4 text-white lg:px-5 lg:py-5">
       <div className="border-b border-white/10 pb-4">
@@ -36,9 +54,12 @@ export function VideoTranscriptPanel({
         <p className="mt-2 text-sm leading-6 text-white/55">
           {transcript?.language ? `Язык: ${transcript.language.toUpperCase()}` : 'Текст лекции с привязкой ко времени'}
         </p>
+        {query ? (
+          <p className="mt-2 text-xs leading-5 text-white/40">Открыто из поиска по запросу: {query}</p>
+        ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto py-4">
+      <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto py-4">
         {isChecking || isLoading ? (
           <p className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-7 text-white/70">
             Загружаем транскрипт...
@@ -56,7 +77,12 @@ export function VideoTranscriptPanel({
             {transcript.segments.map((segment) => (
               <div
                 key={`${segment.index}-${segment.startMs}`}
-                className="rounded-[1.1rem] border border-white/10 bg-black/20 px-4 py-3"
+                data-start-ms={segment.startMs}
+                className={`rounded-[1.1rem] border px-4 py-3 ${
+                  highlightedStartMs === segment.startMs
+                    ? 'border-accent bg-accent/10 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]'
+                    : 'border-white/10 bg-black/20'
+                }`}
               >
                 <button
                   type="button"

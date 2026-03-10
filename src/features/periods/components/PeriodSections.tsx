@@ -16,6 +16,12 @@ interface PeriodSectionsProps {
   periodTitle: string;
   /** Тип курса для проверки доступа к видео */
   courseType: CourseType;
+  studyLaunch?: {
+    requestedVideoId: string;
+    initialPanel: 'notes' | 'transcript';
+    initialSeekMs: number | null;
+    initialQuery: string | null;
+  } | null;
 }
 
 // Фиксированный порядок отображения секций
@@ -39,6 +45,7 @@ export function PeriodSections({
   periodId,
   periodTitle,
   courseType,
+  studyLaunch,
 }: PeriodSectionsProps) {
   if (!sections) return null;
 
@@ -73,6 +80,7 @@ export function PeriodSections({
           periodId={periodId}
           periodTitle={periodTitle}
           courseType={courseType}
+          studyLaunch={studyLaunch}
         />
       ))}
     </div>
@@ -89,6 +97,7 @@ interface SectionRendererProps {
   periodTitle: string;
   /** Тип курса для проверки доступа к видео */
   courseType: CourseType;
+  studyLaunch?: PeriodSectionsProps['studyLaunch'];
 }
 
 function SectionRenderer({
@@ -100,6 +109,7 @@ function SectionRenderer({
   periodId,
   periodTitle,
   courseType,
+  studyLaunch,
 }: SectionRendererProps) {
   // Для self_questions делаем исключение: показываем если есть контент ИЛИ есть тесты
   const isSelfQuestions = slug === 'self_questions';
@@ -124,6 +134,7 @@ function SectionRenderer({
         periodId={periodId}
         periodTitle={periodTitle}
         courseId={courseType}
+        studyLaunch={studyLaunch}
       />
     ) : undefined;
 
@@ -139,6 +150,7 @@ function SectionRenderer({
           periodId={periodId}
           periodTitle={periodTitle}
           courseId={courseType}
+          studyLaunch={studyLaunch}
         />
       </PaywallGuard>
     );

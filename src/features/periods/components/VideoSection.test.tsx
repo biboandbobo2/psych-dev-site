@@ -136,4 +136,32 @@ describe('VideoSection', () => {
     expect(screen.getByText('Transcript panel')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Показать конспект' })).toBeInTheDocument();
   });
+
+  it('автоматически открывает нужную лекцию из transcript search deep-link', async () => {
+    mocks.transcriptReady = true;
+
+    render(
+      <VideoSection
+        slug="video"
+        title="Видео"
+        content={[{ title: 'Лекция 1', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }]}
+        deckUrl=""
+        defaultVideoTitle="Видео-лекция"
+        courseId="development"
+        periodId="intro"
+        periodTitle="Введение"
+        studyLaunch={{
+          requestedVideoId: 'dQw4w9WgXcQ',
+          initialPanel: 'transcript',
+          initialSeekMs: 65_000,
+          initialQuery: 'время',
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByText('Transcript panel')).toBeInTheDocument();
+    });
+  });
 });
