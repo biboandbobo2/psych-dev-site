@@ -82,4 +82,62 @@ describe('useContentSearch transcript results', () => {
       expect.objectContaining({ startMs: 125_000, timestampLabel: '02:05' }),
     ]);
   });
+
+  it('повторно выполняет поиск, когда transcript chunks догрузились после первого запроса', () => {
+    const initialContentData = {
+      periods: [],
+      clinicalTopics: new Map(),
+      generalTopics: new Map(),
+      transcriptSearchChunks: [],
+    };
+
+    const { result, rerender } = renderHook(
+      ({ contentData }) => useContentSearch(contentData, []),
+      {
+        initialProps: {
+          contentData: initialContentData,
+        },
+      }
+    );
+
+    act(() => {
+      result.current.search('николай васильевич смирнов');
+    });
+
+    expect(result.current.state.results).toHaveLength(0);
+
+    rerender({
+      contentData: {
+        ...initialContentData,
+        transcriptSearchChunks: [
+          {
+            youtubeVideoId: 'video-2',
+            referenceKey: 'development::youth::0',
+            courseId: 'development',
+            periodId: 'youth',
+            periodTitle: 'Юность',
+            lectureTitle: 'Лекция про юность',
+            sourcePath: 'periods/youth',
+            sourceUrl: 'https://www.youtube.com/watch?v=video-2',
+            chunkIndex: 0,
+            startMs: 90_000,
+            endMs: 120_000,
+            timestampLabel: '01:30',
+            segmentCount: 2,
+            text: 'Николай Васильевич Смирнов описывает особенности развития',
+            normalizedText: 'николай васильевич смирнов описывает особенности развития',
+            updatedAt: new Date() as never,
+            version: 1,
+          },
+        ],
+      },
+    });
+
+    expect(result.current.state.status).toBe('success');
+    expect(result.current.state.results).toHaveLength(1);
+    expect(result.current.state.results[0]).toMatchObject({
+      type: 'transcript',
+      lectureTitle: 'Лекция про юность',
+    });
+  });
 });

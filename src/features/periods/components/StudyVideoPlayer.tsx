@@ -34,6 +34,17 @@ type YouTubeWindow = Window & typeof globalThis & {
 
 let youtubeIframeApiPromise: Promise<YouTubePlayerApi> | null = null;
 
+function hasReadyPlayerMethods(
+  player: InstanceType<YouTubePlayerApi['Player']> | null
+): player is InstanceType<YouTubePlayerApi['Player']> {
+  return Boolean(
+    player &&
+      typeof player.getCurrentTime === 'function' &&
+      typeof player.getPlayerState === 'function' &&
+      typeof player.seekTo === 'function'
+  );
+}
+
 function loadYouTubeIframeApi() {
   const youtubeWindow = window as YouTubeWindow;
 
@@ -116,7 +127,7 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
       ref,
       () => ({
         getPlaybackSnapshot: () => {
-          if (!playerRef.current) {
+          if (!hasReadyPlayerMethods(playerRef.current)) {
             return {
               currentTimeMs: null,
               paused: true,
@@ -129,7 +140,7 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
           };
         },
         seekToMs: (ms: number) => {
-          if (!playerRef.current) {
+          if (!hasReadyPlayerMethods(playerRef.current)) {
             pendingSeekMsRef.current = ms;
             return;
           }
@@ -147,7 +158,7 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
       }
 
       pendingSeekMsRef.current = initialSeekMs;
-      if (playerRef.current) {
+      if (hasReadyPlayerMethods(playerRef.current)) {
         playerRef.current.seekTo(Math.max(0, initialSeekMs / 1000), true);
         pendingSeekMsRef.current = null;
       }
@@ -173,7 +184,10 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
             playerVars: playerConfig.playerVars,
             events: {
               onReady: () => {
-                if (pendingSeekMsRef.current === null || !playerRef.current) {
+                if (
+                  pendingSeekMsRef.current === null ||
+                  !hasReadyPlayerMethods(playerRef.current)
+                ) {
                   return;
                 }
 

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { Period, Author, ContentLink } from '../../../types/content';
 import type { Test } from '../../../types/tests';
 import type { VideoTranscriptSearchChunkDoc } from '../../../types/videoTranscripts';
@@ -346,6 +346,7 @@ export function useContentSearch(
   options: UseContentSearchOptions = {}
 ) {
   const { minQueryLength = 2 } = options;
+  const lastSearchSignatureRef = useRef<string | null>(null);
   const [state, setState] = useState<ContentSearchState>({
     status: 'idle',
     results: [],
@@ -380,9 +381,15 @@ export function useContentSearch(
     return items;
   }, [contentData.periods, contentData.clinicalTopics, contentData.generalTopics]);
 
+  const dataSignature = useMemo(
+    () => `${allContent.length}:${tests.length}:${contentData.transcriptSearchChunks.length}`,
+    [allContent.length, contentData.transcriptSearchChunks.length, tests.length]
+  );
+
   const search = useCallback(
     (query: string) => {
       const trimmedQuery = query.trim().toLowerCase();
+      lastSearchSignatureRef.current = `${trimmedQuery}::${dataSignature}`;
 
       if (trimmedQuery.length < minQueryLength) {
         setState({ status: 'idle', results: [], query });
@@ -421,12 +428,25 @@ export function useContentSearch(
 
       setState({ status: 'success', results: allResults, query });
     },
-    [allContent, contentData.transcriptSearchChunks, tests, minQueryLength]
+    [allContent, contentData.transcriptSearchChunks, dataSignature, tests, minQueryLength]
   );
 
   const reset = useCallback(() => {
     setState({ status: 'idle', results: [], query: '' });
   }, []);
+
+  useEffect(() => {
+    if (state.status === 'idle' || state.query.trim().length < minQueryLength) {
+      return;
+    }
+
+    const expectedSignature = `${state.query.trim().toLowerCase()}::${dataSignature}`;
+    if (lastSearchSignatureRef.current === expectedSignature) {
+      return;
+    }
+
+    search(state.query);
+  }, [dataSignature, minQueryLength, search, state.query, state.status]);
 
   return {
     state,

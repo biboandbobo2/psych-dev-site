@@ -1,3 +1,4 @@
+import { createRef } from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StudyVideoPlayer } from './StudyVideoPlayer';
@@ -71,6 +72,43 @@ describe('StudyVideoPlayer', () => {
 
     await waitFor(() => {
       expect(seekToMock).toHaveBeenCalledWith(65, true);
+    });
+  });
+
+  it('безопасно отдаёт playback snapshot, если player ещё не предоставляет youtube методы', async () => {
+    const playerMock = vi.fn(function Player(
+      _element: HTMLElement,
+      options: { events?: { onReady?: () => void } }
+    ) {
+      queueMicrotask(() => options.events?.onReady?.());
+      return {
+        destroy: vi.fn(),
+      };
+    });
+
+    (window as typeof window & { YT?: unknown }).YT = {
+      Player: playerMock,
+    };
+
+    const ref = createRef<{
+      getPlaybackSnapshot: () => { currentTimeMs: number | null; paused: boolean };
+    }>();
+
+    render(
+      <StudyVideoPlayer
+        ref={ref}
+        embedUrl="https://www.youtube.com/embed/video-1?si=test"
+        title="Тестовое видео"
+      />
+    );
+
+    await waitFor(() => {
+      expect(playerMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(ref.current?.getPlaybackSnapshot()).toEqual({
+      currentTimeMs: null,
+      paused: true,
     });
   });
 });
