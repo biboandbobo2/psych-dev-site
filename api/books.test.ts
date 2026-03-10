@@ -54,8 +54,8 @@ describe('BOOK_SEARCH_CONFIG', () => {
     expect(BOOK_SEARCH_CONFIG.contextK).toBe(10);
   });
 
-  it('embeddingModel = text-embedding-004', () => {
-    expect(BOOK_SEARCH_CONFIG.embeddingModel).toBe('text-embedding-004');
+  it('embeddingModel = gemini-embedding-001', () => {
+    expect(BOOK_SEARCH_CONFIG.embeddingModel).toBe('gemini-embedding-001');
   });
 
   it('embeddingDims = 768', () => {
@@ -214,8 +214,8 @@ describe('Валидация через конфиг', () => {
     expect(BOOK_SEARCH_CONFIG.snippetDefaultChars).toBeLessThanOrEqual(BOOK_SEARCH_CONFIG.snippetMaxChars);
   });
 
-  it('embeddingDims — стандартное значение для text-embedding-004', () => {
-    // text-embedding-004 поддерживает 768 dimensions
+  it('embeddingDims — стандартное значение для gemini-embedding-001', () => {
+    // gemini-embedding-001 поддерживает 768 dimensions
     expect(BOOK_SEARCH_CONFIG.embeddingDims).toBe(768);
   });
 });

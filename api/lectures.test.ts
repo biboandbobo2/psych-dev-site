@@ -23,8 +23,8 @@ describe('LECTURE_SEARCH_CONFIG', () => {
     expect(LECTURE_SEARCH_CONFIG.maxLectureSelections).toBe(24);
   });
 
-  it('использует text-embedding-004', () => {
-    expect(LECTURE_SEARCH_CONFIG.embeddingModel).toBe('text-embedding-004');
+  it('использует gemini-embedding-001', () => {
+    expect(LECTURE_SEARCH_CONFIG.embeddingModel).toBe('gemini-embedding-001');
   });
 });
 

@@ -4,7 +4,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 
-const EMBEDDING_MODEL = 'text-embedding-004';
+const EMBEDDING_MODEL = 'gemini-embedding-001';
 const EMBEDDING_DIMS = 768;
 const BATCH_SIZE = 32;
 const MAX_RETRIES = 3;

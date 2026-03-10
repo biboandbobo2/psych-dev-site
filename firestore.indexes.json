@@ -9,6 +9,22 @@
       ]
     },
     {
+      "collectionGroup": "lecture_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "embedding", "vectorConfig": { "dimension": 768, "flat": {} } }
+      ]
+    },
+    {
+      "collectionGroup": "lecture_chunks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "lectureKey", "order": "ASCENDING" },
+        { "fieldPath": "embedding", "vectorConfig": { "dimension": 768, "flat": {} } }
+      ]
+    },
+    {
       "collectionGroup": "book_chunks",
       "queryScope": "COLLECTION",
       "fields": [

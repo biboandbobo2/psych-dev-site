@@ -21,7 +21,7 @@ export const BOOK_SEARCH_CONFIG = {
   minQuestionLength: 3,
   candidateK: 50,
   contextK: 10,
-  embeddingModel: 'text-embedding-004',
+  embeddingModel: 'gemini-embedding-001',
   embeddingDims: 768,
   answerMaxParagraphs: 4,
   snippetMaxChars: 5000,

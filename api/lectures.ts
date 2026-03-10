@@ -3,6 +3,10 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenAI } from '@google/genai';
 import { buildCourseLessonPath } from '../src/lib/courseLessonPaths';
+import {
+  loadFallbackLectureSources,
+  searchFallbackTranscriptChunks,
+} from './lectureTranscriptFallback';
 
 export const LECTURE_COLLECTIONS = {
   chunks: 'lecture_chunks',
@@ -14,7 +18,7 @@ export const LECTURE_SEARCH_CONFIG = {
   candidateK: 36,
   contextK: 8,
   embeddingDims: 768,
-  embeddingModel: 'text-embedding-004',
+  embeddingModel: 'gemini-embedding-001',
   maxChunksPerLecture: 3,
   maxLectureSelections: 24,
   maxQuestionLength: 500,
@@ -256,11 +260,26 @@ async function resolveLectureSources(
   courseId: string,
   lectureKeys: string[]
 ) {
-  if (lectureKeys.length > 0) {
-    return getLectureSourcesByKeys(db, courseId, lectureKeys);
+  const primarySources = lectureKeys.length > 0
+    ? await getLectureSourcesByKeys(db, courseId, lectureKeys)
+    : await getLectureSourcesByCourse(db, courseId);
+
+  if (primarySources.length > 0) {
+    return {
+      fallbackOnly: false,
+      sources: primarySources,
+    };
   }
 
-  return getLectureSourcesByCourse(db, courseId);
+  const fallbackSources = await loadFallbackLectureSources(db, courseId);
+  const filteredFallbackSources = lectureKeys.length > 0
+    ? fallbackSources.filter((source) => lectureKeys.includes(source.lectureKey))
+    : fallbackSources;
+
+  return {
+    fallbackOnly: true,
+    sources: filteredFallbackSources,
+  };
 }
 
 async function searchChunksForCourse(
@@ -354,24 +373,70 @@ async function retrieveLectureMatches(
   db: FirebaseFirestore.Firestore,
   input: ValidatedLectureScope
 ) {
-  const sources = await resolveLectureSources(db, input.courseId, input.lectureKeys);
+  const { sources, fallbackOnly } = await resolveLectureSources(
+    db,
+    input.courseId,
+    input.lectureKeys
+  );
+
   if (!sources.length) {
     return {
+      fallbackOnly,
       matches: [] as LectureSearchMatch[],
       sources: [] as LectureSourceRecord[],
     };
   }
 
   const allowedKeys = new Set(sources.map((source) => source.lectureKey));
-  const queryEmbedding = await embedQuery(input.query);
-  const rawMatches = input.lectureKeys.length > 0
-    ? await searchChunksForLectures(db, [...allowedKeys], queryEmbedding)
-    : await searchChunksForCourse(db, input.courseId, queryEmbedding);
 
-  const filteredMatches = rawMatches.filter((match) => allowedKeys.has(match.lectureKey));
-  const rerankedMatches = rerankLectureMatches(input.query, filteredMatches);
+  if (fallbackOnly) {
+    const fallbackMatches = await searchFallbackTranscriptChunks(
+      db,
+      input.courseId,
+      [...allowedKeys],
+      input.query,
+      LECTURE_SEARCH_CONFIG.maxChunksPerLecture,
+      LECTURE_SEARCH_CONFIG.contextK,
+      computeLexicalScore
+    );
+
+    return {
+      fallbackOnly,
+      matches: fallbackMatches,
+      sources,
+    };
+  }
+
+  let rerankedMatches: LectureSearchMatch[] = [];
+
+  try {
+    const queryEmbedding = await embedQuery(input.query);
+    const rawMatches = input.lectureKeys.length > 0
+      ? await searchChunksForLectures(db, [...allowedKeys], queryEmbedding)
+      : await searchChunksForCourse(db, input.courseId, queryEmbedding);
+
+    const filteredMatches = rawMatches.filter((match) => allowedKeys.has(match.lectureKey));
+    rerankedMatches = rerankLectureMatches(input.query, filteredMatches);
+  } catch {
+    const fallbackMatches = await searchFallbackTranscriptChunks(
+      db,
+      input.courseId,
+      [...allowedKeys],
+      input.query,
+      LECTURE_SEARCH_CONFIG.maxChunksPerLecture,
+      LECTURE_SEARCH_CONFIG.contextK,
+      computeLexicalScore
+    );
+
+    return {
+      fallbackOnly: true,
+      matches: fallbackMatches,
+      sources,
+    };
+  }
 
   return {
+    fallbackOnly: false,
     matches: capMatchesPerLecture(rerankedMatches),
     sources,
   };
@@ -430,7 +495,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .where('active', '==', true)
         .get();
 
-      const sources = snapshot.docs.map((doc) => doc.data() as LectureSourceRecord);
+      const sources = snapshot.empty
+        ? await loadFallbackLectureSources(db)
+        : snapshot.docs.map((doc) => doc.data() as LectureSourceRecord);
       res.status(200).json({
         ok: true,
         courses: groupLectureSourcesByCourse(sources),

@@ -2,12 +2,30 @@ import { initializeApp, applicationDefault, cert, getApps, getApp } from 'fireba
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import fs from 'fs';
+import path from 'path';
+
+function resolveFirebaseRcProjectId(): string | undefined {
+  const firebaseRcPath = path.join(process.cwd(), '.firebaserc');
+  if (!fs.existsSync(firebaseRcPath)) {
+    return undefined;
+  }
+
+  try {
+    const raw = JSON.parse(fs.readFileSync(firebaseRcPath, 'utf8')) as {
+      projects?: { default?: string };
+    };
+    return raw.projects?.default;
+  } catch {
+    return undefined;
+  }
+}
 
 function resolveProjectId(): string | undefined {
   return (
     process.env.FIREBASE_PROJECT_ID ||
     process.env.GOOGLE_CLOUD_PROJECT ||
-    process.env.GCLOUD_PROJECT
+    process.env.GCLOUD_PROJECT ||
+    resolveFirebaseRcProjectId()
   );
 }
 

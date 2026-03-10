@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useResearchSearch, useFilteredResults } from '../features/researchSearch/hooks/useResearchSearch';
 import { ResearchResultsList } from '../features/researchSearch/components/ResearchResultsList';
 import { BookSearchBlock } from '../features/bookSearch';
+import { LectureSearchBlock } from '../features/lectureSearch';
 
 // Default languages for search (Chinese disabled for now)
 const DEFAULT_LANGS = ['ru', 'en', 'de', 'fr', 'es'];
@@ -259,6 +260,9 @@ export default function ResearchPage() {
 
       {/* Book Search */}
       <BookSearchBlock />
+
+      {/* Lecture Search */}
+      <LectureSearchBlock />
     </div>
   );
 }

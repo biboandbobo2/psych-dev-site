@@ -1,6 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { initAdmin } from "./_adminInit";
 import { getEmbeddingsBatch } from "../functions/src/lib/embeddings.js";
+import { readLatestSecretValue } from "../functions/src/lib/secrets.js";
 import {
   buildLectureKey,
   buildLectureRagChunks,
@@ -57,6 +58,14 @@ function parseTranscriptPayload(raw: Uint8Array) {
   return JSON.parse(text) as TranscriptImportResult;
 }
 
+async function ensureGeminiApiKey(projectId: string | null | undefined) {
+  if (process.env.GEMINI_API_KEY) {
+    return;
+  }
+
+  process.env.GEMINI_API_KEY = await readLatestSecretValue("GEMINI_API_KEY", projectId || undefined);
+}
+
 async function loadTranscript(
   admin: ReturnType<typeof initAdmin>,
   target: TranscriptImportTarget
@@ -106,6 +115,7 @@ async function getProcessableReferences(
 async function run() {
   const options = parseArgs(process.argv.slice(2));
   const admin = initAdmin();
+  await ensureGeminiApiKey(admin.projectId);
 
   console.log("🎓 Ingest lecture RAG from saved transcripts");
   console.log(
