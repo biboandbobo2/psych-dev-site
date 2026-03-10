@@ -1,30 +1,40 @@
 import { Timestamp } from "firebase-admin/firestore";
+
 import { initAdmin } from "./_adminInit";
-import { getEmbeddingsBatch } from "../functions/src/lib/embeddings.js";
-import { readLatestSecretValue } from "../functions/src/lib/secrets.js";
 import {
-  buildLectureKey,
-  buildLectureRagChunks,
-  LECTURE_RAG_SOURCES_COLLECTION,
-  upsertLectureRagForReference,
+  getLectureRagProcessableReferences,
+  LECTURE_RAG_JOBS_COLLECTION,
 } from "../shared/lectureRag/index.js";
 import {
-  VIDEO_TRANSCRIPTS_COLLECTION,
-  type TranscriptImportResult,
   type TranscriptImportTarget,
-  type VideoTranscriptDocShape,
   collectTranscriptTargets,
 } from "../shared/videoTranscripts/index.js";
+
+const LECTURE_RAG_REGION = "europe-west1";
 
 interface LectureRagImportOptions {
   dryRun: boolean;
   force: boolean;
+  functionUrl: string | null;
   limit: number | null;
+}
+
+interface LectureRagCloudResponse {
+  chunkCount: number;
+  error?: string;
+  jobId: string;
+  lectureKeys: string[];
+  ok: boolean;
+  processedReferences: number;
+  skippedReferences: number;
+  status: "missing_transcript" | "processed" | "skipped";
+  youtubeVideoId: string;
 }
 
 function parseArgs(argv: string[]): LectureRagImportOptions {
   let dryRun = false;
   let force = false;
+  let functionUrl: string | null = null;
   let limit: number | null = null;
 
   argv.forEach((arg) => {
@@ -43,84 +53,120 @@ function parseArgs(argv: string[]): LectureRagImportOptions {
       if (Number.isFinite(rawLimit) && rawLimit > 0) {
         limit = Math.floor(rawLimit);
       }
+      return;
+    }
+
+    if (arg.startsWith("--function-url=")) {
+      functionUrl = arg.slice("--function-url=".length).trim() || null;
     }
   });
 
   return {
     dryRun,
     force,
+    functionUrl,
     limit,
   };
 }
 
-function parseTranscriptPayload(raw: Uint8Array) {
-  const text = new TextDecoder().decode(raw);
-  return JSON.parse(text) as TranscriptImportResult;
-}
-
-async function ensureGeminiApiKey(projectId: string | null | undefined) {
-  if (process.env.GEMINI_API_KEY) {
-    return;
-  }
-
-  process.env.GEMINI_API_KEY = await readLatestSecretValue("GEMINI_API_KEY", projectId || undefined);
-}
-
-async function loadTranscript(
-  admin: ReturnType<typeof initAdmin>,
-  target: TranscriptImportTarget
+function resolveLectureRagFunctionUrl(
+  projectId: string | null | undefined,
+  explicitUrl: string | null
 ) {
-  const snapshot = await admin.db
-    .collection(VIDEO_TRANSCRIPTS_COLLECTION)
-    .doc(target.youtubeVideoId)
-    .get();
+  if (explicitUrl) {
+    return explicitUrl;
+  }
 
-  if (!snapshot.exists) {
+  if (!projectId) {
     return null;
   }
 
-  const metadata = snapshot.data() as VideoTranscriptDocShape<FirebaseFirestore.Timestamp>;
-  if (metadata.status !== "available" || !metadata.storagePath || !admin.bucket) {
-    return null;
-  }
-
-  const [raw] = await admin.bucket.file(metadata.storagePath).download();
-  return parseTranscriptPayload(raw);
+  return `https://${LECTURE_RAG_REGION}-${projectId}.cloudfunctions.net/ingestLectureRag`;
 }
 
-async function getProcessableReferences(
-  admin: ReturnType<typeof initAdmin>,
+async function ensureLectureJob(
+  db: FirebaseFirestore.Firestore,
+  youtubeVideoId: string
+) {
+  const jobRef = db.collection(LECTURE_RAG_JOBS_COLLECTION).doc();
+  const now = Timestamp.now();
+
+  await jobRef.set({
+    id: jobRef.id,
+    youtubeVideoId,
+    status: "queued",
+    step: "resolve",
+    progress: { done: 0, total: 0 },
+    lectureKeys: [],
+    logs: ["Job created from CLI trigger"],
+    error: null,
+    chunkCount: 0,
+    referenceCount: 0,
+    startedAt: now,
+    finishedAt: null,
+  });
+
+  return jobRef.id;
+}
+
+async function triggerLectureRagIngestion(
+  functionUrl: string,
   target: TranscriptImportTarget,
-  force: boolean
+  force: boolean,
+  jobId: string
 ) {
-  const checks = await Promise.all(
-    target.references.map(async (reference) => {
-      const lectureKey = buildLectureKey(reference, target.youtubeVideoId);
-      if (force) {
-        return reference;
-      }
+  const response = await fetch(functionUrl, {
+    body: JSON.stringify({
+      force,
+      jobId,
+      youtubeVideoId: target.youtubeVideoId,
+    }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
 
-      const sourceDoc = await admin.db
-        .collection(LECTURE_RAG_SOURCES_COLLECTION)
-        .doc(lectureKey)
-        .get();
+  const payload = (await response.json()) as LectureRagCloudResponse;
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.error || `Lecture ingest failed with ${response.status}`);
+  }
 
-      return sourceDoc.exists ? null : reference;
-    })
+  return payload;
+}
+
+function printDryRunTarget(
+  index: number,
+  total: number,
+  target: TranscriptImportTarget,
+  referenceCount: number
+) {
+  console.log(
+    `[${index + 1}/${total}] ${target.youtubeVideoId} → ${referenceCount} lecture(s)`
   );
 
-  return checks.filter((reference): reference is TranscriptImportTarget["references"][number] => Boolean(reference));
+  target.references.forEach((reference) => {
+    console.log(`  - ${reference.courseId}/${reference.lessonId}: ${reference.title}`);
+  });
 }
 
 async function run() {
   const options = parseArgs(process.argv.slice(2));
   const admin = initAdmin();
-  await ensureGeminiApiKey(admin.projectId);
+  const functionUrl = resolveLectureRagFunctionUrl(admin.projectId, options.functionUrl);
 
   console.log("🎓 Ingest lecture RAG from saved transcripts");
   console.log(
-    `Mode: ${options.dryRun ? "dry-run" : "write"}${options.force ? ", force" : ""}`
+    `Mode: ${options.dryRun ? "dry-run" : "cloud"}${options.force ? ", force" : ""}`
   );
+  if (!options.dryRun) {
+    if (!functionUrl) {
+      throw new Error(
+        "Lecture Cloud Function URL is unavailable. Pass --function-url or configure project ID."
+      );
+    }
+    console.log(`Function: ${functionUrl}`);
+  }
 
   const transcriptTargets = await collectTranscriptTargets(admin.db);
   const limitedTargets = options.limit
@@ -128,68 +174,58 @@ async function run() {
     : transcriptTargets;
 
   const summary = {
+    failedTargets: 0,
     processedLectures: 0,
     skippedLectures: 0,
-    missingTranscripts: 0,
+    triggerErrors: 0,
   };
 
   for (const [index, target] of limitedTargets.entries()) {
-    const processableReferences = await getProcessableReferences(admin, target, options.force);
+    const processableReferences = await getLectureRagProcessableReferences(
+      admin.db,
+      target,
+      options.force
+    );
+
     if (!processableReferences.length) {
       summary.skippedLectures += target.references.length;
       continue;
     }
 
-    const transcript = await loadTranscript(admin, target);
-    if (!transcript) {
-      summary.missingTranscripts += processableReferences.length;
-      console.log(
-        `[${index + 1}/${limitedTargets.length}] ${target.youtubeVideoId} ∅ transcript unavailable`
-      );
-      continue;
-    }
-
-    const chunks = buildLectureRagChunks(transcript);
-    if (!chunks.length) {
-      summary.missingTranscripts += processableReferences.length;
-      console.log(
-        `[${index + 1}/${limitedTargets.length}] ${target.youtubeVideoId} ∅ no lecture chunks`
-      );
-      continue;
-    }
-
-    console.log(
-      `[${index + 1}/${limitedTargets.length}] ${target.youtubeVideoId} → ${processableReferences.length} lecture(s), ${chunks.length} chunk(s)`
-    );
-
     if (options.dryRun) {
-      processableReferences.forEach((reference) => {
-        console.log(`  - ${reference.courseId}/${reference.lessonId}: ${reference.title}`);
-      });
+      printDryRunTarget(index, limitedTargets.length, target, processableReferences.length);
       summary.processedLectures += processableReferences.length;
       continue;
     }
 
-    const embeddings = await getEmbeddingsBatch(chunks.map((chunk) => chunk.text));
-    const now = Timestamp.now();
+    const jobId = await ensureLectureJob(admin.db, target.youtubeVideoId);
 
-    for (const reference of processableReferences) {
-      await upsertLectureRagForReference(
-        admin.db,
-        reference,
-        target.youtubeVideoId,
-        transcript,
-        embeddings,
-        now
+    try {
+      const payload = await triggerLectureRagIngestion(
+        functionUrl!,
+        target,
+        options.force,
+        jobId
       );
-      summary.processedLectures += 1;
+      console.log(
+        `[${index + 1}/${limitedTargets.length}] ${target.youtubeVideoId} ✓ ${payload.processedReferences} lecture(s), ${payload.chunkCount} chunk(s), job ${payload.jobId}`
+      );
+      summary.processedLectures += payload.processedReferences;
+      summary.skippedLectures += payload.skippedReferences;
+    } catch (error) {
+      summary.failedTargets += 1;
+      summary.triggerErrors += processableReferences.length;
+      console.log(
+        `[${index + 1}/${limitedTargets.length}] ${target.youtubeVideoId} ✗ ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
   console.log("---");
   console.log(`processed lectures: ${summary.processedLectures}`);
   console.log(`skipped lectures: ${summary.skippedLectures}`);
-  console.log(`missing transcripts: ${summary.missingTranscripts}`);
+  console.log(`failed targets: ${summary.failedTargets}`);
+  console.log(`trigger errors: ${summary.triggerErrors}`);
 }
 
 run().catch((error) => {

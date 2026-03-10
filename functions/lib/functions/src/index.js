@@ -240,6 +240,7 @@ export { onUserCreate } from './onUserCreate.js';
 export { migrateAdmins } from './migrateAdmins.js';
 export { makeUserAdmin, removeAdmin } from './makeAdmin.js';
 export { ingestBook } from './ingestBook.js';
+export { ingestLectureRag } from './ingestLectureRag.js';
 export { runVerify, runReconcile } from './verify.js';
 export { updateCourseAccess, setUserRole } from './courseAccess.js';
 export { bulkEnrollStudents, getStudentEmailLists, saveStudentEmailList } from './bulkEnrollment.js';
