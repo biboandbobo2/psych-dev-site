@@ -2,7 +2,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 
-import { ensureAdminApp } from "./lib/adminApp.js";
+import { ensureAdminApp, resolveAdminStorageBucket } from "./lib/adminApp.js";
 import { debugError, debugLog } from "./lib/debug.js";
 import { getEmbeddingsBatch } from "./lib/embeddings.js";
 import {
@@ -130,6 +130,7 @@ export const ingestLectureRag = onRequest(
     }
 
     const app = ensureAdminApp();
+    const storageBucket = app.options.storageBucket || resolveAdminStorageBucket();
 
     const body = (req.body ?? {}) as IngestLectureRagRequest;
     const youtubeVideoId = typeof body.youtubeVideoId === "string"
@@ -180,8 +181,8 @@ export const ingestLectureRag = onRequest(
 
       const result = await ingestLectureRagTarget(
         {
-          bucket: app.options.storageBucket
-            ? getStorage(app).bucket(app.options.storageBucket)
+          bucket: storageBucket
+            ? getStorage(app).bucket(storageBucket)
             : null,
           db,
           getEmbeddingsBatch: async (texts, onProgress) =>
