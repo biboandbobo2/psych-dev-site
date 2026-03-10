@@ -3,12 +3,49 @@ import type { VideoTranscriptStoragePayload } from '../../../types/videoTranscri
 
 interface VideoTranscriptPanelProps {
   error: string | null;
+  focusTimeMs?: number | null;
   highlightedStartMs?: number | null;
   isChecking: boolean;
   isLoading: boolean;
   onTimestampClick: (startMs: number) => void;
   query?: string | null;
   transcript: VideoTranscriptStoragePayload | null;
+}
+
+function getFocusedSegmentStartMs(
+  transcript: VideoTranscriptStoragePayload | null,
+  highlightedStartMs: number | null,
+  focusTimeMs: number | null
+) {
+  if (!transcript?.segments.length) {
+    return null;
+  }
+
+  if (highlightedStartMs !== null) {
+    const exactSegment = transcript.segments.find(
+      (segment) => segment.startMs === highlightedStartMs
+    );
+    if (exactSegment) {
+      return exactSegment.startMs;
+    }
+  }
+
+  if (focusTimeMs === null) {
+    return null;
+  }
+
+  const containingSegment = transcript.segments.find(
+    (segment) => focusTimeMs >= segment.startMs && focusTimeMs < segment.endMs
+  );
+  if (containingSegment) {
+    return containingSegment.startMs;
+  }
+
+  const previousSegment = [...transcript.segments]
+    .reverse()
+    .find((segment) => segment.startMs <= focusTimeMs);
+
+  return previousSegment?.startMs ?? transcript.segments[0].startMs;
 }
 
 function formatTranscriptTimestamp(ms: number) {
@@ -26,6 +63,7 @@ function formatTranscriptTimestamp(ms: number) {
 
 export function VideoTranscriptPanel({
   error,
+  focusTimeMs = null,
   highlightedStartMs = null,
   isChecking,
   isLoading,
@@ -34,14 +72,19 @@ export function VideoTranscriptPanel({
   transcript,
 }: VideoTranscriptPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const focusedSegmentStartMs = getFocusedSegmentStartMs(
+    transcript,
+    highlightedStartMs,
+    focusTimeMs
+  );
 
   useEffect(() => {
-    if (highlightedStartMs === null || !containerRef.current) {
+    if (focusedSegmentStartMs === null || !containerRef.current) {
       return;
     }
 
     const highlightedNode = containerRef.current.querySelector<HTMLElement>(
-      `[data-start-ms="${highlightedStartMs}"]`
+      `[data-start-ms="${focusedSegmentStartMs}"]`
     );
     if (!highlightedNode) {
       return;
@@ -55,7 +98,7 @@ export function VideoTranscriptPanel({
       top: Math.max(0, targetTop),
       behavior: 'auto',
     });
-  }, [highlightedStartMs, transcript]);
+  }, [focusedSegmentStartMs, transcript]);
 
   return (
     <aside className="flex h-full min-h-0 flex-col px-4 py-4 text-white lg:px-5 lg:py-5">
@@ -90,7 +133,7 @@ export function VideoTranscriptPanel({
                 key={`${segment.index}-${segment.startMs}`}
                 data-start-ms={segment.startMs}
                 className={`rounded-[1.1rem] border px-4 py-3 ${
-                  highlightedStartMs === segment.startMs
+                  focusedSegmentStartMs === segment.startMs
                     ? 'border-accent bg-accent/10 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]'
                     : 'border-white/10 bg-black/20'
                 }`}

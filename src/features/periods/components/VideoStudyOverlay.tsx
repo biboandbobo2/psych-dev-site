@@ -50,6 +50,9 @@ export function VideoStudyOverlay({
   highlightedStartMs = null,
 }: VideoStudyOverlayProps) {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(initialPanel);
+  const [transcriptFocusMs, setTranscriptFocusMs] = useState<number | null>(
+    initialSeekMs ?? highlightedStartMs
+  );
   const playerRef = useRef<StudyVideoPlayerHandle | null>(null);
   const youtubeVideoId = useMemo(
     () => getYouTubeVideoId(originalUrl) ?? getYouTubeVideoId(embedUrl),
@@ -95,10 +98,31 @@ export function VideoStudyOverlay({
   }, [initialPanel, isOpen]);
 
   useEffect(() => {
-    if (!transcriptState.hasTranscript && sidebarMode === 'transcript') {
+    if (
+      sidebarMode === 'transcript' &&
+      !transcriptState.isChecking &&
+      !transcriptState.isLoading &&
+      !transcriptState.hasTranscript
+    ) {
       setSidebarMode('notes');
     }
-  }, [sidebarMode, transcriptState.hasTranscript]);
+  }, [
+    sidebarMode,
+    transcriptState.hasTranscript,
+    transcriptState.isChecking,
+    transcriptState.isLoading,
+  ]);
+
+  useEffect(() => {
+    if (!isOpen || sidebarMode !== 'transcript') {
+      return;
+    }
+
+    const snapshot = playerRef.current?.getPlaybackSnapshot();
+    setTranscriptFocusMs(
+      snapshot?.currentTimeMs ?? highlightedStartMs ?? initialSeekMs ?? null
+    );
+  }, [highlightedStartMs, initialSeekMs, isOpen, sidebarMode]);
 
   if (typeof document === 'undefined' || !isOpen) {
     return null;
@@ -170,6 +194,7 @@ export function VideoStudyOverlay({
           {isTranscriptMode ? (
             <VideoTranscriptPanel
               error={transcriptState.error}
+              focusTimeMs={transcriptFocusMs}
               highlightedStartMs={highlightedStartMs}
               isChecking={transcriptState.isChecking}
               isLoading={transcriptState.isLoading}

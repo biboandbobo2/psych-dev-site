@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoSection } from './VideoSection';
 
 const mocks = vi.hoisted(() => ({
+  transcriptChecking: false,
   transcriptError: null as string | null,
   transcriptLoading: false,
   transcriptReady: false,
@@ -56,7 +57,7 @@ vi.mock('../../../hooks', async () => {
     useVideoTranscript: () => ({
       error: mocks.transcriptError,
       hasTranscript: mocks.transcriptReady,
-      isChecking: false,
+      isChecking: mocks.transcriptChecking,
       isLoading: mocks.transcriptLoading,
       metadata: null,
       transcript: mocks.transcriptReady ? { segments: [] } : null,
@@ -66,6 +67,7 @@ vi.mock('../../../hooks', async () => {
 
 describe('VideoSection', () => {
   beforeEach(() => {
+    mocks.transcriptChecking = false;
     mocks.transcriptError = null;
     mocks.transcriptLoading = false;
     mocks.transcriptReady = false;
@@ -139,6 +141,34 @@ describe('VideoSection', () => {
 
   it('автоматически открывает нужную лекцию из transcript search deep-link', async () => {
     mocks.transcriptReady = true;
+
+    render(
+      <VideoSection
+        slug="video"
+        title="Видео"
+        content={[{ title: 'Лекция 1', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }]}
+        deckUrl=""
+        defaultVideoTitle="Видео-лекция"
+        courseId="development"
+        periodId="intro"
+        periodTitle="Введение"
+        studyLaunch={{
+          requestedVideoId: 'dQw4w9WgXcQ',
+          initialPanel: 'transcript',
+          initialSeekMs: 65_000,
+          initialQuery: 'время',
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByText('Transcript panel')).toBeInTheDocument();
+    });
+  });
+
+  it('не откатывает transcript panel в notes, пока транскрипт ещё проверяется', async () => {
+    mocks.transcriptChecking = true;
 
     render(
       <VideoSection
