@@ -48,7 +48,7 @@ describe('useNotes', () => {
   });
 
   it('не запускает realtime listener когда subscribe=false', async () => {
-    authMock.mockReturnValue({ user: { uid: 'user-123' } });
+    authMock.mockReturnValue({ user: { uid: 'user-123' } } as ReturnType<typeof useAuth>);
 
     const { result } = renderHook(() => useNotes(null, { subscribe: false }));
 
@@ -62,7 +62,7 @@ describe('useNotes', () => {
   });
 
   it('создаёт lecture note c детерминированным id и универсальным контекстом', async () => {
-    authMock.mockReturnValue({ user: { uid: 'user-123' } });
+    authMock.mockReturnValue({ user: { uid: 'user-123' } } as ReturnType<typeof useAuth>);
     getDocMock.mockResolvedValue({ exists: () => false } as never);
 
     const { result } = renderHook(() => useNotes(null, { subscribe: false }));
@@ -117,7 +117,7 @@ describe('useNotes', () => {
   });
 
   it('создаёт manual note c course и period context', async () => {
-    authMock.mockReturnValue({ user: { uid: 'user-123' } });
+    authMock.mockReturnValue({ user: { uid: 'user-123' } } as ReturnType<typeof useAuth>);
     addDocMock.mockResolvedValue({ id: 'note-1' } as never);
 
     const { result } = renderHook(() => useNotes(null, { subscribe: false }));
@@ -143,7 +143,7 @@ describe('useNotes', () => {
   });
 
   it('читает существующую lecture note по детерминированному id', async () => {
-    authMock.mockReturnValue({ user: { uid: 'user-123' } });
+    authMock.mockReturnValue({ user: { uid: 'user-123' } } as ReturnType<typeof useAuth>);
     getDocMock.mockResolvedValue({
       exists: () => true,
       data: () => ({
@@ -188,7 +188,7 @@ describe('useNotes', () => {
   });
 
   it('обновляет существующую lecture note вместо создания новой', async () => {
-    authMock.mockReturnValue({ user: { uid: 'user-123' } });
+    authMock.mockReturnValue({ user: { uid: 'user-123' } } as ReturnType<typeof useAuth>);
     getDocMock.mockResolvedValue({ exists: () => true } as never);
 
     const { result } = renderHook(() => useNotes(null, { subscribe: false }));

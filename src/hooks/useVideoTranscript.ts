@@ -8,7 +8,7 @@ import {
   type VideoTranscriptStoragePayload,
 } from '../types/videoTranscripts';
 
-function parseTranscriptPayload(raw: Uint8Array) {
+function parseTranscriptPayload(raw: ArrayBuffer | Uint8Array) {
   const text = new TextDecoder().decode(raw);
   return JSON.parse(text) as VideoTranscriptStoragePayload;
 }

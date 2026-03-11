@@ -1,7 +1,7 @@
 import { createRef } from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { StudyVideoPlayer } from './StudyVideoPlayer';
+import { StudyVideoPlayer, type StudyVideoPlayerHandle } from './StudyVideoPlayer';
 
 describe('StudyVideoPlayer', () => {
   afterEach(() => {
@@ -90,9 +90,7 @@ describe('StudyVideoPlayer', () => {
       Player: playerMock,
     };
 
-    const ref = createRef<{
-      getPlaybackSnapshot: () => { currentTimeMs: number | null; paused: boolean };
-    }>();
+    const ref = createRef<StudyVideoPlayerHandle>();
 
     render(
       <StudyVideoPlayer

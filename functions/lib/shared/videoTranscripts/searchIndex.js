@@ -1,20 +1,12 @@
 import { VIDEO_TRANSCRIPT_SEARCH_VERSION, } from "./schema.js";
+import { formatTimestampMs } from "../formatTimestamp.js";
 const SEARCH_CHUNK_MAX_SEGMENTS = 4;
 const SEARCH_CHUNK_MAX_CHARS = 320;
 function normalizeTranscriptSearchText(text) {
     return text.toLowerCase().replace(/\s+/g, " ").trim();
 }
 export function formatTranscriptTimestamp(startMs) {
-    const totalSeconds = Math.max(0, Math.floor(startMs / 1000));
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    if (hours > 0) {
-        return [hours, minutes, seconds]
-            .map((part) => String(part).padStart(2, "0"))
-            .join(":");
-    }
-    return [minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+    return formatTimestampMs(startMs) ?? "00:00";
 }
 function buildChunkText(segments) {
     return segments
