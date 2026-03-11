@@ -47,7 +47,7 @@ export function AiAssistantDrawer({ open, onClose }: AiAssistantDrawerProps) {
         <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-4">
           <div className="space-y-1">
             <p className="text-xs uppercase tracking-[0.2em] text-muted">AI помощник</p>
-            <h2 className="text-lg font-semibold text-fg">Вопросы и поиск по книгам</h2>
+            <h2 className="text-lg font-semibold text-fg">Лекции, книги и быстрые ответы</h2>
           </div>
           <button
             onClick={onClose}

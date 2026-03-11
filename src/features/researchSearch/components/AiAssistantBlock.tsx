@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useAiAssistant } from '../hooks/useAiAssistant';
 import { useAiChat } from '../hooks/useAiChat';
 import { BookSearchBlock } from '../../bookSearch';
+import { LectureSearchBlock } from '../../lectureSearch';
 import { useSearchHistory } from '../../../hooks';
 
 export function AiAssistantBlock() {
@@ -338,6 +339,9 @@ export function AiAssistantBlock() {
           )}
         </div>
       )}
+
+      {/* Lecture Search Section */}
+      <LectureSearchBlock />
 
       {/* Book Search Section */}
       <BookSearchBlock />
