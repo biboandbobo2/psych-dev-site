@@ -1,11 +1,12 @@
 import { useState, useCallback, useRef } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { clamp } from '../utils';
 import { LINE_X_POSITION, MIN_SCALE, MAX_SCALE } from '../constants';
 import type { Transform } from '../types';
 
 interface UseTimelinePanZoomOptions {
   transform: Transform;
-  setTransform: (transform: Transform) => void;
+  setTransform: Dispatch<SetStateAction<Transform>>;
   onBirthDeselect?: () => void;
 }
 

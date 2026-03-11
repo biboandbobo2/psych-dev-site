@@ -175,7 +175,7 @@ export function TestQuestionScreen({
                 buttonClass += ' border-green-500 bg-green-100 text-green-800';
               } else if (isSelected && answerState === 'incorrect') {
                 buttonClass += ' border-red-500 bg-red-100 text-red-800';
-              } else if (answerState !== 'idle') {
+              } else {
                 buttonClass += ' border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed';
               }
 

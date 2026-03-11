@@ -5,7 +5,7 @@ import { hexRegex, gradientsEqual, sanitizeHex, clampValue } from './themePicker
 import { GradientEditor } from './GradientEditor';
 
 interface ThemePickerProps {
-  presets: ThemePreset[];
+  presets: readonly ThemePreset[];
   presetId: string;
   onPresetChange: (id: string) => void;
   mainColor: string;
@@ -25,7 +25,7 @@ interface ThemePickerProps {
 }
 
 interface PresetSelectorProps {
-  presets: ThemePreset[];
+  presets: readonly ThemePreset[];
   activeId: string;
   onSelect: (id: string) => void;
 }

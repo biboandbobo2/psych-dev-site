@@ -11,6 +11,16 @@ const variants = {
     `bg-card border border-border text-fg hover:bg-card2 rounded-2xl px-5 py-2.5 font-medium transition-colors duration-150 ${focusRing}`,
 };
 
+/**
+ * @param {{
+ *   as?: import('react').ElementType;
+ *   variant?: 'primary' | 'secondary';
+ *   className?: string;
+ *   children?: import('react').ReactNode;
+ *   [key: string]: unknown;
+ * }} props
+ * @param {import('react').ForwardedRef<any>} ref
+ */
 export const Button = forwardRef(function Button(
   { as: AsComponent = 'button', variant = 'primary', className, ...props },
   ref

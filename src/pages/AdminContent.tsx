@@ -41,7 +41,7 @@ interface Period {
   title: string;
   subtitle: string;
   published: boolean;
-  order: number;
+  order?: number;
   accent: string;
   isPlaceholder?: boolean;
   [key: string]: any;

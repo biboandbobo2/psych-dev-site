@@ -28,7 +28,20 @@ type LessonDocLike<T extends Partial<Period>> = {
   data: () => T;
 };
 
-type CoreRouteConfig = typeof ROUTE_CONFIG;
+type CoreRouteConfigItem = {
+  path: string;
+  key: string;
+  navLabel: string;
+  periodId: string;
+  themeKey: string;
+  videoSrc?: string;
+  placeholderText?: string;
+  placeholderDefaultEnabled?: boolean;
+  meta: {
+    title: string;
+    description: string;
+  };
+};
 
 export function getCourseLessonsCollectionRef(courseId: string): CollectionReference<Period> {
   if (isCoreCourse(courseId)) {
@@ -59,11 +72,11 @@ export function getCanonicalCourseLessonId(
     : resolvedLessonId;
 }
 
-export function getCoreCourseRoutes(courseId: string): CoreRouteConfig {
+export function getCoreCourseRoutes(courseId: string): CoreRouteConfigItem[] {
   return courseId === 'clinical' ? CLINICAL_ROUTE_CONFIG :
     courseId === 'general' ? GENERAL_ROUTE_CONFIG :
     courseId === 'development' ? ROUTE_CONFIG :
-    [];
+    [] as CoreRouteConfigItem[];
 }
 
 export function getLessonRouteOrderMap(courseId: string): Record<string, number> {

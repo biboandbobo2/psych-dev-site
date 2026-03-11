@@ -62,7 +62,7 @@ function normalizeRoles(rawRoles: unknown): TaskRole[] {
         ? roleObject.title.trim()
         : `Роль ${index + 1}`;
     const tasks = Array.isArray(roleObject.tasks)
-      ? roleObject.tasks
+      ? (roleObject.tasks as unknown[])
           .map((task) => {
             if (typeof task === "string") {
               const text = task.trim();
@@ -94,7 +94,7 @@ function normalizeArchive(rawArchive: unknown): ArchivedTask[] {
 
   return rawArchive
     .map((entry) => {
-      const item = entry as Partial<ArchivedTask>;
+      const item = entry as Record<string, unknown>;
       const text = typeof item.text === "string" ? item.text.trim() : "";
       const roleTitle = typeof item.roleTitle === "string" ? item.roleTitle.trim() : "";
       if (!text || !roleTitle) return null;

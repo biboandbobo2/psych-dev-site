@@ -13,7 +13,7 @@ export function normalizeConcepts(
       if (!name) return null;
       return url ? { name, url } : { name };
     })
-    .filter((concept): concept is { name: string; url?: string } => Boolean(concept));
+    .filter((concept): concept is NonNullable<typeof concept> => concept !== null);
 }
 
 /**
@@ -29,7 +29,7 @@ export function normalizeAuthors(
       if (!name) return null;
       return url ? { name, url } : { name };
     })
-    .filter((author): author is { name: string; url?: string } => Boolean(author));
+    .filter((author): author is NonNullable<typeof author> => author !== null);
 }
 
 /**

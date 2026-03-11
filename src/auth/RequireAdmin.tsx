@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react';
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/useAuthStore";
 
-export default function RequireAdmin({ children }: { children: JSX.Element }) {
+export default function RequireAdmin({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
   const loading = useAuthStore((state) => state.loading);
   const isAdmin = useAuthStore((state) => state.isAdmin);

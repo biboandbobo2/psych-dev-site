@@ -22,7 +22,13 @@ interface TimelineEventFormProps {
   onEventFormSubmit: () => void;
   onClearForm?: () => void;
   onDeleteEvent?: () => void;
-  createNote: (note: any) => Promise<void>;
+  createNote: (
+    title: string,
+    content: string,
+    ageRange: import('../../../types/notes').AgeRange | null,
+    topicId: string | null,
+    topicTitle: string | null
+  ) => Promise<string>;
   onNoteSuccess?: () => void;
   showNotesField?: boolean;
   showCancelButton?: boolean;
@@ -175,7 +181,7 @@ export function TimelineEventForm({
           </label>
           <SaveEventAsNoteButton
             eventTitle={formEventLabel}
-            eventAge={formEventAge}
+            eventAge={Number(formEventAge)}
             eventNotes={formEventNotes}
             eventSphere={formEventSphere}
             createNote={createNote}

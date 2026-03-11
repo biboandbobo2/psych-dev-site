@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { setDoc, getDocs, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import type { DocumentData, WithFieldValue } from 'firebase/firestore';
 import { debugLog, debugError } from '../lib/debug';
 import type { CourseType } from '../types/tests';
 import {
@@ -81,10 +82,14 @@ export function useCreateLesson() {
 
       const data = {
         period: periodId,
-        courseId: course,
         title: title.trim(),
         label: title.trim(),
         subtitle: '',
+        concepts: [],
+        authors: [],
+        core_literature: [],
+        extra_literature: [],
+        extra_videos: [],
         published: false,
         placeholder_enabled: true,
         placeholder_text: 'Контент для этого занятия появится в ближайшем обновлении.',
@@ -97,7 +102,7 @@ export function useCreateLesson() {
         sections: {},
       };
 
-      await setDoc(docRef, data);
+      await setDoc(docRef as never, data as WithFieldValue<DocumentData>);
 
       debugLog('Lesson created:', { course, periodId, title });
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
+import type { DocumentData, WithFieldValue } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { debugLog, debugError } from '../lib/debug';
 import { DEFAULT_THEME } from '../theme/periods';
@@ -102,12 +103,16 @@ export function useCreateCourse() {
 
       for (const [index, lesson] of normalizedLessons.entries()) {
         const lessonRef = getCourseLessonDocRef(courseId, lesson.id);
-        await setDoc(lessonRef, {
+        await setDoc(lessonRef as never, {
           period: lesson.id,
-          courseId,
           title: lesson.title,
           label: lesson.title,
           subtitle: '',
+          concepts: [],
+          authors: [],
+          core_literature: [],
+          extra_literature: [],
+          extra_videos: [],
           published: true,
           placeholder_enabled: true,
           placeholder_text: 'Контент для этого занятия появится в ближайшем обновлении.',
@@ -118,7 +123,7 @@ export function useCreateCourse() {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           sections: {},
-        });
+        } as WithFieldValue<DocumentData>);
       }
 
       debugLog('Course created:', { courseId, courseName, lessonCount: normalizedLessons.length });

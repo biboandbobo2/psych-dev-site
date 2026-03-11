@@ -3,6 +3,7 @@
  */
 
 import type { Period, Periodization } from '../types';
+export type { Period, Periodization } from '../types';
 
 // Пастельные цвета для периодов (очень ненасыщенные)
 const PASTEL_COLORS = [

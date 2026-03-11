@@ -274,7 +274,7 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
         const resolvedDoc = collectionName ? await findCourseLessonDoc(course, periodId!) : null;
         const docRef = resolvedDoc?.ref
           ?? (collectionName ? doc(db, collectionName, periodId!) : getCourseLessonDocRef(course, periodId!));
-        await setDoc(docRef, data, { merge: true });
+        await setDoc(docRef as typeof resolvedDoc.ref, data, { merge: true });
       }
 
       alert('✅ Изменения сохранены!');

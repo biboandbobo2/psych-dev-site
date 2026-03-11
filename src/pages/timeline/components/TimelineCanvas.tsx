@@ -19,7 +19,7 @@ interface TimelineCanvasProps {
   onWheel: (e: WheelEvent<SVGSVGElement>) => void;
   onPointerDown: (e: PointerEvent<SVGSVGElement>) => void;
   onPointerMove: (e: PointerEvent<SVGSVGElement>) => void;
-  onPointerUp: () => void;
+  onPointerUp: (e: PointerEvent<SVGSVGElement>) => void;
   onNodeClick: (nodeId: string) => void;
   onNodeDragStart: (event: PointerEvent, nodeId: string) => void;
   onPeriodBoundaryClick: (periodIndex: number) => void;

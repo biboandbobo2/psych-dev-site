@@ -1,6 +1,6 @@
 import { TestAppearanceEditor } from './TestAppearanceEditor';
-import type { TestAppearance, ThemePreset } from '../../../types/tests';
-import type { ThemeOverrides, DerivedTheme } from '../../../types/themes';
+import type { TestAppearance } from '../../../types/tests';
+import type { ThemeOverrides, DerivedTheme, ThemePreset } from '../../../types/themes';
 
 interface TestThemeSectionProps {
   appearance: TestAppearance;

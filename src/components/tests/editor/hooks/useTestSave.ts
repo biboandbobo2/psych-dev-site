@@ -192,6 +192,7 @@ export function useTestSave({
             status: 'draft',
             requiredPercentage: isNextLevel ? requiredPercentage : undefined,
             appearance: appearancePayload,
+            createdBy: user.uid,
           },
           user.uid
         );
@@ -311,6 +312,7 @@ export function useTestSave({
             status: 'published',
             requiredPercentage: isNextLevel ? requiredPercentage : undefined,
             appearance: appearancePayload,
+            createdBy: user.uid,
           },
           user.uid
         );

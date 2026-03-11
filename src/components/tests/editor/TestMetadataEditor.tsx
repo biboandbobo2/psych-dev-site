@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import type { TestRubric, TestStatus } from '../../../types/tests';
 import { AGE_RANGE_LABELS } from '../../../types/notes';
-import type { AgeRange } from '../../../hooks/useNotes';
 
 interface TestMetadataEditorProps {
   title: string;

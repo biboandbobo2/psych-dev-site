@@ -3,6 +3,15 @@ import { cn } from '../../lib/cn';
 
 const transition = { duration: 0.25, ease: [0.16, 1, 0.3, 1] };
 
+/**
+ * @param {{
+ *   title?: import('react').ReactNode;
+ *   children?: import('react').ReactNode;
+ *   muted?: boolean;
+ *   className?: string;
+ *   contentClassName?: string;
+ * }} props
+ */
 export function Section({ title, children, muted = false, className, contentClassName }) {
   return (
     <Motion.section
@@ -30,6 +39,9 @@ export function Section({ title, children, muted = false, className, contentClas
   );
 }
 
+/**
+ * @param {React.ComponentProps<typeof Section>} props
+ */
 export function SectionMuted(props) {
   return <Section {...props} muted />;
 }

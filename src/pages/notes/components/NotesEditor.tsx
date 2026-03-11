@@ -1,5 +1,5 @@
 import { NoteModal } from '../../../components/NoteModal';
-import type { Note } from '../../types/notes';
+import type { Note } from '../../../types/notes';
 
 interface NotesEditorProps {
   isOpen: boolean;

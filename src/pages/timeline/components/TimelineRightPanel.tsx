@@ -38,7 +38,13 @@ interface TimelineRightPanelProps {
   onEventFormSubmit: () => void;
   onClearForm: () => void;
   onDeleteEvent: (id: string) => void;
-  createNote: (note: any) => Promise<void>;
+  createNote: (
+    title: string,
+    content: string,
+    ageRange: import('../../../types/notes').AgeRange | null,
+    topicId: string | null,
+    topicTitle: string | null
+  ) => Promise<string>;
   selectedBranchX: number | null;
   selectedEdge: EdgeT | undefined;
   branchYears: string;

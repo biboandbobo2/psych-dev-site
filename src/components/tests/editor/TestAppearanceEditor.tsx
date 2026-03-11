@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { TestAppearance } from '../../../types/tests';
-import type { ThemeOverrides, DerivedTheme, BaseTheme } from '../../../types/themes';
-import type { ThemePreset } from '../../../constants/themePresets';
+import type { ThemeOverrides, DerivedTheme, ThemePreset } from '../../../types/themes';
 import { ThemePicker } from '../../theme/ThemePicker';
 import { EmojiPicker } from '../../EmojiPicker';
 import { Field } from '../../Field';
@@ -23,7 +22,7 @@ interface TestAppearanceEditorProps {
   onBulletPointsChange: (value: string) => void;
 
   // Theme state
-  themePresets: ThemePreset[];
+  themePresets: readonly ThemePreset[];
   themePresetId: string;
   onPresetChange: (id: string) => void;
   mainColor: string;
@@ -33,8 +32,8 @@ interface TestAppearanceEditorProps {
   themeOverrides?: ThemeOverrides;
   onOverridesChange: (overrides?: ThemeOverrides) => void;
   derivedTheme: DerivedTheme;
-  baseTheme: BaseTheme;
-  contrastWarning: string;
+  baseTheme: DerivedTheme;
+  contrastWarning: string | null;
   onResetTheme: () => void;
   onRandomizeTheme: () => void;
   themeAdvancedOpen: boolean;

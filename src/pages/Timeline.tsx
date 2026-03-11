@@ -466,7 +466,11 @@ export default function Timeline() {
           onBirthDateChange={birthHook.setBirthFormDate}
           onBirthPlaceChange={birthHook.setBirthFormPlace}
           onBirthNotesChange={birthHook.setBirthFormNotes}
-          onBirthSave={() => birthHook.handleBirthSave(recordHistory)}
+          onBirthSave={() =>
+            birthHook.handleBirthSave((birth) => {
+              recordHistory(undefined, undefined, birth);
+            })
+          }
           onBirthCancel={birthHook.handleBirthCancel}
           birthHasChanges={birthHook.birthHasChanges}
           formEventId={formHook.formEventId}

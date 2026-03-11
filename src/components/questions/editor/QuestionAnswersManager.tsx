@@ -246,7 +246,9 @@ export function QuestionAnswersManager({
                 {index + 1}.
               </label>
               <input
-                ref={(el) => (answerRefs.current[answer.id] = el)}
+                ref={(el) => {
+                  answerRefs.current[answer.id] = el;
+                }}
                 id={inputId}
                 type="text"
                 value={answer.text}

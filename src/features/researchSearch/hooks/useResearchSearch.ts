@@ -47,7 +47,7 @@ export function useResearchSearch({
 
   const controllerRef = useRef<AbortController | null>(null);
   const cacheRef = useRef<Map<string, PapersApiResponse>>(new Map());
-  const debounceRef = useRef<number>();
+  const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {

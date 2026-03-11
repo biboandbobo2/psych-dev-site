@@ -155,14 +155,13 @@ export function TimelineLeftPanel({
             <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-700">Масштаб</span>
             <input
               type="range"
-              orient="vertical"
               value={scale}
               onChange={handleScaleChange}
               min={MIN_SCALE}
               max={MAX_SCALE}
               step={0.05}
               className="h-32 w-2 accent-blue-500"
-              style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
+              style={{ writingMode: 'vertical-lr', WebkitAppearance: 'slider-vertical' }}
             />
             <span className="text-[11px] font-medium text-slate-600">{(scale * 100).toFixed(0)}%</span>
           </label>

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
-import type { TestAppearance, ThemePreset } from '../../../../types/tests';
-import type { ThemeOverrides, DerivedTheme } from '../../../../types/themes';
+import type { TestAppearance } from '../../../../types/tests';
+import type { ThemeOverrides, DerivedTheme, ThemePreset } from '../../../../types/themes';
 import { mergeAppearance } from '../../../../utils/testAppearance';
 import { THEME_PRESETS } from '../../../../constants/themePresets';
 import {

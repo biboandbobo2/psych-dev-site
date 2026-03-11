@@ -1,4 +1,5 @@
-import type { EventIconId } from '../../components/Icon';
+import type { EventIconId as TimelineEventIconId } from '../../components/Icon';
+export type { TimelineEventIconId as EventIconId };
 
 /**
  * Период в периодизации развития
@@ -54,7 +55,7 @@ export type NodeT = {
   notes?: string;
   sphere?: Sphere;
   isDecision: boolean;
-  iconId?: EventIconId;
+  iconId?: TimelineEventIconId;
 };
 
 /**

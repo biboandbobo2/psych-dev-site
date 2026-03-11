@@ -105,7 +105,7 @@ export function TestIntroScreen({
 
         {user && testId && (
           <div className="mt-6 space-y-6">
-            <TestHistory userId={user.uid} testId={testId} />
+            <TestHistory testId={testId} />
           </div>
         )}
       </div>

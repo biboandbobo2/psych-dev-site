@@ -32,8 +32,9 @@ interface FeedbackState {
 
 const DEVELOPMENT_PERIOD_LABELS: Record<string, string> = Object.entries(ROUTE_BY_PERIOD).reduce(
   (acc, [key, config]) => {
-    if (config?.navLabel) {
-      acc[key] = config.navLabel;
+    const routeConfig = config as { navLabel?: string } | undefined;
+    if (routeConfig?.navLabel) {
+      acc[key] = routeConfig.navLabel;
     }
     return acc;
   },

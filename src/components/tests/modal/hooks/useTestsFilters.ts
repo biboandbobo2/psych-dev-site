@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { URLSearchParams as URLSearchParamsType } from 'react-router-dom';
 
 export type DisplayStatus = 'published' | 'draft' | 'taken_down';
 export type SortOption = 'updated-desc' | 'created-desc' | 'title-asc';
@@ -44,7 +43,7 @@ const QUERY_KEYS = {
   sort: 'test_sort',
 };
 
-function parseFiltersFromSearch(params: URLSearchParamsType): Filters {
+function parseFiltersFromSearch(params: URLSearchParams): Filters {
   const query = params.get(QUERY_KEYS.query) ?? '';
   const statusesParam = params.get(QUERY_KEYS.statuses) ?? '';
   const statuses = statusesParam
@@ -100,9 +99,9 @@ function normalizeDraft(draft: FilterDraft): Filters {
 }
 
 function updateSearchParamsWithFilters(
-  current: URLSearchParamsType,
+  current: URLSearchParams,
   filters: Filters
-): URLSearchParamsType {
+): URLSearchParams {
   const next = new URLSearchParams(current.toString());
 
   Object.values(QUERY_KEYS).forEach((key) => {
@@ -135,8 +134,8 @@ function updateSearchParamsWithFilters(
 }
 
 interface UseTestsFiltersOptions {
-  searchParams: URLSearchParamsType;
-  setSearchParams: (params: URLSearchParamsType, options?: { replace?: boolean }) => void;
+  searchParams: URLSearchParams;
+  setSearchParams: (params: URLSearchParams, options?: { replace?: boolean }) => void;
 }
 
 /**

@@ -7,7 +7,7 @@ export interface Period {
   title: string;
   subtitle: string;
   published: boolean;
-  order: number;
+  order?: number;
   accent: string;
   accent100: string;
   placeholder_enabled?: boolean;

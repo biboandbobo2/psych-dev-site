@@ -514,7 +514,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const validation = validateLectureScope(req.body);
-    if (!validation.valid) {
+    if (validation.valid === false) {
       res.status(400).json({ ok: false, error: validation.error, code: validation.code });
       return;
     }

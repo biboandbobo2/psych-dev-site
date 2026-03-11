@@ -180,7 +180,9 @@ function NoteModalFooter({
       <SaveNoteAsEventButton
         noteTitle={noteTitle}
         noteContent={noteContent}
-        onEventCreate={addEventToTimeline}
+        onEventCreate={async (event) => {
+          await addEventToTimeline(event);
+        }}
         onSuccess={() => alert('Событие добавлено на таймлайн!')}
       />
       <div className="flex items-center gap-3">

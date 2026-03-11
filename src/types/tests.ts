@@ -1,5 +1,5 @@
-import type { AgeRange } from '../hooks/useNotes';
-import type { ThemeSettings, DerivedTheme } from './themes';
+import type { AgeRange } from './notes';
+import type { ThemePreset, ThemeSettings, DerivedTheme } from './themes';
 
 /**
  * Типы основных курсов (встроенные)
@@ -114,3 +114,4 @@ export type CreateTestData = Omit<Test, 'id' | 'createdAt' | 'updatedAt' | 'ques
  * Данные для обновления существующего теста
  */
 export type UpdateTestData = Partial<Omit<Test, 'id' | 'createdAt' | 'createdBy'>>;
+export type { ThemePreset };
