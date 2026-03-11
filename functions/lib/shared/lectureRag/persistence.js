@@ -1,27 +1,16 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { LECTURE_RAG_CHUNKS_COLLECTION, LECTURE_RAG_SOURCES_COLLECTION, } from "./schema.js";
 import { buildLectureKey, buildLectureRagChunkDocs, buildLectureRagChunks, buildLectureRagSourceDoc, } from "./chunker.js";
+import { commitBatchedWriteOperations } from "../firestore/writeBatches.js";
 const LECTURE_RAG_BATCH_SIZE = 400;
-function chunkOperations(items, size) {
-    const chunks = [];
-    for (let index = 0; index < items.length; index += size) {
-        chunks.push(items.slice(index, index + size));
-    }
-    return chunks;
-}
 async function commitLectureRagOperations(db, operations) {
-    const operationChunks = chunkOperations(operations, LECTURE_RAG_BATCH_SIZE);
-    for (const operationChunk of operationChunks) {
-        const batch = db.batch();
-        operationChunk.forEach((operation) => {
-            if (operation.type === "delete") {
-                batch.delete(operation.ref);
-                return;
-            }
-            batch.set(operation.ref, operation.data, { merge: true });
-        });
-        await batch.commit();
-    }
+    await commitBatchedWriteOperations(db, operations, LECTURE_RAG_BATCH_SIZE, (batch, operation) => {
+        if (operation.type === "delete") {
+            batch.delete(operation.ref);
+            return;
+        }
+        batch.set(operation.ref, operation.data, { merge: true });
+    });
 }
 async function listLectureChunkRefs(db, lectureKey) {
     const snapshot = await db

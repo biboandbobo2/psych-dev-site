@@ -1,13 +1,7 @@
 import { buildTranscriptSearchChunkDocs } from "./searchIndex.js";
 import { VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION, VIDEO_TRANSCRIPT_SEARCH_COLLECTION, } from "./schema.js";
+import { commitBatchedWriteOperations } from "../firestore/writeBatches.js";
 const TRANSCRIPT_SEARCH_BATCH_SIZE = 400;
-function chunkOperations(items, size) {
-    const chunks = [];
-    for (let index = 0; index < items.length; index += size) {
-        chunks.push(items.slice(index, index + size));
-    }
-    return chunks;
-}
 function getTranscriptSearchDocRef(db, youtubeVideoId) {
     return db.collection(VIDEO_TRANSCRIPT_SEARCH_COLLECTION).doc(youtubeVideoId);
 }
@@ -15,18 +9,13 @@ async function listTranscriptSearchChunkRefs(docRef) {
     return docRef.collection(VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION).listDocuments();
 }
 async function commitSearchOperations(db, operations) {
-    const operationChunks = chunkOperations(operations, TRANSCRIPT_SEARCH_BATCH_SIZE);
-    for (const operationChunk of operationChunks) {
-        const batch = db.batch();
-        operationChunk.forEach((operation) => {
-            if (operation.type === "delete") {
-                batch.delete(operation.ref);
-                return;
-            }
-            batch.set(operation.ref, operation.data, { merge: true });
-        });
-        await batch.commit();
-    }
+    await commitBatchedWriteOperations(db, operations, TRANSCRIPT_SEARCH_BATCH_SIZE, (batch, operation) => {
+        if (operation.type === "delete") {
+            batch.delete(operation.ref);
+            return;
+        }
+        batch.set(operation.ref, operation.data, { merge: true });
+    });
 }
 export async function upsertTranscriptSearchIndex(db, target, transcript, now) {
     const docRef = getTranscriptSearchDocRef(db, target.youtubeVideoId);

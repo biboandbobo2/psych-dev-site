@@ -1,8 +1,29 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { GoogleGenAI } from '@google/genai';
+import {
+  getLectureApiAllowedOrigin,
+  getLectureGenAiClient,
+  resolveLectureGeminiApiKey,
+  setLectureApiCorsHeaders,
+  toSafeLectureApiError,
+  tryParseLectureGeminiJson,
+  verifyLectureApiAuth,
+} from './lib/lectureApiRuntime';
+import {
+  buildCourseLessonPath,
+  compareLectureOrder,
+  groupLectureSourcesByCourse,
+} from './lib/lectureCourseConfig';
+import {
+  computeLexicalScore,
+  loadFallbackLectureSources,
+  searchFallbackTranscriptChunks,
+} from './lib/lectureFallback';
+
+export { getLectureApiAllowedOrigin, tryParseLectureGeminiJson } from './lib/lectureApiRuntime';
+export { groupLectureSourcesByCourse } from './lib/lectureCourseConfig';
+export { computeLexicalScore } from './lib/lectureFallback';
 
 export const LECTURE_COLLECTIONS = {
   chunks: 'lecture_chunks',
@@ -76,8 +97,6 @@ type ValidatedLectureScope = {
 
 type LectureRetrievalMode = 'hybrid' | 'vector-only';
 
-const TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION = 'searchChunks';
-
 const SYSTEM_PROMPT = `Ты — преподаватель психологии. Отвечай на вопрос студента, опираясь ИСКЛЮЧИТЕЛЬНО на предоставленные фрагменты транскриптов лекций.
 
 ПРАВИЛА:
@@ -95,113 +114,6 @@ const SYSTEM_PROMPT = `Ты — преподаватель психологии.
   ]
 }`;
 
-let genaiClient: GoogleGenAI | null = null;
-
-const SAFE_LECTURE_API_ERROR = 'Сервис лекций временно недоступен. Попробуйте ещё раз позже.';
-const LECTURE_API_ALLOWED_ORIGIN_PATTERNS = [
-  /^http:\/\/localhost(?::\d+)?$/i,
-  /^http:\/\/127\.0\.0\.1(?::\d+)?$/i,
-  /^https:\/\/psych-dev-site\.vercel\.app$/i,
-  /^https:\/\/psych-dev-site(?:-[a-z0-9-]+)?-alexey-zykovs-projects\.vercel\.app$/i,
-  /^https:\/\/psych-dev-site-git-[a-z0-9-]+-alexey-zykovs-projects\.vercel\.app$/i,
-] as const;
-
-const DEVELOPMENT_LESSON_PATHS: Record<string, string> = {
-  intro: '/intro',
-  prenatal: '/prenatal',
-  infancy: '/0-1',
-  toddler: '/1-3',
-  preschool: '/3-6',
-  'primary-school': '/7-9',
-  earlyAdolescence: '/10-13',
-  adolescence: '/14-18',
-  emergingAdult: '/19-22',
-  '22-27': '/22-27',
-  earlyAdult: '/28-40',
-  midlife: '/40-65',
-  lateAdult: '/66-80',
-  oldestOld: '/80-plus',
-};
-
-const CLINICAL_LESSON_PATHS: Record<string, string> = {
-  'clinical-intro': '/clinical/intro',
-  'clinical-1': '/clinical/1',
-  'clinical-2': '/clinical/2',
-  'clinical-3': '/clinical/3',
-  'clinical-4': '/clinical/4',
-  'clinical-5': '/clinical/5',
-  'clinical-6': '/clinical/6',
-  'clinical-7': '/clinical/7',
-  'clinical-8': '/clinical/8',
-  'clinical-9': '/clinical/9',
-  'clinical-10': '/clinical/10',
-};
-
-const GENERAL_LESSON_PATHS: Record<string, string> = {
-  'general-1': '/general/1',
-  'general-2': '/general/2',
-  'general-3': '/general/3',
-  'general-4': '/general/4',
-  'general-5': '/general/5',
-  'general-6': '/general/6',
-  'general-7': '/general/7',
-  'general-8': '/general/8',
-  'general-9': '/general/9',
-  'general-10': '/general/10',
-  'general-11': '/general/11',
-  'general-12': '/general/12',
-};
-
-const DEVELOPMENT_PERIOD_ORDER: Record<string, number> = {
-  intro: 0,
-  prenatal: 1,
-  infancy: 2,
-  toddler: 3,
-  preschool: 4,
-  'primary-school': 5,
-  school: 5,
-  earlyAdolescence: 6,
-  adolescence: 7,
-  emergingAdult: 8,
-  '22-27': 9,
-  earlyAdult: 10,
-  midlife: 11,
-  lateAdult: 12,
-  oldestOld: 13,
-  seminary: 14,
-};
-
-const CLINICAL_PERIOD_ORDER: Record<string, number> = {
-  'clinical-intro': 0,
-  'clinical-1': 1,
-  'clinical-2': 2,
-  'clinical-3': 3,
-  'clinical-4': 4,
-  'clinical-5': 5,
-  'clinical-6': 6,
-  'clinical-7': 7,
-  'clinical-8': 8,
-  'clinical-9': 9,
-  'clinical-10': 10,
-  'rasstroystva-lichnosti': 11,
-};
-
-const GENERAL_PERIOD_ORDER: Record<string, number> = {
-  'general-1': 0,
-  'general-2': 1,
-  'general-3': 2,
-  'general-4': 3,
-  'vnimanie-teorii': 4,
-  'general-5': 5,
-  'general-6': 6,
-  'general-7': 7,
-  'general-8': 8,
-  'general-9': 9,
-  'general-10': 10,
-  'general-11': 11,
-  'general-12': 12,
-};
-
 function initFirebaseAdmin() {
   if (getApps().length > 0) {
     return;
@@ -216,149 +128,8 @@ function initFirebaseAdmin() {
   initializeApp({ credential: cert(sa) });
 }
 
-function resolveLectureGeminiApiKey(req?: VercelRequest): string {
-  const userKey = req?.headers['x-gemini-api-key'];
-  if (typeof userKey === 'string' && userKey.trim()) {
-    return userKey.trim();
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY not configured');
-  }
-
-  return apiKey;
-}
-
-function getGenAI(apiKey?: string): GoogleGenAI {
-  if (apiKey) {
-    return new GoogleGenAI({ apiKey });
-  }
-
-  if (!genaiClient) {
-    genaiClient = new GoogleGenAI({ apiKey: resolveLectureGeminiApiKey() });
-  }
-
-  return genaiClient;
-}
-
-export function getLectureApiAllowedOrigin(origin: string | undefined) {
-  if (!origin) {
-    return null;
-  }
-
-  return LECTURE_API_ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin))
-    ? origin
-    : null;
-}
-
-function setLectureApiCorsHeaders(req: VercelRequest, res: VercelResponse) {
-  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
-  const allowedOrigin = getLectureApiAllowedOrigin(origin);
-
-  if (allowedOrigin) {
-    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-    res.setHeader('Vary', 'Origin');
-  }
-
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Gemini-Api-Key');
-  return allowedOrigin;
-}
-
-async function verifyLectureApiAuth(req: VercelRequest) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    return { valid: false, error: 'Требуется авторизация', code: 'UNAUTHORIZED' } as const;
-  }
-
-  try {
-    const decodedToken = await getAuth().verifyIdToken(authHeader.slice(7));
-    return { valid: true, uid: decodedToken.uid } as const;
-  } catch {
-    return { valid: false, error: 'Недействительная авторизация', code: 'UNAUTHORIZED' } as const;
-  }
-}
-
-function toSafeLectureApiError() {
-  return SAFE_LECTURE_API_ERROR;
-}
-
-function getStaticCourseLessonPath(courseId: string, periodId: string) {
-  if (courseId === 'development') {
-    return DEVELOPMENT_LESSON_PATHS[periodId] ?? null;
-  }
-
-  if (courseId === 'clinical') {
-    return CLINICAL_LESSON_PATHS[periodId] ?? null;
-  }
-
-  if (courseId === 'general') {
-    return GENERAL_LESSON_PATHS[periodId] ?? null;
-  }
-
-  return null;
-}
-
-function getCoursePeriodOrder(courseId: string, periodId: string) {
-  if (courseId === 'development') {
-    return DEVELOPMENT_PERIOD_ORDER[periodId] ?? Number.MAX_SAFE_INTEGER;
-  }
-
-  if (courseId === 'clinical') {
-    return CLINICAL_PERIOD_ORDER[periodId] ?? Number.MAX_SAFE_INTEGER;
-  }
-
-  if (courseId === 'general') {
-    return GENERAL_PERIOD_ORDER[periodId] ?? Number.MAX_SAFE_INTEGER;
-  }
-
-  return Number.MAX_SAFE_INTEGER;
-}
-
-function compareLectureOrder(
-  left: Pick<LectureSourceRecord, 'courseId' | 'periodId' | 'periodTitle' | 'lectureTitle'>,
-  right: Pick<LectureSourceRecord, 'courseId' | 'periodId' | 'periodTitle' | 'lectureTitle'>
-) {
-  const orderDiff =
-    getCoursePeriodOrder(left.courseId, left.periodId) -
-    getCoursePeriodOrder(right.courseId, right.periodId);
-
-  if (orderDiff !== 0) {
-    return orderDiff;
-  }
-
-  const periodTitleDiff = left.periodTitle.localeCompare(right.periodTitle, 'ru');
-  if (periodTitleDiff !== 0) {
-    return periodTitleDiff;
-  }
-
-  return left.lectureTitle.localeCompare(right.lectureTitle, 'ru');
-}
-
-function buildCourseLessonPath(courseId: string, periodId: string) {
-  const staticPath = getStaticCourseLessonPath(courseId, periodId);
-  if (staticPath) {
-    return staticPath;
-  }
-
-  if (courseId === 'development') {
-    return `/${periodId}`;
-  }
-
-  if (courseId === 'clinical') {
-    return `/clinical/${periodId}`;
-  }
-
-  if (courseId === 'general') {
-    return `/general/${periodId}`;
-  }
-
-  return `/course/${encodeURIComponent(courseId)}/${encodeURIComponent(periodId)}`;
-}
-
 async function embedQuery(query: string, apiKey?: string): Promise<number[]> {
-  const client = getGenAI(apiKey);
+  const client = getLectureGenAiClient(apiKey);
   const result = await client.models.embedContent({
     model: LECTURE_SEARCH_CONFIG.embeddingModel,
     contents: [{ role: 'user', parts: [{ text: query }] }],
@@ -386,142 +157,6 @@ function normalizeLectureKeys(input: unknown) {
   )].slice(0, LECTURE_SEARCH_CONFIG.maxLectureSelections);
 }
 
-function buildFallbackLectureKey(chunk: TranscriptSearchChunkRecord) {
-  return `${chunk.courseId}::${chunk.periodId}::${chunk.youtubeVideoId}`;
-}
-
-function getQueryWords(query: string) {
-  return query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((word) => word.length > 2);
-}
-
-function matchesAllQueryWords(text: string, queryWords: string[]) {
-  return queryWords.every((word) => text.includes(word));
-}
-
-export function computeLexicalScore(query: string, text: string) {
-  const queryTerms = query.toLowerCase().split(/\s+/).filter((term) => term.length > 2);
-  if (!queryTerms.length) {
-    return 0;
-  }
-
-  const haystack = text.toLowerCase();
-  const matches = queryTerms.reduce((count, term) => {
-    return count + (haystack.includes(term) ? 1 : 0);
-  }, 0);
-
-  return matches / queryTerms.length;
-}
-
-async function loadFallbackLectureSources(
-  db: FirebaseFirestore.Firestore,
-  courseId?: string
-) {
-  let query: FirebaseFirestore.Query = db.collectionGroup(TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION);
-  if (courseId) {
-    query = query.where('courseId', '==', courseId);
-  }
-
-  const snapshot = await query.get();
-  const grouped = new Map<
-    string,
-    {
-      lectureKey: string;
-      youtubeVideoId: string;
-      courseId: string;
-      periodId: string;
-      periodTitle: string;
-      lectureTitle: string;
-      chunkCount: number;
-      durationMs: number | null;
-      active: true;
-    }
-  >();
-
-  snapshot.docs.forEach((doc) => {
-    const data = doc.data() as TranscriptSearchChunkRecord;
-    const lectureKey = buildFallbackLectureKey(data);
-    const current = grouped.get(lectureKey);
-
-    if (current) {
-      current.chunkCount += 1;
-      current.durationMs = Math.max(current.durationMs ?? 0, data.endMs);
-      return;
-    }
-
-    grouped.set(lectureKey, {
-      lectureKey,
-      youtubeVideoId: data.youtubeVideoId,
-      courseId: data.courseId,
-      periodId: data.periodId,
-      periodTitle: data.periodTitle,
-      lectureTitle: data.lectureTitle,
-      chunkCount: 1,
-      durationMs: data.endMs,
-      active: true,
-    });
-  });
-
-  return [...grouped.values()];
-}
-
-async function searchFallbackTranscriptChunks(
-  db: FirebaseFirestore.Firestore,
-  courseId: string,
-  lectureKeys: string[],
-  query: string,
-  maxChunksPerLecture: number,
-  contextK: number,
-  computeScore: (query: string, text: string) => number
-) {
-  const snapshot = await db
-    .collectionGroup(TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION)
-    .where('courseId', '==', courseId)
-    .get();
-
-  const allowedLectureKeys = lectureKeys.length > 0 ? new Set(lectureKeys) : null;
-  const queryWords = getQueryWords(query);
-
-  const matches = snapshot.docs
-    .map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as TranscriptSearchChunkRecord),
-    }))
-    .map((chunk) => ({
-      ...chunk,
-      lectureKey: buildFallbackLectureKey(chunk),
-    }))
-    .filter((chunk) => !allowedLectureKeys || allowedLectureKeys.has(chunk.lectureKey))
-    .filter((chunk) => matchesAllQueryWords(chunk.normalizedText, queryWords))
-    .map((chunk) => ({
-      ...chunk,
-      score: computeScore(query, chunk.normalizedText),
-    }))
-    .sort((a, b) => {
-      if (b.score !== a.score) {
-        return b.score - a.score;
-      }
-      return a.startMs - b.startMs;
-    });
-
-  const perLecture = new Map<string, number>();
-  const results: typeof matches = [];
-
-  matches.forEach((match) => {
-    const current = perLecture.get(match.lectureKey) ?? 0;
-    if (current >= maxChunksPerLecture || results.length >= contextK) {
-      return;
-    }
-
-    perLecture.set(match.lectureKey, current + 1);
-    results.push(match);
-  });
-
-  return results;
-}
-
 export function buildLectureDeepLink(
   courseId: string,
   periodId: string,
@@ -536,23 +171,6 @@ export function buildLectureDeepLink(
   });
 
   return `${buildCourseLessonPath(courseId, periodId)}?${params.toString()}`;
-}
-
-export function groupLectureSourcesByCourse(sources: LectureSourceRecord[]) {
-  const groups = new Map<string, LectureSourceRecord[]>();
-
-  sources.forEach((source) => {
-    const list = groups.get(source.courseId) ?? [];
-    list.push(source);
-    groups.set(source.courseId, list);
-  });
-
-  return [...groups.entries()]
-    .sort(([courseA], [courseB]) => courseA.localeCompare(courseB, 'ru'))
-    .map(([courseId, lectures]) => ({
-      courseId,
-      lectures: [...lectures].sort(compareLectureOrder),
-    }));
 }
 
 function sortLectureCitations(citations: LectureCitationResponse[]) {
@@ -835,28 +453,6 @@ ${match.text}
 [/SOURCE]`;
 }
 
-function stripJsonTrailingCommas(value: string) {
-  return value.replace(/,\s*([}\]])/g, '$1');
-}
-
-export function tryParseLectureGeminiJson(rawText: string) {
-  const trimmed = rawText.trim();
-  const codeBlockMatch = trimmed.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-  const candidate = codeBlockMatch ? codeBlockMatch[1].trim() : trimmed.replace(/```json\s*\n?|\n?```/g, '').trim();
-  const jsonText = candidate.startsWith('{')
-    ? candidate
-    : (candidate.match(/\{[\s\S]*\}/)?.[0] ?? candidate);
-
-  try {
-    return JSON.parse(stripJsonTrailingCommas(jsonText)) as {
-      answer: string;
-      citations: Array<{ chunkId: string; claim: string }>;
-    };
-  } catch {
-    return null;
-  }
-}
-
 function sanitizeLectureAnswer(answer: string) {
   return answer
     .replace(/\[SOURCE[^\]]*\]/gi, '')
@@ -989,7 +585,7 @@ ${matches.map(buildLectureContext).join('\n\n')}
 
 ВОПРОС: ${validation.value.query}`;
 
-      const client = getGenAI(apiKey);
+      const client = getLectureGenAiClient(apiKey);
       const result = await client.models.generateContent({
         model: 'gemini-2.5-flash-lite',
         contents: [{ role: 'user', parts: [{ text: prompt }] }],

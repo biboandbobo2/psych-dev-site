@@ -7,6 +7,7 @@ import {
   VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION,
   VIDEO_TRANSCRIPT_SEARCH_COLLECTION,
 } from "./schema.js";
+import { commitBatchedWriteOperations } from "../firestore/writeBatches.js";
 
 const TRANSCRIPT_SEARCH_BATCH_SIZE = 400;
 
@@ -22,16 +23,6 @@ type DeleteOperation = {
 };
 
 type SearchWriteOperation = SetOperation | DeleteOperation;
-
-function chunkOperations<T>(items: T[], size: number) {
-  const chunks: T[][] = [];
-
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
-  }
-
-  return chunks;
-}
 
 function getTranscriptSearchDocRef(
   db: FirebaseFirestore.Firestore,
@@ -50,22 +41,19 @@ async function commitSearchOperations(
   db: FirebaseFirestore.Firestore,
   operations: SearchWriteOperation[]
 ) {
-  const operationChunks = chunkOperations(operations, TRANSCRIPT_SEARCH_BATCH_SIZE);
-
-  for (const operationChunk of operationChunks) {
-    const batch = db.batch();
-
-    operationChunk.forEach((operation) => {
+  await commitBatchedWriteOperations(
+    db,
+    operations,
+    TRANSCRIPT_SEARCH_BATCH_SIZE,
+    (batch, operation) => {
       if (operation.type === "delete") {
         batch.delete(operation.ref);
         return;
       }
 
       batch.set(operation.ref, operation.data, { merge: true });
-    });
-
-    await batch.commit();
-  }
+    }
+  );
 }
 
 export async function upsertTranscriptSearchIndex(

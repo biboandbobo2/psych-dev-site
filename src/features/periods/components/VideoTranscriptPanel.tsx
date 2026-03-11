@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { VideoTranscriptStoragePayload } from '../../../types/videoTranscripts';
+import { formatTimestampMs } from '../../../lib/formatTimestamp';
 
 interface VideoTranscriptPanelProps {
   error: string | null;
@@ -46,19 +47,6 @@ function getFocusedSegmentStartMs(
     .find((segment) => segment.startMs <= focusTimeMs);
 
   return previousSegment?.startMs ?? transcript.segments[0].startMs;
-}
-
-function formatTranscriptTimestamp(ms: number) {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return [hours, minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
-  }
-
-  return [minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
 }
 
 export function VideoTranscriptPanel({
@@ -143,7 +131,7 @@ export function VideoTranscriptPanel({
                   onClick={() => onTimestampClick(segment.startMs)}
                   className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/40 transition hover:text-white focus:outline-none focus:text-white"
                 >
-                  {formatTranscriptTimestamp(segment.startMs)}
+                  {formatTimestampMs(segment.startMs)}
                 </button>
                 <p className="mt-2 text-sm leading-6 text-white/85">{segment.text}</p>
               </div>

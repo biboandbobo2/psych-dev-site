@@ -10,6 +10,7 @@ import {
   buildLectureRagChunks,
   buildLectureRagSourceDoc,
 } from "./chunker.js";
+import { commitBatchedWriteOperations } from "../firestore/writeBatches.js";
 
 const LECTURE_RAG_BATCH_SIZE = 400;
 
@@ -26,36 +27,23 @@ type DeleteOperation = {
 
 type LectureRagWriteOperation = SetOperation | DeleteOperation;
 
-function chunkOperations<T>(items: T[], size: number) {
-  const chunks: T[][] = [];
-
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
-  }
-
-  return chunks;
-}
-
 async function commitLectureRagOperations(
   db: FirebaseFirestore.Firestore,
   operations: LectureRagWriteOperation[]
 ) {
-  const operationChunks = chunkOperations(operations, LECTURE_RAG_BATCH_SIZE);
-
-  for (const operationChunk of operationChunks) {
-    const batch = db.batch();
-
-    operationChunk.forEach((operation) => {
+  await commitBatchedWriteOperations(
+    db,
+    operations,
+    LECTURE_RAG_BATCH_SIZE,
+    (batch, operation) => {
       if (operation.type === "delete") {
         batch.delete(operation.ref);
         return;
       }
 
       batch.set(operation.ref, operation.data, { merge: true });
-    });
-
-    await batch.commit();
-  }
+    }
+  );
 }
 
 async function listLectureChunkRefs(
