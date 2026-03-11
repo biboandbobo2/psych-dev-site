@@ -2,6 +2,26 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLectureAnswer } from './useLectureAnswer';
 
+vi.mock('../../../lib/apiAuth', () => ({
+  buildAuthorizedHeaders: vi.fn(async () => ({
+    'Content-Type': 'application/json',
+    Authorization: 'Bearer test-token',
+  })),
+}));
+
+vi.mock('../../../stores/useAuthStore', () => ({
+  useAuthStore: (selector: (state: {
+    geminiApiKey: string | null;
+    loading: boolean;
+    user: { uid: string } | null;
+  }) => unknown) =>
+    selector({
+      geminiApiKey: null,
+      loading: false,
+      user: { uid: 'user-1' },
+    }),
+}));
+
 describe('useLectureAnswer', () => {
   beforeEach(() => {
     vi.restoreAllMocks();

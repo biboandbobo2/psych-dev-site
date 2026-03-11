@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { buildAuthorizedHeaders } from '../../../lib/apiAuth';
 import { debugError, debugLog } from '../../../lib/debug';
+import { useAuthStore } from '../../../stores/useAuthStore';
 
 export interface LectureSourceItem {
   lectureKey: string;
@@ -25,16 +27,30 @@ interface UseLectureSourcesResult {
 }
 
 export function useLectureSources(): UseLectureSourcesResult {
+  const user = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.loading);
   const [courses, setCourses] = useState<LectureCourseGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!user) {
+      setCourses([]);
+      setLoading(false);
+      setError('Нужно войти в аккаунт, чтобы работать с лекциями');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch('/api/lectures?action=list');
+      const headers = await buildAuthorizedHeaders();
+      const res = await fetch('/api/lectures?action=list', { headers });
       const data = await res.json();
 
       if (!data.ok) {
@@ -50,11 +66,14 @@ export function useLectureSources(): UseLectureSourcesResult {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authLoading, user]);
 
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
     refresh();
-  }, [refresh]);
+  }, [authLoading, refresh]);
 
   return {
     courses,

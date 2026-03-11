@@ -5,7 +5,9 @@ import {
   buildLectureAiUnavailableMessage,
   buildLectureDeepLink,
   computeLexicalScore,
+  getLectureApiAllowedOrigin,
   groupLectureSourcesByCourse,
+  tryParseLectureGeminiJson,
   validateLectureScope,
 } from './lectures';
 
@@ -183,5 +185,44 @@ describe('validateLectureScope', () => {
 describe('buildLectureAiUnavailableMessage', () => {
   it('возвращает понятный fallback-текст для неподготовленных lecture chunks', () => {
     expect(buildLectureAiUnavailableMessage()).toContain('ещё не подготовлены данные');
+  });
+});
+
+describe('getLectureApiAllowedOrigin', () => {
+  it('разрешает preview и localhost origin', () => {
+    expect(getLectureApiAllowedOrigin('http://localhost:5173')).toBe('http://localhost:5173');
+    expect(
+      getLectureApiAllowedOrigin(
+        'https://psych-dev-site-git-feature-video-2e3cc5-alexey-zykovs-projects.vercel.app'
+      )
+    ).toBe(
+      'https://psych-dev-site-git-feature-video-2e3cc5-alexey-zykovs-projects.vercel.app'
+    );
+  });
+
+  it('не разрешает посторонний origin', () => {
+    expect(getLectureApiAllowedOrigin('https://evil.example.com')).toBeNull();
+  });
+});
+
+describe('tryParseLectureGeminiJson', () => {
+  it('мягко парсит json из markdown блока и убирает trailing commas', () => {
+    const parsed = tryParseLectureGeminiJson(`\`\`\`json
+{
+  "answer": "Ответ",
+  "citations": [
+    { "chunkId": "a", "claim": "b" },
+  ],
+}
+\`\`\``);
+
+    expect(parsed).toEqual({
+      answer: 'Ответ',
+      citations: [{ chunkId: 'a', claim: 'b' }],
+    });
+  });
+
+  it('возвращает null для невалидного ответа', () => {
+    expect(tryParseLectureGeminiJson('не json')).toBeNull();
   });
 });

@@ -22,6 +22,20 @@ interface IngestLectureRagRequest {
   youtubeVideoId?: string;
 }
 
+function verifyLectureIngestSecret(req: { header: (name: string) => string | undefined }) {
+  const configuredSecret = process.env.LECTURE_INGEST_SECRET;
+  if (!configuredSecret) {
+    return { valid: false, status: 500, error: "LECTURE_INGEST_SECRET is not configured" } as const;
+  }
+
+  const requestSecret = req.header("x-ingest-secret");
+  if (requestSecret !== configuredSecret) {
+    return { valid: false, status: 401, error: "Unauthorized" } as const;
+  }
+
+  return { valid: true } as const;
+}
+
 async function updateLectureJob(
   jobId: string,
   updates: {
@@ -113,19 +127,24 @@ export const ingestLectureRag = onRequest(
     timeoutSeconds: 540,
     memory: "2GiB",
     region: "europe-west1",
-    secrets: ["GEMINI_API_KEY"],
+    secrets: ["GEMINI_API_KEY", "LECTURE_INGEST_SECRET"],
   },
   async (req, res) => {
-    res.set("Access-Control-Allow-Origin", "*");
     if (req.method === "OPTIONS") {
       res.set("Access-Control-Allow-Methods", "POST");
-      res.set("Access-Control-Allow-Headers", "Content-Type");
+      res.set("Access-Control-Allow-Headers", "Content-Type, X-Ingest-Secret");
       res.status(204).send("");
       return;
     }
 
     if (req.method !== "POST") {
       res.status(405).json({ ok: false, error: "Method not allowed" });
+      return;
+    }
+
+    const authResult = verifyLectureIngestSecret(req);
+    if (!authResult.valid) {
+      res.status(authResult.status).json({ ok: false, error: authResult.error });
       return;
     }
 

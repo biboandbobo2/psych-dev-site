@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react';
 import { debugError, debugLog } from '../../../lib/debug';
+import { buildAuthorizedHeaders } from '../../../lib/apiAuth';
+import { useAuthStore } from '../../../stores/useAuthStore';
 import {
   LECTURE_AI_MAX_QUESTION_LENGTH,
   LECTURE_AI_MIN_QUESTION_LENGTH,
@@ -52,6 +54,9 @@ const INITIAL_STATE: LectureAnswerState = {
 };
 
 export function useLectureAnswer(): UseLectureAnswerReturn {
+  const user = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.loading);
+  const geminiApiKey = useAuthStore((state) => state.geminiApiKey);
   const [query, setQuery] = useState('');
   const [selectedCourseId, setSelectedCourseIdState] = useState('');
   const [useWholeCourse, setUseWholeCourseState] = useState(true);
@@ -99,6 +104,24 @@ export function useLectureAnswer(): UseLectureAnswerReturn {
       return;
     }
 
+    if (authLoading) {
+      setState({
+        ...INITIAL_STATE,
+        status: 'error',
+        error: 'Проверяем авторизацию. Попробуйте ещё раз через секунду.',
+      });
+      return;
+    }
+
+    if (!user) {
+      setState({
+        ...INITIAL_STATE,
+        status: 'error',
+        error: 'Нужно войти в аккаунт, чтобы пользоваться ИИ по лекциям',
+      });
+      return;
+    }
+
     if (!useWholeCourse && selectedLectureKeys.length === 0) {
       setState({
         ...INITIAL_STATE,
@@ -114,9 +137,13 @@ export function useLectureAnswer(): UseLectureAnswerReturn {
     });
 
     try {
+      const headers = await buildAuthorizedHeaders({
+        'Content-Type': 'application/json',
+        'X-Gemini-Api-Key': geminiApiKey ?? undefined,
+      });
       const res = await fetch('/api/lectures', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           action: 'answer',
           query: trimmedQuery,
@@ -148,7 +175,7 @@ export function useLectureAnswer(): UseLectureAnswerReturn {
       });
       debugError('[useLectureAnswer] Error:', error);
     }
-  }, [query, selectedCourseId, selectedLectureKeys, useWholeCourse]);
+  }, [authLoading, geminiApiKey, query, selectedCourseId, selectedLectureKeys, useWholeCourse, user]);
 
   const clearState = useCallback(() => {
     setQuery('');

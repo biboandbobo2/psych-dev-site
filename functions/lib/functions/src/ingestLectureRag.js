@@ -6,6 +6,17 @@ import { debugError, debugLog } from "./lib/debug.js";
 import { getEmbeddingsBatch } from "./lib/embeddings.js";
 import { collectTranscriptTargets, } from "../../shared/videoTranscripts/index.js";
 import { ingestLectureRagTarget, LECTURE_RAG_JOBS_COLLECTION, } from "../../shared/lectureRag/index.js";
+function verifyLectureIngestSecret(req) {
+    const configuredSecret = process.env.LECTURE_INGEST_SECRET;
+    if (!configuredSecret) {
+        return { valid: false, status: 500, error: "LECTURE_INGEST_SECRET is not configured" };
+    }
+    const requestSecret = req.header("x-ingest-secret");
+    if (requestSecret !== configuredSecret) {
+        return { valid: false, status: 401, error: "Unauthorized" };
+    }
+    return { valid: true };
+}
 async function updateLectureJob(jobId, updates) {
     const db = getFirestore();
     const jobRef = db.collection(LECTURE_RAG_JOBS_COLLECTION).doc(jobId);
@@ -75,17 +86,21 @@ export const ingestLectureRag = onRequest({
     timeoutSeconds: 540,
     memory: "2GiB",
     region: "europe-west1",
-    secrets: ["GEMINI_API_KEY"],
+    secrets: ["GEMINI_API_KEY", "LECTURE_INGEST_SECRET"],
 }, async (req, res) => {
-    res.set("Access-Control-Allow-Origin", "*");
     if (req.method === "OPTIONS") {
         res.set("Access-Control-Allow-Methods", "POST");
-        res.set("Access-Control-Allow-Headers", "Content-Type");
+        res.set("Access-Control-Allow-Headers", "Content-Type, X-Ingest-Secret");
         res.status(204).send("");
         return;
     }
     if (req.method !== "POST") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
+        return;
+    }
+    const authResult = verifyLectureIngestSecret(req);
+    if (!authResult.valid) {
+        res.status(authResult.status).json({ ok: false, error: authResult.error });
         return;
     }
     const app = ensureAdminApp();

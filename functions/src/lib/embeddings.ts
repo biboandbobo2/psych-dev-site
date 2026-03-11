@@ -48,10 +48,11 @@ async function getClient(): Promise<GoogleGenAI> {
  */
 export async function getEmbedding(text: string): Promise<number[]> {
   const client = await getClient();
+  const normalizedText = truncateText(text);
 
   const result = await client.models.embedContent({
     model: EMBEDDING_MODEL,
-    contents: [{ role: 'user', parts: [{ text }] }],
+    contents: [{ role: 'user', parts: [{ text: normalizedText }] }],
     config: {
       outputDimensionality: EMBEDDING_DIMS,
     },

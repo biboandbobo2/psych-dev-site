@@ -16,6 +16,7 @@ interface LectureRagImportOptions {
   dryRun: boolean;
   force: boolean;
   functionUrl: string | null;
+  functionSecret: string | null;
   limit: number | null;
 }
 
@@ -35,6 +36,7 @@ function parseArgs(argv: string[]): LectureRagImportOptions {
   let dryRun = false;
   let force = false;
   let functionUrl: string | null = null;
+  let functionSecret = process.env.LECTURE_INGEST_SECRET?.trim() || null;
   let limit: number | null = null;
 
   argv.forEach((arg) => {
@@ -58,6 +60,11 @@ function parseArgs(argv: string[]): LectureRagImportOptions {
 
     if (arg.startsWith("--function-url=")) {
       functionUrl = arg.slice("--function-url=".length).trim() || null;
+      return;
+    }
+
+    if (arg.startsWith("--function-secret=")) {
+      functionSecret = arg.slice("--function-secret=".length).trim() || null;
     }
   });
 
@@ -65,6 +72,7 @@ function parseArgs(argv: string[]): LectureRagImportOptions {
     dryRun,
     force,
     functionUrl,
+    functionSecret,
     limit,
   };
 }
@@ -111,6 +119,7 @@ async function ensureLectureJob(
 
 async function triggerLectureRagIngestion(
   functionUrl: string,
+  functionSecret: string,
   target: TranscriptImportTarget,
   force: boolean,
   jobId: string
@@ -123,6 +132,7 @@ async function triggerLectureRagIngestion(
     }),
     headers: {
       "Content-Type": "application/json",
+      "X-Ingest-Secret": functionSecret,
     },
     method: "POST",
   });
@@ -165,6 +175,11 @@ async function run() {
         "Lecture Cloud Function URL is unavailable. Pass --function-url or configure project ID."
       );
     }
+    if (!options.functionSecret) {
+      throw new Error(
+        "Lecture ingest secret is unavailable. Pass --function-secret or set LECTURE_INGEST_SECRET."
+      );
+    }
     console.log(`Function: ${functionUrl}`);
   }
 
@@ -203,6 +218,7 @@ async function run() {
     try {
       const payload = await triggerLectureRagIngestion(
         functionUrl!,
+        options.functionSecret!,
         target,
         options.force,
         jobId

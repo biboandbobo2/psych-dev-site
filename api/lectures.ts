@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenAI } from '@google/genai';
 
@@ -95,6 +96,15 @@ const SYSTEM_PROMPT = `Ты — преподаватель психологии.
 }`;
 
 let genaiClient: GoogleGenAI | null = null;
+
+const SAFE_LECTURE_API_ERROR = 'Сервис лекций временно недоступен. Попробуйте ещё раз позже.';
+const LECTURE_API_ALLOWED_ORIGIN_PATTERNS = [
+  /^http:\/\/localhost(?::\d+)?$/i,
+  /^http:\/\/127\.0\.0\.1(?::\d+)?$/i,
+  /^https:\/\/psych-dev-site\.vercel\.app$/i,
+  /^https:\/\/psych-dev-site(?:-[a-z0-9-]+)?-alexey-zykovs-projects\.vercel\.app$/i,
+  /^https:\/\/psych-dev-site-git-[a-z0-9-]+-alexey-zykovs-projects\.vercel\.app$/i,
+] as const;
 
 const DEVELOPMENT_LESSON_PATHS: Record<string, string> = {
   intro: '/intro',
@@ -206,17 +216,72 @@ function initFirebaseAdmin() {
   initializeApp({ credential: cert(sa) });
 }
 
-function getGenAI(): GoogleGenAI {
-  if (!genaiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY not configured');
-    }
+function resolveLectureGeminiApiKey(req?: VercelRequest): string {
+  const userKey = req?.headers['x-gemini-api-key'];
+  if (typeof userKey === 'string' && userKey.trim()) {
+    return userKey.trim();
+  }
 
-    genaiClient = new GoogleGenAI({ apiKey });
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY not configured');
+  }
+
+  return apiKey;
+}
+
+function getGenAI(apiKey?: string): GoogleGenAI {
+  if (apiKey) {
+    return new GoogleGenAI({ apiKey });
+  }
+
+  if (!genaiClient) {
+    genaiClient = new GoogleGenAI({ apiKey: resolveLectureGeminiApiKey() });
   }
 
   return genaiClient;
+}
+
+export function getLectureApiAllowedOrigin(origin: string | undefined) {
+  if (!origin) {
+    return null;
+  }
+
+  return LECTURE_API_ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin))
+    ? origin
+    : null;
+}
+
+function setLectureApiCorsHeaders(req: VercelRequest, res: VercelResponse) {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+  const allowedOrigin = getLectureApiAllowedOrigin(origin);
+
+  if (allowedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+    res.setHeader('Vary', 'Origin');
+  }
+
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Gemini-Api-Key');
+  return allowedOrigin;
+}
+
+async function verifyLectureApiAuth(req: VercelRequest) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { valid: false, error: 'Требуется авторизация', code: 'UNAUTHORIZED' } as const;
+  }
+
+  try {
+    const decodedToken = await getAuth().verifyIdToken(authHeader.slice(7));
+    return { valid: true, uid: decodedToken.uid } as const;
+  } catch {
+    return { valid: false, error: 'Недействительная авторизация', code: 'UNAUTHORIZED' } as const;
+  }
+}
+
+function toSafeLectureApiError() {
+  return SAFE_LECTURE_API_ERROR;
 }
 
 function getStaticCourseLessonPath(courseId: string, periodId: string) {
@@ -292,8 +357,8 @@ function buildCourseLessonPath(courseId: string, periodId: string) {
   return `/course/${encodeURIComponent(courseId)}/${encodeURIComponent(periodId)}`;
 }
 
-async function embedQuery(query: string): Promise<number[]> {
-  const client = getGenAI();
+async function embedQuery(query: string, apiKey?: string): Promise<number[]> {
+  const client = getGenAI(apiKey);
   const result = await client.models.embedContent({
     model: LECTURE_SEARCH_CONFIG.embeddingModel,
     contents: [{ role: 'user', parts: [{ text: query }] }],
@@ -683,7 +748,8 @@ function capMatchesPerLecture(matches: LectureSearchMatch[]) {
 async function retrieveLectureMatches(
   db: FirebaseFirestore.Firestore,
   input: ValidatedLectureScope,
-  mode: LectureRetrievalMode = 'hybrid'
+  mode: LectureRetrievalMode = 'hybrid',
+  apiKey?: string
 ) {
   const { sources, fallbackOnly } = await resolveLectureSources(
     db,
@@ -723,7 +789,7 @@ async function retrieveLectureMatches(
   let rerankedMatches: LectureSearchMatch[] = [];
 
   try {
-    const queryEmbedding = await embedQuery(input.query);
+    const queryEmbedding = await embedQuery(input.query, apiKey);
     const rawMatches = input.lectureKeys.length > 0
       ? await searchChunksForLectures(db, [...allowedKeys], queryEmbedding)
       : await searchChunksForCourse(db, input.courseId, queryEmbedding);
@@ -769,7 +835,11 @@ ${match.text}
 [/SOURCE]`;
 }
 
-function parseGeminiJson(rawText: string) {
+function stripJsonTrailingCommas(value: string) {
+  return value.replace(/,\s*([}\]])/g, '$1');
+}
+
+export function tryParseLectureGeminiJson(rawText: string) {
   const trimmed = rawText.trim();
   const codeBlockMatch = trimmed.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
   const candidate = codeBlockMatch ? codeBlockMatch[1].trim() : trimmed.replace(/```json\s*\n?|\n?```/g, '').trim();
@@ -777,7 +847,14 @@ function parseGeminiJson(rawText: string) {
     ? candidate
     : (candidate.match(/\{[\s\S]*\}/)?.[0] ?? candidate);
 
-  return JSON.parse(jsonText);
+  try {
+    return JSON.parse(stripJsonTrailingCommas(jsonText)) as {
+      answer: string;
+      citations: Array<{ chunkId: string; claim: string }>;
+    };
+  } catch {
+    return null;
+  }
 }
 
 function sanitizeLectureAnswer(answer: string) {
@@ -796,11 +873,14 @@ function sanitizeLectureAnswer(answer: string) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  const allowedOrigin = setLectureApiCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
+    if (req.headers.origin && !allowedOrigin) {
+      res.status(403).json({ ok: false, error: 'Origin not allowed' });
+      return;
+    }
+
     res.status(200).end();
     return;
   }
@@ -809,6 +889,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     initFirebaseAdmin();
     const db = getFirestore();
     const action = (req.query.action as string) || (req.body?.action as string) || '';
+    const authResult = await verifyLectureApiAuth(req);
+
+    if (!authResult.valid) {
+      res.status(401).json({ ok: false, error: authResult.error, code: authResult.code });
+      return;
+    }
 
     if (action === 'list' && req.method === 'GET') {
       const snapshot = await db
@@ -839,7 +925,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (action === 'search') {
       const startedAt = Date.now();
-      const { matches, sources } = await retrieveLectureMatches(db, validation.value);
+      const { matches, sources } = await retrieveLectureMatches(
+        db,
+        validation.value,
+        'hybrid',
+        resolveLectureGeminiApiKey(req)
+      );
 
       const results = matches.map((match) => ({
         chunkId: match.id,
@@ -868,7 +959,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (action === 'answer') {
       const startedAt = Date.now();
-      const { matches, sources } = await retrieveLectureMatches(db, validation.value, 'vector-only');
+      const apiKey = resolveLectureGeminiApiKey(req);
+      const { matches, sources } = await retrieveLectureMatches(db, validation.value, 'vector-only', apiKey);
 
       if (!sources.length) {
         res.status(200).json({
@@ -897,7 +989,7 @@ ${matches.map(buildLectureContext).join('\n\n')}
 
 ВОПРОС: ${validation.value.query}`;
 
-      const client = getGenAI();
+      const client = getGenAI(apiKey);
       const result = await client.models.generateContent({
         model: 'gemini-2.5-flash-lite',
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -905,16 +997,10 @@ ${matches.map(buildLectureContext).join('\n\n')}
       });
 
       const rawText = result.text || '';
-      let parsed: { answer: string; citations: Array<{ chunkId: string; claim: string }> };
-
-      try {
-        parsed = parseGeminiJson(rawText);
-      } catch {
-        parsed = {
-          answer: rawText || 'Не удалось сгенерировать ответ. Попробуйте переформулировать вопрос.',
-          citations: [],
-        };
-      }
+      const parsed = tryParseLectureGeminiJson(rawText) ?? {
+        answer: rawText || 'Не удалось сгенерировать ответ. Попробуйте переформулировать вопрос.',
+        citations: [],
+      };
 
       const chunkMap = new Map(matches.map((match) => [match.id, match]));
       const citations = sortLectureCitations((parsed.citations || [])
@@ -948,7 +1034,6 @@ ${matches.map(buildLectureContext).join('\n\n')}
 
     res.status(400).json({ ok: false, error: 'Invalid action' });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    res.status(500).json({ ok: false, error: message });
+    res.status(500).json({ ok: false, error: toSafeLectureApiError() });
   }
 }
