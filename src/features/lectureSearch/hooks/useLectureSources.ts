@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { buildAuthorizedHeaders } from '../../../lib/apiAuth';
 import { debugError, debugLog } from '../../../lib/debug';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -27,8 +27,9 @@ interface UseLectureSourcesResult {
 }
 
 export function useLectureSources(): UseLectureSourcesResult {
-  const user = useAuthStore((state) => state.user);
+  const userId = useAuthStore((state) => state.user?.uid ?? null);
   const authLoading = useAuthStore((state) => state.loading);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [courses, setCourses] = useState<LectureCourseGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export function useLectureSources(): UseLectureSourcesResult {
       return;
     }
 
-    if (!user) {
+    if (!userId) {
       setCourses([]);
       setLoading(false);
       setError('Нужно войти в аккаунт, чтобы работать с лекциями');
@@ -47,10 +48,16 @@ export function useLectureSources(): UseLectureSourcesResult {
 
     setLoading(true);
     setError(null);
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       const headers = await buildAuthorizedHeaders();
-      const res = await fetch('/api/lectures?action=list', { headers });
+      const res = await fetch('/api/lectures?action=list', {
+        headers,
+        signal: abortController.signal,
+      });
       const data = await res.json();
 
       if (!data.ok) {
@@ -60,19 +67,30 @@ export function useLectureSources(): UseLectureSourcesResult {
       setCourses(data.courses || []);
       debugLog('[useLectureSources] Loaded courses:', data.courses?.length ?? 0);
     } catch (error) {
+      if (abortController.signal.aborted) {
+        return;
+      }
+
       const message = error instanceof Error ? error.message : 'Не удалось загрузить список лекций';
       setError(message);
       debugError('[useLectureSources] Error:', error);
     } finally {
-      setLoading(false);
+      if (!abortController.signal.aborted) {
+        setLoading(false);
+      }
     }
-  }, [authLoading, user]);
+  }, [authLoading, userId]);
 
   useEffect(() => {
     if (authLoading) {
       return;
     }
     refresh();
+
+    return () => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+    };
   }, [authLoading, refresh]);
 
   return {

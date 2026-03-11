@@ -45,6 +45,7 @@ describe('useLectureSources', () => {
         headers: expect.objectContaining({
           Authorization: 'Bearer test-token',
         }),
+        signal: expect.any(AbortSignal),
       })
     );
     expect(result.current.courses).toHaveLength(1);
