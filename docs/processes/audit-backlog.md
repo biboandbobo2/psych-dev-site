@@ -211,6 +211,16 @@
 - **Приоритет:** 🟡 Средний
 - **Оценка:** 1-2 часа
 
+#### 2.C Очистка типизации `lessonRef as never` в `useCreateCourse`
+- **Проблема:** в `src/hooks/useCreateCourse.ts` запись lesson-документа в Firestore сейчас использует `setDoc(lessonRef as never, ...)`, чтобы обойти рассинхрон между типом `DocumentReference` и фактической формой lesson payload.
+- **Риск:** runtime это не ломает, но прячет реальную проблему типизации и делает код хрупким при следующем рефакторинге lesson schema.
+- **Решение:**
+  - [ ] Вынести явный тип lesson payload для dynamic course lessons
+  - [ ] Типизировать `getCourseLessonDocRef` и `setDoc` без приведения к `never`
+  - [ ] После правки прогнать `typecheck:app` и smoke создания нового курса
+- **Приоритет:** 🟢 Низкий
+- **Оценка:** 20-40 минут
+
 #### 3. Container Images Cleanup Policy (europe-west1)
 - **Проблема:** Нет cleanup policy для Docker образов Cloud Functions в region `europe-west1`
 - **Влияние:** Небольшой месячный счёт (~$1-5/месяц) из-за накопления старых образов
