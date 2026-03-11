@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
+  },
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "api/**/*.test.ts",
+    "api/**/*.test.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "src/tests/setup.ts"
+  ]
+}
