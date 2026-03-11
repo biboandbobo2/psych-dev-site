@@ -3,6 +3,7 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
+import { readLatestSecretValue } from './secrets.js';
 
 const EMBEDDING_MODEL = 'gemini-embedding-001';
 const EMBEDDING_DIMS = 768;
@@ -11,13 +12,29 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
 let genaiClient: GoogleGenAI | null = null;
+let geminiApiKeyPromise: Promise<string> | null = null;
 
 /**
  * Инициализация клиента Gemini
  */
-function getClient(): GoogleGenAI {
+async function resolveGeminiApiKey(): Promise<string> {
+  if (process.env.GEMINI_API_KEY) {
+    return process.env.GEMINI_API_KEY;
+  }
+
+  if (!geminiApiKeyPromise) {
+    geminiApiKeyPromise = readLatestSecretValue('GEMINI_API_KEY').catch((error) => {
+      geminiApiKeyPromise = null;
+      throw error;
+    });
+  }
+
+  return geminiApiKeyPromise;
+}
+
+async function getClient(): Promise<GoogleGenAI> {
   if (!genaiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = await resolveGeminiApiKey();
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY not configured');
     }
@@ -30,7 +47,7 @@ function getClient(): GoogleGenAI {
  * Получить эмбеддинг для одного текста
  */
 export async function getEmbedding(text: string): Promise<number[]> {
-  const client = getClient();
+  const client = await getClient();
 
   const result = await client.models.embedContent({
     model: EMBEDDING_MODEL,
@@ -108,7 +125,7 @@ async function processBatchWithRetry(texts: string[]): Promise<number[][]> {
  * Обработка одного батча
  */
 async function processBatch(texts: string[]): Promise<number[][]> {
-  const client = getClient();
+  const client = await getClient();
   const results: number[][] = [];
 
   // Gemini API обрабатывает тексты по одному, но мы можем делать параллельные запросы

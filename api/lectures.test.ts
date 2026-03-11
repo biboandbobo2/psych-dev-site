@@ -98,6 +98,47 @@ describe('groupLectureSourcesByCourse', () => {
     expect(groups[1].courseId).toBe('general');
     expect(groups[1].lectures[0].periodId).toBe('general-1');
   });
+
+  it('ставит более ранние лекции курса выше поздних', () => {
+    const groups = groupLectureSourcesByCourse([
+      {
+        lectureKey: 'development::lateAdult::v2',
+        youtubeVideoId: 'v2',
+        courseId: 'development',
+        periodId: 'lateAdult',
+        periodTitle: 'Пожилой возраст (65–80 лет)',
+        lectureTitle: 'Поздняя лекция',
+        chunkCount: 2,
+        durationMs: 1000,
+      },
+      {
+        lectureKey: 'development::intro::v1',
+        youtubeVideoId: 'v1',
+        courseId: 'development',
+        periodId: 'intro',
+        periodTitle: 'Введение',
+        lectureTitle: 'Вводная лекция',
+        chunkCount: 3,
+        durationMs: 1000,
+      },
+      {
+        lectureKey: 'development::prenatal::v3',
+        youtubeVideoId: 'v3',
+        courseId: 'development',
+        periodId: 'prenatal',
+        periodTitle: 'Пренатальный период',
+        lectureTitle: 'Пренатальная лекция',
+        chunkCount: 4,
+        durationMs: 1000,
+      },
+    ]);
+
+    expect(groups[0].lectures.map((lecture) => lecture.periodId)).toEqual([
+      'intro',
+      'prenatal',
+      'lateAdult',
+    ]);
+  });
 });
 
 describe('validateLectureScope', () => {

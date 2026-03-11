@@ -52,6 +52,21 @@ type LectureSearchMatch = LectureChunkRecord & {
   score: number;
 };
 
+type LectureCitationResponse = {
+  chunkId: string;
+  lectureKey: string;
+  lectureTitle: string;
+  courseId: string;
+  periodId: string;
+  periodTitle: string;
+  youtubeVideoId: string;
+  startMs: number;
+  timestampLabel: string;
+  excerpt: string;
+  claim: string;
+  path: string;
+};
+
 type ValidatedLectureScope = {
   courseId: string;
   lectureKeys: string[];
@@ -127,6 +142,56 @@ const GENERAL_LESSON_PATHS: Record<string, string> = {
   'general-12': '/general/12',
 };
 
+const DEVELOPMENT_PERIOD_ORDER: Record<string, number> = {
+  intro: 0,
+  prenatal: 1,
+  infancy: 2,
+  toddler: 3,
+  preschool: 4,
+  'primary-school': 5,
+  school: 5,
+  earlyAdolescence: 6,
+  adolescence: 7,
+  emergingAdult: 8,
+  '22-27': 9,
+  earlyAdult: 10,
+  midlife: 11,
+  lateAdult: 12,
+  oldestOld: 13,
+  seminary: 14,
+};
+
+const CLINICAL_PERIOD_ORDER: Record<string, number> = {
+  'clinical-intro': 0,
+  'clinical-1': 1,
+  'clinical-2': 2,
+  'clinical-3': 3,
+  'clinical-4': 4,
+  'clinical-5': 5,
+  'clinical-6': 6,
+  'clinical-7': 7,
+  'clinical-8': 8,
+  'clinical-9': 9,
+  'clinical-10': 10,
+  'rasstroystva-lichnosti': 11,
+};
+
+const GENERAL_PERIOD_ORDER: Record<string, number> = {
+  'general-1': 0,
+  'general-2': 1,
+  'general-3': 2,
+  'general-4': 3,
+  'vnimanie-teorii': 4,
+  'general-5': 5,
+  'general-6': 6,
+  'general-7': 7,
+  'general-8': 8,
+  'general-9': 9,
+  'general-10': 10,
+  'general-11': 11,
+  'general-12': 12,
+};
+
 function initFirebaseAdmin() {
   if (getApps().length > 0) {
     return;
@@ -168,6 +233,42 @@ function getStaticCourseLessonPath(courseId: string, periodId: string) {
   }
 
   return null;
+}
+
+function getCoursePeriodOrder(courseId: string, periodId: string) {
+  if (courseId === 'development') {
+    return DEVELOPMENT_PERIOD_ORDER[periodId] ?? Number.MAX_SAFE_INTEGER;
+  }
+
+  if (courseId === 'clinical') {
+    return CLINICAL_PERIOD_ORDER[periodId] ?? Number.MAX_SAFE_INTEGER;
+  }
+
+  if (courseId === 'general') {
+    return GENERAL_PERIOD_ORDER[periodId] ?? Number.MAX_SAFE_INTEGER;
+  }
+
+  return Number.MAX_SAFE_INTEGER;
+}
+
+function compareLectureOrder(
+  left: Pick<LectureSourceRecord, 'courseId' | 'periodId' | 'periodTitle' | 'lectureTitle'>,
+  right: Pick<LectureSourceRecord, 'courseId' | 'periodId' | 'periodTitle' | 'lectureTitle'>
+) {
+  const orderDiff =
+    getCoursePeriodOrder(left.courseId, left.periodId) -
+    getCoursePeriodOrder(right.courseId, right.periodId);
+
+  if (orderDiff !== 0) {
+    return orderDiff;
+  }
+
+  const periodTitleDiff = left.periodTitle.localeCompare(right.periodTitle, 'ru');
+  if (periodTitleDiff !== 0) {
+    return periodTitleDiff;
+  }
+
+  return left.lectureTitle.localeCompare(right.lectureTitle, 'ru');
 }
 
 function buildCourseLessonPath(courseId: string, periodId: string) {
@@ -385,14 +486,19 @@ export function groupLectureSourcesByCourse(sources: LectureSourceRecord[]) {
     .sort(([courseA], [courseB]) => courseA.localeCompare(courseB, 'ru'))
     .map(([courseId, lectures]) => ({
       courseId,
-      lectures: [...lectures].sort((a, b) => {
-        const periodTitleCompare = a.periodTitle.localeCompare(b.periodTitle, 'ru');
-        if (periodTitleCompare !== 0) {
-          return periodTitleCompare;
-        }
-        return a.lectureTitle.localeCompare(b.lectureTitle, 'ru');
-      }),
+      lectures: [...lectures].sort(compareLectureOrder),
     }));
+}
+
+function sortLectureCitations(citations: LectureCitationResponse[]) {
+  return [...citations].sort((left, right) => {
+    const lectureOrderDiff = compareLectureOrder(left, right);
+    if (lectureOrderDiff !== 0) {
+      return lectureOrderDiff;
+    }
+
+    return left.startMs - right.startMs;
+  });
 }
 
 export function validateLectureScope(body: unknown):
@@ -811,7 +917,7 @@ ${matches.map(buildLectureContext).join('\n\n')}
       }
 
       const chunkMap = new Map(matches.map((match) => [match.id, match]));
-      const citations = (parsed.citations || [])
+      const citations = sortLectureCitations((parsed.citations || [])
         .filter((citation) => chunkMap.has(citation.chunkId))
         .map((citation) => {
           const match = chunkMap.get(citation.chunkId)!;
@@ -829,7 +935,7 @@ ${matches.map(buildLectureContext).join('\n\n')}
             claim: citation.claim || '',
             path: buildLectureDeepLink(match.courseId, match.periodId, match.youtubeVideoId, match.startMs),
           };
-        });
+        }));
 
       res.status(200).json({
         ok: true,

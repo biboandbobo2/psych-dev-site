@@ -1,7 +1,8 @@
-import type { FormEvent } from 'react';
+import { useEffect, useRef, type FormEvent } from 'react';
 import { LectureAnswer } from './LectureAnswer';
 import { LectureSelector } from './LectureSelector';
 import { useLectureAnswer } from '../hooks/useLectureAnswer';
+import { useSearchHistory } from '../../../hooks';
 
 export function LectureSearchBlock() {
   const {
@@ -18,6 +19,8 @@ export function LectureSearchBlock() {
     clearState,
     maxLength,
   } = useLectureAnswer();
+  const { saveSearch } = useSearchHistory();
+  const lastSavedQueryRef = useRef('');
 
   const isLoading = state.status === 'loading';
   const charCount = query.length;
@@ -35,6 +38,20 @@ export function LectureSearchBlock() {
       askQuestion();
     }
   };
+
+  useEffect(() => {
+    if (state.status !== 'success' || !query.trim() || query === lastSavedQueryRef.current) {
+      return;
+    }
+
+    lastSavedQueryRef.current = query;
+    void saveSearch({
+      type: 'ai_chat',
+      query: query.trim(),
+      hasAnswer: Boolean(state.answer),
+      aiResponse: state.answer || undefined,
+    });
+  }, [query, saveSearch, state.answer, state.status]);
 
   return (
     <section className="mt-6 border-t border-border pt-6" aria-labelledby="lecture-search-title">

@@ -2,12 +2,14 @@ import * as functions from "firebase-functions";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { ensureAdminApp, resolveAdminStorageBucket } from "./lib/adminApp.js";
+import { getEmbeddingsBatch } from "./lib/embeddings.js";
 import { sendTelegramMessage } from "./lib/telegram.js";
 import { getTranscriptRefreshConfigFromEnv } from "./transcriptRefreshConfig.js";
 import { collectTranscriptRefreshCandidates } from "./transcriptRefreshCandidates.js";
 import { acquireTranscriptRefreshLock, createEmptyTranscriptRefreshSummary, finalizeTranscriptRefreshRun, } from "./transcriptRefreshJob.js";
 import { formatTranscriptRefreshTelegramReport } from "./transcriptRefreshReport.js";
 import { upsertTranscript } from "../../shared/videoTranscripts/runner.js";
+import { ingestLectureRagTarget } from "../../shared/lectureRag/index.js";
 export async function runWeeklyTranscriptRefresh(deps) {
     const logger = deps?.logger ?? functions.logger;
     const sendMessage = deps?.sendMessage ?? sendTelegramMessage;
@@ -39,6 +41,24 @@ export async function runWeeklyTranscriptRefresh(deps) {
             summary.processedCount += 1;
             if (result.status === "available") {
                 summary.availableCount += 1;
+                try {
+                    await ingestLectureRagTarget({
+                        bucket,
+                        db,
+                        getEmbeddingsBatch,
+                    }, candidate.target, {
+                        force: false,
+                        now: Timestamp.now(),
+                    });
+                }
+                catch (error) {
+                    summary.failedCount += 1;
+                    summary.errorSummary.push(`${candidate.target.youtubeVideoId}: LECTURE_RAG_${error?.message || "UNKNOWN"}`);
+                    logger.error("Lecture RAG sync failed after transcript refresh", {
+                        error: error?.message || String(error),
+                        youtubeVideoId: candidate.target.youtubeVideoId,
+                    });
+                }
                 continue;
             }
             if (result.status === "skipped") {
