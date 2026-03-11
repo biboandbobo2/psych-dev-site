@@ -2,11 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenAI } from '@google/genai';
-import { buildCourseLessonPath } from '../src/lib/courseLessonPaths.ts';
-import {
-  loadFallbackLectureSources,
-  searchFallbackTranscriptChunks,
-} from './lectureTranscriptFallback.ts';
 
 export const LECTURE_COLLECTIONS = {
   chunks: 'lecture_chunks',
@@ -65,6 +60,8 @@ type ValidatedLectureScope = {
 
 type LectureRetrievalMode = 'hybrid' | 'vector-only';
 
+const TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION = 'searchChunks';
+
 const SYSTEM_PROMPT = `Ты — преподаватель психологии. Отвечай на вопрос студента, опираясь ИСКЛЮЧИТЕЛЬНО на предоставленные фрагменты транскриптов лекций.
 
 ПРАВИЛА:
@@ -83,6 +80,52 @@ const SYSTEM_PROMPT = `Ты — преподаватель психологии.
 }`;
 
 let genaiClient: GoogleGenAI | null = null;
+
+const DEVELOPMENT_LESSON_PATHS: Record<string, string> = {
+  intro: '/intro',
+  prenatal: '/prenatal',
+  infancy: '/0-1',
+  toddler: '/1-3',
+  preschool: '/3-6',
+  'primary-school': '/7-9',
+  earlyAdolescence: '/10-13',
+  adolescence: '/14-18',
+  emergingAdult: '/19-22',
+  '22-27': '/22-27',
+  earlyAdult: '/28-40',
+  midlife: '/40-65',
+  lateAdult: '/66-80',
+  oldestOld: '/80-plus',
+};
+
+const CLINICAL_LESSON_PATHS: Record<string, string> = {
+  'clinical-intro': '/clinical/intro',
+  'clinical-1': '/clinical/1',
+  'clinical-2': '/clinical/2',
+  'clinical-3': '/clinical/3',
+  'clinical-4': '/clinical/4',
+  'clinical-5': '/clinical/5',
+  'clinical-6': '/clinical/6',
+  'clinical-7': '/clinical/7',
+  'clinical-8': '/clinical/8',
+  'clinical-9': '/clinical/9',
+  'clinical-10': '/clinical/10',
+};
+
+const GENERAL_LESSON_PATHS: Record<string, string> = {
+  'general-1': '/general/1',
+  'general-2': '/general/2',
+  'general-3': '/general/3',
+  'general-4': '/general/4',
+  'general-5': '/general/5',
+  'general-6': '/general/6',
+  'general-7': '/general/7',
+  'general-8': '/general/8',
+  'general-9': '/general/9',
+  'general-10': '/general/10',
+  'general-11': '/general/11',
+  'general-12': '/general/12',
+};
 
 function initFirebaseAdmin() {
   if (getApps().length > 0) {
@@ -109,6 +152,43 @@ function getGenAI(): GoogleGenAI {
   }
 
   return genaiClient;
+}
+
+function getStaticCourseLessonPath(courseId: string, periodId: string) {
+  if (courseId === 'development') {
+    return DEVELOPMENT_LESSON_PATHS[periodId] ?? null;
+  }
+
+  if (courseId === 'clinical') {
+    return CLINICAL_LESSON_PATHS[periodId] ?? null;
+  }
+
+  if (courseId === 'general') {
+    return GENERAL_LESSON_PATHS[periodId] ?? null;
+  }
+
+  return null;
+}
+
+function buildCourseLessonPath(courseId: string, periodId: string) {
+  const staticPath = getStaticCourseLessonPath(courseId, periodId);
+  if (staticPath) {
+    return staticPath;
+  }
+
+  if (courseId === 'development') {
+    return `/${periodId}`;
+  }
+
+  if (courseId === 'clinical') {
+    return `/clinical/${periodId}`;
+  }
+
+  if (courseId === 'general') {
+    return `/general/${periodId}`;
+  }
+
+  return `/course/${encodeURIComponent(courseId)}/${encodeURIComponent(periodId)}`;
 }
 
 async function embedQuery(query: string): Promise<number[]> {
@@ -140,6 +220,21 @@ function normalizeLectureKeys(input: unknown) {
   )].slice(0, LECTURE_SEARCH_CONFIG.maxLectureSelections);
 }
 
+function buildFallbackLectureKey(chunk: TranscriptSearchChunkRecord) {
+  return `${chunk.courseId}::${chunk.periodId}::${chunk.youtubeVideoId}`;
+}
+
+function getQueryWords(query: string) {
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 2);
+}
+
+function matchesAllQueryWords(text: string, queryWords: string[]) {
+  return queryWords.every((word) => text.includes(word));
+}
+
 export function computeLexicalScore(query: string, text: string) {
   const queryTerms = query.toLowerCase().split(/\s+/).filter((term) => term.length > 2);
   if (!queryTerms.length) {
@@ -152,6 +247,113 @@ export function computeLexicalScore(query: string, text: string) {
   }, 0);
 
   return matches / queryTerms.length;
+}
+
+async function loadFallbackLectureSources(
+  db: FirebaseFirestore.Firestore,
+  courseId?: string
+) {
+  let query: FirebaseFirestore.Query = db.collectionGroup(TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION);
+  if (courseId) {
+    query = query.where('courseId', '==', courseId);
+  }
+
+  const snapshot = await query.get();
+  const grouped = new Map<
+    string,
+    {
+      lectureKey: string;
+      youtubeVideoId: string;
+      courseId: string;
+      periodId: string;
+      periodTitle: string;
+      lectureTitle: string;
+      chunkCount: number;
+      durationMs: number | null;
+      active: true;
+    }
+  >();
+
+  snapshot.docs.forEach((doc) => {
+    const data = doc.data() as TranscriptSearchChunkRecord;
+    const lectureKey = buildFallbackLectureKey(data);
+    const current = grouped.get(lectureKey);
+
+    if (current) {
+      current.chunkCount += 1;
+      current.durationMs = Math.max(current.durationMs ?? 0, data.endMs);
+      return;
+    }
+
+    grouped.set(lectureKey, {
+      lectureKey,
+      youtubeVideoId: data.youtubeVideoId,
+      courseId: data.courseId,
+      periodId: data.periodId,
+      periodTitle: data.periodTitle,
+      lectureTitle: data.lectureTitle,
+      chunkCount: 1,
+      durationMs: data.endMs,
+      active: true,
+    });
+  });
+
+  return [...grouped.values()];
+}
+
+async function searchFallbackTranscriptChunks(
+  db: FirebaseFirestore.Firestore,
+  courseId: string,
+  lectureKeys: string[],
+  query: string,
+  maxChunksPerLecture: number,
+  contextK: number,
+  computeScore: (query: string, text: string) => number
+) {
+  const snapshot = await db
+    .collectionGroup(TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION)
+    .where('courseId', '==', courseId)
+    .get();
+
+  const allowedLectureKeys = lectureKeys.length > 0 ? new Set(lectureKeys) : null;
+  const queryWords = getQueryWords(query);
+
+  const matches = snapshot.docs
+    .map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as TranscriptSearchChunkRecord),
+    }))
+    .map((chunk) => ({
+      ...chunk,
+      lectureKey: buildFallbackLectureKey(chunk),
+    }))
+    .filter((chunk) => !allowedLectureKeys || allowedLectureKeys.has(chunk.lectureKey))
+    .filter((chunk) => matchesAllQueryWords(chunk.normalizedText, queryWords))
+    .map((chunk) => ({
+      ...chunk,
+      score: computeScore(query, chunk.normalizedText),
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return a.startMs - b.startMs;
+    });
+
+  const perLecture = new Map<string, number>();
+  const results: typeof matches = [];
+
+  matches.forEach((match) => {
+    const current = perLecture.get(match.lectureKey) ?? 0;
+    if (current >= maxChunksPerLecture || results.length >= contextK) {
+      return;
+    }
+
+    perLecture.set(match.lectureKey, current + 1);
+    results.push(match);
+  });
+
+  return results;
 }
 
 export function buildLectureDeepLink(
