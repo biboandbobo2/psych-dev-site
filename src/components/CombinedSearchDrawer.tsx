@@ -38,7 +38,10 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
   const [tests, setTests] = useState<Test[]>([]);
   const [testsLoading, setTestsLoading] = useState(false);
   const testsLoadedRef = useRef(false);
-  const { chunks: transcriptSearchChunks, loading: transcriptSearchLoading } = useTranscriptSearchChunks(open);
+  const { chunks: transcriptSearchChunks, loading: transcriptSearchLoading } = useTranscriptSearchChunks(
+    open,
+    contentInputValue
+  );
 
   useEffect(() => {
     if (!open || testsLoadedRef.current) return;

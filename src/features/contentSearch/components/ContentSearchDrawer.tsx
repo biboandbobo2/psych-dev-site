@@ -26,7 +26,10 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
   const { periods, loading: periodsLoading } = usePeriods(true);
   const { topics: clinicalTopics, loading: clinicalLoading } = useClinicalTopics();
   const { topics: generalTopics, loading: generalLoading } = useGeneralTopics();
-  const { chunks: transcriptSearchChunks, loading: transcriptSearchLoading } = useTranscriptSearchChunks(open);
+  const { chunks: transcriptSearchChunks, loading: transcriptSearchLoading } = useTranscriptSearchChunks(
+    open,
+    inputValue
+  );
 
   // Загружаем тесты
   const [tests, setTests] = useState<Test[]>([]);

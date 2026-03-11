@@ -1,83 +1,89 @@
-import { useEffect, useState } from 'react';
-import { collectionGroup, getDocs } from 'firebase/firestore';
-import { db } from '../../../lib/firebase';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION,
   type VideoTranscriptSearchChunkDoc,
 } from '../../../types/videoTranscripts';
 import { debugError } from '../../../lib/debug';
 
-let transcriptSearchChunksCache: VideoTranscriptSearchChunkDoc[] | null = null;
-let transcriptSearchChunksPromise: Promise<VideoTranscriptSearchChunkDoc[]> | null = null;
+const MIN_QUERY_LENGTH = 2;
+const transcriptSearchChunksCache = new Map<string, VideoTranscriptSearchChunkDoc[]>();
 
-async function loadTranscriptSearchChunks() {
-  if (transcriptSearchChunksCache) {
-    return transcriptSearchChunksCache;
+async function fetchTranscriptSearchChunks(
+  query: string,
+  signal: AbortSignal
+): Promise<VideoTranscriptSearchChunkDoc[]> {
+  const params = new URLSearchParams({ q: query.trim() });
+  const response = await fetch(`/api/transcript-search?${params.toString()}`, {
+    method: 'GET',
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Transcript search request failed: ${response.status}`);
   }
 
-  if (!transcriptSearchChunksPromise) {
-    transcriptSearchChunksPromise = getDocs(
-      collectionGroup(db, VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION)
-    )
-      .then((snapshot) => {
-        const chunks = snapshot.docs.map(
-          (docSnap) => docSnap.data() as VideoTranscriptSearchChunkDoc
-        );
-        transcriptSearchChunksCache = chunks;
-        return chunks;
-      })
-      .catch((error) => {
-        transcriptSearchChunksPromise = null;
-        throw error;
-      });
-  }
-
-  return transcriptSearchChunksPromise;
+  const payload = (await response.json()) as {
+    chunks?: VideoTranscriptSearchChunkDoc[];
+  };
+  return Array.isArray(payload.chunks) ? payload.chunks : [];
 }
 
 export function resetTranscriptSearchChunksCache() {
-  transcriptSearchChunksCache = null;
-  transcriptSearchChunksPromise = null;
+  transcriptSearchChunksCache.clear();
 }
 
-export function useTranscriptSearchChunks(enabled: boolean) {
-  const [chunks, setChunks] = useState<VideoTranscriptSearchChunkDoc[]>(() => transcriptSearchChunksCache ?? []);
+export function useTranscriptSearchChunks(enabled: boolean, query: string) {
+  const normalizedQuery = useMemo(() => query.trim().toLowerCase(), [query]);
+  const shouldSearch = enabled && normalizedQuery.length >= MIN_QUERY_LENGTH;
+  const [chunks, setChunks] = useState<VideoTranscriptSearchChunkDoc[]>(() => {
+    if (!shouldSearch) {
+      return [];
+    }
+
+    return transcriptSearchChunksCache.get(normalizedQuery) ?? [];
+  });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!enabled) {
+    if (!shouldSearch) {
+      setChunks([]);
+      setLoading(false);
       return;
     }
 
-    if (transcriptSearchChunksCache) {
-      setChunks(transcriptSearchChunksCache);
+    const cachedChunks = transcriptSearchChunksCache.get(normalizedQuery);
+    if (cachedChunks) {
+      setChunks(cachedChunks);
+      setLoading(false);
       return;
     }
 
-    let cancelled = false;
+    setChunks([]);
+    const abortController = new AbortController();
     setLoading(true);
 
-    loadTranscriptSearchChunks()
+    fetchTranscriptSearchChunks(normalizedQuery, abortController.signal)
       .then((nextChunks) => {
-        if (!cancelled) {
-          setChunks(nextChunks);
-        }
+        transcriptSearchChunksCache.set(normalizedQuery, nextChunks);
+        setChunks(nextChunks);
       })
       .catch((error) => {
-        if (!cancelled) {
-          debugError('[useTranscriptSearchChunks] Failed to load transcript search chunks', error);
+        if (abortController.signal.aborted) {
+          return;
         }
+
+        debugError('[useTranscriptSearchChunks] Failed to load transcript search chunks', error);
+        setChunks([]);
       })
       .finally(() => {
-        if (!cancelled) {
+        if (!abortController.signal.aborted) {
           setLoading(false);
         }
       });
 
     return () => {
-      cancelled = true;
+      abortController.abort();
     };
-  }, [enabled]);
+  }, [normalizedQuery, shouldSearch]);
 
   return {
     chunks,
