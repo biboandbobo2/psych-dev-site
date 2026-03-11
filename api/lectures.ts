@@ -2,11 +2,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { GoogleGenAI } from '@google/genai';
-import { buildCourseLessonPath } from '../src/lib/courseLessonPaths';
+import { buildCourseLessonPath } from '../src/lib/courseLessonPaths.ts';
 import {
   loadFallbackLectureSources,
   searchFallbackTranscriptChunks,
-} from './lectureTranscriptFallback';
+} from './lectureTranscriptFallback.ts';
 
 export const LECTURE_COLLECTIONS = {
   chunks: 'lecture_chunks',
