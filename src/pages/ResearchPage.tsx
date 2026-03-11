@@ -258,11 +258,11 @@ export default function ResearchPage() {
         </div>
       ) : null}
 
-      {/* Book Search */}
-      <BookSearchBlock />
-
       {/* Lecture Search */}
       <LectureSearchBlock />
+
+      {/* Book Search */}
+      <BookSearchBlock />
     </div>
   );
 }
