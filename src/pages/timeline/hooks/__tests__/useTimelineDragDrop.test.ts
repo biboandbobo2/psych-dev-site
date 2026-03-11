@@ -2,28 +2,27 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useTimelineDragDrop } from '../useTimelineDragDrop';
 import type { NodeT, EdgeT, Transform } from '../../types';
-import { LINE_X_POSITION } from '../../constants';
 
 describe('useTimelineDragDrop', () => {
   let mockNodes: NodeT[];
   let mockEdges: EdgeT[];
-  let setNodes: ReturnType<typeof vi.fn>;
-  let setEdges: ReturnType<typeof vi.fn>;
-  let onHistoryRecord: ReturnType<typeof vi.fn>;
+  let setNodes: ReturnType<typeof vi.fn<(nodes: NodeT[]) => void>>;
+  let setEdges: ReturnType<typeof vi.fn<(edges: EdgeT[]) => void>>;
+  let onHistoryRecord: ReturnType<typeof vi.fn<() => void>>;
   let mockTransform: Transform;
   let mockSvgRef: React.RefObject<SVGSVGElement>;
 
   beforeEach(() => {
     mockNodes = [
-      { id: 'parent', age: 20, x: 500, label: 'Родитель', notes: '', sphere: 'work', isDecision: false },
-      { id: 'child', age: 25, x: 600, parentX: 500, label: 'Дочерний', notes: '', sphere: 'work', isDecision: false },
+      { id: 'parent', age: 20, x: 500, label: 'Родитель', notes: '', sphere: 'career', isDecision: false },
+      { id: 'child', age: 25, x: 600, parentX: 500, label: 'Дочерний', notes: '', sphere: 'career', isDecision: false },
     ];
     mockEdges = [
       { id: 'edge1', x: 500, startAge: 20, endAge: 30, color: '#000', nodeId: 'parent' },
     ];
-    setNodes = vi.fn();
-    setEdges = vi.fn();
-    onHistoryRecord = vi.fn();
+    setNodes = vi.fn<(nodes: NodeT[]) => void>();
+    setEdges = vi.fn<(edges: EdgeT[]) => void>();
+    onHistoryRecord = vi.fn<() => void>();
     mockTransform = { x: 0, y: 0, k: 1 };
     mockSvgRef = {
       current: {

@@ -21,9 +21,12 @@ describe('tests.ts CRUD и prerequisite', () => {
     const firstTestId = await testsModule.createTest(
       {
         title: firstTitle,
+        course: 'development',
         rubric: 'full-course',
+        questionCount: 0,
         status: 'draft',
         requiredPercentage: 70,
+        createdBy: creatorId,
       },
       creatorId
     );
@@ -31,9 +34,12 @@ describe('tests.ts CRUD и prerequisite', () => {
     const secondTestId = await testsModule.createTest(
       {
         title: secondTitle,
+        course: 'development',
         rubric: 'full-course',
+        questionCount: 0,
         status: 'draft',
         prerequisiteTestId: firstTestId,
+        createdBy: creatorId,
       },
       creatorId
     );
@@ -62,8 +68,11 @@ describe('testResults.ts flows', () => {
     const testId = await testsModule.createTest(
       {
         title: testTitle,
+        course: 'development',
         rubric: 'full-course',
+        questionCount: 0,
         status: 'draft',
+        createdBy: creatorId,
       },
       creatorId
     );

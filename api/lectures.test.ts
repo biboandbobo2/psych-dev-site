@@ -176,7 +176,7 @@ describe('validateLectureScope', () => {
     });
 
     expect(result.valid).toBe(false);
-    if (!result.valid) {
+    if (result.valid === false) {
       expect(result.code).toBe('VALIDATION_ERROR');
     }
   });

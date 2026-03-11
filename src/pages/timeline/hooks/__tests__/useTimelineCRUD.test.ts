@@ -9,22 +9,22 @@ global.alert = vi.fn();
 describe('useTimelineCRUD', () => {
   let mockNodes: NodeT[];
   let mockEdges: EdgeT[];
-  let setNodes: ReturnType<typeof vi.fn>;
-  let setEdges: ReturnType<typeof vi.fn>;
-  let onHistoryRecord: ReturnType<typeof vi.fn>;
-  let onClearForm: ReturnType<typeof vi.fn>;
-  let onSetSelectedId: ReturnType<typeof vi.fn>;
+  let setNodes: ReturnType<typeof vi.fn<(nodes: NodeT[]) => void>>;
+  let setEdges: ReturnType<typeof vi.fn<(edges: EdgeT[]) => void>>;
+  let onHistoryRecord: ReturnType<typeof vi.fn<(nodes?: NodeT[], edges?: EdgeT[]) => void>>;
+  let onClearForm: ReturnType<typeof vi.fn<() => void>>;
+  let onSetSelectedId: ReturnType<typeof vi.fn<(id: string | null) => void>>;
 
   beforeEach(() => {
     mockNodes = [
-      { id: 'node1', age: 20, x: 500, label: 'Событие 1', notes: '', sphere: 'work', isDecision: false },
+      { id: 'node1', age: 20, x: 500, label: 'Событие 1', notes: '', sphere: 'career', isDecision: false },
     ];
     mockEdges = [];
-    setNodes = vi.fn();
-    setEdges = vi.fn();
-    onHistoryRecord = vi.fn();
-    onClearForm = vi.fn();
-    onSetSelectedId = vi.fn();
+    setNodes = vi.fn<(nodes: NodeT[]) => void>();
+    setEdges = vi.fn<(edges: EdgeT[]) => void>();
+    onHistoryRecord = vi.fn<(nodes?: NodeT[], edges?: EdgeT[]) => void>();
+    onClearForm = vi.fn<() => void>();
+    onSetSelectedId = vi.fn<(id: string | null) => void>();
     vi.clearAllMocks();
   });
 
@@ -261,7 +261,7 @@ describe('useTimelineCRUD', () => {
       );
 
       const newEvents = [
-        { age: 25, x: 500, label: 'Событие A', notes: '', sphere: 'work' as const, isDecision: false },
+        { age: 25, x: 500, label: 'Событие A', notes: '', sphere: 'career' as const, isDecision: false },
         { age: 30, x: 500, label: 'Событие B', notes: '', sphere: 'education' as const, isDecision: false },
       ];
 

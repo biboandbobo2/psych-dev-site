@@ -1,5 +1,4 @@
 import admin from 'firebase-admin';
-import { clearFirestoreData } from 'firebase-admin/firestore';
 
 const DEFAULT_PROJECT_ID = 'psych-dev-site-test';
 const EMULATOR_HOSTS: Record<string, string> = {
@@ -42,7 +41,15 @@ export function initializeIntegrationApp() {
 }
 
 export async function resetFirestore(): Promise<void> {
-  await clearFirestoreData({ projectId: getProjectId() });
+  const firestoreHost = process.env.FIRESTORE_EMULATOR_HOST || EMULATOR_HOSTS.FIRESTORE_EMULATOR_HOST;
+  const response = await fetch(
+    `http://${firestoreHost}/emulator/v1/projects/${getProjectId()}/databases/(default)/documents`,
+    { method: 'DELETE' }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to reset Firestore emulator: ${response.status}`);
+  }
 }
 
 export async function resetAuth(): Promise<void> {

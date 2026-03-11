@@ -33,7 +33,6 @@ Generated: 2025-11-10T07:37:38.227Z
 ## 🎨 Files mentioning colors/periods
 
 - `scripts/analyze-project.ts` - Utilities/Config [Contains period colors] [References CSV files]
-- `scripts/migrateAuthorsTests.ts` - [Contains period colors]
 - `shared/verifyCore.ts` - Utilities/Config [Contains period colors]
 - `src/App.jsx` - Component: App [Contains period colors] [References CSV files]
 - `src/components/NotesFilter.tsx` - [Contains period colors]
@@ -126,4 +125,3 @@ Generated: 2025-11-10T07:37:38.227Z
 2. Check files marked with [References CSV files] for data loading logic
 3. Review components in `src/pages/` to understand routing
 4. Check `src/constants/` for any hardcoded data
-

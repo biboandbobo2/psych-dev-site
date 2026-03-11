@@ -25,6 +25,23 @@ describe('useTimeline', () => {
   const getDocMock = vi.mocked(getDoc);
   const setDocMock = vi.mocked(setDoc);
   const tsMock = vi.mocked(serverTimestamp);
+  const baseAuthValue: ReturnType<typeof useAuth> = {
+    user: null,
+    loading: false,
+    userRole: null,
+    courseAccess: null,
+    isGuest: false,
+    isStudent: false,
+    isAdmin: false,
+    isSuperAdmin: false,
+    signInWithGoogle: async () => undefined,
+    logout: async () => undefined,
+    hasCourseAccess: () => false,
+  };
+  const missingSnapshot = {
+    exists: () => false,
+    data: () => undefined,
+  } as Awaited<ReturnType<typeof getDoc>>;
 
   const eventPayload = { age: 30, label: 'Milestone', x: 2000, notes: 'note', isDecision: false } as const;
 
@@ -33,7 +50,7 @@ describe('useTimeline', () => {
     getDocMock.mockClear();
     setDocMock.mockClear();
     tsMock.mockClear();
-    getDocMock.mockResolvedValue({ exists: () => false });
+    getDocMock.mockResolvedValue(missingSnapshot);
     setDocMock.mockResolvedValue(undefined);
   });
 
@@ -42,7 +59,7 @@ describe('useTimeline', () => {
   });
 
   it('throws when user is not authenticated', async () => {
-    authMock.mockReturnValue({ user: null });
+    authMock.mockReturnValue(baseAuthValue);
 
     const { result } = renderHook(() => useTimeline());
 
@@ -50,12 +67,19 @@ describe('useTimeline', () => {
   });
 
   it('creates an event when user exists', async () => {
-    authMock.mockReturnValue({ user: { uid: 'user-123' } });
-    const randomUUIDSpy = vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('event-1');
+    authMock.mockReturnValue({
+      ...baseAuthValue,
+      user: { uid: 'user-123' } as NonNullable<ReturnType<typeof useAuth>['user']>,
+    });
+    const randomUUIDSpy = vi
+      .spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValue('00000000-0000-4000-8000-000000000001');
 
     const { result } = renderHook(() => useTimeline());
 
-    await expect(result.current.addEventToTimeline(eventPayload)).resolves.toBe('event-1');
+    await expect(result.current.addEventToTimeline(eventPayload)).resolves.toBe(
+      '00000000-0000-4000-8000-000000000001'
+    );
 
     expect(docMock).toHaveBeenCalledWith({}, 'timelines', 'user-123');
     expect(getDocMock).toHaveBeenCalledWith(docMock.mock.results[0].value);

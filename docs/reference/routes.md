@@ -156,7 +156,7 @@
 | `/tests/authors/level2` | `AuthorsTestLevel2` | Уровень 2: Цитаты | Требует 10/10 на уровне 1 |
 | `/tests/authors/level3` | `AuthorsTestLevel3` | Уровень 3: Термины в контексте | Требует 10/10 на уровне 2 |
 
-**Данные:** хранятся в `src/data/authorsTestData.ts`, `authorsTestLevel2Data.ts`, `authorsTestLevel3Data.ts`
+**Данные:** legacy-уровни инкапсулированы внутри клиентских модулей `AuthorsTest*`; отдельные migration data-файлы больше не используются.
 
 ---
 

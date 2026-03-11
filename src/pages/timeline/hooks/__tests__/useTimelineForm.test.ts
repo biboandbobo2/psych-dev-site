@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { useTimelineForm } from '../useTimelineForm';
-import type { NodeT } from '../../types';
+import type { EventIconId, NodeT } from '../../types';
 
 describe('useTimelineForm', () => {
   it('инициализируется с пустыми значениями', () => {
@@ -42,9 +42,9 @@ describe('useTimelineForm', () => {
       x: 500,
       label: 'Тестовое событие',
       notes: 'Некоторые заметки',
-      sphere: 'work',
+      sphere: 'career',
       isDecision: true,
-      iconId: 'graduation' as any,
+      iconId: 'graduation' as EventIconId,
     };
 
     act(() => {
@@ -55,7 +55,7 @@ describe('useTimelineForm', () => {
     expect(result.current.formEventAge).toBe('30');
     expect(result.current.formEventLabel).toBe('Тестовое событие');
     expect(result.current.formEventNotes).toBe('Некоторые заметки');
-    expect(result.current.formEventSphere).toBe('work');
+    expect(result.current.formEventSphere).toBe('career');
     expect(result.current.formEventIsDecision).toBe(true);
     expect(result.current.formEventIcon).toBe('graduation');
   });
@@ -69,7 +69,7 @@ describe('useTimelineForm', () => {
       x: 500,
       label: 'Исходное событие',
       notes: '',
-      sphere: 'work',
+      sphere: 'career',
       isDecision: false,
     };
 

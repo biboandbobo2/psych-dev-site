@@ -65,10 +65,7 @@
    - 10 цитат с пропущенными терминами
    - Финальный уровень
 
-Вопросы хранятся в файлах:
-- `src/data/authorsTestData.ts`
-- `src/data/authorsTestLevel2Data.ts`
-- `src/data/authorsTestLevel3Data.ts`
+Вопросы legacy-уровней встроены в клиентские модули `AuthorsTest*` и больше не мигрируются отдельными data-файлами.
 
 История результатов сохраняется в Firestore (`testResults` коллекция).
 
