@@ -9,6 +9,10 @@ export function createEmptyTranscriptRefreshSummary() {
         skippedCount: 0,
         scannedVideoCount: 0,
         candidateCount: 0,
+        transcriptSyncedCount: 0,
+        searchIndexSyncedCount: 0,
+        lectureRagSyncedCount: 0,
+        lectureRagSkippedCount: 0,
         errorSummary: [],
     };
 }
@@ -40,6 +44,10 @@ function buildRunningRunDoc(jobName, now, trigger) {
         skippedCount: 0,
         scannedVideoCount: 0,
         candidateCount: 0,
+        transcriptSyncedCount: 0,
+        searchIndexSyncedCount: 0,
+        lectureRagSyncedCount: 0,
+        lectureRagSkippedCount: 0,
         errorSummary: [],
     };
 }

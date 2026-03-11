@@ -134,5 +134,9 @@ export interface TranscriptRefreshJobRunDocShape<TTimestamp> {
   skippedCount: number;
   scannedVideoCount: number;
   candidateCount: number;
+  transcriptSyncedCount: number;
+  searchIndexSyncedCount: number;
+  lectureRagSyncedCount: number;
+  lectureRagSkippedCount: number;
   errorSummary: string[];
 }

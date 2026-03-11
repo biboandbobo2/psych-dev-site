@@ -69,9 +69,11 @@ export async function runWeeklyTranscriptRefresh(deps?: {
 
       if (result.status === "available") {
         summary.availableCount += 1;
+        summary.transcriptSyncedCount += 1;
+        summary.searchIndexSyncedCount += 1;
 
         try {
-          await ingestLectureRagTarget(
+          const lectureRagResult = await ingestLectureRagTarget(
             {
               bucket,
               db,
@@ -83,6 +85,14 @@ export async function runWeeklyTranscriptRefresh(deps?: {
               now: Timestamp.now(),
             }
           );
+
+          if (lectureRagResult.status === "processed") {
+            summary.lectureRagSyncedCount += 1;
+          }
+
+          if (lectureRagResult.status === "skipped") {
+            summary.lectureRagSkippedCount += 1;
+          }
         } catch (error: any) {
           summary.failedCount += 1;
           summary.errorSummary.push(

@@ -15,6 +15,12 @@ export function formatTranscriptRefreshTelegramReport(summary, context) {
         `Unavailable: *${summary.unavailableCount}*`,
         `Failed: *${summary.failedCount}*`,
         `Skipped: *${summary.skippedCount}*`,
+        "",
+        "*Pipeline:*",
+        `• Transcript synced: *${summary.transcriptSyncedCount}*`,
+        `• Search index synced: *${summary.searchIndexSyncedCount}*`,
+        `• Lecture AI synced: *${summary.lectureRagSyncedCount}*`,
+        `• Lecture AI skipped: *${summary.lectureRagSkippedCount}*`,
     ];
     if (context.errorMessage) {
         lines.push("", `Error: ${escapeMarkdown(context.errorMessage)}`);

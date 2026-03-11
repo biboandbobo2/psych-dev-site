@@ -17,6 +17,10 @@ export interface TranscriptRefreshSummary {
   skippedCount: number;
   scannedVideoCount: number;
   candidateCount: number;
+  transcriptSyncedCount: number;
+  searchIndexSyncedCount: number;
+  lectureRagSyncedCount: number;
+  lectureRagSkippedCount: number;
   errorSummary: string[];
 }
 
@@ -36,6 +40,10 @@ export function createEmptyTranscriptRefreshSummary(): TranscriptRefreshSummary 
     skippedCount: 0,
     scannedVideoCount: 0,
     candidateCount: 0,
+    transcriptSyncedCount: 0,
+    searchIndexSyncedCount: 0,
+    lectureRagSyncedCount: 0,
+    lectureRagSkippedCount: 0,
     errorSummary: [],
   };
 }
@@ -79,6 +87,10 @@ function buildRunningRunDoc(
     skippedCount: 0,
     scannedVideoCount: 0,
     candidateCount: 0,
+    transcriptSyncedCount: 0,
+    searchIndexSyncedCount: 0,
+    lectureRagSyncedCount: 0,
+    lectureRagSkippedCount: 0,
     errorSummary: [],
   };
 }

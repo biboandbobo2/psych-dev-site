@@ -10,6 +10,10 @@ describe("formatTranscriptRefreshTelegramReport", () => {
     summary.processedCount = 3;
     summary.availableCount = 1;
     summary.unavailableCount = 2;
+    summary.transcriptSyncedCount = 1;
+    summary.searchIndexSyncedCount = 1;
+    summary.lectureRagSyncedCount = 1;
+    summary.lectureRagSkippedCount = 0;
     summary.errorSummary = ["abc123: TRANSCRIPT_NOT_AVAILABLE", "x_y*z: UNKNOWN"];
 
     const report = formatTranscriptRefreshTelegramReport(summary, {
@@ -22,6 +26,9 @@ describe("formatTranscriptRefreshTelegramReport", () => {
     expect(report).toContain("Weekly Transcript Refresh");
     expect(report).toContain("Scanned videos: *45*");
     expect(report).toContain("Candidates: *3*");
+    expect(report).toContain("Transcript synced: *1*");
+    expect(report).toContain("Search index synced: *1*");
+    expect(report).toContain("Lecture AI synced: *1*");
     expect(report).toContain("• x\\_y\\*z: UNKNOWN");
   });
 });
