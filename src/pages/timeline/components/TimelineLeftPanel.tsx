@@ -88,7 +88,7 @@ export function TimelineLeftPanel({
   return (
     <div className="fixed top-4 left-4 z-40">
       <aside
-        className="w-36 space-y-3 rounded-3xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/90 p-4 shadow-xl backdrop-blur-md sm:w-40"
+        className="w-36 space-y-3 overflow-visible rounded-3xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/90 p-4 shadow-xl backdrop-blur-md sm:w-40"
         style={{ fontFamily: 'Georgia, serif' }}
       >
         <div className="flex items-center gap-2 pr-6">
@@ -232,54 +232,70 @@ export function TimelineLeftPanel({
           </div>
 
           <div className="space-y-2 pt-1">
-            <button
-              type="button"
-              onClick={handleCreateTimeline}
-              className="w-full rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-sky-50 px-3 py-2 text-xs font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:from-blue-100 hover:to-sky-100"
-            >
-              + Создать таймлайн
-            </button>
-
-            <div ref={timelineMenuRef} className="relative">
-              <button
-                type="button"
-                disabled={!hasAdditionalTimelines}
-                onClick={() => setTimelineMenuOpen((prev) => !prev)}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-100 disabled:bg-slate-50 disabled:text-slate-400"
-              >
-                <span className="block text-[9px] uppercase tracking-[0.22em] text-slate-500">Активный холст</span>
-                <span className="mt-1 flex items-center justify-between gap-2">
-                  <span className="truncate">{activeTimelineName}</span>
-                  <span className="text-[10px] text-slate-400">{timelineCanvases.length}</span>
+            <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+              <div ref={timelineMenuRef} className="relative group">
+                <button
+                  type="button"
+                  title="Выбрать активный таймлайн"
+                  disabled={!hasAdditionalTimelines}
+                  onClick={() => setTimelineMenuOpen((prev) => !prev)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-100 disabled:bg-slate-50 disabled:text-slate-400"
+                >
+                  Выбор ТЛ
+                </button>
+                <span className="pointer-events-none absolute -top-9 left-1/2 z-50 w-28 -translate-x-1/2 rounded-lg bg-slate-900 px-2 py-1 text-center text-[10px] font-medium text-white opacity-0 shadow-lg transition group-hover:opacity-100">
+                  Выбрать активный таймлайн
                 </span>
-              </button>
 
-              {timelineMenuOpen && hasAdditionalTimelines && (
-                <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
-                  <div className="px-2 pb-1 text-[9px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Выбор таймлайна
+                {timelineMenuOpen && hasAdditionalTimelines && (
+                  <div className="absolute left-full top-1/2 z-50 ml-2 w-44 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                    <div className="px-2 pb-1 text-[9px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      Выбор таймлайна
+                    </div>
+                    <div className="space-y-1">
+                      {timelineCanvases.map((timeline) => {
+                        const isActive = timeline.id === activeTimelineId;
+                        return (
+                          <button
+                            key={timeline.id}
+                            type="button"
+                            onClick={() => onSelectTimeline(timeline.id)}
+                            className={`w-full rounded-xl px-2 py-2 text-left text-xs transition ${
+                              isActive
+                                ? 'bg-blue-50 font-semibold text-blue-700'
+                                : 'text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            {timeline.name}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    {timelineCanvases.map((timeline) => {
-                      const isActive = timeline.id === activeTimelineId;
-                      return (
-                        <button
-                          key={timeline.id}
-                          type="button"
-                          onClick={() => onSelectTimeline(timeline.id)}
-                          className={`w-full rounded-xl px-2 py-2 text-left text-xs transition ${
-                            isActive
-                              ? 'bg-blue-50 font-semibold text-blue-700'
-                              : 'text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          {timeline.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
+
+              <div className="relative group">
+                <button
+                  type="button"
+                  title="Создать новый пустой холст"
+                  onClick={handleCreateTimeline}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-sky-50 text-lg font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:from-blue-100 hover:to-sky-100"
+                >
+                  +
+                </button>
+                <span className="pointer-events-none absolute -top-9 left-1/2 z-50 w-28 -translate-x-1/2 rounded-lg bg-slate-900 px-2 py-1 text-center text-[10px] font-medium text-white opacity-0 shadow-lg transition group-hover:opacity-100">
+                  Создать новый холст
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200/80 bg-white/70 px-3 py-2 text-[11px] text-slate-600 shadow-inner">
+              <span className="block uppercase tracking-[0.2em] text-[9px] text-slate-500">Активный холст</span>
+              <span className="mt-1 flex items-center justify-between gap-2">
+                <span className="truncate font-semibold text-slate-800">{activeTimelineName}</span>
+                <span className="text-[10px] text-slate-400">{timelineCanvases.length}</span>
+              </span>
             </div>
           </div>
         </div>
