@@ -20,8 +20,15 @@ interface TimelineLeftPanelProps {
   biographyImportError: string | null;
   biographyDiagnostics: string[];
   biographyUiSignals: {
-    pointerdown: number;
-    click: number;
+    reactPointerdown: number;
+    reactClick: number;
+    reactTouchstart: number;
+    nativePointerdown: number;
+    nativeClick: number;
+    nativeTouchstart: number;
+    docPointerdown: number;
+    docClick: number;
+    docTouchstart: number;
     open: number;
     close: number;
     submit: number;
@@ -43,7 +50,22 @@ interface TimelineLeftPanelProps {
   onBiographySourceUrlChange: (value: string) => void;
   onSubmitBiographyImport: () => void;
   onBiographyDiagnostic: (message: string, details?: unknown) => void;
-  onBiographyUiSignal: (signal: 'pointerdown' | 'click' | 'open' | 'close' | 'submit', details?: unknown) => void;
+  onBiographyUiSignal: (
+    signal:
+      | 'reactPointerdown'
+      | 'reactClick'
+      | 'reactTouchstart'
+      | 'nativePointerdown'
+      | 'nativeClick'
+      | 'nativeTouchstart'
+      | 'docPointerdown'
+      | 'docClick'
+      | 'docTouchstart'
+      | 'open'
+      | 'close'
+      | 'submit',
+    details?: unknown
+  ) => void;
 }
 
 export function TimelineLeftPanel({
@@ -132,6 +154,77 @@ export function TimelineLeftPanel({
     setBiographyButtonProbe(probe);
     onBiographyDiagnostic('button probe', probe);
   }, [activeTimelineId, onBiographyDiagnostic, showBiographyImportAction, biographyImportExpanded]);
+
+  useEffect(() => {
+    if (!showBiographyImportAction) return;
+
+    const button = biographyButtonRef.current;
+    if (!button) return;
+
+    const describeTarget = (target: EventTarget | null) =>
+      target instanceof HTMLElement ? `${target.tagName.toLowerCase()}.${target.className || 'no-class'}` : 'unknown';
+
+    const getPoint = (event: Event) => {
+      if (event instanceof PointerEvent || event instanceof MouseEvent) {
+        return { x: event.clientX, y: event.clientY };
+      }
+
+      if (event instanceof TouchEvent) {
+        const touch = event.touches[0] ?? event.changedTouches[0];
+        if (touch) {
+          return { x: touch.clientX, y: touch.clientY };
+        }
+      }
+
+      return null;
+    };
+
+    const isInsideButtonZone = (event: Event) => {
+      const point = getPoint(event);
+      if (!point) return false;
+      const rect = button.getBoundingClientRect();
+      return point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom;
+    };
+
+    const nativePointerdown = (event: PointerEvent) => {
+      onBiographyUiSignal('nativePointerdown', describeTarget(event.target));
+    };
+    const nativeClick = (event: MouseEvent) => {
+      onBiographyUiSignal('nativeClick', describeTarget(event.target));
+    };
+    const nativeTouchstart = (event: TouchEvent) => {
+      onBiographyUiSignal('nativeTouchstart', describeTarget(event.target));
+    };
+
+    const docPointerdown = (event: PointerEvent) => {
+      if (!isInsideButtonZone(event)) return;
+      onBiographyUiSignal('docPointerdown', describeTarget(event.target));
+    };
+    const docClick = (event: MouseEvent) => {
+      if (!isInsideButtonZone(event)) return;
+      onBiographyUiSignal('docClick', describeTarget(event.target));
+    };
+    const docTouchstart = (event: TouchEvent) => {
+      if (!isInsideButtonZone(event)) return;
+      onBiographyUiSignal('docTouchstart', describeTarget(event.target));
+    };
+
+    button.addEventListener('pointerdown', nativePointerdown);
+    button.addEventListener('click', nativeClick);
+    button.addEventListener('touchstart', nativeTouchstart);
+    document.addEventListener('pointerdown', docPointerdown, true);
+    document.addEventListener('click', docClick, true);
+    document.addEventListener('touchstart', docTouchstart, true);
+
+    return () => {
+      button.removeEventListener('pointerdown', nativePointerdown);
+      button.removeEventListener('click', nativeClick);
+      button.removeEventListener('touchstart', nativeTouchstart);
+      document.removeEventListener('pointerdown', docPointerdown, true);
+      document.removeEventListener('click', docClick, true);
+      document.removeEventListener('touchstart', docTouchstart, true);
+    };
+  }, [onBiographyUiSignal, showBiographyImportAction]);
 
   const handleAgeChange = (event: ChangeEvent<HTMLInputElement>) => {
     onCurrentAgeChange(Number(event.target.value));
@@ -303,11 +396,15 @@ export function TimelineLeftPanel({
                   ref={biographyButtonRef}
                   onPointerDownCapture={() => {
                     onBiographyDiagnostic('button pointerdown capture');
-                    onBiographyUiSignal('pointerdown');
+                    onBiographyUiSignal('reactPointerdown');
+                  }}
+                  onTouchStartCapture={() => {
+                    onBiographyDiagnostic('button touchstart capture');
+                    onBiographyUiSignal('reactTouchstart');
                   }}
                   onClickCapture={() => {
                     onBiographyDiagnostic('button click capture');
-                    onBiographyUiSignal('click');
+                    onBiographyUiSignal('reactClick');
                   }}
                   onClick={biographyImportExpanded ? onCloseBiographyImport : onOpenBiographyImport}
                   disabled={biographyImportLoading}
@@ -352,8 +449,15 @@ export function TimelineLeftPanel({
                     <div>loading: {biographyImportLoading ? 'true' : 'false'}</div>
                     <div>error: {biographyImportError ? 'true' : 'false'}</div>
                     <div>last: {biographyLastUiSignal ?? 'none'}</div>
-                    <div>pointerdown: {biographyUiSignals.pointerdown}</div>
-                    <div>click: {biographyUiSignals.click}</div>
+                    <div>react PD: {biographyUiSignals.reactPointerdown}</div>
+                    <div>react click: {biographyUiSignals.reactClick}</div>
+                    <div>react touch: {biographyUiSignals.reactTouchstart}</div>
+                    <div>native PD: {biographyUiSignals.nativePointerdown}</div>
+                    <div>native click: {biographyUiSignals.nativeClick}</div>
+                    <div>native touch: {biographyUiSignals.nativeTouchstart}</div>
+                    <div>doc PD: {biographyUiSignals.docPointerdown}</div>
+                    <div>doc click: {biographyUiSignals.docClick}</div>
+                    <div>doc touch: {biographyUiSignals.docTouchstart}</div>
                     <div>open: {biographyUiSignals.open}</div>
                     <div>close: {biographyUiSignals.close}</div>
                     <div>submit: {biographyUiSignals.submit}</div>

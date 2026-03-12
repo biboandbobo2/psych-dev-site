@@ -204,8 +204,15 @@ export default function Timeline() {
   const [biographyImportError, setBiographyImportError] = useState<string | null>(null);
   const [biographyDiagnostics, setBiographyDiagnostics] = useState<string[]>([]);
   const [biographyUiSignals, setBiographyUiSignals] = useState({
-    pointerdown: 0,
-    click: 0,
+    reactPointerdown: 0,
+    reactClick: 0,
+    reactTouchstart: 0,
+    nativePointerdown: 0,
+    nativeClick: 0,
+    nativeTouchstart: 0,
+    docPointerdown: 0,
+    docClick: 0,
+    docTouchstart: 0,
     open: 0,
     close: 0,
     submit: 0,
@@ -228,7 +235,22 @@ export default function Timeline() {
   }, []);
 
   const recordBiographyUiSignal = useCallback(
-    (signal: 'pointerdown' | 'click' | 'open' | 'close' | 'submit', details?: unknown) => {
+    (
+      signal:
+        | 'reactPointerdown'
+        | 'reactClick'
+        | 'reactTouchstart'
+        | 'nativePointerdown'
+        | 'nativeClick'
+        | 'nativeTouchstart'
+        | 'docPointerdown'
+        | 'docClick'
+        | 'docTouchstart'
+        | 'open'
+        | 'close'
+        | 'submit',
+      details?: unknown
+    ) => {
       setBiographyUiSignals((prev) => ({
         ...prev,
         [signal]: prev[signal] + 1,
@@ -303,8 +325,15 @@ export default function Timeline() {
     setBiographySourceUrl('');
     setBiographyDiagnostics([]);
     setBiographyUiSignals({
-      pointerdown: 0,
-      click: 0,
+      reactPointerdown: 0,
+      reactClick: 0,
+      reactTouchstart: 0,
+      nativePointerdown: 0,
+      nativeClick: 0,
+      nativeTouchstart: 0,
+      docPointerdown: 0,
+      docClick: 0,
+      docTouchstart: 0,
       open: 0,
       close: 0,
       submit: 0,
