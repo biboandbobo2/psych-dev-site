@@ -19,6 +19,14 @@ interface TimelineLeftPanelProps {
   biographySourceUrl: string;
   biographyImportError: string | null;
   biographyDiagnostics: string[];
+  biographyUiSignals: {
+    pointerdown: number;
+    click: number;
+    open: number;
+    close: number;
+    submit: number;
+  };
+  biographyLastUiSignal: string | null;
   downloadMenuOpen: boolean;
   downloadButtonRef: RefObject<HTMLButtonElement>;
   downloadMenuRef: RefObject<HTMLDivElement>;
@@ -35,6 +43,7 @@ interface TimelineLeftPanelProps {
   onBiographySourceUrlChange: (value: string) => void;
   onSubmitBiographyImport: () => void;
   onBiographyDiagnostic: (message: string, details?: unknown) => void;
+  onBiographyUiSignal: (signal: 'pointerdown' | 'click' | 'open' | 'close' | 'submit', details?: unknown) => void;
 }
 
 export function TimelineLeftPanel({
@@ -52,6 +61,8 @@ export function TimelineLeftPanel({
   biographySourceUrl,
   biographyImportError,
   biographyDiagnostics,
+  biographyUiSignals,
+  biographyLastUiSignal,
   downloadMenuOpen,
   downloadButtonRef,
   downloadMenuRef,
@@ -68,6 +79,7 @@ export function TimelineLeftPanel({
   onBiographySourceUrlChange,
   onSubmitBiographyImport,
   onBiographyDiagnostic,
+  onBiographyUiSignal,
 }: TimelineLeftPanelProps) {
   const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
@@ -289,8 +301,14 @@ export function TimelineLeftPanel({
                 <button
                   type="button"
                   ref={biographyButtonRef}
-                  onPointerDownCapture={() => onBiographyDiagnostic('button pointerdown capture')}
-                  onClickCapture={() => onBiographyDiagnostic('button click capture')}
+                  onPointerDownCapture={() => {
+                    onBiographyDiagnostic('button pointerdown capture');
+                    onBiographyUiSignal('pointerdown');
+                  }}
+                  onClickCapture={() => {
+                    onBiographyDiagnostic('button click capture');
+                    onBiographyUiSignal('click');
+                  }}
                   onClick={biographyImportExpanded ? onCloseBiographyImport : onOpenBiographyImport}
                   disabled={biographyImportLoading}
                   className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
@@ -329,6 +347,18 @@ export function TimelineLeftPanel({
                 <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-2 text-[10px] leading-4 text-amber-900">
                   <div className="font-semibold uppercase tracking-[0.18em]">Диагностика</div>
                   <div className="mt-1 break-words">probe: {biographyButtonProbe}</div>
+                  <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 border-t border-amber-200/70 pt-2">
+                    <div>expanded: {biographyImportExpanded ? 'true' : 'false'}</div>
+                    <div>loading: {biographyImportLoading ? 'true' : 'false'}</div>
+                    <div>error: {biographyImportError ? 'true' : 'false'}</div>
+                    <div>last: {biographyLastUiSignal ?? 'none'}</div>
+                    <div>pointerdown: {biographyUiSignals.pointerdown}</div>
+                    <div>click: {biographyUiSignals.click}</div>
+                    <div>open: {biographyUiSignals.open}</div>
+                    <div>close: {biographyUiSignals.close}</div>
+                    <div>submit: {biographyUiSignals.submit}</div>
+                    <div>urlLen: {biographySourceUrl.length}</div>
+                  </div>
                   <div className="mt-2 space-y-1">
                     {biographyDiagnostics.length > 0 ? (
                       biographyDiagnostics.map((entry) => (

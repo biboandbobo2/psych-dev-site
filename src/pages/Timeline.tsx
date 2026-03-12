@@ -203,6 +203,14 @@ export default function Timeline() {
   const [biographyImportLoading, setBiographyImportLoading] = useState(false);
   const [biographyImportError, setBiographyImportError] = useState<string | null>(null);
   const [biographyDiagnostics, setBiographyDiagnostics] = useState<string[]>([]);
+  const [biographyUiSignals, setBiographyUiSignals] = useState({
+    pointerdown: 0,
+    click: 0,
+    open: 0,
+    close: 0,
+    submit: 0,
+  });
+  const [biographyLastUiSignal, setBiographyLastUiSignal] = useState<string | null>(null);
 
   const appendBiographyDiagnostic = useCallback((message: string, details?: unknown) => {
     const timestamp = new Date().toLocaleTimeString('ru-RU', {
@@ -218,6 +226,18 @@ export default function Timeline() {
     debugLog('[Timeline][Biography]', entry);
     setBiographyDiagnostics((prev) => [entry, ...prev].slice(0, 8));
   }, []);
+
+  const recordBiographyUiSignal = useCallback(
+    (signal: 'pointerdown' | 'click' | 'open' | 'close' | 'submit', details?: unknown) => {
+      setBiographyUiSignals((prev) => ({
+        ...prev,
+        [signal]: prev[signal] + 1,
+      }));
+      setBiographyLastUiSignal(signal);
+      appendBiographyDiagnostic(`ui signal: ${signal}`, details);
+    },
+    [appendBiographyDiagnostic]
+  );
 
   // Branch management
   const branchHook = useTimelineBranch({
@@ -282,6 +302,14 @@ export default function Timeline() {
     setBiographyImportError(null);
     setBiographySourceUrl('');
     setBiographyDiagnostics([]);
+    setBiographyUiSignals({
+      pointerdown: 0,
+      click: 0,
+      open: 0,
+      close: 0,
+      submit: 0,
+    });
+    setBiographyLastUiSignal(null);
     resetHistory();
   }, [birthHook.setBirthSelected, branchHook.setSelectedBranchX, formHook.clearForm, resetHistory]);
 
@@ -426,6 +454,7 @@ export default function Timeline() {
 
   const handleOpenBiographyImport = () => {
     debugLog('[Timeline] Open biography import');
+    recordBiographyUiSignal('open');
     appendBiographyDiagnostic('open requested');
     setBiographyImportError(null);
     setShowBiographyImportExpanded(true);
@@ -434,6 +463,7 @@ export default function Timeline() {
   const handleCloseBiographyImport = () => {
     if (biographyImportLoading) return;
     debugLog('[Timeline] Close biography import');
+    recordBiographyUiSignal('close');
     appendBiographyDiagnostic('close requested');
     setShowBiographyImportExpanded(false);
     setBiographyImportError(null);
@@ -452,6 +482,11 @@ export default function Timeline() {
   const handleImportBiography = async () => {
     const sourceUrl = biographySourceUrl.trim();
     debugLog('[Timeline] Biography import submit', {
+      sourceUrl,
+      activeTimelineId,
+      activeTimelineName,
+    });
+    recordBiographyUiSignal('submit', {
       sourceUrl,
       activeTimelineId,
       activeTimelineName,
@@ -608,6 +643,8 @@ export default function Timeline() {
             biographySourceUrl={biographySourceUrl}
             biographyImportError={biographyImportError}
             biographyDiagnostics={biographyDiagnostics}
+            biographyUiSignals={biographyUiSignals}
+            biographyLastUiSignal={biographyLastUiSignal}
             downloadMenuOpen={downloadMenuOpen}
             downloadButtonRef={downloadButtonRef}
             downloadMenuRef={downloadMenuRef}
@@ -624,6 +661,7 @@ export default function Timeline() {
             onBiographySourceUrlChange={handleBiographySourceUrlChange}
             onSubmitBiographyImport={handleImportBiography}
             onBiographyDiagnostic={appendBiographyDiagnostic}
+            onBiographyUiSignal={recordBiographyUiSignal}
           />
         </Suspense>
       )}
