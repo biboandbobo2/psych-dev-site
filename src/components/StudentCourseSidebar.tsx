@@ -1,9 +1,14 @@
+import { useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/cn';
 import { useCourses } from '../hooks/useCourses';
 import { useCourseStore } from '../stores';
 import { useActiveCourse } from '../hooks/useActiveCourse';
 import type { CourseType } from '../types/tests';
+import { prefetchDynamicCourseLessons } from '../hooks/useDynamicCourseLessons';
+import { isCoreCourse } from '../constants/courses';
+import { debugWarn } from '../lib/debug';
+import { Skeleton } from './ui/Skeleton';
 
 interface NavigationItem {
   path: string;
@@ -12,15 +17,39 @@ interface NavigationItem {
 
 interface StudentCourseSidebarProps {
   navItems: NavigationItem[];
+  courseNavigationLoading?: boolean;
+  courseNavigationError?: string | null;
 }
 
-export default function StudentCourseSidebar({ navItems }: StudentCourseSidebarProps) {
+export default function StudentCourseSidebar({
+  navItems,
+  courseNavigationLoading = false,
+  courseNavigationError = null,
+}: StudentCourseSidebarProps) {
   const { courses, loading } = useCourses();
   const { setCurrentCourse } = useCourseStore();
   const activeCourse = useActiveCourse(courses, loading);
   const location = useLocation();
   const navigate = useNavigate();
   const isNotesPage = location.pathname === '/notes';
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    const dynamicCourseIds = courses
+      .map((course) => course.id)
+      .filter((courseId) => !isCoreCourse(courseId));
+
+    if (!dynamicCourseIds.length) {
+      return;
+    }
+
+    prefetchDynamicCourseLessons(dynamicCourseIds).catch((error) => {
+      debugWarn('[StudentCourseSidebar] Failed to prefetch dynamic course lessons', error);
+    });
+  }, [courses, loading]);
 
   const handleCourseSelect = (courseId: string) => {
     setCurrentCourse(courseId as CourseType);
@@ -64,7 +93,15 @@ export default function StudentCourseSidebar({ navItems }: StudentCourseSidebarP
         <div className="mb-3 px-1">
           <p className="text-xs uppercase tracking-[0.2em] text-muted">Навигация курса</p>
         </div>
-        {navItems.length === 0 ? (
+        {courseNavigationError ? (
+          <p className="px-2 py-2 text-xs text-destructive">Не удалось загрузить занятия курса.</p>
+        ) : courseNavigationLoading ? (
+          <div className="space-y-2 px-1">
+            <Skeleton className="h-12" />
+            <Skeleton className="h-12" />
+            <Skeleton className="h-12" />
+          </div>
+        ) : navItems.length === 0 ? (
           <p className="px-2 py-2 text-xs text-muted">Пока нет опубликованных занятий.</p>
         ) : (
           <nav className="flex flex-col gap-2">

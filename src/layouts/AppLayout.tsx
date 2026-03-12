@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import type { User } from 'firebase/auth';
 import { cn } from '../lib/cn';
 import UserMenu from '../components/UserMenu';
+import { Skeleton } from '../components/ui/Skeleton';
 
 type NavigationItem = {
   path: string;
@@ -17,6 +18,8 @@ interface AppLayoutProps {
   hideNavigation?: boolean;
   sidebar?: ReactNode;
   sidebarWidthClass?: string;
+  navigationLoading?: boolean;
+  navigationErrorMessage?: string | null;
   children: ReactNode;
 }
 
@@ -28,10 +31,12 @@ export function AppLayout({
   hideNavigation = false,
   sidebar,
   sidebarWidthClass,
+  navigationLoading = false,
+  navigationErrorMessage = null,
   children,
 }: AppLayoutProps) {
   const mobileNavRef = useRef<HTMLDetailsElement | null>(null);
-  const showNavigation = !hideNavigation && navItems.length > 0;
+  const showNavigation = !hideNavigation && (navItems.length > 0 || navigationLoading || Boolean(navigationErrorMessage));
   const showAside = Boolean(sidebar) || showNavigation;
   const asideWidthClass = sidebarWidthClass ?? "lg:w-72";
 
@@ -64,6 +69,24 @@ export function AppLayout({
     </nav>
   );
 
+  const renderNavContent = (onItemClick?: () => void) => {
+    if (navigationErrorMessage) {
+      return <p className="px-1 text-sm text-destructive">{navigationErrorMessage}</p>;
+    }
+
+    if (navigationLoading && navItems.length === 0) {
+      return (
+        <div className="space-y-2">
+          <Skeleton className="h-12" />
+          <Skeleton className="h-12" />
+          <Skeleton className="h-12" />
+        </div>
+      );
+    }
+
+    return renderNavList(onItemClick);
+  };
+
   return (
     <main className="relative bg-bg text-fg min-h-screen">
       <div id="page-top" aria-hidden="true" />
@@ -89,7 +112,7 @@ export function AppLayout({
                   <p className="hidden text-sm leading-6 text-muted uppercase tracking-[0.3em] lg:block">
                     Навигация
                   </p>
-                  <div className="hidden lg:block">{renderNavList()}</div>
+                  <div className="hidden lg:block">{renderNavContent()}</div>
                   <details ref={mobileNavRef} className="group lg:hidden">
                     <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-border/60 bg-card2 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted [&::-webkit-details-marker]:hidden">
                       <span>Навигация</span>
@@ -103,7 +126,7 @@ export function AppLayout({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </summary>
-                    <div className="mt-3">{renderNavList(handleMobileNavClick)}</div>
+                    <div className="mt-3">{renderNavContent(handleMobileNavClick)}</div>
                   </details>
                 </div>
               )}

@@ -151,6 +151,8 @@ export function AppShell() {
   const dynamicCourseId = dynamicCourseIdFromPath ?? (isDynamicCourseFromStore ? currentCourse : null);
   const isDynamicCoursePage = Boolean(dynamicCourseId);
   const { topics: dynamicLessonsMap, loading: dynamicLoading, error: dynamicError } = useDynamicCourseLessons(dynamicCourseId, true);
+  const dynamicNavigationLoading = isDynamicCoursePage && dynamicLoading;
+  const dynamicNavigationErrorMessage = dynamicError ? 'Не удалось загрузить навигацию курса.' : null;
 
   const navItems = useMemo(() => {
     // Выбираем конфигурацию в зависимости от курса
@@ -207,7 +209,13 @@ export function AppShell() {
     : isAdminContentPage
       ? <AdminCourseSidebar />
       : isProfilePage || isNotesPage
-        ? <StudentCourseSidebar navItems={navItems} />
+        ? (
+          <StudentCourseSidebar
+            navItems={navItems}
+            courseNavigationLoading={dynamicNavigationLoading}
+            courseNavigationError={dynamicNavigationErrorMessage}
+          />
+        )
         : undefined;
   const sidebarWidthClass = isSuperAdmin && isSuperAdminPage
     ? "lg:w-[360px] xl:w-[420px]"
@@ -215,11 +223,10 @@ export function AppShell() {
       ? "lg:w-64 xl:w-72"
       : undefined;
 
-  if (loading || clinicalLoading || generalLoading || (isDynamicCoursePage && dynamicLoading)) return <LoadingSplash />;
+  if (loading || clinicalLoading || generalLoading) return <LoadingSplash />;
   if (error) return <ErrorState message={error.message} />;
   if (clinicalError) return <ErrorState message={clinicalError.message} />;
   if (generalError) return <ErrorState message={generalError.message} />;
-  if (dynamicError && isDynamicCoursePage) return <ErrorState message={dynamicError.message} />;
   if (!periods.length && !isDynamicCoursePage) return <EmptyState />;
 
   return (
@@ -242,6 +249,8 @@ export function AppShell() {
         hideNavigation={hideNavigation}
         sidebar={sidebar}
         sidebarWidthClass={sidebarWidthClass}
+        navigationLoading={dynamicNavigationLoading}
+        navigationErrorMessage={dynamicNavigationErrorMessage}
       >
         <AnimatePresence mode="wait" initial={false}>
           <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} generalTopicsMap={generalTopicsMap} isSuperAdmin={isSuperAdmin} />
