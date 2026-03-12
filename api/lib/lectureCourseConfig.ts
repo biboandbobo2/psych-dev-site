@@ -2,4 +2,4 @@ export {
   buildCourseLessonPath,
   compareLectureOrder,
   groupLectureSourcesByCourse,
-} from '../../shared/courseLessonPaths';
+} from '../../shared/courseLessonPaths.js';

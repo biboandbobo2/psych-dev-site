@@ -5,7 +5,7 @@ import type {
   VideoTranscriptDocShape,
   VideoTranscriptSearchChunkDocShape,
   VideoTranscriptSearchDocShape,
-} from '../../shared/videoTranscripts/schema';
+} from '../../shared/videoTranscripts/schema.js';
 
 export {
   VIDEO_TRANSCRIPT_JOBS_COLLECTION,
@@ -23,7 +23,7 @@ export {
   type VideoTranscriptSearchChunk,
   type VideoTranscriptStatus,
   type VideoTranscriptStoragePayload,
-} from '../../shared/videoTranscripts/schema';
+} from '../../shared/videoTranscripts/schema.js';
 
 export type VideoTranscriptDoc = VideoTranscriptDocShape<Timestamp>;
 export type VideoTranscriptSearchDoc = VideoTranscriptSearchDocShape<Timestamp>;

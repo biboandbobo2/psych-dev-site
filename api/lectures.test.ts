@@ -9,7 +9,7 @@ import {
   groupLectureSourcesByCourse,
   tryParseLectureGeminiJson,
   validateLectureScope,
-} from './lectures';
+} from './lectures.js';
 
 describe('LECTURE_COLLECTIONS', () => {
   it('содержит коллекцию sources', () => {

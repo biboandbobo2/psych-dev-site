@@ -9,21 +9,21 @@ import {
   toSafeLectureApiError,
   tryParseLectureGeminiJson,
   verifyLectureApiAuth,
-} from './lib/lectureApiRuntime';
-import {
-  buildCourseLessonPath,
-  compareLectureOrder,
-  groupLectureSourcesByCourse,
-} from './lib/lectureCourseConfig';
+} from './lib/lectureApiRuntime.js';
 import {
   computeLexicalScore,
   loadFallbackLectureSources,
   searchFallbackTranscriptChunks,
-} from './lib/lectureFallback';
+} from './lib/lectureFallback.js';
+import {
+  buildCourseLessonPath,
+  compareLectureOrder,
+  groupLectureSourcesByCourse,
+} from './lib/lectureCourseConfig.js';
 
-export { getLectureApiAllowedOrigin, tryParseLectureGeminiJson } from './lib/lectureApiRuntime';
-export { groupLectureSourcesByCourse } from './lib/lectureCourseConfig';
-export { computeLexicalScore } from './lib/lectureFallback';
+export { getLectureApiAllowedOrigin, tryParseLectureGeminiJson } from './lib/lectureApiRuntime.js';
+export { groupLectureSourcesByCourse } from './lib/lectureCourseConfig.js';
+export { computeLexicalScore } from './lib/lectureFallback.js';
 
 export const LECTURE_COLLECTIONS = {
   chunks: 'lecture_chunks',
@@ -69,7 +69,11 @@ type LectureChunkRecord = {
   normalizedText: string;
 };
 
-type LectureSearchMatch = LectureChunkRecord & {
+type LectureSearchMatchRecord = Omit<LectureChunkRecord, 'chunkIndex'> & {
+  chunkIndex?: number;
+};
+
+type LectureSearchMatch = LectureSearchMatchRecord & {
   id: string;
   score: number;
 };
@@ -144,7 +148,7 @@ async function embedQuery(query: string, apiKey?: string): Promise<number[]> {
   return embedding;
 }
 
-function normalizeLectureKeys(input: unknown) {
+function normalizeLectureKeys(input: unknown): string[] {
   if (!Array.isArray(input)) {
     return [];
   }
@@ -327,7 +331,7 @@ async function searchChunksForLectures(
   );
 }
 
-function rerankLectureMatches(query: string, matches: Array<{ id: string } & LectureChunkRecord>) {
+function rerankLectureMatches(query: string, matches: Array<{ id: string } & LectureSearchMatchRecord>) {
   return matches
     .map((match, index) => {
       const vectorScore = 1 - (index / Math.max(matches.length, 1)) * 0.5;
@@ -598,7 +602,7 @@ ${matches.map(buildLectureContext).join('\n\n')}
         citations: [],
       };
 
-      const chunkMap = new Map(matches.map((match) => [match.id, match]));
+      const chunkMap = new Map<string, LectureSearchMatch>(matches.map((match) => [match.id, match]));
       const citations = sortLectureCitations((parsed.citations || [])
         .filter((citation) => chunkMap.has(citation.chunkId))
         .map((citation) => {

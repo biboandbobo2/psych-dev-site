@@ -2,8 +2,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-import type { VideoTranscriptSearchChunkDoc } from '../src/types/videoTranscripts';
-import { VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION } from '../src/types/videoTranscripts';
+import type { VideoTranscriptSearchChunkDoc } from '../src/types/videoTranscripts.js';
+import { VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION } from '../src/types/videoTranscripts.js';
 
 const STOP_WORDS = new Set([
   'and', 'or', 'the', 'a', 'an', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'as',

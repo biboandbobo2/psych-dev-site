@@ -9,7 +9,7 @@ import {
   BOOK_STORAGE_PATHS,
   computeLexicalScore,
   SYSTEM_PROMPT,
-} from './books';
+} from './books.js';
 
 // ============================================================================
 // CONFIGURATION
