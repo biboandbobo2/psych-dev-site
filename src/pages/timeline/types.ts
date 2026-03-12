@@ -91,6 +91,21 @@ export type TimelineData = {
   selectedPeriodization?: string | null; // ID выбранной периодизации или null
 };
 
+export type TimelineCanvas = {
+  id: string;
+  name: string;
+  createdAt: string;
+  data: TimelineData;
+};
+
+export type TimelineDocument = {
+  userId: string;
+  updatedAt?: unknown;
+  activeCanvasId?: string;
+  canvases?: TimelineCanvas[];
+  data?: TimelineData;
+};
+
 /**
  * Состояние для истории undo/redo
  */

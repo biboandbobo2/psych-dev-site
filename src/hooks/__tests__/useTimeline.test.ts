@@ -87,6 +87,19 @@ describe('useTimeline', () => {
       docMock.mock.results[0].value,
       expect.objectContaining({
         userId: 'user-123',
+        activeCanvasId: expect.any(String),
+        canvases: [
+          expect.objectContaining({
+            data: expect.objectContaining({
+              nodes: [
+                expect.objectContaining({
+                  id: '00000000-0000-4000-8000-000000000001',
+                  label: 'Milestone',
+                }),
+              ],
+            }),
+          }),
+        ],
         updatedAt: 'ts',
       }),
       { merge: true }

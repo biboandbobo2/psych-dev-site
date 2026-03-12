@@ -107,6 +107,11 @@ export default function Timeline() {
     setTransform,
     viewportAge,
     setViewportAge,
+    timelineCanvases,
+    activeTimelineId,
+    activeTimelineName,
+    createTimelineCanvas,
+    selectTimelineCanvas,
   } = useTimelineState();
 
   // History (undo/redo)
@@ -116,6 +121,7 @@ export default function Timeline() {
     redo: fetchRedoSnapshot,
     moveBackward,
     moveForward,
+    resetHistory,
     canUndo,
     canRedo,
     historyIndex,
@@ -241,6 +247,16 @@ export default function Timeline() {
       }
     }
   }, [branchHook.selectedBranchX, edges, nodes, formHook.formEventId]);
+
+  useEffect(() => {
+    formHook.clearForm();
+    setSelectedId(null);
+    branchHook.setSelectedBranchX(null);
+    birthHook.setBirthSelected(false);
+    setPeriodBoundaryModal(null);
+    setShowBulkCreator(false);
+    resetHistory();
+  }, [activeTimelineId]);
 
   const worldWidth = 4000;
   const worldHeight = ageMax * YEAR_PX + 500;
@@ -408,12 +424,17 @@ export default function Timeline() {
             viewportAge={viewportAge}
             scale={transform.k}
             nodes={nodes}
+            timelineCanvases={timelineCanvases}
+            activeTimelineId={activeTimelineId}
+            activeTimelineName={activeTimelineName}
             downloadMenuOpen={downloadMenuOpen}
             downloadButtonRef={downloadButtonRef}
             downloadMenuRef={downloadMenuRef}
             onCurrentAgeChange={(value) => setCurrentAge(value)}
             onViewportAgeChange={handleViewportAgeChange}
             onScaleChange={handleScaleChange}
+            onCreateTimeline={createTimelineCanvas}
+            onSelectTimeline={selectTimelineCanvas}
             onDownloadMenuToggle={toggleDownloadMenu}
             onDownloadSelect={handleDownload}
             onClearAll={crudHook.handleClearAll}

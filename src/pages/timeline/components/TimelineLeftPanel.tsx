@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import type { NodeT } from '../types';
+import { useEffect, useRef, useState } from 'react';
+import type { ChangeEvent, RefObject } from 'react';
+import type { NodeT, TimelineCanvas } from '../types';
 import { MIN_SCALE, MAX_SCALE, SPHERE_META } from '../constants';
-import type { ChangeEvent } from 'react';
-import type { RefObject } from 'react';
 
 interface TimelineLeftPanelProps {
   currentAge: number;
@@ -10,12 +10,17 @@ interface TimelineLeftPanelProps {
   viewportAge: number;
   scale: number;
   nodes: NodeT[];
+  timelineCanvases: TimelineCanvas[];
+  activeTimelineId: string | null;
+  activeTimelineName: string;
   downloadMenuOpen: boolean;
   downloadButtonRef: RefObject<HTMLButtonElement>;
   downloadMenuRef: RefObject<HTMLDivElement>;
   onCurrentAgeChange: (age: number) => void;
   onViewportAgeChange: (age: number) => void;
   onScaleChange: (scale: number) => void;
+  onCreateTimeline: () => void;
+  onSelectTimeline: (timelineId: string) => void;
   onDownloadMenuToggle: () => void;
   onDownloadSelect: (type: 'json' | 'png' | 'pdf') => void;
   onClearAll: () => void;
@@ -27,16 +32,42 @@ export function TimelineLeftPanel({
   viewportAge,
   scale,
   nodes,
+  timelineCanvases,
+  activeTimelineId,
+  activeTimelineName,
   downloadMenuOpen,
   downloadButtonRef,
   downloadMenuRef,
   onCurrentAgeChange,
   onViewportAgeChange,
   onScaleChange,
+  onCreateTimeline,
+  onSelectTimeline,
   onDownloadMenuToggle,
   onDownloadSelect,
   onClearAll,
 }: TimelineLeftPanelProps) {
+  const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
+  const timelineMenuRef = useRef<HTMLDivElement>(null);
+  const hasAdditionalTimelines = timelineCanvases.length > 1;
+
+  useEffect(() => {
+    if (!timelineMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!(event.target instanceof Node)) return;
+      if (timelineMenuRef.current?.contains(event.target)) return;
+      setTimelineMenuOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [timelineMenuOpen]);
+
+  useEffect(() => {
+    setTimelineMenuOpen(false);
+  }, [activeTimelineId]);
+
   const handleAgeChange = (event: ChangeEvent<HTMLInputElement>) => {
     onCurrentAgeChange(Number(event.target.value));
   };
@@ -47,6 +78,11 @@ export function TimelineLeftPanel({
 
   const handleScaleChange = (event: ChangeEvent<HTMLInputElement>) => {
     onScaleChange(Number(event.target.value));
+  };
+
+  const handleCreateTimeline = () => {
+    setTimelineMenuOpen(false);
+    onCreateTimeline();
   };
 
   return (
@@ -160,7 +196,7 @@ export function TimelineLeftPanel({
               min={MIN_SCALE}
               max={MAX_SCALE}
               step={0.05}
-              className="h-32 w-2 accent-blue-500"
+              className="h-24 w-2 accent-blue-500"
               style={{ writingMode: 'vertical-lr', WebkitAppearance: 'slider-vertical' }}
             />
             <span className="text-[11px] font-medium text-slate-600">{(scale * 100).toFixed(0)}%</span>
@@ -193,6 +229,58 @@ export function TimelineLeftPanel({
             >
               ✕ Очистить всё
             </button>
+          </div>
+
+          <div className="space-y-2 pt-1">
+            <button
+              type="button"
+              onClick={handleCreateTimeline}
+              className="w-full rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-sky-50 px-3 py-2 text-xs font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:from-blue-100 hover:to-sky-100"
+            >
+              + Создать таймлайн
+            </button>
+
+            <div ref={timelineMenuRef} className="relative">
+              <button
+                type="button"
+                disabled={!hasAdditionalTimelines}
+                onClick={() => setTimelineMenuOpen((prev) => !prev)}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-100 disabled:bg-slate-50 disabled:text-slate-400"
+              >
+                <span className="block text-[9px] uppercase tracking-[0.22em] text-slate-500">Активный холст</span>
+                <span className="mt-1 flex items-center justify-between gap-2">
+                  <span className="truncate">{activeTimelineName}</span>
+                  <span className="text-[10px] text-slate-400">{timelineCanvases.length}</span>
+                </span>
+              </button>
+
+              {timelineMenuOpen && hasAdditionalTimelines && (
+                <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+                  <div className="px-2 pb-1 text-[9px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    Выбор таймлайна
+                  </div>
+                  <div className="space-y-1">
+                    {timelineCanvases.map((timeline) => {
+                      const isActive = timeline.id === activeTimelineId;
+                      return (
+                        <button
+                          key={timeline.id}
+                          type="button"
+                          onClick={() => onSelectTimeline(timeline.id)}
+                          className={`w-full rounded-xl px-2 py-2 text-left text-xs transition ${
+                            isActive
+                              ? 'bg-blue-50 font-semibold text-blue-700'
+                              : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          {timeline.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </aside>

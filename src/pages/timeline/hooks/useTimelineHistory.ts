@@ -69,6 +69,11 @@ export function useTimelineHistory() {
     }
   }
 
+  function resetHistory() {
+    setHistory([]);
+    setHistoryIndex(-1);
+  }
+
   /**
    * Проверяет, можно ли отменить действие
    */
@@ -85,6 +90,7 @@ export function useTimelineHistory() {
     redo,
     moveBackward,
     moveForward,
+    resetHistory,
     canUndo,
     canRedo,
     historyIndex,
