@@ -13,6 +13,8 @@ interface TimelineLeftPanelProps {
   timelineCanvases: TimelineCanvas[];
   activeTimelineId: string | null;
   activeTimelineName: string;
+  showBiographyImportAction: boolean;
+  biographyImportLoading: boolean;
   downloadMenuOpen: boolean;
   downloadButtonRef: RefObject<HTMLButtonElement>;
   downloadMenuRef: RefObject<HTMLDivElement>;
@@ -24,6 +26,7 @@ interface TimelineLeftPanelProps {
   onDownloadMenuToggle: () => void;
   onDownloadSelect: (type: 'json' | 'png' | 'pdf') => void;
   onClearAll: () => void;
+  onOpenBiographyImport: () => void;
 }
 
 export function TimelineLeftPanel({
@@ -35,6 +38,8 @@ export function TimelineLeftPanel({
   timelineCanvases,
   activeTimelineId,
   activeTimelineName,
+  showBiographyImportAction,
+  biographyImportLoading,
   downloadMenuOpen,
   downloadButtonRef,
   downloadMenuRef,
@@ -46,6 +51,7 @@ export function TimelineLeftPanel({
   onDownloadMenuToggle,
   onDownloadSelect,
   onClearAll,
+  onOpenBiographyImport,
 }: TimelineLeftPanelProps) {
   const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
@@ -222,13 +228,24 @@ export function TimelineLeftPanel({
                 );
               })}
             </div>
-            <button
-              type="button"
-              onClick={onClearAll}
-              className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
-            >
-              ✕ Очистить всё
-            </button>
+            {showBiographyImportAction ? (
+              <button
+                type="button"
+                onClick={onOpenBiographyImport}
+                disabled={biographyImportLoading}
+                className="mt-3 w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {biographyImportLoading ? 'Загрузка...' : 'Загрузить источник биографии'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onClearAll}
+                className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+              >
+                ✕ Очистить всё
+              </button>
+            )}
           </div>
 
           <div className="space-y-2 pt-1">

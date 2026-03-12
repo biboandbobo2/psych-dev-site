@@ -174,6 +174,36 @@ export function useTimelineState() {
     syncViewportForTimeline(newCanvas.data);
   }, [canvases, syncViewportForTimeline]);
 
+  const replaceActiveTimeline = useCallback(
+    (nextData: TimelineData, options?: { name?: string }) => {
+      const normalizedData: TimelineData = {
+        ...createEmptyTimelineData(),
+        ...nextData,
+        nodes: nextData.nodes ?? [],
+        edges: nextData.edges ?? [],
+        birthDetails: nextData.birthDetails ?? {},
+        selectedPeriodization: nextData.selectedPeriodization ?? null,
+      };
+
+      setCanvases((prev) => {
+        if (prev.length === 0) return prev;
+
+        const targetId = activeCanvasId ?? prev[0].id;
+        return prev.map((canvas) =>
+          canvas.id === targetId
+            ? {
+                ...canvas,
+                name: options?.name?.trim() || canvas.name,
+                data: normalizedData,
+              }
+            : canvas
+        );
+      });
+      syncViewportForTimeline(normalizedData);
+    },
+    [activeCanvasId, syncViewportForTimeline]
+  );
+
   const setCurrentAge = useCallback(
     (age: number) => {
       updateActiveCanvasData((data) => ({ ...data, currentAge: age }));
@@ -239,6 +269,7 @@ export function useTimelineState() {
     activeTimelineName: activeCanvas?.name ?? DEFAULT_TIMELINE_NAME,
     createTimelineCanvas,
     selectTimelineCanvas,
+    replaceActiveTimeline,
   };
 }
 
