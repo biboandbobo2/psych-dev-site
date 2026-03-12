@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, RefObject } from 'react';
 import type { NodeT, TimelineCanvas } from '../types';
 import { MIN_SCALE, MAX_SCALE, SPHERE_META } from '../constants';
@@ -34,6 +34,12 @@ interface TimelineLeftPanelProps {
     submit: number;
   };
   biographyLastUiSignal: string | null;
+  exportStatus: {
+    state: 'idle' | 'running' | 'success' | 'error';
+    type: 'json' | 'png' | 'pdf' | null;
+    message: string | null;
+  };
+  exportDiagnostics: string[];
   downloadMenuOpen: boolean;
   downloadButtonRef: RefObject<HTMLButtonElement>;
   downloadMenuRef: RefObject<HTMLDivElement>;
@@ -85,6 +91,8 @@ export function TimelineLeftPanel({
   biographyDiagnostics,
   biographyUiSignals,
   biographyLastUiSignal,
+  exportStatus,
+  exportDiagnostics,
   downloadMenuOpen,
   downloadButtonRef,
   downloadMenuRef,
@@ -105,19 +113,43 @@ export function TimelineLeftPanel({
 }: TimelineLeftPanelProps) {
   const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
+  const leftPanelRef = useRef<HTMLElement>(null);
   const biographyButtonRef = useRef<HTMLButtonElement>(null);
   const exitLinkRef = useRef<HTMLAnchorElement>(null);
+  const timelineSelectButtonRef = useRef<HTMLButtonElement>(null);
   const createTimelineButtonRef = useRef<HTMLButtonElement>(null);
   const [biographyButtonProbe, setBiographyButtonProbe] = useState<string>('probe: not-ready');
   const [leftPanelSignalCounts, setLeftPanelSignalCounts] = useState({
-    exitReactClick: 0,
-    exitNativeClick: 0,
-    exitDocClick: 0,
-    createReactClick: 0,
-    createNativeClick: 0,
-    createDocClick: 0,
+    panel: 0,
+    exit: 0,
+    select: 0,
+    create: 0,
+    download: 0,
   });
+  const [leftPanelSignalLast, setLeftPanelSignalLast] = useState<string | null>(null);
+  const [leftPanelDiagnostics, setLeftPanelDiagnostics] = useState<string[]>([]);
   const hasAdditionalTimelines = timelineCanvases.length > 1;
+
+  const appendLeftPanelDiagnostic = useCallback((entry: string) => {
+    setLeftPanelSignalLast(entry);
+    setLeftPanelDiagnostics((prev) => [entry, ...prev].slice(0, 8));
+  }, []);
+
+  const recordLeftPanelSignal = useCallback(
+    (
+      target: 'panel' | 'exit' | 'select' | 'create' | 'download',
+      layer: 'react' | 'native' | 'doc',
+      eventType: string,
+      details?: string
+    ) => {
+      setLeftPanelSignalCounts((prev) => ({
+        ...prev,
+        [target]: prev[target] + 1,
+      }));
+      appendLeftPanelDiagnostic(`${target}:${layer}:${eventType}${details ? `:${details}` : ''}`);
+    },
+    [appendLeftPanelDiagnostic]
+  );
 
   useEffect(() => {
     if (!timelineMenuOpen) return;
@@ -237,48 +269,99 @@ export function TimelineLeftPanel({
   }, [onBiographyUiSignal, showBiographyImportAction]);
 
   useEffect(() => {
+    const leftPanel = leftPanelRef.current;
     const exitLink = exitLinkRef.current;
+    const timelineSelectButton = timelineSelectButtonRef.current;
     const createButton = createTimelineButtonRef.current;
-    if (!exitLink || !createButton) return;
+    const downloadButton = downloadButtonRef.current;
+    if (!leftPanel || !exitLink || !timelineSelectButton || !createButton || !downloadButton) return;
 
-    const bump = (key: keyof typeof leftPanelSignalCounts) => {
-      setLeftPanelSignalCounts((prev) => ({
-        ...prev,
-        [key]: prev[key] + 1,
-      }));
+    const controls = [
+      { key: 'panel' as const, element: leftPanel },
+      { key: 'exit' as const, element: exitLink },
+      { key: 'select' as const, element: timelineSelectButton },
+      { key: 'create' as const, element: createButton },
+      { key: 'download' as const, element: downloadButton },
+    ];
+
+    const describeTarget = (target: EventTarget | null) =>
+      target instanceof HTMLElement ? target.tagName.toLowerCase() : 'unknown';
+
+    const getPoint = (event: Event) => {
+      if (event instanceof PointerEvent || event instanceof MouseEvent) {
+        return { x: event.clientX, y: event.clientY };
+      }
+      if (event instanceof TouchEvent) {
+        const touch = event.touches[0] ?? event.changedTouches[0];
+        if (touch) {
+          return { x: touch.clientX, y: touch.clientY };
+        }
+      }
+      return null;
     };
 
-    const isInside = (event: MouseEvent, element: HTMLElement) => {
+    const isInside = (event: Event, element: HTMLElement) => {
+      const point = getPoint(event);
+      if (!point) return false;
       const rect = element.getBoundingClientRect();
-      return (
-        event.clientX >= rect.left &&
-        event.clientX <= rect.right &&
-        event.clientY >= rect.top &&
-        event.clientY <= rect.bottom
-      );
+      return point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom;
     };
 
-    const handleExitNativeClick = () => bump('exitNativeClick');
-    const handleCreateNativeClick = () => bump('createNativeClick');
-    const handleDocumentClick = (event: MouseEvent) => {
-      if (isInside(event, exitLink)) {
-        bump('exitDocClick');
-      }
-      if (isInside(event, createButton)) {
-        bump('createDocClick');
-      }
+    const nativeCleanup = controls.flatMap(({ key, element }) => {
+      const handlePointerdown = (event: PointerEvent) => {
+        recordLeftPanelSignal(key, 'native', 'pointerdown', describeTarget(event.target));
+      };
+      const handleTouchstart = (event: TouchEvent) => {
+        recordLeftPanelSignal(key, 'native', 'touchstart', describeTarget(event.target));
+      };
+      const handleClick = (event: MouseEvent) => {
+        recordLeftPanelSignal(key, 'native', 'click', describeTarget(event.target));
+      };
+
+      element.addEventListener('pointerdown', handlePointerdown);
+      element.addEventListener('touchstart', handleTouchstart);
+      element.addEventListener('click', handleClick);
+
+      return [
+        () => element.removeEventListener('pointerdown', handlePointerdown),
+        () => element.removeEventListener('touchstart', handleTouchstart),
+        () => element.removeEventListener('click', handleClick),
+      ];
+    });
+
+    const handleDocPointerdown = (event: PointerEvent) => {
+      controls.forEach(({ key, element }) => {
+        if (isInside(event, element)) {
+          recordLeftPanelSignal(key, 'doc', 'pointerdown', describeTarget(event.target));
+        }
+      });
+    };
+    const handleDocTouchstart = (event: TouchEvent) => {
+      controls.forEach(({ key, element }) => {
+        if (isInside(event, element)) {
+          recordLeftPanelSignal(key, 'doc', 'touchstart', describeTarget(event.target));
+        }
+      });
+    };
+    const handleDocClick = (event: MouseEvent) => {
+      controls.forEach(({ key, element }) => {
+        if (isInside(event, element)) {
+          recordLeftPanelSignal(key, 'doc', 'click', describeTarget(event.target));
+        }
+      });
     };
 
-    exitLink.addEventListener('click', handleExitNativeClick);
-    createButton.addEventListener('click', handleCreateNativeClick);
-    document.addEventListener('click', handleDocumentClick, true);
+    document.addEventListener('pointerdown', handleDocPointerdown, true);
+    document.addEventListener('touchstart', handleDocTouchstart, true);
+    document.addEventListener('click', handleDocClick, true);
 
     return () => {
-      exitLink.removeEventListener('click', handleExitNativeClick);
-      createButton.removeEventListener('click', handleCreateNativeClick);
-      document.removeEventListener('click', handleDocumentClick, true);
+      nativeCleanup.forEach((cleanup) => cleanup());
+      document.removeEventListener('pointerdown', handleDocPointerdown, true);
+      document.removeEventListener('touchstart', handleDocTouchstart, true);
+      document.removeEventListener('click', handleDocClick, true);
     };
-  }, []);
+  }, [downloadButtonRef, recordLeftPanelSignal]);
 
   const handleAgeChange = (event: ChangeEvent<HTMLInputElement>) => {
     onCurrentAgeChange(Number(event.target.value));
@@ -309,6 +392,10 @@ export function TimelineLeftPanel({
   return (
     <div className="fixed top-4 left-4 z-40">
       <aside
+        ref={leftPanelRef}
+        onPointerDownCapture={() => recordLeftPanelSignal('panel', 'react', 'pointerdown')}
+        onTouchStartCapture={() => recordLeftPanelSignal('panel', 'react', 'touchstart')}
+        onClickCapture={() => recordLeftPanelSignal('panel', 'react', 'click')}
         className="w-36 space-y-3 overflow-visible rounded-3xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/90 p-4 shadow-xl backdrop-blur-md sm:w-40"
         style={{ fontFamily: 'Georgia, serif' }}
       >
@@ -316,12 +403,9 @@ export function TimelineLeftPanel({
           <Link
             to="/profile"
             ref={exitLinkRef}
-            onClickCapture={() =>
-              setLeftPanelSignalCounts((prev) => ({
-                ...prev,
-                exitReactClick: prev.exitReactClick + 1,
-              }))
-            }
+            onPointerDownCapture={() => recordLeftPanelSignal('exit', 'react', 'pointerdown')}
+            onTouchStartCapture={() => recordLeftPanelSignal('exit', 'react', 'touchstart')}
+            onClickCapture={() => recordLeftPanelSignal('exit', 'react', 'click')}
             className="flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 px-3 py-2 text-amber-900 shadow-md transition-all duration-200 hover:border-amber-300 hover:from-amber-100 hover:to-yellow-100"
           >
             <span className="text-sm">←</span>
@@ -332,6 +416,9 @@ export function TimelineLeftPanel({
               type="button"
               ref={downloadButtonRef}
               title="Скачать таймлайн"
+              onPointerDownCapture={() => recordLeftPanelSignal('download', 'react', 'pointerdown')}
+              onTouchStartCapture={() => recordLeftPanelSignal('download', 'react', 'touchstart')}
+              onClickCapture={() => recordLeftPanelSignal('download', 'react', 'click')}
               onClick={onDownloadMenuToggle}
               className="flex h-9 w-9 items-center justify-center text-slate-600 transition hover:text-slate-900"
             >
@@ -362,21 +449,30 @@ export function TimelineLeftPanel({
                 <div className="mt-2">
                   <button
                     type="button"
-                    onClick={() => onDownloadSelect('json')}
+                    onClick={() => {
+                      appendLeftPanelDiagnostic('download-option:json');
+                      onDownloadSelect('json');
+                    }}
                     className="w-full px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
                   >
                     JSON
                   </button>
                   <button
                     type="button"
-                    onClick={() => onDownloadSelect('png')}
+                    onClick={() => {
+                      appendLeftPanelDiagnostic('download-option:png');
+                      onDownloadSelect('png');
+                    }}
                     className="w-full px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
                   >
                     PNG (изображение)
                   </button>
                   <button
                     type="button"
-                    onClick={() => onDownloadSelect('pdf')}
+                    onClick={() => {
+                      appendLeftPanelDiagnostic('download-option:pdf');
+                      onDownloadSelect('pdf');
+                    }}
                     className="w-full px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
                   >
                     PDF (отчёт)
@@ -523,12 +619,15 @@ export function TimelineLeftPanel({
                     <div>close: {biographyUiSignals.close}</div>
                     <div>submit: {biographyUiSignals.submit}</div>
                     <div>urlLen: {biographySourceUrl.length}</div>
-                    <div>exit R: {leftPanelSignalCounts.exitReactClick}</div>
-                    <div>exit N: {leftPanelSignalCounts.exitNativeClick}</div>
-                    <div>exit D: {leftPanelSignalCounts.exitDocClick}</div>
-                    <div>+ R: {leftPanelSignalCounts.createReactClick}</div>
-                    <div>+ N: {leftPanelSignalCounts.createNativeClick}</div>
-                    <div>+ D: {leftPanelSignalCounts.createDocClick}</div>
+                    <div>panel: {leftPanelSignalCounts.panel}</div>
+                    <div>exit: {leftPanelSignalCounts.exit}</div>
+                    <div>select: {leftPanelSignalCounts.select}</div>
+                    <div>create: {leftPanelSignalCounts.create}</div>
+                    <div>download: {leftPanelSignalCounts.download}</div>
+                    <div>panelLast: {leftPanelSignalLast ?? 'none'}</div>
+                    <div>export: {exportStatus.state}</div>
+                    <div>type: {exportStatus.type ?? 'none'}</div>
+                    <div className="col-span-2 break-words">exportMsg: {exportStatus.message ?? 'none'}</div>
                   </div>
                   <div className="mt-2 max-h-24 space-y-1 overflow-auto border-t border-amber-200/70 pt-2">
                     {biographyDiagnostics.length > 0 ? (
@@ -539,6 +638,28 @@ export function TimelineLeftPanel({
                       ))
                     ) : (
                       <div>Пока нет событий</div>
+                    )}
+                  </div>
+                  <div className="mt-2 max-h-20 space-y-1 overflow-auto border-t border-amber-200/70 pt-2">
+                    {leftPanelDiagnostics.length > 0 ? (
+                      leftPanelDiagnostics.map((entry) => (
+                        <div key={entry} className="break-words border-t border-amber-200/70 pt-1 first:border-t-0 first:pt-0">
+                          {entry}
+                        </div>
+                      ))
+                    ) : (
+                      <div>Панель пока молчит</div>
+                    )}
+                  </div>
+                  <div className="mt-2 max-h-20 space-y-1 overflow-auto border-t border-amber-200/70 pt-2">
+                    {exportDiagnostics.length > 0 ? (
+                      exportDiagnostics.map((entry) => (
+                        <div key={entry} className="break-words border-t border-amber-200/70 pt-1 first:border-t-0 first:pt-0">
+                          {entry}
+                        </div>
+                      ))
+                    ) : (
+                      <div>Экспорт пока молчит</div>
                     )}
                   </div>
                 </div>
@@ -560,7 +681,11 @@ export function TimelineLeftPanel({
                 <button
                   type="button"
                   title="Выбрать активный таймлайн"
+                  ref={timelineSelectButtonRef}
                   disabled={!hasAdditionalTimelines}
+                  onPointerDownCapture={() => recordLeftPanelSignal('select', 'react', 'pointerdown')}
+                  onTouchStartCapture={() => recordLeftPanelSignal('select', 'react', 'touchstart')}
+                  onClickCapture={() => recordLeftPanelSignal('select', 'react', 'click')}
                   onClick={() => setTimelineMenuOpen((prev) => !prev)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-100 disabled:bg-slate-50 disabled:text-slate-400"
                 >
@@ -603,12 +728,9 @@ export function TimelineLeftPanel({
                   type="button"
                   title="Создать новый пустой холст"
                   ref={createTimelineButtonRef}
-                  onClickCapture={() =>
-                    setLeftPanelSignalCounts((prev) => ({
-                      ...prev,
-                      createReactClick: prev.createReactClick + 1,
-                    }))
-                  }
+                  onPointerDownCapture={() => recordLeftPanelSignal('create', 'react', 'pointerdown')}
+                  onTouchStartCapture={() => recordLeftPanelSignal('create', 'react', 'touchstart')}
+                  onClickCapture={() => recordLeftPanelSignal('create', 'react', 'click')}
                   onClick={handleCreateTimeline}
                   className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-sky-50 text-lg font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:from-blue-100 hover:to-sky-100"
                 >

@@ -203,6 +203,16 @@ export default function Timeline() {
   const [biographyImportLoading, setBiographyImportLoading] = useState(false);
   const [biographyImportError, setBiographyImportError] = useState<string | null>(null);
   const [biographyDiagnostics, setBiographyDiagnostics] = useState<string[]>([]);
+  const [exportStatus, setExportStatus] = useState<{
+    state: 'idle' | 'running' | 'success' | 'error';
+    type: 'json' | 'png' | 'pdf' | null;
+    message: string | null;
+  }>({
+    state: 'idle',
+    type: null,
+    message: null,
+  });
+  const [exportDiagnostics, setExportDiagnostics] = useState<string[]>([]);
   const [biographyUiSignals, setBiographyUiSignals] = useState({
     reactPointerdown: 0,
     reactClick: 0,
@@ -232,6 +242,21 @@ export default function Timeline() {
     const entry = `${timestamp} ${message}${suffix}`;
     debugLog('[Timeline][Biography]', entry);
     setBiographyDiagnostics((prev) => [entry, ...prev].slice(0, 8));
+  }, []);
+
+  const appendExportDiagnostic = useCallback((message: string, details?: unknown) => {
+    const timestamp = new Date().toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    const suffix =
+      details === undefined
+        ? ''
+        : ` | ${typeof details === 'string' ? details : JSON.stringify(details)}`;
+    const entry = `${timestamp} ${message}${suffix}`;
+    debugLog('[Timeline][Export]', entry);
+    setExportDiagnostics((prev) => [entry, ...prev].slice(0, 8));
   }, []);
 
   const recordBiographyUiSignal = useCallback(
@@ -324,6 +349,12 @@ export default function Timeline() {
     setBiographyImportError(null);
     setBiographySourceUrl('');
     setBiographyDiagnostics([]);
+    setExportStatus({
+      state: 'idle',
+      type: null,
+      message: null,
+    });
+    setExportDiagnostics([]);
     setBiographyUiSignals({
       reactPointerdown: 0,
       reactClick: 0,
@@ -388,20 +419,59 @@ export default function Timeline() {
   const handleDownload = async (type: 'json' | 'png' | 'pdf') => {
     closeDownloadMenu();
     const exportPayload = { currentAge, ageMax, nodes, edges, birthDetails: { ...birthDetails }, selectedPeriodization };
+    setExportStatus({
+      state: 'running',
+      type,
+      message: null,
+    });
+    appendExportDiagnostic('export requested', {
+      type,
+      hasSvg: Boolean(svgRef.current),
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
+    });
 
     try {
       if (type === 'json') {
         exportTimelineJSON(exportPayload, `${exportFilenamePrefix}.json`);
+        setExportStatus({
+          state: 'success',
+          type,
+          message: 'JSON выгружен',
+        });
+        appendExportDiagnostic('export complete', { type });
         return;
       }
       if (!svgRef.current) throw new Error('SVG not ready');
       if (type === 'png') {
         await exportTimelinePNG(svgRef.current, `${exportFilenamePrefix}.png`);
+        setExportStatus({
+          state: 'success',
+          type,
+          message: 'PNG выгружен',
+        });
+        appendExportDiagnostic('export complete', { type });
         return;
       }
       const periodization = selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null;
       await exportTimelinePDF(svgRef.current, exportPayload, periodization, `${exportFilenamePrefix}.pdf`);
+      setExportStatus({
+        state: 'success',
+        type,
+        message: 'PDF выгружен',
+      });
+      appendExportDiagnostic('export complete', { type });
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось выполнить экспорт.';
+      setExportStatus({
+        state: 'error',
+        type,
+        message,
+      });
+      appendExportDiagnostic('export failed', {
+        type,
+        message,
+      });
       debugError('Export failed', error);
     }
   };
@@ -674,6 +744,8 @@ export default function Timeline() {
             biographyDiagnostics={biographyDiagnostics}
             biographyUiSignals={biographyUiSignals}
             biographyLastUiSignal={biographyLastUiSignal}
+            exportStatus={exportStatus}
+            exportDiagnostics={exportDiagnostics}
             downloadMenuOpen={downloadMenuOpen}
             downloadButtonRef={downloadButtonRef}
             downloadMenuRef={downloadMenuRef}
