@@ -51,6 +51,7 @@ import { useTimelineDragDrop } from './timeline/hooks/useTimelineDragDrop';
 import { useTimelineBranch } from './timeline/hooks/useTimelineBranch';
 import { useTimelineCRUD } from './timeline/hooks/useTimelineCRUD';
 import { hasTimelineContent } from './timeline/persistence';
+import { TimelineBiographyImportModal } from './timeline/components/TimelineBiographyImportModal';
 import { lazyWithReload } from '../lib/lazyWithReload';
 const TimelineLeftPanel = lazy(() =>
   lazyWithReload(
@@ -82,16 +83,6 @@ const TimelineHelpModal = lazy(() =>
     'TimelineHelpModal'
   )
 );
-const TimelineBiographyImportModal = lazy(() =>
-  lazyWithReload(
-    () =>
-      import('./timeline/components/TimelineBiographyImportModal').then((module) => ({
-        default: module.TimelineBiographyImportModal,
-      })),
-    'TimelineBiographyImportModal'
-  )
-);
-
 
 // ============ MAIN COMPONENT ============
 
@@ -673,17 +664,15 @@ export default function Timeline() {
       )}
 
       {!readOnly && (
-        <Suspense fallback={<PageLoader label="Подгрузка импорта биографии..." />}>
-          <TimelineBiographyImportModal
-            isOpen={showBiographyImportModal}
-            sourceUrl={biographySourceUrl}
-            loading={biographyImportLoading}
-            error={biographyImportError}
-            onSourceUrlChange={setBiographySourceUrl}
-            onClose={handleCloseBiographyImport}
-            onImport={handleImportBiography}
-          />
-        </Suspense>
+        <TimelineBiographyImportModal
+          isOpen={showBiographyImportModal}
+          sourceUrl={biographySourceUrl}
+          loading={biographyImportLoading}
+          error={biographyImportError}
+          onSourceUrlChange={setBiographySourceUrl}
+          onClose={handleCloseBiographyImport}
+          onImport={handleImportBiography}
+        />
       )}
 
       {/* Help Modal */}
