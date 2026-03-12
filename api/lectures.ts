@@ -9,21 +9,21 @@ import {
   toSafeLectureApiError,
   tryParseLectureGeminiJson,
   verifyLectureApiAuth,
-} from './lib/lectureApiRuntime.js';
+} from '../server/api/lectureApiRuntime.js';
 import {
   computeLexicalScore,
   loadFallbackLectureSources,
   searchFallbackTranscriptChunks,
-} from './lib/lectureFallback.js';
+} from '../server/api/lectureFallback.js';
 import {
   buildCourseLessonPath,
   compareLectureOrder,
   groupLectureSourcesByCourse,
-} from './lib/lectureCourseConfig.js';
+} from '../server/api/lectureCourseConfig.js';
 
-export { getLectureApiAllowedOrigin, tryParseLectureGeminiJson } from './lib/lectureApiRuntime.js';
-export { groupLectureSourcesByCourse } from './lib/lectureCourseConfig.js';
-export { computeLexicalScore } from './lib/lectureFallback.js';
+export { getLectureApiAllowedOrigin, tryParseLectureGeminiJson } from '../server/api/lectureApiRuntime.js';
+export { groupLectureSourcesByCourse } from '../server/api/lectureCourseConfig.js';
+export { computeLexicalScore } from '../server/api/lectureFallback.js';
 
 export const LECTURE_COLLECTIONS = {
   chunks: 'lecture_chunks',

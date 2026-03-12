@@ -1,6 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getLectureGenAiClient, resolveLectureGeminiApiKey, setLectureApiCorsHeaders, verifyLectureApiAuth } from './lib/lectureApiRuntime.js';
+import {
+  getLectureGenAiClient,
+  resolveLectureGeminiApiKey,
+  setLectureApiCorsHeaders,
+  verifyLectureApiAuth,
+} from '../server/api/lectureApiRuntime.js';
 import {
   BIOGRAPHY_TIMELINE_RESPONSE_JSON_SCHEMA,
   buildBiographyTimelinePrompt,
@@ -10,7 +15,7 @@ import {
   type BiographyTimelinePlan,
   TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
   TIMELINE_BIOGRAPHY_MODELS,
-} from './lib/timelineBiography.js';
+} from '../server/api/timelineBiography.js';
 
 function initFirebaseAdmin() {
   if (getApps().length > 0) return;
