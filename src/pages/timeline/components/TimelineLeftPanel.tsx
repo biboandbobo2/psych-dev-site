@@ -18,6 +18,7 @@ interface TimelineLeftPanelProps {
   biographyImportLoading: boolean;
   biographySourceUrl: string;
   biographyImportError: string | null;
+  biographyDiagnostics: string[];
   downloadMenuOpen: boolean;
   downloadButtonRef: RefObject<HTMLButtonElement>;
   downloadMenuRef: RefObject<HTMLDivElement>;
@@ -33,6 +34,7 @@ interface TimelineLeftPanelProps {
   onCloseBiographyImport: () => void;
   onBiographySourceUrlChange: (value: string) => void;
   onSubmitBiographyImport: () => void;
+  onBiographyDiagnostic: (message: string, details?: unknown) => void;
 }
 
 export function TimelineLeftPanel({
@@ -49,6 +51,7 @@ export function TimelineLeftPanel({
   biographyImportLoading,
   biographySourceUrl,
   biographyImportError,
+  biographyDiagnostics,
   downloadMenuOpen,
   downloadButtonRef,
   downloadMenuRef,
@@ -64,9 +67,12 @@ export function TimelineLeftPanel({
   onCloseBiographyImport,
   onBiographySourceUrlChange,
   onSubmitBiographyImport,
+  onBiographyDiagnostic,
 }: TimelineLeftPanelProps) {
   const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
+  const biographyButtonRef = useRef<HTMLButtonElement>(null);
+  const [biographyButtonProbe, setBiographyButtonProbe] = useState<string>('probe: not-ready');
   const hasAdditionalTimelines = timelineCanvases.length > 1;
 
   useEffect(() => {
@@ -85,6 +91,35 @@ export function TimelineLeftPanel({
   useEffect(() => {
     setTimelineMenuOpen(false);
   }, [activeTimelineId]);
+
+  useEffect(() => {
+    if (!showBiographyImportAction) {
+      setBiographyButtonProbe('probe: hidden');
+      return;
+    }
+
+    const button = biographyButtonRef.current;
+    if (!button) {
+      setBiographyButtonProbe('probe: missing-button-ref');
+      onBiographyDiagnostic('probe missing button ref');
+      return;
+    }
+
+    const rect = button.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const topElement = document.elementFromPoint(centerX, centerY);
+    const containsTopElement = topElement ? button.contains(topElement) || topElement === button : false;
+    const probe = [
+      `rect=${Math.round(rect.left)},${Math.round(rect.top)} ${Math.round(rect.width)}x${Math.round(rect.height)}`,
+      `center=${Math.round(centerX)},${Math.round(centerY)}`,
+      `top=${topElement instanceof HTMLElement ? `${topElement.tagName.toLowerCase()}.${topElement.className || 'no-class'}` : 'none'}`,
+      `hit=${containsTopElement ? 'button' : 'other'}`,
+    ].join(' | ');
+
+    setBiographyButtonProbe(probe);
+    onBiographyDiagnostic('button probe', probe);
+  }, [activeTimelineId, onBiographyDiagnostic, showBiographyImportAction, biographyImportExpanded]);
 
   const handleAgeChange = (event: ChangeEvent<HTMLInputElement>) => {
     onCurrentAgeChange(Number(event.target.value));
@@ -253,6 +288,9 @@ export function TimelineLeftPanel({
               <div className="mt-3 space-y-2">
                 <button
                   type="button"
+                  ref={biographyButtonRef}
+                  onPointerDownCapture={() => onBiographyDiagnostic('button pointerdown capture')}
+                  onClickCapture={() => onBiographyDiagnostic('button click capture')}
                   onClick={biographyImportExpanded ? onCloseBiographyImport : onOpenBiographyImport}
                   disabled={biographyImportLoading}
                   className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
@@ -279,6 +317,7 @@ export function TimelineLeftPanel({
                     ) : null}
                     <button
                       type="submit"
+                      onClickCapture={() => onBiographyDiagnostic('submit button click capture')}
                       disabled={biographyImportLoading || !biographySourceUrl.trim()}
                       className="w-full rounded-lg bg-blue-600 px-2 py-2 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
                     >
@@ -286,6 +325,22 @@ export function TimelineLeftPanel({
                     </button>
                   </form>
                 ) : null}
+
+                <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-2 text-[10px] leading-4 text-amber-900">
+                  <div className="font-semibold uppercase tracking-[0.18em]">Диагностика</div>
+                  <div className="mt-1 break-words">probe: {biographyButtonProbe}</div>
+                  <div className="mt-2 space-y-1">
+                    {biographyDiagnostics.length > 0 ? (
+                      biographyDiagnostics.map((entry) => (
+                        <div key={entry} className="break-words border-t border-amber-200/70 pt-1 first:border-t-0 first:pt-0">
+                          {entry}
+                        </div>
+                      ))
+                    ) : (
+                      <div>Пока нет событий</div>
+                    )}
+                  </div>
+                </div>
               </div>
             ) : (
               <button

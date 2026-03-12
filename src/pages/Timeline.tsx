@@ -202,6 +202,22 @@ export default function Timeline() {
   const [biographySourceUrl, setBiographySourceUrl] = useState('');
   const [biographyImportLoading, setBiographyImportLoading] = useState(false);
   const [biographyImportError, setBiographyImportError] = useState<string | null>(null);
+  const [biographyDiagnostics, setBiographyDiagnostics] = useState<string[]>([]);
+
+  const appendBiographyDiagnostic = useCallback((message: string, details?: unknown) => {
+    const timestamp = new Date().toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    const suffix =
+      details === undefined
+        ? ''
+        : ` | ${typeof details === 'string' ? details : JSON.stringify(details)}`;
+    const entry = `${timestamp} ${message}${suffix}`;
+    debugLog('[Timeline][Biography]', entry);
+    setBiographyDiagnostics((prev) => [entry, ...prev].slice(0, 8));
+  }, []);
 
   // Branch management
   const branchHook = useTimelineBranch({
@@ -265,8 +281,28 @@ export default function Timeline() {
     setShowBiographyImportExpanded(false);
     setBiographyImportError(null);
     setBiographySourceUrl('');
+    setBiographyDiagnostics([]);
     resetHistory();
   }, [birthHook.setBirthSelected, branchHook.setSelectedBranchX, formHook.clearForm, resetHistory]);
+
+  useEffect(() => {
+    appendBiographyDiagnostic('render state', {
+      showBiographyImportExpanded,
+      biographyImportLoading,
+      hasError: Boolean(biographyImportError),
+      sourceUrlLength: biographySourceUrl.length,
+      activeTimelineId,
+      activeTimelineHasContent,
+    });
+  }, [
+    activeTimelineHasContent,
+    activeTimelineId,
+    appendBiographyDiagnostic,
+    biographyImportError,
+    biographyImportLoading,
+    biographySourceUrl.length,
+    showBiographyImportExpanded,
+  ]);
 
   // Auto-pickup sphere when selecting branch
   useEffect(() => {
@@ -390,6 +426,7 @@ export default function Timeline() {
 
   const handleOpenBiographyImport = () => {
     debugLog('[Timeline] Open biography import');
+    appendBiographyDiagnostic('open requested');
     setBiographyImportError(null);
     setShowBiographyImportExpanded(true);
   };
@@ -397,6 +434,7 @@ export default function Timeline() {
   const handleCloseBiographyImport = () => {
     if (biographyImportLoading) return;
     debugLog('[Timeline] Close biography import');
+    appendBiographyDiagnostic('close requested');
     setShowBiographyImportExpanded(false);
     setBiographyImportError(null);
     setBiographySourceUrl('');
@@ -404,6 +442,7 @@ export default function Timeline() {
 
   const handleBiographySourceUrlChange = (value: string) => {
     debugLog('[Timeline] Biography source url changed', value);
+    appendBiographyDiagnostic('source url changed', value);
     setBiographySourceUrl(value);
     if (biographyImportError) {
       setBiographyImportError(null);
@@ -417,9 +456,15 @@ export default function Timeline() {
       activeTimelineId,
       activeTimelineName,
     });
+    appendBiographyDiagnostic('submit requested', {
+      sourceUrl,
+      activeTimelineId,
+      activeTimelineName,
+    });
     if (!sourceUrl) {
       setBiographyImportError('Укажите ссылку на статью Wikipedia.');
       debugError('[Timeline] Biography import blocked: empty url');
+      appendBiographyDiagnostic('submit blocked: empty url');
       return;
     }
 
@@ -432,6 +477,10 @@ export default function Timeline() {
         'X-Gemini-Api-Key': geminiApiKey ?? undefined,
       });
       debugLog('[Timeline] Biography import request start', {
+        sourceUrl,
+        hasGeminiApiKeyOverride: Boolean(geminiApiKey),
+      });
+      appendBiographyDiagnostic('request start', {
         sourceUrl,
         hasGeminiApiKeyOverride: Boolean(geminiApiKey),
       });
@@ -455,6 +504,12 @@ export default function Timeline() {
         subjectName: payload.subjectName,
         hasTimeline: Boolean(payload.timeline),
       });
+      appendBiographyDiagnostic('response received', {
+        status: response.status,
+        ok: response.ok,
+        payloadOk: payload.ok,
+        hasTimeline: Boolean(payload.timeline),
+      });
 
       if (!response.ok || !payload.ok || !payload.timeline) {
         throw new Error(payload.error || 'Не удалось построить таймлайн по биографии.');
@@ -467,13 +522,16 @@ export default function Timeline() {
       setShowBiographyImportExpanded(false);
       setBiographySourceUrl('');
       debugLog('[Timeline] Biography import applied successfully');
+      appendBiographyDiagnostic('timeline applied');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось построить таймлайн по биографии.';
       reportAppError({ message: 'Ошибка импорта биографии в таймлайн', error, context: 'Timeline.handleImportBiography' });
       setBiographyImportError(message);
       debugError('Timeline biography import failed', error);
+      appendBiographyDiagnostic('request failed', message);
     } finally {
       setBiographyImportLoading(false);
+      appendBiographyDiagnostic('request finished');
     }
   };
 
@@ -549,6 +607,7 @@ export default function Timeline() {
             biographyImportLoading={biographyImportLoading}
             biographySourceUrl={biographySourceUrl}
             biographyImportError={biographyImportError}
+            biographyDiagnostics={biographyDiagnostics}
             downloadMenuOpen={downloadMenuOpen}
             downloadButtonRef={downloadButtonRef}
             downloadMenuRef={downloadMenuRef}
@@ -564,6 +623,7 @@ export default function Timeline() {
             onCloseBiographyImport={handleCloseBiographyImport}
             onBiographySourceUrlChange={handleBiographySourceUrlChange}
             onSubmitBiographyImport={handleImportBiography}
+            onBiographyDiagnostic={appendBiographyDiagnostic}
           />
         </Suspense>
       )}
