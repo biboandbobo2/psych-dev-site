@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
-import type { ChangeEvent, RefObject } from 'react';
+import type { ChangeEvent, FormEvent, RefObject } from 'react';
 import type { NodeT, TimelineCanvas } from '../types';
 import { MIN_SCALE, MAX_SCALE, SPHERE_META } from '../constants';
 
@@ -14,7 +14,10 @@ interface TimelineLeftPanelProps {
   activeTimelineId: string | null;
   activeTimelineName: string;
   showBiographyImportAction: boolean;
+  biographyImportExpanded: boolean;
   biographyImportLoading: boolean;
+  biographySourceUrl: string;
+  biographyImportError: string | null;
   downloadMenuOpen: boolean;
   downloadButtonRef: RefObject<HTMLButtonElement>;
   downloadMenuRef: RefObject<HTMLDivElement>;
@@ -27,6 +30,9 @@ interface TimelineLeftPanelProps {
   onDownloadSelect: (type: 'json' | 'png' | 'pdf') => void;
   onClearAll: () => void;
   onOpenBiographyImport: () => void;
+  onCloseBiographyImport: () => void;
+  onBiographySourceUrlChange: (value: string) => void;
+  onSubmitBiographyImport: () => void;
 }
 
 export function TimelineLeftPanel({
@@ -39,7 +45,10 @@ export function TimelineLeftPanel({
   activeTimelineId,
   activeTimelineName,
   showBiographyImportAction,
+  biographyImportExpanded,
   biographyImportLoading,
+  biographySourceUrl,
+  biographyImportError,
   downloadMenuOpen,
   downloadButtonRef,
   downloadMenuRef,
@@ -52,6 +61,9 @@ export function TimelineLeftPanel({
   onDownloadSelect,
   onClearAll,
   onOpenBiographyImport,
+  onCloseBiographyImport,
+  onBiographySourceUrlChange,
+  onSubmitBiographyImport,
 }: TimelineLeftPanelProps) {
   const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
@@ -89,6 +101,15 @@ export function TimelineLeftPanel({
   const handleCreateTimeline = () => {
     setTimelineMenuOpen(false);
     onCreateTimeline();
+  };
+
+  const handleBiographySourceUrlChange = (event: ChangeEvent<HTMLInputElement>) => {
+    onBiographySourceUrlChange(event.target.value);
+  };
+
+  const handleBiographySubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onSubmitBiographyImport();
   };
 
   return (
@@ -229,14 +250,43 @@ export function TimelineLeftPanel({
               })}
             </div>
             {showBiographyImportAction ? (
-              <button
-                type="button"
-                onClick={onOpenBiographyImport}
-                disabled={biographyImportLoading}
-                className="mt-3 w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {biographyImportLoading ? 'Загрузка...' : 'Загрузить источник биографии'}
-              </button>
+              <div className="mt-3 space-y-2">
+                <button
+                  type="button"
+                  onClick={biographyImportExpanded ? onCloseBiographyImport : onOpenBiographyImport}
+                  disabled={biographyImportLoading}
+                  className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {biographyImportExpanded ? 'Скрыть импорт' : 'Загрузить источник биографии'}
+                </button>
+
+                {biographyImportExpanded ? (
+                  <form onSubmit={handleBiographySubmit} className="space-y-2 rounded-xl border border-blue-100 bg-blue-50/70 p-2">
+                    <div className="text-[10px] leading-4 text-slate-600">
+                      Вставь прямую ссылку на статью Wikipedia. Таймлайн заполнит текущий пустой холст.
+                    </div>
+                    <input
+                      type="url"
+                      value={biographySourceUrl}
+                      onChange={handleBiographySourceUrlChange}
+                      placeholder="https://ru.wikipedia.org/wiki/..."
+                      className="w-full rounded-lg border border-blue-200 bg-white px-2 py-2 text-[11px] text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                    {biographyImportError ? (
+                      <div className="rounded-lg border border-red-200 bg-red-50 px-2 py-2 text-[10px] leading-4 text-red-700">
+                        {biographyImportError}
+                      </div>
+                    ) : null}
+                    <button
+                      type="submit"
+                      disabled={biographyImportLoading || !biographySourceUrl.trim()}
+                      className="w-full rounded-lg bg-blue-600 px-2 py-2 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                    >
+                      {biographyImportLoading ? 'Строим таймлайн...' : 'Построить таймлайн'}
+                    </button>
+                  </form>
+                ) : null}
+              </div>
             ) : (
               <button
                 type="button"

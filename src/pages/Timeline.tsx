@@ -6,7 +6,7 @@ import { Icon, type EventIconId } from '../components/Icon';
 import { EVENT_ICON_MAP } from '../data/eventIcons';
 import { useNotes } from '../hooks/useNotes';
 import { PageLoader } from '../components/ui';
-import { debugError } from '../lib/debug';
+import { debugError, debugLog } from '../lib/debug';
 import { buildAuthorizedHeaders } from '../lib/apiAuth';
 import { reportAppError } from '../lib/errorHandler';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -51,7 +51,6 @@ import { useTimelineDragDrop } from './timeline/hooks/useTimelineDragDrop';
 import { useTimelineBranch } from './timeline/hooks/useTimelineBranch';
 import { useTimelineCRUD } from './timeline/hooks/useTimelineCRUD';
 import { hasTimelineContent } from './timeline/persistence';
-import { TimelineBiographyImportModal } from './timeline/components/TimelineBiographyImportModal';
 import { lazyWithReload } from '../lib/lazyWithReload';
 const TimelineLeftPanel = lazy(() =>
   lazyWithReload(
@@ -199,7 +198,7 @@ export default function Timeline() {
   const [showHelp, setShowHelp] = useState(false);
   const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
   const [showBulkCreator, setShowBulkCreator] = useState(false);
-  const [showBiographyImportModal, setShowBiographyImportModal] = useState(false);
+  const [showBiographyImportExpanded, setShowBiographyImportExpanded] = useState(false);
   const [biographySourceUrl, setBiographySourceUrl] = useState('');
   const [biographyImportLoading, setBiographyImportLoading] = useState(false);
   const [biographyImportError, setBiographyImportError] = useState<string | null>(null);
@@ -263,7 +262,7 @@ export default function Timeline() {
     birthHook.setBirthSelected(false);
     setPeriodBoundaryModal(null);
     setShowBulkCreator(false);
-    setShowBiographyImportModal(false);
+    setShowBiographyImportExpanded(false);
     setBiographyImportError(null);
     setBiographySourceUrl('');
     resetHistory();
@@ -390,21 +389,37 @@ export default function Timeline() {
   };
 
   const handleOpenBiographyImport = () => {
+    debugLog('[Timeline] Open biography import');
     setBiographyImportError(null);
-    setShowBiographyImportModal(true);
+    setShowBiographyImportExpanded(true);
   };
 
   const handleCloseBiographyImport = () => {
     if (biographyImportLoading) return;
-    setShowBiographyImportModal(false);
+    debugLog('[Timeline] Close biography import');
+    setShowBiographyImportExpanded(false);
     setBiographyImportError(null);
     setBiographySourceUrl('');
   };
 
+  const handleBiographySourceUrlChange = (value: string) => {
+    debugLog('[Timeline] Biography source url changed', value);
+    setBiographySourceUrl(value);
+    if (biographyImportError) {
+      setBiographyImportError(null);
+    }
+  };
+
   const handleImportBiography = async () => {
     const sourceUrl = biographySourceUrl.trim();
+    debugLog('[Timeline] Biography import submit', {
+      sourceUrl,
+      activeTimelineId,
+      activeTimelineName,
+    });
     if (!sourceUrl) {
       setBiographyImportError('Укажите ссылку на статью Wikipedia.');
+      debugError('[Timeline] Biography import blocked: empty url');
       return;
     }
 
@@ -415,6 +430,10 @@ export default function Timeline() {
       const headers = await buildAuthorizedHeaders({
         'Content-Type': 'application/json',
         'X-Gemini-Api-Key': geminiApiKey ?? undefined,
+      });
+      debugLog('[Timeline] Biography import request start', {
+        sourceUrl,
+        hasGeminiApiKeyOverride: Boolean(geminiApiKey),
       });
       const response = await fetch('/api/timeline-biography', {
         method: 'POST',
@@ -428,6 +447,14 @@ export default function Timeline() {
         subjectName?: string;
         timeline?: TimelineData;
       };
+      debugLog('[Timeline] Biography import response', {
+        status: response.status,
+        ok: response.ok,
+        payloadOk: payload.ok,
+        canvasName: payload.canvasName,
+        subjectName: payload.subjectName,
+        hasTimeline: Boolean(payload.timeline),
+      });
 
       if (!response.ok || !payload.ok || !payload.timeline) {
         throw new Error(payload.error || 'Не удалось построить таймлайн по биографии.');
@@ -437,8 +464,9 @@ export default function Timeline() {
         name: payload.canvasName || payload.subjectName,
       });
       resetTransientTimelineUi();
-      setShowBiographyImportModal(false);
+      setShowBiographyImportExpanded(false);
       setBiographySourceUrl('');
+      debugLog('[Timeline] Biography import applied successfully');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось построить таймлайн по биографии.';
       reportAppError({ message: 'Ошибка импорта биографии в таймлайн', error, context: 'Timeline.handleImportBiography' });
@@ -517,7 +545,10 @@ export default function Timeline() {
             activeTimelineId={activeTimelineId}
             activeTimelineName={activeTimelineName}
             showBiographyImportAction={!activeTimelineHasContent}
+            biographyImportExpanded={showBiographyImportExpanded}
             biographyImportLoading={biographyImportLoading}
+            biographySourceUrl={biographySourceUrl}
+            biographyImportError={biographyImportError}
             downloadMenuOpen={downloadMenuOpen}
             downloadButtonRef={downloadButtonRef}
             downloadMenuRef={downloadMenuRef}
@@ -530,6 +561,9 @@ export default function Timeline() {
             onDownloadSelect={handleDownload}
             onClearAll={crudHook.handleClearAll}
             onOpenBiographyImport={handleOpenBiographyImport}
+            onCloseBiographyImport={handleCloseBiographyImport}
+            onBiographySourceUrlChange={handleBiographySourceUrlChange}
+            onSubmitBiographyImport={handleImportBiography}
           />
         </Suspense>
       )}
@@ -662,19 +696,6 @@ export default function Timeline() {
           />
         </Suspense>
       )}
-
-      {!readOnly && (
-        <TimelineBiographyImportModal
-          isOpen={showBiographyImportModal}
-          sourceUrl={biographySourceUrl}
-          loading={biographyImportLoading}
-          error={biographyImportError}
-          onSourceUrlChange={setBiographySourceUrl}
-          onClose={handleCloseBiographyImport}
-          onImport={handleImportBiography}
-        />
-      )}
-
       {/* Help Modal */}
       {!readOnly && (
         <Suspense fallback={<PageLoader label="Загрузка справки..." />}>
