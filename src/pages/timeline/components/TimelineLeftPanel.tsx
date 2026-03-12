@@ -106,7 +106,17 @@ export function TimelineLeftPanel({
   const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
   const biographyButtonRef = useRef<HTMLButtonElement>(null);
+  const exitLinkRef = useRef<HTMLAnchorElement>(null);
+  const createTimelineButtonRef = useRef<HTMLButtonElement>(null);
   const [biographyButtonProbe, setBiographyButtonProbe] = useState<string>('probe: not-ready');
+  const [leftPanelSignalCounts, setLeftPanelSignalCounts] = useState({
+    exitReactClick: 0,
+    exitNativeClick: 0,
+    exitDocClick: 0,
+    createReactClick: 0,
+    createNativeClick: 0,
+    createDocClick: 0,
+  });
   const hasAdditionalTimelines = timelineCanvases.length > 1;
 
   useEffect(() => {
@@ -226,6 +236,50 @@ export function TimelineLeftPanel({
     };
   }, [onBiographyUiSignal, showBiographyImportAction]);
 
+  useEffect(() => {
+    const exitLink = exitLinkRef.current;
+    const createButton = createTimelineButtonRef.current;
+    if (!exitLink || !createButton) return;
+
+    const bump = (key: keyof typeof leftPanelSignalCounts) => {
+      setLeftPanelSignalCounts((prev) => ({
+        ...prev,
+        [key]: prev[key] + 1,
+      }));
+    };
+
+    const isInside = (event: MouseEvent, element: HTMLElement) => {
+      const rect = element.getBoundingClientRect();
+      return (
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom
+      );
+    };
+
+    const handleExitNativeClick = () => bump('exitNativeClick');
+    const handleCreateNativeClick = () => bump('createNativeClick');
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (isInside(event, exitLink)) {
+        bump('exitDocClick');
+      }
+      if (isInside(event, createButton)) {
+        bump('createDocClick');
+      }
+    };
+
+    exitLink.addEventListener('click', handleExitNativeClick);
+    createButton.addEventListener('click', handleCreateNativeClick);
+    document.addEventListener('click', handleDocumentClick, true);
+
+    return () => {
+      exitLink.removeEventListener('click', handleExitNativeClick);
+      createButton.removeEventListener('click', handleCreateNativeClick);
+      document.removeEventListener('click', handleDocumentClick, true);
+    };
+  }, []);
+
   const handleAgeChange = (event: ChangeEvent<HTMLInputElement>) => {
     onCurrentAgeChange(Number(event.target.value));
   };
@@ -261,6 +315,13 @@ export function TimelineLeftPanel({
         <div className="flex items-center gap-2 pr-6">
           <Link
             to="/profile"
+            ref={exitLinkRef}
+            onClickCapture={() =>
+              setLeftPanelSignalCounts((prev) => ({
+                ...prev,
+                exitReactClick: prev.exitReactClick + 1,
+              }))
+            }
             className="flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 px-3 py-2 text-amber-900 shadow-md transition-all duration-200 hover:border-amber-300 hover:from-amber-100 hover:to-yellow-100"
           >
             <span className="text-sm">←</span>
@@ -441,9 +502,9 @@ export function TimelineLeftPanel({
                   </form>
                 ) : null}
 
-                <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-2 text-[10px] leading-4 text-amber-900">
+                <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-2 font-mono text-[9px] leading-3 text-amber-900">
                   <div className="font-semibold uppercase tracking-[0.18em]">Диагностика</div>
-                  <div className="mt-1 break-words">probe: {biographyButtonProbe}</div>
+                  <div className="mt-1 break-words">{biographyButtonProbe}</div>
                   <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 border-t border-amber-200/70 pt-2">
                     <div>expanded: {biographyImportExpanded ? 'true' : 'false'}</div>
                     <div>loading: {biographyImportLoading ? 'true' : 'false'}</div>
@@ -462,8 +523,14 @@ export function TimelineLeftPanel({
                     <div>close: {biographyUiSignals.close}</div>
                     <div>submit: {biographyUiSignals.submit}</div>
                     <div>urlLen: {biographySourceUrl.length}</div>
+                    <div>exit R: {leftPanelSignalCounts.exitReactClick}</div>
+                    <div>exit N: {leftPanelSignalCounts.exitNativeClick}</div>
+                    <div>exit D: {leftPanelSignalCounts.exitDocClick}</div>
+                    <div>+ R: {leftPanelSignalCounts.createReactClick}</div>
+                    <div>+ N: {leftPanelSignalCounts.createNativeClick}</div>
+                    <div>+ D: {leftPanelSignalCounts.createDocClick}</div>
                   </div>
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-2 max-h-24 space-y-1 overflow-auto border-t border-amber-200/70 pt-2">
                     {biographyDiagnostics.length > 0 ? (
                       biographyDiagnostics.map((entry) => (
                         <div key={entry} className="break-words border-t border-amber-200/70 pt-1 first:border-t-0 first:pt-0">
@@ -535,6 +602,13 @@ export function TimelineLeftPanel({
                 <button
                   type="button"
                   title="Создать новый пустой холст"
+                  ref={createTimelineButtonRef}
+                  onClickCapture={() =>
+                    setLeftPanelSignalCounts((prev) => ({
+                      ...prev,
+                      createReactClick: prev.createReactClick + 1,
+                    }))
+                  }
                   onClick={handleCreateTimeline}
                   className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-sky-50 text-lg font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:from-blue-100 hover:to-sky-100"
                 >
