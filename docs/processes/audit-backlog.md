@@ -1,7 +1,7 @@
 # Бэклог по результатам аудита (январь 2025)
 
 > 🔔 **Легенда:** P — приоритет (H/M/L), E — оценка трудоёмкости (S/M/L).  
-> ✅ Завершённые пункты перенесены в `docs/REFRACTORING_ARCHIVE.md` (раздел *Audit backlog (январь 2025)*).  
+> ✅ Завершённые пункты перенесены в `docs/archive/REFRACTORING_ARCHIVE.md` (раздел *Audit backlog (январь 2025)*).  
 > Ниже остаются только активные задачи, сгруппированные по приоритету.
 
 ## 📊 Priority board
@@ -10,12 +10,16 @@
 | HP-1 | H (M) | Nightly интеграционные тесты (Firebase) | GH Actions job + артефакты прогонов |
 | HP-2 | H (L) | Расширенное Playwright покрытие | Seed-данные, full auth flow, stress-тесты, отчётность |
 | HP-3 | ✅ | Remediate container image vulnerabilities | NPM HIGH закрыты (2026-02-06), Go stdlib — buildpack-level |
-| MP-1 | M (M) | Изоляция бизнес-логики Timeline (lazy-hooks) | План 4.4 `docs/legacy/lazy-loading-migration.md`, обновлённый билд-отчёт |
-| MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/perf-metrics.md` + README summary |
+| HR-1 | H (M) | Защита `/api/books` | auth/quota contract, rate limit, restricted CORS, security tests |
+| MP-1 | M (M) | Изоляция бизнес-логики Timeline (lazy-hooks) | План 4.4 `docs/archive/legacy/lazy-loading-migration.md`, обновлённый билд-отчёт |
+| MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
 | MP-4 | M (S) | Документация и tooling вокруг тестов | Скрипт `ts:prune`, README policy, обновление lazy-docов и perf метрик |
+| MR-1 | M (M) | Масштабирование `/api/transcript-search` | server-side retrieval без full collection scan |
+| MR-2 | M (S) | Починить `npm run test:ci` | совместимый Vitest CLI для CI/test scripts |
+| MR-3 | M (S) | Убрать `lessonRef as never` | типизированный payload dynamic course lessons |
 | LP-1 | L (M) | Observability / telemetry | Базовый logger (Sentry/PostHog), описание процессов |
-| LP-5 | L (S-M) | Firebase/GCP Warnings | Миграция functions.config, обновление пакетов, cleanup policy, индексы |
+| LP-5 | L (S-M) | Firebase/GCP follow-ups | dependency review, cleanup policy, индексы, Telegram formatting |
 | RS-1 | M (M) | Глубокий поиск через Wikidata | Кнопка + API параметр `deep=true`, расширение запроса через Wikidata |
 | RS-2 | M (S) | Расширение словаря терминов | 500+ терминов RU→EN, словари для DE/FR/ES, JSON файлы |
 | RS-3 | M (L) | Мультиязычный поиск (не фильтр) | Переключатель режима, перевод запроса на выбранные языки |
@@ -36,16 +40,26 @@
 
 ## 🔴 High Priority
 
+### HR‑1. Защита `/api/books` (P: H, E: M)
+- **Проблема:** `api/books.ts` остаётся публичным AI endpoint с `Access-Control-Allow-Origin: *`, без auth, quota-contract и rate limiting для `search` / `answer`.
+- **Риск:** любой origin может дёргать embeddings/Gemini-path, что создаёт риск злоупотребления, роста расходов и расхождения с уже усиленной моделью безопасности `/api/lectures`.
+- **Подтверждение:** review `2026-03-12`, см. `docs/reports/CODE_REVIEW_2026-03-12.md`.
+- **Задачи:**
+  - [ ] Зафиксировать явный access model: authenticated-only или anonymous quota contract.
+  - [ ] Ограничить CORS allowlist вместо `*`.
+  - [ ] Добавить rate limit / abuse guard для дорогостоящих веток.
+  - [ ] Покрыть auth/CORS/rate-limit поведение тестами в `api/books.test.ts`.
+
 ### HP‑1. Nightly интеграционные тесты (P: H, E: M)
 - [ ] Настроить GitHub Actions workflow, который раз в сутки поднимает Firebase эмуляторы (`npm run firebase:emulators:start`) и гоняет `npm run test:integration`.  
 - [ ] Сохранять артефакты (лог успешных тестов, при падении — журнал/видео).  
-- [ ] Обновить документацию (README + `docs/TestingSystemGuide.md`) разделом «Как читать nightly-прогоны».
+- [ ] Обновить документацию (README + `docs/guides/testing-system.md`) разделом «Как читать nightly-прогоны».
 
 ### HP‑2. Полное Playwright покрытие (P: H, E: L)
 - [ ] Подготовить seed-данные (Firestore/Storage) для e2e сценариев с реальной авторизацией.  
 - [ ] Добавить сценарии: login + просмотр периодов, прохождение теста с prerequisite, CRUD заметок + экспорт, работа таймлайна (создание/перемещение событие), админ-флоу (назначение ролей, редактирование контента).  
 - [ ] Отдельно прогнать smoke на Slow 3G — убедиться в корректной работе fallback-компонентов.  
-- [ ] Настроить нотификации (Slack/email) при падениях и расширить `docs/TestingSystemGuide.md` разделом про e2e (структура, команды, расположение traces).
+- [ ] Настроить нотификации (Slack/email) при падениях и расширить `docs/guides/testing-system.md` разделом про e2e (структура, команды, расположение traces).
 
 #### HP‑2.A Text selection issue - ✅ РЕШЕНО (2025‑11‑15, Claude Sonnet 4.5)
 - **Проблема:** текст на сайте не выделяется мышкой (Chrome/Safari), вместо выделения происходит "драг"
@@ -56,7 +70,7 @@
   - Очищены артефакты от неудачной попытки Codex (`useDisableDrag.ts`, документация в README)
   - Сохранён Playwright тест `tests/text-selection.spec.ts` от Codex
 - **Результат:** ✅ **РЕШЕНО** - текст выделяется на всех страницах, подтверждено пользователем
-- **Полная документация:** См. `docs/legacy/TEXT_SELECTION_ISSUE.md` для истории всех попыток и финального решения
+- **Полная документация:** См. `docs/archive/legacy/TEXT_SELECTION_ISSUE.md` для истории всех попыток и финального решения
 
 ---
 
@@ -83,24 +97,51 @@
 
 ### MP‑1. Изоляция хук-логики Timeline (P: M, E: M)
 - [ ] Провести ревью текущего `timeline` chunk и выделить, какие хуки/утилиты (`useTimelineState`, drag/drop, history, export) ещё живут в основном файле (после коммита `6065075` визуальная часть уже разбита, бизнес-логика всё ещё тяжелая).  
-- [ ] Вынести бизнес-логику в отдельный ленивый модуль (`timeline-hooks` либо `TimelineInteractions`) по плану §4.4 из `docs/legacy/lazy-loading-migration.md`.  
+- [ ] Вынести бизнес-логику в отдельный ленивый модуль (`timeline-hooks` либо `TimelineInteractions`) по плану §4.4 из `docs/archive/legacy/lazy-loading-migration.md`.  
 - [ ] Вокруг новых lazy-компонентов добавить `Suspense` + `PageLoader`, обеспечить передачу состояния через пропсы/контекст без гонок.  
 - [ ] После каждого шага прогонять `npm run test` и фиксировать размеры чанков (`npm run build`).
 
 ### MP‑2. Повторные Lighthouse/Perf измерения (P: M, E: S)
 - [ ] Повторно запустить Lighthouse для `/`, `/tests`, `/timeline`, `/admin` после завершения ленивой миграции.  
-- [ ] Обновить `docs/perf-metrics.md` и кратко отразить результаты в README (Baseline vs Current).  
-- [ ] Зафиксировать исходники отчётов (пути к JSON) в `docs/legacy/lazy-loading-migration.md` или `logs/`.
+- [ ] Обновить `docs/reference/perf-metrics.md` и кратко отразить результаты в README (Baseline vs Current).  
+- [ ] Зафиксировать исходники отчётов (пути к JSON) в `docs/archive/legacy/lazy-loading-migration.md` или `logs/`.
 
 ### MP‑3. Static analysis + bundle monitoring (P: M, E: M)
 - [ ] Добавить проверку циклических зависимостей (`npx madge --circular src`) в `npm run validate` или отдельный скрипт.  
-- [ ] Ввести линт правил для порядка импортов и запрета «опасных» top-level вызовов (`export const foo = imported.bar()`), зафиксировать политику в `docs/ARCHITECTURE_GUIDELINES.md`.  
+- [ ] Ввести линт правил для порядка импортов и запрета «опасных» top-level вызовов (`export const foo = imported.bar()`), зафиксировать политику в `docs/architecture/guidelines.md`.  
 - [ ] В CI проверять размеры чанков (`npm run build` + fail, если timeline chunk > 1 MB или любой другой > 500 KB).
 
 ### MP‑4. Документация и tooling (P: M, E: S)
 - [ ] Добавить npm-скрипт `ts:prune` + инструкцию в README, как читать отчёт (`npx ts-prune`).
-- [ ] Явно закрепить в README требование прочитать `ARCHITECTURE_GUIDELINES.md` и `TestingSystemGuide.md` перед началом задач.
-- [ ] Обновить ленивую документацию: описать политику добавления новых lazy-страниц и итоговые метрики в `docs/legacy/lazy-loading-migration.md` / README, синхронизировать `docs/perf-metrics.md` после завершения работ.
+- [ ] Явно закрепить в README требование прочитать `docs/architecture/guidelines.md` и `docs/guides/testing-system.md` перед началом задач.
+- [ ] Обновить ленивую документацию: описать политику добавления новых lazy-страниц и итоговые метрики в `docs/archive/legacy/lazy-loading-migration.md` / README, синхронизировать `docs/reference/perf-metrics.md` после завершения работ.
+
+### MR‑1. Масштабирование `/api/transcript-search` (P: M, E: M)
+- **Проблема:** клиентский preload уже убран, но `api/transcript-search.ts` по-прежнему делает `collectionGroup(...).get()` по всему transcript-search индексу на каждый запрос и фильтрует результаты в памяти.
+- **Риск:** latency, cost и memory usage растут линейно от общего числа chunks; проблема больше не на клиенте, а на request path сервера.
+- **Подтверждение:** review `2026-03-12`, см. `docs/reports/CODE_REVIEW_2026-03-12.md`.
+- **Задачи:**
+  - [ ] Убрать full collection scan из hot path `GET /api/transcript-search`.
+  - [ ] Спроектировать индекс/lookup/sharding стратегию под query-time retrieval.
+  - [ ] После правки smoke-проверить глобальный поиск по транскриптам и обновить docs по search pipeline.
+
+### MR‑2. Починить `npm run test:ci` (P: M, E: S)
+- **Проблема:** текущий root script использует `vitest --runInBand`, который не поддерживается текущей версией Vitest и падает с `CACError`.
+- **Риск:** automation/CI entrypoint формально существует, но не исполняется.
+- **Подтверждение:** локальный прогон `2026-03-12`, см. `docs/processes/qa-smoke-log.md` и `docs/reports/CODE_REVIEW_2026-03-12.md`.
+- **Задачи:**
+  - [ ] Заменить `test:ci` на поддерживаемую команду Vitest 4.
+  - [ ] Проверить соседний `test:integration`, где используется тот же флаг.
+  - [ ] После правки повторно прогнать `npm run test:ci` и зафиксировать результат в QA log.
+
+### MR‑3. Убрать `lessonRef as never` в dynamic course creation (P: M, E: S)
+- **Проблема:** `src/hooks/useCreateCourse.ts` пишет lesson doc через `setDoc(lessonRef as never, ...)`, маскируя реальную проблему типизации payload/ref.
+- **Риск:** type system не защищает от schema drift в dynamic lessons.
+- **Подтверждение:** review `2026-03-12`, см. `docs/reports/CODE_REVIEW_2026-03-12.md`.
+- **Задачи:**
+  - [ ] Вынести явный тип lesson payload для dynamic course lessons.
+  - [ ] Типизировать `getCourseLessonDocRef` и `setDoc` без `never`.
+  - [ ] После правки прогнать `typecheck:app` и smoke создания нового курса.
 
 ### MP‑5. ✅ Исправление заглушки для clinical/general курсов - РЕШЕНО (2025-11-19)
 - **Проблема:** Заглушка показывалась даже когда `placeholder_enabled = false` если sections были пустыми
@@ -165,34 +206,19 @@
 - **Решение:** Сейчас работает GEMINI_API_KEY, остальные можно удалить
 - **Статус:** 🟢 Не критично — fallbacks не мешают, но добавляют шум в код
 
-### LP‑5. Firebase/GCP Warnings (P: L, E: S-M)
-- **Warnings от Firebase deploy (2025-12-25):**
+### LP‑5. Firebase/GCP follow-ups (P: L, E: S-M)
+- **Контекст:** миграция с `functions.config()` уже закрыта 2026-03-09 (`seedAdmin` переведён на Secret Manager, runtime guard блокирует новые legacy-конфиги). Ниже оставлены только активные follow-up задачи.
 
-#### 1. functions.config() API Deprecated (Deadline: March 2026)
-- **Проблема:** Cloud Runtime Configuration API будет отключён в марте 2026
-- **Влияние:** После March 2026 деплой функций с `functions.config()` будет падать
+#### 1. Firebase Functions dependency review
+- **Проблема:** `functions/package.json` сейчас использует `firebase-functions@^5.0.0`; зависимость нужно регулярно сверять с release notes перед следующими platform upgrades.
 - **Решение:**
-  - [ ] Мигрировать с `functions.config()` на `.env` файлы и Secret Manager
-  - [ ] Документация: https://firebase.google.com/docs/functions/config-env#migrate-to-dotenv
-  - [ ] Проверить все функции в `functions/src/` на использование `functions.config()`
-  - [ ] Обновить документацию по деплою
-- **Приоритет:** 🟡 Средний (есть 1+ год), но не забыть
-- **Оценка:** 1-2 часа (если env vars уже настроены)
+  - [ ] Проверить актуальность ветки `firebase-functions` перед следующим deploy-циклом.
+  - [ ] Если потребуется upgrade, прогнать `cd functions && npm test && npm run build` и smoke критических функций.
+  - [ ] Обновить changelog/docs по деплою при смене major/minor policy.
+- **Предупреждение:** ⚠️ Возможны breaking changes
+- **Оценка:** 30-90 минут
 
-#### 2. firebase-functions Package Outdated
-- **Проблема:** `package.json` указывает на устаревшую версию `firebase-functions`
-- **Текущая версия:** (нужно проверить в `functions/package.json`)
-- **Последняя версия:** `firebase-functions@latest`
-- **Решение:**
-  - [ ] `cd functions && npm install --save firebase-functions@latest`
-  - [ ] Проверить breaking changes: https://firebase.google.com/support/release-notes/functions
-  - [ ] Протестировать все функции после обновления (особенно Gen2 ingestBook)
-  - [ ] Обновить тайпинги и импорты при необходимости
-- **Предупреждение:** ⚠️ Могут быть breaking changes
-- **Приоритет:** 🟡 Средний
-- **Оценка:** 2-4 часа (с тестированием)
-
-#### 2.A Telegram Markdown escaping cleanup
+#### 1.A Telegram Markdown escaping cleanup
 - **Проблема:** `escapeMarkdown` в weekly transcript report экранирует не весь набор специальных символов Telegram Markdown, из-за чего будущие error/message строки могут ломать форматирование уведомления.
 - **Решение:**
   - [ ] Выбрать и зафиксировать один режим форматирования (`Markdown` vs `MarkdownV2`) для Telegram-уведомлений
@@ -201,27 +227,7 @@
 - **Приоритет:** 🟢 Низкий
 - **Оценка:** 20-40 минут
 
-#### 2.B Transcript search chunks client preload
-- **Проблема:** `src/features/contentSearch/hooks/useTranscriptSearchChunks.ts` загружает в браузер все `searchChunks` через `collectionGroup(...).get()` и кэширует их на всю сессию.
-- **Риск:** при росте библиотеки лекций увеличатся трафик, задержка первого поиска и память клиента; новые транскрипты не попадают в клиентский кеш до перезагрузки.
-- **Решение:**
-  - [ ] Спроектировать более узкую стратегию загрузки transcript-search данных вместо client-wide preload
-  - [ ] Ограничить объём данных на один поисковый запрос или перенести часть поиска на сервер
-  - [ ] После выбора стратегии обновить `useTranscriptSearchChunks` и smoke-проверить глобальный поиск по транскриптам
-- **Приоритет:** 🟡 Средний
-- **Оценка:** 1-2 часа
-
-#### 2.C Очистка типизации `lessonRef as never` в `useCreateCourse`
-- **Проблема:** в `src/hooks/useCreateCourse.ts` запись lesson-документа в Firestore сейчас использует `setDoc(lessonRef as never, ...)`, чтобы обойти рассинхрон между типом `DocumentReference` и фактической формой lesson payload.
-- **Риск:** runtime это не ломает, но прячет реальную проблему типизации и делает код хрупким при следующем рефакторинге lesson schema.
-- **Решение:**
-  - [ ] Вынести явный тип lesson payload для dynamic course lessons
-  - [ ] Типизировать `getCourseLessonDocRef` и `setDoc` без приведения к `never`
-  - [ ] После правки прогнать `typecheck:app` и smoke создания нового курса
-- **Приоритет:** 🟢 Низкий
-- **Оценка:** 20-40 минут
-
-#### 3. Container Images Cleanup Policy (europe-west1)
+#### 2. Container Images Cleanup Policy (europe-west1)
 - **Проблема:** Нет cleanup policy для Docker образов Cloud Functions в region `europe-west1`
 - **Влияние:** Небольшой месячный счёт (~$1-5/месяц) из-за накопления старых образов
 - **Решение (опция 1):** Автоматическая настройка при деплое
@@ -239,7 +245,7 @@
 - **Оценка:** 15 минут
 - **Статус:** 🟡 Можно сделать при следующем деплое с `--force`
 
-#### 4. Firestore Composite Indexes Missing
+#### 3. Firestore Composite Indexes Missing
 - **Проблема:** Нет composite индексов для adjacent chunks queries в `book_chunks`
 - **Ошибка:** `9 FAILED_PRECONDITION: The query requires an index`
 - **Нужные индексы:**

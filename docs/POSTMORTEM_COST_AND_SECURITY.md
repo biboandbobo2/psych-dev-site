@@ -16,11 +16,11 @@
 - Тесты зависели от копирайта в UI и ломались при смене текста.
 
 Источники и артефакты:
-- `ARTIFACT_REGISTRY_INVESTIGATION.md`
-- `CLEANUP_SUMMARY.md`
-- `CLEANUP_LOG.md`
-- `PRE_GITHUB_CHANGES_PLAN.md`
-- `PRE_GITHUB_CHANGES_DONE.md`
+- [reports/ARTIFACT_REGISTRY_INVESTIGATION.md](reports/ARTIFACT_REGISTRY_INVESTIGATION.md)
+- [reports/CLEANUP_SUMMARY.md](reports/CLEANUP_SUMMARY.md)
+- [reports/CLEANUP_LOG.md](reports/CLEANUP_LOG.md)
+- [reports/PRE_GITHUB_CHANGES_PLAN.md](reports/PRE_GITHUB_CHANGES_PLAN.md)
+- [reports/PRE_GITHUB_CHANGES_DONE.md](reports/PRE_GITHUB_CHANGES_DONE.md)
 
 ## Что было сделано
 
@@ -32,7 +32,7 @@
 Ключевые метрики (на момент фиксации):
 - Cloud Run revisions: 25 → 2.
 - Artifact Registry (virtual size): 1.19 GiB → 215.93 MiB.
-- Остались 2 orphan digest'а (см. `CLEANUP_SUMMARY.md`).
+- Остались 2 orphan digest'а (см. [reports/CLEANUP_SUMMARY.md](reports/CLEANUP_SUMMARY.md)).
 
 Примечание: `imageSizeBytes` отражает виртуальный размер образов. Фактическая стоимость может быть ниже из-за дедупликации слоёв и задержек биллинга.
 
@@ -60,7 +60,7 @@
 ### Контрольные меры
 - Хранить минимум ревизий: active + `KEEP_LAST_N`.
 - Чистить только orphan digest'ы и только после проверки потребителей.
-- Вести логи и снапшоты перед удалениями (`CLEANUP_LOG.md`, `logs/`).
+- Вести логи и снапшоты перед удалениями ([reports/CLEANUP_LOG.md](reports/CLEANUP_LOG.md), `logs/`).
 
 ## Что делать, если счета снова растут
 
@@ -73,7 +73,7 @@
 - Выявить orphan digest'ы и удалить только после проверки использования.
 
 3) Зафиксировать изменения
-- Обновить `CLEANUP_LOG.md` и `CLEANUP_SUMMARY.md`.
+- Обновить [reports/CLEANUP_LOG.md](reports/CLEANUP_LOG.md) и [reports/CLEANUP_SUMMARY.md](reports/CLEANUP_SUMMARY.md).
 - Добавить/обновить cleanup policy для untagged (если ещё не настроено).
 
 ## Следующие шаги

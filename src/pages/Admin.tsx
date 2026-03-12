@@ -144,14 +144,8 @@ export default function Admin() {
             и вызывают Cloud Function `seedAdmin` на сервере.
           </p>
           <p className="text-sm text-muted">
-            Подробный процесс описан в{" "}
-            <a
-              href="/docs/ARCHITECTURE_GUIDELINES.md#security-roles--logging"
-              className="text-accent no-underline hover:no-underline focus-visible:no-underline"
-            >
-              Architecture Guidelines → Security, Roles &amp; Logging
-            </a>
-            .
+            Подробный процесс описан в <code>docs/architecture/guidelines.md</code>, раздел
+            <code>#security-roles--logging</code>.
           </p>
         </div>
       )}

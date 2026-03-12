@@ -477,7 +477,7 @@ export const BOOK_SEARCH_CONFIG = {
 
 ## Связанные документы
 
-- `docs/audit-backlog.md` — бэклог проекта
-- `docs/ARCHITECTURE_GUIDELINES.md` — архитектурные правила
+- `docs/processes/audit-backlog.md` — бэклог проекта
+- `docs/architecture/guidelines.md` — архитектурные правила
 - `api/assistant.ts` — референс для Gemini API
 - `src/features/researchSearch/` — референс для feature structure

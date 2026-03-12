@@ -1,7 +1,7 @@
 # PRE_GITHUB_CHANGES_PLAN.md
 
 Исторический план подготовки репозитория к публикации (без переписывания истории).  
-Актуальные правила: `docs/SECURITY_BASELINE.md`, контроль затрат: `docs/COST_GUARDRAILS.md`.
+Актуальные правила: [../SECURITY_BASELINE.md](../SECURITY_BASELINE.md), контроль затрат: [../COST_GUARDRAILS.md](../COST_GUARDRAILS.md).
 
 ## A) MUST — обязательное перед публикацией
 
@@ -61,7 +61,7 @@
 - Риски/откат: не требуется.
 
 ### 7) Документировать переменные для Vercel Preview
-- Что: собрать список из `.env.example` и описать в `PREVIEW_CHECKLIST_VERCEL.md`.
+- Что: собрать список из `.env.example` и описать в [../../PREVIEW_CHECKLIST_VERCEL.md](../../PREVIEW_CHECKLIST_VERCEL.md).
 - Почему: без env Preview может падать.
 - Риски: нет.
 

@@ -1,7 +1,7 @@
 # PRE_GITHUB_CHANGES_DONE.md
 
 Историческая фиксация изменений подготовки репозитория к публикации.  
-Актуальные правила см. `docs/SECURITY_BASELINE.md` и `PREVIEW_CHECKLIST_VERCEL.md`.
+Актуальные правила см. [../SECURITY_BASELINE.md](../SECURITY_BASELINE.md) и [../../PREVIEW_CHECKLIST_VERCEL.md](../../PREVIEW_CHECKLIST_VERCEL.md).
 
 ## Что было изменено
 - `.gitignore`: добавлен блок `# Security ignores` для env/keys/artifacts.
@@ -29,4 +29,4 @@
 - Вернуть файлы в индекс:
   - `git add .env.production backups/periods-backup-2025-11-19T12-44-40.json playwright-report/index.html test-results/.last-run.json`
 
-**См. также:** `PRE_GITHUB_CHANGES_PLAN.md`.
+**См. также:** [PRE_GITHUB_CHANGES_PLAN.md](PRE_GITHUB_CHANGES_PLAN.md)

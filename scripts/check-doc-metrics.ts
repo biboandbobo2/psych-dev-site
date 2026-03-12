@@ -17,7 +17,7 @@ const repoRoot = path.resolve(__dirname, '..');
 
 const docs: DocConfig[] = [
   {
-    docPath: 'docs/TestingSystemGuide.md',
+    docPath: 'docs/guides/testing-system.md',
     entries: [
       { label: 'TestEditorForm.tsx', filePath: 'src/components/TestEditorForm.tsx' },
       { label: 'QuestionEditor.tsx', filePath: 'src/components/QuestionEditor.tsx' },
@@ -28,7 +28,7 @@ const docs: DocConfig[] = [
     ],
   },
   {
-    docPath: 'docs/TimelineGuide.md',
+    docPath: 'docs/guides/timeline.md',
     entries: [{ label: 'Timeline.tsx', filePath: 'src/pages/Timeline.tsx' }],
   },
 ];

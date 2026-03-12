@@ -1,249 +1,81 @@
-# 📚 Документация проекта "Психология развития"
+# Документация проекта
 
-> Образовательная платформа с тремя курсами, интерактивными инструментами и AI-помощниками
+Этот файл служит каталогом документации. В отличие от корневого `README.md`, здесь нет обзора продукта и длинного фич-листа: только структура знаний, входные точки и назначение каждого документа.
 
----
+## Стартовые точки
 
-## 🚀 Начало работы
+- Новый участник проекта: [QUICK_START.md](QUICK_START.md)
+- Архитектурный контекст: [architecture/overview.md](architecture/overview.md)
+- Обязательные правила перед изменениями: [architecture/guidelines.md](architecture/guidelines.md)
+- Workflow разработки и валидации: [development/testing-workflow.md](development/testing-workflow.md)
 
-### Для новых разработчиков
-
-**👉 [QUICK_START.md](QUICK_START.md)** ← **НАЧНИ ЗДЕСЬ** (5 минут)
-
-Быстрый старт покрывает:
-- Установка и настройка окружения
-- Первый запуск проекта
-- Проверка кода перед коммитом
-- Куда смотреть дальше
-
----
-
-## 📖 Основные разделы
-
-### 📚 Гайды по системам
-
-Подробные руководства по ключевым подсистемам проекта:
-
-| Гайд | Описание | Время чтения |
-|------|----------|--------------|
-| [Система тестирования](guides/testing-system.md) | Создание, управление и прохождение тестов. Цепочки, медиа, импорт/экспорт | 30 мин |
-| [Timeline система](guides/timeline.md) | Интерактивная карта событий жизни. Drag-and-drop, экспорт, интеграция | 20 мин |
-| [Мультикурсовая система](guides/multi-course.md) | Три курса в одном приложении. URL-based detection, granular access | 15 мин |
-| [Book RAG система](guides/book-rag.md) | Поиск по книгам с AI. PDF ingestion, embeddings, semantic search | 15 мин |
-| [Система обратной связи](guides/feedback-system.md) | Сбор отзывов пользователей с Telegram интеграцией. Баги, идеи, благодарности | 10 мин |
-
-### 🏗️ Архитектура
-
-Понимание структуры и ключевых решений:
-
-| Документ | Описание | Аудитория |
-|----------|----------|-----------|
-| [Обзор архитектуры](architecture/overview.md) | **Старт здесь!** Высокоуровневая архитектура, стек, data flow | Все разработчики |
-| [Архитектурные правила](architecture/guidelines.md) | SRP, DRY, размеры файлов, composition, state management | **Обязательно перед коммитом** |
-| [Принципы проектирования](architecture/principles.md) | Краткий чеклист: что делать перед задачей/рефакторингом | Quick reference |
-
-### 🛠️ Процессы разработки
-
-Workflow и best practices:
-
-| Документ | Описание |
-|----------|----------|
-| [Testing Workflow](development/testing-workflow.md) | Команды, pre-commit/pre-push hooks, валидация |
-| [QA Smoke Log](processes/qa-smoke-log.md) | Лог тестирования (фиксируй каждый запуск!) |
-| [Audit Backlog](processes/audit-backlog.md) | Текущие задачи и приоритеты |
+## Архитектура
 
-### 🔐 Безопасность и расходы
+- [architecture/overview.md](architecture/overview.md) — высокоуровневая схема приложения и потоков данных
+- [architecture/guidelines.md](architecture/guidelines.md) — практические правила по структуре, размерам файлов, логированию и code splitting
+- [architecture/principles.md](architecture/principles.md) — короткий чеклист перед задачей или рефакторингом
 
-| Документ | Описание |
-|----------|----------|
-| [Security Baseline](SECURITY_BASELINE.md) | Минимальные правила по секретам и env |
-| [Cost Guardrails](COST_GUARDRAILS.md) | Как предотвращать рост расходов |
-| [Postmortem: Cost & Security Prep](POSTMORTEM_COST_AND_SECURITY.md) | Что было сделано и почему |
+## Гайды по подсистемам
 
-### 💡 Идеи и бэклог
+- [guides/testing-system.md](guides/testing-system.md) — система тестов, редактор, цепочки, import/export
+- [guides/timeline.md](guides/timeline.md) — устройство таймлайна и связанные UI/данные
+- [guides/multi-course.md](guides/multi-course.md) — мультикурсовая архитектура и dynamic courses
+- [guides/lecture-transcript-ai.md](guides/lecture-transcript-ai.md) — видеолекции, transcript pipeline, глобальный transcript search и ИИ по лекциям
+- [guides/book-rag.md](guides/book-rag.md) — поиск по книгам и ingestion pipeline
+- [guides/feedback-system.md](guides/feedback-system.md) — feedback flow и Telegram-интеграция
 
-| Документ | Описание |
-|----------|----------|
-| [Продуктовые идеи](ideas/product-ideas.md) | UX-улучшения, геймификация, идеи для профиля |
+## Разработка и процессы
 
-### 📖 Справочная информация
+- [development/testing-workflow.md](development/testing-workflow.md) — локальная валидация, хуки, CI-ориентированный workflow
+- [processes/qa-smoke-log.md](processes/qa-smoke-log.md) — журнал запусков тестов и smoke-проверок
+- [processes/audit-backlog.md](processes/audit-backlog.md) — активный техдолг, backlog и follow-up задачи
+- [PLANS_OVERVIEW.md](PLANS_OVERVIEW.md) — сводный статус планов и архивных рефакторингов
 
-Быстрые ссылки на технические детали:
+## Справка
 
-| Документ | Содержание |
-|----------|------------|
-| [Метрики производительности](reference/perf-metrics.md) | Lighthouse scores, размеры чанков, оптимизация |
-| [Research Search Analysis](reference/RESEARCH_SEARCH_ANALYSIS.md) | Анализ работы научного поиска |
+- [reference/routes.md](reference/routes.md) — маршруты приложения и ограничения доступа
+- [reference/firestore-schema.md](reference/firestore-schema.md) — коллекции Firestore, документы и поля
+- [reference/perf-metrics.md](reference/perf-metrics.md) — метрики сборки и производительности
+- [reference/RESEARCH_SEARCH_ANALYSIS.md](reference/RESEARCH_SEARCH_ANALYSIS.md) — анализ релевантности research search
+- [reference/research_search_eval_queries.md](reference/research_search_eval_queries.md) — eval-набор для search
 
----
+## Безопасность, расходы и эксплуатация
 
-## 🗺️ Карта документации
+- [SECURITY_BASELINE.md](SECURITY_BASELINE.md) — базовые правила по секретам, env и инцидентам
+- [COST_GUARDRAILS.md](COST_GUARDRAILS.md) — guardrails по затратам и cleanup-практики
+- [POSTMORTEM_COST_AND_SECURITY.md](POSTMORTEM_COST_AND_SECURITY.md) — контекст принятых решений и последующих действий
+- [BRANCH_PROTECTION_SETUP.md](BRANCH_PROTECTION_SETUP.md) — настройка protection rules
+- [security/container-scanning-2026-02-01.md](security/container-scanning-2026-02-01.md) — отчёт по container scanning
 
-```
-docs/
-├── QUICK_START.md                 ← 🚀 Начни здесь!
-├── README.md                      ← Ты здесь
-├── COST_GUARDRAILS.md             ← Контроль затрат
-├── SECURITY_BASELINE.md           ← Базовая безопасность
-├── POSTMORTEM_COST_AND_SECURITY.md ← Постмортем по затратам и безопасности
-│
-├── guides/                        📚 Руководства по системам
-│   ├── testing-system.md          # Система тестирования
-│   ├── timeline.md                # Timeline система
-│   ├── multi-course.md            # Мультикурсовая система
-│   └── book-rag.md                # Book RAG поиск
-│
-├── architecture/                  🏗️ Архитектура
-│   ├── overview.md                # ⭐ Обзор (начни здесь!)
-│   ├── guidelines.md              # Правила и best practices
-│   └── principles.md              # Краткий чеклист
-│
-├── development/                   🛠️ Разработка
-│   └── testing-workflow.md        # Testing workflow
-│
-├── processes/                     📋 Процессы
-│   ├── qa-smoke-log.md            # QA лог
-│   └── audit-backlog.md           # Задачи и приоритеты
-│
-├── ideas/                         💡 Идеи
-│   └── product-ideas.md           # UX, геймификация, профиль
-│
-├── reference/                     📖 Справка
-│   ├── perf-metrics.md            # Производительность
-│   └── RESEARCH_SEARCH_ANALYSIS.md # Научный поиск
-│
-└── archive/                       🗄️ Архив
-    ├── refactoring/               # Завершённые рефакторинги
-    └── legacy/                    # Устаревшие документы
-```
+## Дизайн и идеи
 
----
+- [design/design-code.md](design/design-code.md) — дизайн-код, палитры и визуальные конвенции
+- [design/design-ideas.md](design/design-ideas.md) — идеи интерфейсов
+- [ideas/product-ideas.md](ideas/product-ideas.md) — продуктовые и UX-идеи
 
-## 🎯 Быстрая навигация по задачам
+## Отчёты и архив
 
-### Я хочу...
+- [reports/README.md](reports/README.md) — разовые аудиты, инвентари и отчётные артефакты
+- [archive/REFRACTORING_ARCHIVE.md](archive/REFRACTORING_ARCHIVE.md) — сводка завершённых рефакторингов
+- [archive/refactoring/](archive/refactoring/) — архивные планы по отдельным инициативам
+- [archive/legacy/](archive/legacy/) — устаревшие документы и указатели совместимости
 
-#### ...понять архитектуру проекта
-1. [architecture/overview.md](architecture/overview.md) (10 мин)
-2. [architecture/guidelines.md](architecture/guidelines.md) (30 мин)
+## Корневые документы репозитория
 
-#### ...создать новую фичу
-1. Прочитай [architecture/guidelines.md](architecture/guidelines.md)
-2. Изучи похожую существующую фичу
-3. Следуй чеклисту перед коммитом
+Эти файлы intentionally остаются в корне и не дублируются здесь:
 
-#### ...разобраться с тестами
-1. [guides/testing-system.md](guides/testing-system.md)
-2. [development/testing-workflow.md](development/testing-workflow.md)
+- [`README.md`](../README.md) — краткий обзор репозитория и основные входные точки
+- [`CHANGELOG.md`](../CHANGELOG.md) — история изменений
+- [`CONTRIBUTING.md`](../CONTRIBUTING.md) — contribution rules
+- [`AGENTS.md`](../AGENTS.md) — системные инструкции для Codex
+- [`PREVIEW_CHECKLIST_VERCEL.md`](../PREVIEW_CHECKLIST_VERCEL.md) — preview smoke-checklist
 
-#### ...понять Timeline
-1. [guides/timeline.md](guides/timeline.md)
-2. Посмотри код: `src/pages/Timeline.tsx`
+## Правила обновления
 
-#### ...работать с курсами
-1. [guides/multi-course.md](guides/multi-course.md)
-2. Firestore коллекции: `periods`, `clinical-topics`, `general-topics`
+- Меняется архитектура или инженерные правила: обновляй `architecture/*`
+- Меняется поведение конкретной подсистемы: обновляй соответствующий `guides/*`
+- Запускаются тесты или smoke: добавляй запись в `processes/qa-smoke-log.md`
+- Появляется новый техдолг или follow-up: обновляй `processes/audit-backlog.md`
+- Появляется разовый аудит или инвентарь: клади его в `reports/`
 
-#### ...запустить проект локально
-👉 [QUICK_START.md](QUICK_START.md)
-
----
-
-## 🔄 Обновление документации
-
-### Когда обновлять?
-
-- ✅ Добавлена новая фича → обнови соответствующий гайд
-- ✅ Изменена архитектура → обнови architecture/*
-- ✅ Новые правила/процессы → обнови guidelines.md
-- ✅ Запущены тесты → запиши в qa-smoke-log.md
-- ✅ Новая задача → добавь в audit-backlog.md
-
-### Структура документа
-
-Каждый документ должен иметь:
-```markdown
-# Заголовок
-
-> Краткое описание (1-2 предложения)
-> **Время чтения:** X минут
-> **Статус:** Актуально / Устарело / В работе
-
-## Содержание
-...
-
-## Основной контент
-...
-
-**Последнее обновление:** YYYY-MM-DD
-**См. также:** [ссылки на связанные документы]
-```
-
----
-
-## 🆘 Поддержка
-
-### Частые проблемы
-
-| Проблема | Решение |
-|----------|---------|
-| Pre-commit hook не проходит | Проверь `console.*` → замени на `debugLog` |
-| Build падает | Прочитай [architecture/guidelines.md#module-initialization](architecture/guidelines.md#module-initialization-testing) |
-| Не знаю с чего начать | [QUICK_START.md](QUICK_START.md) → [architecture/overview.md](architecture/overview.md) |
-| Нужна конкретная информация | Используй поиск (Cmd+F) в соответствующем гайде |
-
-### Контакты
-
-При возникновении вопросов:
-1. Проверь соответствующий гайд
-2. Поищи в [audit-backlog.md](processes/audit-backlog.md) — возможно, проблема известна
-3. Создай issue с подробным описанием
-
----
-
-## 📊 Статистика проекта
-
-| Показатель | Значение |
-|------------|----------|
-| **Строк кода** | ~35,000 |
-| **Компонентов** | 50+ |
-| **Тестов** | 310 |
-| **Документов** | 20+ |
-| **Курсов** | 3 |
-
----
-
-## 🗄️ Архив
-
-Завершённые рефакторинги и устаревшие документы:
-
-- [archive/refactoring/](archive/refactoring/) — планы рефакторинга (выполнены)
-- [archive/legacy/](archive/legacy/) — устаревшая документация
-- [archive/REFRACTORING_ARCHIVE.md](archive/REFRACTORING_ARCHIVE.md) — история рефакторингов
-
----
-
-## 📝 Changelog документации
-
-**2026-01-16** — Добавлен раздел идей
-- Создана папка ideas/ с product-ideas.md
-- Идеи по геймификации и улучшению профиля
-
-**2026-01-08** — Полная реорганизация структуры
-- Создана иерархия: guides/, architecture/, development/, reference/, processes/
-- Добавлен QUICK_START.md
-- Добавлен architecture/overview.md
-- Упрощена навигация
-
-**2025-11-14** — Добавлены тестинг-процессы
-- TESTING_WORKFLOW.md
-- Обновлены qa-smoke-log.md
-
-**2025-11-07** — Базовая документация
-- Созданы основные гайды
-- ARCHITECTURE_GUIDELINES.md
-
----
-
-**Последнее обновление:** 2026-01-16
-**Версия:** 2.1
+**Последнее обновление:** 2026-03-12

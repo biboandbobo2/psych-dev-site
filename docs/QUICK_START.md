@@ -29,7 +29,7 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=1006911372271
 VITE_FIREBASE_APP_ID=1:1006911372271:web:b7e9b4371c8ece412e941a
 ```
 
-> 💡 **Полный список переменных:** [reference/env-variables.md](reference/env-variables.md)
+> 💡 **Полный список переменных:** [.env.example](../.env.example)
 
 ---
 

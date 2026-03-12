@@ -1,4 +1,4 @@
 # Указатель: Test Editor Refactoring Plan
 
-Полный план переехал в `docs/legacy/TEST_EDITOR_REFACTORING_PLAN.md`.  
-Сводка результатов находится в `docs/REFRACTORING_ARCHIVE.md` (раздел *Audit backlog* и *Tests Refactoring Plan*).
+Документ сохранён в архиве как указатель на завершённый план.  
+Сводка результатов находится в `docs/archive/REFRACTORING_ARCHIVE.md` (раздел *Audit backlog* и *Tests Refactoring Plan*).

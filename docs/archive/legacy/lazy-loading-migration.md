@@ -1,4 +1,4 @@
 # Указатель: Lazy-loading migration plan
 
-Основной документ перенесён в `docs/legacy/lazy-loading-migration.md`.  
-Состояние выполненных этапов зафиксировано в `docs/REFRACTORING_ARCHIVE.md` (раздел *Audit backlog*), а актуальные задачи находятся в `docs/audit-backlog.md`.
+Документ сохранён в архиве как указатель на историческую миграцию lazy-loading.  
+Состояние выполненных этапов зафиксировано в `docs/archive/REFRACTORING_ARCHIVE.md` (раздел *Audit backlog*), а актуальные задачи находятся в `docs/processes/audit-backlog.md`.

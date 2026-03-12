@@ -4,12 +4,11 @@
 
 ## 🔗 Связанные документы
 
-- 📋 **[Главная документация](./README.md)** - навигация по всем документам проекта
-- 📐 **[Архитектурные рекомендации](./ARCHITECTURE_GUIDELINES.md)** - правила и best practices
-- 🔧 **[План рефакторинга таймлайна](./TIMELINE_REFACTORING_PLAN.md)** - детальный план улучшения этой системы
-- 🗓️ **[План рефакторинга тестов](./TESTS_REFACTORING_PLAN.md)** - план улучшения связанной системы
-- 🛠️ **[План рефакторинга основной части](./CORE_REFACTORING_PLAN.md)** - рефакторинг админки, заметок, профиля
-- 📚 **[Система тестов](./TestingSystemGuide.md)** - связанная система (интеграция через заметки и возрастные периоды)
+- 📋 **[Главная документация](../README.md)** - навигация по всем документам проекта
+- 📐 **[Архитектурные рекомендации](../architecture/guidelines.md)** - правила и best practices
+- 🔧 **[Архив рефакторингов](../archive/REFRACTORING_ARCHIVE.md#timeline)** - завершённые этапы и контекст по Timeline
+- 🗂️ **[Актуальный бэклог](../processes/audit-backlog.md)** - текущие задачи и техдолг по системе
+- 📚 **[Система тестирования](./testing-system.md)** - связанная система (интеграция через заметки и возрастные периоды)
 
 ---
 
@@ -63,7 +62,7 @@ src/hooks/
   - `utils/exporters.ts` и `utils/index.ts` — повторно используемые утилиты (экспорт данных, координаты, парсинг возраста).
   - `data/periodizations.ts` содержит все актуальные периодизации и их метаданные, поэтому импортируется в форму выбора периодизации и TimelineCanvas.
 - `src/pages/Timeline.tsx` остаётся точкой интеграции: он собирает состояния из `useTimelineState`, рендерит `TimelineCanvas` и панели, экспортирует данные в `SaveNoteAsEventButton` и `NoteModal`, и подключает `src/pages/timeline/index.ts` для любых reusable элементов.
-- Согласно архивной версии `docs/TIMELINE_REFACTORING_PLAN.md`, текущие задачи по таймлайну переехали в `docs/audit-backlog.md` (разделы 4, 5, 7) и `docs/REFRACTORING_ARCHIVE.md` (секция Timeline). При работе с новым функционалом ориентируйтесь на эти документы: гайды синхронизированы, а этот файл описывает реализацию и любые отклонения от плана.
+- Согласно архивной версии `docs/archive/legacy/TIMELINE_REFACTORING_PLAN.md`, текущие задачи по таймлайну переехали в `docs/processes/audit-backlog.md` и `docs/archive/REFRACTORING_ARCHIVE.md` (секция Timeline). При работе с новым функционалом ориентируйтесь на эти документы: гайды синхронизированы, а этот файл описывает реализацию и любые отклонения от плана.
 
 ## Новая структура после рефакторинга
 
@@ -500,9 +499,9 @@ const height = endY - startY;
 
 ## Phase 6 QA и метрики (Timeline)
 
-- Чеклист Phase 6 живёт в `docs/audit-backlog.md` (разделы 7.1–7.3) и `docs/REFRACTORING_ARCHIVE.md` (Timeline section). Перед финальной сборкой:
-  1. Прогоняйте `npm run test`, `npm run build`, ручные smoke-сценарии (CRUD заметок, экспорт) и фиксируйте результаты в `docs/qa-smoke-log.md`.
-  2. Проверяйте, что Timeline отражает те же механизмы, что описаны в `docs/TIMELINE_REFACTORING_PLAN.md` (ссылка на архив/бэклог) — архитектурные решения и новые компоненты должны быть синхронизированы.
+- Чеклист Phase 6 живёт в `docs/processes/audit-backlog.md` и `docs/archive/REFRACTORING_ARCHIVE.md` (Timeline section). Перед финальной сборкой:
+  1. Прогоняйте `npm run test`, `npm run build`, ручные smoke-сценарии (CRUD заметок, экспорт) и фиксируйте результаты в `docs/processes/qa-smoke-log.md`.
+  2. Проверяйте, что Timeline отражает те же механизмы, что описаны в `docs/archive/legacy/TIMELINE_REFACTORING_PLAN.md` и `docs/archive/REFRACTORING_ARCHIVE.md` — архитектурные решения и новые компоненты должны быть синхронизированы.
   3. Отмечайте любые отклонения (баги, регрессии) и привязывайте их к тикетам/коммитам, чтобы QA видела полный контекст изменений.
   4. Автоматизируйте Lighthouse для таймлайна через `npm run lighthouse:timeline` (предварительно запуская `npm run dev -- --port=4173` или `npm run preview`), чтобы отчёты попадали в `logs/lighthouse-timeline.json`.
 
@@ -522,5 +521,5 @@ const height = endY - startY;
 npx lighthouse http://localhost:5173/timeline --only-categories=performance,accessibility,best-practices --output=json --output-path=logs/lighthouse-timeline.json
 ```
 
-- Записывайте результаты (LCP, FID/TBT, Accessibility, Best Practices) в `docs/qa-smoke-log.md` и сверяйтесь с чеклистом.
+- Записывайте результаты (LCP, FID/TBT, Accessibility, Best Practices) в `docs/processes/qa-smoke-log.md` и сверяйтесь с чеклистом.
 - Если показатели ухудшатся после рефакторинга, фиксируйте причину и добавляйте ссылку на Lighthouse-отчёт в релизную заметку.

@@ -179,9 +179,9 @@ ${byType.config
 
 `;
 
-fs.writeFileSync('PROJECT_MAP.md', report, 'utf-8');
+fs.writeFileSync('docs/reports/PROJECT_MAP.md', report, 'utf-8');
 
-console.log('✅ Project map created: PROJECT_MAP.md\n');
+console.log('✅ Project map created: docs/reports/PROJECT_MAP.md\n');
 
 console.log('🎨 Files with period colors:');
 importantFiles

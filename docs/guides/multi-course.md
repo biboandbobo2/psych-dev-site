@@ -659,7 +659,7 @@ users/pending_{base64url(email)}
 ## Известные проблемы
 
 ### MP-5: Заглушка не работает в clinical/general курсах
-**Статус:** 🔴 Открыто (добавлено в `docs/audit-backlog.md`)
+**Статус:** 🔴 Открыто (добавлено в `docs/processes/audit-backlog.md`)
 
 **Проблема:**
 Заглушка (placeholder) не отображается корректно для страниц курсов клинической и общей психологии, даже когда все sections пустые.
@@ -744,14 +744,13 @@ npm run dev
 3. **Логирование:**
    - Использовать `debugLog` для отладки загрузки данных
    - Добавлять метаданные в логи (courseType, periodId, etc.)
-   - Следовать правилам из `ARCHITECTURE_GUIDELINES.md`
+   - Следовать правилам из `../architecture/guidelines.md`
 
 ## Связанные документы
 
 - [README.md](../README.md) — общее описание проекта
-- [docs/audit-backlog.md](audit-backlog.md) — текущие задачи (включая MP-5)
-- [docs/ARCHITECTURE_GUIDELINES.md](ARCHITECTURE_GUIDELINES.md) — архитектурные правила
-- [CLAUDE.md](../CLAUDE.md) — инструкции для AI assistant
+- [Audit Backlog](../processes/audit-backlog.md) — текущие задачи и техдолг
+- [Architecture Guidelines](../architecture/guidelines.md) — архитектурные правила
 
 ---
 

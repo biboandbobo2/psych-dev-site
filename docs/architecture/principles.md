@@ -1,13 +1,13 @@
 # Краткий гайд по архитектурным принципам
 
-Ссвяжитесь с `docs/ARCHITECTURE_GUIDELINES.md` для подробностей, а здесь — то, что важно помнить перед любой задачей или рефакторингом.
+Свяжитесь с [guidelines.md](guidelines.md) для подробностей, а здесь — то, что важно помнить перед любой задачей или рефакторингом.
 
 ## Основные принципы
 1. **SRP и композиция:** каждый компонент или хук отвечает за одну концепцию. Если появляется много `useState`, рассматривайте деление на подкомпоненты или кастомные хуки.
 2. **DRY + переиспользуемые хуки:** дублирование логики (например в `Notes`/`Timeline`) стоит вынести в хуки (`useNotes`, `useTimeline`, `useContentEditor`).
 3. **Feature-based структура:** добавляйте файлы рядом с функцией (например, `src/pages/notes/components`, `src/pages/admin/topics`).
 4. **Управление состоянием:** минимизируйте глобальные контексты, используйте локальные хранилища (например, `useTimeline`) и утилиты (`notesExport.ts`).
-5. **Тестируемость:** пишите тесты для критичных потоков (см. `docs/CORE_REFACTORING_PLAN.md` и `docs/TestingSystemGuide.md`).
+5. **Тестируемость:** пишите тесты для критичных потоков (см. [testing-system.md](../guides/testing-system.md) и [audit-backlog.md](../processes/audit-backlog.md)).
 
 ## Практические пункты перед задачей
 - Проверьте, нет ли похожей логики в `src/hooks` или `src/utils`. Возможно, достаточно расширить существующий хук.
@@ -17,8 +17,8 @@
 
 ## Чеклист для рефакторинга
 - [ ] Отделил логику в хук/утилиту, если компонент растёт. (`Notes`, `NoteModal`, `SaveNoteAsEventButton` — примеры).
-- [ ] Обновил документацию (особенно `docs/CORE_REFACTORING_PLAN.md` или `docs/TIMELINE_REFACTORING_PLAN.md`) если затронул архитектурные компоненты.
+- [ ] Обновил документацию (особенно [audit-backlog.md](../processes/audit-backlog.md) или [REFRACTORING_ARCHIVE.md](../archive/REFRACTORING_ARCHIVE.md)), если затронул архитектурные компоненты.
 - [ ] Добавил/обновил тесты для критичного поведения (`SaveNoteAsEventButton`, `useTimeline`).
-- [ ] Указал manual smoke/QA в `docs/REFRACTORING_ARCHIVE.md` или `docs/PLANS_OVERVIEW.md`.
+- [ ] Указал manual smoke/QA в [REFRACTORING_ARCHIVE.md](../archive/REFRACTORING_ARCHIVE.md) или [PLANS_OVERVIEW.md](../PLANS_OVERVIEW.md).
 
-Ссылки: см. `docs/ARCHITECTURE_GUIDELINES.md` для примеров и шаблонов кода и `docs/PLANS_OVERVIEW.md` для текущих статусов.
+Ссылки: см. [guidelines.md](guidelines.md) для примеров и шаблонов кода и [PLANS_OVERVIEW.md](../PLANS_OVERVIEW.md) для текущих статусов.
