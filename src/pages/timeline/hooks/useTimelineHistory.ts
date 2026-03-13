@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { NodeT, EdgeT, BirthDetails, HistoryState } from '../types';
 import { MAX_HISTORY_LENGTH } from '../constants';
 
@@ -8,71 +8,95 @@ import { MAX_HISTORY_LENGTH } from '../constants';
 export function useTimelineHistory() {
   const [history, setHistory] = useState<HistoryState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const historyRef = useRef(history);
+  const historyIndexRef = useRef(historyIndex);
+
+  useEffect(() => {
+    historyRef.current = history;
+    historyIndexRef.current = historyIndex;
+  }, [history, historyIndex]);
 
   /**
    * Сохраняет текущее состояние в историю
    */
-  function saveToHistory(nodes: NodeT[], edges: EdgeT[], birthDetails: BirthDetails) {
+  const saveToHistory = useCallback((nodes: NodeT[], edges: EdgeT[], birthDetails: BirthDetails) => {
     const newState: HistoryState = {
       nodes: JSON.parse(JSON.stringify(nodes)),
       edges: JSON.parse(JSON.stringify(edges)),
       birth: { ...birthDetails },
     };
 
-    const newHistory = history.slice(0, historyIndex + 1);
+    const currentHistory = historyRef.current;
+    const currentIndex = historyIndexRef.current;
+    const newHistory = currentHistory.slice(0, currentIndex + 1);
     newHistory.push(newState);
 
     if (newHistory.length > MAX_HISTORY_LENGTH) {
       newHistory.shift();
-    } else {
-      setHistoryIndex(historyIndex + 1);
     }
 
+    const nextIndex = Math.min(newHistory.length - 1, MAX_HISTORY_LENGTH - 1);
+    historyRef.current = newHistory;
+    historyIndexRef.current = nextIndex;
     setHistory(newHistory);
-  }
+    setHistoryIndex(nextIndex);
+  }, []);
 
   /**
    * Отменяет последнее действие
    */
-  function undo() {
-    if (historyIndex > 0) {
-      return history[historyIndex - 1];
+  const undo = useCallback(() => {
+    const currentHistory = historyRef.current;
+    const currentIndex = historyIndexRef.current;
+    if (currentIndex > 0) {
+      return currentHistory[currentIndex - 1];
     }
     return null;
-  }
+  }, []);
 
   /**
    * Повторяет отменённое действие
    */
-  function redo() {
-    if (historyIndex < history.length - 1) {
-      return history[historyIndex + 1];
+  const redo = useCallback(() => {
+    const currentHistory = historyRef.current;
+    const currentIndex = historyIndexRef.current;
+    if (currentIndex < currentHistory.length - 1) {
+      return currentHistory[currentIndex + 1];
     }
     return null;
-  }
+  }, []);
 
   /**
    * Перемещает индекс назад (для undo)
    */
-  function moveBackward() {
-    if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
+  const moveBackward = useCallback(() => {
+    const currentIndex = historyIndexRef.current;
+    if (currentIndex > 0) {
+      const nextIndex = currentIndex - 1;
+      historyIndexRef.current = nextIndex;
+      setHistoryIndex(nextIndex);
     }
-  }
+  }, []);
 
   /**
    * Перемещает индекс вперёд (для redo)
    */
-  function moveForward() {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
+  const moveForward = useCallback(() => {
+    const currentHistory = historyRef.current;
+    const currentIndex = historyIndexRef.current;
+    if (currentIndex < currentHistory.length - 1) {
+      const nextIndex = currentIndex + 1;
+      historyIndexRef.current = nextIndex;
+      setHistoryIndex(nextIndex);
     }
-  }
+  }, []);
 
-  function resetHistory() {
+  const resetHistory = useCallback(() => {
+    historyRef.current = [];
+    historyIndexRef.current = -1;
     setHistory([]);
     setHistoryIndex(-1);
-  }
+  }, []);
 
   /**
    * Проверяет, можно ли отменить действие

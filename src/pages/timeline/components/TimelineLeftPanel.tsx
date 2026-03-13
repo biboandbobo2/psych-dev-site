@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, RefObject } from 'react';
 import type { NodeT, TimelineCanvas } from '../types';
@@ -111,13 +111,12 @@ export function TimelineLeftPanel({
   onBiographyDiagnostic,
   onBiographyUiSignal,
 }: TimelineLeftPanelProps) {
-  const navigate = useNavigate();
   const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
   const [showDebugPopover, setShowDebugPopover] = useState(false);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
   const leftPanelRef = useRef<HTMLElement>(null);
   const biographyButtonRef = useRef<HTMLButtonElement>(null);
-  const exitLinkRef = useRef<HTMLButtonElement>(null);
+  const exitLinkRef = useRef<HTMLAnchorElement>(null);
   const timelineSelectButtonRef = useRef<HTMLButtonElement>(null);
   const createTimelineButtonRef = useRef<HTMLButtonElement>(null);
   const [biographyButtonProbe, setBiographyButtonProbe] = useState<string>('probe: not-ready');
@@ -381,11 +380,6 @@ export function TimelineLeftPanel({
     onCreateTimeline();
   };
 
-  const handleExit = () => {
-    appendLeftPanelDiagnostic('exit:navigate:/profile');
-    navigate('/profile');
-  };
-
   const handleBiographySourceUrlChange = (event: ChangeEvent<HTMLInputElement>) => {
     onBiographySourceUrlChange(event.target.value);
   };
@@ -429,19 +423,18 @@ export function TimelineLeftPanel({
         style={{ fontFamily: 'Georgia, serif' }}
       >
         <div className="flex items-center gap-2 pr-6">
-          <button
-            type="button"
+          <Link
+            to="/profile"
             ref={exitLinkRef}
             data-panel-action="exit"
             onPointerDownCapture={() => recordLeftPanelSignal('exit', 'react', 'pointerdown')}
             onTouchStartCapture={() => recordLeftPanelSignal('exit', 'react', 'touchstart')}
             onClickCapture={() => recordLeftPanelSignal('exit', 'react', 'click')}
-            onClick={handleExit}
             className="flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 px-3 py-2 text-amber-900 shadow-md transition-all duration-200 hover:border-amber-300 hover:from-amber-100 hover:to-yellow-100"
           >
             <span className="text-sm">←</span>
             <span className="text-[11px] font-semibold uppercase tracking-wide">Выход</span>
-          </button>
+          </Link>
           <div className="relative">
             <button
               type="button"
