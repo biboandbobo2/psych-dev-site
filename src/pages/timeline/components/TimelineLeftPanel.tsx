@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, RefObject } from 'react';
 import type { NodeT, TimelineCanvas } from '../types';
@@ -111,11 +111,13 @@ export function TimelineLeftPanel({
   onBiographyDiagnostic,
   onBiographyUiSignal,
 }: TimelineLeftPanelProps) {
+  const navigate = useNavigate();
   const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
+  const [showDebugPopover, setShowDebugPopover] = useState(false);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
   const leftPanelRef = useRef<HTMLElement>(null);
   const biographyButtonRef = useRef<HTMLButtonElement>(null);
-  const exitLinkRef = useRef<HTMLAnchorElement>(null);
+  const exitLinkRef = useRef<HTMLButtonElement>(null);
   const timelineSelectButtonRef = useRef<HTMLButtonElement>(null);
   const createTimelineButtonRef = useRef<HTMLButtonElement>(null);
   const [biographyButtonProbe, setBiographyButtonProbe] = useState<string>('probe: not-ready');
@@ -380,6 +382,11 @@ export function TimelineLeftPanel({
     onCreateTimeline();
   };
 
+  const handleExit = () => {
+    appendLeftPanelDiagnostic('exit:navigate:/profile');
+    navigate('/profile');
+  };
+
   const handleBiographySourceUrlChange = (event: ChangeEvent<HTMLInputElement>) => {
     onBiographySourceUrlChange(event.target.value);
   };
@@ -400,17 +407,18 @@ export function TimelineLeftPanel({
         style={{ fontFamily: 'Georgia, serif' }}
       >
         <div className="flex items-center gap-2 pr-6">
-          <Link
-            to="/profile"
+          <button
+            type="button"
             ref={exitLinkRef}
             onPointerDownCapture={() => recordLeftPanelSignal('exit', 'react', 'pointerdown')}
             onTouchStartCapture={() => recordLeftPanelSignal('exit', 'react', 'touchstart')}
             onClickCapture={() => recordLeftPanelSignal('exit', 'react', 'click')}
+            onClick={handleExit}
             className="flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 px-3 py-2 text-amber-900 shadow-md transition-all duration-200 hover:border-amber-300 hover:from-amber-100 hover:to-yellow-100"
           >
             <span className="text-sm">←</span>
             <span className="text-[11px] font-semibold uppercase tracking-wide">Выход</span>
-          </Link>
+          </button>
           <div className="relative">
             <button
               type="button"
@@ -570,6 +578,20 @@ export function TimelineLeftPanel({
                   {biographyImportExpanded ? 'Скрыть импорт' : 'Загрузить источник биографии'}
                 </button>
 
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 text-[9px] font-mono text-slate-500">
+                    bio:{biographyUiSignals.reactClick}/{biographyUiSignals.nativeClick}/{biographyUiSignals.docClick}
+                    {' '}panel:{leftPanelSignalCounts.panel} exp:{exportStatus.state}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDebugPopover((prev) => !prev)}
+                    className="shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-amber-800"
+                  >
+                    {showDebugPopover ? 'Скрыть dbg' : 'Dbg'}
+                  </button>
+                </div>
+
                 {biographyImportExpanded ? (
                   <form onSubmit={handleBiographySubmit} className="space-y-2 rounded-xl border border-blue-100 bg-blue-50/70 p-2">
                     <div className="text-[10px] leading-4 text-slate-600">
@@ -597,72 +619,6 @@ export function TimelineLeftPanel({
                     </button>
                   </form>
                 ) : null}
-
-                <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-2 font-mono text-[9px] leading-3 text-amber-900">
-                  <div className="font-semibold uppercase tracking-[0.18em]">Диагностика</div>
-                  <div className="mt-1 break-words">{biographyButtonProbe}</div>
-                  <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 border-t border-amber-200/70 pt-2">
-                    <div>expanded: {biographyImportExpanded ? 'true' : 'false'}</div>
-                    <div>loading: {biographyImportLoading ? 'true' : 'false'}</div>
-                    <div>error: {biographyImportError ? 'true' : 'false'}</div>
-                    <div>last: {biographyLastUiSignal ?? 'none'}</div>
-                    <div>react PD: {biographyUiSignals.reactPointerdown}</div>
-                    <div>react click: {biographyUiSignals.reactClick}</div>
-                    <div>react touch: {biographyUiSignals.reactTouchstart}</div>
-                    <div>native PD: {biographyUiSignals.nativePointerdown}</div>
-                    <div>native click: {biographyUiSignals.nativeClick}</div>
-                    <div>native touch: {biographyUiSignals.nativeTouchstart}</div>
-                    <div>doc PD: {biographyUiSignals.docPointerdown}</div>
-                    <div>doc click: {biographyUiSignals.docClick}</div>
-                    <div>doc touch: {biographyUiSignals.docTouchstart}</div>
-                    <div>open: {biographyUiSignals.open}</div>
-                    <div>close: {biographyUiSignals.close}</div>
-                    <div>submit: {biographyUiSignals.submit}</div>
-                    <div>urlLen: {biographySourceUrl.length}</div>
-                    <div>panel: {leftPanelSignalCounts.panel}</div>
-                    <div>exit: {leftPanelSignalCounts.exit}</div>
-                    <div>select: {leftPanelSignalCounts.select}</div>
-                    <div>create: {leftPanelSignalCounts.create}</div>
-                    <div>download: {leftPanelSignalCounts.download}</div>
-                    <div>panelLast: {leftPanelSignalLast ?? 'none'}</div>
-                    <div>export: {exportStatus.state}</div>
-                    <div>type: {exportStatus.type ?? 'none'}</div>
-                    <div className="col-span-2 break-words">exportMsg: {exportStatus.message ?? 'none'}</div>
-                  </div>
-                  <div className="mt-2 max-h-24 space-y-1 overflow-auto border-t border-amber-200/70 pt-2">
-                    {biographyDiagnostics.length > 0 ? (
-                      biographyDiagnostics.map((entry) => (
-                        <div key={entry} className="break-words border-t border-amber-200/70 pt-1 first:border-t-0 first:pt-0">
-                          {entry}
-                        </div>
-                      ))
-                    ) : (
-                      <div>Пока нет событий</div>
-                    )}
-                  </div>
-                  <div className="mt-2 max-h-20 space-y-1 overflow-auto border-t border-amber-200/70 pt-2">
-                    {leftPanelDiagnostics.length > 0 ? (
-                      leftPanelDiagnostics.map((entry) => (
-                        <div key={entry} className="break-words border-t border-amber-200/70 pt-1 first:border-t-0 first:pt-0">
-                          {entry}
-                        </div>
-                      ))
-                    ) : (
-                      <div>Панель пока молчит</div>
-                    )}
-                  </div>
-                  <div className="mt-2 max-h-20 space-y-1 overflow-auto border-t border-amber-200/70 pt-2">
-                    {exportDiagnostics.length > 0 ? (
-                      exportDiagnostics.map((entry) => (
-                        <div key={entry} className="break-words border-t border-amber-200/70 pt-1 first:border-t-0 first:pt-0">
-                          {entry}
-                        </div>
-                      ))
-                    ) : (
-                      <div>Экспорт пока молчит</div>
-                    )}
-                  </div>
-                </div>
               </div>
             ) : (
               <button
@@ -752,6 +708,72 @@ export function TimelineLeftPanel({
           </div>
         </div>
       </aside>
+
+      {showBiographyImportAction && showDebugPopover ? (
+        <div className="absolute left-full top-0 z-50 ml-3 w-72 rounded-2xl border border-amber-200 bg-amber-50/95 p-3 font-mono text-[10px] leading-4 text-amber-950 shadow-2xl backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div className="font-semibold uppercase tracking-[0.18em]">Диагностика</div>
+            <button
+              type="button"
+              onClick={() => setShowDebugPopover(false)}
+              className="rounded-md border border-amber-300 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.16em]"
+            >
+              Закрыть
+            </button>
+          </div>
+          <div className="mt-2 break-words">{biographyButtonProbe}</div>
+          <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 border-t border-amber-200/70 pt-2">
+            <div>expanded: {biographyImportExpanded ? 'true' : 'false'}</div>
+            <div>loading: {biographyImportLoading ? 'true' : 'false'}</div>
+            <div>error: {biographyImportError ? 'true' : 'false'}</div>
+            <div>last: {biographyLastUiSignal ?? 'none'}</div>
+            <div>r/n/d click: {biographyUiSignals.reactClick}/{biographyUiSignals.nativeClick}/{biographyUiSignals.docClick}</div>
+            <div>r/n/d touch: {biographyUiSignals.reactTouchstart}/{biographyUiSignals.nativeTouchstart}/{biographyUiSignals.docTouchstart}</div>
+            <div>open/close: {biographyUiSignals.open}/{biographyUiSignals.close}</div>
+            <div>submit: {biographyUiSignals.submit}</div>
+            <div>panel/exit: {leftPanelSignalCounts.panel}/{leftPanelSignalCounts.exit}</div>
+            <div>select/create: {leftPanelSignalCounts.select}/{leftPanelSignalCounts.create}</div>
+            <div>download: {leftPanelSignalCounts.download}</div>
+            <div>panelLast: {leftPanelSignalLast ?? 'none'}</div>
+            <div>export: {exportStatus.state}</div>
+            <div>type: {exportStatus.type ?? 'none'}</div>
+            <div className="col-span-2 break-words">exportMsg: {exportStatus.message ?? 'none'}</div>
+          </div>
+          <div className="mt-2 max-h-24 space-y-1 overflow-auto border-t border-amber-200/70 pt-2">
+            {biographyDiagnostics.length > 0 ? (
+              biographyDiagnostics.map((entry) => (
+                <div key={entry} className="break-words border-t border-amber-200/70 pt-1 first:border-t-0 first:pt-0">
+                  {entry}
+                </div>
+              ))
+            ) : (
+              <div>Пока нет bio-событий</div>
+            )}
+          </div>
+          <div className="mt-2 max-h-20 space-y-1 overflow-auto border-t border-amber-200/70 pt-2">
+            {leftPanelDiagnostics.length > 0 ? (
+              leftPanelDiagnostics.map((entry) => (
+                <div key={entry} className="break-words border-t border-amber-200/70 pt-1 first:border-t-0 first:pt-0">
+                  {entry}
+                </div>
+              ))
+            ) : (
+              <div>Панель пока молчит</div>
+            )}
+          </div>
+          <div className="mt-2 max-h-20 space-y-1 overflow-auto border-t border-amber-200/70 pt-2">
+            {exportDiagnostics.length > 0 ? (
+              exportDiagnostics.map((entry) => (
+                <div key={entry} className="break-words border-t border-amber-200/70 pt-1 first:border-t-0 first:pt-0">
+                  {entry}
+                </div>
+              ))
+            ) : (
+              <div>Экспорт пока молчит</div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
