@@ -165,7 +165,7 @@ async function generateBiographyPlan(prompt: string, apiKey: string) {
 
   for (const model of TIMELINE_BIOGRAPHY_MODELS) {
     try {
-      const result = await client.models.generateContent({
+      const structuredResult = await client.models.generateContent({
         model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: {
@@ -176,12 +176,37 @@ async function generateBiographyPlan(prompt: string, apiKey: string) {
         },
       });
 
-      return {
-        model,
-        plan: parseBiographyPlanResult(result),
-      };
+      return { model, plan: parseBiographyPlanResult(structuredResult) };
     } catch (error) {
       lastError = error;
+
+      try {
+        const relaxedResult = await client.models.generateContent({
+          model,
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text:
+                    `${prompt}\n\n` +
+                    'Верни только один JSON-объект без markdown и без пояснений. ' +
+                    'Даже если не уверен в части полей, соблюдай JSON-структуру и обязательно верни mainEvents и branches как массивы.',
+                },
+              ],
+            },
+          ],
+          config: {
+            temperature: 0.1,
+            maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
+            responseMimeType: 'text/plain',
+          },
+        });
+
+        return { model, plan: parseBiographyPlanResult(relaxedResult) };
+      } catch (relaxedError) {
+        lastError = relaxedError;
+      }
     }
   }
 
