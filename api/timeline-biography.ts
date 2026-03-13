@@ -53,6 +53,58 @@ function validateRequestBody(body: unknown): BiographyImportRequest {
   return { sourceUrl };
 }
 
+function normalizeBiographyApiError(error: unknown) {
+  const rawMessage = error instanceof Error ? error.message : 'Не удалось собрать таймлайн по биографии.';
+
+  if (/Request body|Wikipedia|статью|ссылк/i.test(rawMessage)) {
+    return { statusCode: 400, message: rawMessage };
+  }
+
+  if (/UNAUTHORIZED|авториза/i.test(rawMessage)) {
+    return { statusCode: 401, message: rawMessage };
+  }
+
+  if (/GEMINI_API_KEY not configured/i.test(rawMessage)) {
+    return {
+      statusCode: 503,
+      message: 'Gemini API key не настроен на сервере preview. Добавьте свой ключ в профиль или настройте env для Vercel.',
+    };
+  }
+
+  if (/quota|RESOURCE_EXHAUSTED|429/i.test(rawMessage)) {
+    return {
+      statusCode: 429,
+      message: 'Gemini временно недоступен из-за лимита запросов или квоты. Попробуйте позже или используйте другой API key.',
+    };
+  }
+
+  if (/PERMISSION_DENIED|API key not valid|invalid api key|forbidden/i.test(rawMessage)) {
+    return {
+      statusCode: 403,
+      message: 'Gemini API key недействителен или не имеет доступа к этой модели.',
+    };
+  }
+
+  if (/model|unsupported|not found/i.test(rawMessage)) {
+    return {
+      statusCode: 503,
+      message: 'Gemini модель для импорта биографии сейчас недоступна. Попробуйте позже или используйте другой API key.',
+    };
+  }
+
+  if (/JSON|Unexpected token|schema|parse/i.test(rawMessage)) {
+    return {
+      statusCode: 502,
+      message: 'Gemini вернул некорректный ответ при сборке таймлайна. Попробуйте ещё раз.',
+    };
+  }
+
+  return {
+    statusCode: 500,
+    message: 'Не удалось собрать таймлайн по биографии. Попробуйте ещё раз позже.',
+  };
+}
+
 async function generateBiographyPlan(prompt: string, apiKey: string) {
   const client = getLectureGenAiClient(apiKey);
   let lastError: unknown = null;
@@ -129,18 +181,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Не удалось собрать таймлайн по биографии.';
-    const statusCode =
-      /Wikipedia|статью|ссылк|Request body/i.test(message) ? 400 :
-      /UNAUTHORIZED|авториза/i.test(message) ? 401 :
-      500;
+    const { statusCode, message } = normalizeBiographyApiError(error);
 
     res.status(statusCode).json({
       ok: false,
-      error:
-        statusCode === 500
-          ? 'Не удалось собрать таймлайн по биографии. Попробуйте ещё раз позже.'
-          : message,
+      error: message,
     });
   }
 }

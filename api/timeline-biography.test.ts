@@ -216,6 +216,93 @@ describe('api/timeline-biography', () => {
     expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(true);
     expect(res.body.timeline.edges).toHaveLength(1);
   });
+
+  it('использует fallback env key, если GEMINI_API_KEY не задан', async () => {
+    delete process.env.GEMINI_API_KEY;
+    process.env.MY_GEMINI_KEY = 'fallback-key';
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        query: {
+          pages: [
+            {
+              title: 'Пушкин, Александр Сергеевич',
+              extract: 'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+              fullurl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич',
+            },
+          ],
+        },
+      }),
+    });
+    geminiMocks.generateContent.mockResolvedValue({
+      text: JSON.stringify({
+        subjectName: 'Александр Пушкин',
+        canvasName: 'Пушкин',
+        currentAge: 37,
+        mainEvents: [
+          { age: 0, label: 'Рождение', isDecision: false },
+          { age: 12, label: 'Лицей', isDecision: true },
+          { age: 21, label: 'Публикация', isDecision: true },
+          { age: 25, label: 'Ссылка', isDecision: false },
+        ],
+        branches: [],
+      }),
+    });
+
+    const req = mockReq({
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer token',
+      },
+      body: { sourceUrl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич' },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.ok).toBe(true);
+
+    delete process.env.MY_GEMINI_KEY;
+  });
+
+  it('возвращает понятную ошибку, если Gemini key не настроен', async () => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.MY_GEMINI_KEY;
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.VITE_GEMINI_KEY;
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        query: {
+          pages: [
+            {
+              title: 'Пушкин, Александр Сергеевич',
+              extract: 'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+              fullurl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич',
+            },
+          ],
+        },
+      }),
+    });
+
+    const req = mockReq({
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer token',
+      },
+      body: { sourceUrl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич' },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(503);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.error).toContain('Gemini API key');
+  });
 });
 
 describe('buildTimelineDataFromBiographyPlan', () => {

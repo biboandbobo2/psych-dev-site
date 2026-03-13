@@ -19,7 +19,11 @@ export function resolveLectureGeminiApiKey(req?: VercelRequest): string {
     return userKey.trim();
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey =
+    process.env.GEMINI_API_KEY ||
+    process.env.MY_GEMINI_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.VITE_GEMINI_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }
