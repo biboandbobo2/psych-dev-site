@@ -37,6 +37,60 @@ function extractJsonText(rawText: string) {
   return candidate.startsWith('{') ? candidate : (candidate.match(/\{[\s\S]*\}/)?.[0] ?? candidate);
 }
 
+function stripJsonTrailingCommas(value: string) {
+  return value.replace(/,\s*([}\]])/g, '$1');
+}
+
+function collectGeminiResultText(result: unknown) {
+  if (result && typeof result === 'object') {
+    const directText = 'text' in result && typeof result.text === 'string' ? result.text : '';
+    if (directText.trim()) {
+      return directText;
+    }
+
+    const candidateText = 'candidates' in result && Array.isArray(result.candidates)
+      ? result.candidates
+          .flatMap((candidate) => {
+            if (!candidate || typeof candidate !== 'object') return [];
+            const content = 'content' in candidate ? candidate.content : null;
+            if (!content || typeof content !== 'object') return [];
+            const parts = 'parts' in content && Array.isArray(content.parts) ? content.parts : [];
+            return parts
+              .map((part) => {
+                if (!part || typeof part !== 'object') return '';
+                return 'text' in part && typeof part.text === 'string' ? part.text : '';
+              })
+              .filter(Boolean);
+          })
+          .join('\n')
+      : '';
+
+    if (candidateText.trim()) {
+      return candidateText;
+    }
+  }
+
+  return '';
+}
+
+function parseBiographyPlanResult(result: unknown): BiographyTimelinePlan {
+  const rawText = collectGeminiResultText(result);
+  const extractedJson = extractJsonText(rawText);
+  const candidates = [extractedJson, stripJsonTrailingCommas(extractedJson), rawText, stripJsonTrailingCommas(rawText)]
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate) as BiographyTimelinePlan;
+    } catch {
+      // try next candidate
+    }
+  }
+
+  throw new Error('Gemini JSON parse failed');
+}
+
 function validateRequestBody(body: unknown): BiographyImportRequest {
   if (!body || typeof body !== 'object') {
     throw new Error('Request body is required.');
@@ -124,7 +178,7 @@ async function generateBiographyPlan(prompt: string, apiKey: string) {
 
       return {
         model,
-        plan: JSON.parse(extractJsonText(result.text || '')) as BiographyTimelinePlan,
+        plan: parseBiographyPlanResult(result),
       };
     } catch (error) {
       lastError = error;
