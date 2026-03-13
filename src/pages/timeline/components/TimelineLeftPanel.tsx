@@ -132,6 +132,11 @@ export function TimelineLeftPanel({
   const [leftPanelDiagnostics, setLeftPanelDiagnostics] = useState<string[]>([]);
   const hasAdditionalTimelines = timelineCanvases.length > 1;
 
+  const resolveActionTarget = useCallback((target: EventTarget | null) => {
+    if (!(target instanceof Element)) return 'unknown';
+    return target.closest<HTMLElement>('[data-panel-action]')?.dataset.panelAction ?? target.tagName.toLowerCase();
+  }, []);
+
   const appendLeftPanelDiagnostic = useCallback((entry: string) => {
     setLeftPanelSignalLast(entry);
     setLeftPanelDiagnostics((prev) => [entry, ...prev].slice(0, 8));
@@ -205,9 +210,6 @@ export function TimelineLeftPanel({
     const button = biographyButtonRef.current;
     if (!button) return;
 
-    const describeTarget = (target: EventTarget | null) =>
-      target instanceof HTMLElement ? `${target.tagName.toLowerCase()}.${target.className || 'no-class'}` : 'unknown';
-
     const getPoint = (event: Event) => {
       if (event instanceof PointerEvent || event instanceof MouseEvent) {
         return { x: event.clientX, y: event.clientY };
@@ -231,26 +233,26 @@ export function TimelineLeftPanel({
     };
 
     const nativePointerdown = (event: PointerEvent) => {
-      onBiographyUiSignal('nativePointerdown', describeTarget(event.target));
+      onBiographyUiSignal('nativePointerdown', resolveActionTarget(event.target));
     };
     const nativeClick = (event: MouseEvent) => {
-      onBiographyUiSignal('nativeClick', describeTarget(event.target));
+      onBiographyUiSignal('nativeClick', resolveActionTarget(event.target));
     };
     const nativeTouchstart = (event: TouchEvent) => {
-      onBiographyUiSignal('nativeTouchstart', describeTarget(event.target));
+      onBiographyUiSignal('nativeTouchstart', resolveActionTarget(event.target));
     };
 
     const docPointerdown = (event: PointerEvent) => {
       if (!isInsideButtonZone(event)) return;
-      onBiographyUiSignal('docPointerdown', describeTarget(event.target));
+      onBiographyUiSignal('docPointerdown', resolveActionTarget(event.target));
     };
     const docClick = (event: MouseEvent) => {
       if (!isInsideButtonZone(event)) return;
-      onBiographyUiSignal('docClick', describeTarget(event.target));
+      onBiographyUiSignal('docClick', resolveActionTarget(event.target));
     };
     const docTouchstart = (event: TouchEvent) => {
       if (!isInsideButtonZone(event)) return;
-      onBiographyUiSignal('docTouchstart', describeTarget(event.target));
+      onBiographyUiSignal('docTouchstart', resolveActionTarget(event.target));
     };
 
     button.addEventListener('pointerdown', nativePointerdown);
@@ -268,7 +270,7 @@ export function TimelineLeftPanel({
       document.removeEventListener('click', docClick, true);
       document.removeEventListener('touchstart', docTouchstart, true);
     };
-  }, [onBiographyUiSignal, showBiographyImportAction]);
+  }, [onBiographyUiSignal, resolveActionTarget, showBiographyImportAction]);
 
   useEffect(() => {
     const leftPanel = leftPanelRef.current;
@@ -285,9 +287,6 @@ export function TimelineLeftPanel({
       { key: 'create' as const, element: createButton },
       { key: 'download' as const, element: downloadButton },
     ];
-
-    const describeTarget = (target: EventTarget | null) =>
-      target instanceof HTMLElement ? target.tagName.toLowerCase() : 'unknown';
 
     const getPoint = (event: Event) => {
       if (event instanceof PointerEvent || event instanceof MouseEvent) {
@@ -311,13 +310,13 @@ export function TimelineLeftPanel({
 
     const nativeCleanup = controls.flatMap(({ key, element }) => {
       const handlePointerdown = (event: PointerEvent) => {
-        recordLeftPanelSignal(key, 'native', 'pointerdown', describeTarget(event.target));
+        recordLeftPanelSignal(key, 'native', 'pointerdown', resolveActionTarget(event.target));
       };
       const handleTouchstart = (event: TouchEvent) => {
-        recordLeftPanelSignal(key, 'native', 'touchstart', describeTarget(event.target));
+        recordLeftPanelSignal(key, 'native', 'touchstart', resolveActionTarget(event.target));
       };
       const handleClick = (event: MouseEvent) => {
-        recordLeftPanelSignal(key, 'native', 'click', describeTarget(event.target));
+        recordLeftPanelSignal(key, 'native', 'click', resolveActionTarget(event.target));
       };
 
       element.addEventListener('pointerdown', handlePointerdown);
@@ -334,21 +333,21 @@ export function TimelineLeftPanel({
     const handleDocPointerdown = (event: PointerEvent) => {
       controls.forEach(({ key, element }) => {
         if (isInside(event, element)) {
-          recordLeftPanelSignal(key, 'doc', 'pointerdown', describeTarget(event.target));
+          recordLeftPanelSignal(key, 'doc', 'pointerdown', resolveActionTarget(event.target));
         }
       });
     };
     const handleDocTouchstart = (event: TouchEvent) => {
       controls.forEach(({ key, element }) => {
         if (isInside(event, element)) {
-          recordLeftPanelSignal(key, 'doc', 'touchstart', describeTarget(event.target));
+          recordLeftPanelSignal(key, 'doc', 'touchstart', resolveActionTarget(event.target));
         }
       });
     };
     const handleDocClick = (event: MouseEvent) => {
       controls.forEach(({ key, element }) => {
         if (isInside(event, element)) {
-          recordLeftPanelSignal(key, 'doc', 'click', describeTarget(event.target));
+          recordLeftPanelSignal(key, 'doc', 'click', resolveActionTarget(event.target));
         }
       });
     };
@@ -363,7 +362,7 @@ export function TimelineLeftPanel({
       document.removeEventListener('touchstart', handleDocTouchstart, true);
       document.removeEventListener('click', handleDocClick, true);
     };
-  }, [downloadButtonRef, recordLeftPanelSignal]);
+  }, [downloadButtonRef, recordLeftPanelSignal, resolveActionTarget]);
 
   const handleAgeChange = (event: ChangeEvent<HTMLInputElement>) => {
     onCurrentAgeChange(Number(event.target.value));
@@ -396,13 +395,36 @@ export function TimelineLeftPanel({
     onSubmitBiographyImport();
   };
 
+  const handlePanelPointerDownCapture = (event: React.PointerEvent<HTMLElement>) => {
+    recordLeftPanelSignal('panel', 'react', 'pointerdown', resolveActionTarget(event.target));
+  };
+
+  const handlePanelTouchStartCapture = (event: React.TouchEvent<HTMLElement>) => {
+    recordLeftPanelSignal('panel', 'react', 'touchstart', resolveActionTarget(event.target));
+  };
+
+  const handlePanelClickCapture = (event: React.MouseEvent<HTMLElement>) => {
+    const actionTarget = resolveActionTarget(event.target);
+    recordLeftPanelSignal('panel', 'react', 'click', actionTarget);
+
+    if (actionTarget !== 'bio-import') return;
+    if (biographyImportLoading) return;
+
+    onBiographyDiagnostic('panel delegated bio click');
+    if (biographyImportExpanded) {
+      onCloseBiographyImport();
+      return;
+    }
+    onOpenBiographyImport();
+  };
+
   return (
     <div className="fixed top-4 left-4 z-40">
       <aside
         ref={leftPanelRef}
-        onPointerDownCapture={() => recordLeftPanelSignal('panel', 'react', 'pointerdown')}
-        onTouchStartCapture={() => recordLeftPanelSignal('panel', 'react', 'touchstart')}
-        onClickCapture={() => recordLeftPanelSignal('panel', 'react', 'click')}
+        onPointerDownCapture={handlePanelPointerDownCapture}
+        onTouchStartCapture={handlePanelTouchStartCapture}
+        onClickCapture={handlePanelClickCapture}
         className="w-36 space-y-3 overflow-visible rounded-3xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/90 p-4 shadow-xl backdrop-blur-md sm:w-40"
         style={{ fontFamily: 'Georgia, serif' }}
       >
@@ -410,6 +432,7 @@ export function TimelineLeftPanel({
           <button
             type="button"
             ref={exitLinkRef}
+            data-panel-action="exit"
             onPointerDownCapture={() => recordLeftPanelSignal('exit', 'react', 'pointerdown')}
             onTouchStartCapture={() => recordLeftPanelSignal('exit', 'react', 'touchstart')}
             onClickCapture={() => recordLeftPanelSignal('exit', 'react', 'click')}
@@ -424,6 +447,7 @@ export function TimelineLeftPanel({
               type="button"
               ref={downloadButtonRef}
               title="Скачать таймлайн"
+              data-panel-action="download"
               onPointerDownCapture={() => recordLeftPanelSignal('download', 'react', 'pointerdown')}
               onTouchStartCapture={() => recordLeftPanelSignal('download', 'react', 'touchstart')}
               onClickCapture={() => recordLeftPanelSignal('download', 'react', 'click')}
@@ -558,6 +582,7 @@ export function TimelineLeftPanel({
               <div className="mt-3 space-y-2">
                 <button
                   type="button"
+                  data-panel-action="bio-import"
                   ref={biographyButtonRef}
                   onPointerDownCapture={() => {
                     onBiographyDiagnostic('button pointerdown capture');
@@ -571,7 +596,6 @@ export function TimelineLeftPanel({
                     onBiographyDiagnostic('button click capture');
                     onBiographyUiSignal('reactClick');
                   }}
-                  onClick={biographyImportExpanded ? onCloseBiographyImport : onOpenBiographyImport}
                   disabled={biographyImportLoading}
                   className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -585,6 +609,7 @@ export function TimelineLeftPanel({
                   </div>
                   <button
                     type="button"
+                    data-panel-action="dbg-toggle"
                     onClick={() => setShowDebugPopover((prev) => !prev)}
                     className="shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-amber-800"
                   >
@@ -638,6 +663,7 @@ export function TimelineLeftPanel({
                   type="button"
                   title="Выбрать активный таймлайн"
                   ref={timelineSelectButtonRef}
+                  data-panel-action="select"
                   disabled={!hasAdditionalTimelines}
                   onPointerDownCapture={() => recordLeftPanelSignal('select', 'react', 'pointerdown')}
                   onTouchStartCapture={() => recordLeftPanelSignal('select', 'react', 'touchstart')}
@@ -684,6 +710,7 @@ export function TimelineLeftPanel({
                   type="button"
                   title="Создать новый пустой холст"
                   ref={createTimelineButtonRef}
+                  data-panel-action="create"
                   onPointerDownCapture={() => recordLeftPanelSignal('create', 'react', 'pointerdown')}
                   onTouchStartCapture={() => recordLeftPanelSignal('create', 'react', 'touchstart')}
                   onClickCapture={() => recordLeftPanelSignal('create', 'react', 'click')}
@@ -715,6 +742,7 @@ export function TimelineLeftPanel({
             <div className="font-semibold uppercase tracking-[0.18em]">Диагностика</div>
             <button
               type="button"
+              data-panel-action="dbg-close"
               onClick={() => setShowDebugPopover(false)}
               className="rounded-md border border-amber-300 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.16em]"
             >
