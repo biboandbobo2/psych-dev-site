@@ -33,7 +33,11 @@ import { reportAppError } from '../../../lib/errorHandler';
 import { removeUndefined } from '../../../utils/removeUndefined';
 
 function getViewportTargetAge(data: TimelineData) {
-  return data.nodes.length > 0 || data.currentAge !== DEFAULT_CURRENT_AGE ? data.currentAge : 0;
+  if (data.nodes.length > 0 || data.currentAge !== DEFAULT_CURRENT_AGE) {
+    // Center on middle of life, not on the end
+    return Math.round(data.currentAge / 2);
+  }
+  return 0;
 }
 
 export function useTimelineState() {
@@ -57,7 +61,7 @@ export function useTimelineState() {
   const syncViewportForTimeline = useCallback((data: TimelineData) => {
     window.setTimeout(() => {
       const targetAge = getViewportTargetAge(data);
-      const currentWorldHeight = DEFAULT_AGE_MAX * YEAR_PX + 500;
+      const currentWorldHeight = (data.ageMax || DEFAULT_AGE_MAX) * YEAR_PX + 500;
       const targetY = currentWorldHeight - targetAge * YEAR_PX;
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;

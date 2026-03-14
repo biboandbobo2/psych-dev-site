@@ -22,6 +22,7 @@ interface TimelineLeftPanelProps {
   biographyMeta: {
     source?: string;
     factsModel?: string;
+    model?: string;
     reviewApplied?: boolean;
     reviewIssues?: string[];
     nodes?: number;
@@ -638,23 +639,12 @@ export function TimelineLeftPanel({
                       Вставь прямую ссылку на статью Wikipedia или загрузи готовый `.json` таймлайна. Импорт заполнит текущий пустой холст.
                     </div>
                     {biographyMeta ? (
-                      <div className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-2 text-[10px] leading-4 text-sky-800">
-                        <div>
-                          Источник: <span className="font-semibold">{biographyMeta.source ?? 'unknown'}</span>
-                        </div>
-                        <div>
-                          Facts: <span className="font-semibold">{biographyMeta.factsModel ?? 'unknown'}</span>
-                          {' '}| Review:{' '}
-                          <span className="font-semibold">{biographyMeta.reviewApplied ? 'yes' : 'no'}</span>
-                        </div>
-                        <div>
-                          Узлы/ветки: <span className="font-semibold">{biographyMeta.nodes ?? 0}/{biographyMeta.edges ?? 0}</span>
-                        </div>
-                        {biographyMeta.reviewIssues?.length ? (
-                          <div className="mt-1 text-[9px] text-sky-900">
-                            Review issues: {biographyMeta.reviewIssues.join('; ')}
-                          </div>
-                        ) : null}
+                      <div className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5 text-[10px] leading-[14px] text-sky-800">
+                        <span className="font-semibold">{biographyMeta.source ?? '?'}</span>
+                        {' · '}facts: {biographyMeta.factsModel ?? '?'}
+                        {' · '}plan: {biographyMeta.model ?? '?'}
+                        {biographyMeta.reviewApplied ? ' · review' : ''}
+                        {' · '}{biographyMeta.nodes ?? 0} узл / {biographyMeta.edges ?? 0} вет
                       </div>
                     ) : null}
                     <input

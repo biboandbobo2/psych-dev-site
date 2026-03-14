@@ -210,6 +210,7 @@ export default function Timeline() {
   const [biographyMeta, setBiographyMeta] = useState<{
     source?: string;
     factsModel?: string;
+    model?: string;
     reviewApplied?: boolean;
     reviewIssues?: string[];
     nodes?: number;
@@ -653,6 +654,7 @@ export default function Timeline() {
         subjectName?: string;
         timeline?: TimelineData;
         meta?: {
+          model?: string;
           factsModel?: string;
           planDiagnostics?: {
             source?: string;
@@ -705,6 +707,7 @@ export default function Timeline() {
       setBiographyMeta({
         source: payload.meta?.planDiagnostics?.source,
         factsModel: payload.meta?.factsModel,
+        model: payload.meta?.model,
         reviewApplied: payload.meta?.stageDiagnostics?.reviewApplied,
         reviewIssues: payload.meta?.stageDiagnostics?.reviewIssues,
         nodes: payload.meta?.timelineStats?.nodes,

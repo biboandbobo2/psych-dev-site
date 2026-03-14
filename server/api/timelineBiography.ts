@@ -22,10 +22,10 @@ const BRANCH_X_OFFSETS = [-360, 360, -620, 620, -900, 900, -1180, 1180] as const
 const BRANCH_SLOT_ORDER: Record<TimelineSphere, readonly number[]> = {
   education: [0, 2, 1, 3, 4, 5, 6, 7],
   career: [1, 3, 0, 2, 5, 4, 7, 6],
-  family: [3, 1, 5, 0, 2, 4, 6, 7],
+  family: [0, 2, 4, 1, 3, 5, 6, 7],
   health: [0, 1, 2, 3, 4, 5, 6, 7],
   friends: [2, 0, 1, 3, 4, 5, 6, 7],
-  place: [4, 0, 2, 1, 3, 5, 6, 7],
+  place: [3, 1, 5, 0, 2, 4, 6, 7],
   finance: [5, 1, 3, 0, 2, 4, 6, 7],
   hobby: [6, 2, 0, 1, 3, 4, 5, 7],
   other: [0, 1, 2, 3, 4, 5, 6, 7],
@@ -1067,11 +1067,14 @@ function inferChronologicalEventsFromExtract(extract: string, birthYear?: number
   return [...deduped.values()].sort((a, b) => a.age - b.age);
 }
 
-function selectEventsForLifeCoverage(events: BiographyTimelineEventPlan[]) {
+function selectEventsForLifeCoverage(events: BiographyTimelineEventPlan[], lifespan?: number) {
   if (events.length <= 5) return events;
 
-  const targetCount =
+  // Scale target count: longer lives deserve more events (~1 per 4-5 years)
+  const lifespanBonus = lifespan && lifespan > 30 ? Math.floor(lifespan / 5) : 0;
+  const baseTarget =
     events.length >= 18 ? 12 : events.length >= 14 ? 10 : events.length >= 10 ? 8 : Math.max(5, events.length);
+  const targetCount = Math.min(events.length, Math.max(baseTarget, lifespanBonus));
 
   if (events.length <= targetCount) return events;
 
@@ -1188,7 +1191,7 @@ function buildHeuristicBiographyPlan(params: {
         : params.fallbackCurrentAge;
 
   const extractedEvents = inferChronologicalEventsFromExtract(params.extract, birthYear);
-  const mainEvents = selectEventsForLifeCoverage(extractedEvents);
+  const mainEvents = selectEventsForLifeCoverage(extractedEvents, inferredCurrentAge);
   const usedKeys = new Set(mainEvents.map((event) => buildEventFactKey(event)));
   const branchCandidates = extractedEvents.filter((event) => !usedKeys.has(buildEventFactKey(event)));
   const branchSourceEvents =
@@ -1330,6 +1333,112 @@ function buildBiographyPlanDiagnostics(
   };
 }
 
+/**
+ * Extract psychologically significant events from biography text.
+ * These are events that shape identity, cause trauma, or mark turning points:
+ * loss of parents/loved ones, exile, arrest, illness, family conflicts, etc.
+ */
+function extractPsychologicallySignificantEvents(
+  extract: string,
+  birthYear?: number
+): BiographyTimelineEventPlan[] {
+  const sentences = splitBiographyExtractIntoSentences(extract);
+  const events: BiographyTimelineEventPlan[] = [];
+
+  const psychPatterns: Array<{
+    pattern: RegExp;
+    labelFn: (sentence: string) => string;
+    sphere: TimelineSphere;
+  }> = [
+    {
+      pattern: /(?:смерт|скончал|умер|потеря|потерял)\S*\s+(?:мат|отц|отец|родител|брат|сестр|жен|муж|сын|дочер|друг|няня)/i,
+      labelFn: (s) => {
+        const who = s.match(/(?:смерт|потер\S+)\s+(\S+(?:\s+\S+)?)/i)?.[1];
+        return who ? `Смерть ${who}` : 'Потеря близкого';
+      },
+      sphere: 'family',
+    },
+    {
+      pattern: /(?:арест|заключ|тюрьм|каторг|приговор|осужд)/i,
+      labelFn: () => 'Арест',
+      sphere: 'career',
+    },
+    {
+      pattern: /(?:сослан|ссылк|изгнан|высл)/i,
+      labelFn: (s) => {
+        const where = s.match(/(?:ссыл\S*|сослан\S*)\s+(?:в|на)\s+([А-ЯЁ]\S+)/u)?.[1];
+        return where ? `Ссылка в ${where}` : 'Ссылка';
+      },
+      sphere: 'place',
+    },
+    {
+      pattern: /(?:тяжел\S+\s+болезн|серьёзн\S+\s+болезн|заболел|тяжело\s+ранен|ранен\S*\s+на\s+дуэл)/i,
+      labelFn: () => 'Тяжёлая болезнь',
+      sphere: 'health',
+    },
+    {
+      pattern: /(?:развод|расстав|разрыв\S*\s+(?:с\s+)?(?:жен|муж|супруг))/i,
+      labelFn: () => 'Разрыв в семье',
+      sphere: 'family',
+    },
+    {
+      pattern: /(?:банкрот|разорен|долг\S*\s+(?:привел|вынудил|заставил))/i,
+      labelFn: () => 'Финансовый кризис',
+      sphere: 'finance',
+    },
+    {
+      pattern: /(?:дуэл)/i,
+      labelFn: () => 'Дуэль',
+      sphere: 'health',
+    },
+    {
+      pattern: /(?:родил\S*\s+(?:сын|дочь|ребён|перв\S+\s+ребён))/i,
+      labelFn: (s) => {
+        const child = s.match(/родил\S*\s+(сын|дочь|ребён\S*)/i)?.[1];
+        return child ? `Рождение: ${child}` : 'Рождение ребёнка';
+      },
+      sphere: 'family',
+    },
+  ];
+
+  for (const sentence of sentences) {
+    const years = extractYears(sentence);
+    if (years.length === 0) continue;
+    const year = years[0];
+    const age = birthYear ? year - birthYear : undefined;
+    if (age !== undefined && (age < 0 || age > 120)) continue;
+
+    for (const { pattern, labelFn, sphere } of psychPatterns) {
+      if (pattern.test(sentence)) {
+        const label = labelFn(sentence);
+        const event = sanitizeTimelineEventPlan({
+          age: age ?? 0,
+          label: label.length > 50 ? `${label.slice(0, 47)}...` : label,
+          notes: normalizeWhitespace(sentence).slice(0, 300),
+          sphere,
+          isDecision: false,
+          iconId: inferIconFromSentence(sentence, sphere),
+        });
+        if (event && age !== undefined) {
+          events.push(event);
+        }
+        break; // one pattern per sentence
+      }
+    }
+  }
+
+  // Deduplicate by age+label
+  const deduped = new Map<string, BiographyTimelineEventPlan>();
+  events.forEach((event) => {
+    const key = `${event.age}:${event.sphere}`;
+    if (!deduped.has(key)) {
+      deduped.set(key, event);
+    }
+  });
+
+  return [...deduped.values()].sort((a, b) => a.age - b.age);
+}
+
 export function enrichBiographyPlan(params: {
   plan: BiographyTimelinePlan;
   articleTitle: string;
@@ -1420,12 +1529,40 @@ export function enrichBiographyPlan(params: {
     }
   }
 
+  // Fill gaps: if model lacks early-life coverage, add heuristic events for childhood/youth
+  if (!useHeuristicMainEvents && modelCurrentAge >= 30) {
+    const earlyLifeEvents = finalMainEvents.filter((event) => event.age > 0 && event.age <= 18);
+    if (earlyLifeEvents.length < 2) {
+      const existingKeys = new Set(finalMainEvents.map((event) => buildEventFactKey(event)));
+      const earlyHeuristicEvents = heuristicPlan.mainEvents
+        .filter((event) => event.age > 0 && event.age <= 18 && !existingKeys.has(buildEventFactKey(event)));
+      if (earlyHeuristicEvents.length > 0) {
+        finalMainEvents = [...finalMainEvents, ...earlyHeuristicEvents];
+      }
+    }
+  }
+
   // Fill gaps: if model lacks late-life coverage, add heuristic events for that period
   if (!hasLateLifeCoverage && !useHeuristicMainEvents) {
     const modelAgeKeys = new Set(finalMainEvents.map((event) => buildEventFactKey(event)));
     const lateHeuristicEvents = heuristicPlan.mainEvents
       .filter((event) => event.age >= lateLifeCoverageThreshold && !modelAgeKeys.has(buildEventFactKey(event)));
     finalMainEvents = [...finalMainEvents, ...lateHeuristicEvents];
+  }
+
+  // Psychological pass: inject significant life events missing from the plan
+  const psychEvents = extractPsychologicallySignificantEvents(
+    params.extract,
+    inferredBirth.birthYear ?? undefined
+  );
+  if (psychEvents.length > 0) {
+    const existingKeys = new Set(finalMainEvents.map((event) => buildEventFactKey(event)));
+    const missingPsychEvents = psychEvents.filter(
+      (event) => !existingKeys.has(buildEventFactKey(event))
+    );
+    if (missingPsychEvents.length > 0) {
+      finalMainEvents = [...finalMainEvents, ...missingPsychEvents];
+    }
   }
 
   finalMainEvents.sort((a, b) => a.age - b.age);
