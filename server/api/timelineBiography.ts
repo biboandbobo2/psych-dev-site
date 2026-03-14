@@ -166,21 +166,17 @@ type OccupiedBranchLane = {
 
 export const BIOGRAPHY_TIMELINE_RESPONSE_JSON_SCHEMA = {
   type: 'object',
-  additionalProperties: false,
   required: ['subjectName', 'canvasName', 'currentAge', 'mainEvents', 'branches'],
   properties: {
-    subjectName: { type: 'string', minLength: 1 },
-    canvasName: { type: 'string', minLength: 1 },
+    subjectName: { type: 'string' },
+    canvasName: { type: 'string' },
     currentAge: { type: 'number', minimum: 0, maximum: 120 },
     selectedPeriodization: {
-      anyOf: [
-        { type: 'string', enum: [...TIMELINE_PERIODIZATION_IDS] },
-        { type: 'null' },
-      ],
+      type: ['string', 'null'],
+      enum: [...TIMELINE_PERIODIZATION_IDS, null],
     },
     birthDetails: {
       type: 'object',
-      additionalProperties: false,
       properties: {
         date: { type: 'string' },
         place: { type: 'string' },
@@ -189,16 +185,13 @@ export const BIOGRAPHY_TIMELINE_RESPONSE_JSON_SCHEMA = {
     },
     mainEvents: {
       type: 'array',
-      minItems: 4,
-      maxItems: 18,
       items: {
         type: 'object',
-        additionalProperties: false,
         required: ['age', 'label', 'isDecision'],
         properties: {
           age: { type: 'number', minimum: 0, maximum: 120 },
-          label: { type: 'string', minLength: 1, maxLength: 120 },
-          notes: { type: 'string', maxLength: 700 },
+          label: { type: 'string' },
+          notes: { type: 'string' },
           sphere: { type: 'string', enum: Object.keys(SPHERE_META) },
           isDecision: { type: 'boolean' },
           iconId: { type: 'string', enum: [...EVENT_ICON_IDS] },
@@ -207,27 +200,22 @@ export const BIOGRAPHY_TIMELINE_RESPONSE_JSON_SCHEMA = {
     },
     branches: {
       type: 'array',
-      maxItems: 6,
       items: {
         type: 'object',
-        additionalProperties: false,
         required: ['label', 'sphere', 'sourceMainEventIndex', 'events'],
         properties: {
-          label: { type: 'string', minLength: 1, maxLength: 80 },
+          label: { type: 'string' },
           sphere: { type: 'string', enum: Object.keys(SPHERE_META) },
           sourceMainEventIndex: { type: 'integer', minimum: 0, maximum: 17 },
           events: {
             type: 'array',
-            minItems: 1,
-            maxItems: 8,
             items: {
               type: 'object',
-              additionalProperties: false,
               required: ['age', 'label', 'isDecision'],
               properties: {
                 age: { type: 'number', minimum: 0, maximum: 120 },
-                label: { type: 'string', minLength: 1, maxLength: 120 },
-                notes: { type: 'string', maxLength: 700 },
+                label: { type: 'string' },
+                notes: { type: 'string' },
                 sphere: { type: 'string', enum: Object.keys(SPHERE_META) },
                 isDecision: { type: 'boolean' },
                 iconId: { type: 'string', enum: [...EVENT_ICON_IDS] },
