@@ -707,17 +707,55 @@ function sanitizeTimelineEventPlan(
 ): BiographyTimelineEventPlan | null {
   if (!Number.isFinite(event.age)) return null;
 
-  const label = normalizeText(event.label, 120);
+  const label = normalizeText(event.label, 60);
   if (!label) return null;
 
-  return {
+  return postProcessModelEvent({
     age: Math.max(0, Math.min(120, Number(event.age))),
     label,
     notes: normalizeText(event.notes, 700),
     sphere: normalizeSphere(event.sphere) ?? fallbackSphere,
     isDecision: Boolean(event.isDecision),
     iconId: normalizeIcon(event.iconId),
-  };
+  });
+}
+
+/** Detect if a label looks like a raw sentence copied from Wikipedia */
+function isRawSentenceLabel(label: string) {
+  if (label.length > 55) return true;
+  if (/^\d{1,2}\s+[а-яё]+\s+\d{4}/u.test(label)) return true;
+  if (/^(?:В|С|К|После|Весной|Летом|Осенью|Зимой)\s+\d{4}/u.test(label)) return true;
+  if (/^[А-ЯЁ][а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+/u.test(label)) return true;
+  return false;
+}
+
+/** Post-process a model-generated event: fix label, sphere, icon */
+function postProcessModelEvent(event: BiographyTimelineEventPlan): BiographyTimelineEventPlan {
+  let { label, sphere, iconId } = event;
+  const source = event.notes || event.label;
+
+  // Fix raw sentence labels by re-generating from heuristic logic
+  if (isRawSentenceLabel(label)) {
+    const betterLabel = buildHeuristicLabel(source, sphere ?? 'other');
+    if (betterLabel && betterLabel.length <= 50) {
+      label = betterLabel;
+    }
+  }
+
+  // Re-infer sphere if it's "other" or missing
+  if (!sphere || sphere === 'other') {
+    const inferred = inferSphereFromSentence(source);
+    if (inferred !== 'other') {
+      sphere = inferred;
+    }
+  }
+
+  // Assign icon if missing
+  if (!iconId && sphere) {
+    iconId = inferIconFromSentence(source, sphere ?? 'other');
+  }
+
+  return { ...event, label, sphere, iconId };
 }
 
 function normalizeWhitespace(value: string) {
@@ -1329,11 +1367,40 @@ export function enrichBiographyPlan(params: {
   const hasTerminalEvent = hasTerminalLifeEvent(normalizedMainEvents, modelCurrentAge);
   const minimumMainEvents = heuristicPlan.mainEvents.length >= 8 ? 6 : Math.max(4, heuristicPlan.mainEvents.length);
 
-  const useHeuristicMainEvents =
-    normalizedMainEvents.length < minimumMainEvents ||
-    !hasLateLifeCoverage ||
-    (needsTerminalEvent && !hasTerminalEvent);
+  const tooFewModelEvents = normalizedMainEvents.length < minimumMainEvents;
+  const useHeuristicMainEvents = tooFewModelEvents;
   const useHeuristicBranches = countBranchEvents(sanitizedModelBranches) === 0;
+
+  // Start with model or heuristic events
+  let finalMainEvents = useHeuristicMainEvents ? heuristicPlan.mainEvents : normalizedMainEvents;
+
+  // Targeted injection: add missing birth event
+  if (!finalMainEvents.some((event) => event.age === 0)) {
+    const heuristicBirth = heuristicPlan.mainEvents.find((event) => event.age === 0);
+    if (heuristicBirth) {
+      finalMainEvents = [heuristicBirth, ...finalMainEvents];
+    }
+  }
+
+  // Targeted injection: add missing terminal event (death/duel)
+  if (needsTerminalEvent && !hasTerminalLifeEvent(finalMainEvents, modelCurrentAge)) {
+    const heuristicDeath = heuristicPlan.mainEvents.find((event) =>
+      /(смерт|гибел|погиб|умер|дуэл|died|death)/i.test(`${event.label} ${event.notes ?? ''}`)
+    );
+    if (heuristicDeath) {
+      finalMainEvents = [...finalMainEvents, heuristicDeath];
+    }
+  }
+
+  // Fill gaps: if model lacks late-life coverage, add heuristic events for that period
+  if (!hasLateLifeCoverage && !useHeuristicMainEvents) {
+    const modelAgeKeys = new Set(finalMainEvents.map((event) => buildEventFactKey(event)));
+    const lateHeuristicEvents = heuristicPlan.mainEvents
+      .filter((event) => event.age >= lateLifeCoverageThreshold && !modelAgeKeys.has(buildEventFactKey(event)));
+    finalMainEvents = [...finalMainEvents, ...lateHeuristicEvents];
+  }
+
+  finalMainEvents.sort((a, b) => a.age - b.age);
 
   const mergedPlan: BiographyTimelinePlan = {
     subjectName: normalizeText(params.plan.subjectName, 120) || heuristicPlan.subjectName,
@@ -1349,7 +1416,7 @@ export function enrichBiographyPlan(params: {
       place: normalizeText(params.plan.birthDetails?.place, 150) || heuristicPlan.birthDetails?.place,
       notes: normalizeText(params.plan.birthDetails?.notes, 400) || heuristicPlan.birthDetails?.notes,
     },
-    mainEvents: useHeuristicMainEvents ? heuristicPlan.mainEvents : normalizedMainEvents,
+    mainEvents: finalMainEvents,
     branches: useHeuristicBranches ? heuristicPlan.branches : sanitizedModelBranches,
   };
 
