@@ -795,7 +795,7 @@ function inferBirthDetailsFromExtract(extract: string) {
 
 function inferDeathYearFromExtract(extract: string) {
   const sentences = splitBiographyExtractIntoSentences(extract);
-  const deathSentence = sentences.find((sentence) => /умер|скончал|погиб|died|killed/i.test(sentence));
+  const deathSentence = sentences.find((sentence) => /умер|скончал|погиб|смерт|дуэл|died|killed|death/i.test(sentence));
   const years = deathSentence ? extractYears(deathSentence) : [];
   return years[0];
 }
@@ -834,7 +834,11 @@ function inferSphereFromSentence(sentence: string): TimelineSphere {
   if (/(умер|погиб|скончал|дуэл|болез|ранен|died|death|ill|injur)/i.test(normalized)) {
     return 'health';
   }
-  if (/(ссыл|переех|эмигр|путешеств|жил в|вернул|москв|петербург|travel|moved|exile|relocat)/i.test(normalized)) {
+  if (
+    /(ссыл|сослан|переех|эмигр|путешеств|жил в|вернул|москв|петербург|одесс|кишин|молдов|крым|кавказ|михайл|болдин|царск|travel|moved|exile|relocat)/i.test(
+      normalized
+    )
+  ) {
     return 'place';
   }
   if (/(друж|друз|friend|circle|acquaint)/i.test(normalized)) {
@@ -846,7 +850,11 @@ function inferSphereFromSentence(sentence: string): TimelineSphere {
   if (/(рисова|музык|театр|хобб|спорт|painting|music|sport|hobby)/i.test(normalized)) {
     return 'hobby';
   }
-  if (/(опублик|издал|поэм|роман|стих|пьес|произвед|книг|назнач|стал|служ|карьер|published|poem|novel|book|work|career|appointed|founded)/i.test(normalized)) {
+  if (
+    /(опублик|издал|поэм|роман|стих|пьес|произвед|книг|журнал|повест|драм|элег|трагед|заверш|начал работу|назнач|стал|служ|карьер|published|poem|novel|book|work|career|appointed|founded)/i.test(
+      normalized
+    )
+  ) {
     return 'career';
   }
 
@@ -885,20 +893,34 @@ function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   if (/дуэл/i.test(sentence) && /умер|погиб|скончал|died/i.test(sentence)) return 'Дуэль и смерть';
   if (/умер|скончал|погиб|died/i.test(sentence)) return 'Смерть';
   if (/женил|брак|свад/i.test(sentence)) return spouse ? `Брак с ${spouse}` : 'Брак';
-  if (/ссыл/i.test(sentence)) return location ? `Ссылка в ${location}` : 'Ссылка';
+  if (/под надзор/i.test(sentence)) return 'Полицейский надзор';
+  if (/путешеств|поездк|поехал|отправился/i.test(sentence) && location) return `Поездка в ${location}`;
+  if (/войн/i.test(sentence) && /отправился|поехал/i.test(sentence)) return 'Поездка на войну';
+  if (/сослан|ссыл/i.test(sentence)) return location ? `Ссылка в ${location}` : 'Ссылка';
   if (/переех|эмигр|relocat|moved/i.test(sentence)) return location ? `Переезд в ${location}` : 'Переезд';
   if (/поступ/i.test(sentence) && institution) return `Поступление в ${institution}`;
   if (/(окончил|выпустил|выпуск)/i.test(sentence) && institution) return `Окончание ${institution}`;
   if (/лице|школ|универс|академ|институт|учил/i.test(sentence) && institution) return `Учёба в ${institution}`;
   if (/лице|школ|универс|академ|институт|учил/i.test(sentence)) return 'Учёба';
+  if (/вступил в .*общество|арзамас|зел[её]ная лампа/i.test(sentence)) return 'Литературный круг';
+  if (/элег|лирик/i.test(sentence)) return 'Литературный поворот';
+  if (/предложени/i.test(sentence) && /гончаров/i.test(sentence)) return 'Предложение Наталье Гончаровой';
+  if (/ссора/i.test(sentence) && /тёщ/i.test(sentence)) return 'Ссора с тёщей';
   if (workTitle && sphere === 'career') return `Публикация «${workTitle}»`;
+  if (/заверш[а-я]+\s+.*борис[а-яё ]+годунов/i.test(sentence)) return 'Завершение «Бориса Годунова»';
+  if (/начал работу/i.test(sentence) && workTitle) return `Начало работы над «${workTitle}»`;
   if (/опублик|издал|поэм|роман|стих|книг|произвед|published/i.test(sentence)) {
     return location ? `Публикация в ${location}` : 'Новая публикация';
   }
   if (/назнач|стал|служ|карьер|became|appointed/i.test(sentence)) return 'Новый карьерный этап';
   if (/долг|обязательств|финанс|денег|money|finance/i.test(sentence)) return 'Финансовое давление';
 
-  const cleaned = normalizeWhitespace(sentence.replace(/\([^)]*\)/g, ''));
+  const cleaned = normalizeWhitespace(
+    sentence
+      .replace(/\([^)]*\)/g, '')
+      .replace(/^(?:В|С)\s+\d{4}\s+году,?\s*/u, '')
+      .replace(/^\d{1,2}\s+[А-Яа-яЁё]+\s+\d{4}\s+года,?\s*/u, '')
+  );
   return cleaned.length > 70 ? `${cleaned.slice(0, 67).trimEnd()}...` : cleaned;
 }
 
@@ -1111,6 +1133,22 @@ function buildHeuristicBiographyPlan(params: {
       iconId: 'baby-feet',
     });
   }
+
+  if (birthYear && deathYear && !hasTerminalLifeEvent(mainEvents, inferredCurrentAge)) {
+    const deathSentence = splitBiographyExtractIntoSentences(params.extract).find((sentence) =>
+      /умер|скончал|погиб|смерт|дуэл|died|killed|death/i.test(sentence)
+    );
+    mainEvents.push({
+      age: inferredCurrentAge,
+      label: /дуэл/i.test(deathSentence || '') ? 'Дуэль и смерть' : 'Смерть',
+      notes: deathSentence ? normalizeWhitespace(deathSentence) : 'Завершение жизненного пути.',
+      sphere: 'health',
+      isDecision: false,
+      iconId: 'thermometer',
+    });
+  }
+
+  mainEvents.sort((a, b) => a.age - b.age);
 
   return {
     subjectName,

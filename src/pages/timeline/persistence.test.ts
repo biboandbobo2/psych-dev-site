@@ -77,7 +77,7 @@ describe('timeline persistence', () => {
     });
 
     expect(normalized.currentAge).toBe(37);
-    expect(normalized.ageMax).toBeGreaterThanOrEqual(100);
+    expect(normalized.ageMax).toBe(37);
     expect(normalized.nodes).toHaveLength(1);
     expect(normalized.nodes[0].notes).toBe('born');
     expect(normalized.edges).toHaveLength(1);

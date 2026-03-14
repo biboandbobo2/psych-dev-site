@@ -76,7 +76,7 @@ export function normalizeImportedTimelineData(data: unknown): TimelineData {
         .filter((edge): edge is EdgeT => Boolean(edge) && nodeIds.has(edge.nodeId))
     : [];
   const computedMaxAge = Math.max(
-    DEFAULT_AGE_MAX,
+    25,
     ...nodes.map((node) => node.age),
     ...edges.map((edge) => edge.endAge),
     Number.isFinite(candidate.currentAge) ? Number(candidate.currentAge) : DEFAULT_CURRENT_AGE

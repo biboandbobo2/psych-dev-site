@@ -19,6 +19,14 @@ interface TimelineLeftPanelProps {
   biographySourceUrl: string;
   biographyImportError: string | null;
   biographyDiagnostics: string[];
+  biographyMeta: {
+    source?: string;
+    factsModel?: string;
+    reviewApplied?: boolean;
+    reviewIssues?: string[];
+    nodes?: number;
+    edges?: number;
+  } | null;
   biographyUiSignals: {
     reactPointerdown: number;
     reactClick: number;
@@ -90,6 +98,7 @@ export function TimelineLeftPanel({
   biographySourceUrl,
   biographyImportError,
   biographyDiagnostics,
+  biographyMeta,
   biographyUiSignals,
   biographyLastUiSignal,
   exportStatus,
@@ -628,6 +637,26 @@ export function TimelineLeftPanel({
                     <div className="text-[10px] leading-4 text-slate-600">
                       Вставь прямую ссылку на статью Wikipedia или загрузи готовый `.json` таймлайна. Импорт заполнит текущий пустой холст.
                     </div>
+                    {biographyMeta ? (
+                      <div className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-2 text-[10px] leading-4 text-sky-800">
+                        <div>
+                          Источник: <span className="font-semibold">{biographyMeta.source ?? 'unknown'}</span>
+                        </div>
+                        <div>
+                          Facts: <span className="font-semibold">{biographyMeta.factsModel ?? 'unknown'}</span>
+                          {' '}| Review:{' '}
+                          <span className="font-semibold">{biographyMeta.reviewApplied ? 'yes' : 'no'}</span>
+                        </div>
+                        <div>
+                          Узлы/ветки: <span className="font-semibold">{biographyMeta.nodes ?? 0}/{biographyMeta.edges ?? 0}</span>
+                        </div>
+                        {biographyMeta.reviewIssues?.length ? (
+                          <div className="mt-1 text-[9px] text-sky-900">
+                            Review issues: {biographyMeta.reviewIssues.join('; ')}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <input
                       ref={timelineJsonInputRef}
                       type="file"
@@ -776,6 +805,10 @@ export function TimelineLeftPanel({
             <div>loading: {biographyImportLoading ? 'true' : 'false'}</div>
             <div>error: {biographyImportError ? 'true' : 'false'}</div>
             <div>last: {biographyLastUiSignal ?? 'none'}</div>
+            <div>source: {biographyMeta?.source ?? 'none'}</div>
+            <div>facts: {biographyMeta?.factsModel ?? 'none'}</div>
+            <div>review: {biographyMeta?.reviewApplied ? 'yes' : 'no'}</div>
+            <div>nodes/edges: {biographyMeta ? `${biographyMeta.nodes ?? 0}/${biographyMeta.edges ?? 0}` : '0/0'}</div>
             <div>r/n/d click: {biographyUiSignals.reactClick}/{biographyUiSignals.nativeClick}/{biographyUiSignals.docClick}</div>
             <div>r/n/d touch: {biographyUiSignals.reactTouchstart}/{biographyUiSignals.nativeTouchstart}/{biographyUiSignals.docTouchstart}</div>
             <div>open/close: {biographyUiSignals.open}/{biographyUiSignals.close}</div>

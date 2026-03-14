@@ -203,6 +203,14 @@ export default function Timeline() {
   const [biographyImportLoading, setBiographyImportLoading] = useState(false);
   const [biographyImportError, setBiographyImportError] = useState<string | null>(null);
   const [biographyDiagnostics, setBiographyDiagnostics] = useState<string[]>([]);
+  const [biographyMeta, setBiographyMeta] = useState<{
+    source?: string;
+    factsModel?: string;
+    reviewApplied?: boolean;
+    reviewIssues?: string[];
+    nodes?: number;
+    edges?: number;
+  } | null>(null);
   const [exportStatus, setExportStatus] = useState<{
     state: 'idle' | 'running' | 'success' | 'error';
     type: 'json' | 'png' | 'pdf' | null;
@@ -556,6 +564,7 @@ export default function Timeline() {
     recordBiographyUiSignal('open');
     appendBiographyDiagnostic('open requested');
     setBiographyImportError(null);
+    setBiographyMeta(null);
     setShowBiographyImportExpanded(true);
   };
 
@@ -566,6 +575,7 @@ export default function Timeline() {
     appendBiographyDiagnostic('close requested');
     setShowBiographyImportExpanded(false);
     setBiographyImportError(null);
+    setBiographyMeta(null);
     setBiographySourceUrl('');
   };
 
@@ -604,6 +614,7 @@ export default function Timeline() {
 
     setBiographyImportLoading(true);
     setBiographyImportError(null);
+    setBiographyMeta(null);
 
     try {
       const headers = await buildAuthorizedHeaders({
@@ -630,6 +641,7 @@ export default function Timeline() {
         subjectName?: string;
         timeline?: TimelineData;
         meta?: {
+          factsModel?: string;
           planDiagnostics?: {
             source?: string;
             mainEvents?: number;
@@ -637,6 +649,11 @@ export default function Timeline() {
             branchEvents?: number;
             hasBirthDate?: boolean;
             hasBirthPlace?: boolean;
+          };
+          stageDiagnostics?: {
+            facts?: number;
+            reviewApplied?: boolean;
+            reviewIssues?: string[];
           };
           timelineStats?: {
             nodes?: number;
@@ -653,7 +670,9 @@ export default function Timeline() {
         canvasName: payload.canvasName,
         subjectName: payload.subjectName,
         hasTimeline: Boolean(payload.timeline),
+        factsModel: payload.meta?.factsModel,
         planDiagnostics: payload.meta?.planDiagnostics,
+        stageDiagnostics: payload.meta?.stageDiagnostics,
         timelineStats: payload.meta?.timelineStats,
       });
       appendBiographyDiagnostic('response received', {
@@ -661,13 +680,24 @@ export default function Timeline() {
         ok: response.ok,
         payloadOk: payload.ok,
         hasTimeline: Boolean(payload.timeline),
+        factsModel: payload.meta?.factsModel,
         planDiagnostics: payload.meta?.planDiagnostics,
+        stageDiagnostics: payload.meta?.stageDiagnostics,
         timelineStats: payload.meta?.timelineStats,
       });
 
       if (!response.ok || !payload.ok || !payload.timeline) {
         throw new Error(payload.error || 'Не удалось построить таймлайн по биографии.');
       }
+
+      setBiographyMeta({
+        source: payload.meta?.planDiagnostics?.source,
+        factsModel: payload.meta?.factsModel,
+        reviewApplied: payload.meta?.stageDiagnostics?.reviewApplied,
+        reviewIssues: payload.meta?.stageDiagnostics?.reviewIssues,
+        nodes: payload.meta?.timelineStats?.nodes,
+        edges: payload.meta?.timelineStats?.edges,
+      });
 
       replaceActiveTimeline(payload.timeline, {
         name: payload.canvasName || payload.subjectName,
@@ -681,6 +711,7 @@ export default function Timeline() {
       const message = error instanceof Error ? error.message : 'Не удалось построить таймлайн по биографии.';
       reportAppError({ message: 'Ошибка импорта биографии в таймлайн', error, context: 'Timeline.handleImportBiography' });
       setBiographyImportError(message);
+      setBiographyMeta(null);
       debugError('Timeline biography import failed', error);
       appendBiographyDiagnostic('request failed', message);
     } finally {
@@ -814,6 +845,7 @@ export default function Timeline() {
             biographySourceUrl={biographySourceUrl}
             biographyImportError={biographyImportError}
             biographyDiagnostics={biographyDiagnostics}
+            biographyMeta={biographyMeta}
             biographyUiSignals={biographyUiSignals}
             biographyLastUiSignal={biographyLastUiSignal}
             exportStatus={exportStatus}
