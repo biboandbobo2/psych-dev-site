@@ -1,4 +1,4 @@
-export const TIMELINE_BIOGRAPHY_MODELS = ['gemini-2.5-pro', 'gemini-2.5-flash'] as const;
+export const TIMELINE_BIOGRAPHY_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro'] as const;
 export const TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS = 8192;
 export const MAX_WIKIPEDIA_EXTRACT_CHARS = 32000;
 const LINE_X_POSITION = 2000;
