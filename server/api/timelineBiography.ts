@@ -413,6 +413,18 @@ export function buildBiographyTimelinePrompt(params: {
 - Плохие события: энциклопедическое описание личности, общий пересказ творчества, длинный обзор периода без одного факта, повтор того же факта другими словами.
 - Одно событие = один факт. Не склеивай два разных факта в один label.
 
+ФОРМАТ LABEL (КРИТИЧЕСКИ ВАЖНО)
+- label — это ЗАГОЛОВОК события для визуального холста, а НЕ предложение из статьи.
+- label должен быть 2-7 слов, как заголовок в учебнике или подпись на оси времени.
+- ЗАПРЕЩЕНО копировать предложения из Wikipedia в label. Предложения идут в notes.
+- Хорошие labels: "Рождение", "Поступление в Царскосельский лицей", "Публикация «Евгений Онегин»", "Болдинская осень", "Брак с Натальей Гончаровой", "Дуэль и смерть".
+- Плохие labels: "В 1820 году Пушкин был отправлен...", "С 1816 года, вслед за Жуковским, он обращается к элегиям...", "Для поправления здоровья Раевские вывозят в конце мая 1820 года больного поэта...".
+- notes — это место для развёрнутого описания (1-2 предложения). label — только краткий заголовок.
+
+ФОРМАТ SPHERE
+- Каждому событию ОБЯЗАТЕЛЬНО назначай sphere из списка ниже. Не оставляй sphere пустым.
+- Если событие не подходит ни к одной конкретной сфере, используй "other", но это должно быть редким исключением.
+
 ЧТО НУЖНО СДЕЛАТЬ
 1. Определи subjectName и canvasName.
 2. Выдели дату и место рождения, если они есть.
@@ -631,9 +643,12 @@ export function buildBiographyTimelineReviewPrompt(params: {
 ${params.issues.map((issue) => `- ${issue}`).join('\n')}
 
 ПРАВИЛА
+- label — это ЗАГОЛОВОК события (2-7 слов), НЕ предложение из статьи. Предложения идут в notes.
+- ЗАПРЕЩЕНО: label вида "В 1820 году Пушкин был отправлен...". Правильно: "Южная ссылка".
 - Не дублируй один и тот же факт в mainEvents и branches.
 - Не оставляй generic labels, если можно назвать событие конкретнее.
 - Одна ветка = одна сфера.
+- Каждому событию обязательно назначай sphere (не оставляй пустым).
 - Если человек умер, в конце mainEvents должно быть terminal event.
 - Не теряй позднюю жизнь.
 - Не копируй факты из примера; используй только facts summary и draft JSON.
@@ -841,11 +856,14 @@ function inferSphereFromSentence(sentence: string): TimelineSphere {
   ) {
     return 'place';
   }
-  if (/(друж|друз|friend|circle|acquaint)/i.test(normalized)) {
+  if (/(друж|друз|кружок|общество|арзамас|лампа|салон|friend|circle|acquaint)/i.test(normalized)) {
     return 'friends';
   }
-  if (/(денег|финанс|банк|состояни|долг|fund|money|finance|wealth)/i.test(normalized)) {
+  if (/(денег|финанс|банк|состояни|долг|наследств|fund|money|finance|wealth)/i.test(normalized)) {
     return 'finance';
+  }
+  if (/(арест|тюрьм|суд|следств|надзор|полиц|цензур|запрет|prison|arrest|trial|censor)/i.test(normalized)) {
+    return 'career';
   }
   if (/(рисова|музык|театр|хобб|спорт|painting|music|sport|hobby)/i.test(normalized)) {
     return 'hobby';
@@ -914,14 +932,36 @@ function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   }
   if (/назнач|стал|служ|карьер|became|appointed/i.test(sentence)) return 'Новый карьерный этап';
   if (/долг|обязательств|финанс|денег|money|finance/i.test(sentence)) return 'Финансовое давление';
+  if (/арест|тюрьм|prison|arrest/i.test(sentence)) return 'Арест';
+  if (/цензур|запрет|censor/i.test(sentence)) return 'Цензурные ограничения';
+  if (/наград|орден|award|prize/i.test(sentence)) return 'Награждение';
+  if (/друж|кружок|общество|арзамас|лампа/i.test(sentence)) return 'Литературный круг';
+  if (/ребён|сын|дочь|child|son|daughter/i.test(sentence)) return spouse ? `Рождение ребёнка` : 'Рождение ребёнка';
 
+  // Try to extract a meaningful short phrase before truncating
   const cleaned = normalizeWhitespace(
     sentence
       .replace(/\([^)]*\)/g, '')
-      .replace(/^(?:В|С)\s+\d{4}\s+году,?\s*/u, '')
+      .replace(/^(?:В|С|К|После|До|Около)\s+\d{4}\s+(?:году?|годах|годов),?\s*/u, '')
       .replace(/^\d{1,2}\s+[А-Яа-яЁё]+\s+\d{4}\s+года,?\s*/u, '')
+      .replace(/^(?:В этот период|В это время|В том же году|Тогда же),?\s*/u, '')
   );
-  return cleaned.length > 70 ? `${cleaned.slice(0, 67).trimEnd()}...` : cleaned;
+
+  // If cleaning produced something short enough, use it
+  if (cleaned.length <= 50) return cleaned;
+
+  // Try to extract a label from the first clause (before first comma or dash)
+  const firstClause = cleaned.split(/[,;—–]/, 1)[0]?.trim();
+  if (firstClause && firstClause.length >= 5 && firstClause.length <= 50) return firstClause;
+
+  // Try to extract subject + verb phrase (first ~5 words)
+  const words = cleaned.split(/\s+/);
+  if (words.length > 7) {
+    const shortPhrase = words.slice(0, 5).join(' ');
+    if (shortPhrase.length <= 50) return shortPhrase;
+  }
+
+  return cleaned.length > 50 ? `${cleaned.slice(0, 47).trimEnd()}...` : cleaned;
 }
 
 function inferChronologicalEventsFromExtract(extract: string, birthYear?: number) {
@@ -1196,6 +1236,15 @@ export function getBiographyPlanReviewIssues(plan: BiographyTimelinePlan, extrac
   }
   if (duplicateBranchFacts > 0) {
     issues.push('Ветки дублируют факты главной линии; нужно убрать повторы и оставить только раскрывающие события.');
+  }
+  const allEvents = [...mainEvents, ...branchFacts];
+  const rawSentenceLabels = allEvents.filter((event) => event.label && event.label.length > 60).length;
+  if (rawSentenceLabels > 0) {
+    issues.push('Некоторые labels слишком длинные (>60 символов). label должен быть заголовком из 2-7 слов, а не предложением из статьи. Подробности идут в notes.');
+  }
+  const missingSphere = allEvents.filter((event) => !event.sphere).length;
+  if (missingSphere > 0) {
+    issues.push('Некоторые события не имеют sphere. Каждому событию нужно назначить сферу жизни.');
   }
 
   return issues;

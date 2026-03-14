@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { debugError, debugLog } from '../src/lib/debug';
 import {
   getLectureGenAiClient,
   resolveLectureGeminiApiKey,
@@ -8,7 +7,6 @@ import {
   verifyLectureApiAuth,
 } from '../server/api/lectureApiRuntime.js';
 import {
-  BIOGRAPHY_TIMELINE_RESPONSE_JSON_SCHEMA,
   buildBiographyFactExtractionPrompt,
   buildBiographyTimelineLinePrompt,
   buildBiographyTimelinePrompt,
@@ -305,50 +303,20 @@ async function generateBiographyPlan(prompt: string, apiKey: string) {
 
   for (const model of TIMELINE_BIOGRAPHY_MODELS) {
     try {
-      const structuredResult = await client.models.generateContent({
+      const result = await client.models.generateContent({
         model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: {
           temperature: 0.2,
           maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
           responseMimeType: 'application/json',
-          responseJsonSchema: BIOGRAPHY_TIMELINE_RESPONSE_JSON_SCHEMA,
         },
       });
 
-      return { model, plan: parseBiographyPlanResult(structuredResult) };
+      return { model, plan: parseBiographyPlanResult(result) };
     } catch (error) {
-      debugError('[timeline-biography] structured plan generation failed', { model, error });
+      console.error('[timeline-biography] JSON plan generation failed', model, error instanceof Error ? error.message : error);
       lastError = error;
-
-      try {
-        const relaxedResult = await client.models.generateContent({
-          model,
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                {
-                  text:
-                    `${prompt}\n\n` +
-                    'Верни только один JSON-объект без markdown и без пояснений. ' +
-                    'Даже если не уверен в части полей, соблюдай JSON-структуру и обязательно верни mainEvents и branches как массивы.',
-                },
-              ],
-            },
-          ],
-          config: {
-            temperature: 0.1,
-            maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
-            responseMimeType: 'text/plain',
-          },
-        });
-
-        return { model, plan: parseBiographyPlanResult(relaxedResult) };
-      } catch (relaxedError) {
-        debugError('[timeline-biography] relaxed plan generation failed', { model, error: relaxedError });
-        lastError = relaxedError;
-      }
     }
   }
 
@@ -376,7 +344,7 @@ async function generateBiographyFacts(prompt: string, apiKey: string) {
         facts: parseLineBasedBiographyFacts(collectGeminiResultText(result)),
       };
     } catch (error) {
-      debugError('[timeline-biography] facts generation failed', { model, error });
+      console.error('[timeline-biography] facts generation failed', model, error instanceof Error ? error.message : error);
       lastError = error;
     }
   }
@@ -405,7 +373,7 @@ async function generateBiographyLinePlan(prompt: string, apiKey: string) {
         plan: parseLineBasedBiographyPlan(collectGeminiResultText(result)),
       };
     } catch (error) {
-      debugError('[timeline-biography] line plan generation failed', { model, error });
+      console.error('[timeline-biography] line plan generation failed', model, error instanceof Error ? error.message : error);
       lastError = error;
     }
   }
@@ -426,7 +394,6 @@ async function reviewBiographyPlan(prompt: string, apiKey: string) {
           temperature: 0.05,
           maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
           responseMimeType: 'application/json',
-          responseJsonSchema: BIOGRAPHY_TIMELINE_RESPONSE_JSON_SCHEMA,
         },
       });
 
@@ -435,7 +402,7 @@ async function reviewBiographyPlan(prompt: string, apiKey: string) {
         plan: parseBiographyPlanResult(result),
       };
     } catch (error) {
-      debugError('[timeline-biography] review generation failed', { model, error });
+      console.error('[timeline-biography] review generation failed', model, error instanceof Error ? error.message : error);
       lastError = error;
     }
   }
@@ -482,16 +449,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       facts = factsResult.facts;
       factsModel = factsResult.model;
     } catch {
-      debugError('[timeline-biography] falling back to heuristic facts');
+      console.log('[timeline-biography] facts generation failed, falling back to heuristics');
       facts = buildHeuristicBiographyFacts(wikiPage.extract, wikiPage.title);
     }
 
     const factsSummary = summarizeBiographyFacts(facts, wikiPage.title);
-    debugLog('[timeline-biography] facts summary prepared', {
-      factsModel,
-      factsCount: facts.length,
-      sourceTitle: wikiPage.title,
-    });
+    console.log('[timeline-biography] facts ready', { factsModel, factsCount: facts.length, sourceTitle: wikiPage.title });
+
     const prompt = buildBiographyTimelinePrompt({
       articleTitle: wikiPage.title,
       sourceUrl: wikiPage.canonicalUrl,
@@ -503,7 +467,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       generationResult = await generateBiographyPlan(prompt, apiKey);
     } catch {
-      debugError('[timeline-biography] structured plan pipeline failed, trying line-based fallback');
+      console.log('[timeline-biography] JSON plan failed, trying line-based fallback');
       generationResult = await generateBiographyLinePlan(
         buildBiographyTimelineLinePrompt({
           articleTitle: wikiPage.title,
@@ -520,10 +484,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let reviewApplied = false;
 
     if (reviewIssues.length > 0) {
-      debugLog('[timeline-biography] review issues detected', {
-        model,
-        reviewIssues,
-      });
+      console.log('[timeline-biography] review issues detected', { model, reviewIssues });
       try {
         const reviewResult = await reviewBiographyPlan(
           buildBiographyTimelineReviewPrompt({
@@ -539,10 +500,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         model = `${model} -> ${reviewResult.model}`;
         reviewApplied = true;
       } catch {
-        debugError('[timeline-biography] review pass failed, keeping draft plan', {
-          model,
-          reviewIssues,
-        });
+        console.error('[timeline-biography] review pass failed, keeping draft plan');
       }
     }
 
@@ -554,13 +512,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       articleTitle: wikiPage.title,
       extract: wikiPage.extract,
     });
-    debugLog('[timeline-biography] normalized plan diagnostics', {
-      planDiagnostics: diagnostics,
-      reviewApplied,
-      reviewIssues,
-      factsModel,
-      model,
-    });
+    console.log('[timeline-biography] plan normalized', { source: diagnostics.source, mainEvents: diagnostics.mainEvents, branches: diagnostics.branches, model });
     const timeline = buildTimelineDataFromBiographyPlan(normalizedPlan);
 
     if (timeline.nodes.length === 0) {
@@ -595,6 +547,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
   } catch (error) {
+    console.error('[timeline-biography] handler error', error instanceof Error ? error.message : error);
     const { statusCode, message } = normalizeBiographyApiError(error);
 
     res.status(statusCode).json({

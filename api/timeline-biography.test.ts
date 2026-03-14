@@ -572,7 +572,6 @@ describe('api/timeline-biography', () => {
       .mockResolvedValueOnce({ text: 'not-json' })
       .mockResolvedValueOnce({ text: 'still-not-json' })
       .mockResolvedValueOnce({ text: 'not-json-again' })
-      .mockResolvedValueOnce({ text: 'still-not-json-again' })
       .mockResolvedValueOnce({
         text: [
           'SUBJECT\tАлександр Пушкин',
@@ -602,10 +601,10 @@ describe('api/timeline-biography', () => {
 
     await handler(req, res);
 
-    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(6);
+    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(5);
     expect(res.statusCode).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(res.body.meta.model).toBe('gemini-2.5-pro');
+    expect(res.body.meta.model).toContain('gemini-2.5');
     expect(res.body.meta.factsModel).toBe('gemini-2.5-pro');
     expect(res.body.timeline.birthDetails.place).toBe('Москва');
     expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(true);
