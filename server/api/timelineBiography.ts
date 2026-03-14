@@ -164,6 +164,15 @@ type OccupiedBranchLane = {
   endAge: number;
 };
 
+export type BiographyPlanDiagnostics = {
+  source: 'model' | 'merged-with-heuristics' | 'heuristics-only';
+  mainEvents: number;
+  branches: number;
+  branchEvents: number;
+  hasBirthDate: boolean;
+  hasBirthPlace: boolean;
+};
+
 export const BIOGRAPHY_TIMELINE_RESPONSE_JSON_SCHEMA = {
   type: 'object',
   required: ['subjectName', 'canvasName', 'currentAge', 'mainEvents', 'branches'],
@@ -480,6 +489,338 @@ function sanitizeTimelineEventPlan(
     sphere: normalizeSphere(event.sphere) ?? fallbackSphere,
     isDecision: Boolean(event.isDecision),
     iconId: normalizeIcon(event.iconId),
+  };
+}
+
+function normalizeWhitespace(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function splitBiographyExtractIntoSentences(extract: string) {
+  return extract
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((sentence) => normalizeWhitespace(sentence))
+    .filter((sentence) => sentence.length >= 12);
+}
+
+function extractYears(sentence: string) {
+  return [...sentence.matchAll(/\b(1[0-9]{3}|20[0-9]{2})\b/g)]
+    .map((match) => Number(match[1]))
+    .filter((year, index, years) => year >= 1000 && year <= 2099 && years.indexOf(year) === index);
+}
+
+function reorderCommaSeparatedName(name: string) {
+  const parts = name.split(',').map((part) => part.trim()).filter(Boolean);
+  return parts.length === 2 ? `${parts[1]} ${parts[0]}` : name.trim();
+}
+
+function inferSubjectName(articleTitle: string) {
+  const trimmed = normalizeWhitespace(articleTitle);
+  return reorderCommaSeparatedName(trimmed);
+}
+
+function inferCanvasName(subjectName: string) {
+  const parts = subjectName.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[parts.length - 1]} ${parts[0]}`.slice(0, 40);
+  }
+  return subjectName.slice(0, 40);
+}
+
+function inferBirthDetailsFromExtract(extract: string) {
+  const sentences = splitBiographyExtractIntoSentences(extract);
+  const birthSentence = sentences.find((sentence) => /родил|born/i.test(sentence)) ?? sentences[0] ?? '';
+  const years = extractYears(birthSentence);
+  const birthYear = years[0];
+  const fullDateMatch = birthSentence.match(
+    /(\d{1,2}\s+[A-Za-zА-Яа-яЁё]+(?:\s+\d{4})?|\d{4})/
+  );
+  const placeMatch =
+    birthSentence.match(/родил[а-яёa-z]*\s+(?:в|in)\s+([^,.();]+?)(?:\s+(?:в|in)\s+\d{4}\b|[,.();]|$)/i) ??
+    birthSentence.match(/\(\s*[^,]+,\s*([^—,)]+?)(?:\s*[—,)])/);
+
+  return {
+    birthYear,
+    birthDetails: {
+      date: fullDateMatch?.[1] ? normalizeWhitespace(fullDateMatch[1]) : undefined,
+      place: placeMatch?.[1] ? normalizeWhitespace(placeMatch[1]) : undefined,
+    },
+  };
+}
+
+function inferDeathYearFromExtract(extract: string) {
+  const sentences = splitBiographyExtractIntoSentences(extract);
+  const deathSentence = sentences.find((sentence) => /умер|скончал|погиб|died|killed/i.test(sentence));
+  const years = deathSentence ? extractYears(deathSentence) : [];
+  return years[0];
+}
+
+function inferSphereFromSentence(sentence: string): TimelineSphere {
+  const normalized = sentence.toLowerCase();
+
+  if (/(лице|школ|универс|академ|институт|учил|образован|graduat|school|college|stud)/i.test(normalized)) {
+    return 'education';
+  }
+  if (/(женил|брак|свад|семь|сын|доч|married|family|wife|husband|children)/i.test(normalized)) {
+    return 'family';
+  }
+  if (/(умер|погиб|скончал|дуэл|болез|ранен|died|death|ill|injur)/i.test(normalized)) {
+    return 'health';
+  }
+  if (/(ссыл|переех|эмигр|путешеств|жил в|вернул|москв|петербург|travel|moved|exile|relocat)/i.test(normalized)) {
+    return 'place';
+  }
+  if (/(друж|друз|friend|circle|acquaint)/i.test(normalized)) {
+    return 'friends';
+  }
+  if (/(денег|финанс|банк|состояни|долг|fund|money|finance|wealth)/i.test(normalized)) {
+    return 'finance';
+  }
+  if (/(рисова|музык|театр|хобб|спорт|painting|music|sport|hobby)/i.test(normalized)) {
+    return 'hobby';
+  }
+  if (/(опублик|издал|поэм|роман|стих|пьес|произвед|книг|назнач|стал|служ|карьер|published|poem|novel|book|work|career|appointed|founded)/i.test(normalized)) {
+    return 'career';
+  }
+
+  return 'other';
+}
+
+function inferDecisionFromSentence(sentence: string) {
+  return /(поступил|начал|решил|женил|переех|опублик|издал|основал|вернул|стал|entered|began|decided|married|moved|published|founded|became)/i.test(
+    sentence
+  );
+}
+
+function inferIconFromSentence(sentence: string, sphere: TimelineSphere): TimelineIconId | undefined {
+  if (/родил|born/i.test(sentence)) return 'baby-feet';
+  if (/женил|брак|свад/i.test(sentence)) return 'wedding-rings';
+  if (/лице|школ|универс|академ|учил/i.test(sentence)) return 'school-backpack';
+  if (/опублик|издал|поэм|роман|стих|книг|произвед/i.test(sentence)) return 'idea-book';
+  if (/ссыл|переех|эмигр|travel|moved/i.test(sentence)) return 'passport';
+  if (/умер|погиб|дуэл|болез/i.test(sentence)) return 'thermometer';
+  if (sphere === 'career') return 'briefcase';
+  return undefined;
+}
+
+function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
+  const workTitle = sentence.match(/[«"](.*?)[»"]/u)?.[1]?.trim();
+  if (/родил|born/i.test(sentence)) return 'Рождение';
+  if (/умер|скончал|погиб|died/i.test(sentence)) return 'Смерть';
+  if (/женил|брак|свад/i.test(sentence)) return 'Брак';
+  if (/ссыл/i.test(sentence)) return 'Ссылка';
+  if (/переех|эмигр|relocat|moved/i.test(sentence)) return 'Переезд';
+  if (/лице|школ|универс|академ|институт|учил/i.test(sentence)) return 'Обучение';
+  if (workTitle && sphere === 'career') return `Публикация «${workTitle}»`;
+  if (/опублик|издал|поэм|роман|стих|книг|произвед|published/i.test(sentence)) return 'Публикация';
+  if (/назнач|стал|служ|карьер|became|appointed/i.test(sentence)) return 'Карьерный этап';
+
+  const cleaned = normalizeWhitespace(sentence.replace(/\([^)]*\)/g, ''));
+  return cleaned.length > 70 ? `${cleaned.slice(0, 67).trimEnd()}...` : cleaned;
+}
+
+function inferChronologicalEventsFromExtract(extract: string, birthYear?: number) {
+  const sentences = splitBiographyExtractIntoSentences(extract);
+  const events: BiographyTimelineEventPlan[] = [];
+
+  sentences.forEach((sentence) => {
+    const years = extractYears(sentence);
+    if (years.length === 0) return;
+
+    const year = years[0];
+    const age = birthYear ? year - birthYear : 0;
+    if (birthYear && (age < 0 || age > 120)) return;
+
+    const sphere = inferSphereFromSentence(sentence);
+    const label = buildHeuristicLabel(sentence, sphere);
+    const event = sanitizeTimelineEventPlan({
+      age,
+      label,
+      notes: sentence,
+      sphere,
+      isDecision: inferDecisionFromSentence(sentence),
+      iconId: inferIconFromSentence(sentence, sphere),
+    });
+
+    if (event) {
+      events.push(event);
+    }
+  });
+
+  const deduped = new Map<string, BiographyTimelineEventPlan>();
+  events.forEach((event) => {
+    const key = `${event.age}:${event.label}`;
+    if (!deduped.has(key)) {
+      deduped.set(key, event);
+    }
+  });
+
+  return [...deduped.values()].sort((a, b) => a.age - b.age);
+}
+
+function buildHeuristicBiographyPlan(params: {
+  articleTitle: string;
+  extract: string;
+  fallbackCurrentAge: number;
+}): BiographyTimelinePlan {
+  const subjectName = inferSubjectName(params.articleTitle);
+  const canvasName = inferCanvasName(subjectName);
+  const { birthYear, birthDetails } = inferBirthDetailsFromExtract(params.extract);
+  const deathYear = inferDeathYearFromExtract(params.extract);
+  const inferredCurrentAge =
+    birthYear && deathYear
+      ? Math.max(0, Math.min(120, deathYear - birthYear))
+      : birthYear
+        ? Math.max(0, Math.min(120, new Date().getFullYear() - birthYear))
+        : params.fallbackCurrentAge;
+
+  const extractedEvents = inferChronologicalEventsFromExtract(params.extract, birthYear);
+  const mainEvents = extractedEvents.slice(0, 10);
+  const usedKeys = new Set(mainEvents.map((event) => `${event.age}:${event.label}`));
+  const branchCandidates = extractedEvents.filter((event) => !usedKeys.has(`${event.age}:${event.label}`));
+  const branchSourceEvents =
+    branchCandidates.length > 0
+      ? branchCandidates
+      : mainEvents.filter((event) => event.age > 0 && (event.sphere ?? 'other') !== 'other');
+
+  const branches = Object.entries(
+    branchSourceEvents.reduce<Record<string, BiographyTimelineEventPlan[]>>((acc, event) => {
+      const sphere = event.sphere ?? 'other';
+      if (sphere === 'other') return acc;
+      acc[sphere] ??= [];
+      acc[sphere].push(event);
+      return acc;
+    }, {})
+  )
+    .map(([sphere, events]) => {
+      const firstAge = events[0]?.age ?? 0;
+      const sourceMainEventIndex = Math.max(
+        0,
+        mainEvents.findIndex((event, index) => {
+          const nextAge = mainEvents[index + 1]?.age ?? Number.POSITIVE_INFINITY;
+          return event.age <= firstAge && nextAge > firstAge;
+        })
+      );
+
+      return {
+        label: SPHERE_META[sphere as TimelineSphere]?.label ?? sphere,
+        sphere: sphere as TimelineSphere,
+        sourceMainEventIndex,
+        events: events.slice(0, 5),
+      };
+    })
+    .filter((branch) => branch.events.length >= 1)
+    .slice(0, 4);
+
+  if (birthYear && !mainEvents.some((event) => event.age === 0)) {
+    mainEvents.unshift({
+      age: 0,
+      label: 'Рождение',
+      notes: birthDetails.place ? `Родился(ась) в ${birthDetails.place}.` : 'Рождение',
+      sphere: 'family',
+      isDecision: false,
+      iconId: 'baby-feet',
+    });
+  }
+
+  return {
+    subjectName,
+    canvasName,
+    currentAge: inferredCurrentAge,
+    selectedPeriodization: 'erikson',
+    birthDetails,
+    mainEvents: mainEvents.slice(0, 10),
+    branches,
+  };
+}
+
+function countBranchEvents(branches: BiographyTimelineBranchPlan[]) {
+  return branches.reduce((total, branch) => total + branch.events.length, 0);
+}
+
+function buildBiographyPlanDiagnostics(
+  source: BiographyPlanDiagnostics['source'],
+  plan: BiographyTimelinePlan
+): BiographyPlanDiagnostics {
+  return {
+    source,
+    mainEvents: plan.mainEvents.length,
+    branches: plan.branches.length,
+    branchEvents: countBranchEvents(plan.branches),
+    hasBirthDate: Boolean(plan.birthDetails?.date),
+    hasBirthPlace: Boolean(plan.birthDetails?.place),
+  };
+}
+
+export function enrichBiographyPlan(params: {
+  plan: BiographyTimelinePlan;
+  articleTitle: string;
+  extract: string;
+}) {
+  const heuristicPlan = buildHeuristicBiographyPlan({
+    articleTitle: params.articleTitle,
+    extract: params.extract,
+    fallbackCurrentAge: Math.max(0, Math.min(120, Number(params.plan.currentAge) || 25)),
+  });
+
+  const sanitizedModelMainEvents = (params.plan.mainEvents || [])
+    .map((event) => sanitizeTimelineEventPlan(event))
+    .filter((event): event is BiographyTimelineEventPlan => Boolean(event));
+  const sanitizedModelBranches = (params.plan.branches || [])
+    .map((branch) => {
+      const sphere = normalizeSphere(branch.sphere) ?? 'other';
+      const label = normalizeText(branch.label, 120);
+      const events = (branch.events || [])
+        .map((event) => sanitizeTimelineEventPlan(event, sphere))
+        .filter((event): event is BiographyTimelineEventPlan => Boolean(event));
+      if (!label || events.length === 0) return null;
+      return {
+        label,
+        sphere,
+        sourceMainEventIndex: Math.max(0, Number(branch.sourceMainEventIndex) || 0),
+        events,
+      };
+    })
+    .filter((branch): branch is BiographyTimelineBranchPlan => Boolean(branch));
+
+  const useHeuristicMainEvents = sanitizedModelMainEvents.length < 4;
+  const useHeuristicBranches = countBranchEvents(sanitizedModelBranches) === 0;
+
+  const mergedPlan: BiographyTimelinePlan = {
+    subjectName: normalizeText(params.plan.subjectName, 120) || heuristicPlan.subjectName,
+    canvasName: normalizeText(params.plan.canvasName, 80) || heuristicPlan.canvasName,
+    currentAge: Math.max(0, Math.min(120, Number(params.plan.currentAge) || heuristicPlan.currentAge)),
+    selectedPeriodization:
+      typeof params.plan.selectedPeriodization === 'string' &&
+      TIMELINE_PERIODIZATION_IDS.includes(params.plan.selectedPeriodization)
+        ? params.plan.selectedPeriodization
+        : heuristicPlan.selectedPeriodization,
+    birthDetails: {
+      date: normalizeText(params.plan.birthDetails?.date, 100) || heuristicPlan.birthDetails?.date,
+      place: normalizeText(params.plan.birthDetails?.place, 150) || heuristicPlan.birthDetails?.place,
+      notes: normalizeText(params.plan.birthDetails?.notes, 400) || heuristicPlan.birthDetails?.notes,
+    },
+    mainEvents: useHeuristicMainEvents ? heuristicPlan.mainEvents : sanitizedModelMainEvents,
+    branches: useHeuristicBranches ? heuristicPlan.branches : sanitizedModelBranches,
+  };
+
+  if (mergedPlan.mainEvents.length === 0) {
+    throw new Error('Biography plan too sparse after normalization');
+  }
+
+  if (!mergedPlan.birthDetails?.date && !mergedPlan.birthDetails?.place && !mergedPlan.branches.length) {
+    return {
+      plan: heuristicPlan,
+      diagnostics: buildBiographyPlanDiagnostics('heuristics-only', heuristicPlan),
+    };
+  }
+
+  return {
+    plan: mergedPlan,
+    diagnostics: buildBiographyPlanDiagnostics(
+      useHeuristicMainEvents || useHeuristicBranches ? 'merged-with-heuristics' : 'model',
+      mergedPlan
+    ),
   };
 }
 

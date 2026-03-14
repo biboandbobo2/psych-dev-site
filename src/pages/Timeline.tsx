@@ -629,6 +629,22 @@ export default function Timeline() {
         canvasName?: string;
         subjectName?: string;
         timeline?: TimelineData;
+        meta?: {
+          planDiagnostics?: {
+            source?: string;
+            mainEvents?: number;
+            branches?: number;
+            branchEvents?: number;
+            hasBirthDate?: boolean;
+            hasBirthPlace?: boolean;
+          };
+          timelineStats?: {
+            nodes?: number;
+            edges?: number;
+            hasBirthDate?: boolean;
+            hasBirthPlace?: boolean;
+          };
+        };
       };
       debugLog('[Timeline] Biography import response', {
         status: response.status,
@@ -637,12 +653,16 @@ export default function Timeline() {
         canvasName: payload.canvasName,
         subjectName: payload.subjectName,
         hasTimeline: Boolean(payload.timeline),
+        planDiagnostics: payload.meta?.planDiagnostics,
+        timelineStats: payload.meta?.timelineStats,
       });
       appendBiographyDiagnostic('response received', {
         status: response.status,
         ok: response.ok,
         payloadOk: payload.ok,
         hasTimeline: Boolean(payload.timeline),
+        planDiagnostics: payload.meta?.planDiagnostics,
+        timelineStats: payload.meta?.timelineStats,
       });
 
       if (!response.ok || !payload.ok || !payload.timeline) {

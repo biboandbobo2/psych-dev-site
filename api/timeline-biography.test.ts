@@ -215,6 +215,8 @@ describe('api/timeline-biography', () => {
     expect(res.body.timeline.birthDetails.place).toBe('Москва');
     expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(true);
     expect(res.body.timeline.edges).toHaveLength(1);
+    expect(res.body.meta.timelineStats.nodes).toBeGreaterThan(0);
+    expect(res.body.meta.planDiagnostics.source).toBe('model');
   });
 
   it('использует fallback env key, если GEMINI_API_KEY не задан', async () => {
@@ -515,6 +517,58 @@ describe('api/timeline-biography', () => {
     expect(res.body.timeline.birthDetails.place).toBe('Москва');
     expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(true);
     expect(res.body.timeline.edges).toHaveLength(1);
+  });
+
+  it('обогащает слишком бедный Gemini plan эвристиками из статьи', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        query: {
+          pages: [
+            {
+              title: 'Пушкин, Александр Сергеевич',
+              extract: [
+                'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+                'В 1811 году поступил в Царскосельский лицей.',
+                'В 1820 году опубликовал поэму «Руслан и Людмила» и был отправлен в южную ссылку.',
+                'В 1826 году вернулся из ссылки.',
+                'В 1831 году женился на Наталье Гончаровой.',
+                'В 1837 году погиб после дуэли в Санкт-Петербурге.',
+              ].join(' '),
+              fullurl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич',
+            },
+          ],
+        },
+      }),
+    });
+    geminiMocks.generateContent.mockResolvedValue({
+      text: JSON.stringify({
+        subjectName: 'Александр Сергеевич Пушкин',
+        canvasName: 'Пушкин',
+        currentAge: 37,
+        mainEvents: [],
+        branches: [],
+      }),
+    });
+
+    const req = mockReq({
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer token',
+      },
+      body: { sourceUrl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич' },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.timeline.nodes.length).toBeGreaterThanOrEqual(4);
+    expect(res.body.timeline.birthDetails.place).toBe('Москве');
+    expect(res.body.timeline.edges.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.meta.planDiagnostics.source).toBe('merged-with-heuristics');
+    expect(res.body.meta.timelineStats.nodes).toBeGreaterThanOrEqual(4);
   });
 });
 

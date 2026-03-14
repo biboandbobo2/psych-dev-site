@@ -11,7 +11,9 @@ import {
   buildBiographyTimelineLinePrompt,
   buildBiographyTimelinePrompt,
   buildTimelineDataFromBiographyPlan,
+  enrichBiographyPlan,
   fetchWikipediaPlainExtract,
+  type BiographyPlanDiagnostics,
   type BiographyImportRequest,
   type BiographyTimelinePlan,
   TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
@@ -384,18 +386,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { model, plan } = generationResult;
-    const timeline = buildTimelineDataFromBiographyPlan(plan);
+    const {
+      plan: normalizedPlan,
+      diagnostics,
+    }: { plan: BiographyTimelinePlan; diagnostics: BiographyPlanDiagnostics } = enrichBiographyPlan({
+      plan,
+      articleTitle: wikiPage.title,
+      extract: wikiPage.extract,
+    });
+    const timeline = buildTimelineDataFromBiographyPlan(normalizedPlan);
+
+    if (timeline.nodes.length === 0) {
+      throw new Error('Biography timeline normalization produced no events');
+    }
 
     res.status(200).json({
       ok: true,
-      canvasName: plan.canvasName || plan.subjectName || wikiPage.title,
-      subjectName: plan.subjectName || wikiPage.title,
+      canvasName: normalizedPlan.canvasName || normalizedPlan.subjectName || wikiPage.title,
+      subjectName: normalizedPlan.subjectName || wikiPage.title,
       timeline,
       meta: {
         model,
         sourceTitle: wikiPage.title,
         sourceUrl: wikiPage.canonicalUrl,
         extractChars: wikiPage.extract.length,
+        planDiagnostics: diagnostics,
+        timelineStats: {
+          nodes: timeline.nodes.length,
+          edges: timeline.edges.length,
+          hasBirthDate: Boolean(timeline.birthDetails?.date),
+          hasBirthPlace: Boolean(timeline.birthDetails?.place),
+        },
       },
     });
   } catch (error) {
