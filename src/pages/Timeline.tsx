@@ -54,6 +54,7 @@ import { useTimelineDragDrop } from './timeline/hooks/useTimelineDragDrop';
 import { useTimelineBranch } from './timeline/hooks/useTimelineBranch';
 import { useTimelineCRUD } from './timeline/hooks/useTimelineCRUD';
 import { hasTimelineContent, normalizeImportedTimelineData } from './timeline/persistence';
+import { BiographyImportModal } from './timeline/components/BiographyImportModal';
 import { lazyWithReload } from '../lib/lazyWithReload';
 const TimelineLeftPanel = lazy(() =>
   lazyWithReload(
@@ -216,6 +217,7 @@ export default function Timeline() {
     nodes?: number;
     edges?: number;
   } | null>(null);
+  const [showBiographyModal, setShowBiographyModal] = useState(false);
   const [exportStatus, setExportStatus] = useState<{
     state: 'idle' | 'running' | 'success' | 'error';
     type: 'json' | 'png' | 'pdf' | null;
@@ -586,7 +588,6 @@ export default function Timeline() {
     appendBiographyDiagnostic('close requested');
     setShowBiographyImportExpanded(false);
     setBiographyImportError(null);
-    setBiographyMeta(null);
     setBiographySourceUrl('');
   };
 
@@ -628,6 +629,7 @@ export default function Timeline() {
     setBiographyImportLoading(true);
     setBiographyImportError(null);
     setBiographyMeta(null);
+    setShowBiographyModal(true);
 
     try {
       const headers = await buildAuthorizedHeaders({
@@ -1025,6 +1027,13 @@ export default function Timeline() {
           <TimelineHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
         </Suspense>
       )}
+      <BiographyImportModal
+        isOpen={showBiographyModal}
+        loading={biographyImportLoading}
+        error={biographyImportError}
+        meta={biographyMeta}
+        onClose={() => setShowBiographyModal(false)}
+      />
     </motion.div>
   );
 }

@@ -618,6 +618,16 @@ export function TimelineLeftPanel({
                   {biographyImportExpanded ? 'Скрыть импорт' : 'Загрузить источник биографии'}
                 </button>
 
+                {!biographyImportExpanded && biographyMeta ? (
+                  <div className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5 text-[10px] leading-[14px] text-sky-800">
+                    <span className="font-semibold">{biographyMeta.source ?? '?'}</span>
+                    {' · '}facts: {biographyMeta.factsModel ?? '?'}
+                    {' · '}plan: {biographyMeta.model ?? '?'}
+                    {biographyMeta.reviewApplied ? ' · review' : ''}
+                    {' · '}{biographyMeta.nodes ?? 0} узл / {biographyMeta.edges ?? 0} вет
+                  </div>
+                ) : null}
+
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 text-[9px] font-mono text-slate-500">
                     bio:{biographyUiSignals.reactClick}/{biographyUiSignals.nativeClick}/{biographyUiSignals.docClick}

@@ -705,6 +705,41 @@ function normalizeText(value: unknown, maxLength: number) {
   return trimmed ? trimmed.slice(0, maxLength) : undefined;
 }
 
+const RUSSIAN_MONTHS: Record<string, string> = {
+  января: '01', февраля: '02', марта: '03', апреля: '04',
+  мая: '05', июня: '06', июля: '07', августа: '08',
+  сентября: '09', октября: '10', ноября: '11', декабря: '12',
+  январь: '01', февраль: '02', март: '03', апрель: '04',
+  май: '05', июнь: '06', июль: '07', август: '08',
+  сентябрь: '09', октябрь: '10', ноябрь: '11', декабрь: '12',
+};
+
+/**
+ * Convert Russian date string like "6 июня 1799" or "14 марта 1956" to ISO "YYYY-MM-DD".
+ * Falls through to the original string if parsing fails.
+ */
+function russianDateToISO(dateStr: string | undefined): string | undefined {
+  if (!dateStr) return undefined;
+  // Already ISO-like
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+
+  const match = dateStr.match(/(\d{1,2})\s+([A-Za-zА-Яа-яЁё]+)\s+(\d{4})/);
+  if (!match) {
+    // Try year-only: "1799"
+    const yearOnly = dateStr.match(/^(\d{4})$/);
+    if (yearOnly) return `${yearOnly[1]}-01-01`;
+    return dateStr;
+  }
+
+  const day = match[1].padStart(2, '0');
+  const monthKey = match[2].toLowerCase();
+  const month = RUSSIAN_MONTHS[monthKey];
+  const year = match[3];
+
+  if (!month) return dateStr;
+  return `${year}-${month}-${day}`;
+}
+
 function overlapsAgeRange(a: OccupiedBranchLane, startAge: number, endAge: number) {
   return !(a.endAge + 1 < startAge || endAge + 1 < a.startAge);
 }
@@ -1270,6 +1305,21 @@ function countBranchEvents(branches: BiographyTimelineBranchPlan[]) {
   return branches.reduce((total, branch) => total + branch.events.length, 0);
 }
 
+/**
+ * Enrich model branches with heuristic branches for spheres not yet covered.
+ * Targets at least 4 branches total.
+ */
+function enrichBranches(
+  modelBranches: BiographyTimelineBranchPlan[],
+  heuristicBranches: BiographyTimelineBranchPlan[]
+): BiographyTimelineBranchPlan[] {
+  if (modelBranches.length >= 4) return modelBranches;
+  const coveredSpheres = new Set(modelBranches.map((branch) => branch.sphere));
+  const additions = heuristicBranches.filter((branch) => !coveredSpheres.has(branch.sphere));
+  const merged = [...modelBranches, ...additions].slice(0, 6);
+  return merged;
+}
+
 export function getBiographyPlanReviewIssues(plan: BiographyTimelinePlan, extract: string) {
   const issues: string[] = [];
   const deathYear = inferDeathYearFromExtract(extract);
@@ -1529,10 +1579,11 @@ export function enrichBiographyPlan(params: {
     }
   }
 
-  // Fill gaps: if model lacks early-life coverage, add heuristic events for childhood/youth
+  // Fill gaps: inject early-life events (0-18) until at least 3 are present
   if (!useHeuristicMainEvents && modelCurrentAge >= 30) {
     const earlyLifeEvents = finalMainEvents.filter((event) => event.age > 0 && event.age <= 18);
-    if (earlyLifeEvents.length < 2) {
+    const earlyTarget = Math.min(3, heuristicPlan.mainEvents.filter((e) => e.age > 0 && e.age <= 18).length);
+    if (earlyLifeEvents.length < earlyTarget) {
       const existingKeys = new Set(finalMainEvents.map((event) => buildEventFactKey(event)));
       const earlyHeuristicEvents = heuristicPlan.mainEvents
         .filter((event) => event.age > 0 && event.age <= 18 && !existingKeys.has(buildEventFactKey(event)));
@@ -1548,6 +1599,30 @@ export function enrichBiographyPlan(params: {
     const lateHeuristicEvents = heuristicPlan.mainEvents
       .filter((event) => event.age >= lateLifeCoverageThreshold && !modelAgeKeys.has(buildEventFactKey(event)));
     finalMainEvents = [...finalMainEvents, ...lateHeuristicEvents];
+  }
+
+  // Fill large gaps: if any gap between consecutive events exceeds 10 years, fill with heuristic events
+  if (!useHeuristicMainEvents) {
+    const sorted = [...finalMainEvents].sort((a, b) => a.age - b.age);
+    const existingKeys = new Set(sorted.map((event) => buildEventFactKey(event)));
+    const gapFills: BiographyTimelineEventPlan[] = [];
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const gap = sorted[i + 1].age - sorted[i].age;
+      if (gap > 10) {
+        const gapStart = sorted[i].age;
+        const gapEnd = sorted[i + 1].age;
+        const candidates = heuristicPlan.mainEvents.filter(
+          (event) => event.age > gapStart && event.age < gapEnd && !existingKeys.has(buildEventFactKey(event))
+        );
+        for (const c of candidates) {
+          existingKeys.add(buildEventFactKey(c));
+          gapFills.push(c);
+        }
+      }
+    }
+    if (gapFills.length > 0) {
+      finalMainEvents = [...finalMainEvents, ...gapFills];
+    }
   }
 
   // Psychological pass: inject significant life events missing from the plan
@@ -1582,7 +1657,7 @@ export function enrichBiographyPlan(params: {
       notes: normalizeText(params.plan.birthDetails?.notes, 400) || heuristicPlan.birthDetails?.notes,
     },
     mainEvents: finalMainEvents,
-    branches: useHeuristicBranches ? heuristicPlan.branches : sanitizedModelBranches,
+    branches: useHeuristicBranches ? heuristicPlan.branches : enrichBranches(sanitizedModelBranches, heuristicPlan.branches),
   };
 
   if (mergedPlan.mainEvents.length === 0) {
@@ -1683,7 +1758,7 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
     nodes,
     edges,
     birthDetails: {
-      date: normalizeText(plan.birthDetails?.date, 100),
+      date: russianDateToISO(normalizeText(plan.birthDetails?.date, 100)),
       place: normalizeText(plan.birthDetails?.place, 150),
       notes: normalizeText(plan.birthDetails?.notes, 400),
     },
