@@ -8,6 +8,7 @@ import {
 } from '../server/api/lectureApiRuntime.js';
 import {
   BIOGRAPHY_TIMELINE_RESPONSE_JSON_SCHEMA,
+  buildBiographyTimelineLinePrompt,
   buildBiographyTimelinePrompt,
   buildTimelineDataFromBiographyPlan,
   fetchWikipediaPlainExtract,
@@ -89,6 +90,102 @@ function parseBiographyPlanResult(result: unknown): BiographyTimelinePlan {
   }
 
   throw new Error('Gemini JSON parse failed');
+}
+
+function parseBooleanFlag(value: string | undefined) {
+  return String(value || '').trim().toLowerCase() === 'true';
+}
+
+function parseLineBasedBiographyPlan(rawText: string): BiographyTimelinePlan {
+  const lines = rawText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const mainEvents: BiographyTimelinePlan['mainEvents'] = [];
+  const branchesByKey = new Map<string, BiographyTimelinePlan['branches'][number]>();
+  let subjectName = '';
+  let canvasName = '';
+  let currentAge = 25;
+  let selectedPeriodization: BiographyTimelinePlan['selectedPeriodization'] = null;
+  let birthDetails: BiographyTimelinePlan['birthDetails'] | undefined;
+
+  for (const line of lines) {
+    const [kind, ...rest] = line.split('\t').map((part) => part.trim());
+
+    switch (kind) {
+      case 'SUBJECT':
+        subjectName = rest[0] || subjectName;
+        break;
+      case 'CANVAS':
+        canvasName = rest[0] || canvasName;
+        break;
+      case 'CURRENT_AGE':
+        currentAge = Number(rest[0]) || currentAge;
+        break;
+      case 'PERIODIZATION':
+        selectedPeriodization =
+          rest[0] && rest[0] !== 'null' ? (rest[0] as BiographyTimelinePlan['selectedPeriodization']) : null;
+        break;
+      case 'BIRTH':
+        birthDetails = {
+          date: rest[0] || undefined,
+          place: rest[1] || undefined,
+          notes: rest[2] || undefined,
+        };
+        break;
+      case 'MAIN':
+        mainEvents.push({
+          age: Number(rest[0]) || 0,
+          label: rest[1] || '',
+          sphere: (rest[2] || undefined) as BiographyTimelinePlan['mainEvents'][number]['sphere'],
+          isDecision: parseBooleanFlag(rest[3]),
+          iconId: (rest[4] || undefined) as BiographyTimelinePlan['mainEvents'][number]['iconId'],
+          notes: rest[5] || undefined,
+        });
+        break;
+      case 'BRANCH': {
+        const branchKey = rest[0] || `branch-${branchesByKey.size + 1}`;
+        branchesByKey.set(branchKey, {
+          label: rest[1] || branchKey,
+          sphere: (rest[2] || 'other') as BiographyTimelinePlan['branches'][number]['sphere'],
+          sourceMainEventIndex: Math.max(0, Number(rest[3]) || 0),
+          events: [],
+        });
+        break;
+      }
+      case 'BRANCH_EVENT': {
+        const branchKey = rest[0] || '';
+        const branch = branchesByKey.get(branchKey);
+        if (!branch) break;
+        branch.events.push({
+          age: Number(rest[1]) || 0,
+          label: rest[2] || '',
+          sphere: (rest[3] || undefined) as BiographyTimelinePlan['branches'][number]['events'][number]['sphere'],
+          isDecision: parseBooleanFlag(rest[4]),
+          iconId: (rest[5] || undefined) as BiographyTimelinePlan['branches'][number]['events'][number]['iconId'],
+          notes: rest[6] || undefined,
+        });
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  if (!subjectName || !canvasName || mainEvents.length === 0) {
+    throw new Error('Gemini line-plan parse failed');
+  }
+
+  return {
+    subjectName,
+    canvasName,
+    currentAge,
+    selectedPeriodization,
+    birthDetails,
+    mainEvents,
+    branches: [...branchesByKey.values()],
+  };
 }
 
 function validateRequestBody(body: unknown): BiographyImportRequest {
@@ -213,6 +310,34 @@ async function generateBiographyPlan(prompt: string, apiKey: string) {
   throw lastError ?? new Error('Gemini generation failed');
 }
 
+async function generateBiographyLinePlan(prompt: string, apiKey: string) {
+  const client = getLectureGenAiClient(apiKey);
+  let lastError: unknown = null;
+
+  for (const model of TIMELINE_BIOGRAPHY_MODELS) {
+    try {
+      const result = await client.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.1,
+          maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
+          responseMimeType: 'text/plain',
+        },
+      });
+
+      return {
+        model,
+        plan: parseLineBasedBiographyPlan(collectGeminiResultText(result)),
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error('Gemini line-plan generation failed');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setLectureApiCorsHeaders(req, res);
 
@@ -244,7 +369,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       extract: wikiPage.extract,
     });
 
-    const { model, plan } = await generateBiographyPlan(prompt, apiKey);
+    let generationResult: { model: string; plan: BiographyTimelinePlan };
+    try {
+      generationResult = await generateBiographyPlan(prompt, apiKey);
+    } catch {
+      generationResult = await generateBiographyLinePlan(
+        buildBiographyTimelineLinePrompt({
+          articleTitle: wikiPage.title,
+          sourceUrl: wikiPage.canonicalUrl,
+          extract: wikiPage.extract,
+        }),
+        apiKey
+      );
+    }
+
+    const { model, plan } = generationResult;
     const timeline = buildTimelineDataFromBiographyPlan(plan);
 
     res.status(200).json({

@@ -374,6 +374,60 @@ URL: ${params.sourceUrl}
 ${params.extract}`;
 }
 
+export function buildBiographyTimelineLinePrompt(params: {
+  articleTitle: string;
+  sourceUrl: string;
+  extract: string;
+}) {
+  return `Ты преобразуешь биографию в простой построчный формат для life timeline.
+
+ВАЖНО
+- Верни только plain text.
+- Не используй markdown, json, yaml, code fences.
+- Один факт = одна строка.
+- Разделитель полей: TAB.
+- Не используй TAB внутри значений.
+- Если поле пустое, оставь пустое место между TAB.
+- Для boolean используй только true или false.
+- Для отсутствующего periodization используй null.
+- Для отсутствующего iconId используй пустое поле.
+- Для отсутствующего notes используй пустое поле.
+- Не выдумывай факты.
+
+ФОРМАТ СТРОК
+SUBJECT<TAB>subjectName
+CANVAS<TAB>canvasName
+CURRENT_AGE<TAB>number
+PERIODIZATION<TAB>piaget|vygotsky|erikson|freud|montessori|gesell|kohlberg|null
+BIRTH<TAB>date<TAB>place<TAB>notes
+
+MAIN<TAB>age<TAB>label<TAB>sphere<TAB>isDecision<TAB>iconId<TAB>notes
+
+BRANCH<TAB>branchKey<TAB>label<TAB>sphere<TAB>sourceMainEventIndex
+BRANCH_EVENT<TAB>branchKey<TAB>age<TAB>label<TAB>sphere<TAB>isDecision<TAB>iconId<TAB>notes
+
+ОГРАНИЧЕНИЯ
+- 6-12 строк MAIN.
+- 2-5 веток BRANCH только если реально нужны.
+- Сферы только из:
+education
+career
+family
+health
+friends
+place
+finance
+hobby
+other
+
+ИСТОЧНИК
+Статья: ${params.articleTitle}
+URL: ${params.sourceUrl}
+
+ТЕКСТ СТАТЬИ
+${params.extract}`;
+}
+
 function normalizeSphere(sphere: unknown): TimelineSphere | undefined {
   return typeof sphere === 'string' && sphere in SPHERE_META ? (sphere as TimelineSphere) : undefined;
 }

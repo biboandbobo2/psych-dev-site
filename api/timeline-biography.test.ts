@@ -460,6 +460,62 @@ describe('api/timeline-biography', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.ok).toBe(true);
   });
+
+  it('переходит на line-based fallback, если все JSON попытки Gemini невалидны', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        query: {
+          pages: [
+            {
+              title: 'Пушкин, Александр Сергеевич',
+              extract: 'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+              fullurl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич',
+            },
+          ],
+        },
+      }),
+    });
+    geminiMocks.generateContent
+      .mockResolvedValueOnce({ text: 'not-json' })
+      .mockResolvedValueOnce({ text: 'still-not-json' })
+      .mockResolvedValueOnce({ text: 'not-json-again' })
+      .mockResolvedValueOnce({ text: 'still-not-json-again' })
+      .mockResolvedValueOnce({
+        text: [
+          'SUBJECT\tАлександр Пушкин',
+          'CANVAS\tПушкин',
+          'CURRENT_AGE\t37',
+          'PERIODIZATION\terikson',
+          'BIRTH\t6 июня 1799\tМосква\t',
+          'MAIN\t0\tРождение\tfamily\tfalse\t\tРодился в Москве',
+          'MAIN\t12\tПоступление в лицей\teducation\ttrue\tschool-backpack\t',
+          'MAIN\t21\tПубликация\tcareer\ttrue\tidea-book\t',
+          'MAIN\t25\tСсылка\tplace\tfalse\tpassport\t',
+          'BRANCH\tlit\tЛитература\tcareer\t1',
+          'BRANCH_EVENT\tlit\t26\tБорис Годунов\tcareer\ttrue\tidea-book\t',
+        ].join('\n'),
+      });
+
+    const req = mockReq({
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer token',
+      },
+      body: { sourceUrl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич' },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(5);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.meta.model).toBe('gemini-2.5-pro');
+    expect(res.body.timeline.birthDetails.place).toBe('Москва');
+    expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(true);
+    expect(res.body.timeline.edges).toHaveLength(1);
+  });
 });
 
 describe('buildTimelineDataFromBiographyPlan', () => {
