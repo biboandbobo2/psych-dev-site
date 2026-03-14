@@ -3,7 +3,12 @@ export function sanitizeGeminiApiKey(key: string | null | undefined): string | u
     return undefined;
   }
 
-  const normalized = key.replace(/\s+/g, '').trim();
+  const normalized = key
+    .normalize('NFKC')
+    .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\u2060\uFEFF]/g, '')
+    .replace(/[\s"'`]/g, '')
+    .replace(/[^A-Za-z0-9._-]/g, '')
+    .trim();
   return normalized || undefined;
 }
 

@@ -7,7 +7,7 @@ import { Icon, type EventIconId } from '../components/Icon';
 import { EVENT_ICON_MAP } from '../data/eventIcons';
 import { useNotes } from '../hooks/useNotes';
 import { PageLoader } from '../components/ui';
-import { debugError, debugLog } from '../lib/debug';
+import { debugError, debugLog, debugWarn } from '../lib/debug';
 import { buildAuthorizedHeaders } from '../lib/apiAuth';
 import { buildGeminiApiKeyHeader, sanitizeGeminiApiKey } from '../lib/geminiKey';
 import { reportAppError } from '../lib/errorHandler';
@@ -637,11 +637,23 @@ export default function Timeline() {
       window.requestAnimationFrame(() => resolve());
     });
 
-    try {
+    const isHeaderPatternSyntaxError = (error: unknown) =>
+      error instanceof SyntaxError &&
+      /expected pattern/i.test(error.message);
+
+    const requestBiographyImport = async (apiKeyOverride: string | undefined) => {
       const headers = await buildAuthorizedHeaders({
         'Content-Type': 'application/json',
-        ...buildGeminiApiKeyHeader(geminiApiKeyOverride),
+        ...buildGeminiApiKeyHeader(apiKeyOverride),
       });
+      return fetch('/api/timeline-biography', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ sourceUrl }),
+      });
+    };
+
+    try {
       debugLog('[Timeline] Biography import request start', {
         sourceUrl,
         hasGeminiApiKeyOverride: Boolean(geminiApiKeyOverride),
@@ -650,11 +662,21 @@ export default function Timeline() {
         sourceUrl,
         hasGeminiApiKeyOverride: Boolean(geminiApiKeyOverride),
       });
-      const response = await fetch('/api/timeline-biography', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ sourceUrl }),
-      });
+      let response: Response;
+      try {
+        response = await requestBiographyImport(geminiApiKeyOverride);
+      } catch (error) {
+        if (!geminiApiKeyOverride || !isHeaderPatternSyntaxError(error)) {
+          throw error;
+        }
+
+        debugWarn('[Timeline] Biography import retrying without BYOK header after header syntax error', {
+          sourceUrl,
+          error,
+        });
+        appendBiographyDiagnostic('header syntax retry without byok');
+        response = await requestBiographyImport(undefined);
+      }
       const payload = (await response.json()) as {
         ok?: boolean;
         error?: string;
