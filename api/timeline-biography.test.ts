@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler from './timeline-biography.js';
-import { buildTimelineDataFromBiographyPlan } from '../server/api/timelineBiography.js';
+import {
+  buildBiographyTimelinePrompt,
+  buildTimelineDataFromBiographyPlan,
+  enrichBiographyPlan,
+} from '../server/api/timelineBiography.js';
 
 const geminiMocks = vi.hoisted(() => ({
   generateContent: vi.fn(),
@@ -147,8 +151,14 @@ describe('api/timeline-biography', () => {
           pages: [
             {
               title: 'Пушкин, Александр Сергеевич',
-              extract:
-                'Александр Сергеевич Пушкин родился в Москве в 1799 году. Учился в Царскосельском лицее. Публиковал стихи, был сослан, женился на Наталье Гончаровой и погиб после дуэли.',
+              extract: [
+                'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+                'В 1811 году поступил в Царскосельский лицей.',
+                'В 1820 году опубликовал поэму «Руслан и Людмила».',
+                'В 1824 году был сослан на юг.',
+                'В 1831 году женился на Наталье Гончаровой.',
+                'В 1837 году погиб после дуэли.',
+              ].join(' '),
               fullurl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич',
             },
           ],
@@ -230,7 +240,14 @@ describe('api/timeline-biography', () => {
           pages: [
             {
               title: 'Пушкин, Александр Сергеевич',
-              extract: 'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+              extract: [
+                'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+                'В 1811 году поступил в Царскосельский лицей.',
+                'В 1820 году опубликовал поэму «Руслан и Людмила».',
+                'В 1824 году был сослан на юг.',
+                'В 1831 году женился на Наталье Гончаровой.',
+                'В 1837 году погиб после дуэли.',
+              ].join(' '),
               fullurl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич',
             },
           ],
@@ -282,7 +299,14 @@ describe('api/timeline-biography', () => {
           pages: [
             {
               title: 'Пушкин, Александр Сергеевич',
-              extract: 'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+              extract: [
+                'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+                'В 1811 году поступил в Царскосельский лицей.',
+                'В 1820 году опубликовал поэму «Руслан и Людмила».',
+                'В 1824 году был сослан на юг.',
+                'В 1831 году женился на Наталье Гончаровой.',
+                'В 1837 году погиб после дуэли.',
+              ].join(' '),
               fullurl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич',
             },
           ],
@@ -314,7 +338,14 @@ describe('api/timeline-biography', () => {
           pages: [
             {
               title: 'Пушкин, Александр Сергеевич',
-              extract: 'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+              extract: [
+                'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+                'В 1811 году поступил в Царскосельский лицей.',
+                'В 1820 году опубликовал поэму «Руслан и Людмила».',
+                'В 1824 году был сослан на юг.',
+                'В 1831 году женился на Наталье Гончаровой.',
+                'В 1837 году погиб после дуэли.',
+              ].join(' '),
               fullurl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич',
             },
           ],
@@ -471,7 +502,14 @@ describe('api/timeline-biography', () => {
           pages: [
             {
               title: 'Пушкин, Александр Сергеевич',
-              extract: 'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+              extract: [
+                'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+                'В 1811 году поступил в Царскосельский лицей.',
+                'В 1820 году опубликовал поэму «Руслан и Людмила».',
+                'В 1824 году был сослан на юг.',
+                'В 1831 году женился на Наталье Гончаровой.',
+                'В 1837 году погиб после дуэли.',
+              ].join(' '),
               fullurl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич',
             },
           ],
@@ -601,5 +639,70 @@ describe('buildTimelineDataFromBiographyPlan', () => {
     expect(timeline.edges).toHaveLength(2);
     expect(new Set(timeline.edges.map((edge) => edge.x)).size).toBe(2);
     expect(timeline.nodes.filter((node) => typeof node.x === 'number')).toHaveLength(2);
+  });
+});
+
+describe('timelineBiography quality guards', () => {
+  it('в промпте закреплены требования против дублей и generic labels', () => {
+    const prompt = buildBiographyTimelinePrompt({
+      articleTitle: 'Пушкин, Александр Сергеевич',
+      sourceUrl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич',
+      extract: 'Тестовый extract',
+    });
+
+    expect(prompt).toContain('Не дублируй один и тот же факт');
+    expect(prompt).toContain('Не создавай generic label');
+    expect(prompt).toContain('раннюю, среднюю и позднюю жизнь');
+    expect(prompt).toContain('терминальное событие');
+  });
+
+  it('заменяет слабый model plan эвристиками и вычищает branch-дубли', () => {
+    const result = enrichBiographyPlan({
+      articleTitle: 'Пушкин, Александр Сергеевич',
+      extract: [
+        'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+        'В 1811 году поступил в Царскосельский лицей.',
+        'В 1820 году опубликовал поэму «Руслан и Людмила».',
+        'В 1824 году был сослан в Михайловское.',
+        'В 1826 году вернулся из ссылки.',
+        'В 1831 году женился на Наталье Гончаровой.',
+        'В 1833 году завершил работу над «Историей Пугачёва».',
+        'В 1837 году погиб после дуэли в Санкт-Петербурге.',
+      ].join(' '),
+      plan: {
+        subjectName: 'Александр Пушкин',
+        canvasName: 'Пушкин',
+        currentAge: 37,
+        birthDetails: {
+          date: '6 июня 1799',
+          place: 'Москва',
+        },
+        mainEvents: [
+          { age: 0, label: 'Рождение', isDecision: false, sphere: 'family' },
+          { age: 12, label: 'Поступление в лицей', isDecision: true, sphere: 'education' },
+          { age: 21, label: 'Публикация «Руслан и Людмила»', isDecision: true, sphere: 'career' },
+        ],
+        branches: [
+          {
+            label: 'Литература',
+            sphere: 'career',
+            sourceMainEventIndex: 1,
+            events: [
+              { age: 21, label: 'Публикация «Руслан и Людмила»', isDecision: true, sphere: 'career' },
+              { age: 34, label: 'Публикация «История Пугачёва»', isDecision: true, sphere: 'career' },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(result.diagnostics.source).toBe('merged-with-heuristics');
+    expect(result.plan.mainEvents.length).toBeGreaterThanOrEqual(5);
+    expect(result.plan.mainEvents.some((event) => /дуэл|смерт|гибел/i.test(event.label))).toBe(true);
+    expect(
+      result.plan.branches.every((branch) =>
+        branch.events.every((event) => !/Руслан и Людмила/i.test(event.label))
+      )
+    ).toBe(true);
   });
 });

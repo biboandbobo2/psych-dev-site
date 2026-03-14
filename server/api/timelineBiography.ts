@@ -338,6 +338,12 @@ export function buildBiographyTimelinePrompt(params: {
 6. Если информации в источнике недостаточно, лучше опусти событие, чем выдумывай.
 7. Код сам разложит ветки в разные боковые линии, поэтому твоя задача — логично сгруппировать события по сферам и не создавать две почти одинаковые ветки.
 
+ЧТО СЧИТАЕТСЯ СОБЫТИЕМ
+- Событие — это отдельная биографическая веха, которую можно локализовать по году или возрасту и которая меняет сюжет жизни.
+- Хорошие события: рождение, поступление, выпуск, переезд, ссылка, брак, публикация конкретного произведения, назначение, крупный успех, болезнь, дуэль, смерть.
+- Плохие события: энциклопедическое описание личности, общий пересказ творчества, длинный обзор периода без одного факта, повтор того же факта другими словами.
+- Одно событие = один факт. Не склеивай два разных факта в один label.
+
 ЧТО НУЖНО СДЕЛАТЬ
 1. Определи subjectName и canvasName.
 2. Выдели дату и место рождения, если они есть.
@@ -345,14 +351,16 @@ export function buildBiographyTimelinePrompt(params: {
 4. Выбери selectedPeriodization из списка [${TIMELINE_PERIODIZATION_IDS.join(', ')}] или null.
    Предпочитай "erikson" как универсальный вариант для целостной биографии, если это помогает.
 5. Построй mainEvents:
-   - 6-12 сильных опорных событий.
+   - Делай плотность адаптивной: если статья богата фактами, дай 8-14 сильных событий; если биография действительно sparse, можно 5-7, но только без пустого заполнения.
    - События на главной линии должны быть хронологическими и покрывать всю жизнь.
    - Это должны быть вехи: рождение, обучение, ключевые публикации/прорывы, ссылки/опалы, брак, переломы судьбы, смерть и т.д.
+   - Главная линия обязана покрывать раннюю, среднюю и позднюю жизнь. Не концентрируй всё в одном периоде.
+   - Если человек умер и это видно из текста, в конце mainEvents обязательно должно быть терминальное событие смерти/дуэли/гибели.
 6. Построй branches:
-   - 2-5 веток, только если они реально обоснованы текстом.
-   - Каждая ветка должна быть в одной сфере.
-   - sourceMainEventIndex должен ссылаться на индекс события mainEvents, из которого логично растёт эта тематическая линия.
-   - Ветка должна показывать длительное развитие темы: например, образование, литературная карьера, семья, переезды, здоровье.
+   - 1-5 веток, только если они реально обоснованы текстом.
+   - Каждая ветка должна быть строго в одной сфере.
+   - sourceMainEventIndex должен ссылаться на реальное запускающее событие mainEvents, из которого тема начинает расти. Не привязывай ветку к случайной соседней вехе.
+   - Ветка должна показывать длительное развитие одной темы: например, образование, литературная карьера, семья, переезды, здоровье.
    - Не создавай несколько веток с одинаковой сферой, если это можно выразить одной насыщенной веткой.
    - События внутри ветки располагай по возрастанию возраста.
    - Избегай наложения почти одновременных событий в одной ветке без необходимости: если в один возраст произошло много фактов, выбери самые важные.
@@ -373,6 +381,13 @@ ${iconCatalog}
 - Если дата неточная, можно дать год или приблизительное словесное описание в notes, но age всё равно должен быть разумно оценён по источнику.
 - Следи за хронологией.
 - Делай timeline богатым, но не захламлённым.
+- Не используй первую энциклопедическую фразу статьи как событие.
+- Не дублируй один и тот же факт в mainEvents и branches.
+- Не создавай generic label вроде "Обучение", "Публикация", "Карьерный этап", если можно назвать событие точнее.
+- Предпочитай конкретные labels: "Поступление в Царскосельский лицей", "Публикация «Евгений Онегин»", "Брак с Натальей Гончаровой", "Дуэль и смерть".
+- Если main event уже фиксирует факт, branch event должен его раскрывать, а не повторять теми же словами.
+- Если статья даёт мало фактов, верни меньше событий. Если фактов много, используй это и делай путь длиннее и содержательнее.
+- Возраст лучше задавать целыми годами; дроби используй только когда это действительно нужно для разведения двух разных событий одного периода.
 - Не возвращай markdown, только JSON по схеме.
 
 ИСТОЧНИК
@@ -416,8 +431,15 @@ BRANCH<TAB>branchKey<TAB>label<TAB>sphere<TAB>sourceMainEventIndex
 BRANCH_EVENT<TAB>branchKey<TAB>age<TAB>label<TAB>sphere<TAB>isDecision<TAB>iconId<TAB>notes
 
 ОГРАНИЧЕНИЯ
-- 6-12 строк MAIN.
-- 2-5 веток BRANCH только если реально нужны.
+- MAIN должен покрывать раннюю, среднюю и позднюю жизнь.
+- Если человек умер, последняя сильная MAIN-веха должна отражать смерть/дуэль/гибель.
+- Количество MAIN адаптивное: 8-14 для богатой биографии, 5-7 для sparse, без выдумывания фактов.
+- 1-5 веток BRANCH только если реально нужны.
+- Одна ветка = одна сфера.
+- Не дублируй один и тот же факт в MAIN и BRANCH_EVENT.
+- Не используй generic labels вроде "Обучение" или "Публикация", если можно назвать факт конкретнее.
+- Одно событие = один факт. Не склеивай публикацию и ссылку в одну строку.
+- Не используй первую энциклопедическую фразу статьи как MAIN-событие.
 - Сферы только из:
 education
 career
@@ -496,6 +518,38 @@ function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, ' ').trim();
 }
 
+function extractQuotedWorkTitle(value: string) {
+  return value.match(/[«"](.*?)[»"]/u)?.[1]?.trim();
+}
+
+function normalizeFactText(value: string) {
+  return normalizeWhitespace(value.toLowerCase())
+    .replace(/[«»"'`().,:;!?-]/g, ' ')
+    .replace(/\b(году|года|лет|event|main|branch|публикация|обучение|карьерный|этап|жизнь)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildEventFactKey(event: Pick<BiographyTimelineEventPlan, 'age' | 'label' | 'notes'>) {
+  const title = extractQuotedWorkTitle(event.label) || (event.notes ? extractQuotedWorkTitle(event.notes) : undefined);
+  const normalizedAge = Math.round(Number(event.age) * 2) / 2;
+  if (title) {
+    return `${normalizedAge}|work|${normalizeFactText(title)}`;
+  }
+
+  const sourceText = normalizeFactText(event.notes || event.label);
+  return `${normalizedAge}|fact|${sourceText.slice(0, 96)}`;
+}
+
+function hasTerminalLifeEvent(events: BiographyTimelineEventPlan[], currentAge: number) {
+  const terminalEvent = events.find((event) =>
+    /(смерт|гибел|погиб|умер|дуэл|died|death|killed)/i.test(`${event.label} ${event.notes ?? ''}`)
+  );
+
+  if (!terminalEvent) return false;
+  return Math.abs(terminalEvent.age - currentAge) <= 1.5;
+}
+
 function splitBiographyExtractIntoSentences(extract: string) {
   return extract
     .split(/(?<=[.!?])\s+|\n+/)
@@ -555,9 +609,31 @@ function inferDeathYearFromExtract(extract: string) {
   return years[0];
 }
 
+function isLikelyTimelineEventSentence(sentence: string) {
+  const normalized = sentence.toLowerCase();
+  const hasYear = extractYears(sentence).length > 0;
+  const hasAction = /(родил|born|поступ|окончил|учил|опублик|издал|написал|создал|стал|назнач|служ|ссыл|переех|вернул|женил|брак|родил[а-яё]* сына|родил[а-яё]* дочь|умер|погиб|скончал|болез|дуэл|died|moved|married|published|appointed|founded|returned|exile|injur)/i.test(
+    sentence
+  );
+  const looksLikeLead =
+    hasYear &&
+    /—/.test(sentence) &&
+    /(поэт|писател|драматург|автор|historian|poet|writer|novelist|composer|artist)/i.test(normalized) &&
+    !hasAction;
+
+  if (!hasYear) return false;
+  if (looksLikeLead) return false;
+  if (!hasAction && sentence.length > 180) return false;
+
+  return true;
+}
+
 function inferSphereFromSentence(sentence: string): TimelineSphere {
   const normalized = sentence.toLowerCase();
 
+  if (/(родил|born)/i.test(normalized)) {
+    return 'family';
+  }
   if (/(лице|школ|универс|академ|институт|учил|образован|graduat|school|college|stud)/i.test(normalized)) {
     return 'education';
   }
@@ -604,16 +680,32 @@ function inferIconFromSentence(sentence: string, sphere: TimelineSphere): Timeli
 }
 
 function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
-  const workTitle = sentence.match(/[«"](.*?)[»"]/u)?.[1]?.trim();
+  const workTitle = extractQuotedWorkTitle(sentence);
+  const location =
+    sentence.match(/\b(?:в|на|из)\s+([А-ЯЁA-Z][^,.();:]{2,50})/u)?.[1]?.trim().replace(/\s+/g, ' ') ?? undefined;
+  const spouse =
+    sentence.match(/\bс\s+([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+){0,2})/u)?.[1]?.trim() ?? undefined;
+  const institution =
+    sentence.match(
+      /\b((?:Царскосельск[^\s,.;:)]*\s+)?(?:лице[йя]|школ[ауые]|университет[а-я]*|академи[яию]|институт[а-я]*))\b/u
+    )?.[1] ?? undefined;
+
   if (/родил|born/i.test(sentence)) return 'Рождение';
+  if (/дуэл/i.test(sentence) && /умер|погиб|скончал|died/i.test(sentence)) return 'Дуэль и смерть';
   if (/умер|скончал|погиб|died/i.test(sentence)) return 'Смерть';
-  if (/женил|брак|свад/i.test(sentence)) return 'Брак';
-  if (/ссыл/i.test(sentence)) return 'Ссылка';
-  if (/переех|эмигр|relocat|moved/i.test(sentence)) return 'Переезд';
-  if (/лице|школ|универс|академ|институт|учил/i.test(sentence)) return 'Обучение';
+  if (/женил|брак|свад/i.test(sentence)) return spouse ? `Брак с ${spouse}` : 'Брак';
+  if (/ссыл/i.test(sentence)) return location ? `Ссылка в ${location}` : 'Ссылка';
+  if (/переех|эмигр|relocat|moved/i.test(sentence)) return location ? `Переезд в ${location}` : 'Переезд';
+  if (/поступ/i.test(sentence) && institution) return `Поступление в ${institution}`;
+  if (/(окончил|выпустил|выпуск)/i.test(sentence) && institution) return `Окончание ${institution}`;
+  if (/лице|школ|универс|академ|институт|учил/i.test(sentence) && institution) return `Учёба в ${institution}`;
+  if (/лице|школ|универс|академ|институт|учил/i.test(sentence)) return 'Учёба';
   if (workTitle && sphere === 'career') return `Публикация «${workTitle}»`;
-  if (/опублик|издал|поэм|роман|стих|книг|произвед|published/i.test(sentence)) return 'Публикация';
-  if (/назнач|стал|служ|карьер|became|appointed/i.test(sentence)) return 'Карьерный этап';
+  if (/опублик|издал|поэм|роман|стих|книг|произвед|published/i.test(sentence)) {
+    return location ? `Публикация в ${location}` : 'Новая публикация';
+  }
+  if (/назнач|стал|служ|карьер|became|appointed/i.test(sentence)) return 'Новый карьерный этап';
+  if (/долг|обязательств|финанс|денег|money|finance/i.test(sentence)) return 'Финансовое давление';
 
   const cleaned = normalizeWhitespace(sentence.replace(/\([^)]*\)/g, ''));
   return cleaned.length > 70 ? `${cleaned.slice(0, 67).trimEnd()}...` : cleaned;
@@ -624,6 +716,8 @@ function inferChronologicalEventsFromExtract(extract: string, birthYear?: number
   const events: BiographyTimelineEventPlan[] = [];
 
   sentences.forEach((sentence) => {
+    if (!isLikelyTimelineEventSentence(sentence)) return;
+
     const years = extractYears(sentence);
     if (years.length === 0) return;
 
@@ -658,6 +752,49 @@ function inferChronologicalEventsFromExtract(extract: string, birthYear?: number
   return [...deduped.values()].sort((a, b) => a.age - b.age);
 }
 
+function selectEventsForLifeCoverage(events: BiographyTimelineEventPlan[]) {
+  if (events.length <= 5) return events;
+
+  const targetCount =
+    events.length >= 18 ? 12 : events.length >= 14 ? 10 : events.length >= 10 ? 8 : Math.max(5, events.length);
+
+  if (events.length <= targetCount) return events;
+
+  const selectedIndexes = new Set<number>([0, events.length - 1]);
+  const birthIndex = events.findIndex((event) => event.age === 0);
+  const terminalIndex = events.findIndex((event) =>
+    /(смерт|гибел|погиб|умер|дуэл|died|death|killed)/i.test(`${event.label} ${event.notes ?? ''}`)
+  );
+
+  if (birthIndex >= 0) selectedIndexes.add(birthIndex);
+  if (terminalIndex >= 0) selectedIndexes.add(terminalIndex);
+
+  while (selectedIndexes.size < targetCount) {
+    const progress = selectedIndexes.size / Math.max(targetCount - 1, 1);
+    const targetIndex = Math.round(progress * (events.length - 1));
+    let offset = 0;
+
+    while (offset < events.length) {
+      const left = targetIndex - offset;
+      const right = targetIndex + offset;
+      if (left >= 0 && !selectedIndexes.has(left)) {
+        selectedIndexes.add(left);
+        break;
+      }
+      if (right < events.length && !selectedIndexes.has(right)) {
+        selectedIndexes.add(right);
+        break;
+      }
+      offset += 1;
+    }
+  }
+
+  return [...selectedIndexes]
+    .sort((a, b) => a - b)
+    .map((index) => events[index])
+    .filter(Boolean);
+}
+
 function buildHeuristicBiographyPlan(params: {
   articleTitle: string;
   extract: string;
@@ -675,9 +812,9 @@ function buildHeuristicBiographyPlan(params: {
         : params.fallbackCurrentAge;
 
   const extractedEvents = inferChronologicalEventsFromExtract(params.extract, birthYear);
-  const mainEvents = extractedEvents.slice(0, 10);
-  const usedKeys = new Set(mainEvents.map((event) => `${event.age}:${event.label}`));
-  const branchCandidates = extractedEvents.filter((event) => !usedKeys.has(`${event.age}:${event.label}`));
+  const mainEvents = selectEventsForLifeCoverage(extractedEvents);
+  const usedKeys = new Set(mainEvents.map((event) => buildEventFactKey(event)));
+  const branchCandidates = extractedEvents.filter((event) => !usedKeys.has(buildEventFactKey(event)));
   const branchSourceEvents =
     branchCandidates.length > 0
       ? branchCandidates
@@ -706,7 +843,7 @@ function buildHeuristicBiographyPlan(params: {
         label: SPHERE_META[sphere as TimelineSphere]?.label ?? sphere,
         sphere: sphere as TimelineSphere,
         sourceMainEventIndex,
-        events: events.slice(0, 5),
+        events: selectEventsForLifeCoverage(events).slice(0, 5),
       };
     })
     .filter((branch) => branch.events.length >= 1)
@@ -729,7 +866,7 @@ function buildHeuristicBiographyPlan(params: {
     currentAge: inferredCurrentAge,
     selectedPeriodization: 'erikson',
     birthDetails,
-    mainEvents: mainEvents.slice(0, 10),
+    mainEvents,
     branches,
   };
 }
@@ -763,33 +900,70 @@ export function enrichBiographyPlan(params: {
     fallbackCurrentAge: Math.max(0, Math.min(120, Number(params.plan.currentAge) || 25)),
   });
 
+  const inferredDeathYear = inferDeathYearFromExtract(params.extract);
+  const inferredBirth = inferBirthDetailsFromExtract(params.extract);
+
   const sanitizedModelMainEvents = (params.plan.mainEvents || [])
     .map((event) => sanitizeTimelineEventPlan(event))
     .filter((event): event is BiographyTimelineEventPlan => Boolean(event));
+  const dedupedMainEvents = new Map<string, BiographyTimelineEventPlan>();
+  sanitizedModelMainEvents.forEach((event) => {
+    const key = buildEventFactKey(event);
+    if (!dedupedMainEvents.has(key)) {
+      dedupedMainEvents.set(key, event);
+    }
+  });
+
+  const normalizedMainEvents = [...dedupedMainEvents.values()].sort((a, b) => a.age - b.age);
+  const mainEventKeys = new Set(normalizedMainEvents.map((event) => buildEventFactKey(event)));
   const sanitizedModelBranches = (params.plan.branches || [])
     .map((branch) => {
       const sphere = normalizeSphere(branch.sphere) ?? 'other';
       const label = normalizeText(branch.label, 120);
+      const branchEventKeys = new Set<string>();
       const events = (branch.events || [])
         .map((event) => sanitizeTimelineEventPlan(event, sphere))
         .filter((event): event is BiographyTimelineEventPlan => Boolean(event));
-      if (!label || events.length === 0) return null;
+      const normalizedEvents = events
+        .map((event) => ({
+          ...event,
+          sphere,
+        }))
+        .filter((event) => {
+          const factKey = buildEventFactKey(event);
+          if (mainEventKeys.has(factKey) || branchEventKeys.has(factKey)) {
+            return false;
+          }
+          branchEventKeys.add(factKey);
+          return true;
+        });
+      if (!label || normalizedEvents.length === 0) return null;
       return {
         label,
         sphere,
         sourceMainEventIndex: Math.max(0, Number(branch.sourceMainEventIndex) || 0),
-        events,
+        events: normalizedEvents,
       };
     })
-    .filter((branch): branch is BiographyTimelineBranchPlan => Boolean(branch));
+    .filter((branch) => branch !== null) as BiographyTimelineBranchPlan[];
 
-  const useHeuristicMainEvents = sanitizedModelMainEvents.length < 4;
+  const modelCurrentAge = Math.max(0, Math.min(120, Number(params.plan.currentAge) || heuristicPlan.currentAge));
+  const lateLifeCoverageThreshold = Math.max(heuristicPlan.currentAge - 4, 0);
+  const hasLateLifeCoverage = normalizedMainEvents.some((event) => event.age >= lateLifeCoverageThreshold);
+  const needsTerminalEvent = Boolean(inferredDeathYear && inferredBirth.birthYear);
+  const hasTerminalEvent = hasTerminalLifeEvent(normalizedMainEvents, modelCurrentAge);
+  const minimumMainEvents = heuristicPlan.mainEvents.length >= 8 ? 6 : Math.max(4, heuristicPlan.mainEvents.length);
+
+  const useHeuristicMainEvents =
+    normalizedMainEvents.length < minimumMainEvents ||
+    !hasLateLifeCoverage ||
+    (needsTerminalEvent && !hasTerminalEvent);
   const useHeuristicBranches = countBranchEvents(sanitizedModelBranches) === 0;
 
   const mergedPlan: BiographyTimelinePlan = {
     subjectName: normalizeText(params.plan.subjectName, 120) || heuristicPlan.subjectName,
     canvasName: normalizeText(params.plan.canvasName, 80) || heuristicPlan.canvasName,
-    currentAge: Math.max(0, Math.min(120, Number(params.plan.currentAge) || heuristicPlan.currentAge)),
+    currentAge: modelCurrentAge,
     selectedPeriodization:
       typeof params.plan.selectedPeriodization === 'string' &&
       TIMELINE_PERIODIZATION_IDS.includes(params.plan.selectedPeriodization)
@@ -800,7 +974,7 @@ export function enrichBiographyPlan(params: {
       place: normalizeText(params.plan.birthDetails?.place, 150) || heuristicPlan.birthDetails?.place,
       notes: normalizeText(params.plan.birthDetails?.notes, 400) || heuristicPlan.birthDetails?.notes,
     },
-    mainEvents: useHeuristicMainEvents ? heuristicPlan.mainEvents : sanitizedModelMainEvents,
+    mainEvents: useHeuristicMainEvents ? heuristicPlan.mainEvents : normalizedMainEvents,
     branches: useHeuristicBranches ? heuristicPlan.branches : sanitizedModelBranches,
   };
 
