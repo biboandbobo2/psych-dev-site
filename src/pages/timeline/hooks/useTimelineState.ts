@@ -30,6 +30,7 @@ import {
   normalizeTimelineDocument,
 } from '../persistence';
 import { reportAppError } from '../../../lib/errorHandler';
+import { removeUndefined } from '../../../utils/removeUndefined';
 
 function getViewportTargetAge(data: TimelineData) {
   return data.nodes.length > 0 || data.currentAge !== DEFAULT_CURRENT_AGE ? data.currentAge : 0;
@@ -99,7 +100,7 @@ export function useTimelineState() {
         await setDoc(
           docRef,
           {
-            ...buildTimelineDocument(user.uid, nextActiveCanvasId, nextCanvases),
+            ...removeUndefined(buildTimelineDocument(user.uid, nextActiveCanvasId, nextCanvases)),
             updatedAt: serverTimestamp(),
           },
           { merge: true }
