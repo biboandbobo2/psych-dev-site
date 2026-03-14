@@ -400,14 +400,20 @@ src/hooks/
 
 ## Импорт биографии через Wikipedia + Gemini
 
-- Клиентский вход: `src/pages/timeline/components/TimelineBiographyImportModal.tsx`.
+- Клиентский вход: inline import block в `src/pages/timeline/components/TimelineLeftPanel.tsx` + orchestration в `src/pages/Timeline.tsx`.
 - Endpoint: `POST /api/timeline-biography`.
 - Авторизация обязательна: endpoint использует `Authorization: Bearer <Firebase ID token>` и принимает optional BYOK через `X-Gemini-Api-Key`.
 - Источник пока один: только прямые URL вида `https://*.wikipedia.org/wiki/...`.
-- Сервер получает plain-text extract статьи через MediaWiki API, затем передаёт его в Gemini с жёсткой JSON-schema.
-- Основная модель: `gemini-2.5-pro`; при ошибке генерации используется fallback `gemini-2.5-flash`. Обе доступны через тот же Gemini API ключ.
+- Сервер получает plain-text extract статьи через MediaWiki API и работает каскадом:
+  1. Gemini извлекает нормализованные facts в line-based plain text.
+  2. По facts + extract + few-shot exemplar собирается draft JSON plan.
+  3. Если quality-checklist находит проблемы (`late life` потеряна, нет terminal event, слишком мало main events, есть дубли main/branch, слишком generic labels), запускается отдельный review/fix проход.
+  4. После этого `enrichBiographyPlan` всё равно применяет server-side heuristics и не принимает слишком слабый результат как успех.
+- Основная модель: `gemini-2.5-pro`; при ошибке отдельных стадий используется fallback `gemini-2.5-flash`. Обе доступны через тот же Gemini API ключ.
+- Few-shot exemplar в prompt обезличен: он задаёт форму хорошего timeline без привязки к конкретной биографии.
 - Модель возвращает план биографии (`mainEvents`, `branches`, `birthDetails`, `selectedPeriodization`), а окончательная раскладка по `nodes/edges` делается кодом в `api/lib/timelineBiography.ts`.
 - Раскладка ветвей по `x` вычисляется на сервере: overlapping branch lanes разводятся автоматически, поэтому модель отвечает за смысловую группировку по сферам, а не за геометрию.
+- API дополнительно возвращает `planDiagnostics`, `timelineStats` и `stageDiagnostics`, чтобы было видно, как отработал каскад и насколько сильным получился итоговый план.
 - `Очистить всё` по-прежнему очищает только активный холст.
 
 ## Экспорт таймлайна

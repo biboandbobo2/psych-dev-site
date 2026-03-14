@@ -173,6 +173,74 @@ export type BiographyPlanDiagnostics = {
   hasBirthPlace: boolean;
 };
 
+export type BiographyTimelineFact = {
+  year?: number;
+  age?: number;
+  sphere?: TimelineSphere;
+  category: string;
+  labelHint: string;
+  details: string;
+  importance: 'high' | 'medium' | 'low';
+};
+
+export type BiographyGenerationStageDiagnostics = {
+  facts: number;
+  reviewApplied: boolean;
+  reviewIssues: string[];
+};
+
+const BIOGRAPHY_TIMELINE_FEW_SHOT_EXAMPLE = `{
+  "subjectName": "Человек А",
+  "canvasName": "Человек А",
+  "currentAge": 68,
+  "selectedPeriodization": "erikson",
+  "birthDetails": {
+    "date": "14 марта 1956",
+    "place": "Город А",
+    "notes": "Умер в 2024 году после болезни."
+  },
+  "mainEvents": [
+    { "age": 0, "label": "Рождение", "sphere": "family", "isDecision": false, "iconId": "baby-feet", "notes": "Родился в Городе А." },
+    { "age": 11, "label": "Поступление в лицей", "sphere": "education", "isDecision": true, "iconId": "school-backpack", "notes": "Начал системное обучение." },
+    { "age": 18, "label": "Переезд в столицу", "sphere": "place", "isDecision": true, "iconId": "passport", "notes": "Переехал ради учёбы и работы." },
+    { "age": 24, "label": "Первый профессиональный прорыв", "sphere": "career", "isDecision": true, "iconId": "briefcase", "notes": "Получил широкое признание." },
+    { "age": 31, "label": "Брак", "sphere": "family", "isDecision": true, "iconId": "wedding-rings", "notes": "Создал семью." },
+    { "age": 43, "label": "Запуск главного проекта", "sphere": "career", "isDecision": true, "iconId": "idea-book", "notes": "Запустил проект зрелого периода." },
+    { "age": 56, "label": "Смена жизненного этапа", "sphere": "career", "isDecision": true, "notes": "Перешёл к новому формату деятельности." },
+    { "age": 68, "label": "Смерть", "sphere": "health", "isDecision": false, "iconId": "thermometer", "notes": "Завершение жизненного пути." }
+  ],
+  "branches": [
+    {
+      "label": "Образование",
+      "sphere": "education",
+      "sourceMainEventIndex": 1,
+      "events": [
+        { "age": 13, "label": "Круг чтения и наставники", "sphere": "education", "isDecision": false, "notes": "Расширил круг идей и влияний." },
+        { "age": 17, "label": "Первое публичное признание", "sphere": "education", "isDecision": false, "notes": "Получил заметную оценку способностей." }
+      ]
+    },
+    {
+      "label": "Карьера",
+      "sphere": "career",
+      "sourceMainEventIndex": 3,
+      "events": [
+        { "age": 27, "label": "Первое крупное произведение", "sphere": "career", "isDecision": true, "iconId": "idea-book", "notes": "Укрепил профессиональную репутацию." },
+        { "age": 44, "label": "Расширение влияния", "sphere": "career", "isDecision": false, "notes": "Стал заметной фигурой в своей области." },
+        { "age": 60, "label": "Поздний зрелый вклад", "sphere": "career", "isDecision": false, "notes": "Сохранил значение в позднем периоде жизни." }
+      ]
+    },
+    {
+      "label": "Семья",
+      "sphere": "family",
+      "sourceMainEventIndex": 4,
+      "events": [
+        { "age": 33, "label": "Рождение первого ребёнка", "sphere": "family", "isDecision": false, "iconId": "baby-stroller", "notes": "Семейная линия стала самостоятельной темой жизни." },
+        { "age": 58, "label": "Семейное напряжение позднего периода", "sphere": "family", "isDecision": false, "notes": "Семья оставалась важной частью поздней жизни." }
+      ]
+    }
+  ]
+}`;
+
 export const BIOGRAPHY_TIMELINE_RESPONSE_JSON_SCHEMA = {
   type: 'object',
   required: ['subjectName', 'canvasName', 'currentAge', 'mainEvents', 'branches'],
@@ -318,6 +386,7 @@ export function buildBiographyTimelinePrompt(params: {
   articleTitle: string;
   sourceUrl: string;
   extract: string;
+  factsSummary?: string;
 }) {
   const iconCatalog = EVENT_ICON_IDS.map((iconId) => `- ${iconId}`).join('\n');
   const sphereCatalog = Object.entries(SPHERE_META)
@@ -390,9 +459,16 @@ ${iconCatalog}
 - Возраст лучше задавать целыми годами; дроби используй только когда это действительно нужно для разведения двух разных событий одного периода.
 - Не возвращай markdown, только JSON по схеме.
 
+ПРИМЕР ХОРОШЕГО РЕЗУЛЬТАТА
+Это обезличенный пример структуры. Сохрани логику и качество, но не копируй факты:
+${BIOGRAPHY_TIMELINE_FEW_SHOT_EXAMPLE}
+
 ИСТОЧНИК
 Статья: ${params.articleTitle}
 URL: ${params.sourceUrl}
+
+НОРМАЛИЗОВАННЫЕ ФАКТЫ
+${params.factsSummary?.trim() || 'Факты не выделены отдельно, опирайся только на текст статьи.'}
 
 ТЕКСТ СТАТЬИ
 ${params.extract}`;
@@ -402,6 +478,7 @@ export function buildBiographyTimelineLinePrompt(params: {
   articleTitle: string;
   sourceUrl: string;
   extract: string;
+  factsSummary?: string;
 }) {
   return `Ты преобразуешь биографию в простой построчный формат для life timeline.
 
@@ -451,12 +528,126 @@ finance
 hobby
 other
 
+ПРИМЕР ЛОГИКИ
+- MAIN = опорные вехи всей жизни.
+- BRANCH = отдельная тематическая линия, идущая от конкретной MAIN-вехи.
+- Не повторяй один и тот же факт в MAIN и BRANCH_EVENT.
+- Не пропускай позднюю жизнь и смерть, если они есть в биографии.
+
+ИСТОЧНИК
+Статья: ${params.articleTitle}
+URL: ${params.sourceUrl}
+
+НОРМАЛИЗОВАННЫЕ ФАКТЫ
+${params.factsSummary?.trim() || 'Факты не выделены отдельно, опирайся только на текст статьи.'}
+
+ТЕКСТ СТАТЬИ
+${params.extract}`;
+}
+
+export function buildBiographyFactExtractionPrompt(params: {
+  articleTitle: string;
+  sourceUrl: string;
+  extract: string;
+}) {
+  return `Ты извлекаешь биографические факты для дальнейшей сборки life timeline.
+
+ВАЖНО
+- Верни только plain text.
+- Не используй markdown, json, yaml, code fences.
+- Один факт = одна строка FACT.
+- Не пересказывай статью целиком.
+- Не включай энциклопедический лид вроде "X — русский поэт...".
+- Выбирай только факты, которые действительно можно превратить в событие таймлайна.
+- Покрой раннюю, среднюю и позднюю жизнь.
+- Если человек умер, обязательно включи факт смерти.
+- Если источник богатый, можно дать 12-20 фактов. Если бедный — меньше, но без выдумывания.
+
+ФОРМАТ
+SUBJECT<TAB>subjectName
+BIRTH_YEAR<TAB>year|unknown
+DEATH_YEAR<TAB>year|unknown
+FACT<TAB>year<TAB>age_or_unknown<TAB>category<TAB>sphere<TAB>importance(high|medium|low)<TAB>labelHint<TAB>details
+
+category — короткая категория факта:
+birth
+education
+move
+publication
+career
+family
+health
+conflict
+award
+project
+death
+other
+
+sphere — только из:
+education
+career
+family
+health
+friends
+place
+finance
+hobby
+other
+
+ПРИМЕР
+SUBJECT\tЧеловек А
+BIRTH_YEAR\t1956
+DEATH_YEAR\t2024
+FACT\t1956\t0\tbirth\tfamily\thigh\tРождение\tРодился в Городе А.
+FACT\t1967\t11\teducation\teducation\thigh\tПоступление в лицей\tНачал системное обучение.
+FACT\t1974\t18\tmove\tplace\thigh\tПереезд в столицу\tПереехал ради учёбы и работы.
+FACT\t1980\t24\tcareer\tcareer\thigh\tПервый профессиональный прорыв\tПолучил широкое признание.
+FACT\t1987\t31\tfamily\tfamily\thigh\tБрак\tСоздал семью.
+FACT\t2024\t68\tdeath\thealth\thigh\tСмерть\tЗавершение жизненного пути.
+
 ИСТОЧНИК
 Статья: ${params.articleTitle}
 URL: ${params.sourceUrl}
 
 ТЕКСТ СТАТЬИ
 ${params.extract}`;
+}
+
+export function buildBiographyTimelineReviewPrompt(params: {
+  articleTitle: string;
+  sourceUrl: string;
+  factsSummary: string;
+  draftPlanJson: string;
+  issues: string[];
+}) {
+  return `Ты проверяешь и исправляешь уже собранный life timeline plan.
+
+ЗАДАЧА
+- Посмотри на facts summary и на draft JSON.
+- Исправь только реальные проблемы.
+- Сохрани формат JSON, но сделай результат качественнее.
+
+ЧЕК-ЛИСТ ПРОБЛЕМ
+${params.issues.map((issue) => `- ${issue}`).join('\n')}
+
+ПРАВИЛА
+- Не дублируй один и тот же факт в mainEvents и branches.
+- Не оставляй generic labels, если можно назвать событие конкретнее.
+- Одна ветка = одна сфера.
+- Если человек умер, в конце mainEvents должно быть terminal event.
+- Не теряй позднюю жизнь.
+- Не копируй факты из примера; используй только facts summary и draft JSON.
+
+ПРИМЕР КАЧЕСТВА
+${BIOGRAPHY_TIMELINE_FEW_SHOT_EXAMPLE}
+
+FACTS SUMMARY
+${params.factsSummary}
+
+DRAFT JSON
+${params.draftPlanJson}
+
+Верни только исправленный JSON-объект по той же схеме, без markdown и без пояснений.`;
 }
 
 function normalizeSphere(sphere: unknown): TimelineSphere | undefined {
@@ -795,6 +986,67 @@ function selectEventsForLifeCoverage(events: BiographyTimelineEventPlan[]) {
     .filter(Boolean);
 }
 
+export function buildHeuristicBiographyFacts(extract: string, articleTitle: string): BiographyTimelineFact[] {
+  const subjectName = inferSubjectName(articleTitle);
+  const { birthYear } = inferBirthDetailsFromExtract(extract);
+  const events = inferChronologicalEventsFromExtract(extract, birthYear);
+
+  return events.map((event) => {
+    const normalizedText = `${event.label} ${event.notes ?? ''}`.toLowerCase();
+    const category =
+      event.age === 0
+        ? 'birth'
+        : /(смерт|гибел|погиб|умер|дуэл)/i.test(normalizedText)
+          ? 'death'
+          : /(поступ|учёб|лицей|универс|школ)/i.test(normalizedText)
+            ? 'education'
+            : /(переезд|ссыл|одесс|кишин|петербург|болдин|москв|крым|кавказ)/i.test(normalizedText)
+              ? 'move'
+              : /(брак|женить|венч|дочь|сын|семь)/i.test(normalizedText)
+                ? 'family'
+                : /(публик|поэм|роман|повест|трагед|журнал|произвед)/i.test(normalizedText)
+                  ? 'publication'
+                  : event.sphere ?? 'other';
+
+    return {
+      year: birthYear ? birthYear + Math.round(event.age) : undefined,
+      age: event.age,
+      sphere: event.sphere,
+      category,
+      labelHint: event.label,
+      details: event.notes || event.label,
+      importance:
+        event.age === 0 || /(смерт|гибел|умер|дуэл|брак|поступ|публик)/i.test(normalizedText) ? 'high' : 'medium',
+    };
+  });
+}
+
+export function summarizeBiographyFacts(facts: BiographyTimelineFact[], articleTitle: string) {
+  const subjectName = inferSubjectName(articleTitle);
+  const birthYear = facts.find((fact) => fact.category === 'birth')?.year;
+  const deathYear = facts.find((fact) => fact.category === 'death')?.year;
+  const headerLines = [
+    `SUBJECT\t${subjectName}`,
+    `BIRTH_YEAR\t${birthYear ?? 'unknown'}`,
+    `DEATH_YEAR\t${deathYear ?? 'unknown'}`,
+  ];
+
+  const factLines = facts.map((fact) =>
+    [
+      'FACT',
+      fact.year ?? 'unknown',
+      Number.isFinite(fact.age) ? fact.age : 'unknown',
+      fact.category,
+      fact.sphere ?? 'other',
+      fact.importance,
+      fact.labelHint,
+      fact.details.replace(/\t+/g, ' ').trim(),
+    ].join('\t')
+  );
+
+  return [...headerLines, ...factLines].join('\n');
+}
+
 function buildHeuristicBiographyPlan(params: {
   articleTitle: string;
   extract: string;
@@ -873,6 +1125,42 @@ function buildHeuristicBiographyPlan(params: {
 
 function countBranchEvents(branches: BiographyTimelineBranchPlan[]) {
   return branches.reduce((total, branch) => total + branch.events.length, 0);
+}
+
+export function getBiographyPlanReviewIssues(plan: BiographyTimelinePlan, extract: string) {
+  const issues: string[] = [];
+  const deathYear = inferDeathYearFromExtract(extract);
+  const mainEvents = (plan.mainEvents || []).filter(Boolean);
+  const branchFacts = (plan.branches || []).flatMap((branch) => branch.events || []);
+  const mainFactKeys = new Set(mainEvents.map((event) => buildEventFactKey(event)));
+  const duplicateBranchFacts = branchFacts.filter((event) => mainFactKeys.has(buildEventFactKey(event))).length;
+  const genericLabels = mainEvents.filter((event) =>
+    /^(Обучение|Публикация|Карьерный этап|Новый карьерный этап|Учёба|Ссылка|Переезд)$/i.test(event.label)
+  ).length;
+  const otherCount = mainEvents.filter((event) => (event.sphere ?? 'other') === 'other').length;
+  const currentAge = Math.max(0, Math.min(120, Number(plan.currentAge) || 0));
+  const lastAge = mainEvents.reduce((max, event) => Math.max(max, event.age), 0);
+
+  if (mainEvents.length < 6) {
+    issues.push('Слишком мало mainEvents для содержательной биографии; нужно покрыть жизнь плотнее.');
+  }
+  if (deathYear && !hasTerminalLifeEvent(mainEvents, currentAge || deathYear)) {
+    issues.push('В mainEvents нет явного terminal event смерти/дуэли/гибели в конце жизни.');
+  }
+  if (currentAge > 0 && lastAge < currentAge - 3) {
+    issues.push('Поздняя жизнь покрыта слабо: последние mainEvents заканчиваются слишком рано.');
+  }
+  if (otherCount >= Math.max(2, Math.ceil(mainEvents.length / 3))) {
+    issues.push('Слишком много событий со sphere=other; их нужно уточнить и разнести по осмысленным сферам.');
+  }
+  if (genericLabels > 0) {
+    issues.push('Есть слишком generic labels; названия должны быть конкретными фактами, а не общими категориями.');
+  }
+  if (duplicateBranchFacts > 0) {
+    issues.push('Ветки дублируют факты главной линии; нужно убрать повторы и оставить только раскрывающие события.');
+  }
+
+  return issues;
 }
 
 function buildBiographyPlanDiagnostics(

@@ -165,37 +165,51 @@ describe('api/timeline-biography', () => {
         },
       }),
     });
-    geminiMocks.generateContent.mockResolvedValue({
-      text: JSON.stringify({
-        subjectName: 'Александр Пушкин',
-        canvasName: 'Пушкин',
-        currentAge: 37,
-        selectedPeriodization: 'erikson',
-        birthDetails: {
-          date: '6 июня 1799',
-          place: 'Москва',
-        },
-        mainEvents: [
-          { age: 0, label: 'Рождение', notes: 'Родился в Москве.', isDecision: false, sphere: 'family' },
-          { age: 12, label: 'Поступление в лицей', isDecision: true, sphere: 'education', iconId: 'school-backpack' },
-          { age: 21, label: '«Руслан и Людмила»', isDecision: true, sphere: 'career', iconId: 'idea-book' },
-          { age: 25, label: 'Южная ссылка', isDecision: false, sphere: 'place', iconId: 'passport' },
-          { age: 31, label: 'Брак с Натальей Гончаровой', isDecision: true, sphere: 'family', iconId: 'wedding-rings' },
-          { age: 37, label: 'Дуэль и смерть', isDecision: false, sphere: 'health' },
-        ],
-        branches: [
-          {
-            label: 'Литература',
-            sphere: 'career',
-            sourceMainEventIndex: 1,
-            events: [
-              { age: 15, label: 'Первые публикации', isDecision: true, sphere: 'career' },
-              { age: 26, label: '«Борис Годунов»', isDecision: true, sphere: 'career' },
-            ],
+    geminiMocks.generateContent
+      .mockResolvedValueOnce({
+        text: [
+          'SUBJECT\tАлександр Пушкин',
+          'BIRTH_YEAR\t1799',
+          'DEATH_YEAR\t1837',
+          'FACT\t1799\t0\tbirth\tfamily\thigh\tРождение\tРодился в Москве.',
+          'FACT\t1811\t12\teducation\teducation\thigh\tПоступление в лицей\tНачал обучение в Царскосельском лицее.',
+          'FACT\t1820\t21\tpublication\tcareer\thigh\t«Руслан и Людмила»\tОпубликовал поэму.',
+          'FACT\t1824\t25\tmove\tplace\thigh\tЮжная ссылка\tБыл сослан на юг.',
+          'FACT\t1831\t31\tfamily\tfamily\thigh\tБрак с Натальей Гончаровой\tЖенился.',
+          'FACT\t1837\t37\tdeath\thealth\thigh\tДуэль и смерть\tПогиб после дуэли.',
+        ].join('\n'),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          subjectName: 'Александр Пушкин',
+          canvasName: 'Пушкин',
+          currentAge: 37,
+          selectedPeriodization: 'erikson',
+          birthDetails: {
+            date: '6 июня 1799',
+            place: 'Москва',
           },
-        ],
-      }),
-    });
+          mainEvents: [
+            { age: 0, label: 'Рождение', notes: 'Родился в Москве.', isDecision: false, sphere: 'family' },
+            { age: 12, label: 'Поступление в Царскосельский лицей', isDecision: true, sphere: 'education', iconId: 'school-backpack' },
+            { age: 21, label: 'Публикация «Руслан и Людмила»', isDecision: true, sphere: 'career', iconId: 'idea-book' },
+            { age: 25, label: 'Южная ссылка', isDecision: false, sphere: 'place', iconId: 'passport' },
+            { age: 31, label: 'Брак с Натальей Гончаровой', isDecision: true, sphere: 'family', iconId: 'wedding-rings' },
+            { age: 37, label: 'Дуэль и смерть', isDecision: false, sphere: 'health' },
+          ],
+          branches: [
+            {
+              label: 'Литература',
+              sphere: 'career',
+              sourceMainEventIndex: 2,
+              events: [
+                { age: 15, label: 'Первые публикации', isDecision: true, sphere: 'career' },
+                { age: 26, label: '«Борис Годунов»', isDecision: true, sphere: 'career' },
+              ],
+            },
+          ],
+        }),
+      });
 
     const req = mockReq({
       headers: {
@@ -218,15 +232,18 @@ describe('api/timeline-biography', () => {
         }),
       })
     );
-    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(1);
+    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(2);
     expect(res.body.ok).toBe(true);
     expect(res.body.canvasName).toBe('Пушкин');
     expect(res.body.meta.model).toBe('gemini-2.5-pro');
+    expect(res.body.meta.factsModel).toBe('gemini-2.5-pro');
     expect(res.body.timeline.birthDetails.place).toBe('Москва');
     expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(true);
     expect(res.body.timeline.edges).toHaveLength(1);
     expect(res.body.meta.timelineStats.nodes).toBeGreaterThan(0);
     expect(res.body.meta.planDiagnostics.source).toBe('model');
+    expect(res.body.meta.stageDiagnostics.facts).toBeGreaterThanOrEqual(6);
+    expect(res.body.meta.stageDiagnostics.reviewApplied).toBe(false);
   });
 
   it('использует fallback env key, если GEMINI_API_KEY не задан', async () => {
@@ -452,7 +469,14 @@ describe('api/timeline-biography', () => {
           pages: [
             {
               title: 'Пушкин, Александр Сергеевич',
-              extract: 'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+              extract: [
+                'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+                'В 1811 году поступил в Царскосельский лицей.',
+                'В 1820 году опубликовал поэму «Руслан и Людмила».',
+                'В 1824 году был сослан на юг.',
+                'В 1831 году женился на Наталье Гончаровой.',
+                'В 1837 году погиб после дуэли.',
+              ].join(' '),
               fullurl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич',
             },
           ],
@@ -460,6 +484,19 @@ describe('api/timeline-biography', () => {
       }),
     });
     geminiMocks.generateContent
+      .mockResolvedValueOnce({
+        text: [
+          'SUBJECT\tАлександр Пушкин',
+          'BIRTH_YEAR\t1799',
+          'DEATH_YEAR\t1837',
+          'FACT\t1799\t0\tbirth\tfamily\thigh\tРождение\tРодился в Москве.',
+          'FACT\t1811\t12\teducation\teducation\thigh\tПоступление в лицей\tНачал обучение.',
+          'FACT\t1820\t21\tpublication\tcareer\thigh\t«Руслан и Людмила»\tОпубликовал поэму.',
+          'FACT\t1824\t25\tmove\tplace\thigh\tЮжная ссылка\tБыл сослан.',
+          'FACT\t1831\t31\tfamily\tfamily\thigh\tБрак\tЖенился.',
+          'FACT\t1837\t37\tdeath\thealth\thigh\tДуэль и смерть\tПогиб после дуэли.',
+        ].join('\n'),
+      })
       .mockResolvedValueOnce({
         text: 'not-json-at-all',
       })
@@ -470,9 +507,11 @@ describe('api/timeline-biography', () => {
           currentAge: 37,
           mainEvents: [
             { age: 0, label: 'Рождение', isDecision: false },
-            { age: 12, label: 'Лицей', isDecision: true },
-            { age: 21, label: 'Публикация', isDecision: true },
-            { age: 25, label: 'Ссылка', isDecision: false },
+            { age: 12, label: 'Поступление в Царскосельский лицей', isDecision: true, sphere: 'education' },
+            { age: 21, label: 'Публикация «Руслан и Людмила»', isDecision: true, sphere: 'career' },
+            { age: 25, label: 'Южная ссылка', isDecision: false, sphere: 'place' },
+            { age: 31, label: 'Брак с Натальей Гончаровой', isDecision: true, sphere: 'family' },
+            { age: 37, label: 'Дуэль и смерть', isDecision: false, sphere: 'health' },
           ],
           branches: [],
         }),
@@ -489,7 +528,7 @@ describe('api/timeline-biography', () => {
 
     await handler(req, res);
 
-    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(2);
+    expect(geminiMocks.generateContent.mock.calls.length).toBeGreaterThanOrEqual(3);
     expect(res.statusCode).toBe(200);
     expect(res.body.ok).toBe(true);
   });
@@ -517,6 +556,19 @@ describe('api/timeline-biography', () => {
       }),
     });
     geminiMocks.generateContent
+      .mockResolvedValueOnce({
+        text: [
+          'SUBJECT\tАлександр Пушкин',
+          'BIRTH_YEAR\t1799',
+          'DEATH_YEAR\t1837',
+          'FACT\t1799\t0\tbirth\tfamily\thigh\tРождение\tРодился в Москве.',
+          'FACT\t1811\t12\teducation\teducation\thigh\tПоступление в лицей\tНачал обучение в лицее.',
+          'FACT\t1820\t21\tpublication\tcareer\thigh\t«Руслан и Людмила»\tОпубликовал поэму.',
+          'FACT\t1824\t25\tmove\tplace\thigh\tЮжная ссылка\tБыл сослан.',
+          'FACT\t1831\t31\tfamily\tfamily\thigh\tБрак\tЖенился.',
+          'FACT\t1837\t37\tdeath\thealth\thigh\tДуэль и смерть\tПогиб после дуэли.',
+        ].join('\n'),
+      })
       .mockResolvedValueOnce({ text: 'not-json' })
       .mockResolvedValueOnce({ text: 'still-not-json' })
       .mockResolvedValueOnce({ text: 'not-json-again' })
@@ -529,9 +581,11 @@ describe('api/timeline-biography', () => {
           'PERIODIZATION\terikson',
           'BIRTH\t6 июня 1799\tМосква\t',
           'MAIN\t0\tРождение\tfamily\tfalse\t\tРодился в Москве',
-          'MAIN\t12\tПоступление в лицей\teducation\ttrue\tschool-backpack\t',
-          'MAIN\t21\tПубликация\tcareer\ttrue\tidea-book\t',
-          'MAIN\t25\tСсылка\tplace\tfalse\tpassport\t',
+          'MAIN\t12\tПоступление в Царскосельский лицей\teducation\ttrue\tschool-backpack\t',
+          'MAIN\t21\tПубликация «Руслан и Людмила»\tcareer\ttrue\tidea-book\t',
+          'MAIN\t25\tЮжная ссылка\tplace\tfalse\tpassport\t',
+          'MAIN\t31\tБрак с Натальей Гончаровой\tfamily\ttrue\twedding-rings\t',
+          'MAIN\t37\tДуэль и смерть\thealth\tfalse\tthermometer\t',
           'BRANCH\tlit\tЛитература\tcareer\t1',
           'BRANCH_EVENT\tlit\t26\tБорис Годунов\tcareer\ttrue\tidea-book\t',
         ].join('\n'),
@@ -548,13 +602,15 @@ describe('api/timeline-biography', () => {
 
     await handler(req, res);
 
-    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(5);
+    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(6);
     expect(res.statusCode).toBe(200);
     expect(res.body.ok).toBe(true);
     expect(res.body.meta.model).toBe('gemini-2.5-pro');
+    expect(res.body.meta.factsModel).toBe('gemini-2.5-pro');
     expect(res.body.timeline.birthDetails.place).toBe('Москва');
     expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(true);
     expect(res.body.timeline.edges).toHaveLength(1);
+    expect(res.body.meta.stageDiagnostics.reviewApplied).toBe(false);
   });
 
   it('обогащает слишком бедный Gemini plan эвристиками из статьи', async () => {
@@ -607,6 +663,7 @@ describe('api/timeline-biography', () => {
     expect(res.body.timeline.edges.length).toBeGreaterThanOrEqual(1);
     expect(res.body.meta.planDiagnostics.source).toBe('merged-with-heuristics');
     expect(res.body.meta.timelineStats.nodes).toBeGreaterThanOrEqual(4);
+    expect(res.body.meta.stageDiagnostics.reviewIssues.length).toBeGreaterThan(0);
   });
 });
 

@@ -8,11 +8,18 @@ import {
 } from '../server/api/lectureApiRuntime.js';
 import {
   BIOGRAPHY_TIMELINE_RESPONSE_JSON_SCHEMA,
+  buildBiographyFactExtractionPrompt,
   buildBiographyTimelineLinePrompt,
   buildBiographyTimelinePrompt,
+  buildBiographyTimelineReviewPrompt,
+  buildHeuristicBiographyFacts,
   buildTimelineDataFromBiographyPlan,
   enrichBiographyPlan,
   fetchWikipediaPlainExtract,
+  getBiographyPlanReviewIssues,
+  summarizeBiographyFacts,
+  type BiographyGenerationStageDiagnostics,
+  type BiographyTimelineFact,
   type BiographyPlanDiagnostics,
   type BiographyImportRequest,
   type BiographyTimelinePlan,
@@ -96,6 +103,39 @@ function parseBiographyPlanResult(result: unknown): BiographyTimelinePlan {
 
 function parseBooleanFlag(value: string | undefined) {
   return String(value || '').trim().toLowerCase() === 'true';
+}
+
+function parseImportance(value: string | undefined): BiographyTimelineFact['importance'] {
+  return value === 'high' || value === 'low' ? value : 'medium';
+}
+
+function parseLineBasedBiographyFacts(rawText: string): BiographyTimelineFact[] {
+  const facts: BiographyTimelineFact[] = [];
+  const lines = rawText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    const [kind, ...rest] = line.split('\t').map((part) => part.trim());
+    if (kind !== 'FACT') continue;
+
+    facts.push({
+      year: rest[0] && rest[0] !== 'unknown' ? Number(rest[0]) || undefined : undefined,
+      age: rest[1] && rest[1] !== 'unknown' ? Number(rest[1]) || undefined : undefined,
+      category: rest[2] || 'other',
+      sphere: (rest[3] || undefined) as BiographyTimelineFact['sphere'],
+      importance: parseImportance(rest[4]),
+      labelHint: rest[5] || '',
+      details: rest[6] || '',
+    });
+  }
+
+  if (facts.length === 0) {
+    throw new Error('Gemini facts parse failed');
+  }
+
+  return facts;
 }
 
 function parseLineBasedBiographyPlan(rawText: string): BiographyTimelinePlan {
@@ -312,6 +352,34 @@ async function generateBiographyPlan(prompt: string, apiKey: string) {
   throw lastError ?? new Error('Gemini generation failed');
 }
 
+async function generateBiographyFacts(prompt: string, apiKey: string) {
+  const client = getLectureGenAiClient(apiKey);
+  let lastError: unknown = null;
+
+  for (const model of TIMELINE_BIOGRAPHY_MODELS) {
+    try {
+      const result = await client.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.1,
+          maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
+          responseMimeType: 'text/plain',
+        },
+      });
+
+      return {
+        model,
+        facts: parseLineBasedBiographyFacts(collectGeminiResultText(result)),
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error('Gemini facts generation failed');
+}
+
 async function generateBiographyLinePlan(prompt: string, apiKey: string) {
   const client = getLectureGenAiClient(apiKey);
   let lastError: unknown = null;
@@ -340,6 +408,35 @@ async function generateBiographyLinePlan(prompt: string, apiKey: string) {
   throw lastError ?? new Error('Gemini line-plan generation failed');
 }
 
+async function reviewBiographyPlan(prompt: string, apiKey: string) {
+  const client = getLectureGenAiClient(apiKey);
+  let lastError: unknown = null;
+
+  for (const model of TIMELINE_BIOGRAPHY_MODELS) {
+    try {
+      const result = await client.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.05,
+          maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
+          responseMimeType: 'application/json',
+          responseJsonSchema: BIOGRAPHY_TIMELINE_RESPONSE_JSON_SCHEMA,
+        },
+      });
+
+      return {
+        model,
+        plan: parseBiographyPlanResult(result),
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error('Gemini review generation failed');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setLectureApiCorsHeaders(req, res);
 
@@ -365,10 +462,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { sourceUrl } = validateRequestBody(req.body);
     const wikiPage = await fetchWikipediaPlainExtract(sourceUrl);
     const apiKey = resolveLectureGeminiApiKey(req);
+    let factsModel = 'heuristics';
+    let facts: BiographyTimelineFact[];
+    try {
+      const factsResult = await generateBiographyFacts(
+        buildBiographyFactExtractionPrompt({
+          articleTitle: wikiPage.title,
+          sourceUrl: wikiPage.canonicalUrl,
+          extract: wikiPage.extract,
+        }),
+        apiKey
+      );
+      facts = factsResult.facts;
+      factsModel = factsResult.model;
+    } catch {
+      facts = buildHeuristicBiographyFacts(wikiPage.extract, wikiPage.title);
+    }
+
+    const factsSummary = summarizeBiographyFacts(facts, wikiPage.title);
     const prompt = buildBiographyTimelinePrompt({
       articleTitle: wikiPage.title,
       sourceUrl: wikiPage.canonicalUrl,
       extract: wikiPage.extract,
+      factsSummary,
     });
 
     let generationResult: { model: string; plan: BiographyTimelinePlan };
@@ -380,12 +496,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           articleTitle: wikiPage.title,
           sourceUrl: wikiPage.canonicalUrl,
           extract: wikiPage.extract,
+          factsSummary,
         }),
         apiKey
       );
     }
 
-    const { model, plan } = generationResult;
+    let { model, plan } = generationResult;
+    const reviewIssues = getBiographyPlanReviewIssues(plan, wikiPage.extract);
+    let reviewApplied = false;
+
+    if (reviewIssues.length > 0) {
+      try {
+        const reviewResult = await reviewBiographyPlan(
+          buildBiographyTimelineReviewPrompt({
+            articleTitle: wikiPage.title,
+            sourceUrl: wikiPage.canonicalUrl,
+            factsSummary,
+            draftPlanJson: JSON.stringify(plan, null, 2),
+            issues: reviewIssues,
+          }),
+          apiKey
+        );
+        plan = reviewResult.plan;
+        model = `${model} -> ${reviewResult.model}`;
+        reviewApplied = true;
+      } catch {
+        // keep draft plan; enrichBiographyPlan will still gate weak outputs
+      }
+    }
+
     const {
       plan: normalizedPlan,
       diagnostics,
@@ -400,6 +540,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw new Error('Biography timeline normalization produced no events');
     }
 
+    const stageDiagnostics: BiographyGenerationStageDiagnostics = {
+      facts: facts.length,
+      reviewApplied,
+      reviewIssues,
+    };
+
     res.status(200).json({
       ok: true,
       canvasName: normalizedPlan.canvasName || normalizedPlan.subjectName || wikiPage.title,
@@ -407,10 +553,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       timeline,
       meta: {
         model,
+        factsModel,
         sourceTitle: wikiPage.title,
         sourceUrl: wikiPage.canonicalUrl,
         extractChars: wikiPage.extract.length,
         planDiagnostics: diagnostics,
+        stageDiagnostics,
         timelineStats: {
           nodes: timeline.nodes.length,
           edges: timeline.edges.length,
