@@ -666,6 +666,103 @@ describe('api/timeline-biography', () => {
     expect(res.body.meta.timelineStats.nodes).toBeGreaterThanOrEqual(4);
     expect(res.body.meta.stageDiagnostics.reviewIssues.length).toBeGreaterThan(0);
   });
+
+  it('не падает на слабой ветке от рождения и деградирует в heuristics', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        query: {
+          pages: [
+            {
+              title: 'Пушкин, Александр Сергеевич',
+              extract: [
+                'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+                'В детстве воспитывался в дворянской семье и слушал рассказы няни.',
+                'В 1811 году поступил в Царскосельский лицей.',
+                'Там сформировался круг лицейских друзей и переписка с товарищами.',
+                'После восстания декабристов часть друзей была потеряна для его круга.',
+                'В 1820 году опубликовал поэму «Руслан и Людмила».',
+                'В 1831 году женился на Наталье Гончаровой.',
+                'В 1837 году погиб после дуэли.',
+              ].join(' '),
+              fullurl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич',
+            },
+          ],
+        },
+      }),
+    });
+    geminiMocks.generateContent
+      .mockResolvedValueOnce({
+        text: [
+          'SUBJECT\tАлександр Пушкин',
+          'BIRTH_YEAR\t1799',
+          'DEATH_YEAR\t1837',
+          'FACT\t1799\t0\tbirth\tfamily\thigh\tРождение\tРодился в Москве.',
+          'FACT\t1811\t12\teducation\teducation\thigh\tЛицей\tПоступил в Царскосельский лицей.',
+          'FACT\t1812\t13\tfriends\tfriends\tmedium\tЛицейский круг\tПоявились важные друзья.',
+          'FACT\t1820\t21\tpublication\tcareer\thigh\tРуслан и Людмила\tОпубликовал поэму.',
+          'FACT\t1831\t31\tfamily\tfamily\thigh\tБрак\tЖенился.',
+          'FACT\t1837\t37\tdeath\thealth\thigh\tДуэль и смерть\tПогиб после дуэли.',
+        ].join('\n'),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({
+          subjectName: 'Александр Пушкин',
+          canvasName: 'Пушкин',
+          currentAge: 37,
+          mainEvents: [
+            { age: 0, label: 'Рождение', isDecision: false, sphere: 'family' },
+          ],
+          branches: [
+            {
+              label: 'Учёба',
+              sphere: 'education',
+              sourceMainEventIndex: 0,
+              events: [
+                { age: 12, label: 'Учёба', isDecision: false, sphere: 'education' },
+              ],
+            },
+          ],
+        }),
+      })
+      .mockResolvedValue({
+        text: JSON.stringify({
+          subjectName: 'Александр Пушкин',
+          canvasName: 'Пушкин',
+          currentAge: 37,
+          mainEvents: [
+            { age: 0, label: 'Рождение', isDecision: false, sphere: 'family' },
+          ],
+          branches: [
+            {
+              label: 'Учёба',
+              sphere: 'education',
+              sourceMainEventIndex: 0,
+              events: [
+                { age: 12, label: 'Учёба', isDecision: false, sphere: 'education' },
+              ],
+            },
+          ],
+        }),
+      });
+
+    const req = mockReq({
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer token',
+      },
+      body: { sourceUrl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич' },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.meta.planDiagnostics.source).not.toBe('model');
+    expect(res.body.timeline.nodes.length).toBeGreaterThanOrEqual(4);
+    expect(res.body.meta.stageDiagnostics.reviewIssues).toContain('Есть ветка education, ошибочно якорённая к рождению.');
+  });
 });
 
 describe('buildTimelineDataFromBiographyPlan', () => {

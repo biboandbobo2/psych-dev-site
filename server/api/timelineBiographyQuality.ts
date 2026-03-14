@@ -43,6 +43,13 @@ function buildBiographyPlanDiagnostics(
   };
 }
 
+function buildHeuristicFallback(heuristicPlan: BiographyTimelinePlan) {
+  return {
+    plan: heuristicPlan,
+    diagnostics: buildBiographyPlanDiagnostics('heuristics-only', heuristicPlan),
+  };
+}
+
 function isBranchSphereAllowedFromBirth(sphere: TimelineSphere) {
   return sphere === 'family' || sphere === 'health' || sphere === 'place';
 }
@@ -321,18 +328,15 @@ export function enrichBiographyPlan(params: {
   };
 
   if (mergedPlan.mainEvents.length === 0) {
-    throw new Error('Biography plan too sparse after normalization');
+    return buildHeuristicFallback(heuristicPlan);
   }
 
   if (mergedPlan.branches.some((branch) => branch.events.length === 0)) {
-    throw new Error('Biography plan contains empty branches after normalization');
+    return buildHeuristicFallback(heuristicPlan);
   }
 
   if (!mergedPlan.birthDetails?.date && !mergedPlan.birthDetails?.place && !mergedPlan.branches.length) {
-    return {
-      plan: heuristicPlan,
-      diagnostics: buildBiographyPlanDiagnostics('heuristics-only', heuristicPlan),
-    };
+    return buildHeuristicFallback(heuristicPlan);
   }
 
   return {
