@@ -36,6 +36,14 @@ export function BiographyImportModal({
 }: BiographyImportModalProps) {
   const [activeStep, setActiveStep] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
+  const progressPercent = loading
+    ? Math.min(96, Math.round(((activeStep + 1) / PROGRESS_STEPS.length) * 100))
+    : error
+      ? 100
+      : meta
+        ? 100
+        : 0;
+  const currentStepLabel = PROGRESS_STEPS[activeStep]?.label ?? PROGRESS_STEPS[0].label;
 
   // Reset on open
   useEffect(() => {
@@ -92,6 +100,24 @@ export function BiographyImportModal({
     >
       {loading ? (
         <div className="space-y-3">
+          <div className="space-y-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+            <div className="flex items-center justify-between gap-3 text-sm text-blue-800">
+              <span className="font-medium">{currentStepLabel}</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">
+                {progressPercent}%
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-blue-100">
+              <div
+                className="h-full rounded-full bg-blue-500 transition-[width] duration-500 ease-out"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <div className="text-xs leading-5 text-blue-700">
+              Это может занять до минуты: мы последовательно загружаем статью, извлекаем факты, собираем план и
+              нормализуем итоговый холст.
+            </div>
+          </div>
           {PROGRESS_STEPS.map((step, index) => (
             <div
               key={step.label}

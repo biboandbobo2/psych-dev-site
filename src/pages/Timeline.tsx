@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { flushSync } from 'react-dom';
 import { Icon, type EventIconId } from '../components/Icon';
 import { EVENT_ICON_MAP } from '../data/eventIcons';
 import { useNotes } from '../hooks/useNotes';
@@ -629,7 +630,12 @@ export default function Timeline() {
     setBiographyImportLoading(true);
     setBiographyImportError(null);
     setBiographyMeta(null);
-    setShowBiographyModal(true);
+    flushSync(() => {
+      setShowBiographyModal(true);
+    });
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
 
     try {
       const headers = await buildAuthorizedHeaders({
