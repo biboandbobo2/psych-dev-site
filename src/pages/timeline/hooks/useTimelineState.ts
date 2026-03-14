@@ -26,6 +26,7 @@ import {
   DEFAULT_TIMELINE_NAME,
   getNextTimelineName,
   hasTimelineContent,
+  normalizeImportedTimelineData,
   normalizeTimelineDocument,
 } from '../persistence';
 import { reportAppError } from '../../../lib/errorHandler';
@@ -176,14 +177,7 @@ export function useTimelineState() {
 
   const replaceActiveTimeline = useCallback(
     (nextData: TimelineData, options?: { name?: string }) => {
-      const normalizedData: TimelineData = {
-        ...createEmptyTimelineData(),
-        ...nextData,
-        nodes: nextData.nodes ?? [],
-        edges: nextData.edges ?? [],
-        birthDetails: nextData.birthDetails ?? {},
-        selectedPeriodization: nextData.selectedPeriodization ?? null,
-      };
+      const normalizedData = normalizeImportedTimelineData(nextData);
 
       setCanvases((prev) => {
         if (prev.length === 0) return prev;

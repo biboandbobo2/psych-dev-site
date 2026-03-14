@@ -50,7 +50,7 @@ import { useTimelinePanZoom } from './timeline/hooks/useTimelinePanZoom';
 import { useTimelineDragDrop } from './timeline/hooks/useTimelineDragDrop';
 import { useTimelineBranch } from './timeline/hooks/useTimelineBranch';
 import { useTimelineCRUD } from './timeline/hooks/useTimelineCRUD';
-import { hasTimelineContent } from './timeline/persistence';
+import { hasTimelineContent, normalizeImportedTimelineData } from './timeline/persistence';
 import { lazyWithReload } from '../lib/lazyWithReload';
 const TimelineLeftPanel = lazy(() =>
   lazyWithReload(
@@ -689,6 +689,58 @@ export default function Timeline() {
     }
   };
 
+  const handleImportTimelineJsonFile = async (file: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    debugLog('[Timeline] Timeline JSON import submit', {
+      fileName: file.name,
+      fileSize: file.size,
+      activeTimelineId,
+      activeTimelineName,
+    });
+    appendBiographyDiagnostic('json import requested', {
+      fileName: file.name,
+      fileSize: file.size,
+    });
+    setBiographyImportLoading(true);
+    setBiographyImportError(null);
+
+    try {
+      const rawText = await file.text();
+      const parsed = JSON.parse(rawText) as unknown;
+      const normalizedTimeline = normalizeImportedTimelineData(parsed);
+
+      replaceActiveTimeline(normalizedTimeline, {
+        name: file.name.replace(/\.json$/i, '').trim() || activeTimelineName,
+      });
+      resetTransientTimelineUi();
+      setShowBiographyImportExpanded(false);
+      debugLog('[Timeline] Timeline JSON import applied successfully', {
+        fileName: file.name,
+        nodes: normalizedTimeline.nodes.length,
+        edges: normalizedTimeline.edges.length,
+      });
+      appendBiographyDiagnostic('json timeline applied', {
+        fileName: file.name,
+        nodes: normalizedTimeline.nodes.length,
+        edges: normalizedTimeline.edges.length,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Не удалось загрузить JSON-файл таймлайна.';
+      setBiographyImportError(message);
+      debugError('Timeline JSON import failed', error);
+      appendBiographyDiagnostic('json import failed', message);
+    } finally {
+      setBiographyImportLoading(false);
+      appendBiographyDiagnostic('json import finished');
+    }
+  };
+
   const handleFormSubmit = () => {
     crudHook.handleFormSubmit(
       {
@@ -781,6 +833,7 @@ export default function Timeline() {
             onCloseBiographyImport={handleCloseBiographyImport}
             onBiographySourceUrlChange={handleBiographySourceUrlChange}
             onSubmitBiographyImport={handleImportBiography}
+            onImportTimelineJsonFile={handleImportTimelineJsonFile}
             onBiographyDiagnostic={appendBiographyDiagnostic}
             onBiographyUiSignal={recordBiographyUiSignal}
           />

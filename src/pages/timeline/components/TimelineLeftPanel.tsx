@@ -55,6 +55,7 @@ interface TimelineLeftPanelProps {
   onCloseBiographyImport: () => void;
   onBiographySourceUrlChange: (value: string) => void;
   onSubmitBiographyImport: () => void;
+  onImportTimelineJsonFile: (file: File | null) => void;
   onBiographyDiagnostic: (message: string, details?: unknown) => void;
   onBiographyUiSignal: (
     signal:
@@ -108,6 +109,7 @@ export function TimelineLeftPanel({
   onCloseBiographyImport,
   onBiographySourceUrlChange,
   onSubmitBiographyImport,
+  onImportTimelineJsonFile,
   onBiographyDiagnostic,
   onBiographyUiSignal,
 }: TimelineLeftPanelProps) {
@@ -119,6 +121,7 @@ export function TimelineLeftPanel({
   const exitLinkRef = useRef<HTMLAnchorElement>(null);
   const timelineSelectButtonRef = useRef<HTMLButtonElement>(null);
   const createTimelineButtonRef = useRef<HTMLButtonElement>(null);
+  const timelineJsonInputRef = useRef<HTMLInputElement>(null);
   const [biographyButtonProbe, setBiographyButtonProbe] = useState<string>('probe: not-ready');
   const [leftPanelSignalCounts, setLeftPanelSignalCounts] = useState({
     panel: 0,
@@ -389,6 +392,16 @@ export function TimelineLeftPanel({
     onSubmitBiographyImport();
   };
 
+  const handleTimelineJsonUploadClick = () => {
+    timelineJsonInputRef.current?.click();
+  };
+
+  const handleTimelineJsonFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    onImportTimelineJsonFile(file);
+    event.target.value = '';
+  };
+
   const handlePanelPointerDownCapture = (event: React.PointerEvent<HTMLElement>) => {
     recordLeftPanelSignal('panel', 'react', 'pointerdown', resolveActionTarget(event.target));
   };
@@ -613,8 +626,15 @@ export function TimelineLeftPanel({
                 {biographyImportExpanded ? (
                   <form onSubmit={handleBiographySubmit} className="space-y-2 rounded-xl border border-blue-100 bg-blue-50/70 p-2">
                     <div className="text-[10px] leading-4 text-slate-600">
-                      Вставь прямую ссылку на статью Wikipedia. Таймлайн заполнит текущий пустой холст.
+                      Вставь прямую ссылку на статью Wikipedia или загрузи готовый `.json` таймлайна. Импорт заполнит текущий пустой холст.
                     </div>
+                    <input
+                      ref={timelineJsonInputRef}
+                      type="file"
+                      accept=".json,application/json"
+                      onChange={handleTimelineJsonFileChange}
+                      className="hidden"
+                    />
                     <input
                       type="url"
                       value={biographySourceUrl}
@@ -627,6 +647,14 @@ export function TimelineLeftPanel({
                         {biographyImportError}
                       </div>
                     ) : null}
+                    <button
+                      type="button"
+                      onClick={handleTimelineJsonUploadClick}
+                      disabled={biographyImportLoading}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      Загрузить JSON таймлайна
+                    </button>
                     <button
                       type="submit"
                       onClickCapture={() => onBiographyDiagnostic('submit button click capture')}

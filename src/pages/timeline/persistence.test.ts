@@ -4,6 +4,7 @@ import {
   createEmptyTimelineData,
   createTimelineCanvas,
   DEFAULT_TIMELINE_NAME,
+  normalizeImportedTimelineData,
   normalizeTimelineDocument,
 } from './persistence';
 
@@ -57,5 +58,30 @@ describe('timeline persistence', () => {
       activeCanvasId: 'canvas-id',
       canvases: [canvas],
     });
+  });
+
+  it('normalizes imported timeline data from json file', () => {
+    const normalized = normalizeImportedTimelineData({
+      currentAge: 37,
+      ageMax: 20,
+      nodes: [
+        { id: 'n1', age: 0, label: 'Рождение', isDecision: false, notes: '  born  ' },
+        { id: '', age: 10, label: 'Broken', isDecision: false },
+      ],
+      edges: [
+        { id: 'e1', x: 1600, startAge: 0, endAge: 18, color: '#7dd3fc', nodeId: 'n1' },
+        { id: 'e2', x: 2000, startAge: 1, endAge: 2, color: '#000', nodeId: 'missing' },
+      ],
+      birthDetails: { date: ' 6 июня 1799 ', place: ' Москва ' },
+      selectedPeriodization: 'erikson',
+    });
+
+    expect(normalized.currentAge).toBe(37);
+    expect(normalized.ageMax).toBeGreaterThanOrEqual(100);
+    expect(normalized.nodes).toHaveLength(1);
+    expect(normalized.nodes[0].notes).toBe('born');
+    expect(normalized.edges).toHaveLength(1);
+    expect(normalized.birthDetails?.place).toBe('Москва');
+    expect(normalized.selectedPeriodization).toBe('erikson');
   });
 });
