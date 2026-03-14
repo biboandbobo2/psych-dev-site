@@ -6,6 +6,7 @@ import { doc, getDoc, onSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { SUPER_ADMIN_EMAIL } from '../constants/superAdmin';
 import { reportAppError } from '../lib/errorHandler';
 import { debugLog } from '../lib/debug';
+import { sanitizeGeminiApiKey } from '../lib/geminiKey';
 import type { CourseType } from '../types/tests';
 import type { CourseAccessMap, UserRole } from '../types/user';
 import { hasCourseAccess as checkCourseAccess } from '../types/user';
@@ -77,7 +78,7 @@ export const useAuthStore = create<AuthState>()(
 
       setCourseAccess: (courseAccess) => set({ courseAccess }),
 
-      setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey }),
+      setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey: sanitizeGeminiApiKey(geminiApiKey) ?? null }),
 
       hasCourseAccess: (courseType: CourseType) => {
         const { userRole, courseAccess } = get();

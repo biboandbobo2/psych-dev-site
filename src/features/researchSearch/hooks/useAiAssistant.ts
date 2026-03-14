@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { buildGeminiApiKeyHeader, sanitizeGeminiApiKey } from '../../../lib/geminiKey';
 
 export interface AiAssistantState {
   status: 'idle' | 'loading' | 'success' | 'error';
@@ -49,11 +50,12 @@ export function useAiAssistant() {
     });
 
     try {
+      const geminiApiKeyOverride = sanitizeGeminiApiKey(geminiApiKey);
       const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(geminiApiKey && { 'X-Gemini-Api-Key': geminiApiKey }),
+          ...buildGeminiApiKeyHeader(geminiApiKeyOverride),
         },
         body: JSON.stringify({ message: trimmed, locale: 'ru' }),
       });

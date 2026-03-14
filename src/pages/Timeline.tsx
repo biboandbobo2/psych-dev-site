@@ -8,6 +8,7 @@ import { useNotes } from '../hooks/useNotes';
 import { PageLoader } from '../components/ui';
 import { debugError, debugLog } from '../lib/debug';
 import { buildAuthorizedHeaders } from '../lib/apiAuth';
+import { buildGeminiApiKeyHeader, sanitizeGeminiApiKey } from '../lib/geminiKey';
 import { reportAppError } from '../lib/errorHandler';
 import { useAuthStore } from '../stores/useAuthStore';
 
@@ -590,10 +591,12 @@ export default function Timeline() {
 
   const handleImportBiography = async () => {
     const sourceUrl = biographySourceUrl.trim();
+    const geminiApiKeyOverride = sanitizeGeminiApiKey(geminiApiKey);
     debugLog('[Timeline] Biography import submit', {
       sourceUrl,
       activeTimelineId,
       activeTimelineName,
+      hasGeminiApiKeyOverride: Boolean(geminiApiKeyOverride),
     });
     recordBiographyUiSignal('submit', {
       sourceUrl,
@@ -619,15 +622,15 @@ export default function Timeline() {
     try {
       const headers = await buildAuthorizedHeaders({
         'Content-Type': 'application/json',
-        'X-Gemini-Api-Key': geminiApiKey ?? undefined,
+        ...buildGeminiApiKeyHeader(geminiApiKeyOverride),
       });
       debugLog('[Timeline] Biography import request start', {
         sourceUrl,
-        hasGeminiApiKeyOverride: Boolean(geminiApiKey),
+        hasGeminiApiKeyOverride: Boolean(geminiApiKeyOverride),
       });
       appendBiographyDiagnostic('request start', {
         sourceUrl,
-        hasGeminiApiKeyOverride: Boolean(geminiApiKey),
+        hasGeminiApiKeyOverride: Boolean(geminiApiKeyOverride),
       });
       const response = await fetch('/api/timeline-biography', {
         method: 'POST',
@@ -712,7 +715,11 @@ export default function Timeline() {
       reportAppError({ message: 'Ошибка импорта биографии в таймлайн', error, context: 'Timeline.handleImportBiography' });
       setBiographyImportError(message);
       setBiographyMeta(null);
-      debugError('Timeline biography import failed', error);
+      debugError('Timeline biography import failed', {
+        error,
+        sourceUrl,
+        hasGeminiApiKeyOverride: Boolean(geminiApiKeyOverride),
+      });
       appendBiographyDiagnostic('request failed', message);
     } finally {
       setBiographyImportLoading(false);

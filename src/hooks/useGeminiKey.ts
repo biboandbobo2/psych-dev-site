@@ -4,6 +4,7 @@ import { db } from '../lib/firebase';
 import { useAuthStore } from '../stores/useAuthStore';
 import { reportAppError } from '../lib/errorHandler';
 import { debugLog, debugError } from '../lib/debug';
+import { buildGeminiApiKeyHeader, sanitizeGeminiApiKey } from '../lib/geminiKey';
 
 export type GeminiKeyStatus = 'idle' | 'validating' | 'saving' | 'success' | 'error';
 
@@ -43,7 +44,7 @@ export function useGeminiKey(): UseGeminiKeyReturn {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Gemini-Api-Key': key,
+          ...buildGeminiApiKeyHeader(key),
         },
         body: JSON.stringify({
           message: 'test',
@@ -79,7 +80,7 @@ export function useGeminiKey(): UseGeminiKeyReturn {
       return false;
     }
 
-    const trimmedKey = key.trim();
+    const trimmedKey = sanitizeGeminiApiKey(key) ?? '';
     if (!trimmedKey) {
       setError('Ключ не может быть пустым');
       setStatus('error');

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import type { AiAssistantState } from './useAiAssistant';
 import { MAX_MESSAGE_LENGTH } from './useAiAssistant';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { buildGeminiApiKeyHeader, sanitizeGeminiApiKey } from '../../../lib/geminiKey';
 
 export type ChatMessage = { role: 'user' | 'assistant'; text: string };
 
@@ -50,11 +51,12 @@ export function useAiChat() {
     setMessages((prev) => [...prev, { role: 'user', text: trimmed }]);
 
     try {
+      const geminiApiKeyOverride = sanitizeGeminiApiKey(geminiApiKey);
       const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(geminiApiKey && { 'X-Gemini-Api-Key': geminiApiKey }),
+          ...buildGeminiApiKeyHeader(geminiApiKeyOverride),
         },
         body: JSON.stringify({ message: trimmed, locale: 'ru', history }),
       });
