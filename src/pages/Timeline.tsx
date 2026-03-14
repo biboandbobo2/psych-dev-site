@@ -34,6 +34,8 @@ import {
   MAX_NODE_RADIUS,
   BRANCH_CLICK_WIDTH,
   BRANCH_CLICK_WIDTH_UNSELECTED,
+  DEFAULT_CURRENT_AGE,
+  DEFAULT_AGE_MAX,
 } from './timeline/constants';
 import { screenToWorld, clamp, parseAge } from './timeline/utils';
 import { IconPickerButton } from './timeline/components/IconPickerButton';
@@ -99,6 +101,7 @@ export default function Timeline() {
     currentAge,
     setCurrentAge,
     ageMax,
+    setAgeMax,
     nodes,
     setNodes,
     edges,
@@ -316,6 +319,12 @@ export default function Timeline() {
     onHistoryRecord: recordHistory,
     onClearForm: formHook.clearForm,
     onSetSelectedId: setSelectedId,
+    onAfterClearAll: () => {
+      setBirthDetails({});
+      setSelectedPeriodization(null);
+      setCurrentAge(DEFAULT_CURRENT_AGE);
+      setAgeMax(DEFAULT_AGE_MAX);
+    },
   });
 
   // ============ COMPUTED VALUES ============

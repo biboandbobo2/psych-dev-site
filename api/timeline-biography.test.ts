@@ -192,6 +192,7 @@ describe('api/timeline-biography', () => {
           mainEvents: [
             { age: 0, label: 'Рождение', notes: 'Родился в Москве.', isDecision: false, sphere: 'family' },
             { age: 12, label: 'Поступление в Царскосельский лицей', isDecision: true, sphere: 'education', iconId: 'school-backpack' },
+            { age: 18, label: 'Окончание Лицея', isDecision: false, sphere: 'education', iconId: 'graduation-cap' },
             { age: 21, label: 'Публикация «Руслан и Людмила»', isDecision: true, sphere: 'career', iconId: 'idea-book' },
             { age: 25, label: 'Южная ссылка', isDecision: false, sphere: 'place', iconId: 'passport' },
             { age: 31, label: 'Брак с Натальей Гончаровой', isDecision: true, sphere: 'family', iconId: 'wedding-rings' },
@@ -581,6 +582,7 @@ describe('api/timeline-biography', () => {
           'BIRTH\t6 июня 1799\tМосква\t',
           'MAIN\t0\tРождение\tfamily\tfalse\t\tРодился в Москве',
           'MAIN\t12\tПоступление в Царскосельский лицей\teducation\ttrue\tschool-backpack\t',
+          'MAIN\t18\tОкончание Лицея\teducation\tfalse\tgraduation-cap\t',
           'MAIN\t21\tПубликация «Руслан и Людмила»\tcareer\ttrue\tidea-book\t',
           'MAIN\t25\tЮжная ссылка\tplace\tfalse\tpassport\t',
           'MAIN\t31\tБрак с Натальей Гончаровой\tfamily\ttrue\twedding-rings\t',
@@ -708,7 +710,7 @@ describe('timelineBiography quality guards', () => {
 
     expect(prompt).toContain('Не дублируй один и тот же факт');
     expect(prompt).toContain('Не создавай generic label');
-    expect(prompt).toContain('раннюю, среднюю и позднюю жизнь');
+    expect(prompt).toContain('покрывать всю жизнь РАВНОМЕРНО');
     expect(prompt).toContain('терминальное событие');
   });
 
