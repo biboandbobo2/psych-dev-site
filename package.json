@@ -21,6 +21,8 @@
     "docs:plans": "tsx scripts/generate-plan-overview.ts",
     "timeline:eval": "tsx scripts/evaluateBiographyImport.ts",
     "timeline:benchmark": "tsx scripts/evaluateBiographyBenchmark.ts",
+    "timeline:extractor-benchmark": "tsx scripts/evaluateBiographyExtractorBenchmark.ts",
+    "timeline:extractor-remote-eval": "tsx scripts/runRemoteBiographyExtractorEval.ts",
     "timeline:remote-eval": "tsx scripts/runRemoteTimelineEval.ts",
     "transcripts:import": "tsx scripts/importVideoTranscripts.ts",
     "lectures:ingest": "tsx scripts/importLectureRag.ts",

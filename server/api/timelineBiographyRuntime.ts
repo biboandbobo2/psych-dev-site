@@ -1,8 +1,10 @@
+import { ThinkingLevel } from '@google/genai';
 import type { VercelRequest } from '@vercel/node';
 import { debugError, debugLog } from '../../src/lib/debug.js';
 import { getLectureGenAiClient } from './lectureApiRuntime.js';
 import {
   buildBiographyFactExtractionPrompt,
+  buildBiographyUrlContextFactExtractionPrompt,
   buildBiographyTimelineLinePrompt,
   buildBiographyTimelinePrompt,
   buildBiographyTimelineReviewPrompt,
@@ -346,6 +348,71 @@ async function generateBiographyFacts(prompt: string, apiKey: string) {
   throw lastError ?? new Error('Gemini facts generation failed');
 }
 
+function collectUrlContextMetadata(result: unknown) {
+  if (!result || typeof result !== 'object') return [];
+  if (!('candidates' in result) || !Array.isArray(result.candidates)) return [];
+
+  return result.candidates.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== 'object') return [];
+    const metadata = 'urlContextMetadata' in candidate ? candidate.urlContextMetadata : null;
+    if (!metadata || typeof metadata !== 'object') return [];
+    const urlMetadata = 'urlMetadata' in metadata && Array.isArray(metadata.urlMetadata) ? metadata.urlMetadata : [];
+    return urlMetadata
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return null;
+        const retrievedUrl = 'retrievedUrl' in entry && typeof entry.retrievedUrl === 'string' ? entry.retrievedUrl : '';
+        const urlRetrievalStatus =
+          'urlRetrievalStatus' in entry && typeof entry.urlRetrievalStatus === 'string' ? entry.urlRetrievalStatus : '';
+        if (!retrievedUrl && !urlRetrievalStatus) return null;
+        return {
+          retrievedUrl: retrievedUrl || undefined,
+          urlRetrievalStatus: urlRetrievalStatus || undefined,
+        };
+      })
+      .filter((entry): entry is { retrievedUrl?: string; urlRetrievalStatus?: string } => Boolean(entry));
+  });
+}
+
+async function generateBiographyFactsFromUrlContext(prompt: string, apiKey: string) {
+  const client = getLectureGenAiClient(apiKey);
+  let lastError: unknown = null;
+  const extractorModels = ['gemini-2.5-pro', ...TIMELINE_BIOGRAPHY_MODELS.filter((model) => model !== 'gemini-2.5-pro')];
+
+  for (const model of extractorModels) {
+    try {
+      const result = await client.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.05,
+          maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
+          responseMimeType: 'text/plain',
+          tools: [{ urlContext: {} }],
+          thinkingConfig: {
+            thinkingLevel: ThinkingLevel.HIGH,
+          },
+        },
+      });
+
+      const rawText = collectGeminiResultText(result);
+      return {
+        facts: parseLineBasedBiographyFactCandidates(rawText),
+        model,
+        rawText,
+        urlContextMetadata: collectUrlContextMetadata(result),
+      };
+    } catch (error) {
+      debugError('[timeline-biography] url-context facts generation failed', {
+        model,
+        error,
+      });
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error('Gemini URL-context facts generation failed');
+}
+
 async function generateBiographyFactsAcrossSlices(params: {
   apiKey: string;
   articleTitle: string;
@@ -686,6 +753,24 @@ export type BiographyImportSuccessPayload = {
   };
 };
 
+export type BiographyExtractorSuccessPayload = {
+  ok: true;
+  sourceUrl: string;
+  facts: BiographyFactCandidate[];
+  meta: {
+    factCount: number;
+    model: string;
+    promptVersion: string;
+    rawTextChars: number;
+    strategy: 'url-context';
+    urlContextMetadata: Array<{
+      retrievedUrl?: string;
+      urlRetrievalStatus?: string;
+    }>;
+  };
+  subjectName: string | null;
+};
+
 export async function runBiographyImport(params: {
   sourceUrl: string;
   apiKey: string;
@@ -818,6 +903,36 @@ export async function runBiographyImport(params: {
         hasBirthDate: Boolean(timeline.birthDetails?.date),
         hasBirthPlace: Boolean(timeline.birthDetails?.place),
       },
+    },
+  };
+}
+
+export async function runBiographyFactExtraction(params: {
+  sourceUrl: string;
+  apiKey: string;
+}): Promise<BiographyExtractorSuccessPayload> {
+  const prompt = buildBiographyUrlContextFactExtractionPrompt({
+    sourceUrl: params.sourceUrl,
+  });
+  const extractionResult = await generateBiographyFactsFromUrlContext(prompt, params.apiKey);
+  const subjectLine = extractionResult.rawText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.startsWith('SUBJECT\t'));
+  const subjectName = subjectLine?.split('\t').slice(1).join('\t').trim() || null;
+
+  return {
+    ok: true,
+    sourceUrl: params.sourceUrl,
+    subjectName,
+    facts: extractionResult.facts,
+    meta: {
+      factCount: extractionResult.facts.length,
+      model: extractionResult.model,
+      promptVersion: 'url-context-extractor-v1',
+      rawTextChars: extractionResult.rawText.length,
+      strategy: 'url-context',
+      urlContextMetadata: extractionResult.urlContextMetadata,
     },
   };
 }
