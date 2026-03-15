@@ -273,6 +273,7 @@ export type BiographyEvaluationMetrics = {
 export type BiographyGenerationStageDiagnostics = {
   facts: number;
   factPasses?: number;
+  factsFirstFailure?: string;
   reviewApplied: boolean;
   reviewIssues: string[];
 };

@@ -352,12 +352,8 @@ async function generateBiographyFactsAcrossSlices(params: {
   sourceUrl: string;
   factExtractSlices: string[];
 }) {
-  const allFacts: BiographyFactCandidate[] = [];
-  const models: string[] = [];
-  let lastError: unknown = null;
-
-  for (const [index, extractSlice] of params.factExtractSlices.entries()) {
-    try {
+  const settled = await Promise.allSettled(
+    params.factExtractSlices.map(async (extractSlice, index) => {
       const result = await generateBiographyFacts(
         buildBiographyFactExtractionPrompt({
           articleTitle: params.articleTitle,
@@ -370,17 +366,29 @@ async function generateBiographyFactsAcrossSlices(params: {
         }),
         params.apiKey
       );
-      allFacts.push(...result.facts);
-      models.push(result.model);
-    } catch (error) {
-      debugError('[timeline-biography] facts slice generation failed', {
-        sliceIndex: index,
-        slicesTotal: params.factExtractSlices.length,
-        error,
-      });
-      lastError = error;
+      return { ...result, sliceIndex: index };
+    })
+  );
+
+  const allFacts: BiographyFactCandidate[] = [];
+  const models: string[] = [];
+  let lastError: unknown = null;
+
+  settled.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      allFacts.push(...result.value.facts);
+      models.push(result.value.model);
+      return;
     }
-  }
+
+    const error = result.reason;
+    debugError('[timeline-biography] facts slice generation failed', {
+      sliceIndex: index,
+      slicesTotal: params.factExtractSlices.length,
+      error,
+    });
+    lastError = error;
+  });
 
   if (allFacts.length === 0) {
     throw lastError ?? new Error('Gemini facts generation failed');
@@ -668,6 +676,7 @@ export async function runBiographyImport(params: {
   let reviewApplied = false;
   let reviewIssues: string[] = [];
   let compositionStats: BiographyCompositionStats | null = null;
+  let factsFirstFailure: string | undefined;
 
   try {
     const factsFirstResult = buildFactsFirstPlan({
@@ -684,6 +693,7 @@ export async function runBiographyImport(params: {
     compositionStats = factsFirstResult.compositionStats;
     facts = factsFirstResult.mergedFacts;
   } catch (factsFirstError) {
+    factsFirstFailure = factsFirstError instanceof Error ? factsFirstError.message : 'Facts-first pipeline failed';
     debugError('[timeline-biography] facts-first pipeline failed, falling back to legacy plan path', factsFirstError);
     const legacyResult = await buildLegacyPlan({
       apiKey: params.apiKey,
@@ -727,6 +737,7 @@ export async function runBiographyImport(params: {
   const stageDiagnostics: BiographyGenerationStageDiagnostics = {
     facts: facts.length,
     factPasses: factPasses || undefined,
+    factsFirstFailure,
     reviewApplied,
     reviewIssues,
   };

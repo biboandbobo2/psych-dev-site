@@ -412,11 +412,55 @@ function hasFactInAgeWindow(facts: BiographyFactCandidate[], minAge: number, max
   return facts.some((fact) => Number.isFinite(fact.age) && Number(fact.age) >= minAge && Number(fact.age) <= maxAge);
 }
 
+function buildFactSemanticTokens(candidate: Pick<BiographyFactCandidate, 'labelHint' | 'evidence'>) {
+  return new Set(
+    normalizeFactText(candidate.evidence || candidate.labelHint)
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 5)
+  );
+}
+
+function factsShareApproximateTime(a: BiographyFactCandidate, b: BiographyFactCandidate) {
+  if (Number.isFinite(a.age) && Number.isFinite(b.age)) {
+    return Math.abs(Number(a.age) - Number(b.age)) <= 1;
+  }
+
+  if (Number.isFinite(a.year) && Number.isFinite(b.year)) {
+    return Math.abs(Number(a.year) - Number(b.year)) <= 1;
+  }
+
+  return false;
+}
+
+function factsSharePeople(a: BiographyFactCandidate, b: BiographyFactCandidate) {
+  if (!a.people?.length || !b.people?.length) return false;
+  const peopleA = new Set(a.people.map((person) => normalizeFactText(person)));
+  return b.people.some((person) => peopleA.has(normalizeFactText(person)));
+}
+
 function hasEquivalentFact(facts: BiographyFactCandidate[], candidate: BiographyFactCandidate) {
   return facts.some((fact) => {
-    const sameAge = Number.isFinite(fact.age) && Number.isFinite(candidate.age) && Number(fact.age) === Number(candidate.age);
-    const sameYear = Number.isFinite(fact.year) && Number.isFinite(candidate.year) && Number(fact.year) === Number(candidate.year);
-    return fact.eventType === candidate.eventType && (sameAge || sameYear);
+    if (buildFactCandidateKey(fact) === buildFactCandidateKey(candidate)) {
+      return true;
+    }
+
+    if (fact.eventType !== candidate.eventType || !factsShareApproximateTime(fact, candidate)) {
+      return false;
+    }
+
+    const tokensA = buildFactSemanticTokens(fact);
+    const tokensB = buildFactSemanticTokens(candidate);
+    const sharedTokens = [...tokensA].filter((token) => tokensB.has(token));
+    if (sharedTokens.length >= 2) {
+      return true;
+    }
+
+    if (factsSharePeople(fact, candidate)) {
+      return true;
+    }
+
+    return false;
   });
 }
 
@@ -471,9 +515,17 @@ export function mergeFactCandidates(params: {
     ? Math.max(0, (inferredDeathYear ?? new Date().getFullYear()) - birthYear)
     : 40;
 
-  const supplementalHeuristicFacts = params.heuristicFacts.filter(
-    (fact) => fact.importance === 'high' && !hasEquivalentFact(params.modelFacts, fact)
-  );
+  const supplementalHeuristicFacts = params.heuristicFacts.filter((fact) => {
+    if (hasEquivalentFact(params.modelFacts, fact)) {
+      return false;
+    }
+
+    if (fact.importance === 'high') {
+      return true;
+    }
+
+    return fact.importance === 'medium' && Boolean(fact.themes?.length) && !isGenericLabel(fact.labelHint);
+  });
   let merged = dedupeFactCandidates([...params.modelFacts, ...supplementalHeuristicFacts]);
 
   merged = ensureEarlyLifeFactCoverage(merged, params.heuristicFacts, currentAge);
