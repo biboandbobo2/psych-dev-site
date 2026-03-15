@@ -470,6 +470,9 @@ src/hooks/
   - Страница ждёт `window.__TIMELINE_AUTOMATION_PAYLOAD__`, рендерит готовый timeline тем же `TimelineCanvas` и умеет скачать `JSON`/`PDF` как обычные browser downloads.
   - CLI: `npm run timeline:remote-eval -- --base-url=https://...vercel.app --source-url=https://ru.wikipedia.org/wiki/...`
     - Скрипт вызывает automation endpoint, сохраняет `response.json`, затем через Playwright открывает render route и сохраняет `timeline.json`, `timeline.pdf` и screenshot в `tmp/timeline-runs/...`.
+- Для фактологической оценки поверх готового `response.json` добавлен benchmark CLI:
+  - `npm run timeline:benchmark -- --benchmark=elizabeth-ii --source-url=https://ru.wikipedia.org/wiki/Елизавета_II --response-json=tmp/timeline-runs/.../response.json --out=tmp/elizabeth-ii-benchmark.json`
+  - Скрипт сравнивает timeline с curated benchmark facts, считает общее и critical coverage и помогает ловить регрессии универсальности между разными биографиями.
 - `Очистить всё` по-прежнему очищает только активный холст.
 
 ## Экспорт таймлайна
