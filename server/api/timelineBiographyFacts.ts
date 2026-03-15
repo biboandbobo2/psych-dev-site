@@ -152,6 +152,25 @@ function isGenericLabel(label: string | undefined) {
   return Boolean(label && GENERIC_LABEL_PATTERN.test(label.trim()));
 }
 
+function scoreFactCandidateForDedupe(candidate: BiographyFactCandidate) {
+  const importanceScore = candidate.importance === 'high' ? 6 : candidate.importance === 'medium' ? 4 : 2;
+  const confidenceScore = candidate.confidence === 'high' ? 6 : candidate.confidence === 'medium' ? 4 : 2;
+  const sourceScore = candidate.source === 'model' ? 1 : 0;
+  const specificityScore = isGenericLabel(candidate.labelHint) ? 0 : 3;
+  const themeScore = Math.min(3, candidate.themes?.length || 0);
+  const peopleScore = Math.min(2, candidate.people?.length || 0);
+  const precisionScore =
+    candidate.timePrecision === 'exact'
+      ? 3
+      : candidate.timePrecision === 'year'
+        ? 2
+        : candidate.timePrecision === 'approximate'
+          ? 1
+          : 0;
+
+  return importanceScore + confidenceScore + sourceScore + specificityScore + themeScore + peopleScore + precisionScore;
+}
+
 function normalizeEvidence(value: string | undefined, fallback: string) {
   return normalizeText(value, 700) || normalizeText(fallback, 700) || fallback;
 }
@@ -289,9 +308,9 @@ export function dedupeFactCandidates(candidates: BiographyFactCandidate[]) {
       continue;
     }
 
-    const existingScore = `${existing.source}:${existing.importance}:${existing.confidence}:${existing.evidence.length}`;
-    const nextScore = `${candidate.source}:${candidate.importance}:${candidate.confidence}:${candidate.evidence.length}`;
-    if (nextScore > existingScore) {
+    const existingScore = scoreFactCandidateForDedupe(existing);
+    const nextScore = scoreFactCandidateForDedupe(candidate);
+    if (nextScore > existingScore || (nextScore === existingScore && candidate.evidence.length > existing.evidence.length)) {
       deduped.set(key, candidate);
     }
   }

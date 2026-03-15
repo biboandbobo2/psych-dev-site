@@ -49,4 +49,42 @@ describe('timelineBiographyFacts', () => {
     expect(earlyFacts.some((fact) => Number(fact.age) >= 7 && Number(fact.age) <= 12)).toBe(true);
     expect(earlyFacts.length).toBeGreaterThan(modelFacts.filter((fact) => Number(fact.age) <= 18).length);
   });
+
+  it('вытаскивает high-salience факты про утраты, друзей, семейный конфликт и отношения без пушкинского хардкода', () => {
+    const extract = [
+      'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
+      'В 1825 году после восстания декабристов многие его друзья были арестованы.',
+      'В 1828 году у него завязались отношения с Анной Керн.',
+      'В 1830 году произошла ссора с отцом.',
+      'В 1836 году умерла его мать.',
+    ].join(' ');
+
+    const facts = buildHeuristicFactCandidates(extract, 'Пушкин, Александр Сергеевич');
+
+    expect(facts.some((fact) => fact.labelHint === 'Восстание друзей-декабристов')).toBe(true);
+    expect(
+      facts.some(
+        (fact) =>
+          fact.labelHint === 'Отношения с Анной Керн' &&
+          fact.themes?.includes('romance') &&
+          fact.people?.some((person) => person.includes('Керн'))
+      )
+    ).toBe(true);
+    expect(
+      facts.some(
+        (fact) =>
+          fact.labelHint === 'Ссора с отцом' &&
+          fact.themes?.includes('conflict_duels') &&
+          fact.sphere === 'family'
+      )
+    ).toBe(true);
+    expect(
+      facts.some(
+        (fact) =>
+          fact.labelHint === 'Смерть матери' &&
+          fact.themes?.includes('losses') &&
+          fact.sphere === 'family'
+      )
+    ).toBe(true);
+  });
 });

@@ -497,6 +497,286 @@ function dedupeEvents(events: BiographyTimelineEventPlan[]) {
   return [...deduped.values()].sort((a, b) => a.age - b.age);
 }
 
+function normalizeFactLabelHint(label: string) {
+  return normalizeWhitespace(label).slice(0, 80);
+}
+
+function resolveYearBasedAge(year: number, birthYear?: number) {
+  if (!birthYear) return undefined;
+  const age = year - birthYear;
+  return age >= 0 && age <= 120 ? age : undefined;
+}
+
+function buildApproximateAgeLabel(minAge: number, maxAge: number) {
+  if (minAge === maxAge) {
+    return `примерно ${minAge} лет`;
+  }
+  return `примерно ${minAge}-${maxAge} лет`;
+}
+
+function buildHeuristicFactFromSentence(params: {
+  sentence: string;
+  birthYear?: number;
+  year?: number;
+  age?: number;
+  ageMin?: number;
+  ageMax?: number;
+  category: BiographyTimelineFact['category'];
+  sphere: TimelineSphere;
+  labelHint: string;
+  importance: BiographyTimelineFact['importance'];
+  timePrecision?: BiographyTimelineFact['timePrecision'];
+  themes?: BiographyTimelineFact['themes'];
+  people?: string[];
+  relationRoles?: string[];
+}) {
+  const normalizedSentence = normalizeWhitespace(params.sentence).slice(0, 700);
+  const derivedAge =
+    params.age ??
+    (Number.isFinite(params.year) ? resolveYearBasedAge(Number(params.year), params.birthYear) : undefined) ??
+    (Number.isFinite(params.ageMin) && Number.isFinite(params.ageMax)
+      ? Math.round((Number(params.ageMin) + Number(params.ageMax)) / 2)
+      : Number.isFinite(params.ageMin)
+        ? Number(params.ageMin)
+        : Number.isFinite(params.ageMax)
+          ? Number(params.ageMax)
+          : undefined);
+
+  if (!Number.isFinite(derivedAge) && !Number.isFinite(params.year)) {
+    return null;
+  }
+
+  return {
+    year: params.year,
+    age: derivedAge,
+    ageMin: params.ageMin,
+    ageMax: params.ageMax,
+    ageLabel:
+      Number.isFinite(params.ageMin) && Number.isFinite(params.ageMax)
+        ? buildApproximateAgeLabel(Number(params.ageMin), Number(params.ageMax))
+        : undefined,
+    timePrecision:
+      params.timePrecision ??
+      (Number.isFinite(params.year)
+        ? 'year'
+        : Number.isFinite(params.ageMin) || Number.isFinite(params.ageMax)
+          ? 'approximate'
+          : Number.isFinite(derivedAge)
+            ? 'inferred'
+            : undefined),
+    sphere: params.sphere,
+    category: params.category,
+    labelHint: normalizeFactLabelHint(params.labelHint),
+    details: normalizedSentence,
+    importance: params.importance,
+    themes: params.themes,
+    people: params.people?.filter(Boolean),
+    relationRoles: params.relationRoles?.filter(Boolean),
+  } satisfies BiographyTimelineFact;
+}
+
+function extractNamedPersonAfter(sentence: string, pattern: RegExp) {
+  return sentence.match(pattern)?.[1]?.trim();
+}
+
+function normalizeLossRelationLabel(value: string) {
+  const normalized = value.toLowerCase();
+  if (normalized.startsWith('мат')) return 'матери';
+  if (normalized.startsWith('от')) return 'отца';
+  if (normalized.startsWith('родител')) return 'родителей';
+  if (normalized.startsWith('жен')) return 'жены';
+  if (normalized.startsWith('муж')) return 'мужа';
+  if (normalized.startsWith('сын')) return 'сына';
+  if (normalized.startsWith('доч')) return 'дочери';
+  if (normalized.startsWith('друг')) return 'друга';
+  if (normalized.startsWith('нян')) return 'няни';
+  return normalized;
+}
+
+function normalizeConflictTargetLabel(value: string) {
+  const normalized = value.toLowerCase();
+  if (normalized.startsWith('от')) return 'отцом';
+  if (normalized.startsWith('мат')) return 'матерью';
+  if (normalized.startsWith('родител')) return 'родителями';
+  if (normalized.startsWith('семь')) return 'семьёй';
+  return normalized;
+}
+
+function extractRelativeContextFacts(extract: string): BiographyTimelineFact[] {
+  const sentences = splitBiographyExtractIntoSentences(extract);
+  const facts: BiographyTimelineFact[] = [];
+
+  for (const sentence of sentences) {
+    if (extractYears(sentence).length > 0 || sentence.length > 220) continue;
+
+    const nanny = extractNamedPersonAfter(
+      sentence,
+      /(?:нян[яеи]|кормилиц[аеи]|гувернантк[аеи]|наставниц[аеи]|наставник[а-я]*)\s+([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+){0,2})/u
+    );
+    if (/нян|гуверн|настав|воспитател/i.test(sentence)) {
+      const fact = buildHeuristicFactFromSentence({
+        sentence,
+        category: 'education',
+        sphere: 'education',
+        labelHint: nanny ? `Няня ${nanny}` : 'Домашний наставник',
+        importance: 'high',
+        ageMin: 4,
+        ageMax: 8,
+        themes: ['upbringing_mentors', 'education'],
+        people: nanny ? [nanny] : undefined,
+        relationRoles: nanny ? ['няня'] : ['наставник'],
+      });
+      if (fact) facts.push(fact);
+      continue;
+    }
+
+    if (/в детств|детские годы|ранние годы|домашн.*библиотек|много читал|ранн.*чтен|перв.*стих/i.test(sentence)) {
+      const fact = buildHeuristicFactFromSentence({
+        sentence,
+        category: 'education',
+        sphere: 'education',
+        labelHint: /стих/i.test(sentence) ? 'Первые литературные опыты' : 'Раннее увлечение чтением',
+        importance: 'medium',
+        ageMin: /детств|ранние годы/i.test(sentence) ? 5 : 6,
+        ageMax: /детств|ранние годы/i.test(sentence) ? 8 : 10,
+        themes: ['education', 'upbringing_mentors'],
+      });
+      if (fact) facts.push(fact);
+      continue;
+    }
+
+    if (/юност|подростк|в лицейские годы/i.test(sentence)) {
+      const fact = buildHeuristicFactFromSentence({
+        sentence,
+        category: 'education',
+        sphere: 'education',
+        labelHint: 'Юношеское становление',
+        importance: 'medium',
+        ageMin: 14,
+        ageMax: 18,
+        themes: ['education'],
+      });
+      if (fact) facts.push(fact);
+    }
+  }
+
+  return facts;
+}
+
+function extractHighSalienceFactsFromExtract(extract: string, birthYear?: number): BiographyTimelineFact[] {
+  const sentences = splitBiographyExtractIntoSentences(extract);
+  const facts: BiographyTimelineFact[] = [];
+
+  for (const sentence of sentences) {
+    const year = extractYears(sentence)[0];
+    const age = Number.isFinite(year) ? resolveYearBasedAge(year, birthYear) : undefined;
+    if (!Number.isFinite(age) && !Number.isFinite(year)) continue;
+
+    const lossRelation = /(умерла|умер|скончал(?:ась|ся)?|смерть|кончина)/i.test(sentence)
+      ? sentence.match(/(матери|мать|отца|отец|родителей|родителя|жены|жена|мужа|муж|няни|няня|сына|сын|дочери|дочь|друга|друг)/i)?.[1]
+      : undefined;
+    if (lossRelation) {
+      const normalizedLossRelation = normalizeLossRelationLabel(lossRelation);
+      const fact = buildHeuristicFactFromSentence({
+        sentence,
+        birthYear,
+        year,
+        age,
+        category: 'family',
+        sphere: 'family',
+        labelHint: `Смерть ${normalizedLossRelation}`,
+        importance: 'high',
+        themes: ['losses', 'family_household'],
+        relationRoles: [normalizedLossRelation],
+      });
+      if (fact) facts.push(fact);
+      continue;
+    }
+
+    const romanceName = extractNamedPersonAfter(
+      sentence,
+      /(?:отношени[яй]|роман|любовь|увлечени[ея]|переписк[аи]|связ[ьи])\s+(?:с|к)\s+([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+){0,2})/u
+    );
+    if (romanceName) {
+      const fact = buildHeuristicFactFromSentence({
+        sentence,
+        birthYear,
+        year,
+        age,
+        category: 'family',
+        sphere: 'family',
+        labelHint: `Отношения с ${romanceName}`,
+        importance: /любов|роман/i.test(sentence) ? 'high' : 'medium',
+        themes: ['romance'],
+        people: [romanceName],
+        relationRoles: ['партнёр'],
+      });
+      if (fact) facts.push(fact);
+      continue;
+    }
+
+    const familyConflictTarget = sentence.match(
+      /(?:ссор[а-я]*|конфликт|разрыв)[^.!?]{0,40}\s+с\s+(отцом|отца|матерью|матью|родителями|семьёй|семьей)/i
+    )?.[1];
+    if (familyConflictTarget) {
+      const normalizedConflictTarget = normalizeConflictTargetLabel(familyConflictTarget);
+      const fact = buildHeuristicFactFromSentence({
+        sentence,
+        birthYear,
+        year,
+        age,
+        category: 'conflict',
+        sphere: 'family',
+        labelHint: `Ссора с ${normalizedConflictTarget}`,
+        importance: 'high',
+        themes: ['family_household', 'conflict_duels'],
+        relationRoles: [normalizedConflictTarget],
+      });
+      if (fact) facts.push(fact);
+      continue;
+    }
+
+    if (/(декабр|восстан|арест|казн|сослан)/i.test(sentence) && /(друз|друг|товарищ|круг|лицейск|приятел)/i.test(sentence)) {
+      const fact = buildHeuristicFactFromSentence({
+        sentence,
+        birthYear,
+        year,
+        age,
+        category: 'friends',
+        sphere: 'friends',
+        labelHint: /декабр|восстан/i.test(sentence) ? 'Восстание друзей-декабристов' : 'Удар по кругу друзей',
+        importance: 'high',
+        themes: ['friends_network', 'politics_public_pressure', 'losses'],
+      });
+      if (fact) facts.push(fact);
+      continue;
+    }
+
+    if (/(родил\S*\s+(?:сын|дочь|ребён|ребен))/i.test(sentence)) {
+      const childName = extractNamedPersonAfter(
+        sentence,
+        /(?:сын|дочь|ребёнок|ребенок)\s+([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+){0,2})/u
+      );
+      const fact = buildHeuristicFactFromSentence({
+        sentence,
+        birthYear,
+        year,
+        age,
+        category: 'family',
+        sphere: 'family',
+        labelHint: childName ? `Рождение ребёнка: ${childName}` : 'Рождение ребёнка',
+        importance: 'high',
+        themes: ['children', 'family_household'],
+        people: childName ? [childName] : undefined,
+        relationRoles: ['ребёнок'],
+      });
+      if (fact) facts.push(fact);
+    }
+  }
+
+  return facts;
+}
+
 function extractTargetedEvents(
   extract: string,
   birthYear: number | undefined,
@@ -602,6 +882,14 @@ export function extractPsychologicallySignificantEvents(extract: string, birthYe
     },
     { pattern: /(?:арест|заключ|тюрьм|каторг|приговор|осужд)/i, labelFn: () => 'Арест', sphere: 'career' },
     {
+      pattern: /(?:ссор[а-я]*|конфликт|разрыв)[^.!?]{0,40}\s+с\s+(?:отцом|отца|матерью|матью|родителями|семьёй|семьей)/i,
+      labelFn: (s) => {
+        const target = s.match(/(?:ссор[а-я]*|конфликт|разрыв)[^.!?]{0,40}\s+с\s+(\S+)/i)?.[1];
+        return target ? `Ссора с ${normalizeConflictTargetLabel(target)}` : 'Семейный конфликт';
+      },
+      sphere: 'family',
+    },
+    {
       pattern: /(?:сослан|ссылк|изгнан|высл)/i,
       labelFn: (s) => {
         const where = s.match(/(?:ссыл\S*|сослан\S*)\s+(?:в|на)\s+([А-ЯЁ]\S+)/u)?.[1];
@@ -613,6 +901,22 @@ export function extractPsychologicallySignificantEvents(extract: string, birthYe
     { pattern: /(?:развод|расстав|разрыв\S*\s+(?:с\s+)?(?:жен|муж|супруг))/i, labelFn: () => 'Разрыв в семье', sphere: 'family' },
     { pattern: /(?:банкрот|разорен|долг\S*\s+(?:привел|вынудил|заставил))/i, labelFn: () => 'Финансовый кризис', sphere: 'finance' },
     { pattern: /(?:дуэл)/i, labelFn: () => 'Дуэль', sphere: 'health' },
+    {
+      pattern: /(?:отношени[яй]|роман|любовь|увлечени[ея]|связ[ьи])\s+(?:с|к)\s+[А-ЯЁ]/u,
+      labelFn: (s) => {
+        const person = extractNamedPersonAfter(
+          s,
+          /(?:отношени[яй]|роман|любовь|увлечени[ея]|связ[ьи])\s+(?:с|к)\s+([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+){0,2})/u
+        );
+        return person ? `Отношения с ${person}` : 'Любовная связь';
+      },
+      sphere: 'family',
+    },
+    {
+      pattern: /(?:декабр|восстан|арест|казн|сослан).*(?:друз|друг|товарищ|круг|лицейск|приятел)/i,
+      labelFn: (s) => (/декабр|восстан/i.test(s) ? 'Восстание друзей-декабристов' : 'Удар по кругу друзей'),
+      sphere: 'friends',
+    },
     {
       pattern: /(?:родил\S*\s+(?:сын|дочь|ребён|перв\S+\s+ребён))/i,
       labelFn: (s) => {
@@ -657,9 +961,15 @@ export function buildHeuristicBiographyFacts(extract: string, articleTitle: stri
     ...extractChildhoodEventsFromExtract(extract, birthYear),
     ...extractRelativeChildhoodEventsFromExtract(extract, birthYear),
     ...extractFriendshipEventsFromExtract(extract, birthYear),
+    ...extractPsychologicallySignificantEvents(extract, birthYear),
   ]);
+  const directFacts = [
+    ...extractRelativeContextFacts(extract),
+    ...extractHighSalienceFactsFromExtract(extract, birthYear),
+  ];
 
-  return events.map((event) => {
+  return [
+    ...events.map((event): BiographyTimelineFact => {
     const normalizedText = `${event.label} ${event.notes ?? ''}`.toLowerCase();
     const category =
       event.age === 0
@@ -678,19 +988,21 @@ export function buildHeuristicBiographyFacts(extract: string, articleTitle: stri
                     ? 'publication'
                     : event.sphere ?? 'other';
 
-    return {
-      year: birthYear ? birthYear + Math.round(event.age) : undefined,
-      age: event.age,
-      sphere: event.sphere,
-      category,
-      labelHint: event.label,
-      details: event.notes || event.label,
-      importance:
-        event.age === 0 || /(смерт|гибел|умер|дуэл|брак|поступ|публик|лицейск|друж|детств)/i.test(normalizedText)
-          ? 'high'
-          : 'medium',
-    };
-  });
+      return {
+        year: birthYear ? birthYear + Math.round(event.age) : undefined,
+        age: event.age,
+        sphere: event.sphere,
+        category,
+        labelHint: event.label,
+        details: event.notes || event.label,
+        importance:
+          event.age === 0 || /(смерт|гибел|умер|дуэл|брак|поступ|публик|лицейск|друж|детств)/i.test(normalizedText)
+            ? 'high'
+            : 'medium',
+      };
+    }),
+    ...directFacts,
+  ];
 }
 
 export function summarizeBiographyFacts(facts: BiographyTimelineFact[], articleTitle: string) {
