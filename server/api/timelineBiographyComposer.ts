@@ -1,6 +1,7 @@
 import { buildFactCandidateKey } from './timelineBiographyFacts.js';
 import {
   buildHeuristicLabel,
+  extractYears,
   extractQuotedWorkTitle,
   inferBirthDetailsFromExtract,
   inferCanvasName,
@@ -63,7 +64,28 @@ function resolveSphere(fact: BiographyFactCandidate) {
   return fact.sphere ?? inferSphereFromSentence(fact.evidence) ?? 'other';
 }
 
-function prepareFactCandidates(facts: BiographyFactCandidate[], birthYear?: number) {
+function isPosthumousFact(fact: BiographyFactCandidate, deathYear: number | undefined, birthYear: number | undefined) {
+  if (!Number.isFinite(deathYear)) return false;
+  const resolvedYear =
+    Number.isFinite(fact.year) ? Number(fact.year) : Number.isFinite(fact.age) && Number.isFinite(birthYear) ? Number(birthYear) + Number(fact.age) : undefined;
+  if (Number.isFinite(resolvedYear) && Number(resolvedYear) > Number(deathYear)) {
+    return true;
+  }
+  return /после (?:его|её) смерти|посмерт|на могиле|похорон|похороны|собрание сочинений|памят[ьи]|эмигрировал|была арестована/i.test(
+    fact.evidence
+  );
+}
+
+function hasConflictingEvidenceYear(fact: BiographyFactCandidate, birthYear: number | undefined) {
+  if (!Number.isFinite(birthYear) || !Number.isFinite(fact.age)) return false;
+  const evidenceYears = extractYears(fact.evidence);
+  if (evidenceYears.length === 0) return false;
+  const inferredAgeFromEvidence = evidenceYears[0] - Number(birthYear);
+  if (!Number.isFinite(inferredAgeFromEvidence)) return false;
+  return Math.abs(inferredAgeFromEvidence - Number(fact.age)) > 4;
+}
+
+function prepareFactCandidates(facts: BiographyFactCandidate[], birthYear?: number, deathYear?: number) {
   return facts
     .map((fact) => {
       const resolvedAge =
@@ -72,6 +94,8 @@ function prepareFactCandidates(facts: BiographyFactCandidate[], birthYear?: numb
 
       if (!Number.isFinite(resolvedAge)) return null;
       if (Number(resolvedAge) < 0 || Number(resolvedAge) > 120) return null;
+      if (isPosthumousFact(fact, deathYear, birthYear)) return null;
+      if (hasConflictingEvidenceYear(fact, birthYear)) return null;
 
       const resolvedThemes = getFactThemes(fact);
 
@@ -479,7 +503,8 @@ export function composeBiographyPlanFromFacts(params: {
   const inferredBirth = inferBirthDetailsFromExtract(params.extract);
   const subjectName = inferSubjectName(params.articleTitle);
   const canvasName = inferCanvasName(subjectName);
-  const preparedFacts = prepareFactCandidates(params.facts, inferredBirth.birthYear);
+  const inferredDeathYear = inferDeathYearFromExtract(params.extract);
+  const preparedFacts = prepareFactCandidates(params.facts, inferredBirth.birthYear, inferredDeathYear);
   const currentAge = determineCurrentAge(preparedFacts, params.extract, inferredBirth.birthYear);
   const mainFacts = rebalanceMainFactsForBranches(
     preparedFacts,

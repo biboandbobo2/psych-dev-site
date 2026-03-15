@@ -31,4 +31,28 @@ describe('timelineBiographyComposer', () => {
     expect(result.plan.branches.length).toBeGreaterThanOrEqual(1);
     expect(result.plan.branches.every((branch) => branch.sourceMainEventIndex > 0)).toBe(true);
   });
+
+  it('не тащит постсмертные факты в life timeline умершего человека', () => {
+    const facts = parseLineBasedBiographyFactCandidates([
+      'FACT\t1828\t0\tbirth\tfamily\thigh\tРождение\tРодился в Ясной Поляне.',
+      'FACT\t1852\t24\tpublication\tcreativity\thigh\t«Детство»\tОпубликовал повесть «Детство».',
+      'FACT\t1910\t82\tdeath\thealth\thigh\tСмерть\tУмер на станции Астапово.',
+      'FACT\t1913\t85\tother\tother\tmedium\tВ январе 1913 года было\tВ январе 1913 года было опубликовано письмо графини.',
+      'FACT\t1944\t116\tother\tother\tmedium\tСмерть Михаила\tСкончался 19 октября 1944 года в Марокко.',
+    ].join('\n'));
+
+    const result = composeBiographyPlanFromFacts({
+      facts,
+      articleTitle: 'Толстой, Лев Николаевич',
+      extract: [
+        'Лев Николаевич Толстой (1828—1910).',
+        'В 1852 году опубликовал повесть «Детство».',
+        'В 1910 году умер на станции Астапово.',
+      ].join(' '),
+    });
+
+    expect(result.plan.currentAge).toBe(82);
+    expect(result.plan.mainEvents.some((event) => event.age > 82)).toBe(false);
+    expect(result.plan.mainEvents.some((event) => event.label.includes('1913'))).toBe(false);
+  });
 });

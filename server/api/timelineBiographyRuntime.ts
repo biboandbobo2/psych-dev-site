@@ -454,13 +454,14 @@ async function buildLegacyPlan(params: {
   apiKey: string;
   wikiTitle: string;
   sourceUrl: string;
+  promptExtract: string;
   extract: string;
   factsSummary: string;
 }) {
   const prompt = buildBiographyTimelinePrompt({
     articleTitle: params.wikiTitle,
     sourceUrl: params.sourceUrl,
-    extract: params.extract,
+    extract: params.promptExtract,
     factsSummary: params.factsSummary,
   });
 
@@ -473,7 +474,7 @@ async function buildLegacyPlan(params: {
       buildBiographyTimelineLinePrompt({
         articleTitle: params.wikiTitle,
         sourceUrl: params.sourceUrl,
-        extract: params.extract,
+        extract: params.promptExtract,
         factsSummary: params.factsSummary,
       }),
       params.apiKey
@@ -551,7 +552,8 @@ export async function runBiographyImport(params: {
   apiKey: string;
 }): Promise<BiographyImportSuccessPayload> {
   const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
-  const promptExtract = wikiPage.promptExtract || wikiPage.extract;
+  const biographyExtract = wikiPage.biographyExtract || wikiPage.extract;
+  const promptExtract = wikiPage.promptExtract || biographyExtract;
   let factsModel = 'heuristics';
   let facts: BiographyFactCandidate[];
   try {
@@ -567,7 +569,7 @@ export async function runBiographyImport(params: {
     factsModel = factsResult.model;
   } catch {
     debugLog('[timeline-biography] facts generation failed, falling back to heuristics');
-    facts = buildHeuristicFactCandidates(wikiPage.extract, wikiPage.title);
+    facts = buildHeuristicFactCandidates(biographyExtract, wikiPage.title);
   }
 
   const factsSummary = summarizeBiographyFacts(facts, wikiPage.title);
@@ -588,7 +590,7 @@ export async function runBiographyImport(params: {
     const factsFirstResult = buildFactsFirstPlan({
       facts,
       articleTitle: wikiPage.title,
-      extract: wikiPage.extract,
+      extract: biographyExtract,
       factsModel,
     });
     model = factsFirstResult.model;
@@ -604,7 +606,8 @@ export async function runBiographyImport(params: {
       apiKey: params.apiKey,
       wikiTitle: wikiPage.title,
       sourceUrl: wikiPage.canonicalUrl,
-      extract: promptExtract,
+      promptExtract,
+      extract: biographyExtract,
       factsSummary,
     });
     model = legacyResult.model;

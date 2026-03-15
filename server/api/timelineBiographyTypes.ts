@@ -130,6 +130,7 @@ export type BiographyTimelineData = {
 export type WikipediaPageExtract = {
   title: string;
   extract: string;
+  biographyExtract: string;
   promptExtract: string;
   canonicalUrl: string;
 };

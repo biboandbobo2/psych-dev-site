@@ -179,6 +179,15 @@ function normalizeEvidence(value: string | undefined, fallback: string) {
   return normalizeText(value, 700) || normalizeText(fallback, 700) || fallback;
 }
 
+function isBrokenFactFragment(value: string | undefined) {
+  if (!value) return false;
+  const normalized = value.trim();
+  if (normalized.length < 4) return true;
+  if (/^(?:[А-ЯA-Z]\.){1,4}$/u.test(normalized)) return true;
+  if (/^\d{4}[^А-Яа-яA-Za-zЁё]*[А-ЯA-Z]\.$/u.test(normalized)) return true;
+  return false;
+}
+
 function inferThemesFromCandidate(candidate: {
   eventType: BiographyEventType;
   sphere?: TimelineSphere;
@@ -274,7 +283,11 @@ export function normalizeFactCandidate(candidate: BiographyFactCandidate): Biogr
   const people = candidate.people?.map((person) => normalizeText(person, 120)).filter(Boolean);
   const relationRoles = candidate.relationRoles?.map((role) => normalizeText(role, 80)).filter(Boolean);
 
+  if (isBrokenFactFragment(labelHint)) {
+    labelHint = undefined;
+  }
   if (!labelHint && !evidence) return null;
+  if (!labelHint && isBrokenFactFragment(evidence)) return null;
   if (!Number.isFinite(inferredAge) && !Number.isFinite(year)) return null;
   if (Number.isFinite(inferredAge) && Number(inferredAge) === 0 && eventType !== 'birth') return null;
 

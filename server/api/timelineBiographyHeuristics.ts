@@ -176,6 +176,14 @@ function extractInstitutionLabel(sentence: string) {
   return normalizeWhitespace(match?.[1] ?? '');
 }
 
+function isPosthumousContextSentence(sentence: string) {
+  return /похорон|похороны|могил|гроб|покойн|посмерт|на его могиле|на её могиле/i.test(sentence);
+}
+
+function extractLossRelationFromSentence(sentence: string) {
+  return sentence.match(/(матери|мать|отца|отец|родителей|родителя|жены|жена|мужа|муж|няни|няня|сына|сын|дочери|дочь|друга|друг|опекун[а-я]*)/i)?.[1];
+}
+
 export function inferBirthDetailsFromExtract(extract: string) {
   const sentences = splitBiographyExtractIntoSentences(extract);
   const birthSentence = sentences.find((sentence) => /родил|born/i.test(sentence)) ?? sentences[0] ?? '';
@@ -320,10 +328,23 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   );
   const spouse = sentence.match(/\bс\s+([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+){0,2})/u)?.[1]?.trim() ?? undefined;
   const institution = extractInstitutionLabel(sentence) || undefined;
+  const lossRelation = extractLossRelationFromSentence(sentence);
+  const deathPerson = sentence.match(
+    /(?:умерла|умер|скончал(?:ась|ся)?|погиб(?:ла)?)[^.!?]{0,20}\s+([А-ЯЁ][а-яё-]+(?:-[А-ЯЁ][а-яё-]+)?(?:\s+[А-ЯЁ][а-яё-]+){0,2})/u
+  )?.[1]?.trim();
 
   if (isRegistryMetadataSentence(sentence)) return 'Рождение';
   if (/родил|born/i.test(sentence)) return 'Рождение';
+  if (/(?:едва не|чуть не)\s+погиб/i.test(sentence)) {
+    return /охот/i.test(sentence) ? 'Опасная охота' : 'Опасный эпизод';
+  }
   if (/дуэл/i.test(sentence) && /умер|погиб|скончал|died/i.test(sentence)) return 'Дуэль и смерть';
+  if (/умер|скончал|погиб|died/i.test(sentence) && lossRelation) {
+    return `Смерть ${normalizeLossRelationLabel(lossRelation)}`;
+  }
+  if (/умер|скончал|погиб|died/i.test(sentence) && deathPerson) {
+    return `Смерть ${deathPerson}`;
+  }
   if (/умер|скончал|погиб|died/i.test(sentence)) return 'Смерть';
   if (/женил|брак|свад/i.test(sentence)) return spouse ? `Брак с ${spouse}` : 'Брак';
   if (/родил\S*\s+(?:сын|дочь|ребён)/i.test(sentence)) return 'Рождение ребёнка';
@@ -545,7 +566,10 @@ function dedupeEvents(events: BiographyTimelineEventPlan[]) {
 }
 
 function normalizeFactLabelHint(label: string) {
-  return normalizeWhitespace(label).slice(0, 80);
+  const normalized = normalizeWhitespace(label).slice(0, 80);
+  if (/^(?:[А-ЯA-Z]\.){1,4}$/u.test(normalized)) return '';
+  if (/^[А-ЯA-Z]$/u.test(normalized)) return '';
+  return normalized;
 }
 
 function resolveYearBasedAge(year: number, birthYear?: number) {
@@ -655,6 +679,7 @@ function extractRelativeContextFacts(extract: string): BiographyTimelineFact[] {
 
   for (const sentence of sentences) {
     if (extractYears(sentence).length > 0 || sentence.length > 220) continue;
+    if (isPosthumousContextSentence(sentence)) continue;
 
     const nanny = extractNamedPersonAfter(
       sentence,
@@ -886,6 +911,7 @@ export function extractRelativeChildhoodEventsFromExtract(extract: string, birth
   const events: BiographyTimelineEventPlan[] = [];
   for (const sentence of sentences) {
     if (extractYears(sentence).length > 0 || sentence.length > 180) continue;
+    if (isPosthumousContextSentence(sentence)) continue;
 
     const matched = relativePatterns.find(({ pattern }) => pattern.test(sentence));
     if (!matched) continue;

@@ -1,7 +1,89 @@
 import { MAX_WIKIPEDIA_PROMPT_EXTRACT_CHARS, WIKIPEDIA_HOST_PATTERN, type WikipediaPageExtract } from './timelineBiographyTypes.js';
 
+type ExtractSection = {
+  heading: string | null;
+  content: string;
+};
+
+const NON_BIOGRAPHY_SECTION_PATTERN =
+  /^(?:См\. также|Примечания|Комментарии|Литература|Ссылки|Библиография|Переводы произведений|Мировое признание(?:\.\s*Память)?|В культуре|Живопись|Кино|Значение и влияние(?: творчества)?|Писатели, мыслители и религиозные деятели о|Критика(?: .*)?|Экранизации произведений|Поп-культура|Прижизненные и посмертные издания собраний сочинений|Работы толстовцев|Тематические обзоры и мемуары|Отзывы критиков и деятелей культуры|Использованная литература и источники|Книги|Статьи|Академические исследования|Собрания сочинений|Сочинения .*|Последняя статья .*|Кинохроника и аудиозаписи|Творчество)$/iu;
+
+const LIST_LIKE_SECTION_PATTERN =
+  /^(?:Дети.*:|Children.*:|Избранные произведения|Selected works|Фильмография|Дискография)$/iu;
+
 function normalizePromptSlice(value: string) {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+function isHeadingLine(line: string) {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  if (trimmed.length > 90) return false;
+  if (!/^[A-ZА-ЯЁ«]/u.test(trimmed)) return false;
+  if (/[.!?]$/u.test(trimmed)) return false;
+  return trimmed.split(/\s+/).length <= 10;
+}
+
+function splitExtractSections(extract: string) {
+  const lines = extract
+    .split(/\r?\n/)
+    .map((line) => line.trim());
+  const sections: ExtractSection[] = [];
+  let currentHeading: string | null = null;
+  let buffer: string[] = [];
+
+  const pushSection = () => {
+    const content = buffer.join('\n').trim();
+    if (!content) {
+      buffer = [];
+      return;
+    }
+    sections.push({ heading: currentHeading, content });
+    buffer = [];
+  };
+
+  for (const line of lines) {
+    if (!line) {
+      if (buffer.length > 0 && buffer.at(-1) !== '') {
+        buffer.push('');
+      }
+      continue;
+    }
+
+    if (isHeadingLine(line)) {
+      pushSection();
+      currentHeading = line;
+      continue;
+    }
+
+    buffer.push(line);
+  }
+
+  pushSection();
+  return sections;
+}
+
+function shouldKeepSection(section: ExtractSection) {
+  if (!section.heading) return true;
+  return !NON_BIOGRAPHY_SECTION_PATTERN.test(section.heading) && !LIST_LIKE_SECTION_PATTERN.test(section.heading);
+}
+
+function buildBiographyExtract(extract: string) {
+  const normalizedExtract = extract.trim();
+  const sections = splitExtractSections(normalizedExtract);
+  const headedSections = sections.filter((section) => Boolean(section.heading));
+
+  if (headedSections.length < 3) {
+    return normalizedExtract;
+  }
+
+  const selectedSections = sections.filter(shouldKeepSection);
+  const biographyExtract = selectedSections
+    .map((section) => (section.heading ? `${section.heading}\n${section.content}` : section.content))
+    .join('\n\n')
+    .trim();
+
+  return biographyExtract.length >= normalizedExtract.length * 0.2 ? biographyExtract : normalizedExtract;
 }
 
 function clampWindowStart(centerStart: number, sliceLength: number, sourceLength: number) {
@@ -137,10 +219,14 @@ export async function fetchWikipediaPlainExtract(sourceUrl: string): Promise<Wik
     throw new Error('Wikipedia не вернула текст статьи. Проверьте ссылку.');
   }
 
+  const normalizedExtract = page.extract.trim();
+  const biographyExtract = buildBiographyExtract(page.extract);
+
   return {
     title: page.title?.trim() || parseWikipediaSourceUrl(normalizedSourceUrl).pageTitle,
-    extract: page.extract.trim(),
-    promptExtract: buildPromptExtract(page.extract),
+    extract: normalizedExtract,
+    biographyExtract,
+    promptExtract: buildPromptExtract(biographyExtract),
     canonicalUrl: page.fullurl || normalizedSourceUrl,
   };
 }

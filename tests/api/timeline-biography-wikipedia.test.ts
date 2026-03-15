@@ -44,4 +44,45 @@ describe('timelineBiographyWikipedia', () => {
     expect(result.promptExtract).toContain('Средний период жизни');
     expect(result.promptExtract).toContain('Поздний период жизни');
   });
+
+  it('отбрасывает небииографические section blocks из biographyExtract', async () => {
+    const extract = [
+      'Лев Толстой родился в 1828 году.',
+      '',
+      'Биография',
+      'В 1852 году опубликовал «Детство».',
+      '',
+      'Болезнь и смерть',
+      'В 1910 году умер на станции Астапово.',
+      '',
+      'Дети от брака с Софьей Андреевной:',
+      'Михаил (1879—1944). В 1920 году эмигрировал.',
+      '',
+      'Мировое признание. Память',
+      'В 1951 году вышло собрание сочинений.',
+    ].join('\n');
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        query: {
+          pages: [
+            {
+              title: 'Толстой, Лев Николаевич',
+              extract,
+              fullurl: 'https://ru.wikipedia.org/wiki/Толстой,_Лев_Николаевич',
+            },
+          ],
+        },
+      }),
+    });
+
+    const result = await fetchWikipediaPlainExtract('https://ru.wikipedia.org/wiki/Толстой,_Лев_Николаевич');
+
+    expect(result.biographyExtract).toContain('опубликовал «Детство»');
+    expect(result.biographyExtract).toContain('умер на станции Астапово');
+    expect(result.biographyExtract).not.toContain('эмигрировал');
+    expect(result.biographyExtract).not.toContain('собрание сочинений');
+    expect(result.promptExtract).not.toContain('эмигрировал');
+  });
 });
