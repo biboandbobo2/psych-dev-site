@@ -160,7 +160,8 @@ async function downloadArtifacts(options: RemoteEvalOptions, payload: Automation
 
     const renderUrl = `${options.baseUrl}${options.automationPath}?filename=${encodeURIComponent(runName)}`;
     await page.goto(renderUrl, {
-      waitUntil: 'networkidle',
+      timeout: 120000,
+      waitUntil: 'load',
     });
     await page.getByTestId('timeline-automation-ready').waitFor();
 
