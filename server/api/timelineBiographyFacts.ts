@@ -6,6 +6,7 @@ import {
   normalizeSphere,
   normalizeText,
 } from './timelineBiographyHeuristics.js';
+import { isGenericBiographyLabel } from './timelineBiographyLabelQuality.js';
 import type {
   BiographyEventTheme,
   BiographyEventType,
@@ -14,9 +15,6 @@ import type {
   BiographyTimelineFact,
   TimelineSphere,
 } from './timelineBiographyTypes.js';
-
-const GENERIC_LABEL_PATTERN =
-  /^(?:учёба|обучение|публикация|новая публикация|новый карьерный этап|карьерный этап|ссылка|переезд|важное событие|формирующее детство)$/i;
 
 function parseImportance(value: string | undefined): BiographyTimelineFact['importance'] {
   return value === 'high' || value === 'low' ? value : 'medium';
@@ -153,7 +151,7 @@ function isRegistryMetadataEvidence(value: string) {
 }
 
 function isGenericLabel(label: string | undefined) {
-  return Boolean(label && GENERIC_LABEL_PATTERN.test(label.trim()));
+  return isGenericBiographyLabel(label);
 }
 
 function scoreFactCandidateForDedupe(candidate: BiographyFactCandidate) {

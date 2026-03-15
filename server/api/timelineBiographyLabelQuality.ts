@@ -1,0 +1,24 @@
+const GENERIC_LABEL_PATTERN =
+  /^(?:уч[её]ба|обучение|публикация|новая публикация|новый карьерный этап|карьерный этап|ссылка|переезд|важное событие|формирующее детство|детство(?:\s+и\s+юность)?|юность|школьные годы|студенческие годы|брак|смерть|событие)$/i;
+
+export function isGenericBiographyLabel(label: string | undefined | null) {
+  return Boolean(label && GENERIC_LABEL_PATTERN.test(label.trim()));
+}
+
+export function isTruncatedBiographyLabel(label: string | undefined | null) {
+  if (!label) return false;
+  const normalized = label.trim();
+  if (!normalized) return false;
+
+  const openQuotes = [...normalized].filter((char) => char === '«').length;
+  const closeQuotes = [...normalized].filter((char) => char === '»').length;
+  if (openQuotes > 0 && openQuotes > closeQuotes) {
+    return true;
+  }
+
+  return /\s(?:в|на|с|о|к|у|по|из|за|от|до|для|при|про|без|над|под|об|что|как|и|а|но|или|не)\s*$/i.test(normalized);
+}
+
+export function isWeakBiographyLabel(label: string | undefined | null) {
+  return isGenericBiographyLabel(label) || isTruncatedBiographyLabel(label);
+}

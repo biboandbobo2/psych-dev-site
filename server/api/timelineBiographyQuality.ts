@@ -15,6 +15,7 @@ import {
   extractPsychologicallySignificantEvents,
   buildHeuristicBiographyPlan,
 } from './timelineBiographyHeuristics.js';
+import { isGenericBiographyLabel } from './timelineBiographyLabelQuality.js';
 import {
   SPHERE_META,
   type BiographyPlanDiagnostics,
@@ -155,9 +156,7 @@ export function getBiographyPlanReviewIssues(plan: BiographyTimelinePlan, extrac
   const branchFacts = (plan.branches || []).flatMap((branch) => branch.events || []);
   const mainFactKeys = new Set(mainEvents.map((event) => buildEventFactKey(event)));
   const duplicateBranchFacts = branchFacts.filter((event) => mainFactKeys.has(buildEventFactKey(event))).length;
-  const genericLabels = mainEvents.filter((event) =>
-    /^(Обучение|Публикация|Новая публикация|Карьерный этап|Новый карьерный этап|Учёба|Ссылка|Переезд|Новый этап|Важное событие)$/i.test(event.label)
-  ).length;
+  const genericLabels = mainEvents.filter((event) => isGenericBiographyLabel(event.label)).length;
   const otherCount = mainEvents.filter((event) => (event.sphere ?? 'other') === 'other').length;
   const currentAge = Math.max(0, Math.min(120, Number(plan.currentAge) || 0));
   const lastAge = mainEvents.reduce((max, event) => Math.max(max, event.age), 0);

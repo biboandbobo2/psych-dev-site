@@ -7,6 +7,7 @@ import {
   normalizeSphere,
   sanitizeTimelineEventPlan,
 } from './timelineBiographyHeuristics.js';
+import { isGenericBiographyLabel, isTruncatedBiographyLabel } from './timelineBiographyLabelQuality.js';
 import type {
   BiographyFactCandidate,
   BiographyLintIssue,
@@ -15,15 +16,12 @@ import type {
   BiographyTimelinePlan,
 } from './timelineBiographyTypes.js';
 
-const GENERIC_LABEL_PATTERN =
-  /^(?:учёба|обучение|публикация|новая публикация|новый карьерный этап|карьерный этап|ссылка|переезд|важное событие|формирующее детство)$/i;
-
 function isGenericLabel(label: string) {
-  return GENERIC_LABEL_PATTERN.test(label.trim());
+  return isGenericBiographyLabel(label);
 }
 
 function isTruncatedLabel(label: string) {
-  return label.includes('«') && !label.includes('»');
+  return isTruncatedBiographyLabel(label);
 }
 
 function buildApproximateFactNote(fact: BiographyFactCandidate | undefined) {

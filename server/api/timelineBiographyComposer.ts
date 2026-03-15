@@ -14,6 +14,7 @@ import {
   normalizeText,
   sanitizeTimelineEventPlan,
 } from './timelineBiographyHeuristics.js';
+import { isGenericBiographyLabel, isTruncatedBiographyLabel } from './timelineBiographyLabelQuality.js';
 import { BIOGRAPHY_THEME_META, getFactThemes, pickPrimaryTheme } from './timelineBiographyThemes.js';
 import {
   SPHERE_META,
@@ -26,9 +27,6 @@ import {
   type TimelineSphere,
 } from './timelineBiographyTypes.js';
 
-const GENERIC_LABEL_PATTERN =
-  /^(?:учёба|обучение|публикация|новая публикация|новый карьерный этап|карьерный этап|ссылка|переезд|важное событие|формирующее детство)$/i;
-
 type PreparedFactCandidate = BiographyFactCandidate & {
   resolvedAge: number;
   resolvedSphere: TimelineSphere;
@@ -37,15 +35,12 @@ type PreparedFactCandidate = BiographyFactCandidate & {
 };
 
 function isGenericLabel(label: string | undefined) {
-  return Boolean(label && GENERIC_LABEL_PATTERN.test(label.trim()));
+  return isGenericBiographyLabel(label);
 }
 
 function isTruncatedLabel(label: string | undefined) {
   if (!label) return false;
-  const openQuotes = [...label].filter((char) => char === '«').length;
-  const closeQuotes = [...label].filter((char) => char === '»').length;
-  if (openQuotes > 0) return openQuotes > closeQuotes;
-  return /^(?:.*\s(?:в|на|с|по|из|за|от|до|для|при|про|без|над|под|об)|[а-яё].*)$/iu.test(label);
+  return isTruncatedBiographyLabel(label) || /^(?:.*\s(?:в|на|с|по|из|за|от|до|для|при|про|без|над|под|об)|[а-яё].*)$/iu.test(label);
 }
 
 function importanceScore(value: BiographyFactCandidate['importance']) {

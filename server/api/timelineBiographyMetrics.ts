@@ -6,9 +6,7 @@ import type {
   BiographyTimelineEventPlan,
   BiographyTimelinePlan,
 } from './timelineBiographyTypes.js';
-
-const GENERIC_LABEL_PATTERN =
-  /^(?:учёба|обучение|публикация|новая публикация|новый карьерный этап|карьерный этап|ссылка|переезд|важное событие|формирующее детство|событие)$/i;
+import { isGenericBiographyLabel } from './timelineBiographyLabelQuality.js';
 
 function isApproximateFact(fact: BiographyFactCandidate) {
   return fact.timePrecision === 'approximate' || fact.timePrecision === 'inferred';
@@ -19,7 +17,7 @@ function isApproximateEvent(event: BiographyTimelineEventPlan) {
 }
 
 function isGenericLabel(label: string | undefined) {
-  return Boolean(label && GENERIC_LABEL_PATTERN.test(label.trim()));
+  return isGenericBiographyLabel(label);
 }
 
 function countThemeCoverage(facts: BiographyFactCandidate[]) {
