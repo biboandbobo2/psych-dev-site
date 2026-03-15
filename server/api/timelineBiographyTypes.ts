@@ -65,7 +65,10 @@ export type TimelineIconId = (typeof EVENT_ICON_IDS)[number];
 
 export type BiographyImportRequest = {
   sourceUrl: string;
+  extractionMode?: BiographyExtractionMode;
 };
+
+export type BiographyExtractionMode = 'general' | 'editorial';
 
 export type BiographyTimelineEventPlan = {
   age: number;

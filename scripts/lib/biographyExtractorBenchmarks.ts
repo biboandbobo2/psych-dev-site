@@ -463,11 +463,57 @@ const gandhiFacts: BiographyExtractorBenchmarkFact[] = [
   },
 ];
 
+const gandhiEditorialFactIds = new Set([
+  'bania-vaishya-family',
+  'father-divan',
+  'mother-piety',
+  'harilal-estrangement',
+  'rights-of-indians-south-africa',
+  'first-satyagraha',
+  'bhagavad-gita-influence',
+  'tolstoy-influence',
+  'other-intellectual-influences',
+  'tagore-mahatma-title',
+  'disliked-mahatma-title',
+  'tilak-successor',
+  'boycott-british-goods',
+  'led-inc-1921',
+  'fight-untouchability',
+  'harijans-term',
+  'ashram-and-meals-with-harijans',
+  'ambedkar-conflict',
+  'fast-for-harijan-rights-1932',
+  'charaka-sangh',
+  'harijan-sevak-sangh',
+  'brahmacharya-vow-1906',
+  'translated-letter-to-a-hindu',
+  'munich-crisis-test',
+  'split-with-congress-1940',
+  'accepted-war-if-free-india',
+  'aundh-experiment-1939',
+  'hindu-muslim-reconciliation',
+  'opposed-partition-1947',
+  'communal-violence-disillusionment',
+  'fast-january-1948',
+  'leaders-promised-protect-muslims',
+  'savarkar-conspiracy-1947',
+  'weekly-mauna',
+  'letters-to-hitler',
+]);
+
+const gandhiEditorialFacts = gandhiFacts.filter((fact) => gandhiEditorialFactIds.has(fact.id));
+
 export const biographyExtractorBenchmarks: Record<string, BiographyExtractorBenchmark> = {
   gandhi: {
     id: 'gandhi',
     subject: 'Махатма Ганди',
     sourceUrl: 'https://ru.wikipedia.org/wiki/Махатма_Ганди',
     facts: gandhiFacts,
+  },
+  'gandhi-editorial': {
+    id: 'gandhi-editorial',
+    subject: 'Махатма Ганди — editorial facts',
+    sourceUrl: 'https://ru.wikipedia.org/wiki/Махатма_Ганди',
+    facts: gandhiEditorialFacts,
   },
 };

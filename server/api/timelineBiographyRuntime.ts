@@ -3,6 +3,7 @@ import { debugError, debugLog } from '../../src/lib/debug.js';
 import { getLectureGenAiClient } from './lectureApiRuntime.js';
 import {
   buildBiographyFactExtractionPrompt,
+  buildBiographyUrlContextEditorialFactExtractionPrompt,
   buildBiographyUrlContextFactExtractionPrompt,
   buildBiographyTimelineLinePrompt,
   buildBiographyTimelinePrompt,
@@ -21,6 +22,7 @@ import {
   repairBiographyPlan,
   summarizeBiographyFacts,
   type BiographyCompositionStats,
+  type BiographyExtractionMode,
   type BiographyFactCandidate,
   type BiographyGenerationStageDiagnostics,
   type BiographyPlanDiagnostics,
@@ -234,7 +236,19 @@ export function validateBiographyImportRequest(body: unknown): BiographyImportRe
     throw new Error('Укажите ссылку на статью Wikipedia.');
   }
 
-  return { sourceUrl };
+  const extractionMode =
+    typeof (body as BiographyImportRequest).extractionMode === 'string'
+      ? (body as BiographyImportRequest).extractionMode.trim()
+      : '';
+
+  if (extractionMode && extractionMode !== 'general' && extractionMode !== 'editorial') {
+    throw new Error('extractionMode должен быть general или editorial.');
+  }
+
+  return {
+    sourceUrl,
+    extractionMode: extractionMode === 'editorial' ? 'editorial' : 'general',
+  };
 }
 
 export function resolveRequiredGeminiApiKey(req: VercelRequest) {
@@ -874,6 +888,7 @@ export type BiographyExtractorSuccessPayload = {
   facts: BiographyFactCandidate[];
   meta: {
     factCount: number;
+    extractionMode: BiographyExtractionMode;
     model: string;
     promptVersion: string;
     rawTextChars: number;
@@ -1029,10 +1044,17 @@ export async function runBiographyImport(params: {
 export async function runBiographyFactExtraction(params: {
   sourceUrl: string;
   apiKey: string;
+  extractionMode?: BiographyExtractionMode;
 }): Promise<BiographyExtractorSuccessPayload> {
-  const prompt = buildBiographyUrlContextFactExtractionPrompt({
-    sourceUrl: params.sourceUrl,
-  });
+  const extractionMode = params.extractionMode === 'editorial' ? 'editorial' : 'general';
+  const prompt =
+    extractionMode === 'editorial'
+      ? buildBiographyUrlContextEditorialFactExtractionPrompt({
+          sourceUrl: params.sourceUrl,
+        })
+      : buildBiographyUrlContextFactExtractionPrompt({
+          sourceUrl: params.sourceUrl,
+        });
   const extractionResult = await generateBiographyFactsFromUrlContext(prompt, params.apiKey);
   const subjectLine = extractionResult.rawText
     .split(/\r?\n/)
@@ -1047,8 +1069,10 @@ export async function runBiographyFactExtraction(params: {
     facts: extractionResult.facts,
     meta: {
       factCount: extractionResult.facts.length,
+      extractionMode,
       model: extractionResult.model,
-      promptVersion: 'url-context-extractor-v1',
+      promptVersion:
+        extractionMode === 'editorial' ? 'url-context-editorial-extractor-v1' : 'url-context-extractor-v1',
       rawTextChars: extractionResult.rawText.length,
       strategy: extractionResult.strategy ?? 'url-context',
       groundingSources: extractionResult.groundingSources ?? [],

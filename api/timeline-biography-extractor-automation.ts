@@ -22,11 +22,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { sourceUrl } = validateBiographyImportRequest(req.body);
+    const { sourceUrl, extractionMode } = validateBiographyImportRequest(req.body);
     const apiKey = resolveRequiredGeminiApiKey(req);
     const payload = await runBiographyFactExtraction({
       sourceUrl,
       apiKey,
+      extractionMode,
     });
 
     res.status(200).json(payload);

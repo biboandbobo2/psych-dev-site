@@ -4,6 +4,7 @@ import path from 'node:path';
 type RemoteExtractorEvalOptions = {
   apiKey: string;
   baseUrl: string;
+  extractionMode: 'general' | 'editorial';
   filenamePrefix: string | null;
   outDir: string;
   sourceUrl: string;
@@ -22,6 +23,7 @@ function parseArgs(argv: string[]): RemoteExtractorEvalOptions {
   let sourceUrl = '';
   let outDir = path.resolve(process.cwd(), 'tmp/extractor-runs');
   let filenamePrefix: string | null = null;
+  let extractionMode: 'general' | 'editorial' = 'general';
   let apiKey =
     process.env.GEMINI_API_KEY?.trim() ||
     process.env.GOOGLE_API_KEY?.trim() ||
@@ -50,6 +52,11 @@ function parseArgs(argv: string[]): RemoteExtractorEvalOptions {
       return;
     }
 
+    if (arg.startsWith('--mode=')) {
+      extractionMode = arg.slice('--mode='.length).trim() === 'editorial' ? 'editorial' : 'general';
+      return;
+    }
+
     if (arg.startsWith('--api-key=')) {
       apiKey = arg.slice('--api-key='.length).trim();
     }
@@ -70,6 +77,7 @@ function parseArgs(argv: string[]): RemoteExtractorEvalOptions {
   return {
     apiKey,
     baseUrl: baseUrl.replace(/\/+$/, ''),
+    extractionMode,
     filenamePrefix,
     outDir,
     sourceUrl,
@@ -114,6 +122,7 @@ async function run() {
       'X-Gemini-Api-Key': options.apiKey,
     },
     body: JSON.stringify({
+      extractionMode: options.extractionMode,
       sourceUrl: options.sourceUrl,
     }),
   });
@@ -130,6 +139,7 @@ async function run() {
 
   const summary = {
     baseUrl: options.baseUrl,
+    extractionMode: options.extractionMode,
     sourceUrl: options.sourceUrl,
     subjectName: payload.subjectName,
     factCount: payload.facts.length,

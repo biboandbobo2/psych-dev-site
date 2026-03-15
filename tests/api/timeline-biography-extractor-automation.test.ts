@@ -129,10 +129,57 @@ describe('api/timeline-biography-extractor-automation', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body.ok).toBe(true);
+    expect(res.body.meta.extractionMode).toBe('general');
     expect(res.body.meta.strategy).toBe('url-context');
     expect(res.body.meta.promptVersion).toBe('url-context-extractor-v1');
     expect(res.body.meta.urlContextMetadata[0].urlRetrievalStatus).toBe('success');
     expect(res.body.facts.length).toBe(3);
+    expect(geminiMocks.createInteraction).toHaveBeenCalledTimes(1);
+  });
+
+  it('поддерживает editorial extraction mode', async () => {
+    geminiMocks.createInteraction.mockResolvedValueOnce({
+      outputs: [
+        {
+          type: 'text',
+          text: [
+            'SUBJECT\tМахатма Ганди',
+            'BIRTH_YEAR\t1869',
+            'DEATH_YEAR\t1948',
+            'FACT\tunknown\tunknown\tfamily\tfamily\thigh\tНабожная мать и вегетарианское воспитание\tОсобенно набожной была его мать, и в семье соблюдалось строжайшее вегетарианство.\tБиография\thigh\tapproximate\t5\t15\tupbringing_mentors|family_household\tПутлибай\tмать\tпримерно 5-15 лет',
+          ].join('\n'),
+        },
+        {
+          type: 'url_context_result',
+          result: [
+            {
+              url: 'https://ru.wikipedia.org/wiki/Махатма_Ганди',
+              status: 'success',
+            },
+          ],
+        },
+      ],
+    });
+
+    const req = mockReq({
+      headers: {
+        'content-type': 'application/json',
+        'x-gemini-api-key': 'user-key',
+      },
+      body: {
+        extractionMode: 'editorial',
+        sourceUrl: 'https://ru.wikipedia.org/wiki/Махатма_Ганди',
+      },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.meta.extractionMode).toBe('editorial');
+    expect(res.body.meta.promptVersion).toBe('url-context-editorial-extractor-v1');
+    expect(res.body.facts.length).toBe(1);
     expect(geminiMocks.createInteraction).toHaveBeenCalledTimes(1);
   });
 });
