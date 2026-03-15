@@ -25,6 +25,24 @@ function isTruncatedLabel(label: string) {
   return label.includes('«') && !label.includes('»');
 }
 
+function buildApproximateFactNote(fact: BiographyFactCandidate | undefined) {
+  if (!fact) return '';
+  if (Number.isFinite(fact.ageMin) && Number.isFinite(fact.ageMax)) {
+    const minAge = Number(fact.ageMin);
+    const maxAge = Number(fact.ageMax);
+    return minAge === maxAge
+      ? `Возраст примерный: около ${minAge} лет, точной даты в статье нет.`
+      : `Возраст примерный: ${minAge}-${maxAge} лет, точной даты в статье нет.`;
+  }
+  if (fact.timePrecision === 'approximate') {
+    return 'Возраст примерный, точной даты в статье нет.';
+  }
+  if (fact.timePrecision === 'inferred') {
+    return 'Возраст определён по контексту статьи.';
+  }
+  return '';
+}
+
 function buildNotesFallback(event: BiographyTimelineEventPlan, factsByAge: Map<number, BiographyFactCandidate[]>) {
   if (event.notes?.trim()) return event.notes.trim();
 
@@ -34,7 +52,15 @@ function buildNotesFallback(event: BiographyTimelineEventPlan, factsByAge: Map<n
     return fact.labelHint.toLowerCase().includes(normalizedLabel) || fact.evidence.toLowerCase().includes(normalizedLabel);
   });
 
-  return matchingFact?.evidence?.trim() || event.label;
+  const approximateNote = buildApproximateFactNote(matchingFact);
+  return [approximateNote, matchingFact?.evidence?.trim() || event.label].filter(Boolean).join(' ');
+}
+
+function buildLabelFromFacts(event: BiographyTimelineEventPlan, factsByAge: Map<number, BiographyFactCandidate[]>) {
+  const candidates = factsByAge.get(Math.round(event.age)) ?? [];
+  return candidates
+    .map((fact) => fact.labelHint.trim())
+    .find((label) => label && !isGenericLabel(label) && !isTruncatedLabel(label) && !isRawSentenceLabel(label));
 }
 
 function repairEventPlan(
@@ -45,7 +71,8 @@ function repairEventPlan(
   const sphere = normalizeSphere(event.sphere) ?? fallbackSphere;
   const sourceText = buildNotesFallback(event, factsByAge);
   const needsLabelRepair = isGenericLabel(event.label) || isTruncatedLabel(event.label) || isRawSentenceLabel(event.label);
-  const repairedLabel = needsLabelRepair ? buildHeuristicLabel(sourceText, sphere ?? 'other') : event.label;
+  const factLabel = buildLabelFromFacts(event, factsByAge);
+  const repairedLabel = needsLabelRepair ? factLabel || buildHeuristicLabel(sourceText, sphere ?? 'other') : event.label;
 
   return sanitizeTimelineEventPlan(
     {
@@ -126,7 +153,7 @@ export function lintBiographyPlan(plan: BiographyTimelinePlan) {
       issues.push({ code: 'empty-notes', severity: 'error', message: `Событие "${event.label}" осталось без notes.`, age: event.age, label: event.label });
     }
     if (isGenericLabel(event.label)) {
-      issues.push({ code: 'generic-label', severity: 'warning', message: `Событие "${event.label}" слишком общее.`, age: event.age, label: event.label });
+      issues.push({ code: 'generic-label', severity: 'error', message: `Событие "${event.label}" слишком общее.`, age: event.age, label: event.label });
     }
     if (isTruncatedLabel(event.label)) {
       issues.push({ code: 'truncated-label', severity: 'warning', message: `Событие "${event.label}" выглядит обрезанным.`, age: event.age, label: event.label });
@@ -182,7 +209,7 @@ export function lintBiographyPlan(plan: BiographyTimelinePlan) {
         issues.push({ code: 'empty-notes', severity: 'error', message: `Событие "${event.label}" осталось без notes.`, age: event.age, label: event.label, branchLabel: branch.label });
       }
       if (isGenericLabel(event.label)) {
-        issues.push({ code: 'generic-label', severity: 'warning', message: `Событие "${event.label}" слишком общее.`, age: event.age, label: event.label, branchLabel: branch.label });
+        issues.push({ code: 'generic-label', severity: 'error', message: `Событие "${event.label}" слишком общее.`, age: event.age, label: event.label, branchLabel: branch.label });
       }
       if (isTruncatedLabel(event.label)) {
         issues.push({ code: 'truncated-label', severity: 'warning', message: `Событие "${event.label}" выглядит обрезанным.`, age: event.age, label: event.label, branchLabel: branch.label });

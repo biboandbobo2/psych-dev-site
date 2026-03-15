@@ -261,23 +261,29 @@ src/hooks/
   - `server/api/timelineBiographyWikipedia.ts`
   - `server/api/timelineBiographyPrompts.ts`
   - `server/api/timelineBiographyFacts.ts`
+  - `server/api/timelineBiographyThemes.ts`
   - `server/api/timelineBiographyComposer.ts`
   - `server/api/timelineBiographyHeuristics.ts`
   - `server/api/timelineBiographyLint.ts`
+  - `server/api/timelineBiographyMetrics.ts`
   - `server/api/timelineBiographyQuality.ts`
 - Это разделение фиксирует ответственности:
   - `Types` — канонические типы, константы и metadata каталоги.
   - `Wikipedia` — нормализация URL и загрузка plain extract.
   - `Prompts` — prompts/few-shot/schema для Gemini.
   - `Facts` — line-based facts parsing, normalisation, dedupe и merge model/heuristics.
-  - `Composer` — локальный отбор main line, сборка веток и branch-anchor правила.
-  - `Heuristics` — sentence parsing, baseline facts, relative childhood helpers и legacy fallback.
+  - `Themes` — внутренние biography themes (`friends_network`, `romance`, `travel_moves_exile`, `conflict_duels` и т.д.), из которых локальный composer строит branch labels и приоритеты.
+  - `Composer` — локальный отбор main line, approximate-notes, сборка theme-веток и branch-anchor правила.
+  - `Heuristics` — sentence parsing, baseline facts, relative childhood helpers, high-salience facts и legacy fallback.
   - `Lint` — post-compose checks/repair: empty notes, generic labels, duplicate events, birth-anchored branches.
+  - `Metrics` — локальная оценка результата (facts/theme coverage, generic labels, notes, branch density) для итераций вне UI.
   - `Quality` — финальная сборка `TimelineData`, conservative normalize и legacy review/enrich path.
 - Quality-gates перед сборкой холста теперь жёстче:
   - facts-first путь не может создать ветку, якорённую к рождению;
+  - facts-first путь больше не обязан дублировать `birthDetails` обычным main-event `Рождение`;
   - пустые ветки и дубли branch/main отбрасываются;
   - ранняя жизнь проверяется по окнам `0-6`, `7-12`, `13-18`, а не только по общему количеству событий;
+  - approximate facts теперь можно сохранять без фальшивой точности: возраст вычисляется по диапазону, а notes помечают, что дата оценочная;
   - если facts-first путь ломается на extraction/composition/lint, endpoint деградирует в legacy pipeline вместо пустого TL.
 
 ## Ключевые сценарии
@@ -433,16 +439,18 @@ src/hooks/
 - Авторизация обязательна: endpoint использует `Authorization: Bearer <Firebase ID token>` и принимает optional BYOK через `X-Gemini-Api-Key`.
 - Источник пока один: только прямые URL вида `https://*.wikipedia.org/wiki/...`.
 - Сервер получает plain-text extract статьи через MediaWiki API и работает каскадом:
-  1. Gemini сначала возвращает максимально полный line-based список недублирующихся facts с evidence.
-  2. Server-side `Facts` слой нормализует facts, дедуплицирует их и при необходимости добирает missing coverage из heuristics.
-  3. Локальный `Composer` строит main line и ветки уже кодом, а не просит модель разложить весь timeline целиком.
-  4. `Lint/repair` слой чистит generic labels, восстанавливает notes из facts и запрещает birth-anchored branches.
+  1. Gemini сначала возвращает максимально полный line-based список недублирующихся facts с evidence, time precision, themes и связанными людьми.
+  2. Server-side `Facts` слой нормализует facts, дедуплицирует их и при необходимости добирает missing coverage/high-salience facts из heuristics.
+  3. Локальный `Composer` строит main line и theme-ветки уже кодом, а не просит модель разложить весь timeline целиком.
+  4. `Lint/repair` слой чистит generic labels, восстанавливает notes из facts, добавляет approximate-note и запрещает birth-anchored branches.
   5. Если facts-first каскад не прошёл checks, endpoint переключается на legacy draft/review/fallback pipeline и всё равно пытается собрать TL.
 - Основная модель: `gemini-2.5-pro`; при ошибке отдельных стадий используется fallback `gemini-2.5-flash`. Обе доступны через тот же Gemini API ключ.
 - Few-shot exemplar в prompt обезличен: он задаёт форму хорошего timeline без привязки к конкретной биографии.
 - В facts-first режиме модель больше не возвращает готовый plan как единственный source of truth: она поставляет facts, а окончательная раскладка по `mainEvents/branches/nodes/edges` делается кодом.
 - Раскладка ветвей по `x` вычисляется на сервере: overlapping branch lanes разводятся автоматически, поэтому модель отвечает за смысловую группировку по сферам, а не за геометрию.
 - API дополнительно возвращает `planDiagnostics`, `timelineStats`, `stageDiagnostics` и `compositionStats`, чтобы было видно, как отработал каскад и насколько сильным получился итоговый план.
+- Для локальных итераций без UI добавлен CLI: `npm run timeline:eval -- --source-url=https://ru.wikipedia.org/wiki/... [--heuristics-only] [--out=tmp/biography-eval.json]`.
+  - Скрипт тянет тот же Wikipedia extract, прогоняет facts-first каскад локально и печатает metrics по facts/main/branches/generic labels.
 - `Очистить всё` по-прежнему очищает только активный холст.
 
 ## Экспорт таймлайна

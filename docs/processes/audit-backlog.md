@@ -121,6 +121,13 @@
 - [ ] Сделать экспорт `PDF`/`PNG` адаптивным к фактической длине жизни и заполненности холста: если активная часть таймлайна заканчивается раньше `ageMax`, не выгружать длинное пустое полотно.
 - [ ] Привести `Очистить всё` к полному reset empty-canvas state: после очистки активный холст должен снова считаться пустым и позволять импорт внешних источников (`Wikipedia`/`.json`) без дополнительных действий.
 
+### MP‑8. Biography import richness follow-up (P: M, E: M)
+- **Контекст:** facts-first каскад уже умеет approximate ages, high-salience facts и theme-ветки, но legacy fallback и часть heuristic labels всё ещё периодически выдают generic события вроде `Учёба`/`Ссылка` и недобирают theme branches на sparse inputs.
+- **Задачи:**
+  - [ ] Дожать generic-label cleanup в legacy path, чтобы при деградации quality не откатывалась к старым заглушкам.
+  - [ ] Расширить sparse-biography coverage tests для theme branches (`friends`, `romance`, `travel`, `losses`) на нескольких не-пушкинских fixture’ах.
+  - [ ] Решить, какие metrics из локального `timeline:eval` стоит поднимать в API-meta/UI для быстрой диагностики без CLI.
+
 ### MR‑1. Масштабирование `/api/transcript-search` (P: M, E: M)
 - **Проблема:** клиентский preload уже убран, но `api/transcript-search.ts` по-прежнему делает `collectionGroup(...).get()` по всему transcript-search индексу на каждый запрос и фильтрует результаты в памяти.
 - **Риск:** latency, cost и memory usage растут линейно от общего числа chunks; проблема больше не на клиенте, а на request path сервера.

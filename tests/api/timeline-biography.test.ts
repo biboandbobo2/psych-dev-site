@@ -215,7 +215,7 @@ describe('api/timeline-biography', () => {
     expect(res.body.meta.model).toContain('local-facts-first');
     expect(res.body.meta.factsModel).toBe('gemini-2.5-flash');
     expect(res.body.timeline.birthDetails.place).toContain('Моск');
-    expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(true);
+    expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(false);
     expect(res.body.timeline.edges.length).toBeGreaterThanOrEqual(1);
     expect(res.body.meta.timelineStats.nodes).toBeGreaterThan(0);
     expect(res.body.meta.planDiagnostics.source).toContain('facts-first');

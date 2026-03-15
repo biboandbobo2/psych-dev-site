@@ -1,19 +1,23 @@
 import { buildFactCandidateKey } from './timelineBiographyFacts.js';
 import {
   buildHeuristicLabel,
+  extractQuotedWorkTitle,
   inferBirthDetailsFromExtract,
   inferCanvasName,
   inferDeathYearFromExtract,
   inferDecisionFromSentence,
   inferIconFromSentence,
+  isRawSentenceLabel,
   inferSphereFromSentence,
   inferSubjectName,
   normalizeText,
   sanitizeTimelineEventPlan,
 } from './timelineBiographyHeuristics.js';
+import { BIOGRAPHY_THEME_META, getFactThemes, pickPrimaryTheme } from './timelineBiographyThemes.js';
 import {
   SPHERE_META,
   type BiographyCompositionStats,
+  type BiographyEventTheme,
   type BiographyFactCandidate,
   type BiographyTimelineBranchPlan,
   type BiographyTimelineEventPlan,
@@ -27,6 +31,8 @@ const GENERIC_LABEL_PATTERN =
 type PreparedFactCandidate = BiographyFactCandidate & {
   resolvedAge: number;
   resolvedSphere: TimelineSphere;
+  resolvedThemes: BiographyEventTheme[];
+  primaryTheme: BiographyEventTheme | null;
 };
 
 function isGenericLabel(label: string | undefined) {
@@ -49,6 +55,10 @@ function confidenceScore(value: BiographyFactCandidate['confidence']) {
   return value === 'high' ? 3 : value === 'medium' ? 2 : 1;
 }
 
+function isBirthFact(fact: PreparedFactCandidate) {
+  return fact.eventType === 'birth' || fact.resolvedAge === 0;
+}
+
 function resolveSphere(fact: BiographyFactCandidate) {
   return fact.sphere ?? inferSphereFromSentence(fact.evidence) ?? 'other';
 }
@@ -63,27 +73,93 @@ function prepareFactCandidates(facts: BiographyFactCandidate[], birthYear?: numb
       if (!Number.isFinite(resolvedAge)) return null;
       if (Number(resolvedAge) < 0 || Number(resolvedAge) > 120) return null;
 
+      const resolvedThemes = getFactThemes(fact);
+
       return {
         ...fact,
         resolvedAge: Number(resolvedAge),
         resolvedSphere,
+        resolvedThemes,
+        primaryTheme: pickPrimaryTheme(fact),
       };
     })
     .filter((fact): fact is PreparedFactCandidate => Boolean(fact))
     .sort((a, b) => a.resolvedAge - b.resolvedAge);
 }
 
+function buildApproximateAgeNote(fact: PreparedFactCandidate) {
+  if (fact.timePrecision === 'approximate' && Number.isFinite(fact.ageMin) && Number.isFinite(fact.ageMax)) {
+    const minAge = Number(fact.ageMin);
+    const maxAge = Number(fact.ageMax);
+    return minAge === maxAge
+      ? `Возраст примерный: около ${minAge} лет, точной даты в статье нет.`
+      : `Возраст примерный: ${minAge}-${maxAge} лет, точной даты в статье нет.`;
+  }
+
+  if (fact.timePrecision === 'approximate') {
+    return 'Возраст примерный, точной даты в статье нет.';
+  }
+
+  if (fact.timePrecision === 'inferred') {
+    return 'Возраст определён по контексту статьи.';
+  }
+
+  return '';
+}
+
+function buildMetadataLabel(fact: PreparedFactCandidate) {
+  const person = fact.people?.[0];
+  const relation = fact.relationRoles?.[0];
+  const workTitle = extractQuotedWorkTitle(fact.evidence || fact.labelHint);
+
+  if (fact.resolvedThemes.includes('romance') && person) {
+    return `Отношения с ${person}`;
+  }
+  if (fact.resolvedThemes.includes('losses') && relation) {
+    return `Смерть ${relation}`;
+  }
+  if (fact.resolvedThemes.includes('conflict_duels') && relation) {
+    return `Ссора с ${relation}`;
+  }
+  if (fact.resolvedThemes.includes('children')) {
+    return person ? `Рождение ребёнка: ${person}` : 'Рождение ребёнка';
+  }
+  if (fact.resolvedThemes.includes('upbringing_mentors') && person) {
+    return relation === 'няня' ? `Няня ${person}` : person;
+  }
+  if (workTitle && fact.resolvedThemes.includes('creative_work')) {
+    return `Публикация «${workTitle}»`;
+  }
+  if (fact.primaryTheme && BIOGRAPHY_THEME_META[fact.primaryTheme].preserveForBranch && !isGenericLabel(fact.labelHint)) {
+    return fact.labelHint;
+  }
+  return '';
+}
+
 function buildSpecificLabel(fact: PreparedFactCandidate) {
   const rawLabel = normalizeText(fact.labelHint, 80) || '';
-  if (rawLabel && !isGenericLabel(rawLabel) && !isTruncatedLabel(rawLabel) && rawLabel.split(/\s+/).length <= 7) {
+  if (
+    rawLabel &&
+    !isGenericLabel(rawLabel) &&
+    !isTruncatedLabel(rawLabel) &&
+    !isRawSentenceLabel(rawLabel) &&
+    rawLabel.split(/\s+/).length <= 7
+  ) {
     return rawLabel;
+  }
+
+  const metadataLabel = normalizeText(buildMetadataLabel(fact), 80);
+  if (metadataLabel && !isGenericLabel(metadataLabel) && !isTruncatedLabel(metadataLabel)) {
+    return metadataLabel;
   }
 
   return normalizeText(buildHeuristicLabel(fact.evidence, fact.resolvedSphere), 80) || rawLabel || 'Событие';
 }
 
 function buildNotes(fact: PreparedFactCandidate, label: string) {
-  return normalizeText(fact.evidence, 700) || normalizeText(fact.details, 700) || label;
+  const source = normalizeText(fact.evidence, 700) || normalizeText(fact.details, 700) || label;
+  const approximateNote = buildApproximateAgeNote(fact);
+  return normalizeText([approximateNote, source].filter(Boolean).join(' '), 700) || label;
 }
 
 function factToEventPlan(fact: PreparedFactCandidate) {
@@ -107,18 +183,20 @@ function factToEventPlan(fact: PreparedFactCandidate) {
 function scoreFactForMain(fact: PreparedFactCandidate, currentAge: number) {
   let score = importanceScore(fact.importance) * 3 + confidenceScore(fact.confidence) * 2;
 
-  if (fact.eventType === 'birth' || fact.resolvedAge === 0) score += 10;
   if (fact.eventType === 'death') score += 10;
   if (fact.resolvedAge <= 18 && ['education', 'family', 'friends', 'move'].includes(fact.eventType)) score += 4;
   if (fact.resolvedAge >= Math.max(0, currentAge - 7) && ['death', 'health', 'conflict', 'family'].includes(fact.eventType)) score += 4;
   if (!isGenericLabel(fact.labelHint)) score += 2;
   if (!isTruncatedLabel(fact.labelHint)) score += 1;
+  if (fact.resolvedThemes.includes('losses') || fact.resolvedThemes.includes('conflict_duels')) score += 2;
+  if (fact.primaryTheme && BIOGRAPHY_THEME_META[fact.primaryTheme]?.preserveForBranch) score += 1;
 
   return score;
 }
 
 function scoreFactForBranch(fact: PreparedFactCandidate) {
-  return importanceScore(fact.importance) * 2 + confidenceScore(fact.confidence) + (isGenericLabel(fact.labelHint) ? 0 : 2);
+  const themeWeight = fact.primaryTheme && BIOGRAPHY_THEME_META[fact.primaryTheme]?.preserveForBranch ? 3 : 0;
+  return importanceScore(fact.importance) * 2 + confidenceScore(fact.confidence) + (isGenericLabel(fact.labelHint) ? 0 : 2) + themeWeight;
 }
 
 function selectBestFactInWindow(
@@ -130,6 +208,7 @@ function selectBestFactInWindow(
 ) {
   return facts
     .filter((fact) => fact.resolvedAge >= minAge && fact.resolvedAge <= maxAge)
+    .filter((fact) => !isBirthFact(fact))
     .filter((fact) => !selectedKeys.has(buildFactCandidateKey(fact)))
     .map((fact) => ({ fact, score: scoreFactForMain(fact, currentAge) }))
     .sort((a, b) => b.score - a.score || a.fact.resolvedAge - b.fact.resolvedAge)[0]?.fact;
@@ -161,12 +240,6 @@ function selectMainFacts(preparedFacts: PreparedFactCandidate[], currentAge: num
   const selectedFacts: PreparedFactCandidate[] = [];
   const selectedKeys = new Set<string>();
 
-  addSelectedFact(
-    selectedFacts,
-    selectedKeys,
-    preparedFacts.find((fact) => fact.eventType === 'birth' || fact.resolvedAge === 0)
-  );
-
   const earlyWindows: Array<[number, number]> = [
     [0, 6],
     [7, 12],
@@ -192,20 +265,44 @@ function selectMainFacts(preparedFacts: PreparedFactCandidate[], currentAge: num
       .find((fact) => fact.eventType === 'death' || /(смерт|дуэл|погиб|умер|death|died)/i.test(fact.evidence))
   );
 
-  const targetMainCount = preparedFacts.length >= 20 ? 14 : preparedFacts.length >= 14 ? 12 : preparedFacts.length >= 10 ? 10 : 8;
+  const targetMainCount =
+    preparedFacts.length >= 36
+      ? 18
+      : preparedFacts.length >= 28
+        ? 16
+        : preparedFacts.length >= 20
+          ? 14
+          : preparedFacts.length >= 14
+            ? 12
+            : preparedFacts.length >= 10
+              ? 9
+              : 7;
   while (selectedFacts.length < targetMainCount) {
     const leftovers = preparedFacts
       .filter((fact) => !selectedKeys.has(buildFactCandidateKey(fact)))
+      .filter((fact) => !isBirthFact(fact))
       .map((fact) => {
         let score = scoreFactForMain(fact, currentAge);
         const selectedInSphere = selectedFacts.filter((selected) => selected.resolvedSphere === fact.resolvedSphere).length;
         const remainingInSphere = preparedFacts.filter(
           (candidate) => !selectedKeys.has(buildFactCandidateKey(candidate)) && candidate.resolvedSphere === fact.resolvedSphere
         ).length;
+        const selectedInTheme = fact.primaryTheme
+          ? selectedFacts.filter((selected) => selected.primaryTheme === fact.primaryTheme).length
+          : 0;
+        const remainingInTheme = fact.primaryTheme
+          ? preparedFacts.filter(
+              (candidate) => !selectedKeys.has(buildFactCandidateKey(candidate)) && candidate.primaryTheme === fact.primaryTheme
+            ).length
+          : 0;
 
         if (!['other', 'health'].includes(fact.resolvedSphere)) {
           if (selectedInSphere === 0) score += 2;
           if (selectedInSphere >= 2 && remainingInSphere >= 2) score -= 6;
+        }
+        if (fact.primaryTheme && BIOGRAPHY_THEME_META[fact.primaryTheme]?.preserveForBranch) {
+          if (selectedInTheme >= 2 && remainingInTheme >= 2) score -= 7;
+          if (selectedInTheme === 0) score += 1;
         }
 
         return { fact, score };
@@ -225,7 +322,7 @@ function findBranchAnchorIndex(mainEvents: BiographyTimelineEventPlan[], firstBr
   let bestScore = -1;
 
   mainEvents.forEach((event, index) => {
-    if (event.age >= firstBranchAge || event.age === 0) return;
+    if (event.age >= firstBranchAge) return;
 
     let score = 10 - Math.min(9, firstBranchAge - event.age);
     if ((event.sphere ?? 'other') === sphere) score += 5;
@@ -240,7 +337,10 @@ function findBranchAnchorIndex(mainEvents: BiographyTimelineEventPlan[], firstBr
   return bestIndex;
 }
 
-function buildBranchLabel(sphere: TimelineSphere) {
+function buildBranchLabel(theme: BiographyEventTheme | null, sphere: TimelineSphere) {
+  if (theme) {
+    return BIOGRAPHY_THEME_META[theme]?.branchLabel ?? SPHERE_META[sphere]?.label ?? 'Дополнительная линия';
+  }
   return SPHERE_META[sphere]?.label || 'Дополнительная линия';
 }
 
@@ -250,20 +350,23 @@ function buildBranches(
   mainEvents: BiographyTimelineEventPlan[]
 ) {
   const mainKeys = new Set(mainFacts.map((fact) => buildFactCandidateKey(fact)));
-  const leftovers = preparedFacts.filter((fact) => !mainKeys.has(buildFactCandidateKey(fact)));
-  const bySphere = leftovers.reduce<Record<string, PreparedFactCandidate[]>>((acc, fact) => {
-    if (fact.resolvedSphere === 'other' || fact.resolvedSphere === 'health') return acc;
-    acc[fact.resolvedSphere] ??= [];
-    acc[fact.resolvedSphere].push(fact);
+  const leftovers = preparedFacts.filter((fact) => !mainKeys.has(buildFactCandidateKey(fact)) && !isBirthFact(fact));
+  const byTheme = leftovers.reduce<Record<string, PreparedFactCandidate[]>>((acc, fact) => {
+    const theme = fact.primaryTheme;
+    if (!theme || !BIOGRAPHY_THEME_META[theme]?.preserveForBranch) return acc;
+    acc[theme] ??= [];
+    acc[theme].push(fact);
     return acc;
   }, {});
 
-  const branches = Object.entries(bySphere)
-    .map(([sphere, facts]) => {
+  const branches = Object.entries(byTheme)
+    .map(([theme, facts]) => {
+      const themeKey = theme as BiographyEventTheme;
+      const themeMeta = BIOGRAPHY_THEME_META[themeKey];
+      if (!themeMeta) return null;
       const sortedFacts = [...facts]
-        .sort((a, b) => b.resolvedAge - a.resolvedAge)
         .sort((a, b) => scoreFactForBranch(b) - scoreFactForBranch(a))
-        .slice(0, 4)
+        .slice(0, facts.length >= 7 ? 7 : facts.length >= 5 ? 6 : 4)
         .sort((a, b) => a.resolvedAge - b.resolvedAge);
 
       const firstBranchAge = sortedFacts[0]?.resolvedAge;
@@ -271,8 +374,8 @@ function buildBranches(
         return null;
       }
 
-      const anchorIndex = findBranchAnchorIndex(mainEvents, firstBranchAge, sphere as TimelineSphere);
-      if (anchorIndex <= 0) return null;
+      const anchorIndex = findBranchAnchorIndex(mainEvents, firstBranchAge, themeMeta.sphere);
+      if (anchorIndex < 0) return null;
 
       const anchorAge = mainEvents[anchorIndex]?.age ?? 0;
       const branchEvents = sortedFacts
@@ -283,8 +386,8 @@ function buildBranches(
       if (branchEvents.length < 2) return null;
 
       return {
-        label: buildBranchLabel(sphere as TimelineSphere),
-        sphere: sphere as TimelineSphere,
+        label: buildBranchLabel(themeKey, themeMeta.sphere),
+        sphere: themeMeta.sphere,
         sourceMainEventIndex: anchorIndex,
         events: branchEvents,
       } satisfies BiographyTimelineBranchPlan;
@@ -293,7 +396,7 @@ function buildBranches(
 
   return branches
     .sort((a, b) => b.events.length - a.events.length)
-    .slice(0, 4);
+    .slice(0, 6);
 }
 
 export function composeBiographyPlanFromFacts(params: {
