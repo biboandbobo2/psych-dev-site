@@ -153,7 +153,7 @@ export function getBiographyPlanReviewIssues(plan: BiographyTimelinePlan, extrac
   const mainFactKeys = new Set(mainEvents.map((event) => buildEventFactKey(event)));
   const duplicateBranchFacts = branchFacts.filter((event) => mainFactKeys.has(buildEventFactKey(event))).length;
   const genericLabels = mainEvents.filter((event) =>
-    /^(Обучение|Публикация|Карьерный этап|Новый карьерный этап|Учёба|Ссылка|Переезд)$/i.test(event.label)
+    /^(Обучение|Публикация|Новая публикация|Карьерный этап|Новый карьерный этап|Учёба|Ссылка|Переезд|Новый этап|Важное событие)$/i.test(event.label)
   ).length;
   const otherCount = mainEvents.filter((event) => (event.sphere ?? 'other') === 'other').length;
   const currentAge = Math.max(0, Math.min(120, Number(plan.currentAge) || 0));
@@ -240,7 +240,7 @@ export function enrichBiographyPlan(params: {
     .filter(Boolean) as BiographyTimelineBranchPlan[];
 
   const modelCurrentAge = Math.max(0, Math.min(120, Number(params.plan.currentAge) || heuristicPlan.currentAge));
-  const lateLifeCoverageThreshold = Math.max(heuristicPlan.currentAge - 4, 0);
+  const lateLifeCoverageThreshold = Math.max(heuristicPlan.currentAge - 7, 0);
   const hasLateLifeCoverage = normalizedMainEvents.some((event) => event.age >= lateLifeCoverageThreshold);
   const needsTerminalEvent = Boolean(inferredDeathYear && inferredBirth.birthYear);
   const minimumMainEvents = heuristicPlan.mainEvents.length >= 8 ? 6 : Math.max(4, heuristicPlan.mainEvents.length);
@@ -266,24 +266,29 @@ export function enrichBiographyPlan(params: {
     }
   }
 
-  if (!useHeuristicMainEvents && modelCurrentAge >= 30) {
-    const earlyLifeEvents = finalMainEvents.filter((event) => event.age >= 0 && event.age <= 12);
-    const earlyTarget = Math.min(3, heuristicPlan.mainEvents.filter((event) => event.age >= 0 && event.age <= 12).length);
+  // Fill early life (0-18) from heuristics if sparse
+  if (!useHeuristicMainEvents && modelCurrentAge >= 20) {
+    const earlyLifeEvents = finalMainEvents.filter((event) => event.age > 0 && event.age <= 18);
+    const heuristicEarlyEvents = heuristicPlan.mainEvents.filter((event) => event.age > 0 && event.age <= 18);
+    const earlyTarget = Math.max(3, Math.min(5, heuristicEarlyEvents.length));
     if (earlyLifeEvents.length < earlyTarget) {
       const existingKeys = new Set(finalMainEvents.map((event) => buildEventFactKey(event)));
-      const earlyHeuristicEvents = heuristicPlan.mainEvents.filter(
-        (event) => event.age >= 0 && event.age <= 12 && !existingKeys.has(buildEventFactKey(event))
+      const missingEarly = heuristicEarlyEvents.filter(
+        (event) => !existingKeys.has(buildEventFactKey(event))
       );
-      finalMainEvents = [...finalMainEvents, ...earlyHeuristicEvents];
+      finalMainEvents = [...finalMainEvents, ...missingEarly];
     }
   }
 
-  if (!hasLateLifeCoverage && !useHeuristicMainEvents) {
+  // Fill late life from heuristics if sparse
+  if (!useHeuristicMainEvents) {
     const modelAgeKeys = new Set(finalMainEvents.map((event) => buildEventFactKey(event)));
     const lateHeuristicEvents = heuristicPlan.mainEvents.filter(
       (event) => event.age >= lateLifeCoverageThreshold && !modelAgeKeys.has(buildEventFactKey(event))
     );
-    finalMainEvents = [...finalMainEvents, ...lateHeuristicEvents];
+    if (!hasLateLifeCoverage || lateHeuristicEvents.length > 0) {
+      finalMainEvents = [...finalMainEvents, ...lateHeuristicEvents];
+    }
   }
 
   if (!useHeuristicMainEvents) {
@@ -292,7 +297,7 @@ export function enrichBiographyPlan(params: {
     const gapFills: BiographyTimelineEventPlan[] = [];
     for (let i = 0; i < sorted.length - 1; i++) {
       const gap = sorted[i + 1].age - sorted[i].age;
-      if (gap <= 10) continue;
+      if (gap <= 5) continue;
       const gapStart = sorted[i].age;
       const gapEnd = sorted[i + 1].age;
       const candidates = heuristicPlan.mainEvents.filter(

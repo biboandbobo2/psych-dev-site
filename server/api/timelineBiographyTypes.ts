@@ -3,7 +3,7 @@ export const TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS = 8192;
 export const MAX_WIKIPEDIA_EXTRACT_CHARS = 32000;
 export const LINE_X_POSITION = 2000;
 export const DEFAULT_BRANCH_LENGTH = 6;
-export const BRANCH_X_OFFSETS = [-360, 360, -620, 620, -900, 900, -1180, 1180] as const;
+export const BRANCH_X_OFFSETS = [-500, 500, -900, 900, -1300, 1300, -1700, 1700] as const;
 export const TIMELINE_PERIODIZATION_IDS = ['piaget', 'vygotsky', 'erikson', 'freud', 'montessori', 'gesell', 'kohlberg'] as const;
 export const EVENT_ICON_IDS = [
   'baby-swaddle',
