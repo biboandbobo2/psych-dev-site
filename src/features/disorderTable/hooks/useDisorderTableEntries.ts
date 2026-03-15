@@ -19,6 +19,7 @@ import {
   isDisorderTableCourse,
   isValidDisorderTableEntryInput,
   normalizeEntryInput,
+  normalizeEntryTrack,
 } from '../model';
 import type { DisorderTableEntry, DisorderTableEntryInput } from '../types';
 
@@ -67,6 +68,7 @@ export function useDisorderTableEntries(courseId: string) {
             rowIds: Array.isArray(data.rowIds) ? (data.rowIds as string[]) : [],
             columnIds: Array.isArray(data.columnIds) ? (data.columnIds as string[]) : [],
             text: typeof data.text === 'string' ? data.text : '',
+            track: normalizeEntryTrack(data.track as any),
             createdAt: toDateSafe(data.createdAt),
             updatedAt: toDateSafe(data.updatedAt),
           };

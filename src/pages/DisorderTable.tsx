@@ -17,7 +17,7 @@ import {
 } from '../features/disorderTable';
 import type {
   DisorderTableCellSelection,
-  DisorderTableEntry,
+  DisorderTableEntryTrack,
   DisorderTableSelectionMode,
 } from '../features/disorderTable';
 import { BaseModal, ModalCancelButton, ModalSaveButton } from '../components/ui/BaseModal';
@@ -28,6 +28,17 @@ const TEXT_CLAMP_STYLE: CSSProperties = {
   WebkitLineClamp: 2,
   WebkitBoxOrient: 'vertical',
   overflow: 'hidden',
+};
+
+const TRACK_META: Record<DisorderTableEntryTrack, { label: string; chipClass: string }> = {
+  patopsychology: {
+    label: 'Патопсихология',
+    chipClass: 'bg-sky-100 text-sky-800',
+  },
+  psychiatry: {
+    label: 'Психиатрия',
+    chipClass: 'bg-fuchsia-100 text-fuchsia-800',
+  },
 };
 
 function areSameSelections(a: string[], b: string[]): boolean {
@@ -59,6 +70,7 @@ export default function DisorderTable() {
   const [formRowIds, setFormRowIds] = useState<string[]>([]);
   const [formColumnIds, setFormColumnIds] = useState<string[]>([]);
   const [formText, setFormText] = useState('');
+  const [formTrack, setFormTrack] = useState<DisorderTableEntryTrack>('patopsychology');
 
   const [activeFilterRowIds, setActiveFilterRowIds] = useState<string[]>([]);
   const [activeFilterColumnIds, setActiveFilterColumnIds] = useState<string[]>([]);
@@ -74,6 +86,7 @@ export default function DisorderTable() {
 
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
+  const [bulkTrack, setBulkTrack] = useState<DisorderTableEntryTrack>('patopsychology');
   const [bulkError, setBulkError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -154,7 +167,7 @@ export default function DisorderTable() {
     || !areSameSelections(draftFilters.columnIds, activeFilters.columnIds);
 
   const formPreviewInput = applySelectionModeToEntryInput(
-    { rowIds: formRowIds, columnIds: formColumnIds, text: formText },
+    { rowIds: formRowIds, columnIds: formColumnIds, text: formText, track: formTrack },
     formSelectionMode
   );
   const isFormValid = isValidDisorderTableEntryInput(formPreviewInput);
@@ -187,13 +200,8 @@ export default function DisorderTable() {
     setFormRowIds([]);
     setFormColumnIds([]);
     setFormText('');
+    setFormTrack('patopsychology');
     setSubmitError(null);
-  };
-
-  const openCreateModal = () => {
-    if (isMobile) return;
-    resetForm();
-    setIsEntryModalOpen(true);
   };
 
   const openCreateFromCell = (rowId: string, columnId: string) => {
@@ -222,6 +230,7 @@ export default function DisorderTable() {
         rowIds: entry.rowIds,
         columnIds: entry.columnIds,
         text: entry.text,
+        track: entry.track,
       },
       mode
     );
@@ -231,6 +240,7 @@ export default function DisorderTable() {
     setFormRowIds(normalizedEntry.rowIds);
     setFormColumnIds(normalizedEntry.columnIds);
     setFormText(normalizedEntry.text);
+    setFormTrack(normalizedEntry.track ?? 'patopsychology');
     setSubmitError(null);
     setIsEntryModalOpen(true);
   };
@@ -242,6 +252,7 @@ export default function DisorderTable() {
         rowIds: formRowIds,
         columnIds: formColumnIds,
         text: formText,
+        track: formTrack,
       },
       formSelectionMode
     );
@@ -345,6 +356,7 @@ export default function DisorderTable() {
     if (isMobile || selectedCells.length === 0) return;
     setBulkError(null);
     setBulkText('');
+    setBulkTrack('patopsychology');
     setIsBulkModalOpen(true);
   };
 
@@ -353,6 +365,7 @@ export default function DisorderTable() {
     setIsBulkModalOpen(false);
     setBulkError(null);
     setBulkText('');
+    setBulkTrack('patopsychology');
   };
 
   const handleBulkSubmit = async () => {
@@ -369,7 +382,7 @@ export default function DisorderTable() {
     }
 
     try {
-      const batchInputs = buildBatchEntryInputsFromCells(selectedCells, bulkText);
+      const batchInputs = buildBatchEntryInputsFromCells(selectedCells, bulkText, bulkTrack);
       await createEntriesBatch(batchInputs);
       closeBulkModal();
       setSelectedCells([]);
@@ -512,45 +525,10 @@ export default function DisorderTable() {
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Link
               to="/profile"
-              className="inline-flex rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 transition hover:bg-rose-100"
             >
-              Профиль
+              Выход
             </Link>
-
-            {!isMobile && (
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="inline-flex rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-              >
-                Новая запись
-              </button>
-            )}
-
-            {!isMobile && (
-              <button
-                type="button"
-                onClick={toggleCellSelectionMode}
-                className={`inline-flex rounded-lg border px-3 py-2 text-sm font-medium transition ${
-                  isCellSelectionMode
-                    ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
-                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                {isCellSelectionMode ? 'Выделение включено' : 'Выбрать несколько ячеек'}
-              </button>
-            )}
-
-            {!isMobile && isCellSelectionMode && (
-              <button
-                type="button"
-                onClick={openBulkModal}
-                disabled={selectedCells.length === 0}
-                className="inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Внести текст в выбранные ({selectedCells.length})
-              </button>
-            )}
 
             <button
               type="button"
@@ -570,7 +548,6 @@ export default function DisorderTable() {
             </button>
 
             <label className="ml-auto flex min-w-[220px] flex-1 items-center rounded-lg border border-slate-300 bg-white px-3 py-2 sm:max-w-[420px]">
-              <span className="mr-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Поиск</span>
               <input
                 type="text"
                 value={searchQuery}
@@ -578,11 +555,39 @@ export default function DisorderTable() {
                   setSearchQuery(event.target.value);
                   setSelectedCells([]);
                 }}
-                placeholder="Поиск по тексту записей"
+                aria-label="Поиск по тексту записей"
+                placeholder="Найти запись по тексту"
                 className="w-full border-none bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
               />
             </label>
           </div>
+
+          {!isMobile && (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2">
+              <span className="text-sm font-semibold text-amber-900">Массовое редактирование</span>
+              <button
+                type="button"
+                onClick={toggleCellSelectionMode}
+                className={`inline-flex rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                  isCellSelectionMode
+                    ? 'border-amber-400 bg-white text-amber-900 hover:bg-amber-100'
+                    : 'border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200'
+                }`}
+              >
+                {isCellSelectionMode ? 'Режим выбора включен' : 'Выбрать несколько ячеек'}
+              </button>
+              {isCellSelectionMode && (
+                <button
+                  type="button"
+                  onClick={openBulkModal}
+                  disabled={selectedCells.length === 0}
+                  className="inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Внести текст в выбранные ({selectedCells.length})
+                </button>
+              )}
+            </div>
+          )}
 
           {isMobile && (
             <p className="mb-2 text-sm text-slate-600">
@@ -609,6 +614,12 @@ export default function DisorderTable() {
               ))}
             </div>
           ) : null}
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-semibold text-slate-600">Цвета заметок:</span>
+            <span className="rounded-full bg-sky-100 px-3 py-1 font-medium text-sky-800">Патопсихология</span>
+            <span className="rounded-full bg-fuchsia-100 px-3 py-1 font-medium text-fuchsia-800">Психиатрия</span>
+          </div>
 
           {(error || listError) && (
             <div className="mt-3 space-y-2">
@@ -696,17 +707,31 @@ export default function DisorderTable() {
                             const key = buildDisorderTableCellKey(row.id, column.id);
                             const cellEntries = matrix.get(key) ?? [];
                             const isSelected = selectedCellKeys.has(key);
+                            const hasPatopsychology = cellEntries.some((entry) => entry.track === 'patopsychology');
+                            const hasPsychiatry = cellEntries.some((entry) => entry.track === 'psychiatry');
+                            const isMixedTrack = hasPatopsychology && hasPsychiatry;
+                            const cellToneClass = isMixedTrack
+                              ? 'border-violet-300'
+                              : hasPatopsychology
+                                ? 'border-sky-300 bg-sky-50/80'
+                                : hasPsychiatry
+                                  ? 'border-fuchsia-300 bg-fuchsia-50/80'
+                                  : 'border-slate-200 bg-white';
+                            const cellToneStyle = isMixedTrack
+                              ? { backgroundImage: 'linear-gradient(135deg, rgb(224 242 254) 0%, rgb(224 242 254) 50%, rgb(250 232 255) 50%, rgb(250 232 255) 100%)' }
+                              : undefined;
 
                             return (
                               <td key={key} className="border-b border-r border-slate-200 bg-white p-1.5 align-top">
                                 <button
                                   type="button"
                                   onClick={() => handleCellClick(row.id, column.id)}
-                                  className={`relative min-h-[72px] w-full rounded-lg border px-2 py-2 text-left text-[11px] transition ${
+                                  className={`relative min-h-[72px] w-full rounded-lg border px-2 py-2 text-left text-[11px] transition ${cellToneClass} ${
                                     isSelected
-                                      ? 'border-amber-400 bg-amber-50'
-                                      : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/40'
+                                      ? 'ring-2 ring-amber-300'
+                                      : 'hover:border-blue-300 hover:bg-blue-50/40'
                                   }`}
+                                  style={cellToneStyle}
                                 >
                                   {isCellSelectionMode && !isMobile && (
                                     <span
@@ -725,8 +750,20 @@ export default function DisorderTable() {
                                   ) : (
                                     <>
                                       <p className="pr-5 text-slate-700" style={TEXT_CLAMP_STYLE}>
-                                        {cellEntries[0].text}
+                                      {cellEntries[0].text}
                                       </p>
+                                      <div className="mt-1 flex flex-wrap gap-1 pr-5">
+                                        {hasPatopsychology && (
+                                          <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[9px] font-semibold text-sky-800">
+                                            Патопсихология
+                                          </span>
+                                        )}
+                                        {hasPsychiatry && (
+                                          <span className="rounded-full bg-fuchsia-100 px-1.5 py-0.5 text-[9px] font-semibold text-fuchsia-800">
+                                            Психиатрия
+                                          </span>
+                                        )}
+                                      </div>
                                       {cellEntries.length > 1 && (
                                         <p className="mt-1 text-[10px] font-medium text-blue-700">
                                           +{cellEntries.length - 1} ещё
@@ -752,7 +789,7 @@ export default function DisorderTable() {
       <BaseModal
         isOpen={isEntryModalOpen}
         onClose={closeEntryModal}
-        title={editingEntryId ? 'Редактировать запись' : 'Новая запись'}
+        title={editingEntryId ? 'Редактировать запись' : 'Добавить запись в пересечение'}
         maxWidth="2xl"
         disabled={saving}
         footer={(
@@ -817,6 +854,26 @@ export default function DisorderTable() {
             </>
           )}
 
+          <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-2 text-sm font-semibold text-slate-900">Категория заметки</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {(Object.keys(TRACK_META) as DisorderTableEntryTrack[]).map((track) => (
+                <button
+                  key={track}
+                  type="button"
+                  onClick={() => setFormTrack(track)}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                    formTrack === track
+                      ? 'border-slate-700 bg-white text-slate-900'
+                      : 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {TRACK_META[track].label}
+                </button>
+              ))}
+            </div>
+          </section>
+
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">Ваши наблюдения</label>
             <textarea
@@ -869,7 +926,9 @@ export default function DisorderTable() {
               <article key={entry.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{entry.text}</p>
                 <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-500">
-                  <span>Обновлено: {entry.updatedAt.toLocaleString('ru-RU')}</span>
+                  <span className={`rounded-full px-2 py-1 text-xs font-semibold ${TRACK_META[entry.track].chipClass}`}>
+                    {TRACK_META[entry.track].label}
+                  </span>
                   {!isMobile && (
                     <div className="flex items-center gap-2">
                       <button
@@ -928,6 +987,26 @@ export default function DisorderTable() {
                   </span>
                 );
               })}
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Категория заметки</label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {(Object.keys(TRACK_META) as DisorderTableEntryTrack[]).map((track) => (
+                <button
+                  key={`bulk-track-${track}`}
+                  type="button"
+                  onClick={() => setBulkTrack(track)}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                    bulkTrack === track
+                      ? 'border-slate-700 bg-white text-slate-900'
+                      : 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {TRACK_META[track].label}
+                </button>
+              ))}
             </div>
           </div>
 

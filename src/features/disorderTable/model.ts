@@ -3,6 +3,7 @@ import type {
   DisorderTableCellSelection,
   DisorderTableEntry,
   DisorderTableEntryInput,
+  DisorderTableEntryTrack,
   DisorderTableFilters,
 } from './types';
 
@@ -25,7 +26,12 @@ export function normalizeEntryInput(input: DisorderTableEntryInput): DisorderTab
     rowIds: normalizeSelectionIds(input.rowIds),
     columnIds: normalizeSelectionIds(input.columnIds),
     text: input.text.trim(),
+    track: normalizeEntryTrack(input.track),
   };
+}
+
+export function normalizeEntryTrack(track?: DisorderTableEntryTrack): DisorderTableEntryTrack {
+  return track === 'psychiatry' ? 'psychiatry' : 'patopsychology';
 }
 
 export function buildDisorderTableFilters(rowIds: string[], columnIds: string[]): DisorderTableFilters {
@@ -46,6 +52,7 @@ export function applySelectionModeToEntryInput(
       rowIds: normalized.rowIds.slice(0, 1),
       columnIds: normalized.columnIds,
       text: normalized.text,
+      track: normalized.track,
     };
   }
 
@@ -53,6 +60,7 @@ export function applySelectionModeToEntryInput(
     rowIds: normalized.rowIds,
     columnIds: normalized.columnIds.slice(0, 1),
     text: normalized.text,
+    track: normalized.track,
   };
 }
 
@@ -152,9 +160,11 @@ export function buildDisorderTableFullMatrix(
 
 export function buildBatchEntryInputsFromCells(
   cells: DisorderTableCellSelection[],
-  text: string
+  text: string,
+  track?: DisorderTableEntryTrack
 ): DisorderTableEntryInput[] {
   const normalizedText = text.trim();
+  const normalizedTrack = normalizeEntryTrack(track);
   const uniqueCells = new Map<string, DisorderTableCellSelection>();
 
   for (const cell of cells) {
@@ -165,5 +175,6 @@ export function buildBatchEntryInputsFromCells(
     rowIds: [cell.rowId],
     columnIds: [cell.columnId],
     text: normalizedText,
+    track: normalizedTrack,
   }));
 }

@@ -14,11 +14,14 @@ export interface DisorderTableRow {
   label: string;
 }
 
+export type DisorderTableEntryTrack = 'patopsychology' | 'psychiatry';
+
 export interface DisorderTableEntry {
   id: string;
   rowIds: string[];
   columnIds: string[];
   text: string;
+  track: DisorderTableEntryTrack;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +30,7 @@ export interface DisorderTableEntryInput {
   rowIds: string[];
   columnIds: string[];
   text: string;
+  track?: DisorderTableEntryTrack;
 }
 
 export interface DisorderTableFilters {

@@ -53,11 +53,13 @@ describe('disorderTable model', () => {
       rowIds: [' memory ', 'memory'],
       columnIds: [' depression ', 'depression'],
       text: '  Моя заметка  ',
+      track: 'psychiatry',
     });
     expect(normalized).toEqual({
       rowIds: ['memory'],
       columnIds: ['depression'],
       text: 'Моя заметка',
+      track: 'psychiatry',
     });
 
     expect(
@@ -65,6 +67,7 @@ describe('disorderTable model', () => {
         rowIds: ['memory'],
         columnIds: ['depression'],
         text: 'OK',
+        track: 'patopsychology',
       })
     ).toBe(false);
 
@@ -73,6 +76,7 @@ describe('disorderTable model', () => {
         rowIds: ['memory'],
         columnIds: ['depression'],
         text: 'Текст валиден',
+        track: 'patopsychology',
       })
     ).toBe(true);
 
@@ -81,6 +85,7 @@ describe('disorderTable model', () => {
         rowIds: ['memory', 'attention'],
         columnIds: ['depression', 'anxiety'],
         text: 'Текст валиден',
+        track: 'patopsychology',
       })
     ).toBe(false);
   });
@@ -92,6 +97,7 @@ describe('disorderTable model', () => {
           rowIds: ['memory', 'attention'],
           columnIds: ['depression', 'anxiety'],
           text: '  Заметка  ',
+          track: 'patopsychology',
         },
         'one-row-many-columns'
       )
@@ -99,6 +105,7 @@ describe('disorderTable model', () => {
       rowIds: ['memory'],
       columnIds: ['depression', 'anxiety'],
       text: 'Заметка',
+      track: 'patopsychology',
     });
 
     expect(
@@ -107,6 +114,7 @@ describe('disorderTable model', () => {
           rowIds: ['memory', 'attention'],
           columnIds: ['depression', 'anxiety'],
           text: 'Заметка',
+          track: 'psychiatry',
         },
         'one-column-many-rows'
       )
@@ -114,6 +122,7 @@ describe('disorderTable model', () => {
       rowIds: ['memory', 'attention'],
       columnIds: ['depression'],
       text: 'Заметка',
+      track: 'psychiatry',
     });
   });
 
@@ -140,6 +149,7 @@ describe('disorderTable model', () => {
         rowIds: ['memory'],
         columnIds: ['depression-bipolar'],
         text: 'entry 1',
+        track: 'patopsychology',
         createdAt: new Date('2026-03-08T10:00:00.000Z'),
         updatedAt: new Date('2026-03-08T10:00:00.000Z'),
       },
@@ -148,6 +158,7 @@ describe('disorderTable model', () => {
         rowIds: ['thinking'],
         columnIds: ['anxiety'],
         text: 'entry 2',
+        track: 'psychiatry',
         createdAt: new Date('2026-03-08T10:00:00.000Z'),
         updatedAt: new Date('2026-03-08T10:00:00.000Z'),
       },
@@ -189,6 +200,7 @@ describe('disorderTable model', () => {
         rowIds: ['memory'],
         columnIds: ['depression-bipolar', 'anxiety'],
         text: 'entry 1',
+        track: 'patopsychology',
         createdAt: new Date('2026-03-08T10:00:00.000Z'),
         updatedAt: new Date('2026-03-08T10:00:00.000Z'),
       },
@@ -197,6 +209,7 @@ describe('disorderTable model', () => {
         rowIds: ['memory', 'thinking'],
         columnIds: ['anxiety'],
         text: 'entry 2',
+        track: 'psychiatry',
         createdAt: new Date('2026-03-08T10:00:00.000Z'),
         updatedAt: new Date('2026-03-08T10:00:00.000Z'),
       },
@@ -217,6 +230,7 @@ describe('disorderTable model', () => {
         rowIds: ['memory'],
         columnIds: ['anxiety'],
         text: 'entry 1',
+        track: 'patopsychology',
         createdAt: new Date('2026-03-08T10:00:00.000Z'),
         updatedAt: new Date('2026-03-08T10:00:00.000Z'),
       },
@@ -244,13 +258,22 @@ describe('disorderTable model', () => {
         rowIds: ['memory'],
         columnIds: ['anxiety'],
         text: 'Общий текст',
+        track: 'patopsychology',
       },
       {
         rowIds: ['thinking'],
         columnIds: ['depression-bipolar'],
         text: 'Общий текст',
+        track: 'patopsychology',
       },
     ]);
+
+    const psychiatryResult = buildBatchEntryInputsFromCells(
+      [{ rowId: 'thinking', columnId: 'anxiety' }],
+      'Текст',
+      'psychiatry'
+    );
+    expect(psychiatryResult[0].track).toBe('psychiatry');
   });
 
   it('конфиг строк и столбцов содержит уникальные id и валидные группы', () => {

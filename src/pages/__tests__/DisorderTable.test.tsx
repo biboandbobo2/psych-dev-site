@@ -44,6 +44,7 @@ function createEntry(id: string, rowId: string, columnId: string, text: string):
     rowIds: [rowId],
     columnIds: [columnId],
     text,
+    track: 'patopsychology',
     createdAt: now,
     updatedAt: now,
   };
