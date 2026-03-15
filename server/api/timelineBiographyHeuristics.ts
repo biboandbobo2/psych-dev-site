@@ -272,7 +272,7 @@ export function inferIconFromSentence(sentence: string, sphere: TimelineSphere):
   return undefined;
 }
 
-export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere): string | null {
+export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   const workTitle = extractQuotedWorkTitle(sentence);
   const location =
     sentence.match(/\b(?:в|на|из)\s+([А-ЯЁA-Z][^,.();:]{2,50})/u)?.[1]?.trim().replace(/\s+/g, ' ') ?? undefined;
@@ -285,8 +285,7 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere): s
   if (/женил|брак|свад/i.test(sentence)) return spouse ? `Брак с ${spouse}` : 'Брак';
   if (/родил\S*\s+(?:сын|дочь|ребён)/i.test(sentence)) return 'Рождение ребёнка';
   if (/нян|домашн.*обуч|гуверн|наставник/i.test(sentence)) return 'Домашнее обучение';
-  if (/перв.*стих/i.test(sentence)) return 'Первые стихи';
-  if (/ранн.*чтен/i.test(sentence)) return 'Раннее чтение';
+  if (/детств|ранн.*чтен|перв.*стих/i.test(sentence)) return 'Формирующее детство';
   if (/лицейск.*друз|дружб|переписк|кружок|общество|арзамас|лампа|декабр|пущин|дельвиг|кюхельбекер|чаадаев/i.test(sentence)) {
     return /декабр/i.test(sentence) ? 'Потери круга декабристов' : 'Лицейский круг';
   }
@@ -298,29 +297,43 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere): s
   if (/поступ/i.test(sentence) && institution) return `Поступление в ${institution}`;
   if (/(окончил|выпустил|выпуск)/i.test(sentence) && institution) return `Окончание ${institution}`;
   if (/лице|школ|универс|академ|институт|учил/i.test(sentence) && institution) return `Учёба в ${institution}`;
-  if (/лице|школ|универс|академ|институт|учил/i.test(sentence)) return null; // no institution name = skip
+  if (/лице|школ|универс|академ|институт|учил/i.test(sentence)) return 'Учёба';
   if (/вступил в .*общество|арзамас|зел[её]ная лампа/i.test(sentence)) return 'Литературный круг';
-  if (/элег|лирик/i.test(sentence) && workTitle) return `«${workTitle}»`;
+  if (/элег|лирик/i.test(sentence)) return 'Литературный поворот';
   if (/предложени/i.test(sentence) && /гончаров/i.test(sentence)) return 'Предложение Наталье Гончаровой';
   if (/ссора/i.test(sentence) && /тёщ/i.test(sentence)) return 'Ссора с тёщей';
   if (workTitle && (sphere === 'career' || sphere === 'creativity')) return `Публикация «${workTitle}»`;
   if (/заверш[а-я]+\s+.*борис[а-яё ]+годунов/i.test(sentence)) return 'Завершение «Бориса Годунова»';
   if (/начал работу/i.test(sentence) && workTitle) return `Начало работы над «${workTitle}»`;
   if (/опублик|издал|поэм|роман|стих|книг|произвед|published/i.test(sentence)) {
-    return null; // no work title = skip, not worth a generic "Новая публикация"
+    return location ? `Публикация в ${location}` : 'Новая публикация';
   }
-  if (/назнач|стал|служ|карьер|became|appointed/i.test(sentence)) {
-    const role = sentence.match(/(?:назначен|стал|получил должность)\s+([^,.();]{3,40})/i)?.[1]?.trim();
-    return role ? role : null; // no specific role = skip
-  }
+  if (/назнач|стал|служ|карьер|became|appointed/i.test(sentence)) return 'Новый карьерный этап';
   if (/долг|обязательств|финанс|денег|money|finance/i.test(sentence)) return 'Финансовое давление';
   if (/арест|тюрьм|prison|arrest/i.test(sentence)) return 'Арест';
   if (/цензур|запрет|censor/i.test(sentence)) return 'Цензурные ограничения';
   if (/наград|орден|award|prize/i.test(sentence)) return 'Награждение';
 
-  // No known pattern matched — don't invent a generic label from raw sentence text.
-  // Better to skip this event than produce a sentence fragment as a label.
-  return null;
+  const cleaned = normalizeWhitespace(
+    sentence
+      .replace(/\([^)]*\)/g, '')
+      .replace(/^(?:В|С|К|После|До|Около)\s+\d{4}\s+(?:году?|годах|годов),?\s*/u, '')
+      .replace(/^\d{1,2}\s+[А-Яа-яЁё]+\s+\d{4}\s+года,?\s*/u, '')
+      .replace(/^(?:В этот период|В это время|В том же году|Тогда же),?\s*/u, '')
+  );
+
+  if (cleaned.length <= 50) return cleaned;
+
+  const firstClause = cleaned.split(/[,;—–]/, 1)[0]?.trim();
+  if (firstClause && firstClause.length >= 5 && firstClause.length <= 50) return firstClause;
+
+  const words = cleaned.split(/\s+/);
+  if (words.length > 7) {
+    const shortPhrase = words.slice(0, 5).join(' ');
+    if (shortPhrase.length <= 50) return shortPhrase;
+  }
+
+  return cleaned.length > 50 ? `${cleaned.slice(0, 47).trimEnd()}...` : cleaned;
 }
 
 export function isRawSentenceLabel(label: string) {
@@ -339,7 +352,7 @@ export function isRawSentenceLabel(label: string) {
   return false;
 }
 
-export function postProcessModelEvent(event: BiographyTimelineEventPlan): BiographyTimelineEventPlan | null {
+export function postProcessModelEvent(event: BiographyTimelineEventPlan): BiographyTimelineEventPlan {
   let { label, sphere, iconId } = event;
   const source = event.notes || event.label;
 
@@ -347,8 +360,6 @@ export function postProcessModelEvent(event: BiographyTimelineEventPlan): Biogra
     const betterLabel = buildHeuristicLabel(source, sphere ?? 'other');
     if (betterLabel && betterLabel.length <= 50) {
       label = betterLabel;
-    } else {
-      return null; // sentence fragment with no good replacement = drop event
     }
   }
 
@@ -400,8 +411,6 @@ export function inferChronologicalEventsFromExtract(extract: string, birthYear?:
 
     const sphere = inferSphereFromSentence(sentence);
     const label = buildHeuristicLabel(sentence, sphere);
-    if (!label) return; // no good label = skip event
-
     const event = sanitizeTimelineEventPlan({
       age,
       label,
@@ -502,8 +511,6 @@ function extractTargetedEvents(
     if (!matched) continue;
 
     const label = buildHeuristicLabel(sentence, matched.sphere);
-    if (!label) continue; // no good label = skip event
-
     const event = sanitizeTimelineEventPlan({
       age,
       label,
