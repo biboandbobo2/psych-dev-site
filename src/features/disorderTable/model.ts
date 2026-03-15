@@ -30,8 +30,9 @@ export function normalizeEntryInput(input: DisorderTableEntryInput): DisorderTab
   };
 }
 
-export function normalizeEntryTrack(track?: DisorderTableEntryTrack): DisorderTableEntryTrack {
-  return track === 'psychiatry' ? 'psychiatry' : 'patopsychology';
+export function normalizeEntryTrack(track?: DisorderTableEntryTrack | null): DisorderTableEntryTrack | null {
+  if (track === 'patopsychology' || track === 'psychiatry') return track;
+  return null;
 }
 
 export function buildDisorderTableFilters(rowIds: string[], columnIds: string[]): DisorderTableFilters {
@@ -161,7 +162,7 @@ export function buildDisorderTableFullMatrix(
 export function buildBatchEntryInputsFromCells(
   cells: DisorderTableCellSelection[],
   text: string,
-  track?: DisorderTableEntryTrack
+  track?: DisorderTableEntryTrack | null
 ): DisorderTableEntryInput[] {
   const normalizedText = text.trim();
   const normalizedTrack = normalizeEntryTrack(track);

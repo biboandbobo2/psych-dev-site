@@ -76,7 +76,7 @@ describe('disorderTable model', () => {
         rowIds: ['memory'],
         columnIds: ['depression'],
         text: 'Текст валиден',
-        track: 'patopsychology',
+        track: null,
       })
     ).toBe(true);
 
@@ -97,7 +97,7 @@ describe('disorderTable model', () => {
           rowIds: ['memory', 'attention'],
           columnIds: ['depression', 'anxiety'],
           text: '  Заметка  ',
-          track: 'patopsychology',
+          track: null,
         },
         'one-row-many-columns'
       )
@@ -105,7 +105,7 @@ describe('disorderTable model', () => {
       rowIds: ['memory'],
       columnIds: ['depression', 'anxiety'],
       text: 'Заметка',
-      track: 'patopsychology',
+      track: null,
     });
 
     expect(
@@ -258,13 +258,13 @@ describe('disorderTable model', () => {
         rowIds: ['memory'],
         columnIds: ['anxiety'],
         text: 'Общий текст',
-        track: 'patopsychology',
+        track: null,
       },
       {
         rowIds: ['thinking'],
         columnIds: ['depression-bipolar'],
         text: 'Общий текст',
-        track: 'patopsychology',
+        track: null,
       },
     ]);
 

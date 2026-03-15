@@ -21,7 +21,7 @@ export interface DisorderTableEntry {
   rowIds: string[];
   columnIds: string[];
   text: string;
-  track: DisorderTableEntryTrack;
+  track: DisorderTableEntryTrack | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,7 +30,7 @@ export interface DisorderTableEntryInput {
   rowIds: string[];
   columnIds: string[];
   text: string;
-  track?: DisorderTableEntryTrack;
+  track?: DisorderTableEntryTrack | null;
 }
 
 export interface DisorderTableFilters {
