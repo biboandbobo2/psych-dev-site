@@ -51,7 +51,8 @@ function escapeForRegExp(value: string): string {
 function buildPreviewText(text: string, query: string, maxLength = 120): string {
   const normalizedText = text.trim();
   if (!normalizedText) return '';
-  if (normalizedText.length <= maxLength) return normalizedText;
+  const wasShortened = normalizedText.length > maxLength;
+  if (!wasShortened) return normalizedText;
 
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
@@ -74,6 +75,7 @@ function buildPreviewText(text: string, query: string, maxLength = 120): string 
   let snippet = normalizedText.slice(start, end).trim();
   if (start > 0) snippet = `...${snippet}`;
   if (end < normalizedText.length) snippet = `${snippet}...`;
+  if (wasShortened && !snippet.endsWith('...')) snippet = `${snippet}...`;
   return snippet;
 }
 
@@ -453,6 +455,10 @@ export default function DisorderTable() {
     <div className="fixed inset-0 overflow-hidden bg-gradient-to-br from-slate-50 to-white">
       <div className="flex h-full flex-col gap-3 p-3 sm:p-4">
         <section className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:p-4">
+          <div className="mb-3 border-b border-slate-200 pb-3">
+            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Таблица по расстройствам</h1>
+          </div>
+
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <Link
               to="/profile"
@@ -718,7 +724,7 @@ export default function DisorderTable() {
                                     <p className="text-slate-400">Пусто</p>
                                   ) : (
                                     <>
-                                      <p className="pr-5 text-slate-700" style={TEXT_CLAMP_STYLE}>
+                                      <p className="break-words pr-5 text-slate-700 [overflow-wrap:anywhere]" style={TEXT_CLAMP_STYLE}>
                                         {renderHighlightedText(previewText, normalizedSearch)}
                                       </p>
                                       <div className="mt-1 flex flex-wrap gap-1 pr-5">
@@ -846,7 +852,9 @@ export default function DisorderTable() {
           <div className="space-y-3">
             {activeCellEntries.map((entry) => (
               <article key={entry.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{entry.text}</p>
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-800 [overflow-wrap:anywhere]">
+                  {entry.text}
+                </p>
                 <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-500">
                   {entry.track ? (
                     <span className={`rounded-full px-2 py-1 text-xs font-semibold ${TRACK_META[entry.track].chipClass}`}>
