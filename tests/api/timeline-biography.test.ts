@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import handler from './timeline-biography.js';
+import handler from '../../api/timeline-biography.js';
 import {
   buildBiographyTimelinePrompt,
   buildTimelineDataFromBiographyPlan,
   enrichBiographyPlan,
-} from '../server/api/timelineBiography.js';
+} from '../../server/api/timelineBiography.js';
 
 const geminiMocks = vi.hoisted(() => ({
   generateContent: vi.fn(),

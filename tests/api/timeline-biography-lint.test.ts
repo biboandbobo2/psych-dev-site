@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { lintBiographyPlan, repairBiographyPlan } from '../server/api/timelineBiographyLint.js';
-import { parseLineBasedBiographyFactCandidates } from '../server/api/timelineBiographyFacts.js';
+import { lintBiographyPlan, repairBiographyPlan } from '../../server/api/timelineBiographyLint.js';
+import { parseLineBasedBiographyFactCandidates } from '../../server/api/timelineBiographyFacts.js';
 
 describe('timelineBiographyLint', () => {
   it('чинит пустые notes и выкидывает ветку, якорённую к рождению', () => {

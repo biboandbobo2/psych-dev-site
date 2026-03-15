@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import handler, { truncateResponse } from '../assistant.js';
+import handler, { truncateResponse } from '../../api/assistant.js';
 
 const geminiMocks = vi.hoisted(() => ({
   generateContent: vi.fn(),

@@ -3,7 +3,7 @@ import {
   buildHeuristicFactCandidates,
   mergeFactCandidates,
   parseLineBasedBiographyFactCandidates,
-} from '../server/api/timelineBiographyFacts.js';
+} from '../../server/api/timelineBiographyFacts.js';
 
 describe('timelineBiographyFacts', () => {
   it('парсит line-based facts и переводит publication в creativity', () => {

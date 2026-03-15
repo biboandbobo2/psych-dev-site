@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { composeBiographyPlanFromFacts } from '../server/api/timelineBiographyComposer.js';
-import { parseLineBasedBiographyFactCandidates } from '../server/api/timelineBiographyFacts.js';
+import { composeBiographyPlanFromFacts } from '../../server/api/timelineBiographyComposer.js';
+import { parseLineBasedBiographyFactCandidates } from '../../server/api/timelineBiographyFacts.js';
 
 describe('timelineBiographyComposer', () => {
   it('строит main line с насыщенной ранней жизнью и не якорит ветки к рождению', () => {
