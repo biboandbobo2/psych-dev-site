@@ -454,6 +454,14 @@ src/hooks/
 - API дополнительно возвращает `planDiagnostics`, `timelineStats`, `stageDiagnostics` и `compositionStats`, чтобы было видно, как отработал каскад и насколько сильным получился итоговый план.
 - Для локальных итераций без UI добавлен CLI: `npm run timeline:eval -- --source-url=https://ru.wikipedia.org/wiki/... [--heuristics-only] [--out=tmp/biography-eval.json]`.
   - Скрипт тянет тот же Wikipedia extract, прогоняет facts-first каскад локально и печатает metrics по facts/main/branches/generic labels.
+- Для удалённого end-to-end smoke поверх preview/prod добавлен automation harness:
+  - Endpoint: `POST /api/timeline-biography-automation`
+  - Требует только `X-Gemini-Api-Key` и принимает тот же `sourceUrl`, что и основной import endpoint.
+  - Не использует server Gemini key fallback и не требует Firebase auth, поэтому подходит для машинного smoke через preview URL и пользовательский BYOK.
+  - Automation render route: `/_timeline/automation`
+  - Страница ждёт `window.__TIMELINE_AUTOMATION_PAYLOAD__`, рендерит готовый timeline тем же `TimelineCanvas` и умеет скачать `JSON`/`PDF` как обычные browser downloads.
+  - CLI: `npm run timeline:remote-eval -- --base-url=https://...vercel.app --source-url=https://ru.wikipedia.org/wiki/...`
+    - Скрипт вызывает automation endpoint, сохраняет `response.json`, затем через Playwright открывает render route и сохраняет `timeline.json`, `timeline.pdf` и screenshot в `tmp/timeline-runs/...`.
 - `Очистить всё` по-прежнему очищает только активный холст.
 
 ## Экспорт таймлайна

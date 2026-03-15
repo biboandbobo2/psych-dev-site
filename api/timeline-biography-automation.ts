@@ -1,25 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { debugError } from '../src/lib/debug.js';
-import { resolveLectureGeminiApiKey, setLectureApiCorsHeaders, verifyLectureApiAuth } from '../server/api/lectureApiRuntime.js';
+import { setLectureApiCorsHeaders } from '../server/api/lectureApiRuntime.js';
 import {
   normalizeBiographyApiError,
+  resolveRequiredGeminiApiKey,
   runBiographyImport,
   validateBiographyImportRequest,
 } from '../server/api/timelineBiography.js';
-
-function initFirebaseAdmin() {
-  if (getApps().length > 0) return;
-  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!json) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured');
-  }
-
-  const sa = JSON.parse(json);
-  initializeApp({
-    credential: cert(sa),
-  });
-}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setLectureApiCorsHeaders(req, res);
@@ -35,16 +22,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    initFirebaseAdmin();
-
-    const authResult = await verifyLectureApiAuth(req);
-    if (!authResult.valid) {
-      res.status(401).json({ ok: false, error: authResult.error, code: authResult.code });
-      return;
-    }
-
     const { sourceUrl } = validateBiographyImportRequest(req.body);
-    const apiKey = resolveLectureGeminiApiKey(req);
+    const apiKey = resolveRequiredGeminiApiKey(req);
     const payload = await runBiographyImport({
       sourceUrl,
       apiKey,
@@ -52,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     res.status(200).json(payload);
   } catch (error) {
-    debugError('[timeline-biography] handler error', error);
+    debugError('[timeline-biography-automation] handler error', error);
     const { statusCode, message } = normalizeBiographyApiError(error);
 
     res.status(statusCode).json({

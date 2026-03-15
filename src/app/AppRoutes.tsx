@@ -17,6 +17,7 @@ import {
   Profile,
   Notes,
   Timeline,
+  TimelineAutomation,
   DynamicTest,
   TestsPage,
   ResearchPage,
@@ -100,6 +101,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           }
         />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/_timeline/automation" element={<TimelineAutomation />} />
         <Route
           path="/notes"
           element={

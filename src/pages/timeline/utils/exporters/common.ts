@@ -19,6 +19,17 @@ export type TimelineExportPayload = {
   selectedPeriodization: TimelineData['selectedPeriodization'];
 };
 
+export function buildTimelineExportPayload(data: TimelineData): TimelineExportPayload {
+  return {
+    currentAge: data.currentAge,
+    ageMax: data.ageMax,
+    nodes: data.nodes,
+    edges: data.edges,
+    birthDetails: { ...(data.birthDetails ?? {}) },
+    selectedPeriodization: data.selectedPeriodization ?? null,
+  };
+}
+
 /**
  * Generates a unique filename with timestamp
  * Format: timeline_2024-01-15_14-30-45.ext

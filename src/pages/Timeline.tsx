@@ -43,7 +43,7 @@ import { IconPickerButton } from './timeline/components/IconPickerButton';
 import { PeriodizationSelector } from './timeline/components/PeriodizationSelector';
 import { PeriodBoundaryModal } from './timeline/components/PeriodBoundaryModal';
 import { PERIODIZATIONS, getPeriodizationById } from './timeline/data/periodizations';
-import { exportTimelineJSON, exportTimelinePNG, exportTimelinePDF } from './timeline/utils/exporters';
+import { buildTimelineExportPayload, exportTimelineJSON, exportTimelinePNG, exportTimelinePDF } from './timeline/utils/exporters';
 import { useTimelineState } from './timeline/hooks/useTimelineState';
 import { useTimelineHistory } from './timeline/hooks/useTimelineHistory';
 import { useDownloadMenu } from './timeline/hooks/useDownloadMenu';
@@ -440,7 +440,14 @@ export default function Timeline() {
 
   const handleDownload = async (type: 'json' | 'png' | 'pdf') => {
     closeDownloadMenu();
-    const exportPayload = { currentAge, ageMax, nodes, edges, birthDetails: { ...birthDetails }, selectedPeriodization };
+    const exportPayload = buildTimelineExportPayload({
+      currentAge,
+      ageMax,
+      nodes,
+      edges,
+      birthDetails,
+      selectedPeriodization,
+    });
     setExportStatus({
       state: 'running',
       type,

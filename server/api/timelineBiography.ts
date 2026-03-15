@@ -8,3 +8,4 @@ export * from './timelineBiographyComposer.js';
 export * from './timelineBiographyLint.js';
 export * from './timelineBiographyMetrics.js';
 export * from './timelineBiographyQuality.js';
+export * from './timelineBiographyRuntime.js';

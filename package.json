@@ -20,6 +20,7 @@
     "docs:metrics": "tsx scripts/check-doc-metrics.ts",
     "docs:plans": "tsx scripts/generate-plan-overview.ts",
     "timeline:eval": "tsx scripts/evaluateBiographyImport.ts",
+    "timeline:remote-eval": "tsx scripts/runRemoteTimelineEval.ts",
     "transcripts:import": "tsx scripts/importVideoTranscripts.ts",
     "lectures:ingest": "tsx scripts/importLectureRag.ts",
     "firebase:login": "firebase login",
