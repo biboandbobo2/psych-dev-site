@@ -94,7 +94,10 @@ export function normalizeWhitespace(value: string) {
 }
 
 export function extractQuotedWorkTitle(value: string) {
-  return value.match(/[«"](.*?)[»"]/u)?.[1]?.trim();
+  const title = value.match(/[«"](.*?)[»"]/u)?.[1]?.trim();
+  if (!title) return undefined;
+  if (!/^[A-ZА-ЯЁ0-9]/u.test(title)) return undefined;
+  return title;
 }
 
 export function normalizeFactText(value: string) {
@@ -374,6 +377,10 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   if (/элег|лирик/i.test(sentence)) return 'Литературный поворот';
   if (/предложени/i.test(sentence) && /гончаров/i.test(sentence)) return 'Предложение Наталье Гончаровой';
   if (/ссора/i.test(sentence) && /тёщ/i.test(sentence)) return 'Ссора с тёщей';
+  if (/сотрудничеств/i.test(sentence) && /журнал/i.test(sentence) && workTitle) return `Сотрудничество с «${workTitle}»`;
+  if (/издава(?:л|ть)/i.test(sentence) && /журнал/i.test(sentence) && workTitle) return `Журнал «${workTitle}»`;
+  if (/отлуч/i.test(sentence) && /церк|рпц/i.test(sentence)) return 'Отлучение от церкви';
+  if (/записал/i.test(sentence) && /дневник/i.test(sentence) && /за два года до смерти/i.test(sentence)) return 'Поздний дневник';
   if (workTitle && (sphere === 'career' || sphere === 'creativity')) return `Публикация «${workTitle}»`;
   if (/заверш[а-я]+\s+.*борис[а-яё ]+годунов/i.test(sentence)) return 'Завершение «Бориса Годунова»';
   if (/начал работу/i.test(sentence) && workTitle) return `Начало работы над «${workTitle}»`;
@@ -665,6 +672,7 @@ function normalizeLossRelationLabel(value: string) {
   if (normalized.startsWith('доч')) return 'дочери';
   if (normalized.startsWith('друг')) return 'друга';
   if (normalized.startsWith('нян')) return 'няни';
+  if (normalized.startsWith('опекун')) return 'опекуна';
   return normalized;
 }
 

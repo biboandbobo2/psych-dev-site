@@ -179,6 +179,31 @@ function isLowQualityEventLabel(label: string) {
   return isGenericLabel(label) || isTruncatedLabel(label) || isRawSentenceLabel(label);
 }
 
+function areEquivalentEvents(a: BiographyTimelineEventPlan, b: BiographyTimelineEventPlan) {
+  if (buildEventFactKey(a) === buildEventFactKey(b)) {
+    return true;
+  }
+
+  const titleA = extractQuotedWorkTitle(a.label);
+  const titleB = extractQuotedWorkTitle(b.label);
+  if (!titleA || !titleB || titleA !== titleB) {
+    return false;
+  }
+
+  const isPublicationA = /^Публикац/i.test(a.label);
+  const isPublicationB = /^Публикац/i.test(b.label);
+  if (!isPublicationA || !isPublicationB) {
+    return false;
+  }
+
+  return Math.abs(a.age - b.age) <= 4;
+}
+
+function findEquivalentEventIndex(events: BiographyTimelineEventPlan[], candidate: BiographyTimelineEventPlan) {
+  const index = events.findIndex((event) => areEquivalentEvents(event, candidate));
+  return index >= 0 ? index : undefined;
+}
+
 function buildEventFromFact(fact: BiographyFactCandidate, fallbackSphere?: BiographyTimelineEventPlan['sphere']) {
   const age = Number.isFinite(fact.age)
     ? Number(fact.age)
@@ -314,7 +339,7 @@ export function repairBiographyPlan(params: {
     if (isBirthLikeEvent(event)) return;
     if (isLowQualityEventLabel(event.label)) return;
     const key = buildEventFactKey(event);
-    const existingIndex = mainKeys.get(key);
+    const existingIndex = mainKeys.get(key) ?? findEquivalentEventIndex(dedupedMainEvents, event);
     if (existingIndex !== undefined) {
       mainIndexMap.set(originalIndex, existingIndex);
       return;
@@ -346,18 +371,22 @@ export function repairBiographyPlan(params: {
       if (!sourceEvent || sourceEvent.age === 0) return null;
 
       const branchKeys = new Set<string>();
-      const events = branch.events
-        .map((event) => repairEventPlan(event, factsIndex, branch.sphere))
-        .filter((event): event is BiographyTimelineEventPlan => Boolean(event))
-        .filter((event) => !isLowQualityEventLabel(event.label))
-        .filter((event) => event.age > sourceEvent.age)
-        .filter((event) => !isBirthLikeEvent(event))
-        .filter((event) => {
-          const key = buildEventFactKey(event);
-          if (supplementedMainKeys.has(key) || branchKeys.has(key)) return false;
-          branchKeys.add(key);
-          return true;
-        });
+      const events: BiographyTimelineEventPlan[] = [];
+      for (const branchEvent of branch.events) {
+        const event = repairEventPlan(branchEvent, factsIndex, branch.sphere);
+        if (!event) continue;
+        if (isLowQualityEventLabel(event.label)) continue;
+        if (event.age <= sourceEvent.age) continue;
+        if (isBirthLikeEvent(event)) continue;
+
+        const key = buildEventFactKey(event);
+        const duplicatesMain = supplementedMainEvents.some((candidate) => areEquivalentEvents(candidate, event));
+        const duplicatesBranch = events.some((candidate) => areEquivalentEvents(candidate, event));
+        if (supplementedMainKeys.has(key) || branchKeys.has(key) || duplicatesMain || duplicatesBranch) continue;
+
+        branchKeys.add(key);
+        events.push(event);
+      }
 
       if (events.length < 2) return null;
 
