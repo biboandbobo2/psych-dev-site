@@ -3,12 +3,16 @@ import handler from '../../api/timeline-biography-extractor-automation.js';
 
 const geminiMocks = vi.hoisted(() => ({
   generateContent: vi.fn(),
+  createInteraction: vi.fn(),
 }));
 
 vi.mock('@google/genai', () => {
   class MockGoogleGenAI {
     models = {
       generateContent: geminiMocks.generateContent,
+    };
+    interactions = {
+      create: geminiMocks.createInteraction,
     };
 
     constructor(_options: { apiKey: string }) {}
@@ -56,6 +60,7 @@ const mockRes = () => {
 describe('api/timeline-biography-extractor-automation', () => {
   beforeEach(() => {
     geminiMocks.generateContent.mockReset();
+    geminiMocks.createInteraction.mockReset();
   });
 
   afterEach(() => {
@@ -86,25 +91,27 @@ describe('api/timeline-biography-extractor-automation', () => {
   });
 
   it('возвращает raw facts из url-context extractor path', async () => {
-    geminiMocks.generateContent.mockResolvedValueOnce({
-      text: [
+    geminiMocks.createInteraction.mockResolvedValueOnce({
+      outputs: [
+        {
+          type: 'text',
+          text: [
         'SUBJECT\tМахатма Ганди',
         'BIRTH_YEAR\t1869',
         'DEATH_YEAR\t1948',
         'FACT\t1869\t0\tbirth\tfamily\thigh\tРождение в Порбандаре\tРодился в Порбандаре.\tБиография\thigh\texact\t0\t0\tfamily_household\t\t\t0 лет',
         'FACT\t1888\t19\teducation\teducation\thigh\tПоездка в Лондон\tВ 19 лет отправился в Лондон и получил юридическое образование.\tБиография\thigh\tyear\t19\t19\teducation|travel_moves_exile\t\t\t19 лет',
         'FACT\t1893\t24\tcareer\tcareer\thigh\tПереезд в Южную Африку\tОтправился работать в Южную Африку и вступил в борьбу за права индийцев.\tБиография\thigh\tyear\t24\t24\tservice_career|travel_moves_exile\t\t\t24 года',
-      ].join('\n'),
-      candidates: [
+          ].join('\n'),
+        },
         {
-          urlContextMetadata: {
-            urlMetadata: [
-              {
-                retrievedUrl: 'https://ru.wikipedia.org/wiki/Махатма_Ганди',
-                urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_SUCCESS',
-              },
-            ],
-          },
+          type: 'url_context_result',
+          result: [
+            {
+              url: 'https://ru.wikipedia.org/wiki/Махатма_Ганди',
+              status: 'success',
+            },
+          ],
         },
       ],
     });
@@ -124,8 +131,8 @@ describe('api/timeline-biography-extractor-automation', () => {
     expect(res.body.ok).toBe(true);
     expect(res.body.meta.strategy).toBe('url-context');
     expect(res.body.meta.promptVersion).toBe('url-context-extractor-v1');
-    expect(res.body.meta.urlContextMetadata[0].urlRetrievalStatus).toContain('SUCCESS');
+    expect(res.body.meta.urlContextMetadata[0].urlRetrievalStatus).toBe('success');
     expect(res.body.facts.length).toBe(3);
-    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(1);
+    expect(geminiMocks.createInteraction).toHaveBeenCalledTimes(1);
   });
 });

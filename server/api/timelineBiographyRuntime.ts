@@ -1,4 +1,3 @@
-import { ThinkingLevel } from '@google/genai';
 import type { VercelRequest } from '@vercel/node';
 import { debugError, debugLog } from '../../src/lib/debug.js';
 import { getLectureGenAiClient } from './lectureApiRuntime.js';
@@ -47,6 +46,22 @@ function collectGeminiResultText(result: unknown) {
     const directText = 'text' in result && typeof result.text === 'string' ? result.text : '';
     if (directText.trim()) {
       return directText;
+    }
+
+    const outputsText = 'outputs' in result && Array.isArray(result.outputs)
+      ? result.outputs
+          .map((output) => {
+            if (!output || typeof output !== 'object') return '';
+            const type = 'type' in output && typeof output.type === 'string' ? output.type : '';
+            if (type !== 'text') return '';
+            return 'text' in output && typeof output.text === 'string' ? output.text : '';
+          })
+          .filter(Boolean)
+          .join('\n')
+      : '';
+
+    if (outputsText.trim()) {
+      return outputsText;
     }
 
     const candidateText = 'candidates' in result && Array.isArray(result.candidates)
@@ -350,6 +365,27 @@ async function generateBiographyFacts(prompt: string, apiKey: string) {
 
 function collectUrlContextMetadata(result: unknown) {
   if (!result || typeof result !== 'object') return [];
+  if ('outputs' in result && Array.isArray(result.outputs)) {
+    return result.outputs
+      .flatMap((output) => {
+        if (!output || typeof output !== 'object') return [];
+        const type = 'type' in output && typeof output.type === 'string' ? output.type : '';
+        if (type !== 'url_context_result') return [];
+        const toolResults = 'result' in output && Array.isArray(output.result) ? output.result : [];
+        return toolResults
+          .map((entry) => {
+            if (!entry || typeof entry !== 'object') return null;
+            const retrievedUrl = 'url' in entry && typeof entry.url === 'string' ? entry.url : '';
+            const urlRetrievalStatus = 'status' in entry && typeof entry.status === 'string' ? entry.status : '';
+            if (!retrievedUrl && !urlRetrievalStatus) return null;
+            return {
+              retrievedUrl: retrievedUrl || undefined,
+              urlRetrievalStatus: urlRetrievalStatus || undefined,
+            };
+          })
+          .filter((entry): entry is { retrievedUrl?: string; urlRetrievalStatus?: string } => Boolean(entry));
+      });
+  }
   if (!('candidates' in result) || !Array.isArray(result.candidates)) return [];
 
   return result.candidates.flatMap((candidate) => {
@@ -375,6 +411,27 @@ function collectUrlContextMetadata(result: unknown) {
 
 function collectGroundingSources(result: unknown) {
   if (!result || typeof result !== 'object') return [];
+  if ('outputs' in result && Array.isArray(result.outputs)) {
+    return result.outputs
+      .flatMap((output) => {
+        if (!output || typeof output !== 'object') return [];
+        const type = 'type' in output && typeof output.type === 'string' ? output.type : '';
+        if (type !== 'google_search_result') return [];
+        const searchResults = 'result' in output && Array.isArray(output.result) ? output.result : [];
+        return searchResults
+          .map((entry) => {
+            if (!entry || typeof entry !== 'object') return null;
+            const title = 'title' in entry && typeof entry.title === 'string' ? entry.title : '';
+            const uri = 'url' in entry && typeof entry.url === 'string' ? entry.url : '';
+            if (!title && !uri) return null;
+            return {
+              title: title || undefined,
+              uri: uri || undefined,
+            };
+          })
+          .filter((entry): entry is { title?: string; uri?: string } => Boolean(entry));
+      });
+  }
   if (!('candidates' in result) || !Array.isArray(result.candidates)) return [];
 
   return result.candidates.flatMap((candidate) => {
@@ -406,17 +463,14 @@ async function generateBiographyFactsFromUrlContext(prompt: string, apiKey: stri
 
   for (const model of extractorModels) {
     try {
-      const result = await client.models.generateContent({
+      const result = await client.interactions.create({
         model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
+        input: prompt,
+        tools: [{ type: 'url_context' }],
+        generation_config: {
           temperature: 0.05,
-          maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
-          responseMimeType: 'text/plain',
-          tools: [{ urlContext: {} }],
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.HIGH,
-          },
+          max_output_tokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
+          thinking_level: 'high',
         },
       });
 
@@ -442,17 +496,14 @@ async function generateBiographyFactsFromUrlContext(prompt: string, apiKey: stri
 
   for (const model of searchModels) {
     try {
-      const result = await client.models.generateContent({
+      const result = await client.interactions.create({
         model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
+        input: prompt,
+        tools: [{ type: 'google_search' }],
+        generation_config: {
           temperature: 0.05,
-          maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
-          responseMimeType: 'text/plain',
-          tools: [{ googleSearch: {} }],
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.HIGH,
-          },
+          max_output_tokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
+          thinking_level: 'high',
         },
       });
 
