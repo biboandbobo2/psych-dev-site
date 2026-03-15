@@ -373,6 +373,32 @@ function collectUrlContextMetadata(result: unknown) {
   });
 }
 
+function collectGroundingSources(result: unknown) {
+  if (!result || typeof result !== 'object') return [];
+  if (!('candidates' in result) || !Array.isArray(result.candidates)) return [];
+
+  return result.candidates.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== 'object') return [];
+    const metadata = 'groundingMetadata' in candidate ? candidate.groundingMetadata : null;
+    if (!metadata || typeof metadata !== 'object') return [];
+    const chunks = 'groundingChunks' in metadata && Array.isArray(metadata.groundingChunks) ? metadata.groundingChunks : [];
+    return chunks
+      .map((chunk) => {
+        if (!chunk || typeof chunk !== 'object') return null;
+        const web = 'web' in chunk && chunk.web && typeof chunk.web === 'object' ? chunk.web : null;
+        if (!web) return null;
+        const uri = 'uri' in web && typeof web.uri === 'string' ? web.uri : '';
+        const title = 'title' in web && typeof web.title === 'string' ? web.title : '';
+        if (!uri && !title) return null;
+        return {
+          title: title || undefined,
+          uri: uri || undefined,
+        };
+      })
+      .filter((entry): entry is { title?: string; uri?: string } => Boolean(entry));
+  });
+}
+
 async function generateBiographyFactsFromUrlContext(prompt: string, apiKey: string) {
   const client = getLectureGenAiClient(apiKey);
   let lastError: unknown = null;
@@ -400,9 +426,47 @@ async function generateBiographyFactsFromUrlContext(prompt: string, apiKey: stri
         model,
         rawText,
         urlContextMetadata: collectUrlContextMetadata(result),
+        groundingSources: [],
+        strategy: 'url-context' as const,
       };
     } catch (error) {
       debugError('[timeline-biography] url-context facts generation failed', {
+        model,
+        error,
+      });
+      lastError = error;
+    }
+  }
+
+  const searchModels = ['gemini-2.5-pro', ...TIMELINE_BIOGRAPHY_MODELS.filter((model) => model !== 'gemini-2.5-pro')];
+
+  for (const model of searchModels) {
+    try {
+      const result = await client.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.05,
+          maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
+          responseMimeType: 'text/plain',
+          tools: [{ googleSearch: {} }],
+          thinkingConfig: {
+            thinkingLevel: ThinkingLevel.HIGH,
+          },
+        },
+      });
+
+      const rawText = collectGeminiResultText(result);
+      return {
+        facts: parseLineBasedBiographyFactCandidates(rawText),
+        model,
+        rawText,
+        urlContextMetadata: [],
+        groundingSources: collectGroundingSources(result),
+        strategy: 'google-search-grounding' as const,
+      };
+    } catch (error) {
+      debugError('[timeline-biography] google-search grounded facts generation failed', {
         model,
         error,
       });
@@ -762,7 +826,11 @@ export type BiographyExtractorSuccessPayload = {
     model: string;
     promptVersion: string;
     rawTextChars: number;
-    strategy: 'url-context';
+    strategy: 'url-context' | 'google-search-grounding';
+    groundingSources: Array<{
+      title?: string;
+      uri?: string;
+    }>;
     urlContextMetadata: Array<{
       retrievedUrl?: string;
       urlRetrievalStatus?: string;
@@ -931,7 +999,8 @@ export async function runBiographyFactExtraction(params: {
       model: extractionResult.model,
       promptVersion: 'url-context-extractor-v1',
       rawTextChars: extractionResult.rawText.length,
-      strategy: 'url-context',
+      strategy: extractionResult.strategy ?? 'url-context',
+      groundingSources: extractionResult.groundingSources ?? [],
       urlContextMetadata: extractionResult.urlContextMetadata,
     },
   };
