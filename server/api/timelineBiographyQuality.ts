@@ -197,6 +197,22 @@ export function getBiographyPlanReviewIssues(plan: BiographyTimelinePlan, extrac
     issues.push('Есть ветка education, ошибочно якорённая к рождению.');
   }
 
+  // 5-year density check: find gaps where no events exist
+  if (currentAge >= 20 && mainEvents.length >= 4) {
+    const allEvents = [...mainEvents, ...branchFacts];
+    const emptyPeriods: string[] = [];
+    for (let startAge = 0; startAge < currentAge; startAge += 5) {
+      const endAge = Math.min(startAge + 5, currentAge);
+      const eventsInPeriod = allEvents.filter((e) => e.age >= startAge && e.age < endAge).length;
+      if (eventsInPeriod === 0 && endAge - startAge >= 3) {
+        emptyPeriods.push(`${startAge}-${endAge}`);
+      }
+    }
+    if (emptyPeriods.length > 0) {
+      issues.push(`Пустые 5-летние периоды без событий: ${emptyPeriods.join(', ')}. Если в статье есть факты для этих периодов, добавь события.`);
+    }
+  }
+
   return issues;
 }
 

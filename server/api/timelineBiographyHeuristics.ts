@@ -44,9 +44,20 @@ export function russianDateToISO(dateStr: string | undefined): string | undefine
   if (!dateStr) return undefined;
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
 
-  const match = dateStr.match(/(\d{1,2})\s+([A-Za-zА-Яа-яЁё]+)\s+(\d{4})/);
+  // Strip old-style date annotations like "26 мая [6 июня]" or "26 мая (6 июня)"
+  // Prefer new-style date (in brackets) if present
+  const bracketMatch = dateStr.match(/\[(\d{1,2}\s+[A-Za-zА-Яа-яЁё]+)\]\s*(\d{4})/);
+  const parenMatch = dateStr.match(/\((\d{1,2}\s+[A-Za-zА-Яа-яЁё]+)\)\s*(\d{4})/);
+  const newStyleDate = bracketMatch
+    ? `${bracketMatch[1]} ${bracketMatch[2]}`
+    : parenMatch
+      ? `${parenMatch[1]} ${parenMatch[2]}`
+      : undefined;
+  const normalizedStr = newStyleDate ?? dateStr;
+
+  const match = normalizedStr.match(/(\d{1,2})\s+([A-Za-zА-Яа-яЁё]+)\s+(\d{4})/);
   if (!match) {
-    const yearOnly = dateStr.match(/^(\d{4})$/);
+    const yearOnly = normalizedStr.match(/(\d{4})/);
     if (yearOnly) return `${yearOnly[1]}-01-01`;
     return dateStr;
   }
@@ -150,7 +161,18 @@ export function inferBirthDetailsFromExtract(extract: string) {
   const birthSentence = sentences.find((sentence) => /родил|born/i.test(sentence)) ?? sentences[0] ?? '';
   const years = extractYears(birthSentence);
   const birthYear = years[0];
-  const fullDateMatch = birthSentence.match(/(\d{1,2}\s+[A-Za-zА-Яа-яЁё]+(?:\s+\d{4})?|\d{4})/);
+
+  // Try new-style date in brackets: "26 мая [6 июня] 1799" → "6 июня 1799"
+  const bracketDateMatch = birthSentence.match(/\[(\d{1,2}\s+[A-Za-zА-Яа-яЁё]+)\]\s*(\d{4})/);
+  // Try standard date: "6 июня 1799"
+  const standardDateMatch = birthSentence.match(/(\d{1,2}\s+[A-Za-zА-Яа-яЁё]+\s+\d{4})/);
+  // Fallback: year only
+  const yearOnlyMatch = birthYear ? String(birthYear) : undefined;
+
+  const dateStr = bracketDateMatch
+    ? `${bracketDateMatch[1]} ${bracketDateMatch[2]}`
+    : standardDateMatch?.[1] ?? yearOnlyMatch;
+
   const placeMatch =
     birthSentence.match(/родил[а-яёa-z]*\s+(?:в|in)\s+([^,.();]+?)(?:\s+(?:в|in)\s+\d{4}\b|[,.();]|$)/i) ??
     birthSentence.match(/\(\s*[^,]+,\s*([^—,)]+?)(?:\s*[—,)])/);
@@ -158,7 +180,7 @@ export function inferBirthDetailsFromExtract(extract: string) {
   return {
     birthYear,
     birthDetails: {
-      date: fullDateMatch?.[1] ? normalizeWhitespace(fullDateMatch[1]) : undefined,
+      date: dateStr ? normalizeWhitespace(dateStr) : undefined,
       place: placeMatch?.[1] ? normalizeWhitespace(placeMatch[1]) : undefined,
     },
   };
@@ -220,7 +242,10 @@ export function inferSphereFromSentence(sentence: string): TimelineSphere {
   if (/(рисова|музык|театр|хобб|спорт|painting|music|sport|hobby)/i.test(normalized)) {
     return 'hobby';
   }
-  if (/(опублик|издал|поэм|роман|стих|пьес|произвед|книг|журнал|повест|драм|элег|трагед|заверш|начал работу|назнач|стал|служ|карьер|published|poem|novel|book|work|career|appointed|founded)/i.test(normalized)) {
+  if (/(опублик|издал|поэм|роман|стих|пьес|произвед|книг|повест|драм|элег|трагед|заверш.*работу|начал работу|написал|сочин|творчеств|poem|novel|published|book|composed|wrote)/i.test(normalized)) {
+    return 'creativity';
+  }
+  if (/(назнач|стал|служ|карьер|журнал|должност|чин|повыш|career|appointed|founded)/i.test(normalized)) {
     return 'career';
   }
 
@@ -237,11 +262,12 @@ export function inferIconFromSentence(sentence: string, sphere: TimelineSphere):
   if (/родил|born/i.test(sentence)) return 'baby-feet';
   if (/женил|брак|свад/i.test(sentence)) return 'wedding-rings';
   if (/лице|школ|универс|академ|учил|нян|настав/i.test(sentence)) return 'school-backpack';
-  if (/опублик|издал|поэм|роман|стих|книг|произвед/i.test(sentence)) return 'idea-book';
+  if (/опублик|издал|поэм|роман|стих|книг|произвед|написал|сочин/i.test(sentence)) return 'idea-book';
   if (/ссыл|переех|эмигр|travel|moved/i.test(sentence)) return 'passport';
   if (/умер|погиб|дуэл|болез/i.test(sentence)) return 'thermometer';
   if (/друж|переписк|кружок|декабр/i.test(sentence)) return 'friendship';
   if (/ребён|сын|дочь/i.test(sentence)) return 'baby-stroller';
+  if (sphere === 'creativity') return 'idea-book';
   if (sphere === 'career') return 'briefcase';
   return undefined;
 }
@@ -276,7 +302,7 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   if (/элег|лирик/i.test(sentence)) return 'Литературный поворот';
   if (/предложени/i.test(sentence) && /гончаров/i.test(sentence)) return 'Предложение Наталье Гончаровой';
   if (/ссора/i.test(sentence) && /тёщ/i.test(sentence)) return 'Ссора с тёщей';
-  if (workTitle && sphere === 'career') return `Публикация «${workTitle}»`;
+  if (workTitle && (sphere === 'career' || sphere === 'creativity')) return `Публикация «${workTitle}»`;
   if (/заверш[а-я]+\s+.*борис[а-яё ]+годунов/i.test(sentence)) return 'Завершение «Бориса Годунова»';
   if (/начал работу/i.test(sentence) && workTitle) return `Начало работы над «${workTitle}»`;
   if (/опублик|издал|поэм|роман|стих|книг|произвед|published/i.test(sentence)) {
@@ -311,10 +337,18 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
 }
 
 export function isRawSentenceLabel(label: string) {
-  if (label.length > 55) return true;
+  if (label.length > 50) return true;
   if (/^\d{1,2}\s+[а-яё]+\s+\d{4}/u.test(label)) return true;
   if (/^(?:В|С|К|После|Весной|Летом|Осенью|Зимой)\s+\d{4}/u.test(label)) return true;
   if (/^[А-ЯЁ][а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+/u.test(label)) return true;
+  // Lowercase start = likely a sentence fragment, not a title
+  if (/^[а-яё]/u.test(label)) return true;
+  // Ends with a preposition/conjunction = truncated sentence
+  if (/\s(?:в|на|с|о|к|у|по|из|за|от|до|для|при|про|без|над|под|об|что|как|и|а|но|или|не)\s*$/i.test(label)) return true;
+  // Contains pronouns typical of narrative sentences
+  if (/\b(?:он|она|его|её|они|их|ему|ей|им)\b/i.test(label)) return true;
+  // 8+ words even if short chars — likely a sentence
+  if (label.split(/\s+/).length >= 8) return true;
   return false;
 }
 
@@ -348,7 +382,7 @@ export function sanitizeTimelineEventPlan(
   fallbackSphere?: TimelineSphere
 ): BiographyTimelineEventPlan | null {
   if (!Number.isFinite(event.age)) return null;
-  const label = normalizeText(event.label, 60);
+  const label = normalizeText(event.label, 50);
   if (!label) return null;
 
   return postProcessModelEvent({

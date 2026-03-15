@@ -9,6 +9,7 @@ import { debugError } from '../../../lib/debug';
 const SPHERE_LABELS: Record<Sphere, string> = {
   education: 'Образование',
   career: 'Карьера',
+  creativity: 'Творчество',
   family: 'Семья',
   health: 'Здоровье',
   friends: 'Друзья',

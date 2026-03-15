@@ -52,6 +52,7 @@ export const EVENT_ICON_IDS = [
 export type TimelineSphere =
   | 'education'
   | 'career'
+  | 'creativity'
   | 'family'
   | 'health'
   | 'friends'
@@ -170,6 +171,7 @@ export const WIKIPEDIA_HOST_PATTERN = /(?:^|\.)wikipedia\.org$/i;
 export const BRANCH_SLOT_ORDER: Record<TimelineSphere, readonly number[]> = {
   education: [0, 2, 1, 3, 4, 5, 6, 7],
   career: [1, 3, 0, 2, 5, 4, 7, 6],
+  creativity: [1, 0, 3, 2, 5, 4, 7, 6],
   family: [0, 2, 4, 1, 3, 5, 6, 7],
   health: [0, 1, 2, 3, 4, 5, 6, 7],
   friends: [2, 0, 1, 3, 4, 5, 6, 7],
@@ -182,6 +184,7 @@ export const BRANCH_SLOT_ORDER: Record<TimelineSphere, readonly number[]> = {
 export const SPHERE_META: Record<TimelineSphere, { color: string; label: string; emoji: string }> = {
   education: { color: '#a5b4fc', label: 'Образование', emoji: '🎓' },
   career: { color: '#7dd3fc', label: 'Карьера', emoji: '💼' },
+  creativity: { color: '#fdba74', label: 'Творчество', emoji: '✍️' },
   family: { color: '#fca5a5', label: 'Семья', emoji: '❤️' },
   health: { color: '#86efac', label: 'Здоровье', emoji: '💪' },
   friends: { color: '#fcd34d', label: 'Друзья', emoji: '🤝' },

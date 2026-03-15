@@ -35,6 +35,7 @@ export type Periodization = {
 export type Sphere =
   | 'education' // Образование
   | 'career' // Карьера
+  | 'creativity' // Творчество
   | 'family' // Семья
   | 'health' // Здоровье
   | 'friends' // Друзья
