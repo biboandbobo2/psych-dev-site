@@ -2,4 +2,7 @@ export * from './timelineBiographyTypes.js';
 export * from './timelineBiographyWikipedia.js';
 export * from './timelineBiographyPrompts.js';
 export * from './timelineBiographyHeuristics.js';
+export * from './timelineBiographyFacts.js';
+export * from './timelineBiographyComposer.js';
+export * from './timelineBiographyLint.js';
 export * from './timelineBiographyQuality.js';

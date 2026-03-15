@@ -176,12 +176,13 @@ export function inferBirthDetailsFromExtract(extract: string) {
   const placeMatch =
     birthSentence.match(/родил[а-яёa-z]*\s+(?:в|in)\s+([^,.();]+?)(?:\s+(?:в|in)\s+\d{4}\b|[,.();]|$)/i) ??
     birthSentence.match(/\(\s*[^,]+,\s*([^—,)]+?)(?:\s*[—,)])/);
+  const normalizedPlace = placeMatch?.[1] ? normalizeWhitespace(placeMatch[1]) : undefined;
 
   return {
     birthYear,
     birthDetails: {
       date: dateStr ? normalizeWhitespace(dateStr) : undefined,
-      place: placeMatch?.[1] ? normalizeWhitespace(placeMatch[1]) : undefined,
+      place: normalizedPlace && !/^\d{3,4}\b/.test(normalizedPlace) ? normalizedPlace : undefined,
     },
   };
 }
@@ -190,7 +191,7 @@ export function inferDeathYearFromExtract(extract: string) {
   const sentences = splitBiographyExtractIntoSentences(extract);
   const deathSentence = sentences.find((sentence) => /умер|скончал|погиб|смерт|дуэл|died|killed|death/i.test(sentence));
   const years = deathSentence ? extractYears(deathSentence) : [];
-  return years[0];
+  return years.at(-1);
 }
 
 export function isLikelyTimelineEventSentence(sentence: string) {
@@ -277,7 +278,9 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   const location =
     sentence.match(/\b(?:в|на|из)\s+([А-ЯЁA-Z][^,.();:]{2,50})/u)?.[1]?.trim().replace(/\s+/g, ' ') ?? undefined;
   const spouse = sentence.match(/\bс\s+([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+){0,2})/u)?.[1]?.trim() ?? undefined;
-  const institution = sentence.match(/\b((?:Царскосельск[^\s,.;:)]*\s+)?(?:лице[йя]|школ[ауые]|университет[а-я]*|академи[яию]|институт[а-я]*))\b/u)?.[1] ?? undefined;
+  const institution =
+    sentence.match(/\b((?:Царскосельск[^\s,.;:)]*\s+)?(?:лице[яйе]|школ[ауые]|университет[а-я]*|академи[яию]|институт[а-я]*))\b/u)?.[1] ??
+    undefined;
 
   if (/родил|born/i.test(sentence)) return 'Рождение';
   if (/дуэл/i.test(sentence) && /умер|погиб|скончал|died/i.test(sentence)) return 'Дуэль и смерть';
@@ -294,9 +297,11 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   if (/войн/i.test(sentence) && /отправился|поехал/i.test(sentence)) return 'Поездка на войну';
   if (/сослан|ссыл/i.test(sentence)) return location ? `Ссылка в ${location}` : 'Ссылка';
   if (/переех|эмигр|relocat|moved/i.test(sentence)) return location ? `Переезд в ${location}` : 'Переезд';
-  if (/поступ/i.test(sentence) && institution) return `Поступление в ${institution}`;
+  if (/поступ/i.test(sentence) && institution && sphere === 'education') return `Поступление в ${institution}`;
   if (/(окончил|выпустил|выпуск)/i.test(sentence) && institution) return `Окончание ${institution}`;
-  if (/лице|школ|универс|академ|институт|учил/i.test(sentence) && institution) return `Учёба в ${institution}`;
+  if (/лице|школ|универс|академ|институт|учил/i.test(sentence) && institution && sphere === 'education') {
+    return `Учёба в ${institution}`;
+  }
   if (/лице|школ|универс|академ|институт|учил/i.test(sentence)) return 'Учёба';
   if (/вступил в .*общество|арзамас|зел[её]ная лампа/i.test(sentence)) return 'Литературный круг';
   if (/элег|лирик/i.test(sentence)) return 'Литературный поворот';
@@ -541,6 +546,43 @@ export function extractChildhoodEventsFromExtract(extract: string, birthYear?: n
   ]).filter((event) => event.age <= 12);
 }
 
+export function extractRelativeChildhoodEventsFromExtract(extract: string, birthYear?: number) {
+  if (!birthYear) return [];
+
+  const sentences = splitBiographyExtractIntoSentences(extract);
+  const relativePatterns: Array<{ pattern: RegExp; sphere: TimelineSphere; age: number }> = [
+    { pattern: /в детств|детские годы|ранние годы|много читал|домашн.*библиотек|ранн.*чтен|перв.*стих/i, sphere: 'education', age: 6 },
+    { pattern: /летние месяцы|захаров|усадьб|у бабушк|у дедушк/i, sphere: 'family', age: 9 },
+    { pattern: /подростк|юност|юный/i, sphere: 'education', age: 15 },
+  ];
+
+  const events: BiographyTimelineEventPlan[] = [];
+  for (const sentence of sentences) {
+    if (extractYears(sentence).length > 0 || sentence.length > 180) continue;
+
+    const matched = relativePatterns.find(({ pattern }) => pattern.test(sentence));
+    if (!matched) continue;
+
+    const event = sanitizeTimelineEventPlan(
+      {
+        age: matched.age,
+        label: buildHeuristicLabel(sentence, matched.sphere),
+        notes: normalizeWhitespace(sentence).slice(0, 300),
+        sphere: matched.sphere,
+        isDecision: inferDecisionFromSentence(sentence),
+        iconId: inferIconFromSentence(sentence, matched.sphere),
+      },
+      matched.sphere
+    );
+
+    if (event && event.age <= 18) {
+      events.push(event);
+    }
+  }
+
+  return dedupeEvents(events);
+}
+
 export function extractPsychologicallySignificantEvents(extract: string, birthYear?: number): BiographyTimelineEventPlan[] {
   const sentences = splitBiographyExtractIntoSentences(extract);
   const events: BiographyTimelineEventPlan[] = [];
@@ -613,6 +655,7 @@ export function buildHeuristicBiographyFacts(extract: string, articleTitle: stri
   const events = dedupeEvents([
     ...inferChronologicalEventsFromExtract(extract, birthYear),
     ...extractChildhoodEventsFromExtract(extract, birthYear),
+    ...extractRelativeChildhoodEventsFromExtract(extract, birthYear),
     ...extractFriendshipEventsFromExtract(extract, birthYear),
   ]);
 
@@ -695,6 +738,7 @@ export function buildHeuristicBiographyPlan(params: {
   const extractedEvents = dedupeEvents([
     ...inferChronologicalEventsFromExtract(params.extract, birthYear),
     ...extractChildhoodEventsFromExtract(params.extract, birthYear),
+    ...extractRelativeChildhoodEventsFromExtract(params.extract, birthYear),
     ...extractFriendshipEventsFromExtract(params.extract, birthYear),
   ]);
   const mainEvents = selectEventsForLifeCoverage(extractedEvents, inferredCurrentAge);

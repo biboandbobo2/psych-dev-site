@@ -12,14 +12,21 @@ import {
   buildBiographyTimelineLinePrompt,
   buildBiographyTimelinePrompt,
   buildBiographyTimelineReviewPrompt,
-  buildHeuristicBiographyFacts,
+  buildHeuristicFactCandidates,
+  composeBiographyPlanFromFacts,
   buildTimelineDataFromBiographyPlan,
   enrichBiographyPlan,
   fetchWikipediaPlainExtract,
   getBiographyPlanReviewIssues,
+  hasFatalBiographyIssues,
+  lintBiographyPlan,
+  mergeFactCandidates,
+  parseLineBasedBiographyFactCandidates,
+  repairBiographyPlan,
   summarizeBiographyFacts,
+  type BiographyCompositionStats,
+  type BiographyFactCandidate,
   type BiographyGenerationStageDiagnostics,
-  type BiographyTimelineFact,
   type BiographyPlanDiagnostics,
   type BiographyImportRequest,
   type BiographyTimelinePlan,
@@ -105,37 +112,22 @@ function parseBooleanFlag(value: string | undefined) {
   return String(value || '').trim().toLowerCase() === 'true';
 }
 
-function parseImportance(value: string | undefined): BiographyTimelineFact['importance'] {
-  return value === 'high' || value === 'low' ? value : 'medium';
+function countBranchEvents(branches: BiographyTimelinePlan['branches']) {
+  return branches.reduce((total, branch) => total + branch.events.length, 0);
 }
 
-function parseLineBasedBiographyFacts(rawText: string): BiographyTimelineFact[] {
-  const facts: BiographyTimelineFact[] = [];
-  const lines = rawText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  for (const line of lines) {
-    const [kind, ...rest] = line.split('\t').map((part) => part.trim());
-    if (kind !== 'FACT') continue;
-
-    facts.push({
-      year: rest[0] && rest[0] !== 'unknown' ? Number(rest[0]) || undefined : undefined,
-      age: rest[1] && rest[1] !== 'unknown' ? Number(rest[1]) || undefined : undefined,
-      category: rest[2] || 'other',
-      sphere: (rest[3] || undefined) as BiographyTimelineFact['sphere'],
-      importance: parseImportance(rest[4]),
-      labelHint: rest[5] || '',
-      details: rest[6] || '',
-    });
-  }
-
-  if (facts.length === 0) {
-    throw new Error('Gemini facts parse failed');
-  }
-
-  return facts;
+function buildPlanDiagnostics(
+  source: BiographyPlanDiagnostics['source'],
+  plan: BiographyTimelinePlan
+): BiographyPlanDiagnostics {
+  return {
+    source,
+    mainEvents: plan.mainEvents.length,
+    branches: plan.branches.length,
+    branchEvents: countBranchEvents(plan.branches),
+    hasBirthDate: Boolean(plan.birthDetails?.date),
+    hasBirthPlace: Boolean(plan.birthDetails?.place),
+  };
 }
 
 function parseLineBasedBiographyPlan(rawText: string): BiographyTimelinePlan {
@@ -345,7 +337,7 @@ async function generateBiographyFacts(prompt: string, apiKey: string) {
 
       return {
         model,
-        facts: parseLineBasedBiographyFacts(collectGeminiResultText(result)),
+        facts: parseLineBasedBiographyFactCandidates(collectGeminiResultText(result)),
       };
     } catch (error) {
       debugError('[timeline-biography] facts generation failed', {
@@ -423,6 +415,120 @@ async function reviewBiographyPlan(prompt: string, apiKey: string) {
   throw lastError ?? new Error('Gemini review generation failed');
 }
 
+function buildFactsFirstPlan(params: {
+  facts: BiographyFactCandidate[];
+  articleTitle: string;
+  extract: string;
+  factsModel: string;
+}) {
+  const heuristicFacts = buildHeuristicFactCandidates(params.extract, params.articleTitle);
+  const mergedFacts = mergeFactCandidates({
+    modelFacts: params.facts,
+    heuristicFacts,
+    extract: params.extract,
+  });
+  const { plan, stats } = composeBiographyPlanFromFacts({
+    facts: mergedFacts,
+    articleTitle: params.articleTitle,
+    extract: params.extract,
+  });
+  const repairedPlan = repairBiographyPlan({
+    plan,
+    facts: mergedFacts,
+  });
+  const lintIssues = lintBiographyPlan(repairedPlan);
+
+  if (hasFatalBiographyIssues(lintIssues)) {
+    throw new Error(`Facts-first lint failed: ${lintIssues.map((issue) => issue.message).join(' | ')}`);
+  }
+
+  return {
+    model: `${params.factsModel} -> local-facts-first`,
+    plan: repairedPlan,
+    diagnostics: buildPlanDiagnostics(
+      lintIssues.length > 0 ? 'facts-first-repaired' : 'facts-first',
+      repairedPlan
+    ),
+    reviewApplied: false,
+    reviewIssues: lintIssues.map((issue) => issue.message),
+    mergedFacts,
+    compositionStats: stats satisfies BiographyCompositionStats,
+  };
+}
+
+async function buildLegacyPlan(params: {
+  apiKey: string;
+  wikiTitle: string;
+  sourceUrl: string;
+  extract: string;
+  factsSummary: string;
+}) {
+  const prompt = buildBiographyTimelinePrompt({
+    articleTitle: params.wikiTitle,
+    sourceUrl: params.sourceUrl,
+    extract: params.extract,
+    factsSummary: params.factsSummary,
+  });
+
+  let generationResult: { model: string; plan: BiographyTimelinePlan };
+  try {
+    generationResult = await generateBiographyPlan(prompt, params.apiKey);
+  } catch {
+    debugLog('[timeline-biography] JSON plan failed, trying line-based fallback');
+    generationResult = await generateBiographyLinePlan(
+      buildBiographyTimelineLinePrompt({
+        articleTitle: params.wikiTitle,
+        sourceUrl: params.sourceUrl,
+        extract: params.extract,
+        factsSummary: params.factsSummary,
+      }),
+      params.apiKey
+    );
+  }
+
+  let { model, plan } = generationResult;
+  const reviewIssues = getBiographyPlanReviewIssues(plan, params.extract);
+  let reviewApplied = false;
+
+  if (reviewIssues.length > 0) {
+    debugLog('[timeline-biography] review issues detected', { model, reviewIssues });
+    try {
+      const reviewResult = await reviewBiographyPlan(
+        buildBiographyTimelineReviewPrompt({
+          articleTitle: params.wikiTitle,
+          sourceUrl: params.sourceUrl,
+          factsSummary: params.factsSummary,
+          draftPlanJson: JSON.stringify(plan, null, 2),
+          issues: reviewIssues,
+        }),
+        params.apiKey
+      );
+      plan = reviewResult.plan;
+      model = `${model} -> ${reviewResult.model}`;
+      reviewApplied = true;
+    } catch {
+      debugError('[timeline-biography] review pass failed, keeping draft plan');
+    }
+  }
+
+  const {
+    plan: normalizedPlan,
+    diagnostics,
+  }: { plan: BiographyTimelinePlan; diagnostics: BiographyPlanDiagnostics } = enrichBiographyPlan({
+    plan,
+    articleTitle: params.wikiTitle,
+    extract: params.extract,
+  });
+
+  return {
+    model,
+    plan: normalizedPlan,
+    diagnostics,
+    reviewApplied,
+    reviewIssues,
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setLectureApiCorsHeaders(req, res);
 
@@ -449,7 +555,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const wikiPage = await fetchWikipediaPlainExtract(sourceUrl);
     const apiKey = resolveLectureGeminiApiKey(req);
     let factsModel = 'heuristics';
-    let facts: BiographyTimelineFact[];
+    let facts: BiographyFactCandidate[];
     try {
       const factsResult = await generateBiographyFacts(
         buildBiographyFactExtractionPrompt({
@@ -463,7 +569,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       factsModel = factsResult.model;
     } catch {
       debugLog('[timeline-biography] facts generation failed, falling back to heuristics');
-      facts = buildHeuristicBiographyFacts(wikiPage.extract, wikiPage.title);
+      facts = buildHeuristicFactCandidates(wikiPage.extract, wikiPage.title);
     }
 
     const factsSummary = summarizeBiographyFacts(facts, wikiPage.title);
@@ -473,62 +579,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sourceTitle: wikiPage.title,
     });
 
-    const prompt = buildBiographyTimelinePrompt({
-      articleTitle: wikiPage.title,
-      sourceUrl: wikiPage.canonicalUrl,
-      extract: wikiPage.extract,
-      factsSummary,
-    });
-
-    let generationResult: { model: string; plan: BiographyTimelinePlan };
-    try {
-      generationResult = await generateBiographyPlan(prompt, apiKey);
-    } catch {
-      debugLog('[timeline-biography] JSON plan failed, trying line-based fallback');
-      generationResult = await generateBiographyLinePlan(
-        buildBiographyTimelineLinePrompt({
-          articleTitle: wikiPage.title,
-          sourceUrl: wikiPage.canonicalUrl,
-          extract: wikiPage.extract,
-          factsSummary,
-        }),
-        apiKey
-      );
-    }
-
-    let { model, plan } = generationResult;
-    const reviewIssues = getBiographyPlanReviewIssues(plan, wikiPage.extract);
+    let model = `${factsModel} -> local-facts-first`;
+    let normalizedPlan: BiographyTimelinePlan;
+    let diagnostics: BiographyPlanDiagnostics;
     let reviewApplied = false;
+    let reviewIssues: string[] = [];
+    let compositionStats: BiographyCompositionStats | null = null;
 
-    if (reviewIssues.length > 0) {
-      debugLog('[timeline-biography] review issues detected', { model, reviewIssues });
-      try {
-        const reviewResult = await reviewBiographyPlan(
-          buildBiographyTimelineReviewPrompt({
-            articleTitle: wikiPage.title,
-            sourceUrl: wikiPage.canonicalUrl,
-            factsSummary,
-            draftPlanJson: JSON.stringify(plan, null, 2),
-            issues: reviewIssues,
-          }),
-          apiKey
-        );
-        plan = reviewResult.plan;
-        model = `${model} -> ${reviewResult.model}`;
-        reviewApplied = true;
-      } catch {
-        debugError('[timeline-biography] review pass failed, keeping draft plan');
-      }
+    try {
+      const factsFirstResult = buildFactsFirstPlan({
+        facts,
+        articleTitle: wikiPage.title,
+        extract: wikiPage.extract,
+        factsModel,
+      });
+      model = factsFirstResult.model;
+      normalizedPlan = factsFirstResult.plan;
+      diagnostics = factsFirstResult.diagnostics;
+      reviewApplied = factsFirstResult.reviewApplied;
+      reviewIssues = factsFirstResult.reviewIssues;
+      compositionStats = factsFirstResult.compositionStats;
+      facts = factsFirstResult.mergedFacts;
+    } catch (factsFirstError) {
+      debugError('[timeline-biography] facts-first pipeline failed, falling back to legacy plan path', factsFirstError);
+      const legacyResult = await buildLegacyPlan({
+        apiKey,
+        wikiTitle: wikiPage.title,
+        sourceUrl: wikiPage.canonicalUrl,
+        extract: wikiPage.extract,
+        factsSummary,
+      });
+      model = legacyResult.model;
+      normalizedPlan = legacyResult.plan;
+      diagnostics = legacyResult.diagnostics;
+      reviewApplied = legacyResult.reviewApplied;
+      reviewIssues = legacyResult.reviewIssues;
     }
 
-    const {
-      plan: normalizedPlan,
-      diagnostics,
-    }: { plan: BiographyTimelinePlan; diagnostics: BiographyPlanDiagnostics } = enrichBiographyPlan({
-      plan,
-      articleTitle: wikiPage.title,
-      extract: wikiPage.extract,
-    });
     debugLog('[timeline-biography] plan normalized', {
       source: diagnostics.source,
       mainEvents: diagnostics.mainEvents,
@@ -560,6 +647,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         extractChars: wikiPage.extract.length,
         planDiagnostics: diagnostics,
         stageDiagnostics,
+        compositionStats,
         timelineStats: {
           nodes: timeline.nodes.length,
           edges: timeline.edges.length,

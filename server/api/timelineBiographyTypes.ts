@@ -140,7 +140,7 @@ export type OccupiedBranchLane = {
 };
 
 export type BiographyPlanDiagnostics = {
-  source: 'model' | 'merged-with-heuristics' | 'heuristics-only';
+  source: 'model' | 'merged-with-heuristics' | 'heuristics-only' | 'facts-first' | 'facts-first-repaired';
   mainEvents: number;
   branches: number;
   branchEvents: number;
@@ -156,6 +156,57 @@ export type BiographyTimelineFact = {
   labelHint: string;
   details: string;
   importance: 'high' | 'medium' | 'low';
+};
+
+export type BiographyEventType =
+  | 'birth'
+  | 'education'
+  | 'move'
+  | 'publication'
+  | 'career'
+  | 'family'
+  | 'friends'
+  | 'health'
+  | 'conflict'
+  | 'award'
+  | 'project'
+  | 'death'
+  | 'other';
+
+export type BiographyFactCandidate = BiographyTimelineFact & {
+  eventType: BiographyEventType;
+  evidence: string;
+  section?: string;
+  confidence: 'high' | 'medium' | 'low';
+  source: 'model' | 'heuristics';
+};
+
+export type BiographyLintIssueCode =
+  | 'empty-notes'
+  | 'generic-label'
+  | 'truncated-label'
+  | 'sentence-fragment-label'
+  | 'duplicate-main-event'
+  | 'birth-anchored-branch'
+  | 'too-few-early-life-events'
+  | 'empty-branch'
+  | 'sparse-main-line';
+
+export type BiographyLintIssue = {
+  code: BiographyLintIssueCode;
+  severity: 'warning' | 'error';
+  message: string;
+  branchLabel?: string;
+  age?: number;
+  label?: string;
+};
+
+export type BiographyCompositionStats = {
+  facts: number;
+  selectedMainEvents: number;
+  selectedBranchEvents: number;
+  discardedFacts: number;
+  earlyLifeWindowsFilled: number;
 };
 
 export type BiographyGenerationStageDiagnostics = {
