@@ -473,6 +473,12 @@ src/hooks/
 - Для фактологической оценки поверх готового `response.json` добавлен benchmark CLI:
   - `npm run timeline:benchmark -- --benchmark=elizabeth-ii --source-url=https://ru.wikipedia.org/wiki/Елизавета_II --response-json=tmp/timeline-runs/.../response.json --out=tmp/elizabeth-ii-benchmark.json`
   - Скрипт сравнивает timeline с curated benchmark facts, считает общее и critical coverage и помогает ловить регрессии универсальности между разными биографиями.
+- Для extractor-only baseline без composer/repair добавлен отдельный remote path:
+  - Endpoint: `POST /api/timeline-biography-extractor-automation`
+  - Принимает только `sourceUrl` и `X-Gemini-Api-Key`, возвращает сырые `facts` модели и meta по extractor stage.
+  - Основная стратегия: `URL context`; если инструмент или модель недоступны, runtime пробует `Google Search grounding`, но по-прежнему не подсовывает модели локально выкачанный текст статьи.
+  - CLI для remote extractor smoke: `npm run timeline:extractor-remote-eval -- --base-url=https://...vercel.app --source-url=https://ru.wikipedia.org/wiki/...`
+  - CLI для extractor benchmark: `npm run timeline:extractor-benchmark -- --benchmark=gandhi --response-json=tmp/extractor-runs/.../response.json --out=tmp/gandhi-extractor-benchmark.json`
 - `Очистить всё` по-прежнему очищает только активный холст.
 
 ## Экспорт таймлайна

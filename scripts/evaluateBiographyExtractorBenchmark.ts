@@ -136,9 +136,19 @@ function buildExtractorFactTexts(payload: ExtractorResponseLike | null) {
   });
 }
 
+function yearsAreCompatible(expectedYear: number | undefined, actualYear: number | null) {
+  if (!Number.isFinite(expectedYear) || !Number.isFinite(actualYear)) {
+    return true;
+  }
+
+  return Math.abs(Number(expectedYear) - Number(actualYear)) <= 2;
+}
+
 function evaluateFactAgainstExtractor(fact: BiographyExtractorBenchmarkFact, payload: ExtractorResponseLike | null) {
   const extractedFacts = buildExtractorFactTexts(payload);
-  const matchedFact = extractedFacts.find((entry) => matchesText(entry.text, fact.extractor));
+  const matchedFact = extractedFacts.find(
+    (entry) => matchesText(entry.text, fact.extractor) && yearsAreCompatible(fact.year, entry.year)
+  );
 
   return {
     matched: Boolean(matchedFact),
