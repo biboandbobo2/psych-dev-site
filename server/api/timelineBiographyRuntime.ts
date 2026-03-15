@@ -376,7 +376,7 @@ function collectUrlContextMetadata(result: unknown) {
 async function generateBiographyFactsFromUrlContext(prompt: string, apiKey: string) {
   const client = getLectureGenAiClient(apiKey);
   let lastError: unknown = null;
-  const extractorModels = ['gemini-2.5-pro', ...TIMELINE_BIOGRAPHY_MODELS.filter((model) => model !== 'gemini-2.5-pro')];
+  const extractorModels = ['gemini-3-flash-preview', 'gemini-2.5-pro', ...TIMELINE_BIOGRAPHY_MODELS.filter((model) => model !== 'gemini-2.5-pro')];
 
   for (const model of extractorModels) {
     try {
