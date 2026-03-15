@@ -551,6 +551,7 @@ export async function runBiographyImport(params: {
   apiKey: string;
 }): Promise<BiographyImportSuccessPayload> {
   const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
+  const promptExtract = wikiPage.promptExtract || wikiPage.extract;
   let factsModel = 'heuristics';
   let facts: BiographyFactCandidate[];
   try {
@@ -558,7 +559,7 @@ export async function runBiographyImport(params: {
       buildBiographyFactExtractionPrompt({
         articleTitle: wikiPage.title,
         sourceUrl: wikiPage.canonicalUrl,
-        extract: wikiPage.extract,
+        extract: promptExtract,
       }),
       params.apiKey
     );
@@ -603,7 +604,7 @@ export async function runBiographyImport(params: {
       apiKey: params.apiKey,
       wikiTitle: wikiPage.title,
       sourceUrl: wikiPage.canonicalUrl,
-      extract: wikiPage.extract,
+      extract: promptExtract,
       factsSummary,
     });
     model = legacyResult.model;

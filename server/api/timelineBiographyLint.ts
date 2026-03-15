@@ -90,22 +90,54 @@ function collectMatchingFacts(event: BiographyTimelineEventPlan, factsIndex: Fac
   return [...pool.values()].sort((a, b) => scoreFactCandidateForEvent(event, b) - scoreFactCandidateForEvent(event, a));
 }
 
-function buildNotesFallback(event: BiographyTimelineEventPlan, factsIndex: FactsIndex) {
-  if (event.notes?.trim()) return event.notes.trim();
-
-  const matchingFact = collectMatchingFacts(event, factsIndex).find((fact) => {
-    const normalizedLabel = event.label.toLowerCase();
-    return fact.labelHint.toLowerCase().includes(normalizedLabel) || fact.evidence.toLowerCase().includes(normalizedLabel);
-  }) ?? collectMatchingFacts(event, factsIndex)[0];
-
-  const approximateNote = buildApproximateFactNote(matchingFact);
-  return [approximateNote, matchingFact?.evidence?.trim() || event.label].filter(Boolean).join(' ');
+function isSpecificFactLabel(label: string | undefined) {
+  return Boolean(label && !isGenericLabel(label) && !isTruncatedLabel(label) && !isRawSentenceLabel(label));
 }
 
-function buildLabelFromFacts(event: BiographyTimelineEventPlan, factsIndex: FactsIndex) {
-  return collectMatchingFacts(event, factsIndex)
-    .map((fact) => fact.labelHint.trim())
-    .find((label) => label && !isGenericLabel(label) && !isTruncatedLabel(label) && !isRawSentenceLabel(label));
+function scoreMatchedFactForRepair(event: BiographyTimelineEventPlan, fact: BiographyFactCandidate) {
+  const baseScore = scoreFactCandidateForEvent(event, fact);
+  const normalizedLabel = event.label.trim().toLowerCase();
+  const normalizedNotes = event.notes?.trim().toLowerCase() ?? '';
+  const hint = fact.labelHint.trim().toLowerCase();
+  const evidence = fact.evidence.trim().toLowerCase();
+  const labelMatch =
+    normalizedLabel && (hint.includes(normalizedLabel) || evidence.includes(normalizedLabel) || normalizedLabel.includes(hint))
+      ? 6
+      : 0;
+  const notesMatch = normalizedNotes && evidence.includes(normalizedNotes.slice(0, 24)) ? 3 : 0;
+  const labelQuality = isSpecificFactLabel(fact.labelHint) ? 4 : 0;
+  return baseScore + labelMatch + notesMatch + labelQuality;
+}
+
+function selectMatchingFact(event: BiographyTimelineEventPlan, factsIndex: FactsIndex) {
+  const matchingFacts = collectMatchingFacts(event, factsIndex);
+  if (matchingFacts.length === 0) return undefined;
+
+  return [...matchingFacts]
+    .sort((a, b) => scoreMatchedFactForRepair(event, b) - scoreMatchedFactForRepair(event, a))
+    .at(0);
+}
+
+function buildNotesFromFact(event: BiographyTimelineEventPlan, matchingFact: BiographyFactCandidate | undefined) {
+  if (!matchingFact) {
+    return event.notes?.trim() || event.label;
+  }
+
+  const approximateNote = buildApproximateFactNote(matchingFact);
+  return [approximateNote, matchingFact.evidence.trim()].filter(Boolean).join(' ');
+}
+
+function buildLabelFromFact(
+  event: BiographyTimelineEventPlan,
+  matchingFact: BiographyFactCandidate | undefined,
+  fallbackSphere: BiographyTimelineEventPlan['sphere']
+) {
+  if (matchingFact && isSpecificFactLabel(matchingFact.labelHint)) {
+    return matchingFact.labelHint.trim();
+  }
+
+  const sourceText = matchingFact?.evidence?.trim() || event.notes?.trim() || event.label;
+  return buildHeuristicLabel(sourceText, fallbackSphere ?? 'other');
 }
 
 function repairEventPlan(
@@ -114,10 +146,11 @@ function repairEventPlan(
   fallbackSphere?: BiographyTimelineEventPlan['sphere']
 ) {
   const sphere = normalizeSphere(event.sphere) ?? fallbackSphere;
-  const sourceText = buildNotesFallback(event, factsIndex);
+  const matchingFact = selectMatchingFact(event, factsIndex);
+  const sourceText = buildNotesFromFact(event, matchingFact);
   const needsLabelRepair = isGenericLabel(event.label) || isTruncatedLabel(event.label) || isRawSentenceLabel(event.label);
-  const factLabel = buildLabelFromFacts(event, factsIndex);
-  const repairedLabel = needsLabelRepair ? factLabel || buildHeuristicLabel(sourceText, sphere ?? 'other') : event.label;
+  const factLabel = buildLabelFromFact(event, matchingFact, sphere);
+  const repairedLabel = needsLabelRepair ? factLabel : event.label;
 
   return sanitizeTimelineEventPlan(
     {

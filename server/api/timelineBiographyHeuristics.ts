@@ -210,8 +210,23 @@ export function inferBirthDetailsFromExtract(extract: string) {
 export function inferDeathYearFromExtract(extract: string) {
   const sentences = splitBiographyExtractIntoSentences(extract);
   const deathSentence = sentences.find((sentence) => /умер|скончал|погиб|смерт|дуэл|died|killed|death/i.test(sentence));
-  const years = deathSentence ? extractYears(deathSentence) : [];
-  return years.at(-1);
+  if (deathSentence) {
+    const years = extractYears(deathSentence);
+    return years.at(-1);
+  }
+
+  const leadSentence = sentences[0] ?? '';
+  const leadYears = extractYears(leadSentence);
+  if (leadYears.length >= 2 && /—|-/.test(leadSentence)) {
+    return leadYears.at(-1);
+  }
+
+  const extractYearsFromLead = extractYears(extract.slice(0, 400));
+  if (extractYearsFromLead.length >= 2) {
+    return extractYearsFromLead[1];
+  }
+
+  return undefined;
 }
 
 export function isLikelyTimelineEventSentence(sentence: string) {

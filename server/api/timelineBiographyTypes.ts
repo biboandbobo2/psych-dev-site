@@ -1,6 +1,6 @@
 export const TIMELINE_BIOGRAPHY_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro'] as const;
 export const TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS = 8192;
-export const MAX_WIKIPEDIA_EXTRACT_CHARS = 32000;
+export const MAX_WIKIPEDIA_PROMPT_EXTRACT_CHARS = 32000;
 export const LINE_X_POSITION = 2000;
 export const DEFAULT_BRANCH_LENGTH = 6;
 export const BRANCH_X_OFFSETS = [-500, 500, -900, 900, -1300, 1300, -1700, 1700] as const;
@@ -130,6 +130,7 @@ export type BiographyTimelineData = {
 export type WikipediaPageExtract = {
   title: string;
   extract: string;
+  promptExtract: string;
   canonicalUrl: string;
 };
 

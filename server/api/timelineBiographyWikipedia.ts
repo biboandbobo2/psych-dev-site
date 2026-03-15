@@ -1,4 +1,71 @@
-import { MAX_WIKIPEDIA_EXTRACT_CHARS, WIKIPEDIA_HOST_PATTERN, type WikipediaPageExtract } from './timelineBiographyTypes.js';
+import { MAX_WIKIPEDIA_PROMPT_EXTRACT_CHARS, WIKIPEDIA_HOST_PATTERN, type WikipediaPageExtract } from './timelineBiographyTypes.js';
+
+function normalizePromptSlice(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function clampWindowStart(centerStart: number, sliceLength: number, sourceLength: number) {
+  if (sourceLength <= sliceLength) return 0;
+  return Math.max(0, Math.min(centerStart, sourceLength - sliceLength));
+}
+
+function trimSliceToSentenceBoundaries(source: string, start: number, end: number) {
+  let safeStart = Math.max(0, start);
+  let safeEnd = Math.min(source.length, end);
+
+  if (safeStart > 0) {
+    const previousBreak = source.lastIndexOf('.', safeStart);
+    const previousQuestion = source.lastIndexOf('?', safeStart);
+    const previousExclamation = source.lastIndexOf('!', safeStart);
+    const previousNewline = source.lastIndexOf('\n', safeStart);
+    const boundary = Math.max(previousBreak, previousQuestion, previousExclamation, previousNewline);
+    if (boundary >= 0 && safeStart - boundary < 240) {
+      safeStart = boundary + 1;
+    }
+  }
+
+  if (safeEnd < source.length) {
+    const nextCandidates = [
+      source.indexOf('.', safeEnd),
+      source.indexOf('?', safeEnd),
+      source.indexOf('!', safeEnd),
+      source.indexOf('\n', safeEnd),
+    ].filter((value) => value >= 0);
+    const boundary = nextCandidates.length > 0 ? Math.min(...nextCandidates) : -1;
+    if (boundary >= 0 && boundary - safeEnd < 240) {
+      safeEnd = boundary + 1;
+    }
+  }
+
+  return normalizePromptSlice(source.slice(safeStart, safeEnd));
+}
+
+function buildPromptExtract(extract: string) {
+  const normalizedExtract = extract.trim();
+  if (normalizedExtract.length <= MAX_WIKIPEDIA_PROMPT_EXTRACT_CHARS) {
+    return normalizedExtract;
+  }
+
+  const separator = '\n\n[...]\n\n';
+  const totalBudget = MAX_WIKIPEDIA_PROMPT_EXTRACT_CHARS - separator.length * 2;
+  const edgeBudget = Math.floor(totalBudget * 0.42);
+  const middleBudget = totalBudget - edgeBudget * 2;
+  const middleStart = clampWindowStart(
+    Math.floor(normalizedExtract.length / 2) - Math.floor(middleBudget / 2),
+    middleBudget,
+    normalizedExtract.length
+  );
+
+  const head = trimSliceToSentenceBoundaries(normalizedExtract, 0, edgeBudget);
+  const middle = trimSliceToSentenceBoundaries(normalizedExtract, middleStart, middleStart + middleBudget);
+  const tail = trimSliceToSentenceBoundaries(normalizedExtract, normalizedExtract.length - edgeBudget, normalizedExtract.length);
+
+  return [head, middle, tail]
+    .filter(Boolean)
+    .join(separator)
+    .slice(0, MAX_WIKIPEDIA_PROMPT_EXTRACT_CHARS)
+    .trim();
+}
 
 export function parseWikipediaSourceUrl(sourceUrl: string) {
   let parsed: URL;
@@ -72,7 +139,8 @@ export async function fetchWikipediaPlainExtract(sourceUrl: string): Promise<Wik
 
   return {
     title: page.title?.trim() || parseWikipediaSourceUrl(normalizedSourceUrl).pageTitle,
-    extract: page.extract.trim().slice(0, MAX_WIKIPEDIA_EXTRACT_CHARS),
+    extract: page.extract.trim(),
+    promptExtract: buildPromptExtract(page.extract),
     canonicalUrl: page.fullurl || normalizedSourceUrl,
   };
 }
