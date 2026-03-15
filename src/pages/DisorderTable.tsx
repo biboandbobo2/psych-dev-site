@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useState } from 'react';
+import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   applyDisorderTableFilters,
@@ -42,6 +42,52 @@ type OptionalTrack = DisorderTableEntryTrack | null;
 function areSameSelections(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   return a.every((value) => b.includes(value));
+}
+
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildPreviewText(text: string, query: string, maxLength = 120): string {
+  const normalizedText = text.trim();
+  if (!normalizedText) return '';
+  if (normalizedText.length <= maxLength) return normalizedText;
+
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return `${normalizedText.slice(0, maxLength).trimEnd()}...`;
+  }
+
+  const matchIndex = normalizedText.toLowerCase().indexOf(normalizedQuery);
+  if (matchIndex === -1) {
+    return `${normalizedText.slice(0, maxLength).trimEnd()}...`;
+  }
+
+  const headShare = Math.floor(maxLength * 0.35);
+  let start = Math.max(0, matchIndex - headShare);
+  let end = start + maxLength;
+  if (end > normalizedText.length) {
+    end = normalizedText.length;
+    start = Math.max(0, end - maxLength);
+  }
+
+  let snippet = normalizedText.slice(start, end).trim();
+  if (start > 0) snippet = `...${snippet}`;
+  if (end < normalizedText.length) snippet = `${snippet}...`;
+  return snippet;
+}
+
+function renderHighlightedText(text: string, query: string): ReactNode {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) return text;
+
+  const regex = new RegExp(`(${escapeForRegExp(normalizedQuery)})`, 'ig');
+  const parts = text.split(regex);
+  return parts.map((part, index) => (
+    part.toLowerCase() === normalizedQuery.toLowerCase()
+      ? <mark key={`${part}-${index}`} className="rounded bg-yellow-200 px-0.5 text-slate-900">{part}</mark>
+      : <span key={`${part}-${index}`}>{part}</span>
+  ));
 }
 
 export default function DisorderTable() {
@@ -366,6 +412,26 @@ export default function DisorderTable() {
     return `${rowLabel} × ${columnLabel}`;
   }, [formRowIds, formColumnIds, rowLabels, columnLabels]);
 
+  const searchIntersectionMatches = useMemo(() => {
+    if (!hasActiveSearch) return [];
+
+    return displayedRows.flatMap((row) => (
+      displayedColumns.flatMap((column) => {
+        const key = buildDisorderTableCellKey(row.id, column.id);
+        const cellEntries = matrix.get(key) ?? [];
+        if (cellEntries.length === 0) return [];
+
+        return [{
+          key,
+          rowId: row.id,
+          columnId: column.id,
+          count: cellEntries.length,
+          preview: buildPreviewText(cellEntries[0].text, normalizedSearch, 100),
+        }];
+      })
+    ));
+  }, [displayedRows, displayedColumns, matrix, hasActiveSearch, normalizedSearch]);
+
   if (!isDisorderTableCourse(currentCourse)) {
     return (
       <div className="space-y-4 rounded-2xl bg-white p-6 shadow-xl">
@@ -395,23 +461,6 @@ export default function DisorderTable() {
               Выход
             </Link>
 
-            <button
-              type="button"
-              onClick={applyDraftFilters}
-              disabled={!canApplyFilters}
-              className="inline-flex rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-800 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Применить фильтр
-            </button>
-
-            <button
-              type="button"
-              onClick={clearAllFilters}
-              className="inline-flex rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
-            >
-              Сбросить
-            </button>
-
             <label className="ml-auto flex min-w-[220px] flex-1 items-center rounded-lg border border-slate-300 bg-white px-3 py-2 sm:max-w-[420px]">
               <input
                 type="text"
@@ -427,9 +476,28 @@ export default function DisorderTable() {
             </label>
           </div>
 
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2">
+            <span className="text-sm font-semibold text-blue-900">Фильтры</span>
+            <button
+              type="button"
+              onClick={applyDraftFilters}
+              disabled={!canApplyFilters}
+              className="inline-flex rounded-lg border border-blue-300 bg-blue-100 px-3 py-2 text-sm font-medium text-blue-800 transition hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Применить фильтр
+            </button>
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="inline-flex rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
+            >
+              Сбросить
+            </button>
+          </div>
+
           {!isMobile && (
             <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2">
-              <span className="text-sm font-semibold text-amber-900">Массовое редактирование</span>
+              <span className="text-sm font-semibold text-amber-900">Несколько ячеек</span>
               <button
                 type="button"
                 onClick={toggleCellSelectionMode}
@@ -479,6 +547,38 @@ export default function DisorderTable() {
               ))}
             </div>
           ) : null}
+
+          {hasActiveSearch && (
+            <section className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
+              <div className="mb-2 text-sm font-semibold text-emerald-900">
+                Найдено пересечений: {searchIntersectionMatches.length}
+              </div>
+              {searchIntersectionMatches.length === 0 ? (
+                <p className="text-sm text-emerald-800">По текущим фильтрам совпадений нет.</p>
+              ) : (
+                <div className="grid max-h-48 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
+                  {searchIntersectionMatches.map((match) => (
+                    <button
+                      key={match.key}
+                      type="button"
+                      onClick={() => openCellModal(match.rowId, match.columnId)}
+                      className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-left transition hover:border-emerald-400 hover:bg-emerald-50"
+                    >
+                      <p className="text-xs font-semibold text-emerald-900">
+                        {rowLabels.get(match.rowId) ?? match.rowId} × {columnLabels.get(match.columnId) ?? match.columnId}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-700">
+                        {renderHighlightedText(match.preview, normalizedSearch)}
+                      </p>
+                      {match.count > 1 && (
+                        <p className="mt-1 text-[10px] font-medium text-emerald-700">+{match.count - 1} ещё в этом пересечении</p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
             <span className="font-semibold text-slate-600">Цвета заметок:</span>
@@ -573,6 +673,9 @@ export default function DisorderTable() {
                             const key = buildDisorderTableCellKey(row.id, column.id);
                             const cellEntries = matrix.get(key) ?? [];
                             const isSelected = selectedCellKeys.has(key);
+                            const previewText = cellEntries.length > 0
+                              ? buildPreviewText(cellEntries[0].text, normalizedSearch, 120)
+                              : '';
                             const hasPatopsychology = cellEntries.some((entry) => entry.track === 'patopsychology');
                             const hasPsychiatry = cellEntries.some((entry) => entry.track === 'psychiatry');
                             const isMixedTrack = hasPatopsychology && hasPsychiatry;
@@ -616,7 +719,7 @@ export default function DisorderTable() {
                                   ) : (
                                     <>
                                       <p className="pr-5 text-slate-700" style={TEXT_CLAMP_STYLE}>
-                                      {cellEntries[0].text}
+                                        {renderHighlightedText(previewText, normalizedSearch)}
                                       </p>
                                       <div className="mt-1 flex flex-wrap gap-1 pr-5">
                                         {hasPatopsychology && (
