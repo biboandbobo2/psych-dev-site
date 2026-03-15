@@ -358,6 +358,8 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   if (/под надзор/i.test(sentence)) return 'Полицейский надзор';
   if (/путешеств|поездк|поехал|отправился/i.test(sentence) && location) return `Поездка в ${location}`;
   if (/войн/i.test(sentence) && /отправился|поехал/i.test(sentence)) return 'Поездка на войну';
+  if (/вернул(?:ся|ась|ись)?\s+из\s+ссыл/i.test(sentence)) return 'Возвращение из ссылки';
+  if (/южн/i.test(sentence) && /ссыл/i.test(sentence)) return 'Южная ссылка';
   if (/сослан|ссыл/i.test(sentence)) return location ? `Ссылка в ${location}` : 'Ссылка';
   if (/переех|эмигр|relocat|moved/i.test(sentence)) return location ? `Переезд в ${location}` : 'Переезд';
   if (/поступ/i.test(sentence) && institution && sphere === 'education') return `Поступление в ${institution}`;

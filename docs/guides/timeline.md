@@ -269,7 +269,7 @@ src/hooks/
   - `server/api/timelineBiographyQuality.ts`
 - Это разделение фиксирует ответственности:
   - `Types` — канонические типы, константы и metadata каталоги.
-  - `Wikipedia` — нормализация URL и загрузка plain extract.
+  - `Wikipedia` — нормализация URL, загрузка plain extract и сборка `biographyExtract` / `promptExtract`.
   - `Prompts` — prompts/few-shot/schema для Gemini.
   - `Facts` — line-based facts parsing, normalisation, dedupe и merge model/heuristics.
   - `Themes` — внутренние biography themes (`friends_network`, `romance`, `travel_moves_exile`, `conflict_duels` и т.д.), из которых локальный composer строит branch labels и приоритеты.
@@ -285,6 +285,14 @@ src/hooks/
   - ранняя жизнь проверяется по окнам `0-6`, `7-12`, `13-18`, а не только по общему количеству событий;
   - approximate facts теперь можно сохранять без фальшивой точности: возраст вычисляется по диапазону, а notes помечают, что дата оценочная;
   - если facts-first путь ломается на extraction/composition/lint, endpoint деградирует в legacy pipeline вместо пустого TL.
+- Для длинных биографий сервер теперь держит три представления статьи:
+  - `extract` — полный исходный plain extract из Wikipedia для меты, heuristics и пост-ремонта;
+  - `biographyExtract` — extract без явно небіографических секций (`память`, библиографии, списки потомков, музейные/мемориальные блоки), именно его используют heuristics/composer/repair;
+  - `promptExtract` — компактный head/middle/tail срез для Gemini prompts, чтобы не терять позднюю жизнь и не упираться в token budget.
+- Даже при переходе в legacy draft/review path endpoint больше не опирается только на “сырой” model plan:
+  - facts-first слой всё равно заранее собирает и merge-ит model facts с heuristic facts;
+  - итоговый `repairBiographyPlan(...)` прогоняется поверх любого normalized plan, включая legacy fallback;
+  - repair умеет выкидывать low-quality labels, добирать terminal event и раннюю жизнь из merged facts, а generic `Ссылка` в очевидных кейсах заменяется на более конкретные labels вроде `Южная ссылка` или `Возвращение из ссылки`.
 
 ## Ключевые сценарии
 

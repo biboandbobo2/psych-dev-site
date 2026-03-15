@@ -175,6 +175,92 @@ function buildLabelFromFact(
   return buildHeuristicLabel(sourceText, fallbackSphere ?? 'other');
 }
 
+function isLowQualityEventLabel(label: string) {
+  return isGenericLabel(label) || isTruncatedLabel(label) || isRawSentenceLabel(label);
+}
+
+function buildEventFromFact(fact: BiographyFactCandidate, fallbackSphere?: BiographyTimelineEventPlan['sphere']) {
+  const age = Number.isFinite(fact.age)
+    ? Number(fact.age)
+    : Number.isFinite(fact.ageMin)
+      ? Number(fact.ageMin)
+      : Number.isFinite(fact.ageMax)
+        ? Number(fact.ageMax)
+        : undefined;
+  if (!Number.isFinite(age)) return null;
+
+  const sphere = normalizeSphere(fact.sphere) ?? fallbackSphere;
+  const label = isSpecificFactLabel(fact.labelHint) ? fact.labelHint.trim() : buildHeuristicLabel(fact.evidence, sphere ?? 'other');
+  if (isLowQualityEventLabel(label)) return null;
+
+  return sanitizeTimelineEventPlan(
+    {
+      age,
+      label,
+      notes: buildNotesFromFact({ age, label, isDecision: false }, fact),
+      sphere,
+      isDecision: false,
+    },
+    sphere
+  );
+}
+
+function supplementMainEventsFromFacts(mainEvents: BiographyTimelineEventPlan[], facts: BiographyFactCandidate[]) {
+  const initialMainEventsCount = mainEvents.length;
+  const supplemented = [...mainEvents];
+  const mainKeys = new Set(supplemented.map((event) => buildEventFactKey(event)));
+  const addFactEvent = (fact: BiographyFactCandidate, fallbackSphere?: BiographyTimelineEventPlan['sphere']) => {
+    const event = buildEventFromFact(fact, fallbackSphere);
+    if (!event) return false;
+    const key = buildEventFactKey(event);
+    if (mainKeys.has(key)) return false;
+    supplemented.push(event);
+    mainKeys.add(key);
+    return true;
+  };
+
+  if (supplemented.filter((event) => event.age >= 0 && event.age <= 18).length < 3) {
+    const earlyFact = facts
+      .filter((fact) => Number.isFinite(fact.age) && Number(fact.age) > 0 && Number(fact.age) <= 18)
+      .find((fact) => addFactEvent(fact, fact.sphere));
+
+    void earlyFact;
+  }
+
+  const hasTerminalEvent = supplemented.some((event) => /(смерт|дуэл|умер|погиб|astapov|астапов)/i.test(`${event.label} ${event.notes ?? ''}`));
+  if (!hasTerminalEvent) {
+    const terminalFact = [...facts]
+      .filter((fact) => fact.eventType === 'death' || /(смерт|умер|погиб|скончал)/i.test(fact.evidence))
+      .sort((a, b) => Number(b.age ?? b.year ?? 0) - Number(a.age ?? a.year ?? 0))
+      .find((fact) => addFactEvent(fact, 'health'));
+
+    void terminalFact;
+  }
+
+  const MIN_MAIN_EVENTS = 4;
+  if (initialMainEventsCount === 0 && supplemented.length < MIN_MAIN_EVENTS) {
+    const candidateFacts = [...facts]
+      .filter((fact) => Number.isFinite(fact.age) && Number(fact.age) > 0)
+      .sort((a, b) => {
+        const importanceScore = (value: BiographyFactCandidate['importance']) =>
+          value === 'high' ? 3 : value === 'medium' ? 2 : 1;
+        const confidenceScore = (value: BiographyFactCandidate['confidence']) =>
+          value === 'high' ? 3 : value === 'medium' ? 2 : 1;
+        const scoreA = importanceScore(a.importance) + confidenceScore(a.confidence);
+        const scoreB = importanceScore(b.importance) + confidenceScore(b.confidence);
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        return Number(a.age ?? 0) - Number(b.age ?? 0);
+      });
+
+    for (const fact of candidateFacts) {
+      if (supplemented.length >= MIN_MAIN_EVENTS) break;
+      addFactEvent(fact, fact.sphere);
+    }
+  }
+
+  return supplemented.sort((a, b) => a.age - b.age);
+}
+
 function repairEventPlan(
   event: BiographyTimelineEventPlan,
   factsIndex: FactsIndex,
@@ -226,6 +312,7 @@ export function repairBiographyPlan(params: {
 
   repairedMainEvents.forEach(({ event, originalIndex }) => {
     if (isBirthLikeEvent(event)) return;
+    if (isLowQualityEventLabel(event.label)) return;
     const key = buildEventFactKey(event);
     const existingIndex = mainKeys.get(key);
     if (existingIndex !== undefined) {
@@ -238,22 +325,36 @@ export function repairBiographyPlan(params: {
     mainIndexMap.set(originalIndex, newIndex);
     dedupedMainEvents.push(event);
   });
+  const supplementedMainEvents = supplementMainEventsFromFacts(dedupedMainEvents, factsIndex.all);
+  const supplementedMainKeys = new Map<string, number>();
+  supplementedMainEvents.forEach((event, index) => {
+    supplementedMainKeys.set(buildEventFactKey(event), index);
+  });
+  const remappedMainIndexMap = new Map<number, number>();
+  repairedMainEvents.forEach(({ event, originalIndex }) => {
+    const key = buildEventFactKey(event);
+    const nextIndex = supplementedMainKeys.get(key);
+    if (nextIndex !== undefined) {
+      remappedMainIndexMap.set(originalIndex, nextIndex);
+    }
+  });
 
   const repairedBranches = params.plan.branches
     .map((branch) => {
-      const mappedSourceIndex = mainIndexMap.get(branch.sourceMainEventIndex);
-      const sourceEvent = mappedSourceIndex !== undefined ? dedupedMainEvents[mappedSourceIndex] : undefined;
+      const mappedSourceIndex = remappedMainIndexMap.get(branch.sourceMainEventIndex);
+      const sourceEvent = mappedSourceIndex !== undefined ? supplementedMainEvents[mappedSourceIndex] : undefined;
       if (!sourceEvent || sourceEvent.age === 0) return null;
 
       const branchKeys = new Set<string>();
       const events = branch.events
         .map((event) => repairEventPlan(event, factsIndex, branch.sphere))
         .filter((event): event is BiographyTimelineEventPlan => Boolean(event))
+        .filter((event) => !isLowQualityEventLabel(event.label))
         .filter((event) => event.age > sourceEvent.age)
         .filter((event) => !isBirthLikeEvent(event))
         .filter((event) => {
           const key = buildEventFactKey(event);
-          if (mainKeys.has(key) || branchKeys.has(key)) return false;
+          if (supplementedMainKeys.has(key) || branchKeys.has(key)) return false;
           branchKeys.add(key);
           return true;
         });
@@ -270,7 +371,7 @@ export function repairBiographyPlan(params: {
 
   return {
     ...params.plan,
-    mainEvents: dedupedMainEvents,
+    mainEvents: supplementedMainEvents,
     branches: repairedBranches,
   } satisfies BiographyTimelinePlan;
 }
