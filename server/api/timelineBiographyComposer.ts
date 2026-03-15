@@ -38,6 +38,8 @@ type PreparedFactCandidate = BiographyFactCandidate & {
   primaryTheme: BiographyEventTheme | null;
 };
 
+type BiographyProfile = 'political_leader' | 'writer' | 'scientist' | 'artist' | 'general';
+
 function isGenericLabel(label: string | undefined) {
   return isGenericBiographyLabel(label);
 }
@@ -57,6 +59,52 @@ function confidenceScore(value: BiographyFactCandidate['confidence']) {
 
 function isBirthFact(fact: PreparedFactCandidate) {
   return fact.eventType === 'birth' || fact.resolvedAge === 0;
+}
+
+function inferBiographyProfile(extract: string) {
+  const lead = extract.slice(0, 800).toLowerCase();
+  if (/(королев|король|монарх|президент|премьер-министр|императ|государственн(?:ый|ая) деятель|queen|king|president|prime minister)/i.test(lead)) {
+    return 'political_leader' satisfies BiographyProfile;
+  }
+  if (/(поэт|писател|романист|драматург|автор|writer|novelist|poet)/i.test(lead)) {
+    return 'writer' satisfies BiographyProfile;
+  }
+  if (/(учен|физик|химик|математик|биолог|scientist|physicist|chemist)/i.test(lead)) {
+    return 'scientist' satisfies BiographyProfile;
+  }
+  if (/(художник|композитор|музыкант|режиссер|акт[её]р|artist|composer|musician|actor|director)/i.test(lead)) {
+    return 'artist' satisfies BiographyProfile;
+  }
+  return 'general' satisfies BiographyProfile;
+}
+
+function getProfileThemeBonus(profile: BiographyProfile, fact: PreparedFactCandidate) {
+  if (profile === 'political_leader') {
+    if (fact.resolvedThemes.includes('service_career')) return 5;
+    if (fact.resolvedThemes.includes('politics_public_pressure')) return 5;
+    if (fact.resolvedThemes.includes('travel_moves_exile')) return 3;
+    if (fact.resolvedThemes.includes('legacy')) return 4;
+    if (fact.resolvedThemes.includes('creative_work')) return -6;
+  }
+
+  if (profile === 'writer') {
+    if (fact.resolvedThemes.includes('creative_work')) return 5;
+    if (fact.resolvedThemes.includes('friends_network')) return 2;
+    if (fact.resolvedThemes.includes('service_career')) return 1;
+  }
+
+  if (profile === 'scientist') {
+    if (fact.resolvedThemes.includes('service_career')) return 4;
+    if (fact.eventType === 'award' || fact.eventType === 'project') return 4;
+    if (fact.resolvedThemes.includes('creative_work')) return -4;
+  }
+
+  if (profile === 'artist') {
+    if (fact.resolvedThemes.includes('creative_work')) return 4;
+    if (fact.resolvedThemes.includes('service_career')) return 2;
+  }
+
+  return 0;
 }
 
 function resolveSphere(fact: BiographyFactCandidate) {
@@ -227,7 +275,7 @@ function factToEventPlan(fact: PreparedFactCandidate) {
   );
 }
 
-function scoreFactForMain(fact: PreparedFactCandidate, currentAge: number) {
+function scoreFactForMain(fact: PreparedFactCandidate, currentAge: number, profile: BiographyProfile) {
   let score = importanceScore(fact.importance) * 3 + confidenceScore(fact.confidence) * 2;
 
   if (fact.eventType === 'death') score += 10;
@@ -238,14 +286,22 @@ function scoreFactForMain(fact: PreparedFactCandidate, currentAge: number) {
   if (fact.resolvedThemes.includes('losses') || fact.resolvedThemes.includes('conflict_duels')) score += 2;
   if (fact.primaryTheme && BIOGRAPHY_THEME_META[fact.primaryTheme]?.preserveForBranch) score += 1;
   if (isMediaMentionBiographyEvent(fact.labelHint, fact.evidence)) score -= 8;
+  score += getProfileThemeBonus(profile, fact);
 
   return score;
 }
 
-function scoreFactForBranch(fact: PreparedFactCandidate) {
+function scoreFactForBranch(fact: PreparedFactCandidate, profile: BiographyProfile) {
   const themeWeight = fact.primaryTheme && BIOGRAPHY_THEME_META[fact.primaryTheme]?.preserveForBranch ? 3 : 0;
   const mediaPenalty = isMediaMentionBiographyEvent(fact.labelHint, fact.evidence) ? -6 : 0;
-  return importanceScore(fact.importance) * 2 + confidenceScore(fact.confidence) + (isGenericLabel(fact.labelHint) ? 0 : 2) + themeWeight + mediaPenalty;
+  return (
+    importanceScore(fact.importance) * 2 +
+    confidenceScore(fact.confidence) +
+    (isGenericLabel(fact.labelHint) ? 0 : 2) +
+    themeWeight +
+    mediaPenalty +
+    getProfileThemeBonus(profile, fact)
+  );
 }
 
 function getEarlyLifeWindow(age: number): [number, number] | null {
@@ -280,7 +336,8 @@ function canMoveFactToBranch(mainFacts: PreparedFactCandidate[], candidate: Prep
 function rebalanceMainFactsForBranches(
   preparedFacts: PreparedFactCandidate[],
   mainFacts: PreparedFactCandidate[],
-  currentAge: number
+  currentAge: number,
+  profile: BiographyProfile
 ) {
   const selectedFacts = [...mainFacts];
   const minMainCount = Math.max(8, Math.min(12, selectedFacts.length - 2));
@@ -297,7 +354,7 @@ function rebalanceMainFactsForBranches(
 
     const removableFacts = selectedFacts
       .filter((fact) => fact.primaryTheme === themeKey)
-      .sort((a, b) => scoreFactForMain(a, currentAge) - scoreFactForMain(b, currentAge) || b.resolvedAge - a.resolvedAge);
+      .sort((a, b) => scoreFactForMain(a, currentAge, profile) - scoreFactForMain(b, currentAge, profile) || b.resolvedAge - a.resolvedAge);
 
     for (const removableFact of removableFacts) {
       if (leftoverCount >= 2 || selectedFacts.length <= minMainCount) break;
@@ -318,13 +375,14 @@ function selectBestFactInWindow(
   selectedKeys: Set<string>,
   minAge: number,
   maxAge: number,
-  currentAge: number
+  currentAge: number,
+  profile: BiographyProfile
 ) {
   return facts
     .filter((fact) => fact.resolvedAge >= minAge && fact.resolvedAge <= maxAge)
     .filter((fact) => !isBirthFact(fact))
     .filter((fact) => !selectedKeys.has(buildFactCandidateKey(fact)))
-    .map((fact) => ({ fact, score: scoreFactForMain(fact, currentAge) }))
+    .map((fact) => ({ fact, score: scoreFactForMain(fact, currentAge, profile) }))
     .sort((a, b) => b.score - a.score || a.fact.resolvedAge - b.fact.resolvedAge)[0]?.fact;
 }
 
@@ -350,7 +408,7 @@ function determineCurrentAge(preparedFacts: PreparedFactCandidate[], extract: st
   return Math.max(25, Math.min(120, lastFactAge));
 }
 
-function selectMainFacts(preparedFacts: PreparedFactCandidate[], currentAge: number) {
+function selectMainFacts(preparedFacts: PreparedFactCandidate[], currentAge: number, profile: BiographyProfile) {
   const selectedFacts: PreparedFactCandidate[] = [];
   const selectedKeys = new Set<string>();
 
@@ -360,14 +418,14 @@ function selectMainFacts(preparedFacts: PreparedFactCandidate[], currentAge: num
     [13, 18],
   ];
   for (const [minAge, maxAge] of earlyWindows) {
-    addSelectedFact(selectedFacts, selectedKeys, selectBestFactInWindow(preparedFacts, selectedKeys, minAge, maxAge, currentAge));
+    addSelectedFact(selectedFacts, selectedKeys, selectBestFactInWindow(preparedFacts, selectedKeys, minAge, maxAge, currentAge, profile));
   }
 
   for (let startAge = 19; startAge <= currentAge; startAge += 5) {
     addSelectedFact(
       selectedFacts,
       selectedKeys,
-      selectBestFactInWindow(preparedFacts, selectedKeys, startAge, Math.min(startAge + 4, currentAge), currentAge)
+      selectBestFactInWindow(preparedFacts, selectedKeys, startAge, Math.min(startAge + 4, currentAge), currentAge, profile)
     );
   }
 
@@ -387,7 +445,9 @@ function selectMainFacts(preparedFacts: PreparedFactCandidate[], currentAge: num
         : preparedFacts.length >= 26
           ? 15
           : preparedFacts.length >= 18
-            ? 13
+            ? profile === 'political_leader'
+              ? 14
+              : 13
             : preparedFacts.length >= 12
               ? 10
               : 8;
@@ -396,7 +456,7 @@ function selectMainFacts(preparedFacts: PreparedFactCandidate[], currentAge: num
       .filter((fact) => !selectedKeys.has(buildFactCandidateKey(fact)))
       .filter((fact) => !isBirthFact(fact))
       .map((fact) => {
-        let score = scoreFactForMain(fact, currentAge);
+        let score = scoreFactForMain(fact, currentAge, profile);
         const selectedInSphere = selectedFacts.filter((selected) => selected.resolvedSphere === fact.resolvedSphere).length;
         const remainingInSphere = preparedFacts.filter(
           (candidate) => !selectedKeys.has(buildFactCandidateKey(candidate)) && candidate.resolvedSphere === fact.resolvedSphere
@@ -463,7 +523,8 @@ function buildBranchLabel(theme: BiographyEventTheme | null, sphere: TimelineSph
 function buildBranches(
   preparedFacts: PreparedFactCandidate[],
   mainFacts: PreparedFactCandidate[],
-  mainEvents: BiographyTimelineEventPlan[]
+  mainEvents: BiographyTimelineEventPlan[],
+  profile: BiographyProfile
 ) {
   const mainKeys = new Set(mainFacts.map((fact) => buildFactCandidateKey(fact)));
   const leftovers = preparedFacts.filter((fact) => !mainKeys.has(buildFactCandidateKey(fact)) && !isBirthFact(fact));
@@ -481,7 +542,7 @@ function buildBranches(
       const themeMeta = BIOGRAPHY_THEME_META[themeKey];
       if (!themeMeta) return null;
       const sortedFacts = [...facts]
-        .sort((a, b) => scoreFactForBranch(b) - scoreFactForBranch(a))
+        .sort((a, b) => scoreFactForBranch(b, profile) - scoreFactForBranch(a, profile))
         .slice(0, facts.length >= 8 ? 8 : facts.length >= 6 ? 7 : 5)
         .sort((a, b) => a.resolvedAge - b.resolvedAge);
 
@@ -525,16 +586,18 @@ export function composeBiographyPlanFromFacts(params: {
   const canvasName = inferCanvasName(subjectName);
   const inferredDeathYear = inferDeathYearFromExtract(params.extract);
   const preparedFacts = prepareFactCandidates(params.facts, inferredBirth.birthYear, inferredDeathYear);
+  const profile = inferBiographyProfile(params.extract);
   const currentAge = determineCurrentAge(preparedFacts, params.extract, inferredBirth.birthYear);
   const mainFacts = rebalanceMainFactsForBranches(
     preparedFacts,
-    selectMainFacts(preparedFacts, currentAge),
-    currentAge
+    selectMainFacts(preparedFacts, currentAge, profile),
+    currentAge,
+    profile
   );
   const mainEvents = mainFacts
     .map((fact) => factToEventPlan(fact))
     .filter((event): event is BiographyTimelineEventPlan => Boolean(event));
-  const branches = buildBranches(preparedFacts, mainFacts, mainEvents);
+  const branches = buildBranches(preparedFacts, mainFacts, mainEvents, profile);
 
   const earlyLifeWindowsFilled = [
     [0, 6],
