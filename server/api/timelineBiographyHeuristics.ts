@@ -13,7 +13,7 @@ import {
   type OccupiedBranchLane,
   type TimelineIconId,
   type TimelineSphere,
-} from './timelineBiographyTypes';
+} from './timelineBiographyTypes.js';
 
 export function normalizeSphere(sphere: unknown): TimelineSphere | undefined {
   return typeof sphere === 'string' && sphere in SPHERE_META ? (sphere as TimelineSphere) : undefined;

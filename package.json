@@ -46,7 +46,7 @@
     "typecheck:tests": "tsc --noEmit -p tsconfig.tests.json",
     "typecheck": "npm run typecheck:app && npm run typecheck:api && npm run typecheck:functions && npm run typecheck:scripts",
     "check:init": "node scripts/check-module-initialization.cjs",
-    "validate": "npm run lint && npm run check-console && npm run check:init && npm run check:functions-runtime && npm run build",
+    "validate": "npm run lint && npm run check-console && npm run check:init && npm run check:functions-runtime && npm run typecheck:api && npm run build",
     "validate:full": "npm run validate && npm run test",
     "lighthouse:timeline": "npx lighthouse http://localhost:4173/timeline --only-categories=performance,accessibility,best-practices --output=json --output-path=logs/lighthouse-timeline.json",
     "test:ui": "vitest --ui",

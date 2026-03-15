@@ -3,7 +3,7 @@ import {
   EVENT_ICON_IDS,
   SPHERE_META,
   TIMELINE_PERIODIZATION_IDS,
-} from './timelineBiographyTypes';
+} from './timelineBiographyTypes.js';
 
 export function buildBiographyTimelinePrompt(params: {
   articleTitle: string;

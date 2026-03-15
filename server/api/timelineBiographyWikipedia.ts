@@ -1,4 +1,4 @@
-import { MAX_WIKIPEDIA_EXTRACT_CHARS, WIKIPEDIA_HOST_PATTERN, type WikipediaPageExtract } from './timelineBiographyTypes';
+import { MAX_WIKIPEDIA_EXTRACT_CHARS, WIKIPEDIA_HOST_PATTERN, type WikipediaPageExtract } from './timelineBiographyTypes.js';
 
 export function parseWikipediaSourceUrl(sourceUrl: string) {
   let parsed: URL;

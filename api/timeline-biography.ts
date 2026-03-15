@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { debugError, debugLog } from '../src/lib/debug';
+import { debugError, debugLog } from '../src/lib/debug.js';
 import {
   getLectureGenAiClient,
   resolveLectureGeminiApiKey,

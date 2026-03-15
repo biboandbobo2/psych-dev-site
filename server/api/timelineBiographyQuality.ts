@@ -13,7 +13,7 @@ import {
   splitBiographyExtractIntoSentences,
   extractPsychologicallySignificantEvents,
   buildHeuristicBiographyPlan,
-} from './timelineBiographyHeuristics';
+} from './timelineBiographyHeuristics.js';
 import {
   SPHERE_META,
   type BiographyPlanDiagnostics,
@@ -23,7 +23,7 @@ import {
   type BiographyTimelinePlan,
   type OccupiedBranchLane,
   type TimelineSphere,
-} from './timelineBiographyTypes';
+} from './timelineBiographyTypes.js';
 
 function countBranchEvents(branches: BiographyTimelineBranchPlan[]) {
   return branches.reduce((total, branch) => total + branch.events.length, 0);
