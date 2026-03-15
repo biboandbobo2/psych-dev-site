@@ -6,6 +6,7 @@ import {
   buildBiographyTimelineLinePrompt,
   buildBiographyTimelinePrompt,
   buildBiographyTimelineReviewPrompt,
+  buildBiographyEvaluationMetrics,
   buildHeuristicFactCandidates,
   composeBiographyPlanFromFacts,
   buildTimelineDataFromBiographyPlan,
@@ -431,9 +432,37 @@ function buildFactsFirstPlan(params: {
     facts: mergedFacts,
   });
   const lintIssues = lintBiographyPlan(repairedPlan);
+  const evaluationMetrics = buildBiographyEvaluationMetrics({
+    facts: mergedFacts,
+    plan: repairedPlan,
+  });
+  const allEvents = [...repairedPlan.mainEvents, ...repairedPlan.branches.flatMap((branch) => branch.events)];
+  const sphereCounts = allEvents.reduce<Record<string, number>>((acc, event) => {
+    const sphere = event.sphere ?? 'other';
+    acc[sphere] = (acc[sphere] ?? 0) + 1;
+    return acc;
+  }, {});
+  const dominantSphereCount = Object.values(sphereCounts).reduce((max, count) => Math.max(max, count), 0);
+  const dominantSphereRatio = allEvents.length > 0 ? dominantSphereCount / allEvents.length : 0;
+  const richnessFallbackReasons: string[] = [];
 
-  if (hasFatalBiographyIssues(lintIssues)) {
-    throw new Error(`Facts-first lint failed: ${lintIssues.map((issue) => issue.message).join(' | ')}`);
+  if (evaluationMetrics.facts.total >= 24 && evaluationMetrics.plan.visibleEvents < 18) {
+    richnessFallbackReasons.push('Facts-first plan остался слишком редким для богатой биографии.');
+  }
+  if (evaluationMetrics.facts.total >= 24 && evaluationMetrics.plan.branches < 2) {
+    richnessFallbackReasons.push('Facts-first plan не выделил достаточное количество веток для насыщенной биографии.');
+  }
+  if (evaluationMetrics.facts.total >= 24 && dominantSphereRatio >= 0.55 && dominantSphereCount >= 6) {
+    richnessFallbackReasons.push('Facts-first plan слишком перекошен в одну сферу и теряет тематическое разнообразие.');
+  }
+  if (evaluationMetrics.facts.earlyLifeFacts >= 4 && evaluationMetrics.plan.earlyLifeEvents < 3) {
+    richnessFallbackReasons.push('Facts-first plan потерял слишком много ранних событий при наличии опоры в facts pool.');
+  }
+
+  if (hasFatalBiographyIssues(lintIssues) || richnessFallbackReasons.length > 0) {
+    throw new Error(
+      `Facts-first lint failed: ${[...lintIssues.map((issue) => issue.message), ...richnessFallbackReasons].join(' | ')}`
+    );
   }
 
   return {
