@@ -14,7 +14,11 @@ import {
   normalizeText,
   sanitizeTimelineEventPlan,
 } from './timelineBiographyHeuristics.js';
-import { isGenericBiographyLabel, isTruncatedBiographyLabel } from './timelineBiographyLabelQuality.js';
+import {
+  isGenericBiographyLabel,
+  isMediaMentionBiographyEvent,
+  isTruncatedBiographyLabel,
+} from './timelineBiographyLabelQuality.js';
 import { BIOGRAPHY_THEME_META, getFactThemes, pickPrimaryTheme } from './timelineBiographyThemes.js';
 import {
   SPHERE_META,
@@ -130,9 +134,16 @@ function buildMetadataLabel(fact: PreparedFactCandidate) {
   const person = fact.people?.[0];
   const relation = fact.relationRoles?.[0];
   const workTitle = extractQuotedWorkTitle(fact.evidence || fact.labelHint);
+  const labelHint = fact.labelHint.toLowerCase();
 
   if (fact.resolvedThemes.includes('romance') && person) {
     return `Отношения с ${person}`;
+  }
+  if (person && /(смерт|убийств|гибел|скончал|умер)/i.test(fact.evidence) && /(дяд|тёт|друг|родствен|муж|жена|отец|мать)/i.test(labelHint)) {
+    return /(убийств|убил|убила)/i.test(fact.evidence) ? `Убийство ${person}` : `Смерть ${person}`;
+  }
+  if (person && /(назнач|вновь|премьер-министр|кабинет|правительство)/i.test(fact.evidence)) {
+    return `Назначение ${person}`;
   }
   if (fact.resolvedThemes.includes('losses') && relation) {
     return `Смерть ${relation}`;
@@ -155,25 +166,37 @@ function buildMetadataLabel(fact: PreparedFactCandidate) {
   return '';
 }
 
+function isRelationOnlyLabel(label: string) {
+  return /(дяд|тёт|друг|подруг|муж|жена|отец|мать|сын|дочь|родствен|дядя|дядю|дяди)/i.test(label);
+}
+
 function buildSpecificLabel(fact: PreparedFactCandidate) {
   const rawLabel = normalizeText(fact.labelHint, 80) || '';
+  const metadataLabel = normalizeText(buildMetadataLabel(fact), 80);
   if (
     rawLabel &&
     !isGenericLabel(rawLabel) &&
     !isTruncatedLabel(rawLabel) &&
     !isRawSentenceLabel(rawLabel) &&
+    !isMediaMentionBiographyEvent(rawLabel, fact.evidence) &&
+    !(metadataLabel && isRelationOnlyLabel(rawLabel)) &&
     rawLabel.split(/\s+/).length <= 7
   ) {
     return rawLabel;
   }
 
-  const metadataLabel = normalizeText(buildMetadataLabel(fact), 80);
   if (metadataLabel && !isGenericLabel(metadataLabel) && !isTruncatedLabel(metadataLabel)) {
     return metadataLabel;
   }
 
   const heuristicLabel = normalizeText(buildHeuristicLabel(fact.evidence, fact.resolvedSphere), 80);
-  if (heuristicLabel && !isGenericLabel(heuristicLabel) && !isTruncatedLabel(heuristicLabel) && !isRawSentenceLabel(heuristicLabel)) {
+  if (
+    heuristicLabel &&
+    !isGenericLabel(heuristicLabel) &&
+    !isTruncatedLabel(heuristicLabel) &&
+    !isRawSentenceLabel(heuristicLabel) &&
+    !isMediaMentionBiographyEvent(heuristicLabel, fact.evidence)
+  ) {
     return heuristicLabel;
   }
 
@@ -214,13 +237,15 @@ function scoreFactForMain(fact: PreparedFactCandidate, currentAge: number) {
   if (!isTruncatedLabel(fact.labelHint)) score += 1;
   if (fact.resolvedThemes.includes('losses') || fact.resolvedThemes.includes('conflict_duels')) score += 2;
   if (fact.primaryTheme && BIOGRAPHY_THEME_META[fact.primaryTheme]?.preserveForBranch) score += 1;
+  if (isMediaMentionBiographyEvent(fact.labelHint, fact.evidence)) score -= 8;
 
   return score;
 }
 
 function scoreFactForBranch(fact: PreparedFactCandidate) {
   const themeWeight = fact.primaryTheme && BIOGRAPHY_THEME_META[fact.primaryTheme]?.preserveForBranch ? 3 : 0;
-  return importanceScore(fact.importance) * 2 + confidenceScore(fact.confidence) + (isGenericLabel(fact.labelHint) ? 0 : 2) + themeWeight;
+  const mediaPenalty = isMediaMentionBiographyEvent(fact.labelHint, fact.evidence) ? -6 : 0;
+  return importanceScore(fact.importance) * 2 + confidenceScore(fact.confidence) + (isGenericLabel(fact.labelHint) ? 0 : 2) + themeWeight + mediaPenalty;
 }
 
 function getEarlyLifeWindow(age: number): [number, number] | null {

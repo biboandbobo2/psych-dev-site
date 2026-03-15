@@ -22,3 +22,25 @@ export function isTruncatedBiographyLabel(label: string | undefined | null) {
 export function isWeakBiographyLabel(label: string | undefined | null) {
   return isGenericBiographyLabel(label) || isTruncatedBiographyLabel(label);
 }
+
+export function isMediaMentionBiographyEvent(label: string | undefined | null, details?: string | null) {
+  const normalizedLabel = (label || '').trim();
+  const normalizedText = `${normalizedLabel} ${details || ''}`.trim();
+  if (!normalizedText) return false;
+
+  if (/^(?:Материал в|Обложка|Упоминание)\b/i.test(normalizedLabel)) {
+    return true;
+  }
+
+  if (
+    /^Публикация «[^»]+»/i.test(normalizedLabel) &&
+    /(газет|журнал|обложк|в прессе|ролик|фильм|яхт|музе)/i.test(normalizedText) &&
+    !/(написал|написала|опубликовал|опубликовала|издал|издала|выпустил|выпустила|роман|книга|поэма|повесть|стихотворен)/i.test(
+      normalizedText
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}

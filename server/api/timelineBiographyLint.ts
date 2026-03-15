@@ -7,7 +7,11 @@ import {
   normalizeSphere,
   sanitizeTimelineEventPlan,
 } from './timelineBiographyHeuristics.js';
-import { isGenericBiographyLabel, isTruncatedBiographyLabel } from './timelineBiographyLabelQuality.js';
+import {
+  isGenericBiographyLabel,
+  isMediaMentionBiographyEvent,
+  isTruncatedBiographyLabel,
+} from './timelineBiographyLabelQuality.js';
 import type {
   BiographyFactCandidate,
   BiographyLintIssue,
@@ -139,7 +143,8 @@ function scoreMatchedFactForRepair(event: BiographyTimelineEventPlan, fact: Biog
   const notesMatch = normalizedNotes && evidence.includes(normalizedNotes.slice(0, 24)) ? 3 : 0;
   const titleMatch = eventTitle && factTitle && eventTitle === factTitle ? 12 : 0;
   const labelQuality = isSpecificFactLabel(fact.labelHint) ? 4 : 0;
-  return baseScore + labelMatch + notesMatch + titleMatch + labelQuality;
+  const mediaPenalty = isMediaMentionBiographyEvent(fact.labelHint, fact.evidence) ? -8 : 0;
+  return baseScore + labelMatch + notesMatch + titleMatch + labelQuality + mediaPenalty;
 }
 
 function selectMatchingFact(event: BiographyTimelineEventPlan, factsIndex: FactsIndex) {
@@ -170,7 +175,8 @@ function buildLabelFromFact(
   }
 
   const sourceText = matchingFact?.evidence?.trim() || event.notes?.trim() || event.label;
-  return buildHeuristicLabel(sourceText, fallbackSphere ?? 'other');
+  const heuristicLabel = buildHeuristicLabel(sourceText, fallbackSphere ?? 'other');
+  return isMediaMentionBiographyEvent(heuristicLabel, sourceText) ? event.label : heuristicLabel;
 }
 
 function isLowQualityEventLabel(label: string) {

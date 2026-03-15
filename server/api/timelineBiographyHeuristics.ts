@@ -244,12 +244,21 @@ function extractDeathPersonFromSentence(sentence: string) {
     /(?:умерла|умер|скончал(?:ась|ся)?|погиб(?:ла)?)[^.!?]{0,120}?([А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){1,3})/u
   )?.[1];
   if (withTitle) {
-    return normalizeWhitespace(withTitle.replace(/^(?:бывший|бывшая|премьер-министр|король|королева|принц|принцесса)\s+/iu, ''));
+    const normalized = normalizeWhitespace(
+      withTitle.replace(/^(?:бывший|бывшая|премьер-министр|король|королева|принц|принцесса)\s+/iu, '')
+    );
+    const words = normalized.split(/\s+/).filter(Boolean);
+    return words.length > 2 ? words.slice(-2).join(' ') : normalized;
   }
 
-  return sentence.match(
-    /(?:смерть|кончина)[^.!?]{0,80}\s+([А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){1,3})/u
-  )?.[1]?.trim();
+  const genitiveMatch = sentence.match(
+    /(?:смерт[ьи]|кончин[аы])[^.!?]{0,80}?(?:принца|принцессы|короля|королевы|лорда|леди|мужа|жены)?\s*([А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){0,2})/u
+  )?.[1];
+  if (genitiveMatch) {
+    return normalizeWhitespace(genitiveMatch);
+  }
+
+  return undefined;
 }
 
 function isMediaContextSentence(sentence: string) {
@@ -368,7 +377,9 @@ export function isLikelyTimelineEventSentence(sentence: string) {
   const looksLikeLead =
     hasYear &&
     /—/.test(sentence) &&
-    /(поэт|писател|драматург|автор|historian|poet|writer|novelist|composer|artist)/i.test(normalized) &&
+    /(поэт|писател|драматург|автор|монарх|королев|король|королева|президент|премьер-министр|императ|историк|historian|poet|writer|novelist|composer|artist|queen|king|president)/i.test(
+      normalized
+    ) &&
     !hasAction;
 
   if (!hasYear) return false;
@@ -466,10 +477,11 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
 
   if (isRegistryMetadataSentence(sentence)) return 'Рождение';
   if (/родил|born/i.test(sentence)) return 'Рождение';
-  if (/эдуард viii|эдуард\s+viii/i.test(sentence) && /отреч/i.test(sentence) && /наследниц/i.test(sentence)) {
+  if (/эдуард\b|эдуард viii|эдуард\s+viii/i.test(sentence) && /отреч/i.test(sentence) && /наследниц/i.test(sentence)) {
     return 'Наследница престола после отречения';
   }
-  if (/эдуард viii|эдуард\s+viii/i.test(sentence) && /отреч/i.test(sentence)) return 'Отречение Эдуарда VIII';
+  if (/эдуард\b|эдуард viii|эдуард\s+viii/i.test(sentence) && /отреч/i.test(sentence)) return 'Отречение Эдуарда VIII';
+  if (/наследниц(?:ей|а)\s+трон|наследниц(?:ей|а)\s+престол/i.test(sentence)) return 'Наследница престола';
   if (/отец .*взош[её]л на престол|отец стал корол|георг vi.*взош[её]л на престол/i.test(sentence)) {
     return 'Отец становится королём';
   }
@@ -525,6 +537,14 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
     return `Смерть ${deathPerson}`;
   }
   if (/умер|скончал|погиб|died/i.test(sentence)) return 'Смерть';
+  if (/свад/i.test(sentence)) {
+    const pair = sentence.match(
+      /свад[а-я]*[^.!?]{0,80}?(?:принц(?:а|ессы)?|корол(?:я|евы)?|леди|лорд|герцога|герцогини)?\s*([А-ЯЁ][а-яё]+)(?:\s+[А-ЯЁ][а-яё]+)?\s+и\s+(?:принц(?:а|ессы)?|корол(?:я|евы)?|леди|лорд|герцога|герцогини)?\s*([А-ЯЁ][а-яё]+)(?:\s+[А-ЯЁ][а-яё]+)?/u
+    );
+    if (pair) {
+      return `Свадьба ${pair[1]} и ${pair[2]}`;
+    }
+  }
   if (/женил|брак|свад/i.test(sentence)) return spouse ? `Брак с ${spouse}` : 'Брак';
   if (/родил\S*\s+(?:сын|дочь|ребён)/i.test(sentence)) return 'Рождение ребёнка';
   if (/нян|домашн.*обуч|гуверн|наставник/i.test(sentence)) return 'Домашнее обучение';
@@ -547,9 +567,9 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   if (/лице|школ|универс|академ|институт|учил/i.test(sentence) && institution && sphere === 'education') {
     return `Учёба в ${institution}`;
   }
-  if (/лицей/i.test(sentence)) return 'Лицейские годы';
-  if (/университет|академ|институт/i.test(sentence)) return 'Студенческие годы';
-  if (/школ/i.test(sentence)) return 'Школьные годы';
+  if (/лицей/i.test(sentence) && sphere === 'education') return 'Лицейские годы';
+  if (/университет|академ|институт/i.test(sentence) && sphere === 'education') return 'Студенческие годы';
+  if (/школ/i.test(sentence) && sphere === 'education') return 'Школьные годы';
   if (/вступил в .*общество|арзамас|зел[её]ная лампа/i.test(sentence)) return 'Литературный круг';
   if (/элег|лирик/i.test(sentence)) return 'Литературный поворот';
   if (/предложени/i.test(sentence) && /гончаров/i.test(sentence)) return 'Предложение Наталье Гончаровой';

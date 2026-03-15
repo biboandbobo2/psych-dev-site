@@ -466,9 +466,11 @@ async function reviewBiographyPlan(prompt: string, apiKey: string) {
   throw lastError ?? new Error('Gemini review generation failed');
 }
 
-function buildFactsFirstPlan(params: {
+async function buildFactsFirstPlan(params: {
+  apiKey: string;
   facts: BiographyFactCandidate[];
   articleTitle: string;
+  sourceUrl: string;
   extract: string;
   factsModel: string;
 }) {
@@ -483,36 +485,83 @@ function buildFactsFirstPlan(params: {
     articleTitle: params.articleTitle,
     extract: params.extract,
   });
-  const repairedPlan = repairBiographyPlan({
+  let repairedPlan = repairBiographyPlan({
     plan,
     facts: mergedFacts,
   });
-  const lintIssues = lintBiographyPlan(repairedPlan);
-  const evaluationMetrics = buildBiographyEvaluationMetrics({
+
+  let lintIssues = lintBiographyPlan(repairedPlan);
+  let evaluationMetrics = buildBiographyEvaluationMetrics({
     facts: mergedFacts,
     plan: repairedPlan,
   });
-  const allEvents = [...repairedPlan.mainEvents, ...repairedPlan.branches.flatMap((branch) => branch.events)];
-  const sphereCounts = allEvents.reduce<Record<string, number>>((acc, event) => {
-    const sphere = event.sphere ?? 'other';
-    acc[sphere] = (acc[sphere] ?? 0) + 1;
-    return acc;
-  }, {});
-  const dominantSphereCount = Object.values(sphereCounts).reduce((max, count) => Math.max(max, count), 0);
-  const dominantSphereRatio = allEvents.length > 0 ? dominantSphereCount / allEvents.length : 0;
-  const richnessFallbackReasons: string[] = [];
+  let reviewApplied = false;
+  let model = `${params.factsModel} -> local-facts-first`;
 
-  if (evaluationMetrics.facts.total >= 24 && evaluationMetrics.plan.visibleEvents < 18) {
-    richnessFallbackReasons.push('Facts-first plan остался слишком редким для богатой биографии.');
-  }
-  if (evaluationMetrics.facts.total >= 24 && evaluationMetrics.plan.branches < 2) {
-    richnessFallbackReasons.push('Facts-first plan не выделил достаточное количество веток для насыщенной биографии.');
-  }
-  if (evaluationMetrics.facts.total >= 24 && dominantSphereRatio >= 0.55 && dominantSphereCount >= 6) {
-    richnessFallbackReasons.push('Facts-first plan слишком перекошен в одну сферу и теряет тематическое разнообразие.');
-  }
-  if (evaluationMetrics.facts.earlyLifeFacts >= 4 && evaluationMetrics.plan.earlyLifeEvents < 3) {
-    richnessFallbackReasons.push('Facts-first plan потерял слишком много ранних событий при наличии опоры в facts pool.');
+  const collectRichnessFallbackReasons = () => {
+    const allEvents = [...repairedPlan.mainEvents, ...repairedPlan.branches.flatMap((branch) => branch.events)];
+    const sphereCounts = allEvents.reduce<Record<string, number>>((acc, event) => {
+      const sphere = event.sphere ?? 'other';
+      acc[sphere] = (acc[sphere] ?? 0) + 1;
+      return acc;
+    }, {});
+    const dominantSphereCount = Object.values(sphereCounts).reduce((max, count) => Math.max(max, count), 0);
+    const dominantSphereRatio = allEvents.length > 0 ? dominantSphereCount / allEvents.length : 0;
+    const reasons: string[] = [];
+
+    if (evaluationMetrics.facts.total >= 24 && evaluationMetrics.plan.visibleEvents < 18) {
+      reasons.push('Facts-first plan остался слишком редким для богатой биографии.');
+    }
+    if (evaluationMetrics.facts.total >= 24 && evaluationMetrics.plan.branches < 2) {
+      reasons.push('Facts-first plan не выделил достаточное количество веток для насыщенной биографии.');
+    }
+    if (evaluationMetrics.facts.total >= 24 && dominantSphereRatio >= 0.55 && dominantSphereCount >= 6) {
+      reasons.push('Facts-first plan слишком перекошен в одну сферу и теряет тематическое разнообразие.');
+    }
+    if (evaluationMetrics.facts.earlyLifeFacts >= 4 && evaluationMetrics.plan.earlyLifeEvents < 3) {
+      reasons.push('Facts-first plan потерял слишком много ранних событий при наличии опоры в facts pool.');
+    }
+
+    return reasons;
+  };
+
+  let richnessFallbackReasons = collectRichnessFallbackReasons();
+  const factsFirstReviewIssues = [
+    ...new Set([
+      ...lintIssues.map((issue) => issue.message),
+      ...getBiographyPlanReviewIssues(repairedPlan, params.extract),
+      ...richnessFallbackReasons,
+    ]),
+  ];
+
+  if (mergedFacts.length >= 24 && factsFirstReviewIssues.length > 0) {
+    try {
+      const reviewResult = await reviewBiographyPlan(
+        buildBiographyTimelineReviewPrompt({
+          articleTitle: params.articleTitle,
+          sourceUrl: params.sourceUrl,
+          factsSummary: summarizeBiographyFacts(mergedFacts, params.articleTitle),
+          draftPlanJson: JSON.stringify(repairedPlan),
+          issues: factsFirstReviewIssues,
+        }),
+        params.apiKey
+      );
+
+      repairedPlan = repairBiographyPlan({
+        plan: reviewResult.plan,
+        facts: mergedFacts,
+      });
+      lintIssues = lintBiographyPlan(repairedPlan);
+      evaluationMetrics = buildBiographyEvaluationMetrics({
+        facts: mergedFacts,
+        plan: repairedPlan,
+      });
+      richnessFallbackReasons = collectRichnessFallbackReasons();
+      reviewApplied = true;
+      model = `${model} -> ${reviewResult.model}`;
+    } catch (error) {
+      debugError('[timeline-biography] facts-first review pass failed, keeping local plan', error);
+    }
   }
 
   if (hasFatalBiographyIssues(lintIssues) || richnessFallbackReasons.length > 0) {
@@ -522,14 +571,19 @@ function buildFactsFirstPlan(params: {
   }
 
   return {
-    model: `${params.factsModel} -> local-facts-first`,
+    model,
     plan: repairedPlan,
     diagnostics: buildPlanDiagnostics(
       lintIssues.length > 0 ? 'facts-first-repaired' : 'facts-first',
       repairedPlan
     ),
-    reviewApplied: false,
-    reviewIssues: lintIssues.map((issue) => issue.message),
+    reviewApplied,
+    reviewIssues: [
+      ...new Set([
+        ...lintIssues.map((issue) => issue.message),
+        ...getBiographyPlanReviewIssues(repairedPlan, params.extract),
+      ]),
+    ],
     mergedFacts,
     compositionStats: stats satisfies BiographyCompositionStats,
   };
@@ -679,9 +733,11 @@ export async function runBiographyImport(params: {
   let factsFirstFailure: string | undefined;
 
   try {
-    const factsFirstResult = buildFactsFirstPlan({
+    const factsFirstResult = await buildFactsFirstPlan({
+      apiKey: params.apiKey,
       facts,
       articleTitle: wikiPage.title,
+      sourceUrl: wikiPage.canonicalUrl,
       extract: biographyExtract,
       factsModel,
     });
