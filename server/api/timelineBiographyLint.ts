@@ -2,6 +2,7 @@ import { buildFactCandidateKey } from './timelineBiographyFacts.js';
 import {
   buildEventFactKey,
   buildHeuristicLabel,
+  extractQuotedWorkTitle,
   isRawSentenceLabel,
   normalizeSphere,
   sanitizeTimelineEventPlan,
@@ -48,6 +49,24 @@ type FactsIndex = {
   byAge: Map<number, BiographyFactCandidate[]>;
 };
 
+const REPAIR_STOP_WORDS = new Set([
+  'после',
+  'однако',
+  'таким',
+  'образом',
+  'когда',
+  'потом',
+  'работе',
+  'годы',
+  'годы',
+  'году',
+  'желания',
+  'поехать',
+  'толстой',
+  'писал',
+  'выступил',
+]);
+
 function isBirthLikeEvent(event: BiographyTimelineEventPlan) {
   return event.age <= 0 || /(рождени|родил)/i.test(`${event.label} ${event.notes ?? ''}`);
 }
@@ -68,6 +87,13 @@ function scoreFactCandidateForEvent(event: BiographyTimelineEventPlan, fact: Bio
 function collectMatchingFacts(event: BiographyTimelineEventPlan, factsIndex: FactsIndex) {
   const roundedAge = Math.round(event.age);
   const pool = new Map<string, BiographyFactCandidate>();
+  const quotedTitle = extractQuotedWorkTitle(event.label) || extractQuotedWorkTitle(event.notes ?? '');
+  const semanticTokens = [event.label, event.notes ?? '']
+    .join(' ')
+    .split(/[^A-Za-zА-Яа-яЁё0-9-]+/u)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 5)
+    .filter((token) => !REPAIR_STOP_WORDS.has(token.toLowerCase()));
   const candidateFacts = [
     ...(factsIndex.byAge.get(roundedAge) ?? []),
     ...(factsIndex.byAge.get(roundedAge - 1) ?? []),
@@ -81,6 +107,12 @@ function collectMatchingFacts(event: BiographyTimelineEventPlan, factsIndex: Fac
         event.age >= Number(fact.ageMin) &&
         event.age <= Number(fact.ageMax)
     ),
+    ...factsIndex.all.filter((fact) => {
+      if (quotedTitle) {
+        return fact.labelHint.includes(quotedTitle) || fact.evidence.includes(quotedTitle);
+      }
+      return semanticTokens.some((token) => fact.labelHint.includes(token) || fact.evidence.includes(token));
+    }),
   ];
 
   for (const fact of candidateFacts) {
@@ -98,6 +130,8 @@ function scoreMatchedFactForRepair(event: BiographyTimelineEventPlan, fact: Biog
   const baseScore = scoreFactCandidateForEvent(event, fact);
   const normalizedLabel = event.label.trim().toLowerCase();
   const normalizedNotes = event.notes?.trim().toLowerCase() ?? '';
+  const eventTitle = extractQuotedWorkTitle(event.label)?.toLowerCase() || extractQuotedWorkTitle(event.notes ?? '')?.toLowerCase() || '';
+  const factTitle = extractQuotedWorkTitle(fact.labelHint)?.toLowerCase() || extractQuotedWorkTitle(fact.evidence)?.toLowerCase() || '';
   const hint = fact.labelHint.trim().toLowerCase();
   const evidence = fact.evidence.trim().toLowerCase();
   const labelMatch =
@@ -105,8 +139,9 @@ function scoreMatchedFactForRepair(event: BiographyTimelineEventPlan, fact: Biog
       ? 6
       : 0;
   const notesMatch = normalizedNotes && evidence.includes(normalizedNotes.slice(0, 24)) ? 3 : 0;
+  const titleMatch = eventTitle && factTitle && eventTitle === factTitle ? 12 : 0;
   const labelQuality = isSpecificFactLabel(fact.labelHint) ? 4 : 0;
-  return baseScore + labelMatch + notesMatch + labelQuality;
+  return baseScore + labelMatch + notesMatch + titleMatch + labelQuality;
 }
 
 function selectMatchingFact(event: BiographyTimelineEventPlan, factsIndex: FactsIndex) {

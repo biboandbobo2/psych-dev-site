@@ -414,6 +414,8 @@ export function isRawSentenceLabel(label: string) {
   if (label.length > 50) return true;
   if (/^\d{1,2}\s+[а-яё]+\s+\d{4}/u.test(label)) return true;
   if (/^(?:В|С|К|После|Весной|Летом|Осенью|Зимой)\s+\d{4}/u.test(label)) return true;
+  if (/^(?:Однако|Таким образом|В своей|В своём|После знакомства|Из-за|из-за|Тогда|Но|При этом)\b/u.test(label)) return true;
+  if (/^(?:В|С|После|Из-за|Тогда|Но)\s+[а-яё]/u.test(label) && label.split(/\s+/).length >= 4) return true;
   if (/^(?:один|два|три|четыре|пять|шесть|семь|восемь|девять|десять|несколько|многие)\b/iu.test(label)) return true;
   if (/^[А-ЯЁ][а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+/u.test(label)) return true;
   // Lowercase start = likely a sentence fragment, not a title

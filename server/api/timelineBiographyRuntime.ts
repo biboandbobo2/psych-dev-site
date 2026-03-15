@@ -554,6 +554,7 @@ export async function runBiographyImport(params: {
   const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
   const biographyExtract = wikiPage.biographyExtract || wikiPage.extract;
   const promptExtract = wikiPage.promptExtract || biographyExtract;
+  const heuristicFacts = buildHeuristicFactCandidates(biographyExtract, wikiPage.title);
   let factsModel = 'heuristics';
   let facts: BiographyFactCandidate[];
   try {
@@ -569,9 +570,14 @@ export async function runBiographyImport(params: {
     factsModel = factsResult.model;
   } catch {
     debugLog('[timeline-biography] facts generation failed, falling back to heuristics');
-    facts = buildHeuristicFactCandidates(biographyExtract, wikiPage.title);
+    facts = heuristicFacts;
   }
 
+  facts = mergeFactCandidates({
+    modelFacts: facts,
+    heuristicFacts,
+    extract: biographyExtract,
+  });
   const factsSummary = summarizeBiographyFacts(facts, wikiPage.title);
   debugLog('[timeline-biography] facts ready', {
     factsModel,

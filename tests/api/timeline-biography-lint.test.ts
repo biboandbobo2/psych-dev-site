@@ -69,4 +69,27 @@ describe('timelineBiographyLint', () => {
     expect(repaired.mainEvents[0]?.notes).toContain('Полем Ланжевеном');
     expect(repaired.mainEvents[0]?.notes).toContain('публичный скандал');
   });
+
+  it('подтягивает корректный факт по названию произведения, даже если возраст в draft съехал', () => {
+    const facts = parseLineBasedBiographyFactCandidates([
+      'FACT\t1879\t51\tpublication\tcreativity\thigh\t«Исповедь»\tОпубликовал произведение «Исповедь», в котором описал духовный кризис.\tТворчество\thigh\tyear\t51\t51\tcreative_work|legacy\t\t\t51 год',
+      'FACT\t1873\t45\tpublication\tcreativity\thigh\t«Анна Каренина»\tНачал публикацию романа «Анна Каренина».\tТворчество\thigh\tyear\t45\t45\tcreative_work\t\t\t45 лет',
+    ].join('\n'));
+
+    const repaired = repairBiographyPlan({
+      facts,
+      plan: {
+        subjectName: 'Лев Толстой',
+        canvasName: 'Толстой Лев',
+        currentAge: 82,
+        mainEvents: [
+          { age: 42, label: 'В своей работе «Исповедь» Толстой писал', isDecision: false, sphere: 'other' },
+        ],
+        branches: [],
+      },
+    });
+
+    expect(repaired.mainEvents[0]?.label).toBe('«Исповедь»');
+    expect(repaired.mainEvents[0]?.notes).toContain('духовный кризис');
+  });
 });
