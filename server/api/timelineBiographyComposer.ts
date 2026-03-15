@@ -153,7 +153,12 @@ function buildSpecificLabel(fact: PreparedFactCandidate) {
     return metadataLabel;
   }
 
-  return normalizeText(buildHeuristicLabel(fact.evidence, fact.resolvedSphere), 80) || rawLabel || 'Событие';
+  const heuristicLabel = normalizeText(buildHeuristicLabel(fact.evidence, fact.resolvedSphere), 80);
+  if (heuristicLabel && !isGenericLabel(heuristicLabel) && !isTruncatedLabel(heuristicLabel) && !isRawSentenceLabel(heuristicLabel)) {
+    return heuristicLabel;
+  }
+
+  return rawLabel || heuristicLabel || 'Событие';
 }
 
 function buildNotes(fact: PreparedFactCandidate, label: string) {
@@ -197,6 +202,71 @@ function scoreFactForMain(fact: PreparedFactCandidate, currentAge: number) {
 function scoreFactForBranch(fact: PreparedFactCandidate) {
   const themeWeight = fact.primaryTheme && BIOGRAPHY_THEME_META[fact.primaryTheme]?.preserveForBranch ? 3 : 0;
   return importanceScore(fact.importance) * 2 + confidenceScore(fact.confidence) + (isGenericLabel(fact.labelHint) ? 0 : 2) + themeWeight;
+}
+
+function getEarlyLifeWindow(age: number): [number, number] | null {
+  if (age >= 0 && age <= 6) return [0, 6];
+  if (age >= 7 && age <= 12) return [7, 12];
+  if (age >= 13 && age <= 18) return [13, 18];
+  return null;
+}
+
+function canMoveFactToBranch(mainFacts: PreparedFactCandidate[], candidate: PreparedFactCandidate, currentAge: number) {
+  if (candidate.eventType === 'death' || candidate.eventType === 'birth') return false;
+  const remainingFacts = mainFacts.filter((fact) => buildFactCandidateKey(fact) !== buildFactCandidateKey(candidate));
+  const earlyLifeWindow = getEarlyLifeWindow(candidate.resolvedAge);
+  if (earlyLifeWindow) {
+    const [minAge, maxAge] = earlyLifeWindow;
+    if (!remainingFacts.some((fact) => fact.resolvedAge >= minAge && fact.resolvedAge <= maxAge)) {
+      return false;
+    }
+  }
+
+  const lateLifeThreshold = Math.max(0, currentAge - 7);
+  if (candidate.resolvedAge >= lateLifeThreshold) {
+    const wouldLoseLateLifeCoverage = !remainingFacts.some((fact) => fact.resolvedAge >= lateLifeThreshold);
+    if (wouldLoseLateLifeCoverage) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function rebalanceMainFactsForBranches(
+  preparedFacts: PreparedFactCandidate[],
+  mainFacts: PreparedFactCandidate[],
+  currentAge: number
+) {
+  const selectedFacts = [...mainFacts];
+  const minMainCount = Math.max(8, Math.min(12, selectedFacts.length - 2));
+
+  for (const [themeKey, themeMeta] of Object.entries(BIOGRAPHY_THEME_META)) {
+    if (!themeMeta.preserveForBranch) continue;
+    const themeFacts = preparedFacts.filter((fact) => fact.primaryTheme === themeKey);
+    if (themeFacts.length < 3) continue;
+
+    let leftoverCount = themeFacts.filter(
+      (fact) => !selectedFacts.some((selected) => buildFactCandidateKey(selected) === buildFactCandidateKey(fact))
+    ).length;
+    if (leftoverCount >= 2) continue;
+
+    const removableFacts = selectedFacts
+      .filter((fact) => fact.primaryTheme === themeKey)
+      .sort((a, b) => scoreFactForMain(a, currentAge) - scoreFactForMain(b, currentAge) || b.resolvedAge - a.resolvedAge);
+
+    for (const removableFact of removableFacts) {
+      if (leftoverCount >= 2 || selectedFacts.length <= minMainCount) break;
+      if (!canMoveFactToBranch(selectedFacts, removableFact, currentAge)) continue;
+      const removableKey = buildFactCandidateKey(removableFact);
+      const removableIndex = selectedFacts.findIndex((fact) => buildFactCandidateKey(fact) === removableKey);
+      if (removableIndex < 0) continue;
+      selectedFacts.splice(removableIndex, 1);
+      leftoverCount += 1;
+    }
+  }
+
+  return selectedFacts.sort((a, b) => a.resolvedAge - b.resolvedAge);
 }
 
 function selectBestFactInWindow(
@@ -266,17 +336,17 @@ function selectMainFacts(preparedFacts: PreparedFactCandidate[], currentAge: num
   );
 
   const targetMainCount =
-    preparedFacts.length >= 36
+    preparedFacts.length >= 42
       ? 18
-      : preparedFacts.length >= 28
+      : preparedFacts.length >= 34
         ? 16
-        : preparedFacts.length >= 20
-          ? 14
-          : preparedFacts.length >= 14
-            ? 12
-            : preparedFacts.length >= 10
-              ? 9
-              : 7;
+        : preparedFacts.length >= 26
+          ? 15
+          : preparedFacts.length >= 18
+            ? 13
+            : preparedFacts.length >= 12
+              ? 10
+              : 8;
   while (selectedFacts.length < targetMainCount) {
     const leftovers = preparedFacts
       .filter((fact) => !selectedKeys.has(buildFactCandidateKey(fact)))
@@ -301,7 +371,8 @@ function selectMainFacts(preparedFacts: PreparedFactCandidate[], currentAge: num
           if (selectedInSphere >= 2 && remainingInSphere >= 2) score -= 6;
         }
         if (fact.primaryTheme && BIOGRAPHY_THEME_META[fact.primaryTheme]?.preserveForBranch) {
-          if (selectedInTheme >= 2 && remainingInTheme >= 2) score -= 7;
+          if (selectedInTheme >= 1 && remainingInTheme >= 2) score -= 6;
+          if (selectedInTheme >= 2 && remainingInTheme >= 2) score -= 12;
           if (selectedInTheme === 0) score += 1;
         }
 
@@ -322,11 +393,12 @@ function findBranchAnchorIndex(mainEvents: BiographyTimelineEventPlan[], firstBr
   let bestScore = -1;
 
   mainEvents.forEach((event, index) => {
-    if (event.age >= firstBranchAge) return;
+    if (event.age > firstBranchAge) return;
 
     let score = 10 - Math.min(9, firstBranchAge - event.age);
     if ((event.sphere ?? 'other') === sphere) score += 5;
     if (event.age >= firstBranchAge - 6) score += 2;
+    if (event.age === firstBranchAge) score += 4;
 
     if (score > bestScore) {
       bestScore = score;
@@ -366,7 +438,7 @@ function buildBranches(
       if (!themeMeta) return null;
       const sortedFacts = [...facts]
         .sort((a, b) => scoreFactForBranch(b) - scoreFactForBranch(a))
-        .slice(0, facts.length >= 7 ? 7 : facts.length >= 5 ? 6 : 4)
+        .slice(0, facts.length >= 8 ? 8 : facts.length >= 6 ? 7 : 5)
         .sort((a, b) => a.resolvedAge - b.resolvedAge);
 
       const firstBranchAge = sortedFacts[0]?.resolvedAge;
@@ -409,7 +481,11 @@ export function composeBiographyPlanFromFacts(params: {
   const canvasName = inferCanvasName(subjectName);
   const preparedFacts = prepareFactCandidates(params.facts, inferredBirth.birthYear);
   const currentAge = determineCurrentAge(preparedFacts, params.extract, inferredBirth.birthYear);
-  const mainFacts = selectMainFacts(preparedFacts, currentAge);
+  const mainFacts = rebalanceMainFactsForBranches(
+    preparedFacts,
+    selectMainFacts(preparedFacts, currentAge),
+    currentAge
+  );
   const mainEvents = mainFacts
     .map((fact) => factToEventPlan(fact))
     .filter((event): event is BiographyTimelineEventPlan => Boolean(event));

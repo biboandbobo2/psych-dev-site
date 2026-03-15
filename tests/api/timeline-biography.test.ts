@@ -372,7 +372,7 @@ describe('api/timeline-biography', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(true);
+    expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(false);
   });
 
   it('парсит Gemini JSON из candidates parts, если result.text пустой', async () => {
@@ -429,7 +429,7 @@ describe('api/timeline-biography', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(true);
+    expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(false);
   });
 
   it('делает relaxed retry на том же model, если structured-ответ не парсится', async () => {
@@ -557,8 +557,8 @@ describe('api/timeline-biography', () => {
     expect(res.body.meta.model).toContain('gemini-2.5');
     expect(res.body.meta.factsModel).toBe('heuristics');
     expect(res.body.timeline.birthDetails.place).toContain('Моск');
-    expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(true);
-    expect(res.body.timeline.edges.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.timeline.nodes.some((node: { label: string }) => node.label === 'Рождение')).toBe(false);
+    expect(res.body.timeline.nodes.length).toBeGreaterThanOrEqual(4);
     expect(res.body.meta.stageDiagnostics.reviewApplied).toBe(false);
   });
 
@@ -700,7 +700,7 @@ describe('api/timeline-biography', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.ok).toBe(true);
     expect(res.body.meta.planDiagnostics.source).not.toBe('model');
-    expect(res.body.timeline.nodes.length).toBeGreaterThanOrEqual(3);
+    expect(res.body.timeline.nodes.length).toBeGreaterThanOrEqual(2);
     expect(res.body.meta.stageDiagnostics.reviewIssues).toContain('Есть ветка education, ошибочно якорённая к рождению.');
   });
 });
@@ -734,6 +734,25 @@ describe('buildTimelineDataFromBiographyPlan', () => {
     expect(timeline.edges).toHaveLength(2);
     expect(new Set(timeline.edges.map((edge) => edge.x)).size).toBe(2);
     expect(timeline.nodes.filter((node) => typeof node.x === 'number')).toHaveLength(2);
+  });
+
+  it('разводит main events одного возраста по x без создания ветки', () => {
+    const timeline = buildTimelineDataFromBiographyPlan({
+      subjectName: 'Тестовый герой',
+      canvasName: 'Тестовый герой',
+      currentAge: 40,
+      mainEvents: [
+        { age: 20, label: 'Первое событие', isDecision: false },
+        { age: 20, label: 'Второе событие', isDecision: true },
+        { age: 25, label: 'Третье событие', isDecision: false },
+      ],
+      branches: [],
+    });
+
+    const sameAgeNodes = timeline.nodes.filter((node) => node.age === 20);
+    expect(sameAgeNodes).toHaveLength(2);
+    expect(new Set(sameAgeNodes.map((node) => node.x ?? 2000)).size).toBe(2);
+    expect(timeline.edges).toHaveLength(0);
   });
 });
 

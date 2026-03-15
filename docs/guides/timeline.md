@@ -444,10 +444,13 @@ src/hooks/
   3. Локальный `Composer` строит main line и theme-ветки уже кодом, а не просит модель разложить весь timeline целиком.
   4. `Lint/repair` слой чистит generic labels, восстанавливает notes из facts, добавляет approximate-note и запрещает birth-anchored branches.
   5. Если facts-first каскад не прошёл checks, endpoint переключается на legacy draft/review/fallback pipeline и всё равно пытается собрать TL.
+- `birthDetails` остаются обязательной частью импорта, но отдельный узел `Рождение` больше не должен рендериться как обычный `mainEvent`: старт жизни показывается через birth marker и данные рождения в правой панели.
+- Metadata-фразы вроде записей из метрической книги не должны превращаться в `publication/creativity`-события: нормализация facts переводит их в birth-context или отбрасывает.
 - Основная модель: `gemini-2.5-pro`; при ошибке отдельных стадий используется fallback `gemini-2.5-flash`. Обе доступны через тот же Gemini API ключ.
 - Few-shot exemplar в prompt обезличен: он задаёт форму хорошего timeline без привязки к конкретной биографии.
 - В facts-first режиме модель больше не возвращает готовый plan как единственный source of truth: она поставляет facts, а окончательная раскладка по `mainEvents/branches/nodes/edges` делается кодом.
-- Раскладка ветвей по `x` вычисляется на сервере: overlapping branch lanes разводятся автоматически, поэтому модель отвечает за смысловую группировку по сферам, а не за геометрию.
+- Раскладка ветвей по `x` вычисляется на сервере: overlapping branch lanes разводятся автоматически, а main events одного возраста получают отдельные `x`-offset без создания новой ветки.
+- На клиенте подписи для левых веток рендерятся влево от иконки, чтобы длинные labels меньше наползали на центральную линию.
 - API дополнительно возвращает `planDiagnostics`, `timelineStats`, `stageDiagnostics` и `compositionStats`, чтобы было видно, как отработал каскад и насколько сильным получился итоговый план.
 - Для локальных итераций без UI добавлен CLI: `npm run timeline:eval -- --source-url=https://ru.wikipedia.org/wiki/... [--heuristics-only] [--out=tmp/biography-eval.json]`.
   - Скрипт тянет тот же Wikipedia extract, прогоняет facts-first каскад локально и печатает metrics по facts/main/branches/generic labels.

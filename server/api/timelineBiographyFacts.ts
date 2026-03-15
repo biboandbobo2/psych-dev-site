@@ -148,6 +148,10 @@ function normalizeNumber(value: string | number | undefined) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function isRegistryMetadataEvidence(value: string) {
+  return /метрическ.*книг|в числе прочих|приходится такая запись|запис[ья][^.!?]{0,40}(?:церкв|книг)/i.test(value);
+}
+
 function isGenericLabel(label: string | undefined) {
   return Boolean(label && GENERIC_LABEL_PATTERN.test(label.trim()));
 }
@@ -234,7 +238,7 @@ export function buildFactCandidateKey(candidate: Pick<BiographyFactCandidate, 'a
 }
 
 export function normalizeFactCandidate(candidate: BiographyFactCandidate): BiographyFactCandidate | null {
-  const labelHint = normalizeText(candidate.labelHint, 120);
+  let labelHint = normalizeText(candidate.labelHint, 120);
   const evidence = normalizeEvidence(candidate.evidence || candidate.details, labelHint || '');
   const year = normalizeNumber(candidate.year);
   const explicitAge = normalizeNumber(candidate.age);
@@ -250,8 +254,13 @@ export function normalizeFactCandidate(candidate: BiographyFactCandidate): Biogr
           ? Number(ageMax)
           : undefined);
   const rawSphere = normalizeSphere(candidate.sphere) ?? undefined;
-  const eventType = normalizeEventType(candidate.eventType || candidate.category) || inferEventTypeFromSphere(rawSphere);
-  const sphere = normalizeFactSphereValue(rawSphere, eventType) ?? undefined;
+  let eventType = normalizeEventType(candidate.eventType || candidate.category) || inferEventTypeFromSphere(rawSphere);
+  let sphere = normalizeFactSphereValue(rawSphere, eventType) ?? undefined;
+  if (isRegistryMetadataEvidence(evidence)) {
+    eventType = 'birth';
+    sphere = 'family';
+    labelHint = 'Рождение';
+  }
   const timePrecision =
     parseTimePrecision(candidate.timePrecision) ??
     (Number.isFinite(year)
@@ -267,6 +276,7 @@ export function normalizeFactCandidate(candidate: BiographyFactCandidate): Biogr
 
   if (!labelHint && !evidence) return null;
   if (!Number.isFinite(inferredAge) && !Number.isFinite(year)) return null;
+  if (Number.isFinite(inferredAge) && Number(inferredAge) === 0 && eventType !== 'birth') return null;
 
   const normalized: BiographyFactCandidate = {
     year,

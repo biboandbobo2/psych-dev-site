@@ -38,6 +38,7 @@ describe('timelineBiographyLint', () => {
 
     const issues = lintBiographyPlan(repaired);
 
+    expect(repaired.mainEvents.some((event) => event.age === 0)).toBe(false);
     expect(repaired.mainEvents.every((event) => Boolean(event.notes?.trim()))).toBe(true);
     expect(repaired.branches).toHaveLength(0);
     expect(issues.some((issue) => issue.code === 'empty-notes')).toBe(false);

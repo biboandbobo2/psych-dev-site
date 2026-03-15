@@ -8,6 +8,7 @@ import {
   pickBranchX,
   russianDateToISO,
   sanitizeTimelineEventPlan,
+  LINE_X_POSITION,
   buildEventFactKey,
   hasTerminalLifeEvent,
   splitBiographyExtractIntoSentences,
@@ -24,6 +25,8 @@ import {
   type OccupiedBranchLane,
   type TimelineSphere,
 } from './timelineBiographyTypes.js';
+
+const SAME_AGE_MAIN_EVENT_OFFSETS = [0, -260, 260, -460, 460, -680, 680] as const;
 
 function countBranchEvents(branches: BiographyTimelineBranchPlan[]) {
   return branches.reduce((total, branch) => total + branch.events.length, 0);
@@ -51,7 +54,7 @@ function buildHeuristicFallback(heuristicPlan: BiographyTimelinePlan) {
 }
 
 function isBranchSphereAllowedFromBirth(sphere: TimelineSphere) {
-  return sphere === 'family' || sphere === 'health' || sphere === 'place';
+  return sphere === 'family' || sphere === 'health';
 }
 
 function findBetterBranchAnchorIndex(
@@ -250,13 +253,6 @@ export function enrichBiographyPlan(params: {
 
   let finalMainEvents = useHeuristicMainEvents ? heuristicPlan.mainEvents : normalizedMainEvents;
 
-  if (!finalMainEvents.some((event) => event.age === 0)) {
-    const heuristicBirth = heuristicPlan.mainEvents.find((event) => event.age === 0);
-    if (heuristicBirth) {
-      finalMainEvents = [heuristicBirth, ...finalMainEvents];
-    }
-  }
-
   if (needsTerminalEvent && !hasTerminalLifeEvent(finalMainEvents, modelCurrentAge)) {
     const heuristicDeath = heuristicPlan.mainEvents.find((event) =>
       /(смерт|гибел|погиб|умер|дуэл|died|death)/i.test(`${event.label} ${event.notes ?? ''}`)
@@ -373,18 +369,33 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
   const mainEvents = (plan.mainEvents || [])
     .map((event) => sanitizeTimelineEventPlan(event))
     .filter((event): event is BiographyTimelineEventPlan => Boolean(event))
+    .filter((event) => event.age > 0)
     .sort((a, b) => a.age - b.age);
 
   const nodes: BiographyTimelineData['nodes'] = [];
   const edges: BiographyTimelineData['edges'] = [];
   const mainNodeIds: string[] = [];
+  const mainAgeCounts = new Map<string, number>();
+  const mainAgeSeen = new Map<string, number>();
 
   mainEvents.forEach((event) => {
+    const key = String(event.age);
+    mainAgeCounts.set(key, (mainAgeCounts.get(key) ?? 0) + 1);
+  });
+
+  mainEvents.forEach((event) => {
+    const ageKey = String(event.age);
+    const ageIndex = mainAgeSeen.get(ageKey) ?? 0;
+    const ageCount = mainAgeCounts.get(ageKey) ?? 1;
+    const offset = ageCount > 1 ? SAME_AGE_MAIN_EVENT_OFFSETS[ageIndex] ?? 0 : 0;
     const nodeId = crypto.randomUUID();
+    mainAgeSeen.set(ageKey, ageIndex + 1);
     mainNodeIds.push(nodeId);
     nodes.push({
       id: nodeId,
       age: event.age,
+      x: offset === 0 ? undefined : LINE_X_POSITION + offset,
+      parentX: offset === 0 ? undefined : LINE_X_POSITION,
       label: event.label,
       notes: event.notes,
       sphere: event.sphere,

@@ -616,6 +616,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       reviewIssues = legacyResult.reviewIssues;
     }
 
+    normalizedPlan = repairBiographyPlan({
+      plan: normalizedPlan,
+      facts,
+    });
+    diagnostics = buildPlanDiagnostics(diagnostics.source, normalizedPlan);
+    reviewIssues = [
+      ...new Set([
+        ...reviewIssues,
+        ...lintBiographyPlan(normalizedPlan).map((issue) => issue.message),
+      ]),
+    ];
+
     debugLog('[timeline-biography] plan normalized', {
       source: diagnostics.source,
       mainEvents: diagnostics.mainEvents,

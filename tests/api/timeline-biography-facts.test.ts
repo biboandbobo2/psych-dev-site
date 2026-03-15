@@ -22,6 +22,17 @@ describe('timelineBiographyFacts', () => {
     expect(facts[0].ageLabel).toBe('21 год');
   });
 
+  it('не пропускает запись из метрической книги как публикацию в ноль лет', () => {
+    const facts = parseLineBasedBiographyFactCandidates([
+      'FACT\t1799\t0\tpublication\tcreativity\thigh\tНовая публикация\tВ метрической книге церкви Богоявления в Елохове на дату 8 (19) июня 1799 года, в числе прочих, приходится такая запись:\tРанние годы\thigh\tyear\t0\t0\tcreative_work\t\t\t0 лет',
+    ].join('\n'));
+
+    expect(facts).toHaveLength(1);
+    expect(facts[0].eventType).toBe('birth');
+    expect(facts[0].sphere).toBe('family');
+    expect(facts[0].labelHint).toBe('Рождение');
+  });
+
   it('добирает ранние окна жизни из heuristics, если model facts редкие', () => {
     const extract = [
       'Александр Сергеевич Пушкин родился в Москве в 1799 году.',

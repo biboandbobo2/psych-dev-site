@@ -352,6 +352,8 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                 x === selectedBranchX &&
                 x !== LINE_X_POSITION;
               const parentLineX = node.parentX ?? LINE_X_POSITION;
+              const labelOnLeft = x < LINE_X_POSITION;
+              const labelX = labelOnLeft ? x - adaptiveRadius - 10 : x + adaptiveRadius + 10;
               const shouldDrawHorizontalLine =
                 x !== parentLineX &&
                 typeof parentLineX === 'number' &&
@@ -433,12 +435,13 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                       </g>
                     )}
                     <text
-                      x={x + adaptiveRadius + 10}
+                      x={labelX}
                       y={y - adaptiveRadius - 5}
                       fontSize={28}
                       fontWeight="500"
                       fill="#0f172a"
                       fontFamily="Georgia, serif"
+                      textAnchor={labelOnLeft ? 'end' : 'start'}
                     >
                       {node.label}
                     </text>

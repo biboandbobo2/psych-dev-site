@@ -156,6 +156,26 @@ export function inferCanvasName(subjectName: string) {
   return subjectName.slice(0, 40);
 }
 
+function isRegistryMetadataSentence(sentence: string) {
+  return /метрическ.*книг|в числе прочих|приходится такая запись|запис[ья][^.!?]{0,40}(?:церкв|книг)/i.test(sentence);
+}
+
+function normalizeLocationCandidate(value: string | undefined) {
+  if (!value) return undefined;
+  const normalized = normalizeWhitespace(value);
+  if (normalized.length < 3) return undefined;
+  if (/\b[А-ЯЁA-Z]\.?$/u.test(normalized)) return undefined;
+  if (/\b[А-ЯЁA-Z]\.\s*[А-ЯЁA-Z]?\.?/u.test(normalized)) return undefined;
+  return normalized;
+}
+
+function extractInstitutionLabel(sentence: string) {
+  const match = sentence.match(
+    /\b((?:(?:[А-ЯЁA-Zа-яёa-z-]+)\s+){0,4}(?:лице[яйе]|школ[ауые]|университет[а-я]*|академи[яию]|институт[а-я]*))\b/u
+  );
+  return normalizeWhitespace(match?.[1] ?? '');
+}
+
 export function inferBirthDetailsFromExtract(extract: string) {
   const sentences = splitBiographyExtractIntoSentences(extract);
   const birthSentence = sentences.find((sentence) => /родил|born/i.test(sentence)) ?? sentences[0] ?? '';
@@ -207,6 +227,7 @@ export function isLikelyTimelineEventSentence(sentence: string) {
     !hasAction;
 
   if (!hasYear) return false;
+  if (isRegistryMetadataSentence(sentence)) return false;
   if (looksLikeLead) return false;
   if (!hasAction && sentence.length > 180) return false;
 
@@ -216,6 +237,9 @@ export function isLikelyTimelineEventSentence(sentence: string) {
 export function inferSphereFromSentence(sentence: string): TimelineSphere {
   const normalized = sentence.toLowerCase();
 
+  if (isRegistryMetadataSentence(sentence)) {
+    return 'family';
+  }
   if (/(родил|born)/i.test(normalized)) {
     return 'family';
   }
@@ -260,6 +284,7 @@ export function inferDecisionFromSentence(sentence: string) {
 }
 
 export function inferIconFromSentence(sentence: string, sphere: TimelineSphere): TimelineIconId | undefined {
+  if (isRegistryMetadataSentence(sentence)) return 'baby-feet';
   if (/родил|born/i.test(sentence)) return 'baby-feet';
   if (/женил|брак|свад/i.test(sentence)) return 'wedding-rings';
   if (/лице|школ|универс|академ|учил|нян|настав/i.test(sentence)) return 'school-backpack';
@@ -275,20 +300,22 @@ export function inferIconFromSentence(sentence: string, sphere: TimelineSphere):
 
 export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   const workTitle = extractQuotedWorkTitle(sentence);
-  const location =
-    sentence.match(/\b(?:в|на|из)\s+([А-ЯЁA-Z][^,.();:]{2,50})/u)?.[1]?.trim().replace(/\s+/g, ' ') ?? undefined;
+  const location = normalizeLocationCandidate(
+    sentence.match(/\b(?:в|на|из)\s+([А-ЯЁA-Z][^,.();:]{2,50})/u)?.[1]?.trim().replace(/\s+/g, ' ') ?? undefined
+  );
   const spouse = sentence.match(/\bс\s+([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+){0,2})/u)?.[1]?.trim() ?? undefined;
-  const institution =
-    sentence.match(/\b((?:Царскосельск[^\s,.;:)]*\s+)?(?:лице[яйе]|школ[ауые]|университет[а-я]*|академи[яию]|институт[а-я]*))\b/u)?.[1] ??
-    undefined;
+  const institution = extractInstitutionLabel(sentence) || undefined;
 
+  if (isRegistryMetadataSentence(sentence)) return 'Рождение';
   if (/родил|born/i.test(sentence)) return 'Рождение';
   if (/дуэл/i.test(sentence) && /умер|погиб|скончал|died/i.test(sentence)) return 'Дуэль и смерть';
   if (/умер|скончал|погиб|died/i.test(sentence)) return 'Смерть';
   if (/женил|брак|свад/i.test(sentence)) return spouse ? `Брак с ${spouse}` : 'Брак';
   if (/родил\S*\s+(?:сын|дочь|ребён)/i.test(sentence)) return 'Рождение ребёнка';
   if (/нян|домашн.*обуч|гуверн|наставник/i.test(sentence)) return 'Домашнее обучение';
-  if (/детств|ранн.*чтен|перв.*стих/i.test(sentence)) return 'Формирующее детство';
+  if (/перв.*стих/i.test(sentence)) return 'Первые стихи';
+  if (/ранн.*чтен|много читал|библиотек/i.test(sentence)) return 'Раннее увлечение чтением';
+  if (/(детств|летние месяцы|усадьб|у бабушк|у дедушк)/i.test(sentence) && location) return `Детство в ${location}`;
   if (/лицейск.*друз|дружб|переписк|кружок|общество|арзамас|лампа|декабр|пущин|дельвиг|кюхельбекер|чаадаев/i.test(sentence)) {
     return /декабр/i.test(sentence) ? 'Потери круга декабристов' : 'Лицейский круг';
   }
@@ -302,7 +329,9 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   if (/лице|школ|универс|академ|институт|учил/i.test(sentence) && institution && sphere === 'education') {
     return `Учёба в ${institution}`;
   }
-  if (/лице|школ|универс|академ|институт|учил/i.test(sentence)) return 'Учёба';
+  if (/лицей/i.test(sentence)) return 'Лицейские годы';
+  if (/университет|академ|институт/i.test(sentence)) return 'Студенческие годы';
+  if (/школ/i.test(sentence)) return 'Школьные годы';
   if (/вступил в .*общество|арзамас|зел[её]ная лампа/i.test(sentence)) return 'Литературный круг';
   if (/элег|лирик/i.test(sentence)) return 'Литературный поворот';
   if (/предложени/i.test(sentence) && /гончаров/i.test(sentence)) return 'Предложение Наталье Гончаровой';
@@ -311,9 +340,13 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   if (/заверш[а-я]+\s+.*борис[а-яё ]+годунов/i.test(sentence)) return 'Завершение «Бориса Годунова»';
   if (/начал работу/i.test(sentence) && workTitle) return `Начало работы над «${workTitle}»`;
   if (/опублик|издал|поэм|роман|стих|книг|произвед|published/i.test(sentence)) {
-    return location ? `Публикация в ${location}` : 'Новая публикация';
+    if (/впервые|дебют|получил известность|выступил/i.test(sentence)) return 'Первое литературное признание';
+    if (location) return `Публикация в ${location}`;
   }
-  if (/назнач|стал|служ|карьер|became|appointed/i.test(sentence)) return 'Новый карьерный этап';
+  if (/поступил на службу|начал службу/i.test(sentence)) return 'Начало службы';
+  if (/назнач|стал|служ|карьер|became|appointed/i.test(sentence) && /редактор|секретар|чиновник|служб/i.test(sentence)) {
+    return 'Новый этап службы';
+  }
   if (/долг|обязательств|финанс|денег|money|finance/i.test(sentence)) return 'Финансовое давление';
   if (/арест|тюрьм|prison|arrest/i.test(sentence)) return 'Арест';
   if (/цензур|запрет|censor/i.test(sentence)) return 'Цензурные ограничения';
@@ -345,6 +378,7 @@ export function isRawSentenceLabel(label: string) {
   if (label.length > 50) return true;
   if (/^\d{1,2}\s+[а-яё]+\s+\d{4}/u.test(label)) return true;
   if (/^(?:В|С|К|После|Весной|Летом|Осенью|Зимой)\s+\d{4}/u.test(label)) return true;
+  if (/^(?:один|два|три|четыре|пять|шесть|семь|восемь|девять|десять|несколько|многие)\b/iu.test(label)) return true;
   if (/^[А-ЯЁ][а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+\s+[а-яё]+/u.test(label)) return true;
   // Lowercase start = likely a sentence fragment, not a title
   if (/^[а-яё]/u.test(label)) return true;
@@ -452,12 +486,10 @@ export function selectEventsForLifeCoverage(events: BiographyTimelineEventPlan[]
   if (events.length <= targetCount) return events;
 
   const selectedIndexes = new Set<number>([0, events.length - 1]);
-  const birthIndex = events.findIndex((event) => event.age === 0);
   const terminalIndex = events.findIndex((event) =>
     /(смерт|гибел|погиб|умер|дуэл|died|death|killed)/i.test(`${event.label} ${event.notes ?? ''}`)
   );
 
-  if (birthIndex >= 0) selectedIndexes.add(birthIndex);
   if (terminalIndex >= 0) selectedIndexes.add(terminalIndex);
 
   while (selectedIndexes.size < targetCount) {
@@ -1098,17 +1130,6 @@ export function buildHeuristicBiographyPlan(params: {
     })
     .filter((branch) => branch.events.length >= 1)
     .slice(0, 4);
-
-  if (birthYear && !mainEvents.some((event) => event.age === 0)) {
-    mainEvents.unshift({
-      age: 0,
-      label: 'Рождение',
-      notes: birthDetails.place ? `Родился(ась) в ${birthDetails.place}.` : 'Рождение',
-      sphere: 'family',
-      isDecision: false,
-      iconId: 'baby-feet',
-    });
-  }
 
   if (birthYear && deathYear && !hasTerminalLifeEvent(mainEvents, inferredCurrentAge)) {
     const deathSentence = splitBiographyExtractIntoSentences(params.extract).find((sentence) =>
