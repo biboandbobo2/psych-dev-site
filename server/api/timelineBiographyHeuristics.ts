@@ -172,6 +172,15 @@ function normalizeLocationCandidate(value: string | undefined) {
   return normalized;
 }
 
+function isLikelyBirthPlace(value: string | undefined) {
+  if (!value) return false;
+  const normalized = normalizeWhitespace(value).toLowerCase();
+  if (!normalized) return false;
+  if (/^(?:семье|браке|отношениях|плену|изгнании|ссылке|поездке|возрасте)\b/i.test(normalized)) return false;
+  if (/^(?:семье|герцога|герцогини|короля|королевы)\b/i.test(normalized)) return false;
+  return true;
+}
+
 function extractInstitutionLabel(sentence: string) {
   const match = sentence.match(
     /\b((?:(?:[А-ЯЁA-Zа-яёa-z-]+)\s+){0,4}(?:лице[яйе]|школ[ауые]|университет[а-я]*|академи[яию]|институт[а-я]*))\b/u
@@ -188,53 +197,88 @@ function extractLossRelationFromSentence(sentence: string) {
 }
 
 export function inferBirthDetailsFromExtract(extract: string) {
+  const extractHead = extract.slice(0, 600);
   const sentences = splitBiographyExtractIntoSentences(extract);
   const birthSentence = sentences.find((sentence) => /родил|born/i.test(sentence)) ?? sentences[0] ?? '';
   const years = extractYears(birthSentence);
-  const birthYear = years[0];
+  const leadDateRangeMatch = extractHead.match(
+    /(\d{1,2}\s+[A-Za-zА-Яа-яЁё]+\s+\d{4})\s*,\s*([^—()]+?)\s*[—-]\s*(\d{1,2}\s+[A-Za-zА-Яа-яЁё]+\s+\d{4})/u
+  );
+  const leadBirthDate = leadDateRangeMatch?.[1];
+  const leadBirthPlace = normalizeLocationCandidate(leadDateRangeMatch?.[2]);
+  const leadYears = extractYears(extractHead);
+  const birthYear = leadBirthDate
+    ? extractYears(leadBirthDate)[0]
+    : years[0] ?? leadYears[0];
 
-  // Try new-style date in brackets: "26 мая [6 июня] 1799" → "6 июня 1799"
   const bracketDateMatch = birthSentence.match(/\[(\d{1,2}\s+[A-Za-zА-Яа-яЁё]+)\]\s*(\d{4})/);
-  // Try standard date: "6 июня 1799"
   const standardDateMatch = birthSentence.match(/(\d{1,2}\s+[A-Za-zА-Яа-яЁё]+\s+\d{4})/);
-  // Fallback: year only
   const yearOnlyMatch = birthYear ? String(birthYear) : undefined;
 
-  const dateStr = bracketDateMatch
-    ? `${bracketDateMatch[1]} ${bracketDateMatch[2]}`
-    : standardDateMatch?.[1] ?? yearOnlyMatch;
+  const dateStr = leadBirthDate
+    ? normalizeWhitespace(leadBirthDate)
+    : bracketDateMatch
+      ? `${bracketDateMatch[1]} ${bracketDateMatch[2]}`
+      : standardDateMatch?.[1] ?? yearOnlyMatch;
 
   const placeMatch =
     birthSentence.match(/родил[а-яёa-z]*\s+(?:в|in)\s+([^,.();]+?)(?:\s+(?:в|in)\s+\d{4}\b|[,.();]|$)/i) ??
     birthSentence.match(/\(\s*[^,]+,\s*([^—,)]+?)(?:\s*[—,)])/);
-  const normalizedPlace = placeMatch?.[1] ? normalizeWhitespace(placeMatch[1]) : undefined;
+  const normalizedPlace = normalizeLocationCandidate(placeMatch?.[1]);
+  const place =
+    (leadBirthPlace && isLikelyBirthPlace(leadBirthPlace) ? leadBirthPlace : undefined) ??
+    (normalizedPlace && isLikelyBirthPlace(normalizedPlace) ? normalizedPlace : undefined);
 
   return {
     birthYear,
     birthDetails: {
       date: dateStr ? normalizeWhitespace(dateStr) : undefined,
-      place: normalizedPlace && !/^\d{3,4}\b/.test(normalizedPlace) ? normalizedPlace : undefined,
+      place: place && !/^\d{3,4}\b/.test(place) ? place : undefined,
     },
   };
 }
 
 export function inferDeathYearFromExtract(extract: string) {
+  const extractHead = extract.slice(0, 600);
+  const leadSentence = splitBiographyExtractIntoSentences(extractHead)[0] ?? '';
+  const leadDateRangeMatch = extractHead.match(
+    /(\d{1,2}\s+[A-Za-zА-Яа-яЁё]+\s+\d{4})\s*,\s*[^—()]+?\s*[—-]\s*(\d{1,2}\s+[A-Za-zА-Яа-яЁё]+\s+\d{4})/u
+  );
+  if (leadDateRangeMatch) {
+    return extractYears(leadDateRangeMatch[2])[0];
+  }
+
+  const leadSentenceYears = extractYears(leadSentence);
+  if (leadSentenceYears.length >= 2 && /[—-]|\(\s*\d{4}\s*[—-]\s*\d{4}\s*\)/u.test(leadSentence)) {
+    return leadSentenceYears.at(1);
+  }
+
   const sentences = splitBiographyExtractIntoSentences(extract);
-  const leadSentence = sentences[0] ?? '';
-  const leadYears = extractYears(leadSentence);
-  if (leadYears.length >= 2 && /—|-/.test(leadSentence)) {
+  const articleLeadSentence = sentences[0] ?? '';
+  const leadYears = extractYears(articleLeadSentence);
+  if (leadYears.length >= 2 && /[—-]|\(\s*\d{4}\s*[—-]\s*\d{4}\s*\)/u.test(articleLeadSentence)) {
     return leadYears.at(1);
   }
 
-  const deathSentence = sentences.find((sentence) => /умер|скончал|погиб|смерт|дуэл|died|killed|death/i.test(sentence));
+  const deathSentence = sentences.find((sentence) => {
+    if (!/умер|скончал|погиб|смерт|дуэл|died|killed|death/i.test(sentence)) {
+      return false;
+    }
+
+    if (
+      /(отца|отец|матери|мать|родителей|родителя|мужа|муж|жены|жена|сына|сын|дочери|дочь|сестры|сестра|брата|брат|друга|друг|опекун)/i.test(
+        sentence
+      ) &&
+      !/(елизавет|королев[аы]|её величеств|ее величеств)/i.test(sentence)
+    ) {
+      return false;
+    }
+
+    return true;
+  });
   if (deathSentence) {
     const years = extractYears(deathSentence);
     return years.at(-1);
-  }
-
-  const extractYearsFromLead = extractYears(extract.slice(0, 400));
-  if (extractYearsFromLead.length >= 2) {
-    return extractYearsFromLead[1];
   }
 
   return undefined;
@@ -243,7 +287,7 @@ export function inferDeathYearFromExtract(extract: string) {
 export function isLikelyTimelineEventSentence(sentence: string) {
   const normalized = sentence.toLowerCase();
   const hasYear = extractYears(sentence).length > 0;
-  const hasAction = /(родил|born|поступ|окончил|учил|образован|опублик|издал|написал|создал|стал|назнач|служ|ссыл|переех|вернул|женил|брак|родил[а-яё]* сына|родил[а-яё]* дочь|умер|погиб|скончал|болез|дуэл|друж|перепис|кружок|декабр|нян|воспит|детств|усадьб|перв.*стих|дома|died|moved|married|published|appointed|founded|returned|exile|friend|circle|correspond|childhood|nurse|estate)/i.test(
+  const hasAction = /(родил|born|поступ|окончил|учил|образован|опублик|издал|написал|создал|стал|назнач|служ|ссыл|переех|вернул|женил|брак|родил[а-яё]* сына|родил[а-яё]* дочь|умер|погиб|скончал|болез|дуэл|друж|перепис|кружок|декабрист|нян|воспит|детств|усадьб|перв.*стих|дома|died|moved|married|published|appointed|founded|returned|exile|friend|circle|correspond|childhood|nurse|estate)/i.test(
     sentence
   );
   const looksLikeLead =
@@ -266,6 +310,13 @@ export function inferSphereFromSentence(sentence: string): TimelineSphere {
   if (isRegistryMetadataSentence(sentence)) {
     return 'family';
   }
+  if (
+    /(наследниц[аы]\s+престола|взошл[аи]\s+на\s+престол|коронац|тайного совета|премьер-минис|содружеств|конгресс|парламент|юбиле|монарх|королев[аы]\s+великобритании|главой государства)/i.test(
+      normalized
+    )
+  ) {
+    return 'career';
+  }
   if (/(родил|born)/i.test(normalized)) {
     return 'family';
   }
@@ -281,7 +332,7 @@ export function inferSphereFromSentence(sentence: string): TimelineSphere {
   if (/(ссыл|сослан|переех|эмигр|путешеств|жил в|вернул|москв|петербург|одесс|кишин|молдов|крым|кавказ|михайл|болдин|царск|захаров|усадьб|travel|moved|exile|relocat|estate)/i.test(normalized)) {
     return 'place';
   }
-  if (/(друж|друз|переписк|кружок|общество|арзамас|лампа|декабр|лицейск|пущин|дельвиг|кюхельбекер|чаадаев|friend|circle|acquaint|correspond)/i.test(normalized)) {
+  if (/(друж|друз|переписк|кружок|общество|арзамас|лампа|декабрист|лицейск|пущин|дельвиг|кюхельбекер|чаадаев|friend|circle|acquaint|correspond)/i.test(normalized)) {
     return 'friends';
   }
   if (/(денег|финанс|банк|состояни|долг|наследств|fund|money|finance|wealth)/i.test(normalized)) {
@@ -317,7 +368,7 @@ export function inferIconFromSentence(sentence: string, sphere: TimelineSphere):
   if (/опублик|издал|поэм|роман|стих|книг|произвед|написал|сочин/i.test(sentence)) return 'idea-book';
   if (/ссыл|переех|эмигр|travel|moved/i.test(sentence)) return 'passport';
   if (/умер|погиб|дуэл|болез/i.test(sentence)) return 'thermometer';
-  if (/друж|переписк|кружок|декабр/i.test(sentence)) return 'friendship';
+  if (/друж|переписк|кружок|декабрист/i.test(sentence)) return 'friendship';
   if (/ребён|сын|дочь/i.test(sentence)) return 'baby-stroller';
   if (sphere === 'creativity') return 'idea-book';
   if (sphere === 'career') return 'briefcase';
@@ -338,6 +389,26 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
 
   if (isRegistryMetadataSentence(sentence)) return 'Рождение';
   if (/родил|born/i.test(sentence)) return 'Рождение';
+  if (/наследниц[аы]\s+престола/i.test(sentence)) return 'Наследница престола';
+  if (/взошл[аи]\s+на\s+престол/i.test(sentence)) return 'Восшествие на престол';
+  if (/тайного совета/i.test(sentence)) return 'Присяга Тайного совета';
+  if (/коронаци/i.test(sentence) && /телевидени/i.test(sentence)) return 'Телевизионная коронация';
+  if (/коронаци/i.test(sentence)) return 'Коронация';
+  if (/рождеств/i.test(sentence) && /телевидени/i.test(sentence)) return 'Первое рождественское обращение по ТВ';
+  if (/серебрян.*юбиле/i.test(sentence)) return 'Серебряный юбилей';
+  if (/золот.*юбиле/i.test(sentence)) return 'Золотой юбилей';
+  if (/бриллиантов|алмазн.*юбиле/i.test(sentence)) return 'Бриллиантовый юбилей';
+  if (/платинов.*юбиле/i.test(sentence)) return 'Платиновый юбилей';
+  if (/платинов.*свад/i.test(sentence)) return 'Платиновая свадьба';
+  if (/гарольд макмиллан/i.test(sentence) && /иден/i.test(sentence)) return 'Назначение Гарольда Макмиллана';
+  if (/дуглас-хьюм/i.test(sentence)) return 'Назначение Александра Дуглас-Хьюма';
+  if (/гарольда вильсона/i.test(sentence) && /премьер/i.test(sentence)) return 'Назначение Гарольда Вильсона';
+  if (/лиз трасс/i.test(sentence)) return 'Назначение Лиз Трасс';
+  if (/барбадос/i.test(sentence) && /республик/i.test(sentence)) return 'Барбадос становится республикой';
+  if (/covid-19|коронавирус/i.test(sentence)) return 'COVID-19';
+  if (/виндзорский замок своей постоянной резиденцией/i.test(sentence)) return 'Переезд в Виндзор';
+  if (/вестминстерском аббатстве/i.test(sentence) && /похорон/i.test(sentence)) return 'Государственные похороны';
+  if (/балморал/i.test(sentence) && /умерла|смерть/i.test(sentence)) return 'Смерть в Балморале';
   if (/(?:едва не|чуть не)\s+погиб/i.test(sentence)) {
     return /охот/i.test(sentence) ? 'Опасная охота' : 'Опасный эпизод';
   }
@@ -355,11 +426,12 @@ export function buildHeuristicLabel(sentence: string, sphere: TimelineSphere) {
   if (/перв.*стих/i.test(sentence)) return 'Первые стихи';
   if (/ранн.*чтен|много читал|библиотек/i.test(sentence)) return 'Раннее увлечение чтением';
   if (/(детств|летние месяцы|усадьб|у бабушк|у дедушк)/i.test(sentence) && location) return `Детство в ${location}`;
-  if (/лицейск.*друз|дружб|переписк|кружок|общество|арзамас|лампа|декабр|пущин|дельвиг|кюхельбекер|чаадаев/i.test(sentence)) {
-    return /декабр/i.test(sentence) ? 'Потери круга декабристов' : 'Лицейский круг';
+  if (/лицейск.*друз|дружб|переписк|кружок|общество|арзамас|лампа|декабрист|пущин|дельвиг|кюхельбекер|чаадаев/i.test(sentence)) {
+    return /декабрист/i.test(sentence) ? 'Потери круга декабристов' : 'Лицейский круг';
   }
   if (/под надзор/i.test(sentence)) return 'Полицейский надзор';
   if (/путешеств|поездк|поехал|отправился/i.test(sentence) && location) return `Поездка в ${location}`;
+  if (/государственн.*визит/i.test(sentence) && location) return `Государственный визит в ${location}`;
   if (/войн/i.test(sentence) && /отправился|поехал/i.test(sentence)) return 'Поездка на войну';
   if (/вернул(?:ся|ась|ись)?\s+из\s+ссыл/i.test(sentence)) return 'Возвращение из ссылки';
   if (/южн/i.test(sentence) && /ссыл/i.test(sentence)) return 'Южная ссылка';
@@ -492,8 +564,9 @@ export function inferChronologicalEventsFromExtract(extract: string, birthYear?:
     if (years.length === 0) return;
 
     const year = years[0];
-    const age = birthYear ? year - birthYear : 0;
-    if (birthYear && (age < 0 || age > 120)) return;
+    const age = birthYear ? year - birthYear : undefined;
+    if (!Number.isFinite(age)) return;
+    if (age < 0 || age > 120) return;
 
     const sphere = inferSphereFromSentence(sentence);
     const label = buildHeuristicLabel(sentence, sphere);
@@ -820,7 +893,7 @@ function extractHighSalienceFactsFromExtract(extract: string, birthYear?: number
       continue;
     }
 
-    if (/(декабр|восстан|арест|казн|сослан)/i.test(sentence) && /(друз|друг|товарищ|круг|лицейск|приятел)/i.test(sentence)) {
+    if (/(декабрист|восстан|арест|казн|сослан)/i.test(sentence) && /(друз|друг|товарищ|круг|лицейск|приятел)/i.test(sentence)) {
       const fact = buildHeuristicFactFromSentence({
         sentence,
         birthYear,
@@ -828,7 +901,7 @@ function extractHighSalienceFactsFromExtract(extract: string, birthYear?: number
         age,
         category: 'friends',
         sphere: 'friends',
-        labelHint: /декабр|восстан/i.test(sentence) ? 'Восстание друзей-декабристов' : 'Удар по кругу друзей',
+        labelHint: /декабрист|восстан/i.test(sentence) ? 'Восстание друзей-декабристов' : 'Удар по кругу друзей',
         importance: 'high',
         themes: ['friends_network', 'politics_public_pressure', 'losses'],
       });
@@ -899,7 +972,7 @@ function extractTargetedEvents(
 
 export function extractFriendshipEventsFromExtract(extract: string, birthYear?: number) {
   return extractTargetedEvents(extract, birthYear, [
-    { pattern: /лицейск|друж|друз|переписк|кружок|общество|арзамас|лампа|декабр|пущин|дельвиг|кюхельбекер|чаадаев/i, sphere: 'friends' },
+    { pattern: /лицейск|друж|друз|переписк|кружок|общество|арзамас|лампа|декабрист|пущин|дельвиг|кюхельбекер|чаадаев/i, sphere: 'friends' },
   ]);
 }
 
@@ -998,8 +1071,8 @@ export function extractPsychologicallySignificantEvents(extract: string, birthYe
       sphere: 'family',
     },
     {
-      pattern: /(?:декабр|восстан|арест|казн|сослан).*(?:друз|друг|товарищ|круг|лицейск|приятел)/i,
-      labelFn: (s) => (/декабр|восстан/i.test(s) ? 'Восстание друзей-декабристов' : 'Удар по кругу друзей'),
+      pattern: /(?:декабрист|восстан|арест|казн|сослан).*(?:друз|друг|товарищ|круг|лицейск|приятел)/i,
+      labelFn: (s) => (/декабрист|восстан/i.test(s) ? 'Восстание друзей-декабристов' : 'Удар по кругу друзей'),
       sphere: 'friends',
     },
     {
@@ -1055,23 +1128,33 @@ export function buildHeuristicBiographyFacts(extract: string, articleTitle: stri
 
   return [
     ...events.map((event): BiographyTimelineFact => {
-    const normalizedText = `${event.label} ${event.notes ?? ''}`.toLowerCase();
-    const category =
-      event.age === 0
-        ? 'birth'
-        : /(смерт|гибел|погиб|умер|дуэл)/i.test(normalizedText)
-          ? 'death'
-          : /(поступ|учёб|лицей|универс|школ|домашнее обучение|няня|настав)/i.test(normalizedText)
-            ? 'education'
-            : /(друж|перепис|кружок|декабр|лицейский круг)/i.test(normalizedText)
-              ? 'friends'
-              : /(переезд|ссыл|одесс|кишин|петербург|болдин|москв|крым|кавказ|захаров|усадьб)/i.test(normalizedText)
-                ? 'move'
-                : /(брак|женить|венч|дочь|сын|семь)/i.test(normalizedText)
-                  ? 'family'
-                  : /(публик|поэм|роман|повест|трагед|журнал|произвед)/i.test(normalizedText)
-                    ? 'publication'
-                    : event.sphere ?? 'other';
+      const normalizedText = `${event.label} ${event.notes ?? ''}`.toLowerCase();
+      const normalizedLabel = event.label.toLowerCase();
+      const isBirthEvent = /(рождени|родил|родилась|родился)/i.test(normalizedText) && event.age <= 1.5;
+      const isDeathEvent =
+        /(смерт|гибел|погиб|умер|дуэл)/i.test(normalizedLabel) ||
+        (/(смерт|гибел|погиб|умер|дуэл)/i.test(normalizedText) &&
+          !/(восшествие на престол|коронац|присяга|назначен|назначение|визит|юбиле|обращени|переезд)/i.test(normalizedLabel));
+      const category =
+        isBirthEvent
+          ? 'birth'
+          : isDeathEvent
+            ? 'death'
+            : /(восшествие на престол|коронац|присяга|назначени|юбиле|обращени|монарх|премьер|парламент|государственный визит|турне|walkabout)/i.test(
+                  normalizedLabel
+                )
+              ? 'career'
+              : /(поступ|учеб|учёб|лицей|универс|школ|домашнее обучение|няня|настав)/i.test(normalizedText)
+                ? 'education'
+                : /(друж|перепис|кружок|декабрист|лицейский круг)/i.test(normalizedText)
+                  ? 'friends'
+                  : /(переезд|ссыл|одесс|кишин|петербург|болдин|москв|крым|кавказ|захаров|усадьб|поездка|турне|визит)/i.test(normalizedText)
+                    ? 'move'
+                    : /(брак|женить|венч|дочь|сын|семь)/i.test(normalizedText)
+                      ? 'family'
+                      : /(публик|поэм|роман|повест|трагед|журнал|произвед)/i.test(normalizedText)
+                        ? 'publication'
+                        : event.sphere ?? 'other';
 
       return {
         year: birthYear ? birthYear + Math.round(event.age) : undefined,

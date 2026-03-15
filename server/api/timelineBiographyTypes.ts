@@ -132,6 +132,7 @@ export type WikipediaPageExtract = {
   extract: string;
   biographyExtract: string;
   promptExtract: string;
+  factExtractSlices: string[];
   canonicalUrl: string;
 };
 
@@ -271,6 +272,7 @@ export type BiographyEvaluationMetrics = {
 
 export type BiographyGenerationStageDiagnostics = {
   facts: number;
+  factPasses?: number;
   reviewApplied: boolean;
   reviewIssues: string[];
 };

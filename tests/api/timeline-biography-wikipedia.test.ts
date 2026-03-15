@@ -43,6 +43,10 @@ describe('timelineBiographyWikipedia', () => {
     expect(result.promptExtract).toContain('Начало жизни');
     expect(result.promptExtract).toContain('Средний период жизни');
     expect(result.promptExtract).toContain('Поздний период жизни');
+    expect(result.factExtractSlices.length).toBeGreaterThan(1);
+    expect(result.factExtractSlices.join('\n')).toContain('Начало жизни');
+    expect(result.factExtractSlices.join('\n')).toContain('Средний период жизни');
+    expect(result.factExtractSlices.join('\n')).toContain('Поздний период жизни');
   });
 
   it('отбрасывает небииографические section blocks из biographyExtract', async () => {

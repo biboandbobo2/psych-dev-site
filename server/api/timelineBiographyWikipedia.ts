@@ -5,8 +5,13 @@ type ExtractSection = {
   content: string;
 };
 
+const FACT_EXTRACTION_SLICE_CHARS = 22000;
+const FACT_EXTRACTION_SLICE_OVERLAP_CHARS = 2200;
+const FACT_EXTRACTION_MAX_SLICES = 4;
+const FACT_EXTRACTION_CONTEXT_CHARS = 900;
+
 const NON_BIOGRAPHY_SECTION_PATTERN =
-  /^(?:См\. также|Примечания|Комментарии|Литература|Ссылки|Библиография|Переводы произведений|Мировое признание(?:\.\s*Память)?|В культуре|Живопись|Кино|Значение и влияние(?: творчества)?|Писатели, мыслители и религиозные деятели о|Критика(?: .*)?|Экранизации произведений|Поп-культура|Прижизненные и посмертные издания собраний сочинений|Работы толстовцев|Тематические обзоры и мемуары|Отзывы критиков и деятелей культуры|Использованная литература и источники|Книги|Статьи|Академические исследования|Собрания сочинений|Сочинения .*|Последняя статья .*|Кинохроника и аудиозаписи|Творчество)$/iu;
+  /^(?:См\. также|Примечания|Комментарии|Литература|Ссылки|Библиография|Переводы произведений|Мировое признание(?:\.\s*Память)?|В культуре|В документальных фильмах и сериалах|В игровых фильмах и сериалах|Камео|В мультипликации|В музыке|В видеоиграх|В ботанике|В кулинарии|В филателии и нумизматике|В топонимике|Природные объекты|Городские объекты|Суда|В Википедии|Прижизненные памятники|Посмертные памятники|Живопись|Кино|Значение и влияние(?: творчества)?|Писатели, мыслители и религиозные деятели о|Критика(?: .*)?|Экранизации произведений|Поп-культура|Прижизненные и посмертные издания собраний сочинений|Работы толстовцев|Тематические обзоры и мемуары|Отзывы критиков и деятелей культуры|Использованная литература и источники|Книги|Статьи|Академические исследования|Собрания сочинений|Сочинения .*|Последняя статья .*|Кинохроника и аудиозаписи|Официальные титулы, награды и герб|Титулы .*|Награды|Герб|Церемониал .*|Общественное восприятие|Критика|Личные качества|Хобби|Творчество)$/iu;
 
 const LIST_LIKE_SECTION_PATTERN =
   /^(?:Дети.*:|Children.*:|Избранные произведения|Selected works|Фильмография|Дискография)$/iu;
@@ -149,6 +154,43 @@ function buildPromptExtract(extract: string) {
     .trim();
 }
 
+function buildFactExtractionSlices(extract: string) {
+  const normalizedExtract = extract.trim();
+  if (normalizedExtract.length <= FACT_EXTRACTION_SLICE_CHARS) {
+    return [normalizedExtract];
+  }
+
+  const leadContext = trimSliceToSentenceBoundaries(
+    normalizedExtract,
+    0,
+    Math.min(normalizedExtract.length, FACT_EXTRACTION_CONTEXT_CHARS)
+  );
+  const slices: string[] = [];
+  const step = Math.max(4000, FACT_EXTRACTION_SLICE_CHARS - FACT_EXTRACTION_SLICE_OVERLAP_CHARS);
+  let start = 0;
+
+  while (start < normalizedExtract.length && slices.length < FACT_EXTRACTION_MAX_SLICES) {
+    const isLastSlice = slices.length === FACT_EXTRACTION_MAX_SLICES - 1;
+    const end = isLastSlice ? normalizedExtract.length : Math.min(normalizedExtract.length, start + FACT_EXTRACTION_SLICE_CHARS);
+    const fragment = trimSliceToSentenceBoundaries(normalizedExtract, start, end);
+    if (fragment) {
+      slices.push(
+        [leadContext ? `Контекст статьи\n${leadContext}` : '', `Фрагмент биографии\n${fragment}`]
+          .filter(Boolean)
+          .join('\n\n')
+      );
+    }
+
+    if (end >= normalizedExtract.length) {
+      break;
+    }
+
+    start += step;
+  }
+
+  return slices.length > 0 ? slices : [buildPromptExtract(normalizedExtract)];
+}
+
 export function parseWikipediaSourceUrl(sourceUrl: string) {
   let parsed: URL;
 
@@ -227,6 +269,7 @@ export async function fetchWikipediaPlainExtract(sourceUrl: string): Promise<Wik
     extract: normalizedExtract,
     biographyExtract,
     promptExtract: buildPromptExtract(biographyExtract),
+    factExtractSlices: buildFactExtractionSlices(biographyExtract),
     canonicalUrl: page.fullurl || normalizedSourceUrl,
   };
 }

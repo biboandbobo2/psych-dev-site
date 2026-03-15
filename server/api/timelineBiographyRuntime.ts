@@ -346,6 +346,54 @@ async function generateBiographyFacts(prompt: string, apiKey: string) {
   throw lastError ?? new Error('Gemini facts generation failed');
 }
 
+async function generateBiographyFactsAcrossSlices(params: {
+  apiKey: string;
+  articleTitle: string;
+  sourceUrl: string;
+  factExtractSlices: string[];
+}) {
+  const allFacts: BiographyFactCandidate[] = [];
+  const models: string[] = [];
+  let lastError: unknown = null;
+
+  for (const [index, extractSlice] of params.factExtractSlices.entries()) {
+    try {
+      const result = await generateBiographyFacts(
+        buildBiographyFactExtractionPrompt({
+          articleTitle: params.articleTitle,
+          sourceUrl: params.sourceUrl,
+          extract: extractSlice,
+          focusHint:
+            params.factExtractSlices.length > 1
+              ? `Фрагмент ${index + 1} из ${params.factExtractSlices.length}. Вытаскивай факты именно из этого периода/секции; локальный код потом уберёт дубли между проходами.`
+              : undefined,
+        }),
+        params.apiKey
+      );
+      allFacts.push(...result.facts);
+      models.push(result.model);
+    } catch (error) {
+      debugError('[timeline-biography] facts slice generation failed', {
+        sliceIndex: index,
+        slicesTotal: params.factExtractSlices.length,
+        error,
+      });
+      lastError = error;
+    }
+  }
+
+  if (allFacts.length === 0) {
+    throw lastError ?? new Error('Gemini facts generation failed');
+  }
+
+  const uniqueModels = [...new Set(models)];
+  return {
+    model: uniqueModels.join(' + '),
+    facts: allFacts,
+    factPasses: models.length,
+  };
+}
+
 async function generateBiographyLinePlan(prompt: string, apiKey: string) {
   const client = getLectureGenAiClient(apiKey);
   let lastError: unknown = null;
@@ -585,18 +633,18 @@ export async function runBiographyImport(params: {
   const promptExtract = wikiPage.promptExtract || biographyExtract;
   const heuristicFacts = buildHeuristicFactCandidates(biographyExtract, wikiPage.title);
   let factsModel = 'heuristics';
+  let factPasses = 0;
   let facts: BiographyFactCandidate[];
   try {
-    const factsResult = await generateBiographyFacts(
-      buildBiographyFactExtractionPrompt({
-        articleTitle: wikiPage.title,
-        sourceUrl: wikiPage.canonicalUrl,
-        extract: promptExtract,
-      }),
-      params.apiKey
-    );
+    const factsResult = await generateBiographyFactsAcrossSlices({
+      apiKey: params.apiKey,
+      articleTitle: wikiPage.title,
+      sourceUrl: wikiPage.canonicalUrl,
+      factExtractSlices: wikiPage.factExtractSlices?.length ? wikiPage.factExtractSlices : [promptExtract],
+    });
     facts = factsResult.facts;
     factsModel = factsResult.model;
+    factPasses = factsResult.factPasses;
   } catch {
     debugLog('[timeline-biography] facts generation failed, falling back to heuristics');
     facts = heuristicFacts;
@@ -678,6 +726,7 @@ export async function runBiographyImport(params: {
 
   const stageDiagnostics: BiographyGenerationStageDiagnostics = {
     facts: facts.length,
+    factPasses: factPasses || undefined,
     reviewApplied,
     reviewIssues,
   };
