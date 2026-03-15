@@ -7,8 +7,10 @@ import {
   normalizeText,
 } from './timelineBiographyHeuristics.js';
 import type {
+  BiographyEventTheme,
   BiographyEventType,
   BiographyFactCandidate,
+  BiographyTimePrecision,
   BiographyTimelineFact,
   TimelineSphere,
 } from './timelineBiographyTypes.js';
@@ -22,6 +24,66 @@ function parseImportance(value: string | undefined): BiographyTimelineFact['impo
 
 function parseConfidence(value: string | undefined): BiographyFactCandidate['confidence'] {
   return value === 'high' || value === 'low' ? value : 'medium';
+}
+
+function parseTimePrecision(value: string | undefined): BiographyTimePrecision | undefined {
+  switch ((value || '').trim().toLowerCase()) {
+    case 'exact':
+    case 'year':
+    case 'approximate':
+    case 'inferred':
+      return value!.trim().toLowerCase() as BiographyTimePrecision;
+    default:
+      return undefined;
+  }
+}
+
+function normalizeTheme(value: string | undefined): BiographyEventTheme | null {
+  switch ((value || '').trim().toLowerCase()) {
+    case 'upbringing_mentors':
+      return 'upbringing_mentors';
+    case 'education':
+      return 'education';
+    case 'friends_network':
+      return 'friends_network';
+    case 'romance':
+      return 'romance';
+    case 'family_household':
+      return 'family_household';
+    case 'children':
+      return 'children';
+    case 'travel_moves_exile':
+      return 'travel_moves_exile';
+    case 'service_career':
+      return 'service_career';
+    case 'creative_work':
+      return 'creative_work';
+    case 'conflict_duels':
+      return 'conflict_duels';
+    case 'losses':
+      return 'losses';
+    case 'politics_public_pressure':
+      return 'politics_public_pressure';
+    case 'health':
+      return 'health';
+    case 'legacy':
+      return 'legacy';
+    default:
+      return null;
+  }
+}
+
+function parsePipeList(value: string | undefined) {
+  return (value || '')
+    .split('|')
+    .map((item) => normalizeText(item, 120))
+    .filter(Boolean);
+}
+
+function parseThemes(value: string | undefined) {
+  return parsePipeList(value)
+    .map((item) => normalizeTheme(item))
+    .filter((item): item is BiographyEventTheme => Boolean(item));
 }
 
 function normalizeEventType(value: string | undefined): BiographyEventType {
@@ -94,6 +156,57 @@ function normalizeEvidence(value: string | undefined, fallback: string) {
   return normalizeText(value, 700) || normalizeText(fallback, 700) || fallback;
 }
 
+function inferThemesFromCandidate(candidate: {
+  eventType: BiographyEventType;
+  sphere?: TimelineSphere;
+  evidence: string;
+}): BiographyEventTheme[] {
+  const normalized = candidate.evidence.toLowerCase();
+  const themes = new Set<BiographyEventTheme>();
+
+  if (candidate.eventType === 'birth' || /нян|гуверн|настав|воспит|детств|ранн/i.test(normalized)) {
+    themes.add('upbringing_mentors');
+  }
+  if (candidate.eventType === 'education' || candidate.sphere === 'education') {
+    themes.add('education');
+  }
+  if (candidate.eventType === 'friends' || candidate.sphere === 'friends') {
+    themes.add('friends_network');
+  }
+  if (candidate.eventType === 'family' || candidate.sphere === 'family') {
+    themes.add('family_household');
+  }
+  if (/сын|доч|ребён|ребен/i.test(normalized)) {
+    themes.add('children');
+  }
+  if (candidate.eventType === 'move' || candidate.sphere === 'place') {
+    themes.add('travel_moves_exile');
+  }
+  if (candidate.eventType === 'career' || candidate.eventType === 'award' || candidate.sphere === 'career') {
+    themes.add('service_career');
+  }
+  if (candidate.eventType === 'publication' || candidate.eventType === 'project' || candidate.sphere === 'creativity') {
+    themes.add('creative_work');
+  }
+  if (candidate.eventType === 'conflict' || /дуэл|ссор|конфликт|разрыв|арест|надзор/i.test(normalized)) {
+    themes.add('conflict_duels');
+  }
+  if (candidate.eventType === 'death' || /смерт|потер|скончал|умер/i.test(normalized)) {
+    themes.add('losses');
+  }
+  if (/декабр|восстан|полит|цензур|надзор|казн|сослан/i.test(normalized)) {
+    themes.add('politics_public_pressure');
+  }
+  if (candidate.eventType === 'health' || candidate.sphere === 'health') {
+    themes.add('health');
+  }
+  if (/любов|роман|отношен|увлеч|сватов|влюб|любим/i.test(normalized)) {
+    themes.add('romance');
+  }
+
+  return [...themes];
+}
+
 export function buildFactCandidateKey(candidate: Pick<BiographyFactCandidate, 'age' | 'year' | 'eventType' | 'labelHint' | 'evidence'>) {
   const ageOrYear =
     Number.isFinite(candidate.age) ? `age:${candidate.age}` : Number.isFinite(candidate.year) ? `year:${candidate.year}` : 'unknown';
@@ -105,17 +218,40 @@ export function normalizeFactCandidate(candidate: BiographyFactCandidate): Biogr
   const labelHint = normalizeText(candidate.labelHint, 120);
   const evidence = normalizeEvidence(candidate.evidence || candidate.details, labelHint || '');
   const year = normalizeNumber(candidate.year);
-  const age = normalizeNumber(candidate.age);
+  const explicitAge = normalizeNumber(candidate.age);
+  const ageMin = normalizeNumber(candidate.ageMin);
+  const ageMax = normalizeNumber(candidate.ageMax);
+  const inferredAge =
+    explicitAge ??
+    (Number.isFinite(ageMin) && Number.isFinite(ageMax)
+      ? Math.round((Number(ageMin) + Number(ageMax)) / 2)
+      : Number.isFinite(ageMin)
+        ? Number(ageMin)
+        : Number.isFinite(ageMax)
+          ? Number(ageMax)
+          : undefined);
   const rawSphere = normalizeSphere(candidate.sphere) ?? undefined;
   const eventType = normalizeEventType(candidate.eventType || candidate.category) || inferEventTypeFromSphere(rawSphere);
   const sphere = normalizeFactSphereValue(rawSphere, eventType) ?? undefined;
+  const timePrecision =
+    parseTimePrecision(candidate.timePrecision) ??
+    (Number.isFinite(year)
+      ? 'year'
+      : Number.isFinite(ageMin) || Number.isFinite(ageMax)
+        ? 'approximate'
+        : Number.isFinite(inferredAge)
+          ? 'inferred'
+          : undefined);
+  const themes = candidate.themes?.length ? candidate.themes : inferThemesFromCandidate({ eventType, sphere, evidence });
+  const people = candidate.people?.map((person) => normalizeText(person, 120)).filter(Boolean);
+  const relationRoles = candidate.relationRoles?.map((role) => normalizeText(role, 80)).filter(Boolean);
 
   if (!labelHint && !evidence) return null;
-  if (!Number.isFinite(age) && !Number.isFinite(year)) return null;
+  if (!Number.isFinite(inferredAge) && !Number.isFinite(year)) return null;
 
   const normalized: BiographyFactCandidate = {
     year,
-    age,
+    age: inferredAge,
     sphere,
     category: candidate.category || eventType,
     eventType,
@@ -125,6 +261,13 @@ export function normalizeFactCandidate(candidate: BiographyFactCandidate): Biogr
     importance: parseImportance(candidate.importance),
     confidence: parseConfidence(candidate.confidence),
     section: normalizeText(candidate.section, 120),
+    timePrecision,
+    ageMin,
+    ageMax,
+    ageLabel: normalizeText(candidate.ageLabel, 80),
+    people: people?.length ? people : undefined,
+    relationRoles: relationRoles?.length ? relationRoles : undefined,
+    themes: themes.length ? themes : undefined,
     source: candidate.source,
   };
 
@@ -191,6 +334,13 @@ export function parseLineBasedBiographyFactCandidates(rawText: string): Biograph
       evidence: rest[6] || rest[5] || '',
       section: rest[7] || undefined,
       confidence: parseConfidence(rest[8]),
+      timePrecision: parseTimePrecision(rest[9]),
+      ageMin: rest[10] && rest[10] !== 'unknown' ? normalizeNumber(rest[10]) : undefined,
+      ageMax: rest[11] && rest[11] !== 'unknown' ? normalizeNumber(rest[11]) : undefined,
+      themes: parseThemes(rest[12]),
+      people: parsePipeList(rest[13]),
+      relationRoles: parsePipeList(rest[14]),
+      ageLabel: rest[15] || undefined,
       source: 'model',
     });
   }

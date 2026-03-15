@@ -19,6 +19,7 @@
     "set-bg:infancy": "node scripts/set-bg.mjs --period infancy --src \"~/Downloads/infancy.png\"",
     "docs:metrics": "tsx scripts/check-doc-metrics.ts",
     "docs:plans": "tsx scripts/generate-plan-overview.ts",
+    "timeline:eval": "tsx scripts/evaluateBiographyImport.ts",
     "transcripts:import": "tsx scripts/importVideoTranscripts.ts",
     "lectures:ingest": "tsx scripts/importLectureRag.ts",
     "firebase:login": "firebase login",

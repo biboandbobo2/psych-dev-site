@@ -151,10 +151,17 @@ export type BiographyPlanDiagnostics = {
 export type BiographyTimelineFact = {
   year?: number;
   age?: number;
+  timePrecision?: BiographyTimePrecision;
+  ageMin?: number;
+  ageMax?: number;
+  ageLabel?: string;
   sphere?: TimelineSphere;
   category: string;
   labelHint: string;
   details: string;
+  people?: string[];
+  relationRoles?: string[];
+  themes?: BiographyEventTheme[];
   importance: 'high' | 'medium' | 'low';
 };
 
@@ -173,11 +180,36 @@ export type BiographyEventType =
   | 'death'
   | 'other';
 
+export type BiographyTimePrecision = 'exact' | 'year' | 'approximate' | 'inferred';
+
+export type BiographyEventTheme =
+  | 'upbringing_mentors'
+  | 'education'
+  | 'friends_network'
+  | 'romance'
+  | 'family_household'
+  | 'children'
+  | 'travel_moves_exile'
+  | 'service_career'
+  | 'creative_work'
+  | 'conflict_duels'
+  | 'losses'
+  | 'politics_public_pressure'
+  | 'health'
+  | 'legacy';
+
 export type BiographyFactCandidate = BiographyTimelineFact & {
   eventType: BiographyEventType;
   evidence: string;
   section?: string;
   confidence: 'high' | 'medium' | 'low';
+  timePrecision?: BiographyTimePrecision;
+  ageMin?: number;
+  ageMax?: number;
+  ageLabel?: string;
+  people?: string[];
+  relationRoles?: string[];
+  themes?: BiographyEventTheme[];
   source: 'model' | 'heuristics';
 };
 
@@ -207,6 +239,32 @@ export type BiographyCompositionStats = {
   selectedBranchEvents: number;
   discardedFacts: number;
   earlyLifeWindowsFilled: number;
+};
+
+export type BiographyEvaluationMetrics = {
+  facts: {
+    total: number;
+    approximate: number;
+    withPeople: number;
+    withThemes: number;
+    earlyLifeFacts: number;
+    themeCoverage: Partial<Record<BiographyEventTheme, number>>;
+  };
+  plan: {
+    mainEvents: number;
+    branches: number;
+    branchEvents: number;
+    visibleEvents: number;
+    genericLabels: number;
+    emptyNotes: number;
+    approximateEvents: number;
+    earlyLifeEvents: number;
+    birthAnchoredBranches: number;
+  };
+  timeline?: {
+    nodes: number;
+    edges: number;
+  };
 };
 
 export type BiographyGenerationStageDiagnostics = {

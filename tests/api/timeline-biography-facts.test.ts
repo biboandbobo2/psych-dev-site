@@ -9,14 +9,17 @@ describe('timelineBiographyFacts', () => {
   it('парсит line-based facts и переводит publication в creativity', () => {
     const facts = parseLineBasedBiographyFactCandidates([
       'SUBJECT\tАлександр Пушкин',
-      'FACT\t1820\t21\tpublication\tcareer\thigh\t«Руслан и Людмила»\tОпубликовал поэму.\tТворчество\thigh',
-      'FACT\t1820\t21\tpublication\tcareer\thigh\t«Руслан и Людмила»\tОпубликовал поэму.\tТворчество\thigh',
+      'FACT\t1820\t21\tpublication\tcareer\thigh\t«Руслан и Людмила»\tОпубликовал поэму.\tТворчество\thigh\tyear\t21\t21\tcreative_work|legacy\t\t\t21 год',
+      'FACT\t1820\t21\tpublication\tcareer\thigh\t«Руслан и Людмила»\tОпубликовал поэму.\tТворчество\thigh\tyear\t21\t21\tcreative_work|legacy\t\t\t21 год',
     ].join('\n'));
 
     expect(facts).toHaveLength(1);
     expect(facts[0].eventType).toBe('publication');
     expect(facts[0].sphere).toBe('creativity');
     expect(facts[0].confidence).toBe('high');
+    expect(facts[0].timePrecision).toBe('year');
+    expect(facts[0].themes).toEqual(['creative_work', 'legacy']);
+    expect(facts[0].ageLabel).toBe('21 год');
   });
 
   it('добирает ранние окна жизни из heuristics, если model facts редкие', () => {

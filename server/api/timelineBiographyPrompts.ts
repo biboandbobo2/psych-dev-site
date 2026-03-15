@@ -202,20 +202,25 @@ export function buildBiographyFactExtractionPrompt(params: {
 - Верни только plain text.
 - Не используй markdown, json, yaml, code fences.
 - Один факт = одна строка FACT.
-- Не пересказывай статью целиком.
+- Не пересказывай статью целиком и не склеивай несколько фактов в одну строку.
 - Не включай энциклопедический лид вроде "X — русский поэт...".
 - Выбирай только факты, которые действительно можно превратить в событие таймлайна.
 - Покрой раннюю, среднюю и позднюю жизнь.
 - Если человек умер, обязательно включи факт смерти.
-- Если источник богатый, можно дать 12-20 фактов. Если бедный — меньше, но без выдумывания.
+- Если источник богатый, верни 40-80 фактов. Если биография очень насыщенная, можно до 90. Если бедный — меньше, но без выдумывания.
 - Если в тексте есть раннее детство, семья, домашнее обучение, няня, усадьба, первые книги/стихи/занятия — включай это как facts.
 - Если в тексте есть друзья, лицейский круг, переписка, кружок, декабристы, разрыв с окружением — включай это как facts со sphere=friends.
+- Если в тексте есть любовь, романы, помолвки, свадьба, дети, смерть близких, семейные конфликты, дуэли, аресты, цензура, ссылки, переезды, болезни, важные наставники — обязательно выделяй это как отдельные facts.
+- Не используй общие labelHint вроде "Учёба", "Публикация", "Формирующее детство", "Новый этап". labelHint должен быть конкретным и различающим факты.
+- Если точного года нет, но время можно оценить по фразам вроде "в детстве", "в лицейские годы", "в юности", "после выпуска", всё равно верни факт.
+- Для неточного времени используй timePrecision=approximate или inferred, age_or_unknown можешь оставить unknown, а возрастной диапазон передать через ageMin/ageMax и ageLabel.
+- Если в факте важен конкретный человек, заполняй people и relationRoles.
 
 ФОРМАТ
 SUBJECT<TAB>subjectName
 BIRTH_YEAR<TAB>year|unknown
 DEATH_YEAR<TAB>year|unknown
-FACT<TAB>year<TAB>age_or_unknown<TAB>category<TAB>sphere<TAB>importance(high|medium|low)<TAB>labelHint<TAB>details
+FACT<TAB>year|unknown<TAB>age_or_unknown<TAB>category<TAB>sphere<TAB>importance(high|medium|low)<TAB>labelHint<TAB>details/evidence<TAB>section<TAB>confidence(high|medium|low)<TAB>timePrecision(exact|year|approximate|inferred)<TAB>ageMin_or_unknown<TAB>ageMax_or_unknown<TAB>themes_pipe<TAB>people_pipe<TAB>relationRoles_pipe<TAB>ageLabel
 
 category — короткая категория факта:
 birth
@@ -245,18 +250,44 @@ hobby
 other
 (creativity — публикации, произведения, художественные проекты; career — должности, назначения, служба)
 
+themes_pipe — список тем через | из набора:
+upbringing_mentors
+education
+friends_network
+romance
+family_household
+children
+travel_moves_exile
+service_career
+creative_work
+conflict_duels
+losses
+politics_public_pressure
+health
+legacy
+
+ПРАВИЛА КАЧЕСТВА
+- Один факт = один биографический узел.
+- Если есть и публикация, и конфликт, и роман, и семейная потеря — это разные facts.
+- Для approximate facts details должен явно содержать опору на неточное время.
+- Не выдумывай точные даты. Лучше approximate, чем фальшивая точность.
+- В rich biography ищи не только официальную карьеру, но и друзей, отношения, детей, потери, конфликты, поездки, ссылки, творческие периоды.
+
 ПРИМЕР
 SUBJECT\tЧеловек А
 BIRTH_YEAR\t1956
 DEATH_YEAR\t2024
-FACT\t1956\t0\tbirth\tfamily\thigh\tРождение\tРодился в Городе А.
-FACT\t1963\t7\tfamily\teducation\tmedium\tДомашнее обучение\tРаннее формирование интересов дома.
-FACT\t1967\t11\teducation\teducation\thigh\tПоступление в лицей\tНачал системное обучение.
-FACT\t1968\t12\tfriends\tfriends\tmedium\tЛицейский круг\tПоявились значимые друзья и переписка.
-FACT\t1974\t18\tmove\tplace\thigh\tПереезд в столицу\tПереехал ради учёбы и работы.
-FACT\t1980\t24\tcareer\tcareer\thigh\tПервый профессиональный прорыв\tПолучил широкое признание.
-FACT\t1987\t31\tfamily\tfamily\thigh\tБрак\tСоздал семью.
-FACT\t2024\t68\tdeath\thealth\thigh\tСмерть\tЗавершение жизненного пути.
+FACT\t1956\t0\tbirth\tfamily\thigh\tРождение\tРодился в Городе А.\tРанние годы\thigh\texact\t0\t0\tfamily_household\t\t\t0 лет
+FACT\tunknown\tunknown\tfamily\teducation\tmedium\tДомашний наставник\tВ раннем детстве ключевую роль играл домашний наставник.\tРанние годы\tmedium\tapproximate\t5\t7\tupbringing_mentors|education\tНаставник Б\tнаставник\tпримерно 5-7 лет
+FACT\t1967\t11\teducation\teducation\thigh\tПоступление в лицей\tНачал системное обучение.\tОбразование\thigh\tyear\t11\t11\teducation\t\t\t11 лет
+FACT\t1968\t12\tfriends\tfriends\tmedium\tЛицейский круг\tПоявились значимые друзья и переписка.\tОбразование\tmedium\tyear\t12\t12\tfriends_network\tДруг А|Друг Б\tдруг|друг\t12 лет
+FACT\t1974\t18\tmove\tplace\thigh\tПереезд в столицу\tПереехал ради учёбы и работы.\tПереезды\thigh\tyear\t18\t18\ttravel_moves_exile|service_career\t\t\t18 лет
+FACT\t1979\t23\tfamily\tfamily\thigh\tСмерть матери\tПосле смерти матери семейная ситуация резко изменилась.\tЛичная жизнь\thigh\tyear\t23\t23\tlosses|family_household\tМать\tмать\t23 года
+FACT\t1980\t24\tcareer\tcareer\thigh\tПервый профессиональный прорыв\tПолучил широкое признание.\tКарьера\thigh\tyear\t24\t24\tservice_career\t\t\t24 года
+FACT\t1984\t28\tfamily\tfamily\thigh\tОтношения с Анной Б.\tУ него начался заметный роман, отражённый в переписке.\tЛичная жизнь\tmedium\tyear\t28\t28\tromance\tАнна Б.\tвозлюбленная\t28 лет
+FACT\t1987\t31\tfamily\tfamily\thigh\tБрак\tСоздал семью.\tЛичная жизнь\thigh\tyear\t31\t31\tfamily_household\tСупруга В.\tсупруга\t31 год
+FACT\t1989\t33\tfamily\tfamily\tmedium\tРождение первого ребёнка\tВ семье родился первый ребёнок.\tЛичная жизнь\thigh\tyear\t33\t33\tchildren|family_household\tСын Г.\tсын\t33 года
+FACT\t2024\t68\tdeath\thealth\thigh\tСмерть\tЗавершение жизненного пути.\tПоследние годы\thigh\texact\t68\t68\tlosses|health\t\t\t68 лет
 
 ИСТОЧНИК
 Статья: ${params.articleTitle}

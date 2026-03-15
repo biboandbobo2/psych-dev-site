@@ -5,4 +5,5 @@ export * from './timelineBiographyHeuristics.js';
 export * from './timelineBiographyFacts.js';
 export * from './timelineBiographyComposer.js';
 export * from './timelineBiographyLint.js';
+export * from './timelineBiographyMetrics.js';
 export * from './timelineBiographyQuality.js';

@@ -713,6 +713,15 @@ export function summarizeBiographyFacts(facts: BiographyTimelineFact[], articleT
       fact.importance,
       fact.labelHint,
       fact.details.replace(/\t+/g, ' ').trim(),
+      '',
+      fact.importance,
+      fact.timePrecision ?? (Number.isFinite(fact.year) ? 'year' : Number.isFinite(fact.age) ? 'inferred' : ''),
+      Number.isFinite(fact.ageMin) ? fact.ageMin : 'unknown',
+      Number.isFinite(fact.ageMax) ? fact.ageMax : 'unknown',
+      fact.themes?.join('|') ?? '',
+      fact.people?.join('|') ?? '',
+      fact.relationRoles?.join('|') ?? '',
+      fact.ageLabel ?? '',
     ].join('\t')
   );
 
