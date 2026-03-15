@@ -9,6 +9,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../auth/AuthProvider';
@@ -127,6 +128,48 @@ export function useDisorderTableEntries(courseId: string) {
     [user, docId, touchRootDoc]
   );
 
+  const createEntriesBatch = useCallback(
+    async (inputs: DisorderTableEntryInput[]) => {
+      if (!user || !docId) throw new Error('Требуется авторизация');
+      if (inputs.length === 0) return;
+
+      const normalizedInputs = inputs.map((input) => normalizeEntryInput(input));
+      if (normalizedInputs.some((input) => !isValidDisorderTableEntryInput(input))) {
+        throw new Error('Проверьте выбранные пересечения и текст: минимум 3 символа');
+      }
+
+      setSaving(true);
+      setError(null);
+      try {
+        await touchRootDoc();
+        const entriesCollection = collection(db, 'disorderTables', docId, 'entries');
+        const chunkSize = 450;
+
+        for (let index = 0; index < normalizedInputs.length; index += chunkSize) {
+          const chunk = normalizedInputs.slice(index, index + chunkSize);
+          const batch = writeBatch(db);
+
+          for (const input of chunk) {
+            batch.set(doc(entriesCollection), {
+              ...input,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            });
+          }
+
+          await batch.commit();
+        }
+      } catch (err) {
+        debugError('Failed to create disorder table entries in batch', err);
+        setError('Не удалось сохранить выбранные пересечения');
+        throw err;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [user, docId, touchRootDoc]
+  );
+
   const updateEntry = useCallback(
     async (entryId: string, input: DisorderTableEntryInput) => {
       if (!user || !docId) throw new Error('Требуется авторизация');
@@ -185,6 +228,7 @@ export function useDisorderTableEntries(courseId: string) {
     saving,
     error,
     createEntry,
+    createEntriesBatch,
     updateEntry,
     removeEntry,
   };

@@ -33,3 +33,8 @@ export interface DisorderTableFilters {
   rowIds: string[];
   columnIds: string[];
 }
+
+export interface DisorderTableCellSelection {
+  rowId: string;
+  columnId: string;
+}

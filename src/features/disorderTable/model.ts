@@ -1,5 +1,10 @@
 import { DISORDER_TABLE_COURSE_IDS } from './config';
-import type { DisorderTableEntry, DisorderTableEntryInput, DisorderTableFilters } from './types';
+import type {
+  DisorderTableCellSelection,
+  DisorderTableEntry,
+  DisorderTableEntryInput,
+  DisorderTableFilters,
+} from './types';
 
 export type DisorderTableSelectionMode = 'one-row-many-columns' | 'one-column-many-rows';
 
@@ -20,6 +25,13 @@ export function normalizeEntryInput(input: DisorderTableEntryInput): DisorderTab
     rowIds: normalizeSelectionIds(input.rowIds),
     columnIds: normalizeSelectionIds(input.columnIds),
     text: input.text.trim(),
+  };
+}
+
+export function buildDisorderTableFilters(rowIds: string[], columnIds: string[]): DisorderTableFilters {
+  return {
+    rowIds: normalizeSelectionIds(rowIds),
+    columnIds: normalizeSelectionIds(columnIds),
   };
 }
 
@@ -108,4 +120,50 @@ export function buildDisorderTableMatrix(entries: DisorderTableEntry[]): Map<str
   }
 
   return matrix;
+}
+
+export function buildDisorderTableFullMatrix(
+  rowIds: string[],
+  columnIds: string[],
+  entries: DisorderTableEntry[]
+): Map<string, DisorderTableEntry[]> {
+  const matrix = new Map<string, DisorderTableEntry[]>();
+
+  for (const rowId of rowIds) {
+    for (const columnId of columnIds) {
+      matrix.set(buildDisorderTableCellKey(rowId, columnId), []);
+    }
+  }
+
+  for (const entry of entries) {
+    for (const rowId of entry.rowIds) {
+      for (const columnId of entry.columnIds) {
+        const key = buildDisorderTableCellKey(rowId, columnId);
+        const bucket = matrix.get(key);
+        if (bucket) {
+          bucket.push(entry);
+        }
+      }
+    }
+  }
+
+  return matrix;
+}
+
+export function buildBatchEntryInputsFromCells(
+  cells: DisorderTableCellSelection[],
+  text: string
+): DisorderTableEntryInput[] {
+  const normalizedText = text.trim();
+  const uniqueCells = new Map<string, DisorderTableCellSelection>();
+
+  for (const cell of cells) {
+    uniqueCells.set(buildDisorderTableCellKey(cell.rowId, cell.columnId), cell);
+  }
+
+  return Array.from(uniqueCells.values()).map((cell) => ({
+    rowIds: [cell.rowId],
+    columnIds: [cell.columnId],
+    text: normalizedText,
+  }));
 }

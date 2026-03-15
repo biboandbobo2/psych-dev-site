@@ -7,7 +7,10 @@ import {
 } from './config';
 import {
   applySelectionModeToEntryInput,
+  buildBatchEntryInputsFromCells,
+  buildDisorderTableFilters,
   buildDisorderTableCellKey,
+  buildDisorderTableFullMatrix,
   buildDisorderTableMatrix,
   applyDisorderTableFilters,
   buildDisorderTableDocId,
@@ -36,6 +39,13 @@ describe('disorderTable model', () => {
       'depression',
       'memory',
     ]);
+  });
+
+  it('собирает фильтры из staged выбора', () => {
+    expect(buildDisorderTableFilters([' memory ', 'memory'], [' anxiety ', ''])).toEqual({
+      rowIds: ['memory'],
+      columnIds: ['anxiety'],
+    });
   });
 
   it('нормализует entry input и проверяет валидность', () => {
@@ -198,6 +208,49 @@ describe('disorderTable model', () => {
     expect(matrix.get(buildDisorderTableCellKey('memory', 'anxiety'))?.map((entry) => entry.id)).toEqual(['e1', 'e2']);
     expect(matrix.get(buildDisorderTableCellKey('thinking', 'anxiety'))?.map((entry) => entry.id)).toEqual(['e2']);
     expect(matrix.get(buildDisorderTableCellKey('thinking', 'depression-bipolar'))).toBeUndefined();
+  });
+
+  it('строит полную матрицу с пустыми пересечениями', () => {
+    const entries: DisorderTableEntry[] = [
+      {
+        id: 'e1',
+        rowIds: ['memory'],
+        columnIds: ['anxiety'],
+        text: 'entry 1',
+        createdAt: new Date('2026-03-08T10:00:00.000Z'),
+        updatedAt: new Date('2026-03-08T10:00:00.000Z'),
+      },
+    ];
+
+    const full = buildDisorderTableFullMatrix(['memory', 'thinking'], ['anxiety', 'depression-bipolar'], entries);
+
+    expect(full.get(buildDisorderTableCellKey('memory', 'anxiety'))?.length).toBe(1);
+    expect(full.get(buildDisorderTableCellKey('thinking', 'anxiety'))).toEqual([]);
+    expect(full.get(buildDisorderTableCellKey('memory', 'depression-bipolar'))).toEqual([]);
+  });
+
+  it('преобразует множественное выделение ячеек в batch inputs', () => {
+    const result = buildBatchEntryInputsFromCells(
+      [
+        { rowId: 'memory', columnId: 'anxiety' },
+        { rowId: 'memory', columnId: 'anxiety' },
+        { rowId: 'thinking', columnId: 'depression-bipolar' },
+      ],
+      '  Общий текст  '
+    );
+
+    expect(result).toEqual([
+      {
+        rowIds: ['memory'],
+        columnIds: ['anxiety'],
+        text: 'Общий текст',
+      },
+      {
+        rowIds: ['thinking'],
+        columnIds: ['depression-bipolar'],
+        text: 'Общий текст',
+      },
+    ]);
   });
 
   it('конфиг строк и столбцов содержит уникальные id и валидные группы', () => {

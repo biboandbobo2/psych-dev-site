@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  applySelectionModeToEntryInput,
   applyDisorderTableFilters,
+  applySelectionModeToEntryInput,
+  buildBatchEntryInputsFromCells,
   buildDisorderTableCellKey,
-  buildDisorderTableMatrix,
+  buildDisorderTableFilters,
+  buildDisorderTableFullMatrix,
   DISORDER_TABLE_COLUMNS,
   DISORDER_TABLE_COLUMN_GROUPS,
   DISORDER_TABLE_ROWS,
@@ -13,45 +15,74 @@ import {
   resolveSelectionModeFromEntry,
   useDisorderTableEntries,
 } from '../features/disorderTable';
-import type { DisorderTableSelectionMode } from '../features/disorderTable';
+import type {
+  DisorderTableCellSelection,
+  DisorderTableEntry,
+  DisorderTableSelectionMode,
+} from '../features/disorderTable';
 import { BaseModal, ModalCancelButton, ModalSaveButton } from '../components/ui/BaseModal';
 import { useCourseStore } from '../stores';
 
+const TEXT_CLAMP_STYLE: CSSProperties = {
+  display: '-webkit-box',
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+};
+
+function areSameSelections(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((value) => b.includes(value));
+}
+
 export default function DisorderTable() {
   const { currentCourse } = useCourseStore();
-  const { entries, loading, saving, error, createEntry, updateEntry, removeEntry } = useDisorderTableEntries(currentCourse);
+  const {
+    entries,
+    loading,
+    saving,
+    error,
+    createEntry,
+    createEntriesBatch,
+    updateEntry,
+    removeEntry,
+  } = useDisorderTableEntries(currentCourse);
 
-  const [viewMode, setViewMode] = useState<'table' | 'list'>('table');
+  const [isMobile, setIsMobile] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
-  const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
-
-  const [formRowIds, setFormRowIds] = useState<string[]>([]);
-  const [formColumnIds, setFormColumnIds] = useState<string[]>([]);
-  const [formText, setFormText] = useState('');
-  const [formSelectionMode, setFormSelectionMode] = useState<DisorderTableSelectionMode>('one-row-many-columns');
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [filterRowIds, setFilterRowIds] = useState<string[]>([]);
-  const [filterColumnIds, setFilterColumnIds] = useState<string[]>([]);
-  const [filterDraftRowIds, setFilterDraftRowIds] = useState<string[]>([]);
-  const [filterDraftColumnIds, setFilterDraftColumnIds] = useState<string[]>([]);
+  const [formSelectionMode, setFormSelectionMode] = useState<DisorderTableSelectionMode>('one-row-many-columns');
+  const [formRowIds, setFormRowIds] = useState<string[]>([]);
+  const [formColumnIds, setFormColumnIds] = useState<string[]>([]);
+  const [formText, setFormText] = useState('');
+
+  const [activeFilterRowIds, setActiveFilterRowIds] = useState<string[]>([]);
+  const [activeFilterColumnIds, setActiveFilterColumnIds] = useState<string[]>([]);
+  const [draftFilterRowIds, setDraftFilterRowIds] = useState<string[]>([]);
+  const [draftFilterColumnIds, setDraftFilterColumnIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showOnlyFilledCells, setShowOnlyFilledCells] = useState(false);
 
-  const [listError, setListError] = useState<string | null>(null);
+  const [activeCell, setActiveCell] = useState<DisorderTableCellSelection | null>(null);
+  const [isCellModalOpen, setIsCellModalOpen] = useState(false);
 
-  const selectionFilteredEntries = useMemo(
-    () => applyDisorderTableFilters(entries, { rowIds: filterRowIds, columnIds: filterColumnIds }),
-    [entries, filterRowIds, filterColumnIds]
-  );
-  const filteredEntries = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    if (!normalizedQuery) return selectionFilteredEntries;
+  const [isCellSelectionMode, setIsCellSelectionMode] = useState(false);
+  const [selectedCells, setSelectedCells] = useState<DisorderTableCellSelection[]>([]);
 
-    return selectionFilteredEntries.filter((entry) => entry.text.toLowerCase().includes(normalizedQuery));
-  }, [selectionFilteredEntries, searchQuery]);
-  const tableMatrix = useMemo(() => buildDisorderTableMatrix(filteredEntries), [filteredEntries]);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkError, setBulkError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 639px)');
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   const rowLabels = useMemo(() => new Map(DISORDER_TABLE_ROWS.map((row) => [row.id, row.label])), []);
   const columnLabels = useMemo(() => new Map(DISORDER_TABLE_COLUMNS.map((column) => [column.id, column.label])), []);
@@ -63,6 +94,84 @@ export default function DisorderTable() {
       })),
     []
   );
+
+  const activeFilters = useMemo(
+    () => buildDisorderTableFilters(activeFilterRowIds, activeFilterColumnIds),
+    [activeFilterRowIds, activeFilterColumnIds]
+  );
+  const draftFilters = useMemo(
+    () => buildDisorderTableFilters(draftFilterRowIds, draftFilterColumnIds),
+    [draftFilterRowIds, draftFilterColumnIds]
+  );
+
+  const selectionFilteredEntries = useMemo(
+    () => applyDisorderTableFilters(entries, activeFilters),
+    [entries, activeFilters]
+  );
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const filteredEntries = useMemo(() => {
+    if (!normalizedSearch) return selectionFilteredEntries;
+    return selectionFilteredEntries.filter((entry) => entry.text.toLowerCase().includes(normalizedSearch));
+  }, [selectionFilteredEntries, normalizedSearch]);
+
+  const displayedRows = useMemo(
+    () => (activeFilters.rowIds.length > 0
+      ? DISORDER_TABLE_ROWS.filter((row) => activeFilters.rowIds.includes(row.id))
+      : DISORDER_TABLE_ROWS),
+    [activeFilters.rowIds]
+  );
+  const displayedColumns = useMemo(
+    () => (activeFilters.columnIds.length > 0
+      ? DISORDER_TABLE_COLUMNS.filter((column) => activeFilters.columnIds.includes(column.id))
+      : DISORDER_TABLE_COLUMNS),
+    [activeFilters.columnIds]
+  );
+
+  const matrix = useMemo(
+    () => buildDisorderTableFullMatrix(
+      displayedRows.map((row) => row.id),
+      displayedColumns.map((column) => column.id),
+      filteredEntries
+    ),
+    [displayedRows, displayedColumns, filteredEntries]
+  );
+
+  const activeCellEntries = useMemo(() => {
+    if (!activeCell) return [];
+    return matrix.get(buildDisorderTableCellKey(activeCell.rowId, activeCell.columnId)) ?? [];
+  }, [activeCell, matrix]);
+
+  const selectedCellKeys = useMemo(
+    () => new Set(selectedCells.map((cell) => buildDisorderTableCellKey(cell.rowId, cell.columnId))),
+    [selectedCells]
+  );
+
+  const hasActiveFilters = activeFilters.rowIds.length > 0 || activeFilters.columnIds.length > 0;
+  const hasActiveSearch = normalizedSearch.length > 0;
+  const canApplyFilters =
+    !areSameSelections(draftFilters.rowIds, activeFilters.rowIds)
+    || !areSameSelections(draftFilters.columnIds, activeFilters.columnIds);
+
+  const formPreviewInput = applySelectionModeToEntryInput(
+    { rowIds: formRowIds, columnIds: formColumnIds, text: formText },
+    formSelectionMode
+  );
+  const isFormValid = isValidDisorderTableEntryInput(formPreviewInput);
+  const singleSelectedRowId = formRowIds[0] ?? '';
+  const singleSelectedColumnId = formColumnIds[0] ?? '';
+  const canChooseDisorders = formSelectionMode === 'one-row-many-columns' && formRowIds.length === 1;
+  const canChooseFunctions = formSelectionMode === 'one-column-many-rows' && formColumnIds.length === 1;
+
+  useEffect(() => {
+    if (!activeCell) return;
+    const rowVisible = displayedRows.some((row) => row.id === activeCell.rowId);
+    const columnVisible = displayedColumns.some((column) => column.id === activeCell.columnId);
+    if (!rowVisible || !columnVisible) {
+      setActiveCell(null);
+      setIsCellModalOpen(false);
+    }
+  }, [activeCell, displayedRows, displayedColumns]);
 
   const toggleId = (ids: string[], id: string, setter: (next: string[]) => void) => {
     if (ids.includes(id)) {
@@ -82,11 +191,13 @@ export default function DisorderTable() {
   };
 
   const openCreateModal = () => {
+    if (isMobile) return;
     resetForm();
     setIsEntryModalOpen(true);
   };
 
   const openCreateFromCell = (rowId: string, columnId: string) => {
+    if (isMobile) return;
     resetForm();
     setFormSelectionMode('one-row-many-columns');
     setFormRowIds([rowId]);
@@ -100,42 +211,11 @@ export default function DisorderTable() {
     resetForm();
   };
 
-  const openFiltersModal = () => {
-    setFilterDraftRowIds(filterRowIds);
-    setFilterDraftColumnIds(filterColumnIds);
-    setIsFiltersModalOpen(true);
-  };
-
-  const closeFiltersModal = () => {
-    setIsFiltersModalOpen(false);
-  };
-
-  const applyFilters = () => {
-    setFilterRowIds(filterDraftRowIds);
-    setFilterColumnIds(filterDraftColumnIds);
-    setIsFiltersModalOpen(false);
-  };
-
-  const resetFilters = () => {
-    setFilterRowIds([]);
-    setFilterColumnIds([]);
-    setFilterDraftRowIds([]);
-    setFilterDraftColumnIds([]);
-  };
-
-  const quickToggleRowFilter = (rowId: string) => {
-    setFilterRowIds((prev) => (prev.includes(rowId) ? prev.filter((item) => item !== rowId) : [...prev, rowId]));
-  };
-
-  const quickToggleColumnFilter = (columnId: string) => {
-    setFilterColumnIds((prev) => (
-      prev.includes(columnId) ? prev.filter((item) => item !== columnId) : [...prev, columnId]
-    ));
-  };
-
   const startEdit = (entryId: string) => {
+    if (isMobile) return;
     const entry = entries.find((item) => item.id === entryId);
     if (!entry) return;
+
     const mode = resolveSelectionModeFromEntry(entry);
     const normalizedEntry = applySelectionModeToEntryInput(
       {
@@ -155,21 +235,6 @@ export default function DisorderTable() {
     setIsEntryModalOpen(true);
   };
 
-  const setSingleSelection = (
-    value: string,
-    setSelectedIds: (next: string[]) => void
-  ) => {
-    setSelectedIds(value ? [value] : []);
-  };
-
-  const changeEntrySelectionMode = (mode: DisorderTableSelectionMode) => {
-    if (mode === formSelectionMode) return;
-    setFormSelectionMode(mode);
-    setFormRowIds([]);
-    setFormColumnIds([]);
-    setSubmitError(null);
-  };
-
   const handleSubmit = async () => {
     setSubmitError(null);
     const normalizedInput = applySelectionModeToEntryInput(
@@ -187,7 +252,6 @@ export default function DisorderTable() {
       } else {
         await createEntry(normalizedInput);
       }
-
       closeEntryModal();
     } catch (err: any) {
       setSubmitError(err?.message || 'Не удалось сохранить запись');
@@ -195,6 +259,7 @@ export default function DisorderTable() {
   };
 
   const handleRemove = async (entryId: string) => {
+    if (isMobile) return;
     const confirmed = window.confirm('Удалить эту запись?');
     if (!confirmed) return;
 
@@ -209,61 +274,110 @@ export default function DisorderTable() {
     }
   };
 
-  const formPreviewInput = applySelectionModeToEntryInput(
-    {
-      rowIds: formRowIds,
-      columnIds: formColumnIds,
-      text: formText,
-    },
-    formSelectionMode
-  );
-  const isFormValid = isValidDisorderTableEntryInput(formPreviewInput);
-  const hasActiveFilters = filterRowIds.length > 0 || filterColumnIds.length > 0;
-  const hasActiveSearch = searchQuery.trim().length > 0;
-  const singleSelectedRowId = formRowIds[0] ?? '';
-  const singleSelectedColumnId = formColumnIds[0] ?? '';
-  const canChooseDisorders = formSelectionMode === 'one-row-many-columns' && formRowIds.length === 1;
-  const canChooseFunctions = formSelectionMode === 'one-column-many-rows' && formColumnIds.length === 1;
+  const toggleDraftRowFilter = (rowId: string) => {
+    setDraftFilterRowIds((prev) => (
+      prev.includes(rowId) ? prev.filter((item) => item !== rowId) : [...prev, rowId]
+    ));
+  };
 
-  const truncateText = (text: string, max = 100) => (text.length > max ? `${text.slice(0, max)}...` : text);
+  const toggleDraftColumnFilter = (columnId: string) => {
+    setDraftFilterColumnIds((prev) => (
+      prev.includes(columnId) ? prev.filter((item) => item !== columnId) : [...prev, columnId]
+    ));
+  };
 
-  const filledRowIds = useMemo(
-    () => new Set(filteredEntries.flatMap((entry) => entry.rowIds)),
-    [filteredEntries]
-  );
-  const filledColumnIds = useMemo(
-    () => new Set(filteredEntries.flatMap((entry) => entry.columnIds)),
-    [filteredEntries]
-  );
+  const applyDraftFilters = () => {
+    const next = buildDisorderTableFilters(draftFilterRowIds, draftFilterColumnIds);
+    setActiveFilterRowIds(next.rowIds);
+    setActiveFilterColumnIds(next.columnIds);
+    setSelectedCells([]);
+    setIsCellSelectionMode(false);
+  };
 
-  const baseVisibleRowIds = useMemo(() => {
-    if (filterRowIds.length > 0) return filterRowIds;
-    return Array.from(new Set(filteredEntries.flatMap((entry) => entry.rowIds)));
-  }, [filterRowIds, filteredEntries]);
+  const clearAllFilters = () => {
+    setActiveFilterRowIds([]);
+    setActiveFilterColumnIds([]);
+    setDraftFilterRowIds([]);
+    setDraftFilterColumnIds([]);
+    setSearchQuery('');
+    setSelectedCells([]);
+    setIsCellSelectionMode(false);
+  };
 
-  const baseVisibleColumnIds = useMemo(() => {
-    if (filterColumnIds.length > 0) return filterColumnIds;
-    return Array.from(new Set(filteredEntries.flatMap((entry) => entry.columnIds)));
-  }, [filterColumnIds, filteredEntries]);
+  const openCellModal = (rowId: string, columnId: string) => {
+    setActiveCell({ rowId, columnId });
+    setIsCellModalOpen(true);
+  };
 
-  const visibleRowIds = useMemo(() => {
-    if (!showOnlyFilledCells) return baseVisibleRowIds;
-    return baseVisibleRowIds.filter((rowId) => filledRowIds.has(rowId));
-  }, [baseVisibleRowIds, filledRowIds, showOnlyFilledCells]);
+  const toggleCellSelection = (rowId: string, columnId: string) => {
+    const key = buildDisorderTableCellKey(rowId, columnId);
+    setSelectedCells((prev) => {
+      const exists = prev.some((cell) => buildDisorderTableCellKey(cell.rowId, cell.columnId) === key);
+      if (exists) {
+        return prev.filter((cell) => buildDisorderTableCellKey(cell.rowId, cell.columnId) !== key);
+      }
+      return [...prev, { rowId, columnId }];
+    });
+  };
 
-  const visibleColumnIds = useMemo(() => {
-    if (!showOnlyFilledCells) return baseVisibleColumnIds;
-    return baseVisibleColumnIds.filter((columnId) => filledColumnIds.has(columnId));
-  }, [baseVisibleColumnIds, filledColumnIds, showOnlyFilledCells]);
+  const handleCellClick = (rowId: string, columnId: string) => {
+    if (isCellSelectionMode && !isMobile) {
+      toggleCellSelection(rowId, columnId);
+      return;
+    }
+    openCellModal(rowId, columnId);
+  };
 
-  const visibleRows = useMemo(
-    () => DISORDER_TABLE_ROWS.filter((row) => visibleRowIds.includes(row.id)),
-    [visibleRowIds]
-  );
-  const visibleColumns = useMemo(
-    () => DISORDER_TABLE_COLUMNS.filter((column) => visibleColumnIds.includes(column.id)),
-    [visibleColumnIds]
-  );
+  const closeCellModal = () => {
+    setIsCellModalOpen(false);
+    setActiveCell(null);
+  };
+
+  const toggleCellSelectionMode = () => {
+    setIsCellSelectionMode((prev) => {
+      const next = !prev;
+      if (!next) setSelectedCells([]);
+      return next;
+    });
+  };
+
+  const openBulkModal = () => {
+    if (isMobile || selectedCells.length === 0) return;
+    setBulkError(null);
+    setBulkText('');
+    setIsBulkModalOpen(true);
+  };
+
+  const closeBulkModal = () => {
+    if (saving) return;
+    setIsBulkModalOpen(false);
+    setBulkError(null);
+    setBulkText('');
+  };
+
+  const handleBulkSubmit = async () => {
+    setBulkError(null);
+
+    if (bulkText.trim().length < 3) {
+      setBulkError('Введите текст от 3 символов');
+      return;
+    }
+
+    if (selectedCells.length === 0) {
+      setBulkError('Выберите хотя бы одно пересечение');
+      return;
+    }
+
+    try {
+      const batchInputs = buildBatchEntryInputsFromCells(selectedCells, bulkText);
+      await createEntriesBatch(batchInputs);
+      closeBulkModal();
+      setSelectedCells([]);
+      setIsCellSelectionMode(false);
+    } catch (err: any) {
+      setBulkError(err?.message || 'Не удалось сохранить текст в выбранные пересечения');
+    }
+  };
 
   const renderFunctionSelection = (
     selectedIds: string[],
@@ -374,152 +488,6 @@ export default function DisorderTable() {
     </section>
   );
 
-  const renderMatrixCell = (rowId: string, columnId: string) => {
-    const key = buildDisorderTableCellKey(rowId, columnId);
-    const cellEntries = tableMatrix.get(key) ?? [];
-
-    if (cellEntries.length === 0) {
-      if (showOnlyFilledCells) {
-        return <span className="text-[11px] text-slate-300">—</span>;
-      }
-
-      return (
-        <button
-          type="button"
-          onClick={() => openCreateFromCell(rowId, columnId)}
-          className="rounded-md border border-dashed border-slate-300 px-2 py-1 text-[11px] font-medium text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
-        >
-          + Добавить
-        </button>
-      );
-    }
-
-    return (
-      <div className="space-y-1.5">
-        {cellEntries.slice(0, 2).map((entry) => (
-          <button
-            key={`${key}-${entry.id}`}
-            type="button"
-            onClick={() => startEdit(entry.id)}
-            className="group w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-50/40"
-            title="Открыть запись для редактирования"
-          >
-            <p className="text-[11px] leading-snug text-slate-700">{truncateText(entry.text)}</p>
-            <div className="mt-1.5 text-right">
-              <span className="text-[10px] font-medium text-blue-700 opacity-0 transition group-hover:opacity-100">
-                Редактировать
-              </span>
-            </div>
-          </button>
-        ))}
-        {cellEntries.length > 2 && (
-          <p className="text-[11px] font-medium text-blue-700">+{cellEntries.length - 2} ещё записей</p>
-        )}
-      </div>
-    );
-  };
-
-  const renderTableView = () => (
-    <div className="rounded-2xl bg-white p-6 shadow-xl">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-gray-900">Табличный вид</h2>
-        <span className="text-sm text-gray-500">
-          Показано: {filteredEntries.length} из {entries.length}
-        </span>
-      </div>
-      <p className="mb-2 text-sm text-gray-600">
-        Нажмите на текст в ячейке, чтобы открыть запись на редактирование.
-      </p>
-      <p className="mb-4 text-xs text-gray-500">
-        Клик по заголовкам строки/столбца применяет быстрый фильтр. Поиск и фильтры применяются сразу.
-      </p>
-
-      {error && (
-        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
-      )}
-      {listError && (
-        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{listError}</div>
-      )}
-
-      {loading ? (
-        <p className="text-sm text-gray-600">Загрузка записей...</p>
-      ) : filteredEntries.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-600">
-          {entries.length === 0
-            ? 'Пока нет записей. Нажмите «Новая запись», чтобы добавить первую заметку.'
-            : 'По текущим фильтрам ничего не найдено. Измените фильтры или сбросьте их.'}
-        </div>
-      ) : visibleRows.length === 0 || visibleColumns.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-600">
-          Для выбранных фильтров нет подходящих строк или типов расстройств.
-        </div>
-      ) : (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
-          <div className="max-w-full overflow-x-auto">
-            <table className="w-full min-w-[640px] table-fixed border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-100">
-                <th className="w-[180px] border-b border-r border-slate-200 bg-slate-100 px-2.5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                  Функции / Типы расстройств
-                </th>
-                {visibleColumns.map((column) => {
-                  const isColumnFilterActive = filterColumnIds.includes(column.id);
-                  return (
-                    <th
-                      key={column.id}
-                      className="w-[155px] border-b border-r border-slate-200 px-1.5 py-1.5 text-left"
-                      title={column.label}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => quickToggleColumnFilter(column.id)}
-                        className={`w-full rounded px-2 py-1.5 text-left text-[11px] font-semibold transition ${
-                          isColumnFilterActive
-                            ? 'bg-blue-100 text-blue-900'
-                            : 'text-blue-900 hover:bg-blue-50'
-                        }`}
-                      >
-                        {column.label}
-                      </button>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRows.map((row) => {
-                const isRowFilterActive = filterRowIds.includes(row.id);
-                return (
-                  <tr key={row.id} className="align-top">
-                    <th className="border-b border-r border-slate-200 bg-white px-1.5 py-1.5 text-left" title={row.label}>
-                      <button
-                        type="button"
-                        onClick={() => quickToggleRowFilter(row.id)}
-                        className={`w-full rounded px-2 py-1.5 text-left text-[11px] font-semibold transition ${
-                          isRowFilterActive
-                            ? 'bg-teal-100 text-teal-900'
-                            : 'text-teal-900 hover:bg-teal-50'
-                        }`}
-                      >
-                        {row.label}
-                      </button>
-                    </th>
-                    {visibleColumns.map((column) => (
-                      <td key={`${row.id}-${column.id}`} className="border-b border-r border-slate-200 bg-white px-1.5 py-1.5 align-top">
-                        {renderMatrixCell(row.id, column.id)}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
   if (!isDisorderTableCourse(currentCourse)) {
     return (
       <div className="space-y-4 rounded-2xl bg-white p-6 shadow-xl">
@@ -538,195 +506,248 @@ export default function DisorderTable() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl bg-white p-6 shadow-xl">
-        <h1 className="text-2xl font-bold text-gray-900">Таблица по расстройствам</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Выберите типы расстройств и наблюдаемые функции, затем зафиксируйте свои наблюдения в записи.
-        </p>
-        <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-blue-900">
-          <p className="font-semibold">Как пользоваться:</p>
-          <p>1. Нажмите «Новая запись».</p>
-          <p>2. Выберите режим: одна функция + несколько расстройств или наоборот.</p>
-          <p>3. Сначала выберите один пункт в выпадающем списке, после этого откроется второй список.</p>
-          <p>4. Опишите наблюдение и сохраните запись.</p>
-          <p>5. Переключайте режим «Таблица / Список» для разных сценариев просмотра.</p>
-          <p>6. Используйте поиск и клик по заголовкам в таблице для быстрого отбора.</p>
-          <p>7. Включите «Только заполненные», чтобы видеть только полезные категории.</p>
-        </div>
-      </div>
+    <div className="fixed inset-0 overflow-hidden bg-gradient-to-br from-slate-50 to-white">
+      <div className="flex h-full flex-col gap-3 p-3 sm:p-4">
+        <section className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:p-4">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Link
+              to="/profile"
+              className="inline-flex rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Профиль
+            </Link>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-        >
-          Новая запись
-        </button>
-        <button
-          type="button"
-          onClick={openFiltersModal}
-          className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-        >
-          Фильтры
-        </button>
-        <label className="flex min-w-[240px] flex-1 items-center rounded-lg border border-gray-300 bg-white px-3 py-2">
-          <span className="mr-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Поиск</span>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Поиск по тексту записей..."
-            className="w-full border-none bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={() => setShowOnlyFilledCells((prev) => !prev)}
-          className={`inline-flex items-center rounded-lg border px-4 py-2 text-sm font-medium transition ${
-            showOnlyFilledCells
-              ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-          }`}
-        >
-          Только заполненные
-        </button>
-        <div className="inline-flex overflow-hidden rounded-lg border border-gray-300 bg-white">
-          <button
-            type="button"
-            onClick={() => setViewMode('table')}
-            className={`px-3 py-2 text-sm font-medium transition ${
-              viewMode === 'table' ? 'bg-slate-800 text-white' : 'text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Таблица
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('list')}
-            className={`px-3 py-2 text-sm font-medium transition ${
-              viewMode === 'list' ? 'bg-slate-800 text-white' : 'text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Список
-          </button>
-        </div>
-
-        {(hasActiveFilters || hasActiveSearch) && (
-          <button
-            type="button"
-            onClick={() => {
-              resetFilters();
-              setSearchQuery('');
-            }}
-            className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
-          >
-            Сбросить фильтры и поиск
-          </button>
-        )}
-      </div>
-
-      {(hasActiveFilters || hasActiveSearch) && (
-        <div className="rounded-2xl bg-white p-4 shadow-xl">
-          <p className="mb-2 text-sm font-semibold text-gray-700">Активные фильтры</p>
-          <div className="flex flex-wrap gap-2">
-            {hasActiveSearch && (
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-700">
-                Поиск: {searchQuery.trim()}
-              </span>
+            {!isMobile && (
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="inline-flex rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+              >
+                Новая запись
+              </button>
             )}
-            {filterColumnIds.map((columnId) => (
-              <span key={`filter-column-${columnId}`} className="rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700">
-                {columnLabels.get(columnId) ?? columnId}
-              </span>
-            ))}
-            {filterRowIds.map((rowId) => (
-              <span key={`filter-row-${rowId}`} className="rounded-full bg-teal-50 px-3 py-1 text-xs text-teal-700">
-                {rowLabels.get(rowId) ?? rowId}
-              </span>
-            ))}
+
+            {!isMobile && (
+              <button
+                type="button"
+                onClick={toggleCellSelectionMode}
+                className={`inline-flex rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                  isCellSelectionMode
+                    ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                {isCellSelectionMode ? 'Выделение включено' : 'Выбрать несколько ячеек'}
+              </button>
+            )}
+
+            {!isMobile && isCellSelectionMode && (
+              <button
+                type="button"
+                onClick={openBulkModal}
+                disabled={selectedCells.length === 0}
+                className="inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Внести текст в выбранные ({selectedCells.length})
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={applyDraftFilters}
+              disabled={!canApplyFilters}
+              className="inline-flex rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-800 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Применить фильтр
+            </button>
+
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="inline-flex rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
+            >
+              Сбросить
+            </button>
+
+            <label className="ml-auto flex min-w-[220px] flex-1 items-center rounded-lg border border-slate-300 bg-white px-3 py-2 sm:max-w-[420px]">
+              <span className="mr-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Поиск</span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  setSelectedCells([]);
+                }}
+                placeholder="Поиск по тексту записей"
+                className="w-full border-none bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+              />
+            </label>
           </div>
-        </div>
-      )}
 
-      {viewMode === 'table' ? renderTableView() : (
-      <div className="rounded-2xl bg-white p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-gray-900">Ваши записи</h2>
-          <span className="text-sm text-gray-500">
-            Показано: {filteredEntries.length} из {entries.length}
-          </span>
-        </div>
+          {isMobile && (
+            <p className="mb-2 text-sm text-slate-600">
+              Мобильный режим: доступен просмотр таблицы и содержимого ячеек. Редактирование доступно на компьютере.
+            </p>
+          )}
 
-        {error && (
-          <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
-        )}
-        {listError && (
-          <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{listError}</div>
-        )}
+          {hasActiveFilters || hasActiveSearch ? (
+            <div className="flex flex-wrap gap-2 text-xs">
+              {hasActiveSearch && (
+                <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-700">
+                  Поиск: {searchQuery.trim()}
+                </span>
+              )}
+              {activeFilters.columnIds.map((columnId) => (
+                <span key={`active-column-${columnId}`} className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
+                  {columnLabels.get(columnId) ?? columnId}
+                </span>
+              ))}
+              {activeFilters.rowIds.map((rowId) => (
+                <span key={`active-row-${rowId}`} className="rounded-full bg-teal-50 px-3 py-1 font-medium text-teal-700">
+                  {rowLabels.get(rowId) ?? rowId}
+                </span>
+              ))}
+            </div>
+          ) : null}
 
-        {loading ? (
-          <p className="text-sm text-gray-600">Загрузка записей...</p>
-        ) : filteredEntries.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-600">
-            {entries.length === 0
-              ? 'Пока нет записей. Нажмите «Новая запись», чтобы добавить первую заметку.'
-              : 'По текущим фильтрам ничего не найдено. Измените фильтры или сбросьте их.'}
+          {(error || listError) && (
+            <div className="mt-3 space-y-2">
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+              )}
+              {listError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{listError}</div>
+              )}
+            </div>
+          )}
+        </section>
+
+        <section className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex h-full flex-col">
+            <div className="shrink-0 border-b border-slate-200 px-4 py-3 text-sm text-slate-600">
+              Показано записей: <span className="font-semibold text-slate-900">{filteredEntries.length}</span> из {entries.length}
+            </div>
+
+            {loading ? (
+              <div className="flex flex-1 items-center justify-center text-sm text-slate-600">Загрузка таблицы...</div>
+            ) : (
+              <div className="min-h-0 flex-1 overflow-auto">
+                <table className={`${isMobile ? 'min-w-[980px]' : 'w-full'} table-fixed border-collapse`}>
+                  <thead>
+                    <tr className="bg-slate-100">
+                      <th className="w-56 border-b border-r border-slate-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        Функции / Типы расстройств
+                      </th>
+                      {displayedColumns.map((column) => {
+                        const inDraft = draftFilters.columnIds.includes(column.id);
+                        const inActive = activeFilters.columnIds.includes(column.id);
+
+                        return (
+                          <th key={column.id} className="border-b border-r border-slate-200 px-1.5 py-1.5 text-left">
+                            <button
+                              type="button"
+                              onClick={() => toggleDraftColumnFilter(column.id)}
+                              className={`w-full rounded px-2 py-1.5 text-left text-[11px] font-semibold transition ${
+                                inDraft
+                                  ? inActive
+                                    ? 'bg-blue-100 text-blue-900'
+                                    : 'bg-amber-50 text-amber-900'
+                                  : inActive
+                                    ? 'bg-blue-50 text-blue-800'
+                                    : 'text-blue-900 hover:bg-blue-50'
+                              }`}
+                              title={column.label}
+                            >
+                              <span style={TEXT_CLAMP_STYLE}>{column.label}</span>
+                            </button>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {displayedRows.map((row) => {
+                      const inDraft = draftFilters.rowIds.includes(row.id);
+                      const inActive = activeFilters.rowIds.includes(row.id);
+
+                      return (
+                        <tr key={row.id} className="align-top">
+                          <th className="border-b border-r border-slate-200 bg-white px-1.5 py-1.5 text-left">
+                            <button
+                              type="button"
+                              onClick={() => toggleDraftRowFilter(row.id)}
+                              className={`w-full rounded px-2 py-1.5 text-left text-[11px] font-semibold transition ${
+                                inDraft
+                                  ? inActive
+                                    ? 'bg-teal-100 text-teal-900'
+                                    : 'bg-amber-50 text-amber-900'
+                                  : inActive
+                                    ? 'bg-teal-50 text-teal-800'
+                                    : 'text-teal-900 hover:bg-teal-50'
+                              }`}
+                              title={row.label}
+                            >
+                              <span style={TEXT_CLAMP_STYLE}>{row.label}</span>
+                            </button>
+                          </th>
+
+                          {displayedColumns.map((column) => {
+                            const key = buildDisorderTableCellKey(row.id, column.id);
+                            const cellEntries = matrix.get(key) ?? [];
+                            const isSelected = selectedCellKeys.has(key);
+
+                            return (
+                              <td key={key} className="border-b border-r border-slate-200 bg-white p-1.5 align-top">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCellClick(row.id, column.id)}
+                                  className={`relative min-h-[72px] w-full rounded-lg border px-2 py-2 text-left text-[11px] transition ${
+                                    isSelected
+                                      ? 'border-amber-400 bg-amber-50'
+                                      : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/40'
+                                  }`}
+                                >
+                                  {isCellSelectionMode && !isMobile && (
+                                    <span
+                                      className={`absolute right-2 top-2 inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px] ${
+                                        isSelected
+                                          ? 'border-amber-500 bg-amber-200 text-amber-900'
+                                          : 'border-slate-300 bg-white text-slate-400'
+                                      }`}
+                                    >
+                                      {isSelected ? '✓' : ''}
+                                    </span>
+                                  )}
+
+                                  {cellEntries.length === 0 ? (
+                                    <p className="text-slate-400">Пусто</p>
+                                  ) : (
+                                    <>
+                                      <p className="pr-5 text-slate-700" style={TEXT_CLAMP_STYLE}>
+                                        {cellEntries[0].text}
+                                      </p>
+                                      {cellEntries.length > 1 && (
+                                        <p className="mt-1 text-[10px] font-medium text-blue-700">
+                                          +{cellEntries.length - 1} ещё
+                                        </p>
+                                      )}
+                                    </>
+                                  )}
+                                </button>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredEntries.map((entry) => (
-              <article key={entry.id} className="rounded-xl border border-gray-200 p-4">
-                <div className="mb-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Типы расстройств</p>
-                  <div className="flex flex-wrap gap-2">
-                    {entry.columnIds.map((columnId) => (
-                      <span key={`${entry.id}-column-${columnId}`} className="rounded-full bg-blue-50 px-3 py-1 text-xs text-blue-700">
-                        {columnLabels.get(columnId) ?? columnId}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mb-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Нарушенные функции и сферы</p>
-                  <div className="flex flex-wrap gap-2">
-                    {entry.rowIds.map((rowId) => (
-                      <span key={`${entry.id}-row-${rowId}`} className="rounded-full bg-teal-50 px-3 py-1 text-xs text-teal-700">
-                        {rowLabels.get(rowId) ?? rowId}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{entry.text}</p>
-
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <span className="text-xs text-gray-500">Обновлено: {entry.updatedAt.toLocaleString('ru-RU')}</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => startEdit(entry.id)}
-                      className="rounded-lg border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
-                    >
-                      Редактировать
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(entry.id)}
-                      className="rounded-lg border border-red-200 px-3 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50"
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+        </section>
       </div>
-      )}
 
       <BaseModal
         isOpen={isEntryModalOpen}
@@ -749,7 +770,7 @@ export default function DisorderTable() {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => changeEntrySelectionMode('one-row-many-columns')}
+                onClick={() => setFormSelectionMode('one-row-many-columns')}
                 className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
                   formSelectionMode === 'one-row-many-columns'
                     ? 'border-amber-500 bg-white font-semibold text-amber-900'
@@ -760,7 +781,7 @@ export default function DisorderTable() {
               </button>
               <button
                 type="button"
-                onClick={() => changeEntrySelectionMode('one-column-many-rows')}
+                onClick={() => setFormSelectionMode('one-column-many-rows')}
                 className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
                   formSelectionMode === 'one-column-many-rows'
                     ? 'border-amber-500 bg-white font-semibold text-amber-900'
@@ -774,7 +795,7 @@ export default function DisorderTable() {
 
           {formSelectionMode === 'one-row-many-columns' ? (
             <>
-              {renderFunctionDropdown(singleSelectedRowId, (value) => setSingleSelection(value, setFormRowIds))}
+              {renderFunctionDropdown(singleSelectedRowId, (value) => setFormRowIds(value ? [value] : []))}
               {!canChooseDisorders ? (
                 <div className="rounded-xl border border-dashed border-blue-300 bg-blue-50/60 p-4 text-sm text-blue-800">
                   Выберите одну функцию в выпадающем списке, чтобы открыть список типов расстройств.
@@ -785,7 +806,7 @@ export default function DisorderTable() {
             </>
           ) : (
             <>
-              {renderDisorderDropdown(singleSelectedColumnId, (value) => setSingleSelection(value, setFormColumnIds))}
+              {renderDisorderDropdown(singleSelectedColumnId, (value) => setFormColumnIds(value ? [value] : []))}
               {!canChooseFunctions ? (
                 <div className="rounded-xl border border-dashed border-teal-300 bg-teal-50/60 p-4 text-sm text-teal-800">
                   Выберите один тип расстройства в выпадающем списке, чтобы открыть список функций.
@@ -816,28 +837,116 @@ export default function DisorderTable() {
       </BaseModal>
 
       <BaseModal
-        isOpen={isFiltersModalOpen}
-        onClose={closeFiltersModal}
-        title="Фильтры записей"
+        isOpen={isCellModalOpen}
+        onClose={closeCellModal}
+        title={activeCell
+          ? `${rowLabels.get(activeCell.rowId) ?? activeCell.rowId} × ${columnLabels.get(activeCell.columnId) ?? activeCell.columnId}`
+          : 'Пересечение таблицы'}
         maxWidth="2xl"
+        disabled={saving}
         footer={(
           <>
-            <ModalCancelButton onClick={closeFiltersModal}>Закрыть</ModalCancelButton>
-            <ModalCancelButton
-              onClick={() => {
-                setFilterDraftRowIds([]);
-                setFilterDraftColumnIds([]);
-              }}
-            >
-              Очистить
-            </ModalCancelButton>
-            <ModalSaveButton onClick={applyFilters}>Применить</ModalSaveButton>
+            <ModalCancelButton onClick={closeCellModal}>Закрыть</ModalCancelButton>
+            {!isMobile && activeCell && (
+              <ModalSaveButton
+                onClick={() => {
+                  closeCellModal();
+                  openCreateFromCell(activeCell.rowId, activeCell.columnId);
+                }}
+                disabled={saving}
+              >
+                Добавить в это пересечение
+              </ModalSaveButton>
+            )}
           </>
         )}
       >
-        <div className="space-y-5">
-          {renderDisorderSelection(filterDraftColumnIds, setFilterDraftColumnIds)}
-          {renderFunctionSelection(filterDraftRowIds, setFilterDraftRowIds)}
+        {activeCellEntries.length === 0 ? (
+          <p className="text-sm text-slate-600">В этом пересечении пока нет записей.</p>
+        ) : (
+          <div className="space-y-3">
+            {activeCellEntries.map((entry) => (
+              <article key={entry.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{entry.text}</p>
+                <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-500">
+                  <span>Обновлено: {entry.updatedAt.toLocaleString('ru-RU')}</span>
+                  {!isMobile && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closeCellModal();
+                          startEdit(entry.id);
+                        }}
+                        className="rounded-md border border-slate-300 bg-white px-2 py-1 font-medium text-slate-700 hover:bg-slate-100"
+                      >
+                        Редактировать
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(entry.id)}
+                        className="rounded-md border border-red-200 bg-red-50 px-2 py-1 font-medium text-red-700 hover:bg-red-100"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </BaseModal>
+
+      <BaseModal
+        isOpen={isBulkModalOpen}
+        onClose={closeBulkModal}
+        title="Внести один текст в несколько пересечений"
+        maxWidth="2xl"
+        disabled={saving}
+        footer={(
+          <>
+            <ModalCancelButton onClick={closeBulkModal} disabled={saving}>Отмена</ModalCancelButton>
+            <ModalSaveButton onClick={handleBulkSubmit} loading={saving}>
+              Сохранить во все выбранные
+            </ModalSaveButton>
+          </>
+        )}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Выбрано пересечений: <span className="font-semibold text-slate-900">{selectedCells.length}</span>
+          </p>
+
+          <div className="max-h-24 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-2">
+            <div className="flex flex-wrap gap-2">
+              {selectedCells.map((cell) => {
+                const key = buildDisorderTableCellKey(cell.rowId, cell.columnId);
+                return (
+                  <span key={key} className="rounded-full bg-white px-2 py-1 text-xs text-slate-700">
+                    {rowLabels.get(cell.rowId)} × {columnLabels.get(cell.columnId)}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Общий текст</label>
+            <textarea
+              value={bulkText}
+              onChange={(event) => setBulkText(event.target.value)}
+              rows={6}
+              maxLength={4000}
+              placeholder="Введите текст, который нужно добавить во все выбранные пересечения"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+            <div className="mt-1 text-right text-xs text-slate-500">{bulkText.length}/4000</div>
+          </div>
+
+          {bulkError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{bulkError}</div>
+          )}
         </div>
       </BaseModal>
     </div>
