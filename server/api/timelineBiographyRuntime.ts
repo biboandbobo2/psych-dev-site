@@ -8,6 +8,7 @@ import {
   buildBiographyTimelineLinePrompt,
   buildBiographyTimelinePrompt,
   buildBiographyTimelineReviewPrompt,
+  buildBiographyFactRankingPrompt,
   buildBiographyEvaluationMetrics,
   buildHeuristicFactCandidates,
   composeBiographyPlanFromFacts,
@@ -241,13 +242,13 @@ export function validateBiographyImportRequest(body: unknown): BiographyImportRe
       ? (body as BiographyImportRequest).extractionMode.trim()
       : '';
 
-  if (extractionMode && extractionMode !== 'general' && extractionMode !== 'editorial') {
-    throw new Error('extractionMode должен быть general или editorial.');
+  if (extractionMode && extractionMode !== 'general' && extractionMode !== 'editorial' && extractionMode !== 'two-pass') {
+    throw new Error('extractionMode должен быть general, editorial или two-pass.');
   }
 
   return {
     sourceUrl,
-    extractionMode: extractionMode === 'editorial' ? 'editorial' : 'general',
+    extractionMode: (extractionMode as BiographyExtractionMode) || 'general',
   };
 }
 
@@ -1048,11 +1049,120 @@ export async function runBiographyImport(params: {
   };
 }
 
+async function rankBiographyFacts(params: {
+  apiKey: string;
+  subjectName: string;
+  facts: BiographyFactCandidate[];
+}): Promise<{ rankedFacts: BiographyFactCandidate[]; rankingModel: string }> {
+  const indexedFacts = params.facts.map((fact, index) => ({
+    index,
+    year: fact.year ?? 0,
+    labelHint: fact.labelHint ?? '',
+    details: fact.details ?? fact.evidence ?? '',
+    sphere: fact.sphere ?? 'other',
+  }));
+
+  const prompt = buildBiographyFactRankingPrompt({
+    subjectName: params.subjectName,
+    facts: indexedFacts,
+  });
+
+  const client = getLectureGenAiClient(params.apiKey);
+  let rankingModel = 'gemini-2.5-flash';
+  let rawText = '';
+
+  for (const model of TIMELINE_BIOGRAPHY_MODELS) {
+    try {
+      const result = await client.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.05,
+          maxOutputTokens: 4096,
+          responseMimeType: 'text/plain',
+        },
+      });
+      rawText = collectGeminiResultText(result);
+      rankingModel = model;
+      break;
+    } catch (error) {
+      debugError('[timeline-biography] ranking failed', { model, error });
+    }
+  }
+
+  const scores = new Map<number, number>();
+  for (const line of rawText.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const parts = trimmed.split(/\t/);
+    if (parts.length >= 2) {
+      const index = parseInt(parts[0], 10);
+      const score = parseInt(parts[1], 10);
+      if (!isNaN(index) && !isNaN(score) && score >= 1 && score <= 5) {
+        scores.set(index, score);
+      }
+    }
+  }
+
+  const rankedFacts = params.facts.map((fact, index) => ({
+    ...fact,
+    rankScore: scores.get(index) ?? 2,
+  }));
+
+  rankedFacts.sort((a, b) => (b.rankScore ?? 0) - (a.rankScore ?? 0));
+
+  return { rankedFacts, rankingModel };
+}
+
+async function runBiographyTwoPassExtraction(params: {
+  sourceUrl: string;
+  apiKey: string;
+}): Promise<BiographyExtractorSuccessPayload> {
+  const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
+  const promptExtract = wikiPage.promptExtract || wikiPage.biographyExtract || wikiPage.extract;
+
+  const factsResult = await generateBiographyFactsAcrossSlices({
+    apiKey: params.apiKey,
+    articleTitle: wikiPage.title,
+    sourceUrl: wikiPage.canonicalUrl,
+    factExtractSlices: wikiPage.factExtractSlices?.length ? wikiPage.factExtractSlices : [promptExtract],
+  });
+
+  const subjectName = wikiPage.title;
+
+  const { rankedFacts, rankingModel } = await rankBiographyFacts({
+    apiKey: params.apiKey,
+    subjectName,
+    facts: factsResult.facts,
+  });
+
+  return {
+    ok: true,
+    sourceUrl: params.sourceUrl,
+    subjectName,
+    facts: rankedFacts,
+    meta: {
+      factCount: rankedFacts.length,
+      extractionMode: 'two-pass' as BiographyExtractionMode,
+      model: `${factsResult.model} -> ${rankingModel}`,
+      promptVersion: 'two-pass-v1',
+      rawTextChars: promptExtract.length,
+      strategy: 'two-pass-plaintext' as 'url-context',
+      groundingSources: [],
+      urlContextMetadata: [],
+    },
+  };
+}
+
 export async function runBiographyFactExtraction(params: {
   sourceUrl: string;
   apiKey: string;
   extractionMode?: BiographyExtractionMode;
 }): Promise<BiographyExtractorSuccessPayload> {
+  if (params.extractionMode === 'two-pass') {
+    return runBiographyTwoPassExtraction(params);
+  }
+
   const extractionMode = params.extractionMode === 'editorial' ? 'editorial' : 'general';
   const prompt =
     extractionMode === 'editorial'

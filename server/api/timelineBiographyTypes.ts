@@ -68,7 +68,7 @@ export type BiographyImportRequest = {
   extractionMode?: BiographyExtractionMode;
 };
 
-export type BiographyExtractionMode = 'general' | 'editorial';
+export type BiographyExtractionMode = 'general' | 'editorial' | 'two-pass';
 
 export type BiographyTimelineEventPlan = {
   age: number;
