@@ -470,10 +470,17 @@ function collectGroundingSources(result: unknown) {
   });
 }
 
-async function generateBiographyFactsFromUrlContext(prompt: string, apiKey: string) {
+async function generateBiographyFactsFromUrlContext(
+  prompt: string,
+  apiKey: string,
+  extractionMode: BiographyExtractionMode = 'general'
+) {
   const client = getLectureGenAiClient(apiKey);
   let lastError: unknown = null;
-  const extractorModels = ['gemini-3-flash-preview', 'gemini-2.5-pro', ...TIMELINE_BIOGRAPHY_MODELS.filter((model) => model !== 'gemini-2.5-pro')];
+  const extractorModels =
+    extractionMode === 'editorial'
+      ? ['gemini-2.5-pro', 'gemini-3-flash-preview', ...TIMELINE_BIOGRAPHY_MODELS.filter((model) => model !== 'gemini-2.5-pro')]
+      : ['gemini-3-flash-preview', 'gemini-2.5-pro', ...TIMELINE_BIOGRAPHY_MODELS.filter((model) => model !== 'gemini-2.5-pro')];
 
   for (const model of extractorModels) {
     try {
@@ -1055,7 +1062,7 @@ export async function runBiographyFactExtraction(params: {
       : buildBiographyUrlContextFactExtractionPrompt({
           sourceUrl: params.sourceUrl,
         });
-  const extractionResult = await generateBiographyFactsFromUrlContext(prompt, params.apiKey);
+  const extractionResult = await generateBiographyFactsFromUrlContext(prompt, params.apiKey, extractionMode);
   const subjectLine = extractionResult.rawText
     .split(/\r?\n/)
     .map((line) => line.trim())
