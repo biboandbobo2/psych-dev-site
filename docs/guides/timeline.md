@@ -475,9 +475,11 @@ src/hooks/
   - Скрипт сравнивает timeline с curated benchmark facts, считает общее и critical coverage и помогает ловить регрессии универсальности между разными биографиями.
 - Для extractor-only baseline без composer/repair добавлен отдельный remote path:
   - Endpoint: `POST /api/timeline-biography-extractor-automation`
-  - Принимает только `sourceUrl` и `X-Gemini-Api-Key`, возвращает сырые `facts` модели и meta по extractor stage.
+  - Принимает `sourceUrl`, optional `extractionMode=general|editorial` и `X-Gemini-Api-Key`, возвращает сырые `facts` модели и meta по extractor stage.
   - Основная стратегия: `URL context`; если инструмент или модель недоступны, runtime пробует `Google Search grounding`, но по-прежнему не подсовывает модели локально выкачанный текст статьи.
-  - CLI для remote extractor smoke: `npm run timeline:extractor-remote-eval -- --base-url=https://...vercel.app --source-url=https://ru.wikipedia.org/wiki/...`
+  - `general` — текущий event-spine / mixed facts extractor; `editorial` — отдельный prompt для формирующих влияний, programmatic struggles, institutional roles, relationship axes и ideological turns.
+  - Для `editorial` runtime теперь предпочитает `gemini-2.5-pro`, а не `gemini-3-flash-preview`, потому что у этого pass важнее semantic discrimination, чем скорость.
+  - CLI для remote extractor smoke: `npm run timeline:extractor-remote-eval -- --base-url=https://...vercel.app --source-url=https://ru.wikipedia.org/wiki/... --mode=editorial`
   - CLI для extractor benchmark: `npm run timeline:extractor-benchmark -- --benchmark=gandhi --response-json=tmp/extractor-runs/.../response.json --out=tmp/gandhi-extractor-benchmark.json`
 - `Очистить всё` по-прежнему очищает только активный холст.
 
