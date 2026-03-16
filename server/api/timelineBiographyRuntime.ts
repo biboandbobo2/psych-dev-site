@@ -9,6 +9,7 @@ import {
   buildBiographyTimelinePrompt,
   buildBiographyTimelineReviewPrompt,
   buildBiographyFactRankingPrompt,
+  buildBiographyGapFillingPrompt,
   buildSimpleBiographyFactExtractionPrompt,
   buildBiographyEvaluationMetrics,
   buildHeuristicFactCandidates,
@@ -1298,8 +1299,8 @@ async function runBiographyTwoPassExtraction(params: {
 
   const settled = await Promise.allSettled(
     slices.map((slice, index) => {
-      // Adaptive fact limit based on slice size (~1 fact per 1500 chars)
-      const factLimit = Math.max(20, Math.min(50, Math.round(slice.length / 1500)));
+      // Adaptive fact limit based on slice size (~1 fact per 1000 chars)
+      const factLimit = Math.max(25, Math.min(60, Math.round(slice.length / 1000)));
 
       const focusHint = slices.length > 1
         ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
@@ -1332,6 +1333,39 @@ async function runBiographyTwoPassExtraction(params: {
   // Deduplicate overlapping facts from different slices
   allFacts = deduplicateFacts(allFacts);
 
+  // Gap-filling pass: ask Flash to find facts it missed
+  try {
+    const existingFactTexts = allFacts.map(f => {
+      const yearPrefix = f.year ? `[${f.year}] ` : '';
+      return `${yearPrefix}${f.details}`;
+    });
+    const gapPrompt = buildBiographyGapFillingPrompt({
+      articleTitle: subjectName,
+      extract: fullExtract,
+      existingFacts: existingFactTexts,
+    });
+
+    const gapClient = getLectureGenAiClient(params.apiKey);
+    const gapResult = await gapClient.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
+      config: {
+        temperature: 0.1,
+        maxOutputTokens: 16384,
+        responseMimeType: 'text/plain',
+      },
+    });
+
+    const gapRawText = collectGeminiResultText(gapResult);
+    const gapFacts = parseSimpleJsonFacts(gapRawText);
+    if (gapFacts.length > 0) {
+      allFacts.push(...gapFacts);
+      allFacts = deduplicateFacts(allFacts);
+    }
+  } catch {
+    // Gap-filling is best-effort; continue with what we have
+  }
+
   const factsResult = { facts: allFacts, model: factsModel };
 
   const { rankedFacts, rankingModel } = await rankBiographyFacts({
@@ -1349,7 +1383,7 @@ async function runBiographyTwoPassExtraction(params: {
       factCount: rankedFacts.length,
       extractionMode: 'two-pass' as BiographyExtractionMode,
       model: `${factsResult.model} -> ${rankingModel}`,
-      promptVersion: 'two-pass-v3',
+      promptVersion: 'two-pass-v4',
       rawTextChars: fullExtract.length,
       strategy: 'two-pass-plaintext' as 'url-context',
       groundingSources: [],

@@ -623,6 +623,46 @@ ${params.extract}
 Верни ТОЛЬКО JSON-массив, без markdown, без пояснений.`;
 }
 
+export function buildBiographyGapFillingPrompt(params: {
+  articleTitle: string;
+  extract: string;
+  existingFacts: string[];
+}) {
+  const existingBlock = params.existingFacts.map((f, i) => `${i + 1}. ${f}`).join('\n');
+
+  return `Ты уже извлёк из статьи о ${params.articleTitle} следующие факты:
+
+${existingBlock}
+
+Теперь перечитай текст и найди ПРОПУЩЕННЫЕ факты. Ищи именно то, что отсутствует в списке выше:
+- Семейное происхождение (предки, родители, братья/сёстры)
+- Конкретные произведения, публикации, книги (каждое отдельно)
+- Аресты, суды, ссылки, конфликты с властями
+- Конкретные эпизоды (встречи, инциденты, выступления)
+- Организации, союзы, общества, в которых участвовал
+- Реакции на внешние события (восстания, войны, революции)
+- Награды, звания, членства
+- Смерти близких людей
+
+ФОРМАТ — тот же JSON-массив:
+[
+  {"year": 1828, "text": "Конкретный пропущенный факт", "category": "family", "sphere": "family"},
+  ...
+]
+
+ПРАВИЛА
+- Верни 15-30 НОВЫХ фактов, которых НЕТ в списке выше.
+- НЕ повторяй уже найденные факты.
+- Один факт = одно событие.
+- Включай конкретные имена, даты, места.
+- НЕ выдумывай факты, которых нет в тексте.
+
+ТЕКСТ СТАТЬИ
+${params.extract}
+
+Верни ТОЛЬКО JSON-массив, без markdown, без пояснений.`;
+}
+
 export function buildBiographyFactRankingPrompt(params: {
   subjectName: string;
   facts: Array<{ index: number; year: number; labelHint: string; details: string; sphere: string }>;
