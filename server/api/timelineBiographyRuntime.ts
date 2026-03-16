@@ -1122,11 +1122,24 @@ async function rankBiographyFacts(params: {
 
 function parseSimpleJsonFacts(rawText: string): BiographyFactCandidate[] {
   const cleaned = rawText.replace(/^```(?:json)?\s*\n?/gm, '').replace(/\n?```\s*$/gm, '').trim();
-  const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) return [];
+  let jsonText = cleaned.match(/\[[\s\S]*\]/)?.[0] ?? '';
+
+  if (!jsonText) {
+    const arrayStart = cleaned.indexOf('[');
+    if (arrayStart >= 0) {
+      let truncated = cleaned.slice(arrayStart).replace(/,\s*$/, '');
+      const lastComplete = truncated.lastIndexOf('}');
+      if (lastComplete > 0) {
+        truncated = truncated.slice(0, lastComplete + 1) + ']';
+        jsonText = truncated;
+      }
+    }
+  }
+
+  if (!jsonText) return [];
 
   try {
-    const parsed = JSON.parse(jsonMatch[0]) as Array<{
+    const parsed = JSON.parse(jsonText) as Array<{
       year?: number | null;
       text?: string;
       category?: string;
