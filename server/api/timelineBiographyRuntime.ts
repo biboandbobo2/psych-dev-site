@@ -1171,10 +1171,12 @@ async function generateSimpleBiographyFacts(params: {
   apiKey: string;
   articleTitle: string;
   extract: string;
+  focusHint?: string;
 }): Promise<{ facts: BiographyFactCandidate[]; model: string }> {
   const prompt = buildSimpleBiographyFactExtractionPrompt({
     articleTitle: params.articleTitle,
     extract: params.extract,
+    focusHint: params.focusHint,
   });
 
   const client = getLectureGenAiClient(params.apiKey);
@@ -1214,13 +1216,45 @@ async function runBiographyTwoPassExtraction(params: {
 }): Promise<BiographyExtractorSuccessPayload> {
   const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
   const fullExtract = wikiPage.biographyExtract || wikiPage.extract;
-  const extract = fullExtract.slice(0, 20000);
 
-  const factsResult = await generateSimpleBiographyFacts({
-    apiKey: params.apiKey,
-    articleTitle: wikiPage.title,
-    extract,
-  });
+  const sliceSize = 12000;
+  const slices: string[] = [];
+  if (fullExtract.length <= sliceSize) {
+    slices.push(fullExtract);
+  } else {
+    const mid = Math.floor(fullExtract.length / 2);
+    slices.push(fullExtract.slice(0, mid));
+    slices.push(fullExtract.slice(mid));
+  }
+
+  const settled = await Promise.allSettled(
+    slices.map((slice, index) =>
+      generateSimpleBiographyFacts({
+        apiKey: params.apiKey,
+        articleTitle: wikiPage.title,
+        extract: slice,
+        focusHint: slices.length > 1
+          ? `Это часть ${index + 1} из ${slices.length}. Извлекай факты именно из этого фрагмента.`
+          : undefined,
+      })
+    )
+  );
+
+  let allFacts: BiographyFactCandidate[] = [];
+  let factsModel = 'gemini-2.5-flash';
+
+  for (const result of settled) {
+    if (result.status === 'fulfilled') {
+      allFacts.push(...result.value.facts);
+      factsModel = result.value.model;
+    }
+  }
+
+  if (allFacts.length === 0) {
+    throw new Error('two-pass-flash-failed: all slices returned 0 facts');
+  }
+
+  const factsResult = { facts: allFacts, model: factsModel };
 
   const subjectName = wikiPage.title;
 
@@ -1240,7 +1274,7 @@ async function runBiographyTwoPassExtraction(params: {
       extractionMode: 'two-pass' as BiographyExtractionMode,
       model: `${factsResult.model} -> ${rankingModel}`,
       promptVersion: 'two-pass-v2',
-      rawTextChars: extract.length,
+      rawTextChars: fullExtract.length,
       strategy: 'two-pass-plaintext' as 'url-context',
       groundingSources: [],
       urlContextMetadata: [],

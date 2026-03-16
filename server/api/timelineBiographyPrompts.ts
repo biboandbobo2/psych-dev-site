@@ -580,8 +580,10 @@ ${params.draftPlanJson}
 export function buildSimpleBiographyFactExtractionPrompt(params: {
   articleTitle: string;
   extract: string;
+  focusHint?: string;
 }) {
   return `Извлеки все биографические факты из статьи о ${params.articleTitle}.
+${params.focusHint?.trim() ? `\nФОКУС ЭТОГО ПРОХОДА\n${params.focusHint.trim()}\n` : ''}
 
 ЗАДАЧА
 Верни JSON-массив объектов. Каждый объект — один факт из жизни человека.
