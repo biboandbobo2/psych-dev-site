@@ -1299,8 +1299,9 @@ async function runBiographyTwoPassExtraction(params: {
 
   const settled = await Promise.allSettled(
     slices.map((slice, index) => {
-      // Adaptive fact limit based on slice size (~1 fact per 1000 chars)
-      const factLimit = Math.max(25, Math.min(60, Math.round(slice.length / 1000)));
+      // Adaptive fact limit: longer articles use softer density to avoid oversaturation
+      const charsPerFact = len > 100000 ? 1200 : 1000;
+      const factLimit = Math.max(25, Math.min(60, Math.round(slice.length / charsPerFact)));
 
       const focusHint = slices.length > 1
         ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
@@ -1334,34 +1335,45 @@ async function runBiographyTwoPassExtraction(params: {
   allFacts = deduplicateFacts(allFacts);
 
   // Gap-filling pass: ask Flash to find facts it missed
+  // For long articles (>100K), run gap-filling per slice to avoid overwhelming Flash
   try {
     const existingFactTexts = allFacts.map(f => {
       const yearPrefix = f.year ? `[${f.year}] ` : '';
       return `${yearPrefix}${f.details}`;
     });
-    const gapPrompt = buildBiographyGapFillingPrompt({
-      articleTitle: subjectName,
-      extract: fullExtract,
-      existingFacts: existingFactTexts,
-    });
 
     const gapClient = getLectureGenAiClient(params.apiKey);
-    const gapResult = await gapClient.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
-      config: {
-        temperature: 0.1,
-        maxOutputTokens: 16384,
-        responseMimeType: 'text/plain',
-      },
-    });
+    const gapSlices = len > 100000 ? slices : [fullExtract];
 
-    const gapRawText = collectGeminiResultText(gapResult);
-    const gapFacts = parseSimpleJsonFacts(gapRawText);
-    if (gapFacts.length > 0) {
-      allFacts.push(...gapFacts);
-      allFacts = deduplicateFacts(allFacts);
+    const gapSettled = await Promise.allSettled(
+      gapSlices.map(sliceText => {
+        const gapPrompt = buildBiographyGapFillingPrompt({
+          articleTitle: subjectName,
+          extract: sliceText,
+          existingFacts: existingFactTexts,
+        });
+        return gapClient.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
+          config: {
+            temperature: 0.1,
+            maxOutputTokens: 16384,
+            responseMimeType: 'text/plain',
+          },
+        });
+      })
+    );
+
+    for (const gapResult of gapSettled) {
+      if (gapResult.status === 'fulfilled') {
+        const gapRawText = collectGeminiResultText(gapResult.value);
+        const gapFacts = parseSimpleJsonFacts(gapRawText);
+        if (gapFacts.length > 0) {
+          allFacts.push(...gapFacts);
+        }
+      }
     }
+    allFacts = deduplicateFacts(allFacts);
   } catch {
     // Gap-filling is best-effort; continue with what we have
   }
@@ -1383,7 +1395,7 @@ async function runBiographyTwoPassExtraction(params: {
       factCount: rankedFacts.length,
       extractionMode: 'two-pass' as BiographyExtractionMode,
       model: `${factsResult.model} -> ${rankingModel}`,
-      promptVersion: 'two-pass-v4',
+      promptVersion: 'two-pass-v4.1',
       rawTextChars: fullExtract.length,
       strategy: 'two-pass-plaintext' as 'url-context',
       groundingSources: [],
