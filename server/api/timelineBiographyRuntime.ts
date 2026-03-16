@@ -1180,19 +1180,14 @@ async function generateSimpleBiographyFacts(params: {
       if (facts.length > 0) {
         return { facts, model };
       }
-      debugError('[timeline-biography] simple extraction returned 0 facts', {
-        model,
-        rawTextLength: rawText.length,
-        rawTextPreview: rawText.slice(0, 200),
-      });
+      lastError = new Error(`Flash returned text (${rawText.length} chars) but 0 facts. Preview: ${rawText.slice(0, 300)}`);
     } catch (error) {
-      debugError('[timeline-biography] simple facts generation failed', { model, error });
       lastError = error;
     }
   }
 
-  const errorMessage = lastError instanceof Error ? lastError.message : 'Flash extraction returned 0 parseable facts';
-  throw new Error(`Two-pass extraction failed (Flash only): ${errorMessage}`);
+  const errorMessage = lastError instanceof Error ? lastError.message : 'Flash call failed';
+  throw new Error(`two-pass-flash-failed: ${errorMessage}`);
 }
 
 async function runBiographyTwoPassExtraction(params: {
