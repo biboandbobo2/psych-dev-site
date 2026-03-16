@@ -9,6 +9,7 @@ import {
   buildBiographyTimelinePrompt,
   buildBiographyTimelineReviewPrompt,
   buildBiographyFactRankingPrompt,
+  buildSimpleBiographyFactExtractionPrompt,
   buildBiographyEvaluationMetrics,
   buildHeuristicFactCandidates,
   composeBiographyPlanFromFacts,
@@ -1114,18 +1115,88 @@ async function rankBiographyFacts(params: {
   return { rankedFacts, rankingModel };
 }
 
+function parseSimpleJsonFacts(rawText: string): BiographyFactCandidate[] {
+  const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return [];
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]) as Array<{
+      year?: number | null;
+      text?: string;
+      category?: string;
+      sphere?: string;
+    }>;
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((item) => item && typeof item.text === 'string' && item.text.trim().length > 3)
+      .map((item) => ({
+        year: typeof item.year === 'number' ? item.year : undefined,
+        age: undefined,
+        sphere: (item.sphere ?? 'other') as BiographyFactCandidate['sphere'],
+        category: item.category ?? 'other',
+        eventType: (item.category ?? 'other') as BiographyFactCandidate['eventType'],
+        labelHint: item.text?.trim() ?? '',
+        details: item.text?.trim() ?? '',
+        evidence: item.text?.trim() ?? '',
+        importance: 'medium' as const,
+        confidence: 'medium' as const,
+        source: 'model' as const,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+async function generateSimpleBiographyFacts(params: {
+  apiKey: string;
+  articleTitle: string;
+  extract: string;
+}): Promise<{ facts: BiographyFactCandidate[]; model: string }> {
+  const prompt = buildSimpleBiographyFactExtractionPrompt({
+    articleTitle: params.articleTitle,
+    extract: params.extract,
+  });
+
+  const client = getLectureGenAiClient(params.apiKey);
+  let lastError: unknown = null;
+
+  for (const model of TIMELINE_BIOGRAPHY_MODELS) {
+    try {
+      const result = await client.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.1,
+          maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
+          responseMimeType: 'application/json',
+        },
+      });
+
+      const facts = parseSimpleJsonFacts(collectGeminiResultText(result));
+      if (facts.length > 0) {
+        return { facts, model };
+      }
+    } catch (error) {
+      debugError('[timeline-biography] simple facts generation failed', { model, error });
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error('Simple facts generation failed');
+}
+
 async function runBiographyTwoPassExtraction(params: {
   sourceUrl: string;
   apiKey: string;
 }): Promise<BiographyExtractorSuccessPayload> {
   const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
-  const promptExtract = wikiPage.promptExtract || wikiPage.biographyExtract || wikiPage.extract;
+  const extract = wikiPage.biographyExtract || wikiPage.extract;
 
-  const factsResult = await generateBiographyFactsAcrossSlices({
+  const factsResult = await generateSimpleBiographyFacts({
     apiKey: params.apiKey,
     articleTitle: wikiPage.title,
-    sourceUrl: wikiPage.canonicalUrl,
-    factExtractSlices: wikiPage.factExtractSlices?.length ? wikiPage.factExtractSlices : [promptExtract],
+    extract,
   });
 
   const subjectName = wikiPage.title;
@@ -1145,8 +1216,8 @@ async function runBiographyTwoPassExtraction(params: {
       factCount: rankedFacts.length,
       extractionMode: 'two-pass' as BiographyExtractionMode,
       model: `${factsResult.model} -> ${rankingModel}`,
-      promptVersion: 'two-pass-v1',
-      rawTextChars: promptExtract.length,
+      promptVersion: 'two-pass-v2',
+      rawTextChars: extract.length,
       strategy: 'two-pass-plaintext' as 'url-context',
       groundingSources: [],
       urlContextMetadata: [],

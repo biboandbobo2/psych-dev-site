@@ -577,6 +577,41 @@ ${params.draftPlanJson}
 Верни только исправленный JSON-объект по той же схеме, без markdown и без пояснений.`;
 }
 
+export function buildSimpleBiographyFactExtractionPrompt(params: {
+  articleTitle: string;
+  extract: string;
+}) {
+  return `Извлеки все биографические факты из статьи о ${params.articleTitle}.
+
+ЗАДАЧА
+Верни JSON-массив объектов. Каждый объект — один факт из жизни человека.
+
+ФОРМАТ
+[
+  {"year": 1828, "text": "Родился в Ясной Поляне", "category": "birth", "sphere": "family"},
+  {"year": 1844, "text": "Поступил в Казанский университет", "category": "education", "sphere": "education"},
+  ...
+]
+
+ПОЛЯ
+- year: число (год события). Если точный год неизвестен, укажи приблизительный. Если совсем неизвестен — null.
+- text: строка, 5-15 слов. Конкретное описание факта (не общие фразы вроде "Учёба" или "Публикация").
+- category: одно из: birth, education, move, publication, career, family, friends, health, conflict, award, project, death, other
+- sphere: одно из: education, career, creativity, family, health, friends, place, other
+
+ПРАВИЛА
+- Извлеки 40-80 фактов, покрывающих всю жизнь: детство, юность, зрелость, поздние годы.
+- Один факт = одно событие. Не склеивай несколько событий.
+- Включай: рождение, смерть, семью, образование, главные произведения, переломы, конфликты, дружбы, переезды, болезни.
+- НЕ включай энциклопедический лид ("X — русский писатель...").
+- НЕ выдумывай факты, которых нет в тексте.
+
+ТЕКСТ СТАТЬИ
+${params.extract}
+
+Верни ТОЛЬКО JSON-массив, без markdown, без пояснений.`;
+}
+
 export function buildBiographyFactRankingPrompt(params: {
   subjectName: string;
   facts: Array<{ index: number; year: number; labelHint: string; details: string; sphere: string }>;
