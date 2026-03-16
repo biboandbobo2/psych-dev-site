@@ -1169,7 +1169,7 @@ async function generateSimpleBiographyFacts(params: {
         config: {
           temperature: 0.1,
           maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
-          responseMimeType: 'application/json',
+          responseMimeType: 'text/plain',
         },
       });
 
