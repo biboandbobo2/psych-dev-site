@@ -9,6 +9,7 @@ import {
   buildBiographyTimelinePrompt,
   buildBiographyTimelineReviewPrompt,
   buildBiographyFactRankingPrompt,
+  buildBiographyFactEnrichmentPrompt,
   buildBiographyGapFillingPrompt,
   buildSimpleBiographyFactExtractionPrompt,
   buildBiographyEvaluationMetrics,
@@ -25,6 +26,7 @@ import {
   repairBiographyPlan,
   summarizeBiographyFacts,
   type BiographyCompositionStats,
+  type BiographyEventTheme,
   type BiographyExtractionMode,
   type BiographyFactCandidate,
   type BiographyGenerationStageDiagnostics,
@@ -1127,6 +1129,91 @@ async function rankBiographyFacts(params: {
   return { rankedFacts, rankingModel };
 }
 
+const VALID_THEMES = new Set<BiographyEventTheme>([
+  'upbringing_mentors', 'education', 'friends_network', 'romance',
+  'family_household', 'children', 'travel_moves_exile', 'service_career',
+  'creative_work', 'conflict_duels', 'losses', 'politics_public_pressure',
+  'health', 'legacy',
+]);
+
+async function enrichBiographyFactsWithThemes(params: {
+  apiKey: string;
+  subjectName: string;
+  facts: BiographyFactCandidate[];
+}): Promise<BiographyFactCandidate[]> {
+  const indexedFacts = params.facts.map((fact, index) => ({
+    index,
+    year: fact.year ?? 0,
+    details: fact.details ?? fact.evidence ?? '',
+  }));
+
+  const prompt = buildBiographyFactEnrichmentPrompt({
+    subjectName: params.subjectName,
+    facts: indexedFacts,
+  });
+
+  const client = getLectureGenAiClient(params.apiKey);
+  let rawText = '';
+
+  try {
+    const result = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        temperature: 0.05,
+        maxOutputTokens: 8192,
+        responseMimeType: 'text/plain',
+      },
+    });
+    rawText = collectGeminiResultText(result);
+  } catch (error) {
+    debugError('[timeline-biography] enrichment failed', { error });
+    return params.facts;
+  }
+
+  const enrichments = new Map<number, { themes: BiographyEventTheme[]; people: string[] }>();
+  for (const line of rawText.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const parts = trimmed.split(/\t/);
+    if (parts.length < 2) continue;
+    const index = parseInt(parts[0], 10);
+    if (isNaN(index)) continue;
+
+    const themesPart = parts[1] ?? '';
+    const themes = themesPart.split(',').map(t => t.trim()).filter(t => VALID_THEMES.has(t as BiographyEventTheme)) as BiographyEventTheme[];
+
+    const peoplePart = parts[2] ?? '';
+    const people = peoplePart ? peoplePart.split(',').map(p => p.trim()).filter(Boolean) : [];
+
+    if (themes.length > 0) {
+      enrichments.set(index, { themes, people });
+    }
+  }
+
+  debugLog('[timeline-biography] enrichment parsed', {
+    total: params.facts.length,
+    enriched: enrichments.size,
+    missing: params.facts.length - enrichments.size,
+  });
+
+  return params.facts.map((fact, index) => {
+    const enrichment = enrichments.get(index);
+    if (!enrichment) return fact;
+
+    const rankScore = (fact as BiographyFactCandidate & { rankScore?: number }).rankScore ?? 2;
+    const importance: 'high' | 'medium' | 'low' =
+      rankScore >= 4 ? 'high' : rankScore === 3 ? 'medium' : 'low';
+
+    return {
+      ...fact,
+      themes: enrichment.themes,
+      people: enrichment.people.length > 0 ? enrichment.people : fact.people,
+      importance,
+    };
+  });
+}
+
 function parseSimpleJsonFacts(rawText: string): BiographyFactCandidate[] {
   const cleaned = rawText.replace(/^```(?:json)?\s*\n?/gm, '').replace(/\n?```\s*$/gm, '').trim();
   let jsonText = cleaned.match(/\[[\s\S]*\]/)?.[0] ?? '';
@@ -1392,16 +1479,23 @@ async function runBiographyTwoPassExtraction(params: {
     facts: factsResult.facts,
   });
 
+  // Enrich facts with themes and people
+  const enrichedFacts = await enrichBiographyFactsWithThemes({
+    apiKey: params.apiKey,
+    subjectName,
+    facts: rankedFacts,
+  });
+
   return {
     ok: true,
     sourceUrl: params.sourceUrl,
     subjectName,
-    facts: rankedFacts,
+    facts: enrichedFacts,
     meta: {
-      factCount: rankedFacts.length,
+      factCount: enrichedFacts.length,
       extractionMode: 'two-pass' as BiographyExtractionMode,
-      model: `${factsResult.model} -> ${rankingModel}`,
-      promptVersion: 'two-pass-v4.1',
+      model: `${factsResult.model} -> ${rankingModel} -> enrichment`,
+      promptVersion: 'two-pass-v4.2',
       rawTextChars: fullExtract.length,
       strategy: 'two-pass-plaintext' as 'url-context',
       groundingSources: [],
