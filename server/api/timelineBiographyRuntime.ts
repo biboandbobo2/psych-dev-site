@@ -265,6 +265,10 @@ export function resolveRequiredGeminiApiKey(req: VercelRequest) {
 export function normalizeBiographyApiError(error: unknown) {
   const rawMessage = error instanceof Error ? error.message : 'Не удалось собрать таймлайн по биографии.';
 
+  if (rawMessage.startsWith('two-pass-flash-failed:')) {
+    return { statusCode: 500, message: rawMessage };
+  }
+
   if (/Request body|Wikipedia|статью|ссылк/i.test(rawMessage)) {
     return { statusCode: 400, message: rawMessage };
   }
