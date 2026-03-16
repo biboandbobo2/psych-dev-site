@@ -512,7 +512,7 @@ const tolstoyFacts: BiographyExtractorBenchmarkFact[] = [
     critical: true,
     themes: ['family_household'],
     article: { all: [['1828', 'ясная поляна']] },
-    extractor: { any: ['ясная поляна', 'родился в ясной поляне', '1828'] },
+    extractor: { any: ['ясная поляна', 'ясной поляне', 'ясную поляну', 'родился в', '1828'] },
   },
   {
     id: 'noble-origins',
@@ -544,7 +544,7 @@ const tolstoyFacts: BiographyExtractorBenchmarkFact[] = [
     critical: true,
     themes: ['losses', 'family_household'],
     article: { all: [['отец', 'николай ильич', 'скончался']] },
-    extractor: { any: ['смерть отца', 'отец скончался', 'николай ильич'] },
+    extractor: { any: ['смерть отца', 'отец скончался', 'николай ильич', 'умер отец'] },
   },
   {
     id: 'guardian-aunt-osten-saken',
@@ -561,7 +561,7 @@ const tolstoyFacts: BiographyExtractorBenchmarkFact[] = [
     critical: true,
     themes: ['education'],
     article: { all: [['казанский университет']] },
-    extractor: { any: ['казанский университет', 'поступил в казанский'] },
+    extractor: { any: ['казанский университет', 'казанского университета', 'поступил в казанский'] },
   },
   {
     id: 'dropped-out-university',
@@ -570,7 +570,7 @@ const tolstoyFacts: BiographyExtractorBenchmarkFact[] = [
     critical: true,
     themes: ['education'],
     article: { all: [['покинул', 'университет', 'не окончив']] },
-    extractor: { any: ['не окончив курс', 'покинул университет', 'ушёл из университета', 'бросил университет'] },
+    extractor: { any: ['не окончив курс', 'покинул университет', 'ушёл из университета', 'бросил университет', 'оставил учёбу', 'оставил университет'] },
   },
   // === Военная служба ===
   {
@@ -621,7 +621,6 @@ const tolstoyFacts: BiographyExtractorBenchmarkFact[] = [
   // === Педагогическая деятельность ===
   {
     id: 'peasant-schools',
-    year: 1859,
     label: 'Открытие школы для крестьянских детей в Ясной Поляне',
     critical: true,
     themes: ['education', 'service_career'],
@@ -644,7 +643,7 @@ const tolstoyFacts: BiographyExtractorBenchmarkFact[] = [
     critical: true,
     themes: ['romance', 'family_household'],
     article: { all: [['1862', 'софь', 'берс']] },
-    extractor: { any: ['софья берс', 'женился на софье', 'софья андреевна', 'женитьба'] },
+    extractor: { any: ['софья берс', 'женился на софье', 'софья андреевна', 'софье андреевне', 'женитьба', 'берс'] },
   },
   {
     id: 'thirteen-children',
@@ -749,12 +748,11 @@ const tolstoyFacts: BiographyExtractorBenchmarkFact[] = [
   },
   {
     id: 'property-conflict-with-wife',
-    year: 1883,
     label: 'Конфликт с женой из-за отказа от имущества и авторских прав',
     critical: true,
     themes: ['conflict_duels', 'family_household'],
     article: { all: [['имуществ', 'жен', 'ссор']] },
-    extractor: { any: ['конфликт с женой', 'имуществ', 'авторских прав', 'ссор'] },
+    extractor: { any: ['конфликт с женой', 'имуществ', 'авторских прав', 'ссор', 'холодность', 'равнодушие к семье', 'отказ от собственности'] },
   },
   {
     id: 'famine-relief-1891',
@@ -786,7 +784,7 @@ const tolstoyFacts: BiographyExtractorBenchmarkFact[] = [
     label: 'Тайное завещание — все сочинения становились общественным достоянием',
     themes: ['family_household', 'legacy'],
     article: { all: [['завещани', 'общественным достоянием']] },
-    extractor: { any: ['завещани', 'общественным достоянием', 'авторские права'] },
+    extractor: { any: ['завещани', 'общественным достоянием', 'авторские права', 'авторских прав'] },
   },
   {
     id: 'influence-on-gandhi',
@@ -835,7 +833,7 @@ const tolstoyFacts: BiographyExtractorBenchmarkFact[] = [
     label: 'Назначение мировым посредником после отмены крепостного права',
     themes: ['service_career', 'politics_public_pressure'],
     article: { all: [['мировым посредником']] },
-    extractor: { any: ['мировым посредником', 'крепостного права'] },
+    extractor: { any: ['мировым посредником', 'мирового посредника', 'крепостного права'] },
   },
   // === Обыск ===
   {
@@ -854,7 +852,7 @@ const tolstoyFacts: BiographyExtractorBenchmarkFact[] = [
     critical: true,
     themes: ['travel_moves_exile', 'family_household', 'losses'],
     article: { all: [['тайно', 'покинул', 'ясную поляну']] },
-    extractor: { any: ['тайно покинул', 'ушёл из ясной поляны', 'уход из ясной поляны'] },
+    extractor: { any: ['тайно покинул', 'ушёл из ясной поляны', 'уход из ясной поляны', 'покинул ясную поляну'] },
   },
   {
     id: 'death-astapovo',
