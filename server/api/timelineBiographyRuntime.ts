@@ -1136,41 +1136,7 @@ const VALID_THEMES = new Set<BiographyEventTheme>([
   'health', 'legacy',
 ]);
 
-async function enrichBiographyFactsWithThemes(params: {
-  apiKey: string;
-  subjectName: string;
-  facts: BiographyFactCandidate[];
-}): Promise<BiographyFactCandidate[]> {
-  const indexedFacts = params.facts.map((fact, index) => ({
-    index,
-    year: fact.year ?? 0,
-    details: fact.details ?? fact.evidence ?? '',
-  }));
-
-  const prompt = buildBiographyFactEnrichmentPrompt({
-    subjectName: params.subjectName,
-    facts: indexedFacts,
-  });
-
-  const client = getLectureGenAiClient(params.apiKey);
-  let rawText = '';
-
-  try {
-    const result = await client.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: {
-        temperature: 0.05,
-        maxOutputTokens: 8192,
-        responseMimeType: 'text/plain',
-      },
-    });
-    rawText = collectGeminiResultText(result);
-  } catch (error) {
-    debugError('[timeline-biography] enrichment failed', { error });
-    return params.facts;
-  }
-
+function parseEnrichmentResponse(rawText: string) {
   const enrichments = new Map<number, { themes: BiographyEventTheme[]; people: string[] }>();
   for (const line of rawText.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -1190,25 +1156,75 @@ async function enrichBiographyFactsWithThemes(params: {
       enrichments.set(index, { themes, people });
     }
   }
+  return enrichments;
+}
+
+const ENRICHMENT_BATCH_SIZE = 50;
+
+async function enrichBiographyFactsWithThemes(params: {
+  apiKey: string;
+  subjectName: string;
+  facts: BiographyFactCandidate[];
+}): Promise<BiographyFactCandidate[]> {
+  const client = getLectureGenAiClient(params.apiKey);
+  const allEnrichments = new Map<number, { themes: BiographyEventTheme[]; people: string[] }>();
+
+  // Split into batches to avoid Flash truncating output
+  const batches: Array<{ index: number; year: number; details: string }[]> = [];
+  for (let i = 0; i < params.facts.length; i += ENRICHMENT_BATCH_SIZE) {
+    const batch = params.facts.slice(i, i + ENRICHMENT_BATCH_SIZE).map((fact, j) => ({
+      index: i + j,
+      year: fact.year ?? 0,
+      details: fact.details ?? fact.evidence ?? '',
+    }));
+    batches.push(batch);
+  }
+
+  const settled = await Promise.allSettled(
+    batches.map(batch => {
+      const prompt = buildBiographyFactEnrichmentPrompt({
+        subjectName: params.subjectName,
+        facts: batch,
+      });
+      return client.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.05,
+          maxOutputTokens: 8192,
+          responseMimeType: 'text/plain',
+        },
+      });
+    })
+  );
+
+  for (const result of settled) {
+    if (result.status === 'fulfilled') {
+      const rawText = collectGeminiResultText(result.value);
+      const batchEnrichments = parseEnrichmentResponse(rawText);
+      for (const [index, enrichment] of batchEnrichments) {
+        allEnrichments.set(index, enrichment);
+      }
+    }
+  }
 
   debugLog('[timeline-biography] enrichment parsed', {
     total: params.facts.length,
-    enriched: enrichments.size,
-    missing: params.facts.length - enrichments.size,
+    batches: batches.length,
+    enriched: allEnrichments.size,
+    missing: params.facts.length - allEnrichments.size,
   });
 
   return params.facts.map((fact, index) => {
-    const enrichment = enrichments.get(index);
-    if (!enrichment) return fact;
-
+    const enrichment = allEnrichments.get(index);
     const rankScore = (fact as BiographyFactCandidate & { rankScore?: number }).rankScore ?? 2;
     const importance: 'high' | 'medium' | 'low' =
       rankScore >= 4 ? 'high' : rankScore === 3 ? 'medium' : 'low';
 
     return {
       ...fact,
-      themes: enrichment.themes,
-      people: enrichment.people.length > 0 ? enrichment.people : fact.people,
+      themes: enrichment?.themes ?? fact.themes,
+      people: enrichment?.people?.length ? enrichment.people : fact.people,
       importance,
     };
   });
