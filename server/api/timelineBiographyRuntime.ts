@@ -1072,7 +1072,8 @@ async function rankBiographyFacts(params: {
   let rankingModel = 'gemini-2.5-flash';
   let rawText = '';
 
-  for (const model of TIMELINE_BIOGRAPHY_MODELS) {
+  const rankModels = ['gemini-2.5-flash'] as const;
+  for (const model of rankModels) {
     try {
       const result = await client.models.generateContent({
         model,
@@ -1159,9 +1160,10 @@ async function generateSimpleBiographyFacts(params: {
   });
 
   const client = getLectureGenAiClient(params.apiKey);
+  const flashOnlyModels = ['gemini-2.5-flash'] as const;
   let lastError: unknown = null;
 
-  for (const model of TIMELINE_BIOGRAPHY_MODELS) {
+  for (const model of flashOnlyModels) {
     try {
       const result = await client.models.generateContent({
         model,
@@ -1173,18 +1175,24 @@ async function generateSimpleBiographyFacts(params: {
         },
       });
 
-      const facts = parseSimpleJsonFacts(collectGeminiResultText(result));
+      const rawText = collectGeminiResultText(result);
+      const facts = parseSimpleJsonFacts(rawText);
       if (facts.length > 0) {
         return { facts, model };
       }
+      debugError('[timeline-biography] simple extraction returned 0 facts', {
+        model,
+        rawTextLength: rawText.length,
+        rawTextPreview: rawText.slice(0, 200),
+      });
     } catch (error) {
       debugError('[timeline-biography] simple facts generation failed', { model, error });
       lastError = error;
     }
   }
 
-  const errorMessage = lastError instanceof Error ? lastError.message : 'unknown';
-  throw new Error(`Simple facts generation failed (all models): ${errorMessage}`);
+  const errorMessage = lastError instanceof Error ? lastError.message : 'Flash extraction returned 0 parseable facts';
+  throw new Error(`Two-pass extraction failed (Flash only): ${errorMessage}`);
 }
 
 async function runBiographyTwoPassExtraction(params: {
