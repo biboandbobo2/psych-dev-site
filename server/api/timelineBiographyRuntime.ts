@@ -1172,11 +1172,13 @@ async function generateSimpleBiographyFacts(params: {
   articleTitle: string;
   extract: string;
   focusHint?: string;
+  factLimit?: number;
 }): Promise<{ facts: BiographyFactCandidate[]; model: string }> {
   const prompt = buildSimpleBiographyFactExtractionPrompt({
     articleTitle: params.articleTitle,
     extract: params.extract,
     focusHint: params.focusHint,
+    factLimit: params.factLimit,
   });
 
   const client = getLectureGenAiClient(params.apiKey);
@@ -1210,34 +1212,107 @@ async function generateSimpleBiographyFacts(params: {
   throw new Error(`two-pass-flash-failed: ${errorMessage}`);
 }
 
+/**
+ * Split text into N roughly equal slices, breaking at paragraph boundaries.
+ */
+function splitTextIntoSlices(text: string, count: number): string[] {
+  if (count <= 1) return [text];
+  const targetSize = Math.ceil(text.length / count);
+  const slices: string[] = [];
+  let start = 0;
+
+  for (let i = 0; i < count - 1; i++) {
+    let end = start + targetSize;
+    // Try to break at a paragraph boundary (double newline) within ±20% of target
+    const searchStart = Math.max(start, end - Math.floor(targetSize * 0.2));
+    const searchEnd = Math.min(text.length, end + Math.floor(targetSize * 0.2));
+    const region = text.slice(searchStart, searchEnd);
+    const breakIdx = region.indexOf('\n\n');
+    if (breakIdx !== -1) {
+      end = searchStart + breakIdx + 2;
+    }
+    slices.push(text.slice(start, end));
+    start = end;
+  }
+  slices.push(text.slice(start));
+  return slices;
+}
+
+/**
+ * Deduplicate facts: if two facts share the same year and ≥3 overlapping keywords, keep the longer one.
+ */
+function deduplicateFacts(facts: BiographyFactCandidate[]): BiographyFactCandidate[] {
+  const stopWords = new Set(['в', 'и', 'на', 'с', 'по', 'из', 'за', 'от', 'к', 'до', 'для', 'не', 'о', 'об', 'его', 'её', 'был', 'была', 'были', 'году', 'год', 'года', 'лет']);
+
+  function extractKeywords(text: string): Set<string> {
+    return new Set(
+      text.toLowerCase().replace(/[«»"".,;:!?()—–\-]/g, ' ').split(/\s+/)
+        .filter(w => w.length > 2 && !stopWords.has(w))
+    );
+  }
+
+  const removed = new Set<number>();
+
+  for (let i = 0; i < facts.length; i++) {
+    if (removed.has(i)) continue;
+    for (let j = i + 1; j < facts.length; j++) {
+      if (removed.has(j)) continue;
+      const a = facts[i];
+      const b = facts[j];
+      // Same year (or both undefined)
+      if (a.year !== b.year) continue;
+      const kwA = extractKeywords(a.details);
+      const kwB = extractKeywords(b.details);
+      let shared = 0;
+      for (const w of kwA) {
+        if (kwB.has(w)) shared++;
+      }
+      if (shared >= 3) {
+        // Keep the longer/more detailed one
+        if (a.details.length >= b.details.length) {
+          removed.add(j);
+        } else {
+          removed.add(i);
+          break;
+        }
+      }
+    }
+  }
+
+  return facts.filter((_, idx) => !removed.has(idx));
+}
+
 async function runBiographyTwoPassExtraction(params: {
   sourceUrl: string;
   apiKey: string;
 }): Promise<BiographyExtractorSuccessPayload> {
   const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
   const fullExtract = wikiPage.biographyExtract || wikiPage.extract;
+  const len = fullExtract.length;
 
-  const sliceSize = 12000;
-  const slices: string[] = [];
-  if (fullExtract.length <= sliceSize) {
-    slices.push(fullExtract);
-  } else {
-    const mid = Math.floor(fullExtract.length / 2);
-    slices.push(fullExtract.slice(0, mid));
-    slices.push(fullExtract.slice(mid));
-  }
+  // Adaptive slice count: target ≤45K chars per slice
+  const sliceCount = len <= 30000 ? 1 : len <= 70000 ? 2 : len <= 130000 ? 3 : 4;
+  const slices = splitTextIntoSlices(fullExtract, sliceCount);
+
+  const subjectName = wikiPage.title;
 
   const settled = await Promise.allSettled(
-    slices.map((slice, index) =>
-      generateSimpleBiographyFacts({
+    slices.map((slice, index) => {
+      // Adaptive fact limit based on slice size (~1 fact per 1500 chars)
+      const factLimit = Math.max(20, Math.min(50, Math.round(slice.length / 1500)));
+
+      const focusHint = slices.length > 1
+        ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
+        : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
+
+      return generateSimpleBiographyFacts({
         apiKey: params.apiKey,
-        articleTitle: wikiPage.title,
+        articleTitle: subjectName,
         extract: slice,
-        focusHint: slices.length > 1
-          ? `Это часть ${index + 1} из ${slices.length}. Извлекай факты именно из этого фрагмента.`
-          : undefined,
-      })
-    )
+        focusHint,
+        factLimit,
+      });
+    })
   );
 
   let allFacts: BiographyFactCandidate[] = [];
@@ -1254,9 +1329,10 @@ async function runBiographyTwoPassExtraction(params: {
     throw new Error('two-pass-flash-failed: all slices returned 0 facts');
   }
 
-  const factsResult = { facts: allFacts, model: factsModel };
+  // Deduplicate overlapping facts from different slices
+  allFacts = deduplicateFacts(allFacts);
 
-  const subjectName = wikiPage.title;
+  const factsResult = { facts: allFacts, model: factsModel };
 
   const { rankedFacts, rankingModel } = await rankBiographyFacts({
     apiKey: params.apiKey,
@@ -1273,7 +1349,7 @@ async function runBiographyTwoPassExtraction(params: {
       factCount: rankedFacts.length,
       extractionMode: 'two-pass' as BiographyExtractionMode,
       model: `${factsResult.model} -> ${rankingModel}`,
-      promptVersion: 'two-pass-v2',
+      promptVersion: 'two-pass-v3',
       rawTextChars: fullExtract.length,
       strategy: 'two-pass-plaintext' as 'url-context',
       groundingSources: [],
