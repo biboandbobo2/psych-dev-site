@@ -1213,7 +1213,8 @@ async function runBiographyTwoPassExtraction(params: {
   apiKey: string;
 }): Promise<BiographyExtractorSuccessPayload> {
   const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
-  const extract = wikiPage.biographyExtract || wikiPage.extract;
+  const fullExtract = wikiPage.biographyExtract || wikiPage.extract;
+  const extract = fullExtract.slice(0, 20000);
 
   const factsResult = await generateSimpleBiographyFacts({
     apiKey: params.apiKey,
