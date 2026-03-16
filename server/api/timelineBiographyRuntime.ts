@@ -1085,7 +1085,7 @@ async function rankBiographyFacts(params: {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: {
           temperature: 0.05,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
           responseMimeType: 'text/plain',
         },
       });
@@ -1110,6 +1110,12 @@ async function rankBiographyFacts(params: {
       }
     }
   }
+
+  debugLog('[timeline-biography] ranking parsed', {
+    total: params.facts.length,
+    parsed: scores.size,
+    missing: params.facts.length - scores.size,
+  });
 
   const rankedFacts = params.facts.map((fact, index) => ({
     ...fact,
