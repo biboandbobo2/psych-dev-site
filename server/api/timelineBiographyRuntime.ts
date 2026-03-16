@@ -314,7 +314,7 @@ export function normalizeBiographyApiError(error: unknown) {
 
   return {
     statusCode: 500,
-    message: 'Не удалось собрать таймлайн по биографии. Попробуйте ещё раз позже.',
+    message: `Не удалось собрать таймлайн по биографии: ${rawMessage}`,
   };
 }
 
@@ -1183,7 +1183,8 @@ async function generateSimpleBiographyFacts(params: {
     }
   }
 
-  throw lastError ?? new Error('Simple facts generation failed');
+  const errorMessage = lastError instanceof Error ? lastError.message : 'unknown';
+  throw new Error(`Simple facts generation failed (all models): ${errorMessage}`);
 }
 
 async function runBiographyTwoPassExtraction(params: {
