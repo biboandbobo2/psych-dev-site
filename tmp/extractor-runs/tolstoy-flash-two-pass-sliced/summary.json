@@ -1,0 +1,25 @@
+{
+  "baseUrl": "https://psych-dev-site-2oktytwgo-alexey-zykovs-projects.vercel.app",
+  "extractionMode": "two-pass",
+  "sourceUrl": "https://ru.wikipedia.org/wiki/Толстой,_Лев_Николаевич",
+  "subjectName": "Толстой, Лев Николаевич",
+  "factCount": 73,
+  "benchmark": {
+    "total": 45,
+    "critical": 20,
+    "extractorCovered": 34,
+    "criticalCovered": 20,
+    "extractorRate": "76%",
+    "criticalRate": "100%"
+  },
+  "meta": {
+    "factCount": 73,
+    "extractionMode": "two-pass",
+    "model": "gemini-2.5-flash -> gemini-2.5-flash",
+    "promptVersion": "two-pass-v2",
+    "rawTextChars": 100913,
+    "strategy": "two-pass-plaintext",
+    "groundingSources": [],
+    "urlContextMetadata": []
+  }
+}
