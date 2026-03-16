@@ -1121,7 +1121,8 @@ async function rankBiographyFacts(params: {
 }
 
 function parseSimpleJsonFacts(rawText: string): BiographyFactCandidate[] {
-  const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+  const cleaned = rawText.replace(/^```(?:json)?\s*\n?/gm, '').replace(/\n?```\s*$/gm, '').trim();
+  const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return [];
 
   try {
@@ -1174,7 +1175,7 @@ async function generateSimpleBiographyFacts(params: {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: {
           temperature: 0.1,
-          maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
+          maxOutputTokens: 16384,
           responseMimeType: 'text/plain',
         },
       });
