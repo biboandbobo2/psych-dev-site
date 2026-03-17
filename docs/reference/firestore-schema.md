@@ -747,5 +747,30 @@ service cloud.firestore {
 
 ---
 
-**Последнее обновление:** 2026-01-09
+## Операционные коллекции
+
+### `opsRuntime/{docId}`
+
+Служебные документы runtime-автоматизации. Сейчас используется для дедупликации budget-alert уведомлений.
+
+Пример документа:
+
+```typescript
+{
+  periodKey: "2026-03",          // billing period в UTC
+  thresholdKey: "0.2",           // threshold-бакет budget alert
+  lastCostCents: 688,            // последний зафиксированный spend в центах
+  sentCount: 2,                  // сколько Telegram-сообщений уже ушло в этом threshold-бакете
+  updatedAt: Timestamp,          // server timestamp последнего обновления
+}
+```
+
+Примечания:
+- Коллекция не пользовательская, а operational/runtime.
+- Документы создаются Cloud Function `billingBudgetAlert`.
+- Предназначение: остановить повторяющиеся Telegram-сообщения, если расход больше не растёт.
+
+---
+
+**Последнее обновление:** 2026-03-17
 **Версия:** 1.0

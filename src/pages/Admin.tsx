@@ -4,7 +4,12 @@ import { Link, useLocation } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthProvider";
 import { auth } from "../lib/firebase";
+import {
+  getBillingSummary,
+  type BillingSummaryResponse,
+} from "../lib/adminFunctions";
 import { debugWarn } from "../lib/debug";
+import { BillingSummaryPanel } from "./admin/components/BillingSummaryPanel";
 
 type AssistantStats = {
   ok: boolean;
@@ -21,6 +26,9 @@ export default function Admin() {
   const [assistantStats, setAssistantStats] = useState<AssistantStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
+  const [billingSummary, setBillingSummary] = useState<BillingSummaryResponse | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
 
   const fetchAssistantStats = useCallback(async () => {
     if (!isAdmin) return;
@@ -47,10 +55,26 @@ export default function Admin() {
     }
   }, [isAdmin]);
 
+  const fetchBillingSummary = useCallback(async () => {
+    if (!isAdmin) return;
+    setBillingLoading(true);
+    setBillingError(null);
+    try {
+      const data = await getBillingSummary();
+      setBillingSummary(data);
+    } catch (error: any) {
+      debugWarn("[admin] billing summary error", error);
+      setBillingError(error?.message ?? "Не удалось получить billing summary");
+    } finally {
+      setBillingLoading(false);
+    }
+  }, [isAdmin]);
+
   useEffect(() => {
     if (!isAdmin) return;
     fetchAssistantStats();
-  }, [isAdmin, fetchAssistantStats]);
+    fetchBillingSummary();
+  }, [isAdmin, fetchAssistantStats, fetchBillingSummary]);
 
   return (
     <div className="p-6 space-y-6">
@@ -88,10 +112,19 @@ export default function Admin() {
       )}
 
       {isAdmin && (
+        <BillingSummaryPanel
+          summary={billingSummary}
+          loading={billingLoading}
+          error={billingError}
+          onRefresh={fetchBillingSummary}
+        />
+      )}
+
+      {isAdmin && (
         <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-5 space-y-3">
           <div className="flex flex-wrap items-center gap-3 justify-between">
             <div>
-              <h2 className="text-xl font-semibold">ИИ ассистент — суточное потребление</h2>
+              <h2 className="text-xl font-semibold">ИИ ассистент — локальная суточная оценка</h2>
               <p className="text-sm text-muted">
                 Оценка по длине запросов/ответов. Квота на пользователя: {assistantStats?.perUserDailyQuota ?? '—'} из {assistantStats?.totalDailyQuota ?? '—'}.
               </p>

@@ -1,6 +1,9 @@
 import * as functions from "firebase-functions";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { GoogleAuth } from "google-auth-library";
+import { evaluateBillingAlertDelivery, getBillingPeriodKey, getBillingThresholdKey, } from "./billingAlertState.js";
 import { sendTelegramMessage } from "./lib/telegram.js";
+import { ensureAdminApp } from "./lib/adminApp.js";
 function parseNumberEnv(value, fallback, label) {
     if (value === undefined || value === "") {
         return fallback;
@@ -27,6 +30,7 @@ function getBillingConfigFromEnv() {
         hardStopUsd: parseNumberEnv(process.env.BILLING_HARD_STOP_USD, 5, "BILLING_HARD_STOP_USD"),
         alertThreshold: parseNumberEnv(process.env.BILLING_ALERT_THRESHOLD, 0.2, "BILLING_ALERT_THRESHOLD"),
         hardStopThreshold: parseNumberEnv(process.env.BILLING_HARD_STOP_THRESHOLD, 1, "BILLING_HARD_STOP_THRESHOLD"),
+        alertMaxMessagesPerThreshold: parseNumberEnv(process.env.BILLING_ALERT_MAX_MESSAGES_PER_THRESHOLD, 2, "BILLING_ALERT_MAX_MESSAGES_PER_THRESHOLD"),
     };
 }
 export function parseBudgetMessage(message) {
@@ -80,7 +84,7 @@ async function disableBilling(projectId) {
         return { alreadyDisabled: true };
     }
     const response = await fetch(url, {
-        method: "PATCH",
+        method: "PUT",
         headers,
         body: JSON.stringify({
             billingAccountName: "",
@@ -92,9 +96,71 @@ async function disableBilling(projectId) {
     }
     return { alreadyDisabled: false };
 }
+function getBillingAlertStateDocId(projectId, budgetName) {
+    const normalizedBudgetName = budgetName.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return `billingBudgetAlert_${projectId}_${normalizedBudgetName || "budget"}`;
+}
+async function loadBillingAlertState(projectId, budgetName) {
+    ensureAdminApp();
+    const db = getFirestore();
+    const snapshot = await db
+        .collection("opsRuntime")
+        .doc(getBillingAlertStateDocId(projectId, budgetName))
+        .get();
+    if (!snapshot.exists) {
+        return null;
+    }
+    const data = snapshot.data();
+    if (!data?.periodKey || !data.thresholdKey) {
+        return null;
+    }
+    return {
+        periodKey: data.periodKey,
+        thresholdKey: data.thresholdKey,
+        lastCostCents: Number(data.lastCostCents || 0),
+        sentCount: Number(data.sentCount || 0),
+    };
+}
+async function storeBillingAlertState(projectId, budgetName, state) {
+    ensureAdminApp();
+    const db = getFirestore();
+    await db
+        .collection("opsRuntime")
+        .doc(getBillingAlertStateDocId(projectId, budgetName))
+        .set({
+        ...state,
+        updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+}
+async function shouldSendBudgetAlertMessage(payload, config, logger) {
+    try {
+        const previousState = await loadBillingAlertState(payload.projectId, payload.budgetName);
+        const decision = evaluateBillingAlertDelivery({
+            previousState,
+            periodKey: getBillingPeriodKey(),
+            thresholdKey: getBillingThresholdKey(payload.threshold),
+            costCents: Math.round(payload.costAmount * 100),
+            maxMessagesPerThreshold: config.alertMaxMessagesPerThreshold,
+        });
+        return {
+            shouldSend: decision.shouldSend,
+            persist: () => storeBillingAlertState(payload.projectId, payload.budgetName, decision.nextState),
+        };
+    }
+    catch (error) {
+        logger.warn("⚠️ Billing alert dedupe failed, continuing without dedupe", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return {
+            shouldSend: true,
+            persist: async () => undefined,
+        };
+    }
+}
 export async function handleBudgetAlert(payload, deps) {
     const { logger, sendMessage, disableBilling: disableBillingFn } = deps;
     const config = deps.config ?? getBillingConfigFromEnv();
+    const shouldSendBudgetAlertMessageFn = deps.shouldSendBudgetAlertMessage ?? shouldSendBudgetAlertMessage;
     const { costAmount, budgetAmount, currency, threshold, budgetName } = normalizeBudgetPayload(payload);
     const hasUsdCost = Number.isFinite(costAmount) && currency === "USD";
     const isHardStop = hasUsdCost
@@ -108,15 +174,34 @@ export async function handleBudgetAlert(payload, deps) {
         return;
     }
     if (isHardStop) {
+        const delivery = await shouldSendBudgetAlertMessageFn({
+            projectId: config.projectId,
+            budgetName,
+            threshold,
+            costAmount,
+        }, config, logger);
         const stopMessage = `⛔ *Hard Stop Triggered*\n\n` +
             `Budget: *${budgetName}*\n` +
             `Project: \`${config.projectId}\`\n` +
             `Billing: \`${config.billingAccountId}\`\n` +
             `Spend: *${costAmount.toFixed(2)} ${currency}* of ${budgetAmount.toFixed(2)} ${currency}\n` +
             `Threshold: ${(threshold * 100).toFixed(0)}%`;
-        await sendMessage(stopMessage);
+        if (delivery.shouldSend) {
+            await sendMessage(stopMessage);
+            await delivery.persist();
+        }
+        else {
+            logger.info("ℹ️ Skipping duplicate hard-stop Telegram alert", {
+                budgetName,
+                costAmount,
+                threshold,
+            });
+        }
         try {
             const result = await disableBillingFn(config.projectId);
+            if (!delivery.shouldSend) {
+                return;
+            }
             if (result.alreadyDisabled) {
                 await sendMessage(`ℹ️ Billing already disabled for project \`${config.projectId}\`.`);
                 return;
@@ -130,6 +215,20 @@ export async function handleBudgetAlert(payload, deps) {
         return;
     }
     if (isAlert) {
+        const delivery = await shouldSendBudgetAlertMessageFn({
+            projectId: config.projectId,
+            budgetName,
+            threshold,
+            costAmount,
+        }, config, logger);
+        if (!delivery.shouldSend) {
+            logger.info("ℹ️ Skipping duplicate budget Telegram alert", {
+                budgetName,
+                costAmount,
+                threshold,
+            });
+            return;
+        }
         const alertMessage = `💸 *GCP Budget Alert*\n\n` +
             `Budget: *${budgetName}*\n` +
             `Project: \`${config.projectId}\`\n` +
@@ -137,6 +236,7 @@ export async function handleBudgetAlert(payload, deps) {
             `Spend: *${costAmount.toFixed(2)} ${currency}* of ${budgetAmount.toFixed(2)} ${currency}\n` +
             `Threshold: ${(threshold * 100).toFixed(0)}%`;
         await sendMessage(alertMessage);
+        await delivery.persist();
     }
 }
 export const billingBudgetAlert = functions.pubsub

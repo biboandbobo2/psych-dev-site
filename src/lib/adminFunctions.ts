@@ -173,3 +173,39 @@ export async function toggleUserDisabled(params: ToggleUserDisabledParams) {
   const result = await toggle(params);
   return result.data;
 }
+
+export interface BillingSummarySku {
+  sku: string;
+  costUsd: number;
+}
+
+export interface BillingSummaryService {
+  service: string;
+  costUsd: number;
+  skus: BillingSummarySku[];
+}
+
+export interface BillingSummaryData {
+  projectId: string;
+  month: string;
+  monthLabel: string;
+  totalCostUsd: number;
+  lastUsageEnd: string | null;
+  recentDays: Array<{ date: string; costUsd: number }>;
+  services: BillingSummaryService[];
+  tableRef: string;
+  dataSource: "bigquery";
+}
+
+export type BillingSummaryResponse =
+  | { ok: true; configured: true; summary: BillingSummaryData }
+  | { ok: false; configured: false; error: string; diagnostics?: string[] };
+
+export async function getBillingSummary() {
+  const fn = httpsCallable<Record<string, never>, BillingSummaryResponse>(
+    functions,
+    "getBillingSummary"
+  );
+  const result = await fn({});
+  return result.data;
+}
