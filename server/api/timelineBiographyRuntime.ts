@@ -1275,7 +1275,7 @@ async function composeBiographyFactsIntoTimeline(params: {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     config: {
       temperature: 0.1,
-      maxOutputTokens: 16384,
+      maxOutputTokens: 65536,
       responseMimeType: 'application/json',
     },
   });
