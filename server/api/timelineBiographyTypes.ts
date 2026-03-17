@@ -3,7 +3,7 @@ export const TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS = 8192;
 export const MAX_WIKIPEDIA_PROMPT_EXTRACT_CHARS = 32000;
 export const LINE_X_POSITION = 2000;
 export const DEFAULT_BRANCH_LENGTH = 6;
-export const BRANCH_X_OFFSETS = [-500, 500, -900, 900, -1300, 1300, -1700, 1700] as const;
+export const BRANCH_X_OFFSETS = [-500, 500, -900, 900, -1300, 1300, -1700, 1700, -2100, 2100, -2500, 2500, -2900, 2900, -3300, 3300, -3700, 3700, -4100, 4100] as const;
 export const TIMELINE_PERIODIZATION_IDS = ['piaget', 'vygotsky', 'erikson', 'freud', 'montessori', 'gesell', 'kohlberg'] as const;
 export const EVENT_ICON_IDS = [
   'baby-swaddle',
@@ -287,17 +287,18 @@ export const WIKIPEDIA_HOST_PATTERN = /(?:^|\.)wikipedia\.org$/i;
 
 // Slot indices into BRANCH_X_OFFSETS: even=left, odd=right.
 // Each sphere prefers a distinct starting side so parallel branches spread naturally.
+const EXTRA_SLOTS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19] as const;
 export const BRANCH_SLOT_ORDER: Record<TimelineSphere, readonly number[]> = {
-  education: [0, 2, 1, 3, 4, 5, 6, 7],
-  career: [1, 3, 0, 2, 5, 4, 7, 6],
-  creativity: [1, 0, 3, 2, 5, 4, 7, 6],
-  family: [0, 2, 4, 1, 3, 5, 6, 7],
-  health: [0, 1, 2, 3, 4, 5, 6, 7],
-  friends: [2, 0, 1, 3, 4, 5, 6, 7],
-  place: [3, 1, 5, 0, 2, 4, 6, 7],
-  finance: [5, 1, 3, 0, 2, 4, 6, 7],
-  hobby: [6, 2, 0, 1, 3, 4, 5, 7],
-  other: [0, 1, 2, 3, 4, 5, 6, 7],
+  education: [0, 2, 1, 3, 4, 5, 6, 7, ...EXTRA_SLOTS],
+  career: [1, 3, 0, 2, 5, 4, 7, 6, ...EXTRA_SLOTS],
+  creativity: [1, 0, 3, 2, 5, 4, 7, 6, ...EXTRA_SLOTS],
+  family: [0, 2, 4, 1, 3, 5, 6, 7, ...EXTRA_SLOTS],
+  health: [0, 1, 2, 3, 4, 5, 6, 7, ...EXTRA_SLOTS],
+  friends: [2, 0, 1, 3, 4, 5, 6, 7, ...EXTRA_SLOTS],
+  place: [3, 1, 5, 0, 2, 4, 6, 7, ...EXTRA_SLOTS],
+  finance: [5, 1, 3, 0, 2, 4, 6, 7, ...EXTRA_SLOTS],
+  hobby: [6, 2, 0, 1, 3, 4, 5, 7, ...EXTRA_SLOTS],
+  other: [0, 1, 2, 3, 4, 5, 6, 7, ...EXTRA_SLOTS],
 };
 
 export const SPHERE_META: Record<TimelineSphere, { color: string; label: string; emoji: string }> = {
