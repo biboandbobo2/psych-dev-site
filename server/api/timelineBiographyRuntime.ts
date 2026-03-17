@@ -1139,7 +1139,7 @@ const VALID_THEMES = new Set<BiographyEventTheme>([
 ]);
 
 function parseEnrichmentResponse(rawText: string) {
-  const enrichments = new Map<number, { themes: BiographyEventTheme[]; people: string[] }>();
+  const enrichments = new Map<number, { themes: BiographyEventTheme[]; people: string[]; shortLabel?: string }>();
   for (const line of rawText.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed) continue;
@@ -1154,8 +1154,10 @@ function parseEnrichmentResponse(rawText: string) {
     const peoplePart = parts[2] ?? '';
     const people = peoplePart ? peoplePart.split(',').map(p => p.trim()).filter(Boolean) : [];
 
+    const shortLabel = parts[3]?.trim() || undefined;
+
     if (themes.length > 0) {
-      enrichments.set(index, { themes, people });
+      enrichments.set(index, { themes, people, shortLabel });
     }
   }
   return enrichments;
@@ -1169,7 +1171,7 @@ async function enrichBiographyFactsWithThemes(params: {
   facts: BiographyFactCandidate[];
 }): Promise<BiographyFactCandidate[]> {
   const client = getLectureGenAiClient(params.apiKey);
-  const allEnrichments = new Map<number, { themes: BiographyEventTheme[]; people: string[] }>();
+  const allEnrichments = new Map<number, { themes: BiographyEventTheme[]; people: string[]; shortLabel?: string }>();
 
   // Split into batches to avoid Flash truncating output
   const batches: Array<{ index: number; year: number; details: string }[]> = [];
@@ -1227,6 +1229,7 @@ async function enrichBiographyFactsWithThemes(params: {
       ...fact,
       themes: enrichment?.themes ?? fact.themes,
       people: enrichment?.people?.length ? enrichment.people : fact.people,
+      shortLabel: enrichment?.shortLabel ?? fact.shortLabel,
       importance,
     };
   });

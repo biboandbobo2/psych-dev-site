@@ -419,7 +419,7 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
     if (branchEvents.length === 0) return;
 
     const highestAge = branchEvents[branchEvents.length - 1]?.age ?? sourceNode.age;
-    const endAge = Math.max(sourceNode.age + DEFAULT_BRANCH_LENGTH, highestAge + 1);
+    const endAge = highestAge;
     const x = pickBranchX(sphere, sourceNode.age, endAge, occupiedLanes);
 
     edges.push({

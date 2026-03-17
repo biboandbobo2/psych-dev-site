@@ -362,25 +362,30 @@ export function parseLineBasedBiographyFactCandidates(rawText: string): Biograph
     const [kind, ...rest] = line.split('\t').map((part) => part.trim());
     if (kind !== 'FACT') continue;
 
+    // Detect format: new format has month at rest[1] (18 fields), old format has age at rest[1] (17 fields)
+    const hasMonth = rest.length >= 18 || (rest[1] === 'unknown' && rest[2] && rest[2] !== 'unknown' && !isNaN(Number(rest[2])));
+    const offset = hasMonth ? 1 : 0;
+
     facts.push({
       year: rest[0] && rest[0] !== 'unknown' ? normalizeNumber(rest[0]) : undefined,
-      age: rest[1] && rest[1] !== 'unknown' ? normalizeNumber(rest[1]) : undefined,
-      category: rest[2] || 'other',
-      eventType: normalizeEventType(rest[2]),
-      sphere: normalizeSphere(rest[3]) ?? undefined,
-      importance: parseImportance(rest[4]),
-      labelHint: rest[5] || '',
-      details: rest[6] || '',
-      evidence: rest[6] || rest[5] || '',
-      section: rest[7] || undefined,
-      confidence: parseConfidence(rest[8]),
-      timePrecision: parseTimePrecision(rest[9]),
-      ageMin: rest[10] && rest[10] !== 'unknown' ? normalizeNumber(rest[10]) : undefined,
-      ageMax: rest[11] && rest[11] !== 'unknown' ? normalizeNumber(rest[11]) : undefined,
-      themes: parseThemes(rest[12]),
-      people: parsePipeList(rest[13]),
-      relationRoles: parsePipeList(rest[14]),
-      ageLabel: rest[15] || undefined,
+      month: hasMonth && rest[1] && rest[1] !== 'unknown' ? normalizeNumber(rest[1]) : undefined,
+      age: rest[1 + offset] && rest[1 + offset] !== 'unknown' ? normalizeNumber(rest[1 + offset]) : undefined,
+      category: rest[2 + offset] || 'other',
+      eventType: normalizeEventType(rest[2 + offset]),
+      sphere: normalizeSphere(rest[3 + offset]) ?? undefined,
+      importance: parseImportance(rest[4 + offset]),
+      labelHint: rest[5 + offset] || '',
+      details: rest[6 + offset] || '',
+      evidence: rest[6 + offset] || rest[5 + offset] || '',
+      section: rest[7 + offset] || undefined,
+      confidence: parseConfidence(rest[8 + offset]),
+      timePrecision: parseTimePrecision(rest[9 + offset]),
+      ageMin: rest[10 + offset] && rest[10 + offset] !== 'unknown' ? normalizeNumber(rest[10 + offset]) : undefined,
+      ageMax: rest[11 + offset] && rest[11 + offset] !== 'unknown' ? normalizeNumber(rest[11 + offset]) : undefined,
+      themes: parseThemes(rest[12 + offset]),
+      people: parsePipeList(rest[13 + offset]),
+      relationRoles: parsePipeList(rest[14 + offset]),
+      ageLabel: rest[15 + offset] || undefined,
       source: 'model',
     });
   }

@@ -218,12 +218,15 @@ export function buildBiographyFactExtractionPrompt(params: {
 - Если точного года нет, но время можно оценить по фразам вроде "в детстве", "в лицейские годы", "в юности", "после выпуска", всё равно верни факт.
 - Для неточного времени используй timePrecision=approximate или inferred, age_or_unknown можешь оставить unknown, а возрастной диапазон передать через ageMin/ageMax и ageLabel.
 - Если в факте важен конкретный человек, заполняй people и relationRoles.
+- Если в тексте статьи указан конкретный месяц события, обязательно передай его в поле month (1-12). Если месяца нет — unknown.
 
 ФОРМАТ
 SUBJECT<TAB>subjectName
 BIRTH_YEAR<TAB>year|unknown
 DEATH_YEAR<TAB>year|unknown
-FACT<TAB>year|unknown<TAB>age_or_unknown<TAB>category<TAB>sphere<TAB>importance(high|medium|low)<TAB>labelHint<TAB>details/evidence<TAB>section<TAB>confidence(high|medium|low)<TAB>timePrecision(exact|year|approximate|inferred)<TAB>ageMin_or_unknown<TAB>ageMax_or_unknown<TAB>themes_pipe<TAB>people_pipe<TAB>relationRoles_pipe<TAB>ageLabel
+FACT<TAB>year|unknown<TAB>month(1-12)|unknown<TAB>age_or_unknown<TAB>category<TAB>sphere<TAB>importance(high|medium|low)<TAB>labelHint<TAB>details/evidence<TAB>section<TAB>confidence(high|medium|low)<TAB>timePrecision(exact|year|approximate|inferred)<TAB>ageMin_or_unknown<TAB>ageMax_or_unknown<TAB>themes_pipe<TAB>people_pipe<TAB>relationRoles_pipe<TAB>ageLabel
+
+month — номер месяца (1-12) если в тексте есть конкретный месяц. Если нет — unknown.
 
 category — короткая категория факта:
 birth
@@ -280,17 +283,17 @@ legacy
 SUBJECT\tЧеловек А
 BIRTH_YEAR\t1956
 DEATH_YEAR\t2024
-FACT\t1956\t0\tbirth\tfamily\thigh\tРождение\tРодился в Городе А.\tРанние годы\thigh\texact\t0\t0\tfamily_household\t\t\t0 лет
-FACT\tunknown\tunknown\tfamily\teducation\tmedium\tДомашний наставник\tВ раннем детстве ключевую роль играл домашний наставник.\tРанние годы\tmedium\tapproximate\t5\t7\tupbringing_mentors|education\tНаставник Б\tнаставник\tпримерно 5-7 лет
-FACT\t1967\t11\teducation\teducation\thigh\tПоступление в лицей\tНачал системное обучение.\tОбразование\thigh\tyear\t11\t11\teducation\t\t\t11 лет
-FACT\t1968\t12\tfriends\tfriends\tmedium\tЛицейский круг\tПоявились значимые друзья и переписка.\tОбразование\tmedium\tyear\t12\t12\tfriends_network\tДруг А|Друг Б\tдруг|друг\t12 лет
-FACT\t1974\t18\tmove\tplace\thigh\tПереезд в столицу\tПереехал ради учёбы и работы.\tПереезды\thigh\tyear\t18\t18\ttravel_moves_exile|service_career\t\t\t18 лет
-FACT\t1979\t23\tfamily\tfamily\thigh\tСмерть матери\tПосле смерти матери семейная ситуация резко изменилась.\tЛичная жизнь\thigh\tyear\t23\t23\tlosses|family_household\tМать\tмать\t23 года
-FACT\t1980\t24\tcareer\tcareer\thigh\tПервый профессиональный прорыв\tПолучил широкое признание.\tКарьера\thigh\tyear\t24\t24\tservice_career\t\t\t24 года
-FACT\t1984\t28\tfamily\tfamily\thigh\tОтношения с Анной Б.\tУ него начался заметный роман, отражённый в переписке.\tЛичная жизнь\tmedium\tyear\t28\t28\tromance\tАнна Б.\tвозлюбленная\t28 лет
-FACT\t1987\t31\tfamily\tfamily\thigh\tБрак\tСоздал семью.\tЛичная жизнь\thigh\tyear\t31\t31\tfamily_household\tСупруга В.\tсупруга\t31 год
-FACT\t1989\t33\tfamily\tfamily\tmedium\tРождение первого ребёнка\tВ семье родился первый ребёнок.\tЛичная жизнь\thigh\tyear\t33\t33\tchildren|family_household\tСын Г.\tсын\t33 года
-FACT\t2024\t68\tdeath\thealth\thigh\tСмерть\tЗавершение жизненного пути.\tПоследние годы\thigh\texact\t68\t68\tlosses|health\t\t\t68 лет
+FACT\t1956\t3\t0\tbirth\tfamily\thigh\tРождение\tРодился в Городе А в марте.\tРанние годы\thigh\texact\t0\t0\tfamily_household\t\t\t0 лет
+FACT\tunknown\tunknown\tunknown\tfamily\teducation\tmedium\tДомашний наставник\tВ раннем детстве ключевую роль играл домашний наставник.\tРанние годы\tmedium\tapproximate\t5\t7\tupbringing_mentors|education\tНаставник Б\tнаставник\tпримерно 5-7 лет
+FACT\t1967\tunknown\t11\teducation\teducation\thigh\tПоступление в лицей\tНачал системное обучение.\tОбразование\thigh\tyear\t11\t11\teducation\t\t\t11 лет
+FACT\t1968\t9\t12\tfriends\tfriends\tmedium\tЛицейский круг\tВ сентябре появились значимые друзья.\tОбразование\tmedium\tyear\t12\t12\tfriends_network\tДруг А|Друг Б\tдруг|друг\t12 лет
+FACT\t1974\t6\t18\tmove\tplace\thigh\tПереезд в столицу\tВ июне переехал ради учёбы и работы.\tПереезды\thigh\tyear\t18\t18\ttravel_moves_exile|service_career\t\t\t18 лет
+FACT\t1979\tunknown\t23\tfamily\tfamily\thigh\tСмерть матери\tПосле смерти матери семейная ситуация резко изменилась.\tЛичная жизнь\thigh\tyear\t23\t23\tlosses|family_household\tМать\tмать\t23 года
+FACT\t1980\tunknown\t24\tcareer\tcareer\thigh\tПервый профессиональный прорыв\tПолучил широкое признание.\tКарьера\thigh\tyear\t24\t24\tservice_career\t\t\t24 года
+FACT\t1984\t2\t28\tfamily\tfamily\thigh\tОтношения с Анной Б.\tВ феврале начался заметный роман.\tЛичная жизнь\tmedium\tyear\t28\t28\tromance\tАнна Б.\tвозлюбленная\t28 лет
+FACT\t1987\t7\t31\tfamily\tfamily\thigh\tБрак\tВ июле создал семью.\tЛичная жизнь\thigh\tyear\t31\t31\tfamily_household\tСупруга В.\tсупруга\t31 год
+FACT\t1989\tunknown\t33\tfamily\tfamily\tmedium\tРождение первого ребёнка\tВ семье родился первый ребёнок.\tЛичная жизнь\thigh\tyear\t33\t33\tchildren|family_household\tСын Г.\tсын\t33 года
+FACT\t2024\t11\t68\tdeath\thealth\thigh\tСмерть\tВ ноябре завершился жизненный путь.\tПоследние годы\thigh\texact\t68\t68\tlosses|health\t\t\t68 лет
 
 ИСТОЧНИК
 Статья: ${params.articleTitle}
@@ -785,6 +788,7 @@ export function buildBiographyFactEnrichmentPrompt(params: {
 Для каждого факта определи:
 1. **themes** — одну или две темы из списка ниже (основная тема первой)
 2. **people** — упомянутые в факте имена людей (кроме самого ${params.subjectName}). Если нет — пустой список.
+3. **shortLabel** — назывной заголовок факта, до 25 символов. Без глаголов. Конкретно и различающе. Примеры: «Побег из ссылки», «Брестский мир», «Убийство в Мексике», «Председатель Петросовета».
 
 ДОПУСТИМЫЕ ТЕМЫ (ровно эти значения, без вариаций):
 - upbringing_mentors — воспитание, наставники, ранние влияния
@@ -816,6 +820,6 @@ INDEX\tYEAR\tDETAILS
 ${factsBlock}
 
 ФОРМАТ ОТВЕТА
-Верни ТОЛЬКО строки в формате: INDEX<TAB>THEME1[,THEME2]<TAB>PERSON1,PERSON2 (или пусто если нет людей)
+Верни ТОЛЬКО строки в формате: INDEX<TAB>THEME1[,THEME2]<TAB>PERSON1,PERSON2 (или пусто)<TAB>shortLabel
 Одна строка на факт. Без заголовков, пояснений и markdown.`;
 }

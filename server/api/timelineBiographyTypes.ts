@@ -156,6 +156,7 @@ export type BiographyPlanDiagnostics = {
 
 export type BiographyTimelineFact = {
   year?: number;
+  month?: number;
   age?: number;
   timePrecision?: BiographyTimePrecision;
   ageMin?: number;
@@ -164,6 +165,7 @@ export type BiographyTimelineFact = {
   sphere?: TimelineSphere;
   category: string;
   labelHint: string;
+  shortLabel?: string;
   details: string;
   people?: string[];
   relationRoles?: string[];
