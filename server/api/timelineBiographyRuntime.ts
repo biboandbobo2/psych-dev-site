@@ -9,6 +9,7 @@ import {
   buildBiographyTimelinePrompt,
   buildBiographyTimelineReviewPrompt,
   buildBiographyFactRankingPrompt,
+  buildBiographyCompositionPrompt,
   buildBiographyFactEnrichmentPrompt,
   buildBiographyGapFillingPrompt,
   buildSimpleBiographyFactExtractionPrompt,
@@ -919,6 +920,7 @@ export type BiographyExtractorSuccessPayload = {
     }>;
   };
   subjectName: string | null;
+  composition?: BiographyCompositionResult;
 };
 
 export async function runBiographyImport(params: {
@@ -1230,6 +1232,82 @@ async function enrichBiographyFactsWithThemes(params: {
   });
 }
 
+export type BiographyCompositionResult = {
+  mainLine: number[];
+  branches: Array<{ name: string; sphere: string; facts: number[] }>;
+};
+
+async function composeBiographyFactsIntoTimeline(params: {
+  apiKey: string;
+  subjectName: string;
+  facts: BiographyFactCandidate[];
+}): Promise<BiographyCompositionResult> {
+  // Determine birth and death years from facts
+  const birthFact = params.facts.find(f => f.eventType === 'birth' || (f.category === 'birth'));
+  const birthYear = birthFact?.year ?? params.facts[0]?.year ?? 0;
+  const deathFact = params.facts.find(f =>
+    f.details?.includes('умер') || f.details?.includes('Умер') ||
+    f.details?.includes('скончал') || f.details?.includes('ранен') && f.details?.includes('смертельно')
+  );
+  const allYears = params.facts.map(f => f.year ?? 0).filter(y => y > 0 && y < 2100);
+  const deathYear = deathFact?.year ?? (allYears.length > 0 ? Math.max(...allYears) : null);
+
+  const indexedFacts = params.facts.map((fact, index) => ({
+    index,
+    year: fact.year ?? 0,
+    details: (fact.details ?? fact.evidence ?? '').slice(0, 120),
+    themes: (fact.themes ?? []).join(','),
+    people: (fact.people ?? []).join(','),
+    importance: fact.importance ?? 'medium',
+  }));
+
+  const prompt = buildBiographyCompositionPrompt({
+    subjectName: params.subjectName,
+    birthYear,
+    deathYear,
+    facts: indexedFacts,
+  });
+
+  const client = getLectureGenAiClient(params.apiKey);
+
+  const result = await client.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: {
+      temperature: 0.1,
+      maxOutputTokens: 16384,
+      responseMimeType: 'application/json',
+    },
+  });
+
+  const rawText = collectGeminiResultText(result);
+  const parsed = JSON.parse(rawText) as BiographyCompositionResult;
+
+  // Validate: check all indices present
+  const assigned = new Set<number>();
+  for (const idx of parsed.mainLine) assigned.add(idx);
+  for (const branch of parsed.branches) {
+    for (const idx of branch.facts) assigned.add(idx);
+  }
+
+  const missing = params.facts.map((_, i) => i).filter(i => !assigned.has(i));
+  debugLog('[timeline-biography] composition result', {
+    mainLine: parsed.mainLine.length,
+    branches: parsed.branches.length,
+    branchNames: parsed.branches.map(b => b.name),
+    assigned: assigned.size,
+    missing: missing.length,
+  });
+
+  // If facts were missed, add them to the closest branch by theme
+  if (missing.length > 0 && parsed.branches.length > 0) {
+    const lastBranch = parsed.branches[parsed.branches.length - 1];
+    lastBranch.facts.push(...missing);
+  }
+
+  return parsed;
+}
+
 function parseSimpleJsonFacts(rawText: string): BiographyFactCandidate[] {
   const cleaned = rawText.replace(/^```(?:json)?\s*\n?/gm, '').replace(/\n?```\s*$/gm, '').trim();
   let jsonText = cleaned.match(/\[[\s\S]*\]/)?.[0] ?? '';
@@ -1502,15 +1580,23 @@ async function runBiographyTwoPassExtraction(params: {
     facts: rankedFacts,
   });
 
+  // Compose facts into mainLine + narrative branches
+  const composition = await composeBiographyFactsIntoTimeline({
+    apiKey: params.apiKey,
+    subjectName,
+    facts: enrichedFacts,
+  });
+
   return {
     ok: true,
     sourceUrl: params.sourceUrl,
     subjectName,
     facts: enrichedFacts,
+    composition,
     meta: {
       factCount: enrichedFacts.length,
       extractionMode: 'two-pass' as BiographyExtractionMode,
-      model: `${factsResult.model} -> ${rankingModel} -> enrichment`,
+      model: `${factsResult.model} -> ${rankingModel} -> enrichment -> composition`,
       promptVersion: 'two-pass-v4.2',
       rawTextChars: fullExtract.length,
       strategy: 'two-pass-plaintext' as 'url-context',
