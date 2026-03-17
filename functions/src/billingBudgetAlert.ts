@@ -114,7 +114,7 @@ async function disableBilling(projectId: string) {
   }
 
   const response = await fetch(url, {
-    method: "PATCH",
+    method: "PUT",
     headers,
     body: JSON.stringify({
       billingAccountName: "",
