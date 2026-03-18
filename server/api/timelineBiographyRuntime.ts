@@ -624,9 +624,6 @@ async function runBiographyTwoPassExtraction(params: {
 
   const settled = await Promise.allSettled(
     slices.map((slice, index) => {
-      const charsPerFact = len > 100000 ? 1200 : 1000;
-      const factLimit = Math.max(25, Math.min(60, Math.round(slice.length / charsPerFact)));
-
       const focusHint = slices.length > 1
         ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
         : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
@@ -636,7 +633,6 @@ async function runBiographyTwoPassExtraction(params: {
         articleTitle: subjectName,
         extract: slice,
         focusHint,
-        factLimit,
       });
     })
   );
