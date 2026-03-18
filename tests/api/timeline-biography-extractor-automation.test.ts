@@ -90,30 +90,49 @@ describe('api/timeline-biography-extractor-automation', () => {
     expect(res.body.error).toContain('X-Gemini-Api-Key');
   });
 
-  it('возвращает raw facts из url-context extractor path', async () => {
-    geminiMocks.createInteraction.mockResolvedValueOnce({
-      outputs: [
-        {
-          type: 'text',
-          text: [
-        'SUBJECT\tМахатма Ганди',
-        'BIRTH_YEAR\t1869',
-        'DEATH_YEAR\t1948',
-        'FACT\t1869\t0\tbirth\tfamily\thigh\tРождение в Порбандаре\tРодился в Порбандаре.\tБиография\thigh\texact\t0\t0\tfamily_household\t\t\t0 лет',
-        'FACT\t1888\t19\teducation\teducation\thigh\tПоездка в Лондон\tВ 19 лет отправился в Лондон и получил юридическое образование.\tБиография\thigh\tyear\t19\t19\teducation|travel_moves_exile\t\t\t19 лет',
-        'FACT\t1893\t24\tcareer\tcareer\thigh\tПереезд в Южную Африку\tОтправился работать в Южную Африку и вступил в борьбу за права индийцев.\tБиография\thigh\tyear\t24\t24\tservice_career|travel_moves_exile\t\t\t24 года',
-          ].join('\n'),
-        },
-        {
-          type: 'url_context_result',
-          result: [
+  it('извлекает факты через two-pass pipeline', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        query: {
+          pages: [
             {
-              url: 'https://ru.wikipedia.org/wiki/Махатма_Ганди',
-              status: 'success',
+              title: 'Махатма Ганди',
+              extract: [
+                'Мохандас Карамчанд Ганди родился в Порбандаре в 1869 году.',
+                'В 1888 году отправился в Лондон изучать право.',
+                'В 1893 году переехал в Южную Африку.',
+                'В 1948 году был убит.',
+              ].join(' '),
+              fullurl: 'https://ru.wikipedia.org/wiki/Махатма_Ганди',
             },
           ],
         },
-      ],
+      }),
+    });
+
+    // 1. Extraction
+    geminiMocks.generateContent.mockResolvedValueOnce({
+      text: JSON.stringify([
+        { year: 1869, text: 'Родился в Порбандаре', category: 'birth', sphere: 'family' },
+        { year: 1888, text: 'Отправился в Лондон изучать право', category: 'education', sphere: 'education' },
+        { year: 1893, text: 'Переехал в Южную Африку', category: 'move', sphere: 'place' },
+        { year: 1948, text: 'Был убит', category: 'death', sphere: 'health' },
+      ]),
+    });
+    // 2. Gap-filling
+    geminiMocks.generateContent.mockResolvedValueOnce({ text: '[]' });
+    // 3. Ranking
+    geminiMocks.generateContent.mockResolvedValueOnce({ text: '0\t5\n1\t4\n2\t4\n3\t5' });
+    // 4. Enrichment
+    geminiMocks.generateContent.mockResolvedValueOnce({
+      text: '0\tfamily_household\t\tРождение\n1\teducation,travel_moves_exile\t\tЛондон\n2\ttravel_moves_exile\t\tЮжная Африка\n3\tconflict_duels\t\tУбийство',
+    });
+    // 5. Composition
+    geminiMocks.generateContent.mockResolvedValueOnce({
+      text: JSON.stringify({ mainLine: [0, 1, 2, 3], branches: [] }),
     });
 
     const req = mockReq({
@@ -129,57 +148,8 @@ describe('api/timeline-biography-extractor-automation', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(res.body.meta.extractionMode).toBe('general');
-    expect(res.body.meta.strategy).toBe('url-context');
-    expect(res.body.meta.promptVersion).toBe('url-context-extractor-v1');
-    expect(res.body.meta.urlContextMetadata[0].urlRetrievalStatus).toBe('success');
-    expect(res.body.facts.length).toBe(3);
-    expect(geminiMocks.createInteraction).toHaveBeenCalledTimes(1);
-  });
-
-  it('поддерживает editorial extraction mode', async () => {
-    geminiMocks.createInteraction.mockResolvedValueOnce({
-      outputs: [
-        {
-          type: 'text',
-          text: [
-            'SUBJECT\tМахатма Ганди',
-            'BIRTH_YEAR\t1869',
-            'DEATH_YEAR\t1948',
-            'FACT\tunknown\tunknown\tfamily\tfamily\thigh\tНабожная мать и вегетарианское воспитание\tОсобенно набожной была его мать, и в семье соблюдалось строжайшее вегетарианство.\tБиография\thigh\tapproximate\t5\t15\tupbringing_mentors|family_household\tПутлибай\tмать\tпримерно 5-15 лет',
-          ].join('\n'),
-        },
-        {
-          type: 'url_context_result',
-          result: [
-            {
-              url: 'https://ru.wikipedia.org/wiki/Махатма_Ганди',
-              status: 'success',
-            },
-          ],
-        },
-      ],
-    });
-
-    const req = mockReq({
-      headers: {
-        'content-type': 'application/json',
-        'x-gemini-api-key': 'user-key',
-      },
-      body: {
-        extractionMode: 'editorial',
-        sourceUrl: 'https://ru.wikipedia.org/wiki/Махатма_Ганди',
-      },
-    });
-    const res = mockRes();
-
-    await handler(req, res);
-
-    expect(res.statusCode).toBe(200);
-    expect(res.body.ok).toBe(true);
-    expect(res.body.meta.extractionMode).toBe('editorial');
-    expect(res.body.meta.promptVersion).toBe('url-context-editorial-extractor-v1');
-    expect(res.body.facts.length).toBe(1);
-    expect(geminiMocks.createInteraction).toHaveBeenCalledTimes(1);
+    expect(res.body.meta.extractionMode).toBe('two-pass');
+    expect(res.body.facts.length).toBe(4);
+    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(5);
   });
 });

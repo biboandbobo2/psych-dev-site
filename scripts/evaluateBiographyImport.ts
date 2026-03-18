@@ -6,7 +6,7 @@ import {
   TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
   TIMELINE_BIOGRAPHY_MODELS,
   buildBiographyEvaluationMetrics,
-  buildBiographyFactExtractionPrompt,
+  buildSimpleBiographyFactExtractionPrompt,
   buildHeuristicFactCandidates,
   buildTimelineDataFromBiographyPlan,
   composeBiographyPlanFromFacts,
@@ -122,7 +122,7 @@ async function generateModelFacts(params: {
     try {
       const result = await client.models.generateContent({
         model,
-        contents: [{ role: 'user', parts: [{ text: buildBiographyFactExtractionPrompt(params) }] }],
+        contents: [{ role: 'user', parts: [{ text: buildSimpleBiographyFactExtractionPrompt({ articleTitle: params.articleTitle, extract: params.extract }) }] }],
         config: {
           temperature: 0.1,
           maxOutputTokens: TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,

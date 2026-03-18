@@ -106,18 +106,26 @@ describe('api/timeline-biography-automation', () => {
         },
       }),
     });
+    // 1. Extraction
     geminiMocks.generateContent.mockResolvedValueOnce({
-      text: [
-        'SUBJECT\tАлександр Пушкин',
-        'FACT\t1799\t0\tbirth\tfamily\thigh\tРождение\tРодился в Москве.',
-        'FACT\t1805\t6\teducation\teducation\tmedium\tУвлечение чтением\tМного читал в домашней библиотеке.',
-        'FACT\t1811\t12\teducation\teducation\thigh\tПоступление в лицей\tНачал обучение в Царскосельском лицее.',
-        'FACT\t1815\t16\tpublication\tcreativity\thigh\tПервое признание\tПолучил известность после лицейского выступления.',
-        'FACT\t1817\t18\tcareer\tcareer\tmedium\tНачало службы\tПоступил на службу после окончания лицея.',
-        'FACT\t1820\t21\tpublication\tcreativity\thigh\t«Руслан и Людмила»\tОпубликовал поэму.',
-        'FACT\t1831\t31\tfamily\tfamily\thigh\tБрак с Натальей Гончаровой\tЖенился.',
-        'FACT\t1837\t37\tdeath\thealth\thigh\tДуэль и смерть\tПогиб после дуэли.',
-      ].join('\n'),
+      text: JSON.stringify([
+        { year: 1799, text: 'Родился в Москве', category: 'birth', sphere: 'family' },
+        { year: 1811, text: 'Поступил в Царскосельский лицей', category: 'education', sphere: 'education' },
+        { year: 1820, text: 'Опубликовал «Руслан и Людмила»', category: 'publication', sphere: 'creativity' },
+        { year: 1837, text: 'Погиб после дуэли', category: 'death', sphere: 'health' },
+      ]),
+    });
+    // 2. Gap-filling
+    geminiMocks.generateContent.mockResolvedValueOnce({ text: '[]' });
+    // 3. Ranking
+    geminiMocks.generateContent.mockResolvedValueOnce({ text: '0\t5\n1\t4\n2\t5\n3\t5' });
+    // 4. Enrichment
+    geminiMocks.generateContent.mockResolvedValueOnce({
+      text: '0\tfamily_household\t\tРождение\n1\teducation\t\tЛицей\n2\tcreative_work\t\t«Руслан и Людмила»\n3\tconflict_duels\tДантес\tДуэль и смерть',
+    });
+    // 5. Composition
+    geminiMocks.generateContent.mockResolvedValueOnce({
+      text: JSON.stringify({ mainLine: [0, 1, 2, 3], branches: [] }),
     });
 
     const req = mockReq({
@@ -133,8 +141,8 @@ describe('api/timeline-biography-automation', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(1);
-    expect(res.body.meta.factsModel).toBe('gemini-2.5-flash');
-    expect(res.body.timeline.nodes.length).toBeGreaterThan(0);
+    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(5);
+    expect(res.body.facts.length).toBeGreaterThanOrEqual(4);
+    expect(res.body.meta.extractionMode).toBe('two-pass');
   });
 });
