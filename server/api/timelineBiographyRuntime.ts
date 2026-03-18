@@ -517,7 +517,7 @@ async function generateSimpleBiographyFacts(params: {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: {
           temperature: 0.1,
-          maxOutputTokens: 16384,
+          maxOutputTokens: 65536,
           responseMimeType: 'text/plain',
         },
       });
@@ -563,7 +563,9 @@ function splitTextIntoSlices(text: string, count: number): string[] {
 }
 
 /**
- * Deduplicate facts: if two facts share the same year and ≥3 overlapping keywords, keep the longer one.
+ * Deduplicate facts:
+ * 1. Same year + ≥3 keyword overlap → keep the longer one
+ * 2. Dated fact vs undated fact with ≥3 keyword overlap → keep the dated one
  */
 function deduplicateFacts(facts: BiographyFactCandidate[]): BiographyFactCandidate[] {
   const stopWords = new Set(['в', 'и', 'на', 'с', 'по', 'из', 'за', 'от', 'к', 'до', 'для', 'не', 'о', 'об', 'его', 'её', 'был', 'была', 'были', 'году', 'год', 'года', 'лет']);
@@ -575,6 +577,14 @@ function deduplicateFacts(facts: BiographyFactCandidate[]): BiographyFactCandida
     );
   }
 
+  function countOverlap(kwA: Set<string>, kwB: Set<string>): number {
+    let shared = 0;
+    for (const w of kwA) {
+      if (kwB.has(w)) shared++;
+    }
+    return shared;
+  }
+
   const removed = new Set<number>();
 
   for (let i = 0; i < facts.length; i++) {
@@ -583,19 +593,30 @@ function deduplicateFacts(facts: BiographyFactCandidate[]): BiographyFactCandida
       if (removed.has(j)) continue;
       const a = facts[i];
       const b = facts[j];
-      if (a.year !== b.year) continue;
+
+      const sameYear = a.year != null && b.year != null && a.year === b.year;
+      const oneUndated = (a.year == null) !== (b.year == null);
+
+      // Only compare facts with same year OR when one is undated
+      if (!sameYear && !oneUndated) continue;
+
       const kwA = extractKeywords(a.details);
       const kwB = extractKeywords(b.details);
-      let shared = 0;
-      for (const w of kwA) {
-        if (kwB.has(w)) shared++;
-      }
+      const shared = countOverlap(kwA, kwB);
+
       if (shared >= 3) {
-        if (a.details.length >= b.details.length) {
-          removed.add(j);
+        if (oneUndated) {
+          // Prefer the dated fact
+          removed.add(a.year == null ? i : j);
+          if (a.year == null) break;
         } else {
-          removed.add(i);
-          break;
+          // Same year — prefer the longer description
+          if (a.details.length >= b.details.length) {
+            removed.add(j);
+          } else {
+            removed.add(i);
+            break;
+          }
         }
       }
     }
@@ -653,12 +674,13 @@ async function runBiographyTwoPassExtraction(params: {
 
   allFacts = deduplicateFacts(allFacts);
 
-  // Gap-filling pass
+  // Gap-filling pass: also send undated facts for dating
   try {
-    const existingFactTexts = allFacts.map(f => {
-      const yearPrefix = f.year ? `[${f.year}] ` : '';
-      return `${yearPrefix}${f.details}`;
-    });
+    const datedFacts = allFacts.filter(f => f.year != null);
+    const undatedFacts = allFacts.filter(f => f.year == null);
+
+    const existingFactTexts = datedFacts.map(f => `[${f.year}] ${f.details}`);
+    const undatedFactTexts = undatedFacts.map(f => f.details);
 
     const gapClient = getLectureGenAiClient(params.apiKey);
     const gapSlices = len > 100000 ? slices : [fullExtract];
@@ -669,19 +691,22 @@ async function runBiographyTwoPassExtraction(params: {
           articleTitle: subjectName,
           extract: sliceText,
           existingFacts: existingFactTexts,
+          undatedFacts: undatedFactTexts.length > 0 ? undatedFactTexts : undefined,
         });
         return gapClient.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
           config: {
             temperature: 0.1,
-            maxOutputTokens: 16384,
+            maxOutputTokens: 65536,
             responseMimeType: 'text/plain',
           },
         });
       })
     );
 
+    // Start from dated facts only; gap-filling returns both new facts and re-dated old ones
+    allFacts = [...datedFacts];
     for (const gapResult of gapSettled) {
       if (gapResult.status === 'fulfilled') {
         const gapRawText = collectGeminiResultText(gapResult.value);
