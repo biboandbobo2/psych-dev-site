@@ -9,7 +9,7 @@ import {
   buildSimpleBiographyFactExtractionPrompt,
   buildHeuristicFactCandidates,
   buildTimelineDataFromBiographyPlan,
-  composeBiographyPlanFromFacts,
+  buildPlanFromCompositionResult,
   fetchWikipediaPlainExtract,
   hasFatalBiographyIssues,
   lintBiographyPlan,
@@ -17,6 +17,7 @@ import {
   parseLineBasedBiographyFactCandidates,
   repairBiographyPlan,
   type BiographyFactCandidate,
+  type BiographyCompositionResult,
   type BiographyLintIssue,
 } from '../server/api/timelineBiography.js';
 
@@ -199,13 +200,19 @@ async function run() {
     heuristicFacts,
     extract: wikiPage.extract,
   });
-  const composed = composeBiographyPlanFromFacts({
+
+  // Build a stub composition (all facts on mainLine, no branches) for evaluation
+  const stubComposition: BiographyCompositionResult = {
+    mainLine: mergedFacts.map((_, i) => i),
+    branches: [],
+  };
+  const plan = buildPlanFromCompositionResult({
+    subjectName: wikiPage.title,
     facts: mergedFacts,
-    articleTitle: wikiPage.title,
-    extract: wikiPage.extract,
+    composition: stubComposition,
   });
   const repairedPlan = repairBiographyPlan({
-    plan: composed.plan,
+    plan,
     facts: mergedFacts,
   });
   const lintIssues = lintBiographyPlan(repairedPlan);
@@ -242,8 +249,8 @@ async function run() {
   printLine(`approximateEvents: ${metrics.plan.approximateEvents}`);
   printLine(`earlyLifeEvents: ${metrics.plan.earlyLifeEvents}`);
   printLine(`birthAnchoredBranches: ${metrics.plan.birthAnchoredBranches}`);
-  printLine(`compositionFacts: ${composed.stats.facts}`);
-  printLine(`compositionDiscardedFacts: ${composed.stats.discardedFacts}`);
+  printLine(`compositionFacts: ${mergedFacts.length}`);
+  printLine(`compositionDiscardedFacts: 0`);
 
   printSection('LINT');
   printLine(`fatal: ${hasFatalBiographyIssues(lintIssues)}`);
@@ -263,7 +270,7 @@ async function run() {
     heuristicFacts,
     mergedFacts,
     plan: repairedPlan,
-    compositionStats: composed.stats,
+    compositionStats: { facts: mergedFacts.length, discardedFacts: 0 },
     lintIssues,
     metrics,
     timeline,

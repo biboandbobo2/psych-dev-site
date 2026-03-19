@@ -23,7 +23,7 @@ declare global {
   }
 }
 
-const WORLD_WIDTH = 4000;
+const DEFAULT_WORLD_WIDTH = 4000;
 
 function parseBirthYear(dateValue: string | undefined) {
   if (!dateValue) return null;
@@ -65,6 +65,16 @@ export default function TimelineAutomation() {
   const currentAge = timeline?.currentAge ?? 0;
   const ageMax = timeline?.ageMax ?? 100;
   const worldHeight = ageMax * YEAR_PX + 500;
+  const worldWidth = useMemo(() => {
+    if (!timeline) return DEFAULT_WORLD_WIDTH;
+    const nodeXs = timeline.nodes.map(n => n.x ?? 2000);
+    const edgeXs = timeline.edges.map(e => e.x);
+    const allX = [...nodeXs, ...edgeXs, 2000];
+    const maxX = Math.max(...allX);
+    const minX = Math.min(...allX);
+    const needed = Math.max(maxX + 600, 2000 + (2000 - minX) + 600);
+    return Math.max(DEFAULT_WORLD_WIDTH, Math.ceil(needed / 500) * 500);
+  }, [timeline]);
   const birthBaseYear = parseBirthYear(timeline?.birthDetails?.date);
   const currentYearLabel = birthBaseYear !== null ? birthBaseYear + currentAge : null;
   const exportFilenamePrefix = useMemo(() => {
@@ -197,7 +207,7 @@ export default function TimelineAutomation() {
               onSelectBranch={() => {}}
               onClearSelection={() => {}}
               onSelectBirth={() => {}}
-              worldWidth={WORLD_WIDTH}
+              worldWidth={worldWidth}
               worldHeight={worldHeight}
               ageMax={timeline.ageMax}
               currentAge={timeline.currentAge}

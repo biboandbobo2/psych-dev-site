@@ -7,12 +7,15 @@ import {
   buildBiographyCompositionPrompt,
   buildBiographyGapFillingPrompt,
   buildSimpleBiographyFactExtractionPrompt,
+  buildPlanFromCompositionResult,
   fetchWikipediaPlainExtract,
   type BiographyEventTheme,
   type BiographyExtractionMode,
   type BiographyFactCandidate,
   type BiographyImportRequest,
+  type BiographyTimelineData,
 } from './timelineBiography.js';
+import { buildTimelineDataFromBiographyPlan } from './timelineBiographyQuality.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -159,15 +162,14 @@ export function normalizeBiographyApiError(error: unknown) {
 // Payload types
 // ---------------------------------------------------------------------------
 
-export type BiographyCompositionResult = {
-  mainLine: number[];
-  branches: Array<{ name: string; sphere: string; facts: number[] }>;
-};
+import type { BiographyCompositionResult } from './timelineBiographyTypes.js';
 
 export type BiographyExtractorSuccessPayload = {
   ok: true;
   sourceUrl: string;
+  canvasName?: string;
   facts: BiographyFactCandidate[];
+  timeline?: BiographyTimelineData;
   meta: {
     factCount: number;
     extractionMode: BiographyExtractionMode;
@@ -177,9 +179,23 @@ export type BiographyExtractorSuccessPayload = {
     strategy: 'url-context' | 'google-search-grounding';
     groundingSources: Array<{ title?: string; uri?: string }>;
     urlContextMetadata: Array<{ retrievedUrl?: string; urlRetrievalStatus?: string }>;
+    planDiagnostics?: {
+      source: string;
+      mainEvents: number;
+      branches: number;
+      branchEvents: number;
+      hasBirthDate: boolean;
+      hasBirthPlace: boolean;
+    };
+    timelineStats?: {
+      nodes: number;
+      edges: number;
+      hasBirthDate: boolean;
+      hasBirthPlace: boolean;
+    };
   };
   subjectName: string | null;
-  composition?: BiographyCompositionResult;
+  composition?: import('./timelineBiographyTypes.js').BiographyCompositionResult;
 };
 
 // ---------------------------------------------------------------------------
@@ -754,21 +770,65 @@ async function runBiographyTwoPassExtraction(params: {
     facts: finalFacts,
   });
 
+  // Convert composition → plan → timeline data
+  let timeline: BiographyTimelineData | undefined;
+  let planDiagnostics: BiographyExtractorSuccessPayload['meta']['planDiagnostics'];
+  let timelineStats: BiographyExtractorSuccessPayload['meta']['timelineStats'];
+
+  try {
+    const plan = buildPlanFromCompositionResult({
+      subjectName,
+      facts: finalFacts,
+      composition,
+    });
+
+    timeline = buildTimelineDataFromBiographyPlan(plan);
+
+    planDiagnostics = {
+      source: 'facts-first',
+      mainEvents: plan.mainEvents.length,
+      branches: plan.branches.length,
+      branchEvents: plan.branches.reduce((sum, b) => sum + b.events.length, 0),
+      hasBirthDate: Boolean(plan.birthDetails?.date),
+      hasBirthPlace: Boolean(plan.birthDetails?.place),
+    };
+
+    timelineStats = {
+      nodes: timeline.nodes.length,
+      edges: timeline.edges.length,
+      hasBirthDate: Boolean(timeline.birthDetails?.date),
+      hasBirthPlace: Boolean(timeline.birthDetails?.place),
+    };
+
+    debugLog('[timeline-biography] timeline built', {
+      mainEvents: plan.mainEvents.length,
+      branches: plan.branches.length,
+      nodes: timeline.nodes.length,
+      edges: timeline.edges.length,
+    });
+  } catch (error) {
+    debugError('[timeline-biography] plan/timeline conversion failed — returning facts without timeline', { error });
+  }
+
   return {
     ok: true,
     sourceUrl: params.sourceUrl,
+    canvasName: subjectName,
     subjectName,
     facts: finalFacts,
+    timeline,
     composition,
     meta: {
       factCount: finalFacts.length,
       extractionMode: 'two-pass' as BiographyExtractionMode,
-      model: `${factsResult.model} -> annotation -> redaktura -> composition`,
-      promptVersion: 'two-pass-v5',
+      model: `${factsResult.model} -> annotation -> redaktura -> composition -> render`,
+      promptVersion: 'two-pass-v6',
       rawTextChars: fullExtract.length,
       strategy: 'two-pass-plaintext' as 'url-context',
       groundingSources: [],
       urlContextMetadata: [],
+      planDiagnostics,
+      timelineStats,
     },
   };
 }

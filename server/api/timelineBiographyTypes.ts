@@ -241,6 +241,11 @@ export type BiographyLintIssue = {
   label?: string;
 };
 
+export type BiographyCompositionResult = {
+  mainLine: number[];
+  branches: Array<{ name: string; sphere: string; facts: number[] }>;
+};
+
 export type BiographyCompositionStats = {
   facts: number;
   selectedMainEvents: number;

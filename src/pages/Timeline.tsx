@@ -432,7 +432,16 @@ export default function Timeline() {
     resetTransientTimelineUi();
   }, [activeTimelineId, resetTransientTimelineUi]);
 
-  const worldWidth = 4000;
+  const worldWidth = useMemo(() => {
+    const nodeXs = nodes.map(n => n.x ?? LINE_X_POSITION);
+    const edgeXs = edges.map(e => e.x);
+    const allX = [...nodeXs, ...edgeXs, LINE_X_POSITION];
+    const maxX = Math.max(...allX);
+    const minX = Math.min(...allX);
+    // Ensure space for labels on both sides (~600px margin)
+    const needed = Math.max(maxX + 600, LINE_X_POSITION + (LINE_X_POSITION - minX) + 600);
+    return Math.max(4000, Math.ceil(needed / 500) * 500);
+  }, [nodes, edges]);
   const worldHeight = ageMax * YEAR_PX + 500;
   const adaptiveRadius = clamp(BASE_NODE_RADIUS / transform.k, MIN_NODE_RADIUS, MAX_NODE_RADIUS);
 

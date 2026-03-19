@@ -431,19 +431,61 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
       nodeId: sourceNode.id,
     });
 
-    branchEvents.forEach((event) => {
+    // Group events by age to detect same-age collisions
+    const eventsByAge = new Map<number, BiographyTimelineEventPlan[]>();
+    for (const event of branchEvents) {
+      const group = eventsByAge.get(event.age) ?? [];
+      group.push(event);
+      eventsByAge.set(event.age, group);
+    }
+
+    // Sub-branch offsets: alternating left/right from parent branch
+    const SUB_BRANCH_OFFSETS = [400, -400, 700, -700, 1000, -1000];
+
+    for (const [age, eventsAtAge] of eventsByAge) {
+      // First event goes on the main branch line
+      const first = eventsAtAge[0];
       nodes.push({
         id: crypto.randomUUID(),
-        age: event.age,
+        age: first.age,
         x,
         parentX: x,
-        label: event.label,
-        notes: event.notes,
-        sphere: event.sphere ?? sphere,
-        isDecision: event.isDecision,
-        iconId: event.iconId,
+        label: first.label,
+        notes: first.notes,
+        sphere: first.sphere ?? sphere,
+        isDecision: first.isDecision,
+        iconId: first.iconId,
       });
-    });
+
+      // Additional events at the same age become sub-branches (spurs)
+      for (let i = 1; i < eventsAtAge.length; i++) {
+        const event = eventsAtAge[i];
+        const subOffset = SUB_BRANCH_OFFSETS[i - 1] ?? ((i % 2 === 0 ? -1 : 1) * Math.ceil(i / 2) * 400);
+        const subX = x + subOffset;
+
+        // Add a mini edge for the sub-branch
+        edges.push({
+          id: crypto.randomUUID(),
+          x: subX,
+          startAge: age,
+          endAge: age,
+          color: SPHERE_META[sphere].color,
+          nodeId: crypto.randomUUID(), // standalone spur
+        });
+
+        nodes.push({
+          id: crypto.randomUUID(),
+          age: event.age,
+          x: subX,
+          parentX: x,
+          label: event.label,
+          notes: event.notes,
+          sphere: event.sphere ?? sphere,
+          isDecision: event.isDecision,
+          iconId: event.iconId,
+        });
+      }
+    }
   });
 
   const maxNodeAge = nodes.reduce((max, node) => Math.max(max, node.age), 0);

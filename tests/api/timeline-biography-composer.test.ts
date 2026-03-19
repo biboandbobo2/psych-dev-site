@@ -1,58 +1,100 @@
 import { describe, expect, it } from 'vitest';
-import { composeBiographyPlanFromFacts } from '../../server/api/timelineBiographyComposer.js';
-import { parseLineBasedBiographyFactCandidates } from '../../server/api/timelineBiographyFacts.js';
+import { buildPlanFromCompositionResult } from '../../server/api/timelineBiographyComposer.js';
+import type { BiographyFactCandidate, BiographyCompositionResult } from '../../server/api/timelineBiographyTypes.js';
 
-describe('timelineBiographyComposer', () => {
-  it('строит main line с насыщенной ранней жизнью и не якорит ветки к рождению', () => {
-    const facts = parseLineBasedBiographyFactCandidates([
-      'FACT\t1799\t0\tbirth\tfamily\thigh\tРождение\tРодился в Москве.',
-      'FACT\t1805\t6\teducation\teducation\tmedium\tУвлечение чтением\tМного читал в домашней библиотеке.',
-      'FACT\t1811\t12\teducation\teducation\thigh\tПоступление в лицей\tНачал обучение в Царскосельском лицее.',
-      'FACT\t1815\t16\tpublication\tcreativity\thigh\tПервое признание\tПолучил известность после лицейского выступления.',
-      'FACT\t1817\t18\tcareer\tcareer\tmedium\tНачало службы\tПоступил на службу после окончания лицея.',
-      'FACT\t1820\t21\tpublication\tcreativity\thigh\t«Руслан и Людмила»\tОпубликовал поэму.',
-      'FACT\t1822\t23\tfriends\tfriends\tmedium\tЛитературный круг\tВошёл в литературное общество.',
-      'FACT\t1824\t25\tmove\tplace\thigh\tЮжная ссылка\tБыл сослан на юг.',
-      'FACT\t1825\t26\tproject\tcreativity\thigh\t«Борис Годунов»\tЗавершил драму «Борис Годунов».',
-      'FACT\t1831\t31\tfamily\tfamily\thigh\tБрак с Натальей Гончаровой\tЖенился.',
-      'FACT\t1833\t34\tpublication\tcreativity\thigh\t«Евгений Онегин»\tЗавершил роман в стихах.',
-      'FACT\t1836\t37\tpublication\tcreativity\tmedium\t«Современник»\tОсновал журнал «Современник».',
-      'FACT\t1837\t37\tdeath\thealth\thigh\tДуэль и смерть\tПогиб после дуэли.',
-    ].join('\n'));
+function makeFact(overrides: Partial<BiographyFactCandidate> & { year: number; details: string }): BiographyFactCandidate {
+  return {
+    age: undefined,
+    sphere: 'other',
+    category: overrides.category ?? 'other',
+    eventType: (overrides.category ?? 'other') as BiographyFactCandidate['eventType'],
+    labelHint: overrides.details,
+    shortLabel: overrides.shortLabel ?? overrides.details.slice(0, 25),
+    details: overrides.details,
+    evidence: overrides.details,
+    importance: overrides.importance ?? 'medium',
+    confidence: 'medium',
+    source: 'model',
+    ...overrides,
+  };
+}
 
-    const result = composeBiographyPlanFromFacts({
+describe('buildPlanFromCompositionResult', () => {
+  it('фильтрует рождение из mainLine и ставит в birthDetails', () => {
+    const facts: BiographyFactCandidate[] = [
+      makeFact({ year: 1799, details: 'Родился в Москве', category: 'birth', importance: 'high' }),
+      makeFact({ year: 1811, details: 'Поступил в лицей', category: 'education', importance: 'high' }),
+      makeFact({ year: 1837, details: 'Погиб после дуэли', category: 'death', importance: 'high' }),
+    ];
+    const composition: BiographyCompositionResult = {
+      mainLine: [0, 1, 2],
+      branches: [],
+    };
+
+    const plan = buildPlanFromCompositionResult({
+      subjectName: 'Пушкин',
       facts,
-      articleTitle: 'Пушкин, Александр Сергеевич',
-      extract: 'Пушкин родился в 1799 году и погиб в 1837 году.',
+      composition,
     });
 
-    expect(result.plan.mainEvents.filter((event) => event.age <= 18).length).toBeGreaterThanOrEqual(4);
-    expect(result.plan.mainEvents.every((event) => Boolean(event.notes?.trim()))).toBe(true);
-    expect(result.plan.branches.length).toBeGreaterThanOrEqual(1);
-    expect(result.plan.branches.every((branch) => branch.sourceMainEventIndex > 0)).toBe(true);
+    // Birth should NOT be in mainEvents
+    expect(plan.mainEvents.every(e => e.label !== 'Родился в Москве')).toBe(true);
+    // Birth year should be reflected in birthDetails
+    expect(plan.birthDetails?.date).toContain('1799');
+    // Other events should be on mainLine
+    expect(plan.mainEvents.length).toBe(2);
   });
 
-  it('не тащит постсмертные факты в life timeline умершего человека', () => {
-    const facts = parseLineBasedBiographyFactCandidates([
-      'FACT\t1828\t0\tbirth\tfamily\thigh\tРождение\tРодился в Ясной Поляне.',
-      'FACT\t1852\t24\tpublication\tcreativity\thigh\t«Детство»\tОпубликовал повесть «Детство».',
-      'FACT\t1910\t82\tdeath\thealth\thigh\tСмерть\tУмер на станции Астапово.',
-      'FACT\t1913\t85\tother\tother\tmedium\tВ январе 1913 года было\tВ январе 1913 года было опубликовано письмо графини.',
-      'FACT\t1944\t116\tother\tother\tmedium\tСмерть Михаила\tСкончался 19 октября 1944 года в Марокко.',
-    ].join('\n'));
+  it('строит ветки с правильными привязками к главной линии', () => {
+    const facts: BiographyFactCandidate[] = [
+      makeFact({ year: 1849, details: 'Родился в Рязани', category: 'birth' }),
+      makeFact({ year: 1870, details: 'Поступил в ВМА', category: 'education', importance: 'high' }),
+      makeFact({ year: 1904, details: 'Нобелевская премия', category: 'award', importance: 'high' }),
+      makeFact({ year: 1936, details: 'Умер', category: 'death', importance: 'high' }),
+      // Branch facts
+      makeFact({ year: 1875, details: 'Работа с собаками', category: 'project', sphere: 'career' }),
+      makeFact({ year: 1890, details: 'Условные рефлексы', category: 'project', sphere: 'career' }),
+      makeFact({ year: 1897, details: 'Лекции по физиологии', category: 'publication', sphere: 'career' }),
+    ];
+    const composition: BiographyCompositionResult = {
+      mainLine: [0, 1, 2, 3],
+      branches: [
+        { name: 'Научная работа', sphere: 'career', facts: [4, 5, 6] },
+      ],
+    };
 
-    const result = composeBiographyPlanFromFacts({
+    const plan = buildPlanFromCompositionResult({
+      subjectName: 'Павлов',
       facts,
-      articleTitle: 'Толстой, Лев Николаевич',
-      extract: [
-        'Лев Николаевич Толстой (1828—1910).',
-        'В 1852 году опубликовал повесть «Детство».',
-        'В 1910 году умер на станции Астапово.',
-      ].join(' '),
+      composition,
     });
 
-    expect(result.plan.currentAge).toBe(82);
-    expect(result.plan.mainEvents.some((event) => event.age > 82)).toBe(false);
-    expect(result.plan.mainEvents.some((event) => event.label.includes('1913'))).toBe(false);
+    expect(plan.branches.length).toBe(1);
+    expect(plan.branches[0].label).toBe('Научная работа');
+    expect(plan.branches[0].events.length).toBe(3);
+    // Anchor should be mainEvent index 0 (Поступил в ВМА, age 21) — closest before branch start (age 26)
+    // Birth is filtered from mainLine, so ВМА is at index 0
+    expect(plan.branches[0].sourceMainEventIndex).toBe(0);
+  });
+
+  it('отбрасывает пустые ветки', () => {
+    const facts: BiographyFactCandidate[] = [
+      makeFact({ year: 1879, details: 'Родился', category: 'birth' }),
+      makeFact({ year: 1940, details: 'Убит', category: 'death', importance: 'high' }),
+    ];
+    const composition: BiographyCompositionResult = {
+      mainLine: [0, 1],
+      branches: [
+        { name: 'Пустая ветка', sphere: 'career', facts: [] },
+      ],
+    };
+
+    const plan = buildPlanFromCompositionResult({
+      subjectName: 'Троцкий',
+      facts,
+      composition,
+    });
+
+    expect(plan.branches.length).toBe(0);
   });
 });
