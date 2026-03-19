@@ -379,22 +379,31 @@ async function composeBiographyFactsIntoTimeline(params: {
   subjectName: string;
   facts: BiographyFactCandidate[];
 }): Promise<BiographyCompositionResult> {
-  const birthFact = params.facts.find(f => f.eventType === 'birth' || (f.category === 'birth'));
+  const birthFact = params.facts.find(f => f.eventType === 'birth' || f.category === 'birth');
   const birthYear = birthFact?.year ?? params.facts[0]?.year ?? 0;
-  const deathFact = params.facts.find(f =>
-    f.details?.includes('умер') || f.details?.includes('Умер') ||
-    f.details?.includes('скончал') || f.details?.includes('ранен') && f.details?.includes('смертельно')
-  );
+
+  // Find death: prefer category/theme signals, fall back to keyword search
+  const deathFact = params.facts.find(f => f.category === 'death')
+    ?? params.facts.find(f => f.themes?.includes('losses') && (
+      f.details?.includes('скончал') || f.details?.includes('Умер') || f.details?.includes('умер')
+    ));
   const allYears = params.facts.map(f => f.year ?? 0).filter(y => y > 0 && y < 2100);
   const deathYear = deathFact?.year ?? (allYears.length > 0 ? Math.max(...allYears) : null);
+
+  // Convert importance string to numeric score for composition prompt
+  const importanceToScore = (imp: string | undefined): number => {
+    if (imp === 'high') return 4;
+    if (imp === 'medium') return 3;
+    return 2;
+  };
 
   const indexedFacts = params.facts.map((fact, index) => ({
     index,
     year: fact.year ?? 0,
-    details: (fact.details ?? fact.evidence ?? '').slice(0, 120),
+    shortLabel: fact.shortLabel ?? (fact.details ?? fact.evidence ?? '').slice(0, 40),
     themes: (fact.themes ?? []).join(','),
     people: (fact.people ?? []).join(','),
-    importance: fact.importance ?? 'medium',
+    importance: importanceToScore(fact.importance),
   }));
 
   const prompt = buildBiographyCompositionPrompt({

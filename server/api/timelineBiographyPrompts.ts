@@ -211,34 +211,35 @@ export function buildBiographyCompositionPrompt(params: {
   facts: Array<{
     index: number;
     year: number;
-    details: string;
+    shortLabel: string;
     themes: string;
     people: string;
-    importance: string;
+    importance: number;
   }>;
 }) {
   const factsBlock = params.facts
-    .map((f) => `${f.index}\t${f.year}\t${f.importance}\t${f.themes}\t${f.people}\t${f.details}`)
+    .map((f) => `${f.index}\t${f.year}\t${f.importance}\t${f.themes}\t${f.people}\t${f.shortLabel}`)
     .join('\n');
 
   const lifespan = (params.deathYear ?? params.birthYear + 80) - params.birthYear;
-  const targetMainEvents = Math.max(10, Math.round(lifespan / 5 * 2));
+  const targetMainEvents = Math.min(18, Math.max(10, Math.round(lifespan / 5)));
 
   return `Ты — нарратолог и биограф. Тебе дан список из ${params.facts.length} фактов о **${params.subjectName}** (${params.birthYear}–${params.deathYear ?? '?'}).
 
 ЗАДАЧА
 Распредели ВСЕ факты по структуре визуального таймлайна:
-1. **Главная линия** — ~${targetMainEvents} ключевых точек невозврата, после которых жизнь пошла по другому пути.
+1. **Главная линия** — ${targetMainEvents} (±2) ключевых точек невозврата, после которых жизнь пошла по другому пути.
 2. **Сюжетные ветки** — все остальные факты, сгруппированные в нарративные арки.
 
 ЧТО ТАКОЕ ГЛАВНАЯ ЛИНИЯ
 Главная линия — это скелет биографии «крупными мазками». На ней ТОЛЬКО поворотные события:
-- Рождение и смерть (факт рождения — ТОЛЬКО на главной линии, НЕ дублируй его в ветках)
-- Первые аресты, побеги, переломные решения
-- Ключевые назначения и снятия с постов
-- Моменты, после которых траектория жизни необратимо меняется
+- Рождение и смерть
+- Переломные решения (переезд, эмиграция, смена карьеры)
+- Ключевые достижения (главные открытия, награды мирового уровня)
+- Духовные переломы
+На главную линию ставь ТОЛЬКО факты с importance 4-5. Факты с importance 1-3 — в ветки.
 НЕ ставь на главную линию: детали, развитие сюжетов, второстепенные эпизоды.
-Равномерно покрывай всю жизнь (~2 события на 5 лет).
+Жёсткий лимит: НЕ БОЛЕЕ ${targetMainEvents + 2} фактов на главной линии.
 
 ЧТО ТАКОЕ СЮЖЕТНАЯ ВЕТКА
 Ветка — это НЕ категория, а ИСТОРИЯ с началом, развитием и концом.
@@ -263,7 +264,7 @@ export function buildBiographyCompositionPrompt(params: {
 - Имя ветки — конкретное: не «Семья», а «Семья с Седовой и дети». Не «Карьера», а «Строительство Красной армии».
 
 ФАКТЫ
-INDEX\tYEAR\tIMPORTANCE\tTHEMES\tPEOPLE\tDETAILS
+INDEX\tYEAR\tIMPORTANCE(1-5)\tTHEMES\tPEOPLE\tLABEL
 ${factsBlock}
 
 ФОРМАТ ОТВЕТА
