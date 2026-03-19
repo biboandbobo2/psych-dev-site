@@ -610,3 +610,34 @@ export function useClinicalTopics() {
 |------|-----------------|
 | `courseAccess.ts` | CRUD операции, валидация |
 | `verify.ts` | Reconcile логика |
+
+---
+
+## 🕰️ Biography Timeline Pipeline (BTP)
+
+> **Pipeline:** extraction → gap-filling → annotation → redaktura → composition → render
+> **Ключевые файлы:** `server/api/timelineBiographyPrompts.ts`, `server/api/timelineBiographyRuntime.ts`
+> **Текущая версия:** two-pass-v5
+
+### BTP-1. Батчевание annotation/redaktura для длинных биографий (P: M, E: S)
+- **Проблема:** При >250 фактах (Вертинский — 257) один вызов с maxOutputTokens=65536 может упираться в входной контекст или порождать неполный ответ. Сейчас работает, но для статей с 400+ фактами может потребоваться батчевание.
+- **Триггер:** Если появится биография с >300 фактами и annotation/redaktura вернут <90% покрытия.
+- **Решение:** Батчевание по ~120 фактов с `Promise.allSettled` (проверено в тесте Вертинского). Для importance — адаптивный лимит `Math.ceil(15 * batchSize / totalSize)` + пост-процессинг overflow.
+
+### BTP-2. Улучшение composition — баланс mainLine/branches (P: M, E: M)
+- **Проблема:** На Павлове mainLine слишком жирный (35 фактов вместо ~15-20), слишком мало веток (3 вместо 6-8).
+- **Задачи:**
+  - [ ] Ужесточить промпт composition: явнее ограничить mainLine, увеличить минимум веток
+  - [ ] Тестировать на Павлове и Вертинском
+  - [ ] Возможно передавать importance из редактуры как дополнительный сигнал
+
+### BTP-3. Рендер timeline на canvas (P: H, E: M)
+- **Описание:** Интегрировать конвертер из `tmp/render-composition.ts` в production — преобразование composition result в визуальный таймлайн.
+- **Задачи:**
+  - [ ] Перенести логику из tmp в production код
+  - [ ] Связать с существующим TimelineCanvas компонентом
+
+### BTP-4. shortLabel длина >25 символов (P: L, E: S)
+- **Проблема:** ~12% лейблов превышают 25 символов. Не критично — UI обрезает через CSS.
+- **Триггер:** Если при рендере на canvas появятся визуальные артефакты из-за длинных лейблов.
+- **Решение:** Runtime обрезка по слову до 25 + «…» или CSS text-overflow.

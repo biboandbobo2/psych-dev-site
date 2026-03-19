@@ -252,7 +252,7 @@ async function annotateBiographyFacts(params: {
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         temperature: 0.05,
-        maxOutputTokens: 16384,
+        maxOutputTokens: 65536,
         responseMimeType: 'text/plain',
       },
     });
