@@ -17,7 +17,13 @@ function isEnabled(): boolean {
       // Fallback to Node.js process.env (import.meta not available)
     }
 
-    const rawDevLog = (env.DEVLOG ?? env.VITE_DEVLOG ?? process.env?.DEVLOG ?? process.env?.VITE_DEVLOG ?? '').toString().toLowerCase();
+    let processDevLog = '';
+    try {
+      processDevLog = (process.env?.DEVLOG ?? process.env?.VITE_DEVLOG ?? '').toString();
+    } catch {
+      // process is not defined in browser environments
+    }
+    const rawDevLog = (env.DEVLOG ?? env.VITE_DEVLOG ?? processDevLog ?? '').toString().toLowerCase();
     const flagEnabled = rawDevLog === 'true' || rawDevLog === '1';
     _enabled = isDev || flagEnabled;
   }

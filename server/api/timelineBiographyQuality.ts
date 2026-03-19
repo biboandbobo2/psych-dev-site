@@ -118,9 +118,9 @@ function normalizeBranchPlan(
     mainEvents
   );
   const sourceEvent = mainEvents[sourceMainEventIndex];
-  const branchEvents = sourceEvent
-    ? normalizedEvents.filter((event) => event.age >= sourceEvent.age)
-    : normalizedEvents;
+  // Keep all branch events — don't discard events earlier than the anchor.
+  // The branch line will extend from the earliest event to the latest.
+  const branchEvents = normalizedEvents;
 
   if (!sourceEvent || branchEvents.length === 0) return null;
   if (sourceEvent.age === 0 && branchEvents[0].age >= 6 && !isBranchSphereAllowedFromBirth(sphere)) {
@@ -413,19 +413,21 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
     const branchEvents = (branch.events || [])
       .map((event) => sanitizeTimelineEventPlan(event, sphere))
       .filter((event): event is BiographyTimelineEventPlan => Boolean(event))
-      .filter((event) => event.age >= sourceNode.age)
       .sort((a, b) => a.age - b.age);
 
     if (branchEvents.length === 0) return;
 
+    const lowestAge = branchEvents[0]?.age ?? sourceNode.age;
     const highestAge = branchEvents[branchEvents.length - 1]?.age ?? sourceNode.age;
+    // Branch line starts from earliest event or anchor — whichever is earlier
+    const startAge = Math.min(lowestAge, sourceNode.age);
     const endAge = highestAge;
-    const x = pickBranchX(sphere, sourceNode.age, endAge, occupiedLanes);
+    const x = pickBranchX(sphere, startAge, endAge, occupiedLanes);
 
     edges.push({
       id: crypto.randomUUID(),
       x,
-      startAge: sourceNode.age,
+      startAge,
       endAge,
       color: SPHERE_META[sphere].color,
       nodeId: sourceNode.id,
