@@ -2,9 +2,9 @@ import type { VercelRequest } from '@vercel/node';
 import { debugError, debugLog } from '../../src/lib/debug.js';
 import { getLectureGenAiClient } from './lectureApiRuntime.js';
 import {
-  buildBiographyFactRankingPrompt,
+  buildBiographyAnnotationPrompt,
+  buildBiographyRedakturaPrompt,
   buildBiographyCompositionPrompt,
-  buildBiographyFactEnrichmentPrompt,
   buildBiographyGapFillingPrompt,
   buildSimpleBiographyFactExtractionPrompt,
   fetchWikipediaPlainExtract,
@@ -12,7 +12,6 @@ import {
   type BiographyExtractionMode,
   type BiographyFactCandidate,
   type BiographyImportRequest,
-  TIMELINE_BIOGRAPHY_API_MAX_OUTPUT_TOKENS,
 } from './timelineBiography.js';
 
 // ---------------------------------------------------------------------------
@@ -184,83 +183,7 @@ export type BiographyExtractorSuccessPayload = {
 };
 
 // ---------------------------------------------------------------------------
-// Ranking
-// ---------------------------------------------------------------------------
-
-async function rankBiographyFacts(params: {
-  apiKey: string;
-  subjectName: string;
-  facts: BiographyFactCandidate[];
-}): Promise<{ rankedFacts: BiographyFactCandidate[]; rankingModel: string }> {
-  const indexedFacts = params.facts.map((fact, index) => ({
-    index,
-    year: fact.year ?? 0,
-    labelHint: fact.labelHint ?? '',
-    details: fact.details ?? fact.evidence ?? '',
-    sphere: fact.sphere ?? 'other',
-  }));
-
-  const prompt = buildBiographyFactRankingPrompt({
-    subjectName: params.subjectName,
-    facts: indexedFacts,
-  });
-
-  const client = getLectureGenAiClient(params.apiKey);
-  let rankingModel = 'gemini-2.5-flash';
-  let rawText = '';
-
-  const rankModels = ['gemini-2.5-flash'] as const;
-  for (const model of rankModels) {
-    try {
-      const result = await client.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          temperature: 0.05,
-          maxOutputTokens: 8192,
-          responseMimeType: 'text/plain',
-        },
-      });
-      rawText = collectGeminiResultText(result);
-      rankingModel = model;
-      break;
-    } catch (error) {
-      debugError('[timeline-biography] ranking failed', { model, error });
-    }
-  }
-
-  const scores = new Map<number, number>();
-  for (const line of rawText.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const parts = trimmed.split(/\t/);
-    if (parts.length >= 2) {
-      const index = parseInt(parts[0], 10);
-      const score = parseInt(parts[1], 10);
-      if (!isNaN(index) && !isNaN(score) && score >= 1 && score <= 5) {
-        scores.set(index, score);
-      }
-    }
-  }
-
-  debugLog('[timeline-biography] ranking parsed', {
-    total: params.facts.length,
-    parsed: scores.size,
-    missing: params.facts.length - scores.size,
-  });
-
-  const rankedFacts = params.facts.map((fact, index) => ({
-    ...fact,
-    rankScore: scores.get(index) ?? 2,
-  }));
-
-  rankedFacts.sort((a, b) => (b.rankScore ?? 0) - (a.rankScore ?? 0));
-
-  return { rankedFacts, rankingModel };
-}
-
-// ---------------------------------------------------------------------------
-// Enrichment
+// Annotation (step 3): themes, people, month, day
 // ---------------------------------------------------------------------------
 
 const VALID_THEMES = new Set<BiographyEventTheme>([
@@ -270,98 +193,178 @@ const VALID_THEMES = new Set<BiographyEventTheme>([
   'health', 'legacy',
 ]);
 
-function parseEnrichmentResponse(rawText: string) {
-  const enrichments = new Map<number, { themes: BiographyEventTheme[]; people: string[]; shortLabel?: string }>();
+type AnnotationEntry = {
+  themes: BiographyEventTheme[];
+  people: string[];
+  month: number | null;
+  day: number | null;
+};
+
+function parseAnnotationResponse(rawText: string) {
+  const annotations = new Map<number, AnnotationEntry>();
   for (const line of rawText.split(/\r?\n/)) {
     const trimmed = line.trim();
-    if (!trimmed) continue;
+    if (!trimmed || trimmed.startsWith('INDEX')) continue;
     const parts = trimmed.split(/\t/);
     if (parts.length < 2) continue;
     const index = parseInt(parts[0], 10);
     if (isNaN(index)) continue;
 
-    const themesPart = parts[1] ?? '';
-    const themes = themesPart.split(',').map(t => t.trim()).filter(t => VALID_THEMES.has(t as BiographyEventTheme)) as BiographyEventTheme[];
-
-    const peoplePart = parts[2] ?? '';
-    const people = peoplePart ? peoplePart.split(',').map(p => p.trim()).filter(Boolean) : [];
-
-    const shortLabel = parts[3]?.trim() || undefined;
+    const themes = (parts[1] ?? '').split(',').map(t => t.trim()).filter(t => VALID_THEMES.has(t as BiographyEventTheme)) as BiographyEventTheme[];
+    const people = (parts[2] ?? '').split(',').map(p => p.trim()).filter(p => p && p !== '-' && p !== 'пусто');
+    const month = parts[3] ? parseInt(parts[3], 10) : null;
+    const day = parts[4] ? parseInt(parts[4], 10) : null;
 
     if (themes.length > 0) {
-      enrichments.set(index, { themes, people, shortLabel });
+      annotations.set(index, {
+        themes,
+        people,
+        month: month && !isNaN(month) && month >= 1 && month <= 12 ? month : null,
+        day: day && !isNaN(day) && day >= 1 && day <= 31 ? day : null,
+      });
     }
   }
-  return enrichments;
+  return annotations;
 }
 
-const ENRICHMENT_BATCH_SIZE = 50;
-
-async function enrichBiographyFactsWithThemes(params: {
+async function annotateBiographyFacts(params: {
   apiKey: string;
   subjectName: string;
   facts: BiographyFactCandidate[];
+}): Promise<{ annotatedFacts: BiographyFactCandidate[]; annotations: Map<number, AnnotationEntry> }> {
+  const client = getLectureGenAiClient(params.apiKey);
+
+  const indexedFacts = params.facts.map((fact, index) => ({
+    index,
+    year: fact.year ?? null,
+    details: fact.details ?? fact.evidence ?? '',
+  }));
+
+  const prompt = buildBiographyAnnotationPrompt({
+    subjectName: params.subjectName,
+    facts: indexedFacts,
+  });
+
+  let rawText = '';
+  try {
+    const result = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        temperature: 0.05,
+        maxOutputTokens: 16384,
+        responseMimeType: 'text/plain',
+      },
+    });
+    rawText = collectGeminiResultText(result);
+  } catch (error) {
+    debugError('[timeline-biography] annotation failed', { error });
+  }
+
+  const annotations = parseAnnotationResponse(rawText);
+
+  debugLog('[timeline-biography] annotation parsed', {
+    total: params.facts.length,
+    annotated: annotations.size,
+    missing: params.facts.length - annotations.size,
+  });
+
+  const annotatedFacts = params.facts.map((fact, index) => {
+    const ann = annotations.get(index);
+    return {
+      ...fact,
+      themes: ann?.themes ?? fact.themes,
+      people: ann?.people?.length ? ann.people : fact.people,
+      month: ann?.month ?? fact.month,
+    };
+  });
+
+  return { annotatedFacts, annotations };
+}
+
+// ---------------------------------------------------------------------------
+// Redaktura (step 4): importance, shortLabel
+// ---------------------------------------------------------------------------
+
+type RedakturaEntry = {
+  importance: number;
+  shortLabel: string;
+};
+
+function parseRedakturaResponse(rawText: string) {
+  const results = new Map<number, RedakturaEntry>();
+  for (const line of rawText.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('INDEX')) continue;
+    const parts = trimmed.split(/\t/);
+    if (parts.length < 3) continue;
+    const index = parseInt(parts[0], 10);
+    if (isNaN(index)) continue;
+
+    const importance = parseInt(parts[1], 10);
+    const shortLabel = parts[2]?.trim() ?? '';
+
+    results.set(index, {
+      importance: importance >= 1 && importance <= 5 ? importance : 3,
+      shortLabel,
+    });
+  }
+  return results;
+}
+
+async function redaktBiographyFacts(params: {
+  apiKey: string;
+  subjectName: string;
+  facts: BiographyFactCandidate[];
+  annotations: Map<number, AnnotationEntry>;
 }): Promise<BiographyFactCandidate[]> {
   const client = getLectureGenAiClient(params.apiKey);
-  const allEnrichments = new Map<number, { themes: BiographyEventTheme[]; people: string[]; shortLabel?: string }>();
 
-  // Split into batches to avoid Flash truncating output
-  const batches: Array<{ index: number; year: number; details: string }[]> = [];
-  for (let i = 0; i < params.facts.length; i += ENRICHMENT_BATCH_SIZE) {
-    const batch = params.facts.slice(i, i + ENRICHMENT_BATCH_SIZE).map((fact, j) => ({
-      index: i + j,
-      year: fact.year ?? 0,
-      details: fact.details ?? fact.evidence ?? '',
-    }));
-    batches.push(batch);
+  const indexedFacts = params.facts.map((fact, index) => ({
+    index,
+    year: fact.year ?? null,
+    details: fact.details ?? fact.evidence ?? '',
+    themes: params.annotations.get(index)?.themes ?? fact.themes ?? [],
+  }));
+
+  const prompt = buildBiographyRedakturaPrompt({
+    subjectName: params.subjectName,
+    facts: indexedFacts,
+  });
+
+  let rawText = '';
+  try {
+    const result = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        temperature: 0.05,
+        maxOutputTokens: 16384,
+        responseMimeType: 'text/plain',
+      },
+    });
+    rawText = collectGeminiResultText(result);
+  } catch (error) {
+    debugError('[timeline-biography] redaktura failed', { error });
   }
 
-  const settled = await Promise.allSettled(
-    batches.map(batch => {
-      const prompt = buildBiographyFactEnrichmentPrompt({
-        subjectName: params.subjectName,
-        facts: batch,
-      });
-      return client.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          temperature: 0.05,
-          maxOutputTokens: 8192,
-          responseMimeType: 'text/plain',
-        },
-      });
-    })
-  );
+  const redaktura = parseRedakturaResponse(rawText);
 
-  for (const result of settled) {
-    if (result.status === 'fulfilled') {
-      const rawText = collectGeminiResultText(result.value);
-      const batchEnrichments = parseEnrichmentResponse(rawText);
-      for (const [index, enrichment] of batchEnrichments) {
-        allEnrichments.set(index, enrichment);
-      }
-    }
-  }
-
-  debugLog('[timeline-biography] enrichment parsed', {
+  debugLog('[timeline-biography] redaktura parsed', {
     total: params.facts.length,
-    batches: batches.length,
-    enriched: allEnrichments.size,
-    missing: params.facts.length - allEnrichments.size,
+    parsed: redaktura.size,
+    missing: params.facts.length - redaktura.size,
   });
 
   return params.facts.map((fact, index) => {
-    const enrichment = allEnrichments.get(index);
-    const rankScore = (fact as BiographyFactCandidate & { rankScore?: number }).rankScore ?? 2;
+    const red = redaktura.get(index);
+    const rankScore = red?.importance ?? 2;
     const importance: 'high' | 'medium' | 'low' =
       rankScore >= 4 ? 'high' : rankScore === 3 ? 'medium' : 'low';
 
     return {
       ...fact,
-      themes: enrichment?.themes ?? fact.themes,
-      people: enrichment?.people?.length ? enrichment.people : fact.people,
-      shortLabel: enrichment?.shortLabel ?? fact.shortLabel,
+      shortLabel: red?.shortLabel ?? fact.shortLabel,
       importance,
     };
   });
@@ -723,35 +726,36 @@ async function runBiographyTwoPassExtraction(params: {
 
   const factsResult = { facts: allFacts, model: factsModel };
 
-  const { rankedFacts, rankingModel } = await rankBiographyFacts({
+  const { annotatedFacts, annotations } = await annotateBiographyFacts({
     apiKey: params.apiKey,
     subjectName,
     facts: factsResult.facts,
   });
 
-  const enrichedFacts = await enrichBiographyFactsWithThemes({
+  const finalFacts = await redaktBiographyFacts({
     apiKey: params.apiKey,
     subjectName,
-    facts: rankedFacts,
+    facts: annotatedFacts,
+    annotations,
   });
 
   const composition = await composeBiographyFactsIntoTimeline({
     apiKey: params.apiKey,
     subjectName,
-    facts: enrichedFacts,
+    facts: finalFacts,
   });
 
   return {
     ok: true,
     sourceUrl: params.sourceUrl,
     subjectName,
-    facts: enrichedFacts,
+    facts: finalFacts,
     composition,
     meta: {
-      factCount: enrichedFacts.length,
+      factCount: finalFacts.length,
       extractionMode: 'two-pass' as BiographyExtractionMode,
-      model: `${factsResult.model} -> ${rankingModel} -> enrichment -> composition`,
-      promptVersion: 'two-pass-v4.2',
+      model: `${factsResult.model} -> annotation -> redaktura -> composition`,
+      promptVersion: 'two-pass-v5',
       rawTextChars: fullExtract.length,
       strategy: 'two-pass-plaintext' as 'url-context',
       groundingSources: [],
