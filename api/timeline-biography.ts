@@ -9,6 +9,7 @@ import {
   runBiographyStep1,
   runBiographyStep2,
   runBiographyStep3,
+  runBiographyStep4,
   validateBiographyImportRequest,
 } from '../server/api/timelineBiography.js';
 
@@ -67,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       debugLog('[timeline-biography] step 1 start', { sourceUrl, uid });
       const result = await runBiographyStep1({ sourceUrl, apiKey });
 
-      // Save to Firestore
+      // Save to Firestore (including extract for gap-filling in step 2)
       const jobRef = db.collection(JOBS_COLLECTION).doc();
       await jobRef.set({
         userId: uid,
@@ -82,6 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           facts: result.facts,
           model: result.model,
           rawTextChars: result.rawTextChars,
+          extract: result.extract,
         },
       });
 
@@ -95,10 +97,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         model: result.model,
       });
 
-    } else if (step === 2) {
+    } else if (step >= 2 && step <= 4) {
       const jobId = req.body?.jobId;
       if (!jobId) {
-        res.status(400).json({ ok: false, error: 'jobId is required for step 2' });
+        res.status(400).json({ ok: false, error: `jobId is required for step ${step}` });
         return;
       }
 
@@ -113,93 +115,88 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.status(403).json({ ok: false, error: 'Access denied' });
         return;
       }
-      if (job.status !== 'step1_done') {
-        res.status(400).json({ ok: false, error: `Invalid job status: ${job.status}. Expected step1_done.` });
+
+      const expectedStatus = `step${step - 1}_done`;
+      if (job.status !== expectedStatus) {
+        res.status(400).json({ ok: false, error: `Invalid job status: ${job.status}. Expected ${expectedStatus}.` });
         return;
       }
 
-      debugLog('[timeline-biography] step 2 start', { jobId, facts: job.step1.facts.length });
-      const result = await runBiographyStep2({
-        apiKey,
-        subjectName: job.subjectName,
-        facts: job.step1.facts,
-      });
+      if (step === 2) {
+        // Gap-filling
+        debugLog('[timeline-biography] step 2 start', { jobId, facts: job.step1.facts.length });
+        const result = await runBiographyStep2({
+          apiKey,
+          subjectName: job.subjectName,
+          facts: job.step1.facts,
+          extract: job.step1.extract,
+        });
+        await jobRef.update({
+          status: 'step2_done',
+          updatedAt: FieldValue.serverTimestamp(),
+          step2: { facts: result.facts },
+        });
+        debugLog('[timeline-biography] step 2 done', { jobId, facts: result.facts.length });
+        res.status(200).json({ ok: true, jobId, factsCount: result.facts.length });
 
-      await jobRef.update({
-        status: 'step2_done',
-        updatedAt: FieldValue.serverTimestamp(),
-        step2: { facts: result.facts },
-      });
+      } else if (step === 3) {
+        // Annotation + redaktura
+        const inputFacts = job.step2?.facts ?? job.step1.facts;
+        debugLog('[timeline-biography] step 3 start', { jobId, facts: inputFacts.length });
+        const result = await runBiographyStep3({
+          apiKey,
+          subjectName: job.subjectName,
+          facts: inputFacts,
+        });
+        await jobRef.update({
+          status: 'step3_done',
+          updatedAt: FieldValue.serverTimestamp(),
+          step3: { facts: result.facts },
+        });
+        debugLog('[timeline-biography] step 3 done', { jobId, facts: result.facts.length });
+        res.status(200).json({ ok: true, jobId, factsCount: result.facts.length });
 
-      debugLog('[timeline-biography] step 2 done', { jobId, facts: result.facts.length });
-      res.status(200).json({
-        ok: true,
-        jobId,
-        factsCount: result.facts.length,
-      });
-
-    } else if (step === 3) {
-      const jobId = req.body?.jobId;
-      if (!jobId) {
-        res.status(400).json({ ok: false, error: 'jobId is required for step 3' });
-        return;
-      }
-
-      const jobRef = db.collection(JOBS_COLLECTION).doc(jobId);
-      const jobDoc = await jobRef.get();
-      if (!jobDoc.exists) {
-        res.status(404).json({ ok: false, error: 'Job not found' });
-        return;
-      }
-      const job = jobDoc.data()!;
-      if (job.userId !== uid) {
-        res.status(403).json({ ok: false, error: 'Access denied' });
-        return;
-      }
-      if (job.status !== 'step2_done') {
-        res.status(400).json({ ok: false, error: `Invalid job status: ${job.status}. Expected step2_done.` });
-        return;
-      }
-
-      debugLog('[timeline-biography] step 3 start', { jobId, facts: job.step2.facts.length });
-      const result = await runBiographyStep3({
-        apiKey,
-        subjectName: job.subjectName,
-        facts: job.step2.facts,
-        sourceUrl: job.sourceUrl,
-        rawTextChars: job.step1.rawTextChars,
-        factsModel: job.step1.model,
-      });
-
-      await jobRef.update({
-        status: 'done',
-        updatedAt: FieldValue.serverTimestamp(),
-        step3: {
-          timeline: result.timeline,
-          composition: result.composition,
-          canvasName: result.canvasName,
-          meta: {
-            factCount: result.meta.factCount,
-            model: result.meta.model,
-            rawTextChars: result.meta.rawTextChars,
-            planDiagnostics: result.meta.planDiagnostics,
-            timelineStats: result.meta.timelineStats,
+      } else {
+        // step === 4: Composition + render
+        const inputFacts = job.step3?.facts ?? job.step2?.facts ?? job.step1.facts;
+        debugLog('[timeline-biography] step 4 start', { jobId, facts: inputFacts.length });
+        const result = await runBiographyStep4({
+          apiKey,
+          subjectName: job.subjectName,
+          facts: inputFacts,
+          sourceUrl: job.sourceUrl,
+          rawTextChars: job.step1.rawTextChars,
+          factsModel: job.step1.model,
+        });
+        await jobRef.update({
+          status: 'done',
+          updatedAt: FieldValue.serverTimestamp(),
+          step4: {
+            timeline: result.timeline,
+            composition: result.composition,
+            canvasName: result.canvasName,
+            meta: {
+              factCount: result.meta.factCount,
+              model: result.meta.model,
+              rawTextChars: result.meta.rawTextChars,
+              planDiagnostics: result.meta.planDiagnostics,
+              timelineStats: result.meta.timelineStats,
+            },
           },
-        },
-      });
-
-      debugLog('[timeline-biography] step 3 done', { jobId, nodes: result.meta.timelineStats?.nodes });
-      res.status(200).json({
-        ok: true,
-        jobId,
-        canvasName: result.canvasName,
-        subjectName: result.subjectName,
-        timeline: result.timeline,
-        meta: result.meta,
-      });
+        });
+        debugLog('[timeline-biography] step 4 done', { jobId, nodes: result.meta.timelineStats?.nodes });
+        res.status(200).json({
+          ok: true,
+          jobId,
+          canvasName: result.canvasName,
+          subjectName: result.subjectName,
+          timeline: result.timeline,
+          meta: result.meta,
+        });
+      }
 
     } else {
-      res.status(400).json({ ok: false, error: `Invalid step: ${step}. Expected 1, 2, or 3.` });
+      res.status(400).json({ ok: false, error: `Invalid step: ${step}. Expected 1-4.` });
     }
   } catch (error) {
     debugError('[timeline-biography] handler error', error);

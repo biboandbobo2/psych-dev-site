@@ -683,6 +683,16 @@ export default function Timeline() {
           throw fetchError;
         }
       }
+      // Handle non-JSON responses (e.g. Vercel 504 timeout HTML page)
+      const contentType = response.headers.get('content-type') ?? '';
+      if (!contentType.includes('application/json')) {
+        const status = response.status;
+        const hint = status === 504
+          ? `Серверная функция не уложилась в таймаут (шаг ${body.step ?? '?'}). Попробуйте ещё раз — повторный запуск обычно быстрее.`
+          : `Сервер вернул неожиданный ответ (HTTP ${status}).`;
+        setBiographyErrorDetail(hint);
+        throw new Error(hint);
+      }
       const data = await response.json() as {
         ok?: boolean;
         error?: string;
@@ -718,43 +728,52 @@ export default function Timeline() {
       appendBiographyDiagnostic('request start', { sourceUrl });
 
       // Step 1: Extract facts from Wikipedia
-      setBiographyProgress({ step: 1, total: 3, label: 'Извлечение фактов из Wikipedia' });
+      setBiographyProgress({ step: 1, total: 4, label: 'Извлечение фактов из Wikipedia' });
       const step1 = await callStep(
         { step: 1, sourceUrl, canvasId: activeTimelineId ?? '' },
         geminiApiKeyOverride,
       );
       appendBiographyDiagnostic('step 1 done', { jobId: step1.jobId, facts: step1.factsCount });
-      setBiographyProgress({ step: 1, total: 3, label: 'Извлечение фактов из Wikipedia', detail: `${step1.factsCount} фактов, ${step1.subjectName}` });
+      setBiographyProgress({ step: 1, total: 4, label: 'Извлечение фактов из Wikipedia', detail: `${step1.factsCount} фактов, ${step1.subjectName}` });
 
-      // Step 2: Annotation + ranking
-      setBiographyProgress({ step: 2, total: 3, label: 'Аннотация и ранжирование' });
+      // Step 2: Gap-filling
+      setBiographyProgress({ step: 2, total: 4, label: 'Добивочный проход (gap-filling)' });
       const step2 = await callStep(
         { step: 2, jobId: step1.jobId },
         geminiApiKeyOverride,
       );
       appendBiographyDiagnostic('step 2 done', { jobId: step1.jobId, facts: step2.factsCount });
-      setBiographyProgress({ step: 2, total: 3, label: 'Аннотация и ранжирование', detail: `${step2.factsCount} фактов обработано` });
+      setBiographyProgress({ step: 2, total: 4, label: 'Добивочный проход (gap-filling)', detail: `${step2.factsCount} фактов после добивки` });
 
-      // Step 3: Composition + render
-      setBiographyProgress({ step: 3, total: 3, label: 'Композиция таймлайна' });
+      // Step 3: Annotation + ranking
+      setBiographyProgress({ step: 3, total: 4, label: 'Аннотация и ранжирование' });
       const step3 = await callStep(
         { step: 3, jobId: step1.jobId },
         geminiApiKeyOverride,
       );
-      appendBiographyDiagnostic('step 3 done', { jobId: step1.jobId, nodes: step3.meta?.timelineStats?.nodes });
+      appendBiographyDiagnostic('step 3 done', { jobId: step1.jobId, facts: step3.factsCount });
+      setBiographyProgress({ step: 3, total: 4, label: 'Аннотация и ранжирование', detail: `${step3.factsCount} фактов обработано` });
 
-      if (!step3.timeline) {
+      // Step 4: Composition + render
+      setBiographyProgress({ step: 4, total: 4, label: 'Композиция таймлайна' });
+      const step4 = await callStep(
+        { step: 4, jobId: step1.jobId },
+        geminiApiKeyOverride,
+      );
+      appendBiographyDiagnostic('step 4 done', { jobId: step1.jobId, nodes: step4.meta?.timelineStats?.nodes });
+
+      if (!step4.timeline) {
         throw new Error('Сервер не вернул данные таймлайна.');
       }
 
       setBiographyMeta({
-        model: step3.meta?.model,
-        nodes: step3.meta?.timelineStats?.nodes,
-        edges: step3.meta?.timelineStats?.edges,
+        model: step4.meta?.model,
+        nodes: step4.meta?.timelineStats?.nodes,
+        edges: step4.meta?.timelineStats?.edges,
       });
 
-      replaceActiveTimeline(step3.timeline, {
-        name: step3.canvasName || step3.subjectName,
+      replaceActiveTimeline(step4.timeline, {
+        name: step4.canvasName || step4.subjectName,
       });
       resetTransientTimelineUi();
       setShowBiographyImportExpanded(false);

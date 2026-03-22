@@ -11,7 +11,7 @@ describe('BiographyImportModal', () => {
         error={null}
         errorDetail={null}
         meta={null}
-        progress={{ step: 1, total: 3, label: 'Извлечение фактов из Wikipedia' }}
+        progress={{ step: 1, total: 4, label: 'Извлечение фактов из Wikipedia' }}
         onClose={vi.fn()}
       />
     );
@@ -28,7 +28,7 @@ describe('BiographyImportModal', () => {
         error="Не удалось построить таймлайн"
         errorDetail="two-pass-flash-failed: all slices returned 0 facts"
         meta={null}
-        progress={{ step: 1, total: 3, label: 'Извлечение фактов из Wikipedia' }}
+        progress={{ step: 1, total: 4, label: 'Извлечение фактов из Wikipedia' }}
         onClose={vi.fn()}
       />
     );

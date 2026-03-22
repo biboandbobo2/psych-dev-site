@@ -206,13 +206,6 @@ describe('api/timeline-biography', () => {
         { year: 1837, text: 'Погиб после дуэли', category: 'death', sphere: 'health' },
       ]),
     });
-    // 2. Gap-filling — additional facts
-    geminiMocks.generateContent.mockResolvedValueOnce({
-      text: JSON.stringify([
-        { year: 1825, text: 'Завершил «Бориса Годунова»', category: 'publication', sphere: 'creativity' },
-      ]),
-    });
-
     const req = mockReq({
       headers: {
         'content-type': 'application/json',
@@ -234,8 +227,8 @@ describe('api/timeline-biography', () => {
         }),
       })
     );
-    // Extraction + gap-filling = 2 Gemini calls
-    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(2);
+    // Step 1 = extraction only (1 Gemini call)
+    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(1);
     expect(res.body.ok).toBe(true);
     expect(res.body.jobId).toBe('test-job-id');
     expect(res.body.subjectName).toBe('Пушкин, Александр Сергеевич');
@@ -244,6 +237,7 @@ describe('api/timeline-biography', () => {
     expect(firestoreMocks.setData).not.toBeNull();
     expect(firestoreMocks.setData!.status).toBe('step1_done');
     expect(firestoreMocks.setData!.userId).toBe('user-1');
+    expect(firestoreMocks.setData!.step1).toHaveProperty('extract');
   });
 
   it('возвращает понятную ошибку, если Gemini key не настроен', async () => {

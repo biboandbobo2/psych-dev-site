@@ -852,11 +852,11 @@ async function runBiographyTwoPassExtraction(params: {
 // Step-by-step API (for multi-call pipeline within Vercel timeout limits)
 // ---------------------------------------------------------------------------
 
-/** Step 1: Wikipedia fetch + fact extraction + gap-filling */
+/** Step 1: Wikipedia fetch + fact extraction */
 export async function runBiographyStep1(params: {
   sourceUrl: string;
   apiKey: string;
-}): Promise<{ facts: BiographyFactCandidate[]; model: string; rawTextChars: number; subjectName: string }> {
+}): Promise<{ facts: BiographyFactCandidate[]; model: string; rawTextChars: number; subjectName: string; extract: string }> {
   const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
   const fullExtract = wikiPage.biographyExtract || wikiPage.extract;
   const len = fullExtract.length;
@@ -887,18 +887,32 @@ export async function runBiographyStep1(params: {
   }
   allFacts = deduplicateFacts(allFacts);
 
-  // Gap-filling (best-effort)
+  return { facts: allFacts, model: factsModel, rawTextChars: len, subjectName, extract: fullExtract };
+}
+
+/** Step 2: Gap-filling (best-effort) */
+export async function runBiographyStep2(params: {
+  apiKey: string;
+  subjectName: string;
+  facts: BiographyFactCandidate[];
+  extract: string;
+}): Promise<{ facts: BiographyFactCandidate[] }> {
+  let allFacts = [...params.facts];
+  const len = params.extract.length;
+
   try {
     const datedFacts = allFacts.filter(f => f.year != null);
     const undatedFacts = allFacts.filter(f => f.year == null);
     const existingFactTexts = datedFacts.map(f => `[${f.year}] ${f.details}`);
     const undatedFactTexts = undatedFacts.map(f => f.details);
     const gapClient = getLectureGenAiClient(params.apiKey);
-    const gapSlices = len > 100000 ? slices : [fullExtract];
+    const sliceCount = len <= 30000 ? 1 : len <= 70000 ? 2 : len <= 130000 ? 3 : 4;
+    const slices = splitTextIntoSlices(params.extract, sliceCount);
+    const gapSlices = len > 100000 ? slices : [params.extract];
     const gapSettled = await Promise.allSettled(
       gapSlices.map(sliceText => {
         const gapPrompt = buildBiographyGapFillingPrompt({
-          articleTitle: subjectName,
+          articleTitle: params.subjectName,
           extract: sliceText,
           existingFacts: existingFactTexts,
           undatedFacts: undatedFactTexts.length > 0 ? undatedFactTexts : undefined,
@@ -920,14 +934,14 @@ export async function runBiographyStep1(params: {
     }
     allFacts = deduplicateFacts(allFacts);
   } catch {
-    // Gap-filling is best-effort
+    // Gap-filling is best-effort — return original facts on failure
   }
 
-  return { facts: allFacts, model: factsModel, rawTextChars: len, subjectName };
+  return { facts: allFacts };
 }
 
-/** Step 2: Annotation + redaktura */
-export async function runBiographyStep2(params: {
+/** Step 3: Annotation + redaktura */
+export async function runBiographyStep3(params: {
   apiKey: string;
   subjectName: string;
   facts: BiographyFactCandidate[];
@@ -946,8 +960,8 @@ export async function runBiographyStep2(params: {
   return { facts: finalFacts };
 }
 
-/** Step 3: Composition + render → final timeline */
-export async function runBiographyStep3(params: {
+/** Step 4: Composition + render → final timeline */
+export async function runBiographyStep4(params: {
   apiKey: string;
   subjectName: string;
   facts: BiographyFactCandidate[];

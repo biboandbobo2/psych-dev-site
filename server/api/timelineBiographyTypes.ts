@@ -292,7 +292,7 @@ export type BiographyGenerationStageDiagnostics = {
 // Biography pipeline job (multi-step with Firestore persistence)
 // ---------------------------------------------------------------------------
 
-export type BiographyJobStatus = 'step1_done' | 'step2_done' | 'done' | 'error';
+export type BiographyJobStatus = 'step1_done' | 'step2_done' | 'step3_done' | 'done' | 'error';
 
 export type BiographyJob = {
   userId: string;
@@ -308,11 +308,15 @@ export type BiographyJob = {
     facts: BiographyFactCandidate[];
     model: string;
     rawTextChars: number;
+    extract: string;
   };
   step2?: {
     facts: BiographyFactCandidate[];
   };
   step3?: {
+    facts: BiographyFactCandidate[];
+  };
+  step4?: {
     timeline: BiographyTimelineData;
     composition: BiographyCompositionResult;
     canvasName?: string;
