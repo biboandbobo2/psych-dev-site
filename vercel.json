@@ -2,6 +2,11 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "functions": {
+    "api/timeline-biography.ts": {
+      "maxDuration": 120
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -12,5 +17,4 @@
       "destination": "/index.html"
     }
   ]
-
 }

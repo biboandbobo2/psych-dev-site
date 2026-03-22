@@ -801,7 +801,16 @@ export default function Timeline() {
       }
 
       if (!resultPayload || !resultPayload.timeline) {
-        throw new Error(resultPayload?.error || 'Не удалось построить таймлайн по биографии.');
+        const lastStep = biographyProgress;
+        const stepHint = lastStep
+          ? `Соединение прервано на шаге ${lastStep.step}/${lastStep.total} (${lastStep.label}).`
+          : 'Соединение с сервером прервано.';
+        setBiographyErrorDetail(
+          resultPayload?.error
+            ? resultPayload.error
+            : `${stepHint}\nВероятная причина: серверная функция завершилась по таймауту. Попробуйте ещё раз.`,
+        );
+        throw new Error(resultPayload?.error || 'Соединение с сервером прервано — ответ не получен.');
       }
 
       debugLog('[Timeline] Biography import response (stream)', {
