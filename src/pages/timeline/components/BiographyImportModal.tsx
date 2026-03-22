@@ -131,7 +131,7 @@ export function BiographyImportModal({
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
-          {errorDetail && errorDetail !== error && (
+          {errorDetail && (
             <details className="rounded-lg border border-red-100 bg-red-50/50 px-4 py-3">
               <summary className="cursor-pointer text-xs font-medium text-red-600">
                 Подробности ошибки

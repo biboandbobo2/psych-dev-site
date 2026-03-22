@@ -760,6 +760,25 @@ export default function Timeline() {
         if (done) break;
       }
 
+      // Process any remaining data in buffer (last line without trailing newline)
+      if (buffer.trim()) {
+        try {
+          const event = JSON.parse(buffer.trim()) as {
+            type: 'progress' | 'result' | 'error';
+            data?: typeof resultPayload;
+            message?: string;
+            detail?: string;
+          };
+          if (event.type === 'result') {
+            resultPayload = event.data ?? null;
+          } else if (event.type === 'error') {
+            streamError = { message: event.message ?? 'Неизвестная ошибка', detail: event.detail };
+          }
+        } catch {
+          debugWarn('[Timeline] Failed to parse final NDJSON buffer', buffer);
+        }
+      }
+
       // Handle stream error
       if (streamError) {
         setBiographyErrorDetail(streamError.detail ?? null);
