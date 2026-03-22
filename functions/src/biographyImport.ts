@@ -685,7 +685,7 @@ async function runFullBiographyPipeline(params: {
 
 export const biographyImport = onRequest(
   {
-    timeoutSeconds: 3600,
+    timeoutSeconds: 600,
     memory: '2GiB',
     region: 'europe-west1',
     secrets: ['GEMINI_API_KEY'],
