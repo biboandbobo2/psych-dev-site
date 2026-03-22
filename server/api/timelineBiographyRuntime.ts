@@ -657,10 +657,17 @@ function deduplicateFacts(facts: BiographyFactCandidate[]): BiographyFactCandida
 // Two-pass extraction pipeline (entry point)
 // ---------------------------------------------------------------------------
 
+export type BiographyProgressCallback = (step: number, total: number, label: string, detail?: string) => void;
+
 async function runBiographyTwoPassExtraction(params: {
   sourceUrl: string;
   apiKey: string;
+  onProgress?: BiographyProgressCallback;
 }): Promise<BiographyExtractorSuccessPayload> {
+  const progress = params.onProgress ?? (() => {});
+  const TOTAL_STEPS = 6;
+
+  progress(1, TOTAL_STEPS, 'Загрузка статьи из Wikipedia');
   const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
   const fullExtract = wikiPage.biographyExtract || wikiPage.extract;
   const len = fullExtract.length;
@@ -670,7 +677,9 @@ async function runBiographyTwoPassExtraction(params: {
   const slices = splitTextIntoSlices(fullExtract, sliceCount);
 
   const subjectName = wikiPage.title;
+  progress(1, TOTAL_STEPS, 'Загрузка статьи из Wikipedia', `${subjectName} — ${Math.round(len / 1000)}K символов`);
 
+  progress(2, TOTAL_STEPS, 'Извлечение биографических фактов', `${sliceCount} ${sliceCount === 1 ? 'часть' : sliceCount <= 4 ? 'части' : 'частей'}`);
   const settled = await Promise.allSettled(
     slices.map((slice, index) => {
       const focusHint = slices.length > 1
@@ -701,7 +710,9 @@ async function runBiographyTwoPassExtraction(params: {
   }
 
   allFacts = deduplicateFacts(allFacts);
+  progress(2, TOTAL_STEPS, 'Извлечение биографических фактов', `${allFacts.length} фактов извлечено`);
 
+  progress(3, TOTAL_STEPS, 'Добивочный проход (gap-filling)');
   // Gap-filling pass: also send undated facts for dating
   try {
     const datedFacts = allFacts.filter(f => f.year != null);
@@ -750,13 +761,16 @@ async function runBiographyTwoPassExtraction(params: {
   }
 
   const factsResult = { facts: allFacts, model: factsModel };
+  progress(3, TOTAL_STEPS, 'Добивочный проход (gap-filling)', `${allFacts.length} фактов после добивки`);
 
+  progress(4, TOTAL_STEPS, 'Аннотация и тематизация', `${factsResult.facts.length} фактов`);
   const { annotatedFacts, annotations } = await annotateBiographyFacts({
     apiKey: params.apiKey,
     subjectName,
     facts: factsResult.facts,
   });
 
+  progress(5, TOTAL_STEPS, 'Редактура и ранжирование', `${annotatedFacts.length} фактов`);
   const finalFacts = await redaktBiographyFacts({
     apiKey: params.apiKey,
     subjectName,
@@ -764,6 +778,7 @@ async function runBiographyTwoPassExtraction(params: {
     annotations,
   });
 
+  progress(6, TOTAL_STEPS, 'Композиция и визуализация');
   const composition = await composeBiographyFactsIntoTimeline({
     apiKey: params.apiKey,
     subjectName,
@@ -840,6 +855,7 @@ async function runBiographyTwoPassExtraction(params: {
 export async function runBiographyImport(params: {
   sourceUrl: string;
   apiKey: string;
+  onProgress?: BiographyProgressCallback;
 }): Promise<BiographyExtractorSuccessPayload> {
   return runBiographyTwoPassExtraction(params);
 }

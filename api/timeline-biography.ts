@@ -21,6 +21,10 @@ function initFirebaseAdmin() {
   });
 }
 
+function sendNdjson(res: VercelResponse, data: unknown) {
+  res.write(JSON.stringify(data) + '\n');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setLectureApiCorsHeaders(req, res);
 
@@ -34,6 +38,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const wantStream = req.headers['x-stream-progress'] === 'true';
+
   try {
     initFirebaseAdmin();
 
@@ -45,19 +51,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { sourceUrl } = validateBiographyImportRequest(req.body);
     const apiKey = resolveLectureGeminiApiKey(req);
-    const payload = await runBiographyImport({
-      sourceUrl,
-      apiKey,
-    });
 
-    res.status(200).json(payload);
+    if (wantStream) {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.status(200);
+
+      const payload = await runBiographyImport({
+        sourceUrl,
+        apiKey,
+        onProgress: (step, total, label, detail) => {
+          sendNdjson(res, { type: 'progress', step, total, label, detail });
+        },
+      });
+
+      sendNdjson(res, { type: 'result', data: payload });
+      res.end();
+    } else {
+      const payload = await runBiographyImport({ sourceUrl, apiKey });
+      res.status(200).json(payload);
+    }
   } catch (error) {
     debugError('[timeline-biography] handler error', error);
     const { statusCode, message } = normalizeBiographyApiError(error);
+    const rawMessage = error instanceof Error ? error.message : String(error);
 
-    res.status(statusCode).json({
-      ok: false,
-      error: message,
-    });
+    if (wantStream) {
+      sendNdjson(res, { type: 'error', message, detail: rawMessage });
+      res.end();
+    } else {
+      res.status(statusCode).json({ ok: false, error: message });
+    }
   }
 }

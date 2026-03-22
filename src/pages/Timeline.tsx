@@ -55,7 +55,7 @@ import { useTimelineDragDrop } from './timeline/hooks/useTimelineDragDrop';
 import { useTimelineBranch } from './timeline/hooks/useTimelineBranch';
 import { useTimelineCRUD } from './timeline/hooks/useTimelineCRUD';
 import { hasTimelineContent, normalizeImportedTimelineData } from './timeline/persistence';
-import { BiographyImportModal } from './timeline/components/BiographyImportModal';
+import { BiographyImportModal, type BiographyProgressEvent } from './timeline/components/BiographyImportModal';
 import { lazyWithReload } from '../lib/lazyWithReload';
 const TimelineLeftPanel = lazy(() =>
   lazyWithReload(
@@ -211,13 +211,12 @@ export default function Timeline() {
   const [biographyDiagnostics, setBiographyDiagnostics] = useState<string[]>([]);
   const [biographyMeta, setBiographyMeta] = useState<{
     source?: string;
-    factsModel?: string;
     model?: string;
-    reviewApplied?: boolean;
-    reviewIssues?: string[];
     nodes?: number;
     edges?: number;
   } | null>(null);
+  const [biographyProgress, setBiographyProgress] = useState<BiographyProgressEvent | null>(null);
+  const [biographyErrorDetail, setBiographyErrorDetail] = useState<string | null>(null);
   const [showBiographyModal, setShowBiographyModal] = useState(false);
   const [exportStatus, setExportStatus] = useState<{
     state: 'idle' | 'running' | 'success' | 'error';
@@ -645,6 +644,8 @@ export default function Timeline() {
 
     setBiographyImportLoading(true);
     setBiographyImportError(null);
+    setBiographyErrorDetail(null);
+    setBiographyProgress(null);
     setBiographyMeta(null);
     flushSync(() => {
       setShowBiographyModal(true);
@@ -660,6 +661,7 @@ export default function Timeline() {
     const requestBiographyImport = async (apiKeyOverride: string | undefined) => {
       const headers = await buildAuthorizedHeaders({
         'Content-Type': 'application/json',
+        'X-Stream-Progress': 'true',
         ...buildGeminiApiKeyHeader(apiKeyOverride),
       });
       return fetch('/api/timeline-biography', {
@@ -693,7 +695,16 @@ export default function Timeline() {
         appendBiographyDiagnostic('header syntax retry without byok');
         response = await requestBiographyImport(undefined);
       }
-      const payload = (await response.json()) as {
+
+      // --- NDJSON stream reader ---
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Сервер не вернул поток данных.');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let resultPayload: {
         ok?: boolean;
         error?: string;
         canvasName?: string;
@@ -701,67 +712,83 @@ export default function Timeline() {
         timeline?: TimelineData;
         meta?: {
           model?: string;
-          factsModel?: string;
-          planDiagnostics?: {
-            source?: string;
-            mainEvents?: number;
-            branches?: number;
-            branchEvents?: number;
-            hasBirthDate?: boolean;
-            hasBirthPlace?: boolean;
-          };
-          stageDiagnostics?: {
-            facts?: number;
-            reviewApplied?: boolean;
-            reviewIssues?: string[];
-          };
-          timelineStats?: {
-            nodes?: number;
-            edges?: number;
-            hasBirthDate?: boolean;
-            hasBirthPlace?: boolean;
-          };
+          timelineStats?: { nodes?: number; edges?: number };
         };
-      };
-      debugLog('[Timeline] Biography import response', {
-        status: response.status,
-        ok: response.ok,
-        payloadOk: payload.ok,
-        canvasName: payload.canvasName,
-        subjectName: payload.subjectName,
-        hasTimeline: Boolean(payload.timeline),
-        factsModel: payload.meta?.factsModel,
-        planDiagnostics: payload.meta?.planDiagnostics,
-        stageDiagnostics: payload.meta?.stageDiagnostics,
-        timelineStats: payload.meta?.timelineStats,
-      });
-      appendBiographyDiagnostic('response received', {
-        status: response.status,
-        ok: response.ok,
-        payloadOk: payload.ok,
-        hasTimeline: Boolean(payload.timeline),
-        factsModel: payload.meta?.factsModel,
-        planDiagnostics: payload.meta?.planDiagnostics,
-        stageDiagnostics: payload.meta?.stageDiagnostics,
-        timelineStats: payload.meta?.timelineStats,
-      });
+      } | null = null;
+      let streamError: { message: string; detail?: string } | null = null;
 
-      if (!response.ok || !payload.ok || !payload.timeline) {
-        throw new Error(payload.error || 'Не удалось построить таймлайн по биографии.');
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (value) {
+          buffer += decoder.decode(value, { stream: true });
+        }
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            const event = JSON.parse(trimmed) as {
+              type: 'progress' | 'result' | 'error';
+              step?: number;
+              total?: number;
+              label?: string;
+              detail?: string;
+              data?: typeof resultPayload;
+              message?: string;
+            };
+
+            if (event.type === 'progress') {
+              setBiographyProgress({
+                step: event.step ?? 0,
+                total: event.total ?? 6,
+                label: event.label ?? '',
+                detail: event.detail,
+              });
+              appendBiographyDiagnostic(`progress ${event.step}/${event.total}`, event.label);
+            } else if (event.type === 'result') {
+              resultPayload = event.data ?? null;
+            } else if (event.type === 'error') {
+              streamError = { message: event.message ?? 'Неизвестная ошибка', detail: event.detail };
+            }
+          } catch {
+            debugWarn('[Timeline] Failed to parse NDJSON line', trimmed);
+          }
+        }
+
+        if (done) break;
       }
 
-      setBiographyMeta({
-        source: payload.meta?.planDiagnostics?.source,
-        factsModel: payload.meta?.factsModel,
-        model: payload.meta?.model,
-        reviewApplied: payload.meta?.stageDiagnostics?.reviewApplied,
-        reviewIssues: payload.meta?.stageDiagnostics?.reviewIssues,
-        nodes: payload.meta?.timelineStats?.nodes,
-        edges: payload.meta?.timelineStats?.edges,
+      // Handle stream error
+      if (streamError) {
+        setBiographyErrorDetail(streamError.detail ?? null);
+        throw new Error(streamError.message);
+      }
+
+      if (!resultPayload || !resultPayload.timeline) {
+        throw new Error(resultPayload?.error || 'Не удалось построить таймлайн по биографии.');
+      }
+
+      debugLog('[Timeline] Biography import response (stream)', {
+        canvasName: resultPayload.canvasName,
+        subjectName: resultPayload.subjectName,
+        hasTimeline: Boolean(resultPayload.timeline),
+        timelineStats: resultPayload.meta?.timelineStats,
+      });
+      appendBiographyDiagnostic('response received', {
+        hasTimeline: Boolean(resultPayload.timeline),
+        timelineStats: resultPayload.meta?.timelineStats,
       });
 
-      replaceActiveTimeline(payload.timeline, {
-        name: payload.canvasName || payload.subjectName,
+      setBiographyMeta({
+        model: resultPayload.meta?.model,
+        nodes: resultPayload.meta?.timelineStats?.nodes,
+        edges: resultPayload.meta?.timelineStats?.edges,
+      });
+
+      replaceActiveTimeline(resultPayload.timeline, {
+        name: resultPayload.canvasName || resultPayload.subjectName,
       });
       resetTransientTimelineUi();
       setShowBiographyImportExpanded(false);
@@ -772,6 +799,7 @@ export default function Timeline() {
       const message = error instanceof Error ? error.message : 'Не удалось построить таймлайн по биографии.';
       reportAppError({ message: 'Ошибка импорта биографии в таймлайн', error, context: 'Timeline.handleImportBiography' });
       setBiographyImportError(message);
+      setBiographyErrorDetail((prev) => prev ?? (error instanceof Error ? error.message : String(error)));
       setBiographyMeta(null);
       debugError('Timeline biography import failed', {
         error,
@@ -1075,7 +1103,9 @@ export default function Timeline() {
         isOpen={showBiographyModal}
         loading={biographyImportLoading}
         error={biographyImportError}
+        errorDetail={biographyErrorDetail}
         meta={biographyMeta}
+        progress={biographyProgress}
         onClose={() => setShowBiographyModal(false)}
       />
     </motion.div>

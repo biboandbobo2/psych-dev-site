@@ -63,7 +63,7 @@ export function setLectureApiCorsHeaders(req: VercelRequest, res: VercelResponse
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Gemini-Api-Key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Gemini-Api-Key, X-Stream-Progress');
   return allowedOrigin;
 }
 

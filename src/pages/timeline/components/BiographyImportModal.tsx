@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
 import { BaseModal } from '../../../components/ui/BaseModal';
 
-interface BiographyImportMeta {
+export interface BiographyProgressEvent {
+  step: number;
+  total: number;
+  label: string;
+  detail?: string;
+}
+
+export interface BiographyImportMeta {
   source?: string;
-  factsModel?: string;
   model?: string;
-  reviewApplied?: boolean;
-  reviewIssues?: string[];
   nodes?: number;
   edges?: number;
 }
@@ -15,62 +18,39 @@ interface BiographyImportModalProps {
   isOpen: boolean;
   loading: boolean;
   error: string | null;
+  errorDetail: string | null;
   meta: BiographyImportMeta | null;
+  progress: BiographyProgressEvent | null;
   onClose: () => void;
 }
 
-const PROGRESS_STEPS = [
-  { label: 'Загрузка статьи из Wikipedia', delay: 0 },
-  { label: 'Извлечение биографических фактов', delay: 3000 },
-  { label: 'Генерация плана таймлайна', delay: 8000 },
-  { label: 'Ревью и обогащение плана', delay: 15000 },
-  { label: 'Построение таймлайна', delay: 22000 },
-];
+const STEP_LABELS: Record<number, string> = {
+  1: 'Загрузка статьи из Wikipedia',
+  2: 'Извлечение биографических фактов',
+  3: 'Добивочный проход (gap-filling)',
+  4: 'Аннотация и тематизация',
+  5: 'Редактура и ранжирование',
+  6: 'Композиция и визуализация',
+};
 
 export function BiographyImportModal({
   isOpen,
   loading,
   error,
+  errorDetail,
   meta,
+  progress,
   onClose,
 }: BiographyImportModalProps) {
-  const [activeStep, setActiveStep] = useState(0);
-  const [startTime, setStartTime] = useState<number | null>(null);
+  const totalSteps = progress?.total ?? 6;
+  const currentStep = progress?.step ?? 0;
   const progressPercent = loading
-    ? Math.min(96, Math.round(((activeStep + 1) / PROGRESS_STEPS.length) * 100))
+    ? Math.min(96, Math.round((currentStep / totalSteps) * 100))
     : error
       ? 100
       : meta
         ? 100
         : 0;
-  const currentStepLabel = PROGRESS_STEPS[activeStep]?.label ?? PROGRESS_STEPS[0].label;
-
-  // Reset on open
-  useEffect(() => {
-    if (isOpen && loading) {
-      setActiveStep(0);
-      setStartTime(Date.now());
-    }
-  }, [isOpen, loading]);
-
-  // Animate steps based on elapsed time
-  useEffect(() => {
-    if (!loading || !startTime) return;
-
-    const interval = window.setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      let step = 0;
-      for (let i = PROGRESS_STEPS.length - 1; i >= 0; i--) {
-        if (elapsed >= PROGRESS_STEPS[i].delay) {
-          step = i;
-          break;
-        }
-      }
-      setActiveStep(step);
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [loading, startTime]);
 
   const finished = !loading && (meta !== null || error !== null);
   const title = loading
@@ -102,7 +82,7 @@ export function BiographyImportModal({
         <div className="space-y-3">
           <div className="space-y-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
             <div className="flex items-center justify-between gap-3 text-sm text-blue-800">
-              <span className="font-medium">{currentStepLabel}</span>
+              <span className="font-medium">{progress?.label ?? 'Подготовка...'}</span>
               <span className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">
                 {progressPercent}%
               </span>
@@ -113,27 +93,28 @@ export function BiographyImportModal({
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <div className="text-xs leading-5 text-blue-700">
-              Это может занять до минуты: мы последовательно загружаем статью, извлекаем факты, собираем план и
-              нормализуем итоговый холст.
-            </div>
+            {progress?.detail && (
+              <div className="text-xs leading-5 text-blue-700">
+                {progress.detail}
+              </div>
+            )}
           </div>
-          {PROGRESS_STEPS.map((step, index) => (
+          {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
             <div
-              key={step.label}
+              key={step}
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all ${
-                index < activeStep
+                step < currentStep
                   ? 'bg-green-50 text-green-800'
-                  : index === activeStep
+                  : step === currentStep
                     ? 'bg-blue-50 text-blue-800 font-medium'
                     : 'text-slate-400'
               }`}
             >
-              {index < activeStep ? (
+              {step < currentStep ? (
                 <svg className="h-5 w-5 shrink-0 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
-              ) : index === activeStep ? (
+              ) : step === currentStep ? (
                 <svg className="h-5 w-5 shrink-0 animate-spin text-blue-500" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -141,13 +122,30 @@ export function BiographyImportModal({
               ) : (
                 <div className="h-5 w-5 shrink-0 rounded-full border-2 border-slate-300" />
               )}
-              <span>{step.label}</span>
+              <span>{STEP_LABELS[step] ?? `Шаг ${step}`}</span>
             </div>
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+        <div className="space-y-3">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+          {errorDetail && errorDetail !== error && (
+            <details className="rounded-lg border border-red-100 bg-red-50/50 px-4 py-3">
+              <summary className="cursor-pointer text-xs font-medium text-red-600">
+                Подробности ошибки
+              </summary>
+              <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all text-xs text-red-600">
+                {errorDetail}
+              </pre>
+            </details>
+          )}
+          {progress && (
+            <div className="text-xs text-slate-500">
+              Ошибка на шаге {progress.step}/{progress.total}: {progress.label}
+            </div>
+          )}
         </div>
       ) : meta ? (
         <div className="space-y-3">
@@ -155,12 +153,7 @@ export function BiographyImportModal({
             Таймлайн успешно построен
           </div>
           <div className="space-y-1 text-sm text-slate-700">
-            <div><span className="font-medium">Источник:</span> {meta.source ?? 'модель'}</div>
-            <div><span className="font-medium">Модель фактов:</span> {meta.factsModel ?? '—'}</div>
-            <div><span className="font-medium">Модель плана:</span> {meta.model ?? '—'}</div>
-            {meta.reviewApplied && (
-              <div><span className="font-medium">Ревью:</span> применено</div>
-            )}
+            <div><span className="font-medium">Модель:</span> {meta.model ?? '—'}</div>
             <div>
               <span className="font-medium">Результат:</span>{' '}
               {meta.nodes ?? 0} узлов, {meta.edges ?? 0} веток
