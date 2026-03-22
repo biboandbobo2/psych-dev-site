@@ -729,70 +729,66 @@ export default function Timeline() {
       debugLog('[Timeline] Biography import request start', { sourceUrl });
       appendBiographyDiagnostic('request start', { sourceUrl });
 
-      // Step 1: Extract facts from Wikipedia (per-slice)
-      setBiographyProgress({ step: 1, total: 4, label: 'Извлечение фактов из Wikipedia' });
-      let step1 = await callStep(
-        { step: 1, slice: 0, sourceUrl, canvasId: activeTimelineId ?? '' },
-        geminiApiKeyOverride,
-      );
-      appendBiographyDiagnostic('step 1 slice 0 done', { jobId: step1.jobId, facts: step1.factsCount, slices: `${step1.slicesDone}/${step1.slicesTotal}` });
+      // Single Cloud Function call — full pipeline with parallel slices
+      setBiographyProgress({ step: 1, total: 1, label: 'Построение таймлайна (Cloud Function)' });
 
-      // Continue extracting remaining slices
-      while (step1.slicesTotal && step1.slicesDone != null && step1.slicesDone < step1.slicesTotal) {
-        const nextSlice = step1.slicesDone;
-        setBiographyProgress({ step: 1, total: 4, label: 'Извлечение фактов из Wikipedia', detail: `слайс ${nextSlice + 1}/${step1.slicesTotal}` });
-        step1 = await callStep(
-          { step: 1, slice: nextSlice, jobId: step1.jobId },
-          geminiApiKeyOverride,
-        );
-        appendBiographyDiagnostic(`step 1 slice ${nextSlice} done`, { jobId: step1.jobId, facts: step1.factsCount, slices: `${step1.slicesDone}/${step1.slicesTotal}` });
+      const cfUrl = `https://europe-west1-psych-dev-site-prod.cloudfunctions.net/biographyImport`;
+      const headers = await buildStepHeaders(undefined);
+      const cfResponse = await fetch(cfUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ sourceUrl, canvasId: activeTimelineId ?? '' }),
+      });
+
+      const contentType = cfResponse.headers.get('content-type') ?? '';
+      if (!contentType.includes('application/json')) {
+        const hint = cfResponse.status === 504
+          ? 'Cloud Function не уложилась в таймаут.'
+          : `Сервер вернул неожиданный ответ (HTTP ${cfResponse.status}).`;
+        setBiographyErrorDetail(hint);
+        throw new Error(hint);
       }
-      setBiographyProgress({ step: 1, total: 4, label: 'Извлечение фактов из Wikipedia', detail: `${step1.factsCount} фактов, ${step1.subjectName}` });
 
-      // Step 2: Gap-filling
-      setBiographyProgress({ step: 2, total: 4, label: 'Добивочный проход (gap-filling)' });
-      const step2 = await callStep(
-        { step: 2, jobId: step1.jobId },
-        geminiApiKeyOverride,
-      );
-      appendBiographyDiagnostic('step 2 done', { jobId: step1.jobId, facts: step2.factsCount });
-      setBiographyProgress({ step: 2, total: 4, label: 'Добивочный проход (gap-filling)', detail: `${step2.factsCount} фактов после добивки` });
+      const result = await cfResponse.json() as {
+        ok?: boolean;
+        error?: string;
+        detail?: string;
+        jobId?: string;
+        subjectName?: string;
+        canvasName?: string;
+        timeline?: TimelineData;
+        meta?: {
+          model?: string;
+          factCount?: number;
+          timelineStats?: { nodes?: number; edges?: number };
+        };
+      };
 
-      // Step 3: Annotation + ranking
-      setBiographyProgress({ step: 3, total: 4, label: 'Аннотация и ранжирование' });
-      const step3 = await callStep(
-        { step: 3, jobId: step1.jobId },
-        geminiApiKeyOverride,
-      );
-      appendBiographyDiagnostic('step 3 done', { jobId: step1.jobId, facts: step3.factsCount });
-      setBiographyProgress({ step: 3, total: 4, label: 'Аннотация и ранжирование', detail: `${step3.factsCount} фактов обработано` });
+      if (!cfResponse.ok || !result.ok) {
+        if (result.detail) setBiographyErrorDetail(result.detail);
+        throw new Error(result.error || 'Ошибка Cloud Function');
+      }
 
-      // Step 4: Composition + render
-      setBiographyProgress({ step: 4, total: 4, label: 'Композиция таймлайна' });
-      const step4 = await callStep(
-        { step: 4, jobId: step1.jobId },
-        geminiApiKeyOverride,
-      );
-      appendBiographyDiagnostic('step 4 done', { jobId: step1.jobId, nodes: step4.meta?.timelineStats?.nodes });
+      appendBiographyDiagnostic('cloud function done', { jobId: result.jobId, nodes: result.meta?.timelineStats?.nodes });
 
-      if (!step4.timeline) {
+      if (!result.timeline) {
         throw new Error('Сервер не вернул данные таймлайна.');
       }
 
       setBiographyMeta({
-        model: step4.meta?.model,
-        nodes: step4.meta?.timelineStats?.nodes,
-        edges: step4.meta?.timelineStats?.edges,
+        model: result.meta?.model,
+        nodes: result.meta?.timelineStats?.nodes,
+        edges: result.meta?.timelineStats?.edges,
       });
 
-      replaceActiveTimeline(step4.timeline, {
-        name: step4.canvasName || step4.subjectName,
+      replaceActiveTimeline(result.timeline, {
+        name: result.canvasName || result.subjectName,
       });
       resetTransientTimelineUi();
       setShowBiographyImportExpanded(false);
       setBiographySourceUrl('');
-      debugLog('[Timeline] Biography import applied successfully', { jobId: step1.jobId });
-      appendBiographyDiagnostic('timeline applied', { jobId: step1.jobId });
+      debugLog('[Timeline] Biography import applied successfully', { jobId: result.jobId });
+      appendBiographyDiagnostic('timeline applied', { jobId: result.jobId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось построить таймлайн по биографии.';
       reportAppError({ message: 'Ошибка импорта биографии в таймлайн', error, context: 'Timeline.handleImportBiography' });

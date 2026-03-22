@@ -8,6 +8,16 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["src", "../shared/**/*.ts"],
+  "include": [
+    "src",
+    "../shared/**/*.ts",
+    "../server/api/timelineBiographyTypes.ts",
+    "../server/api/timelineBiographyWikipedia.ts",
+    "../server/api/timelineBiographyPrompts.ts",
+    "../server/api/timelineBiographyHeuristics.ts",
+    "../server/api/timelineBiographyLabelQuality.ts",
+    "../server/api/timelineBiographyComposer.ts",
+    "../server/api/timelineBiographyQuality.ts"
+  ],
   "exclude": ["src/**/*.test.ts", "node_modules"]
 }

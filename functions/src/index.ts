@@ -312,3 +312,4 @@ export { sendFeedback } from './sendFeedback.js';
 export { billingBudgetAlert } from './billingBudgetAlert.js';
 export { getBillingSummary } from './billingSummary.js';
 export { weeklyTranscriptRefresh } from './weeklyTranscriptRefresh.js';
+export { biographyImport } from './biographyImport.js';
