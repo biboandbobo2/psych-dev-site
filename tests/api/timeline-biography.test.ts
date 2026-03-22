@@ -211,7 +211,7 @@ describe('api/timeline-biography', () => {
         'content-type': 'application/json',
         authorization: 'Bearer token',
       },
-      body: { step: 1, sourceUrl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич', canvasId: 'canvas-1' },
+      body: { step: 1, slice: 0, sourceUrl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич', canvasId: 'canvas-1' },
     });
     const res = mockRes();
 

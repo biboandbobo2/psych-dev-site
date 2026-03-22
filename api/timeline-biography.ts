@@ -53,49 +53,101 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const db = getFirestore();
 
     if (step === 1) {
-      const { sourceUrl } = validateBiographyImportRequest(req.body);
-      const canvasId = req.body?.canvasId ?? '';
+      const slice = Number(req.body?.slice) || 0;
+      const jobId = req.body?.jobId as string | undefined;
 
-      // Get user email for diagnostics
-      let userEmail = '';
-      try {
-        const userRecord = await getAuth().getUser(uid);
-        userEmail = userRecord.email ?? '';
-      } catch {
-        // email is optional for diagnostics
-      }
+      if (slice === 0) {
+        // First slice: fetch Wikipedia + extract slice 0
+        const { sourceUrl } = validateBiographyImportRequest(req.body);
+        const canvasId = req.body?.canvasId ?? '';
 
-      debugLog('[timeline-biography] step 1 start', { sourceUrl, uid });
-      const result = await runBiographyStep1({ sourceUrl, apiKey });
+        let userEmail = '';
+        try {
+          const userRecord = await getAuth().getUser(uid);
+          userEmail = userRecord.email ?? '';
+        } catch { /* optional */ }
 
-      // Save to Firestore (including extract for gap-filling in step 2)
-      const jobRef = db.collection(JOBS_COLLECTION).doc();
-      await jobRef.set({
-        userId: uid,
-        userEmail,
-        canvasId,
-        sourceUrl,
-        subjectName: result.subjectName,
-        status: 'step1_done',
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        step1: {
-          facts: result.facts,
-          model: result.model,
+        debugLog('[timeline-biography] step 1 slice 0 start', { sourceUrl, uid });
+        const result = await runBiographyStep1({ sourceUrl, apiKey, slice: 0 });
+
+        const jobRef = db.collection(JOBS_COLLECTION).doc();
+        const status = result.slicesDone >= result.slicesTotal ? 'step1_done' : 'step1_extracting';
+        await jobRef.set({
+          userId: uid,
+          userEmail,
+          canvasId,
+          sourceUrl,
+          subjectName: result.subjectName,
+          status,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          step1: {
+            facts: result.facts,
+            model: result.model,
+            rawTextChars: result.rawTextChars,
+            extract: result.extract,
+          },
+        });
+
+        debugLog('[timeline-biography] step 1 slice 0 done', {
+          jobId: jobRef.id, facts: result.facts.length, slices: `${result.slicesDone}/${result.slicesTotal}`,
+        });
+        res.status(200).json({
+          ok: true,
+          jobId: jobRef.id,
+          subjectName: result.subjectName,
+          factsCount: result.facts.length,
           rawTextChars: result.rawTextChars,
-          extract: result.extract,
-        },
-      });
+          model: result.model,
+          slicesTotal: result.slicesTotal,
+          slicesDone: result.slicesDone,
+        });
+      } else {
+        // Subsequent slices: read existing data, extract next slice
+        if (!jobId) {
+          res.status(400).json({ ok: false, error: 'jobId is required for slice > 0' });
+          return;
+        }
+        const jobRef = db.collection(JOBS_COLLECTION).doc(jobId);
+        const jobDoc = await jobRef.get();
+        if (!jobDoc.exists) { res.status(404).json({ ok: false, error: 'Job not found' }); return; }
+        const job = jobDoc.data()!;
+        if (job.userId !== uid) { res.status(403).json({ ok: false, error: 'Access denied' }); return; }
 
-      debugLog('[timeline-biography] step 1 done', { jobId: jobRef.id, facts: result.facts.length });
-      res.status(200).json({
-        ok: true,
-        jobId: jobRef.id,
-        subjectName: result.subjectName,
-        factsCount: result.facts.length,
-        rawTextChars: result.rawTextChars,
-        model: result.model,
-      });
+        debugLog('[timeline-biography] step 1 slice start', { jobId, slice });
+        const result = await runBiographyStep1({
+          sourceUrl: job.sourceUrl,
+          apiKey,
+          slice,
+          existing: {
+            subjectName: job.subjectName,
+            extract: job.step1.extract,
+            rawTextChars: job.step1.rawTextChars,
+            facts: job.step1.facts,
+            model: job.step1.model,
+          },
+        });
+
+        const status = result.slicesDone >= result.slicesTotal ? 'step1_done' : 'step1_extracting';
+        await jobRef.update({
+          status,
+          updatedAt: FieldValue.serverTimestamp(),
+          'step1.facts': result.facts,
+          'step1.model': result.model,
+        });
+
+        debugLog('[timeline-biography] step 1 slice done', {
+          jobId, facts: result.facts.length, slices: `${result.slicesDone}/${result.slicesTotal}`,
+        });
+        res.status(200).json({
+          ok: true,
+          jobId,
+          subjectName: result.subjectName,
+          factsCount: result.facts.length,
+          slicesTotal: result.slicesTotal,
+          slicesDone: result.slicesDone,
+        });
+      }
 
     } else if (step >= 2 && step <= 4) {
       const jobId = req.body?.jobId;

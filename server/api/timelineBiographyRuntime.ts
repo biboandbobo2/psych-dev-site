@@ -852,52 +852,102 @@ async function runBiographyTwoPassExtraction(params: {
 // Step-by-step API (for multi-call pipeline within Vercel timeout limits)
 // ---------------------------------------------------------------------------
 
-/** Step 1: Wikipedia fetch + fact extraction */
+/** Step 1: Wikipedia fetch + single-slice fact extraction.
+ *  First call (slice=0): fetches Wikipedia, determines slices, extracts slice 0.
+ *  Subsequent calls (slice=1..N): extracts the next slice.
+ *  Returns slicesTotal/slicesDone so the client knows when to stop. */
 export async function runBiographyStep1(params: {
   sourceUrl: string;
   apiKey: string;
-}): Promise<{ facts: BiographyFactCandidate[]; model: string; rawTextChars: number; subjectName: string; extract: string }> {
-  const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
-  const fullExtract = wikiPage.biographyExtract || wikiPage.extract;
+  slice: number;
+  /** Pre-fetched data from a previous slice call (stored in Firestore) */
+  existing?: {
+    subjectName: string;
+    extract: string;
+    rawTextChars: number;
+    facts: BiographyFactCandidate[];
+    model: string;
+  };
+}): Promise<{
+  facts: BiographyFactCandidate[];
+  model: string;
+  rawTextChars: number;
+  subjectName: string;
+  extract: string;
+  slicesTotal: number;
+  slicesDone: number;
+}> {
+  let fullExtract: string;
+  let subjectName: string;
+
+  if (params.slice === 0) {
+    // First call: fetch Wikipedia
+    const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
+    fullExtract = wikiPage.biographyExtract || wikiPage.extract;
+    subjectName = wikiPage.title;
+  } else if (params.existing) {
+    fullExtract = params.existing.extract;
+    subjectName = params.existing.subjectName;
+  } else {
+    throw new Error('existing data required for slice > 0');
+  }
+
   const len = fullExtract.length;
   const sliceCount = len <= 30000 ? 1 : len <= 70000 ? 2 : len <= 130000 ? 3 : 4;
   const slices = splitTextIntoSlices(fullExtract, sliceCount);
-  const subjectName = wikiPage.title;
 
-  // Parallel fact extraction
-  const settled = await Promise.allSettled(
-    slices.map((slice, index) => {
-      const focusHint = slices.length > 1
-        ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
-        : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
-      return generateSimpleBiographyFacts({ apiKey: params.apiKey, articleTitle: subjectName, extract: slice, focusHint });
-    }),
-  );
-
-  let allFacts: BiographyFactCandidate[] = [];
-  let factsModel = 'gemini-2.5-flash';
-  for (const result of settled) {
-    if (result.status === 'fulfilled') {
-      allFacts.push(...result.value.facts);
-      factsModel = result.value.model;
-    }
+  const sliceIndex = params.slice;
+  if (sliceIndex >= slices.length) {
+    // All slices already done — return accumulated facts
+    return {
+      facts: params.existing?.facts ?? [],
+      model: params.existing?.model ?? 'gemini-2.5-flash',
+      rawTextChars: len,
+      subjectName,
+      extract: fullExtract,
+      slicesTotal: slices.length,
+      slicesDone: slices.length,
+    };
   }
-  if (allFacts.length === 0) {
+
+  const focusHint = slices.length > 1
+    ? `Персона: ${subjectName}. Это часть ${sliceIndex + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
+    : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
+
+  const result = await generateSimpleBiographyFacts({
+    apiKey: params.apiKey,
+    articleTitle: subjectName,
+    extract: slices[sliceIndex],
+    focusHint,
+  });
+
+  // Accumulate facts from all slices (no dedup yet — done before gap-filling)
+  const allFacts = [...(params.existing?.facts ?? []), ...result.facts];
+
+  if (sliceIndex === slices.length - 1 && allFacts.length === 0) {
     throw new Error('two-pass-flash-failed: all slices returned 0 facts');
   }
-  allFacts = deduplicateFacts(allFacts);
 
-  return { facts: allFacts, model: factsModel, rawTextChars: len, subjectName, extract: fullExtract };
+  return {
+    facts: allFacts,
+    model: result.model,
+    rawTextChars: len,
+    subjectName,
+    extract: fullExtract,
+    slicesTotal: slices.length,
+    slicesDone: sliceIndex + 1,
+  };
 }
 
-/** Step 2: Gap-filling (best-effort) */
+/** Step 2: Gap-filling (best-effort). Also deduplicates facts from extraction slices. */
 export async function runBiographyStep2(params: {
   apiKey: string;
   subjectName: string;
   facts: BiographyFactCandidate[];
   extract: string;
 }): Promise<{ facts: BiographyFactCandidate[] }> {
-  let allFacts = [...params.facts];
+  // Deduplicate facts accumulated across extraction slices
+  let allFacts = deduplicateFacts(params.facts);
   const len = params.extract.length;
 
   try {

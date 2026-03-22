@@ -704,6 +704,8 @@ export default function Timeline() {
         factsCount?: number;
         rawTextChars?: number;
         model?: string;
+        slicesTotal?: number;
+        slicesDone?: number;
         timeline?: TimelineData;
         meta?: {
           model?: string;
@@ -727,13 +729,24 @@ export default function Timeline() {
       debugLog('[Timeline] Biography import request start', { sourceUrl });
       appendBiographyDiagnostic('request start', { sourceUrl });
 
-      // Step 1: Extract facts from Wikipedia
+      // Step 1: Extract facts from Wikipedia (per-slice)
       setBiographyProgress({ step: 1, total: 4, label: 'Извлечение фактов из Wikipedia' });
-      const step1 = await callStep(
-        { step: 1, sourceUrl, canvasId: activeTimelineId ?? '' },
+      let step1 = await callStep(
+        { step: 1, slice: 0, sourceUrl, canvasId: activeTimelineId ?? '' },
         geminiApiKeyOverride,
       );
-      appendBiographyDiagnostic('step 1 done', { jobId: step1.jobId, facts: step1.factsCount });
+      appendBiographyDiagnostic('step 1 slice 0 done', { jobId: step1.jobId, facts: step1.factsCount, slices: `${step1.slicesDone}/${step1.slicesTotal}` });
+
+      // Continue extracting remaining slices
+      while (step1.slicesTotal && step1.slicesDone != null && step1.slicesDone < step1.slicesTotal) {
+        const nextSlice = step1.slicesDone;
+        setBiographyProgress({ step: 1, total: 4, label: 'Извлечение фактов из Wikipedia', detail: `слайс ${nextSlice + 1}/${step1.slicesTotal}` });
+        step1 = await callStep(
+          { step: 1, slice: nextSlice, jobId: step1.jobId },
+          geminiApiKeyOverride,
+        );
+        appendBiographyDiagnostic(`step 1 slice ${nextSlice} done`, { jobId: step1.jobId, facts: step1.factsCount, slices: `${step1.slicesDone}/${step1.slicesTotal}` });
+      }
       setBiographyProgress({ step: 1, total: 4, label: 'Извлечение фактов из Wikipedia', detail: `${step1.factsCount} фактов, ${step1.subjectName}` });
 
       // Step 2: Gap-filling
