@@ -38,6 +38,27 @@ const JOBS_COLLECTION = 'biographyJobs';
 function getGenAiClient(apiKey) {
     return new GoogleGenAI({ apiKey });
 }
+/** Call Gemini with retry on 429 (rate limit) — up to 3 attempts with exponential backoff */
+async function callGeminiWithRetry(client, params, label) {
+    const MAX_RETRIES = 3;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+            return await client.models.generateContent(params);
+        }
+        catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            const is429 = /429|RESOURCE_EXHAUSTED|quota/i.test(msg);
+            if (is429 && attempt < MAX_RETRIES - 1) {
+                const delay = (attempt + 1) * 10_000; // 10s, 20s
+                debugLog(`[biographyImport] ${label}: 429 rate limit, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
+                await new Promise(r => setTimeout(r, delay));
+                continue;
+            }
+            throw error;
+        }
+    }
+    throw new Error(`${label}: max retries exceeded`);
+}
 function collectGeminiResultText(result) {
     if (result && typeof result === 'object') {
         const directText = 'text' in result && typeof result.text === 'string' ? result.text : '';
@@ -339,28 +360,27 @@ async function runFullBiographyPipeline(params) {
         const sliceCount = len <= 30000 ? 1 : len <= 70000 ? 2 : len <= 130000 ? 3 : 4;
         const slices = splitTextIntoSlices(fullExtract, sliceCount);
         debugLog('[biographyImport] extraction start', { subjectName, chars: len, slices: sliceCount });
-        const settled = await Promise.allSettled(slices.map((slice, index) => {
+        // Extract slices sequentially to avoid Gemini rate limits (429)
+        let allFacts = [];
+        const factsModel = 'gemini-2.5-flash';
+        for (let i = 0; i < slices.length; i++) {
             const focusHint = slices.length > 1
-                ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
+                ? `Персона: ${subjectName}. Это часть ${i + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
                 : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
             const prompt = buildSimpleBiographyFactExtractionPrompt({
                 articleTitle: subjectName,
-                extract: slice,
+                extract: slices[i],
                 focusHint,
             });
-            return client.models.generateContent({
+            const result = await callGeminiWithRetry(client, {
                 model: 'gemini-2.5-flash',
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'text/plain' },
-            });
-        }));
-        let allFacts = [];
-        const factsModel = 'gemini-2.5-flash';
-        for (const result of settled) {
-            if (result.status === 'fulfilled') {
-                const rawText = collectGeminiResultText(result.value);
-                allFacts.push(...parseSimpleJsonFacts(rawText));
-            }
+            }, `extraction slice ${i + 1}/${slices.length}`);
+            const rawText = collectGeminiResultText(result);
+            const facts = parseSimpleJsonFacts(rawText);
+            allFacts.push(...facts);
+            debugLog(`[biographyImport] slice ${i + 1}/${slices.length} done`, { facts: facts.length });
         }
         if (allFacts.length === 0) {
             throw new Error('two-pass-flash-failed: all slices returned 0 facts');
@@ -381,26 +401,27 @@ async function runFullBiographyPipeline(params) {
             const existingFactTexts = datedFacts.map(f => `[${f.year}] ${f.details}`);
             const undatedFactTexts = undatedFacts.map(f => f.details);
             const gapSlices = len > 100000 ? slices : [fullExtract];
-            const gapSettled = await Promise.allSettled(gapSlices.map(sliceText => {
-                const gapPrompt = buildBiographyGapFillingPrompt({
-                    articleTitle: subjectName,
-                    extract: sliceText,
-                    existingFacts: existingFactTexts,
-                    undatedFacts: undatedFactTexts.length > 0 ? undatedFactTexts : undefined,
-                });
-                return client.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
-                    config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'text/plain' },
-                });
-            }));
+            // Gap-filling sequentially to avoid rate limits
             allFacts = [...datedFacts];
-            for (const gapResult of gapSettled) {
-                if (gapResult.status === 'fulfilled') {
-                    const gapRawText = collectGeminiResultText(gapResult.value);
-                    const gapFacts = parseSimpleJsonFacts(gapRawText);
+            for (let i = 0; i < gapSlices.length; i++) {
+                try {
+                    const gapPrompt = buildBiographyGapFillingPrompt({
+                        articleTitle: subjectName,
+                        extract: gapSlices[i],
+                        existingFacts: existingFactTexts,
+                        undatedFacts: undatedFactTexts.length > 0 ? undatedFactTexts : undefined,
+                    });
+                    const gapResult = await callGeminiWithRetry(client, {
+                        model: 'gemini-2.5-flash',
+                        contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
+                        config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'text/plain' },
+                    }, `gap-filling ${i + 1}/${gapSlices.length}`);
+                    const gapFacts = parseSimpleJsonFacts(collectGeminiResultText(gapResult));
                     if (gapFacts.length > 0)
                         allFacts.push(...gapFacts);
+                }
+                catch {
+                    // Individual gap-fill slice failure is ok
                 }
             }
             allFacts = deduplicateFacts(allFacts);
@@ -422,11 +443,11 @@ async function runFullBiographyPipeline(params) {
         });
         let annotations = new Map();
         try {
-            const annotResult = await client.models.generateContent({
+            const annotResult = await callGeminiWithRetry(client, {
                 model: 'gemini-2.5-flash',
                 contents: [{ role: 'user', parts: [{ text: annotationPrompt }] }],
                 config: { temperature: 0.05, maxOutputTokens: 65536, responseMimeType: 'text/plain' },
-            });
+            }, 'annotation');
             annotations = parseAnnotationResponse(collectGeminiResultText(annotResult));
         }
         catch (error) {
@@ -449,11 +470,11 @@ async function runFullBiographyPipeline(params) {
         });
         let finalFacts = annotatedFacts;
         try {
-            const redResult = await client.models.generateContent({
+            const redResult = await callGeminiWithRetry(client, {
                 model: 'gemini-2.5-flash',
                 contents: [{ role: 'user', parts: [{ text: redakturaPrompt }] }],
                 config: { temperature: 0.05, maxOutputTokens: 16384, responseMimeType: 'text/plain' },
-            });
+            }, 'redaktura');
             const redaktura = parseRedakturaResponse(collectGeminiResultText(redResult));
             finalFacts = annotatedFacts.map((fact, index) => {
                 const red = redaktura.get(index);
@@ -494,11 +515,11 @@ async function runFullBiographyPipeline(params) {
                 importance: importanceToScore(fact.importance),
             })),
         });
-        const compResult = await client.models.generateContent({
+        const compResult = await callGeminiWithRetry(client, {
             model: 'gemini-2.5-flash',
             contents: [{ role: 'user', parts: [{ text: compositionPrompt }] }],
             config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'application/json' },
-        });
+        }, 'composition');
         const composition = JSON.parse(collectGeminiResultText(compResult));
         // Fill in missing facts
         const assigned = new Set();
