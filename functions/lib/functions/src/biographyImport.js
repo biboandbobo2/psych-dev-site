@@ -28,6 +28,9 @@ import { buildTimelineDataFromBiographyPlan } from '../../server/api/timelineBio
 if (getApps().length === 0) {
     initializeApp();
 }
+// Facts contain optional fields (age, month, etc.) that may be undefined.
+// Firestore rejects undefined values by default.
+getFirestore().settings({ ignoreUndefinedProperties: true });
 const JOBS_COLLECTION = 'biographyJobs';
 // ============================================================================
 // Helpers (inlined from timelineBiographyRuntime to avoid pulling in Vercel deps)
