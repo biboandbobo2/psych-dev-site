@@ -733,7 +733,7 @@ export default function Timeline() {
       setBiographyProgress({ step: 1, total: 1, label: 'Построение таймлайна (Cloud Function)' });
 
       const cfUrl = `https://europe-west1-psych-dev-site-prod.cloudfunctions.net/biographyImport`;
-      const headers = await buildStepHeaders(undefined);
+      const headers = await buildStepHeaders(geminiApiKeyOverride);
       const cfResponse = await fetch(cfUrl, {
         method: 'POST',
         headers,

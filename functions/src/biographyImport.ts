@@ -653,7 +653,7 @@ export const biographyImport = onRequest(
   async (req, res) => {
     // CORS
     res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Gemini-Api-Key');
     if (req.method === 'OPTIONS') {
       res.set('Access-Control-Allow-Methods', 'POST');
       res.status(204).send('');
@@ -668,7 +668,9 @@ export const biographyImport = onRequest(
       const { uid, email } = await verifyAuth(req);
       const sourceUrl = validateSourceUrl(req.body as Record<string, unknown>);
       const canvasId = typeof req.body?.canvasId === 'string' ? req.body.canvasId : '';
-      const apiKey = process.env.GEMINI_API_KEY;
+      // BYOK: user's key from header takes priority over server secret
+      const userKey = req.headers['x-gemini-api-key'];
+      const apiKey = (typeof userKey === 'string' && userKey.trim()) ? userKey.trim() : process.env.GEMINI_API_KEY;
       if (!apiKey) {
         res.status(503).json({ ok: false, error: 'GEMINI_API_KEY not configured' });
         return;
