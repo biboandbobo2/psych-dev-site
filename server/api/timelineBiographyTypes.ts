@@ -288,6 +288,56 @@ export type BiographyGenerationStageDiagnostics = {
   reviewIssues: string[];
 };
 
+// ---------------------------------------------------------------------------
+// Biography pipeline job (multi-step with Firestore persistence)
+// ---------------------------------------------------------------------------
+
+export type BiographyJobStatus = 'step1_done' | 'step2_done' | 'done' | 'error';
+
+export type BiographyJob = {
+  userId: string;
+  userEmail: string;
+  canvasId: string;
+  sourceUrl: string;
+  subjectName: string;
+  status: BiographyJobStatus;
+  createdAt: unknown; // Firestore Timestamp (server-side)
+  updatedAt: unknown;
+  error?: string;
+  step1?: {
+    facts: BiographyFactCandidate[];
+    model: string;
+    rawTextChars: number;
+  };
+  step2?: {
+    facts: BiographyFactCandidate[];
+  };
+  step3?: {
+    timeline: BiographyTimelineData;
+    composition: BiographyCompositionResult;
+    canvasName?: string;
+    meta: {
+      factCount: number;
+      model: string;
+      rawTextChars: number;
+      planDiagnostics?: {
+        source: string;
+        mainEvents: number;
+        branches: number;
+        branchEvents: number;
+        hasBirthDate: boolean;
+        hasBirthPlace: boolean;
+      };
+      timelineStats?: {
+        nodes: number;
+        edges: number;
+        hasBirthDate: boolean;
+        hasBirthPlace: boolean;
+      };
+    };
+  };
+};
+
 export const WIKIPEDIA_HOST_PATTERN = /(?:^|\.)wikipedia\.org$/i;
 
 // Slot indices into BRANCH_X_OFFSETS: even=left, odd=right.

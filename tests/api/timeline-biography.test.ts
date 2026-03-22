@@ -16,6 +16,13 @@ const firebaseAppMocks = vi.hoisted(() => ({
 
 const authMocks = vi.hoisted(() => ({
   verifyIdToken: vi.fn(),
+  getUser: vi.fn(),
+}));
+
+const firestoreMocks = vi.hoisted(() => ({
+  docData: null as Record<string, unknown> | null,
+  setData: null as Record<string, unknown> | null,
+  updateData: null as Record<string, unknown> | null,
 }));
 
 vi.mock('@google/genai', () => {
@@ -41,8 +48,27 @@ vi.mock('firebase-admin/app', () => ({
 vi.mock('firebase-admin/auth', () => ({
   getAuth: () => ({
     verifyIdToken: authMocks.verifyIdToken,
+    getUser: authMocks.getUser,
   }),
 }));
+
+vi.mock('firebase-admin/firestore', () => {
+  const mockDocRef = {
+    id: 'test-job-id',
+    set: vi.fn(async (data: Record<string, unknown>) => { firestoreMocks.setData = data; }),
+    update: vi.fn(async (data: Record<string, unknown>) => { firestoreMocks.updateData = data; }),
+    get: vi.fn(async () => ({
+      exists: Boolean(firestoreMocks.docData),
+      data: () => firestoreMocks.docData,
+    })),
+  };
+  return {
+    getFirestore: () => ({
+      collection: () => ({ doc: (id?: string) => id ? mockDocRef : mockDocRef }),
+    }),
+    FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' },
+  };
+});
 
 const mockReq = (options: { method?: string; body?: unknown; headers?: Record<string, string> } = {}) =>
   ({
@@ -88,6 +114,11 @@ describe('api/timeline-biography', () => {
     firebaseAppMocks.cert.mockClear();
     authMocks.verifyIdToken.mockReset();
     authMocks.verifyIdToken.mockResolvedValue({ uid: 'user-1' });
+    authMocks.getUser.mockReset();
+    authMocks.getUser.mockResolvedValue({ uid: 'user-1', email: 'test@example.com' });
+    firestoreMocks.docData = null;
+    firestoreMocks.setData = null;
+    firestoreMocks.updateData = null;
     process.env.FIREBASE_SERVICE_ACCOUNT_KEY = JSON.stringify({
       projectId: 'psych-dev-site-prod',
       clientEmail: 'test@example.com',
@@ -130,7 +161,7 @@ describe('api/timeline-biography', () => {
         'content-type': 'application/json',
         authorization: 'Bearer token',
       },
-      body: { sourceUrl: 'https://example.com/pushkin' },
+      body: { step: 1, sourceUrl: 'https://example.com/pushkin' },
     });
     const res = mockRes();
 
@@ -141,7 +172,7 @@ describe('api/timeline-biography', () => {
     expect(res.body.error).toContain('Wikipedia');
   });
 
-  it('строит таймлайн по статье Wikipedia (two-pass pipeline)', async () => {
+  it('step 1: извлекает факты из Wikipedia и сохраняет в Firestore', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -181,38 +212,13 @@ describe('api/timeline-biography', () => {
         { year: 1825, text: 'Завершил «Бориса Годунова»', category: 'publication', sphere: 'creativity' },
       ]),
     });
-    // 3. Ranking — INDEX\tSCORE lines
-    geminiMocks.generateContent.mockResolvedValueOnce({
-      text: '0\t5\n1\t4\n2\t5\n3\t4\n4\t5\n5\t5\n6\t4',
-    });
-    // 4. Enrichment — INDEX\tTHEMES\tPEOPLE\tSHORTLABEL lines
-    geminiMocks.generateContent.mockResolvedValueOnce({
-      text: [
-        '0\tfamily_household\t\tРождение в Москве',
-        '1\teducation\t\tЦарскосельский лицей',
-        '2\tcreative_work\t\t«Руслан и Людмила»',
-        '3\ttravel_moves_exile\t\tЮжная ссылка',
-        '4\tromance\tГончарова\tБрак с Гончаровой',
-        '5\tconflict_duels\tДантес\tДуэль и смерть',
-        '6\tcreative_work\t\t«Борис Годунов»',
-      ].join('\n'),
-    });
-    // 5. Composition — JSON with mainLine and branches
-    geminiMocks.generateContent.mockResolvedValueOnce({
-      text: JSON.stringify({
-        mainLine: [0, 1, 2, 3, 4, 5],
-        branches: [
-          { name: 'Литература', sphere: 'creativity', facts: [6] },
-        ],
-      }),
-    });
 
     const req = mockReq({
       headers: {
         'content-type': 'application/json',
         authorization: 'Bearer token',
       },
-      body: { sourceUrl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич' },
+      body: { step: 1, sourceUrl: 'https://ru.wikipedia.org/wiki/Пушкин,_Александр_Сергеевич', canvasId: 'canvas-1' },
     });
     const res = mockRes();
 
@@ -228,12 +234,16 @@ describe('api/timeline-biography', () => {
         }),
       })
     );
-    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(5);
+    // Extraction + gap-filling = 2 Gemini calls
+    expect(geminiMocks.generateContent).toHaveBeenCalledTimes(2);
     expect(res.body.ok).toBe(true);
+    expect(res.body.jobId).toBe('test-job-id');
     expect(res.body.subjectName).toBe('Пушкин, Александр Сергеевич');
-    expect(res.body.facts.length).toBeGreaterThanOrEqual(6);
-    expect(res.body.composition).toBeDefined();
-    expect(res.body.meta.extractionMode).toBe('two-pass');
+    expect(res.body.factsCount).toBeGreaterThanOrEqual(6);
+    // Verify Firestore write
+    expect(firestoreMocks.setData).not.toBeNull();
+    expect(firestoreMocks.setData!.status).toBe('step1_done');
+    expect(firestoreMocks.setData!.userId).toBe('user-1');
   });
 
   it('возвращает понятную ошибку, если Gemini key не настроен', async () => {

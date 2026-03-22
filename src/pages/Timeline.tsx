@@ -7,7 +7,7 @@ import { Icon, type EventIconId } from '../components/Icon';
 import { EVENT_ICON_MAP } from '../data/eventIcons';
 import { useNotes } from '../hooks/useNotes';
 import { PageLoader } from '../components/ui';
-import { debugError, debugLog, debugWarn } from '../lib/debug';
+import { debugError, debugLog } from '../lib/debug';
 import { buildAuthorizedHeaders } from '../lib/apiAuth';
 import { buildGeminiApiKeyHeader, sanitizeGeminiApiKey } from '../lib/geminiKey';
 import { reportAppError } from '../lib/errorHandler';
@@ -654,201 +654,104 @@ export default function Timeline() {
       window.requestAnimationFrame(() => resolve());
     });
 
-    const isHeaderPatternSyntaxError = (error: unknown) =>
-      error instanceof SyntaxError &&
-      /expected pattern/i.test(error.message);
-
-    const requestBiographyImport = async (apiKeyOverride: string | undefined) => {
-      const headers = await buildAuthorizedHeaders({
+    const buildStepHeaders = async (apiKeyOverride: string | undefined) =>
+      buildAuthorizedHeaders({
         'Content-Type': 'application/json',
-        'X-Stream-Progress': 'true',
         ...buildGeminiApiKeyHeader(apiKeyOverride),
       });
-      return fetch('/api/timeline-biography', {
+
+    const callStep = async (body: Record<string, unknown>, apiKeyOverride: string | undefined) => {
+      const headers = await buildStepHeaders(apiKeyOverride);
+      const response = await fetch('/api/timeline-biography', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ sourceUrl }),
+        body: JSON.stringify(body),
       });
-    };
-
-    try {
-      debugLog('[Timeline] Biography import request start', {
-        sourceUrl,
-        hasGeminiApiKeyOverride: Boolean(geminiApiKeyOverride),
-      });
-      appendBiographyDiagnostic('request start', {
-        sourceUrl,
-        hasGeminiApiKeyOverride: Boolean(geminiApiKeyOverride),
-      });
-      let response: Response;
-      try {
-        response = await requestBiographyImport(geminiApiKeyOverride);
-      } catch (error) {
-        if (!geminiApiKeyOverride || !isHeaderPatternSyntaxError(error)) {
-          throw error;
-        }
-
-        debugWarn('[Timeline] Biography import retrying without BYOK header after header syntax error', {
-          sourceUrl,
-          error,
-        });
-        appendBiographyDiagnostic('header syntax retry without byok');
-        response = await requestBiographyImport(undefined);
-      }
-
-      // --- NDJSON stream reader ---
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('Сервер не вернул поток данных.');
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let resultPayload: {
+      const data = await response.json() as {
         ok?: boolean;
         error?: string;
-        canvasName?: string;
+        detail?: string;
+        stack?: string;
+        jobId?: string;
         subjectName?: string;
+        canvasName?: string;
+        factsCount?: number;
+        rawTextChars?: number;
+        model?: string;
         timeline?: TimelineData;
         meta?: {
           model?: string;
           timelineStats?: { nodes?: number; edges?: number };
         };
-      } | null = null;
-      let streamError: { message: string; detail?: string; stack?: string; sourceUrl?: string } | null = null;
-
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (value) {
-          buffer += decoder.decode(value, { stream: true });
-        }
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          try {
-            const event = JSON.parse(trimmed) as {
-              type: 'progress' | 'result' | 'error';
-              step?: number;
-              total?: number;
-              label?: string;
-              detail?: string;
-              data?: typeof resultPayload;
-              message?: string;
-            };
-
-            if (event.type === 'progress') {
-              setBiographyProgress({
-                step: event.step ?? 0,
-                total: event.total ?? 6,
-                label: event.label ?? '',
-                detail: event.detail,
-              });
-              appendBiographyDiagnostic(`progress ${event.step}/${event.total}`, event.label);
-            } else if (event.type === 'result') {
-              resultPayload = event.data ?? null;
-            } else if (event.type === 'error') {
-              streamError = {
-                message: event.message ?? 'Неизвестная ошибка',
-                detail: event.detail,
-                stack: (event as { stack?: string }).stack,
-                sourceUrl: (event as { sourceUrl?: string }).sourceUrl,
-              };
-            }
-          } catch {
-            debugWarn('[Timeline] Failed to parse NDJSON line', trimmed);
-          }
-        }
-
-        if (done) break;
-      }
-
-      // Process any remaining data in buffer (last line without trailing newline)
-      if (buffer.trim()) {
-        try {
-          const event = JSON.parse(buffer.trim()) as {
-            type: 'progress' | 'result' | 'error';
-            data?: typeof resultPayload;
-            message?: string;
-            detail?: string;
-          };
-          if (event.type === 'result') {
-            resultPayload = event.data ?? null;
-          } else if (event.type === 'error') {
-            streamError = {
-              message: event.message ?? 'Неизвестная ошибка',
-              detail: event.detail,
-              stack: (event as { stack?: string }).stack,
-              sourceUrl: (event as { sourceUrl?: string }).sourceUrl,
-            };
-          }
-        } catch {
-          debugWarn('[Timeline] Failed to parse final NDJSON buffer', buffer);
-        }
-      }
-
-      // Handle stream error
-      if (streamError) {
+      };
+      if (!response.ok || !data.ok) {
         const detailParts = [
-          streamError.detail && `Ошибка: ${streamError.detail}`,
-          streamError.sourceUrl && `URL: ${streamError.sourceUrl}`,
-          streamError.stack && `\nStack trace:\n${streamError.stack}`,
+          data.detail && `Ошибка: ${data.detail}`,
+          data.stack && `\nStack trace:\n${data.stack}`,
         ].filter(Boolean);
-        setBiographyErrorDetail(detailParts.join('\n') || streamError.message);
-        throw new Error(streamError.message);
+        if (detailParts.length > 0) {
+          setBiographyErrorDetail(detailParts.join('\n'));
+        }
+        throw new Error(data.error || `Ошибка на шаге ${body.step ?? 1}`);
       }
+      return data;
+    };
 
-      if (!resultPayload || !resultPayload.timeline) {
-        const lastStep = biographyProgress;
-        const stepHint = lastStep
-          ? `Соединение прервано на шаге ${lastStep.step}/${lastStep.total} (${lastStep.label}).`
-          : 'Соединение с сервером прервано.';
-        setBiographyErrorDetail(
-          resultPayload?.error
-            ? resultPayload.error
-            : `${stepHint}\nВероятная причина: серверная функция завершилась по таймауту. Попробуйте ещё раз.`,
-        );
-        throw new Error(resultPayload?.error || 'Соединение с сервером прервано — ответ не получен.');
+    try {
+      debugLog('[Timeline] Biography import request start', { sourceUrl });
+      appendBiographyDiagnostic('request start', { sourceUrl });
+
+      // Step 1: Extract facts from Wikipedia
+      setBiographyProgress({ step: 1, total: 3, label: 'Извлечение фактов из Wikipedia' });
+      const step1 = await callStep(
+        { step: 1, sourceUrl, canvasId: activeTimelineId ?? '' },
+        geminiApiKeyOverride,
+      );
+      appendBiographyDiagnostic('step 1 done', { jobId: step1.jobId, facts: step1.factsCount });
+      setBiographyProgress({ step: 1, total: 3, label: 'Извлечение фактов из Wikipedia', detail: `${step1.factsCount} фактов, ${step1.subjectName}` });
+
+      // Step 2: Annotation + ranking
+      setBiographyProgress({ step: 2, total: 3, label: 'Аннотация и ранжирование' });
+      const step2 = await callStep(
+        { step: 2, jobId: step1.jobId },
+        geminiApiKeyOverride,
+      );
+      appendBiographyDiagnostic('step 2 done', { jobId: step1.jobId, facts: step2.factsCount });
+      setBiographyProgress({ step: 2, total: 3, label: 'Аннотация и ранжирование', detail: `${step2.factsCount} фактов обработано` });
+
+      // Step 3: Composition + render
+      setBiographyProgress({ step: 3, total: 3, label: 'Композиция таймлайна' });
+      const step3 = await callStep(
+        { step: 3, jobId: step1.jobId },
+        geminiApiKeyOverride,
+      );
+      appendBiographyDiagnostic('step 3 done', { jobId: step1.jobId, nodes: step3.meta?.timelineStats?.nodes });
+
+      if (!step3.timeline) {
+        throw new Error('Сервер не вернул данные таймлайна.');
       }
-
-      debugLog('[Timeline] Biography import response (stream)', {
-        canvasName: resultPayload.canvasName,
-        subjectName: resultPayload.subjectName,
-        hasTimeline: Boolean(resultPayload.timeline),
-        timelineStats: resultPayload.meta?.timelineStats,
-      });
-      appendBiographyDiagnostic('response received', {
-        hasTimeline: Boolean(resultPayload.timeline),
-        timelineStats: resultPayload.meta?.timelineStats,
-      });
 
       setBiographyMeta({
-        model: resultPayload.meta?.model,
-        nodes: resultPayload.meta?.timelineStats?.nodes,
-        edges: resultPayload.meta?.timelineStats?.edges,
+        model: step3.meta?.model,
+        nodes: step3.meta?.timelineStats?.nodes,
+        edges: step3.meta?.timelineStats?.edges,
       });
 
-      replaceActiveTimeline(resultPayload.timeline, {
-        name: resultPayload.canvasName || resultPayload.subjectName,
+      replaceActiveTimeline(step3.timeline, {
+        name: step3.canvasName || step3.subjectName,
       });
       resetTransientTimelineUi();
       setShowBiographyImportExpanded(false);
       setBiographySourceUrl('');
-      debugLog('[Timeline] Biography import applied successfully');
-      appendBiographyDiagnostic('timeline applied');
+      debugLog('[Timeline] Biography import applied successfully', { jobId: step1.jobId });
+      appendBiographyDiagnostic('timeline applied', { jobId: step1.jobId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось построить таймлайн по биографии.';
       reportAppError({ message: 'Ошибка импорта биографии в таймлайн', error, context: 'Timeline.handleImportBiography' });
       setBiographyImportError(message);
       setBiographyErrorDetail((prev) => prev ?? (error instanceof Error ? error.message : String(error)));
       setBiographyMeta(null);
-      debugError('Timeline biography import failed', {
-        error,
-        sourceUrl,
-        hasGeminiApiKeyOverride: Boolean(geminiApiKeyOverride),
-      });
+      debugError('Timeline biography import failed', { error, sourceUrl });
       appendBiographyDiagnostic('request failed', message);
     } finally {
       setBiographyImportLoading(false);

@@ -25,12 +25,9 @@ interface BiographyImportModalProps {
 }
 
 const STEP_LABELS: Record<number, string> = {
-  1: 'Загрузка статьи из Wikipedia',
-  2: 'Извлечение биографических фактов',
-  3: 'Добивочный проход (gap-filling)',
-  4: 'Аннотация и тематизация',
-  5: 'Редактура и ранжирование',
-  6: 'Композиция и визуализация',
+  1: 'Извлечение фактов из Wikipedia',
+  2: 'Аннотация и ранжирование',
+  3: 'Композиция таймлайна',
 };
 
 export function BiographyImportModal({
@@ -42,7 +39,7 @@ export function BiographyImportModal({
   progress,
   onClose,
 }: BiographyImportModalProps) {
-  const totalSteps = progress?.total ?? 6;
+  const totalSteps = progress?.total ?? 3;
   const currentStep = progress?.step ?? 0;
   const progressPercent = loading
     ? Math.min(96, Math.round((currentStep / totalSteps) * 100))

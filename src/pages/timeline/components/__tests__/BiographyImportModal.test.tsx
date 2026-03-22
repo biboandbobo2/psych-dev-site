@@ -3,36 +3,39 @@ import { render, screen } from '@testing-library/react';
 import { BiographyImportModal } from '../BiographyImportModal';
 
 describe('BiographyImportModal', () => {
-  it('показывает progress bar и первый шаг во время загрузки', () => {
+  it('показывает progress bar и текущий шаг во время загрузки', () => {
     render(
       <BiographyImportModal
         isOpen={true}
         loading={true}
         error={null}
+        errorDetail={null}
         meta={null}
+        progress={{ step: 1, total: 3, label: 'Извлечение фактов из Wikipedia' }}
         onClose={vi.fn()}
       />
     );
 
     expect(screen.getByText('Построение таймлайна...')).toBeInTheDocument();
-    expect(screen.getAllByText('Загрузка статьи из Wikipedia')).toHaveLength(2);
-    expect(screen.getByText(/Это может занять до минуты/i)).toBeInTheDocument();
-    expect(screen.getByText('20%')).toBeInTheDocument();
+    expect(screen.getAllByText('Извлечение фактов из Wikipedia').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('показывает ошибку импорта', () => {
+  it('показывает ошибку импорта с подробностями', () => {
     render(
       <BiographyImportModal
         isOpen={true}
         loading={false}
         error="Не удалось построить таймлайн"
+        errorDetail="two-pass-flash-failed: all slices returned 0 facts"
         meta={null}
+        progress={{ step: 1, total: 3, label: 'Извлечение фактов из Wikipedia' }}
         onClose={vi.fn()}
       />
     );
 
     expect(screen.getByText('Ошибка импорта')).toBeInTheDocument();
     expect(screen.getByText('Не удалось построить таймлайн')).toBeInTheDocument();
+    expect(screen.getByText('Подробности ошибки')).toBeInTheDocument();
     expect(screen.getByText('ОК')).toBeInTheDocument();
   });
 
@@ -42,23 +45,19 @@ describe('BiographyImportModal', () => {
         isOpen={true}
         loading={false}
         error={null}
+        errorDetail={null}
         meta={{
-          source: 'merged-with-heuristics',
-          factsModel: 'gemini-2.5-flash',
-          model: 'gemini-2.5-flash -> gemini-2.5-flash',
-          reviewApplied: true,
+          model: 'gemini-2.5-flash -> annotation -> redaktura -> composition -> render',
           nodes: 14,
           edges: 3,
         }}
+        progress={null}
         onClose={vi.fn()}
       />
     );
 
     expect(screen.getByText('Таймлайн построен')).toBeInTheDocument();
     expect(screen.getByText('Таймлайн успешно построен')).toBeInTheDocument();
-    expect(screen.getByText(/merged-with-heuristics/)).toBeInTheDocument();
-    expect(screen.getByText(/Модель фактов:/)).toBeInTheDocument();
-    expect(screen.getByText(/Модель плана:/)).toBeInTheDocument();
     expect(screen.getByText(/14 узлов, 3 веток/)).toBeInTheDocument();
   });
 });

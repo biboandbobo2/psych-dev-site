@@ -849,7 +849,172 @@ async function runBiographyTwoPassExtraction(params: {
 }
 
 // ---------------------------------------------------------------------------
-// Public API entry points
+// Step-by-step API (for multi-call pipeline within Vercel timeout limits)
+// ---------------------------------------------------------------------------
+
+/** Step 1: Wikipedia fetch + fact extraction + gap-filling */
+export async function runBiographyStep1(params: {
+  sourceUrl: string;
+  apiKey: string;
+}): Promise<{ facts: BiographyFactCandidate[]; model: string; rawTextChars: number; subjectName: string }> {
+  const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
+  const fullExtract = wikiPage.biographyExtract || wikiPage.extract;
+  const len = fullExtract.length;
+  const sliceCount = len <= 30000 ? 1 : len <= 70000 ? 2 : len <= 130000 ? 3 : 4;
+  const slices = splitTextIntoSlices(fullExtract, sliceCount);
+  const subjectName = wikiPage.title;
+
+  // Parallel fact extraction
+  const settled = await Promise.allSettled(
+    slices.map((slice, index) => {
+      const focusHint = slices.length > 1
+        ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
+        : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
+      return generateSimpleBiographyFacts({ apiKey: params.apiKey, articleTitle: subjectName, extract: slice, focusHint });
+    }),
+  );
+
+  let allFacts: BiographyFactCandidate[] = [];
+  let factsModel = 'gemini-2.5-flash';
+  for (const result of settled) {
+    if (result.status === 'fulfilled') {
+      allFacts.push(...result.value.facts);
+      factsModel = result.value.model;
+    }
+  }
+  if (allFacts.length === 0) {
+    throw new Error('two-pass-flash-failed: all slices returned 0 facts');
+  }
+  allFacts = deduplicateFacts(allFacts);
+
+  // Gap-filling (best-effort)
+  try {
+    const datedFacts = allFacts.filter(f => f.year != null);
+    const undatedFacts = allFacts.filter(f => f.year == null);
+    const existingFactTexts = datedFacts.map(f => `[${f.year}] ${f.details}`);
+    const undatedFactTexts = undatedFacts.map(f => f.details);
+    const gapClient = getLectureGenAiClient(params.apiKey);
+    const gapSlices = len > 100000 ? slices : [fullExtract];
+    const gapSettled = await Promise.allSettled(
+      gapSlices.map(sliceText => {
+        const gapPrompt = buildBiographyGapFillingPrompt({
+          articleTitle: subjectName,
+          extract: sliceText,
+          existingFacts: existingFactTexts,
+          undatedFacts: undatedFactTexts.length > 0 ? undatedFactTexts : undefined,
+        });
+        return gapClient.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
+          config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'text/plain' },
+        });
+      }),
+    );
+    allFacts = [...datedFacts];
+    for (const gapResult of gapSettled) {
+      if (gapResult.status === 'fulfilled') {
+        const gapRawText = collectGeminiResultText(gapResult.value);
+        const gapFacts = parseSimpleJsonFacts(gapRawText);
+        if (gapFacts.length > 0) allFacts.push(...gapFacts);
+      }
+    }
+    allFacts = deduplicateFacts(allFacts);
+  } catch {
+    // Gap-filling is best-effort
+  }
+
+  return { facts: allFacts, model: factsModel, rawTextChars: len, subjectName };
+}
+
+/** Step 2: Annotation + redaktura */
+export async function runBiographyStep2(params: {
+  apiKey: string;
+  subjectName: string;
+  facts: BiographyFactCandidate[];
+}): Promise<{ facts: BiographyFactCandidate[] }> {
+  const { annotatedFacts, annotations } = await annotateBiographyFacts({
+    apiKey: params.apiKey,
+    subjectName: params.subjectName,
+    facts: params.facts,
+  });
+  const finalFacts = await redaktBiographyFacts({
+    apiKey: params.apiKey,
+    subjectName: params.subjectName,
+    facts: annotatedFacts,
+    annotations,
+  });
+  return { facts: finalFacts };
+}
+
+/** Step 3: Composition + render → final timeline */
+export async function runBiographyStep3(params: {
+  apiKey: string;
+  subjectName: string;
+  facts: BiographyFactCandidate[];
+  sourceUrl: string;
+  rawTextChars: number;
+  factsModel: string;
+}): Promise<BiographyExtractorSuccessPayload> {
+  const composition = await composeBiographyFactsIntoTimeline({
+    apiKey: params.apiKey,
+    subjectName: params.subjectName,
+    facts: params.facts,
+  });
+
+  let timeline: BiographyTimelineData | undefined;
+  let planDiagnostics: BiographyExtractorSuccessPayload['meta']['planDiagnostics'];
+  let timelineStats: BiographyExtractorSuccessPayload['meta']['timelineStats'];
+
+  try {
+    const plan = buildPlanFromCompositionResult({
+      subjectName: params.subjectName,
+      facts: params.facts,
+      composition,
+    });
+    timeline = buildTimelineDataFromBiographyPlan(plan);
+    planDiagnostics = {
+      source: 'facts-first',
+      mainEvents: plan.mainEvents.length,
+      branches: plan.branches.length,
+      branchEvents: plan.branches.reduce((sum, b) => sum + b.events.length, 0),
+      hasBirthDate: Boolean(plan.birthDetails?.date),
+      hasBirthPlace: Boolean(plan.birthDetails?.place),
+    };
+    timelineStats = {
+      nodes: timeline.nodes.length,
+      edges: timeline.edges.length,
+      hasBirthDate: Boolean(timeline.birthDetails?.date),
+      hasBirthPlace: Boolean(timeline.birthDetails?.place),
+    };
+  } catch (error) {
+    debugError('[timeline-biography] plan/timeline conversion failed', { error });
+  }
+
+  return {
+    ok: true,
+    sourceUrl: params.sourceUrl,
+    canvasName: params.subjectName,
+    subjectName: params.subjectName,
+    facts: params.facts,
+    timeline,
+    composition,
+    meta: {
+      factCount: params.facts.length,
+      extractionMode: 'two-pass' as BiographyExtractionMode,
+      model: `${params.factsModel} -> annotation -> redaktura -> composition -> render`,
+      promptVersion: 'two-pass-v6',
+      rawTextChars: params.rawTextChars,
+      strategy: 'two-pass-plaintext' as 'url-context',
+      groundingSources: [],
+      urlContextMetadata: [],
+      planDiagnostics,
+      timelineStats,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Public API entry points (single-call, for tests and scripts)
 // ---------------------------------------------------------------------------
 
 export async function runBiographyImport(params: {
