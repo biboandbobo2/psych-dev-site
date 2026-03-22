@@ -121,12 +121,27 @@ function findBirthFact(facts: BiographyFactCandidate[]): BiographyFactCandidate 
   return facts.find(f => f.eventType === 'birth' || f.category === 'birth');
 }
 
-function findDeathFact(facts: BiographyFactCandidate[]): BiographyFactCandidate | undefined {
-  return facts.find(f => f.eventType === 'death' || f.category === 'death')
-    ?? facts.find(f =>
-      f.themes?.includes('losses') &&
-      /скончал|умер|смерть|погиб/i.test(f.details ?? '')
-    );
+function findDeathFact(facts: BiographyFactCandidate[], birthYear: number | undefined): BiographyFactCandidate | undefined {
+  // Find death facts that are plausibly the subject's own death:
+  // - at least 15 years after birth (skip infant/child relative deaths)
+  // - at most 120 years after birth (skip deaths of spouse/children much later)
+  const minYear = birthYear != null ? birthYear + 15 : -Infinity;
+  const maxYear = birthYear != null ? birthYear + 120 : Infinity;
+  const deathCandidates = facts.filter(f =>
+    (f.eventType === 'death' || f.category === 'death') &&
+    f.year != null && f.year >= minYear && f.year <= maxYear
+  );
+  if (deathCandidates.length === 0) {
+    return undefined;
+  }
+  // Prefer high-importance death facts (subject's own death is usually marked important)
+  const highImportance = deathCandidates.filter(f => f.importance === 'high');
+  if (highImportance.length === 1) return highImportance[0];
+  // Among remaining, prefer the latest one within lifespan
+  const pool = highImportance.length > 0 ? highImportance : deathCandidates;
+  return pool.reduce((latest, f) =>
+    (f.year ?? 0) > (latest.year ?? 0) ? f : latest
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -219,9 +234,8 @@ export function buildPlanFromCompositionResult(params: {
   const { facts, composition, subjectName } = params;
 
   const birthFact = findBirthFact(facts);
-  const deathFact = findDeathFact(facts);
-
   const birthYear = birthFact?.year ?? facts[0]?.year ?? 0;
+  const deathFact = findDeathFact(facts, birthYear);
   const allYears = facts.map(f => f.year ?? 0).filter(y => y > 0 && y < 2100);
   const deathYear = deathFact?.year ?? (allYears.length > 0 ? Math.max(...allYears) : birthYear + 80);
   const lifespan = deathYear - birthYear;

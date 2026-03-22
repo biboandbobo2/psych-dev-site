@@ -12,13 +12,14 @@ ${params.focusHint?.trim() ? `\nФОКУС ЭТОГО ПРОХОДА\n${params.f
 
 ФОРМАТ
 [
-  {"year": 1828, "text": "Родился в Ясной Поляне", "category": "birth", "sphere": "family"},
+  {"year": 1828, "month": 6, "text": "Родился в Ясной Поляне", "category": "birth", "sphere": "family"},
   {"year": 1844, "text": "Поступил в Казанский университет", "category": "education", "sphere": "education"},
   ...
 ]
 
 ПОЛЯ
 - year: число (год события). ОБЯЗАТЕЛЬНО определи год — точный или приблизительный по контексту. null — только если абсолютно невозможно определить.
+- month: число 1-12 (месяц события). Только если месяц явно указан в тексте или однозначно следует из контекста. Не угадывай — пропусти поле, если неизвестен.
 - text: строка, 5-15 слов. Конкретное описание факта (не общие фразы вроде "Учёба" или "Публикация").
 - category: одно из: birth, education, move, publication, career, family, friends, health, conflict, award, project, death, other
 - sphere: одно из: education, career, creativity, family, health, friends, place, finance, hobby, other
@@ -89,12 +90,13 @@ ${undatedBlock}
 
 ФОРМАТ ОТВЕТА — единый JSON-массив (датированные старые + новые факты вместе):
 [
-  {"year": 1828, "text": "Факт", "category": "family", "sphere": "family"},
+  {"year": 1828, "month": 6, "text": "Факт", "category": "family", "sphere": "family"},
   ...
 ]
 
 ПОЛЯ
 - year: число (год). ОБЯЗАТЕЛЬНО определи год для каждого факта. null — только если абсолютно невозможно.
+- month: число 1-12 (месяц). Только если явно указан в тексте. Пропусти, если неизвестен.
 - text: строка, 5-15 слов.
 - category: одно из: birth, education, move, publication, career, family, friends, health, conflict, award, project, death, other
 - sphere: одно из: education, career, creativity, family, health, friends, place, finance, hobby, other
