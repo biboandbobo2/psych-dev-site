@@ -12,6 +12,8 @@ import { buildAuthorizedHeaders } from '../lib/apiAuth';
 import { buildGeminiApiKeyHeader, sanitizeGeminiApiKey } from '../lib/geminiKey';
 import { reportAppError } from '../lib/errorHandler';
 import { useAuthStore } from '../stores/useAuthStore';
+import { db } from '../lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 // Импорт типов, констант, утилит и компонентов из модулей
 import type {
@@ -729,66 +731,86 @@ export default function Timeline() {
       debugLog('[Timeline] Biography import request start', { sourceUrl });
       appendBiographyDiagnostic('request start', { sourceUrl });
 
-      // Single Cloud Function call — full pipeline with parallel slices
-      setBiographyProgress({ step: 1, total: 1, label: 'Построение таймлайна (Cloud Function)' });
+      // Generate jobId so we can track progress via Firestore onSnapshot
+      const jobId = crypto.randomUUID();
+      setBiographyProgress({ step: 1, total: 6, label: 'Запуск Cloud Function...' });
 
-      const cfUrl = `https://europe-west1-psych-dev-site-prod.cloudfunctions.net/biographyImport`;
-      const headers = await buildStepHeaders(geminiApiKeyOverride);
-      const cfResponse = await fetch(cfUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ sourceUrl, canvasId: activeTimelineId ?? '' }),
+      // Subscribe to Firestore job document for real-time progress
+      const jobDocRef = doc(db, 'biographyJobs', jobId);
+      const unsubscribe = onSnapshot(jobDocRef, (snapshot) => {
+        if (!snapshot.exists()) return;
+        const data = snapshot.data();
+        if (data?.progress) {
+          setBiographyProgress({
+            step: data.progress.step ?? 1,
+            total: data.progress.total ?? 6,
+            label: data.progress.label ?? 'Обработка...',
+            detail: data.progress.detail,
+          });
+        }
       });
 
-      const contentType = cfResponse.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) {
-        const hint = cfResponse.status === 504
-          ? 'Cloud Function не уложилась в таймаут.'
-          : `Сервер вернул неожиданный ответ (HTTP ${cfResponse.status}).`;
-        setBiographyErrorDetail(hint);
-        throw new Error(hint);
-      }
+      try {
+        const cfUrl = `https://europe-west1-psych-dev-site-prod.cloudfunctions.net/biographyImport`;
+        const headers = await buildStepHeaders(geminiApiKeyOverride);
+        const cfResponse = await fetch(cfUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ sourceUrl, canvasId: activeTimelineId ?? '', jobId }),
+        });
 
-      const result = await cfResponse.json() as {
-        ok?: boolean;
-        error?: string;
-        detail?: string;
-        jobId?: string;
-        subjectName?: string;
-        canvasName?: string;
-        timeline?: TimelineData;
-        meta?: {
-          model?: string;
-          factCount?: number;
-          timelineStats?: { nodes?: number; edges?: number };
+        const contentType = cfResponse.headers.get('content-type') ?? '';
+        if (!contentType.includes('application/json')) {
+          const hint = cfResponse.status === 504
+            ? 'Cloud Function не уложилась в таймаут.'
+            : `Сервер вернул неожиданный ответ (HTTP ${cfResponse.status}).`;
+          setBiographyErrorDetail(hint);
+          throw new Error(hint);
+        }
+
+        const result = await cfResponse.json() as {
+          ok?: boolean;
+          error?: string;
+          detail?: string;
+          jobId?: string;
+          subjectName?: string;
+          canvasName?: string;
+          timeline?: TimelineData;
+          meta?: {
+            model?: string;
+            factCount?: number;
+            timelineStats?: { nodes?: number; edges?: number };
+          };
         };
-      };
 
-      if (!cfResponse.ok || !result.ok) {
-        if (result.detail) setBiographyErrorDetail(result.detail);
-        throw new Error(result.error || 'Ошибка Cloud Function');
+        if (!cfResponse.ok || !result.ok) {
+          if (result.detail) setBiographyErrorDetail(result.detail);
+          throw new Error(result.error || 'Ошибка Cloud Function');
+        }
+
+        appendBiographyDiagnostic('cloud function done', { jobId: result.jobId, nodes: result.meta?.timelineStats?.nodes });
+
+        if (!result.timeline) {
+          throw new Error('Сервер не вернул данные таймлайна.');
+        }
+
+        setBiographyMeta({
+          model: result.meta?.model,
+          nodes: result.meta?.timelineStats?.nodes,
+          edges: result.meta?.timelineStats?.edges,
+        });
+
+        replaceActiveTimeline(result.timeline, {
+          name: result.canvasName || result.subjectName,
+        });
+        resetTransientTimelineUi();
+        setShowBiographyImportExpanded(false);
+        setBiographySourceUrl('');
+        debugLog('[Timeline] Biography import applied successfully', { jobId: result.jobId });
+        appendBiographyDiagnostic('timeline applied', { jobId: result.jobId });
+      } finally {
+        unsubscribe();
       }
-
-      appendBiographyDiagnostic('cloud function done', { jobId: result.jobId, nodes: result.meta?.timelineStats?.nodes });
-
-      if (!result.timeline) {
-        throw new Error('Сервер не вернул данные таймлайна.');
-      }
-
-      setBiographyMeta({
-        model: result.meta?.model,
-        nodes: result.meta?.timelineStats?.nodes,
-        edges: result.meta?.timelineStats?.edges,
-      });
-
-      replaceActiveTimeline(result.timeline, {
-        name: result.canvasName || result.subjectName,
-      });
-      resetTransientTimelineUi();
-      setShowBiographyImportExpanded(false);
-      setBiographySourceUrl('');
-      debugLog('[Timeline] Biography import applied successfully', { jobId: result.jobId });
-      appendBiographyDiagnostic('timeline applied', { jobId: result.jobId });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось построить таймлайн по биографии.';
       reportAppError({ message: 'Ошибка импорта биографии в таймлайн', error, context: 'Timeline.handleImportBiography' });

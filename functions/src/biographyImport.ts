@@ -358,6 +358,7 @@ async function runFullBiographyPipeline(params: {
   uid: string;
   userEmail: string;
   canvasId: string;
+  jobId?: string;
 }): Promise<{
   jobId: string;
   subjectName: string;
@@ -387,8 +388,10 @@ async function runFullBiographyPipeline(params: {
   const db = getFirestore();
   const client = getGenAiClient(params.apiKey);
 
-  // Create job document
-  const jobRef = db.collection(JOBS_COLLECTION).doc();
+  // Create job document (use client-provided jobId for onSnapshot tracking)
+  const jobRef = params.jobId
+    ? db.collection(JOBS_COLLECTION).doc(params.jobId)
+    : db.collection(JOBS_COLLECTION).doc();
   await jobRef.set({
     userId: params.uid,
     userEmail: params.userEmail,
@@ -396,6 +399,7 @@ async function runFullBiographyPipeline(params: {
     sourceUrl: params.sourceUrl,
     subjectName: '',
     status: 'running',
+    progress: { step: 1, total: 6, label: 'Загрузка статьи из Wikipedia' },
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -412,11 +416,15 @@ async function runFullBiographyPipeline(params: {
     const subjectName = wikiPage.title;
     const len = fullExtract.length;
 
-    await updateJob({ subjectName, status: 'step1_extracting' });
-
-    // --- Step 2: Parallel slice extraction ---
+    // --- Step 2: Slice extraction ---
     const sliceCount = len <= 30000 ? 1 : len <= 70000 ? 2 : len <= 130000 ? 3 : 4;
     const slices = splitTextIntoSlices(fullExtract, sliceCount);
+
+    await updateJob({
+      subjectName,
+      status: 'step1_extracting',
+      progress: { step: 2, total: 6, label: 'Извлечение фактов', detail: `${sliceCount} ${sliceCount === 1 ? 'часть' : 'части'}` },
+    });
     debugLog('[biographyImport] extraction start', { subjectName, chars: len, slices: sliceCount });
 
     // Extract slices sequentially to avoid Gemini rate limits (429)
@@ -451,6 +459,7 @@ async function runFullBiographyPipeline(params: {
 
     await updateJob({
       status: 'step1_done',
+      progress: { step: 3, total: 6, label: 'Gap-filling', detail: `${allFacts.length} фактов извлечено` },
       'step1.facts': allFacts,
       'step1.model': factsModel,
       'step1.rawTextChars': len,
@@ -492,7 +501,11 @@ async function runFullBiographyPipeline(params: {
       // Gap-filling is best-effort
     }
 
-    await updateJob({ status: 'step2_done', 'step2.facts': allFacts });
+    await updateJob({
+      status: 'step2_done',
+      progress: { step: 4, total: 6, label: 'Аннотация и ранжирование', detail: `${allFacts.length} фактов после добивки` },
+      'step2.facts': allFacts,
+    });
     debugLog('[biographyImport] gap-filling done', { facts: allFacts.length });
 
     // --- Step 4: Annotation ---
@@ -553,7 +566,11 @@ async function runFullBiographyPipeline(params: {
       debugError('[biographyImport] redaktura failed', { error });
     }
 
-    await updateJob({ status: 'step3_done', 'step3.facts': finalFacts });
+    await updateJob({
+      status: 'step3_done',
+      progress: { step: 5, total: 6, label: 'Композиция таймлайна', detail: `${finalFacts.length} фактов обработано` },
+      'step3.facts': finalFacts,
+    });
     debugLog('[biographyImport] annotation+redaktura done', { facts: finalFacts.length });
 
     // --- Step 6: Composition + render ---
@@ -668,7 +685,7 @@ async function runFullBiographyPipeline(params: {
 
 export const biographyImport = onRequest(
   {
-    timeoutSeconds: 540,
+    timeoutSeconds: 3600,
     memory: '2GiB',
     region: 'europe-west1',
     secrets: ['GEMINI_API_KEY'],
@@ -699,7 +716,8 @@ export const biographyImport = onRequest(
         return;
       }
 
-      const result = await runFullBiographyPipeline({ sourceUrl, apiKey, uid, userEmail: email, canvasId });
+      const clientJobId = typeof req.body?.jobId === 'string' ? req.body.jobId : undefined;
+      const result = await runFullBiographyPipeline({ sourceUrl, apiKey, uid, userEmail: email, canvasId, jobId: clientJobId });
 
       res.status(200).json({
         ok: true,
