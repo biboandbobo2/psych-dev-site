@@ -1,5 +1,4 @@
 import {
-  buildHeuristicBiographyFacts,
   inferBirthDetailsFromExtract,
   inferDeathYearFromExtract,
   normalizeFactText,
@@ -395,20 +394,6 @@ export function parseLineBasedBiographyFactCandidates(rawText: string): Biograph
   }
 
   return normalizeFactCandidates(facts);
-}
-
-export function buildHeuristicFactCandidates(extract: string, articleTitle: string): BiographyFactCandidate[] {
-  const heuristicFacts = buildHeuristicBiographyFacts(extract, articleTitle);
-
-  return normalizeFactCandidates(
-    heuristicFacts.map((fact) => ({
-      ...fact,
-      eventType: normalizeEventType(fact.category) || inferEventTypeFromSphere(normalizeSphere(fact.sphere)),
-      evidence: fact.details,
-      confidence: fact.importance,
-      source: 'heuristics' as const,
-    }))
-  );
 }
 
 function hasFactInAgeWindow(facts: BiographyFactCandidate[], minAge: number, maxAge: number) {

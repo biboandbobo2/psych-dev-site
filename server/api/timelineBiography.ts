@@ -4,7 +4,6 @@ export * from './timelineBiographyPrompts.js';
 export * from './timelineBiographyHeuristics.js';
 export * from './timelineBiographyLabelQuality.js';
 export * from './timelineBiographyFacts.js';
-export * from './timelineBiographyThemes.js';
 export * from './timelineBiographyComposer.js';
 export * from './timelineBiographyLint.js';
 export * from './timelineBiographyMetrics.js';

@@ -7,13 +7,11 @@ import {
   TIMELINE_BIOGRAPHY_MODELS,
   buildBiographyEvaluationMetrics,
   buildSimpleBiographyFactExtractionPrompt,
-  buildHeuristicFactCandidates,
   buildTimelineDataFromBiographyPlan,
   buildPlanFromCompositionResult,
   fetchWikipediaPlainExtract,
   hasFatalBiographyIssues,
   lintBiographyPlan,
-  mergeFactCandidates,
   parseLineBasedBiographyFactCandidates,
   repairBiographyPlan,
   type BiographyFactCandidate,
@@ -180,9 +178,8 @@ async function run() {
   }
 
   const wikiPage = await fetchWikipediaPlainExtract(options.sourceUrl);
-  const heuristicFacts = buildHeuristicFactCandidates(wikiPage.extract, wikiPage.title);
   let modelFacts: BiographyFactCandidate[] = [];
-  let factsSource = 'heuristics-only';
+  let factsSource = 'none';
 
   if (!options.heuristicsOnly && options.apiKey) {
     const result = await generateModelFacts({
@@ -195,11 +192,7 @@ async function run() {
     factsSource = result.model;
   }
 
-  const mergedFacts = mergeFactCandidates({
-    modelFacts,
-    heuristicFacts,
-    extract: wikiPage.extract,
-  });
+  const mergedFacts = modelFacts;
 
   // Build a stub composition (all facts on mainLine, no branches) for evaluation
   const stubComposition: BiographyCompositionResult = {
@@ -231,7 +224,6 @@ async function run() {
   printSection('FACTS');
   printLine(`source: ${factsSource}`);
   printLine(`modelFacts: ${modelFacts.length}`);
-  printLine(`heuristicFacts: ${heuristicFacts.length}`);
   printLine(`mergedFacts: ${mergedFacts.length}`);
   printLine(`approximateFacts: ${metrics.facts.approximate}`);
   printLine(`factsWithPeople: ${metrics.facts.withPeople}`);
@@ -267,7 +259,6 @@ async function run() {
     },
     factsSource,
     modelFacts,
-    heuristicFacts,
     mergedFacts,
     plan: repairedPlan,
     compositionStats: { facts: mergedFacts.length, discardedFacts: 0 },

@@ -492,14 +492,3 @@ export function hasFatalBiographyIssues(issues: BiographyLintIssue[]) {
   return issues.some((issue) => issue.severity === 'error');
 }
 
-export function buildFactCoverageSummary(facts: BiographyFactCandidate[]) {
-  const windows: Array<[number, number]> = [
-    [0, 6],
-    [7, 12],
-    [13, 18],
-  ];
-
-  return windows.map(([minAge, maxAge]) =>
-    facts.some((fact) => Number.isFinite(fact.age) && Number(fact.age) >= minAge && Number(fact.age) <= maxAge)
-  );
-}

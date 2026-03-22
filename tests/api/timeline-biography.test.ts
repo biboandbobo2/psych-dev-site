@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import handler from '../../api/timeline-biography.js';
 import {
   buildTimelineDataFromBiographyPlan,
-  enrichBiographyPlan,
 } from '../../server/api/timelineBiography.js';
 
 const geminiMocks = vi.hoisted(() => ({
@@ -326,54 +325,3 @@ describe('buildTimelineDataFromBiographyPlan', () => {
   });
 });
 
-describe('timelineBiography quality guards', () => {
-  it('заменяет слабый model plan эвристиками и вычищает branch-дубли', () => {
-    const result = enrichBiographyPlan({
-      articleTitle: 'Пушкин, Александр Сергеевич',
-      extract: [
-        'Александр Сергеевич Пушкин родился в Москве в 1799 году.',
-        'В 1811 году поступил в Царскосельский лицей.',
-        'В 1820 году опубликовал поэму «Руслан и Людмила».',
-        'В 1824 году был сослан в Михайловское.',
-        'В 1826 году вернулся из ссылки.',
-        'В 1831 году женился на Наталье Гончаровой.',
-        'В 1833 году завершил работу над «Историей Пугачёва».',
-        'В 1837 году погиб после дуэли в Санкт-Петербурге.',
-      ].join(' '),
-      plan: {
-        subjectName: 'Александр Пушкин',
-        canvasName: 'Пушкин',
-        currentAge: 37,
-        birthDetails: {
-          date: '6 июня 1799',
-          place: 'Москва',
-        },
-        mainEvents: [
-          { age: 0, label: 'Рождение', isDecision: false, sphere: 'family' },
-          { age: 12, label: 'Поступление в лицей', isDecision: true, sphere: 'education' },
-          { age: 21, label: 'Публикация «Руслан и Людмила»', isDecision: true, sphere: 'career' },
-        ],
-        branches: [
-          {
-            label: 'Литература',
-            sphere: 'career',
-            sourceMainEventIndex: 1,
-            events: [
-              { age: 21, label: 'Публикация «Руслан и Людмила»', isDecision: true, sphere: 'career' },
-              { age: 34, label: 'Публикация «История Пугачёва»', isDecision: true, sphere: 'career' },
-            ],
-          },
-        ],
-      },
-    });
-
-    expect(result.diagnostics.source).toBe('merged-with-heuristics');
-    expect(result.plan.mainEvents.length).toBeGreaterThanOrEqual(5);
-    expect(result.plan.mainEvents.some((event) => /дуэл|смерт|гибел/i.test(event.label))).toBe(true);
-    expect(
-      result.plan.branches.every((branch) =>
-        branch.events.every((event) => !/Руслан и Людмила/i.test(event.label))
-      )
-    ).toBe(true);
-  });
-});

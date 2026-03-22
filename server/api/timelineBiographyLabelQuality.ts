@@ -19,10 +19,6 @@ export function isTruncatedBiographyLabel(label: string | undefined | null) {
   return /\s(?:в|на|с|о|к|у|по|из|за|от|до|для|при|про|без|над|под|об|что|как|и|а|но|или|не)\s*$/i.test(normalized);
 }
 
-export function isWeakBiographyLabel(label: string | undefined | null) {
-  return isGenericBiographyLabel(label) || isTruncatedBiographyLabel(label);
-}
-
 export function isMediaMentionBiographyEvent(label: string | undefined | null, details?: string | null) {
   const normalizedLabel = (label || '').trim();
   const normalizedText = `${normalizedLabel} ${details || ''}`.trim();
