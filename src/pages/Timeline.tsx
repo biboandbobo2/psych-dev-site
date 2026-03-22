@@ -661,12 +661,28 @@ export default function Timeline() {
       });
 
     const callStep = async (body: Record<string, unknown>, apiKeyOverride: string | undefined) => {
-      const headers = await buildStepHeaders(apiKeyOverride);
-      const response = await fetch('/api/timeline-biography', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
+      let response: Response;
+      try {
+        const headers = await buildStepHeaders(apiKeyOverride);
+        response = await fetch('/api/timeline-biography', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+        });
+      } catch (fetchError) {
+        // Browser rejects special chars in header values — retry without BYOK key
+        if (apiKeyOverride && fetchError instanceof SyntaxError && /expected pattern/i.test(fetchError.message)) {
+          debugLog('[Timeline] Retrying step without BYOK header after syntax error');
+          const headers = await buildStepHeaders(undefined);
+          response = await fetch('/api/timeline-biography', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body),
+          });
+        } else {
+          throw fetchError;
+        }
+      }
       const data = await response.json() as {
         ok?: boolean;
         error?: string;
