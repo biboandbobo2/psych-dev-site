@@ -715,7 +715,7 @@ export default function Timeline() {
           timelineStats?: { nodes?: number; edges?: number };
         };
       } | null = null;
-      let streamError: { message: string; detail?: string } | null = null;
+      let streamError: { message: string; detail?: string; stack?: string; sourceUrl?: string } | null = null;
 
       for (;;) {
         const { done, value } = await reader.read();
@@ -750,7 +750,12 @@ export default function Timeline() {
             } else if (event.type === 'result') {
               resultPayload = event.data ?? null;
             } else if (event.type === 'error') {
-              streamError = { message: event.message ?? 'Неизвестная ошибка', detail: event.detail };
+              streamError = {
+                message: event.message ?? 'Неизвестная ошибка',
+                detail: event.detail,
+                stack: (event as { stack?: string }).stack,
+                sourceUrl: (event as { sourceUrl?: string }).sourceUrl,
+              };
             }
           } catch {
             debugWarn('[Timeline] Failed to parse NDJSON line', trimmed);
@@ -772,7 +777,12 @@ export default function Timeline() {
           if (event.type === 'result') {
             resultPayload = event.data ?? null;
           } else if (event.type === 'error') {
-            streamError = { message: event.message ?? 'Неизвестная ошибка', detail: event.detail };
+            streamError = {
+              message: event.message ?? 'Неизвестная ошибка',
+              detail: event.detail,
+              stack: (event as { stack?: string }).stack,
+              sourceUrl: (event as { sourceUrl?: string }).sourceUrl,
+            };
           }
         } catch {
           debugWarn('[Timeline] Failed to parse final NDJSON buffer', buffer);
@@ -781,7 +791,12 @@ export default function Timeline() {
 
       // Handle stream error
       if (streamError) {
-        setBiographyErrorDetail(streamError.detail ?? null);
+        const detailParts = [
+          streamError.detail && `Ошибка: ${streamError.detail}`,
+          streamError.sourceUrl && `URL: ${streamError.sourceUrl}`,
+          streamError.stack && `\nStack trace:\n${streamError.stack}`,
+        ].filter(Boolean);
+        setBiographyErrorDetail(detailParts.join('\n') || streamError.message);
         throw new Error(streamError.message);
       }
 

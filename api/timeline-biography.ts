@@ -78,7 +78,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const rawMessage = error instanceof Error ? error.message : String(error);
 
     if (wantStream) {
-      sendNdjson(res, { type: 'error', message, detail: rawMessage });
+      sendNdjson(res, {
+        type: 'error',
+        message,
+        detail: rawMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+        sourceUrl: req.body?.sourceUrl,
+      });
       res.end();
     } else {
       res.status(statusCode).json({ ok: false, error: message });
