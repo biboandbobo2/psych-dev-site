@@ -38,20 +38,24 @@ const JOBS_COLLECTION = 'biographyJobs';
 function getGenAiClient(apiKey) {
     return new GoogleGenAI({ apiKey });
 }
-/** Call Gemini with retry on 429 (rate limit) — up to 3 attempts with exponential backoff */
+/** Call Gemini with retry on 429 (rate limit) — up to 3 attempts with 60s delay */
 async function callGeminiWithRetry(client, params, label) {
     const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 60_000; // 60s — free tier resets per-minute quota
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
-            return await client.models.generateContent(params);
+            const callStart = Date.now();
+            const result = await client.models.generateContent(params);
+            const callDurationMs = Date.now() - callStart;
+            debugLog(`[biographyImport] ${label}: Gemini call took ${(callDurationMs / 1000).toFixed(1)}s (attempt ${attempt + 1})`);
+            return result;
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
             const is429 = /429|RESOURCE_EXHAUSTED|quota/i.test(msg);
             if (is429 && attempt < MAX_RETRIES - 1) {
-                const delay = (attempt + 1) * 10_000; // 10s, 20s
-                debugLog(`[biographyImport] ${label}: 429 rate limit, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
-                await new Promise(r => setTimeout(r, delay));
+                debugLog(`[biographyImport] ${label}: 429 rate limit, retrying in ${RETRY_DELAY_MS / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
+                await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
                 continue;
             }
             throw error;
@@ -531,12 +535,23 @@ async function runFullBiographyPipeline(params) {
                 importance: importanceToScore(fact.importance),
             })),
         });
-        const compResult = await callGeminiWithRetry(client, {
-            model: 'gemini-2.5-flash',
-            contents: [{ role: 'user', parts: [{ text: compositionPrompt }] }],
-            config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'application/json' },
-        }, 'composition');
-        const composition = JSON.parse(collectGeminiResultText(compResult));
+        let composition;
+        try {
+            const compResult = await callGeminiWithRetry(client, {
+                model: 'gemini-2.5-flash',
+                contents: [{ role: 'user', parts: [{ text: compositionPrompt }] }],
+                config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'application/json' },
+            }, 'composition');
+            composition = JSON.parse(collectGeminiResultText(compResult));
+        }
+        catch (error) {
+            debugError('[biographyImport] composition failed, using fallback single-branch layout', { error });
+            // Fallback: all facts on mainLine, no branches
+            composition = {
+                mainLine: finalFacts.map((_, i) => i),
+                branches: [],
+            };
+        }
         // Fill in missing facts
         const assigned = new Set();
         for (const idx of composition.mainLine)
