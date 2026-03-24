@@ -1,7 +1,7 @@
 // File: src/app/AppShell.jsx
 // AppShell отвечает за отображение основного контента и маршрутов,
 // опираясь на ROUTE_CONFIG, Zustand-сторы и UI-компоненты. Провайдеры (Router/Auth) живут в src/App.jsx.
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { AnimatePresence } from 'framer-motion';
@@ -28,9 +28,73 @@ import AdminCourseSidebar from '../components/AdminCourseSidebar';
 import StudentCourseSidebar from '../components/StudentCourseSidebar';
 import { isCoreCourse } from '../constants/courses';
 import { sortNavItemsWithRouteFallback } from '../lib/courseLessons';
+import { getPageCourseId, shouldShowStudentCourseSidebar } from './courseNavigation';
 
 const normalizePath = (path) =>
   path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
+
+function buildCourseNavItems({
+  courseId,
+  periodMap,
+  clinicalTopicsMap,
+  generalTopicsMap,
+  dynamicLessonsMap,
+}) {
+  if (!courseId) {
+    return [];
+  }
+
+  const routes = courseId === 'clinical'
+    ? CLINICAL_ROUTE_CONFIG
+    : courseId === 'general'
+      ? GENERAL_ROUTE_CONFIG
+      : courseId === 'development'
+        ? ROUTE_CONFIG
+        : [];
+  const dataMap = courseId === 'clinical'
+    ? clinicalTopicsMap
+    : courseId === 'general'
+      ? generalTopicsMap
+      : courseId === 'development'
+        ? periodMap
+        : dynamicLessonsMap;
+  const basePath = courseId === 'clinical'
+    ? '/clinical/'
+    : courseId === 'general'
+      ? '/general/'
+      : courseId === 'development'
+        ? '/'
+        : `/course/${courseId}/`;
+
+  const staticIds = new Set(routes.map((route) => route.periodId).filter(Boolean));
+
+  const items = routes
+    .filter((config) => {
+      if (!config.periodId) return true;
+      const data = dataMap.get(config.periodId);
+      return data && data.published !== false;
+    })
+    .map((config) => {
+      const data = config.periodId ? dataMap.get(config.periodId) : null;
+      return {
+        path: config.path,
+        label: data?.label || data?.title || config.navLabel,
+        order: data?.order ?? 999,
+      };
+    });
+
+  dataMap.forEach((topic, periodId) => {
+    if (!staticIds.has(periodId) && topic.published !== false) {
+      items.push({
+        path: `${basePath}${periodId}`,
+        label: topic.title || topic.label,
+        order: topic.order ?? 999,
+      });
+    }
+  });
+
+  return sortNavItemsWithRouteFallback(routes, items);
+}
 
 function RoutePager({ currentPath, navItems }) {
   const normalizedPath = normalizePath(currentPath);
@@ -89,9 +153,9 @@ export function AppShell() {
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.loading);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+  const setCurrentCourse = useCourseStore((state) => state.setCurrentCourse);
   const isSuperAdminPage = normalizedPath === '/superadmin';
   const isAdminContentPage = normalizedPath.startsWith('/admin/content');
-  const isProfilePage = normalizedPath === '/profile';
   const isNotesPage = normalizedPath === '/notes';
   const hideNavigation =
     normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/superadmin');
@@ -99,6 +163,11 @@ export function AppShell() {
 
   // Используем глобальный store для курса
   const currentCourse = useCourseStore((state) => state.currentCourse);
+  const pageCourseId = getPageCourseId(normalizedPath);
+  const showStudentSidebar = shouldShowStudentCourseSidebar(normalizedPath);
+  const lastSidebarPathRef = useRef(null);
+  const shouldMirrorPageCourseInSidebar = Boolean(pageCourseId && lastSidebarPathRef.current !== normalizedPath);
+  const sidebarCourseId = shouldMirrorPageCourseInSidebar ? pageCourseId : currentCourse;
 
   useEffect(() => {
     // Ищем роут во всех трех конфигурациях
@@ -115,6 +184,14 @@ export function AppShell() {
     const title = route.meta?.title ?? `${label} — ${SITE_NAME}`;
     document.title = title;
   }, [normalizedPath]);
+
+  useEffect(() => {
+    lastSidebarPathRef.current = normalizedPath;
+
+    if (pageCourseId) {
+      setCurrentCourse(pageCourseId);
+    }
+  }, [normalizedPath, pageCourseId, setCurrentCourse]);
 
   const periodMap = useMemo(() => {
     const map = new Map();
@@ -139,87 +216,60 @@ export function AppShell() {
   const isProfileOrAdmin = normalizedPath === '/' || normalizedPath === '/profile' || normalizedPath.startsWith('/admin/content');
   const isTestsPage = normalizedPath.startsWith('/tests');
   const useCourseFromStore = isProfileOrAdmin || isTestsPage || isNotesPage;
-
-  const isClinicalPage = normalizedPath.startsWith('/clinical') ||
-                         (useCourseFromStore && currentCourse === 'clinical');
-  const isGeneralPage = normalizedPath.startsWith('/general') ||
-                        (useCourseFromStore && currentCourse === 'general');
-  const dynamicCourseIdFromPath = normalizedPath.startsWith('/course/')
-    ? normalizedPath.split('/')[2] || null
+  const pageNavigationCourseId = useCourseFromStore ? currentCourse : (pageCourseId ?? 'development');
+  const pageDynamicCourseId = pageNavigationCourseId && !isCoreCourse(pageNavigationCourseId)
+    ? pageNavigationCourseId
     : null;
-  const isDynamicCourseFromStore = useCourseFromStore && currentCourse && !isCoreCourse(currentCourse);
-  const dynamicCourseId = dynamicCourseIdFromPath ?? (isDynamicCourseFromStore ? currentCourse : null);
-  const isDynamicCoursePage = Boolean(dynamicCourseId);
-  const { topics: dynamicLessonsMap, loading: dynamicLoading, error: dynamicError } = useDynamicCourseLessons(dynamicCourseId, true);
-  const dynamicNavigationLoading = isDynamicCoursePage && dynamicLoading;
-  const dynamicNavigationErrorMessage = dynamicError ? 'Не удалось загрузить навигацию курса.' : null;
-
-  const navItems = useMemo(() => {
-    // Выбираем конфигурацию в зависимости от курса
-    const routes = isClinicalPage ? CLINICAL_ROUTE_CONFIG :
-                   isGeneralPage ? GENERAL_ROUTE_CONFIG :
-                   isDynamicCoursePage ? [] :
-                   ROUTE_CONFIG;
-    const dataMap = isClinicalPage ? clinicalTopicsMap :
-                    isGeneralPage ? generalTopicsMap :
-                    isDynamicCoursePage ? dynamicLessonsMap :
-                    periodMap;
-    const basePath = isClinicalPage ? '/clinical/' :
-                     isGeneralPage ? '/general/' :
-                     isDynamicCoursePage ? `/course/${dynamicCourseId}/` :
-                     '/';
-
-    // Собираем ID статических роутов
-    const staticIds = new Set(routes.map(r => r.periodId).filter(Boolean));
-
-    // Начинаем с статических роутов (только опубликованные или те, что есть в dataMap)
-    const items = routes
-      .filter((config) => {
-        if (!config.periodId) return true;
-        const data = dataMap.get(config.periodId);
-        // Показываем только если есть данные и опубликовано
-        return data && data.published !== false;
-      })
-      .map((config) => {
-        const data = config.periodId ? dataMap.get(config.periodId) : null;
-        return {
-          path: config.path,
-          label: data?.label || data?.title || config.navLabel,
-          order: data?.order ?? 999,
-        };
-      });
-
-    // Добавляем динамические занятия (которых нет в статических роутах)
-    dataMap.forEach((topic, periodId) => {
-      if (!staticIds.has(periodId) && topic.published !== false) {
-        items.push({
-          path: `${basePath}${periodId}`,
-          label: topic.title || topic.label,
-          order: topic.order ?? 999,
-        });
-      }
-    });
-
-    // Сортируем по order
-    return sortNavItemsWithRouteFallback(routes, items);
-  }, [periodMap, clinicalTopicsMap, generalTopicsMap, dynamicLessonsMap, isClinicalPage, isGeneralPage, isDynamicCoursePage, dynamicCourseId]);
+  const sidebarDynamicCourseId = sidebarCourseId && !isCoreCourse(sidebarCourseId)
+    ? sidebarCourseId
+    : null;
+  const { topics: pageDynamicLessonsMap, loading: pageDynamicLoading, error: pageDynamicError } =
+    useDynamicCourseLessons(pageDynamicCourseId, true);
+  const { topics: sidebarDynamicLessonsMap, loading: sidebarDynamicLoading, error: sidebarDynamicError } =
+    useDynamicCourseLessons(sidebarDynamicCourseId, true);
+  const navItems = useMemo(
+    () =>
+      buildCourseNavItems({
+        courseId: pageNavigationCourseId,
+        periodMap,
+        clinicalTopicsMap,
+        generalTopicsMap,
+        dynamicLessonsMap: pageDynamicLessonsMap,
+      }),
+    [pageNavigationCourseId, periodMap, clinicalTopicsMap, generalTopicsMap, pageDynamicLessonsMap]
+  );
+  const sidebarNavItems = useMemo(
+    () =>
+      buildCourseNavItems({
+        courseId: sidebarCourseId,
+        periodMap,
+        clinicalTopicsMap,
+        generalTopicsMap,
+        dynamicLessonsMap: sidebarDynamicLessonsMap,
+      }),
+    [sidebarCourseId, periodMap, clinicalTopicsMap, generalTopicsMap, sidebarDynamicLessonsMap]
+  );
+  const dynamicNavigationLoading = Boolean(pageDynamicCourseId) && pageDynamicLoading;
+  const dynamicNavigationErrorMessage = pageDynamicError ? 'Не удалось загрузить навигацию курса.' : null;
+  const sidebarNavigationLoading = Boolean(sidebarDynamicCourseId) && sidebarDynamicLoading;
+  const sidebarNavigationErrorMessage = sidebarDynamicError ? 'Не удалось загрузить навигацию курса.' : null;
 
   const sidebar = isSuperAdmin && isSuperAdminPage
     ? <SuperAdminTaskPanel />
     : isAdminContentPage
       ? <AdminCourseSidebar />
-      : isProfilePage || isNotesPage
+      : showStudentSidebar
         ? (
           <StudentCourseSidebar
-            navItems={navItems}
-            courseNavigationLoading={dynamicNavigationLoading}
-            courseNavigationError={dynamicNavigationErrorMessage}
+            navItems={sidebarNavItems}
+            courseNavigationLoading={sidebarNavigationLoading}
+            courseNavigationError={sidebarNavigationErrorMessage}
           />
         )
         : undefined;
   const sidebarWidthClass = isSuperAdmin && isSuperAdminPage
     ? "lg:w-[360px] xl:w-[420px]"
-    : isAdminContentPage || isProfilePage || isNotesPage
+    : isAdminContentPage || showStudentSidebar
       ? "lg:w-64 xl:w-72"
       : undefined;
 
@@ -227,7 +277,7 @@ export function AppShell() {
   if (error) return <ErrorState message={error.message} />;
   if (clinicalError) return <ErrorState message={clinicalError.message} />;
   if (generalError) return <ErrorState message={generalError.message} />;
-  if (!periods.length && !isDynamicCoursePage) return <EmptyState />;
+  if (!periods.length && !pageDynamicCourseId) return <EmptyState />;
 
   return (
     <>
