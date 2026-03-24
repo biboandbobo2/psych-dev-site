@@ -15,7 +15,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { GoogleGenAI } from '@google/genai';
-import { debugLog, debugError } from './lib/debug.js';
+import { logger } from 'firebase-functions/v2';
 // Import biography submodules (included via tsconfig)
 import { WIKIPEDIA_HOST_PATTERN, } from '../../server/api/timelineBiographyTypes.js';
 import { fetchWikipediaPlainExtract } from '../../server/api/timelineBiographyWikipedia.js';
@@ -47,14 +47,14 @@ async function callGeminiWithRetry(client, params, label) {
             const callStart = Date.now();
             const result = await client.models.generateContent(params);
             const callDurationMs = Date.now() - callStart;
-            debugLog(`[biographyImport] ${label}: Gemini call took ${(callDurationMs / 1000).toFixed(1)}s (attempt ${attempt + 1})`);
+            logger.info(`[biographyImport] ${label}: Gemini call took ${(callDurationMs / 1000).toFixed(1)}s (attempt ${attempt + 1})`);
             return result;
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
             const is429 = /429|RESOURCE_EXHAUSTED|quota/i.test(msg);
             if (is429 && attempt < MAX_RETRIES - 1) {
-                debugLog(`[biographyImport] ${label}: 429 rate limit, retrying in ${RETRY_DELAY_MS / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
+                logger.info(`[biographyImport] ${label}: 429 rate limit, retrying in ${RETRY_DELAY_MS / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
                 await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
                 continue;
             }
@@ -337,7 +337,7 @@ async function runFullBiographyPipeline(params) {
     };
     try {
         // --- Step 1: Wikipedia fetch ---
-        debugLog('[biographyImport] fetching Wikipedia', { sourceUrl: params.sourceUrl });
+        logger.info('[biographyImport] fetching Wikipedia', { sourceUrl: params.sourceUrl });
         const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
         const fullExtract = wikiPage.biographyExtract || wikiPage.extract;
         const subjectName = wikiPage.title;
@@ -349,7 +349,7 @@ async function runFullBiographyPipeline(params) {
             status: 'step1_extracting',
             progress: { step: 2, total: 6, label: 'Извлечение фактов', detail: `${slices.length} ${slices.length === 1 ? 'часть' : 'части'}` },
         });
-        debugLog('[biographyImport] extraction start', { subjectName, chars: len, slices: slices.length });
+        logger.info('[biographyImport] extraction start', { subjectName, chars: len, slices: slices.length });
         // Extract slices sequentially to avoid Gemini rate limits (429)
         let allFacts = [];
         const factsModel = 'gemini-2.5-flash';
@@ -370,7 +370,7 @@ async function runFullBiographyPipeline(params) {
             const rawText = collectGeminiResultText(result);
             const facts = parseSimpleJsonFacts(rawText);
             allFacts.push(...facts);
-            debugLog(`[biographyImport] slice ${i + 1}/${slices.length} done`, { facts: facts.length });
+            logger.info(`[biographyImport] slice ${i + 1}/${slices.length} done`, { facts: facts.length });
         }
         if (allFacts.length === 0) {
             throw new Error('two-pass-flash-failed: all slices returned 0 facts');
@@ -385,7 +385,7 @@ async function runFullBiographyPipeline(params) {
             allFacts = allFacts.filter(f => f.year == null || f.year <= cutoffYear);
             const filtered = beforeFilter - allFacts.length;
             if (filtered > 0) {
-                debugLog(`[biographyImport] post-death filter: removed ${filtered} facts after ${cutoffYear}`);
+                logger.info(`[biographyImport] post-death filter: removed ${filtered} facts after ${cutoffYear}`);
             }
         }
         // --- Density calculation for gap-filling control ---
@@ -398,7 +398,7 @@ async function runFullBiographyPipeline(params) {
         // density < 3: full gap-filling (short articles, few facts)
         // density >= 3: dating only (enough facts, skip searching for missed ones)
         const gapFillingMode = factDensity < 3 ? 'full' : 'dating-only';
-        debugLog('[biographyImport] density analysis', {
+        logger.info('[biographyImport] density analysis', {
             facts: allFacts.length, lifespanYears, density: factDensity.toFixed(2), gapFillingMode,
         });
         await updateJob({
@@ -409,7 +409,7 @@ async function runFullBiographyPipeline(params) {
             'step1.rawTextChars': len,
             'step1.extract': fullExtract,
         });
-        debugLog('[biographyImport] extraction done', { facts: allFacts.length });
+        logger.info('[biographyImport] extraction done', { facts: allFacts.length });
         // --- Step 3: Gap-filling ---
         try {
             const datedFacts = allFacts.filter(f => f.year != null);
@@ -418,7 +418,7 @@ async function runFullBiographyPipeline(params) {
             const undatedFactTexts = undatedFacts.map(f => f.details);
             // Skip gap-filling entirely if density is high and no undated facts
             if (gapFillingMode === 'dating-only' && undatedFactTexts.length === 0) {
-                debugLog('[biographyImport] skipping gap-filling: density high, no undated facts');
+                logger.info('[biographyImport] skipping gap-filling: density high, no undated facts');
             }
             else {
                 allFacts = [...datedFacts];
@@ -453,7 +453,7 @@ async function runFullBiographyPipeline(params) {
             progress: { step: 4, total: 6, label: 'Аннотация и ранжирование', detail: `${allFacts.length} фактов после добивки` },
             'step2.facts': allFacts,
         });
-        debugLog('[biographyImport] gap-filling done', { facts: allFacts.length });
+        logger.info('[biographyImport] gap-filling done', { facts: allFacts.length });
         // --- Step 4: Annotation ---
         const indexedForAnnotation = allFacts.map((fact, index) => ({
             index,
@@ -474,7 +474,7 @@ async function runFullBiographyPipeline(params) {
             annotations = parseAnnotationResponse(collectGeminiResultText(annotResult));
         }
         catch (error) {
-            debugError('[biographyImport] annotation failed', { error });
+            logger.error('[biographyImport] annotation failed', { error });
         }
         const annotatedFacts = allFacts.map((fact, index) => {
             const ann = annotations.get(index);
@@ -507,14 +507,14 @@ async function runFullBiographyPipeline(params) {
             });
         }
         catch (error) {
-            debugError('[biographyImport] redaktura failed', { error });
+            logger.error('[biographyImport] redaktura failed', { error });
         }
         await updateJob({
             status: 'step3_done',
             progress: { step: 5, total: 6, label: 'Композиция таймлайна', detail: `${finalFacts.length} фактов обработано` },
             'step3.facts': finalFacts,
         });
-        debugLog('[biographyImport] annotation+redaktura done', { facts: finalFacts.length });
+        logger.info('[biographyImport] annotation+redaktura done', { facts: finalFacts.length });
         // --- Step 6: Composition + render ---
         const birthFact = finalFacts.find(f => f.eventType === 'birth' || f.category === 'birth');
         const birthYear = birthFact?.year ?? finalFacts[0]?.year ?? 0;
@@ -552,7 +552,7 @@ async function runFullBiographyPipeline(params) {
             composition = JSON.parse(collectGeminiResultText(compResult));
         }
         catch (error) {
-            debugError('[biographyImport] composition failed, using fallback single-branch layout', { error });
+            logger.error('[biographyImport] composition failed, using fallback single-branch layout', { error });
             // Fallback: all facts on mainLine, no branches
             composition = {
                 mainLine: finalFacts.map((_, i) => i),
@@ -594,7 +594,7 @@ async function runFullBiographyPipeline(params) {
             };
         }
         catch (error) {
-            debugError('[biographyImport] plan/timeline conversion failed', { error });
+            logger.error('[biographyImport] plan/timeline conversion failed', { error });
         }
         const meta = {
             factCount: finalFacts.length,
@@ -607,7 +607,7 @@ async function runFullBiographyPipeline(params) {
             status: 'done',
             step4: { timeline, composition, canvasName: subjectName, meta },
         });
-        debugLog('[biographyImport] complete', { jobId: jobRef.id, nodes: timelineStats?.nodes });
+        logger.info('[biographyImport] complete', { jobId: jobRef.id, nodes: timelineStats?.nodes });
         return {
             jobId: jobRef.id,
             subjectName,
@@ -666,7 +666,7 @@ export const biographyImport = onRequest({
         });
     }
     catch (error) {
-        debugError('[biographyImport] handler error', error);
+        logger.error('[biographyImport] handler error', error);
         const { statusCode, message } = normalizeError(error);
         res.status(statusCode).json({
             ok: false,
