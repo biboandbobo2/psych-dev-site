@@ -50,27 +50,19 @@ export function buildBiographyGapFillingPrompt(params: {
   extract: string;
   existingFacts: string[];
   undatedFacts?: string[];
+  /** 'full' = date + find missing; 'dating-only' = only date undated facts */
+  mode?: 'full' | 'dating-only';
 }) {
   const existingBlock = params.existingFacts.map((f, i) => `${i + 1}. ${f}`).join('\n');
 
   const hasUndated = params.undatedFacts && params.undatedFacts.length > 0;
+  const mode = params.mode ?? 'full';
 
   const undatedBlock = hasUndated
     ? params.undatedFacts!.map((f, i) => `U${i + 1}. ${f}`).join('\n')
     : '';
 
-  return `Ты — второй проход извлечения фактов из статьи о ${params.articleTitle}.
-
-Первый проход уже нашёл следующие ДАТИРОВАННЫЕ факты:
-${existingBlock}
-${hasUndated ? `
-═══════════════════════════════════════
-ЗАДАЧА 1 (ГЛАВНАЯ): ДАТИРОВАНИЕ
-═══════════════════════════════════════
-Следующие факты были извлечены БЕЗ года. Для КАЖДОГО из них определи год по тексту статьи и включи в ответ с полем "year". Если факт дублирует уже датированный — пропусти его.
-
-${undatedBlock}
-` : ''}
+  const missedFactsSection = mode === 'full' ? `
 ═══════════════════════════════════════
 ЗАДАЧА ${hasUndated ? '2' : '1'}: ПРОПУЩЕННЫЕ ФАКТЫ
 ═══════════════════════════════════════
@@ -87,7 +79,20 @@ ${undatedBlock}
 - Научные открытия как конкретные датированные события
 - Поворотные моменты: книги, встречи, события, изменившие жизнь
 - Увлечения и хобби
+` : '';
 
+  return `Ты — второй проход извлечения фактов из статьи о ${params.articleTitle}.
+
+Первый проход уже нашёл следующие ДАТИРОВАННЫЕ факты:
+${existingBlock}
+${hasUndated ? `
+═══════════════════════════════════════
+ЗАДАЧА 1 (ГЛАВНАЯ): ДАТИРОВАНИЕ
+═══════════════════════════════════════
+Следующие факты были извлечены БЕЗ года. Для КАЖДОГО из них определи год по тексту статьи и включи в ответ с полем "year". Если факт дублирует уже датированный — пропусти его.
+
+${undatedBlock}
+` : ''}${missedFactsSection}
 ФОРМАТ ОТВЕТА — единый JSON-массив (датированные старые + новые факты вместе):
 [
   {"year": 1828, "month": 6, "text": "Факт", "category": "family", "sphere": "family"},

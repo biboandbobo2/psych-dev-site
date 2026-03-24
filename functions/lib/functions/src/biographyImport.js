@@ -147,26 +147,6 @@ function parseSimpleJsonFacts(rawText) {
         return [];
     }
 }
-function splitTextIntoSlices(text, count) {
-    if (count <= 1)
-        return [text];
-    const targetSize = Math.ceil(text.length / count);
-    const slices = [];
-    let start = 0;
-    for (let i = 0; i < count - 1; i++) {
-        let end = start + targetSize;
-        const searchStart = Math.max(start, end - Math.floor(targetSize * 0.2));
-        const searchEnd = Math.min(text.length, end + Math.floor(targetSize * 0.2));
-        const region = text.slice(searchStart, searchEnd);
-        const breakIdx = region.indexOf('\n\n');
-        if (breakIdx !== -1)
-            end = searchStart + breakIdx + 2;
-        slices.push(text.slice(start, end));
-        start = end;
-    }
-    slices.push(text.slice(start));
-    return slices;
-}
 function deduplicateFacts(facts) {
     const stopWords = new Set(['в', 'и', 'на', 'с', 'по', 'из', 'за', 'от', 'к', 'до', 'для', 'не', 'о', 'об', 'его', 'её', 'был', 'была', 'были', 'году', 'год', 'года', 'лет']);
     function extractKeywords(text) {
@@ -362,15 +342,14 @@ async function runFullBiographyPipeline(params) {
         const fullExtract = wikiPage.biographyExtract || wikiPage.extract;
         const subjectName = wikiPage.title;
         const len = fullExtract.length;
-        // --- Step 2: Slice extraction ---
-        const sliceCount = len <= 30000 ? 1 : len <= 70000 ? 2 : len <= 130000 ? 3 : 4;
-        const slices = splitTextIntoSlices(fullExtract, sliceCount);
+        // --- Step 2: Slice extraction (pre-built by Wikipedia module with overlap + context) ---
+        const slices = wikiPage.factExtractSlices;
         await updateJob({
             subjectName,
             status: 'step1_extracting',
-            progress: { step: 2, total: 6, label: 'Извлечение фактов', detail: `${sliceCount} ${sliceCount === 1 ? 'часть' : 'части'}` },
+            progress: { step: 2, total: 6, label: 'Извлечение фактов', detail: `${slices.length} ${slices.length === 1 ? 'часть' : 'части'}` },
         });
-        debugLog('[biographyImport] extraction start', { subjectName, chars: len, slices: sliceCount });
+        debugLog('[biographyImport] extraction start', { subjectName, chars: len, slices: slices.length });
         // Extract slices sequentially to avoid Gemini rate limits (429)
         let allFacts = [];
         const factsModel = 'gemini-2.5-flash';
@@ -397,6 +376,31 @@ async function runFullBiographyPipeline(params) {
             throw new Error('two-pass-flash-failed: all slices returned 0 facts');
         }
         allFacts = deduplicateFacts(allFacts);
+        // --- Post-extraction: filter facts beyond death + grace period ---
+        const extractedDeathFact = allFacts.find(f => f.category === 'death');
+        const extractedDeathYear = extractedDeathFact?.year;
+        if (extractedDeathYear != null) {
+            const cutoffYear = extractedDeathYear + 10;
+            const beforeFilter = allFacts.length;
+            allFacts = allFacts.filter(f => f.year == null || f.year <= cutoffYear);
+            const filtered = beforeFilter - allFacts.length;
+            if (filtered > 0) {
+                debugLog(`[biographyImport] post-death filter: removed ${filtered} facts after ${cutoffYear}`);
+            }
+        }
+        // --- Density calculation for gap-filling control ---
+        const datedForDensity = allFacts.filter(f => f.year != null);
+        const factYears = datedForDensity.map(f => f.year);
+        const minFactYear = factYears.length > 0 ? Math.min(...factYears) : 0;
+        const maxFactYear = factYears.length > 0 ? Math.max(...factYears) : 0;
+        const lifespanYears = Math.max(1, maxFactYear - minFactYear);
+        const factDensity = datedForDensity.length / lifespanYears;
+        // density < 3: full gap-filling (short articles, few facts)
+        // density >= 3: dating only (enough facts, skip searching for missed ones)
+        const gapFillingMode = factDensity < 3 ? 'full' : 'dating-only';
+        debugLog('[biographyImport] density analysis', {
+            facts: allFacts.length, lifespanYears, density: factDensity.toFixed(2), gapFillingMode,
+        });
         await updateJob({
             status: 'step1_done',
             progress: { step: 3, total: 6, label: 'Gap-filling', detail: `${allFacts.length} фактов извлечено` },
@@ -412,31 +416,34 @@ async function runFullBiographyPipeline(params) {
             const undatedFacts = allFacts.filter(f => f.year == null);
             const existingFactTexts = datedFacts.map(f => `[${f.year}] ${f.details}`);
             const undatedFactTexts = undatedFacts.map(f => f.details);
-            const gapSlices = len > 100000 ? slices : [fullExtract];
-            // Gap-filling sequentially to avoid rate limits
-            allFacts = [...datedFacts];
-            for (let i = 0; i < gapSlices.length; i++) {
+            // Skip gap-filling entirely if density is high and no undated facts
+            if (gapFillingMode === 'dating-only' && undatedFactTexts.length === 0) {
+                debugLog('[biographyImport] skipping gap-filling: density high, no undated facts');
+            }
+            else {
+                allFacts = [...datedFacts];
                 try {
                     const gapPrompt = buildBiographyGapFillingPrompt({
                         articleTitle: subjectName,
-                        extract: gapSlices[i],
+                        extract: fullExtract,
                         existingFacts: existingFactTexts,
                         undatedFacts: undatedFactTexts.length > 0 ? undatedFactTexts : undefined,
+                        mode: gapFillingMode,
                     });
                     const gapResult = await callGeminiWithRetry(client, {
                         model: 'gemini-2.5-flash',
                         contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
                         config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'text/plain' },
-                    }, `gap-filling ${i + 1}/${gapSlices.length}`);
+                    }, 'gap-filling');
                     const gapFacts = parseSimpleJsonFacts(collectGeminiResultText(gapResult));
                     if (gapFacts.length > 0)
                         allFacts.push(...gapFacts);
                 }
                 catch {
-                    // Individual gap-fill slice failure is ok
+                    // Gap-fill failure is ok
                 }
+                allFacts = deduplicateFacts(allFacts);
             }
-            allFacts = deduplicateFacts(allFacts);
         }
         catch {
             // Gap-filling is best-effort
