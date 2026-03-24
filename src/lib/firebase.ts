@@ -5,8 +5,10 @@ import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 import { debugLog } from "./debug";
+import { resolveFirebaseAuthDomain } from "./firebaseAuthDomain";
 
 const env = (typeof import.meta.env === "object" ? import.meta.env : process.env) as Record<string, string | undefined>;
+const browserHostname = typeof window === "object" ? window.location.hostname : undefined;
 
 // DEBUG: проверка env переменных (удалить после проверки)
 // NOTE: debugLog is now a function, so this is safe
@@ -14,13 +16,20 @@ debugLog('🔍 Firebase env check:', {
   hasApiKey: Boolean(import.meta.env.VITE_FIREBASE_API_KEY),
   apiKeyLength: import.meta.env.VITE_FIREBASE_API_KEY?.length,
   hasAuthDomain: Boolean(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
+  resolvedAuthDomain: resolveFirebaseAuthDomain(
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || env.FIREBASE_AUTH_DOMAIN,
+    browserHostname
+  ),
   hasProjectId: Boolean(import.meta.env.VITE_FIREBASE_PROJECT_ID),
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
 });
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: env.VITE_FIREBASE_API_KEY || env.FIREBASE_API_KEY || "test-api-key",
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || env.FIREBASE_AUTH_DOMAIN || "localhost",
+  authDomain: resolveFirebaseAuthDomain(
+    env.VITE_FIREBASE_AUTH_DOMAIN || env.FIREBASE_AUTH_DOMAIN,
+    browserHostname
+  ),
   projectId: env.VITE_FIREBASE_PROJECT_ID || env.FIREBASE_PROJECT_ID || "psych-dev-site-test",
   storageBucket:
     env.VITE_FIREBASE_STORAGE_BUCKET || env.FIREBASE_STORAGE_BUCKET || "psych-dev-site-test.appspot.com",

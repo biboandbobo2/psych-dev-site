@@ -1,17 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAuth } from 'firebase-admin/auth';
 import { GoogleGenAI } from '@google/genai';
+import { getAllowedAppOrigin } from './appOrigins.js';
 
 let defaultGenAiClient: GoogleGenAI | null = null;
 
 const SAFE_LECTURE_API_ERROR = 'Сервис лекций временно недоступен. Попробуйте ещё раз позже.';
-const LECTURE_API_ALLOWED_ORIGIN_PATTERNS = [
-  /^http:\/\/localhost(?::\d+)?$/i,
-  /^http:\/\/127\.0\.0\.1(?::\d+)?$/i,
-  /^https:\/\/psych-dev-site\.vercel\.app$/i,
-  /^https:\/\/psych-dev-site(?:-[a-z0-9-]+)?-alexey-zykovs-projects\.vercel\.app$/i,
-  /^https:\/\/psych-dev-site-git-[a-z0-9-]+-alexey-zykovs-projects\.vercel\.app$/i,
-] as const;
 
 export function resolveLectureGeminiApiKey(req?: VercelRequest): string {
   const userKey = req?.headers['x-gemini-api-key'];
@@ -40,13 +34,7 @@ export function getLectureGenAiClient(apiKey?: string) {
 }
 
 export function getLectureApiAllowedOrigin(origin: string | undefined) {
-  if (!origin) {
-    return null;
-  }
-
-  return LECTURE_API_ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin))
-    ? origin
-    : null;
+  return getAllowedAppOrigin(origin);
 }
 
 export function setLectureApiCorsHeaders(req: VercelRequest, res: VercelResponse) {

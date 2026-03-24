@@ -4,6 +4,14 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/__/auth",
+      "destination": "https://psych-dev-site-prod.firebaseapp.com/__/auth"
+    },
+    {
+      "source": "/__/auth/(.*)",
+      "destination": "https://psych-dev-site-prod.firebaseapp.com/__/auth/$1"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
+import { getAllowedAppOrigin } from './lib/appOrigins.js';
 import type { VideoTranscriptSearchChunkDoc } from '../src/types/videoTranscripts.js';
 import { VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION } from '../src/types/videoTranscripts.js';
 
@@ -16,13 +17,6 @@ const STOP_WORDS = new Set([
 ]);
 
 const MAX_MATCHED_CHUNKS = 120;
-const TRANSCRIPT_API_ALLOWED_ORIGIN_PATTERNS = [
-  /^http:\/\/localhost(?::\d+)?$/i,
-  /^http:\/\/127\.0\.0\.1(?::\d+)?$/i,
-  /^https:\/\/psych-dev-site\.vercel\.app$/i,
-  /^https:\/\/psych-dev-site(?:-[a-z0-9-]+)?-alexey-zykovs-projects\.vercel\.app$/i,
-  /^https:\/\/psych-dev-site-git-[a-z0-9-]+-alexey-zykovs-projects\.vercel\.app$/i,
-] as const;
 
 function initFirebaseAdmin() {
   if (getApps().length > 0) {
@@ -67,13 +61,7 @@ function normalizeQuery(query: string) {
 }
 
 function getAllowedOrigin(origin: string | undefined) {
-  if (!origin) {
-    return null;
-  }
-
-  return TRANSCRIPT_API_ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin))
-    ? origin
-    : null;
+  return getAllowedAppOrigin(origin);
 }
 
 function setCorsHeaders(req: VercelRequest, res: VercelResponse) {

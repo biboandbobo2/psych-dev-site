@@ -189,7 +189,7 @@ describe('buildLectureAiUnavailableMessage', () => {
 });
 
 describe('getLectureApiAllowedOrigin', () => {
-  it('разрешает preview и localhost origin', () => {
+  it('разрешает localhost, preview и custom domain origin', () => {
     expect(getLectureApiAllowedOrigin('http://localhost:5173')).toBe('http://localhost:5173');
     expect(
       getLectureApiAllowedOrigin(
@@ -198,6 +198,8 @@ describe('getLectureApiAllowedOrigin', () => {
     ).toBe(
       'https://psych-dev-site-git-feature-video-2e3cc5-alexey-zykovs-projects.vercel.app'
     );
+    expect(getLectureApiAllowedOrigin('https://academydom.com')).toBe('https://academydom.com');
+    expect(getLectureApiAllowedOrigin('https://www.academydom.com')).toBe('https://www.academydom.com');
   });
 
   it('не разрешает посторонний origin', () => {
