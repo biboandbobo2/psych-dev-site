@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-import { getAllowedAppOrigin } from './lib/appOrigins.js';
+import { getAllowedAppOrigin } from '../src/lib/appOrigins.js';
 import type { VideoTranscriptSearchChunkDoc } from '../src/types/videoTranscripts.js';
 import { VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION } from '../src/types/videoTranscripts.js';
 

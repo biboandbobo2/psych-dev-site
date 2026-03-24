@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAuth } from 'firebase-admin/auth';
 import { GoogleGenAI } from '@google/genai';
-import { getAllowedAppOrigin } from './appOrigins.js';
+import { getAllowedAppOrigin } from '../../src/lib/appOrigins.js';
 
 let defaultGenAiClient: GoogleGenAI | null = null;
 
