@@ -52,6 +52,8 @@ export function buildBiographyGapFillingPrompt(params: {
   undatedFacts?: string[];
   /** 'full' = date + find missing; 'dating-only' = only date undated facts */
   mode?: 'full' | 'dating-only';
+  /** If known, the year of death — gap-filling should not add posthumous legacy facts */
+  deathYear?: number | null;
 }) {
   const existingBlock = params.existingFacts.map((f, i) => `${i + 1}. ${f}`).join('\n');
 
@@ -109,7 +111,7 @@ ${undatedBlock}
 ПРАВИЛА
 - НЕ повторяй уже датированные факты из списка выше — даже перефразированные.
 - Один факт = одно конкретное событие.
-- НЕ выдумывай факты, которых нет в тексте.
+- НЕ выдумывай факты, которых нет в тексте.${params.deathYear ? `\n- Персона умерла в ${params.deathYear} году. НЕ извлекай посмертные факты: памятники, издания, музеи, экранизации, почтовые марки и т.п. после смерти.` : ''}
 
 ТЕКСТ СТАТЬИ
 ${params.extract}

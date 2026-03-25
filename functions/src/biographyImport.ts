@@ -456,11 +456,14 @@ async function runFullBiographyPipeline(params: {
     }
 
     // --- Density calculation for gap-filling control ---
+    const extractedBirthFact = allFacts.find(f => f.category === 'birth' || f.eventType === 'birth');
+    const extractedBirthYear = extractedBirthFact?.year ?? null;
     const datedForDensity = allFacts.filter(f => f.year != null);
     const factYears = datedForDensity.map(f => f.year!);
-    const minFactYear = factYears.length > 0 ? Math.min(...factYears) : 0;
-    const maxFactYear = factYears.length > 0 ? Math.max(...factYears) : 0;
-    const lifespanYears = Math.max(1, maxFactYear - minFactYear);
+    // Use birth/death years for lifespan, not min/max of all facts (ancestors skew min)
+    const lifespanStart = extractedBirthYear ?? (factYears.length > 0 ? Math.min(...factYears) : 0);
+    const lifespanEnd = extractedDeathYear ?? (factYears.length > 0 ? Math.max(...factYears) : 0);
+    const lifespanYears = Math.max(1, lifespanEnd - lifespanStart);
     const factDensity = datedForDensity.length / lifespanYears;
     // density < 3: full gap-filling (short articles, few facts)
     // density >= 3: dating only (enough facts, skip searching for missed ones)
@@ -498,6 +501,7 @@ async function runFullBiographyPipeline(params: {
             existingFacts: existingFactTexts,
             undatedFacts: undatedFactTexts.length > 0 ? undatedFactTexts : undefined,
             mode: gapFillingMode,
+            deathYear: extractedDeathYear,
           });
           const gapResult = await callGeminiWithRetry(client, {
             model: 'gemini-2.5-flash',
@@ -513,6 +517,17 @@ async function runFullBiographyPipeline(params: {
       }
     } catch {
       // Gap-filling is best-effort
+    }
+
+    // --- Post-gap-filling: re-apply death year filter (gap-filling may add posthumous junk) ---
+    if (extractedDeathYear != null) {
+      const cutoffYear = extractedDeathYear + 10;
+      const beforeGapFilter = allFacts.length;
+      allFacts = allFacts.filter(f => f.year == null || f.year <= cutoffYear);
+      const gapFiltered = beforeGapFilter - allFacts.length;
+      if (gapFiltered > 0) {
+        logger.info(`[biographyImport] post-gap-filling death filter: removed ${gapFiltered} facts after ${cutoffYear}`);
+      }
     }
 
     await updateJob({
