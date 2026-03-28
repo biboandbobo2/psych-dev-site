@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion as Motion } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
@@ -86,19 +86,10 @@ export function HomePage() {
 
   // Sort sections by order and filter enabled ones
   const activeSections = content.sections.filter((s) => s.enabled).sort((a, b) => a.order - b.order);
-  const currentCourseName = useMemo(
-    () => courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс',
-    [courses, currentCourse]
-  );
-  const primaryLessonLink = useMemo(
-    () => resolvePrimaryLessonLink(currentCourse),
-    [currentCourse]
-  );
+  const currentCourseName = courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс';
+  const primaryLessonLink = resolvePrimaryLessonLink(currentCourse);
   const notesLink = `/notes?course=${encodeURIComponent(currentCourse as CourseType)}`;
-  const practiceLink = useMemo(
-    () => resolvePracticeLink(currentCourse),
-    [currentCourse]
-  );
+  const practiceLink = resolvePracticeLink(currentCourse);
 
   const announcements = [
     'Обновлена таблица по расстройствам: доступен просмотр и комментарии преподавателя.',
