@@ -12,9 +12,10 @@ import type { CourseType } from '../types/tests';
 
 interface StudentPanelProps {
   currentCourse: CourseType;
+  currentCourseName: string;
 }
 
-interface StudentFeature {
+interface StudentToolFeature {
   icon: string;
   title: string;
   description: string;
@@ -23,9 +24,17 @@ interface StudentFeature {
   disabled: boolean;
 }
 
-function StudentPanel({ currentCourse }: StudentPanelProps) {
+interface StudentPersonalCard {
+  icon: string;
+  title: string;
+  description: string;
+  badge?: string;
+  value?: string;
+}
+
+function StudentPanel({ currentCourse, currentCourseName }: StudentPanelProps) {
   const notesLink = `/notes?course=${encodeURIComponent(currentCourse)}`;
-  const timelineOrDisorderFeature: StudentFeature = isDisorderTableCourse(currentCourse)
+  const timelineOrDisorderFeature: StudentToolFeature = isDisorderTableCourse(currentCourse)
     ? {
         icon: '🧩',
         title: 'Таблица по расстройствам',
@@ -43,7 +52,34 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
         disabled: currentCourse !== 'development',
       };
 
-  const features: StudentFeature[] = [
+  const personalCards: StudentPersonalCard[] = [
+    {
+      icon: '🎯',
+      title: 'Мой фокус',
+      description: 'Текущий курс для работы и повторения материалов.',
+      value: currentCourseName,
+    },
+    {
+      icon: '🗓️',
+      title: 'Мой календарь',
+      description: 'Личные дедлайны и расписание занятий в одном месте.',
+      badge: 'Скоро',
+    },
+    {
+      icon: '🔔',
+      title: 'Мои уведомления',
+      description: 'Комментарии преподавателей и важные напоминания.',
+      badge: 'Скоро',
+    },
+    {
+      icon: '🏆',
+      title: 'Мои достижения',
+      description: 'Ваш прогресс, завершённые темы и персональные результаты.',
+      badge: 'Скоро',
+    },
+  ];
+
+  const tools: StudentToolFeature[] = [
     {
       icon: '📝',
       title: 'Мои заметки',
@@ -72,16 +108,62 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
   ];
 
   return (
-    <div>
-      <h2 className="hidden sm:flex text-lg font-semibold mb-6 items-center gap-2 text-gray-700 uppercase tracking-wide">
-        <span className="text-2xl" role="img" aria-label="Студент">
+    <div className="space-y-7">
+      <h2 className="hidden items-center gap-2 text-lg font-semibold uppercase tracking-wide text-gray-700 sm:flex">
+        <span className="text-2xl" role="img" aria-label="Личный кабинет">
           🎓
         </span>
-        Панель студента
+        Личный кабинет
       </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {features.map((feature, index) => {
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-gray-900 sm:text-lg">Моё пространство</h3>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+            Личное
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {personalCards.map((card) => (
+            <div
+              key={card.title}
+              className="relative rounded-xl border-2 border-gray-200 bg-white px-4 py-5 shadow-sm"
+            >
+              {card.badge && (
+                <div className="absolute right-3 top-3">
+                  <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
+                    {card.badge}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-start gap-3">
+                <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-2xl">
+                  {card.icon}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-base font-bold text-gray-900">{card.title}</h4>
+                  <p className="mt-1 text-sm text-gray-600">{card.description}</p>
+                  {card.value && (
+                    <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-blue-700">
+                      {card.value}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-gray-900 sm:text-lg">Учебные инструменты</h3>
+          <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+            Учёба
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {tools.map((feature, index) => {
           const isDisabled = feature.disabled;
           const content = (
             <>
@@ -118,28 +200,29 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
             </>
           );
 
-          if (feature.link && !isDisabled) {
+            if (feature.link && !isDisabled) {
+              return (
+                <Link
+                  key={index}
+                  to={feature.link}
+                  className="relative group rounded-xl border-2 border-gray-200 bg-white px-4 py-5 transition-all duration-300 hover:border-blue-400 hover:shadow-lg sm:p-6"
+                >
+                  {content}
+                </Link>
+              );
+            }
+
             return (
-              <Link
+              <div
                 key={index}
-                to={feature.link}
-                className="relative group bg-white border-2 border-gray-200 rounded-xl px-4 py-5 sm:p-6 hover:border-blue-400 transition-all duration-300 hover:shadow-lg cursor-pointer"
+                className="relative group rounded-xl border-2 border-gray-200 bg-white px-4 py-5 transition-all duration-300 sm:p-6"
               >
                 {content}
-              </Link>
+              </div>
             );
-          }
-
-          return (
-            <div
-              key={index}
-              className="relative group bg-white border-2 border-gray-200 rounded-xl px-4 py-5 sm:p-6 transition-all duration-300"
-            >
-              {content}
-            </div>
-          );
-        })}
-      </div>
+          })}
+        </div>
+      </section>
     </div>
   );
 }
@@ -187,6 +270,7 @@ export default function Profile() {
       })
     : null;
   const role = userRole ?? 'student';
+  const currentCourseName = courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс';
 
   const handleHapticClick = useCallback((event: React.MouseEvent) => {
     const target = event.target as HTMLElement | null;
@@ -319,7 +403,7 @@ export default function Profile() {
         </div>
 
         <div className="hidden sm:block">
-          <StudentPanel currentCourse={currentCourse} />
+          <StudentPanel currentCourse={currentCourse} currentCourseName={currentCourseName} />
         </div>
       </div>
 
@@ -328,7 +412,7 @@ export default function Profile() {
           <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 [&::-webkit-details-marker]:hidden">
             <span className="flex items-center gap-2">
               <span role="img" aria-hidden="true">🎓</span>
-              Панель студента
+              Личный кабинет
             </span>
             <svg
               className="h-4 w-4 text-gray-500 transition-transform group-open:rotate-90"
@@ -341,7 +425,7 @@ export default function Profile() {
             </svg>
           </summary>
           <div className="mt-4">
-            <StudentPanel currentCourse={currentCourse} />
+            <StudentPanel currentCourse={currentCourse} currentCourseName={currentCourseName} />
           </div>
         </details>
       </div>
