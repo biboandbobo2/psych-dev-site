@@ -1,59 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { calculateCourseProgress, resolveCurrentLessonIndex } from './courseProgress';
+import { calculateCourseProgress } from './courseProgress';
 
 describe('courseProgress', () => {
-  const lessons = [
-    { period: 'intro', label: 'Введение' },
-    { period: 'theme-1', label: 'Тема 1' },
-    { period: 'theme-2', label: 'Тема 2' },
-  ];
-
-  it('resolves lesson index by saved label', () => {
-    const index = resolveCurrentLessonIndex({
-      courseId: 'development',
-      lessons,
-      lastLabel: 'Тема 1',
-    });
-
-    expect(index).toBe(1);
-  });
-
-  it('resolves lesson index for core courses by saved path', () => {
-    const index = resolveCurrentLessonIndex({
-      courseId: 'development',
-      lessons,
-      lastPath: '/intro',
-    });
-
-    expect(index).toBe(0);
-  });
-
-  it('resolves lesson index for dynamic courses by saved path', () => {
-    const index = resolveCurrentLessonIndex({
-      courseId: 'new-course',
-      lessons,
-      lastPath: '/course/new-course/theme-1',
-    });
-
-    expect(index).toBe(1);
-  });
-
-  it('returns zero progress when no saved lesson', () => {
+  it('returns zero progress for empty lessons', () => {
     const result = calculateCourseProgress({
-      courseId: 'development',
-      lessons,
+      lessons: [],
+      watchedLessonIds: new Set(),
     });
 
-    expect(result).toEqual({ percent: 0, completed: 0, total: 3 });
+    expect(result).toEqual({ percent: 0, completed: 0, total: 0 });
   });
 
-  it('calculates rounded percent from current lesson index', () => {
+  it('calculates progress only from watched lessons', () => {
     const result = calculateCourseProgress({
-      courseId: 'development',
-      lessons,
-      lastLabel: 'Тема 1',
+      lessons: [{ period: 'intro' }, { period: 'theme-1' }, { period: 'theme-2' }],
+      watchedLessonIds: new Set(['intro', 'theme-2']),
     });
 
     expect(result).toEqual({ percent: 67, completed: 2, total: 3 });
+  });
+
+  it('ignores watched lesson ids that are not in lesson list', () => {
+    const result = calculateCourseProgress({
+      lessons: [{ period: 'intro' }, { period: 'theme-1' }],
+      watchedLessonIds: new Set(['intro', 'unknown']),
+    });
+
+    expect(result).toEqual({ percent: 50, completed: 1, total: 2 });
   });
 });

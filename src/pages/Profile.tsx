@@ -13,6 +13,7 @@ import {
   mapCanonicalCourseLessons,
   sortCourseLessonItems,
 } from '../lib/courseLessons';
+import { getWatchedLessonIds } from '../lib/courseWatchedLessons';
 import { getLastCourseLesson } from '../lib/lastCourseLesson';
 import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG } from '../routes';
 import type { CourseType } from '../types/tests';
@@ -381,17 +382,13 @@ export default function Profile() {
             const canonicalLessons = mapCanonicalCourseLessons(course.id, snapshot.docs)
               .filter((lesson) => lesson.published !== false);
             const sortedLessons = sortCourseLessonItems(course.id, canonicalLessons);
-            const lastLesson = getLastCourseLesson(course.id);
+            const watchedLessonIds = getWatchedLessonIds(course.id);
 
             const progress = calculateCourseProgress({
-              courseId: course.id,
               lessons: sortedLessons.map((lesson) => ({
                 period: lesson.period,
-                title: lesson.title,
-                label: lesson.label,
               })),
-              lastPath: lastLesson?.path,
-              lastLabel: lastLesson?.label,
+              watchedLessonIds,
             });
 
             return [course.id, progress] as const;
