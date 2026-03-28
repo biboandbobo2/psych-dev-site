@@ -453,21 +453,21 @@ export default function DisorderTable() {
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-gradient-to-br from-slate-50 to-white">
-      <div className="flex h-full flex-col gap-3 p-3 sm:p-4">
-        <section className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:p-4">
-          <div className="mb-3 border-b border-slate-200 pb-3">
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Таблица по расстройствам</h1>
+      <div className="flex h-full flex-col gap-2 p-2 sm:p-3">
+        <section className="rounded-2xl border border-slate-200 bg-white/95 p-2.5 shadow-sm backdrop-blur sm:p-3">
+          <div className="mb-2 border-b border-slate-200 pb-2">
+            <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Таблица по расстройствам</h1>
           </div>
 
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
             <Link
               to="/profile"
-              className="inline-flex rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 transition hover:bg-rose-100"
+              className="inline-flex rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-800 transition hover:bg-rose-100"
             >
               Выход
             </Link>
 
-            <label className="ml-auto flex min-w-[220px] flex-1 items-center rounded-lg border border-slate-300 bg-white px-3 py-2 sm:max-w-[420px]">
+            <label className="ml-auto flex min-w-[190px] flex-1 items-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 sm:max-w-[360px]">
               <input
                 type="text"
                 value={searchQuery}
@@ -477,37 +477,37 @@ export default function DisorderTable() {
                 }}
                 aria-label="Поиск по тексту записей"
                 placeholder="Найти запись по тексту"
-                className="w-full border-none bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                className="w-full border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400 sm:text-sm"
               />
             </label>
           </div>
 
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2">
-            <span className="text-sm font-semibold text-blue-900">Фильтры</span>
+          <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/70 px-2.5 py-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-blue-900">Фильтры</span>
             <button
               type="button"
               onClick={applyDraftFilters}
               disabled={!canApplyFilters}
-              className="inline-flex rounded-lg border border-blue-300 bg-blue-100 px-3 py-2 text-sm font-medium text-blue-800 transition hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex rounded-lg border border-blue-300 bg-blue-100 px-2.5 py-1.5 text-xs font-medium text-blue-800 transition hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Применить фильтр
             </button>
             <button
               type="button"
               onClick={clearAllFilters}
-              className="inline-flex rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
+              className="inline-flex rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
             >
               Сбросить
             </button>
           </div>
 
           {!isMobile && (
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2">
-              <span className="text-sm font-semibold text-amber-900">Несколько ячеек</span>
+            <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-2.5 py-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-amber-900">Несколько ячеек</span>
               <button
                 type="button"
                 onClick={toggleCellSelectionMode}
-                className={`inline-flex rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                className={`inline-flex rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
                   isCellSelectionMode
                     ? 'border-amber-400 bg-white text-amber-900 hover:bg-amber-100'
                     : 'border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200'
@@ -520,7 +520,7 @@ export default function DisorderTable() {
                   type="button"
                   onClick={openBulkModal}
                   disabled={selectedCells.length === 0}
-                  className="inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Внести текст в выбранные ({selectedCells.length})
                 </button>
@@ -529,25 +529,25 @@ export default function DisorderTable() {
           )}
 
           {isMobile && (
-            <p className="mb-2 text-sm text-slate-600">
+            <p className="mb-1 text-xs text-slate-600">
               Мобильный режим: доступен просмотр таблицы и содержимого ячеек. Редактирование доступно на компьютере.
             </p>
           )}
 
           {hasActiveFilters || hasActiveSearch ? (
-            <div className="flex flex-wrap gap-2 text-xs">
+            <div className="flex flex-wrap gap-1.5 text-[11px]">
               {hasActiveSearch && (
-                <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-700">
+                <span className="rounded-full bg-amber-50 px-2.5 py-0.5 font-medium text-amber-700">
                   Поиск: {searchQuery.trim()}
                 </span>
               )}
               {activeFilters.columnIds.map((columnId) => (
-                <span key={`active-column-${columnId}`} className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
+                <span key={`active-column-${columnId}`} className="rounded-full bg-blue-50 px-2.5 py-0.5 font-medium text-blue-700">
                   {columnLabels.get(columnId) ?? columnId}
                 </span>
               ))}
               {activeFilters.rowIds.map((rowId) => (
-                <span key={`active-row-${rowId}`} className="rounded-full bg-teal-50 px-3 py-1 font-medium text-teal-700">
+                <span key={`active-row-${rowId}`} className="rounded-full bg-teal-50 px-2.5 py-0.5 font-medium text-teal-700">
                   {rowLabels.get(rowId) ?? rowId}
                 </span>
               ))}
@@ -555,20 +555,20 @@ export default function DisorderTable() {
           ) : null}
 
           {hasActiveSearch && (
-            <section className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
-              <div className="mb-2 text-sm font-semibold text-emerald-900">
+            <section className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-2.5">
+              <div className="mb-1.5 text-xs font-semibold text-emerald-900">
                 Найдено пересечений: {searchIntersectionMatches.length}
               </div>
               {searchIntersectionMatches.length === 0 ? (
-                <p className="text-sm text-emerald-800">По текущим фильтрам совпадений нет.</p>
+                <p className="text-xs text-emerald-800">По текущим фильтрам совпадений нет.</p>
               ) : (
-                <div className="grid max-h-48 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
+                <div className="grid max-h-36 grid-cols-1 gap-1.5 overflow-auto sm:grid-cols-2">
                   {searchIntersectionMatches.map((match) => (
                     <button
                       key={match.key}
                       type="button"
                       onClick={() => openCellModal(match.rowId, match.columnId)}
-                      className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-left transition hover:border-emerald-400 hover:bg-emerald-50"
+                      className="rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-left transition hover:border-emerald-400 hover:bg-emerald-50"
                     >
                       <p className="text-xs font-semibold text-emerald-900">
                         {rowLabels.get(match.rowId) ?? match.rowId} × {columnLabels.get(match.columnId) ?? match.columnId}
@@ -586,15 +586,15 @@ export default function DisorderTable() {
             </section>
           )}
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
             <span className="font-semibold text-slate-600">Цвета заметок:</span>
-            <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">Без цвета</span>
-            <span className="rounded-full bg-sky-100 px-3 py-1 font-medium text-sky-800">Патопсихология</span>
-            <span className="rounded-full bg-fuchsia-100 px-3 py-1 font-medium text-fuchsia-800">Психиатрия</span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 font-medium text-slate-700">Без цвета</span>
+            <span className="rounded-full bg-sky-100 px-2.5 py-0.5 font-medium text-sky-800">Патопсихология</span>
+            <span className="rounded-full bg-fuchsia-100 px-2.5 py-0.5 font-medium text-fuchsia-800">Психиатрия</span>
           </div>
 
           {(error || listError) && (
-            <div className="mt-3 space-y-2">
+            <div className="mt-2 space-y-1.5">
               {error && (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
               )}
@@ -607,7 +607,7 @@ export default function DisorderTable() {
 
         <section className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex h-full flex-col">
-            <div className="shrink-0 border-b border-slate-200 px-4 py-3 text-sm text-slate-600">
+            <div className="shrink-0 border-b border-slate-200 px-4 py-2 text-xs text-slate-600 sm:text-sm">
               Показано записей: <span className="font-semibold text-slate-900">{filteredEntries.length}</span> из {entries.length}
             </div>
 
