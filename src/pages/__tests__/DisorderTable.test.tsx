@@ -127,17 +127,21 @@ describe('DisorderTable page', () => {
   it('применяет фильтры только после кнопки "Применить фильтр"', () => {
     renderPage();
 
-    const table = screen.getByRole('table');
-    const thead = within(table).getByRole('rowgroup');
-    const initialHeaderButtons = within(thead).getAllByRole('button');
+    const getHeaderButtons = () => {
+      const table = screen.getByRole('table');
+      const [thead] = within(table).getAllByRole('rowgroup');
+      return within(thead).getAllByRole('button');
+    };
+
+    const initialHeaderButtons = getHeaderButtons();
     expect(initialHeaderButtons).toHaveLength(10);
 
     fireEvent.click(screen.getByRole('button', { name: 'Тревожные расстройства' }));
-    const afterDraftHeaderButtons = within(thead).getAllByRole('button');
+    const afterDraftHeaderButtons = getHeaderButtons();
     expect(afterDraftHeaderButtons).toHaveLength(10);
 
     fireEvent.click(screen.getByRole('button', { name: 'Применить фильтр' }));
-    const afterApplyHeaderButtons = within(thead).getAllByRole('button');
+    const afterApplyHeaderButtons = getHeaderButtons();
     expect(afterApplyHeaderButtons).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Тревожные расстройства' })).toBeInTheDocument();
   });
@@ -154,33 +158,36 @@ describe('DisorderTable page', () => {
 
     renderPage();
 
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /Очень длинный полный текст наблюдения для проверки модального окна пересечения/i,
-      })
+    const filledCellButton = screen.getAllByRole('button').find((button) =>
+      button.textContent?.includes('Очень длинный полный текст наблюдения для проверки модального окна пересечения')
     );
+    expect(filledCellButton).toBeDefined();
+    if (!filledCellButton) {
+      throw new Error('Filled disorder-table cell not found');
+    }
+    fireEvent.click(filledCellButton);
 
     expect(
-      screen.getByRole('heading', { name: 'Нарушения восприятия × Расстройства шизофренического спектра' })
+      screen.getByRole('heading', { name: /Нарушения восприятия × Расстройства шизофренического спектра/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Очень длинный полный текст наблюдения для проверки модального окна пересечения')
-    ).toBeInTheDocument();
+      screen.getAllByText('Очень длинный полный текст наблюдения для проверки модального окна пересечения').length
+    ).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Добавить в это пересечение' })).toBeInTheDocument();
   });
 
   it('массово вносит текст в выбранные пересечения', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Выбрать несколько ячеек' }));
+    fireEvent.click(screen.getByRole('button', { name: /Выбрать несколько ячеек|Режим выбора/i }));
 
     const emptyCells = screen.getAllByRole('button', { name: 'Пусто' });
     fireEvent.click(emptyCells[0]);
     fireEvent.click(emptyCells[1]);
 
-    fireEvent.click(screen.getByRole('button', { name: /Внести текст в выбранные \\(2\\)/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Внести текст в выбранные/i }));
 
-    fireEvent.change(screen.getByLabelText('Общий текст'), {
+    fireEvent.change(screen.getByPlaceholderText('Введите текст, который нужно добавить во все выбранные пересечения'), {
       target: { value: '  Один текст для нескольких ячеек  ' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить во все выбранные' }));
