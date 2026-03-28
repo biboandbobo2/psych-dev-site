@@ -9,16 +9,58 @@ type HookState = {
   loading: boolean;
   saving: boolean;
   error: string | null;
+  canEdit: boolean;
+  targetOwnerUid: string | null;
+  setTargetOwnerUid: ReturnType<typeof vi.fn>;
   createEntry: ReturnType<typeof vi.fn>;
   createEntriesBatch: ReturnType<typeof vi.fn>;
   updateEntry: ReturnType<typeof vi.fn>;
   removeEntry: ReturnType<typeof vi.fn>;
 };
 
+type CommentsHookState = {
+  comments: Array<{
+    id: string;
+    entryId: string;
+    text: string;
+    authorUid: string;
+    authorName: string;
+    createdAt: Date;
+  }>;
+  loading: boolean;
+  saving: boolean;
+  error: string | null;
+  canComment: boolean;
+  createComment: ReturnType<typeof vi.fn>;
+};
+
+type StudentsHookState = {
+  students: Array<{
+    uid: string;
+    displayName: string;
+    email: string;
+  }>;
+  loading: boolean;
+  error: string | null;
+};
+
 let mockHookState: HookState;
+let mockCommentsHookState: CommentsHookState;
+let mockStudentsHookState: StudentsHookState;
 
 vi.mock('../../stores', () => ({
   useCourseStore: () => ({ currentCourse: 'clinical' }),
+}));
+
+vi.mock('../../auth/AuthProvider', () => ({
+  useAuth: () => ({
+    user: {
+      uid: 'student-1',
+      displayName: 'Student One',
+      email: 'student1@example.com',
+    },
+    isAdmin: false,
+  }),
 }));
 
 vi.mock('../../features/disorderTable', async () => {
@@ -26,6 +68,8 @@ vi.mock('../../features/disorderTable', async () => {
   return {
     ...actual,
     useDisorderTableEntries: () => mockHookState,
+    useDisorderTableComments: () => mockCommentsHookState,
+    useDisorderTableStudents: () => mockStudentsHookState,
   };
 });
 
@@ -57,10 +101,26 @@ describe('DisorderTable page', () => {
       loading: false,
       saving: false,
       error: null,
+      canEdit: true,
+      targetOwnerUid: 'student-1',
+      setTargetOwnerUid: vi.fn(),
       createEntry: vi.fn(),
       createEntriesBatch: vi.fn().mockResolvedValue(undefined),
       updateEntry: vi.fn(),
       removeEntry: vi.fn().mockResolvedValue(undefined),
+    };
+    mockCommentsHookState = {
+      comments: [],
+      loading: false,
+      saving: false,
+      error: null,
+      canComment: false,
+      createComment: vi.fn().mockResolvedValue(undefined),
+    };
+    mockStudentsHookState = {
+      students: [],
+      loading: false,
+      error: null,
     };
   });
 

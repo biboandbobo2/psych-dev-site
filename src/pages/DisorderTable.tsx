@@ -10,7 +10,9 @@ import {
   DISORDER_TABLE_ROWS,
   isDisorderTableCourse,
   isValidDisorderTableEntryInput,
+  useDisorderTableComments,
   useDisorderTableEntries,
+  useDisorderTableStudents,
 } from '../features/disorderTable';
 import type {
   DisorderTableCellSelection,
@@ -18,6 +20,7 @@ import type {
 } from '../features/disorderTable';
 import { BaseModal, ModalCancelButton, ModalSaveButton } from '../components/ui/BaseModal';
 import { useCourseStore } from '../stores';
+import { useAuth } from '../auth/AuthProvider';
 
 const TEXT_CLAMP_STYLE: CSSProperties = {
   display: '-webkit-box',
@@ -93,17 +96,34 @@ function renderHighlightedText(text: string, query: string): ReactNode {
 }
 
 export default function DisorderTable() {
+  const { user, isAdmin } = useAuth();
   const { currentCourse } = useCourseStore();
   const {
     entries,
     loading,
     saving,
     error,
+    canEdit,
+    targetOwnerUid,
+    setTargetOwnerUid,
     createEntry,
     createEntriesBatch,
     updateEntry,
     removeEntry,
   } = useDisorderTableEntries(currentCourse);
+  const {
+    comments,
+    loading: commentsLoading,
+    saving: commentsSaving,
+    error: commentsError,
+    canComment,
+    createComment,
+  } = useDisorderTableComments(currentCourse, targetOwnerUid);
+  const {
+    students,
+    loading: studentsLoading,
+    error: studentsError,
+  } = useDisorderTableStudents(isAdmin);
 
   const [isMobile, setIsMobile] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -133,6 +153,9 @@ export default function DisorderTable() {
   const [bulkText, setBulkText] = useState('');
   const [bulkTrack, setBulkTrack] = useState<OptionalTrack>(null);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [commentSubmitErrors, setCommentSubmitErrors] = useState<Record<string, string>>({});
+  const [commentSavingEntryId, setCommentSavingEntryId] = useState<string | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 639px)');
@@ -142,8 +165,45 @@ export default function DisorderTable() {
     return () => media.removeEventListener('change', update);
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    if (!isAdmin) {
+      setTargetOwnerUid(user.uid);
+      return;
+    }
+
+    if (studentsLoading) return;
+    if (!students.length) return;
+
+    const selectedStillExists = students.some((student) => student.uid === targetOwnerUid);
+    if (!selectedStillExists) {
+      setTargetOwnerUid(students[0].uid);
+    }
+  }, [user, isAdmin, students, studentsLoading, targetOwnerUid, setTargetOwnerUid]);
+
   const rowLabels = useMemo(() => new Map(DISORDER_TABLE_ROWS.map((row) => [row.id, row.label])), []);
   const columnLabels = useMemo(() => new Map(DISORDER_TABLE_COLUMNS.map((column) => [column.id, column.label])), []);
+  const commentsByEntryId = useMemo(() => {
+    const map = new Map<string, typeof comments>();
+    for (const comment of comments) {
+      const bucket = map.get(comment.entryId);
+      if (bucket) {
+        bucket.push(comment);
+      } else {
+        map.set(comment.entryId, [comment]);
+      }
+    }
+    return map;
+  }, [comments]);
+  const commentCountByEntryId = useMemo(
+    () => new Map(Array.from(commentsByEntryId.entries()).map(([entryId, list]) => [entryId, list.length])),
+    [commentsByEntryId]
+  );
+  const selectedStudent = useMemo(
+    () => students.find((student) => student.uid === targetOwnerUid) ?? null,
+    [students, targetOwnerUid]
+  );
+  const canEditEntries = canEdit && !isAdmin;
 
   const activeFilters = useMemo(
     () => buildDisorderTableFilters(activeFilterRowIds, activeFilterColumnIds),
@@ -226,7 +286,7 @@ export default function DisorderTable() {
   };
 
   const openCreateFromCell = (rowId: string, columnId: string) => {
-    if (isMobile) return;
+    if (isMobile || !canEditEntries) return;
     resetForm();
     setFormRowIds([rowId]);
     setFormColumnIds([columnId]);
@@ -240,7 +300,7 @@ export default function DisorderTable() {
   };
 
   const startEdit = (entryId: string) => {
-    if (isMobile) return;
+    if (isMobile || !canEditEntries) return;
     const entry = entries.find((item) => item.id === entryId);
     if (!entry) return;
     const rowId = activeCell?.rowId ?? entry.rowIds[0] ?? '';
@@ -277,7 +337,7 @@ export default function DisorderTable() {
   };
 
   const handleRemove = async (entryId: string) => {
-    if (isMobile) return;
+    if (isMobile || !canEditEntries) return;
     const confirmed = window.confirm('Удалить эту запись?');
     if (!confirmed) return;
 
@@ -352,6 +412,7 @@ export default function DisorderTable() {
   };
 
   const toggleCellSelectionMode = () => {
+    if (!canEditEntries) return;
     setIsCellSelectionMode((prev) => {
       const next = !prev;
       if (!next) setSelectedCells([]);
@@ -360,7 +421,7 @@ export default function DisorderTable() {
   };
 
   const openBulkModal = () => {
-    if (isMobile || selectedCells.length === 0) return;
+    if (isMobile || !canEditEntries || selectedCells.length === 0) return;
     setBulkError(null);
     setBulkText('');
     setBulkTrack(null);
@@ -396,6 +457,48 @@ export default function DisorderTable() {
       setIsCellSelectionMode(false);
     } catch (err: any) {
       setBulkError(err?.message || 'Не удалось сохранить текст в выбранные пересечения');
+    }
+  };
+
+  const setCommentDraft = (entryId: string, text: string) => {
+    setCommentDrafts((prev) => ({ ...prev, [entryId]: text }));
+    setCommentSubmitErrors((prev) => {
+      if (!prev[entryId]) return prev;
+      const next = { ...prev };
+      delete next[entryId];
+      return next;
+    });
+  };
+
+  const handleCommentSubmit = async (entryId: string) => {
+    if (!canComment) return;
+
+    const draft = (commentDrafts[entryId] ?? '').trim();
+    if (draft.length < 2) {
+      setCommentSubmitErrors((prev) => ({
+        ...prev,
+        [entryId]: 'Комментарий должен содержать минимум 2 символа',
+      }));
+      return;
+    }
+
+    setCommentSubmitErrors((prev) => {
+      if (!prev[entryId]) return prev;
+      const next = { ...prev };
+      delete next[entryId];
+      return next;
+    });
+    setCommentSavingEntryId(entryId);
+    try {
+      await createComment({ entryId, text: draft });
+      setCommentDraft(entryId, '');
+    } catch (err: any) {
+      setCommentSubmitErrors((prev) => ({
+        ...prev,
+        [entryId]: err?.message || 'Не удалось сохранить комментарий',
+      }));
+    } finally {
+      setCommentSavingEntryId(null);
     }
   };
 
@@ -482,6 +585,35 @@ export default function DisorderTable() {
             </label>
           </div>
 
+          {isAdmin && (
+            <section className="mb-2 rounded-xl border border-violet-200 bg-violet-50/70 px-2.5 py-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-violet-900">Режим преподавателя</span>
+                <select
+                  value={targetOwnerUid ?? ''}
+                  onChange={(event) => setTargetOwnerUid(event.target.value || null)}
+                  className="min-w-[220px] flex-1 rounded-lg border border-violet-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200 sm:max-w-[420px]"
+                >
+                  {studentsLoading && <option value="">Загрузка списка студентов...</option>}
+                  {!studentsLoading && students.length === 0 && <option value="">Студенты не найдены</option>}
+                  {!studentsLoading && students.map((student) => (
+                    <option key={student.uid} value={student.uid}>
+                      {student.displayName}{student.email ? ` (${student.email})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {selectedStudent && (
+                <p className="mt-1 text-xs text-violet-800">
+                  Просматривается таблица студента: <span className="font-semibold">{selectedStudent.displayName}</span>
+                </p>
+              )}
+              {studentsError && (
+                <p className="mt-1 text-xs text-red-700">{studentsError}</p>
+              )}
+            </section>
+          )}
+
           <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/70 px-2.5 py-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-blue-900">Фильтры</span>
             <button
@@ -501,7 +633,7 @@ export default function DisorderTable() {
             </button>
           </div>
 
-          {!isMobile && (
+          {!isMobile && canEditEntries && (
             <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-2.5 py-1.5">
               <span className="text-xs font-semibold uppercase tracking-wide text-amber-900">Несколько ячеек</span>
               <button
@@ -531,6 +663,11 @@ export default function DisorderTable() {
           {isMobile && (
             <p className="mb-1 text-xs text-slate-600">
               Мобильный режим: доступен просмотр таблицы и содержимого ячеек. Редактирование доступно на компьютере.
+            </p>
+          )}
+          {isAdmin && (
+            <p className="mb-1 text-xs text-slate-600">
+              Для преподавателя доступен просмотр и комментирование таблицы студента.
             </p>
           )}
 
@@ -682,6 +819,10 @@ export default function DisorderTable() {
                             const previewText = cellEntries.length > 0
                               ? buildPreviewText(cellEntries[0].text, normalizedSearch, 120)
                               : '';
+                            const cellCommentCount = cellEntries.reduce(
+                              (sum, entry) => sum + (commentCountByEntryId.get(entry.id) ?? 0),
+                              0
+                            );
                             const hasPatopsychology = cellEntries.some((entry) => entry.track === 'patopsychology');
                             const hasPsychiatry = cellEntries.some((entry) => entry.track === 'psychiatry');
                             const isMixedTrack = hasPatopsychology && hasPsychiatry;
@@ -742,6 +883,11 @@ export default function DisorderTable() {
                                       {cellEntries.length > 1 && (
                                         <p className="mt-1 text-[10px] font-medium text-blue-700">
                                           +{cellEntries.length - 1} ещё
+                                        </p>
+                                      )}
+                                      {cellCommentCount > 0 && (
+                                        <p className="mt-1 text-[10px] font-medium text-emerald-700">
+                                          💬 {cellCommentCount}
                                         </p>
                                       )}
                                     </>
@@ -832,7 +978,7 @@ export default function DisorderTable() {
         footer={(
           <>
             <ModalCancelButton onClick={closeCellModal}>Закрыть</ModalCancelButton>
-            {!isMobile && activeCell && (
+            {!isMobile && canEditEntries && activeCell && (
               <ModalSaveButton
                 onClick={() => {
                   closeCellModal();
@@ -850,6 +996,9 @@ export default function DisorderTable() {
           <p className="text-sm text-slate-600">В этом пересечении пока нет записей.</p>
         ) : (
           <div className="space-y-3">
+            {commentsLoading && (
+              <p className="text-xs text-slate-500">Загрузка комментариев преподавателя...</p>
+            )}
             {activeCellEntries.map((entry) => (
               <article key={entry.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-800 [overflow-wrap:anywhere]">
@@ -865,7 +1014,7 @@ export default function DisorderTable() {
                       Без цвета
                     </span>
                   )}
-                  {!isMobile && (
+                  {!isMobile && canEditEntries && (
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -884,6 +1033,67 @@ export default function DisorderTable() {
                       >
                         Удалить
                       </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {(() => {
+                    const entryComments = commentsByEntryId.get(entry.id) ?? [];
+                    if (entryComments.length === 0) {
+                      return (
+                        <p className="rounded-md bg-white px-3 py-2 text-xs text-slate-500">
+                          Комментариев преподавателя пока нет.
+                        </p>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-2">
+                        {entryComments.map((comment) => (
+                          <div key={comment.id} className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+                            <p className="text-xs font-semibold text-emerald-900">{comment.authorName || 'Преподаватель'}</p>
+                            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-emerald-900 [overflow-wrap:anywhere]">
+                              {comment.text}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  {canComment && (
+                    <div className="rounded-md border border-violet-200 bg-violet-50 p-3">
+                      <label htmlFor={`comment-input-${entry.id}`} className="mb-1 block text-xs font-semibold text-violet-900">
+                        Комментарий преподавателя
+                      </label>
+                      <textarea
+                        id={`comment-input-${entry.id}`}
+                        value={commentDrafts[entry.id] ?? ''}
+                        onChange={(event) => setCommentDraft(entry.id, event.target.value)}
+                        rows={3}
+                        maxLength={2000}
+                        placeholder="Напишите комментарий для студента..."
+                        className="w-full rounded-md border border-violet-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
+                      />
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <p className="text-[11px] text-violet-800">
+                          {(commentDrafts[entry.id] ?? '').length}/2000
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleCommentSubmit(entry.id)}
+                          disabled={commentSavingEntryId === entry.id || commentsSaving}
+                          className="rounded-md border border-violet-300 bg-white px-2.5 py-1 text-xs font-medium text-violet-900 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {commentSavingEntryId === entry.id || commentsSaving ? 'Сохранение...' : 'Сохранить комментарий'}
+                        </button>
+                      </div>
+                      {(commentsError || commentSubmitErrors[entry.id]) && (
+                        <p className="mt-2 text-xs text-red-700">
+                          {commentSubmitErrors[entry.id] ?? commentsError}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

@@ -42,3 +42,23 @@ export interface DisorderTableCellSelection {
   rowId: string;
   columnId: string;
 }
+
+export interface DisorderTableComment {
+  id: string;
+  entryId: string;
+  text: string;
+  authorUid: string;
+  authorName: string;
+  createdAt: Date;
+}
+
+export interface DisorderTableCommentInput {
+  entryId: string;
+  text: string;
+}
+
+export interface DisorderTableStudent {
+  uid: string;
+  displayName: string;
+  email: string;
+}

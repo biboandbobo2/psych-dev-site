@@ -1,6 +1,7 @@
 import { DISORDER_TABLE_COURSE_IDS } from './config';
 import type {
   DisorderTableCellSelection,
+  DisorderTableCommentInput,
   DisorderTableEntry,
   DisorderTableEntryInput,
   DisorderTableEntryTrack,
@@ -33,6 +34,13 @@ export function normalizeEntryInput(input: DisorderTableEntryInput): DisorderTab
 export function normalizeEntryTrack(track?: DisorderTableEntryTrack | null): DisorderTableEntryTrack | null {
   if (track === 'patopsychology' || track === 'psychiatry') return track;
   return null;
+}
+
+export function normalizeCommentInput(input: DisorderTableCommentInput): DisorderTableCommentInput {
+  return {
+    entryId: input.entryId.trim(),
+    text: input.text.trim(),
+  };
 }
 
 export function buildDisorderTableFilters(rowIds: string[], columnIds: string[]): DisorderTableFilters {

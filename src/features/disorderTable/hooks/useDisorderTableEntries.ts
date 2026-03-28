@@ -32,19 +32,37 @@ function toDateSafe(value: unknown): Date {
 }
 
 export function useDisorderTableEntries(courseId: string) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [entries, setEntries] = useState<DisorderTableEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const docId = useMemo(() => {
-    if (!user) return null;
-    return buildDisorderTableDocId(user.uid, courseId);
-  }, [user, courseId]);
+  const [targetOwnerUid, setTargetOwnerUid] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user || !docId || !isDisorderTableCourse(courseId)) {
+    if (!user) {
+      setTargetOwnerUid(null);
+      return;
+    }
+    setTargetOwnerUid(user.uid);
+  }, [user]);
+
+  const effectiveOwnerUid = useMemo(() => {
+    if (!user) return null;
+    if (!targetOwnerUid) return user.uid;
+    if (targetOwnerUid === user.uid) return user.uid;
+    return isAdmin ? targetOwnerUid : user.uid;
+  }, [user, targetOwnerUid, isAdmin]);
+
+  const docId = useMemo(() => {
+    if (!effectiveOwnerUid) return null;
+    return buildDisorderTableDocId(effectiveOwnerUid, courseId);
+  }, [effectiveOwnerUid, courseId]);
+
+  const canEdit = Boolean(user && effectiveOwnerUid && user.uid === effectiveOwnerUid);
+
+  useEffect(() => {
+    if (!user || !effectiveOwnerUid || !docId || !isDisorderTableCourse(courseId)) {
       setEntries([]);
       setLoading(false);
       return;
@@ -90,25 +108,26 @@ export function useDisorderTableEntries(courseId: string) {
     );
 
     return unsubscribe;
-  }, [user, docId, courseId]);
+  }, [user, effectiveOwnerUid, docId, courseId]);
 
   const touchRootDoc = useCallback(async () => {
-    if (!user || !docId) return;
+    if (!user || !docId || !effectiveOwnerUid) return;
 
     await setDoc(
       doc(db, 'disorderTables', docId),
       {
-        userId: user.uid,
+        userId: effectiveOwnerUid,
         courseId,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
     );
-  }, [user, docId, courseId]);
+  }, [user, docId, effectiveOwnerUid, courseId]);
 
   const createEntry = useCallback(
     async (input: DisorderTableEntryInput) => {
       if (!user || !docId) throw new Error('Требуется авторизация');
+      if (!canEdit) throw new Error('Редактирование доступно только владельцу таблицы');
 
       const normalized = normalizeEntryInput(input);
       if (!isValidDisorderTableEntryInput(normalized)) {
@@ -132,12 +151,13 @@ export function useDisorderTableEntries(courseId: string) {
         setSaving(false);
       }
     },
-    [user, docId, touchRootDoc]
+    [user, docId, canEdit, touchRootDoc]
   );
 
   const createEntriesBatch = useCallback(
     async (inputs: DisorderTableEntryInput[]) => {
       if (!user || !docId) throw new Error('Требуется авторизация');
+      if (!canEdit) throw new Error('Редактирование доступно только владельцу таблицы');
       if (inputs.length === 0) return;
 
       const normalizedInputs = inputs.map((input) => normalizeEntryInput(input));
@@ -174,12 +194,13 @@ export function useDisorderTableEntries(courseId: string) {
         setSaving(false);
       }
     },
-    [user, docId, touchRootDoc]
+    [user, docId, canEdit, touchRootDoc]
   );
 
   const updateEntry = useCallback(
     async (entryId: string, input: DisorderTableEntryInput) => {
       if (!user || !docId) throw new Error('Требуется авторизация');
+      if (!canEdit) throw new Error('Редактирование доступно только владельцу таблицы');
 
       const normalized = normalizeEntryInput(input);
       if (!isValidDisorderTableEntryInput(normalized)) {
@@ -206,12 +227,13 @@ export function useDisorderTableEntries(courseId: string) {
         setSaving(false);
       }
     },
-    [user, docId, touchRootDoc]
+    [user, docId, canEdit, touchRootDoc]
   );
 
   const removeEntry = useCallback(
     async (entryId: string) => {
       if (!user || !docId) throw new Error('Требуется авторизация');
+      if (!canEdit) throw new Error('Редактирование доступно только владельцу таблицы');
 
       setSaving(true);
       setError(null);
@@ -226,7 +248,7 @@ export function useDisorderTableEntries(courseId: string) {
         setSaving(false);
       }
     },
-    [user, docId, touchRootDoc]
+    [user, docId, canEdit, touchRootDoc]
   );
 
   return {
@@ -234,6 +256,9 @@ export function useDisorderTableEntries(courseId: string) {
     loading,
     saving,
     error,
+    canEdit,
+    targetOwnerUid,
+    setTargetOwnerUid,
     createEntry,
     createEntriesBatch,
     updateEntry,
