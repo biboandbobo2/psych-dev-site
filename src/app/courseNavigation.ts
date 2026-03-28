@@ -3,6 +3,7 @@ import { ROUTE_CONFIG } from '../routes';
 const RESERVED_TOP_LEVEL_PATHS = new Set([
   '',
   'homepage',
+  'home',
   'features',
   'login',
   'admin',

@@ -91,18 +91,34 @@ export function AppLayout({
     <main className="relative bg-bg text-fg min-h-screen">
       <div id="page-top" aria-hidden="true" />
       <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 md:py-12">
-        <div className="mb-6 flex flex-wrap items-center justify-end gap-2 sm:mb-8">
-          {!user ? (
-            <button
-              onClick={onLoginClick}
-              disabled={authLoading}
-              className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-md transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Войти
-            </button>
-          ) : (
-            <UserMenu user={user} />
-          )}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:mb-8">
+          <NavLink
+            to="/home"
+            className="inline-flex items-center gap-2 rounded-xl border border-border/70 bg-card px-3 py-2 shadow-sm transition hover:bg-card2"
+            aria-label="Перейти в Дом"
+          >
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent-100 text-sm font-bold text-accent">
+              Ψ
+            </span>
+            <span className="leading-tight">
+              <span className="block text-[10px] uppercase tracking-[0.2em] text-muted">Дом</span>
+              <span className="block text-sm font-semibold text-fg">Psych Dev Site</span>
+            </span>
+          </NavLink>
+
+          <div className="ml-auto">
+            {!user ? (
+              <button
+                onClick={onLoginClick}
+                disabled={authLoading}
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-md transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Войти
+              </button>
+            ) : (
+              <UserMenu user={user} />
+            )}
+          </div>
         </div>
         <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 lg:gap-12">
           {showAside && (
