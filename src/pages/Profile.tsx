@@ -1,14 +1,25 @@
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useCallback, useState } from 'react';
+import { getDocs, orderBy, query } from 'firebase/firestore';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
 import { GeminiKeySection, SearchHistorySection } from '../components/profile';
 import { FeedbackButton, FeedbackModal } from '../components/FeedbackModal';
 import { useAuth } from '../auth/AuthProvider';
 import { useCourseStore } from '../stores';
 import { triggerHaptic } from '../lib/haptics';
-import { useCourses } from '../hooks/useCourses';
+import { useCourses, type CourseOption } from '../hooks/useCourses';
 import { isDisorderTableCourse } from '../features/disorderTable';
+import { getCourseLessonsCollectionRef } from '../lib/courseLessons';
+import { getLastCourseLesson } from '../lib/lastCourseLesson';
+import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG } from '../routes';
 import type { CourseType } from '../types/tests';
+
+function getCoreCourseStartPath(courseId: string): string | null {
+  if (courseId === 'development') return ROUTE_CONFIG[0]?.path ?? '/intro';
+  if (courseId === 'clinical') return CLINICAL_ROUTE_CONFIG[0]?.path ?? '/clinical/intro';
+  if (courseId === 'general') return GENERAL_ROUTE_CONFIG[0]?.path ?? '/general/1';
+  return null;
+}
 
 interface StudentPanelProps {
   currentCourse: CourseType;
@@ -30,6 +41,56 @@ interface StudentPersonalCard {
   description: string;
   badge?: string;
   value?: string;
+}
+
+interface CourseGridProps {
+  courses: CourseOption[];
+  openingCourseId: string | null;
+  onOpenCourse: (course: CourseOption) => void;
+}
+
+function CourseGrid({ courses, openingCourseId, onOpenCourse }: CourseGridProps) {
+  const featuredCourses = courses.slice(0, 4);
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold text-gray-900 sm:text-lg">Курсы</h3>
+        <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
+          4 предмета
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {featuredCourses.map((course) => {
+          const lastLesson = getLastCourseLesson(course.id);
+          const isOpening = openingCourseId === course.id;
+
+          return (
+            <button
+              key={course.id}
+              type="button"
+              onClick={() => onOpenCourse(course)}
+              disabled={isOpening}
+              className="group rounded-xl border-2 border-gray-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-2xl">{course.icon}</span>
+                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                  {isOpening ? 'Открытие...' : 'Открыть'}
+                </span>
+              </div>
+              <h4 className="mt-2 text-sm font-semibold text-gray-900">{course.name}</h4>
+              <p className="mt-1 text-xs text-gray-600">
+                {lastLesson?.label
+                  ? `Последняя лекция: ${lastLesson.label}`
+                  : 'Начать с первой лекции курса'}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 function StudentPanel({ currentCourse, currentCourseName }: StudentPanelProps) {
@@ -230,6 +291,9 @@ function StudentPanel({ currentCourse, currentCourseName }: StudentPanelProps) {
 export default function Profile() {
   const { user, loading, userRole, isAdmin, isSuperAdmin } = useAuth();
   const [isCoopModalOpen, setIsCoopModalOpen] = useState(false);
+  const [openingCourseId, setOpeningCourseId] = useState<string | null>(null);
+  const [courseOpenError, setCourseOpenError] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { currentCourse, setCurrentCourse } = useCourseStore();
   const { courses, loading: coursesLoading } = useCourses();
@@ -271,6 +335,41 @@ export default function Profile() {
     : null;
   const role = userRole ?? 'student';
   const currentCourseName = courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс';
+  const featuredCourses = courses.slice(0, 4);
+
+  const resolveCourseStartPath = useCallback(async (course: CourseOption) => {
+    const corePath = getCoreCourseStartPath(course.id);
+    if (corePath) return corePath;
+
+    const lessonsRef = getCourseLessonsCollectionRef(course.id);
+    const snapshot = await getDocs(query(lessonsRef, orderBy('order', 'asc')));
+    const firstLessonDoc = snapshot.docs.find((docSnap) => docSnap.data().published !== false);
+    if (!firstLessonDoc) {
+      return `/profile?course=${encodeURIComponent(course.id as CourseType)}`;
+    }
+
+    const lessonData = firstLessonDoc.data() as Record<string, unknown>;
+    const lessonId = typeof lessonData.period === 'string' && lessonData.period.trim()
+      ? lessonData.period.trim()
+      : firstLessonDoc.id;
+
+    return `/course/${encodeURIComponent(course.id)}/${encodeURIComponent(lessonId)}`;
+  }, []);
+
+  const handleOpenCourse = useCallback(async (course: CourseOption) => {
+    setCourseOpenError(null);
+    setOpeningCourseId(course.id);
+    setCurrentCourse(course.id as CourseType);
+
+    try {
+      const path = await resolveCourseStartPath(course);
+      navigate(path);
+    } catch {
+      setCourseOpenError('Не удалось открыть курс. Попробуйте ещё раз.');
+    } finally {
+      setOpeningCourseId(null);
+    }
+  }, [navigate, resolveCourseStartPath, setCurrentCourse]);
 
   const handleHapticClick = useCallback((event: React.MouseEvent) => {
     const target = event.target as HTMLElement | null;
@@ -379,28 +478,17 @@ export default function Profile() {
         </div>
       </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
-          {/* Переключатель курсов (мобильная версия) */}
-        <div className="sm:hidden">
-          <h2 className="text-lg font-semibold mb-4 text-gray-700 uppercase tracking-wide">Выберите курс</h2>
-          <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 sm:border-b sm:border-gray-200">
-            {courses.map((courseOption) => (
-              <button
-                key={courseOption.id}
-                onClick={() => setCurrentCourse(courseOption.id)}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors sm:w-auto sm:justify-start sm:rounded-none sm:border-0 sm:px-4 sm:py-2 sm:text-base ${
-                  currentCourse === courseOption.id
-                    ? 'bg-blue-50 text-blue-700 border-blue-200 sm:bg-transparent sm:text-blue-600 sm:border-b-2 sm:border-blue-600'
-                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 sm:bg-transparent sm:text-gray-600 sm:border-b-2 sm:border-transparent sm:hover:text-gray-900'
-                }`}
-                disabled={coursesLoading}
-              >
-                <span className="text-base">{courseOption.icon}</span>
-                {courseOption.name}
-              </button>
-            ))}
+      <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
+        <CourseGrid
+          courses={featuredCourses}
+          openingCourseId={openingCourseId}
+          onOpenCourse={handleOpenCourse}
+        />
+        {courseOpenError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {courseOpenError}
           </div>
-        </div>
+        )}
 
         <div className="hidden sm:block">
           <StudentPanel currentCourse={currentCourse} currentCourseName={currentCourseName} />
