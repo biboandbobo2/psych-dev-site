@@ -156,9 +156,10 @@ export function AppShell() {
   const setCurrentCourse = useCourseStore((state) => state.setCurrentCourse);
   const isSuperAdminPage = normalizedPath === '/superadmin';
   const isAdminContentPage = normalizedPath.startsWith('/admin/content');
+  const isHomePage = normalizedPath === '/home' || normalizedPath === '/homepage';
   const isNotesPage = normalizedPath === '/notes';
   const hideNavigation =
-    normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/superadmin');
+    normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/superadmin') || isHomePage;
   const { isOpen, openModal, closeModal } = useLoginModal();
 
   // Используем глобальный store для курса

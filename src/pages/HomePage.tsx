@@ -7,11 +7,11 @@ import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG, SITE_NAME } 
 import { cn } from '../lib/cn';
 import { useHomePageContent } from '../hooks/useHomePageContent';
 import { useCourses } from '../hooks/useCourses';
+import { useHomeFeed } from '../hooks/useHomeFeed';
 import { useCourseStore } from '../stores';
 import { useAuth } from '../auth/AuthProvider';
 import { FeedbackModal } from '../components/FeedbackModal';
 import { PageLoader } from '../components/ui';
-import { isDisorderTableCourse } from '../features/disorderTable';
 import type { CourseType } from '../types/tests';
 import type {
   HomePageSection,
@@ -52,22 +52,25 @@ function resolvePrimaryLessonLink(courseId: string): string {
   return `/profile?course=${encodeURIComponent(courseId as CourseType)}`;
 }
 
-function resolvePracticeLink(courseId: string): string {
-  if (isDisorderTableCourse(courseId)) {
-    return '/disorder-table';
-  }
-  if (courseId === 'development') {
-    return '/timeline';
-  }
-  return `/notes?course=${encodeURIComponent(courseId as CourseType)}`;
-}
-
 export function HomePage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { currentCourse } = useCourseStore();
   const { courses } = useCourses();
+  const {
+    announcements,
+    events,
+    loading: feedLoading,
+    error: feedError,
+    addAnnouncement,
+    addEvent,
+  } = useHomeFeed();
   const { content, loading, error } = useHomePageContent();
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [announcementDraft, setAnnouncementDraft] = useState('');
+  const [eventDateDraft, setEventDateDraft] = useState('');
+  const [eventTextDraft, setEventTextDraft] = useState('');
+  const [isFeedSaving, setIsFeedSaving] = useState(false);
+  const [feedActionError, setFeedActionError] = useState<string | null>(null);
 
   if (loading) {
     return <PageLoader />;
@@ -88,20 +91,21 @@ export function HomePage() {
   const activeSections = content.sections.filter((s) => s.enabled).sort((a, b) => a.order - b.order);
   const currentCourseName = courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс';
   const primaryLessonLink = resolvePrimaryLessonLink(currentCourse);
-  const notesLink = `/notes?course=${encodeURIComponent(currentCourse as CourseType)}`;
-  const practiceLink = resolvePracticeLink(currentCourse);
-
-  const announcements = [
-    'Обновлена таблица по расстройствам: доступен просмотр и комментарии преподавателя.',
-    'Профиль студента разделён на личный кабинет и учебные инструменты.',
-    'Добавлена страница «Дом» как единая точка входа в платформу.',
+  const featuredSubjects = courses.slice(0, 4).map((course) => ({
+    id: course.id,
+    name: course.name,
+    icon: course.icon,
+    link: `/profile?course=${encodeURIComponent(course.id as CourseType)}`,
+  }));
+  const fallbackSubjects = [
+    { id: 'development', name: 'Психология развития', icon: '👶', link: '/profile?course=development' },
+    { id: 'clinical', name: 'Основы патопсихологии', icon: '🧠', link: '/profile?course=clinical' },
+    { id: 'general', name: 'Введение в клиническую психологию', icon: '📘', link: '/profile?course=general' },
+    { id: 'personal-tools', name: 'Личный кабинет', icon: '🎓', link: '/profile' },
   ];
-
-  const events = [
-    { date: 'Апрель 2026', text: 'Открытая встреча по улучшению учебных сценариев платформы' },
-    { date: 'Апрель 2026', text: 'Сбор предложений по разделам «Календарь» и «Достижения»' },
-    { date: 'Май 2026', text: 'Плановый UX-обзор основных студентских потоков' },
-  ];
+  const subjects = featuredSubjects.length >= 4
+    ? featuredSubjects
+    : [...featuredSubjects, ...fallbackSubjects.filter((item) => !featuredSubjects.some((course) => course.id === item.id))].slice(0, 4);
 
   const recommendations = [
     {
@@ -111,20 +115,47 @@ export function HomePage() {
       action: 'Открыть занятие',
     },
     {
-      title: 'Зафиксировать заметки',
-      description: 'Закрепите ключевые мысли по теме курса в личных заметках.',
-      link: notesLink,
-      action: 'Открыть заметки',
+      title: 'Проверить прогресс по тестам',
+      description: 'Просмотрите результаты и продолжите тренировки по текущему курсу.',
+      link: '/tests',
+      action: 'Открыть тесты',
     },
     {
-      title: 'Практическая работа',
-      description: isDisorderTableCourse(currentCourse)
-        ? 'Заполните таблицу по расстройствам и уточните наблюдения.'
-        : 'Добавьте важные события и смыслы в таймлайн жизни.',
-      link: practiceLink,
-      action: isDisorderTableCourse(currentCourse) ? 'Открыть таблицу' : 'Открыть таймлайн',
+      title: 'Открыть личный кабинет',
+      description: 'Календарь, уведомления и достижения находятся в профиле студента.',
+      link: '/profile',
+      action: 'Перейти в профиль',
     },
   ];
+
+  const handleAddAnnouncement = async () => {
+    if (!isAdmin || isFeedSaving) return;
+    setFeedActionError(null);
+    setIsFeedSaving(true);
+    try {
+      await addAnnouncement(announcementDraft, user?.displayName || user?.email || 'Администратор');
+      setAnnouncementDraft('');
+    } catch (err: any) {
+      setFeedActionError(err?.message || 'Не удалось добавить объявление');
+    } finally {
+      setIsFeedSaving(false);
+    }
+  };
+
+  const handleAddEvent = async () => {
+    if (!isAdmin || isFeedSaving) return;
+    setFeedActionError(null);
+    setIsFeedSaving(true);
+    try {
+      await addEvent(eventDateDraft, eventTextDraft, user?.displayName || user?.email || 'Администратор');
+      setEventDateDraft('');
+      setEventTextDraft('');
+    } catch (err: any) {
+      setFeedActionError(err?.message || 'Не удалось добавить событие');
+    } finally {
+      setIsFeedSaving(false);
+    }
+  };
 
   // Helper function to render each section based on type
   const renderSection = (section: HomePageSection) => {
@@ -409,67 +440,157 @@ export function HomePage() {
 
   function renderHomeMvpDashboard() {
     return (
-      <section className="py-10 sm:py-12">
-        <div className="rounded-2xl border border-[#DDE5EE] bg-gradient-to-br from-white to-[#F4F8FC] p-5 shadow-sm sm:p-6">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#4A5FA5]">Дом</p>
-              <h2 className="mt-1 text-2xl font-bold text-[#2C3E50] sm:text-3xl">Центр платформы</h2>
-              <p className="mt-2 text-sm text-[#5E6D7A]">
-                {user ? `Здравствуйте, ${user.displayName || user.email?.split('@')[0] || 'студент'}!` : 'Добро пожаловать!'}
-                {' '}Здесь собраны ключевые шаги и обновления.
-              </p>
+      <section className="py-8 sm:py-10">
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-[#B7CCFF] bg-gradient-to-br from-[#2E4DD7] via-[#3C63F0] to-[#00A7E1] p-6 text-white shadow-lg sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/80">ЦЕНТР ПЛАТФОРМЫ</p>
+            <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="text-3xl font-black leading-tight sm:text-4xl">Дом</h2>
+                <p className="mt-2 max-w-2xl text-sm text-white/90 sm:text-base">
+                  {user ? `Здравствуйте, ${user.displayName || user.email?.split('@')[0] || 'студент'}!` : 'Добро пожаловать!'}
+                  {' '}Здесь вы видите ключевые предметы, объявления и ближайшие события платформы.
+                </p>
+              </div>
+              {!user && (
+                <NavLink
+                  to="/login"
+                  className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#2444C8] shadow transition hover:bg-[#F3F7FF]"
+                >
+                  Войти
+                </NavLink>
+              )}
             </div>
-            {!user && (
+          </div>
+
+          <div className="rounded-2xl border border-[#DDE5EE] bg-white p-5 shadow-sm sm:p-6">
+            <h3 className="text-lg font-semibold text-[#2C3E50]">Предметы</h3>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {subjects.map((subject) => (
+                <NavLink
+                  key={subject.id}
+                  to={subject.link}
+                  className="group rounded-xl border border-[#D8E2EE] bg-[#F9FBFF] p-4 transition hover:-translate-y-0.5 hover:border-[#9EB7D9] hover:shadow-md"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl">{subject.icon}</span>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#4A5FA5]">
+                      Открыть
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-[#2C3E50]">{subject.name}</p>
+                </NavLink>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#C8D7ED] bg-gradient-to-r from-[#FFFFFF] to-[#F1F7FF] p-5 shadow-sm sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#3E5EB3]">Быстрый шаг</p>
+            <h3 className="mt-1 text-2xl font-extrabold text-[#1F335B] sm:text-3xl">Продолжить обучение</h3>
+            <p className="mt-1 text-sm text-[#5D6B7D]">
+              Курс сейчас: <span className="font-semibold text-[#1F335B]">{currentCourseName}</span>
+            </p>
+            <div className="mt-4">
               <NavLink
-                to="/login"
-                className="inline-flex items-center justify-center rounded-lg bg-[#4A5FA5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#3A4F95]"
+                to={primaryLessonLink}
+                className="inline-flex min-w-[220px] items-center justify-center rounded-xl bg-[#274AD6] px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#1E3FC0] hover:shadow-xl"
               >
-                Войти в аккаунт
+                Продолжить обучение
               </NavLink>
-            )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
-              <h3 className="text-base font-semibold text-[#2C3E50]">Продолжить обучение</h3>
-              <p className="mt-1 text-sm text-[#6B7B88]">
-                Текущий курс: <span className="font-semibold text-[#2C3E50]">{currentCourseName}</span>
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <NavLink
-                  to={primaryLessonLink}
-                  className="rounded-lg bg-[#4A5FA5] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#3A4F95]"
-                >
-                  Открыть занятие
-                </NavLink>
-                <NavLink
-                  to={notesLink}
-                  className="rounded-lg border border-[#B9C7D6] bg-white px-3 py-2 text-xs font-semibold text-[#2C3E50] transition hover:bg-[#F6F9FC]"
-                >
-                  Мои заметки
-                </NavLink>
-                <NavLink
-                  to={practiceLink}
-                  className="rounded-lg border border-[#B9C7D6] bg-white px-3 py-2 text-xs font-semibold text-[#2C3E50] transition hover:bg-[#F6F9FC]"
-                >
-                  {isDisorderTableCourse(currentCourse) ? 'Таблица по расстройствам' : 'Таймлайн жизни'}
-                </NavLink>
-              </div>
-            </article>
-
-            <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
               <h3 className="text-base font-semibold text-[#2C3E50]">Объявления</h3>
-              <ul className="mt-2 space-y-2">
-                {announcements.map((item) => (
-                  <li key={item} className="rounded-lg bg-[#F5F8FC] px-3 py-2 text-sm text-[#5E6D7A]">
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              {feedLoading ? (
+                <p className="mt-2 text-sm text-[#667788]">Загрузка объявлений...</p>
+              ) : announcements.length === 0 ? (
+                <p className="mt-2 rounded-lg bg-[#F5F8FC] px-3 py-2 text-sm text-[#5E6D7A]">
+                  Пока нет объявлений. Администратор добавит их здесь.
+                </p>
+              ) : (
+                <ul className="mt-2 space-y-2">
+                  {announcements.map((item) => (
+                    <li key={item.id} className="rounded-lg bg-[#F5F8FC] px-3 py-2 text-sm text-[#5E6D7A]">
+                      {item.text}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {isAdmin && (
+                <div className="mt-3 space-y-2 rounded-lg border border-[#DFE7F3] bg-[#FAFCFF] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">Добавить объявление</p>
+                  <textarea
+                    value={announcementDraft}
+                    onChange={(event) => setAnnouncementDraft(event.target.value)}
+                    rows={3}
+                    maxLength={400}
+                    placeholder="Текст объявления для всех пользователей..."
+                    className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddAnnouncement}
+                    disabled={isFeedSaving}
+                    className="inline-flex rounded-lg bg-[#3359CB] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2A49A8] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isFeedSaving ? 'Сохранение...' : 'Опубликовать объявление'}
+                  </button>
+                </div>
+              )}
             </article>
 
             <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
+              <h3 className="text-base font-semibold text-[#2C3E50]">События</h3>
+              {feedLoading ? (
+                <p className="mt-2 text-sm text-[#667788]">Загрузка событий...</p>
+              ) : events.length === 0 ? (
+                <p className="mt-2 rounded-lg bg-[#F8FAFD] px-3 py-2 text-sm text-[#5E6D7A]">
+                  Пока нет событий. Администратор может добавить их в этом блоке.
+                </p>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  {events.map((event) => (
+                    <div key={event.id} className="rounded-lg bg-[#F8FAFD] px-3 py-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">{event.dateLabel}</p>
+                      <p className="mt-1 text-sm text-[#5E6D7A]">{event.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {isAdmin && (
+                <div className="mt-3 space-y-2 rounded-lg border border-[#DFE7F3] bg-[#FAFCFF] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">Добавить событие</p>
+                  <input
+                    type="text"
+                    value={eventDateDraft}
+                    onChange={(event) => setEventDateDraft(event.target.value)}
+                    maxLength={80}
+                    placeholder="Период, например: Май 2026"
+                    className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
+                  />
+                  <textarea
+                    value={eventTextDraft}
+                    onChange={(event) => setEventTextDraft(event.target.value)}
+                    rows={3}
+                    maxLength={400}
+                    placeholder="Описание события..."
+                    className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddEvent}
+                    disabled={isFeedSaving}
+                    className="inline-flex rounded-lg bg-[#3359CB] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2A49A8] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isFeedSaving ? 'Сохранение...' : 'Опубликовать событие'}
+                  </button>
+                </div>
+              )}
+            </article>
+
+            <article className="rounded-xl border border-[#DDE5EE] bg-white p-4 lg:col-span-2">
               <h3 className="text-base font-semibold text-[#2C3E50]">Рекомендуем пройти дальше</h3>
               <div className="mt-2 space-y-2">
                 {recommendations.map((item) => (
@@ -485,21 +606,9 @@ export function HomePage() {
                   </div>
                 ))}
               </div>
-            </article>
-
-            <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
-              <h3 className="text-base font-semibold text-[#2C3E50]">События</h3>
-              <div className="mt-2 space-y-2">
-                {events.map((event) => (
-                  <div key={`${event.date}-${event.text}`} className="rounded-lg bg-[#F8FAFD] px-3 py-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">{event.date}</p>
-                    <p className="mt-1 text-sm text-[#5E6D7A]">{event.text}</p>
-                  </div>
-                ))}
-              </div>
               <div className="mt-3 rounded-lg border border-[#D7E3EF] bg-[#EFF5FB] px-3 py-2">
                 <p className="text-sm text-[#37516B]">
-                  Есть идея по улучшению формата занятий? Напишите нам через обратную связь.
+                  Есть идея по улучшению платформы? Напишите нам через обратную связь.
                 </p>
                 <button
                   type="button"
@@ -511,6 +620,12 @@ export function HomePage() {
               </div>
             </article>
           </div>
+
+          {(feedError || feedActionError) && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {feedActionError ?? feedError}
+            </div>
+          )}
         </div>
       </section>
     );
@@ -531,11 +646,6 @@ export function HomePage() {
         />
       </Helmet>
 
-      {/* Render hero section separately (outside container) */}
-      {activeSections
-        .filter((s) => s.type === 'hero')
-        .map((section) => renderSection(section))}
-
       {/* Render all other sections inside container */}
       <div className="max-w-[1200px] mx-auto px-5 sm:px-8 lg:px-10">
         {renderHomeMvpDashboard()}
@@ -543,6 +653,11 @@ export function HomePage() {
           .filter((s) => s.type !== 'hero')
           .map((section) => renderSection(section))}
       </div>
+
+      {/* Hero moved lower to keep Home dashboard primary */}
+      {activeSections
+        .filter((s) => s.type === 'hero')
+        .map((section) => renderSection(section))}
 
       <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
     </Motion.div>
