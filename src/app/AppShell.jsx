@@ -167,7 +167,7 @@ export function AppShell() {
   // Используем глобальный store для курса
   const currentCourse = useCourseStore((state) => state.currentCourse);
   const pageCourseId = getPageCourseId(normalizedPath);
-  const showStudentSidebar = shouldShowStudentCourseSidebar(normalizedPath);
+  const showStudentSidebar = !isProfilePage && shouldShowStudentCourseSidebar(normalizedPath);
   const lastSidebarPathRef = useRef(null);
   const shouldMirrorPageCourseInSidebar = Boolean(pageCourseId && lastSidebarPathRef.current !== normalizedPath);
   const sidebarCourseId = shouldMirrorPageCourseInSidebar ? pageCourseId : currentCourse;
