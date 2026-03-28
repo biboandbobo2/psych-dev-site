@@ -1,11 +1,18 @@
+import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion as Motion } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
 import { pageTransition } from '../theme/motion';
-import { SITE_NAME } from '../routes';
+import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG, SITE_NAME } from '../routes';
 import { cn } from '../lib/cn';
 import { useHomePageContent } from '../hooks/useHomePageContent';
+import { useCourses } from '../hooks/useCourses';
+import { useCourseStore } from '../stores';
+import { useAuth } from '../auth/AuthProvider';
+import { FeedbackModal } from '../components/FeedbackModal';
 import { PageLoader } from '../components/ui';
+import { isDisorderTableCourse } from '../features/disorderTable';
+import type { CourseType } from '../types/tests';
 import type {
   HomePageSection,
   HeroSection,
@@ -32,8 +39,35 @@ function getBorderClass(borderColor?: string): string {
   return `border-l-[${borderColor}]`;
 }
 
+function resolvePrimaryLessonLink(courseId: string): string {
+  if (courseId === 'development') {
+    return ROUTE_CONFIG[0]?.path ?? '/profile?course=development';
+  }
+  if (courseId === 'clinical') {
+    return CLINICAL_ROUTE_CONFIG[0]?.path ?? '/profile?course=clinical';
+  }
+  if (courseId === 'general') {
+    return GENERAL_ROUTE_CONFIG[0]?.path ?? '/profile?course=general';
+  }
+  return `/profile?course=${encodeURIComponent(courseId as CourseType)}`;
+}
+
+function resolvePracticeLink(courseId: string): string {
+  if (isDisorderTableCourse(courseId)) {
+    return '/disorder-table';
+  }
+  if (courseId === 'development') {
+    return '/timeline';
+  }
+  return `/notes?course=${encodeURIComponent(courseId as CourseType)}`;
+}
+
 export function HomePage() {
+  const { user } = useAuth();
+  const { currentCourse } = useCourseStore();
+  const { courses } = useCourses();
   const { content, loading, error } = useHomePageContent();
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   if (loading) {
     return <PageLoader />;
@@ -52,6 +86,55 @@ export function HomePage() {
 
   // Sort sections by order and filter enabled ones
   const activeSections = content.sections.filter((s) => s.enabled).sort((a, b) => a.order - b.order);
+  const currentCourseName = useMemo(
+    () => courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс',
+    [courses, currentCourse]
+  );
+  const primaryLessonLink = useMemo(
+    () => resolvePrimaryLessonLink(currentCourse),
+    [currentCourse]
+  );
+  const notesLink = `/notes?course=${encodeURIComponent(currentCourse as CourseType)}`;
+  const practiceLink = useMemo(
+    () => resolvePracticeLink(currentCourse),
+    [currentCourse]
+  );
+
+  const announcements = [
+    'Обновлена таблица по расстройствам: доступен просмотр и комментарии преподавателя.',
+    'Профиль студента разделён на личный кабинет и учебные инструменты.',
+    'Добавлена страница «Дом» как единая точка входа в платформу.',
+  ];
+
+  const events = [
+    { date: 'Апрель 2026', text: 'Открытая встреча по улучшению учебных сценариев платформы' },
+    { date: 'Апрель 2026', text: 'Сбор предложений по разделам «Календарь» и «Достижения»' },
+    { date: 'Май 2026', text: 'Плановый UX-обзор основных студентских потоков' },
+  ];
+
+  const recommendations = [
+    {
+      title: 'Перейти к текущему курсу',
+      description: 'Откройте основное занятие выбранного курса и продолжите обучение.',
+      link: primaryLessonLink,
+      action: 'Открыть занятие',
+    },
+    {
+      title: 'Зафиксировать заметки',
+      description: 'Закрепите ключевые мысли по теме курса в личных заметках.',
+      link: notesLink,
+      action: 'Открыть заметки',
+    },
+    {
+      title: 'Практическая работа',
+      description: isDisorderTableCourse(currentCourse)
+        ? 'Заполните таблицу по расстройствам и уточните наблюдения.'
+        : 'Добавьте важные события и смыслы в таймлайн жизни.',
+      link: practiceLink,
+      action: isDisorderTableCourse(currentCourse) ? 'Открыть таблицу' : 'Открыть таймлайн',
+    },
+  ];
+
   // Helper function to render each section based on type
   const renderSection = (section: HomePageSection) => {
     switch (section.type) {
@@ -333,6 +416,115 @@ export function HomePage() {
     );
   }
 
+  function renderHomeMvpDashboard() {
+    return (
+      <section className="py-10 sm:py-12">
+        <div className="rounded-2xl border border-[#DDE5EE] bg-gradient-to-br from-white to-[#F4F8FC] p-5 shadow-sm sm:p-6">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#4A5FA5]">Дом</p>
+              <h2 className="mt-1 text-2xl font-bold text-[#2C3E50] sm:text-3xl">Центр платформы</h2>
+              <p className="mt-2 text-sm text-[#5E6D7A]">
+                {user ? `Здравствуйте, ${user.displayName || user.email?.split('@')[0] || 'студент'}!` : 'Добро пожаловать!'}
+                {' '}Здесь собраны ключевые шаги и обновления.
+              </p>
+            </div>
+            {!user && (
+              <NavLink
+                to="/login"
+                className="inline-flex items-center justify-center rounded-lg bg-[#4A5FA5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#3A4F95]"
+              >
+                Войти в аккаунт
+              </NavLink>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
+              <h3 className="text-base font-semibold text-[#2C3E50]">Продолжить обучение</h3>
+              <p className="mt-1 text-sm text-[#6B7B88]">
+                Текущий курс: <span className="font-semibold text-[#2C3E50]">{currentCourseName}</span>
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <NavLink
+                  to={primaryLessonLink}
+                  className="rounded-lg bg-[#4A5FA5] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#3A4F95]"
+                >
+                  Открыть занятие
+                </NavLink>
+                <NavLink
+                  to={notesLink}
+                  className="rounded-lg border border-[#B9C7D6] bg-white px-3 py-2 text-xs font-semibold text-[#2C3E50] transition hover:bg-[#F6F9FC]"
+                >
+                  Мои заметки
+                </NavLink>
+                <NavLink
+                  to={practiceLink}
+                  className="rounded-lg border border-[#B9C7D6] bg-white px-3 py-2 text-xs font-semibold text-[#2C3E50] transition hover:bg-[#F6F9FC]"
+                >
+                  {isDisorderTableCourse(currentCourse) ? 'Таблица по расстройствам' : 'Таймлайн жизни'}
+                </NavLink>
+              </div>
+            </article>
+
+            <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
+              <h3 className="text-base font-semibold text-[#2C3E50]">Объявления</h3>
+              <ul className="mt-2 space-y-2">
+                {announcements.map((item) => (
+                  <li key={item} className="rounded-lg bg-[#F5F8FC] px-3 py-2 text-sm text-[#5E6D7A]">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </article>
+
+            <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
+              <h3 className="text-base font-semibold text-[#2C3E50]">Рекомендуем пройти дальше</h3>
+              <div className="mt-2 space-y-2">
+                {recommendations.map((item) => (
+                  <div key={item.title} className="rounded-lg border border-[#E6EDF5] bg-[#FCFDFF] px-3 py-3">
+                    <p className="text-sm font-semibold text-[#2C3E50]">{item.title}</p>
+                    <p className="mt-1 text-sm text-[#6B7B88]">{item.description}</p>
+                    <NavLink
+                      to={item.link}
+                      className="mt-2 inline-flex text-xs font-semibold text-[#4A5FA5] hover:underline"
+                    >
+                      {item.action}
+                    </NavLink>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
+              <h3 className="text-base font-semibold text-[#2C3E50]">События</h3>
+              <div className="mt-2 space-y-2">
+                {events.map((event) => (
+                  <div key={`${event.date}-${event.text}`} className="rounded-lg bg-[#F8FAFD] px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">{event.date}</p>
+                    <p className="mt-1 text-sm text-[#5E6D7A]">{event.text}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 rounded-lg border border-[#D7E3EF] bg-[#EFF5FB] px-3 py-2">
+                <p className="text-sm text-[#37516B]">
+                  Есть идея по улучшению формата занятий? Напишите нам через обратную связь.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsFeedbackOpen(true)}
+                  className="mt-2 inline-flex rounded-lg bg-[#0E9F8E] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#0A8A7A]"
+                >
+                  Обратная связь
+                </button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <Motion.div
       initial={{ opacity: 0 }}
@@ -355,10 +547,13 @@ export function HomePage() {
 
       {/* Render all other sections inside container */}
       <div className="max-w-[1200px] mx-auto px-5 sm:px-8 lg:px-10">
+        {renderHomeMvpDashboard()}
         {activeSections
           .filter((s) => s.type !== 'hero')
           .map((section) => renderSection(section))}
       </div>
+
+      <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
     </Motion.div>
   );
 }
