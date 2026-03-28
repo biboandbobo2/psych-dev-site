@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion as Motion } from 'framer-motion';
 import { NavLink, useNavigate } from 'react-router-dom';
@@ -133,7 +133,7 @@ export function HomePage() {
     ? featuredSubjects
     : [...featuredSubjects, ...fallbackSubjects.filter((item) => !featuredSubjects.some((course) => course.id === item.id))].slice(0, 4);
 
-  const resolveSubjectPath = useCallback(async (courseId: string): Promise<string | null> => {
+  const resolveSubjectPath = async (courseId: string): Promise<string | null> => {
     const lastLesson = getLastCourseLesson(courseId as CourseType);
     if (lastLesson?.path) {
       return lastLesson.path;
@@ -152,9 +152,9 @@ export function HomePage() {
     }
 
     return `/course/${encodeURIComponent(courseId)}/${encodeURIComponent(firstPublishedLesson.id)}`;
-  }, []);
+  };
 
-  const handleOpenSubject = useCallback(async (courseId: string) => {
+  const handleOpenSubject = async (courseId: string) => {
     if (openingCourseId) {
       return;
     }
@@ -175,7 +175,7 @@ export function HomePage() {
     } finally {
       setOpeningCourseId(null);
     }
-  }, [navigate, openingCourseId, resolveSubjectPath, setCurrentCourse]);
+  };
 
   const recommendations = [
     {
