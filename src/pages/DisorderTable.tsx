@@ -158,6 +158,11 @@ export default function DisorderTable() {
   const [commentSavingEntryId, setCommentSavingEntryId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      setIsMobile(false);
+      return;
+    }
+
     const media = window.matchMedia('(max-width: 639px)');
     const update = () => setIsMobile(media.matches);
     update();
