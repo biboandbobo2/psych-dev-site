@@ -1,24 +1,49 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useCallback, useState } from 'react';
-import { httpsCallable } from 'firebase/functions';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
 import { GeminiKeySection, SearchHistorySection } from '../components/profile';
-import { FeedbackButton } from '../components/FeedbackModal';
-import { BaseModal, ModalCancelButton, ModalSaveButton } from '../components/ui/BaseModal';
+import { FeedbackButton, FeedbackModal } from '../components/FeedbackModal';
 import { useAuth } from '../auth/AuthProvider';
-import { functions } from '../lib/firebase';
 import { useCourseStore } from '../stores';
 import { triggerHaptic } from '../lib/haptics';
 import { useCourses } from '../hooks/useCourses';
+import { isDisorderTableCourse } from '../features/disorderTable';
 import type { CourseType } from '../types/tests';
 
 interface StudentPanelProps {
   currentCourse: CourseType;
 }
 
+interface StudentFeature {
+  icon: string;
+  title: string;
+  description: string;
+  color: string;
+  link: string;
+  disabled: boolean;
+}
+
 function StudentPanel({ currentCourse }: StudentPanelProps) {
   const notesLink = `/notes?course=${encodeURIComponent(currentCourse)}`;
-  const features = [
+  const timelineOrDisorderFeature: StudentFeature = isDisorderTableCourse(currentCourse)
+    ? {
+        icon: '🧩',
+        title: 'Таблица по расстройствам',
+        description: 'Фиксируйте наблюдения по нарушениям и расстройствам в структурированной таблице',
+        color: 'from-rose-500 to-pink-600',
+        link: '/disorder-table',
+        disabled: false,
+      }
+    : {
+        icon: '🗺️',
+        title: 'Таймлайн жизни',
+        description: 'Визуализируйте свой жизненный путь и ключевые решения',
+        color: 'from-orange-500 to-orange-600',
+        link: '/timeline',
+        disabled: currentCourse !== 'development',
+      };
+
+  const features: StudentFeature[] = [
     {
       icon: '📝',
       title: 'Мои заметки',
@@ -43,14 +68,7 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
       link: '/tests-lesson',
       disabled: false,
     },
-    {
-      icon: '🗺️',
-      title: 'Таймлайн жизни',
-      description: 'Визуализируйте свой жизненный путь и ключевые решения',
-      color: 'from-orange-500 to-orange-600',
-      link: '/timeline',
-      disabled: currentCourse !== 'development',
-    },
+    timelineOrDisorderFeature,
   ];
 
   return (
@@ -129,10 +147,6 @@ function StudentPanel({ currentCourse }: StudentPanelProps) {
 export default function Profile() {
   const { user, loading, userRole, isAdmin, isSuperAdmin } = useAuth();
   const [isCoopModalOpen, setIsCoopModalOpen] = useState(false);
-  const [coopMessage, setCoopMessage] = useState('');
-  const [coopSending, setCoopSending] = useState(false);
-  const [coopError, setCoopError] = useState<string | null>(null);
-  const [coopSuccess, setCoopSuccess] = useState(false);
   const [searchParams] = useSearchParams();
   const { currentCourse, setCurrentCourse } = useCourseStore();
   const { courses, loading: coursesLoading } = useCourses();
@@ -173,13 +187,6 @@ export default function Profile() {
       })
     : null;
   const role = userRole ?? 'student';
-  const roleLabel = userRole === 'super-admin'
-    ? 'Супер-админ'
-    : userRole === 'admin'
-      ? 'Администратор'
-      : userRole === 'student'
-        ? 'Студент'
-        : 'Гость';
 
   const handleHapticClick = useCallback((event: React.MouseEvent) => {
     const target = event.target as HTMLElement | null;
@@ -190,47 +197,6 @@ export default function Profile() {
     if (clickable instanceof HTMLButtonElement && clickable.disabled) return;
     triggerHaptic();
   }, []);
-
-  const handleCloseCoopModal = () => {
-    if (coopSending) return;
-    setIsCoopModalOpen(false);
-    setCoopMessage('');
-    setCoopError(null);
-    setCoopSuccess(false);
-  };
-
-  const handleSendCoopMessage = async () => {
-    const trimmed = coopMessage.trim();
-    if (trimmed.length < 3) {
-      setCoopError('Сообщение должно содержать минимум 3 символа');
-      return;
-    }
-
-    setCoopSending(true);
-    setCoopError(null);
-
-    try {
-      const sendFeedback = httpsCallable(functions, 'sendFeedback');
-      await sendFeedback({
-        type: 'idea',
-        message: `🤝 Сотрудничество\n\n${trimmed}`,
-        userEmail: user?.email || undefined,
-        userName: user?.displayName || undefined,
-        userRole: roleLabel,
-        pageUrl: window.location.href,
-      });
-
-      setCoopSuccess(true);
-      setCoopMessage('');
-      setTimeout(() => {
-        handleCloseCoopModal();
-      }, 2000);
-    } catch (err: any) {
-      setCoopError(err?.message || 'Не удалось отправить сообщение');
-    } finally {
-      setCoopSending(false);
-    }
-  };
 
   return (
     <div className="space-y-6" onClickCapture={handleHapticClick}>
@@ -438,67 +404,21 @@ export default function Profile() {
           </div>
         </div>
       </button>
-      <BaseModal
+      <FeedbackModal
         isOpen={isCoopModalOpen}
-        onClose={handleCloseCoopModal}
-        disabled={coopSending}
+        onClose={() => setIsCoopModalOpen(false)}
         title="Приглашаем к сотрудничеству"
-        maxWidth="2xl"
-        footer={(
-          <>
-            <ModalCancelButton onClick={handleCloseCoopModal} disabled={coopSending}>
-              Закрыть
-            </ModalCancelButton>
-            <ModalSaveButton
-              onClick={handleSendCoopMessage}
-              loading={coopSending}
-              disabled={coopMessage.trim().length < 3}
-            >
-              Отправить
-            </ModalSaveButton>
-          </>
-        )}
-      >
-        {coopSuccess ? (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-700">
-            Спасибо! Сообщение отправлено в Telegram.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm leading-relaxed text-gray-700">
-              Мы открыты к новым идеям и партнёрствам. Если вы дизайнер, разработчик, вайбкодер или создаёте
-              собственные образовательные продукты в сфере психологии — будем рады сотрудничеству. Мы также
-              приглашаем авторов курсов и преподавателей, которые хотят разместить свои программы на нашей платформе
-              и развивать их вместе с нами.
-            </p>
-            <p className="text-sm leading-relaxed text-gray-700">
-              Если вам откликается наш проект — напишите нам, и давайте создадим что-то ценное вместе. ✨
-            </p>
-
-            <div className="space-y-2">
-              <label htmlFor="coop-message" className="text-sm font-medium text-gray-700">
-                Ваше сообщение
-              </label>
-              <textarea
-                id="coop-message"
-                value={coopMessage}
-                onChange={(event) => setCoopMessage(event.target.value)}
-                rows={6}
-                maxLength={2000}
-                placeholder="Расскажите о себе и о формате сотрудничества..."
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              />
-              <p className="text-xs text-gray-500">{coopMessage.length}/2000</p>
-            </div>
-
-            {coopError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                {coopError}
-              </div>
-            )}
-          </div>
-        )}
-      </BaseModal>
+        introText={[
+          'Мы открыты к новым идеям и партнёрствам. Если вы дизайнер, разработчик, вайбкодер или создаёте собственные образовательные продукты в сфере психологии — будем рады сотрудничеству. Мы также приглашаем авторов курсов и преподавателей, которые хотят разместить свои программы на нашей платформе и развивать их вместе с нами.',
+          'Если вам откликается наш проект — напишите нам, и давайте создадим что-то ценное вместе. ✨',
+        ]}
+        lockedType="idea"
+        messagePrefix="🤝 Сотрудничество\n\n"
+        messageLabel="Ваше сообщение"
+        placeholder="Расскажите о себе и о формате сотрудничества..."
+        successMessage="Спасибо! Сообщение отправлено в Telegram."
+        cancelLabel="Закрыть"
+      />
 
       {/* История поисков — только для авторизованных */}
       {user && <SearchHistorySection />}

@@ -17,6 +17,7 @@ import {
   Profile,
   Notes,
   Timeline,
+  DisorderTable,
   DynamicTest,
   TestsPage,
   ResearchPage,
@@ -113,6 +114,14 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           element={
             <RequireAuth>
               <Timeline />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/disorder-table"
+          element={
+            <RequireAuth>
+              <DisorderTable />
             </RequireAuth>
           }
         />
