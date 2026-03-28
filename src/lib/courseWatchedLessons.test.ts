@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { getWatchedLessonIds, isLessonWatched, markLessonWatched } from './courseWatchedLessons';
+import {
+  getWatchedLessonIds,
+  isLessonWatched,
+  markLessonWatched,
+  unmarkLessonWatched,
+} from './courseWatchedLessons';
 
 describe('courseWatchedLessons', () => {
   beforeEach(() => {
@@ -28,5 +33,14 @@ describe('courseWatchedLessons', () => {
 
     expect(getWatchedLessonIds('development')).toEqual(new Set(['intro']));
     expect(getWatchedLessonIds('clinical')).toEqual(new Set(['intro']));
+  });
+
+  it('removes watched lesson when unmarked', () => {
+    markLessonWatched('development', 'intro');
+    const changed = unmarkLessonWatched('development', 'intro');
+
+    expect(changed).toBe(true);
+    expect(isLessonWatched('development', 'intro')).toBe(false);
+    expect(getWatchedLessonIds('development')).toEqual(new Set());
   });
 });

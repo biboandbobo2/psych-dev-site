@@ -72,3 +72,25 @@ export function markLessonWatched(courseId: string, lessonId: string): boolean {
   writeStorage(current);
   return true;
 }
+
+export function unmarkLessonWatched(courseId: string, lessonId: string): boolean {
+  if (!courseId || !lessonId) return false;
+
+  const normalizedLessonId = normalizeLessonId(lessonId);
+  if (!normalizedLessonId) return false;
+
+  const current = readStorage();
+  const watched = new Set(
+    (Array.isArray(current[courseId]) ? current[courseId] : [])
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => normalizeLessonId(value))
+      .filter(Boolean)
+  );
+
+  const changed = watched.delete(normalizedLessonId);
+  if (!changed) return false;
+
+  current[courseId] = [...watched];
+  writeStorage(current);
+  return true;
+}

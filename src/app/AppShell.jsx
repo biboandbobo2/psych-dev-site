@@ -1,7 +1,7 @@
 // File: src/app/AppShell.jsx
 // AppShell отвечает за отображение основного контента и маршрутов,
 // опираясь на ROUTE_CONFIG, Zustand-сторы и UI-компоненты. Провайдеры (Router/Auth) живут в src/App.jsx.
-import React, { useMemo, useEffect, useRef, useState } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { AnimatePresence } from 'framer-motion';
@@ -30,7 +30,6 @@ import { isCoreCourse } from '../constants/courses';
 import { sortNavItemsWithRouteFallback } from '../lib/courseLessons';
 import { getPageCourseId, shouldShowStudentCourseSidebar } from './courseNavigation';
 import { saveLastCourseLesson } from '../lib/lastCourseLesson';
-import { isLessonWatched, markLessonWatched } from '../lib/courseWatchedLessons';
 
 const normalizePath = (path) =>
   path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
@@ -82,7 +81,6 @@ function buildCourseNavItems({
         path: config.path,
         label: data?.label || data?.title || config.navLabel,
         order: data?.order ?? 999,
-        periodId: config.periodId,
       };
     });
 
@@ -92,7 +90,6 @@ function buildCourseNavItems({
         path: `${basePath}${periodId}`,
         label: topic.title || topic.label,
         order: topic.order ?? 999,
-        periodId,
       });
     }
   });
@@ -100,31 +97,12 @@ function buildCourseNavItems({
   return sortNavItemsWithRouteFallback(routes, items);
 }
 
-function RoutePager({ currentPath, navItems, currentCourseId }) {
+function RoutePager({ currentPath, navItems }) {
   const normalizedPath = normalizePath(currentPath);
-  const [isWatched, setIsWatched] = useState(false);
   const currentIndex = navItems.findIndex((item) => normalizePath(item.path) === normalizedPath);
-  const current = currentIndex >= 0 ? navItems[currentIndex] : null;
-  const lessonId = typeof current?.periodId === 'string' ? current.periodId : null;
-
-  useEffect(() => {
-    if (!currentCourseId || !lessonId) {
-      setIsWatched(false);
-      return;
-    }
-
-    setIsWatched(isLessonWatched(currentCourseId, lessonId));
-  }, [currentCourseId, lessonId, normalizedPath]);
-
   if (currentIndex === -1) return null;
   const prev = currentIndex > 0 ? navItems[currentIndex - 1] : null;
   const next = currentIndex < navItems.length - 1 ? navItems[currentIndex + 1] : null;
-
-  const handleMarkWatched = () => {
-    if (!currentCourseId || !lessonId) return;
-    markLessonWatched(currentCourseId, lessonId);
-    setIsWatched(true);
-  };
 
   return (
     <div className="mt-10 w-full grid items-center gap-3 grid-cols-1 sm:grid-cols-[1fr_auto_1fr] sm:gap-4">
@@ -144,19 +122,7 @@ function RoutePager({ currentPath, navItems, currentCourseId }) {
         )}
       </div>
       <div className="justify-self-center">
-        <div className="flex flex-col items-center gap-2">
-          <BackToTop />
-          {currentCourseId && lessonId && (
-            <Button
-              type="button"
-              onClick={handleMarkWatched}
-              variant={isWatched ? 'secondary' : 'primary'}
-              className="w-full sm:w-auto"
-            >
-              {isWatched ? '✓ Просмотрено' : 'Просмотрено'}
-            </Button>
-          )}
-        </div>
+        <BackToTop />
       </div>
       <div className="justify-self-end">
         {next ? (
@@ -348,11 +314,7 @@ export function AppShell() {
         <AnimatePresence mode="wait" initial={false}>
           <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} generalTopicsMap={generalTopicsMap} isSuperAdmin={isSuperAdmin} />
         </AnimatePresence>
-        <RoutePager
-          currentPath={location.pathname}
-          navItems={navItems}
-          currentCourseId={pageCourseId}
-        />
+        <RoutePager currentPath={location.pathname} navItems={navItems} />
       </AppLayout>
     </>
   );

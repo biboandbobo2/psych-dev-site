@@ -6,6 +6,11 @@ import type { LectureNoteSegment } from '../../../types/notes';
 import { isUrlString, normalizeVideoEntry } from '../utils/media';
 import { VideoResourceLinks } from './VideoResourceLinks';
 import { VideoStudyOverlay } from './VideoStudyOverlay';
+import {
+  isLessonWatched,
+  markLessonWatched,
+  unmarkLessonWatched,
+} from '../../../lib/courseWatchedLessons';
 
 interface VideoSectionProps {
   slug: string;
@@ -132,6 +137,10 @@ function VideoSectionCard({
     mode !== 'study' &&
     Boolean(studyLaunchKey) &&
     consumedStudyLaunchRef.current !== studyLaunchKey;
+  const canTrackWatched = Boolean(courseId && periodId);
+  const [isWatched, setIsWatched] = useState(
+    canTrackWatched ? isLessonWatched(courseId, periodId as string) : false
+  );
 
   useEffect(() => {
     if (shouldAutoOpenStudy) {
@@ -139,6 +148,29 @@ function VideoSectionCard({
       setMode('study');
     }
   }, [shouldAutoOpenStudy, studyLaunchKey]);
+
+  useEffect(() => {
+    if (!canTrackWatched) {
+      setIsWatched(false);
+      return;
+    }
+
+    setIsWatched(isLessonWatched(courseId, periodId as string));
+  }, [canTrackWatched, courseId, periodId]);
+
+  const handleToggleWatched = () => {
+    if (!canTrackWatched) return;
+
+    const lessonId = periodId as string;
+    if (isWatched) {
+      unmarkLessonWatched(courseId, lessonId);
+      setIsWatched(false);
+      return;
+    }
+
+    markLessonWatched(courseId, lessonId);
+    setIsWatched(true);
+  };
 
   if (!embedUrl) {
     const isPlaylist = isUrlString(originalUrl) && originalUrl.includes('list=');
@@ -205,6 +237,21 @@ function VideoSectionCard({
           sourceTextClassName="w-full text-sm leading-6 text-muted"
           sourceLinkClassName="text-accent no-underline hover:no-underline focus-visible:no-underline"
         />
+        {canTrackWatched ? (
+          <button
+            type="button"
+            onClick={handleToggleWatched}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition',
+              isWatched
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+            )}
+          >
+            <span aria-hidden="true">{isWatched ? '✓' : '○'}</span>
+            <span>{isWatched ? 'Просмотрено (снять отметку)' : 'Отметить как просмотрено'}</span>
+          </button>
+        ) : null}
       </div>
 
       <VideoStudyOverlay
