@@ -1,6 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 import { motion as Motion } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { SectionMuted } from '../components/ui/Section';
 import { BACKGROUND_BY_PERIOD } from '../theme/backgrounds';
 import { pageTransition } from '../theme/motion';
@@ -182,6 +182,7 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const backgroundClass = backgroundImage ? 'bg-repeat bg-[length:180px]' : '';
   const backgroundStyle = backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined;
   const studyLaunch = getStudyLaunchParams(location.search);
+  const showDisorderTableCta = config.periodId === 'clinical-intro';
 
   return (
     <Motion.div
@@ -201,6 +202,29 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
         </h1>
         {period?.subtitle ? (
           <p className="text-lg leading-8 text-muted max-w-measure">{period.subtitle}</p>
+        ) : null}
+        {showDisorderTableCta ? (
+          <div className="max-w-3xl rounded-2xl border border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold uppercase tracking-wide text-rose-700">
+                  Практика курса
+                </p>
+                <p className="text-base font-semibold text-slate-900">
+                  Перейти в «Таблицу по расстройствам»
+                </p>
+                <p className="text-sm text-slate-600">
+                  Заполняйте и редактируйте ваши наблюдения по пересечениям симптомов и расстройств.
+                </p>
+              </div>
+              <Link
+                to="/disorder-table"
+                className="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700"
+              >
+                Открыть таблицу
+              </Link>
+            </div>
+          </div>
         ) : null}
       </div>
 
