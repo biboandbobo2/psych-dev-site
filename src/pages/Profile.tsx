@@ -8,10 +8,15 @@ import { useAuth } from '../auth/AuthProvider';
 import { useCourseStore } from '../stores';
 import { triggerHaptic } from '../lib/haptics';
 import { useCourses, type CourseOption } from '../hooks/useCourses';
-import { getCourseLessonsCollectionRef } from '../lib/courseLessons';
+import {
+  getCourseLessonsCollectionRef,
+  mapCanonicalCourseLessons,
+  sortCourseLessonItems,
+} from '../lib/courseLessons';
 import { getLastCourseLesson } from '../lib/lastCourseLesson';
 import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG } from '../routes';
 import type { CourseType } from '../types/tests';
+import { calculateCourseProgress, type CourseProgressStats } from './profile/courseProgress';
 
 function getCoreCourseStartPath(courseId: string): string | null {
   if (courseId === 'development') return ROUTE_CONFIG[0]?.path ?? '/intro';
@@ -46,9 +51,54 @@ interface CourseGridProps {
   courses: CourseOption[];
   openingCourseId: string | null;
   onOpenCourse: (course: CourseOption) => void;
+  progressByCourseId: Record<string, CourseProgressStats>;
+  progressLoading: boolean;
 }
 
-function CourseGrid({ courses, openingCourseId, onOpenCourse }: CourseGridProps) {
+function CourseProgressCircle({ percent }: { percent: number }) {
+  const size = 80;
+  const stroke = 8;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progressOffset = circumference - (circumference * percent) / 100;
+
+  return (
+    <div className="relative h-20 w-20">
+      <svg viewBox={`0 0 ${size} ${size}`} className="h-20 w-20 -rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgb(226 232 240)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgb(59 130 246)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={progressOffset}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-gray-900">
+        {percent}%
+      </div>
+    </div>
+  );
+}
+
+function CourseGrid({
+  courses,
+  openingCourseId,
+  onOpenCourse,
+  progressByCourseId,
+  progressLoading,
+}: CourseGridProps) {
   const featuredCourses = courses.slice(0, 4);
 
   return (
@@ -87,6 +137,34 @@ function CourseGrid({ courses, openingCourseId, onOpenCourse }: CourseGridProps)
             </button>
           );
         })}
+      </div>
+
+      <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-slate-900 sm:text-base">Прогресс по курсам</h4>
+          <span className="text-xs font-medium text-slate-500">
+            {progressLoading ? 'Обновляем...' : 'По последнему открытому занятию'}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {featuredCourses.map((course) => {
+            const progress = progressByCourseId[course.id] ?? { percent: 0, completed: 0, total: 0 };
+            return (
+              <div
+                key={`progress-${course.id}`}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-3"
+              >
+                <div className="mb-2 flex justify-center">
+                  <CourseProgressCircle percent={progress.percent} />
+                </div>
+                <p className="truncate text-center text-xs font-semibold text-slate-800">{course.name}</p>
+                <p className="mt-1 text-center text-[11px] text-slate-500">
+                  {progress.completed}/{progress.total || 0} занятий
+                </p>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
@@ -276,6 +354,8 @@ export default function Profile() {
   const [isCoopModalOpen, setIsCoopModalOpen] = useState(false);
   const [openingCourseId, setOpeningCourseId] = useState<string | null>(null);
   const [courseOpenError, setCourseOpenError] = useState<string | null>(null);
+  const [courseProgressById, setCourseProgressById] = useState<Record<string, CourseProgressStats>>({});
+  const [courseProgressLoading, setCourseProgressLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { currentCourse, setCurrentCourse } = useCourseStore();
@@ -296,6 +376,65 @@ export default function Profile() {
       setCurrentCourse(courses[0].id as CourseType);
     }
   }, [courses, coursesLoading, currentCourse, setCurrentCourse]);
+
+  useEffect(() => {
+    if (coursesLoading) return;
+
+    const featuredCourses = courses.slice(0, 4);
+    if (!featuredCourses.length) {
+      setCourseProgressById({});
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadCourseProgress = async () => {
+      setCourseProgressLoading(true);
+
+      try {
+        const entries = await Promise.all(
+          featuredCourses.map(async (course) => {
+            const lessonsRef = getCourseLessonsCollectionRef(course.id);
+            const snapshot = await getDocs(query(lessonsRef, orderBy('order', 'asc')));
+            const canonicalLessons = mapCanonicalCourseLessons(course.id, snapshot.docs)
+              .filter((lesson) => lesson.published !== false);
+            const sortedLessons = sortCourseLessonItems(course.id, canonicalLessons);
+            const lastLesson = getLastCourseLesson(course.id);
+
+            const progress = calculateCourseProgress({
+              courseId: course.id,
+              lessons: sortedLessons.map((lesson) => ({
+                period: lesson.period,
+                title: lesson.title,
+                label: lesson.label,
+              })),
+              lastPath: lastLesson?.path,
+              lastLabel: lastLesson?.label,
+            });
+
+            return [course.id, progress] as const;
+          })
+        );
+
+        if (isCancelled) return;
+        setCourseProgressById(Object.fromEntries(entries));
+      } catch {
+        if (!isCancelled) {
+          setCourseProgressById({});
+        }
+      } finally {
+        if (!isCancelled) {
+          setCourseProgressLoading(false);
+        }
+      }
+    };
+
+    void loadCourseProgress();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [courses, coursesLoading]);
 
   if (loading) {
     return (
@@ -466,6 +605,8 @@ export default function Profile() {
           courses={featuredCourses}
           openingCourseId={openingCourseId}
           onOpenCourse={handleOpenCourse}
+          progressByCourseId={courseProgressById}
+          progressLoading={courseProgressLoading}
         />
         {courseOpenError && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
