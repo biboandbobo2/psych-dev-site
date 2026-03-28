@@ -56,15 +56,15 @@ interface CourseGridProps {
 }
 
 function CourseProgressCircle({ percent }: { percent: number }) {
-  const size = 80;
-  const stroke = 8;
+  const size = 56;
+  const stroke = 6;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const progressOffset = circumference - (circumference * percent) / 100;
 
   return (
-    <div className="relative h-20 w-20">
-      <svg viewBox={`0 0 ${size} ${size}`} className="h-20 w-20 -rotate-90">
+    <div className="relative h-14 w-14">
+      <svg viewBox={`0 0 ${size} ${size}`} className="h-14 w-14 -rotate-90">
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -85,7 +85,7 @@ function CourseProgressCircle({ percent }: { percent: number }) {
           strokeDashoffset={progressOffset}
         />
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-gray-900">
+      <div className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold text-gray-900">
         {percent}%
       </div>
     </div>
@@ -113,6 +113,7 @@ function CourseGrid({
         {featuredCourses.map((course) => {
           const lastLesson = getLastCourseLesson(course.id);
           const isOpening = openingCourseId === course.id;
+          const progress = progressByCourseId[course.id] ?? { percent: 0, completed: 0, total: 0 };
 
           return (
             <button
@@ -134,37 +135,18 @@ function CourseGrid({
                   ? `Последняя лекция: ${lastLesson.label}`
                   : 'Начать с первой лекции курса'}
               </p>
+              <div className="mt-3 flex items-end justify-between border-t border-gray-100 pt-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Прогресс</p>
+                  <p className="text-xs text-slate-700">
+                    {progressLoading ? 'Считаем...' : `${progress.completed}/${progress.total || 0} занятий`}
+                  </p>
+                </div>
+                <CourseProgressCircle percent={progress.percent} />
+              </div>
             </button>
           );
         })}
-      </div>
-
-      <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-slate-900 sm:text-base">Прогресс по курсам</h4>
-          <span className="text-xs font-medium text-slate-500">
-            {progressLoading ? 'Обновляем...' : 'По последнему открытому занятию'}
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {featuredCourses.map((course) => {
-            const progress = progressByCourseId[course.id] ?? { percent: 0, completed: 0, total: 0 };
-            return (
-              <div
-                key={`progress-${course.id}`}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-3"
-              >
-                <div className="mb-2 flex justify-center">
-                  <CourseProgressCircle percent={progress.percent} />
-                </div>
-                <p className="truncate text-center text-xs font-semibold text-slate-800">{course.name}</p>
-                <p className="mt-1 text-center text-[11px] text-slate-500">
-                  {progress.completed}/{progress.total || 0} занятий
-                </p>
-              </div>
-            );
-          })}
-        </div>
       </div>
     </section>
   );
