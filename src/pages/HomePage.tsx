@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion as Motion } from 'framer-motion';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { getDocs, orderBy, query } from 'firebase/firestore';
 import { pageTransition } from '../theme/motion';
 import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG, SITE_NAME } from '../routes';
 import { cn } from '../lib/cn';
@@ -12,6 +13,7 @@ import { useCourseStore } from '../stores';
 import { useAuth } from '../auth/AuthProvider';
 import { FeedbackModal } from '../components/FeedbackModal';
 import { getLastCourseLesson } from '../lib/lastCourseLesson';
+import { getCourseLessonsCollectionRef } from '../lib/courseLessons';
 import { PageLoader } from '../components/ui';
 import type { CourseType } from '../types/tests';
 import type {
@@ -65,9 +67,17 @@ function resolvePrimaryLesson(courseId: string): { link: string; title: string }
   };
 }
 
+function getCoreCourseStartPath(courseId: string): string | null {
+  if (courseId === 'development') return ROUTE_CONFIG[0]?.path ?? '/intro';
+  if (courseId === 'clinical') return CLINICAL_ROUTE_CONFIG[0]?.path ?? '/clinical/intro';
+  if (courseId === 'general') return GENERAL_ROUTE_CONFIG[0]?.path ?? '/general/1';
+  return null;
+}
+
 export function HomePage() {
   const { user, isAdmin } = useAuth();
-  const { currentCourse } = useCourseStore();
+  const { currentCourse, setCurrentCourse } = useCourseStore();
+  const navigate = useNavigate();
   const { courses } = useCourses();
   const {
     announcements,
@@ -84,6 +94,8 @@ export function HomePage() {
   const [eventTextDraft, setEventTextDraft] = useState('');
   const [isFeedSaving, setIsFeedSaving] = useState(false);
   const [feedActionError, setFeedActionError] = useState<string | null>(null);
+  const [openingCourseId, setOpeningCourseId] = useState<string | null>(null);
+  const [courseOpenError, setCourseOpenError] = useState<string | null>(null);
 
   if (loading) {
     return <PageLoader />;
@@ -111,17 +123,59 @@ export function HomePage() {
     id: course.id,
     name: course.name,
     icon: course.icon,
-    link: `/profile?course=${encodeURIComponent(course.id as CourseType)}`,
   }));
   const fallbackSubjects = [
-    { id: 'development', name: 'Психология развития', icon: '👶', link: '/profile?course=development' },
-    { id: 'clinical', name: 'Основы патопсихологии', icon: '🧠', link: '/profile?course=clinical' },
-    { id: 'general', name: 'Введение в клиническую психологию', icon: '📘', link: '/profile?course=general' },
-    { id: 'personal-tools', name: 'Личный кабинет', icon: '🎓', link: '/profile' },
+    { id: 'development', name: 'Психология развития', icon: '👶' },
+    { id: 'clinical', name: 'Основы патопсихологии', icon: '🧠' },
+    { id: 'general', name: 'Введение в клиническую психологию', icon: '📘' },
   ];
   const subjects = featuredSubjects.length >= 4
     ? featuredSubjects
     : [...featuredSubjects, ...fallbackSubjects.filter((item) => !featuredSubjects.some((course) => course.id === item.id))].slice(0, 4);
+
+  const resolveSubjectPath = useCallback(async (courseId: string): Promise<string | null> => {
+    const lastLesson = getLastCourseLesson(courseId as CourseType);
+    if (lastLesson?.path) {
+      return lastLesson.path;
+    }
+
+    const coreStartPath = getCoreCourseStartPath(courseId);
+    if (coreStartPath) {
+      return coreStartPath;
+    }
+
+    const lessonsRef = getCourseLessonsCollectionRef(courseId);
+    const lessonsSnapshot = await getDocs(query(lessonsRef, orderBy('order', 'asc')));
+    const firstPublishedLesson = lessonsSnapshot.docs.find((docSnap) => docSnap.data()?.published !== false);
+    if (!firstPublishedLesson) {
+      return null;
+    }
+
+    return `/course/${encodeURIComponent(courseId)}/${encodeURIComponent(firstPublishedLesson.id)}`;
+  }, []);
+
+  const handleOpenSubject = useCallback(async (courseId: string) => {
+    if (openingCourseId) {
+      return;
+    }
+
+    setCourseOpenError(null);
+    setOpeningCourseId(courseId);
+    setCurrentCourse(courseId as CourseType);
+
+    try {
+      const path = await resolveSubjectPath(courseId);
+      if (!path) {
+        setCourseOpenError('Для этого курса пока нет опубликованных занятий.');
+        return;
+      }
+      navigate(path);
+    } catch (err: any) {
+      setCourseOpenError(err?.message || 'Не удалось открыть курс. Попробуйте ещё раз.');
+    } finally {
+      setOpeningCourseId(null);
+    }
+  }, [navigate, openingCourseId, resolveSubjectPath, setCurrentCourse]);
 
   const recommendations = [
     {
@@ -495,24 +549,33 @@ export function HomePage() {
           </div>
 
           <div className="rounded-2xl border border-[#DDE5EE] bg-white p-5 shadow-sm sm:p-6">
-            <h3 className="text-lg font-semibold text-[#2C3E50]">Предметы</h3>
+            <h3 className="text-lg font-semibold text-[#2C3E50]">Курсы</h3>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {subjects.map((subject) => (
-                <NavLink
+                <button
                   key={subject.id}
-                  to={subject.link}
-                  className="group rounded-xl border border-[#D8E2EE] bg-[#F9FBFF] p-4 transition hover:-translate-y-0.5 hover:border-[#9EB7D9] hover:shadow-md"
+                  type="button"
+                  onClick={() => {
+                    void handleOpenSubject(subject.id);
+                  }}
+                  disabled={openingCourseId === subject.id}
+                  className="group rounded-xl border border-[#D8E2EE] bg-[#F9FBFF] p-4 text-left transition hover:-translate-y-0.5 hover:border-[#9EB7D9] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-2xl">{subject.icon}</span>
                     <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#4A5FA5]">
-                      Открыть
+                      {openingCourseId === subject.id ? 'Открытие...' : 'Открыть'}
                     </span>
                   </div>
                   <p className="mt-2 text-sm font-semibold text-[#2C3E50]">{subject.name}</p>
-                </NavLink>
+                </button>
               ))}
             </div>
+            {courseOpenError ? (
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {courseOpenError}
+              </p>
+            ) : null}
           </div>
 
           <div className="rounded-2xl border border-[#C8D7ED] bg-gradient-to-r from-[#FFFFFF] to-[#F1F7FF] p-5 shadow-sm sm:p-6">
