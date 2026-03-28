@@ -8,7 +8,6 @@ import { useAuth } from '../auth/AuthProvider';
 import { useCourseStore } from '../stores';
 import { triggerHaptic } from '../lib/haptics';
 import { useCourses, type CourseOption } from '../hooks/useCourses';
-import { isDisorderTableCourse } from '../features/disorderTable';
 import { getCourseLessonsCollectionRef } from '../lib/courseLessons';
 import { getLastCourseLesson } from '../lib/lastCourseLesson';
 import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG } from '../routes';
@@ -95,23 +94,14 @@ function CourseGrid({ courses, openingCourseId, onOpenCourse }: CourseGridProps)
 
 function StudentPanel({ currentCourse, currentCourseName }: StudentPanelProps) {
   const notesLink = `/notes?course=${encodeURIComponent(currentCourse)}`;
-  const timelineOrDisorderFeature: StudentToolFeature = isDisorderTableCourse(currentCourse)
-    ? {
-        icon: '🧩',
-        title: 'Таблица по расстройствам',
-        description: 'Фиксируйте наблюдения по нарушениям и расстройствам в структурированной таблице',
-        color: 'from-rose-500 to-pink-600',
-        link: '/disorder-table',
-        disabled: false,
-      }
-    : {
-        icon: '🗺️',
-        title: 'Таймлайн жизни',
-        description: 'Визуализируйте свой жизненный путь и ключевые решения',
-        color: 'from-orange-500 to-orange-600',
-        link: '/timeline',
-        disabled: currentCourse !== 'development',
-      };
+  const timelineFeature: StudentToolFeature = {
+    icon: '🗺️',
+    title: 'Таймлайн жизни',
+    description: 'Визуализируйте свой жизненный путь и ключевые решения',
+    color: 'from-orange-500 to-orange-600',
+    link: '/timeline',
+    disabled: false,
+  };
 
   const personalCards: StudentPersonalCard[] = [
     {
@@ -165,7 +155,7 @@ function StudentPanel({ currentCourse, currentCourseName }: StudentPanelProps) {
       link: '/tests-lesson',
       disabled: false,
     },
-    timelineOrDisorderFeature,
+    timelineFeature,
   ];
 
   return (
