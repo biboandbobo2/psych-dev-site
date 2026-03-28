@@ -39,17 +39,29 @@ function getBorderClass(borderColor?: string): string {
   return `border-l-[${borderColor}]`;
 }
 
-function resolvePrimaryLessonLink(courseId: string): string {
+function resolvePrimaryLesson(courseId: string): { link: string; title: string } {
   if (courseId === 'development') {
-    return ROUTE_CONFIG[0]?.path ?? '/profile?course=development';
+    return {
+      link: ROUTE_CONFIG[0]?.path ?? '/profile?course=development',
+      title: ROUTE_CONFIG[0]?.navLabel ?? 'Вводное занятие',
+    };
   }
   if (courseId === 'clinical') {
-    return CLINICAL_ROUTE_CONFIG[0]?.path ?? '/profile?course=clinical';
+    return {
+      link: CLINICAL_ROUTE_CONFIG[0]?.path ?? '/profile?course=clinical',
+      title: CLINICAL_ROUTE_CONFIG[0]?.navLabel ?? 'Введение',
+    };
   }
   if (courseId === 'general') {
-    return GENERAL_ROUTE_CONFIG[0]?.path ?? '/profile?course=general';
+    return {
+      link: GENERAL_ROUTE_CONFIG[0]?.path ?? '/profile?course=general',
+      title: GENERAL_ROUTE_CONFIG[0]?.navLabel ?? 'Первое занятие курса',
+    };
   }
-  return `/profile?course=${encodeURIComponent(courseId as CourseType)}`;
+  return {
+    link: `/profile?course=${encodeURIComponent(courseId as CourseType)}`,
+    title: 'Первое занятие выбранного курса',
+  };
 }
 
 export function HomePage() {
@@ -90,7 +102,9 @@ export function HomePage() {
   // Sort sections by order and filter enabled ones
   const activeSections = content.sections.filter((s) => s.enabled).sort((a, b) => a.order - b.order);
   const currentCourseName = courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс';
-  const primaryLessonLink = resolvePrimaryLessonLink(currentCourse);
+  const primaryLesson = resolvePrimaryLesson(currentCourse);
+  const primaryLessonLink = primaryLesson.link;
+  const primaryLessonTitle = primaryLesson.title;
   const featuredSubjects = courses.slice(0, 4).map((course) => ({
     id: course.id,
     name: course.name,
@@ -127,6 +141,21 @@ export function HomePage() {
       action: 'Перейти в профиль',
     },
   ];
+
+  const nonHeroSections = activeSections
+    .filter((section) => section.type !== 'hero')
+    .sort((a, b) => {
+      const typePriority = (type: HomePageSection['type']) => {
+        if (type === 'essence') return 0;
+        if (type === 'periods') return 2;
+        return 1;
+      };
+
+      const priorityA = typePriority(a.type);
+      const priorityB = typePriority(b.type);
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      return a.order - b.order;
+    });
 
   const handleAddAnnouncement = async () => {
     if (!isAdmin || isFeedSaving) return;
@@ -490,6 +519,9 @@ export function HomePage() {
             <p className="mt-1 text-sm text-[#5D6B7D]">
               Курс сейчас: <span className="font-semibold text-[#1F335B]">{currentCourseName}</span>
             </p>
+            <p className="mt-1 text-sm text-[#2B3F65]">
+              Следующая лекция: <span className="font-semibold">{primaryLessonTitle}</span>
+            </p>
             <div className="mt-4">
               <NavLink
                 to={primaryLessonLink}
@@ -649,9 +681,7 @@ export function HomePage() {
       {/* Render all other sections inside container */}
       <div className="max-w-[1200px] mx-auto px-5 sm:px-8 lg:px-10">
         {renderHomeMvpDashboard()}
-        {activeSections
-          .filter((s) => s.type !== 'hero')
-          .map((section) => renderSection(section))}
+        {nonHeroSections.map((section) => renderSection(section))}
       </div>
 
       {/* Hero moved lower to keep Home dashboard primary */}
