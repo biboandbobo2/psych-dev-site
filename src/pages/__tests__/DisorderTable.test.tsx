@@ -70,11 +70,11 @@ describe('DisorderTable page', () => {
     const table = screen.getByRole('table');
     const thead = within(table).getByRole('rowgroup');
     const initialHeaderButtons = within(thead).getAllByRole('button');
-    expect(initialHeaderButtons).toHaveLength(8);
+    expect(initialHeaderButtons).toHaveLength(10);
 
     fireEvent.click(screen.getByRole('button', { name: 'Тревожные расстройства' }));
     const afterDraftHeaderButtons = within(thead).getAllByRole('button');
-    expect(afterDraftHeaderButtons).toHaveLength(8);
+    expect(afterDraftHeaderButtons).toHaveLength(10);
 
     fireEvent.click(screen.getByRole('button', { name: 'Применить фильтр' }));
     const afterApplyHeaderButtons = within(thead).getAllByRole('button');

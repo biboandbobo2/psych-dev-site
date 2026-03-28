@@ -147,7 +147,7 @@ describe('disorderTable model', () => {
       {
         id: 'e1',
         rowIds: ['memory'],
-        columnIds: ['depression-bipolar'],
+        columnIds: ['depression'],
         text: 'entry 1',
         track: 'patopsychology',
         createdAt: new Date('2026-03-08T10:00:00.000Z'),
@@ -167,7 +167,7 @@ describe('disorderTable model', () => {
     expect(
       matchEntryByFilters(entries[0], {
         rowIds: [],
-        columnIds: ['depression-bipolar'],
+        columnIds: ['depression'],
       })
     ).toBe(true);
 
@@ -181,7 +181,7 @@ describe('disorderTable model', () => {
     expect(
       applyDisorderTableFilters(entries, {
         rowIds: ['memory'],
-        columnIds: ['depression-bipolar'],
+        columnIds: ['depression'],
       }).map((entry) => entry.id)
     ).toEqual(['e1']);
 
@@ -198,7 +198,7 @@ describe('disorderTable model', () => {
       {
         id: 'e1',
         rowIds: ['memory'],
-        columnIds: ['depression-bipolar', 'anxiety'],
+        columnIds: ['mania-bipolar', 'anxiety'],
         text: 'entry 1',
         track: 'patopsychology',
         createdAt: new Date('2026-03-08T10:00:00.000Z'),
@@ -217,10 +217,10 @@ describe('disorderTable model', () => {
 
     const matrix = buildDisorderTableMatrix(entries);
 
-    expect(matrix.get(buildDisorderTableCellKey('memory', 'depression-bipolar'))?.map((entry) => entry.id)).toEqual(['e1']);
+    expect(matrix.get(buildDisorderTableCellKey('memory', 'mania-bipolar'))?.map((entry) => entry.id)).toEqual(['e1']);
     expect(matrix.get(buildDisorderTableCellKey('memory', 'anxiety'))?.map((entry) => entry.id)).toEqual(['e1', 'e2']);
     expect(matrix.get(buildDisorderTableCellKey('thinking', 'anxiety'))?.map((entry) => entry.id)).toEqual(['e2']);
-    expect(matrix.get(buildDisorderTableCellKey('thinking', 'depression-bipolar'))).toBeUndefined();
+    expect(matrix.get(buildDisorderTableCellKey('thinking', 'mania-bipolar'))).toBeUndefined();
   });
 
   it('строит полную матрицу с пустыми пересечениями', () => {
@@ -236,11 +236,11 @@ describe('disorderTable model', () => {
       },
     ];
 
-    const full = buildDisorderTableFullMatrix(['memory', 'thinking'], ['anxiety', 'depression-bipolar'], entries);
+    const full = buildDisorderTableFullMatrix(['memory', 'thinking'], ['anxiety', 'depression'], entries);
 
     expect(full.get(buildDisorderTableCellKey('memory', 'anxiety'))?.length).toBe(1);
     expect(full.get(buildDisorderTableCellKey('thinking', 'anxiety'))).toEqual([]);
-    expect(full.get(buildDisorderTableCellKey('memory', 'depression-bipolar'))).toEqual([]);
+    expect(full.get(buildDisorderTableCellKey('memory', 'depression'))).toEqual([]);
   });
 
   it('преобразует множественное выделение ячеек в batch inputs', () => {
@@ -248,7 +248,7 @@ describe('disorderTable model', () => {
       [
         { rowId: 'memory', columnId: 'anxiety' },
         { rowId: 'memory', columnId: 'anxiety' },
-        { rowId: 'thinking', columnId: 'depression-bipolar' },
+        { rowId: 'thinking', columnId: 'mania-bipolar' },
       ],
       '  Общий текст  '
     );
@@ -262,7 +262,7 @@ describe('disorderTable model', () => {
       },
       {
         rowIds: ['thinking'],
-        columnIds: ['depression-bipolar'],
+        columnIds: ['mania-bipolar'],
         text: 'Общий текст',
         track: null,
       },

@@ -63,10 +63,15 @@ export function useDisorderTableEntries(courseId: string) {
       (snapshot) => {
         const nextEntries: DisorderTableEntry[] = snapshot.docs.map((docSnap) => {
           const data = docSnap.data() as Record<string, unknown>;
+          const legacySafeColumnIds = Array.isArray(data.columnIds)
+            ? Array.from(new Set((data.columnIds as string[]).flatMap((columnId) => (
+              columnId === 'depression-bipolar' ? ['depression', 'mania-bipolar'] : [columnId]
+            ))))
+            : [];
           return {
             id: docSnap.id,
             rowIds: Array.isArray(data.rowIds) ? (data.rowIds as string[]) : [],
-            columnIds: Array.isArray(data.columnIds) ? (data.columnIds as string[]) : [],
+            columnIds: legacySafeColumnIds,
             text: typeof data.text === 'string' ? data.text : '',
             track: normalizeEntryTrack(data.track as any),
             createdAt: toDateSafe(data.createdAt),
