@@ -11,6 +11,7 @@ import { useHomeFeed } from '../hooks/useHomeFeed';
 import { useCourseStore } from '../stores';
 import { useAuth } from '../auth/AuthProvider';
 import { FeedbackModal } from '../components/FeedbackModal';
+import { getLastCourseLesson } from '../lib/lastCourseLesson';
 import { PageLoader } from '../components/ui';
 import type { CourseType } from '../types/tests';
 import type {
@@ -102,9 +103,10 @@ export function HomePage() {
   // Sort sections by order and filter enabled ones
   const activeSections = content.sections.filter((s) => s.enabled).sort((a, b) => a.order - b.order);
   const currentCourseName = courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс';
-  const primaryLesson = resolvePrimaryLesson(currentCourse);
-  const primaryLessonLink = primaryLesson.link;
-  const primaryLessonTitle = primaryLesson.title;
+  const fallbackPrimaryLesson = resolvePrimaryLesson(currentCourse);
+  const lastCourseLesson = getLastCourseLesson(currentCourse);
+  const primaryLessonLink = lastCourseLesson?.path ?? fallbackPrimaryLesson.link;
+  const primaryLessonTitle = lastCourseLesson?.label ?? fallbackPrimaryLesson.title;
   const featuredSubjects = courses.slice(0, 4).map((course) => ({
     id: course.id,
     name: course.name,

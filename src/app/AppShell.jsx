@@ -29,6 +29,7 @@ import StudentCourseSidebar from '../components/StudentCourseSidebar';
 import { isCoreCourse } from '../constants/courses';
 import { sortNavItemsWithRouteFallback } from '../lib/courseLessons';
 import { getPageCourseId, shouldShowStudentCourseSidebar } from './courseNavigation';
+import { saveLastCourseLesson } from '../lib/lastCourseLesson';
 
 const normalizePath = (path) =>
   path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
@@ -254,6 +255,13 @@ export function AppShell() {
   const dynamicNavigationErrorMessage = pageDynamicError ? 'Не удалось загрузить навигацию курса.' : null;
   const sidebarNavigationLoading = Boolean(sidebarDynamicCourseId) && sidebarDynamicLoading;
   const sidebarNavigationErrorMessage = sidebarDynamicError ? 'Не удалось загрузить навигацию курса.' : null;
+
+  useEffect(() => {
+    if (!pageCourseId) return;
+
+    const activeNavItem = navItems.find((item) => normalizePath(item.path) === normalizedPath);
+    saveLastCourseLesson(pageCourseId, normalizedPath, activeNavItem?.label);
+  }, [pageCourseId, normalizedPath, navItems]);
 
   const sidebar = isSuperAdmin && isSuperAdminPage
     ? <SuperAdminTaskPanel />
