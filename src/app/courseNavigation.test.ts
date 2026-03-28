@@ -19,6 +19,7 @@ describe('courseNavigation', () => {
   it('does not treat service pages as lesson routes', () => {
     expect(getPageCourseId('/profile')).toBeNull();
     expect(getPageCourseId('/notes')).toBeNull();
+    expect(getPageCourseId('/disorder-table')).toBeNull();
     expect(getPageCourseId('/tests')).toBeNull();
     expect(getPageCourseId('/course/custom')).toBeNull();
   });
@@ -29,6 +30,7 @@ describe('courseNavigation', () => {
     expect(shouldShowStudentCourseSidebar('/notes')).toBe(true);
     expect(shouldShowStudentCourseSidebar('/general/pamyat')).toBe(true);
     expect(shouldShowStudentCourseSidebar('/timeline')).toBe(false);
+    expect(shouldShowStudentCourseSidebar('/disorder-table')).toBe(false);
     expect(shouldShowStudentCourseSidebar('/research')).toBe(false);
   });
 });

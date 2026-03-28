@@ -10,6 +10,7 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
   'profile',
   'notes',
   'timeline',
+  'disorder-table',
   'tests',
   'tests-lesson',
   'research',
