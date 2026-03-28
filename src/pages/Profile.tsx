@@ -26,21 +26,19 @@ interface StudentPanelProps {
   currentCourseName: string;
 }
 
-interface StudentToolFeature {
-  icon: string;
-  title: string;
-  description: string;
-  color: string;
-  link: string;
-  disabled: boolean;
-}
-
 interface StudentPersonalCard {
   icon: string;
   title: string;
   description: string;
   badge?: string;
   value?: string;
+}
+
+interface StudentQuickAction {
+  icon: string;
+  title: string;
+  link: string;
+  disabled?: boolean;
 }
 
 interface CourseGridProps {
@@ -57,7 +55,7 @@ function CourseGrid({ courses, openingCourseId, onOpenCourse }: CourseGridProps)
       <div className="flex items-center justify-between">
         <h3 className="text-base font-semibold text-gray-900 sm:text-lg">Курсы</h3>
         <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
-          4 предмета
+          Быстрый доступ
         </span>
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -95,20 +93,15 @@ function CourseGrid({ courses, openingCourseId, onOpenCourse }: CourseGridProps)
 
 function StudentPanel({ currentCourse, currentCourseName }: StudentPanelProps) {
   const notesLink = `/notes?course=${encodeURIComponent(currentCourse)}`;
-  const timelineOrDisorderFeature: StudentToolFeature = isDisorderTableCourse(currentCourse)
+  const timelineOrDisorderAction: StudentQuickAction = isDisorderTableCourse(currentCourse)
     ? {
         icon: '🧩',
         title: 'Таблица по расстройствам',
-        description: 'Фиксируйте наблюдения по нарушениям и расстройствам в структурированной таблице',
-        color: 'from-rose-500 to-pink-600',
         link: '/disorder-table',
-        disabled: false,
       }
     : {
         icon: '🗺️',
         title: 'Таймлайн жизни',
-        description: 'Визуализируйте свой жизненный путь и ключевые решения',
-        color: 'from-orange-500 to-orange-600',
         link: '/timeline',
         disabled: currentCourse !== 'development',
       };
@@ -140,46 +133,30 @@ function StudentPanel({ currentCourse, currentCourseName }: StudentPanelProps) {
     },
   ];
 
-  const tools: StudentToolFeature[] = [
+  const quickActions: StudentQuickAction[] = [
     {
       icon: '📝',
       title: 'Мои заметки',
-      description: 'Создавайте заметки к занятиям и лекциям курса и возвращайтесь к ним в любое время',
-      color: 'from-blue-500 to-blue-600',
       link: notesLink,
-      disabled: false,
     },
     {
       icon: '📚',
       title: 'Тесты - курс целиком',
-      description: 'История ваших результатов по тестам и самопроверкам',
-      color: 'from-green-500 to-green-600',
       link: '/tests',
-      disabled: false,
     },
     {
       icon: '📊',
       title: 'Тесты - занятие',
-      description: 'Отслеживайте какие занятия вы уже изучили и что осталось',
-      color: 'from-purple-500 to-purple-600',
       link: '/tests-lesson',
-      disabled: false,
     },
-    timelineOrDisorderFeature,
+    timelineOrDisorderAction,
   ];
 
   return (
-    <div className="space-y-7">
-      <h2 className="hidden items-center gap-2 text-lg font-semibold uppercase tracking-wide text-gray-700 sm:flex">
-        <span className="text-2xl" role="img" aria-label="Личный кабинет">
-          🎓
-        </span>
-        Личный кабинет
-      </h2>
-
+    <div className="space-y-6">
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-900 sm:text-lg">Моё пространство</h3>
+          <h3 className="text-base font-semibold text-gray-900 sm:text-lg">Личное пространство</h3>
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
             Личное
           </span>
@@ -218,68 +195,37 @@ function StudentPanel({ currentCourse, currentCourseName }: StudentPanelProps) {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-900 sm:text-lg">Учебные инструменты</h3>
+          <h3 className="text-base font-semibold text-gray-900 sm:text-lg">Быстрые действия</h3>
           <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700">
             Учёба
           </span>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {tools.map((feature, index) => {
-          const isDisabled = feature.disabled;
-          const content = (
-            <>
-              {isDisabled && (
-                <div className="absolute top-3 right-3">
-                  <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">
-                    Скоро
-                  </span>
-                </div>
-              )}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {quickActions.map((action) => {
+            const isDisabled = action.disabled === true;
 
-              <div className="flex items-center gap-3 sm:block">
-                <div
-                  className={`inline-flex shrink-0 items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} text-3xl sm:mb-4 shadow-md ${
-                    isDisabled ? 'opacity-50' : ''
-                  }`}
-                >
-                  {feature.icon}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <h3 className={`text-base sm:text-lg font-bold mb-1 sm:mb-2 leading-snug ${isDisabled ? 'text-gray-500' : 'text-gray-900'}`}>
-                    {feature.title}
-                  </h3>
-                  <p className={`text-xs sm:text-sm leading-snug ${isDisabled ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {feature.description}
-                  </p>
-                </div>
-              </div>
-
-              {isDisabled && (
-                <div className="absolute inset-0 hidden rounded-xl bg-gray-50/50 backdrop-blur-[1px] cursor-not-allowed sm:block" />
-              )}
-            </>
-          );
-
-            if (feature.link && !isDisabled) {
+            if (isDisabled) {
               return (
-                <Link
-                  key={index}
-                  to={feature.link}
-                  className="relative group rounded-xl border-2 border-gray-200 bg-white px-4 py-5 transition-all duration-300 hover:border-blue-400 hover:shadow-lg sm:p-6"
+                <div
+                  key={action.title}
+                  className="rounded-xl border-2 border-gray-200 bg-gray-50 px-3 py-4 text-center opacity-70"
                 >
-                  {content}
-                </Link>
+                  <div className="text-2xl">{action.icon}</div>
+                  <p className="mt-2 text-xs font-semibold text-gray-500">{action.title}</p>
+                  <p className="mt-1 text-[10px] uppercase tracking-wide text-gray-400">Скоро</p>
+                </div>
               );
             }
 
             return (
-              <div
-                key={index}
-                className="relative group rounded-xl border-2 border-gray-200 bg-white px-4 py-5 transition-all duration-300 sm:p-6"
+              <Link
+                key={action.title}
+                to={action.link}
+                className="group rounded-xl border-2 border-gray-200 bg-white px-3 py-4 text-center transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-md"
               >
-                {content}
-              </div>
+                <div className="text-2xl">{action.icon}</div>
+                <p className="mt-2 text-xs font-semibold text-gray-700">{action.title}</p>
+              </Link>
             );
           })}
         </div>
@@ -478,7 +424,7 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-xl p-8 space-y-8">
+      <div className="bg-white rounded-2xl shadow-xl p-8">
         <CourseGrid
           courses={featuredCourses}
           openingCourseId={openingCourseId}
@@ -489,33 +435,10 @@ export default function Profile() {
             {courseOpenError}
           </div>
         )}
-
-        <div className="hidden sm:block">
-          <StudentPanel currentCourse={currentCourse} currentCourseName={currentCourseName} />
-        </div>
       </div>
 
-      <div className="sm:hidden bg-white rounded-2xl shadow-xl p-4">
-        <details className="group" open>
-          <summary className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 [&::-webkit-details-marker]:hidden">
-            <span className="flex items-center gap-2">
-              <span role="img" aria-hidden="true">🎓</span>
-              Личный кабинет
-            </span>
-            <svg
-              className="h-4 w-4 text-gray-500 transition-transform group-open:rotate-90"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </summary>
-          <div className="mt-4">
-            <StudentPanel currentCourse={currentCourse} currentCourseName={currentCourseName} />
-          </div>
-        </details>
+      <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+        <StudentPanel currentCourse={currentCourse} currentCourseName={currentCourseName} />
       </div>
 
       {/* Ссылка на страницу возможностей */}
