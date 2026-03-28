@@ -683,13 +683,11 @@ export function HomePage() {
       {/* Render all other sections inside container */}
       <div className="max-w-[1200px] mx-auto px-5 sm:px-8 lg:px-10">
         {renderHomeMvpDashboard()}
+        {activeSections
+          .filter((s) => s.type === 'hero')
+          .map((section) => renderSection(section))}
         {nonHeroSections.map((section) => renderSection(section))}
       </div>
-
-      {/* Hero moved lower to keep Home dashboard primary */}
-      {activeSections
-        .filter((s) => s.type === 'hero')
-        .map((section) => renderSection(section))}
 
       <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
     </Motion.div>

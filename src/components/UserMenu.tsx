@@ -84,14 +84,6 @@ export default function UserMenu({ user }: UserMenuProps) {
 
       <div className="hidden sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
         <Link
-          to="/home"
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-200"
-        >
-          <span aria-hidden className="text-base">🏠</span>
-          <span>Дом</span>
-        </Link>
-
-        <Link
           to={notesLink}
           className="inline-flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-800 transition hover:bg-blue-200"
         >
@@ -204,14 +196,6 @@ export default function UserMenu({ user }: UserMenuProps) {
             </div>
 
             <div className="mt-4 grid gap-2">
-              <Link
-                to="/home"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800"
-              >
-                <span aria-hidden>🏠</span>
-                Дом
-              </Link>
               <Link
                 to={notesLink}
                 onClick={() => setIsMobileMenuOpen(false)}
