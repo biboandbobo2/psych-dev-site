@@ -57,7 +57,7 @@ function CourseGrid({ courses, openingCourseId, onOpenCourse }: CourseGridProps)
       <div className="flex items-center justify-between">
         <h3 className="text-base font-semibold text-gray-900 sm:text-lg">Курсы</h3>
         <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
-          Быстрый доступ
+          Основные
         </span>
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -151,7 +151,7 @@ function StudentPanel({ currentCourse, currentCourseName }: StudentPanelProps) {
     },
     {
       icon: '📚',
-      title: 'Тесты - курс целиком',
+      title: 'Тесты по курсу',
       description: 'История ваших результатов по тестам и самопроверкам',
       color: 'from-green-500 to-green-600',
       link: '/tests',
@@ -159,8 +159,8 @@ function StudentPanel({ currentCourse, currentCourseName }: StudentPanelProps) {
     },
     {
       icon: '📊',
-      title: 'Тесты - занятие',
-      description: 'Отслеживайте какие занятия вы уже изучили и что осталось',
+      title: 'Тесты по занятиям',
+      description: 'Отслеживайте, какие занятия уже изучены и что осталось пройти',
       color: 'from-purple-500 to-purple-600',
       link: '/tests-lesson',
       disabled: false,
