@@ -246,15 +246,15 @@ export default function WarmSprings2Page() {
         <div className="ws2-hero-content">
           <p className="ws2-hero-tag">Тбилиси &middot; 31 июля — 2 августа 2026</p>
           <h1 className="ws2-hero-title">
-            Обучающе-терапевтический
+            Интенсив
             <br />
-            интенсив по групповой
+            по групповой
             <br />
-            психотерапии
+            терапии
           </h1>
           <p className="ws2-hero-subtitle">
-            Метод &laquo;Тёплые ключи 2&raquo; &mdash; пространство, где профессиональный рост
-            неотделим от личного опыта
+            Обучающе-терапевтический формат по методу &laquo;Тёплые ключи 2&raquo;
+            &mdash;&nbsp;пространство, где профессиональный рост неотделим от личного опыта
           </p>
           <CtaButton className="ws2-hero-cta" />
         </div>
