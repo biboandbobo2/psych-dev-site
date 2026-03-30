@@ -466,6 +466,23 @@
   background: #abc5a1;
   border-radius: 50%;
 }
+.ws2-instructor-section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #6a865f;
+  margin-top: 1rem;
+  margin-bottom: 0.35rem;
+  text-align: left;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.ws2-instructor-edu li {
+  color: #888;
+  font-style: italic;
+}
 
 /* ================================================================== */
 /*  VENUE                                                              */

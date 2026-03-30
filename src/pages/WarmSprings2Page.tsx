@@ -131,10 +131,17 @@ const instructors = [
     name: 'Александр Загонов',
     photo: `${IMG}/zaganov.jpg`,
     role: 'Экзистенциально-гуманистический психолог, ведущий терапевтических групп',
-    details: [
+    education: [
       'Факультет психологии СПбГУ, каф. соц. адаптации и психологической коррекции личности (2010)',
       'Профпереподготовка «ЭГП в психологическом консультировании» у М.\u00A0Р.\u00A0Мироновой (2023)',
-      'Член команды психологов DOM, супервизор для ведущих групповых форматов',
+      'Множество программ повышения квалификации по различным специализациям',
+    ],
+    practice: [
+      'Член команды психологов DOM в Тбилиси (с 2022)',
+      'Супервизор для ведущих групповых форматов (с 2025)',
+      'Ведущий психотерапевтических групп, соавтор проекта «Место встречи» (с 2017)',
+      'Руководитель информационного направления АНО ДПО «ЭГО» (с 2017)',
+      'Автор курсов: «Терапия пар в экзистенциальной оптике», Лаборатория Психотерапевтического Мастерства',
     ],
     pair: 1,
   },
@@ -142,10 +149,17 @@ const instructors = [
     name: 'Елена Янкевич',
     photo: `${IMG}/yankevich.jpg`,
     role: 'Экзистенциальный и EMDR психолог, супервизор',
-    details: [
-      'НПГУ, специальность «Практический психолог»; РПА, повышение квалификации',
+    education: [
+      'НПГУ, специальность «Практический психолог»',
+      'РПА, повышение квалификации «Современные методы психотерапии»',
+      'Регулярное повышение квалификации в краткосрочных и долгосрочных программах',
+    ],
+    practice: [
       'Автор и ведущая терапевтической группы «Место встречи» (СПб)',
-      'Супервизор в мультимодальном подходе, спикер международных конференций',
+      'Работа с парами в подходе эмоционально-фокусированной терапии',
+      'Автор воркшопа «Я ненавижу свою мать»',
+      'Супервизор в мультимодальном подходе',
+      'Спикер и ведущая мастер-классов на международных конференциях',
     ],
     pair: 1,
   },
@@ -153,10 +167,17 @@ const instructors = [
     name: 'Елизавета Заславская',
     photo: `${IMG}/zaslavskaya.jpg`,
     role: 'Психотерапевт, философ, автор терапевтических программ',
-    details: [
-      'СПбГУ — факультеты психологии и философии (специалитет, магистратура, аспирантура)',
+    education: [
+      'СПбГУ, факультет психологии (специалитет)',
+      'СПбГУ, факультет философии (магистратура, аспирантура)',
       'Санкт-Петербургский Институт Гештальта (3 года)',
-      'Автор программ «Everybody dies» и «Внешность имеет значение», ведущая подкаста «Философское Лекарство»',
+    ],
+    practice: [
+      'Автор и ведущая долгосрочных и краткосрочных психотерапевтических групп',
+      'Автор программ «Everybody dies» и «Внешность имеет значение»',
+      'Ведущая подкаста «Философское Лекарство»',
+      'Учредитель психологического пространства «Поле»',
+      'Опыт личной психотерапии — 15 лет',
     ],
     pair: 2,
   },
@@ -164,10 +185,15 @@ const instructors = [
     name: 'Алексей Зыков',
     photo: `${IMG}/zykov.jpg`,
     role: 'Психолог-консультант, супервизор, автор обучающих программ',
-    details: [
+    education: [
       'Факультет психологии СПбГУ, каф. общей психологии (2010)',
       'Профпереподготовка «ЭГП в психологическом консультировании» у М.\u00A0Р.\u00A0Мироновой',
+    ],
+    practice: [
+      'Соучредитель психологического центра «12 коллегий» (СПб)',
+      'Автор курсов по супервизии, групповой динамике и возрастной психологии',
       'Участник АНО ДПО «ЭГО», Метаверситета и Содружества «Dom»',
+      'Личная терапия с 2007 г., групповая супервизия 2006–2024',
     ],
     pair: 2,
   },
@@ -340,8 +366,8 @@ export default function WarmSprings2Page() {
           <h2 className="ws2-h2">Ведущие</h2>
           <p className="ws2-team-intro">
             Курс ведут четыре специалиста — две ко-терапевтические пары с обширным опытом
-            индивидуальной и групповой работы. Мультимодальная команда, объединённая едиными
-            принципами.
+            индивидуальной и групповой работы. Мультимодальная команда, связанная общими
+            ценностями и подходом.
           </p>
           <div className="ws2-team-anime">
             <img
@@ -352,41 +378,43 @@ export default function WarmSprings2Page() {
           </div>
           <div className="ws2-pair-label">Ко-терапевты &middot; Первая пара</div>
           <div className="ws2-instructors-grid">
-            {instructors
-              .filter((i) => i.pair === 1)
-              .map((inst) => (
-                <div key={inst.name} className="ws2-instructor">
-                  <div className="ws2-instructor-photo">
-                    <img src={inst.photo} alt={inst.name} loading="lazy" />
-                  </div>
-                  <h3>{inst.name}</h3>
-                  <p className="ws2-instructor-role">{inst.role}</p>
-                  <ul>
-                    {inst.details.map((d) => (
-                      <li key={d}>{d}</li>
-                    ))}
-                  </ul>
+            {instructors.filter((i) => i.pair === 1).map((inst) => (
+              <div key={inst.name} className="ws2-instructor">
+                <div className="ws2-instructor-photo">
+                  <img src={inst.photo} alt={inst.name} loading="lazy" />
                 </div>
-              ))}
+                <h3>{inst.name}</h3>
+                <p className="ws2-instructor-role">{inst.role}</p>
+                <p className="ws2-instructor-section-label">Образование</p>
+                <ul className="ws2-instructor-edu">
+                  {inst.education.map((d) => <li key={d}>{d}</li>)}
+                </ul>
+                <p className="ws2-instructor-section-label">Практика</p>
+                <ul>
+                  {inst.practice.map((d) => <li key={d}>{d}</li>)}
+                </ul>
+              </div>
+            ))}
           </div>
           <div className="ws2-pair-label">Ко-терапевты &middot; Вторая пара</div>
           <div className="ws2-instructors-grid">
-            {instructors
-              .filter((i) => i.pair === 2)
-              .map((inst) => (
-                <div key={inst.name} className="ws2-instructor">
-                  <div className="ws2-instructor-photo">
-                    <img src={inst.photo} alt={inst.name} loading="lazy" />
-                  </div>
-                  <h3>{inst.name}</h3>
-                  <p className="ws2-instructor-role">{inst.role}</p>
-                  <ul>
-                    {inst.details.map((d) => (
-                      <li key={d}>{d}</li>
-                    ))}
-                  </ul>
+            {instructors.filter((i) => i.pair === 2).map((inst) => (
+              <div key={inst.name} className="ws2-instructor">
+                <div className="ws2-instructor-photo">
+                  <img src={inst.photo} alt={inst.name} loading="lazy" />
                 </div>
-              ))}
+                <h3>{inst.name}</h3>
+                <p className="ws2-instructor-role">{inst.role}</p>
+                <p className="ws2-instructor-section-label">Образование</p>
+                <ul className="ws2-instructor-edu">
+                  {inst.education.map((d) => <li key={d}>{d}</li>)}
+                </ul>
+                <p className="ws2-instructor-section-label">Практика</p>
+                <ul>
+                  {inst.practice.map((d) => <li key={d}>{d}</li>)}
+                </ul>
+              </div>
+            ))}
           </div>
         </div>
       </FadeSection>
