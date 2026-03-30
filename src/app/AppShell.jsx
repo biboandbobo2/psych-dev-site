@@ -273,6 +273,16 @@ export function AppShell() {
       ? "lg:w-64 xl:w-72"
       : undefined;
 
+  // Standalone landing pages — render outside AppLayout, skip data loading gates
+  const isStandaloneLanding = normalizedPath === '/warm_springs2';
+  if (isStandaloneLanding) {
+    return (
+      <React.Suspense fallback={<LoadingSplash />}>
+        <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} generalTopicsMap={generalTopicsMap} isSuperAdmin={isSuperAdmin} />
+      </React.Suspense>
+    );
+  }
+
   if (loading || clinicalLoading || generalLoading) return <LoadingSplash />;
   if (error) return <ErrorState message={error.message} />;
   if (clinicalError) return <ErrorState message={clinicalError.message} />;
