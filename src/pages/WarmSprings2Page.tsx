@@ -253,7 +253,8 @@ export default function WarmSprings2Page() {
             терапии
           </h1>
           <p className="ws2-hero-subtitle">
-            Обучающе-терапевтический формат по методу &laquo;Тёплые ключи&nbsp;2&raquo;
+            Обучающе-терапевтический формат по методу{' '}
+            <span className="ws2-nowrap">&laquo;Тёплые ключи&nbsp;2&raquo;</span>
             &mdash;&nbsp;пространство, где профессиональный рост неотделим от личного опыта
           </p>
           <CtaButton className="ws2-hero-cta" />

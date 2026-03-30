@@ -67,6 +67,11 @@
   transform: translateY(-2px);
 }
 
+/* ---- Utility ---- */
+.ws2-nowrap {
+  white-space: nowrap;
+}
+
 /* ---- Inline links ---- */
 .ws2-link {
   color: #4e6a4f !important;
