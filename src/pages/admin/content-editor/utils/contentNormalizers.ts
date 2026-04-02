@@ -36,7 +36,23 @@ export function normalizeAuthors(
  * Normalizes literature list, filtering out entries without both title and URL
  */
 export function normalizeLiterature(
-  items: Array<{ title: string; url: string }>
+  items: Array<{ title: string; url?: string }>
+): Array<{ title: string; url?: string }> {
+  return items
+    .map<{ title: string; url?: string } | null>((item) => {
+      const title = item.title?.trim();
+      const url = item.url?.trim();
+      if (!title) return null;
+      return url ? { title, url } : { title };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
+}
+
+/**
+ * Normalizes resource list where both title and URL are required
+ */
+export function normalizeLinkedResources(
+  items: Array<{ title: string; url?: string }>
 ): Array<{ title: string; url: string }> {
   return items
     .map((item) => {

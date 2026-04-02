@@ -26,8 +26,8 @@ interface UseContentLoaderParams {
   setVideos: (value: any[]) => void;
   setConcepts: (value: Array<{ name: string; url?: string }>) => void;
   setAuthors: (value: Array<{ name: string; url?: string }>) => void;
-  setCoreLiterature: (value: Array<{ title: string; url: string }>) => void;
-  setExtraLiterature: (value: Array<{ title: string; url: string }>) => void;
+  setCoreLiterature: (value: Array<{ title: string; url?: string }>) => void;
+  setExtraLiterature: (value: Array<{ title: string; url?: string }>) => void;
   setExtraVideos: (value: Array<{ title: string; url: string }>) => void;
   setLeisure: (value: Array<{ title?: string; url?: string; type?: string; year?: string }>) => void;
   setSelfQuestionsUrl: (value: string) => void;

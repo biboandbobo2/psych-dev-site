@@ -16,8 +16,8 @@ export function useContentForm(placeholderDefaultEnabled: boolean) {
   const [videos, setVideos] = useState<VideoFormEntry[]>([]);
   const [concepts, setConcepts] = useState<Array<{ name: string; url?: string }>>([]);
   const [authors, setAuthors] = useState<Array<{ name: string; url?: string }>>([]);
-  const [coreLiterature, setCoreLiterature] = useState<Array<{ title: string; url: string }>>([]);
-  const [extraLiterature, setExtraLiterature] = useState<Array<{ title: string; url: string }>>([]);
+  const [coreLiterature, setCoreLiterature] = useState<Array<{ title: string; url?: string }>>([]);
+  const [extraLiterature, setExtraLiterature] = useState<Array<{ title: string; url?: string }>>([]);
   const [extraVideos, setExtraVideos] = useState<Array<{ title: string; url: string }>>([]);
   const [leisure, setLeisure] = useState<Array<{ title?: string; url?: string; type?: string; year?: string }>>([]);
   const [selfQuestionsUrl, setSelfQuestionsUrl] = useState('');
