@@ -73,6 +73,12 @@ const INTRO_OVERVIEWS: Record<string, IntroOverview> = {
   },
 };
 
+const INTRO_PAGE_HEADING_BY_PERIOD_ID: Record<string, string> = {
+  'development-intro': 'Психология развития',
+  'clinical-intro': 'Основы патопсихологии взрослого и детского возрастов',
+  'general-intro': 'Введение в основы клинической психологии',
+};
+
 export interface PeriodPageProps {
   config: PeriodRouteConfig;
   period?: Period | null;
@@ -147,7 +153,10 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const location = useLocation();
   const themeKey = config.themeKey ?? config.periodId;
   usePeriodTheme(themeKey);
-  const heading = period?.label || config.navLabel;
+  const heading =
+    (config.periodId && INTRO_PAGE_HEADING_BY_PERIOD_ID[config.periodId]) ||
+    period?.label ||
+    config.navLabel;
   const { tests: periodTests } = usePeriodTests(config.periodId);
 
   // Определяем тип курса на основе пути

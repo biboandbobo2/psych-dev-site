@@ -134,11 +134,6 @@ export function HomePage() {
     : [...featuredSubjects, ...fallbackSubjects.filter((item) => !featuredSubjects.some((course) => course.id === item.id))].slice(0, 4);
 
   const resolveSubjectPath = async (courseId: string): Promise<string | null> => {
-    const lastLesson = getLastCourseLesson(courseId as CourseType);
-    if (lastLesson?.path) {
-      return lastLesson.path;
-    }
-
     const coreStartPath = getCoreCourseStartPath(courseId);
     if (coreStartPath) {
       return coreStartPath;
@@ -146,12 +141,18 @@ export function HomePage() {
 
     const lessonsRef = getCourseLessonsCollectionRef(courseId);
     const lessonsSnapshot = await getDocs(query(lessonsRef, orderBy('order', 'asc')));
-    const firstPublishedLesson = lessonsSnapshot.docs.find((docSnap) => docSnap.data()?.published !== false);
-    if (!firstPublishedLesson) {
+    const publishedLessons = lessonsSnapshot.docs.filter((docSnap) => docSnap.data()?.published !== false);
+    if (!publishedLessons.length) {
       return null;
     }
-
-    return `/course/${encodeURIComponent(courseId)}/${encodeURIComponent(firstPublishedLesson.id)}`;
+    const introLesson =
+      publishedLessons.find((docSnap) => docSnap.id === 'intro') ??
+      publishedLessons.find((docSnap) => {
+        const period = docSnap.data()?.period;
+        return typeof period === 'string' && period.trim() === 'intro';
+      });
+    const targetLesson = introLesson ?? publishedLessons[0];
+    return `/course/${encodeURIComponent(courseId)}/${encodeURIComponent(targetLesson.id)}`;
   };
 
   const handleOpenSubject = async (courseId: string) => {
