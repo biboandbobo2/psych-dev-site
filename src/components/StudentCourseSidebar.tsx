@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { getDocs, orderBy, query } from 'firebase/firestore';
 import { cn } from '../lib/cn';
 import { useCourses } from '../hooks/useCourses';
 import { useCourseStore } from '../stores';
@@ -8,6 +9,12 @@ import type { CourseType } from '../types/tests';
 import { prefetchDynamicCourseLessons } from '../hooks/useDynamicCourseLessons';
 import { isCoreCourse } from '../constants/courses';
 import { debugWarn } from '../lib/debug';
+import {
+  getCourseLessonsCollectionRef,
+  mapCanonicalCourseLessons,
+  sortCourseLessonItems,
+} from '../lib/courseLessons';
+import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG } from '../routes';
 import { Skeleton } from './ui/Skeleton';
 
 interface NavigationItem {
@@ -29,9 +36,7 @@ export default function StudentCourseSidebar({
   const { courses, loading } = useCourses();
   const { setCurrentCourse } = useCourseStore();
   const activeCourse = useActiveCourse(courses, loading);
-  const location = useLocation();
   const navigate = useNavigate();
-  const isNotesPage = location.pathname === '/notes';
 
   useEffect(() => {
     if (loading) {
@@ -51,10 +56,44 @@ export default function StudentCourseSidebar({
     });
   }, [courses, loading]);
 
-  const handleCourseSelect = (courseId: string) => {
+  const getCoreCourseStartPath = (courseId: string): string | null => {
+    if (courseId === 'development') return '/development/intro';
+    if (courseId === 'clinical') return CLINICAL_ROUTE_CONFIG[0]?.path ?? '/clinical/intro';
+    if (courseId === 'general') return GENERAL_ROUTE_CONFIG[0]?.path ?? '/general/intro';
+    return null;
+  };
+
+  const resolveCourseStartPath = async (courseId: string): Promise<string | null> => {
+    const coreStartPath = getCoreCourseStartPath(courseId);
+    if (coreStartPath) {
+      return coreStartPath;
+    }
+
+    const lessonsRef = getCourseLessonsCollectionRef(courseId);
+    const snapshot = await getDocs(query(lessonsRef, orderBy('order', 'asc')));
+    const canonicalLessons = mapCanonicalCourseLessons(courseId, snapshot.docs)
+      .filter((lesson) => lesson.published !== false);
+    const sortedLessons = sortCourseLessonItems(courseId, canonicalLessons);
+    if (!sortedLessons.length) {
+      return null;
+    }
+
+    const introLesson = sortedLessons.find((lesson) => lesson.period === 'intro');
+    const targetLesson = introLesson ?? sortedLessons[0];
+    return `/course/${encodeURIComponent(courseId)}/${encodeURIComponent(targetLesson.period)}`;
+  };
+
+  const handleCourseSelect = async (courseId: string) => {
     setCurrentCourse(courseId as CourseType);
-    if (isNotesPage) {
-      navigate(`/notes?course=${encodeURIComponent(courseId)}`);
+
+    try {
+      const startPath = await resolveCourseStartPath(courseId);
+      if (!startPath) {
+        return;
+      }
+      navigate(startPath);
+    } catch (error) {
+      debugWarn('[StudentCourseSidebar] Failed to resolve course start path', error);
     }
   };
 
@@ -70,7 +109,9 @@ export default function StudentCourseSidebar({
             <button
               key={course.id}
               type="button"
-              onClick={() => handleCourseSelect(course.id)}
+              onClick={() => {
+                void handleCourseSelect(course.id);
+              }}
               aria-pressed={activeCourse === course.id}
               disabled={loading}
               className={cn(
