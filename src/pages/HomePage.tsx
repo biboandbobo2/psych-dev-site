@@ -13,6 +13,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { getLastCourseLesson } from '../lib/lastCourseLesson';
 import { getWatchedLessonIds } from '../lib/courseWatchedLessons';
 import { PageLoader } from '../components/ui';
+import { BaseModal, ModalCancelButton } from '../components/ui/BaseModal';
 import type { CourseType } from '../types/tests';
 import type {
   HomePageSection,
@@ -79,6 +80,101 @@ function getEstimatedCourseLessons(courseId: string): number {
   return 0;
 }
 
+const RU_MONTH_INDEX: Record<string, number> = {
+  январ: 0,
+  феврал: 1,
+  март: 2,
+  апрел: 3,
+  ма: 4,
+  июн: 5,
+  июл: 6,
+  август: 7,
+  сентябр: 8,
+  октябр: 9,
+  ноябр: 10,
+  декабр: 11,
+};
+
+const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+type ParsedCalendarEvent = {
+  id: string;
+  text: string;
+  dateLabel: string;
+  dateKey: string | null;
+  parsedDate: Date | null;
+};
+
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+function toDateKey(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function formatDateKey(dateKey: string): string {
+  const [yearRaw, monthRaw, dayRaw] = dateKey.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  if (!year || !month || !day) return dateKey;
+  return new Date(year, month - 1, day).toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function tryParseDateLabel(dateLabel: string): Date | null {
+  const normalized = dateLabel.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]) - 1;
+    const day = Number(isoMatch[3]);
+    return new Date(year, month, day);
+  }
+
+  const dotMatch = normalized.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  if (dotMatch) {
+    const day = Number(dotMatch[1]);
+    const month = Number(dotMatch[2]) - 1;
+    const year = Number(dotMatch[3]);
+    return new Date(year, month, day);
+  }
+
+  const dayMonthYear = normalized.match(/^(\d{1,2})\s+([а-яёa-z]+)\s+(\d{4})$/i);
+  if (dayMonthYear) {
+    const day = Number(dayMonthYear[1]);
+    const monthWord = dayMonthYear[2];
+    const year = Number(dayMonthYear[3]);
+    const month = Object.entries(RU_MONTH_INDEX).find(([prefix]) => monthWord.startsWith(prefix))?.[1];
+    if (month !== undefined) {
+      return new Date(year, month, day);
+    }
+  }
+
+  const monthYear = normalized.match(/^([а-яёa-z]+)\s+(\d{4})$/i);
+  if (monthYear) {
+    const monthWord = monthYear[1];
+    const year = Number(monthYear[2]);
+    const month = Object.entries(RU_MONTH_INDEX).find(([prefix]) => monthWord.startsWith(prefix))?.[1];
+    if (month !== undefined) {
+      return new Date(year, month, 1);
+    }
+  }
+
+  const parsedNative = new Date(dateLabel);
+  if (!Number.isNaN(parsedNative.getTime())) {
+    return new Date(parsedNative.getFullYear(), parsedNative.getMonth(), parsedNative.getDate());
+  }
+
+  return null;
+}
+
 export function HomePage() {
   const { user, isAdmin } = useAuth();
   const { currentCourse, setCurrentCourse } = useCourseStore();
@@ -100,6 +196,12 @@ export function HomePage() {
   const [feedActionError, setFeedActionError] = useState<string | null>(null);
   const [openingCourseId, setOpeningCourseId] = useState<string | null>(null);
   const [courseOpenError, setCourseOpenError] = useState<string | null>(null);
+  const [isEventsCalendarOpen, setIsEventsCalendarOpen] = useState(false);
+  const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
 
   const activeSections: HomePageSection[] = [];
   const currentCourseName = courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс';
@@ -153,6 +255,40 @@ export function HomePage() {
         .sort((left, right) => (right.createdAt || '').localeCompare(left.createdAt || ''))
         .slice(0, 5),
     [announcements, events]
+  );
+
+  const parsedCalendarEvents = useMemo<ParsedCalendarEvent[]>(
+    () =>
+      events.map((event) => {
+        const parsedDate = tryParseDateLabel(event.dateLabel) ?? null;
+        return {
+          id: event.id,
+          text: event.text,
+          dateLabel: event.dateLabel,
+          parsedDate,
+          dateKey: parsedDate ? toDateKey(parsedDate) : null,
+        };
+      }),
+    [events]
+  );
+
+  const calendarEventsByDate = useMemo(() => {
+    const map = new Map<string, ParsedCalendarEvent[]>();
+    parsedCalendarEvents.forEach((event) => {
+      if (!event.dateKey) return;
+      const current = map.get(event.dateKey);
+      if (current) {
+        current.push(event);
+      } else {
+        map.set(event.dateKey, [event]);
+      }
+    });
+    return map;
+  }, [parsedCalendarEvents]);
+
+  const undatedCalendarEvents = useMemo(
+    () => parsedCalendarEvents.filter((event) => !event.dateKey),
+    [parsedCalendarEvents]
   );
 
   if (loading) {
@@ -230,6 +366,21 @@ export function HomePage() {
     } finally {
       setIsFeedSaving(false);
     }
+  };
+
+  const openEventsCalendar = () => {
+    const firstDatedEvent = parsedCalendarEvents.find((event) => event.parsedDate);
+    if (firstDatedEvent?.parsedDate) {
+      setCalendarCursor(
+        new Date(firstDatedEvent.parsedDate.getFullYear(), firstDatedEvent.parsedDate.getMonth(), 1)
+      );
+      if (!selectedCalendarDateKey) {
+        setSelectedCalendarDateKey(firstDatedEvent.dateKey);
+      }
+    } else if (!selectedCalendarDateKey) {
+      setSelectedCalendarDateKey(toDateKey(new Date()));
+    }
+    setIsEventsCalendarOpen(true);
   };
 
   // Helper function to render each section based on type
@@ -515,6 +666,24 @@ export function HomePage() {
 
   function renderHomeMvpDashboard() {
     const displayName = user?.displayName || user?.email?.split('@')[0] || 'студент';
+    const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
+    const firstWeekday = (monthStart.getDay() + 6) % 7;
+    const daysInMonth = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 0).getDate();
+    const calendarCells: Array<{ day: number; dateKey: string } | null> = [
+      ...Array.from({ length: firstWeekday }, () => null),
+      ...Array.from({ length: daysInMonth }, (_, index) => {
+        const day = index + 1;
+        const date = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), day);
+        return { day, dateKey: toDateKey(date) };
+      }),
+    ];
+    const selectedDayEvents = selectedCalendarDateKey
+      ? calendarEventsByDate.get(selectedCalendarDateKey) ?? []
+      : [];
+    const calendarMonthLabel = calendarCursor.toLocaleDateString('ru-RU', {
+      month: 'long',
+      year: 'numeric',
+    });
     const placeholderCatalog = [
       { icon: '🧬', title: 'Нейропсихология', lessons: '14 лекций' },
       { icon: '💬', title: 'Психология общения', lessons: '10 лекций' },
@@ -523,7 +692,7 @@ export function HomePage() {
 
     return (
       <section className="py-8 sm:py-10">
-        <div className="space-y-4 rounded-[28px] bg-[#111214] p-3 sm:p-4">
+        <div className="space-y-4">
           <section className="rounded-2xl bg-gradient-to-r from-[#2d5eff] via-[#3f56df] to-[#6c2fff] p-6 text-white shadow-[0_16px_40px_rgba(34,82,255,0.35)] sm:p-7">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-2">
@@ -551,10 +720,10 @@ export function HomePage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-white/15 bg-[#2a2b2f] p-4 text-white/95">
+          <section className="rounded-2xl border border-[#DDE5EE] bg-white p-4 text-[#2C3E50]">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-2xl font-bold">Мои курсы</h3>
-              <NavLink to="/profile" className="text-sm font-semibold text-[#52a6ff] hover:text-[#84c1ff]">
+              <NavLink to="/profile" className="text-sm font-semibold text-[#3359CB] hover:text-[#2A49A8]">
                 Все курсы →
               </NavLink>
             </div>
@@ -574,19 +743,19 @@ export function HomePage() {
                       'rounded-xl border p-4 text-left transition',
                       active
                         ? 'border-[#8eb7ff] bg-[#d7e6ff] text-[#1e2b3a]'
-                        : 'border-white/20 bg-[#32343a] text-white hover:border-[#6f8fc9]'
+                        : 'border-[#D8E2EE] bg-[#F9FBFF] text-[#2C3E50] hover:border-[#9EB7D9]'
                     )}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-2xl">{subject.icon}</span>
-                      <span className={cn('text-xs font-semibold', active ? 'text-[#4e5d74]' : 'text-white/80')}>
+                      <span className={cn('text-xs font-semibold', active ? 'text-[#4e5d74]' : 'text-[#6B7A8D]')}>
                         {progress.percent}%
                       </span>
                     </div>
-                    <p className={cn('mt-2 text-lg font-semibold leading-tight', active ? 'text-[#233149]' : 'text-white')}>
+                    <p className={cn('mt-2 text-lg font-semibold leading-tight', active ? 'text-[#233149]' : 'text-[#2C3E50]')}>
                       {subject.name}
                     </p>
-                    <div className={cn('mt-3 h-1.5 rounded-full', active ? 'bg-[#bcd5ff]' : 'bg-white/15')}>
+                    <div className={cn('mt-3 h-1.5 rounded-full', active ? 'bg-[#bcd5ff]' : 'bg-[#DEE8F5]')}>
                       <div
                         className={cn('h-full rounded-full', active ? 'bg-[#3f78ff]' : 'bg-[#7aa2ff]')}
                         style={{ width: `${Math.max(progress.percent, 4)}%` }}
@@ -597,20 +766,24 @@ export function HomePage() {
               })}
             </div>
             {courseOpenError ? (
-              <p className="mt-3 rounded-lg border border-red-300/40 bg-red-500/15 px-3 py-2 text-sm text-red-100">
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {courseOpenError}
               </p>
             ) : null}
           </section>
 
-          <section className="rounded-2xl border border-white/15 bg-[#2a2b2f] p-4 text-white/95">
+          <section className="rounded-2xl border border-[#DDE5EE] bg-white p-4 text-[#2C3E50]">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-2xl font-bold">Объявления и события</h3>
-              <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-white/85">
-                Скоро
-              </span>
+              <button
+                type="button"
+                onClick={openEventsCalendar}
+                className="inline-flex rounded-lg border border-[#C5D6EE] bg-[#F4F8FF] px-3 py-1.5 text-xs font-semibold text-[#3359CB] transition hover:bg-[#E9F1FF]"
+              >
+                Календарь
+              </button>
             </div>
-            <div className="rounded-xl bg-[#1f2024] px-4 py-3 text-sm text-white/85">
+            <div className="rounded-xl bg-[#F5F8FC] px-4 py-3 text-sm text-[#5E6D7A]">
               {feedLoading ? (
                 'Загрузка новостей...'
               ) : latestFeedItems.length === 0 ? (
@@ -619,7 +792,7 @@ export function HomePage() {
                 <ul className="space-y-2">
                   {latestFeedItems.map((item) => (
                     <li key={item.id}>
-                      <span className="font-semibold text-white">{item.title}:</span> {item.text}
+                      <span className="font-semibold text-[#2C3E50]">{item.title}:</span> {item.text}
                     </li>
                   ))}
                 </ul>
@@ -627,32 +800,32 @@ export function HomePage() {
             </div>
             {isAdmin ? (
               <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <div className="space-y-2 rounded-xl border border-white/15 bg-[#1f2024] p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#7bb1ff]">Добавить объявление</p>
+                <div className="space-y-2 rounded-xl border border-[#DFE7F3] bg-[#FAFCFF] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">Добавить объявление</p>
                   <textarea
                     value={announcementDraft}
                     onChange={(event) => setAnnouncementDraft(event.target.value)}
                     rows={3}
                     maxLength={400}
                     placeholder="Текст объявления..."
-                    className="w-full rounded-lg border border-white/15 bg-[#2a2b2f] px-3 py-2 text-sm text-white focus:border-[#659bff] focus:outline-none"
+                    className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
                   />
                   <button
                     type="button"
                     onClick={handleAddAnnouncement}
                     disabled={isFeedSaving}
-                    className="inline-flex rounded-lg bg-[#3f73ff] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2f62eb] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex rounded-lg bg-[#3359CB] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2A49A8] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isFeedSaving ? 'Сохранение...' : 'Опубликовать'}
                   </button>
                 </div>
-                <div className="space-y-2 rounded-xl border border-white/15 bg-[#1f2024] p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#7bb1ff]">Добавить событие</p>
+                <div className="space-y-2 rounded-xl border border-[#DFE7F3] bg-[#FAFCFF] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">Добавить событие</p>
                   <input
                     type="date"
                     value={eventDateDraft}
                     onChange={(event) => setEventDateDraft(event.target.value)}
-                    className="w-full rounded-lg border border-white/15 bg-[#2a2b2f] px-3 py-2 text-sm text-white focus:border-[#659bff] focus:outline-none"
+                    className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
                   />
                   <textarea
                     value={eventTextDraft}
@@ -660,13 +833,13 @@ export function HomePage() {
                     rows={2}
                     maxLength={400}
                     placeholder="Описание события..."
-                    className="w-full rounded-lg border border-white/15 bg-[#2a2b2f] px-3 py-2 text-sm text-white focus:border-[#659bff] focus:outline-none"
+                    className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
                   />
                   <button
                     type="button"
                     onClick={handleAddEvent}
                     disabled={isFeedSaving}
-                    className="inline-flex rounded-lg bg-[#3f73ff] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2f62eb] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex rounded-lg bg-[#3359CB] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2A49A8] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isFeedSaving ? 'Сохранение...' : 'Опубликовать'}
                   </button>
@@ -675,24 +848,135 @@ export function HomePage() {
             ) : null}
           </section>
 
-          <section className="rounded-2xl border border-white/15 bg-[#2a2b2f] p-4 text-white/95">
+          <section className="rounded-2xl border border-[#DDE5EE] bg-white p-4 text-[#2C3E50]">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-2xl font-bold">Каталог платформы</h3>
-              <span className="text-sm font-semibold text-[#52a6ff]">Смотреть всё →</span>
+              <span className="text-sm font-semibold text-[#3359CB]">Смотреть всё →</span>
             </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              {placeholderCatalog.map((course) => (
-                <div key={course.title} className="rounded-xl border border-white/20 bg-[#32343a] p-4">
+              {placeholderCatalog.map((course, index) => (
+                <div key={course.title} className={cn(
+                  'rounded-xl border p-4',
+                  index === 0 ? 'border-[#8eb7ff] bg-[#d7e6ff]' : 'border-[#D8E2EE] bg-[#F9FBFF]'
+                )}>
                   <p className="text-2xl">{course.icon}</p>
-                  <p className="mt-2 text-xl font-semibold text-white">{course.title}</p>
-                  <p className="text-sm text-white/75">{course.lessons}</p>
-                  <span className="mt-2 inline-flex rounded-full border border-white/20 px-2.5 py-1 text-xs font-semibold text-white/85">
+                  <p className="mt-2 text-xl font-semibold text-[#2C3E50]">{course.title}</p>
+                  <p className="text-sm text-[#5E6D7A]">{course.lessons}</p>
+                  <span className="mt-2 inline-flex rounded-full border border-[#D6DFED] bg-white px-2.5 py-1 text-xs font-semibold text-[#6B7A8D]">
                     Скоро
                   </span>
                 </div>
               ))}
             </div>
           </section>
+
+          <BaseModal
+            isOpen={isEventsCalendarOpen}
+            onClose={() => setIsEventsCalendarOpen(false)}
+            title="Календарь событий"
+            maxWidth="2xl"
+            footer={<ModalCancelButton onClick={() => setIsEventsCalendarOpen(false)}>Закрыть</ModalCancelButton>}
+          >
+            <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl border border-[#DDE5EE] bg-[#F8FAFD] px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCalendarCursor(
+                      new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() - 1, 1)
+                    )
+                  }
+                  className="rounded-lg border border-[#C9D6E6] bg-white px-3 py-1 text-sm font-semibold text-[#3359CB] transition hover:bg-[#F0F5FF]"
+                >
+                  ←
+                </button>
+                <p className="text-sm font-bold capitalize text-[#2C3E50]">{calendarMonthLabel}</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCalendarCursor(
+                      new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 1)
+                    )
+                  }
+                  className="rounded-lg border border-[#C9D6E6] bg-white px-3 py-1 text-sm font-semibold text-[#3359CB] transition hover:bg-[#F0F5FF]"
+                >
+                  →
+                </button>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1">
+                {WEEKDAY_LABELS.map((label) => (
+                  <div key={label} className="px-1 py-1 text-center text-xs font-semibold uppercase text-[#6B7A8D]">
+                    {label}
+                  </div>
+                ))}
+                {calendarCells.map((cell, index) => {
+                  if (!cell) {
+                    return <div key={`empty-${index}`} className="h-10 rounded-md bg-transparent" />;
+                  }
+
+                  const isSelected = selectedCalendarDateKey === cell.dateKey;
+                  const hasEvents = calendarEventsByDate.has(cell.dateKey);
+                  return (
+                    <button
+                      key={cell.dateKey}
+                      type="button"
+                      onClick={() => setSelectedCalendarDateKey(cell.dateKey)}
+                      className={cn(
+                        'relative h-10 rounded-md border text-sm transition',
+                        isSelected
+                          ? 'border-[#3359CB] bg-[#3359CB] text-white'
+                          : hasEvents
+                          ? 'border-[#9EB7D9] bg-[#EEF4FF] text-[#244A8F] hover:bg-[#E3EEFF]'
+                          : 'border-[#E5EBF3] bg-white text-[#465A75] hover:bg-[#F8FAFD]'
+                      )}
+                    >
+                      {cell.day}
+                      {hasEvents && !isSelected ? (
+                        <span className="absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#3359CB]" />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="rounded-xl border border-[#DDE5EE] bg-[#FAFCFF] p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">
+                  {selectedCalendarDateKey
+                    ? `События на ${formatDateKey(selectedCalendarDateKey)}`
+                    : 'Выберите дату в календаре'}
+                </p>
+                {selectedDayEvents.length ? (
+                  <ul className="mt-2 space-y-2">
+                    {selectedDayEvents.map((event) => (
+                      <li key={event.id} className="rounded-lg bg-white px-3 py-2 text-sm text-[#44566F]">
+                        <p className="font-semibold text-[#2C3E50]">{event.dateLabel}</p>
+                        <p className="mt-1">{event.text}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-[#6B7A8D]">На выбранную дату событий пока нет.</p>
+                )}
+              </div>
+
+              {undatedCalendarEvents.length ? (
+                <div className="rounded-xl border border-[#E7EEF8] bg-[#F7FAFF] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#5F6F87]">
+                    События без точной даты
+                  </p>
+                  <ul className="mt-2 space-y-2">
+                    {undatedCalendarEvents.map((event) => (
+                      <li key={event.id} className="rounded-lg bg-white px-3 py-2 text-sm text-[#556880]">
+                        <p className="font-semibold text-[#2C3E50]">{event.dateLabel}</p>
+                        <p className="mt-1">{event.text}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          </BaseModal>
 
           {(feedError || feedActionError) && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
