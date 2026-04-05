@@ -6,6 +6,7 @@ import {
   buildDisorderTableCellKey,
   buildDisorderTableFilters,
   buildDisorderTableFullMatrix,
+  DISORDER_TABLE_GENERAL_COMMENT_ENTRY_ID,
   DISORDER_TABLE_COLUMNS,
   DISORDER_TABLE_ROWS,
   isDisorderTableCourse,
@@ -156,6 +157,10 @@ export default function DisorderTable() {
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [commentSubmitErrors, setCommentSubmitErrors] = useState<Record<string, string>>({});
   const [commentSavingEntryId, setCommentSavingEntryId] = useState<string | null>(null);
+  const [isGeneralCommentsModalOpen, setIsGeneralCommentsModalOpen] = useState(false);
+  const [generalCommentDraft, setGeneralCommentDraft] = useState('');
+  const [generalCommentSubmitError, setGeneralCommentSubmitError] = useState<string | null>(null);
+  const [generalCommentSaving, setGeneralCommentSaving] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -188,6 +193,10 @@ export default function DisorderTable() {
 
   const rowLabels = useMemo(() => new Map(DISORDER_TABLE_ROWS.map((row) => [row.id, row.label])), []);
   const columnLabels = useMemo(() => new Map(DISORDER_TABLE_COLUMNS.map((column) => [column.id, column.label])), []);
+  const generalComments = useMemo(
+    () => comments.filter((comment) => comment.entryId === DISORDER_TABLE_GENERAL_COMMENT_ENTRY_ID),
+    [comments]
+  );
   const commentsByEntryId = useMemo(() => {
     const map = new Map<string, typeof comments>();
     for (const comment of comments) {
@@ -507,6 +516,41 @@ export default function DisorderTable() {
     }
   };
 
+  const openGeneralCommentsModal = () => {
+    setGeneralCommentSubmitError(null);
+    setIsGeneralCommentsModalOpen(true);
+  };
+
+  const closeGeneralCommentsModal = () => {
+    if (generalCommentSaving) return;
+    setIsGeneralCommentsModalOpen(false);
+    setGeneralCommentSubmitError(null);
+  };
+
+  const handleGeneralCommentSubmit = async () => {
+    if (!canComment) return;
+
+    const draft = generalCommentDraft.trim();
+    if (draft.length < 2) {
+      setGeneralCommentSubmitError('Комментарий должен содержать минимум 2 символа');
+      return;
+    }
+
+    setGeneralCommentSubmitError(null);
+    setGeneralCommentSaving(true);
+    try {
+      await createComment({
+        entryId: DISORDER_TABLE_GENERAL_COMMENT_ENTRY_ID,
+        text: draft,
+      });
+      setGeneralCommentDraft('');
+    } catch (err: any) {
+      setGeneralCommentSubmitError(err?.message || 'Не удалось сохранить комментарий');
+    } finally {
+      setGeneralCommentSaving(false);
+    }
+  };
+
   const trackOptions: Array<{ value: OptionalTrack; label: string }> = [
     { value: null, label: 'Без доп. цвета' },
     { value: 'patopsychology', label: 'Патопсихология' },
@@ -674,6 +718,20 @@ export default function DisorderTable() {
             <p className="mb-1 text-xs text-slate-600">
               Для преподавателя доступен просмотр и комментирование таблицы студента.
             </p>
+          )}
+
+          {(generalComments.length > 0 || canComment) && (
+            <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-emerald-900">Лектор</span>
+              <button
+                type="button"
+                onClick={openGeneralCommentsModal}
+                className="inline-flex rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-xs font-medium text-emerald-900 transition hover:bg-emerald-100"
+              >
+                Общие комментарии от лектора
+                {generalComments.length > 0 ? ` (${generalComments.length})` : ''}
+              </button>
+            </div>
           )}
 
           {hasActiveFilters || hasActiveSearch ? (
@@ -1176,6 +1234,79 @@ export default function DisorderTable() {
 
           {bulkError && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{bulkError}</div>
+          )}
+        </div>
+      </BaseModal>
+
+      <BaseModal
+        isOpen={isGeneralCommentsModalOpen}
+        onClose={closeGeneralCommentsModal}
+        title="Общие комментарии от лектора"
+        maxWidth="2xl"
+        disabled={generalCommentSaving}
+        footer={(
+          <>
+            <ModalCancelButton onClick={closeGeneralCommentsModal} disabled={generalCommentSaving}>
+              Закрыть
+            </ModalCancelButton>
+          </>
+        )}
+      >
+        <div className="space-y-3">
+          {commentsLoading && (
+            <p className="text-xs text-slate-500">Загрузка комментариев преподавателя...</p>
+          )}
+
+          {generalComments.length === 0 ? (
+            <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              Общих комментариев пока нет.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {generalComments.map((comment) => (
+                <article key={comment.id} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <p className="text-xs font-semibold text-emerald-900">
+                    {comment.authorName || 'Преподаватель'}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm text-emerald-900 [overflow-wrap:anywhere]">
+                    {comment.text}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {canComment && (
+            <section className="rounded-lg border border-violet-200 bg-violet-50 p-3">
+              <label htmlFor="general-comment-input" className="mb-1 block text-xs font-semibold text-violet-900">
+                Новый общий комментарий
+              </label>
+              <textarea
+                id="general-comment-input"
+                value={generalCommentDraft}
+                onChange={(event) => setGeneralCommentDraft(event.target.value)}
+                rows={4}
+                maxLength={2000}
+                placeholder="Комментарий ко всей таблице студента..."
+                className="w-full rounded-md border border-violet-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
+              />
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] text-violet-800">{generalCommentDraft.length}/2000</p>
+                <button
+                  type="button"
+                  onClick={handleGeneralCommentSubmit}
+                  disabled={generalCommentSaving || commentsSaving || generalCommentDraft.trim().length < 2}
+                  className="rounded-md border border-violet-300 bg-white px-2.5 py-1 text-xs font-medium text-violet-900 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {generalCommentSaving || commentsSaving ? 'Сохранение...' : 'Сохранить комментарий'}
+                </button>
+              </div>
+              {(commentsError || generalCommentSubmitError) && (
+                <p className="mt-2 text-xs text-red-700">
+                  {generalCommentSubmitError ?? commentsError}
+                </p>
+              )}
+            </section>
           )}
         </div>
       </BaseModal>

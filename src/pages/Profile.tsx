@@ -22,7 +22,7 @@ import { calculateCourseProgress, type CourseProgressStats } from './profile/cou
 function getCoreCourseStartPath(courseId: string): string | null {
   if (courseId === 'development') return ROUTE_CONFIG[0]?.path ?? '/intro';
   if (courseId === 'clinical') return CLINICAL_ROUTE_CONFIG[0]?.path ?? '/clinical/intro';
-  if (courseId === 'general') return GENERAL_ROUTE_CONFIG[0]?.path ?? '/general/1';
+  if (courseId === 'general') return GENERAL_ROUTE_CONFIG[0]?.path ?? '/general/intro';
   return null;
 }
 

@@ -335,6 +335,20 @@ export const CLINICAL_ROUTE_BY_PERIOD = CLINICAL_ROUTE_CONFIG.reduce((acc, confi
  */
 export const GENERAL_ROUTE_CONFIG = [
   {
+    path: '/general/intro',
+    key: 'general-intro',
+    navLabel: 'Введение',
+    periodId: 'general-intro',
+    themeKey: 'general',
+    placeholderText:
+      'На этой вводной странице собрана общая информация о курсе общей психологии, формате занятий и итоговой аттестации. Ниже переходите к первой теме.',
+    placeholderDefaultEnabled: true,
+    meta: {
+      title: 'Введение в курс общей психологии — Psych Dev Site',
+      description: 'Общая информация о курсе, структуре занятий и экзамене.',
+    },
+  },
+  {
     path: '/general/1',
     key: 'general-1',
     navLabel: 'История психологии и методы',

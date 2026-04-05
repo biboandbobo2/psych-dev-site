@@ -36,6 +36,36 @@ interface StudyLaunchParams {
   requestedVideoId: string;
 }
 
+type IntroOverview = {
+  title: string;
+  summary: string;
+  examNote: string;
+};
+
+const INTRO_OVERVIEWS: Record<string, IntroOverview> = {
+  intro: {
+    title: 'Как устроен курс',
+    summary:
+      'На этой странице собрана вводная информация по курсу психологии развития: структура занятий, материалы и практические инструменты.',
+    examNote:
+      'Итоговая аттестация и проверка прогресса проходят через тесты по занятиям и по курсу.',
+  },
+  'clinical-intro': {
+    title: 'Как устроен курс',
+    summary:
+      'На вводной странице курса патопсихологии собрана общая логика курса, формат занятий и практические инструменты по теме расстройств.',
+    examNote:
+      'Итоговая аттестация и проверка прогресса доступны через тесты и практические задания курса.',
+  },
+  'general-intro': {
+    title: 'Как устроен курс',
+    summary:
+      'Это вводная страница курса общей психологии с обзором содержания, последовательности тем и формата обучения.',
+    examNote:
+      'Итоговая аттестация проходит через тесты по темам и итоговые проверочные задания курса.',
+  },
+};
+
 export interface PeriodPageProps {
   config: PeriodRouteConfig;
   period?: Period | null;
@@ -183,6 +213,9 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const backgroundStyle = backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined;
   const studyLaunch = getStudyLaunchParams(location.search);
   const showDisorderTableCta = config.periodId === 'clinical-intro';
+  const showTimelineCta = config.periodId === 'intro';
+  const showGeneralCourseStartCta = config.periodId === 'general-intro';
+  const introOverview = config.periodId ? INTRO_OVERVIEWS[config.periodId] : null;
 
   return (
     <Motion.div
@@ -203,6 +236,13 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
         {period?.subtitle ? (
           <p className="text-lg leading-8 text-muted max-w-measure">{period.subtitle}</p>
         ) : null}
+        {introOverview ? (
+          <section className="max-w-3xl rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+            <h2 className="text-base font-semibold text-slate-900">{introOverview.title}</h2>
+            <p className="mt-2 text-sm text-slate-700">{introOverview.summary}</p>
+            <p className="mt-2 text-sm font-medium text-slate-800">{introOverview.examNote}</p>
+          </section>
+        ) : null}
         {showDisorderTableCta ? (
           <div className="max-w-3xl rounded-2xl border border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 p-4 sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -222,6 +262,52 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
                 className="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700"
               >
                 Открыть таблицу
+              </Link>
+            </div>
+          </div>
+        ) : null}
+        {showTimelineCta ? (
+          <div className="max-w-3xl rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                  Практика курса
+                </p>
+                <p className="text-base font-semibold text-slate-900">
+                  Откройте «Таймлайн жизни»
+                </p>
+                <p className="text-sm text-slate-600">
+                  Заполняйте личный таймлайн, связывайте события жизни с этапами развития и отслеживайте динамику.
+                </p>
+              </div>
+              <Link
+                to="/timeline"
+                className="inline-flex items-center justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700"
+              >
+                Открыть таймлайн
+              </Link>
+            </div>
+          </div>
+        ) : null}
+        {showGeneralCourseStartCta ? (
+          <div className="max-w-3xl rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+                  Старт курса
+                </p>
+                <p className="text-base font-semibold text-slate-900">
+                  Перейти к первой теме курса
+                </p>
+                <p className="text-sm text-slate-600">
+                  Начните изучение общей психологии с темы «История психологии и методы».
+                </p>
+              </div>
+              <Link
+                to="/general/1"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                Перейти к теме 1
               </Link>
             </div>
           </div>

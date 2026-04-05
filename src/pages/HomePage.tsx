@@ -70,7 +70,7 @@ function resolvePrimaryLesson(courseId: string): { link: string; title: string }
 function getCoreCourseStartPath(courseId: string): string | null {
   if (courseId === 'development') return ROUTE_CONFIG[0]?.path ?? '/intro';
   if (courseId === 'clinical') return CLINICAL_ROUTE_CONFIG[0]?.path ?? '/clinical/intro';
-  if (courseId === 'general') return GENERAL_ROUTE_CONFIG[0]?.path ?? '/general/1';
+  if (courseId === 'general') return GENERAL_ROUTE_CONFIG[0]?.path ?? '/general/intro';
   return null;
 }
 
@@ -112,8 +112,8 @@ export function HomePage() {
     );
   }
 
-  // Sort sections by order and filter enabled ones
-  const activeSections = content.sections.filter((s) => s.enabled).sort((a, b) => a.order - b.order);
+  // Маркетинговый лендинг временно скрыт: на странице Дом оставляем только учебный дашборд.
+  const activeSections: HomePageSection[] = [];
   const currentCourseName = courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс';
   const fallbackPrimaryLesson = resolvePrimaryLesson(currentCourse);
   const lastCourseLesson = getLastCourseLesson(currentCourse);
@@ -177,41 +177,7 @@ export function HomePage() {
     }
   };
 
-  const recommendations = [
-    {
-      title: 'Перейти к текущему курсу',
-      description: 'Откройте основное занятие выбранного курса и продолжите обучение.',
-      link: primaryLessonLink,
-      action: 'Открыть занятие',
-    },
-    {
-      title: 'Проверить прогресс по тестам',
-      description: 'Просмотрите результаты и продолжите тренировки по текущему курсу.',
-      link: '/tests',
-      action: 'Открыть тесты',
-    },
-    {
-      title: 'Открыть личный кабинет',
-      description: 'Календарь, уведомления и достижения находятся в профиле студента.',
-      link: '/profile',
-      action: 'Перейти в профиль',
-    },
-  ];
-
-  const nonHeroSections = activeSections
-    .filter((section) => section.type !== 'hero')
-    .sort((a, b) => {
-      const typePriority = (type: HomePageSection['type']) => {
-        if (type === 'essence') return 0;
-        if (type === 'periods') return 2;
-        return 1;
-      };
-
-      const priorityA = typePriority(a.type);
-      const priorityB = typePriority(b.type);
-      if (priorityA !== priorityB) return priorityA - priorityB;
-      return a.order - b.order;
-    });
+  const nonHeroSections: HomePageSection[] = [];
 
   const handleAddAnnouncement = async () => {
     if (!isAdmin || isFeedSaving) return;
@@ -688,33 +654,17 @@ export function HomePage() {
             </article>
 
             <article className="rounded-xl border border-[#DDE5EE] bg-white p-4 lg:col-span-2">
-              <h3 className="text-base font-semibold text-[#2C3E50]">Рекомендуем пройти дальше</h3>
-              <div className="mt-2 space-y-2">
-                {recommendations.map((item) => (
-                  <div key={item.title} className="rounded-lg border border-[#E6EDF5] bg-[#FCFDFF] px-3 py-3">
-                    <p className="text-sm font-semibold text-[#2C3E50]">{item.title}</p>
-                    <p className="mt-1 text-sm text-[#6B7B88]">{item.description}</p>
-                    <NavLink
-                      to={item.link}
-                      className="mt-2 inline-flex text-xs font-semibold text-[#4A5FA5] hover:underline"
-                    >
-                      {item.action}
-                    </NavLink>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 rounded-lg border border-[#D7E3EF] bg-[#EFF5FB] px-3 py-2">
-                <p className="text-sm text-[#37516B]">
-                  Есть идея по улучшению платформы? Напишите нам через обратную связь.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setIsFeedbackOpen(true)}
-                  className="mt-2 inline-flex rounded-lg bg-[#0E9F8E] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#0A8A7A]"
-                >
-                  Обратная связь
-                </button>
-              </div>
+              <h3 className="text-base font-semibold text-[#2C3E50]">Обратная связь</h3>
+              <p className="mt-2 text-sm text-[#5E6D7A]">
+                Есть идея по улучшению платформы или замечание по учебному процессу? Напишите нам.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsFeedbackOpen(true)}
+                className="mt-3 inline-flex rounded-lg bg-[#0E9F8E] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#0A8A7A]"
+              >
+                Открыть форму обратной связи
+              </button>
             </article>
           </div>
 
