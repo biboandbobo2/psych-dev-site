@@ -68,7 +68,7 @@ function resolvePrimaryLesson(courseId: string): { link: string; title: string }
 }
 
 function getCoreCourseStartPath(courseId: string): string | null {
-  if (courseId === 'development') return ROUTE_CONFIG[0]?.path ?? '/intro';
+  if (courseId === 'development') return '/development/intro';
   if (courseId === 'clinical') return CLINICAL_ROUTE_CONFIG[0]?.path ?? '/clinical/intro';
   if (courseId === 'general') return GENERAL_ROUTE_CONFIG[0]?.path ?? '/general/intro';
   return null;

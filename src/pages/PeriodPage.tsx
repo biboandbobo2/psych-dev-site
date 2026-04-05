@@ -43,6 +43,13 @@ type IntroOverview = {
 };
 
 const INTRO_OVERVIEWS: Record<string, IntroOverview> = {
+  'development-intro': {
+    title: 'Как устроен курс',
+    summary:
+      'Это главная страница курса психологии развития: здесь собраны структура обучения, ключевые разделы и практические инструменты курса.',
+    examNote:
+      'Итоговая аттестация и проверка прогресса проходят через тесты по занятиям и итоговые задания.',
+  },
   intro: {
     title: 'Как устроен курс',
     summary:
@@ -213,8 +220,9 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const backgroundStyle = backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined;
   const studyLaunch = getStudyLaunchParams(location.search);
   const showDisorderTableCta = config.periodId === 'clinical-intro';
-  const showTimelineCta = config.periodId === 'intro';
+  const showTimelineCta = config.periodId === 'development-intro';
   const showGeneralCourseStartCta = config.periodId === 'general-intro';
+  const showDevelopmentCourseStartCta = config.periodId === 'development-intro';
   const introOverview = config.periodId ? INTRO_OVERVIEWS[config.periodId] : null;
 
   return (
@@ -285,6 +293,29 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
                 className="inline-flex items-center justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700"
               >
                 Открыть таймлайн
+              </Link>
+            </div>
+          </div>
+        ) : null}
+        {showDevelopmentCourseStartCta ? (
+          <div className="max-w-3xl rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+                  Старт курса
+                </p>
+                <p className="text-base font-semibold text-slate-900">
+                  Перейти к вводной лекции
+                </p>
+                <p className="text-sm text-slate-600">
+                  Начните изучение курса с вводного занятия и ключевых ориентиров по дальнейшим темам.
+                </p>
+              </div>
+              <Link
+                to="/intro"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                Открыть вводную лекцию
               </Link>
             </div>
           </div>

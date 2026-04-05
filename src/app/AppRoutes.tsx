@@ -103,6 +103,27 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         />
         <Route path="/profile" element={<Profile />} />
         <Route
+          path="/development/intro"
+          element={
+            <PeriodPage
+              config={{
+                path: '/development/intro',
+                navLabel: 'Психология развития',
+                periodId: 'development-intro',
+                themeKey: 'intro',
+                placeholderDefaultEnabled: false,
+                placeholderText:
+                  'Это главная страница курса психологии развития. Здесь собрана общая информация о структуре курса, экзамене и практических инструментах.',
+                meta: {
+                  title: 'Психология развития — главная страница курса',
+                  description: 'Общая информация о курсе психологии развития и ключевых инструментах обучения.',
+                },
+              }}
+              period={null}
+            />
+          }
+        />
+        <Route
           path="/notes"
           element={
             <RequireAuth>

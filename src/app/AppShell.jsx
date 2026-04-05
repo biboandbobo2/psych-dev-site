@@ -177,8 +177,13 @@ export function AppShell() {
                   CLINICAL_ROUTE_CONFIG.find((entry) => entry.path === normalizedPath) ||
                   GENERAL_ROUTE_CONFIG.find((entry) => entry.path === normalizedPath);
 
-    if (!route) {
+    if (!route && normalizedPath !== '/development/intro') {
       document.title = SITE_NAME;
+      return;
+    }
+
+    if (normalizedPath === '/development/intro') {
+      document.title = `Психология развития — главная страница курса — ${SITE_NAME}`;
       return;
     }
 
@@ -260,6 +265,9 @@ export function AppShell() {
     if (!pageCourseId) return;
 
     const activeNavItem = navItems.find((item) => normalizePath(item.path) === normalizedPath);
+    if (!activeNavItem) {
+      return;
+    }
     saveLastCourseLesson(pageCourseId, normalizedPath, activeNavItem?.label);
   }, [pageCourseId, normalizedPath, navItems]);
 

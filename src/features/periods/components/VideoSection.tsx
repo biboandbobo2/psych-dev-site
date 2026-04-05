@@ -206,12 +206,28 @@ function VideoSectionCard({
             <h3 className="text-2xl font-semibold leading-tight text-fg">{effectiveVideoTitle}</h3>
           ) : null}
         </div>
-        <VideoModeButton
-          label={mode === 'study' ? 'Скрыть конспект' : 'Открыть конспект'}
-          isActive={mode === 'study'}
-          onClick={() => setMode((current) => (current === 'study' ? 'embed' : 'study'))}
-          controlsId={`${effectiveVideoTitle}-study-panel`}
-        />
+        <div className="flex items-center gap-2">
+          {canTrackWatched ? (
+            <span
+              className={cn(
+                'inline-flex h-9 w-9 items-center justify-center rounded-full border text-sm font-bold',
+                isWatched
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                  : 'border-slate-300 bg-slate-50 text-slate-400'
+              )}
+              title={isWatched ? 'Лекция просмотрена' : 'Лекция не отмечена как просмотренная'}
+              aria-label={isWatched ? 'Лекция просмотрена' : 'Лекция не просмотрена'}
+            >
+              ✓
+            </span>
+          ) : null}
+          <VideoModeButton
+            label={mode === 'study' ? 'Скрыть конспект' : 'Открыть конспект'}
+            isActive={mode === 'study'}
+            onClick={() => setMode((current) => (current === 'study' ? 'embed' : 'study'))}
+            controlsId={`${effectiveVideoTitle}-study-panel`}
+          />
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -234,19 +250,6 @@ function VideoSectionCard({
           sourceTextClassName="w-full text-sm leading-6 text-muted"
           sourceLinkClassName="text-accent no-underline hover:no-underline focus-visible:no-underline"
         />
-        {canTrackWatched ? (
-          <div
-            className={cn(
-              'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold',
-              isWatched
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                : 'border-slate-200 bg-slate-50 text-slate-600'
-            )}
-          >
-            <span aria-hidden="true">{isWatched ? '✓' : '○'}</span>
-            <span>{isWatched ? 'Просмотрено автоматически' : 'Прогресс засчитается после просмотра почти до конца'}</span>
-          </div>
-        ) : null}
       </div>
 
       <VideoStudyOverlay

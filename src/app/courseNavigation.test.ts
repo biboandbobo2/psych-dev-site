@@ -10,6 +10,7 @@ describe('courseNavigation', () => {
 
   it('detects page course for static and dynamic lesson routes', () => {
     expect(getPageCourseId('/intro')).toBe('development');
+    expect(getPageCourseId('/development/intro')).toBe('development');
     expect(getPageCourseId('/clinical/1')).toBe('clinical');
     expect(getPageCourseId('/general/pamyat')).toBe('general');
     expect(getPageCourseId('/course/cognitive-base/lesson-2')).toBe('cognitive-base');

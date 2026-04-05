@@ -18,6 +18,7 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
   'migrate-topics',
   'clinical',
   'general',
+  'development',
   'course',
 ]);
 
@@ -44,6 +45,10 @@ export function getPageCourseId(path: string | undefined | null) {
 
   if (normalizedPath.startsWith('/general/')) {
     return 'general';
+  }
+
+  if (normalizedPath.startsWith('/development/')) {
+    return 'development';
   }
 
   if (normalizedPath.startsWith('/course/')) {
