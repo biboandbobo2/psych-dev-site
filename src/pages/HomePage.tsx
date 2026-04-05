@@ -10,10 +10,9 @@ import { useCourses } from '../hooks/useCourses';
 import { useHomeFeed } from '../hooks/useHomeFeed';
 import { useCourseStore } from '../stores';
 import { useAuth } from '../auth/AuthProvider';
-import { FeedbackModal } from '../components/FeedbackModal';
 import { getLastCourseLesson } from '../lib/lastCourseLesson';
+import { getWatchedLessonIds } from '../lib/courseWatchedLessons';
 import { PageLoader } from '../components/ui';
-import { BaseModal, ModalCancelButton } from '../components/ui/BaseModal';
 import type { CourseType } from '../types/tests';
 import type {
   HomePageSection,
@@ -73,99 +72,11 @@ function getCoreCourseStartPath(courseId: string): string | null {
   return null;
 }
 
-const RU_MONTH_INDEX: Record<string, number> = {
-  январ: 0,
-  феврал: 1,
-  март: 2,
-  апрел: 3,
-  ма: 4,
-  июн: 5,
-  июл: 6,
-  август: 7,
-  сентябр: 8,
-  октябр: 9,
-  ноябр: 10,
-  декабр: 11,
-};
-
-const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-
-type ParsedCalendarEvent = {
-  id: string;
-  text: string;
-  dateLabel: string;
-  dateKey: string | null;
-  parsedDate: Date | null;
-};
-
-function pad2(value: number): string {
-  return String(value).padStart(2, '0');
-}
-
-function toDateKey(date: Date): string {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-}
-
-function formatDateKey(dateKey: string): string {
-  const [yearRaw, monthRaw, dayRaw] = dateKey.split('-');
-  const year = Number(yearRaw);
-  const month = Number(monthRaw);
-  const day = Number(dayRaw);
-  if (!year || !month || !day) return dateKey;
-  return new Date(year, month - 1, day).toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-}
-
-function tryParseDateLabel(dateLabel: string): Date | null {
-  const normalized = dateLabel.trim().toLowerCase();
-  if (!normalized) return null;
-
-  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (isoMatch) {
-    const year = Number(isoMatch[1]);
-    const month = Number(isoMatch[2]) - 1;
-    const day = Number(isoMatch[3]);
-    return new Date(year, month, day);
-  }
-
-  const dotMatch = normalized.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
-  if (dotMatch) {
-    const day = Number(dotMatch[1]);
-    const month = Number(dotMatch[2]) - 1;
-    const year = Number(dotMatch[3]);
-    return new Date(year, month, day);
-  }
-
-  const dayMonthYear = normalized.match(/^(\d{1,2})\s+([а-яёa-z]+)\s+(\d{4})$/i);
-  if (dayMonthYear) {
-    const day = Number(dayMonthYear[1]);
-    const monthWord = dayMonthYear[2];
-    const year = Number(dayMonthYear[3]);
-    const month = Object.entries(RU_MONTH_INDEX).find(([prefix]) => monthWord.startsWith(prefix))?.[1];
-    if (month !== undefined) {
-      return new Date(year, month, day);
-    }
-  }
-
-  const monthYear = normalized.match(/^([а-яёa-z]+)\s+(\d{4})$/i);
-  if (monthYear) {
-    const monthWord = monthYear[1];
-    const year = Number(monthYear[2]);
-    const month = Object.entries(RU_MONTH_INDEX).find(([prefix]) => monthWord.startsWith(prefix))?.[1];
-    if (month !== undefined) {
-      return new Date(year, month, 1);
-    }
-  }
-
-  const parsedNative = new Date(dateLabel);
-  if (!Number.isNaN(parsedNative.getTime())) {
-    return new Date(parsedNative.getFullYear(), parsedNative.getMonth(), parsedNative.getDate());
-  }
-
-  return null;
+function getEstimatedCourseLessons(courseId: string): number {
+  if (courseId === 'development') return ROUTE_CONFIG.length;
+  if (courseId === 'clinical') return CLINICAL_ROUTE_CONFIG.length;
+  if (courseId === 'general') return GENERAL_ROUTE_CONFIG.length;
+  return 0;
 }
 
 export function HomePage() {
@@ -182,7 +93,6 @@ export function HomePage() {
     addEvent,
   } = useHomeFeed();
   const { content, loading, error } = useHomePageContent();
-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [announcementDraft, setAnnouncementDraft] = useState('');
   const [eventDateDraft, setEventDateDraft] = useState('');
   const [eventTextDraft, setEventTextDraft] = useState('');
@@ -190,12 +100,6 @@ export function HomePage() {
   const [feedActionError, setFeedActionError] = useState<string | null>(null);
   const [openingCourseId, setOpeningCourseId] = useState<string | null>(null);
   const [courseOpenError, setCourseOpenError] = useState<string | null>(null);
-  const [isEventsCalendarOpen, setIsEventsCalendarOpen] = useState(false);
-  const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
-  const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
 
   const activeSections: HomePageSection[] = [];
   const currentCourseName = courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс';
@@ -217,38 +121,38 @@ export function HomePage() {
     ? featuredSubjects
     : [...featuredSubjects, ...fallbackSubjects.filter((item) => !featuredSubjects.some((course) => course.id === item.id))].slice(0, 4);
 
-  const parsedCalendarEvents = useMemo<ParsedCalendarEvent[]>(
-    () =>
-      events.map((event) => {
-        const parsedDate = tryParseDateLabel(event.dateLabel) ?? null;
-        return {
-          id: event.id,
-          text: event.text,
-          dateLabel: event.dateLabel,
-          parsedDate,
-          dateKey: parsedDate ? toDateKey(parsedDate) : null,
-        };
-      }),
-    [events]
-  );
-
-  const calendarEventsByDate = useMemo(() => {
-    const map = new Map<string, ParsedCalendarEvent[]>();
-    parsedCalendarEvents.forEach((event) => {
-      if (!event.dateKey) return;
-      const current = map.get(event.dateKey);
-      if (current) {
-        current.push(event);
-      } else {
-        map.set(event.dateKey, [event]);
-      }
+  const progressByCourse = useMemo(() => {
+    const map = new Map<string, { completed: number; total: number; percent: number }>();
+    subjects.forEach((course) => {
+      const completed = getWatchedLessonIds(course.id).size;
+      const total = getEstimatedCourseLessons(course.id);
+      const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+      map.set(course.id, { completed, total, percent });
     });
     return map;
-  }, [parsedCalendarEvents]);
+  }, [subjects]);
 
-  const undatedCalendarEvents = useMemo(
-    () => parsedCalendarEvents.filter((event) => !event.dateKey),
-    [parsedCalendarEvents]
+  const currentCourseProgress = progressByCourse.get(currentCourse) ?? { completed: 0, total: 0, percent: 0 };
+
+  const latestFeedItems = useMemo(
+    () =>
+      [
+        ...announcements.map((item) => ({
+          id: `announcement-${item.id}`,
+          title: 'Объявление',
+          text: item.text,
+          createdAt: item.createdAt,
+        })),
+        ...events.map((item) => ({
+          id: `event-${item.id}`,
+          title: item.dateLabel,
+          text: item.text,
+          createdAt: item.createdAt,
+        })),
+      ]
+        .sort((left, right) => (right.createdAt || '').localeCompare(left.createdAt || ''))
+        .slice(0, 5),
+    [announcements, events]
   );
 
   if (loading) {
@@ -326,21 +230,6 @@ export function HomePage() {
     } finally {
       setIsFeedSaving(false);
     }
-  };
-
-  const openEventsCalendar = () => {
-    const firstDatedEvent = parsedCalendarEvents.find((event) => event.parsedDate);
-    if (firstDatedEvent?.parsedDate) {
-      setCalendarCursor(
-        new Date(firstDatedEvent.parsedDate.getFullYear(), firstDatedEvent.parsedDate.getMonth(), 1)
-      );
-      if (!selectedCalendarDateKey) {
-        setSelectedCalendarDateKey(firstDatedEvent.dateKey);
-      }
-    } else if (!selectedCalendarDateKey) {
-      setSelectedCalendarDateKey(toDateKey(new Date()));
-    }
-    setIsEventsCalendarOpen(true);
   };
 
   // Helper function to render each section based on type
@@ -625,318 +514,185 @@ export function HomePage() {
   }
 
   function renderHomeMvpDashboard() {
-    const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
-    const firstWeekday = (monthStart.getDay() + 6) % 7;
-    const daysInMonth = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 0).getDate();
-    const calendarCells: Array<{ day: number; dateKey: string } | null> = [
-      ...Array.from({ length: firstWeekday }, () => null),
-      ...Array.from({ length: daysInMonth }, (_, index) => {
-        const day = index + 1;
-        const date = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), day);
-        return { day, dateKey: toDateKey(date) };
-      }),
+    const displayName = user?.displayName || user?.email?.split('@')[0] || 'студент';
+    const placeholderCatalog = [
+      { icon: '🧬', title: 'Нейропсихология', lessons: '14 лекций' },
+      { icon: '💬', title: 'Психология общения', lessons: '10 лекций' },
+      { icon: '🌱', title: 'Позитивная психология', lessons: '8 лекций' },
     ];
-    const selectedDayEvents = selectedCalendarDateKey
-      ? calendarEventsByDate.get(selectedCalendarDateKey) ?? []
-      : [];
-    const calendarMonthLabel = calendarCursor.toLocaleDateString('ru-RU', {
-      month: 'long',
-      year: 'numeric',
-    });
 
     return (
       <section className="py-8 sm:py-10">
-        <div className="space-y-4">
-          <div className="rounded-3xl border border-[#B7CCFF] bg-gradient-to-br from-[#2E4DD7] via-[#3C63F0] to-[#00A7E1] p-6 text-white shadow-lg sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/80">ЦЕНТР ПЛАТФОРМЫ</p>
-            <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <h2 className="text-3xl font-black leading-tight sm:text-4xl">Дом</h2>
-                <p className="mt-2 max-w-2xl text-sm text-white/90 sm:text-base">
-                  {user ? `Здравствуйте, ${user.displayName || user.email?.split('@')[0] || 'студент'}!` : 'Добро пожаловать!'}
-                  {' '}Здесь вы видите ключевые предметы, объявления и ближайшие события платформы.
+        <div className="space-y-4 rounded-[28px] bg-[#111214] p-3 sm:p-4">
+          <section className="rounded-2xl bg-gradient-to-r from-[#2d5eff] via-[#3f56df] to-[#6c2fff] p-6 text-white shadow-[0_16px_40px_rgba(34,82,255,0.35)] sm:p-7">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-2">
+                <p className="text-sm text-white/85">Добрый день, {displayName}</p>
+                <h2 className="text-3xl font-extrabold leading-tight">Продолжить обучение</h2>
+                <p className="text-base text-white/90">
+                  {currentCourseName} · Лекция: {primaryLessonTitle}
+                </p>
+                <NavLink
+                  to={primaryLessonLink}
+                  className="mt-3 inline-flex items-center justify-center rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-[#2947c9] transition hover:bg-[#eef3ff]"
+                >
+                  ▶ Продолжить
+                </NavLink>
+              </div>
+              <div className="w-full max-w-[150px] rounded-2xl bg-white/18 p-4 text-center backdrop-blur-[2px]">
+                <p className="text-5xl font-black leading-none">{currentCourseProgress.percent}%</p>
+                <p className="mt-2 text-sm font-medium text-white/90">курс пройден</p>
+                <p className="text-xs text-white/85">
+                  {currentCourseProgress.total > 0
+                    ? `${currentCourseProgress.completed} из ${currentCourseProgress.total} занятий`
+                    : `${currentCourseProgress.completed} занятий`}
                 </p>
               </div>
-              {!user && (
-                <NavLink
-                  to="/login"
-                  className="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#2444C8] shadow transition hover:bg-[#F3F7FF]"
-                >
-                  Войти
-                </NavLink>
-              )}
             </div>
-          </div>
+          </section>
 
-          <div className="rounded-2xl border border-[#DDE5EE] bg-white p-5 shadow-sm sm:p-6">
-            <h3 className="text-lg font-semibold text-[#2C3E50]">Курсы</h3>
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {subjects.map((subject) => (
-                <button
-                  key={subject.id}
-                  type="button"
-                  onClick={() => {
-                    void handleOpenSubject(subject.id);
-                  }}
-                  disabled={openingCourseId === subject.id}
-                  className="group rounded-xl border border-[#D8E2EE] bg-[#F9FBFF] p-4 text-left transition hover:-translate-y-0.5 hover:border-[#9EB7D9] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl">{subject.icon}</span>
-                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#4A5FA5]">
-                      {openingCourseId === subject.id ? 'Открытие...' : 'Открыть'}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm font-semibold text-[#2C3E50]">{subject.name}</p>
-                </button>
-              ))}
+          <section className="rounded-2xl border border-white/15 bg-[#2a2b2f] p-4 text-white/95">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-2xl font-bold">Мои курсы</h3>
+              <NavLink to="/profile" className="text-sm font-semibold text-[#52a6ff] hover:text-[#84c1ff]">
+                Все курсы →
+              </NavLink>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {subjects.map((subject) => {
+                const progress = progressByCourse.get(subject.id) ?? { completed: 0, total: 0, percent: 0 };
+                const active = subject.id === currentCourse;
+                return (
+                  <button
+                    key={subject.id}
+                    type="button"
+                    onClick={() => {
+                      void handleOpenSubject(subject.id);
+                    }}
+                    disabled={openingCourseId === subject.id}
+                    className={cn(
+                      'rounded-xl border p-4 text-left transition',
+                      active
+                        ? 'border-[#8eb7ff] bg-[#d7e6ff] text-[#1e2b3a]'
+                        : 'border-white/20 bg-[#32343a] text-white hover:border-[#6f8fc9]'
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl">{subject.icon}</span>
+                      <span className={cn('text-xs font-semibold', active ? 'text-[#4e5d74]' : 'text-white/80')}>
+                        {progress.percent}%
+                      </span>
+                    </div>
+                    <p className={cn('mt-2 text-lg font-semibold leading-tight', active ? 'text-[#233149]' : 'text-white')}>
+                      {subject.name}
+                    </p>
+                    <div className={cn('mt-3 h-1.5 rounded-full', active ? 'bg-[#bcd5ff]' : 'bg-white/15')}>
+                      <div
+                        className={cn('h-full rounded-full', active ? 'bg-[#3f78ff]' : 'bg-[#7aa2ff]')}
+                        style={{ width: `${Math.max(progress.percent, 4)}%` }}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
             </div>
             {courseOpenError ? (
-              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <p className="mt-3 rounded-lg border border-red-300/40 bg-red-500/15 px-3 py-2 text-sm text-red-100">
                 {courseOpenError}
               </p>
             ) : null}
-          </div>
+          </section>
 
-          <div className="rounded-2xl border border-[#C8D7ED] bg-gradient-to-r from-[#FFFFFF] to-[#F1F7FF] p-5 shadow-sm sm:p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#3E5EB3]">Быстрый шаг</p>
-            <h3 className="mt-1 text-2xl font-extrabold text-[#1F335B] sm:text-3xl">Продолжить обучение</h3>
-            <p className="mt-1 text-sm text-[#5D6B7D]">
-              Курс сейчас: <span className="font-semibold text-[#1F335B]">{currentCourseName}</span>
-            </p>
-            <p className="mt-1 text-sm text-[#2B3F65]">
-              Следующая лекция: <span className="font-semibold">{primaryLessonTitle}</span>
-            </p>
-            <div className="mt-4">
-              <NavLink
-                to={primaryLessonLink}
-                className="inline-flex min-w-[220px] items-center justify-center rounded-xl bg-[#274AD6] px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#1E3FC0] hover:shadow-xl"
-              >
-                Продолжить обучение
-              </NavLink>
+          <section className="rounded-2xl border border-white/15 bg-[#2a2b2f] p-4 text-white/95">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-2xl font-bold">Объявления и события</h3>
+              <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-white/85">
+                Скоро
+              </span>
             </div>
-          </div>
-
-          <div className="space-y-4">
-            <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
-              <h3 className="text-base font-semibold text-[#2C3E50]">Объявления</h3>
+            <div className="rounded-xl bg-[#1f2024] px-4 py-3 text-sm text-white/85">
               {feedLoading ? (
-                <p className="mt-2 text-sm text-[#667788]">Загрузка объявлений...</p>
-              ) : announcements.length === 0 ? (
-                <p className="mt-2 rounded-lg bg-[#F5F8FC] px-3 py-2 text-sm text-[#5E6D7A]">
-                  Пока нет объявлений. Администратор добавит их здесь.
-                </p>
+                'Загрузка новостей...'
+              ) : latestFeedItems.length === 0 ? (
+                'Пока нет новостей — появятся здесь, когда администратор добавит их.'
               ) : (
-                <ul className="mt-2 space-y-2">
-                  {announcements.map((item) => (
-                    <li key={item.id} className="rounded-lg bg-[#F5F8FC] px-3 py-2 text-sm text-[#5E6D7A]">
-                      {item.text}
+                <ul className="space-y-2">
+                  {latestFeedItems.map((item) => (
+                    <li key={item.id}>
+                      <span className="font-semibold text-white">{item.title}:</span> {item.text}
                     </li>
                   ))}
                 </ul>
               )}
-              {isAdmin && (
-                <div className="mt-3 space-y-2 rounded-lg border border-[#DFE7F3] bg-[#FAFCFF] p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">Добавить объявление</p>
+            </div>
+            {isAdmin ? (
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div className="space-y-2 rounded-xl border border-white/15 bg-[#1f2024] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#7bb1ff]">Добавить объявление</p>
                   <textarea
                     value={announcementDraft}
                     onChange={(event) => setAnnouncementDraft(event.target.value)}
                     rows={3}
                     maxLength={400}
-                    placeholder="Текст объявления для всех пользователей..."
-                    className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
+                    placeholder="Текст объявления..."
+                    className="w-full rounded-lg border border-white/15 bg-[#2a2b2f] px-3 py-2 text-sm text-white focus:border-[#659bff] focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={handleAddAnnouncement}
                     disabled={isFeedSaving}
-                    className="inline-flex rounded-lg bg-[#3359CB] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2A49A8] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex rounded-lg bg-[#3f73ff] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2f62eb] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isFeedSaving ? 'Сохранение...' : 'Опубликовать объявление'}
+                    {isFeedSaving ? 'Сохранение...' : 'Опубликовать'}
                   </button>
                 </div>
-              )}
-            </article>
-
-            <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-base font-semibold text-[#2C3E50]">События</h3>
-                <button
-                  type="button"
-                  onClick={openEventsCalendar}
-                  className="inline-flex rounded-lg border border-[#C5D6EE] bg-[#F4F8FF] px-3 py-1.5 text-xs font-semibold text-[#3359CB] transition hover:bg-[#E9F1FF]"
-                >
-                  Открыть календарь
-                </button>
-              </div>
-              {feedLoading ? (
-                <p className="mt-2 text-sm text-[#667788]">Загрузка событий...</p>
-              ) : events.length === 0 ? (
-                <p className="mt-2 rounded-lg bg-[#F8FAFD] px-3 py-2 text-sm text-[#5E6D7A]">
-                  Пока нет событий. Администратор может добавить их в этом блоке.
-                </p>
-              ) : (
-                <div className="mt-2 space-y-2">
-                  {events.map((event) => (
-                    <div key={event.id} className="rounded-lg bg-[#F8FAFD] px-3 py-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">{event.dateLabel}</p>
-                      <p className="mt-1 text-sm text-[#5E6D7A]">{event.text}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {isAdmin && (
-                <div className="mt-3 space-y-2 rounded-lg border border-[#DFE7F3] bg-[#FAFCFF] p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">Добавить событие</p>
+                <div className="space-y-2 rounded-xl border border-white/15 bg-[#1f2024] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#7bb1ff]">Добавить событие</p>
                   <input
                     type="date"
                     value={eventDateDraft}
                     onChange={(event) => setEventDateDraft(event.target.value)}
-                    maxLength={80}
-                    className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
+                    className="w-full rounded-lg border border-white/15 bg-[#2a2b2f] px-3 py-2 text-sm text-white focus:border-[#659bff] focus:outline-none"
                   />
                   <textarea
                     value={eventTextDraft}
                     onChange={(event) => setEventTextDraft(event.target.value)}
-                    rows={3}
+                    rows={2}
                     maxLength={400}
                     placeholder="Описание события..."
-                    className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
+                    className="w-full rounded-lg border border-white/15 bg-[#2a2b2f] px-3 py-2 text-sm text-white focus:border-[#659bff] focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={handleAddEvent}
                     disabled={isFeedSaving}
-                    className="inline-flex rounded-lg bg-[#3359CB] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2A49A8] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex rounded-lg bg-[#3f73ff] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2f62eb] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isFeedSaving ? 'Сохранение...' : 'Опубликовать событие'}
+                    {isFeedSaving ? 'Сохранение...' : 'Опубликовать'}
                   </button>
                 </div>
-              )}
-            </article>
-
-            <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
-              <h3 className="text-base font-semibold text-[#2C3E50]">Обратная связь</h3>
-              <p className="mt-2 text-sm text-[#5E6D7A]">
-                Есть идея по улучшению платформы или замечание по учебному процессу? Напишите нам.
-              </p>
-              <button
-                type="button"
-                onClick={() => setIsFeedbackOpen(true)}
-                className="mt-3 inline-flex rounded-lg bg-[#0E9F8E] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#0A8A7A]"
-              >
-                Открыть форму обратной связи
-              </button>
-            </article>
-          </div>
-
-          <BaseModal
-            isOpen={isEventsCalendarOpen}
-            onClose={() => setIsEventsCalendarOpen(false)}
-            title="Календарь событий"
-            maxWidth="2xl"
-            footer={<ModalCancelButton onClick={() => setIsEventsCalendarOpen(false)}>Закрыть</ModalCancelButton>}
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-xl border border-[#DDE5EE] bg-[#F8FAFD] px-3 py-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCalendarCursor(
-                      new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() - 1, 1)
-                    )
-                  }
-                  className="rounded-lg border border-[#C9D6E6] bg-white px-3 py-1 text-sm font-semibold text-[#3359CB] transition hover:bg-[#F0F5FF]"
-                >
-                  ←
-                </button>
-                <p className="text-sm font-bold capitalize text-[#2C3E50]">{calendarMonthLabel}</p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCalendarCursor(
-                      new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 1)
-                    )
-                  }
-                  className="rounded-lg border border-[#C9D6E6] bg-white px-3 py-1 text-sm font-semibold text-[#3359CB] transition hover:bg-[#F0F5FF]"
-                >
-                  →
-                </button>
               </div>
+            ) : null}
+          </section>
 
-              <div className="grid grid-cols-7 gap-1">
-                {WEEKDAY_LABELS.map((label) => (
-                  <div key={label} className="px-1 py-1 text-center text-xs font-semibold uppercase text-[#6B7A8D]">
-                    {label}
-                  </div>
-                ))}
-                {calendarCells.map((cell, index) => {
-                  if (!cell) {
-                    return <div key={`empty-${index}`} className="h-10 rounded-md bg-transparent" />;
-                  }
-
-                  const isSelected = selectedCalendarDateKey === cell.dateKey;
-                  const hasEvents = calendarEventsByDate.has(cell.dateKey);
-                  return (
-                    <button
-                      key={cell.dateKey}
-                      type="button"
-                      onClick={() => setSelectedCalendarDateKey(cell.dateKey)}
-                      className={cn(
-                        'relative h-10 rounded-md border text-sm transition',
-                        isSelected
-                          ? 'border-[#3359CB] bg-[#3359CB] text-white'
-                          : hasEvents
-                          ? 'border-[#9EB7D9] bg-[#EEF4FF] text-[#244A8F] hover:bg-[#E3EEFF]'
-                          : 'border-[#E5EBF3] bg-white text-[#465A75] hover:bg-[#F8FAFD]'
-                      )}
-                    >
-                      {cell.day}
-                      {hasEvents && !isSelected ? (
-                        <span className="absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#3359CB]" />
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="rounded-xl border border-[#DDE5EE] bg-[#FAFCFF] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">
-                  {selectedCalendarDateKey
-                    ? `События на ${formatDateKey(selectedCalendarDateKey)}`
-                    : 'Выберите дату в календаре'}
-                </p>
-                {selectedDayEvents.length ? (
-                  <ul className="mt-2 space-y-2">
-                    {selectedDayEvents.map((event) => (
-                      <li key={event.id} className="rounded-lg bg-white px-3 py-2 text-sm text-[#44566F]">
-                        <p className="font-semibold text-[#2C3E50]">{event.dateLabel}</p>
-                        <p className="mt-1">{event.text}</p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-sm text-[#6B7A8D]">На выбранную дату событий пока нет.</p>
-                )}
-              </div>
-
-              {undatedCalendarEvents.length ? (
-                <div className="rounded-xl border border-[#E7EEF8] bg-[#F7FAFF] p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#5F6F87]">
-                    События без точной даты
-                  </p>
-                  <ul className="mt-2 space-y-2">
-                    {undatedCalendarEvents.map((event) => (
-                      <li key={event.id} className="rounded-lg bg-white px-3 py-2 text-sm text-[#556880]">
-                        <p className="font-semibold text-[#2C3E50]">{event.dateLabel}</p>
-                        <p className="mt-1">{event.text}</p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+          <section className="rounded-2xl border border-white/15 bg-[#2a2b2f] p-4 text-white/95">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-2xl font-bold">Каталог платформы</h3>
+              <span className="text-sm font-semibold text-[#52a6ff]">Смотреть всё →</span>
             </div>
-          </BaseModal>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              {placeholderCatalog.map((course) => (
+                <div key={course.title} className="rounded-xl border border-white/20 bg-[#32343a] p-4">
+                  <p className="text-2xl">{course.icon}</p>
+                  <p className="mt-2 text-xl font-semibold text-white">{course.title}</p>
+                  <p className="text-sm text-white/75">{course.lessons}</p>
+                  <span className="mt-2 inline-flex rounded-full border border-white/20 px-2.5 py-1 text-xs font-semibold text-white/85">
+                    Скоро
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
 
           {(feedError || feedActionError) && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -971,8 +727,6 @@ export function HomePage() {
           .map((section) => renderSection(section))}
         {nonHeroSections.map((section) => renderSection(section))}
       </div>
-
-      <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
     </Motion.div>
   );
 }
