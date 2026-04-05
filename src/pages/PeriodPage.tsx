@@ -26,6 +26,9 @@ interface PeriodRouteConfig {
   themeKey?: string;
   placeholderText?: string;
   placeholderDefaultEnabled?: boolean;
+  startCoursePath?: string;
+  startCourseLabel?: string;
+  startCourseDescription?: string;
   meta?: RouteMeta;
 }
 
@@ -71,12 +74,40 @@ const INTRO_OVERVIEWS: Record<string, IntroOverview> = {
     examNote:
       'Итоговая аттестация проходит через тесты по темам и итоговые проверочные задания курса.',
   },
+  'dynamic-intro': {
+    title: 'Как устроен курс',
+    summary:
+      'Это вводная страница курса: здесь собрана общая логика обучения, структура тем и ключевые инструменты.',
+    examNote:
+      'Итоговая аттестация и проверка прогресса доступны через тесты и практические задания курса.',
+  },
 };
 
-const INTRO_PAGE_HEADING_BY_PERIOD_ID: Record<string, string> = {
-  'development-intro': 'Психология развития',
-  'clinical-intro': 'Основы патопсихологии взрослого и детского возрастов',
-  'general-intro': 'Введение в основы клинической психологии',
+const INTRO_PAGE_HEADING_BY_PATH: Record<string, string> = {
+  '/development/intro': 'Психология развития',
+  '/clinical/intro': 'Основы патопсихологии взрослого и детского возрастов',
+  '/general/intro': 'Введение в основы клинической психологии',
+};
+
+const DEFAULT_START_CTA_BY_PATH: Record<string, { path: string; title: string; description: string; buttonLabel: string }> = {
+  '/development/intro': {
+    path: '/intro',
+    title: 'Начните с вводной лекции',
+    description: 'Откройте первое занятие и получите ключевые ориентиры по курсу.',
+    buttonLabel: 'СТАРТ КУРСА',
+  },
+  '/clinical/intro': {
+    path: '/clinical/1',
+    title: 'Начните с первой темы курса',
+    description: 'Перейдите к базовой теме и начните практическую работу по курсу.',
+    buttonLabel: 'СТАРТ КУРСА',
+  },
+  '/general/intro': {
+    path: '/general/1',
+    title: 'Начните с первой темы курса',
+    description: 'Откройте стартовую тему и переходите к следующим занятиям по курсу.',
+    buttonLabel: 'СТАРТ КУРСА',
+  },
 };
 
 export interface PeriodPageProps {
@@ -154,7 +185,7 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const themeKey = config.themeKey ?? config.periodId;
   usePeriodTheme(themeKey);
   const heading =
-    (config.periodId && INTRO_PAGE_HEADING_BY_PERIOD_ID[config.periodId]) ||
+    INTRO_PAGE_HEADING_BY_PATH[config.path] ||
     period?.label ||
     config.navLabel;
   const { tests: periodTests } = usePeriodTests(config.periodId);
@@ -228,11 +259,33 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const backgroundClass = backgroundImage ? 'bg-repeat bg-[length:180px]' : '';
   const backgroundStyle = backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined;
   const studyLaunch = getStudyLaunchParams(location.search);
-  const showDisorderTableCta = config.periodId === 'clinical-intro';
-  const showTimelineCta = config.periodId === 'development-intro';
-  const showGeneralCourseStartCta = config.periodId === 'general-intro';
-  const showDevelopmentCourseStartCta = config.periodId === 'development-intro';
-  const introOverview = config.periodId ? INTRO_OVERVIEWS[config.periodId] : null;
+  const isDevelopmentCourseIntro = config.path === '/development/intro';
+  const isClinicalCourseIntro = config.path === '/clinical/intro';
+  const isGeneralCourseIntro = config.path === '/general/intro';
+  const isDynamicCourseIntro = config.periodId === 'dynamic-intro';
+  const showDisorderTableCta = isClinicalCourseIntro;
+  const showTimelineCta = isDevelopmentCourseIntro;
+  const introOverview = isDevelopmentCourseIntro
+    ? INTRO_OVERVIEWS['development-intro']
+    : isClinicalCourseIntro
+    ? INTRO_OVERVIEWS['clinical-intro']
+    : isGeneralCourseIntro
+    ? INTRO_OVERVIEWS['general-intro']
+    : isDynamicCourseIntro
+    ? INTRO_OVERVIEWS['dynamic-intro']
+    : null;
+
+  const fallbackStartCourseCta = DEFAULT_START_CTA_BY_PATH[config.path];
+  const startCoursePath = config.startCoursePath ?? fallbackStartCourseCta?.path ?? null;
+  const startCourseTitle = config.startCourseLabel ?? fallbackStartCourseCta?.title ?? 'Начните обучение по курсу';
+  const startCourseDescription =
+    config.startCourseDescription ??
+    fallbackStartCourseCta?.description ??
+    'Откройте первое занятие и двигайтесь по программе последовательно.';
+  const startCourseButtonLabel = fallbackStartCourseCta?.buttonLabel ?? 'СТАРТ КУРСА';
+  const showStartCourseCta =
+    Boolean(startCoursePath) &&
+    (isDevelopmentCourseIntro || isClinicalCourseIntro || isGeneralCourseIntro || isDynamicCourseIntro);
 
   return (
     <Motion.div
@@ -261,22 +314,22 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
           </section>
         ) : null}
         {showDisorderTableCta ? (
-          <div className="max-w-3xl rounded-2xl border border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 p-4 sm:p-5">
+          <div className="max-w-4xl rounded-3xl border border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 p-6 sm:p-7">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold uppercase tracking-wide text-rose-700">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-rose-700">
                   Практика курса
                 </p>
-                <p className="text-base font-semibold text-slate-900">
+                <p className="text-xl font-bold text-slate-900 sm:text-2xl">
                   Перейти в «Таблицу по расстройствам»
                 </p>
-                <p className="text-sm text-slate-600">
+                <p className="text-base text-slate-700">
                   Заполняйте и редактируйте ваши наблюдения по пересечениям симптомов и расстройств.
                 </p>
               </div>
               <Link
                 to="/disorder-table"
-                className="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700"
+                className="inline-flex items-center justify-center rounded-2xl bg-rose-600 px-6 py-3 text-base font-bold text-white transition hover:bg-rose-700"
               >
                 Открыть таблицу
               </Link>
@@ -284,70 +337,47 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
           </div>
         ) : null}
         {showTimelineCta ? (
-          <div className="max-w-3xl rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 sm:p-5">
+          <div className="max-w-4xl rounded-3xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-6 sm:p-7">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
                   Практика курса
                 </p>
-                <p className="text-base font-semibold text-slate-900">
+                <p className="text-xl font-bold text-slate-900 sm:text-2xl">
                   Откройте «Таймлайн жизни»
                 </p>
-                <p className="text-sm text-slate-600">
+                <p className="text-base text-slate-700">
                   Заполняйте личный таймлайн, связывайте события жизни с этапами развития и отслеживайте динамику.
                 </p>
               </div>
               <Link
                 to="/timeline"
-                className="inline-flex items-center justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700"
+                className="inline-flex items-center justify-center rounded-2xl bg-amber-600 px-6 py-3 text-base font-bold text-white transition hover:bg-amber-700"
               >
                 Открыть таймлайн
               </Link>
             </div>
           </div>
         ) : null}
-        {showDevelopmentCourseStartCta ? (
-          <div className="max-w-3xl rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4 sm:p-5">
+        {showStartCourseCta && startCoursePath ? (
+          <div className="max-w-4xl rounded-3xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-blue-50 to-cyan-50 p-6 sm:p-7">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-700">
                   Старт курса
                 </p>
-                <p className="text-base font-semibold text-slate-900">
-                  Перейти к вводной лекции
+                <p className="text-xl font-bold text-slate-900 sm:text-2xl">
+                  {startCourseTitle}
                 </p>
-                <p className="text-sm text-slate-600">
-                  Начните изучение курса с вводного занятия и ключевых ориентиров по дальнейшим темам.
+                <p className="text-base text-slate-700">
+                  {startCourseDescription}
                 </p>
               </div>
               <Link
-                to="/intro"
-                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                to={startCoursePath}
+                className="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-8 py-3 text-base font-black uppercase tracking-wide text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-xl"
               >
-                Открыть вводную лекцию
-              </Link>
-            </div>
-          </div>
-        ) : null}
-        {showGeneralCourseStartCta ? (
-          <div className="max-w-3xl rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 p-4 sm:p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
-                  Старт курса
-                </p>
-                <p className="text-base font-semibold text-slate-900">
-                  Перейти к первой теме курса
-                </p>
-                <p className="text-sm text-slate-600">
-                  Начните изучение общей психологии с темы «История психологии и методы».
-                </p>
-              </div>
-              <Link
-                to="/general/1"
-                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-              >
-                Перейти к теме 1
+                {startCourseButtonLabel}
               </Link>
             </div>
           </div>

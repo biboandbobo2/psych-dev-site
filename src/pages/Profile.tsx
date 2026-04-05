@@ -441,20 +441,7 @@ export default function Profile() {
   const resolveCourseStartPath = useCallback(async (course: CourseOption) => {
     const corePath = getCoreCourseStartPath(course.id);
     if (corePath) return corePath;
-
-    const lessonsRef = getCourseLessonsCollectionRef(course.id);
-    const snapshot = await getDocs(query(lessonsRef, orderBy('order', 'asc')));
-    const firstLessonDoc = snapshot.docs.find((docSnap) => docSnap.data().published !== false);
-    if (!firstLessonDoc) {
-      return `/profile?course=${encodeURIComponent(course.id as CourseType)}`;
-    }
-
-    const lessonData = firstLessonDoc.data() as Record<string, unknown>;
-    const lessonId = typeof lessonData.period === 'string' && lessonData.period.trim()
-      ? lessonData.period.trim()
-      : firstLessonDoc.id;
-
-    return `/course/${encodeURIComponent(course.id)}/${encodeURIComponent(lessonId)}`;
+    return `/course/${encodeURIComponent(course.id)}/intro`;
   }, []);
 
   const handleOpenCourse = useCallback(async (course: CourseOption) => {

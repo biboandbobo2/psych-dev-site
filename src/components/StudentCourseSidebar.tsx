@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { getDocs, orderBy, query } from 'firebase/firestore';
 import { cn } from '../lib/cn';
 import { useCourses } from '../hooks/useCourses';
 import { useCourseStore } from '../stores';
@@ -9,11 +8,6 @@ import type { CourseType } from '../types/tests';
 import { prefetchDynamicCourseLessons } from '../hooks/useDynamicCourseLessons';
 import { isCoreCourse } from '../constants/courses';
 import { debugWarn } from '../lib/debug';
-import {
-  getCourseLessonsCollectionRef,
-  mapCanonicalCourseLessons,
-  sortCourseLessonItems,
-} from '../lib/courseLessons';
 import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG } from '../routes';
 import { Skeleton } from './ui/Skeleton';
 
@@ -68,19 +62,7 @@ export default function StudentCourseSidebar({
     if (coreStartPath) {
       return coreStartPath;
     }
-
-    const lessonsRef = getCourseLessonsCollectionRef(courseId);
-    const snapshot = await getDocs(query(lessonsRef, orderBy('order', 'asc')));
-    const canonicalLessons = mapCanonicalCourseLessons(courseId, snapshot.docs)
-      .filter((lesson) => lesson.published !== false);
-    const sortedLessons = sortCourseLessonItems(courseId, canonicalLessons);
-    if (!sortedLessons.length) {
-      return null;
-    }
-
-    const introLesson = sortedLessons.find((lesson) => lesson.period === 'intro');
-    const targetLesson = introLesson ?? sortedLessons[0];
-    return `/course/${encodeURIComponent(courseId)}/${encodeURIComponent(targetLesson.period)}`;
+    return `/course/${encodeURIComponent(courseId)}/intro`;
   };
 
   const handleCourseSelect = async (courseId: string) => {

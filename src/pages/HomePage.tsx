@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion as Motion } from 'framer-motion';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { getDocs, orderBy, query } from 'firebase/firestore';
 import { pageTransition } from '../theme/motion';
 import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG, SITE_NAME } from '../routes';
 import { cn } from '../lib/cn';
@@ -13,7 +12,6 @@ import { useCourseStore } from '../stores';
 import { useAuth } from '../auth/AuthProvider';
 import { FeedbackModal } from '../components/FeedbackModal';
 import { getLastCourseLesson } from '../lib/lastCourseLesson';
-import { getCourseLessonsCollectionRef } from '../lib/courseLessons';
 import { PageLoader } from '../components/ui';
 import type { CourseType } from '../types/tests';
 import type {
@@ -138,21 +136,7 @@ export function HomePage() {
     if (coreStartPath) {
       return coreStartPath;
     }
-
-    const lessonsRef = getCourseLessonsCollectionRef(courseId);
-    const lessonsSnapshot = await getDocs(query(lessonsRef, orderBy('order', 'asc')));
-    const publishedLessons = lessonsSnapshot.docs.filter((docSnap) => docSnap.data()?.published !== false);
-    if (!publishedLessons.length) {
-      return null;
-    }
-    const introLesson =
-      publishedLessons.find((docSnap) => docSnap.id === 'intro') ??
-      publishedLessons.find((docSnap) => {
-        const period = docSnap.data()?.period;
-        return typeof period === 'string' && period.trim() === 'intro';
-      });
-    const targetLesson = introLesson ?? publishedLessons[0];
-    return `/course/${encodeURIComponent(courseId)}/${encodeURIComponent(targetLesson.id)}`;
+    return `/course/${encodeURIComponent(courseId)}/intro`;
   };
 
   const handleOpenSubject = async (courseId: string) => {
