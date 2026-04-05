@@ -197,22 +197,6 @@ export function HomePage() {
   });
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
 
-  if (loading) {
-    return <PageLoader />;
-  }
-
-  if (error || !content) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <p className="text-red-700 mb-2">Ошибка загрузки страницы</p>
-          {error && <p className="text-sm text-muted">{error.message}</p>}
-        </div>
-      </div>
-    );
-  }
-
-  // Маркетинговый лендинг временно скрыт: на странице Дом оставляем только учебный дашборд.
   const activeSections: HomePageSection[] = [];
   const currentCourseName = courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс';
   const fallbackPrimaryLesson = resolvePrimaryLesson(currentCourse);
@@ -266,6 +250,21 @@ export function HomePage() {
     () => parsedCalendarEvents.filter((event) => !event.dateKey),
     [parsedCalendarEvents]
   );
+
+  if (loading) {
+    return <PageLoader />;
+  }
+
+  if (error || !content) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-red-700 mb-2">Ошибка загрузки страницы</p>
+          {error && <p className="text-sm text-muted">{error.message}</p>}
+        </div>
+      </div>
+    );
+  }
 
   const resolveSubjectPath = async (courseId: string): Promise<string | null> => {
     const coreStartPath = getCoreCourseStartPath(courseId);
