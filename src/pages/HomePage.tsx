@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion as Motion } from 'framer-motion';
 import { NavLink, useNavigate } from 'react-router-dom';
@@ -13,6 +13,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { FeedbackModal } from '../components/FeedbackModal';
 import { getLastCourseLesson } from '../lib/lastCourseLesson';
 import { PageLoader } from '../components/ui';
+import { BaseModal, ModalCancelButton } from '../components/ui/BaseModal';
 import type { CourseType } from '../types/tests';
 import type {
   HomePageSection,
@@ -72,6 +73,101 @@ function getCoreCourseStartPath(courseId: string): string | null {
   return null;
 }
 
+const RU_MONTH_INDEX: Record<string, number> = {
+  январ: 0,
+  феврал: 1,
+  март: 2,
+  апрел: 3,
+  ма: 4,
+  июн: 5,
+  июл: 6,
+  август: 7,
+  сентябр: 8,
+  октябр: 9,
+  ноябр: 10,
+  декабр: 11,
+};
+
+const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+type ParsedCalendarEvent = {
+  id: string;
+  text: string;
+  dateLabel: string;
+  dateKey: string | null;
+  parsedDate: Date | null;
+};
+
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+function toDateKey(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function formatDateKey(dateKey: string): string {
+  const [yearRaw, monthRaw, dayRaw] = dateKey.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  if (!year || !month || !day) return dateKey;
+  return new Date(year, month - 1, day).toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function tryParseDateLabel(dateLabel: string): Date | null {
+  const normalized = dateLabel.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]) - 1;
+    const day = Number(isoMatch[3]);
+    return new Date(year, month, day);
+  }
+
+  const dotMatch = normalized.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  if (dotMatch) {
+    const day = Number(dotMatch[1]);
+    const month = Number(dotMatch[2]) - 1;
+    const year = Number(dotMatch[3]);
+    return new Date(year, month, day);
+  }
+
+  const dayMonthYear = normalized.match(/^(\d{1,2})\s+([а-яёa-z]+)\s+(\d{4})$/i);
+  if (dayMonthYear) {
+    const day = Number(dayMonthYear[1]);
+    const monthWord = dayMonthYear[2];
+    const year = Number(dayMonthYear[3]);
+    const month = Object.entries(RU_MONTH_INDEX).find(([prefix]) => monthWord.startsWith(prefix))?.[1];
+    if (month !== undefined) {
+      return new Date(year, month, day);
+    }
+  }
+
+  const monthYear = normalized.match(/^([а-яёa-z]+)\s+(\d{4})$/i);
+  if (monthYear) {
+    const monthWord = monthYear[1];
+    const year = Number(monthYear[2]);
+    const month = Object.entries(RU_MONTH_INDEX).find(([prefix]) => monthWord.startsWith(prefix))?.[1];
+    if (month !== undefined) {
+      return new Date(year, month, 1);
+    }
+  }
+
+  const parsedNative = new Date(dateLabel);
+  if (!Number.isNaN(parsedNative.getTime())) {
+    return new Date(parsedNative.getFullYear(), parsedNative.getMonth(), parsedNative.getDate());
+  }
+
+  return null;
+}
+
 export function HomePage() {
   const { user, isAdmin } = useAuth();
   const { currentCourse, setCurrentCourse } = useCourseStore();
@@ -94,6 +190,12 @@ export function HomePage() {
   const [feedActionError, setFeedActionError] = useState<string | null>(null);
   const [openingCourseId, setOpeningCourseId] = useState<string | null>(null);
   const [courseOpenError, setCourseOpenError] = useState<string | null>(null);
+  const [isEventsCalendarOpen, setIsEventsCalendarOpen] = useState(false);
+  const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
 
   if (loading) {
     return <PageLoader />;
@@ -130,6 +232,40 @@ export function HomePage() {
   const subjects = featuredSubjects.length >= 4
     ? featuredSubjects
     : [...featuredSubjects, ...fallbackSubjects.filter((item) => !featuredSubjects.some((course) => course.id === item.id))].slice(0, 4);
+
+  const parsedCalendarEvents = useMemo<ParsedCalendarEvent[]>(
+    () =>
+      events.map((event) => {
+        const parsedDate = tryParseDateLabel(event.dateLabel) ?? null;
+        return {
+          id: event.id,
+          text: event.text,
+          dateLabel: event.dateLabel,
+          parsedDate,
+          dateKey: parsedDate ? toDateKey(parsedDate) : null,
+        };
+      }),
+    [events]
+  );
+
+  const calendarEventsByDate = useMemo(() => {
+    const map = new Map<string, ParsedCalendarEvent[]>();
+    parsedCalendarEvents.forEach((event) => {
+      if (!event.dateKey) return;
+      const current = map.get(event.dateKey);
+      if (current) {
+        current.push(event);
+      } else {
+        map.set(event.dateKey, [event]);
+      }
+    });
+    return map;
+  }, [parsedCalendarEvents]);
+
+  const undatedCalendarEvents = useMemo(
+    () => parsedCalendarEvents.filter((event) => !event.dateKey),
+    [parsedCalendarEvents]
+  );
 
   const resolveSubjectPath = async (courseId: string): Promise<string | null> => {
     const coreStartPath = getCoreCourseStartPath(courseId);
@@ -191,6 +327,21 @@ export function HomePage() {
     } finally {
       setIsFeedSaving(false);
     }
+  };
+
+  const openEventsCalendar = () => {
+    const firstDatedEvent = parsedCalendarEvents.find((event) => event.parsedDate);
+    if (firstDatedEvent?.parsedDate) {
+      setCalendarCursor(
+        new Date(firstDatedEvent.parsedDate.getFullYear(), firstDatedEvent.parsedDate.getMonth(), 1)
+      );
+      if (!selectedCalendarDateKey) {
+        setSelectedCalendarDateKey(firstDatedEvent.dateKey);
+      }
+    } else if (!selectedCalendarDateKey) {
+      setSelectedCalendarDateKey(toDateKey(new Date()));
+    }
+    setIsEventsCalendarOpen(true);
   };
 
   // Helper function to render each section based on type
@@ -475,6 +626,25 @@ export function HomePage() {
   }
 
   function renderHomeMvpDashboard() {
+    const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
+    const firstWeekday = (monthStart.getDay() + 6) % 7;
+    const daysInMonth = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 0).getDate();
+    const calendarCells: Array<{ day: number; dateKey: string } | null> = [
+      ...Array.from({ length: firstWeekday }, () => null),
+      ...Array.from({ length: daysInMonth }, (_, index) => {
+        const day = index + 1;
+        const date = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), day);
+        return { day, dateKey: toDateKey(date) };
+      }),
+    ];
+    const selectedDayEvents = selectedCalendarDateKey
+      ? calendarEventsByDate.get(selectedCalendarDateKey) ?? []
+      : [];
+    const calendarMonthLabel = calendarCursor.toLocaleDateString('ru-RU', {
+      month: 'long',
+      year: 'numeric',
+    });
+
     return (
       <section className="py-8 sm:py-10">
         <div className="space-y-4">
@@ -548,7 +718,7 @@ export function HomePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="space-y-4">
             <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
               <h3 className="text-base font-semibold text-[#2C3E50]">Объявления</h3>
               {feedLoading ? (
@@ -590,7 +760,16 @@ export function HomePage() {
             </article>
 
             <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
-              <h3 className="text-base font-semibold text-[#2C3E50]">События</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-base font-semibold text-[#2C3E50]">События</h3>
+                <button
+                  type="button"
+                  onClick={openEventsCalendar}
+                  className="inline-flex rounded-lg border border-[#C5D6EE] bg-[#F4F8FF] px-3 py-1.5 text-xs font-semibold text-[#3359CB] transition hover:bg-[#E9F1FF]"
+                >
+                  Открыть календарь
+                </button>
+              </div>
               {feedLoading ? (
                 <p className="mt-2 text-sm text-[#667788]">Загрузка событий...</p>
               ) : events.length === 0 ? (
@@ -611,11 +790,10 @@ export function HomePage() {
                 <div className="mt-3 space-y-2 rounded-lg border border-[#DFE7F3] bg-[#FAFCFF] p-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">Добавить событие</p>
                   <input
-                    type="text"
+                    type="date"
                     value={eventDateDraft}
                     onChange={(event) => setEventDateDraft(event.target.value)}
                     maxLength={80}
-                    placeholder="Период, например: Май 2026"
                     className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
                   />
                   <textarea
@@ -638,7 +816,7 @@ export function HomePage() {
               )}
             </article>
 
-            <article className="rounded-xl border border-[#DDE5EE] bg-white p-4 lg:col-span-2">
+            <article className="rounded-xl border border-[#DDE5EE] bg-white p-4">
               <h3 className="text-base font-semibold text-[#2C3E50]">Обратная связь</h3>
               <p className="mt-2 text-sm text-[#5E6D7A]">
                 Есть идея по улучшению платформы или замечание по учебному процессу? Напишите нам.
@@ -652,6 +830,114 @@ export function HomePage() {
               </button>
             </article>
           </div>
+
+          <BaseModal
+            isOpen={isEventsCalendarOpen}
+            onClose={() => setIsEventsCalendarOpen(false)}
+            title="Календарь событий"
+            maxWidth="2xl"
+            footer={<ModalCancelButton onClick={() => setIsEventsCalendarOpen(false)}>Закрыть</ModalCancelButton>}
+          >
+            <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl border border-[#DDE5EE] bg-[#F8FAFD] px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCalendarCursor(
+                      new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() - 1, 1)
+                    )
+                  }
+                  className="rounded-lg border border-[#C9D6E6] bg-white px-3 py-1 text-sm font-semibold text-[#3359CB] transition hover:bg-[#F0F5FF]"
+                >
+                  ←
+                </button>
+                <p className="text-sm font-bold capitalize text-[#2C3E50]">{calendarMonthLabel}</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCalendarCursor(
+                      new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 1)
+                    )
+                  }
+                  className="rounded-lg border border-[#C9D6E6] bg-white px-3 py-1 text-sm font-semibold text-[#3359CB] transition hover:bg-[#F0F5FF]"
+                >
+                  →
+                </button>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1">
+                {WEEKDAY_LABELS.map((label) => (
+                  <div key={label} className="px-1 py-1 text-center text-xs font-semibold uppercase text-[#6B7A8D]">
+                    {label}
+                  </div>
+                ))}
+                {calendarCells.map((cell, index) => {
+                  if (!cell) {
+                    return <div key={`empty-${index}`} className="h-10 rounded-md bg-transparent" />;
+                  }
+
+                  const isSelected = selectedCalendarDateKey === cell.dateKey;
+                  const hasEvents = calendarEventsByDate.has(cell.dateKey);
+                  return (
+                    <button
+                      key={cell.dateKey}
+                      type="button"
+                      onClick={() => setSelectedCalendarDateKey(cell.dateKey)}
+                      className={cn(
+                        'relative h-10 rounded-md border text-sm transition',
+                        isSelected
+                          ? 'border-[#3359CB] bg-[#3359CB] text-white'
+                          : hasEvents
+                          ? 'border-[#9EB7D9] bg-[#EEF4FF] text-[#244A8F] hover:bg-[#E3EEFF]'
+                          : 'border-[#E5EBF3] bg-white text-[#465A75] hover:bg-[#F8FAFD]'
+                      )}
+                    >
+                      {cell.day}
+                      {hasEvents && !isSelected ? (
+                        <span className="absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#3359CB]" />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="rounded-xl border border-[#DDE5EE] bg-[#FAFCFF] p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">
+                  {selectedCalendarDateKey
+                    ? `События на ${formatDateKey(selectedCalendarDateKey)}`
+                    : 'Выберите дату в календаре'}
+                </p>
+                {selectedDayEvents.length ? (
+                  <ul className="mt-2 space-y-2">
+                    {selectedDayEvents.map((event) => (
+                      <li key={event.id} className="rounded-lg bg-white px-3 py-2 text-sm text-[#44566F]">
+                        <p className="font-semibold text-[#2C3E50]">{event.dateLabel}</p>
+                        <p className="mt-1">{event.text}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-[#6B7A8D]">На выбранную дату событий пока нет.</p>
+                )}
+              </div>
+
+              {undatedCalendarEvents.length ? (
+                <div className="rounded-xl border border-[#E7EEF8] bg-[#F7FAFF] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#5F6F87]">
+                    События без точной даты
+                  </p>
+                  <ul className="mt-2 space-y-2">
+                    {undatedCalendarEvents.map((event) => (
+                      <li key={event.id} className="rounded-lg bg-white px-3 py-2 text-sm text-[#556880]">
+                        <p className="font-semibold text-[#2C3E50]">{event.dateLabel}</p>
+                        <p className="mt-1">{event.text}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          </BaseModal>
 
           {(feedError || feedActionError) && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
