@@ -9,8 +9,8 @@ import { VideoStudyOverlay } from './VideoStudyOverlay';
 import {
   isLessonWatched,
   markLessonWatched,
-  unmarkLessonWatched,
 } from '../../../lib/courseWatchedLessons';
+import { StudyVideoPlayer } from './StudyVideoPlayer';
 
 interface VideoSectionProps {
   slug: string;
@@ -158,16 +158,13 @@ function VideoSectionCard({
     setIsWatched(isLessonWatched(courseId, periodId as string));
   }, [canTrackWatched, courseId, periodId]);
 
-  const handleToggleWatched = () => {
+  const handleWatchThresholdReached = () => {
     if (!canTrackWatched) return;
-
     const lessonId = periodId as string;
-    if (isWatched) {
-      unmarkLessonWatched(courseId, lessonId);
-      setIsWatched(false);
+    if (isLessonWatched(courseId, lessonId)) {
+      setIsWatched(true);
       return;
     }
-
     markLessonWatched(courseId, lessonId);
     setIsWatched(true);
   };
@@ -218,14 +215,14 @@ function VideoSectionCard({
       </div>
 
       <div className="space-y-4">
-        <iframe
-          title={effectiveVideoTitle}
-          src={embedUrl}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          className="aspect-video w-full rounded-2xl border border-border shadow-brand"
-        />
+        <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border shadow-brand">
+          <StudyVideoPlayer
+            title={effectiveVideoTitle}
+            embedUrl={embedUrl}
+            onWatchThresholdReached={handleWatchThresholdReached}
+            watchThreshold={0.95}
+          />
+        </div>
         <VideoResourceLinks
           audioUrl={audioUrl}
           deckUrl={deckUrl}
@@ -238,19 +235,17 @@ function VideoSectionCard({
           sourceLinkClassName="text-accent no-underline hover:no-underline focus-visible:no-underline"
         />
         {canTrackWatched ? (
-          <button
-            type="button"
-            onClick={handleToggleWatched}
+          <div
             className={cn(
-              'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition',
+              'inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold',
               isWatched
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-slate-200 bg-slate-50 text-slate-600'
             )}
           >
             <span aria-hidden="true">{isWatched ? '✓' : '○'}</span>
-            <span>{isWatched ? 'Просмотрено (снять отметку)' : 'Отметить как просмотрено'}</span>
-          </button>
+            <span>{isWatched ? 'Просмотрено автоматически' : 'Прогресс засчитается после просмотра почти до конца'}</span>
+          </div>
         ) : null}
       </div>
 
