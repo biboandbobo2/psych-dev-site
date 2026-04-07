@@ -23,6 +23,50 @@ interface LessonNavItem {
   published: boolean;
 }
 
+const EMOJI_OPTIONS = [
+  '📚', '🧠', '👶', '🎓', '💡', '🔬', '📖', '✏️', '🎯', '💊',
+  '🧪', '🏥', '❤️', '🌱', '👥', '🗣️', '🧩', '🎭', '📝', '🔍',
+  '🌟', '📊', '🧬', '🫀', '👁️', '🤝', '🎨', '🏆', '⚡', '🌈',
+  '🧘', '💬', '📌', '🛡️', '🦋', '🌍', '🎪', '📐', '🔑', '🪞',
+];
+
+function EmojiPickerDropdown({
+  onSelect,
+  onClose,
+}: {
+  onSelect: (emoji: string) => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-emoji-picker]')) onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  return (
+    <div
+      data-emoji-picker
+      className="absolute left-0 top-11 z-50 w-56 rounded-xl border border-border/60 bg-white p-2 shadow-lg"
+    >
+      <div className="grid grid-cols-8 gap-1">
+        {EMOJI_OPTIONS.map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            onClick={() => onSelect(emoji)}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-base hover:bg-accent-100 transition"
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminCourseSidebar() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -32,8 +76,10 @@ export default function AdminCourseSidebar() {
   const [showCreateCourse, setShowCreateCourse] = useState(false);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [editingCourseName, setEditingCourseName] = useState('');
+  const [editingCourseIcon, setEditingCourseIcon] = useState('');
   const [renamingCourseId, setRenamingCourseId] = useState<string | null>(null);
   const [renameError, setRenameError] = useState<string | null>(null);
+  const [showIconPicker, setShowIconPicker] = useState(false);
   const [lessonItems, setLessonItems] = useState<LessonNavItem[]>([]);
   const [lessonsLoading, setLessonsLoading] = useState(false);
 
@@ -119,16 +165,19 @@ export default function AdminCourseSidebar() {
     navigate(`${getCourseBasePath(activeCourse)}${lessonId}`);
   };
 
-  const startRename = (courseId: string, currentName: string) => {
+  const startRename = (courseId: string, currentName: string, currentIcon: string) => {
     setEditingCourseId(courseId);
     setEditingCourseName(currentName);
+    setEditingCourseIcon(currentIcon);
     setRenameError(null);
   };
 
   const cancelRename = () => {
     setEditingCourseId(null);
     setEditingCourseName('');
+    setEditingCourseIcon('');
     setRenameError(null);
+    setShowIconPicker(false);
   };
 
   const saveCourseName = async () => {
@@ -146,13 +195,13 @@ export default function AdminCourseSidebar() {
 
       const updatePayload: Record<string, unknown> = {
         name: trimmedName,
+        icon: editingCourseIcon || activeEditingCourse.icon,
         updatedAt: serverTimestamp(),
       };
 
       if (activeEditingCourse.isCore) {
         // Keep core docs queryable as explicit overrides in Firestore.
         updatePayload.order = activeEditingCourse.order;
-        updatePayload.icon = activeEditingCourse.icon;
         updatePayload.published = true;
       }
 
@@ -204,15 +253,28 @@ export default function AdminCourseSidebar() {
                   className="rounded-2xl border border-accent/30 bg-accent-100/70 p-3"
                 >
                   <div className="flex items-start gap-2">
-                    <span className="mt-2 inline-flex w-6 justify-center text-base" aria-hidden>
-                      {course.icon}
-                    </span>
-                    <span className="mt-2 inline-flex w-6 justify-center text-sm text-accent" aria-hidden>
-                      ✏️
-                    </span>
+                    <div className="relative mt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowIconPicker((v) => !v)}
+                        className="inline-flex w-9 h-9 items-center justify-center text-xl rounded-lg border border-accent/20 bg-white hover:bg-accent-100 transition cursor-pointer"
+                        title="Изменить иконку"
+                      >
+                        {editingCourseIcon || course.icon}
+                      </button>
+                      {showIconPicker && (
+                        <EmojiPickerDropdown
+                          onSelect={(emoji) => {
+                            setEditingCourseIcon(emoji);
+                            setShowIconPicker(false);
+                          }}
+                          onClose={() => setShowIconPicker(false)}
+                        />
+                      )}
+                    </div>
                     <div className="min-w-0 flex-1 space-y-2">
                       <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                        Переименовать курс
+                        Редактировать курс
                       </label>
                       <input
                         type="text"
@@ -267,7 +329,7 @@ export default function AdminCourseSidebar() {
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    startRename(course.id, course.name);
+                    startRename(course.id, course.name, course.icon);
                   }}
                   className={cn(
                     'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sm transition',
