@@ -81,6 +81,23 @@ async function handleSlots(
   return altegFetch(path, partnerToken);
 }
 
+async function handleBusy(
+  companyId: string,
+  staffId: string,
+  date: string,
+  partnerToken: string,
+  userToken: string,
+) {
+  const records = await altegFetch<{ datetime: string; length: number; deleted: boolean }[]>(
+    `/records/${companyId}?staff_id=${staffId}&start_date=${date}&end_date=${date}`,
+    partnerToken,
+    userToken,
+  );
+  return records
+    .filter((r) => !r.deleted)
+    .map((r) => ({ start: r.datetime, lengthSeconds: r.length }));
+}
+
 async function handleDates(
   companyId: string,
   staffId: string,
@@ -147,6 +164,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'rooms': {
         const rooms = await handleRooms(companyId, partnerToken, userToken);
         return res.status(200).json({ success: true, data: rooms });
+      }
+      case 'busy': {
+        const bStaffId = (req.query.staffId || req.body?.staffId) as string;
+        const bDate = (req.query.date || req.body?.date) as string;
+        if (!bStaffId || !bDate) {
+          return res.status(400).json({ success: false, error: 'staffId and date required' });
+        }
+        const busy = await handleBusy(companyId, bStaffId, bDate, partnerToken, userToken);
+        return res.status(200).json({ success: true, data: busy });
       }
       case 'services': {
         const services = await handleServices(companyId, partnerToken, userToken);

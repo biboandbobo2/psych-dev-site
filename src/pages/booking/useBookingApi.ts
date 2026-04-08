@@ -67,23 +67,27 @@ export function useTimeSlots(roomId: string | null, date: string | null, service
     if (!roomId || !date) return;
     let cancelled = false;
     setLoading(true);
-    apiFetch<AltegSlot[]>('slots', { staffId: roomId, date, serviceId: svcId })
-      .then((data) => {
-        if (cancelled) return;
-        const mapped: TimeSlot[] = data.map((s) => ({
+
+    Promise.all([
+      apiFetch<AltegSlot[]>('slots', { staffId: roomId, date, serviceId: svcId }).catch(() => [] as AltegSlot[]),
+      apiFetch<BusyInterval[]>('busy', { staffId: roomId, date }).catch(() => [] as BusyInterval[]),
+    ]).then(([slotsData, busyData]) => {
+      if (cancelled) return;
+      const seanceLen = slotsData[0]?.seance_length || 3600;
+      const mapped: TimeSlot[] = slotsData
+        .filter((s) => !slotOverlapsBusy(s.time, seanceLen, date, busyData))
+        .map((s) => ({
           time: s.time,
           datetime: s.datetime,
           seanceLength: s.seance_length,
           available: true,
         }));
-        setSlots(mapped);
-        debugLog('[Booking] Slots for', date, ':', mapped.length);
-      })
-      .catch((err) => {
-        debugError('[Booking] Failed to load slots:', err);
-        setSlots([]);
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      setSlots(mapped);
+      debugLog('[Booking] Slots for', date, ':', mapped.length);
+    }).catch((err) => {
+      debugError('[Booking] Failed to load slots:', err);
+      setSlots([]);
+    }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [roomId, date, svcId]);
 
@@ -117,6 +121,19 @@ export function useRoomAvailability(rooms: Room[], date: string | null) {
   return { availability, loading };
 }
 
+interface BusyInterval { start: string; lengthSeconds: number }
+
+function slotOverlapsBusy(slotTime: string, seanceLength: number, date: string, busyIntervals: BusyInterval[]): boolean {
+  const slotStart = new Date(`${date}T${slotTime}:00+04:00`).getTime();
+  const slotEnd = slotStart + seanceLength * 1000;
+  for (const b of busyIntervals) {
+    const busyStart = new Date(b.start).getTime();
+    const busyEnd = busyStart + b.lengthSeconds * 1000;
+    if (slotStart < busyEnd && slotEnd > busyStart) return true;
+  }
+  return false;
+}
+
 export function useAllRoomsSlots(rooms: Room[], date: string | null, serviceId?: string) {
   const [slotsByRoom, setSlotsByRoom] = useState<Map<string, TimeSlot[]>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -126,25 +143,30 @@ export function useAllRoomsSlots(rooms: Room[], date: string | null, serviceId?:
     if (!date || rooms.length === 0) return;
     let cancelled = false;
     setLoading(true);
+
     Promise.all(
-      rooms.map((room) =>
-        apiFetch<AltegSlot[]>('slots', { staffId: room.id, date, serviceId: svcId })
-          .then((data) => ({
-            roomId: room.id,
-            slots: data.map((s): TimeSlot => ({
-              time: s.time,
-              datetime: s.datetime,
-              seanceLength: s.seance_length,
-              available: true,
-            })),
-          }))
-          .catch(() => ({ roomId: room.id, slots: [] as TimeSlot[] }))
-      )
+      rooms.map(async (room) => {
+        const [slotsData, busyData] = await Promise.all([
+          apiFetch<AltegSlot[]>('slots', { staffId: room.id, date, serviceId: svcId }).catch(() => [] as AltegSlot[]),
+          apiFetch<BusyInterval[]>('busy', { staffId: room.id, date }).catch(() => [] as BusyInterval[]),
+        ]);
+        const seanceLen = slotsData[0]?.seance_length || 3600;
+        const filtered = slotsData
+          .filter((s) => !slotOverlapsBusy(s.time, seanceLen, date, busyData))
+          .map((s): TimeSlot => ({
+            time: s.time,
+            datetime: s.datetime,
+            seanceLength: s.seance_length,
+            available: true,
+          }));
+        return { roomId: room.id, slots: filtered };
+      })
     ).then((results) => {
       if (cancelled) return;
       const map = new Map<string, TimeSlot[]>();
       for (const r of results) map.set(r.roomId, r.slots);
       setSlotsByRoom(map);
+      debugLog('[Booking] AllRooms slots loaded, filtered by busy intervals');
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [rooms, date, svcId]);
