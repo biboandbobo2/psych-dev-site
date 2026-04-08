@@ -36,9 +36,9 @@ export type BookingStep = 'start' | 'room' | 'date' | 'duration' | 'time' | 'all
 export type BookingFlow = 'room-first' | 'date-first' | 'time-first';
 
 export const DURATION_OPTIONS = [
-  { label: '1 час', minutes: 60, seconds: 3600 },
-  { label: '1.5 часа', minutes: 90, seconds: 5400 },
-  { label: '2 часа', minutes: 120, seconds: 7200 },
+  { label: '1 час', minutes: 60, seconds: 3600, serviceId: '12334505' },
+  { label: '1.5 часа', minutes: 90, seconds: 5400, serviceId: '13451976' },
+  { label: '2 часа', minutes: 120, seconds: 7200, serviceId: '13451977' },
 ] as const;
 
 export type DurationOption = (typeof DURATION_OPTIONS)[number];

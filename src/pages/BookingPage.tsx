@@ -15,6 +15,8 @@ import { useRooms, useTimeSlots, useAllRoomsSlots, useBooking } from './booking/
 import { DURATION_OPTIONS } from './booking/types';
 import type { Room, TimeSlot, CartItem, BookingStep, BookingFlow, BookingFormData, BookingResult, DurationOption } from './booking/types';
 
+/** alteg.io returns one slot per bookable start time — each is a complete booking, not a 30-min fragment */
+
 const stepVariants = {
   enter: { opacity: 0, x: 30 },
   center: { opacity: 1, x: 0 },
@@ -46,12 +48,6 @@ function getSteps(flow: BookingFlow | null): { key: BookingStep; label: string }
   ];
 }
 
-function getConsecutiveSlots(allSlots: TimeSlot[], startTime: string, count: number): TimeSlot[] {
-  const startIdx = allSlots.findIndex((s) => s.time === startTime);
-  if (startIdx < 0 || startIdx + count > allSlots.length) return [];
-  return allSlots.slice(startIdx, startIdx + count);
-}
-
 export function BookingPage() {
   const [flow, setFlow] = useState<BookingFlow | null>(null);
   const [step, setStep] = useState<BookingStep>('start');
@@ -62,20 +58,22 @@ export function BookingPage() {
   const [bookingResults, setBookingResults] = useState<BookingResult[] | null>(null);
 
   const { rooms } = useRooms();
+  const currentServiceId = selectedDuration.serviceId;
   const { slots, loading: slotsLoading } = useTimeSlots(
     flow === 'room-first' ? (selectedRoom?.id ?? null) : null,
     selectedDate,
+    currentServiceId,
   );
   const showAllRooms = (flow === 'date-first' || flow === 'time-first') && selectedDate;
   const { slotsByRoom, loading: allRoomsSlotsLoading } = useAllRoomsSlots(
     rooms,
     showAllRooms ? selectedDate : null,
+    currentServiceId,
   );
   const { book, submitting } = useBooking();
 
   const steps = useMemo(() => getSteps(flow), [flow]);
   const currentStepIndex = steps.findIndex((s) => s.key === step);
-  const slotsPerBooking = Math.ceil(selectedDuration.minutes / 60);
 
   // --- Flow selection ---
   const handleFlowSelect = useCallback((f: BookingFlow) => {
@@ -122,45 +120,26 @@ export function BookingPage() {
         const idx = prev.findIndex(
           (item) => item.room.id === selectedRoom.id && item.date === selectedDate && item.slot.time === slot.time
         );
-        if (idx >= 0) {
-          // Remove all consecutive slots for this booking
-          const toRemove = new Set<string>();
-          const consecutive = getConsecutiveSlots(slots, slot.time, slotsPerBooking);
-          for (const cs of consecutive) toRemove.add(cs.time);
-          return prev.filter((item) => !(item.room.id === selectedRoom.id && item.date === selectedDate && toRemove.has(item.slot.time)));
-        }
-        const consecutive = getConsecutiveSlots(slots, slot.time, slotsPerBooking);
-        if (consecutive.length < slotsPerBooking) return prev;
-        const newItems = consecutive.map((cs) => ({ room: selectedRoom, date: selectedDate, slot: cs }));
-        return [...prev, ...newItems];
+        if (idx >= 0) return prev.filter((_, i) => i !== idx);
+        return [...prev, { room: selectedRoom, date: selectedDate, slot }];
       });
     },
-    [selectedRoom, selectedDate, slots, slotsPerBooking]
+    [selectedRoom, selectedDate]
   );
 
-  // --- Slot toggling (allrooms grid: picks consecutive slots) ---
+  // --- Slot toggling (allrooms grid) ---
   const handleAllRoomsToggle = useCallback(
     (room: Room, slot: TimeSlot) => {
       if (!selectedDate) return;
-      const roomSlots = slotsByRoom.get(room.id) || [];
       setCart((prev) => {
         const idx = prev.findIndex(
           (item) => item.room.id === room.id && item.date === selectedDate && item.slot.time === slot.time
         );
-        if (idx >= 0) {
-          // Remove all consecutive slots for this booking
-          const toRemove = new Set<string>();
-          const consecutive = getConsecutiveSlots(roomSlots, slot.time, slotsPerBooking);
-          for (const cs of consecutive) toRemove.add(cs.time);
-          return prev.filter((item) => !(item.room.id === room.id && item.date === selectedDate && toRemove.has(item.slot.time)));
-        }
-        const consecutive = getConsecutiveSlots(roomSlots, slot.time, slotsPerBooking);
-        if (consecutive.length < slotsPerBooking) return prev;
-        const newItems = consecutive.map((cs) => ({ room, date: selectedDate, slot: cs }));
-        return [...prev, ...newItems];
+        if (idx >= 0) return prev.filter((_, i) => i !== idx);
+        return [...prev, { room, date: selectedDate, slot }];
       });
     },
-    [selectedDate, slotsByRoom, slotsPerBooking]
+    [selectedDate]
   );
 
   const handleRemoveFromCart = useCallback((index: number) => {
@@ -179,6 +158,7 @@ export function BookingPage() {
       const bookingItems = cart.map((item) => ({
         roomId: item.room.id,
         datetime: `${item.date}T${item.slot.time}:00+04:00`,
+        serviceId: currentServiceId,
       }));
       const results = await book(bookingItems, data);
       setBookingResults(results);

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { debugLog, debugError } from '../../lib/debug';
 import type { Room, TimeSlot, BookingResult } from './types';
-import { ROOMS } from './types';
+import { ROOMS, DURATION_OPTIONS } from './types';
 
-const SERVICE_ID = '12334505';
+const DEFAULT_SERVICE_ID = DURATION_OPTIONS[0].serviceId;
 
 async function apiFetch<T>(action: string, params?: Record<string, string>): Promise<T> {
   const query = new URLSearchParams({ action, ...params });
@@ -58,15 +58,16 @@ export function useRooms() {
   return { rooms, loading };
 }
 
-export function useTimeSlots(roomId: string | null, date: string | null) {
+export function useTimeSlots(roomId: string | null, date: string | null, serviceId?: string) {
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
+  const svcId = serviceId || DEFAULT_SERVICE_ID;
 
   useEffect(() => {
     if (!roomId || !date) return;
     let cancelled = false;
     setLoading(true);
-    apiFetch<AltegSlot[]>('slots', { staffId: roomId, date, serviceId: SERVICE_ID })
+    apiFetch<AltegSlot[]>('slots', { staffId: roomId, date, serviceId: svcId })
       .then((data) => {
         if (cancelled) return;
         const mapped: TimeSlot[] = data.map((s) => ({
@@ -84,7 +85,7 @@ export function useTimeSlots(roomId: string | null, date: string | null) {
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [roomId, date]);
+  }, [roomId, date, svcId]);
 
   return { slots, loading };
 }
@@ -116,9 +117,10 @@ export function useRoomAvailability(rooms: Room[], date: string | null) {
   return { availability, loading };
 }
 
-export function useAllRoomsSlots(rooms: Room[], date: string | null) {
+export function useAllRoomsSlots(rooms: Room[], date: string | null, serviceId?: string) {
   const [slotsByRoom, setSlotsByRoom] = useState<Map<string, TimeSlot[]>>(new Map());
   const [loading, setLoading] = useState(false);
+  const svcId = serviceId || DEFAULT_SERVICE_ID;
 
   useEffect(() => {
     if (!date || rooms.length === 0) return;
@@ -126,7 +128,7 @@ export function useAllRoomsSlots(rooms: Room[], date: string | null) {
     setLoading(true);
     Promise.all(
       rooms.map((room) =>
-        apiFetch<AltegSlot[]>('slots', { staffId: room.id, date, serviceId: SERVICE_ID })
+        apiFetch<AltegSlot[]>('slots', { staffId: room.id, date, serviceId: svcId })
           .then((data) => ({
             roomId: room.id,
             slots: data.map((s): TimeSlot => ({
@@ -145,7 +147,7 @@ export function useAllRoomsSlots(rooms: Room[], date: string | null) {
       setSlotsByRoom(map);
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [rooms, date]);
+  }, [rooms, date, svcId]);
 
   return { slotsByRoom, loading };
 }
@@ -163,7 +165,7 @@ export function useBooking() {
       const appointments = cart.map((item, i) => ({
         id: i + 1,
         staffId: Number(item.roomId),
-        serviceId: Number(item.serviceId || SERVICE_ID),
+        serviceId: Number(item.serviceId || DEFAULT_SERVICE_ID),
         datetime: item.datetime,
       }));
 
