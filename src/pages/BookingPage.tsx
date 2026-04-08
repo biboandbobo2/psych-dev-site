@@ -5,7 +5,7 @@ import { BookingLayout } from './booking/BookingLayout';
 import { StartStep } from './booking/StartStep';
 import { RoomSelector } from './booking/RoomSelector';
 import { DatePicker } from './booking/DatePicker';
-import { DurationPicker } from './booking/DurationPicker';
+// DurationPicker removed — duration is now selected via week schedule toggle
 import { TimeSlotGrid } from './booking/TimeSlotGrid';
 import { AllRoomsGrid } from './booking/AllRoomsGrid';
 import { BookingCart } from './booking/BookingCart';
@@ -28,14 +28,6 @@ const stepVariants = {
 function getSteps(flow: BookingFlow | null): { key: BookingStep; label: string }[] {
   if (flow === 'date-first') {
     return [
-      { key: 'date', label: 'Дата' },
-      { key: 'allrooms', label: 'Расписание' },
-      { key: 'confirm', label: 'Подтверждение' },
-    ];
-  }
-  if (flow === 'time-first') {
-    return [
-      { key: 'duration', label: 'Длительность' },
       { key: 'date', label: 'Дата' },
       { key: 'allrooms', label: 'Расписание' },
       { key: 'confirm', label: 'Подтверждение' },
@@ -69,7 +61,7 @@ export function BookingPage() {
     currentServiceId,
     currentDurationSec,
   );
-  const showAllRooms = (flow === 'date-first' || flow === 'time-first') && selectedDate;
+  const showAllRooms = flow === 'date-first' && selectedDate;
   const { slotsByRoom, loading: allRoomsSlotsLoading } = useAllRoomsSlots(
     rooms,
     showAllRooms ? selectedDate : null,
@@ -86,8 +78,7 @@ export function BookingPage() {
   const handleFlowSelect = useCallback((f: BookingFlow) => {
     setFlow(f);
     if (f === 'room-first') setStep('room');
-    else if (f === 'date-first') setStep('date');
-    else setStep('duration');
+    else setStep('date');
   }, []);
 
   // --- Navigation ---
@@ -102,16 +93,9 @@ export function BookingPage() {
     if (flow === 'room-first') {
       setStep('time');
     } else {
-      // date-first and time-first → show all rooms grid
       setStep('allrooms');
     }
   }, [flow]);
-
-  const handleDurationSelect = useCallback((d: DurationOption) => {
-    setSelectedDuration(d);
-    setSelectedDate(null);
-    setStep('date');
-  }, []);
 
   const handleDurationChange = useCallback((d: DurationOption) => {
     setSelectedDuration(d);
@@ -273,9 +257,8 @@ export function BookingPage() {
             <AnimatePresence mode="wait">
               <motion.div key={step} variants={stepVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.2, ease: 'easeInOut' }}>
                 {step === 'start' && <StartStep onSelect={handleFlowSelect} />}
-                {step === 'duration' && <DurationPicker selected={selectedDuration} onSelect={handleDurationSelect} />}
                 {step === 'room' && <RoomSelector rooms={rooms} selectedRoom={selectedRoom} onSelect={handleRoomSelect} />}
-                {step === 'date' && <DatePicker selectedDate={selectedDate} onSelect={handleDateSelect} />}
+                {step === 'date' && <DatePicker selectedDate={selectedDate} onSelect={handleDateSelect} daysAhead={28} />}
                 {step === 'time' && selectedRoom && selectedDate && (
                   <TimeSlotGrid slots={slots} room={selectedRoom} date={selectedDate} cart={cart} onToggleSlot={handleToggleSlot} loading={slotsLoading} />
                 )}
