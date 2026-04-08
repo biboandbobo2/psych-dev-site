@@ -58,10 +58,11 @@ export function useRooms() {
   return { rooms, loading };
 }
 
-export function useTimeSlots(roomId: string | null, date: string | null, serviceId?: string) {
+export function useTimeSlots(roomId: string | null, date: string | null, serviceId?: string, durationSeconds?: number) {
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const svcId = serviceId || DEFAULT_SERVICE_ID;
+  const durSec = durationSeconds || 3600;
 
   useEffect(() => {
     if (!roomId || !date) return;
@@ -73,9 +74,8 @@ export function useTimeSlots(roomId: string | null, date: string | null, service
       apiFetch<BusyInterval[]>('busy', { staffId: roomId, date }).catch(() => [] as BusyInterval[]),
     ]).then(([slotsData, busyData]) => {
       if (cancelled) return;
-      const seanceLen = slotsData[0]?.seance_length || 3600;
       const mapped: TimeSlot[] = slotsData
-        .filter((s) => !slotOverlapsBusy(s.time, seanceLen, date, busyData))
+        .filter((s) => !slotOverlapsBusy(s.time, durSec, date, busyData))
         .map((s) => ({
           time: s.time,
           datetime: s.datetime,
@@ -89,7 +89,7 @@ export function useTimeSlots(roomId: string | null, date: string | null, service
       setSlots([]);
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [roomId, date, svcId]);
+  }, [roomId, date, svcId, durSec]);
 
   return { slots, loading };
 }
@@ -134,10 +134,11 @@ function slotOverlapsBusy(slotTime: string, seanceLength: number, date: string, 
   return false;
 }
 
-export function useAllRoomsSlots(rooms: Room[], date: string | null, serviceId?: string) {
+export function useAllRoomsSlots(rooms: Room[], date: string | null, serviceId?: string, durationSeconds?: number) {
   const [slotsByRoom, setSlotsByRoom] = useState<Map<string, TimeSlot[]>>(new Map());
   const [loading, setLoading] = useState(false);
   const svcId = serviceId || DEFAULT_SERVICE_ID;
+  const durSec = durationSeconds || 3600;
 
   useEffect(() => {
     if (!date || rooms.length === 0) return;
@@ -150,9 +151,8 @@ export function useAllRoomsSlots(rooms: Room[], date: string | null, serviceId?:
           apiFetch<AltegSlot[]>('slots', { staffId: room.id, date, serviceId: svcId }).catch(() => [] as AltegSlot[]),
           apiFetch<BusyInterval[]>('busy', { staffId: room.id, date }).catch(() => [] as BusyInterval[]),
         ]);
-        const seanceLen = slotsData[0]?.seance_length || 3600;
         const filtered = slotsData
-          .filter((s) => !slotOverlapsBusy(s.time, seanceLen, date, busyData))
+          .filter((s) => !slotOverlapsBusy(s.time, durSec, date, busyData))
           .map((s): TimeSlot => ({
             time: s.time,
             datetime: s.datetime,
@@ -169,7 +169,7 @@ export function useAllRoomsSlots(rooms: Room[], date: string | null, serviceId?:
       debugLog('[Booking] AllRooms slots loaded, filtered by busy intervals');
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [rooms, date, svcId]);
+  }, [rooms, date, svcId, durSec]);
 
   return { slotsByRoom, loading };
 }

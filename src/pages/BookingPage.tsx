@@ -59,16 +59,19 @@ export function BookingPage() {
 
   const { rooms } = useRooms();
   const currentServiceId = selectedDuration.serviceId;
+  const currentDurationSec = selectedDuration.seconds;
   const { slots, loading: slotsLoading } = useTimeSlots(
     flow === 'room-first' ? (selectedRoom?.id ?? null) : null,
     selectedDate,
     currentServiceId,
+    currentDurationSec,
   );
   const showAllRooms = (flow === 'date-first' || flow === 'time-first') && selectedDate;
   const { slotsByRoom, loading: allRoomsSlotsLoading } = useAllRoomsSlots(
     rooms,
     showAllRooms ? selectedDate : null,
     currentServiceId,
+    currentDurationSec,
   );
   const { book, submitting } = useBooking();
 
