@@ -11,7 +11,9 @@ import { AllRoomsGrid } from './booking/AllRoomsGrid';
 import { BookingCart } from './booking/BookingCart';
 import { BookingConfirmation } from './booking/BookingConfirmation';
 import { EventsSection } from './booking/EventsSection';
+import { WeekSchedule } from './booking/WeekSchedule';
 import { useRooms, useTimeSlots, useAllRoomsSlots, useBooking } from './booking/useBookingApi';
+import { useWeekSchedule } from './booking/useWeekSchedule';
 import { DURATION_OPTIONS } from './booking/types';
 import type { Room, TimeSlot, CartItem, BookingStep, BookingFlow, BookingFormData, BookingResult, DurationOption } from './booking/types';
 
@@ -74,6 +76,7 @@ export function BookingPage() {
     currentDurationSec,
   );
   const { book, submitting } = useBooking();
+  const { busy: weekBusy, loading: weekLoading, weekDates } = useWeekSchedule(rooms);
 
   const steps = useMemo(() => getSteps(flow), [flow]);
   const currentStepIndex = steps.findIndex((s) => s.key === step);
@@ -143,6 +146,19 @@ export function BookingPage() {
       });
     },
     [selectedDate]
+  );
+
+  // --- Quick booking from week schedule ---
+  const handleScheduleSlotClick = useCallback(
+    (room: Room, date: string, time: string) => {
+      const slot: TimeSlot = { time, datetime: 0, seanceLength: selectedDuration.seconds, available: true };
+      setFlow('room-first');
+      setSelectedRoom(room);
+      setSelectedDate(date);
+      setCart([{ room, date, slot }]);
+      setStep('confirm');
+    },
+    [selectedDuration.seconds]
   );
 
   const handleRemoveFromCart = useCallback((index: number) => {
@@ -271,6 +287,17 @@ export function BookingPage() {
 
           {showCartBar && <BookingCart cart={cart} onRemove={handleRemoveFromCart} onConfirm={handleConfirmClick} />}
         </>
+      )}
+
+      {/* Week schedule — visible on start screen and after success */}
+      {(step === 'start' || bookingResults) && (
+        <WeekSchedule
+          rooms={rooms}
+          weekDates={weekDates}
+          busy={weekBusy}
+          loading={weekLoading}
+          onSlotClick={handleScheduleSlotClick}
+        />
       )}
 
       <EventsSection />
