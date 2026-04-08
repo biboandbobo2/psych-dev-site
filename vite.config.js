@@ -79,6 +79,9 @@ const chunkMapper = (id) => {
   if (id.includes('/src/pages/Profile')) {
     return 'profile';
   }
+  if (id.includes('/src/pages/BookingPage') || id.includes('/src/pages/booking/')) {
+    return 'booking';
+  }
   return undefined;
 };
 

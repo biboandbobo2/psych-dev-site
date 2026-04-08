@@ -38,3 +38,9 @@ export const DynamicPeriodPage = lazy(() =>
 );
 export const FeaturesPage = lazy(() => lazyWithReload(() => import('./FeaturesPage'), 'FeaturesPage'));
 export const WarmSprings2Page = lazy(() => lazyWithReload(() => import('./WarmSprings2Page'), 'WarmSprings2Page'));
+export const BookingPage = lazy(() =>
+  lazyWithReload(
+    () => import('./BookingPage').then((module) => ({ default: module.BookingPage })),
+    'BookingPage'
+  )
+);
