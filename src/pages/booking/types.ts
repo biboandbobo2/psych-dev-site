@@ -26,8 +26,22 @@ export interface BookingFormData {
   comment: string;
 }
 
-export type BookingStep = 'start' | 'room' | 'date' | 'time' | 'confirm';
-export type BookingFlow = 'room-first' | 'date-first';
+export interface BookingResult {
+  id: number;
+  record_id: number;
+  record_hash: string;
+}
+
+export type BookingStep = 'start' | 'room' | 'date' | 'duration' | 'time' | 'allrooms' | 'confirm';
+export type BookingFlow = 'room-first' | 'date-first' | 'time-first';
+
+export const DURATION_OPTIONS = [
+  { label: '1 час', minutes: 60, seconds: 3600 },
+  { label: '1.5 часа', minutes: 90, seconds: 5400 },
+  { label: '2 часа', minutes: 120, seconds: 7200 },
+] as const;
+
+export type DurationOption = (typeof DURATION_OPTIONS)[number];
 
 // Fallback room data — overridden by API response (alteg.io staff)
 export const ROOMS: Room[] = [

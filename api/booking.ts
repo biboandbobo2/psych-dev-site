@@ -91,6 +91,20 @@ async function handleDates(
   return altegFetch(path, partnerToken);
 }
 
+async function handleCheck(
+  companyId: string,
+  appointments: { id: number; staffId: number; serviceId: number; datetime: string }[],
+  partnerToken: string,
+) {
+  const mapped = appointments.map((a) => ({
+    id: a.id,
+    staff_id: a.staffId,
+    services: [a.serviceId],
+    datetime: a.datetime,
+  }));
+  return altegPost(`/book_check/${companyId}`, { appointments: mapped }, partnerToken);
+}
+
 async function handleBook(
   companyId: string,
   body: {
@@ -113,6 +127,7 @@ async function handleBook(
     phone: body.phone,
     email: body.email || '',
     comment: body.comment || '',
+    notify_by_email: 24,
     appointments,
   }, partnerToken);
 }
@@ -155,6 +170,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const slots = await handleSlots(companyId, staffId, date, serviceId, partnerToken);
         return res.status(200).json({ success: true, data: slots });
+      }
+      case 'check': {
+        if (req.method !== 'POST') {
+          return res.status(405).json({ success: false, error: 'POST required' });
+        }
+        await handleCheck(companyId, req.body.appointments, partnerToken);
+        return res.status(200).json({ success: true, data: null });
       }
       case 'book': {
         if (req.method !== 'POST') {

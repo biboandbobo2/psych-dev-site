@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { debugLog, debugError } from '../../lib/debug';
-import type { Room, TimeSlot } from './types';
+import type { Room, TimeSlot, BookingResult } from './types';
 import { ROOMS } from './types';
 
 const SERVICE_ID = '12334505';
@@ -56,31 +56,6 @@ export function useRooms() {
   }, []);
 
   return { rooms, loading };
-}
-
-export function useAvailableDates(roomId: string | null) {
-  const [dates, setDates] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!roomId) return;
-    let cancelled = false;
-    setLoading(true);
-    apiFetch<{ booking_dates: string[] }>('dates', { staffId: roomId, serviceId: SERVICE_ID })
-      .then((data) => {
-        if (cancelled) return;
-        setDates(data.booking_dates || []);
-        debugLog('[Booking] Available dates:', data.booking_dates?.length);
-      })
-      .catch((err) => {
-        debugError('[Booking] Failed to load dates:', err);
-        setDates([]);
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [roomId]);
-
-  return { dates, loading };
 }
 
 export function useTimeSlots(roomId: string | null, date: string | null) {
@@ -141,35 +116,84 @@ export function useRoomAvailability(rooms: Room[], date: string | null) {
   return { availability, loading };
 }
 
+export function useAllRoomsSlots(rooms: Room[], date: string | null) {
+  const [slotsByRoom, setSlotsByRoom] = useState<Map<string, TimeSlot[]>>(new Map());
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!date || rooms.length === 0) return;
+    let cancelled = false;
+    setLoading(true);
+    Promise.all(
+      rooms.map((room) =>
+        apiFetch<AltegSlot[]>('slots', { staffId: room.id, date, serviceId: SERVICE_ID })
+          .then((data) => ({
+            roomId: room.id,
+            slots: data.map((s): TimeSlot => ({
+              time: s.time,
+              datetime: s.datetime,
+              seanceLength: s.seance_length,
+              available: true,
+            })),
+          }))
+          .catch(() => ({ roomId: room.id, slots: [] as TimeSlot[] }))
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const map = new Map<string, TimeSlot[]>();
+      for (const r of results) map.set(r.roomId, r.slots);
+      setSlotsByRoom(map);
+    }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [rooms, date]);
+
+  return { slotsByRoom, loading };
+}
+
 export function useBooking() {
   const [submitting, setSubmitting] = useState(false);
 
   const book = useCallback(async (
     cart: { roomId: string; datetime: string; serviceId?: string }[],
     contact: { name: string; phone: string; email?: string; comment?: string },
-  ) => {
+  ): Promise<BookingResult[]> => {
     setSubmitting(true);
     try {
-      const appointments = cart.map((item) => ({
+      // Validate first
+      const appointments = cart.map((item, i) => ({
+        id: i + 1,
         staffId: Number(item.roomId),
         serviceId: Number(item.serviceId || SERVICE_ID),
         datetime: item.datetime,
       }));
+
+      const checkResult = await fetch('/api/booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check', appointments }),
+      }).then((r) => r.json());
+
+      if (!checkResult.success) {
+        throw new Error(checkResult.error || 'Выбранное время уже занято');
+      }
+
+      // Book
       const result = await fetch('/api/booking', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'book',
-          appointments,
+          appointments: appointments.map(({ id, ...rest }) => rest),
           name: contact.name,
           phone: contact.phone,
           email: contact.email || '',
           comment: contact.comment || '',
         }),
       }).then((r) => r.json());
-      if (!result.success) throw new Error(result.error || 'Booking failed');
-      debugLog('[Booking] Booked:', appointments.length, 'slots');
-      return result;
+
+      if (!result.success) throw new Error(result.error || 'Ошибка бронирования');
+      debugLog('[Booking] Booked:', result.data);
+      return result.data as BookingResult[];
     } finally {
       setSubmitting(false);
     }

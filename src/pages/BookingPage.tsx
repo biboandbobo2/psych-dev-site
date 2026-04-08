@@ -5,12 +5,14 @@ import { BookingLayout } from './booking/BookingLayout';
 import { StartStep } from './booking/StartStep';
 import { RoomSelector } from './booking/RoomSelector';
 import { DatePicker } from './booking/DatePicker';
+import { DurationPicker } from './booking/DurationPicker';
 import { TimeSlotGrid } from './booking/TimeSlotGrid';
+import { AllRoomsGrid } from './booking/AllRoomsGrid';
 import { BookingCart } from './booking/BookingCart';
 import { BookingConfirmation } from './booking/BookingConfirmation';
 import { EventsSection } from './booking/EventsSection';
-import { useRooms, useTimeSlots, useRoomAvailability, useBooking } from './booking/useBookingApi';
-import type { Room, TimeSlot, CartItem, BookingStep, BookingFlow, BookingFormData } from './booking/types';
+import { useRooms, useTimeSlots, useRoomAvailability, useAllRoomsSlots, useBooking } from './booking/useBookingApi';
+import type { Room, TimeSlot, CartItem, BookingStep, BookingFlow, BookingFormData, BookingResult, DurationOption } from './booking/types';
 
 const MONTH_LABELS = [
   'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
@@ -31,15 +33,21 @@ const stepVariants = {
 function getSteps(flow: BookingFlow | null): { key: BookingStep; label: string }[] {
   if (flow === 'date-first') {
     return [
-      { key: 'start', label: 'Начало' },
       { key: 'date', label: 'Дата' },
       { key: 'room', label: 'Кабинет' },
       { key: 'time', label: 'Время' },
       { key: 'confirm', label: 'Подтверждение' },
     ];
   }
+  if (flow === 'time-first') {
+    return [
+      { key: 'duration', label: 'Длительность' },
+      { key: 'date', label: 'Дата' },
+      { key: 'allrooms', label: 'Выбор' },
+      { key: 'confirm', label: 'Подтверждение' },
+    ];
+  }
   return [
-    { key: 'start', label: 'Начало' },
     { key: 'room', label: 'Кабинет' },
     { key: 'date', label: 'Дата' },
     { key: 'time', label: 'Время' },
@@ -52,28 +60,44 @@ export function BookingPage() {
   const [step, setStep] = useState<BookingStep>('start');
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDuration, setSelectedDuration] = useState<DurationOption | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [success, setSuccess] = useState(false);
+  const [bookingResults, setBookingResults] = useState<BookingResult[] | null>(null);
 
   const { rooms } = useRooms();
-  const { slots, loading: slotsLoading } = useTimeSlots(selectedRoom?.id ?? null, selectedDate);
-  const { availability, loading: availabilityLoading } = useRoomAvailability(rooms, flow === 'date-first' ? selectedDate : null);
+  const { slots, loading: slotsLoading } = useTimeSlots(
+    (flow !== 'time-first' ? selectedRoom?.id : null) ?? null,
+    selectedDate,
+  );
+  const { availability, loading: availabilityLoading } = useRoomAvailability(
+    rooms,
+    flow === 'date-first' ? selectedDate : null,
+  );
+  const { slotsByRoom, loading: allRoomsSlotsLoading } = useAllRoomsSlots(
+    rooms,
+    flow === 'time-first' ? selectedDate : null,
+  );
   const { book, submitting } = useBooking();
 
   const steps = useMemo(() => getSteps(flow), [flow]);
   const currentStepIndex = steps.findIndex((s) => s.key === step);
 
+  // --- Flow selection ---
   const handleFlowSelect = useCallback((f: BookingFlow) => {
     setFlow(f);
-    setStep(f === 'room-first' ? 'room' : 'date');
+    if (f === 'room-first') setStep('room');
+    else if (f === 'date-first') setStep('date');
+    else setStep('duration');
   }, []);
 
+  // --- Navigation ---
   const handleRoomSelect = useCallback((room: Room) => {
     setSelectedRoom(room);
     if (flow === 'room-first') {
       setSelectedDate(null);
       setStep('date');
     } else {
+      // date-first: room selected after date, go to time
       setStep('time');
     }
   }, [flow]);
@@ -83,115 +107,152 @@ export function BookingPage() {
     if (flow === 'date-first') {
       setSelectedRoom(null);
       setStep('room');
+    } else if (flow === 'time-first') {
+      setStep('allrooms');
     } else {
+      // room-first: date selected after room, go to time
       setStep('time');
     }
   }, [flow]);
 
+  const handleDurationSelect = useCallback((d: DurationOption) => {
+    setSelectedDuration(d);
+    setSelectedDate(null);
+    setStep('date');
+  }, []);
+
+  // --- Slot toggling ---
   const handleToggleSlot = useCallback(
     (slot: TimeSlot) => {
       if (!selectedRoom || !selectedDate) return;
       setCart((prev) => {
-        const existingIndex = prev.findIndex(
+        const idx = prev.findIndex(
           (item) => item.room.id === selectedRoom.id && item.date === selectedDate && item.slot.time === slot.time
         );
-        if (existingIndex >= 0) {
-          return prev.filter((_, i) => i !== existingIndex);
-        }
+        if (idx >= 0) return prev.filter((_, i) => i !== idx);
         return [...prev, { room: selectedRoom, date: selectedDate, slot }];
       });
     },
     [selectedRoom, selectedDate]
   );
 
+  const handleAllRoomsToggle = useCallback(
+    (room: Room, slot: TimeSlot) => {
+      if (!selectedDate) return;
+      setCart((prev) => {
+        const idx = prev.findIndex(
+          (item) => item.room.id === room.id && item.date === selectedDate && item.slot.time === slot.time
+        );
+        if (idx >= 0) return prev.filter((_, i) => i !== idx);
+        return [...prev, { room, date: selectedDate, slot }];
+      });
+    },
+    [selectedDate]
+  );
+
   const handleRemoveFromCart = useCallback((index: number) => {
     setCart((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const handleConfirmClick = useCallback(() => {
-    setStep('confirm');
-  }, []);
-
+  const handleConfirmClick = useCallback(() => setStep('confirm'), []);
   const handleBack = useCallback(() => {
-    setStep('time');
-  }, []);
+    if (flow === 'time-first') setStep('allrooms');
+    else setStep('time');
+  }, [flow]);
 
+  // --- Booking submission ---
   const handleSubmit = useCallback(
     async (data: BookingFormData) => {
       const bookingItems = cart.map((item) => ({
         roomId: item.room.id,
         datetime: `${item.date}T${item.slot.time}:00+04:00`,
       }));
-      await book(bookingItems, data);
-      setSuccess(true);
+      const results = await book(bookingItems, data);
+      setBookingResults(results);
       setCart([]);
     },
     [cart, book]
   );
 
+  // --- Step navigation ---
   const goToStep = useCallback(
     (targetStep: BookingStep) => {
       const targetIndex = steps.findIndex((s) => s.key === targetStep);
-      if (targetStep === 'start') {
-        setFlow(null);
-        setSelectedRoom(null);
-        setSelectedDate(null);
-        setStep('start');
-      } else if (targetIndex <= currentStepIndex) {
-        setStep(targetStep);
-      }
+      if (targetIndex <= currentStepIndex) setStep(targetStep);
     },
     [currentStepIndex, steps]
   );
 
   const reset = useCallback(() => {
-    setSuccess(false);
+    setBookingResults(null);
     setFlow(null);
     setStep('start');
     setSelectedRoom(null);
     setSelectedDate(null);
+    setSelectedDuration(null);
+    setCart([]);
   }, []);
+
+  const showTimeSlotStep = step === 'time' || step === 'allrooms';
 
   return (
     <BookingLayout>
       <Helmet>
         <title>Бронирование кабинетов — Психологический центр ДОМ</title>
-        <meta
-          name="description"
-          content="Забронируйте кабинет в психологическом центре ДОМ для консультаций, тренингов и мероприятий."
-        />
+        <meta name="description" content="Забронируйте кабинет в психологическом центре ДОМ для консультаций, тренингов и мероприятий." />
       </Helmet>
 
-      {success ? (
-        <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12 py-20 text-center">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="w-20 h-20 rounded-full bg-dom-green/10 mx-auto mb-6 flex items-center justify-center"
-          >
-            <svg className="w-10 h-10 text-dom-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </motion.div>
-          <h2 className="text-3xl font-bold text-dom-gray-900 mb-3">Бронирование подтверждено!</h2>
-          <p className="text-dom-gray-500 text-lg mb-8">
-            Мы свяжемся с вами для подтверждения деталей.
-          </p>
-          <button onClick={reset} className="bg-dom-green hover:bg-dom-green-hover text-white font-medium px-8 py-3 rounded-xl transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg">
-            Забронировать ещё
-          </button>
+      {bookingResults ? (
+        /* ===== Success screen with booking details ===== */
+        <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12 py-16">
+          <div className="max-w-lg mx-auto text-center">
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-20 h-20 rounded-full bg-dom-green/10 mx-auto mb-6 flex items-center justify-center">
+              <svg className="w-10 h-10 text-dom-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </motion.div>
+            <h2 className="text-3xl font-bold text-dom-gray-900 mb-2">Бронирование подтверждено!</h2>
+            <p className="text-dom-gray-500 mb-8">Подтверждение отправлено на email</p>
+
+            <div className="bg-dom-cream rounded-2xl p-6 text-left mb-8 space-y-3">
+              {bookingResults.map((r, i) => (
+                <div key={r.record_id} className="flex items-center justify-between bg-white rounded-xl p-4">
+                  <div>
+                    <p className="font-medium text-dom-gray-900">Запись #{r.record_id}</p>
+                    {cart.length > 0 && <p className="text-sm text-dom-gray-500">Слот {i + 1}</p>}
+                  </div>
+                  <span className="text-xs bg-dom-green/10 text-dom-green px-3 py-1 rounded-full font-medium">
+                    Подтверждено
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button onClick={reset} className="bg-dom-green hover:bg-dom-green-hover text-white font-medium px-8 py-3 rounded-xl transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg">
+                Забронировать ещё
+              </button>
+            </div>
+          </div>
         </div>
       ) : (
         <>
-          {/* Stepper — hidden on start */}
+          {/* ===== Stepper ===== */}
           {step !== 'start' && (
             <div className="bg-white border-b border-dom-gray-200 sticky top-0 z-30">
               <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
                 <div className="flex items-center gap-2 py-4 overflow-x-auto">
+                  <button
+                    onClick={reset}
+                    className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm text-dom-gray-500 hover:text-dom-green hover:bg-dom-cream transition-all mr-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
                   {steps.map((s, i) => {
                     const isActive = s.key === step;
                     const isPast = i < currentStepIndex;
-                    if (s.key === 'start') return null;
                     return (
                       <button
                         key={s.key}
@@ -217,7 +278,7 @@ export function BookingPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
                           ) : (
-                            i
+                            i + 1
                           )}
                         </span>
                         {s.label}
@@ -229,7 +290,7 @@ export function BookingPage() {
             </div>
           )}
 
-          {/* Step content */}
+          {/* ===== Step content ===== */}
           <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
             <AnimatePresence mode="wait">
               <motion.div
@@ -240,9 +301,12 @@ export function BookingPage() {
                 exit="exit"
                 transition={{ duration: 0.2, ease: 'easeInOut' }}
               >
-                {step === 'start' && (
-                  <StartStep onSelect={handleFlowSelect} />
+                {step === 'start' && <StartStep onSelect={handleFlowSelect} />}
+
+                {step === 'duration' && (
+                  <DurationPicker selected={selectedDuration} onSelect={handleDurationSelect} />
                 )}
+
                 {step === 'room' && (
                   <RoomSelector
                     rooms={rooms}
@@ -256,9 +320,11 @@ export function BookingPage() {
                     }
                   />
                 )}
+
                 {step === 'date' && (
                   <DatePicker selectedDate={selectedDate} onSelect={handleDateSelect} />
                 )}
+
                 {step === 'time' && selectedRoom && selectedDate && (
                   <TimeSlotGrid
                     slots={slots}
@@ -269,6 +335,19 @@ export function BookingPage() {
                     loading={slotsLoading}
                   />
                 )}
+
+                {step === 'allrooms' && selectedDate && selectedDuration && (
+                  <AllRoomsGrid
+                    rooms={rooms}
+                    date={selectedDate}
+                    slotsByRoom={slotsByRoom}
+                    duration={selectedDuration}
+                    cart={cart}
+                    onToggleSlot={handleAllRoomsToggle}
+                    loading={allRoomsSlotsLoading}
+                  />
+                )}
+
                 {step === 'confirm' && (
                   <BookingConfirmation
                     cart={cart}
@@ -281,7 +360,8 @@ export function BookingPage() {
             </AnimatePresence>
           </div>
 
-          {step === 'time' && (
+          {/* ===== Cart ===== */}
+          {showTimeSlotStep && (
             <BookingCart
               cart={cart}
               onRemove={handleRemoveFromCart}
