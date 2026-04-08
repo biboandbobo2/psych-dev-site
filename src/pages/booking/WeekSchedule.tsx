@@ -49,8 +49,8 @@ function yToTime(yPx: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function yToHourSlot(yPx: number): number {
-  return Math.floor(yPx / ROW_HEIGHT);
+function yToHalfHourSlot(yPx: number): number {
+  return Math.floor(yPx / HALF_HOUR_PX);
 }
 
 function isBusyAt(time: string, date: string, blocks: BusyBlock[]): boolean {
@@ -80,12 +80,12 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: W
   }, []);
 
   const today = useMemo(() => todayStr(), []);
-  const [hover, setHover] = useState<{ roomId: string; date: string; hourSlot: number } | null>(null);
+  const [hover, setHover] = useState<{ roomId: string; date: string; halfSlot: number } | null>(null);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>, roomId: string, date: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    setHover({ roomId, date, hourSlot: yToHourSlot(y) });
+    setHover({ roomId, date, halfSlot: yToHalfHourSlot(y) });
   }, []);
 
   const handleMouseLeave = useCallback(() => setHover(null), []);
@@ -170,7 +170,7 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: W
                       const key = `${room.id}:${date}`;
                       const blocks = busy.get(key) || [];
                       const isHovered = hover?.roomId === room.id && hover?.date === date;
-                      const hoverSlot = isHovered ? hover.hourSlot : -1;
+                      const hoverSlot = isHovered ? hover.halfSlot : -1;
 
                       return (
                         <div
@@ -210,11 +210,11 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: W
                             </div>
                           )}
 
-                          {/* Hover highlight — full hour block */}
-                          {hoverSlot >= 0 && hoverSlot < TOTAL_HOURS && (
+                          {/* Hover highlight — half-hour block */}
+                          {hoverSlot >= 0 && hoverSlot < TOTAL_HOURS * 2 && (
                             <div
                               className="absolute left-0 right-0 bg-dom-green/10 pointer-events-none rounded-sm border border-dom-green/20"
-                              style={{ top: hoverSlot * ROW_HEIGHT, height: ROW_HEIGHT }}
+                              style={{ top: hoverSlot * HALF_HOUR_PX, height: HALF_HOUR_PX }}
                             />
                           )}
 
