@@ -26,7 +26,8 @@ export interface BookingFormData {
   comment: string;
 }
 
-export type BookingStep = 'room' | 'date' | 'time' | 'confirm';
+export type BookingStep = 'start' | 'room' | 'date' | 'time' | 'confirm';
+export type BookingFlow = 'room-first' | 'date-first';
 
 // Fallback room data — overridden by API response (alteg.io staff)
 export const ROOMS: Room[] = [
