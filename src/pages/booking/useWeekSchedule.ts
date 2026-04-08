@@ -7,18 +7,12 @@ export interface BusyBlock {
   lengthSeconds: number;
 }
 
-export interface WeekData {
-  /** Map<"roomId:date", BusyBlock[]> */
-  busy: Map<string, BusyBlock[]>;
-  loading: boolean;
-}
-
-function getWeekDates(): string[] {
+function getWeekDates(weekOffset: number): string[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const dayOfWeek = (today.getDay() + 6) % 7; // Mon=0
   const monday = new Date(today);
-  monday.setDate(today.getDate() - dayOfWeek);
+  monday.setDate(today.getDate() - dayOfWeek + weekOffset * 7);
 
   const dates: string[] = [];
   for (let i = 0; i < 7; i++) {
@@ -32,10 +26,10 @@ function getWeekDates(): string[] {
   return dates;
 }
 
-export function useWeekSchedule(rooms: Room[]) {
+export function useWeekSchedule(rooms: Room[], weekOffset: number) {
   const [busy, setBusy] = useState<Map<string, BusyBlock[]>>(new Map());
   const [loading, setLoading] = useState(true);
-  const weekDates = useMemo(() => getWeekDates(), []);
+  const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
 
   useEffect(() => {
     if (rooms.length === 0) return;
@@ -59,13 +53,13 @@ export function useWeekSchedule(rooms: Room[]) {
       const map = new Map<string, BusyBlock[]>();
       for (const r of results) map.set(r.key, r.blocks);
       setBusy(map);
-      debugLog('[WeekSchedule] Loaded busy data for', results.length, 'room-days');
+      debugLog('[WeekSchedule] Loaded busy data for', results.length, 'room-days, offset', weekOffset);
     }).catch((err) => {
       debugError('[WeekSchedule] Failed:', err);
     }).finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [rooms, weekDates]);
+  }, [rooms, weekDates, weekOffset]);
 
   return { busy, loading, weekDates };
 }

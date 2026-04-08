@@ -9,6 +9,8 @@ interface WeekScheduleProps {
   weekDates: string[];
   busy: Map<string, BusyBlock[]>;
   loading: boolean;
+  weekOffset: number;
+  onWeekChange: (offset: number) => void;
   onSlotClick: (room: Room, date: string, time: string, duration: DurationOption) => void;
 }
 
@@ -73,7 +75,7 @@ function getNowLineTop(): number | null {
   return offset * ROW_HEIGHT;
 }
 
-export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: WeekScheduleProps) {
+export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWeekChange, onSlotClick }: WeekScheduleProps) {
   const hours = useMemo(() => {
     const arr: number[] = [];
     for (let h = START_HOUR; h < END_HOUR; h++) arr.push(h);
@@ -124,7 +126,8 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: W
     <section className="py-12 md:py-16 bg-white">
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-1.5">
+          {/* Duration toggle — left */}
+          <div className="flex items-center gap-1.5 w-[160px]">
             {DURATION_OPTIONS.map((opt) => (
               <button
                 key={opt.minutes}
@@ -141,10 +144,48 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: W
               </button>
             ))}
           </div>
+
+          {/* Title — center */}
           <div className="text-center flex-1">
             <h2 className="text-2xl md:text-3xl font-bold text-dom-gray-900">Расписание</h2>
+            <p className="mt-1 text-sm text-dom-gray-500">Нажмите на свободное время чтобы забронировать</p>
           </div>
-          <div className="w-[140px]" />
+
+          {/* Week navigation — right */}
+          <div className="flex items-center gap-2 w-[160px] justify-end">
+            <button
+              onClick={() => onWeekChange(weekOffset - 1)}
+              disabled={weekOffset <= 0}
+              className={`
+                w-8 h-8 rounded-lg flex items-center justify-center border transition-all
+                ${weekOffset <= 0
+                  ? 'border-dom-gray-200 text-dom-gray-300 cursor-not-allowed'
+                  : 'border-dom-gray-200 text-dom-gray-700 hover:border-dom-green/40 hover:text-dom-green'
+                }
+              `}
+              aria-label="Предыдущая неделя"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={() => onWeekChange(weekOffset + 1)}
+              disabled={weekOffset >= 3}
+              className={`
+                w-8 h-8 rounded-lg flex items-center justify-center border transition-all
+                ${weekOffset >= 3
+                  ? 'border-dom-gray-200 text-dom-gray-300 cursor-not-allowed'
+                  : 'border-dom-gray-200 text-dom-gray-700 hover:border-dom-green/40 hover:text-dom-green'
+                }
+              `}
+              aria-label="Следующая неделя"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-dom-gray-200 shadow-brand">
@@ -243,7 +284,7 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: W
                           {/* Hover highlight — sized to selected duration */}
                           {hoverSlot >= 0 && (
                             <div
-                              className={`absolute left-0 right-0 pointer-events-none rounded-sm border ${hoverFits ? 'bg-dom-green/12 border-dom-green/30' : 'bg-dom-red/8 border-dom-red/20'}`}
+                              className={`absolute left-0.5 right-0.5 pointer-events-none rounded-sm border ${hoverFits ? 'bg-dom-green/20 border-dom-green/40' : 'bg-dom-red/15 border-dom-red/30'}`}
                               style={{
                                 top: hoverTop,
                                 height: Math.min(durationPx, TOTAL_HEIGHT - hoverTop),

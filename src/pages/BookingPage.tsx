@@ -58,6 +58,7 @@ export function BookingPage() {
   const [selectedDuration, setSelectedDuration] = useState<DurationOption>(DURATION_OPTIONS[0]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [bookingResults, setBookingResults] = useState<BookingResult[] | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const { rooms } = useRooms();
   const currentServiceId = selectedDuration.serviceId;
@@ -76,7 +77,7 @@ export function BookingPage() {
     currentDurationSec,
   );
   const { book, submitting } = useBooking();
-  const { busy: weekBusy, loading: weekLoading, weekDates } = useWeekSchedule(rooms);
+  const { busy: weekBusy, loading: weekLoading, weekDates } = useWeekSchedule(rooms, weekOffset);
 
   const steps = useMemo(() => getSteps(flow), [flow]);
   const currentStepIndex = steps.findIndex((s) => s.key === step);
@@ -297,6 +298,8 @@ export function BookingPage() {
           weekDates={weekDates}
           busy={weekBusy}
           loading={weekLoading}
+          weekOffset={weekOffset}
+          onWeekChange={setWeekOffset}
           onSlotClick={handleScheduleSlotClick}
         />
       )}
