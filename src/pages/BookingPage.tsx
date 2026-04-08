@@ -150,15 +150,16 @@ export function BookingPage() {
 
   // --- Quick booking from week schedule ---
   const handleScheduleSlotClick = useCallback(
-    (room: Room, date: string, time: string) => {
-      const slot: TimeSlot = { time, datetime: 0, seanceLength: selectedDuration.seconds, available: true };
+    (room: Room, date: string, time: string, dur: DurationOption) => {
+      const slot: TimeSlot = { time, datetime: 0, seanceLength: dur.seconds, available: true };
       setFlow('room-first');
       setSelectedRoom(room);
       setSelectedDate(date);
+      setSelectedDuration(dur);
       setCart([{ room, date, slot }]);
       setStep('confirm');
     },
-    [selectedDuration.seconds]
+    []
   );
 
   const handleRemoveFromCart = useCallback((index: number) => {

@@ -1,5 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { Room } from './types';
+import { DURATION_OPTIONS } from './types';
+import type { DurationOption } from './types';
 import type { BusyBlock } from './useWeekSchedule';
 
 interface WeekScheduleProps {
@@ -7,7 +9,7 @@ interface WeekScheduleProps {
   weekDates: string[];
   busy: Map<string, BusyBlock[]>;
   loading: boolean;
-  onSlotClick: (room: Room, date: string, time: string) => void;
+  onSlotClick: (room: Room, date: string, time: string, duration: DurationOption) => void;
 }
 
 const DAY_LABELS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
@@ -41,21 +43,20 @@ function blockToPosition(block: BusyBlock): { top: number; height: number } | nu
   return { top, height: bottom - top };
 }
 
-function yToTime(yPx: number): string {
-  const totalMinutes = (yPx / ROW_HEIGHT) * 60 + START_HOUR * 60;
-  const snapped = Math.floor(totalMinutes / 30) * 30;
-  const h = Math.floor(snapped / 60);
-  const m = snapped % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
 function yToHalfHourSlot(yPx: number): number {
   return Math.floor(yPx / HALF_HOUR_PX);
 }
 
-function isBusyAt(time: string, date: string, blocks: BusyBlock[]): boolean {
-  const slotStart = new Date(`${date}T${time}:00+04:00`).getTime();
-  const slotEnd = slotStart + 30 * 60 * 1000;
+function halfSlotToTime(slot: number): string {
+  const totalMinutes = slot * 30 + START_HOUR * 60;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function isRangeOverlapping(startTime: string, durationMin: number, date: string, blocks: BusyBlock[]): boolean {
+  const slotStart = new Date(`${date}T${startTime}:00+04:00`).getTime();
+  const slotEnd = slotStart + durationMin * 60 * 1000;
   for (const b of blocks) {
     const busyStart = new Date(b.start).getTime();
     const busyEnd = busyStart + b.lengthSeconds * 1000;
@@ -80,7 +81,11 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: W
   }, []);
 
   const today = useMemo(() => todayStr(), []);
+  const [duration, setDuration] = useState<DurationOption>(DURATION_OPTIONS[0]);
   const [hover, setHover] = useState<{ roomId: string; date: string; halfSlot: number } | null>(null);
+
+  const durationPx = (duration.minutes / 60) * ROW_HEIGHT;
+  const durationHalfSlots = duration.minutes / 30;
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>, roomId: string, date: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -93,13 +98,14 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: W
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>, room: Room, date: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const time = yToTime(y);
+    const halfSlot = yToHalfHourSlot(y);
+    const time = halfSlotToTime(halfSlot);
     const key = `${room.id}:${date}`;
     const blocks = busy.get(key) || [];
-    if (!isBusyAt(time, date, blocks)) {
-      onSlotClick(room, date, time);
+    if (!isRangeOverlapping(time, duration.minutes, date, blocks)) {
+      onSlotClick(room, date, time, duration);
     }
-  }, [busy, onSlotClick]);
+  }, [busy, onSlotClick, duration]);
 
   if (loading) {
     return (
@@ -126,7 +132,24 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: W
           <div className="min-w-[900px]">
             {/* Header */}
             <div className="flex bg-dom-cream border-b border-dom-gray-200">
-              <div className="w-14 flex-shrink-0" />
+              {/* Duration toggle in top-left corner */}
+              <div className="w-14 flex-shrink-0 flex flex-col items-center justify-center gap-0.5 py-1">
+                {DURATION_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.minutes}
+                    onClick={() => setDuration(opt)}
+                    className={`
+                      text-[10px] leading-tight px-1.5 py-0.5 rounded transition-all
+                      ${duration.minutes === opt.minutes
+                        ? 'bg-dom-green text-white font-semibold'
+                        : 'text-dom-gray-500 hover:text-dom-green hover:bg-dom-green/10'
+                      }
+                    `}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
               {weekDates.map((date, di) => {
                 const { day, label } = formatDateHeader(date);
                 const isToday = date === today;
@@ -171,6 +194,11 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: W
                       const blocks = busy.get(key) || [];
                       const isHovered = hover?.roomId === room.id && hover?.date === date;
                       const hoverSlot = isHovered ? hover.halfSlot : -1;
+                      const hoverTop = hoverSlot * HALF_HOUR_PX;
+                      const hoverBottom = hoverTop + durationPx;
+                      const hoverFits = hoverSlot >= 0
+                        && hoverSlot + durationHalfSlots <= TOTAL_HOURS * 2
+                        && !isRangeOverlapping(halfSlotToTime(hoverSlot), duration.minutes, date, blocks);
 
                       return (
                         <div
@@ -203,18 +231,21 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: W
                             return <div className="absolute left-0 right-0 top-0 bg-dom-gray-200/15 pointer-events-none" style={{ height: pastH }} />;
                           })()}
 
-                          {/* Now line (today only) */}
+                          {/* Now line */}
                           {nowTop !== null && (
                             <div className="absolute left-0 right-0 pointer-events-none z-10" style={{ top: nowTop }}>
                               <div className="h-0.5 bg-dom-red/60" />
                             </div>
                           )}
 
-                          {/* Hover highlight — half-hour block */}
-                          {hoverSlot >= 0 && hoverSlot < TOTAL_HOURS * 2 && (
+                          {/* Hover highlight — sized to selected duration */}
+                          {hoverSlot >= 0 && (
                             <div
-                              className="absolute left-0 right-0 bg-dom-green/10 pointer-events-none rounded-sm border border-dom-green/20"
-                              style={{ top: hoverSlot * HALF_HOUR_PX, height: HALF_HOUR_PX }}
+                              className={`absolute left-0 right-0 pointer-events-none rounded-sm border ${hoverFits ? 'bg-dom-green/12 border-dom-green/30' : 'bg-dom-red/8 border-dom-red/20'}`}
+                              style={{
+                                top: hoverTop,
+                                height: Math.min(durationPx, TOTAL_HEIGHT - hoverTop),
+                              }}
                             />
                           )}
 
