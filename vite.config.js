@@ -87,15 +87,23 @@ const chunkMapper = (id) => {
 
 export default defineConfig(({ mode }) => {
   const isProd = mode === 'production';
-  const devApiPlugin = {
-    name: 'dev-api-papers',
+  const wrapApiMiddleware = (apiPath, filePath) => ({
+    name: `dev-api-${apiPath.replace(/\//g, '-')}`,
     apply: 'serve',
     configureServer(server) {
-      server.middlewares.use('/api/papers', async (req, res, next) => {
+      server.middlewares.use(apiPath, async (req, res, next) => {
         try {
-          const handler = (await import(path.resolve(__dirname, 'api/papers.ts'))).default;
+          const handler = (await import(path.resolve(__dirname, filePath))).default;
           const parsedUrl = new URL(req.url || '', 'http://localhost');
           req.query = Object.fromEntries(parsedUrl.searchParams.entries());
+          // Parse JSON body for POST requests
+          if (req.method === 'POST' && !req.body) {
+            req.body = await new Promise((resolve) => {
+              let data = '';
+              req.on('data', (chunk) => { data += chunk; });
+              req.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve({}); } });
+            });
+          }
           res.status = (code) => {
             res.statusCode = code;
             return res;
@@ -110,10 +118,12 @@ export default defineConfig(({ mode }) => {
         }
       });
     },
-  };
+  });
+  const devApiPlugin = wrapApiMiddleware('/api/papers', 'api/papers.ts');
+  const devBookingPlugin = wrapApiMiddleware('/api/booking', 'api/booking.ts');
   const plugins = [react()];
   if (!isProd) {
-    plugins.push(devApiPlugin);
+    plugins.push(devApiPlugin, devBookingPlugin);
   }
 
   return {
