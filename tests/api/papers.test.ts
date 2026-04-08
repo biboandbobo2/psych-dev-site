@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import handler from '../papers.js';
+import handler from '../../api/papers.js';
 
 const mockReq = (query: Record<string, unknown> = {}) =>
   ({
