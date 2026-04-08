@@ -123,26 +123,26 @@ export function useBooking() {
   ) => {
     setSubmitting(true);
     try {
-      const results = [];
-      for (const item of cart) {
-        const result = await fetch('/api/booking', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'book',
-            staffId: Number(item.roomId),
-            serviceId: Number(item.serviceId || SERVICE_ID),
-            datetime: item.datetime,
-            name: contact.name,
-            phone: contact.phone,
-            email: contact.email || '',
-            comment: contact.comment || '',
-          }),
-        }).then((r) => r.json());
-        results.push(result);
-      }
-      debugLog('[Booking] Booked:', results.length, 'slots');
-      return results;
+      const appointments = cart.map((item) => ({
+        staffId: Number(item.roomId),
+        serviceId: Number(item.serviceId || SERVICE_ID),
+        datetime: item.datetime,
+      }));
+      const result = await fetch('/api/booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'book',
+          appointments,
+          name: contact.name,
+          phone: contact.phone,
+          email: contact.email || '',
+          comment: contact.comment || '',
+        }),
+      }).then((r) => r.json());
+      if (!result.success) throw new Error(result.error || 'Booking failed');
+      debugLog('[Booking] Booked:', appointments.length, 'slots');
+      return result;
     } finally {
       setSubmitting(false);
     }

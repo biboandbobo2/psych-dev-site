@@ -80,7 +80,7 @@ export function BookingPage() {
     async (data: BookingFormData) => {
       const bookingItems = cart.map((item) => ({
         roomId: item.room.id,
-        datetime: `${item.date} ${item.slot.time}`,
+        datetime: `${item.date}T${item.slot.time}:00+04:00`,
       }));
       await book(bookingItems, data);
       setSuccess(true);

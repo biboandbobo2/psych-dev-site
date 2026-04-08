@@ -94,9 +94,7 @@ async function handleDates(
 async function handleBook(
   companyId: string,
   body: {
-    staffId: number;
-    serviceId: number;
-    datetime: string;
+    appointments: { staffId: number; serviceId: number; datetime: string }[];
     name: string;
     phone: string;
     email?: string;
@@ -104,14 +102,18 @@ async function handleBook(
   },
   partnerToken: string,
 ) {
+  const appointments = body.appointments.map((appt, i) => ({
+    id: i + 1,
+    staff_id: appt.staffId,
+    services: [appt.serviceId],
+    datetime: appt.datetime,
+  }));
   return altegPost(`/book_record/${companyId}`, {
-    staff_id: body.staffId,
-    services: [{ id: body.serviceId }],
-    datetime: body.datetime,
     fullname: body.name,
     phone: body.phone,
     email: body.email || '',
     comment: body.comment || '',
+    appointments,
   }, partnerToken);
 }
 
