@@ -13,17 +13,6 @@ interface AllRoomsGridProps {
   loading?: boolean;
 }
 
-function fitsConsecutive(slots: TimeSlot[], startTime: string, durationMinutes: number): boolean {
-  const needed = Math.ceil(durationMinutes / 30);
-  const startIdx = slots.findIndex((s) => s.time === startTime);
-  if (startIdx < 0) return false;
-  if (startIdx + needed > slots.length) return false;
-  for (let i = 0; i < needed; i++) {
-    if (!slots[startIdx + i].available) return false;
-  }
-  return true;
-}
-
 function getAllTimes(slotsByRoom: Map<string, TimeSlot[]>): string[] {
   const set = new Set<string>();
   for (const slots of slotsByRoom.values()) {
@@ -111,9 +100,9 @@ export function AllRoomsGrid({ rooms, date, slotsByRoom, duration, onDurationCha
                     </span>
                   </div>
                   {allTimes.map((time) => {
-                    const fits = fitsConsecutive(roomSlots, time, duration.minutes);
-                    const selected = isInCart(room.id, time);
                     const slot = roomSlots.find((s) => s.time === time);
+                    const fits = Boolean(slot);
+                    const selected = isInCart(room.id, time);
 
                     return (
                       <motion.button
