@@ -123,33 +123,35 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, onSlotClick }: W
   return (
     <section className="py-12 md:py-16 bg-white">
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-dom-gray-900">Расписание на неделю</h2>
-          <p className="mt-2 text-dom-gray-500">Нажмите на свободное время чтобы забронировать</p>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-1.5">
+            {DURATION_OPTIONS.map((opt) => (
+              <button
+                key={opt.minutes}
+                onClick={() => setDuration(opt)}
+                className={`
+                  px-3 py-1.5 rounded-lg text-xs font-medium transition-all border
+                  ${duration.minutes === opt.minutes
+                    ? 'bg-dom-green text-white border-dom-green'
+                    : 'bg-white text-dom-gray-700 border-dom-gray-200 hover:border-dom-green/40'
+                  }
+                `}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <div className="text-center flex-1">
+            <h2 className="text-2xl md:text-3xl font-bold text-dom-gray-900">Расписание</h2>
+          </div>
+          <div className="w-[140px]" />
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-dom-gray-200 shadow-brand">
           <div className="min-w-[900px]">
             {/* Header */}
             <div className="flex bg-dom-cream border-b border-dom-gray-200">
-              {/* Duration toggle in top-left corner */}
-              <div className="w-14 flex-shrink-0 flex flex-col items-center justify-center gap-0.5 py-1">
-                {DURATION_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.minutes}
-                    onClick={() => setDuration(opt)}
-                    className={`
-                      text-[10px] leading-tight px-1.5 py-0.5 rounded transition-all
-                      ${duration.minutes === opt.minutes
-                        ? 'bg-dom-green text-white font-semibold'
-                        : 'text-dom-gray-500 hover:text-dom-green hover:bg-dom-green/10'
-                      }
-                    `}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
+              <div className="w-14 flex-shrink-0" />
               {weekDates.map((date, di) => {
                 const { day, label } = formatDateHeader(date);
                 const isToday = date === today;
