@@ -26,7 +26,7 @@ function getWeekDates(weekOffset: number): string[] {
   return dates;
 }
 
-export function useWeekSchedule(rooms: Room[], weekOffset: number) {
+export function useWeekSchedule(rooms: Room[], weekOffset: number, refreshKey?: number) {
   const [busy, setBusy] = useState<Map<string, BusyBlock[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
@@ -59,7 +59,7 @@ export function useWeekSchedule(rooms: Room[], weekOffset: number) {
     }).finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [rooms, weekDates, weekOffset]);
+  }, [rooms, weekDates, weekOffset, refreshKey]);
 
   return { busy, loading, weekDates };
 }
