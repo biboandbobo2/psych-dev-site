@@ -88,14 +88,14 @@ async function handleBusy(
   partnerToken: string,
   userToken: string,
 ) {
-  const records = await altegFetch<{ datetime: string; length: number; deleted: boolean }[]>(
+  const records = await altegFetch(
     `/records/${companyId}?staff_id=${staffId}&start_date=${date}&end_date=${date}`,
     partnerToken,
     userToken,
-  );
+  ) as { datetime: string; length: number; deleted: boolean }[];
   return records
-    .filter((r) => !r.deleted)
-    .map((r) => ({ start: r.datetime, lengthSeconds: r.length }));
+    .filter((r: { deleted: boolean }) => !r.deleted)
+    .map((r: { datetime: string; length: number }) => ({ start: r.datetime, lengthSeconds: r.length }));
 }
 
 async function handleFindClients(
@@ -166,11 +166,11 @@ async function handleClientRecords(
   const allRecords: unknown[] = [];
   const seenIds = new Set<number>();
   for (const cid of clientIds) {
-    const records = await altegFetch<{ id: number }[]>(
+    const records = await altegFetch(
       `/records/${companyId}?client_id=${cid}&count=50`,
       partnerToken,
       userToken,
-    );
+    ) as { id: number }[];
     for (const r of (records || [])) {
       if (!seenIds.has(r.id)) {
         seenIds.add(r.id);
