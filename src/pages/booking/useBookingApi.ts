@@ -76,8 +76,10 @@ export function useTimeSlots(roomId: string | null, date: string | null, service
       if (cancelled) return;
       const mapped: TimeSlot[] = slotsData
         .filter((s) => {
-          const hour = parseInt(s.time.split(':')[0], 10);
-          return hour >= 9 && !slotOverlapsBusy(s.time, durSec, date, busyData);
+          const [h, m] = s.time.split(':').map(Number);
+          const startMin = h * 60 + m;
+          const endMin = startMin + durSec / 60;
+          return startMin >= 9 * 60 && endMin <= 22 * 60 && !slotOverlapsBusy(s.time, durSec, date, busyData);
         })
         .sort((a, b) => {
           const [ah, am] = a.time.split(':').map(Number);
@@ -166,8 +168,10 @@ export function useAllRoomsSlots(rooms: Room[], date: string | null, serviceId?:
         ]);
         const filtered = slotsData
           .filter((s) => {
-            const hour = parseInt(s.time.split(':')[0], 10);
-            return hour >= 9 && !slotOverlapsBusy(s.time, durSec, date, busyData);
+            const [h, m] = s.time.split(':').map(Number);
+            const startMin = h * 60 + m;
+            const endMin = startMin + durSec / 60;
+            return startMin >= 9 * 60 && endMin <= 22 * 60 && !slotOverlapsBusy(s.time, durSec, date, busyData);
           })
           .sort((a, b) => {
           const [ah, am] = a.time.split(':').map(Number);
