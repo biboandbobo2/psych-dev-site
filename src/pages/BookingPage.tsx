@@ -78,6 +78,7 @@ export function BookingPage() {
   // --- Flow selection ---
   const handleFlowSelect = useCallback((f: BookingFlow) => {
     setFlow(f);
+    setSelectedDuration(DURATION_OPTIONS[0]);
     if (f === 'room-first') setStep('room');
     else setStep('date');
   }, []);
@@ -262,7 +263,7 @@ export function BookingPage() {
                 {step === 'room' && <RoomSelector rooms={rooms} selectedRoom={selectedRoom} onSelect={handleRoomSelect} />}
                 {step === 'date' && <DatePicker selectedDate={selectedDate} onSelect={handleDateSelect} daysAhead={28} />}
                 {step === 'time' && selectedRoom && selectedDate && (
-                  <TimeSlotGrid slots={slots} room={selectedRoom} date={selectedDate} cart={cart} onToggleSlot={handleToggleSlot} loading={slotsLoading} />
+                  <TimeSlotGrid slots={slots} room={selectedRoom} date={selectedDate} cart={cart} duration={selectedDuration} onDurationChange={handleDurationChange} onToggleSlot={handleToggleSlot} loading={slotsLoading} />
                 )}
                 {step === 'allrooms' && selectedDate && (
                   <AllRoomsGrid rooms={rooms} date={selectedDate} slotsByRoom={slotsByRoom} duration={selectedDuration} onDurationChange={handleDurationChange} cart={cart} onToggleSlot={handleAllRoomsToggle} loading={allRoomsSlotsLoading} />

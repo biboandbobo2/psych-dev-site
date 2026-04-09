@@ -16,7 +16,7 @@ interface WeekScheduleProps {
 
 const DAY_LABELS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
 const MONTH_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-const START_HOUR = 8;
+const START_HOUR = 9;
 const END_HOUR = 22;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
 const ROW_HEIGHT = 40;
@@ -102,6 +102,9 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
     const y = e.clientY - rect.top;
     const halfSlot = yToHalfHourSlot(y);
     const time = halfSlotToTime(halfSlot);
+    // Block past time
+    const slotMs = new Date(`${date}T${time}:00+04:00`).getTime();
+    if (slotMs < Date.now()) return;
     const key = `${room.id}:${date}`;
     const blocks = busy.get(key) || [];
     if (!isRangeOverlapping(time, duration.minutes, date, blocks)) {
@@ -281,16 +284,24 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
                             </div>
                           )}
 
-                          {/* Hover highlight — sized to selected duration */}
-                          {hoverSlot >= 0 && (
-                            <div
-                              className={`absolute left-0.5 right-0.5 pointer-events-none rounded-sm border ${hoverFits ? 'bg-dom-green/20 border-dom-green/40' : 'bg-dom-red/15 border-dom-red/30'}`}
-                              style={{
-                                top: hoverTop,
-                                height: Math.min(durationPx, TOTAL_HEIGHT - hoverTop),
-                              }}
-                            />
-                          )}
+                          {/* Hover highlight — sized to selected duration, colored by room */}
+                          {hoverSlot >= 0 && (() => {
+                            const hoverTime = halfSlotToTime(hoverSlot);
+                            const hoverMs = new Date(`${date}T${hoverTime}:00+04:00`).getTime();
+                            const isPast = hoverMs < Date.now();
+                            if (isPast) return null;
+                            return (
+                              <div
+                                className="absolute left-0.5 right-0.5 pointer-events-none rounded-sm border"
+                                style={{
+                                  top: hoverTop,
+                                  height: Math.min(durationPx, TOTAL_HEIGHT - hoverTop),
+                                  backgroundColor: hoverFits ? `${room.color}20` : 'rgba(206,22,77,0.1)',
+                                  borderColor: hoverFits ? `${room.color}60` : 'rgba(206,22,77,0.25)',
+                                }}
+                              />
+                            );
+                          })()}
 
                           {/* Busy blocks */}
                           {blocks.map((block, bi) => {
