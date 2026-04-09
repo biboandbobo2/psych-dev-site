@@ -50,8 +50,15 @@ export function BookingConfirmation({ cart, onSubmit, onBack, submitting }: Book
   const validate = (): boolean => {
     const newErrors: typeof errors = {};
     if (!form.name.trim()) newErrors.name = 'Укажите имя';
-    if (!form.phone.trim()) newErrors.phone = 'Укажите телефон';
-    else if (!/^[\d\s+\-()]{7,}$/.test(form.phone.trim())) newErrors.phone = 'Некорректный номер';
+    if (!form.phone.trim()) {
+      newErrors.phone = 'Укажите телефон';
+    } else {
+      const digits = form.phone.trim().replace(/[\s\-()]/g, '');
+      const withPlus = digits.startsWith('+') ? digits : '+' + digits;
+      if (!/^\+\d{10,15}$/.test(withPlus)) {
+        newErrors.phone = 'Укажите номер в формате +995 511 17-92-41';
+      }
+    }
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Некорректный email';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

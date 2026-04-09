@@ -40,15 +40,15 @@ function durationLabel(seconds: number): string {
 
 export function AccountPage() {
   const user = useAuthStore((state) => state.user);
-  const { altegClientId, loading: authLoading } = useBookingAuth();
+  const { altegClientIds, loading: authLoading } = useBookingAuth();
   const [records, setRecords] = useState<BookingRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!altegClientId) return;
+    if (!altegClientIds.length) return;
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/booking?action=clientRecords&clientId=${altegClientId}`)
+    fetch(`/api/booking?action=clientRecords&clientIds=${altegClientIds.join(',')}`)
       .then((r) => r.json())
       .then((json) => {
         if (!cancelled && json.success) {
@@ -58,7 +58,7 @@ export function AccountPage() {
       .catch((err) => debugError('[Account] Load records error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [altegClientId]);
+  }, [altegClientIds]);
 
   const now = new Date();
   const upcoming = records
@@ -87,7 +87,7 @@ export function AccountPage() {
               <div key={i} className="h-20 rounded-xl bg-dom-gray-200 animate-pulse" />
             ))}
           </div>
-        ) : !altegClientId ? (
+        ) : !altegClientIds.length ? (
           <div className="text-center py-16">
             <p className="text-dom-gray-500 text-lg">У вас пока нет бронирований</p>
             <a href="/booking" className="inline-block mt-4 px-6 py-3 bg-dom-green hover:bg-dom-green-hover text-white rounded-xl font-medium transition-all">

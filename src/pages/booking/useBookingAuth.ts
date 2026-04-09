@@ -5,20 +5,20 @@ import { useAuthStore } from '../../stores/useAuthStore';
 import { debugLog, debugError } from '../../lib/debug';
 
 interface BookingAuthData {
-  altegClientId: number | null;
+  altegClientIds: number[];
   phone: string | null;
   loading: boolean;
 }
 
 export function useBookingAuth(): BookingAuthData {
   const user = useAuthStore((state) => state.user);
-  const [altegClientId, setAltegClientId] = useState<number | null>(null);
+  const [altegClientIds, setAltegClientIds] = useState<number[]>([]);
   const [phone, setPhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!user) {
-      setAltegClientId(null);
+      setAltegClientIds([]);
       setPhone(null);
       return;
     }
@@ -28,49 +28,50 @@ export function useBookingAuth(): BookingAuthData {
 
     (async () => {
       try {
-        // 1. Check Firestore for cached altegClientId and phone
+        // 1. Get phone from Firestore
         const snap = await getDoc(doc(db, 'users', user.uid));
         const data = snap.data();
+        const userPhone = data?.phone || null;
+        if (userPhone) setPhone(userPhone);
 
-        if (data?.phone) setPhone(data.phone);
-
-        if (data?.altegClientId) {
-          setAltegClientId(data.altegClientId);
-          debugLog('[BookingAuth] Using cached altegClientId:', data.altegClientId);
+        // 2. Use cached altegClientIds if available
+        if (data?.altegClientIds?.length) {
+          setAltegClientIds(data.altegClientIds);
+          debugLog('[BookingAuth] Using cached altegClientIds:', data.altegClientIds);
+          setLoading(false);
           return;
         }
 
-        // 2. Search alteg.io by email
-        if (!user.email) return;
-        const searchRes = await fetch(`/api/booking?action=findClient&email=${encodeURIComponent(user.email)}`).then((r) => r.json());
+        // 3. Search alteg.io by email AND phone
+        const params = new URLSearchParams();
+        if (user.email) params.set('email', user.email);
+        if (userPhone) params.set('phone', userPhone);
+        params.set('action', 'findClients');
 
-        if (searchRes.success && searchRes.data) {
-          const clientId = searchRes.data.id;
-          setAltegClientId(clientId);
-          await updateDoc(doc(db, 'users', user.uid), { altegClientId: clientId });
-          debugLog('[BookingAuth] Found alteg client:', clientId);
-          return;
-        }
-
-        // 3. Create client in alteg.io (only if we have phone)
-        if (data?.phone) {
+        const searchRes = await fetch(`/api/booking?${params}`).then((r) => r.json());
+        if (searchRes.success && Array.isArray(searchRes.data) && searchRes.data.length > 0) {
+          const ids = searchRes.data.map((c: { id: number }) => c.id);
+          setAltegClientIds(ids);
+          await updateDoc(doc(db, 'users', user.uid), { altegClientIds: ids });
+          debugLog('[BookingAuth] Found alteg clients:', ids);
+        } else if (userPhone && user.email) {
+          // 4. No existing client — create one
           const createRes = await fetch('/api/booking', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               action: 'createClient',
               name: user.displayName || user.email.split('@')[0],
-              phone: data.phone,
+              phone: userPhone,
               email: user.email,
             }),
           }).then((r) => r.json());
-
           if (createRes.success && Array.isArray(createRes.data)) {
-            const clientId = createRes.data[0]?.id;
-            if (clientId) {
-              setAltegClientId(clientId);
-              await updateDoc(doc(db, 'users', user.uid), { altegClientId: clientId });
-              debugLog('[BookingAuth] Created alteg client:', clientId);
+            const newId = createRes.data[0]?.id;
+            if (newId) {
+              setAltegClientIds([newId]);
+              await updateDoc(doc(db, 'users', user.uid), { altegClientIds: [newId] });
+              debugLog('[BookingAuth] Created alteg client:', newId);
             }
           }
         }
@@ -84,5 +85,5 @@ export function useBookingAuth(): BookingAuthData {
     return () => { cancelled = true; };
   }, [user]);
 
-  return { altegClientId, phone, loading };
+  return { altegClientIds, phone, loading };
 }

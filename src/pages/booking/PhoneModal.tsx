@@ -15,11 +15,16 @@ export function PhoneModal({ uid, onComplete }: PhoneModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = phone.trim();
-    if (!/^[\d\s+\-()]{7,}$/.test(trimmed)) {
-      setError('Укажите корректный номер телефона');
+    let trimmed = phone.trim();
+    // Auto-add + if starts with digit
+    if (/^\d/.test(trimmed)) trimmed = '+' + trimmed;
+    // Must start with +, then 10-15 digits (ignoring spaces/dashes)
+    const digitsOnly = trimmed.replace(/[\s\-()]/g, '');
+    if (!/^\+\d{10,15}$/.test(digitsOnly)) {
+      setError('Укажите номер в международном формате, например +995 511 17-92-41');
       return;
     }
+    setPhone(trimmed);
     setSaving(true);
     try {
       await updateDoc(doc(db, 'users', uid), { phone: trimmed });

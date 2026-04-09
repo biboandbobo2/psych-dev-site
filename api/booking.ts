@@ -98,20 +98,50 @@ async function handleBusy(
     .map((r) => ({ start: r.datetime, lengthSeconds: r.length }));
 }
 
-async function handleFindClient(
+async function handleFindClients(
   companyId: string,
   email: string,
+  phone: string | undefined,
   partnerToken: string,
   userToken: string,
 ) {
-  const data = await altegPost(`/company/${companyId}/clients/search`, {
-    fields: ['id', 'name', 'phone', 'email'],
-    filters: [{ type: 'quick_search', state: { value: email } }],
-    count: 10,
-  }, partnerToken, userToken);
-  const clients = (data as { id: number; name: string; phone: string; email: string }[]) || [];
-  // Exact email match
-  return clients.find((c) => c.email?.toLowerCase() === email.toLowerCase()) || null;
+  type Client = { id: number; name: string; phone: string; email: string };
+  const ids = new Set<number>();
+  const results: Client[] = [];
+
+  // Search by email
+  if (email) {
+    const byEmail = await altegPost(`/company/${companyId}/clients/search`, {
+      fields: ['id', 'name', 'phone', 'email'],
+      filters: [{ type: 'quick_search', state: { value: email } }],
+      count: 20,
+    }, partnerToken, userToken) as Client[];
+    for (const c of (byEmail || [])) {
+      if (c.email?.toLowerCase() === email.toLowerCase() && !ids.has(c.id)) {
+        ids.add(c.id);
+        results.push(c);
+      }
+    }
+  }
+
+  // Search by phone
+  if (phone) {
+    const cleanPhone = phone.replace(/[\s\-()]/g, '');
+    const byPhone = await altegPost(`/company/${companyId}/clients/search`, {
+      fields: ['id', 'name', 'phone', 'email'],
+      filters: [{ type: 'quick_search', state: { value: cleanPhone } }],
+      count: 20,
+    }, partnerToken, userToken) as Client[];
+    for (const c of (byPhone || [])) {
+      const cPhone = c.phone?.replace(/[\s\-()]/g, '') || '';
+      if (cPhone === cleanPhone && !ids.has(c.id)) {
+        ids.add(c.id);
+        results.push(c);
+      }
+    }
+  }
+
+  return results;
 }
 
 async function handleCreateClient(
@@ -129,15 +159,26 @@ async function handleCreateClient(
 
 async function handleClientRecords(
   companyId: string,
-  clientId: string,
+  clientIds: string[],
   partnerToken: string,
   userToken: string,
 ) {
-  return altegFetch(
-    `/records/${companyId}?client_id=${clientId}&count=50`,
-    partnerToken,
-    userToken,
-  );
+  const allRecords: unknown[] = [];
+  const seenIds = new Set<number>();
+  for (const cid of clientIds) {
+    const records = await altegFetch<{ id: number }[]>(
+      `/records/${companyId}?client_id=${cid}&count=50`,
+      partnerToken,
+      userToken,
+    );
+    for (const r of (records || [])) {
+      if (!seenIds.has(r.id)) {
+        seenIds.add(r.id);
+        allRecords.push(r);
+      }
+    }
+  }
+  return allRecords;
 }
 
 async function handleDates(
@@ -253,11 +294,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const result = await handleBook(companyId, req.body, partnerToken);
         return res.status(200).json({ success: true, data: result });
       }
-      case 'findClient': {
+      case 'findClients': {
         const fcEmail = (req.query.email || req.body?.email) as string;
-        if (!fcEmail) return res.status(400).json({ success: false, error: 'email required' });
-        const client = await handleFindClient(companyId, fcEmail, partnerToken, userToken);
-        return res.status(200).json({ success: true, data: client });
+        const fcPhone = (req.query.phone || req.body?.phone) as string | undefined;
+        if (!fcEmail && !fcPhone) return res.status(400).json({ success: false, error: 'email or phone required' });
+        const clients = await handleFindClients(companyId, fcEmail, fcPhone, partnerToken, userToken);
+        return res.status(200).json({ success: true, data: clients });
       }
       case 'createClient': {
         if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'POST required' });
@@ -265,9 +307,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ success: true, data: result });
       }
       case 'clientRecords': {
-        const crClientId = (req.query.clientId || req.body?.clientId) as string;
-        if (!crClientId) return res.status(400).json({ success: false, error: 'clientId required' });
-        const records = await handleClientRecords(companyId, crClientId, partnerToken, userToken);
+        const crClientIds = (req.query.clientIds || req.body?.clientIds) as string;
+        if (!crClientIds) return res.status(400).json({ success: false, error: 'clientIds required' });
+        const ids = typeof crClientIds === 'string' ? crClientIds.split(',') : crClientIds;
+        const records = await handleClientRecords(companyId, ids, partnerToken, userToken);
         return res.status(200).json({ success: true, data: records });
       }
       default:
