@@ -181,6 +181,22 @@ async function handleClientRecords(
   return allRecords;
 }
 
+async function handleCancelRecord(
+  companyId: string,
+  recordId: string,
+  partnerToken: string,
+  userToken: string,
+) {
+  const url = `${ALTEG_BASE}/record/${companyId}/${recordId}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: authHeaders(partnerToken, userToken),
+  });
+  const json = await res.json();
+  if (!json.success) throw new Error(json.meta?.message || 'Cancel failed');
+  return json.data;
+}
+
 async function handleDates(
   companyId: string,
   staffId: string,
@@ -312,6 +328,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ids = typeof crClientIds === 'string' ? crClientIds.split(',') : crClientIds;
         const records = await handleClientRecords(companyId, ids, partnerToken, userToken);
         return res.status(200).json({ success: true, data: records });
+      }
+      case 'cancelRecord': {
+        if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'POST required' });
+        const crRecordId = req.body?.recordId as string;
+        if (!crRecordId) return res.status(400).json({ success: false, error: 'recordId required' });
+        const cancelResult = await handleCancelRecord(companyId, crRecordId, partnerToken, userToken);
+        return res.status(200).json({ success: true, data: cancelResult });
       }
       default:
         return res.status(400).json({ success: false, error: `Unknown action: ${action}` });

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { BookingLayout } from './BookingLayout';
 import { useBookingAuth } from './useBookingAuth';
-import { debugError } from '../../lib/debug';
+import { debugError, debugLog } from '../../lib/debug';
 
 interface BookingRecord {
   id: number;
@@ -12,7 +12,7 @@ interface BookingRecord {
   deleted: boolean;
   services: { id: number; title: string }[];
   staff: { id: number; name: string };
-  visit_attendance: number; // 0=pending, 1=completed, 2=confirmed, -1=no-show
+  visit_attendance: number;
 }
 
 const MONTH_LABELS = [
@@ -38,11 +38,29 @@ function durationLabel(seconds: number): string {
   return `${m}мин`;
 }
 
+/** Cancel allowed until 21:00 the day before the booking */
+function canCancel(bookingDatetime: string): boolean {
+  const booking = new Date(bookingDatetime);
+  const deadline = new Date(booking);
+  deadline.setDate(deadline.getDate() - 1);
+  deadline.setHours(21, 0, 0, 0);
+  return Date.now() < deadline.getTime();
+}
+
+function cancelDeadlineLabel(bookingDatetime: string): string {
+  const booking = new Date(bookingDatetime);
+  const deadline = new Date(booking);
+  deadline.setDate(deadline.getDate() - 1);
+  return `до ${deadline.getDate()} ${MONTH_LABELS[deadline.getMonth()]} 21:00`;
+}
+
 export function AccountPage() {
   const user = useAuthStore((state) => state.user);
   const { altegClientIds, loading: authLoading } = useBookingAuth();
   const [records, setRecords] = useState<BookingRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [cancelling, setCancelling] = useState<number | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState<number | null>(null);
 
   useEffect(() => {
     if (!altegClientIds.length) return;
@@ -51,14 +69,34 @@ export function AccountPage() {
     fetch(`/api/booking?action=clientRecords&clientIds=${altegClientIds.join(',')}`)
       .then((r) => r.json())
       .then((json) => {
-        if (!cancelled && json.success) {
-          setRecords(json.data || []);
-        }
+        if (!cancelled && json.success) setRecords(json.data || []);
       })
       .catch((err) => debugError('[Account] Load records error:', err))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [altegClientIds]);
+
+  const handleCancel = useCallback(async (recordId: number) => {
+    setCancelling(recordId);
+    try {
+      const res = await fetch('/api/booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancelRecord', recordId }),
+      }).then((r) => r.json());
+      if (res.success) {
+        setRecords((prev) => prev.map((r) => r.id === recordId ? { ...r, deleted: true } : r));
+        debugLog('[Account] Cancelled record:', recordId);
+      } else {
+        debugError('[Account] Cancel failed:', res.error);
+      }
+    } catch (err) {
+      debugError('[Account] Cancel error:', err);
+    } finally {
+      setCancelling(null);
+      setConfirmCancel(null);
+    }
+  }, []);
 
   const now = new Date();
   const upcoming = records
@@ -75,7 +113,12 @@ export function AccountPage() {
       </Helmet>
 
       <div className="max-w-[800px] mx-auto px-4 md:px-8 py-12">
-        <h1 className="text-3xl font-bold text-dom-gray-900 mb-8">Мои бронирования</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-dom-gray-900">Мои бронирования</h1>
+          <a href="/booking" className="px-4 py-2 bg-dom-green hover:bg-dom-green-hover text-white rounded-xl text-sm font-medium transition-all">
+            Забронировать
+          </a>
+        </div>
 
         {!user ? (
           <div className="text-center py-16">
@@ -90,9 +133,6 @@ export function AccountPage() {
         ) : !altegClientIds.length ? (
           <div className="text-center py-16">
             <p className="text-dom-gray-500 text-lg">У вас пока нет бронирований</p>
-            <a href="/booking" className="inline-block mt-4 px-6 py-3 bg-dom-green hover:bg-dom-green-hover text-white rounded-xl font-medium transition-all">
-              Забронировать кабинет
-            </a>
           </div>
         ) : (
           <>
@@ -106,24 +146,69 @@ export function AccountPage() {
                 <p className="text-dom-gray-500 text-sm">Нет предстоящих бронирований</p>
               ) : (
                 <div className="space-y-3">
-                  {upcoming.map((r) => (
-                    <div key={r.id} className="flex items-center justify-between bg-dom-cream rounded-xl p-4">
-                      <div>
-                        <p className="font-medium text-dom-gray-900">
-                          {r.staff?.name || 'Кабинет'}
-                        </p>
-                        <p className="text-sm text-dom-gray-500">
-                          {formatDate(r.datetime)} в {formatTime(r.datetime)} &middot; {durationLabel(r.length)}
-                        </p>
-                        <p className="text-xs text-dom-gray-500 mt-0.5">
-                          {r.services?.map((s) => s.title).join(', ')}
-                        </p>
+                  {upcoming.map((r) => {
+                    const cancelable = canCancel(r.datetime);
+                    const isConfirming = confirmCancel === r.id;
+                    const isCancelling = cancelling === r.id;
+                    return (
+                      <div key={r.id} className="bg-dom-cream rounded-xl p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-dom-gray-900">
+                              {r.staff?.name || 'Кабинет'}
+                            </p>
+                            <p className="text-sm text-dom-gray-500 mt-0.5">
+                              {formatDate(r.datetime)} в {formatTime(r.datetime)} &middot; {durationLabel(r.length)}
+                            </p>
+                            <p className="text-xs text-dom-gray-500 mt-0.5">
+                              {r.services?.map((s) => s.title).join(', ')}
+                            </p>
+                          </div>
+                          <div className="flex-shrink-0 ml-3 flex flex-col items-end gap-2">
+                            <span className="text-xs bg-dom-green/10 text-dom-green px-3 py-1 rounded-full font-medium">
+                              Подтверждено
+                            </span>
+                            {cancelable && !isConfirming && (
+                              <button
+                                onClick={() => setConfirmCancel(r.id)}
+                                className="text-xs text-dom-gray-500 hover:text-dom-red transition-colors"
+                              >
+                                Отменить
+                              </button>
+                            )}
+                            {!cancelable && (
+                              <span className="text-xs text-dom-gray-300" title={`Отмена была возможна ${cancelDeadlineLabel(r.datetime)}`}>
+                                Отмена недоступна
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Confirm cancel */}
+                        {isConfirming && (
+                          <div className="mt-3 pt-3 border-t border-dom-gray-200/60 flex items-center justify-between">
+                            <p className="text-sm text-dom-gray-700">Отменить бронирование?</p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setConfirmCancel(null)}
+                                disabled={isCancelling}
+                                className="px-3 py-1.5 text-xs rounded-lg border border-dom-gray-200 text-dom-gray-700 hover:bg-white transition-all"
+                              >
+                                Нет
+                              </button>
+                              <button
+                                onClick={() => handleCancel(r.id)}
+                                disabled={isCancelling}
+                                className="px-3 py-1.5 text-xs rounded-lg bg-dom-red hover:bg-dom-red-hover text-white font-medium transition-all disabled:opacity-50"
+                              >
+                                {isCancelling ? 'Отмена...' : 'Да, отменить'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <span className="text-xs bg-dom-green/10 text-dom-green px-3 py-1 rounded-full font-medium">
-                        Подтверждено
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
