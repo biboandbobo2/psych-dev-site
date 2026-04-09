@@ -79,7 +79,11 @@ export function useTimeSlots(roomId: string | null, date: string | null, service
           const hour = parseInt(s.time.split(':')[0], 10);
           return hour >= 9 && !slotOverlapsBusy(s.time, durSec, date, busyData);
         })
-        .sort((a, b) => a.time.localeCompare(b.time))
+        .sort((a, b) => {
+          const [ah, am] = a.time.split(':').map(Number);
+          const [bh, bm] = b.time.split(':').map(Number);
+          return (ah * 60 + am) - (bh * 60 + bm);
+        })
         .map((s) => ({
           time: s.time,
           datetime: s.datetime,
@@ -160,7 +164,11 @@ export function useAllRoomsSlots(rooms: Room[], date: string | null, serviceId?:
             const hour = parseInt(s.time.split(':')[0], 10);
             return hour >= 9 && !slotOverlapsBusy(s.time, durSec, date, busyData);
           })
-          .sort((a, b) => a.time.localeCompare(b.time))
+          .sort((a, b) => {
+          const [ah, am] = a.time.split(':').map(Number);
+          const [bh, bm] = b.time.split(':').map(Number);
+          return (ah * 60 + am) - (bh * 60 + bm);
+        })
           .map((s): TimeSlot => ({
             time: s.time,
             datetime: s.datetime,

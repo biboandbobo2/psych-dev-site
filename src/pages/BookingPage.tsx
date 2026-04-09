@@ -92,6 +92,8 @@ export function BookingPage() {
 
   const handleDateSelect = useCallback((date: string) => {
     setSelectedDate(date);
+    setSelectedDuration(DURATION_OPTIONS[0]); // always reset to 1h when entering time step
+    setCart([]);
     if (flow === 'room-first') {
       setStep('time');
     } else {

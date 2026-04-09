@@ -18,7 +18,16 @@ function getAllTimes(slotsByRoom: Map<string, TimeSlot[]>): string[] {
   for (const slots of slotsByRoom.values()) {
     for (const s of slots) set.add(s.time);
   }
-  return Array.from(set).sort();
+  return Array.from(set).sort((a, b) => {
+    const [ah, am] = a.split(':').map(Number);
+    const [bh, bm] = b.split(':').map(Number);
+    return (ah * 60 + am) - (bh * 60 + bm);
+  });
+}
+
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
 }
 
 export function AllRoomsGrid({ rooms, date, slotsByRoom, duration, onDurationChange, cart, onToggleSlot, loading }: AllRoomsGridProps) {
@@ -26,6 +35,18 @@ export function AllRoomsGrid({ rooms, date, slotsByRoom, duration, onDurationCha
 
   const isInCart = (roomId: string, time: string) =>
     cart.some((item) => item.room.id === roomId && item.date === date && item.slot.time === time);
+
+  const overlapsCart = (roomId: string, time: string) => {
+    const slotStart = timeToMinutes(time);
+    const slotEnd = slotStart + duration.minutes;
+    return cart.some((item) => {
+      if (item.room.id !== roomId || item.date !== date) return false;
+      if (item.slot.time === time) return false;
+      const cartStart = timeToMinutes(item.slot.time);
+      const cartEnd = cartStart + duration.minutes;
+      return slotStart < cartEnd && slotEnd > cartStart;
+    });
+  };
 
   if (loading) {
     return (
@@ -103,18 +124,20 @@ export function AllRoomsGrid({ rooms, date, slotsByRoom, duration, onDurationCha
                     const slot = roomSlots.find((s) => s.time === time);
                     const fits = Boolean(slot);
                     const selected = isInCart(room.id, time);
+                    const blocked = fits && !selected && overlapsCart(room.id, time);
+                    const disabled = !fits || blocked;
 
                     return (
                       <motion.button
                         key={time}
-                        onClick={() => fits && slot && onToggleSlot(room, slot)}
-                        disabled={!fits}
-                        whileHover={fits ? { scale: 1.15 } : undefined}
-                        whileTap={fits ? { scale: 0.9 } : undefined}
+                        onClick={() => !disabled && slot && onToggleSlot(room, slot)}
+                        disabled={disabled}
+                        whileHover={!disabled ? { scale: 1.15 } : undefined}
+                        whileTap={!disabled ? { scale: 0.9 } : undefined}
                         className={`
                           w-14 h-10 flex-shrink-0 rounded-lg text-xs font-medium
                           transition-all duration-100 border
-                          ${!fits
+                          ${disabled && !selected
                             ? 'bg-dom-gray-200/40 border-transparent cursor-not-allowed'
                             : selected
                               ? 'bg-dom-green text-white border-dom-green shadow-sm cursor-pointer'

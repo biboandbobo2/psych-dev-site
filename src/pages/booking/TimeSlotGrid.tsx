@@ -13,9 +13,26 @@ interface TimeSlotGridProps {
   loading?: boolean;
 }
 
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
 export function TimeSlotGrid({ slots, room, date, cart, duration, onDurationChange, onToggleSlot, loading }: TimeSlotGridProps) {
   const isInCart = (slot: TimeSlot) =>
     cart.some((item) => item.room.id === room.id && item.date === date && item.slot.time === slot.time);
+
+  const overlapsCart = (slot: TimeSlot) => {
+    const slotStart = timeToMinutes(slot.time);
+    const slotEnd = slotStart + duration.minutes;
+    return cart.some((item) => {
+      if (item.room.id !== room.id || item.date !== date) return false;
+      if (item.slot.time === slot.time) return false; // exact match = in cart, not overlap
+      const cartStart = timeToMinutes(item.slot.time);
+      const cartEnd = cartStart + duration.minutes;
+      return slotStart < cartEnd && slotEnd > cartStart;
+    });
+  };
 
   if (loading) {
     return (
@@ -72,18 +89,20 @@ export function TimeSlotGrid({ slots, room, date, cart, duration, onDurationChan
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 max-w-3xl mx-auto">
           {slots.map((slot) => {
             const selected = isInCart(slot);
+            const blocked = !selected && overlapsCart(slot);
+            const disabled = !slot.available || blocked;
             return (
               <motion.button
                 key={slot.time}
-                onClick={() => slot.available && onToggleSlot(slot)}
-                whileHover={slot.available ? { y: -2 } : undefined}
-                whileTap={slot.available ? { scale: 0.95 } : undefined}
-                disabled={!slot.available}
+                onClick={() => !disabled && onToggleSlot(slot)}
+                whileHover={!disabled ? { y: -2 } : undefined}
+                whileTap={!disabled ? { scale: 0.95 } : undefined}
+                disabled={disabled}
                 className={`
                   h-14 rounded-xl text-base font-medium transition-all duration-150
                   border cursor-pointer
-                  ${!slot.available
-                    ? 'bg-dom-gray-200/50 text-dom-gray-500/50 border-transparent cursor-not-allowed line-through'
+                  ${disabled && !selected
+                    ? 'bg-dom-gray-200/50 text-dom-gray-500/50 border-transparent cursor-not-allowed'
                     : selected
                       ? 'bg-dom-green text-white border-dom-green shadow-md'
                       : 'bg-white text-dom-gray-900 border-dom-gray-200 hover:border-dom-green/40'
