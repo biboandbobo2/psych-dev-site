@@ -75,7 +75,11 @@ export function useTimeSlots(roomId: string | null, date: string | null, service
     ]).then(([slotsData, busyData]) => {
       if (cancelled) return;
       const mapped: TimeSlot[] = slotsData
-        .filter((s) => !slotOverlapsBusy(s.time, durSec, date, busyData))
+        .filter((s) => {
+          const hour = parseInt(s.time.split(':')[0], 10);
+          return hour >= 9 && !slotOverlapsBusy(s.time, durSec, date, busyData);
+        })
+        .sort((a, b) => a.time.localeCompare(b.time))
         .map((s) => ({
           time: s.time,
           datetime: s.datetime,
@@ -152,7 +156,11 @@ export function useAllRoomsSlots(rooms: Room[], date: string | null, serviceId?:
           apiFetch<BusyInterval[]>('busy', { staffId: room.id, date }).catch(() => [] as BusyInterval[]),
         ]);
         const filtered = slotsData
-          .filter((s) => !slotOverlapsBusy(s.time, durSec, date, busyData))
+          .filter((s) => {
+            const hour = parseInt(s.time.split(':')[0], 10);
+            return hour >= 9 && !slotOverlapsBusy(s.time, durSec, date, busyData);
+          })
+          .sort((a, b) => a.time.localeCompare(b.time))
           .map((s): TimeSlot => ({
             time: s.time,
             datetime: s.datetime,

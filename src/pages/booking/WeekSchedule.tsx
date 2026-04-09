@@ -213,9 +213,9 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
 
             {/* Grid body */}
             <div className="flex">
-              {/* Time labels */}
+              {/* Time labels — skip first hour (9:00), show from 10:00 */}
               <div className="w-14 flex-shrink-0 relative" style={{ height: TOTAL_HEIGHT }}>
-                {hours.map((h) => (
+                {hours.filter((h) => h > START_HOUR).map((h) => (
                   <div
                     key={h}
                     className="absolute right-2 text-xs text-dom-gray-500 font-medium leading-none"
