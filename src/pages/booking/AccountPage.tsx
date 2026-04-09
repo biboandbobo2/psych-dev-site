@@ -13,6 +13,7 @@ interface BookingRecord {
   services: { id: number; title: string }[];
   staff: { id: number; name: string };
   visit_attendance: number;
+  _cancelled?: boolean; // local flag after user cancels
 }
 
 const MONTH_LABELS = [
@@ -85,7 +86,7 @@ export function AccountPage() {
         body: JSON.stringify({ action: 'cancelRecord', recordId }),
       }).then((r) => r.json());
       if (res.success) {
-        setRecords((prev) => prev.map((r) => r.id === recordId ? { ...r, deleted: true } : r));
+        setRecords((prev) => prev.map((r) => r.id === recordId ? { ...r, _cancelled: true } : r));
         debugLog('[Account] Cancelled record:', recordId);
       } else {
         debugError('[Account] Cancel failed:', res.error);
@@ -147,14 +148,15 @@ export function AccountPage() {
               ) : (
                 <div className="space-y-3">
                   {upcoming.map((r) => {
-                    const cancelable = canCancel(r.datetime);
+                    const cancelled = r._cancelled;
+                    const cancelable = !cancelled && canCancel(r.datetime);
                     const isConfirming = confirmCancel === r.id;
                     const isCancelling = cancelling === r.id;
                     return (
-                      <div key={r.id} className="bg-dom-cream rounded-xl p-4">
+                      <div key={r.id} className={`rounded-xl p-4 ${cancelled ? 'bg-dom-gray-200/40 opacity-70' : 'bg-dom-cream'}`}>
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-dom-gray-900">
+                            <p className={`font-medium ${cancelled ? 'text-dom-gray-500 line-through' : 'text-dom-gray-900'}`}>
                               {r.staff?.name || 'Кабинет'}
                             </p>
                             <p className="text-sm text-dom-gray-500 mt-0.5">
@@ -165,27 +167,35 @@ export function AccountPage() {
                             </p>
                           </div>
                           <div className="flex-shrink-0 ml-3 flex flex-col items-end gap-2">
-                            <span className="text-xs bg-dom-green/10 text-dom-green px-3 py-1 rounded-full font-medium">
-                              Подтверждено
-                            </span>
-                            {cancelable && !isConfirming && (
-                              <button
-                                onClick={() => setConfirmCancel(r.id)}
-                                className="text-xs text-dom-gray-500 hover:text-dom-red transition-colors"
-                              >
-                                Отменить
-                              </button>
-                            )}
-                            {!cancelable && (
-                              <span className="text-xs text-dom-gray-300" title={`Отмена была возможна ${cancelDeadlineLabel(r.datetime)}`}>
-                                Отмена недоступна
+                            {cancelled ? (
+                              <span className="text-xs bg-dom-gray-200 text-dom-gray-500 px-3 py-1 rounded-full font-medium">
+                                Отменено
                               </span>
+                            ) : (
+                              <>
+                                <span className="text-xs bg-dom-green/10 text-dom-green px-3 py-1 rounded-full font-medium">
+                                  Подтверждено
+                                </span>
+                                {cancelable && !isConfirming && (
+                                  <button
+                                    onClick={() => setConfirmCancel(r.id)}
+                                    className="text-xs text-dom-gray-500 hover:text-dom-red transition-colors"
+                                  >
+                                    Отменить
+                                  </button>
+                                )}
+                                {!cancelable && (
+                                  <span className="text-xs text-dom-gray-300" title={`Отмена была возможна ${cancelDeadlineLabel(r.datetime)}`}>
+                                    Отмена недоступна
+                                  </span>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
 
                         {/* Confirm cancel */}
-                        {isConfirming && (
+                        {isConfirming && !cancelled && (
                           <div className="mt-3 pt-3 border-t border-dom-gray-200/60 flex items-center justify-between">
                             <p className="text-sm text-dom-gray-700">Отменить бронирование?</p>
                             <div className="flex gap-2">
