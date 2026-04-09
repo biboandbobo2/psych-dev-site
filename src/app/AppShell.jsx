@@ -274,7 +274,7 @@ export function AppShell() {
       : undefined;
 
   // Standalone landing pages — render outside AppLayout, skip data loading gates
-  const isStandaloneLanding = normalizedPath === '/warm_springs2' || normalizedPath === '/booking';
+  const isStandaloneLanding = normalizedPath === '/warm_springs2' || normalizedPath.startsWith('/booking');
   if (isStandaloneLanding) {
     return (
       <React.Suspense fallback={<LoadingSplash />}>

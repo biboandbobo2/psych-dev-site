@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { useAuthStore } from '../../stores/useAuthStore';
 import type { CartItem, BookingFormData } from './types';
 
 interface BookingConfirmationProps {
@@ -20,6 +23,7 @@ function formatDisplayDate(dateStr: string): string {
 }
 
 export function BookingConfirmation({ cart, onSubmit, onBack, submitting }: BookingConfirmationProps) {
+  const user = useAuthStore((state) => state.user);
   const [form, setForm] = useState<BookingFormData>({
     name: '',
     phone: '',
@@ -27,6 +31,21 @@ export function BookingConfirmation({ cart, onSubmit, onBack, submitting }: Book
     comment: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof BookingFormData, string>>>({});
+
+  // Pre-fill from Firebase user
+  useEffect(() => {
+    if (!user) return;
+    setForm((prev) => ({
+      ...prev,
+      name: prev.name || user.displayName || '',
+      email: prev.email || user.email || '',
+    }));
+    // Load phone from Firestore
+    getDoc(doc(db, 'users', user.uid)).then((snap) => {
+      const phone = snap.data()?.phone;
+      if (phone) setForm((prev) => ({ ...prev, phone: prev.phone || phone }));
+    });
+  }, [user]);
 
   const validate = (): boolean => {
     const newErrors: typeof errors = {};

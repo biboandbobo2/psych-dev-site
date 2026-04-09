@@ -25,6 +25,7 @@ import {
   FeaturesPage,
   WarmSprings2Page,
   BookingPage,
+  BookingAccountPage,
 } from '../pages/lazy';
 import { PageLoader } from '../components/ui';
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
@@ -55,6 +56,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route path="/features" element={<FeaturesPage />} />
         <Route path="/warm_springs2" element={<WarmSprings2Page />} />
         <Route path="/booking" element={<BookingPage />} />
+        <Route path="/booking/account" element={<BookingAccountPage />} />
         <Route path="/login" element={<Login />} />
         <Route
           path="/admin"

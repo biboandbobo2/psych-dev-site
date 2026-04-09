@@ -98,6 +98,48 @@ async function handleBusy(
     .map((r) => ({ start: r.datetime, lengthSeconds: r.length }));
 }
 
+async function handleFindClient(
+  companyId: string,
+  email: string,
+  partnerToken: string,
+  userToken: string,
+) {
+  const data = await altegPost(`/company/${companyId}/clients/search`, {
+    fields: ['id', 'name', 'phone', 'email'],
+    filters: [{ type: 'quick_search', state: { value: email } }],
+    count: 10,
+  }, partnerToken, userToken);
+  const clients = (data as { id: number; name: string; phone: string; email: string }[]) || [];
+  // Exact email match
+  return clients.find((c) => c.email?.toLowerCase() === email.toLowerCase()) || null;
+}
+
+async function handleCreateClient(
+  companyId: string,
+  body: { name: string; phone: string; email: string },
+  partnerToken: string,
+  userToken: string,
+) {
+  return altegPost(`/clients/${companyId}/bulk`, [{
+    name: body.name,
+    phone: body.phone,
+    email: body.email,
+  }], partnerToken, userToken);
+}
+
+async function handleClientRecords(
+  companyId: string,
+  clientId: string,
+  partnerToken: string,
+  userToken: string,
+) {
+  return altegFetch(
+    `/records/${companyId}?client_id=${clientId}&count=50`,
+    partnerToken,
+    userToken,
+  );
+}
+
 async function handleDates(
   companyId: string,
   staffId: string,
@@ -210,6 +252,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const result = await handleBook(companyId, req.body, partnerToken);
         return res.status(200).json({ success: true, data: result });
+      }
+      case 'findClient': {
+        const fcEmail = (req.query.email || req.body?.email) as string;
+        if (!fcEmail) return res.status(400).json({ success: false, error: 'email required' });
+        const client = await handleFindClient(companyId, fcEmail, partnerToken, userToken);
+        return res.status(200).json({ success: true, data: client });
+      }
+      case 'createClient': {
+        if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'POST required' });
+        const result = await handleCreateClient(companyId, req.body, partnerToken, userToken);
+        return res.status(200).json({ success: true, data: result });
+      }
+      case 'clientRecords': {
+        const crClientId = (req.query.clientId || req.body?.clientId) as string;
+        if (!crClientId) return res.status(400).json({ success: false, error: 'clientId required' });
+        const records = await handleClientRecords(companyId, crClientId, partnerToken, userToken);
+        return res.status(200).json({ success: true, data: records });
       }
       default:
         return res.status(400).json({ success: false, error: `Unknown action: ${action}` });

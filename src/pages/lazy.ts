@@ -44,3 +44,9 @@ export const BookingPage = lazy(() =>
     'BookingPage'
   )
 );
+export const BookingAccountPage = lazy(() =>
+  lazyWithReload(
+    () => import('./booking/AccountPage').then((module) => ({ default: module.AccountPage })),
+    'BookingAccountPage'
+  )
+);
