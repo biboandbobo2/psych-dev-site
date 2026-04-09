@@ -31,7 +31,9 @@ function authHeaders(partnerToken: string, userToken?: string): Record<string, s
 async function altegFetch(path: string, partnerToken: string, userToken?: string) {
   const url = `${ALTEG_BASE}${path}`;
   const res = await fetch(url, { headers: authHeaders(partnerToken, userToken) });
-  const json = await res.json();
+  const text = await res.text();
+  if (!text) return [];
+  const json = JSON.parse(text);
   if (!json.success) {
     throw new Error(json.meta?.message || 'Alteg.io API error');
   }
@@ -45,7 +47,9 @@ async function altegPost(path: string, body: unknown, partnerToken: string, user
     headers: authHeaders(partnerToken, userToken),
     body: JSON.stringify(body),
   });
-  const json = await res.json();
+  const text = await res.text();
+  if (!text) return null;
+  const json = JSON.parse(text);
   if (!json.success) {
     throw new Error(json.meta?.message || 'Alteg.io API error');
   }
