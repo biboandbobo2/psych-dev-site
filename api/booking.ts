@@ -196,9 +196,13 @@ async function handleCancelRecord(
     method: 'DELETE',
     headers: authHeaders(partnerToken, userToken),
   });
-  const json = await res.json();
-  if (!json.success) throw new Error(json.meta?.message || 'Cancel failed');
-  return json.data;
+  if (!res.ok) {
+    const text = await res.text();
+    let message = 'Cancel failed';
+    try { message = JSON.parse(text)?.meta?.message || message; } catch { /* empty */ }
+    throw new Error(message);
+  }
+  return { deleted: true };
 }
 
 async function handleDates(
