@@ -131,8 +131,13 @@ export function useRoomAvailability(rooms: Room[], date: string | null) {
 
 interface BusyInterval { start: string; lengthSeconds: number }
 
+function padTime(t: string): string {
+  const [h, m] = t.split(':');
+  return `${h.padStart(2, '0')}:${m}`;
+}
+
 function slotOverlapsBusy(slotTime: string, seanceLength: number, date: string, busyIntervals: BusyInterval[]): boolean {
-  const slotStart = new Date(`${date}T${slotTime}:00+04:00`).getTime();
+  const slotStart = new Date(`${date}T${padTime(slotTime)}:00+04:00`).getTime();
   const slotEnd = slotStart + seanceLength * 1000;
   for (const b of busyIntervals) {
     const busyStart = new Date(b.start).getTime();

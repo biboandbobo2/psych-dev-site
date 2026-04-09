@@ -270,7 +270,7 @@ export function BookingPage() {
                 {step === 'allrooms' && selectedDate && (
                   <AllRoomsGrid rooms={rooms} date={selectedDate} slotsByRoom={slotsByRoom} duration={selectedDuration} onDurationChange={handleDurationChange} cart={cart} onToggleSlot={handleAllRoomsToggle} loading={allRoomsSlotsLoading} />
                 )}
-                {step === 'confirm' && <BookingConfirmation cart={cart} onSubmit={handleSubmit} onBack={handleBack} submitting={submitting} />}
+                {step === 'confirm' && <BookingConfirmation cart={cart} duration={selectedDuration} onSubmit={handleSubmit} onBack={handleBack} submitting={submitting} />}
               </motion.div>
             </AnimatePresence>
           </div>

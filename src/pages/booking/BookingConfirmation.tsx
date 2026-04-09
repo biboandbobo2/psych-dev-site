@@ -3,10 +3,11 @@ import { motion } from 'framer-motion';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuthStore } from '../../stores/useAuthStore';
-import type { CartItem, BookingFormData } from './types';
+import type { CartItem, BookingFormData, DurationOption } from './types';
 
 interface BookingConfirmationProps {
   cart: CartItem[];
+  duration: DurationOption;
   onSubmit: (data: BookingFormData) => void;
   onBack: () => void;
   submitting?: boolean;
@@ -22,7 +23,7 @@ function formatDisplayDate(dateStr: string): string {
   return `${d} ${MONTH_LABELS[m - 1]}`;
 }
 
-export function BookingConfirmation({ cart, onSubmit, onBack, submitting }: BookingConfirmationProps) {
+export function BookingConfirmation({ cart, duration, onSubmit, onBack, submitting }: BookingConfirmationProps) {
   const user = useAuthStore((state) => state.user);
   const [form, setForm] = useState<BookingFormData>({
     name: '',
@@ -108,7 +109,7 @@ export function BookingConfirmation({ cart, onSubmit, onBack, submitting }: Book
                   <span className="text-dom-gray-700">{item.slot.time}</span>
                 </div>
                 <span className="text-sm text-dom-gray-500">
-                  {Math.round(item.slot.seanceLength / 60)} мин
+                  {duration.label}
                 </span>
               </div>
             ))}
