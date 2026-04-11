@@ -4,7 +4,6 @@
  * Actions: rooms, slots, book, services
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminAuth } from './lib/firebaseAdmin';
 
 const ALTEG_BASE = 'https://api.alteg.io/api/v1';
 
@@ -207,6 +206,7 @@ async function handleCancelRecord(
 }
 
 async function handleLoginByEmail(email: string) {
+  const { getAdminAuth } = await import('./lib/firebaseAdmin');
   const adminAuth = getAdminAuth();
   const userRecord = await adminAuth.getUserByEmail(email);
   if (!userRecord.emailVerified) {
