@@ -1,24 +1,41 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { BookingLayout } from './BookingLayout';
-import { ROOMS } from './types';
 
-const ROOM_PHOTOS: Record<string, string[]> = {
-  '3012185': [ // Лазурный
-    '/images/rooms/lazurny/1dh0mgoumt.jpg',
-    '/images/rooms/lazurny/3tibsptqrg.jpg',
-  ],
-  '2769648': [ // Бордовый
-    '/images/rooms/bordovy/11kukj54bu.jpg',
-    '/images/rooms/bordovy/17kq335t2u.jpg',
-    '/images/rooms/bordovy/5ed9ne5p11.jpg',
-    '/images/rooms/bordovy/7scipb76c0.jpg',
-  ],
-  '3012126': [ // Изумрудный
-    '/images/rooms/izumrudny/6n55tg9djb.jpg',
-    '/images/rooms/izumrudny/hfsofebks0.jpg',
-  ],
-};
+const ROOMS = [
+  {
+    id: '3012126',
+    name: 'Изумрудный кабинет',
+    color: '#2E8B57',
+    description: 'Кабинет для индивидуальных консультаций',
+    photos: [
+      '/images/rooms/izumrudny/6n55tg9djb.jpg',
+      '/images/rooms/izumrudny/hfsofebks0.jpg',
+    ],
+  },
+  {
+    id: '3012185',
+    name: 'Лазурный кабинет',
+    color: '#4A90D9',
+    description: 'Кабинет для индивидуальных и семейных консультаций',
+    photos: [
+      '/images/rooms/lazurny/1dh0mgoumt.jpg',
+      '/images/rooms/lazurny/3tibsptqrg.jpg',
+    ],
+  },
+  {
+    id: '2769648',
+    name: 'Бордовый кабинет',
+    color: '#8B2252',
+    description: 'Кабинет для индивидуальных консультаций и работы с детьми',
+    photos: [
+      '/images/rooms/bordovy/11kukj54bu.jpg',
+      '/images/rooms/bordovy/17kq335t2u.jpg',
+      '/images/rooms/bordovy/5ed9ne5p11.jpg',
+      '/images/rooms/bordovy/7scipb76c0.jpg',
+    ],
+  },
+];
 
 export function PhotosPage() {
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -30,36 +47,49 @@ export function PhotosPage() {
       </Helmet>
 
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12 py-12">
-        <div className="flex items-center justify-between mb-10">
-          <h1 className="text-3xl font-bold text-dom-gray-900">Фотографии кабинетов</h1>
-          <a href="/booking" className="px-4 py-2 bg-dom-green hover:bg-dom-green-hover text-white rounded-xl text-sm font-medium transition-all">
-            Забронировать
-          </a>
-        </div>
+        <h1 className="text-3xl font-bold text-dom-gray-900 mb-10">Фотографии кабинетов</h1>
 
-        {ROOMS.map((room) => {
-          const photos = ROOM_PHOTOS[room.id] || [];
-          return (
-            <section key={room.id} className="mb-12">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: room.color }} />
-                <h2 className="text-xl font-semibold text-dom-gray-900">{room.name}</h2>
-                <span className="text-sm text-dom-gray-500">{room.description}</span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {photos.map((src) => (
-                  <button
-                    key={src}
-                    onClick={() => setLightbox(src)}
-                    className="aspect-[4/3] rounded-xl overflow-hidden border border-dom-gray-200 hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
-                  >
-                    <img src={src} alt={room.name} className="w-full h-full object-cover" loading="lazy" />
-                  </button>
-                ))}
-              </div>
-            </section>
-          );
-        })}
+        {ROOMS.map((room) => (
+          <section key={room.id} className="mb-14">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: room.color }} />
+              <a
+                href={`/booking?room=${room.id}`}
+                className="text-xl font-semibold text-dom-gray-900 hover:text-dom-green transition-colors"
+              >
+                {room.name}
+              </a>
+            </div>
+            <p className="text-dom-gray-500 text-sm mb-5 ml-7">{room.description}</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {room.photos.map((src) => (
+                <button
+                  key={src}
+                  onClick={() => setLightbox(src)}
+                  className="aspect-[4/3] rounded-xl overflow-hidden border border-dom-gray-200 hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer"
+                >
+                  <img src={src} alt={room.name} className="w-full h-full object-cover" loading="lazy" />
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+
+        {/* Зал для мероприятий */}
+        <div className="mt-8 mb-4 text-center">
+          <p className="text-xl md:text-2xl text-dom-gray-700 leading-relaxed max-w-[700px] mx-auto">
+            Также у нас есть просторный зал для мероприятий и мастер-классов.
+            Для его аренды свяжитесь с нашим{' '}
+            <a
+              href="https://t.me/PsyDom_Tbilisi_administrator"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-dom-green hover:text-dom-green-hover font-medium underline underline-offset-4 transition-colors"
+            >
+              администратором
+            </a>.
+          </p>
+        </div>
       </div>
 
       {/* Lightbox */}

@@ -1,5 +1,6 @@
 import '@fontsource-variable/sofia-sans';
 import { useState, useEffect, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { signOut, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { auth, db } from '../../lib/firebase';
@@ -14,6 +15,8 @@ interface BookingLayoutProps {
 
 export function BookingLayout({ children }: BookingLayoutProps) {
   const user = useAuthStore((state) => state.user);
+  const location = useLocation();
+  const isMainPage = location.pathname === '/booking';
   const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [phone, setPhone] = useState<string | null>(null);
@@ -73,20 +76,22 @@ export function BookingLayout({ children }: BookingLayoutProps) {
             <a href="/booking" className="flex-shrink-0">
               <img src="/images/dom-logo.png" alt="DOM" className="w-16 h-16 rounded-full" />
             </a>
-            <nav className="hidden sm:flex items-center gap-2">
-              <a
-                href="/booking/photos"
-                className="px-4 py-2 rounded-xl text-sm font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
-              >
-                Фотографии кабинетов
-              </a>
-              <a
-                href="/booking/pricing"
-                className="px-4 py-2 rounded-xl text-sm font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
-              >
-                Стоимость аренды
-              </a>
-            </nav>
+            {isMainPage && (
+              <nav className="hidden sm:flex items-center gap-3">
+                <a
+                  href="/booking/photos"
+                  className="px-5 py-2.5 rounded-xl text-base font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
+                >
+                  Фотографии кабинетов
+                </a>
+                <a
+                  href="/booking/pricing"
+                  className="px-5 py-2.5 rounded-xl text-base font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
+                >
+                  Стоимость аренды
+                </a>
+              </nav>
+            )}
           </div>
 
           {/* Auth section */}

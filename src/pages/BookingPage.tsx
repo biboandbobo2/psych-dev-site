@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookingLayout } from './booking/BookingLayout';
@@ -71,6 +72,22 @@ export function BookingPage() {
   );
   const { book, submitting } = useBooking();
   const { busy: weekBusy, loading: weekLoading, weekDates } = useWeekSchedule(rooms, weekOffset, scheduleRefresh);
+
+  // Handle ?room=ID from photos page
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const roomId = searchParams.get('room');
+    if (!roomId || !rooms.length) return;
+    const room = rooms.find((r) => r.id === roomId);
+    if (room) {
+      setFlow('room-first');
+      setSelectedRoom(room);
+      setSelectedDate(null);
+      setSelectedDuration(DURATION_OPTIONS[0]);
+      setStep('date');
+      setSearchParams({}, { replace: true });
+    }
+  }, [rooms, searchParams, setSearchParams]);
 
   const steps = useMemo(() => getSteps(flow), [flow]);
   const currentStepIndex = steps.findIndex((s) => s.key === step);
