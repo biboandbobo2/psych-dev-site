@@ -69,12 +69,25 @@ export function BookingLayout({ children }: BookingLayoutProps) {
     <div className="font-dom min-h-screen flex flex-col bg-white text-dom-gray-900">
       <header className="h-[90px] border-b border-dom-gray-200/80 bg-[#f5f7ec] flex items-center px-4 md:px-8 lg:px-12">
         <div className="max-w-[1400px] w-full mx-auto flex items-center justify-between">
-          <a href="/booking" className="flex items-center gap-3">
-            <img src="/images/dom-logo.png" alt="DOM" className="w-16 h-16 rounded-full" />
-            <span className="hidden sm:block text-xl font-semibold text-dom-gray-900">
-              Аренда кабинетов
-            </span>
-          </a>
+          <div className="flex items-center gap-4">
+            <a href="/booking" className="flex-shrink-0">
+              <img src="/images/dom-logo.png" alt="DOM" className="w-16 h-16 rounded-full" />
+            </a>
+            <nav className="hidden sm:flex items-center gap-2">
+              <a
+                href="/booking/photos"
+                className="px-4 py-2 rounded-xl text-sm font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
+              >
+                Фотографии кабинетов
+              </a>
+              <a
+                href="/booking/pricing"
+                className="px-4 py-2 rounded-xl text-sm font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
+              >
+                Стоимость аренды
+              </a>
+            </nav>
+          </div>
 
           {/* Auth section */}
           <div className="relative">
