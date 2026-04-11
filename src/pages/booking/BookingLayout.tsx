@@ -1,11 +1,12 @@
 import '@fontsource-variable/sofia-sans';
 import { useState, useEffect, type ReactNode } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
+import { signOut, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { auth, db } from '../../lib/firebase';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { AuthModal } from './AuthModal';
 import { PhoneModal } from './PhoneModal';
+import { debugError } from '../../lib/debug';
 
 interface BookingLayoutProps {
   children: ReactNode;
@@ -18,6 +19,26 @@ export function BookingLayout({ children }: BookingLayoutProps) {
   const [phone, setPhone] = useState<string | null>(null);
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [needsPhone, setNeedsPhone] = useState(false);
+
+  // Handle email link sign-in callback (after user clicks magic link)
+  useEffect(() => {
+    if (!isSignInWithEmailLink(auth, window.location.href)) return;
+
+    let email = window.localStorage.getItem('emailForSignIn');
+    if (!email) {
+      email = window.prompt('Введите ваш email для подтверждения:');
+    }
+    if (!email) return;
+
+    signInWithEmailLink(auth, email, window.location.href)
+      .then(() => {
+        window.localStorage.removeItem('emailForSignIn');
+        window.history.replaceState(null, '', '/booking');
+      })
+      .catch((err) => {
+        debugError('[BookingLayout] Email link sign-in error:', err);
+      });
+  }, []);
 
   // Check if user has phone in Firestore
   useEffect(() => {

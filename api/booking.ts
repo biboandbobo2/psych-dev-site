@@ -4,6 +4,7 @@
  * Actions: rooms, slots, book, services
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getAdminAuth } from './lib/firebaseAdmin';
 
 const ALTEG_BASE = 'https://api.alteg.io/api/v1';
 
@@ -205,6 +206,16 @@ async function handleCancelRecord(
   return { deleted: true };
 }
 
+async function handleLoginByEmail(email: string) {
+  const adminAuth = getAdminAuth();
+  const userRecord = await adminAuth.getUserByEmail(email);
+  if (!userRecord.emailVerified) {
+    throw new Error('EMAIL_NOT_VERIFIED');
+  }
+  const token = await adminAuth.createCustomToken(userRecord.uid);
+  return { token };
+}
+
 async function handleDates(
   companyId: string,
   staffId: string,
@@ -343,6 +354,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!crRecordId) return res.status(400).json({ success: false, error: 'recordId required' });
         const cancelResult = await handleCancelRecord(companyId, crRecordId, partnerToken, userToken);
         return res.status(200).json({ success: true, data: cancelResult });
+      }
+      case 'loginByEmail': {
+        if (req.method !== 'POST') {
+          return res.status(405).json({ success: false, error: 'POST required' });
+        }
+        const loginEmail = req.body?.email as string;
+        if (!loginEmail) {
+          return res.status(400).json({ success: false, error: 'email required' });
+        }
+        try {
+          const loginResult = await handleLoginByEmail(loginEmail);
+          return res.status(200).json({ success: true, data: loginResult });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Login failed';
+          if (message === 'EMAIL_NOT_VERIFIED') {
+            return res.status(403).json({ success: false, error: 'EMAIL_NOT_VERIFIED' });
+          }
+          const code = (err as { code?: string })?.code;
+          if (code === 'auth/user-not-found') {
+            return res.status(404).json({ success: false, error: 'USER_NOT_FOUND' });
+          }
+          throw err;
+        }
       }
       default:
         return res.status(400).json({ success: false, error: `Unknown action: ${action}` });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { signInWithPopup, signInWithCustomToken, sendSignInLinkToEmail } from 'firebase/auth';
 import { auth, googleProvider } from '../../lib/firebase';
 import { debugError } from '../../lib/debug';
 
@@ -24,15 +24,13 @@ function getErrorMessage(error: unknown): string {
     case 'auth/popup-blocked':
       return 'Всплывающее окно заблокировано. Разрешите popup для этого сайта.';
     case 'auth/email-already-in-use':
-      return 'Этот email уже зарегистрирован. Попробуйте войти.';
+      return 'Этот email уже зарегистрирован. Перейдите на вкладку «Вход».';
     case 'auth/invalid-email':
       return 'Некорректный email.';
-    case 'auth/weak-password':
-      return 'Пароль слишком короткий (минимум 6 символов).';
-    case 'auth/user-not-found':
-    case 'auth/wrong-password':
-    case 'auth/invalid-credential':
-      return 'Неверный email или пароль.';
+    case 'auth/invalid-action-code':
+      return 'Ссылка для входа недействительна или уже использована.';
+    case 'auth/expired-action-code':
+      return 'Ссылка для входа истекла. Запросите новую.';
     case 'auth/operation-not-allowed':
       return 'Этот способ входа временно недоступен.';
     default:
@@ -43,10 +41,9 @@ function getErrorMessage(error: unknown): string {
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [tab, setTab] = useState<AuthTab>('login');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [verificationSent, setVerificationSent] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
 
   if (!isOpen) return null;
 
@@ -69,7 +66,24 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setError('');
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const res = await fetch('/api/booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'loginByEmail', email }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        if (json.error === 'USER_NOT_FOUND') {
+          setError('Email не зарегистрирован. Перейдите на вкладку «Регистрация».');
+          return;
+        }
+        if (json.error === 'EMAIL_NOT_VERIFIED') {
+          setError('Email не подтверждён. Зарегистрируйтесь заново — мы отправим ссылку для подтверждения.');
+          return;
+        }
+        throw new Error(json.error || 'Login failed');
+      }
+      await signInWithCustomToken(auth, json.data.token);
       onClose();
     } catch (err) {
       debugError('[AuthModal] Email login error:', err);
@@ -82,15 +96,14 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const handleEmailRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (password.length < 6) {
-      setError('Пароль должен быть не менее 6 символов.');
-      return;
-    }
     setLoading(true);
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(result.user);
-      setVerificationSent(true);
+      await sendSignInLinkToEmail(auth, email, {
+        url: `${window.location.origin}/booking`,
+        handleCodeInApp: true,
+      });
+      window.localStorage.setItem('emailForSignIn', email);
+      setLinkSent(true);
     } catch (err) {
       debugError('[AuthModal] Email register error:', err);
       setError(getErrorMessage(err));
@@ -117,7 +130,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           {tab === 'login' ? 'Войти' : 'Регистрация'}
         </h2>
 
-        {verificationSent ? (
+        {linkSent ? (
           <div className="text-center py-4">
             <div className="w-16 h-16 rounded-full bg-dom-green/10 mx-auto mb-4 flex items-center justify-center">
               <svg className="w-8 h-8 text-dom-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -125,7 +138,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </svg>
             </div>
             <p className="text-dom-gray-700 font-medium mb-2">Письмо отправлено!</p>
-            <p className="text-dom-gray-500 text-sm mb-4">Проверьте почту {email} и перейдите по ссылке для подтверждения.</p>
+            <p className="text-dom-gray-500 text-sm mb-4">
+              Проверьте почту <strong>{email}</strong> и перейдите по ссылке для входа.
+            </p>
             <button onClick={onClose} className="text-dom-green hover:text-dom-green-hover font-medium text-sm">
               Закрыть
             </button>
@@ -178,21 +193,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 required
                 className={inputClass}
               />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={tab === 'register' ? 'Придумайте пароль (мин. 6 символов)' : 'Пароль'}
-                required
-                className={inputClass}
-              />
               {error && <p className="text-dom-red text-sm">{error}</p>}
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full py-3 rounded-xl bg-dom-green hover:bg-dom-green-hover text-white font-medium text-sm transition-all disabled:opacity-50"
               >
-                {loading ? 'Подождите...' : tab === 'login' ? 'Войти' : 'Зарегистрироваться'}
+                {loading ? 'Подождите...' : tab === 'login' ? 'Войти' : 'Отправить ссылку'}
               </button>
             </form>
           </>
