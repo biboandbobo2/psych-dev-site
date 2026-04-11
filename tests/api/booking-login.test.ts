@@ -6,19 +6,20 @@ const adminMocks = vi.hoisted(() => ({
   createCustomToken: vi.fn(),
 }));
 
-vi.mock('../../api/lib/firebaseAdmin', () => ({
-  getAdminAuth: () => ({
+vi.mock('firebase-admin/app', () => ({
+  initializeApp: vi.fn(),
+  getApps: () => [{}],
+  cert: vi.fn(),
+}));
+
+vi.mock('firebase-admin/auth', () => ({
+  getAuth: () => ({
     getUserByEmail: adminMocks.getUserByEmail,
     createCustomToken: adminMocks.createCustomToken,
   }),
 }));
 
-// Mock alteg.io env vars so getConfig() doesn't throw
-vi.stubEnv('ALTEG_PARTNER_TOKEN', 'test-partner');
-vi.stubEnv('ALTEG_USER_TOKEN', 'test-user');
-vi.stubEnv('ALTEG_COMPANY_ID', '123');
-
-import handler from '../../api/booking.js';
+import handler from '../../api/auth.js';
 
 const mockReq = (options: { method?: string; query?: Record<string, string>; body?: unknown } = {}) =>
   ({
@@ -41,7 +42,7 @@ const mockRes = () => {
   return res;
 };
 
-describe('api/booking — loginByEmail', () => {
+describe('api/auth — loginByEmail', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     adminMocks.getUserByEmail.mockReset();

@@ -66,10 +66,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/booking', {
+      const res = await fetch('/api/auth?action=loginByEmail', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'loginByEmail', email }),
+        body: JSON.stringify({ email }),
       });
       const json = await res.json();
       if (!json.success) {
