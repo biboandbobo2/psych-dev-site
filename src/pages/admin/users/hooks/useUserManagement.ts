@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
-import { makeUserAdmin, removeAdmin, updateCourseAccess, setStudentStream, setUserRole, toggleUserDisabled } from '../../../../lib/adminFunctions';
+import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { makeUserAdmin, removeAdmin, updateCourseAccess, setUserRole, toggleUserDisabled } from '../../../../lib/adminFunctions';
+import { auth, db } from '../../../../lib/firebase';
 import type { CourseAccessMap, StudentStream } from '../../../../types/user';
 import type { UserRecord } from '../../../../hooks/useAllUsers';
 
@@ -96,7 +98,11 @@ export function useUserManagement({
 
     setActionLoading(targetUid);
     try {
-      await setStudentStream({ targetUid, stream });
+      await updateDoc(doc(db, 'users', targetUid), {
+        studentStream: stream,
+        studentStreamUpdatedAt: serverTimestamp(),
+        studentStreamUpdatedBy: auth.currentUser?.uid ?? null,
+      });
       window.alert('Поток студента обновлён');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Ошибка обновления потока';
