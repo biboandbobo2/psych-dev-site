@@ -176,7 +176,7 @@ function tryParseDateLabel(dateLabel: string): Date | null {
 }
 
 export function HomePage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, userRole, studentStream } = useAuth();
   const { currentCourse, setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
   const { courses } = useCourses();
@@ -204,12 +204,22 @@ export function HomePage() {
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
 
   const activeSections: HomePageSection[] = [];
-  const currentCourseName = courses.find((course) => course.id === currentCourse)?.name ?? 'Текущий курс';
-  const fallbackPrimaryLesson = resolvePrimaryLesson(currentCourse);
-  const lastCourseLesson = getLastCourseLesson(currentCourse);
-  const primaryLessonLink = lastCourseLesson?.path ?? fallbackPrimaryLesson.link;
-  const primaryLessonTitle = lastCourseLesson?.label ?? fallbackPrimaryLesson.title;
-  const featuredSubjects = courses.slice(0, 4).map((course) => ({
+  const streamCourseIds = useMemo(() => {
+    if (userRole !== 'student') return null;
+    if (studentStream === 'first') return ['clinical', 'general'];
+    if (studentStream === 'second') return ['clinical', 'development'];
+    return null;
+  }, [studentStream, userRole]);
+
+  const streamCourses = useMemo(() => {
+    if (!streamCourseIds) return courses;
+    const courseById = new Map(courses.map((course) => [course.id, course]));
+    return streamCourseIds
+      .map((courseId) => courseById.get(courseId))
+      .filter((course): course is typeof courses[number] => Boolean(course));
+  }, [courses, streamCourseIds]);
+
+  const featuredSubjects = streamCourses.slice(0, 4).map((course) => ({
     id: course.id,
     name: course.name,
     icon: course.icon,
@@ -219,9 +229,29 @@ export function HomePage() {
     { id: 'clinical', name: 'Основы патопсихологии', icon: '🧠' },
     { id: 'general', name: 'Введение в клиническую психологию', icon: '📘' },
   ];
-  const subjects = featuredSubjects.length >= 4
+  const subjects = streamCourseIds
+    ? featuredSubjects
+    : featuredSubjects.length >= 4
     ? featuredSubjects
     : [...featuredSubjects, ...fallbackSubjects.filter((item) => !featuredSubjects.some((course) => course.id === item.id))].slice(0, 4);
+
+  const effectiveCurrentCourse = useMemo(() => {
+    if (!streamCourseIds?.length) return currentCourse;
+    if (streamCourseIds.includes(currentCourse)) return currentCourse;
+    return streamCourseIds[0];
+  }, [currentCourse, streamCourseIds]);
+
+  useEffect(() => {
+    if (effectiveCurrentCourse !== currentCourse) {
+      setCurrentCourse(effectiveCurrentCourse as CourseType);
+    }
+  }, [currentCourse, effectiveCurrentCourse, setCurrentCourse]);
+
+  const currentCourseName = courses.find((course) => course.id === effectiveCurrentCourse)?.name ?? 'Текущий курс';
+  const fallbackPrimaryLesson = resolvePrimaryLesson(effectiveCurrentCourse);
+  const lastCourseLesson = getLastCourseLesson(effectiveCurrentCourse);
+  const primaryLessonLink = lastCourseLesson?.path ?? fallbackPrimaryLesson.link;
+  const primaryLessonTitle = lastCourseLesson?.label ?? fallbackPrimaryLesson.title;
 
   const progressByCourse = useMemo(() => {
     const map = new Map<string, { completed: number; total: number; percent: number }>();
@@ -234,7 +264,7 @@ export function HomePage() {
     return map;
   }, [subjects]);
 
-  const currentCourseProgress = progressByCourse.get(currentCourse) ?? { completed: 0, total: 0, percent: 0 };
+  const currentCourseProgress = progressByCourse.get(effectiveCurrentCourse) ?? { completed: 0, total: 0, percent: 0 };
 
   const latestFeedItems = useMemo(
     () =>

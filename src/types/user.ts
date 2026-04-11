@@ -12,6 +12,14 @@ import { CORE_COURSE_ORDER, CORE_COURSE_META } from '../constants/courses';
 export type UserRole = 'guest' | 'student' | 'admin' | 'super-admin';
 
 /**
+ * Поток студента
+ * - first: 1 поток
+ * - second: 2 поток
+ * - none: без потока
+ */
+export type StudentStream = 'first' | 'second' | 'none';
+
+/**
  * Карта доступа к курсам
  * Используется для гранулярного контроля доступа к видео-контенту
  *
@@ -39,6 +47,8 @@ export interface UserRecord {
   displayName: string | null;
   photoURL: string | null;
   role: UserRole;
+  /** Поток студента (для сегментации обучения) */
+  studentStream?: StudentStream;
   /** Гранулярный доступ к курсам (для guest) */
   courseAccess?: CourseAccessMap;
   createdAt: Timestamp | null;

@@ -1,6 +1,6 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase";
-import type { CourseAccessMap, UpdateCourseAccessParams } from "../types/user";
+import type { CourseAccessMap, StudentStream, UpdateCourseAccessParams } from "../types/user";
 
 export interface MakeAdminParams {
   targetUid?: string;
@@ -157,6 +157,20 @@ interface ToggleUserDisabledResponse {
   message: string;
 }
 
+export interface SetStudentStreamParams {
+  targetUid: string;
+  stream: StudentStream;
+}
+
+interface SetStudentStreamResponse {
+  success: boolean;
+  targetUid: string;
+  targetEmail: string | null;
+  previousStream: StudentStream;
+  newStream: StudentStream;
+  message: string;
+}
+
 /**
  * Отключает или включает пользователя.
  * Отключённый пользователь не может войти, но все его данные сохраняются.
@@ -171,5 +185,14 @@ export async function toggleUserDisabled(params: ToggleUserDisabledParams) {
     "toggleUserDisabled"
   );
   const result = await toggle(params);
+  return result.data;
+}
+
+export async function setStudentStream(params: SetStudentStreamParams) {
+  const setStream = httpsCallable<SetStudentStreamParams, SetStudentStreamResponse>(
+    functions,
+    "setStudentStream"
+  );
+  const result = await setStream(params);
   return result.data;
 }

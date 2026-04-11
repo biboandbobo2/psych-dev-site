@@ -3,7 +3,7 @@ import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { debugError } from "../lib/debug";
-import type { CourseAccessMap, UserRole } from "../types/user";
+import type { CourseAccessMap, StudentStream, UserRole } from "../types/user";
 
 export interface UserRecord {
   uid: string;
@@ -11,6 +11,7 @@ export interface UserRecord {
   displayName: string | null;
   photoURL: string | null;
   role: UserRole;
+  studentStream?: StudentStream;
   /** Гранулярный доступ к курсам (для guest) */
   courseAccess?: CourseAccessMap;
   /** Пользователь отключён (не может войти, но данные сохранены) */
@@ -27,10 +28,10 @@ export function useAllUsers() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { isSuperAdmin } = useAuth();
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
-    if (!isSuperAdmin) {
+    if (!isAdmin) {
       setUsers([]);
       setLoading(false);
       return;
@@ -55,7 +56,7 @@ export function useAllUsers() {
     );
 
     return () => unsubscribe();
-  }, [isSuperAdmin]);
+  }, [isAdmin]);
 
   return { users, loading, error };
 }

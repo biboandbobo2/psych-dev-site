@@ -11,7 +11,7 @@ type UserFilter = 'all' | 'students' | 'admins' | 'guests';
 
 export default function AdminUsers() {
   const { users, loading, error } = useAllUsers();
-  const { user: currentUser, isSuperAdmin } = useAuth();
+  const { user: currentUser, isAdmin, isSuperAdmin } = useAuth();
   const { courses } = useCourses({ includeUnpublished: true });
   const courseOptions = useMemo(
     () => courses.map((course) => ({ id: course.id, name: course.name })),
@@ -29,22 +29,24 @@ export default function AdminUsers() {
     handleMakeAdmin,
     handleRemoveAdmin,
     handleSetRole,
+    handleSetStudentStream,
     handleToggleDisabled,
     handleRowClick,
     handleCourseAccessChange,
     handleSaveCourseAccess,
   } = useUserManagement({
+    isAdmin,
     isSuperAdmin,
     availableCourseIds: courseOptions.map((c) => c.id),
   });
 
-  if (!isSuperAdmin) {
+  if (!isAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4 text-center">
         <div className="max-w-md space-y-3">
           <h1 className="text-2xl font-semibold text-gray-900">Доступ запрещён</h1>
           <p className="text-gray-600">
-            Управление пользователями доступно только владельцу проекта (super-admin).
+            Управление пользователями доступно только администраторам платформы.
           </p>
         </div>
       </div>
@@ -131,6 +133,9 @@ export default function AdminUsers() {
                 Доступ к курсам
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                Поток
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Последний вход
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -155,8 +160,10 @@ export default function AdminUsers() {
                 onCourseAccessChange={handleCourseAccessChange}
                 onSaveCourseAccess={() => handleSaveCourseAccess(user.uid)}
                 onSetRole={(role) => handleSetRole(user.uid, role)}
+                onSetStudentStream={(stream) => handleSetStudentStream(user.uid, stream)}
                 onToggleDisabled={() => handleToggleDisabled(user.uid, user.disabled === true)}
                 courseOptions={courseOptions}
+                canManageStudentStream={isAdmin && user.role === 'student'}
               />
             ))}
           </tbody>

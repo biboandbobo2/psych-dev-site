@@ -5,6 +5,11 @@ import * as functions from "firebase-functions";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { SUPER_ADMIN_EMAIL } from "./lib/shared.js";
+function isAdminOrSuperAdmin(context) {
+    const role = context.auth?.token?.role;
+    const callerEmail = context.auth?.token?.email;
+    return role === "admin" || role === "super-admin" || callerEmail === SUPER_ADMIN_EMAIL;
+}
 /**
  * updateCourseAccess - обновление доступа пользователя к курсам
  *
@@ -209,5 +214,71 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
             targetUid,
         });
         throw new functions.https.HttpsError("internal", `Failed to change user role: ${message}`);
+    }
+});
+/**
+ * setStudentStream - назначение потока студенту (first|second|none)
+ *
+ * Доступно admin и super-admin.
+ *
+ * @param data.targetUid - UID пользователя
+ * @param data.stream - поток студента
+ */
+export const setStudentStream = functions.https.onCall(async (data, context) => {
+    functions.logger.info("🔵 setStudentStream called", {
+        caller: context.auth?.uid,
+        callerEmail: context.auth?.token?.email,
+        target: data?.targetUid,
+        stream: data?.stream,
+    });
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+    }
+    if (!isAdminOrSuperAdmin(context)) {
+        throw new functions.https.HttpsError("permission-denied", "Only admin or super-admin can set student stream");
+    }
+    const targetUid = data?.targetUid;
+    const nextStream = data?.stream;
+    const allowedStreams = ["first", "second", "none"];
+    if (!targetUid || typeof targetUid !== "string") {
+        throw new functions.https.HttpsError("invalid-argument", "targetUid is required and must be a string");
+    }
+    if (!nextStream || !allowedStreams.includes(nextStream)) {
+        throw new functions.https.HttpsError("invalid-argument", `stream must be one of: ${allowedStreams.join(", ")}`);
+    }
+    try {
+        const firestore = getFirestore();
+        const userDocRef = firestore.collection("users").doc(targetUid);
+        const userDoc = await userDocRef.get();
+        if (!userDoc.exists) {
+            throw new functions.https.HttpsError("not-found", `User with UID ${targetUid} not found`);
+        }
+        const userData = userDoc.data() ?? {};
+        const currentRole = userData.role;
+        if (currentRole !== "student") {
+            throw new functions.https.HttpsError("failed-precondition", "Stream can be set only for users with role 'student'");
+        }
+        const previousStream = userData.studentStream ?? "none";
+        await userDocRef.update({
+            studentStream: nextStream,
+            studentStreamUpdatedAt: FieldValue.serverTimestamp(),
+            studentStreamUpdatedBy: context.auth.uid,
+        });
+        return {
+            success: true,
+            targetUid,
+            targetEmail: userData.email ?? null,
+            previousStream,
+            newStream: nextStream,
+            message: "Student stream updated successfully",
+        };
+    }
+    catch (error) {
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        functions.logger.error("❌ Error in setStudentStream", { error: message, targetUid });
+        throw new functions.https.HttpsError("internal", `Failed to set student stream: ${message}`);
     }
 });

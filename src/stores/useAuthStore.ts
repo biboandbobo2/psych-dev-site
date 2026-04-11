@@ -7,7 +7,7 @@ import { SUPER_ADMIN_EMAIL } from '../constants/superAdmin';
 import { reportAppError } from '../lib/errorHandler';
 import { debugLog } from '../lib/debug';
 import type { CourseType } from '../types/tests';
-import type { CourseAccessMap, UserRole } from '../types/user';
+import type { CourseAccessMap, StudentStream, UserRole } from '../types/user';
 import { hasCourseAccess as checkCourseAccess } from '../types/user';
 
 interface AuthState {
@@ -18,6 +18,8 @@ interface AuthState {
   courseAccess: CourseAccessMap | null;
   /** API ключ Gemini пользователя (BYOK) */
   geminiApiKey: string | null;
+  /** Поток студента */
+  studentStream: StudentStream;
 
   // Computed properties
   isGuest: boolean;
@@ -31,6 +33,7 @@ interface AuthState {
   setUserRole: (role: UserRole | null) => void;
   setCourseAccess: (access: CourseAccessMap | null) => void;
   setGeminiApiKey: (key: string | null) => void;
+  setStudentStream: (stream: StudentStream) => void;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   initializeAuth: () => () => void;
@@ -51,6 +54,7 @@ export const useAuthStore = create<AuthState>()(
       userRole: null,
       courseAccess: null,
       geminiApiKey: null,
+      studentStream: 'none',
       isGuest: false,
       isStudent: false,
       isAdmin: false,
@@ -78,6 +82,8 @@ export const useAuthStore = create<AuthState>()(
       setCourseAccess: (courseAccess) => set({ courseAccess }),
 
       setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey }),
+
+      setStudentStream: (studentStream) => set({ studentStream }),
 
       hasCourseAccess: (courseType: CourseType) => {
         const { userRole, courseAccess } = get();
@@ -116,11 +122,13 @@ export const useAuthStore = create<AuthState>()(
           }
 
           get().setUser(next);
+          get().setStudentStream('none');
 
           if (!next) {
             get().setUserRole(null);
             get().setCourseAccess(null);
             get().setGeminiApiKey(null);
+            get().setStudentStream('none');
             get().setLoading(false);
             return;
           }
@@ -195,6 +203,13 @@ export const useAuthStore = create<AuthState>()(
                 const geminiApiKey = data?.geminiApiKey as string | undefined;
                 get().setGeminiApiKey(geminiApiKey ?? null);
 
+                const studentStream = data?.studentStream;
+                if (studentStream === 'first' || studentStream === 'second') {
+                  get().setStudentStream(studentStream);
+                } else {
+                  get().setStudentStream('none');
+                }
+
                 // Обновляем роль если изменилась
                 const newRole = data?.role as UserRole | undefined;
                 if (newRole && newRole !== get().userRole) {
@@ -214,6 +229,7 @@ export const useAuthStore = create<AuthState>()(
             get().setUserRole('guest');
             get().setCourseAccess(null);
             get().setGeminiApiKey(null);
+            get().setStudentStream('none');
           } finally {
             if (!cancelled) {
               get().setLoading(false);

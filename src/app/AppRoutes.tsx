@@ -179,6 +179,14 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             </RequireAuth>
           }
         />
+        <Route
+          path="/admin/users"
+          element={
+            <RequireAdmin>
+              <AdminUsers />
+            </RequireAdmin>
+          }
+        />
         {isSuperAdmin && (
           <>
             <Route
@@ -186,14 +194,6 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
               element={
                 <RequireAdmin>
                   <AdminArchive />
-                </RequireAdmin>
-              }
-            />
-            <Route
-              path="/admin/users"
-              element={
-                <RequireAdmin>
-                  <AdminUsers />
                 </RequireAdmin>
               }
             />
