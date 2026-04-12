@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { debugLog, debugError } from '../../lib/debug';
+import { buildAuthorizedHeaders } from '../../lib/apiAuth';
+import { debugLog, debugError, debugWarn } from '../../lib/debug';
+import { useAuthStore } from '../../stores/useAuthStore';
 import type { Room } from './types';
 
 export interface BusyBlock {
@@ -28,6 +30,7 @@ function getWeekDates(weekOffset: number): string[] {
 }
 
 export function useWeekSchedule(rooms: Room[], weekOffset: number, refreshKey?: number) {
+  const user = useAuthStore((state) => state.user);
   const [busy, setBusy] = useState<Map<string, BusyBlock[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const weekDates = useMemo(() => getWeekDates(weekOffset), [weekOffset]);
@@ -37,30 +40,43 @@ export function useWeekSchedule(rooms: Room[], weekOffset: number, refreshKey?: 
     let cancelled = false;
     setLoading(true);
 
-    const requests = rooms.flatMap((room) =>
-      weekDates.map((date) =>
-        fetch(`/api/booking?action=busy&staffId=${room.id}&date=${date}`)
-          .then((r) => r.json())
-          .then((json) => ({
-            key: `${room.id}:${date}`,
-            blocks: (json.success ? json.data : []) as BusyBlock[],
-          }))
-          .catch(() => ({ key: `${room.id}:${date}`, blocks: [] as BusyBlock[] }))
-      )
-    );
+    (async () => {
+      try {
+        let headers: Record<string, string> | undefined;
+        if (user) {
+          try {
+            headers = await buildAuthorizedHeaders();
+          } catch (authErr) {
+            debugWarn('[WeekSchedule] Falling back to anonymous busy fetch:', authErr);
+          }
+        }
+        const requests = rooms.flatMap((room) =>
+          weekDates.map((date) =>
+            fetch(`/api/booking?action=busy&staffId=${room.id}&date=${date}`, headers ? { headers } : undefined)
+              .then((r) => r.json())
+              .then((json) => ({
+                key: `${room.id}:${date}`,
+                blocks: (json.success ? json.data : []) as BusyBlock[],
+              }))
+              .catch(() => ({ key: `${room.id}:${date}`, blocks: [] as BusyBlock[] }))
+          )
+        );
 
-    Promise.all(requests).then((results) => {
-      if (cancelled) return;
-      const map = new Map<string, BusyBlock[]>();
-      for (const r of results) map.set(r.key, r.blocks);
-      setBusy(map);
-      debugLog('[WeekSchedule] Loaded busy data for', results.length, 'room-days, offset', weekOffset);
-    }).catch((err) => {
-      debugError('[WeekSchedule] Failed:', err);
-    }).finally(() => { if (!cancelled) setLoading(false); });
+        const results = await Promise.all(requests);
+        if (cancelled) return;
+        const map = new Map<string, BusyBlock[]>();
+        for (const r of results) map.set(r.key, r.blocks);
+        setBusy(map);
+        debugLog('[WeekSchedule] Loaded busy data for', results.length, 'room-days, offset', weekOffset);
+      } catch (err) {
+        debugError('[WeekSchedule] Failed:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
 
     return () => { cancelled = true; };
-  }, [rooms, weekDates, weekOffset, refreshKey]);
+  }, [rooms, weekDates, weekOffset, refreshKey, user]);
 
   return { busy, loading, weekDates };
 }

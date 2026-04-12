@@ -67,6 +67,83 @@ function emptySuccessResponse() {
   } as any;
 }
 
+describe('api/booking — busy visibility', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    adminMocks.verifyIdToken.mockReset();
+    adminMocks.userGet.mockReset();
+    adminMocks.userSet.mockReset();
+    adminMocks.fetch.mockReset();
+    vi.stubGlobal('fetch', adminMocks.fetch);
+    process.env.ALTEG_PARTNER_TOKEN = 'partner-token';
+    process.env.ALTEG_USER_TOKEN = 'user-token';
+    process.env.ALTEG_COMPANY_ID = '1265772';
+    process.env.FIREBASE_SERVICE_ACCOUNT_KEY = JSON.stringify({
+      project_id: 'psych-dev-site-prod',
+      client_email: 'bot@example.com',
+      private_key: '-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n',
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('не отдаёт clientName анонимному запросу busy', async () => {
+    adminMocks.fetch.mockResolvedValueOnce(successResponse([
+      {
+        datetime: '2026-04-13T18:00:00+04:00',
+        length: 3600,
+        deleted: false,
+        client: { name: 'Иван Иванов' },
+      },
+    ]));
+
+    const req = mockReq({
+      method: 'GET',
+      query: { action: 'busy', staffId: '123', date: '2026-04-13' },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: [{ start: '2026-04-13T18:00:00+04:00', lengthSeconds: 3600 }],
+    });
+  });
+
+  it('отдаёт сокращённое clientName авторизованному запросу busy', async () => {
+    adminMocks.verifyIdToken.mockResolvedValue({ uid: 'user-7', email: 'user@example.com' });
+    adminMocks.fetch.mockResolvedValueOnce(successResponse([
+      {
+        datetime: '2026-04-13T18:00:00+04:00',
+        length: 3600,
+        deleted: false,
+        client: { name: 'Иван Иванов' },
+      },
+    ]));
+
+    const req = mockReq({
+      method: 'GET',
+      headers: { authorization: 'Bearer token-busy' },
+      query: { action: 'busy', staffId: '123', date: '2026-04-13' },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: [{ start: '2026-04-13T18:00:00+04:00', lengthSeconds: 3600, clientName: 'Иван И.' }],
+    });
+  });
+});
+
 describe('api/booking — resolveMyClientIds', () => {
   beforeEach(() => {
     vi.restoreAllMocks();

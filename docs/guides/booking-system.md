@@ -86,6 +86,11 @@
 - пользователям важно видеть, кто и когда уже работает в кабинете, чтобы координировать общие встречи, супервизии и совместные окна;
 - поэтому для авторизованных участников community calendar допускается отображение сокращённого имени в занятом блоке.
 
+Граница доступа:
+- сокращённое имя должно быть доступно только после авторизации;
+- анонимный `busy` response должен возвращать только сам факт занятости без `clientName`;
+- это intentional compromise: community visibility сохраняется для участников, но публичный API не раскрывает имена.
+
 Правило для future review:
 - не трактовать наличие `clientName` в `busy` / `WeekSchedule` как баг приватности по умолчанию;
 - пересматривать это решение только если изменится продуктовая политика аренды или модель доступа к календарю.
@@ -153,7 +158,7 @@ Vercel serverless function — прокси к alteg.io.
 - DELETE в alteg.io возвращает пустой body — `handleCancelRecord` проверяет `res.ok` вместо `res.json()`
 - `altegFetch`/`altegPost` читают response как text, проверяют на пустоту перед JSON.parse
 - Поиск клиентов: параллельно по email и phone, объединение без дублей
-- `busy` может включать сокращённое имя клиента для community calendar; это intentional behavior, см. `Product Note: Community Visibility`
+- `busy` может включать сокращённое имя клиента для community calendar только при авторизованном запросе; для анонимных запросов `clientName` не возвращается
 - `rooms` intentionally follows visible Alteg staff (`hidden = 0`); это intentional behavior, см. `Product Note: Dynamic Rooms From Alteg`
 
 ## Авторизация

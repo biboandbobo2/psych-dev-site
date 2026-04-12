@@ -136,6 +136,7 @@ async function handleBusy(
   date: string,
   partnerToken: string,
   userToken: string,
+  includeClientName: boolean,
 ) {
   const records = await altegFetch(
     `/records/${companyId}?staff_id=${staffId}&start_date=${date}&end_date=${date}`,
@@ -150,8 +151,21 @@ async function handleBusy(
       const shortName = parts.length >= 2
         ? `${parts[0]} ${parts[1][0]}.`
         : parts[0] || '';
-      return { start: r.datetime, lengthSeconds: r.length, clientName: shortName };
+      return includeClientName
+        ? { start: r.datetime, lengthSeconds: r.length, clientName: shortName }
+        : { start: r.datetime, lengthSeconds: r.length };
     });
+}
+
+async function canViewBusyClientNames(req: VercelRequest): Promise<boolean> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return false;
+  }
+
+  initFirebaseAdmin();
+  const authResult = await verifyBookingAuth(req);
+  return authResult.valid === true;
 }
 
 async function handleFindClients(
@@ -433,7 +447,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!bStaffId || !bDate) {
           return res.status(400).json({ success: false, error: 'staffId and date required' });
         }
-        const busy = await handleBusy(companyId, bStaffId, bDate, partnerToken, userToken);
+        const includeClientName = await canViewBusyClientNames(req);
+        const busy = await handleBusy(companyId, bStaffId, bDate, partnerToken, userToken, includeClientName);
         return res.status(200).json({ success: true, data: busy });
       }
       case 'services': {
