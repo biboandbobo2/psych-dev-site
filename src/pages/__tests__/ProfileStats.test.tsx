@@ -41,6 +41,7 @@ vi.mock('../../hooks/useAllUsers', () => ({
 vi.mock('../../auth/AuthProvider', () => ({
   useAuth: () => ({
     user: { uid: 'u3', email: 'super@example.com' },
+    isAdmin: true,
     isSuperAdmin: true,
   }),
 }));

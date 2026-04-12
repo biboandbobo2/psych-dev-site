@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion as Motion } from 'framer-motion';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { pageTransition } from '../theme/motion';
 import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG, SITE_NAME } from '../routes';
 import { cn } from '../lib/cn';
@@ -65,13 +65,6 @@ function resolvePrimaryLesson(courseId: string): { link: string; title: string }
     link: `/profile?course=${encodeURIComponent(courseId as CourseType)}`,
     title: 'Первое занятие выбранного курса',
   };
-}
-
-function getCoreCourseStartPath(courseId: string): string | null {
-  if (courseId === 'development') return '/development/intro';
-  if (courseId === 'clinical') return CLINICAL_ROUTE_CONFIG[0]?.path ?? '/clinical/intro';
-  if (courseId === 'general') return GENERAL_ROUTE_CONFIG[0]?.path ?? '/general/intro';
-  return null;
 }
 
 function getEstimatedCourseLessons(courseId: string): number {
@@ -190,7 +183,6 @@ function tryParseDateLabel(dateLabel: string): Date | null {
 export function HomePage() {
   const { user, isAdmin, userRole, studentStream } = useAuth();
   const { currentCourse, setCurrentCourse } = useCourseStore();
-  const navigate = useNavigate();
   const { courses } = useCourses();
   const {
     announcements,
@@ -206,8 +198,6 @@ export function HomePage() {
   const [eventTextDraft, setEventTextDraft] = useState('');
   const [isFeedSaving, setIsFeedSaving] = useState(false);
   const [feedActionError, setFeedActionError] = useState<string | null>(null);
-  const [openingCourseId, setOpeningCourseId] = useState<string | null>(null);
-  const [courseOpenError, setCourseOpenError] = useState<string | null>(null);
   const [isEventsCalendarOpen, setIsEventsCalendarOpen] = useState(false);
   const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
     const now = new Date();
@@ -366,37 +356,6 @@ export function HomePage() {
       </div>
     );
   }
-
-  const resolveSubjectPath = async (courseId: string): Promise<string | null> => {
-    const coreStartPath = getCoreCourseStartPath(courseId);
-    if (coreStartPath) {
-      return coreStartPath;
-    }
-    return `/course/${encodeURIComponent(courseId)}/intro`;
-  };
-
-  const handleOpenSubject = async (courseId: string) => {
-    if (openingCourseId) {
-      return;
-    }
-
-    setCourseOpenError(null);
-    setOpeningCourseId(courseId);
-    setCurrentCourse(courseId as CourseType);
-
-    try {
-      const path = await resolveSubjectPath(courseId);
-      if (!path) {
-        setCourseOpenError('Для этого курса пока нет опубликованных занятий.');
-        return;
-      }
-      navigate(path);
-    } catch (err: any) {
-      setCourseOpenError(err?.message || 'Не удалось открыть курс. Попробуйте ещё раз.');
-    } finally {
-      setOpeningCourseId(null);
-    }
-  };
 
   const nonHeroSections: HomePageSection[] = [];
 
@@ -756,23 +715,16 @@ export function HomePage() {
         <div className="space-y-4">
           <section className="space-y-3">
             <p className="text-sm font-medium text-[#556476]">Добрый день, {displayName}</p>
+            <h2 className="text-2xl font-black text-[#1F2F46] sm:text-3xl">Мои текущие курсы</h2>
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              {primaryContinueCourses.map((course, index) => (
+              {primaryContinueCourses.map((course) => (
                 <article
                   key={course.id}
-                  className={cn(
-                    'overflow-hidden rounded-2xl border bg-white shadow-[0_12px_26px_rgba(18,44,84,0.12)]',
-                    index === 0 ? 'border-[#D4E4FF]' : 'border-[#DDE5EE]'
-                  )}
+                  className="h-full overflow-hidden rounded-2xl border border-[#D4E4FF] bg-white shadow-[0_12px_26px_rgba(18,44,84,0.12)]"
                 >
-                  <div className="flex min-h-[220px] flex-col sm:flex-row">
+                  <div className="flex h-full min-h-[220px] flex-col sm:flex-row">
                     <div
-                      className={cn(
-                        'flex w-full items-center justify-center p-6 sm:w-[34%]',
-                        index === 0
-                          ? 'bg-gradient-to-br from-[#EAF1FF] to-[#DCE8FF]'
-                          : 'bg-gradient-to-br from-[#F0F5FF] to-[#E6EEFF]'
-                      )}
+                      className="flex w-full items-center justify-center bg-gradient-to-br from-[#EAF1FF] to-[#DCE8FF] p-6 sm:w-[34%] sm:self-stretch"
                     >
                       <span className="text-[54px]" aria-hidden>
                         {course.icon || '📘'}
@@ -815,63 +767,11 @@ export function HomePage() {
               {primaryContinueCourses.length === 0 ? (
                 <article className="rounded-2xl border border-[#DDE5EE] bg-white p-6">
                   <p className="text-base text-[#5E6D7A]">
-                    Курсы для продолжения пока не найдены. Откройте любой курс из блока «Мои курсы».
+                    Курсы для продолжения пока не найдены. Откройте нужный курс в профиле.
                   </p>
                 </article>
               ) : null}
             </div>
-          </section>
-
-          <section className="rounded-2xl border border-[#DDE5EE] bg-white p-4 text-[#2C3E50]">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-2xl font-bold">Мои курсы</h3>
-              <NavLink to="/profile" className="text-sm font-semibold text-[#3359CB] hover:text-[#2A49A8]">
-                Все курсы →
-              </NavLink>
-            </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {subjects.map((subject) => {
-                const progress = progressByCourse.get(subject.id) ?? { completed: 0, total: 0, percent: 0 };
-                const active = subject.id === currentCourse;
-                return (
-                  <button
-                    key={subject.id}
-                    type="button"
-                    onClick={() => {
-                      void handleOpenSubject(subject.id);
-                    }}
-                    disabled={openingCourseId === subject.id}
-                    className={cn(
-                      'rounded-xl border p-4 text-left transition',
-                      active
-                        ? 'border-[#8eb7ff] bg-[#d7e6ff] text-[#1e2b3a]'
-                        : 'border-[#D8E2EE] bg-[#F9FBFF] text-[#2C3E50] hover:border-[#9EB7D9]'
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-2xl">{subject.icon}</span>
-                      <span className={cn('text-xs font-semibold', active ? 'text-[#4e5d74]' : 'text-[#6B7A8D]')}>
-                        {progress.percent}%
-                      </span>
-                    </div>
-                    <p className={cn('mt-2 text-lg font-semibold leading-tight', active ? 'text-[#233149]' : 'text-[#2C3E50]')}>
-                      {subject.name}
-                    </p>
-                    <div className={cn('mt-3 h-1.5 rounded-full', active ? 'bg-[#bcd5ff]' : 'bg-[#DEE8F5]')}>
-                      <div
-                        className={cn('h-full rounded-full', active ? 'bg-[#3f78ff]' : 'bg-[#7aa2ff]')}
-                        style={{ width: `${Math.max(progress.percent, 4)}%` }}
-                      />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            {courseOpenError ? (
-              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {courseOpenError}
-              </p>
-            ) : null}
           </section>
 
           <section className="rounded-2xl border border-[#DDE5EE] bg-white p-4 text-[#2C3E50]">

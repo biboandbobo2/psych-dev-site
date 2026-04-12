@@ -261,7 +261,7 @@ function VideoSectionCard({
             title={effectiveVideoTitle}
             embedUrl={embedUrl}
             onWatchThresholdReached={handleWatchThresholdReached}
-            watchThreshold={0.95}
+            watchThreshold={0.8}
             onPlaybackProgressMs={handlePlaybackProgress}
           />
         </div>
