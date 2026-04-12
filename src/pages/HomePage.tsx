@@ -704,11 +704,11 @@ export function HomePage() {
       month: 'long',
       year: 'numeric',
     });
-    const placeholderCatalog = [
-      { icon: '🧬', title: 'Нейропсихология', lessons: '14 лекций' },
-      { icon: '💬', title: 'Психология общения', lessons: '10 лекций' },
-      { icon: '🌱', title: 'Позитивная психология', lessons: '8 лекций' },
-    ];
+    const currentCourseIds = new Set(primaryContinueCourses.map((course) => course.id));
+    const catalogCourses = [
+      ...courses.filter((course) => !currentCourseIds.has(course.id) && !course.isCore),
+      ...courses.filter((course) => !currentCourseIds.has(course.id) && course.isCore),
+    ].slice(0, 6);
 
     return (
       <section className="py-8 sm:py-10">
@@ -855,21 +855,26 @@ export function HomePage() {
               <h3 className="text-2xl font-bold">Каталог платформы</h3>
               <span className="text-sm font-semibold text-[#3359CB]">Смотреть всё →</span>
             </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              {placeholderCatalog.map((course, index) => (
-                <div key={course.title} className={cn(
-                  'rounded-xl border p-4',
-                  index === 0 ? 'border-[#8eb7ff] bg-[#d7e6ff]' : 'border-[#D8E2EE] bg-[#F9FBFF]'
-                )}>
-                  <p className="text-2xl">{course.icon}</p>
-                  <p className="mt-2 text-xl font-semibold text-[#2C3E50]">{course.title}</p>
-                  <p className="text-sm text-[#5E6D7A]">{course.lessons}</p>
-                  <span className="mt-2 inline-flex rounded-full border border-[#D6DFED] bg-white px-2.5 py-1 text-xs font-semibold text-[#6B7A8D]">
-                    Скоро
-                  </span>
-                </div>
-              ))}
-            </div>
+            {catalogCourses.length > 0 ? (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {catalogCourses.map((course) => (
+                  <div key={course.id} className="rounded-xl border border-[#D8E2EE] bg-[#F9FBFF] p-4">
+                    <p className="text-2xl">{course.icon || '🎓'}</p>
+                    <p className="mt-2 text-xl font-semibold text-[#2C3E50]">{course.name}</p>
+                    <p className="text-sm text-[#5E6D7A]">
+                      {course.isCore ? 'Основной курс платформы' : 'Дополнительный курс платформы'}
+                    </p>
+                    <span className="mt-2 inline-flex rounded-full border border-[#D6DFED] bg-white px-2.5 py-1 text-xs font-semibold text-[#6B7A8D]">
+                      Доступен
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl bg-[#F5F8FC] px-4 py-3 text-sm text-[#5E6D7A]">
+                Дополнительные курсы пока не добавлены.
+              </div>
+            )}
           </section>
 
           <BaseModal
