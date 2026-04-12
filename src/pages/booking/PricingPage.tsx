@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { BookingLayout } from './BookingLayout';
 import { ROOMS } from './types';
@@ -126,14 +127,14 @@ export function PricingPage() {
           <p className="text-center text-dom-gray-500 text-sm mb-4">Забронировать кабинет</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             {ROOMS.map((room) => (
-              <a
+              <Link
                 key={room.id}
-                href={`/booking?room=${room.id}`}
+                to={`/booking?room=${room.id}`}
                 className="flex items-center gap-2 px-5 py-3 bg-dom-green hover:bg-dom-green-hover text-white rounded-xl font-medium transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
                 <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: room.color, border: '2px solid rgba(255,255,255,0.5)' }} />
                 {room.name.replace(' кабинет', '')}
-              </a>
+              </Link>
             ))}
           </div>
           <div className="text-center mt-5">

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { BookingLayout } from './BookingLayout';
+import { Link } from 'react-router-dom';
 import { ROOMS } from './types';
+import { CloseIcon } from './icons';
 
 const ROOM_PHOTOS: Record<string, { description: string; photos: string[] }> = {
   '3012126': {
@@ -50,12 +52,12 @@ export function PhotosPage() {
           <section key={room.id} className="mb-14">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: room.color }} />
-              <a
-                href={`/booking?room=${room.id}`}
+              <Link
+                to={`/booking?room=${room.id}`}
                 className="text-xl font-semibold text-dom-gray-900 hover:text-dom-green transition-colors"
               >
                 {room.name}
-              </a>
+              </Link>
             </div>
             <p className="text-dom-gray-500 text-sm mb-5 ml-7">{room.description}</p>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -99,9 +101,7 @@ export function PhotosPage() {
             onClick={() => setLightbox(null)}
             className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors"
           >
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <CloseIcon className="w-8 h-8" />
           </button>
           <img
             src={lightbox}

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { BookingLayout } from './BookingLayout';
@@ -105,13 +106,18 @@ export function AccountPage() {
     }
   }, []);
 
-  const now = new Date();
-  const upcoming = records
-    .filter((r) => !r.deleted && new Date(r.datetime) >= now)
-    .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
-  const past = records
-    .filter((r) => !r.deleted && new Date(r.datetime) < now)
-    .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime());
+  const [nowMs, setNowMs] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const upcoming = useMemo(() => records
+    .filter((r) => !r.deleted && new Date(r.datetime).getTime() >= nowMs)
+    .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()), [records, nowMs]);
+  const past = useMemo(() => records
+    .filter((r) => !r.deleted && new Date(r.datetime).getTime() < nowMs)
+    .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime()), [records, nowMs]);
 
   return (
     <BookingLayout>
@@ -122,9 +128,9 @@ export function AccountPage() {
       <div className="max-w-[800px] mx-auto px-4 md:px-8 py-12">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-dom-gray-900">Мои бронирования</h1>
-          <a href="/booking" className="px-4 py-2 bg-dom-green hover:bg-dom-green-hover text-white rounded-xl text-sm font-medium transition-all">
+          <Link to="/booking" className="px-4 py-2 bg-dom-green hover:bg-dom-green-hover text-white rounded-xl text-sm font-medium transition-all">
             Забронировать
-          </a>
+          </Link>
         </div>
 
         {!user ? (

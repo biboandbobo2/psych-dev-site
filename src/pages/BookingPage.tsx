@@ -17,6 +17,7 @@ import { useRooms, useTimeSlots, useAllRoomsSlots, useBooking } from './booking/
 import { useWeekSchedule } from './booking/useWeekSchedule';
 import { DURATION_OPTIONS } from './booking/types';
 import { BOOKING_UTC_OFFSET } from '../lib/bookingCancellation';
+import { CheckIcon, ChevronLeftIcon } from './booking/icons';
 import type { Room, TimeSlot, CartItem, BookingStep, BookingFlow, BookingFormData, BookingResult, DurationOption } from './booking/types';
 
 /** alteg.io returns one slot per bookable start time — each is a complete booking, not a 30-min fragment */
@@ -158,7 +159,8 @@ export function BookingPage() {
   // --- Quick booking from week schedule ---
   const handleScheduleSlotClick = useCallback(
     (room: Room, date: string, time: string, dur: DurationOption) => {
-      const slot: TimeSlot = { time, datetime: 0, seanceLength: dur.seconds, available: true };
+      const datetime = new Date(`${date}T${time}:00${BOOKING_UTC_OFFSET}`).getTime() / 1000;
+      const slot: TimeSlot = { time, datetime, seanceLength: dur.seconds, available: true };
       setFlow('room-first');
       setSelectedRoom(room);
       setSelectedDate(date);
@@ -226,9 +228,7 @@ export function BookingPage() {
         <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12 py-16">
           <div className="max-w-lg mx-auto text-center">
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-20 h-20 rounded-full bg-dom-green/10 mx-auto mb-6 flex items-center justify-center">
-              <svg className="w-10 h-10 text-dom-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+              <CheckIcon className="w-10 h-10 text-dom-green" />
             </motion.div>
             <h2 className="text-3xl font-bold text-dom-gray-900 mb-2">Бронирование подтверждено!</h2>
             <p className="text-dom-gray-500 mb-8">Подтверждение отправлено на email</p>
@@ -253,9 +253,7 @@ export function BookingPage() {
               <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
                 <div className="flex items-center gap-2 py-4 overflow-x-auto">
                   <button onClick={reset} className="flex items-center px-3 py-2 rounded-lg text-sm text-dom-gray-500 hover:text-dom-green hover:bg-dom-cream transition-all mr-1">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                    </svg>
+                    <ChevronLeftIcon />
                   </button>
                   {steps.map((s, i) => {
                     const isActive = s.key === step;
@@ -264,7 +262,7 @@ export function BookingPage() {
                       <button key={s.key} onClick={() => goToStep(s.key)} disabled={i > currentStepIndex}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 whitespace-nowrap ${isActive ? 'bg-dom-green text-white' : isPast ? 'bg-dom-cream text-dom-green cursor-pointer hover:bg-dom-green/10' : 'text-dom-gray-500 cursor-not-allowed'}`}>
                         <span className={`w-6 h-6 rounded-full text-xs flex items-center justify-center font-bold ${isActive ? 'bg-white/20 text-white' : isPast ? 'bg-dom-green text-white' : 'bg-dom-gray-200 text-dom-gray-500'}`}>
-                          {isPast ? <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> : i + 1}
+                          {isPast ? <CheckIcon className="w-3.5 h-3.5" strokeWidth={3} /> : i + 1}
                         </span>
                         {s.label}
                       </button>

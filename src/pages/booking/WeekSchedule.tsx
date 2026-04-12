@@ -5,6 +5,7 @@ import type { DurationOption } from './types';
 import type { BusyBlock } from './useWeekSchedule';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { BOOKING_UTC_OFFSET } from '../../lib/bookingCancellation';
+import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 
 interface WeekScheduleProps {
   rooms: Room[];
@@ -194,12 +195,12 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
             <button onClick={() => onWeekChange(weekOffset - 1)} disabled={weekOffset <= 0}
               className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${weekOffset <= 0 ? 'border-dom-gray-200 text-dom-gray-300 cursor-not-allowed' : 'border-dom-gray-200 text-dom-gray-700 hover:border-dom-green/40 hover:text-dom-green'}`}
               aria-label="Предыдущая неделя">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              <ChevronLeftIcon />
             </button>
             <button onClick={() => onWeekChange(weekOffset + 1)} disabled={weekOffset >= 3}
               className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${weekOffset >= 3 ? 'border-dom-gray-200 text-dom-gray-300 cursor-not-allowed' : 'border-dom-gray-200 text-dom-gray-700 hover:border-dom-green/40 hover:text-dom-green'}`}
               aria-label="Следующая неделя">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+              <ChevronRightIcon />
             </button>
           </div>
         </div>

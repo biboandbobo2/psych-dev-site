@@ -32,8 +32,8 @@ export interface BookingResult {
   record_hash: string;
 }
 
-export type BookingStep = 'start' | 'room' | 'date' | 'duration' | 'time' | 'allrooms' | 'confirm';
-export type BookingFlow = 'room-first' | 'date-first' | 'time-first';
+export type BookingStep = 'start' | 'room' | 'date' | 'time' | 'allrooms' | 'confirm';
+export type BookingFlow = 'room-first' | 'date-first';
 
 export const DURATION_OPTIONS = [
   { label: '1 час', minutes: 60, seconds: 3600, serviceId: '12334505' },

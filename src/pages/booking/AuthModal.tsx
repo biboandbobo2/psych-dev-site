@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { signInWithPopup, signInWithCustomToken, sendSignInLinkToEmail } from 'firebase/auth';
 import { auth, googleProvider } from '../../lib/firebase';
 import { debugError } from '../../lib/debug';
+import { CloseIcon } from './icons';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -120,9 +121,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         {/* Close button */}
         <div className="flex justify-end">
           <button onClick={onClose} className="text-dom-gray-500 hover:text-dom-gray-900 transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <CloseIcon />
           </button>
         </div>
 
