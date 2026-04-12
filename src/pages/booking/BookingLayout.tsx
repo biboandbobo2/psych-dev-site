@@ -8,17 +8,19 @@ import { AuthModal } from './AuthModal';
 import { PhoneModal } from './PhoneModal';
 import { useUserPhone } from './useUserPhone';
 import { BookingContext } from './BookingContext';
+import type { BookingStep } from './types';
 import { debugError } from '../../lib/debug';
 import { ChevronDownIcon } from './icons';
 
 interface BookingLayoutProps {
   children: ReactNode;
+  bookingStep?: BookingStep;
 }
 
-export function BookingLayout({ children }: BookingLayoutProps) {
+export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
   const user = useAuthStore((state) => state.user);
   const location = useLocation();
-  const isMainPage = location.pathname === '/booking';
+  const isStartScreen = location.pathname === '/booking' && (!bookingStep || bookingStep === 'start');
   const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { phone: userPhone, loading: phoneLoading, refresh: refreshPhone } = useUserPhone();
@@ -57,7 +59,7 @@ export function BookingLayout({ children }: BookingLayoutProps) {
             <Link to="/booking" className="flex-shrink-0">
               <img src="/images/dom-logo.png" alt="DOM" className="w-16 h-16 rounded-full" />
             </Link>
-            {isMainPage && (
+            {isStartScreen && (
               <nav className="hidden sm:flex items-center gap-3">
                 <Link
                   to="/booking/photos"
@@ -129,7 +131,7 @@ export function BookingLayout({ children }: BookingLayoutProps) {
         </div>
       </header>
 
-      <BookingContext.Provider value={{ userPhone, userPhoneLoading: phoneLoading }}>
+      <BookingContext.Provider value={{ userPhone, userPhoneLoading: phoneLoading, bookingStep: bookingStep ?? null }}>
         <main className="flex-1">{children}</main>
       </BookingContext.Provider>
 

@@ -218,7 +218,7 @@ export function BookingPage() {
   const showCartBar = step === 'time' || step === 'allrooms';
 
   return (
-    <BookingLayout>
+    <BookingLayout bookingStep={step}>
       <Helmet>
         <title>Бронирование кабинетов — Психологический центр ДОМ</title>
         <meta name="description" content="Забронируйте кабинет в психологическом центре ДОМ для консультаций, тренингов и мероприятий." />
