@@ -100,15 +100,6 @@ export function AllRoomsGrid({ rooms, date, slotsByRoom, duration, onDurationCha
       ) : (
         <div className="max-w-4xl mx-auto overflow-x-auto">
           <div className="min-w-[600px]">
-            {/* Header */}
-            <div className="flex gap-1 mb-2 pl-36">
-              {allTimes.map((time) => (
-                <div key={time} className="w-14 flex-shrink-0 text-center text-xs text-dom-gray-500 font-medium">
-                  {time}
-                </div>
-              ))}
-            </div>
-
             {/* Room rows */}
             {rooms.map((room) => {
               const roomSlots = slotsByRoom.get(room.id) || [];
