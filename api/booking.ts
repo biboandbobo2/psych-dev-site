@@ -4,8 +4,18 @@
  * Actions: rooms, slots, book, services
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
 const ALTEG_BASE = 'https://api.alteg.io/api/v1';
+
+function initFirebaseAdmin() {
+  if (getApps().length > 0) return;
+  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!json) throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured');
+  initializeApp({ credential: cert(JSON.parse(json)) });
+}
 
 function getConfig() {
   const partnerToken = process.env.ALTEG_PARTNER_TOKEN;
@@ -26,6 +36,20 @@ function authHeaders(partnerToken: string, userToken?: string): Record<string, s
     'Content-Type': 'application/json',
     'Authorization': auth,
   };
+}
+
+async function verifyBookingAuth(req: VercelRequest) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { valid: false, error: 'Authorization required', code: 'UNAUTHORIZED' } as const;
+  }
+
+  try {
+    const decodedToken = await getAuth().verifyIdToken(authHeader.slice(7));
+    return { valid: true, uid: decodedToken.uid, email: decodedToken.email || '' } as const;
+  } catch {
+    return { valid: false, error: 'Invalid token', code: 'UNAUTHORIZED' } as const;
+  }
 }
 
 async function altegFetch(path: string, partnerToken: string, userToken?: string) {
@@ -168,6 +192,70 @@ async function handleCreateClient(
   }], partnerToken, userToken);
 }
 
+function parseClientIds(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((id): id is number => typeof id === 'number' && Number.isFinite(id));
+}
+
+async function handleResolveMyClientIds(
+  companyId: string,
+  uid: string,
+  fallbackEmail: string,
+  partnerToken: string,
+  userToken: string,
+) {
+  const db = getFirestore();
+  const userRef = db.collection('users').doc(uid);
+  const userSnap = await userRef.get();
+  const userData = userSnap.data() || {};
+
+  const phone = typeof userData.phone === 'string' ? userData.phone : null;
+  const email = typeof userData.email === 'string' && userData.email.trim()
+    ? userData.email.trim()
+    : fallbackEmail;
+  const cachedIds = parseClientIds(userData.altegClientIds);
+
+  if (cachedIds.length > 0) {
+    return { altegClientIds: cachedIds, phone };
+  }
+
+  if (!email && !phone) {
+    return { altegClientIds: [], phone };
+  }
+
+  const foundClients = await handleFindClients(companyId, email, phone || undefined, partnerToken, userToken);
+  if (foundClients.length > 0) {
+    const ids = foundClients.map((client) => client.id);
+    await userRef.set({ altegClientIds: ids }, { merge: true });
+    return { altegClientIds: ids, phone };
+  }
+
+  if (!email || !phone) {
+    return { altegClientIds: [], phone };
+  }
+
+  const createdClients = await handleCreateClient(
+    companyId,
+    {
+      name: typeof userData.displayName === 'string' && userData.displayName.trim()
+        ? userData.displayName
+        : email.split('@')[0],
+      phone,
+      email,
+    },
+    partnerToken,
+    userToken,
+  ) as { id?: number }[] | null;
+
+  const newId = createdClients?.[0]?.id;
+  if (!newId) {
+    throw new Error('Failed to resolve booking client');
+  }
+
+  await userRef.set({ altegClientIds: [newId] }, { merge: true });
+  return { altegClientIds: [newId], phone };
+}
+
 async function handleClientRecords(
   companyId: string,
   clientIds: string[],
@@ -267,7 +355,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(204).end();
 
   try {
@@ -325,12 +413,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const result = await handleBook(companyId, req.body, partnerToken);
         return res.status(200).json({ success: true, data: result });
       }
-      case 'findClients': {
-        const fcEmail = (req.query.email || req.body?.email) as string;
-        const fcPhone = (req.query.phone || req.body?.phone) as string | undefined;
-        if (!fcEmail && !fcPhone) return res.status(400).json({ success: false, error: 'email or phone required' });
-        const clients = await handleFindClients(companyId, fcEmail, fcPhone, partnerToken, userToken);
-        return res.status(200).json({ success: true, data: clients });
+      case 'resolveMyClientIds': {
+        if (req.method !== 'POST') {
+          return res.status(405).json({ success: false, error: 'POST required' });
+        }
+        initFirebaseAdmin();
+        const authResult = await verifyBookingAuth(req);
+        if (!authResult.valid) {
+          return res.status(401).json({ success: false, error: authResult.error });
+        }
+        const resolved = await handleResolveMyClientIds(
+          companyId,
+          authResult.uid,
+          authResult.email,
+          partnerToken,
+          userToken,
+        );
+        return res.status(200).json({ success: true, data: resolved });
       }
       case 'createClient': {
         if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'POST required' });

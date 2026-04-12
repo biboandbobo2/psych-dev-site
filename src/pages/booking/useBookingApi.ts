@@ -107,6 +107,7 @@ export function useTimeSlots(roomId: string | null, date: string | null, service
 export function useRoomAvailability(rooms: Room[], date: string | null) {
   const [availability, setAvailability] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(false);
+  const serviceId = DEFAULT_SERVICE_ID;
 
   useEffect(() => {
     if (!date || rooms.length === 0) return;
@@ -114,7 +115,7 @@ export function useRoomAvailability(rooms: Room[], date: string | null) {
     setLoading(true);
     Promise.all(
       rooms.map((room) =>
-        apiFetch<AltegSlot[]>('slots', { staffId: room.id, date, serviceId: SERVICE_ID })
+        apiFetch<AltegSlot[]>('slots', { staffId: room.id, date, serviceId })
           .then((data) => ({ roomId: room.id, count: data.length }))
           .catch(() => ({ roomId: room.id, count: 0 }))
       )
@@ -126,7 +127,7 @@ export function useRoomAvailability(rooms: Room[], date: string | null) {
       debugLog('[Booking] Room availability for', date, ':', Object.fromEntries(map));
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [rooms, date]);
+  }, [rooms, date, serviceId]);
 
   return { availability, loading };
 }
