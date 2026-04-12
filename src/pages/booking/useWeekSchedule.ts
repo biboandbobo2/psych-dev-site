@@ -5,6 +5,7 @@ import type { Room } from './types';
 export interface BusyBlock {
   start: string;
   lengthSeconds: number;
+  clientName?: string;
 }
 
 function getWeekDates(weekOffset: number): string[] {

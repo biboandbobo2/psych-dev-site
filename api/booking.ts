@@ -96,10 +96,17 @@ async function handleBusy(
     `/records/${companyId}?staff_id=${staffId}&start_date=${date}&end_date=${date}`,
     partnerToken,
     userToken,
-  ) as { datetime: string; length: number; deleted: boolean }[];
+  ) as { datetime: string; length: number; deleted: boolean; client?: { name?: string } }[];
   return records
-    .filter((r: { deleted: boolean }) => !r.deleted)
-    .map((r: { datetime: string; length: number }) => ({ start: r.datetime, lengthSeconds: r.length }));
+    .filter((r) => !r.deleted)
+    .map((r) => {
+      const fullName = r.client?.name || '';
+      const parts = fullName.trim().split(/\s+/);
+      const shortName = parts.length >= 2
+        ? `${parts[0]} ${parts[1][0]}.`
+        : parts[0] || '';
+      return { start: r.datetime, lengthSeconds: r.length, clientName: shortName };
+    });
 }
 
 async function handleFindClients(

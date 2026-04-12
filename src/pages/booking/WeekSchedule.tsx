@@ -3,6 +3,7 @@ import type { Room } from './types';
 import { DURATION_OPTIONS } from './types';
 import type { DurationOption } from './types';
 import type { BusyBlock } from './useWeekSchedule';
+import { useAuthStore } from '../../stores/useAuthStore';
 
 interface WeekScheduleProps {
   rooms: Room[];
@@ -94,6 +95,7 @@ interface MobileSelection {
 }
 
 export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWeekChange, onSlotClick }: WeekScheduleProps) {
+  const user = useAuthStore((state) => state.user);
   const hours = useMemo(() => {
     const arr: number[] = [];
     for (let h = START_HOUR; h < END_HOUR; h++) arr.push(h);
@@ -319,10 +321,11 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
                           {blocks.map((block, bi) => {
                             const pos = blockToPosition(block);
                             if (!pos) return null;
+                            const showName = user && block.clientName;
                             return (
                               <div
                                 key={bi}
-                                className="absolute left-0.5 right-0.5 rounded-sm pointer-events-none"
+                                className="absolute left-0.5 right-0.5 rounded-sm pointer-events-none overflow-hidden"
                                 style={{
                                   top: pos.top,
                                   height: Math.max(pos.height - 1, 4),
@@ -330,7 +333,13 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
                                   opacity: 0.65,
                                   borderLeft: `3px solid ${room.color}`,
                                 }}
-                              />
+                              >
+                                {showName && pos.height >= 16 && (
+                                  <span className="block text-[9px] leading-tight text-white/90 px-1 pt-0.5 truncate">
+                                    {block.clientName}
+                                  </span>
+                                )}
+                              </div>
                             );
                           })}
                         </div>
