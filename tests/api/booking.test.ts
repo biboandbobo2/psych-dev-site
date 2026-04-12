@@ -394,3 +394,118 @@ describe('api/booking — protected account actions', () => {
     expect(adminMocks.fetch.mock.calls[1][1].method).toBe('DELETE');
   });
 });
+
+describe('api/booking — batchBusy', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    adminMocks.verifyIdToken.mockReset();
+    adminMocks.userGet.mockReset();
+    adminMocks.userSet.mockReset();
+    adminMocks.fetch.mockReset();
+    vi.stubGlobal('fetch', adminMocks.fetch);
+    process.env.ALTEG_PARTNER_TOKEN = 'partner-token';
+    process.env.ALTEG_USER_TOKEN = 'user-token';
+    process.env.ALTEG_COMPANY_ID = '1265772';
+    process.env.FIREBASE_SERVICE_ACCOUNT_KEY = JSON.stringify({
+      project_id: 'psych-dev-site-prod',
+      client_email: 'bot@example.com',
+      private_key: '-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n',
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('отклоняет GET запрос', async () => {
+    const req = mockReq({ method: 'GET', query: { action: 'batchBusy' } });
+    const res = mockRes();
+    await handler(req, res);
+    expect(res.statusCode).toBe(405);
+  });
+
+  it('отклоняет пустой массив pairs', async () => {
+    const req = mockReq({ body: { action: 'batchBusy', pairs: [] } });
+    const res = mockRes();
+    await handler(req, res);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('pairs[] required');
+  });
+
+  it('отклоняет больше 30 пар', async () => {
+    const pairs = Array.from({ length: 31 }, (_, i) => ({ staffId: '123', date: `2026-04-${String(i + 1).padStart(2, '0')}` }));
+    const req = mockReq({ body: { action: 'batchBusy', pairs } });
+    const res = mockRes();
+    await handler(req, res);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Max 30 pairs per request');
+  });
+
+  it('возвращает busy-блоки без clientName для анонимного запроса', async () => {
+    adminMocks.fetch
+      .mockResolvedValueOnce(successResponse([
+        { datetime: '2026-04-13T10:00:00+04:00', length: 3600, deleted: false, client: { name: 'Иван Иванов' } },
+      ]))
+      .mockResolvedValueOnce(successResponse([]));
+
+    const req = mockReq({
+      body: {
+        action: 'batchBusy',
+        pairs: [
+          { staffId: '111', date: '2026-04-13' },
+          { staffId: '222', date: '2026-04-13' },
+        ],
+      },
+    });
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data['111:2026-04-13']).toEqual([
+      { start: '2026-04-13T10:00:00+04:00', lengthSeconds: 3600 },
+    ]);
+    expect(res.body.data['222:2026-04-13']).toEqual([]);
+    expect(res.body.data['111:2026-04-13'][0]).not.toHaveProperty('clientName');
+  });
+
+  it('включает clientName для авторизованного запроса', async () => {
+    adminMocks.verifyIdToken.mockResolvedValue({ uid: 'user-batch', email: 'u@example.com' });
+    adminMocks.fetch.mockResolvedValueOnce(successResponse([
+      { datetime: '2026-04-13T14:00:00+04:00', length: 5400, deleted: false, client: { name: 'Мария Петрова' } },
+    ]));
+
+    const req = mockReq({
+      headers: { authorization: 'Bearer token-batch', 'content-type': 'application/json' },
+      body: {
+        action: 'batchBusy',
+        pairs: [{ staffId: '333', date: '2026-04-13' }],
+      },
+    });
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data['333:2026-04-13']).toEqual([
+      { start: '2026-04-13T14:00:00+04:00', lengthSeconds: 5400, clientName: 'Мария П.' },
+    ]);
+  });
+
+  it('фильтрует deleted записи', async () => {
+    adminMocks.fetch.mockResolvedValueOnce(successResponse([
+      { datetime: '2026-04-13T10:00:00+04:00', length: 3600, deleted: false, client: { name: 'A B' } },
+      { datetime: '2026-04-13T12:00:00+04:00', length: 3600, deleted: true, client: { name: 'C D' } },
+    ]));
+
+    const req = mockReq({
+      body: { action: 'batchBusy', pairs: [{ staffId: '444', date: '2026-04-13' }] },
+    });
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.body.data['444:2026-04-13']).toHaveLength(1);
+    expect(res.body.data['444:2026-04-13'][0].start).toBe('2026-04-13T10:00:00+04:00');
+  });
+});
