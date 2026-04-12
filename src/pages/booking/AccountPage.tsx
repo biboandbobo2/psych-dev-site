@@ -6,6 +6,7 @@ import { useBookingAuth } from './useBookingAuth';
 import { buildAuthorizedHeaders } from '../../lib/apiAuth';
 import { canCancelBooking, getBookingCancelDeadlineDateParts } from '../../lib/bookingCancellation';
 import { debugError, debugLog } from '../../lib/debug';
+import { MONTH_LABELS } from './utils';
 
 interface BookingRecord {
   id: number;
@@ -17,11 +18,6 @@ interface BookingRecord {
   visit_attendance: number;
   _cancelled?: boolean; // local flag after user cancels
 }
-
-const MONTH_LABELS = [
-  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
-];
 
 function formatDate(iso: string): string {
   const d = new Date(iso);

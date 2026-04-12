@@ -456,6 +456,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const busy = await handleBusy(companyId, bStaffId, bDate, partnerToken, userToken, includeClientName);
         return res.status(200).json({ success: true, data: busy });
       }
+      case 'batchBusy': {
+        if (req.method !== 'POST') {
+          return res.status(405).json({ success: false, error: 'POST required' });
+        }
+        const pairs = req.body?.pairs as { staffId: string; date: string }[];
+        if (!Array.isArray(pairs) || pairs.length === 0) {
+          return res.status(400).json({ success: false, error: 'pairs[] required' });
+        }
+        if (pairs.length > 30) {
+          return res.status(400).json({ success: false, error: 'Max 30 pairs per request' });
+        }
+        const includeNames = await canViewBusyClientNames(req);
+        const batchResults = await Promise.all(
+          pairs.map(async (p) => {
+            const blocks = await handleBusy(companyId, p.staffId, p.date, partnerToken, userToken, includeNames);
+            return { key: `${p.staffId}:${p.date}`, blocks };
+          })
+        );
+        const batchMap: Record<string, unknown[]> = {};
+        for (const r of batchResults) batchMap[r.key] = r.blocks;
+        return res.status(200).json({ success: true, data: batchMap });
+      }
       case 'services': {
         const services = await handleServices(companyId, partnerToken, userToken);
         return res.status(200).json({ success: true, data: services });

@@ -1,32 +1,24 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { BookingLayout } from './BookingLayout';
+import { ROOMS } from './types';
 
-const ROOMS = [
-  {
-    id: '3012126',
-    name: 'Изумрудный кабинет',
-    color: '#2E8B57',
+const ROOM_PHOTOS: Record<string, { description: string; photos: string[] }> = {
+  '3012126': {
     description: 'Кабинет для индивидуальных консультаций',
     photos: [
       '/images/rooms/izumrudny/6n55tg9djb.jpg',
       '/images/rooms/izumrudny/hfsofebks0.jpg',
     ],
   },
-  {
-    id: '3012185',
-    name: 'Лазурный кабинет',
-    color: '#4A90D9',
+  '3012185': {
     description: 'Кабинет для индивидуальных и семейных консультаций',
     photos: [
       '/images/rooms/lazurny/1dh0mgoumt.jpg',
       '/images/rooms/lazurny/3tibsptqrg.jpg',
     ],
   },
-  {
-    id: '2769648',
-    name: 'Бордовый кабинет',
-    color: '#8B2252',
+  '2769648': {
     description: 'Кабинет для индивидуальных консультаций и работы с детьми',
     photos: [
       '/images/rooms/bordovy/11kukj54bu.jpg',
@@ -35,7 +27,12 @@ const ROOMS = [
       '/images/rooms/bordovy/7scipb76c0.jpg',
     ],
   },
-];
+};
+
+const ROOMS_WITH_PHOTOS = ROOMS.map((room) => ({
+  ...room,
+  ...(ROOM_PHOTOS[room.id] || { description: room.description, photos: [] }),
+}));
 
 export function PhotosPage() {
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -49,7 +46,7 @@ export function PhotosPage() {
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12 py-12">
         <h1 className="text-3xl font-bold text-dom-gray-900 mb-10">Фотографии кабинетов</h1>
 
-        {ROOMS.map((room) => (
+        {ROOMS_WITH_PHOTOS.map((room) => (
           <section key={room.id} className="mb-14">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: room.color }} />

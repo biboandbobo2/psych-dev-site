@@ -1,5 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 import { BookingLayout } from './BookingLayout';
+import { ROOMS } from './types';
 
 const thClass = 'px-4 py-3 text-left text-sm font-semibold text-dom-gray-900 bg-dom-cream';
 const tdClass = 'px-4 py-3 text-sm text-dom-gray-700 border-t border-dom-gray-200';
@@ -124,18 +125,14 @@ export function PricingPage() {
         <div className="mt-10">
           <p className="text-center text-dom-gray-500 text-sm mb-4">Забронировать кабинет</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            {[
-              { id: '3012126', name: 'Изумрудный', color: '#2E8B57' },
-              { id: '3012185', name: 'Лазурный', color: '#4A90D9' },
-              { id: '2769648', name: 'Бордовый', color: '#8B2252' },
-            ].map((room) => (
+            {ROOMS.map((room) => (
               <a
                 key={room.id}
                 href={`/booking?room=${room.id}`}
                 className="flex items-center gap-2 px-5 py-3 bg-dom-green hover:bg-dom-green-hover text-white rounded-xl font-medium transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
                 <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: room.color, border: '2px solid rgba(255,255,255,0.5)' }} />
-                {room.name}
+                {room.name.replace(' кабинет', '')}
               </a>
             ))}
           </div>

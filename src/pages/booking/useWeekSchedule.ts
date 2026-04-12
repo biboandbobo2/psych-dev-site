@@ -42,32 +42,40 @@ export function useWeekSchedule(rooms: Room[], weekOffset: number, refreshKey?: 
 
     (async () => {
       try {
-        let headers: Record<string, string> | undefined;
+        const baseHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
         if (user) {
           try {
-            headers = await buildAuthorizedHeaders();
+            const authHeaders = await buildAuthorizedHeaders();
+            Object.assign(baseHeaders, authHeaders);
           } catch (authErr) {
             debugWarn('[WeekSchedule] Falling back to anonymous busy fetch:', authErr);
           }
         }
-        const requests = rooms.flatMap((room) =>
-          weekDates.map((date) =>
-            fetch(`/api/booking?action=busy&staffId=${room.id}&date=${date}`, headers ? { headers } : undefined)
-              .then((r) => r.json())
-              .then((json) => ({
-                key: `${room.id}:${date}`,
-                blocks: (json.success ? json.data : []) as BusyBlock[],
-              }))
-              .catch(() => ({ key: `${room.id}:${date}`, blocks: [] as BusyBlock[] }))
-          )
+
+        const pairs = rooms.flatMap((room) =>
+          weekDates.map((date) => ({ staffId: room.id, date }))
         );
 
-        const results = await Promise.all(requests);
+        const res = await fetch('/api/booking', {
+          method: 'POST',
+          headers: baseHeaders,
+          body: JSON.stringify({ action: 'batchBusy', pairs }),
+        });
+        const json = await res.json();
+
         if (cancelled) return;
+
+        if (!json.success) {
+          throw new Error(json.error || 'batchBusy failed');
+        }
+
         const map = new Map<string, BusyBlock[]>();
-        for (const r of results) map.set(r.key, r.blocks);
+        const data = json.data as Record<string, BusyBlock[]>;
+        for (const [key, blocks] of Object.entries(data)) {
+          map.set(key, blocks);
+        }
         setBusy(map);
-        debugLog('[WeekSchedule] Loaded busy data for', results.length, 'room-days, offset', weekOffset);
+        debugLog('[WeekSchedule] Loaded busy data for', map.size, 'room-days, offset', weekOffset);
       } catch (err) {
         debugError('[WeekSchedule] Failed:', err);
       } finally {

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
 import { useAuthStore } from '../../stores/useAuthStore';
 import type { CartItem, BookingFormData, DurationOption } from './types';
+import { formatDisplayDate } from './utils';
+import { useBookingContext } from './BookingContext';
 
 interface BookingConfirmationProps {
   cart: CartItem[];
@@ -13,18 +13,9 @@ interface BookingConfirmationProps {
   submitting?: boolean;
 }
 
-const MONTH_LABELS = [
-  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
-];
-
-function formatDisplayDate(dateStr: string): string {
-  const [, m, d] = dateStr.split('-').map(Number);
-  return `${d} ${MONTH_LABELS[m - 1]}`;
-}
-
 export function BookingConfirmation({ cart, duration, onSubmit, onBack, submitting }: BookingConfirmationProps) {
   const user = useAuthStore((state) => state.user);
+  const { userPhone } = useBookingContext();
   const [form, setForm] = useState<BookingFormData>({
     name: '',
     phone: '',
@@ -33,7 +24,7 @@ export function BookingConfirmation({ cart, duration, onSubmit, onBack, submitti
   });
   const [errors, setErrors] = useState<Partial<Record<keyof BookingFormData, string>>>({});
 
-  // Pre-fill from Firebase user
+  // Pre-fill from Firebase user and shared phone context
   useEffect(() => {
     if (!user) return;
     setForm((prev) => ({
@@ -41,12 +32,13 @@ export function BookingConfirmation({ cart, duration, onSubmit, onBack, submitti
       name: prev.name || user.displayName || '',
       email: prev.email || user.email || '',
     }));
-    // Load phone from Firestore
-    getDoc(doc(db, 'users', user.uid)).then((snap) => {
-      const phone = snap.data()?.phone;
-      if (phone) setForm((prev) => ({ ...prev, phone: prev.phone || phone }));
-    });
   }, [user]);
+
+  useEffect(() => {
+    if (userPhone) {
+      setForm((prev) => ({ ...prev, phone: prev.phone || userPhone }));
+    }
+  }, [userPhone]);
 
   const validate = (): boolean => {
     const newErrors: typeof errors = {};

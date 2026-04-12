@@ -1,12 +1,13 @@
 import '@fontsource-variable/sofia-sans';
 import { useState, useEffect, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
 import { signOut, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
-import { auth, db } from '../../lib/firebase';
+import { auth } from '../../lib/firebase';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { AuthModal } from './AuthModal';
 import { PhoneModal } from './PhoneModal';
+import { useUserPhone } from './useUserPhone';
+import { BookingContext } from './BookingContext';
 import { debugError } from '../../lib/debug';
 
 interface BookingLayoutProps {
@@ -19,8 +20,8 @@ export function BookingLayout({ children }: BookingLayoutProps) {
   const isMainPage = location.pathname === '/booking';
   const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [phoneLoading, setPhoneLoading] = useState(false);
-  const [needsPhone, setNeedsPhone] = useState(false);
+  const { phone: userPhone, loading: phoneLoading, refresh: refreshPhone } = useUserPhone();
+  const needsPhone = !!user && !phoneLoading && !userPhone;
 
   // Handle email link sign-in callback (after user clicks magic link)
   useEffect(() => {
@@ -41,19 +42,6 @@ export function BookingLayout({ children }: BookingLayoutProps) {
         debugError('[BookingLayout] Email link sign-in error:', err);
       });
   }, []);
-
-  // Check if user has phone in Firestore
-  useEffect(() => {
-    if (!user) {
-      setNeedsPhone(false);
-      return;
-    }
-    setPhoneLoading(true);
-    getDoc(doc(db, 'users', user.uid)).then((snap) => {
-      const data = snap.data();
-      setNeedsPhone(!data?.phone);
-    }).finally(() => setPhoneLoading(false));
-  }, [user]);
 
   const handleSignOut = async () => {
     setMenuOpen(false);
@@ -142,7 +130,9 @@ export function BookingLayout({ children }: BookingLayoutProps) {
         </div>
       </header>
 
-      <main className="flex-1">{children}</main>
+      <BookingContext.Provider value={{ userPhone, userPhoneLoading: phoneLoading }}>
+        <main className="flex-1">{children}</main>
+      </BookingContext.Provider>
 
       <footer className="bg-gradient-to-r from-dom-green to-dom-green-hover text-white py-8 px-4 md:px-8 lg:px-12">
         <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -160,8 +150,8 @@ export function BookingLayout({ children }: BookingLayoutProps) {
       <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
 
       {/* Phone modal — shown after first login if no phone */}
-      {user && needsPhone && !phoneLoading && (
-        <PhoneModal uid={user.uid} onComplete={(p) => { setPhone(p); setNeedsPhone(false); }} />
+      {user && needsPhone && (
+        <PhoneModal uid={user.uid} onComplete={() => refreshPhone()} />
       )}
     </div>
   );

@@ -37,7 +37,7 @@ export function useRooms() {
       .then((data) => {
         if (cancelled) return;
         const mapped: Room[] = data.map((staff) => {
-          const local = ROOMS.find((r) => r.name === staff.name);
+          const local = ROOMS.find((r) => r.id === String(staff.id));
           return {
             id: String(staff.id),
             name: staff.name,

@@ -1,20 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import type { CartItem } from './types';
+import { formatDisplayDate } from './utils';
 
 interface BookingCartProps {
   cart: CartItem[];
   onRemove: (index: number) => void;
   onConfirm: () => void;
-}
-
-const MONTH_LABELS = [
-  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
-];
-
-function formatDisplayDate(dateStr: string): string {
-  const [, m, d] = dateStr.split('-').map(Number);
-  return `${d} ${MONTH_LABELS[m - 1]}`;
 }
 
 export function BookingCart({ cart, onRemove, onConfirm }: BookingCartProps) {

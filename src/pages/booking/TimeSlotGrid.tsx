@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import type { TimeSlot, Room, CartItem, DurationOption } from './types';
 import { DURATION_OPTIONS } from './types';
+import { timeToMinutes } from './utils';
 
 interface TimeSlotGridProps {
   slots: TimeSlot[];
@@ -11,11 +12,6 @@ interface TimeSlotGridProps {
   onDurationChange: (d: DurationOption) => void;
   onToggleSlot: (slot: TimeSlot) => void;
   loading?: boolean;
-}
-
-function timeToMinutes(t: string): number {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
 }
 
 export function TimeSlotGrid({ slots, room, date, cart, duration, onDurationChange, onToggleSlot, loading }: TimeSlotGridProps) {

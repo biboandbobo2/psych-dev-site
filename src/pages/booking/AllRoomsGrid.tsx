@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import type { Room, TimeSlot, CartItem, DurationOption } from './types';
 import { DURATION_OPTIONS } from './types';
+import { timeToMinutes } from './utils';
 
 interface AllRoomsGridProps {
   rooms: Room[];
@@ -18,16 +19,7 @@ function getAllTimes(slotsByRoom: Map<string, TimeSlot[]>): string[] {
   for (const slots of slotsByRoom.values()) {
     for (const s of slots) set.add(s.time);
   }
-  return Array.from(set).sort((a, b) => {
-    const [ah, am] = a.split(':').map(Number);
-    const [bh, bm] = b.split(':').map(Number);
-    return (ah * 60 + am) - (bh * 60 + bm);
-  });
-}
-
-function timeToMinutes(t: string): number {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
+  return Array.from(set).sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
 }
 
 export function AllRoomsGrid({ rooms, date, slotsByRoom, duration, onDurationChange, cart, onToggleSlot, loading }: AllRoomsGridProps) {

@@ -7,11 +7,9 @@ interface DatePickerProps {
   daysAhead?: number;
 }
 
+import { MONTH_LABELS } from './utils';
+
 const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-const MONTH_LABELS = [
-  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
-];
 
 function formatDateKey(date: Date): string {
   const y = date.getFullYear();
