@@ -19,7 +19,6 @@ export function BookingLayout({ children }: BookingLayoutProps) {
   const isMainPage = location.pathname === '/booking';
   const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [phone, setPhone] = useState<string | null>(null);
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [needsPhone, setNeedsPhone] = useState(false);
 
@@ -46,20 +45,13 @@ export function BookingLayout({ children }: BookingLayoutProps) {
   // Check if user has phone in Firestore
   useEffect(() => {
     if (!user) {
-      setPhone(null);
       setNeedsPhone(false);
       return;
     }
     setPhoneLoading(true);
     getDoc(doc(db, 'users', user.uid)).then((snap) => {
       const data = snap.data();
-      if (data?.phone) {
-        setPhone(data.phone);
-        setNeedsPhone(false);
-      } else {
-        setPhone(null);
-        setNeedsPhone(true);
-      }
+      setNeedsPhone(!data?.phone);
     }).finally(() => setPhoneLoading(false));
   }, [user]);
 

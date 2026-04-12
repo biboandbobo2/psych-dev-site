@@ -191,7 +191,7 @@ export function BookingPage() {
       setCart([]);
       setScheduleRefresh((n) => n + 1);
     },
-    [cart, book]
+    [cart, book, currentServiceId]
   );
 
   const goToStep = useCallback(
