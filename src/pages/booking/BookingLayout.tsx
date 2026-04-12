@@ -26,6 +26,11 @@ export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
   const { phone: userPhone, loading: phoneLoading, refresh: refreshPhone } = useUserPhone();
   const needsPhone = !!user && !phoneLoading && !userPhone;
 
+  // Scroll to top on step change or page navigation
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [bookingStep, location.pathname]);
+
   // Handle email link sign-in callback (after user clicks magic link)
   useEffect(() => {
     if (!isSignInWithEmailLink(auth, window.location.href)) return;
