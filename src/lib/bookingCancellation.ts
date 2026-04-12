@@ -1,5 +1,5 @@
-const BOOKING_TIME_ZONE = 'Asia/Tbilisi';
-const BOOKING_UTC_OFFSET = '+04:00';
+export const BOOKING_TIME_ZONE = 'Asia/Tbilisi';
+export const BOOKING_UTC_OFFSET = '+04:00';
 
 function getDatePartsInBookingTimeZone(value: Date) {
   const formatter = new Intl.DateTimeFormat('en-CA', {

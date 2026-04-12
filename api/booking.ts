@@ -8,6 +8,7 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { canCancelBooking } from '../src/lib/bookingCancellation.js';
+import { getAllowedAppOrigin } from '../src/lib/appOrigins.js';
 
 const ALTEG_BASE = 'https://api.alteg.io/api/v1';
 
@@ -427,7 +428,11 @@ async function handleBook(
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const allowedOrigin = getAllowedAppOrigin(req.headers.origin);
+  if (allowedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+    res.setHeader('Vary', 'Origin');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -503,11 +508,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             phone: context.phone,
           },
         });
-      }
-      case 'createClient': {
-        if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'POST required' });
-        const result = await handleCreateClient(companyId, req.body, partnerToken, userToken);
-        return res.status(200).json({ success: true, data: result });
       }
       case 'clientRecords': {
         const context = await resolveAuthorizedBookingContext(req, companyId, partnerToken, userToken);

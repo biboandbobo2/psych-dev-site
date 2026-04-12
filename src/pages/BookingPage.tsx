@@ -16,6 +16,7 @@ import { WeekSchedule } from './booking/WeekSchedule';
 import { useRooms, useTimeSlots, useAllRoomsSlots, useBooking } from './booking/useBookingApi';
 import { useWeekSchedule } from './booking/useWeekSchedule';
 import { DURATION_OPTIONS } from './booking/types';
+import { BOOKING_UTC_OFFSET } from '../lib/bookingCancellation';
 import type { Room, TimeSlot, CartItem, BookingStep, BookingFlow, BookingFormData, BookingResult, DurationOption } from './booking/types';
 
 /** alteg.io returns one slot per bookable start time — each is a complete booking, not a 30-min fragment */
@@ -183,7 +184,7 @@ export function BookingPage() {
     async (data: BookingFormData) => {
       const bookingItems = cart.map((item) => ({
         roomId: item.room.id,
-        datetime: `${item.date}T${item.slot.time}:00+04:00`,
+        datetime: `${item.date}T${item.slot.time}:00${BOOKING_UTC_OFFSET}`,
         serviceId: currentServiceId,
       }));
       const results = await book(bookingItems, data);

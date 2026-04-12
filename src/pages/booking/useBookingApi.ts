@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { debugLog, debugError } from '../../lib/debug';
 import type { Room, TimeSlot, BookingResult } from './types';
 import { ROOMS, DURATION_OPTIONS } from './types';
+import { BOOKING_UTC_OFFSET } from '../../lib/bookingCancellation';
 
 const DEFAULT_SERVICE_ID = DURATION_OPTIONS[0].serviceId;
 
@@ -140,7 +141,7 @@ function padTime(t: string): string {
 }
 
 function slotOverlapsBusy(slotTime: string, seanceLength: number, date: string, busyIntervals: BusyInterval[]): boolean {
-  const slotStart = new Date(`${date}T${padTime(slotTime)}:00+04:00`).getTime();
+  const slotStart = new Date(`${date}T${padTime(slotTime)}:00${BOOKING_UTC_OFFSET}`).getTime();
   const slotEnd = slotStart + seanceLength * 1000;
   for (const b of busyIntervals) {
     const busyStart = new Date(b.start).getTime();

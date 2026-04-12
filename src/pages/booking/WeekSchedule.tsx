@@ -4,6 +4,7 @@ import { DURATION_OPTIONS } from './types';
 import type { DurationOption } from './types';
 import type { BusyBlock } from './useWeekSchedule';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { BOOKING_UTC_OFFSET } from '../../lib/bookingCancellation';
 
 interface WeekScheduleProps {
   rooms: Room[];
@@ -59,7 +60,7 @@ function halfSlotToTime(slot: number): string {
 
 function isRangeOverlapping(startTime: string, durationMin: number, date: string, blocks: BusyBlock[]): boolean {
   const [sh, sm] = startTime.split(':').map(Number);
-  const slotStart = new Date(`${date}T${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}:00+04:00`).getTime();
+  const slotStart = new Date(`${date}T${String(sh).padStart(2, '0')}:${String(sm).padStart(2, '0')}:00${BOOKING_UTC_OFFSET}`).getTime();
   const slotEnd = slotStart + durationMin * 60 * 1000;
   for (const b of blocks) {
     const busyStart = new Date(b.start).getTime();
@@ -127,7 +128,7 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
     const y = e.clientY - rect.top;
     const halfSlot = yToHalfHourSlot(y);
     const time = halfSlotToTime(halfSlot);
-    const slotMs = new Date(`${date}T${time}:00+04:00`).getTime();
+    const slotMs = new Date(`${date}T${time}:00${BOOKING_UTC_OFFSET}`).getTime();
     if (slotMs < Date.now()) return;
     if (!slotFits(time, duration.minutes)) return;
     const key = `${room.id}:${date}`;
@@ -243,7 +244,7 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
                       const hoverTop = hoverSlot * HALF_HOUR_PX;
 
                       const hoverTime = hoverSlot >= 0 ? halfSlotToTime(hoverSlot) : '';
-                      const hoverPast = hoverSlot >= 0 && new Date(`${date}T${hoverTime}:00+04:00`).getTime() < Date.now();
+                      const hoverPast = hoverSlot >= 0 && new Date(`${date}T${hoverTime}:00${BOOKING_UTC_OFFSET}`).getTime() < Date.now();
                       const hoverFitsTime = hoverSlot >= 0 && slotFits(hoverTime, duration.minutes);
                       const hoverFitsBusy = hoverSlot >= 0 && !isRangeOverlapping(hoverTime, duration.minutes, date, blocks);
                       const hoverFits = hoverFitsTime && hoverFitsBusy && !hoverPast;
@@ -266,8 +267,8 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
 
                           {/* Past overlay */}
                           {(() => {
-                            const dateStart = new Date(`${date}T${String(START_HOUR).padStart(2, '0')}:00:00+04:00`).getTime();
-                            const dateEnd = new Date(`${date}T${String(END_HOUR).padStart(2, '0')}:00:00+04:00`).getTime();
+                            const dateStart = new Date(`${date}T${String(START_HOUR).padStart(2, '0')}:00:00${BOOKING_UTC_OFFSET}`).getTime();
+                            const dateEnd = new Date(`${date}T${String(END_HOUR).padStart(2, '0')}:00:00${BOOKING_UTC_OFFSET}`).getTime();
                             const nowMs = Date.now();
                             if (nowMs <= dateStart) return null;
                             if (nowMs >= dateEnd) return <div className="absolute inset-0 bg-dom-gray-200/15 pointer-events-none" />;
