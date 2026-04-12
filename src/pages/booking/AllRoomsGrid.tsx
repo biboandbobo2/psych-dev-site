@@ -123,8 +123,8 @@ export function AllRoomsGrid({ rooms, date, slotsByRoom, duration, onDurationCha
                         key={time}
                         onClick={() => !disabled && slot && onToggleSlot(room, slot)}
                         disabled={disabled}
-                        whileHover={!disabled ? { scale: 1.15 } : undefined}
-                        whileTap={!disabled ? { scale: 0.9 } : undefined}
+                        whileHover={!disabled ? { scale: 1.05 } : undefined}
+                        whileTap={!disabled ? { scale: 0.95 } : undefined}
                         className={`
                           w-14 h-10 flex-shrink-0 rounded-lg text-xs font-medium
                           transition-all duration-100 border
