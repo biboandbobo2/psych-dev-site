@@ -105,14 +105,14 @@ export function useTimeSlots(roomId: string | null, date: string | null, service
   return { slots, loading };
 }
 
-interface BusyInterval { start: string; lengthSeconds: number }
+export interface BusyInterval { start: string; lengthSeconds: number }
 
-function padTime(t: string): string {
+export function padTime(t: string): string {
   const [h, m] = t.split(':');
   return `${h.padStart(2, '0')}:${m}`;
 }
 
-function slotOverlapsBusy(slotTime: string, seanceLength: number, date: string, busyIntervals: BusyInterval[]): boolean {
+export function slotOverlapsBusy(slotTime: string, seanceLength: number, date: string, busyIntervals: BusyInterval[]): boolean {
   const slotStart = new Date(`${date}T${padTime(slotTime)}:00${BOOKING_UTC_OFFSET}`).getTime();
   const slotEnd = slotStart + seanceLength * 1000;
   for (const b of busyIntervals) {

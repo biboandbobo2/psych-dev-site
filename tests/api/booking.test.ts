@@ -509,3 +509,124 @@ describe('api/booking — batchBusy', () => {
     expect(res.body.data['444:2026-04-13'][0].start).toBe('2026-04-13T10:00:00+04:00');
   });
 });
+
+describe('api/booking — check & book', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    adminMocks.fetch.mockReset();
+    vi.stubGlobal('fetch', adminMocks.fetch);
+    process.env.ALTEG_PARTNER_TOKEN = 'partner-token';
+    process.env.ALTEG_USER_TOKEN = 'user-token';
+    process.env.ALTEG_COMPANY_ID = '1265772';
+    process.env.FIREBASE_SERVICE_ACCOUNT_KEY = JSON.stringify({
+      project_id: 'psych-dev-site-prod',
+      client_email: 'bot@example.com',
+      private_key: '-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n',
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('check отклоняет GET запрос', async () => {
+    const req = mockReq({ method: 'GET', query: { action: 'check' } });
+    const res = mockRes();
+    await handler(req, res);
+    expect(res.statusCode).toBe(405);
+  });
+
+  it('check маппит appointments в формат alteg.io', async () => {
+    adminMocks.fetch.mockResolvedValueOnce(successResponse(null));
+
+    const req = mockReq({
+      body: {
+        action: 'check',
+        appointments: [
+          { id: 1, staffId: 3012185, serviceId: 12334505, datetime: '2026-04-15T14:00:00+04:00' },
+          { id: 2, staffId: 2769648, serviceId: 13451976, datetime: '2026-04-15T16:00:00+04:00' },
+        ],
+      },
+    });
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+
+    const sentBody = JSON.parse(adminMocks.fetch.mock.calls[0][1].body);
+    expect(sentBody.appointments).toEqual([
+      { id: 1, staff_id: 3012185, services: [12334505], datetime: '2026-04-15T14:00:00+04:00' },
+      { id: 2, staff_id: 2769648, services: [13451976], datetime: '2026-04-15T16:00:00+04:00' },
+    ]);
+    expect(adminMocks.fetch.mock.calls[0][0]).toContain('/book_check/1265772');
+  });
+
+  it('book отклоняет GET запрос', async () => {
+    const req = mockReq({ method: 'GET', query: { action: 'book' } });
+    const res = mockRes();
+    await handler(req, res);
+    expect(res.statusCode).toBe(405);
+  });
+
+  it('book формирует корректный body для alteg.io', async () => {
+    adminMocks.fetch.mockResolvedValueOnce(successResponse([
+      { id: 1, record_id: 42, record_hash: 'abc123' },
+    ]));
+
+    const req = mockReq({
+      body: {
+        action: 'book',
+        appointments: [
+          { staffId: 3012185, serviceId: 12334505, datetime: '2026-04-15T14:00:00+04:00' },
+        ],
+        name: 'Иван Иванов',
+        phone: '+995511179241',
+        email: 'ivan@example.com',
+        comment: 'Тестовая бронь',
+      },
+    });
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toEqual([{ id: 1, record_id: 42, record_hash: 'abc123' }]);
+
+    const sentBody = JSON.parse(adminMocks.fetch.mock.calls[0][1].body);
+    expect(sentBody.fullname).toBe('Иван Иванов');
+    expect(sentBody.phone).toBe('+995511179241');
+    expect(sentBody.email).toBe('ivan@example.com');
+    expect(sentBody.comment).toBe('Тестовая бронь');
+    expect(sentBody.notify_by_email).toBe(24);
+    expect(sentBody.appointments).toEqual([
+      { id: 1, staff_id: 3012185, services: [12334505], datetime: '2026-04-15T14:00:00+04:00' },
+    ]);
+    expect(adminMocks.fetch.mock.calls[0][0]).toContain('/book_record/1265772');
+  });
+
+  it('book подставляет пустые строки для необязательных полей', async () => {
+    adminMocks.fetch.mockResolvedValueOnce(successResponse([
+      { id: 1, record_id: 99, record_hash: 'xyz' },
+    ]));
+
+    const req = mockReq({
+      body: {
+        action: 'book',
+        appointments: [
+          { staffId: 3012126, serviceId: 13451977, datetime: '2026-04-16T10:00:00+04:00' },
+        ],
+        name: 'Анна',
+        phone: '+79991234567',
+      },
+    });
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    const sentBody = JSON.parse(adminMocks.fetch.mock.calls[0][1].body);
+    expect(sentBody.email).toBe('');
+    expect(sentBody.comment).toBe('');
+  });
+});
