@@ -11,6 +11,7 @@ import {
   markLessonWatched,
 } from '../../../lib/courseWatchedLessons';
 import { StudyVideoPlayer } from './StudyVideoPlayer';
+import { saveCourseVideoResumePoint } from '../../../lib/courseVideoResume';
 
 interface VideoSectionProps {
   slug: string;
@@ -122,6 +123,7 @@ function VideoSectionCard({
   const [mode, setMode] = useState<VideoLayoutMode>('embed');
   const [studyDraftSegments, setStudyDraftSegments] = useState<LectureNoteSegment[]>([]);
   const consumedStudyLaunchRef = useRef<string | null>(null);
+  const lastSavedPlaybackMsRef = useRef<number | null>(null);
   const effectiveVideoTitle = videoTitle?.trim() || defaultVideoTitle;
   const youtubeVideoId = useMemo(
     () => getYouTubeVideoId(originalUrl) ?? getYouTubeVideoId(embedUrl),
@@ -167,6 +169,29 @@ function VideoSectionCard({
     }
     markLessonWatched(courseId, lessonId);
     setIsWatched(true);
+  };
+
+  const handlePlaybackProgress = (currentTimeMs: number) => {
+    if (!canTrackWatched || !youtubeVideoId) return;
+    if (!Number.isFinite(currentTimeMs) || currentTimeMs < 1000) return;
+
+    const lastSavedMs = lastSavedPlaybackMsRef.current;
+    if (lastSavedMs !== null && Math.abs(currentTimeMs - lastSavedMs) < 5000) {
+      return;
+    }
+
+    const path = typeof window !== 'undefined' ? window.location.pathname : '';
+    if (!path) return;
+
+    saveCourseVideoResumePoint({
+      courseId,
+      path,
+      videoId: youtubeVideoId,
+      timeMs: currentTimeMs,
+      lessonLabel: periodTitle,
+      videoTitle: effectiveVideoTitle,
+    });
+    lastSavedPlaybackMsRef.current = currentTimeMs;
   };
 
   if (!embedUrl) {
@@ -237,6 +262,7 @@ function VideoSectionCard({
             embedUrl={embedUrl}
             onWatchThresholdReached={handleWatchThresholdReached}
             watchThreshold={0.95}
+            onPlaybackProgressMs={handlePlaybackProgress}
           />
         </div>
         <VideoResourceLinks

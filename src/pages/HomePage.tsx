@@ -12,6 +12,7 @@ import { useCourseStore } from '../stores';
 import { useAuth } from '../auth/AuthProvider';
 import { getLastCourseLesson } from '../lib/lastCourseLesson';
 import { getWatchedLessonIds } from '../lib/courseWatchedLessons';
+import { buildCourseContinuePath, getCourseVideoResumePoint } from '../lib/courseVideoResume';
 import { PageLoader } from '../components/ui';
 import { BaseModal, ModalCancelButton } from '../components/ui/BaseModal';
 import type { CourseType } from '../types/tests';
@@ -107,6 +108,17 @@ type ParsedCalendarEvent = {
 
 function pad2(value: number): string {
   return String(value).padStart(2, '0');
+}
+
+function formatTimeFromSeconds(seconds: number): string {
+  const safe = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const secs = safe % 60;
+  if (hours > 0) {
+    return `${hours}:${pad2(minutes)}:${pad2(secs)}`;
+  }
+  return `${minutes}:${pad2(secs)}`;
 }
 
 function toDateKey(date: Date): string {
@@ -247,12 +259,6 @@ export function HomePage() {
     }
   }, [currentCourse, effectiveCurrentCourse, setCurrentCourse]);
 
-  const currentCourseName = courses.find((course) => course.id === effectiveCurrentCourse)?.name ?? 'Текущий курс';
-  const fallbackPrimaryLesson = resolvePrimaryLesson(effectiveCurrentCourse);
-  const lastCourseLesson = getLastCourseLesson(effectiveCurrentCourse);
-  const primaryLessonLink = lastCourseLesson?.path ?? fallbackPrimaryLesson.link;
-  const primaryLessonTitle = lastCourseLesson?.label ?? fallbackPrimaryLesson.title;
-
   const progressByCourse = useMemo(() => {
     const map = new Map<string, { completed: number; total: number; percent: number }>();
     subjects.forEach((course) => {
@@ -264,7 +270,32 @@ export function HomePage() {
     return map;
   }, [subjects]);
 
-  const currentCourseProgress = progressByCourse.get(effectiveCurrentCourse) ?? { completed: 0, total: 0, percent: 0 };
+  const primaryContinueCourses = useMemo(() => {
+    const selectedCourses = (streamCourses.length > 0 ? streamCourses : subjects).slice(0, 2);
+
+    return selectedCourses.map((course) => {
+      const fallbackPrimaryLesson = resolvePrimaryLesson(course.id);
+      const lastCourseLesson = getLastCourseLesson(course.id);
+      const resumePoint = getCourseVideoResumePoint(course.id);
+      const fallbackPath = lastCourseLesson?.path ?? fallbackPrimaryLesson.link;
+      const continuePath = buildCourseContinuePath(course.id, fallbackPath);
+      const lessonTitle = lastCourseLesson?.label ?? resumePoint?.lessonLabel ?? fallbackPrimaryLesson.title;
+      const progress = progressByCourse.get(course.id) ?? { completed: 0, total: 0, percent: 0 };
+
+      return {
+        id: course.id,
+        name: course.name,
+        icon: course.icon,
+        continuePath,
+        lessonTitle,
+        progress,
+        resumeTimeLabel:
+          resumePoint && resumePoint.timeSec > 0
+            ? `Продолжим с ${formatTimeFromSeconds(resumePoint.timeSec)}`
+            : null,
+      };
+    });
+  }, [progressByCourse, streamCourses, subjects]);
 
   const latestFeedItems = useMemo(
     () =>
@@ -723,30 +754,71 @@ export function HomePage() {
     return (
       <section className="py-8 sm:py-10">
         <div className="space-y-4">
-          <section className="rounded-2xl bg-gradient-to-r from-[#2d5eff] via-[#3f56df] to-[#6c2fff] p-6 text-white shadow-[0_16px_40px_rgba(34,82,255,0.35)] sm:p-7">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-              <div className="space-y-2">
-                <p className="text-sm text-white/85">Добрый день, {displayName}</p>
-                <h2 className="text-3xl font-extrabold leading-tight">Продолжить обучение</h2>
-                <p className="text-base text-white/90">
-                  {currentCourseName} · Лекция: {primaryLessonTitle}
-                </p>
-                <NavLink
-                  to={primaryLessonLink}
-                  className="mt-3 inline-flex items-center justify-center rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-[#2947c9] transition hover:bg-[#eef3ff]"
+          <section className="space-y-3">
+            <p className="text-sm font-medium text-[#556476]">Добрый день, {displayName}</p>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              {primaryContinueCourses.map((course, index) => (
+                <article
+                  key={course.id}
+                  className={cn(
+                    'overflow-hidden rounded-2xl border bg-white shadow-[0_12px_26px_rgba(18,44,84,0.12)]',
+                    index === 0 ? 'border-[#D4E4FF]' : 'border-[#DDE5EE]'
+                  )}
                 >
-                  ▶ Продолжить
-                </NavLink>
-              </div>
-              <div className="w-full max-w-[150px] rounded-2xl bg-white/18 p-4 text-center backdrop-blur-[2px]">
-                <p className="text-5xl font-black leading-none">{currentCourseProgress.percent}%</p>
-                <p className="mt-2 text-sm font-medium text-white/90">курс пройден</p>
-                <p className="text-xs text-white/85">
-                  {currentCourseProgress.total > 0
-                    ? `${currentCourseProgress.completed} из ${currentCourseProgress.total} занятий`
-                    : `${currentCourseProgress.completed} занятий`}
-                </p>
-              </div>
+                  <div className="flex min-h-[220px] flex-col sm:flex-row">
+                    <div
+                      className={cn(
+                        'flex w-full items-center justify-center p-6 sm:w-[34%]',
+                        index === 0
+                          ? 'bg-gradient-to-br from-[#EAF1FF] to-[#DCE8FF]'
+                          : 'bg-gradient-to-br from-[#F0F5FF] to-[#E6EEFF]'
+                      )}
+                    >
+                      <span className="text-[54px]" aria-hidden>
+                        {course.icon || '📘'}
+                      </span>
+                    </div>
+                    <div className="flex w-full flex-col justify-between p-5 sm:w-[66%]">
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5D73A1]">
+                          Курс потока
+                        </p>
+                        <h2 className="text-3xl font-black leading-tight text-[#1F2F46]">{course.name}</h2>
+                        <p className="text-sm text-[#4D607B]">Лекция: {course.lessonTitle}</p>
+                        {course.resumeTimeLabel ? (
+                          <p className="text-xs font-semibold text-[#3359CB]">{course.resumeTimeLabel}</p>
+                        ) : (
+                          <p className="text-xs font-semibold text-[#5E6D7A]">Продолжим с последнего урока</p>
+                        )}
+                      </div>
+                      <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+                        <NavLink
+                          to={course.continuePath}
+                          onClick={() => setCurrentCourse(course.id as CourseType)}
+                          className="inline-flex items-center justify-center rounded-xl bg-[#3359CB] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2A49A8]"
+                        >
+                          ▶ Продолжить
+                        </NavLink>
+                        <div className="rounded-xl border border-[#D2DDF0] bg-[#F5F8FF] px-3 py-2 text-right">
+                          <p className="text-xl font-black leading-none text-[#1F2F46]">{course.progress.percent}%</p>
+                          <p className="mt-1 text-[11px] font-medium text-[#5E6D7A]">
+                            {course.progress.total > 0
+                              ? `${course.progress.completed}/${course.progress.total} занятий`
+                              : `${course.progress.completed} занятий`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ))}
+              {primaryContinueCourses.length === 0 ? (
+                <article className="rounded-2xl border border-[#DDE5EE] bg-white p-6">
+                  <p className="text-base text-[#5E6D7A]">
+                    Курсы для продолжения пока не найдены. Откройте любой курс из блока «Мои курсы».
+                  </p>
+                </article>
+              ) : null}
             </div>
           </section>
 

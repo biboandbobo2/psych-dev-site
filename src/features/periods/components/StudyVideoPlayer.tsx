@@ -119,6 +119,7 @@ interface StudyVideoPlayerProps {
   title: string;
   watchThreshold?: number;
   onWatchThresholdReached?: () => void;
+  onPlaybackProgressMs?: (currentTimeMs: number) => void;
 }
 
 export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPlayerProps>(
@@ -129,6 +130,7 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
       title,
       watchThreshold = 0.95,
       onWatchThresholdReached,
+      onPlaybackProgressMs,
     },
     ref
   ) {
@@ -138,9 +140,11 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
     const watchReachedRef = useRef(false);
     const progressIntervalRef = useRef<number | null>(null);
     const onWatchThresholdReachedRef = useRef(onWatchThresholdReached);
+    const onPlaybackProgressMsRef = useRef(onPlaybackProgressMs);
     const playerConfig = useMemo(() => parseYouTubeEmbedConfig(embedUrl), [embedUrl]);
 
     onWatchThresholdReachedRef.current = onWatchThresholdReached;
+    onPlaybackProgressMsRef.current = onPlaybackProgressMs;
 
     const notifyWatchThresholdReached = () => {
       if (watchReachedRef.current) return;
@@ -154,11 +158,19 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
       progressIntervalRef.current = null;
     };
 
+    const emitPlaybackProgress = () => {
+      if (!onPlaybackProgressMsRef.current) return;
+      if (!playerRef.current || typeof playerRef.current.getCurrentTime !== 'function') return;
+      const currentTimeMs = Math.max(0, Math.floor(playerRef.current.getCurrentTime() * 1000));
+      onPlaybackProgressMsRef.current(currentTimeMs);
+    };
+
     const maybeNotifyByProgress = () => {
       if (!hasReadyPlayerMethods(playerRef.current)) return;
       const duration = playerRef.current.getDuration();
       if (!duration || duration <= 0) return;
       const current = playerRef.current.getCurrentTime();
+      emitPlaybackProgress();
       if (current / duration >= watchThreshold) {
         notifyWatchThresholdReached();
       }
@@ -243,6 +255,7 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
               },
               onStateChange: ({ data }) => {
                 if (data === 0) {
+                  emitPlaybackProgress();
                   notifyWatchThresholdReached();
                   clearProgressInterval();
                   return;
@@ -257,6 +270,7 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
                   return;
                 }
 
+                emitPlaybackProgress();
                 clearProgressInterval();
               },
             },
@@ -268,6 +282,7 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
 
       return () => {
         destroyed = true;
+        emitPlaybackProgress();
         clearProgressInterval();
         playerRef.current?.destroy();
         playerRef.current = null;
