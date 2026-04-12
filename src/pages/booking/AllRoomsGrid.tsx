@@ -99,7 +99,7 @@ export function AllRoomsGrid({ rooms, date, slotsByRoom, duration, onDurationCha
         <p className="text-center text-dom-gray-500 text-lg">На выбранную дату нет свободных слотов</p>
       ) : (
         <div className="max-w-4xl mx-auto overflow-x-auto">
-          <div className="min-w-[600px]">
+          <div className="min-w-[600px] pt-2">
             {/* Room rows */}
             {rooms.map((room) => {
               const roomSlots = slotsByRoom.get(room.id) || [];
