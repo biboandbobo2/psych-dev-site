@@ -121,21 +121,34 @@ export function PricingPage() {
         </section>
 
         {/* CTA */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
-          <a
-            href="/booking"
-            className="px-6 py-3 bg-dom-green hover:bg-dom-green-hover text-white rounded-xl font-medium transition-all hover:-translate-y-0.5 hover:shadow-md"
-          >
-            Забронировать кабинет
-          </a>
-          <a
-            href="https://t.me/PsyDom_Tbilisi_administrator"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-3 border border-dom-gray-200 rounded-xl font-medium text-dom-gray-700 hover:bg-dom-cream transition-all"
-          >
-            Связаться с администратором
-          </a>
+        <div className="mt-10">
+          <p className="text-center text-dom-gray-500 text-sm mb-4">Забронировать кабинет</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            {[
+              { id: '3012126', name: 'Изумрудный', color: '#2E8B57' },
+              { id: '3012185', name: 'Лазурный', color: '#4A90D9' },
+              { id: '2769648', name: 'Бордовый', color: '#8B2252' },
+            ].map((room) => (
+              <a
+                key={room.id}
+                href={`/booking?room=${room.id}`}
+                className="flex items-center gap-2 px-5 py-3 bg-dom-green hover:bg-dom-green-hover text-white rounded-xl font-medium transition-all hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: room.color, border: '2px solid rgba(255,255,255,0.5)' }} />
+                {room.name}
+              </a>
+            ))}
+          </div>
+          <div className="text-center mt-5">
+            <a
+              href="https://t.me/PsyDom_Tbilisi_administrator"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block px-6 py-3 border border-dom-gray-200 rounded-xl font-medium text-dom-gray-700 hover:bg-dom-cream transition-all"
+            >
+              Связаться с администратором
+            </a>
+          </div>
         </div>
       </div>
     </BookingLayout>
