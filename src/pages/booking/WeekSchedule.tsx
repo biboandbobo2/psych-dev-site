@@ -111,7 +111,6 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
   const isTouch = useMemo(() => isTouchDevice(), []);
 
   const durationPx = (duration.minutes / 60) * ROW_HEIGHT;
-  const durationHalfSlots = duration.minutes / 30;
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>, roomId: string, date: string) => {
     if (isTouch) return;

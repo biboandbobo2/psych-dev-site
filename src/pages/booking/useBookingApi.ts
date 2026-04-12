@@ -105,34 +105,6 @@ export function useTimeSlots(roomId: string | null, date: string | null, service
   return { slots, loading };
 }
 
-export function useRoomAvailability(rooms: Room[], date: string | null) {
-  const [availability, setAvailability] = useState<Map<string, number>>(new Map());
-  const [loading, setLoading] = useState(false);
-  const serviceId = DEFAULT_SERVICE_ID;
-
-  useEffect(() => {
-    if (!date || rooms.length === 0) return;
-    let cancelled = false;
-    setLoading(true);
-    Promise.all(
-      rooms.map((room) =>
-        apiFetch<AltegSlot[]>('slots', { staffId: room.id, date, serviceId })
-          .then((data) => ({ roomId: room.id, count: data.length }))
-          .catch(() => ({ roomId: room.id, count: 0 }))
-      )
-    ).then((results) => {
-      if (cancelled) return;
-      const map = new Map<string, number>();
-      for (const r of results) map.set(r.roomId, r.count);
-      setAvailability(map);
-      debugLog('[Booking] Room availability for', date, ':', Object.fromEntries(map));
-    }).finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [rooms, date, serviceId]);
-
-  return { availability, loading };
-}
-
 interface BusyInterval { start: string; lengthSeconds: number }
 
 function padTime(t: string): string {
