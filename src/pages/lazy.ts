@@ -56,3 +56,9 @@ export const BookingPhotosPage = lazy(() =>
     'BookingPhotosPage'
   )
 );
+export const BookingPricingPage = lazy(() =>
+  lazyWithReload(
+    () => import('./booking/PricingPage').then((module) => ({ default: module.PricingPage })),
+    'BookingPricingPage'
+  )
+);

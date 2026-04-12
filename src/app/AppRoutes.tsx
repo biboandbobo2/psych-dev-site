@@ -27,6 +27,7 @@ import {
   BookingPage,
   BookingAccountPage,
   BookingPhotosPage,
+  BookingPricingPage,
 } from '../pages/lazy';
 import { PageLoader } from '../components/ui';
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
@@ -59,6 +60,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route path="/booking" element={<BookingPage />} />
         <Route path="/booking/account" element={<BookingAccountPage />} />
         <Route path="/booking/photos" element={<BookingPhotosPage />} />
+        <Route path="/booking/pricing" element={<BookingPricingPage />} />
         <Route path="/login" element={<Login />} />
         <Route
           path="/admin"
