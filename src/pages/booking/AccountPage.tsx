@@ -3,6 +3,8 @@ import { Helmet } from 'react-helmet-async';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { BookingLayout } from './BookingLayout';
 import { useBookingAuth } from './useBookingAuth';
+import { buildAuthorizedHeaders } from '../../lib/apiAuth';
+import { canCancelBooking, getBookingCancelDeadlineDateParts } from '../../lib/bookingCancellation';
 import { debugError, debugLog } from '../../lib/debug';
 
 interface BookingRecord {
@@ -39,50 +41,58 @@ function durationLabel(seconds: number): string {
   return `${m}мин`;
 }
 
-/** Cancel allowed until 21:00 the day before the booking */
-function canCancel(bookingDatetime: string): boolean {
-  const booking = new Date(bookingDatetime);
-  const deadline = new Date(booking);
-  deadline.setDate(deadline.getDate() - 1);
-  deadline.setHours(21, 0, 0, 0);
-  return Date.now() < deadline.getTime();
-}
-
 function cancelDeadlineLabel(bookingDatetime: string): string {
-  const booking = new Date(bookingDatetime);
-  const deadline = new Date(booking);
-  deadline.setDate(deadline.getDate() - 1);
-  return `до ${deadline.getDate()} ${MONTH_LABELS[deadline.getMonth()]} 21:00`;
+  const deadline = getBookingCancelDeadlineDateParts(bookingDatetime);
+  return `до ${deadline.day} ${MONTH_LABELS[deadline.month - 1]} 21:00`;
 }
 
 export function AccountPage() {
   const user = useAuthStore((state) => state.user);
-  const { altegClientIds, loading: authLoading } = useBookingAuth();
+  const { loading: authLoading } = useBookingAuth();
   const [records, setRecords] = useState<BookingRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [cancelling, setCancelling] = useState<number | null>(null);
   const [confirmCancel, setConfirmCancel] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!altegClientIds.length) return;
+    if (!user) {
+      setRecords([]);
+      return;
+    }
+    if (authLoading) return;
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/booking?action=clientRecords&clientIds=${altegClientIds.join(',')}`)
-      .then((r) => r.json())
-      .then((json) => {
-        if (!cancelled && json.success) setRecords(json.data || []);
-      })
-      .catch((err) => debugError('[Account] Load records error:', err))
-      .finally(() => { if (!cancelled) setLoading(false); });
+
+    (async () => {
+      try {
+        const headers = await buildAuthorizedHeaders();
+        const json = await fetch('/api/booking?action=clientRecords', { headers }).then((r) => r.json());
+        if (!json.success) {
+          throw new Error(json.error || 'Не удалось загрузить бронирования');
+        }
+        if (!cancelled) {
+          setRecords(json.data || []);
+        }
+      } catch (err) {
+        debugError('[Account] Load records error:', err);
+        if (!cancelled) {
+          setRecords([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
     return () => { cancelled = true; };
-  }, [altegClientIds]);
+  }, [user, authLoading]);
 
   const handleCancel = useCallback(async (recordId: number) => {
     setCancelling(recordId);
     try {
+      const headers = await buildAuthorizedHeaders({ 'Content-Type': 'application/json' });
       const res = await fetch('/api/booking', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ action: 'cancelRecord', recordId }),
       }).then((r) => r.json());
       if (res.success) {
@@ -131,7 +141,7 @@ export function AccountPage() {
               <div key={i} className="h-20 rounded-xl bg-dom-gray-200 animate-pulse" />
             ))}
           </div>
-        ) : !altegClientIds.length ? (
+        ) : upcoming.length === 0 && past.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-dom-gray-500 text-lg">У вас пока нет бронирований</p>
           </div>
@@ -149,7 +159,7 @@ export function AccountPage() {
                 <div className="space-y-3">
                   {upcoming.map((r) => {
                     const cancelled = r._cancelled;
-                    const cancelable = !cancelled && canCancel(r.datetime);
+                    const cancelable = !cancelled && canCancelBooking(r.datetime);
                     const isConfirming = confirmCancel === r.id;
                     const isCancelling = cancelling === r.id;
                     return (

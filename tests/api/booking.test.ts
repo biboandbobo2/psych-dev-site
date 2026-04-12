@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const adminMocks = vi.hoisted(() => ({
   verifyIdToken: vi.fn(),
@@ -60,10 +60,18 @@ function successResponse(data: unknown) {
   } as any;
 }
 
+function emptySuccessResponse() {
+  return {
+    ok: true,
+    text: vi.fn().mockResolvedValue(''),
+  } as any;
+}
+
 describe('api/booking — resolveMyClientIds', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     adminMocks.verifyIdToken.mockReset();
     adminMocks.userGet.mockReset();
     adminMocks.userSet.mockReset();
@@ -77,6 +85,10 @@ describe('api/booking — resolveMyClientIds', () => {
       client_email: 'bot@example.com',
       private_key: '-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n',
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('отклоняет запрос без bearer token', async () => {
@@ -155,5 +167,153 @@ describe('api/booking — resolveMyClientIds', () => {
     expect(firstCallBody.filters[0].state.value).toBe('real@example.com');
     expect(secondCallBody.filters[0].state.value).toBe('+995511179241');
     expect(adminMocks.userSet).toHaveBeenCalledWith({ altegClientIds: [777] }, { merge: true });
+  });
+});
+
+describe('api/booking — protected account actions', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    adminMocks.verifyIdToken.mockReset();
+    adminMocks.userGet.mockReset();
+    adminMocks.userSet.mockReset();
+    adminMocks.fetch.mockReset();
+    vi.stubGlobal('fetch', adminMocks.fetch);
+    process.env.ALTEG_PARTNER_TOKEN = 'partner-token';
+    process.env.ALTEG_USER_TOKEN = 'user-token';
+    process.env.ALTEG_COMPANY_ID = '1265772';
+    process.env.FIREBASE_SERVICE_ACCOUNT_KEY = JSON.stringify({
+      project_id: 'psych-dev-site-prod',
+      client_email: 'bot@example.com',
+      private_key: '-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n',
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('clientRecords требует bearer token и игнорирует clientIds из query', async () => {
+    const noAuthReq = mockReq({ method: 'GET', query: { action: 'clientRecords', clientIds: '999' } });
+    const noAuthRes = mockRes();
+
+    await handler(noAuthReq, noAuthRes);
+
+    expect(noAuthRes.statusCode).toBe(401);
+
+    adminMocks.verifyIdToken.mockResolvedValue({ uid: 'user-3', email: 'user@example.com' });
+    adminMocks.userGet.mockResolvedValue({
+      data: () => ({
+        email: 'user@example.com',
+        phone: '+995511179241',
+        altegClientIds: [123],
+      }),
+    });
+    adminMocks.fetch.mockResolvedValueOnce(successResponse([
+      { id: 42, datetime: '2026-04-13T18:00:00+04:00', length: 3600, deleted: false },
+    ]));
+
+    const req = mockReq({
+      method: 'GET',
+      headers: { authorization: 'Bearer token-789' },
+      query: { action: 'clientRecords', clientIds: '999,888' },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(adminMocks.fetch).toHaveBeenCalledTimes(1);
+    expect(adminMocks.fetch.mock.calls[0][0]).toContain('/records/1265772?client_id=123&count=50');
+  });
+
+  it('cancelRecord отклоняет чужую запись даже если прислали recordId напрямую', async () => {
+    adminMocks.verifyIdToken.mockResolvedValue({ uid: 'user-4', email: 'user@example.com' });
+    adminMocks.userGet.mockResolvedValue({
+      data: () => ({
+        email: 'user@example.com',
+        phone: '+995511179241',
+        altegClientIds: [123],
+      }),
+    });
+    adminMocks.fetch.mockResolvedValueOnce(successResponse([
+      { id: 42, datetime: '2026-04-13T18:00:00+04:00', length: 3600, deleted: false },
+    ]));
+
+    const req = mockReq({
+      headers: { authorization: 'Bearer token-101', 'content-type': 'application/json' },
+      body: { action: 'cancelRecord', recordId: 999 },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body.error).toBe('Record not found');
+    expect(adminMocks.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancelRecord применяет серверный дедлайн отмены', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-12T21:30:00+04:00'));
+
+    adminMocks.verifyIdToken.mockResolvedValue({ uid: 'user-5', email: 'user@example.com' });
+    adminMocks.userGet.mockResolvedValue({
+      data: () => ({
+        email: 'user@example.com',
+        phone: '+995511179241',
+        altegClientIds: [123],
+      }),
+    });
+    adminMocks.fetch.mockResolvedValueOnce(successResponse([
+      { id: 42, datetime: '2026-04-13T18:00:00+04:00', length: 3600, deleted: false },
+    ]));
+
+    const req = mockReq({
+      headers: { authorization: 'Bearer token-202', 'content-type': 'application/json' },
+      body: { action: 'cancelRecord', recordId: 42 },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body.error).toBe('Cancellation deadline has passed');
+    expect(adminMocks.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancelRecord отменяет свою запись до дедлайна', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-11T10:00:00+04:00'));
+
+    adminMocks.verifyIdToken.mockResolvedValue({ uid: 'user-6', email: 'user@example.com' });
+    adminMocks.userGet.mockResolvedValue({
+      data: () => ({
+        email: 'user@example.com',
+        phone: '+995511179241',
+        altegClientIds: [123],
+      }),
+    });
+    adminMocks.fetch
+      .mockResolvedValueOnce(successResponse([
+        { id: 42, datetime: '2026-04-13T18:00:00+04:00', length: 3600, deleted: false },
+      ]))
+      .mockResolvedValueOnce(emptySuccessResponse());
+
+    const req = mockReq({
+      headers: { authorization: 'Bearer token-303', 'content-type': 'application/json' },
+      body: { action: 'cancelRecord', recordId: 42 },
+    });
+    const res = mockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ success: true, data: { deleted: true } });
+    expect(adminMocks.fetch).toHaveBeenCalledTimes(2);
+    expect(adminMocks.fetch.mock.calls[1][0]).toContain('/record/1265772/42');
+    expect(adminMocks.fetch.mock.calls[1][1].method).toBe('DELETE');
   });
 });

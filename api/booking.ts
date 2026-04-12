@@ -7,6 +7,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { canCancelBooking } from '../src/lib/bookingCancellation.js';
 
 const ALTEG_BASE = 'https://api.alteg.io/api/v1';
 
@@ -38,17 +39,37 @@ function authHeaders(partnerToken: string, userToken?: string): Record<string, s
   };
 }
 
-async function verifyBookingAuth(req: VercelRequest) {
+interface BookingAuthFailure {
+  valid: false;
+  error: string;
+  code: 'UNAUTHORIZED';
+}
+
+interface VerifiedBookingAuth {
+  valid: true;
+  uid: string;
+  email: string;
+}
+
+interface ResolvedBookingContext {
+  valid: true;
+  uid: string;
+  email: string;
+  altegClientIds: number[];
+  phone: string | null;
+}
+
+async function verifyBookingAuth(req: VercelRequest): Promise<BookingAuthFailure | VerifiedBookingAuth> {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
-    return { valid: false, error: 'Authorization required', code: 'UNAUTHORIZED' } as const;
+    return { valid: false, error: 'Authorization required', code: 'UNAUTHORIZED' };
   }
 
   try {
     const decodedToken = await getAuth().verifyIdToken(authHeader.slice(7));
-    return { valid: true, uid: decodedToken.uid, email: decodedToken.email || '' } as const;
+    return { valid: true, uid: decodedToken.uid, email: decodedToken.email || '' };
   } catch {
-    return { valid: false, error: 'Invalid token', code: 'UNAUTHORIZED' } as const;
+    return { valid: false, error: 'Invalid token', code: 'UNAUTHORIZED' };
   }
 }
 
@@ -256,20 +277,59 @@ async function handleResolveMyClientIds(
   return { altegClientIds: [newId], phone };
 }
 
+async function resolveAuthorizedBookingContext(
+  req: VercelRequest,
+  companyId: string,
+  partnerToken: string,
+  userToken: string,
+): Promise<BookingAuthFailure | ResolvedBookingContext> {
+  initFirebaseAdmin();
+  const authResult = await verifyBookingAuth(req);
+  if (authResult.valid === false) {
+    return authResult;
+  }
+
+  const clientContext = await handleResolveMyClientIds(
+    companyId,
+    authResult.uid,
+    authResult.email,
+    partnerToken,
+    userToken,
+  );
+
+  return {
+    valid: true,
+    uid: authResult.uid,
+    email: authResult.email,
+    altegClientIds: clientContext.altegClientIds,
+    phone: clientContext.phone,
+  };
+}
+
+interface BookingRecord {
+  id: number;
+  datetime: string;
+  length: number;
+  deleted: boolean;
+  services?: { id: number; title: string }[];
+  staff?: { id: number; name: string };
+  visit_attendance?: number;
+}
+
 async function handleClientRecords(
   companyId: string,
   clientIds: string[],
   partnerToken: string,
   userToken: string,
 ) {
-  const allRecords: unknown[] = [];
+  const allRecords: BookingRecord[] = [];
   const seenIds = new Set<number>();
   for (const cid of clientIds) {
     const records = await altegFetch(
       `/records/${companyId}?client_id=${cid}&count=50`,
       partnerToken,
       userToken,
-    ) as { id: number }[];
+    ) as BookingRecord[];
     for (const r of (records || [])) {
       if (!seenIds.has(r.id)) {
         seenIds.add(r.id);
@@ -417,19 +477,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (req.method !== 'POST') {
           return res.status(405).json({ success: false, error: 'POST required' });
         }
-        initFirebaseAdmin();
-        const authResult = await verifyBookingAuth(req);
-        if (!authResult.valid) {
-          return res.status(401).json({ success: false, error: authResult.error });
+        const context = await resolveAuthorizedBookingContext(req, companyId, partnerToken, userToken);
+        if (context.valid === false) {
+          return res.status(401).json({ success: false, error: context.error });
         }
-        const resolved = await handleResolveMyClientIds(
-          companyId,
-          authResult.uid,
-          authResult.email,
-          partnerToken,
-          userToken,
-        );
-        return res.status(200).json({ success: true, data: resolved });
+        return res.status(200).json({
+          success: true,
+          data: {
+            altegClientIds: context.altegClientIds,
+            phone: context.phone,
+          },
+        });
       }
       case 'createClient': {
         if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'POST required' });
@@ -437,16 +495,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ success: true, data: result });
       }
       case 'clientRecords': {
-        const crClientIds = (req.query.clientIds || req.body?.clientIds) as string;
-        if (!crClientIds) return res.status(400).json({ success: false, error: 'clientIds required' });
-        const ids = typeof crClientIds === 'string' ? crClientIds.split(',') : crClientIds;
-        const records = await handleClientRecords(companyId, ids, partnerToken, userToken);
+        const context = await resolveAuthorizedBookingContext(req, companyId, partnerToken, userToken);
+        if (context.valid === false) {
+          return res.status(401).json({ success: false, error: context.error });
+        }
+        if (context.altegClientIds.length === 0) {
+          return res.status(200).json({ success: true, data: [] });
+        }
+        const records = await handleClientRecords(
+          companyId,
+          context.altegClientIds.map(String),
+          partnerToken,
+          userToken,
+        );
         return res.status(200).json({ success: true, data: records });
       }
       case 'cancelRecord': {
         if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'POST required' });
         const crRecordId = req.body?.recordId as string;
         if (!crRecordId) return res.status(400).json({ success: false, error: 'recordId required' });
+        const context = await resolveAuthorizedBookingContext(req, companyId, partnerToken, userToken);
+        if (context.valid === false) {
+          return res.status(401).json({ success: false, error: context.error });
+        }
+        if (context.altegClientIds.length === 0) {
+          return res.status(404).json({ success: false, error: 'Record not found' });
+        }
+        const records = await handleClientRecords(
+          companyId,
+          context.altegClientIds.map(String),
+          partnerToken,
+          userToken,
+        );
+        const record = records.find((item) => String(item.id) === String(crRecordId));
+        if (!record) {
+          return res.status(404).json({ success: false, error: 'Record not found' });
+        }
+        if (record.deleted) {
+          return res.status(409).json({ success: false, error: 'Record already cancelled' });
+        }
+        if (!canCancelBooking(record.datetime)) {
+          return res.status(403).json({ success: false, error: 'Cancellation deadline has passed' });
+        }
         const cancelResult = await handleCancelRecord(companyId, crRecordId, partnerToken, userToken);
         return res.status(200).json({ success: true, data: cancelResult });
       }

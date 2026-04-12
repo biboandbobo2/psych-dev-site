@@ -96,8 +96,8 @@ Vercel serverless function — прокси к alteg.io.
 | `book` | POST | Создание бронирования (book_record) + notify_by_email:24 |
 | `resolveMyClientIds` | POST | Защищённая self-only связка Firebase user ↔ alteg.io clients по Bearer token |
 | `createClient` | POST | Создание клиента в alteg.io |
-| `clientRecords` | GET | Записи клиента (по массиву clientIds) |
-| `cancelRecord` | POST | Удаление записи (DELETE /record/{id}/{recordId}) |
+| `clientRecords` | GET | Self-only список записей текущего Firebase user по Bearer token; `clientIds` сервер берёт из Firestore |
+| `cancelRecord` | POST | Self-only отмена записи текущего пользователя; сервер проверяет владение записью и дедлайн перед DELETE |
 
 ### Особенности
 - DELETE в alteg.io возвращает пустой body — `handleCancelRecord` проверяет `res.ok` вместо `res.json()`
@@ -127,9 +127,9 @@ BookingConfirmation автоподставляет name, email (из Firebase us
 ## Личный кабинет (`/booking/account`)
 
 - Предстоящие и прошлые бронирования
-- Данные из alteg.io через `clientRecords` (по всем altegClientIds)
-- Отмена: кнопка "Отменить" → подтверждение → DELETE в alteg.io
-- Дедлайн отмены: до 21:00 накануне дня брони
+- Данные из alteg.io через защищённый `clientRecords` только для текущего Bearer user
+- Отмена: кнопка "Отменить" → подтверждение → серверная проверка владения записью и дедлайна → DELETE в alteg.io
+- Дедлайн отмены: до 21:00 накануне дня брони; правило проверяется и в UI, и на сервере
 - После отмены: карточка становится серой, статус "Отменено"
 
 ## Файловая структура
