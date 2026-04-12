@@ -22,6 +22,8 @@ import type { Room, TimeSlot, CartItem, BookingStep, BookingFlow, BookingFormDat
 
 /** alteg.io returns one slot per bookable start time — each is a complete booking, not a 30-min fragment */
 
+const scrollTop = () => window.scrollTo({ top: 0, behavior: 'auto' });
+
 const stepVariants = {
   enter: { opacity: 0, x: 30 },
   center: { opacity: 1, x: 0 },
@@ -96,6 +98,7 @@ export function BookingPage() {
 
   // --- Flow selection ---
   const handleFlowSelect = useCallback((f: BookingFlow) => {
+    scrollTop();
     setFlow(f);
     setSelectedDuration(DURATION_OPTIONS[0]);
     if (f === 'room-first') setStep('room');
@@ -104,12 +107,14 @@ export function BookingPage() {
 
   // --- Navigation ---
   const handleRoomSelect = useCallback((room: Room) => {
+    scrollTop();
     setSelectedRoom(room);
     setSelectedDate(null);
     setStep('date');
   }, []);
 
   const handleDateSelect = useCallback((date: string) => {
+    scrollTop();
     setSelectedDate(date);
     setSelectedDuration(DURATION_OPTIONS[0]); // always reset to 1h when entering time step
     setCart([]);
@@ -159,6 +164,7 @@ export function BookingPage() {
   // --- Quick booking from week schedule ---
   const handleScheduleSlotClick = useCallback(
     (room: Room, date: string, time: string, dur: DurationOption) => {
+      scrollTop();
       const datetime = new Date(`${date}T${time}:00${BOOKING_UTC_OFFSET}`).getTime() / 1000;
       const slot: TimeSlot = { time, datetime, seanceLength: dur.seconds, available: true };
       setFlow('room-first');
@@ -175,8 +181,9 @@ export function BookingPage() {
     setCart((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  const handleConfirmClick = useCallback(() => setStep('confirm'), []);
+  const handleConfirmClick = useCallback(() => { scrollTop(); setStep('confirm'); }, []);
   const handleBack = useCallback(() => {
+    scrollTop();
     if (flow === 'room-first') setStep('time');
     else setStep('allrooms');
   }, [flow]);
@@ -200,12 +207,13 @@ export function BookingPage() {
   const goToStep = useCallback(
     (targetStep: BookingStep) => {
       const targetIndex = steps.findIndex((s) => s.key === targetStep);
-      if (targetIndex <= currentStepIndex) setStep(targetStep);
+      if (targetIndex <= currentStepIndex) { scrollTop(); setStep(targetStep); }
     },
     [currentStepIndex, steps]
   );
 
   const reset = useCallback(() => {
+    scrollTop();
     setBookingResults(null);
     setFlow(null);
     setStep('start');
