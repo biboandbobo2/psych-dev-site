@@ -208,10 +208,16 @@ export function HomePage() {
   const activeSections: HomePageSection[] = [];
   const streamCourseIds = useMemo(() => {
     if (userRole !== 'student') return null;
+
+    const availableCourseIds = new Set(courses.map((course) => course.id));
+    const clinicalIntroCourseId = availableCourseIds.has('vvedenie-v-osnovy-klinicheskoy-psihologii')
+      ? 'vvedenie-v-osnovy-klinicheskoy-psihologii'
+      : 'general';
+
     if (studentStream === 'first') return ['clinical', 'general'];
-    if (studentStream === 'second') return ['clinical', 'development'];
+    if (studentStream === 'second') return [clinicalIntroCourseId, 'development'];
     return null;
-  }, [studentStream, userRole]);
+  }, [courses, studentStream, userRole]);
 
   const streamCourses = useMemo(() => {
     if (!streamCourseIds) return courses;
