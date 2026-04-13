@@ -1,4 +1,3 @@
-import '@fontsource-variable/sofia-sans';
 import { useState, useEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { signOut, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';

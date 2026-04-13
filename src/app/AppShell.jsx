@@ -1,7 +1,7 @@
 // File: src/app/AppShell.jsx
 // AppShell отвечает за отображение основного контента и маршрутов,
 // опираясь на ROUTE_CONFIG, Zustand-сторы и UI-компоненты. Провайдеры (Router/Auth) живут в src/App.jsx.
-import React, { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { AnimatePresence } from 'framer-motion';
@@ -23,6 +23,7 @@ import { AppLayout } from '../layouts/AppLayout';
 import { LoadingSplash, ErrorState, EmptyState } from '../shared/ui/states';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { AppRoutes } from './AppRoutes';
+import { BookingPageFallback } from '../pages/booking/BookingPageFallback';
 import SuperAdminTaskPanel from '../components/SuperAdminTaskPanel';
 import AdminCourseSidebar from '../components/AdminCourseSidebar';
 import StudentCourseSidebar from '../components/StudentCourseSidebar';
@@ -32,6 +33,7 @@ import { getPageCourseId, shouldShowStudentCourseSidebar } from './courseNavigat
 
 const normalizePath = (path) =>
   path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
+const EMPTY_ROUTE_DATA = new Map();
 
 function buildCourseNavItems({
   courseId,
@@ -142,17 +144,29 @@ function RoutePager({ currentPath, navItems }) {
   );
 }
 
-export function AppShell() {
-  useAuthSync();
-  useScrollRestoration();
+function StandaloneLandingShell({ location, normalizedPath, isSuperAdmin }) {
+  const fallback = normalizedPath.startsWith('/booking')
+    ? <BookingPageFallback />
+    : <LoadingSplash />;
+
+  return (
+    <AppRoutes
+      location={location}
+      periodMap={EMPTY_ROUTE_DATA}
+      clinicalTopicsMap={EMPTY_ROUTE_DATA}
+      generalTopicsMap={EMPTY_ROUTE_DATA}
+      isSuperAdmin={isSuperAdmin}
+      fallback={fallback}
+    />
+  );
+}
+
+function MainAppShell({ location, normalizedPath, isSuperAdmin }) {
   const { periods, loading, error } = usePeriods();
   const { topics: clinicalTopics, loading: clinicalLoading, error: clinicalError } = useClinicalTopics();
   const { topics: generalTopics, loading: generalLoading, error: generalError } = useGeneralTopics();
-  const location = useLocation();
-  const normalizedPath = normalizePath(location.pathname);
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.loading);
-  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const setCurrentCourse = useCourseStore((state) => state.setCurrentCourse);
   const isSuperAdminPage = normalizedPath === '/superadmin';
   const isAdminContentPage = normalizedPath.startsWith('/admin/content');
@@ -273,16 +287,6 @@ export function AppShell() {
       ? "lg:w-64 xl:w-72"
       : undefined;
 
-  // Standalone landing pages — render outside AppLayout, skip data loading gates
-  const isStandaloneLanding = normalizedPath === '/warm_springs2' || normalizedPath.startsWith('/booking');
-  if (isStandaloneLanding) {
-    return (
-      <React.Suspense fallback={<LoadingSplash />}>
-        <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} generalTopicsMap={generalTopicsMap} isSuperAdmin={isSuperAdmin} />
-      </React.Suspense>
-    );
-  }
-
   if (loading || clinicalLoading || generalLoading) return <LoadingSplash />;
   if (error) return <ErrorState message={error.message} />;
   if (clinicalError) return <ErrorState message={clinicalError.message} />;
@@ -318,5 +322,33 @@ export function AppShell() {
         <RoutePager currentPath={location.pathname} navItems={navItems} />
       </AppLayout>
     </>
+  );
+}
+
+export function AppShell() {
+  useAuthSync();
+  useScrollRestoration();
+  const location = useLocation();
+  const normalizedPath = normalizePath(location.pathname);
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+
+  // Standalone routes should not pay the cost of unrelated content hooks or generic loaders.
+  const isStandaloneLanding = normalizedPath === '/warm_springs2' || normalizedPath.startsWith('/booking');
+  if (isStandaloneLanding) {
+    return (
+      <StandaloneLandingShell
+        location={location}
+        normalizedPath={normalizedPath}
+        isSuperAdmin={isSuperAdmin}
+      />
+    );
+  }
+
+  return (
+    <MainAppShell
+      location={location}
+      normalizedPath={normalizedPath}
+      isSuperAdmin={isSuperAdmin}
+    />
   );
 }
