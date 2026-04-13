@@ -3,12 +3,16 @@ import { Helmet } from 'react-helmet-async';
 import { BookingLayout } from './BookingLayout';
 import { ROOMS } from './types';
 
+interface PricingPageProps {
+  embedded?: boolean;
+}
+
 const thClass = 'px-4 py-3 text-left text-sm font-semibold text-dom-gray-900 bg-dom-cream';
 const tdClass = 'px-4 py-3 text-sm text-dom-gray-700 border-t border-dom-gray-200';
 
-export function PricingPage() {
-  return (
-    <BookingLayout>
+export function PricingPage({ embedded = false }: PricingPageProps) {
+  const content = (
+    <>
       <Helmet>
         <title>Стоимость аренды — Психологический центр ДОМ</title>
       </Helmet>
@@ -149,6 +153,12 @@ export function PricingPage() {
           </div>
         </div>
       </div>
-    </BookingLayout>
+    </>
   );
+
+  if (embedded) {
+    return content;
+  }
+
+  return <BookingLayout>{content}</BookingLayout>;
 }

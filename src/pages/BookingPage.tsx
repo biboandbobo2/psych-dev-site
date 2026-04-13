@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useLayoutEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BookingLayout } from './booking/BookingLayout';
@@ -19,6 +19,7 @@ import { DURATION_OPTIONS } from './booking/types';
 import { BOOKING_UTC_OFFSET } from '../lib/bookingCancellation';
 import { CheckIcon, ChevronLeftIcon } from './booking/icons';
 import type { Room, TimeSlot, CartItem, BookingStep, BookingFlow, BookingFormData, BookingResult, DurationOption } from './booking/types';
+import type { BookingSectionOutletContext } from './booking/BookingSectionLayout';
 
 /** alteg.io returns one slot per bookable start time — each is a complete booking, not a 30-min fragment */
 
@@ -45,7 +46,12 @@ function getSteps(flow: BookingFlow | null): { key: BookingStep; label: string }
   ];
 }
 
-export function BookingPage() {
+interface BookingPageProps {
+  embedded?: boolean;
+  onBookingStepChange?: (step: BookingStep | null) => void;
+}
+
+export function BookingPage({ embedded = false, onBookingStepChange }: BookingPageProps) {
   const [flow, setFlow] = useState<BookingFlow | null>(null);
   const [step, setStep] = useState<BookingStep>('start');
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
@@ -99,6 +105,16 @@ export function BookingPage() {
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [bookingView]);
+
+  useEffect(() => {
+    onBookingStepChange?.(step);
+  }, [onBookingStepChange, step]);
+
+  useEffect(() => {
+    return () => {
+      onBookingStepChange?.(null);
+    };
+  }, [onBookingStepChange]);
 
   // --- Flow selection ---
   const handleFlowSelect = useCallback((f: BookingFlow) => {
@@ -223,8 +239,8 @@ export function BookingPage() {
 
   const showCartBar = step === 'time' || step === 'allrooms';
 
-  return (
-    <BookingLayout bookingStep={step}>
+  const content = (
+    <>
       <Helmet>
         <title>Бронирование кабинетов — Психологический центр ДОМ</title>
         <meta name="description" content="Забронируйте кабинет в психологическом центре ДОМ для консультаций, тренингов и мероприятий." />
@@ -315,6 +331,17 @@ export function BookingPage() {
       )}
 
       <EventsSection />
-    </BookingLayout>
+    </>
   );
+
+  if (embedded) {
+    return content;
+  }
+
+  return <BookingLayout bookingStep={step}>{content}</BookingLayout>;
+}
+
+export function BookingPageRoute() {
+  const { setBookingStep } = useOutletContext<BookingSectionOutletContext>();
+  return <BookingPage embedded onBookingStepChange={setBookingStep} />;
 }

@@ -5,6 +5,10 @@ import { Link } from 'react-router-dom';
 import { ROOMS } from './types';
 import { CloseIcon } from './icons';
 
+interface PhotosPageProps {
+  embedded?: boolean;
+}
+
 const ROOM_PHOTOS: Record<string, { description: string; photos: string[] }> = {
   '3012126': {
     description: 'Кабинет для индивидуальных консультаций',
@@ -36,11 +40,11 @@ const ROOMS_WITH_PHOTOS = ROOMS.map((room) => ({
   ...(ROOM_PHOTOS[room.id] || { description: room.description, photos: [] }),
 }));
 
-export function PhotosPage() {
+export function PhotosPage({ embedded = false }: PhotosPageProps) {
   const [lightbox, setLightbox] = useState<string | null>(null);
 
-  return (
-    <BookingLayout>
+  const content = (
+    <>
       <Helmet>
         <title>Фотографии кабинетов — Психологический центр ДОМ</title>
       </Helmet>
@@ -111,6 +115,12 @@ export function PhotosPage() {
           />
         </div>
       )}
-    </BookingLayout>
+    </>
   );
+
+  if (embedded) {
+    return content;
+  }
+
+  return <BookingLayout>{content}</BookingLayout>;
 }

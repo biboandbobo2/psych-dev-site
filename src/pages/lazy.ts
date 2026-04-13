@@ -38,27 +38,34 @@ export const DynamicPeriodPage = lazy(() =>
 );
 export const FeaturesPage = lazy(() => lazyWithReload(() => import('./FeaturesPage'), 'FeaturesPage'));
 export const WarmSprings2Page = lazy(() => lazyWithReload(() => import('./WarmSprings2Page'), 'WarmSprings2Page'));
+const importBookingPages = () => import('./booking');
+export const BookingSectionLayout = lazy(() =>
+  lazyWithReload(
+    () => importBookingPages().then((module) => ({ default: module.BookingSectionLayout })),
+    'BookingSectionLayout'
+  )
+);
 export const BookingPage = lazy(() =>
   lazyWithReload(
-    () => import('./BookingPage').then((module) => ({ default: module.BookingPage })),
+    () => importBookingPages().then((module) => ({ default: module.BookingPageRoute })),
     'BookingPage'
   )
 );
 export const BookingAccountPage = lazy(() =>
   lazyWithReload(
-    () => import('./booking/AccountPage').then((module) => ({ default: module.AccountPage })),
+    () => importBookingPages().then((module) => ({ default: module.AccountPage })),
     'BookingAccountPage'
   )
 );
 export const BookingPhotosPage = lazy(() =>
   lazyWithReload(
-    () => import('./booking/PhotosPage').then((module) => ({ default: module.PhotosPage })),
+    () => importBookingPages().then((module) => ({ default: module.PhotosPage })),
     'BookingPhotosPage'
   )
 );
 export const BookingPricingPage = lazy(() =>
   lazyWithReload(
-    () => import('./booking/PricingPage').then((module) => ({ default: module.PricingPage })),
+    () => importBookingPages().then((module) => ({ default: module.PricingPage })),
     'BookingPricingPage'
   )
 );

@@ -9,6 +9,10 @@ import { canCancelBooking, getBookingCancelDeadlineDateParts } from '../../lib/b
 import { debugError, debugLog } from '../../lib/debug';
 import { MONTH_LABELS } from './utils';
 
+interface AccountPageProps {
+  embedded?: boolean;
+}
+
 interface BookingRecord {
   id: number;
   datetime: string;
@@ -43,7 +47,7 @@ function cancelDeadlineLabel(bookingDatetime: string): string {
   return `до ${deadline.day} ${MONTH_LABELS[deadline.month - 1]} 21:00`;
 }
 
-export function AccountPage() {
+export function AccountPage({ embedded = false }: AccountPageProps) {
   const user = useAuthStore((state) => state.user);
   const { loading: authLoading } = useBookingAuth();
   const [records, setRecords] = useState<BookingRecord[]>([]);
@@ -119,8 +123,8 @@ export function AccountPage() {
     .filter((r) => !r.deleted && new Date(r.datetime).getTime() < nowMs)
     .sort((a, b) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime()), [records, nowMs]);
 
-  return (
-    <BookingLayout>
+  const content = (
+    <>
       <Helmet>
         <title>Мои бронирования — Психологический центр ДОМ</title>
       </Helmet>
@@ -262,6 +266,12 @@ export function AccountPage() {
           </>
         )}
       </div>
-    </BookingLayout>
+    </>
   );
+
+  if (embedded) {
+    return content;
+  }
+
+  return <BookingLayout>{content}</BookingLayout>;
 }
