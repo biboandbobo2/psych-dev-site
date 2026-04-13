@@ -5,7 +5,7 @@ const EVENTS = [
     location: 'Боржоми, Грузия',
     description: 'Пятая школа DOM посвящена теме сообществ — как люди оказываются вместе и что происходит, когда они объединяются. 5 дней лекций, воркшопов, йоги и вечерних мероприятий.',
     price: 'от 1 890 лари',
-    href: 'https://www.notion.so/2026-14c7438bfceb80e694c6c98e8894a16b',
+    href: 'https://dom-psychology-school.tilda.ws',
     color: '#4A90D9',
   },
   {
