@@ -6,6 +6,18 @@ export function useScrollRestoration() {
   const navigationType = useNavigationType();
   const positionsRef = useRef(new Map<string, number>());
 
+  // Keep browser auto-restoration out of the way so the app controls SPA scroll consistently.
+  useEffect(() => {
+    if (!('scrollRestoration' in window.history)) return;
+
+    const previous = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+
+    return () => {
+      window.history.scrollRestoration = previous;
+    };
+  }, []);
+
   useEffect(() => {
     const key = location.key || location.pathname;
     const positions = positionsRef.current;

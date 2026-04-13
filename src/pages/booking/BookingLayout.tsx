@@ -1,5 +1,5 @@
 import '@fontsource-variable/sofia-sans';
-import { useState, useEffect, useLayoutEffect, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { signOut, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
@@ -25,12 +25,6 @@ export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { phone: userPhone, loading: phoneLoading, refresh: refreshPhone } = useUserPhone();
   const needsPhone = !!user && !phoneLoading && !userPhone;
-
-  // Disable browser auto-scroll restoration so our scrollTo isn't overridden
-  useLayoutEffect(() => {
-    history.scrollRestoration = 'manual';
-    window.scrollTo({ top: 0, behavior: 'auto' });
-  }, [location.pathname]);
 
   // Handle email link sign-in callback (after user clicks magic link)
   useEffect(() => {
