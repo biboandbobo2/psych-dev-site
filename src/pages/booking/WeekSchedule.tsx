@@ -162,8 +162,13 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
     return (
       <section className="py-12 md:py-16 bg-white">
         <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-dom-gray-900">Расписание на неделю</h2>
+          <div className="flex items-center justify-between mb-6">
+            <div className="w-[160px]" />
+            <div className="text-center flex-1">
+              <h2 className="text-2xl md:text-3xl font-bold text-dom-gray-900">Расписание</h2>
+              <p className="mt-1 text-sm text-dom-gray-500">Нажмите на свободное время чтобы забронировать</p>
+            </div>
+            <div className="w-[160px]" />
           </div>
           <div className="h-64 bg-dom-gray-200 animate-pulse rounded-2xl" />
         </div>

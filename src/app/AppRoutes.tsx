@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from 'react';
+import { Suspense } from 'react';
 import { Routes, Route, Navigate, Location } from 'react-router-dom';
 import RequireAuth from '../auth/RequireAuth';
 import RequireAdmin from '../auth/RequireAdmin';
@@ -38,7 +38,6 @@ import DynamicCoursePeriodPage from '../pages/DynamicCoursePeriodPage';
 import type { Period, ClinicalTopic, GeneralTopic } from '../types/content';
 
 interface AppRoutesProps {
-  fallback?: ReactNode;
   location: Location;
   periodMap: Map<string, Period>;
   clinicalTopicsMap: Map<string, ClinicalTopic>;
@@ -51,9 +50,9 @@ function AdminLanding() {
   return <Navigate to={isSuperAdmin ? "/superadmin" : "/admin/content"} replace />;
 }
 
-export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopicsMap, isSuperAdmin, fallback }: AppRoutesProps) {
+export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopicsMap, isSuperAdmin }: AppRoutesProps) {
   return (
-    <Suspense fallback={fallback ?? <PageLoader />}>
+    <Suspense fallback={<PageLoader />}>
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Profile />} />
         <Route path="/homepage" element={<HomePage />} />

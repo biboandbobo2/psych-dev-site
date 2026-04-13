@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,9 +42,9 @@ vi.mock('../stores/useAuthStore', () => ({
 }));
 
 vi.mock('./AppRoutes', () => ({
-  AppRoutes: ({ fallback, ...props }: { fallback?: ReactNode }) => {
+  AppRoutes: (props: unknown) => {
     mocks.appRoutes(props);
-    return <>{fallback ?? <div>no fallback</div>}</>;
+    return <div>app routes</div>;
   },
 }));
 
@@ -60,14 +59,14 @@ describe('AppShell standalone booking route', () => {
     mocks.appRoutes.mockReset();
   });
 
-  it('renders booking-branded fallback without initializing unrelated content hooks', () => {
+  it('skips unrelated content hooks for standalone booking routes', () => {
     render(
       <MemoryRouter initialEntries={['/booking']}>
         <AppShell />
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Забронировать кабинет')).toBeInTheDocument();
+    expect(screen.getByText('app routes')).toBeInTheDocument();
     expect(mocks.usePeriods).not.toHaveBeenCalled();
     expect(mocks.useClinicalTopics).not.toHaveBeenCalled();
     expect(mocks.useGeneralTopics).not.toHaveBeenCalled();

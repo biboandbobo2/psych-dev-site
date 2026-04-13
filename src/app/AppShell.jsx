@@ -23,7 +23,6 @@ import { AppLayout } from '../layouts/AppLayout';
 import { LoadingSplash, ErrorState, EmptyState } from '../shared/ui/states';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { AppRoutes } from './AppRoutes';
-import { BookingPageFallback } from '../pages/booking/BookingPageFallback';
 import SuperAdminTaskPanel from '../components/SuperAdminTaskPanel';
 import AdminCourseSidebar from '../components/AdminCourseSidebar';
 import StudentCourseSidebar from '../components/StudentCourseSidebar';
@@ -144,11 +143,7 @@ function RoutePager({ currentPath, navItems }) {
   );
 }
 
-function StandaloneLandingShell({ location, normalizedPath, isSuperAdmin }) {
-  const fallback = normalizedPath.startsWith('/booking')
-    ? <BookingPageFallback />
-    : <LoadingSplash />;
-
+function StandaloneLandingShell({ location, isSuperAdmin }) {
   return (
     <AppRoutes
       location={location}
@@ -156,7 +151,6 @@ function StandaloneLandingShell({ location, normalizedPath, isSuperAdmin }) {
       clinicalTopicsMap={EMPTY_ROUTE_DATA}
       generalTopicsMap={EMPTY_ROUTE_DATA}
       isSuperAdmin={isSuperAdmin}
-      fallback={fallback}
     />
   );
 }
@@ -338,7 +332,6 @@ export function AppShell() {
     return (
       <StandaloneLandingShell
         location={location}
-        normalizedPath={normalizedPath}
         isSuperAdmin={isSuperAdmin}
       />
     );
