@@ -1,5 +1,5 @@
 import '@fontsource-variable/sofia-sans';
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useLayoutEffect, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { signOut, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
@@ -27,7 +27,7 @@ export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
   const needsPhone = !!user && !phoneLoading && !userPhone;
 
   // Scroll to top on page navigation (between /booking, /booking/photos, etc.)
-  useEffect(() => {
+  useLayoutEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [location.pathname]);
 
