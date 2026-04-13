@@ -26,8 +26,9 @@ export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
   const { phone: userPhone, loading: phoneLoading, refresh: refreshPhone } = useUserPhone();
   const needsPhone = !!user && !phoneLoading && !userPhone;
 
-  // Scroll to top on page navigation (between /booking, /booking/photos, etc.)
+  // Disable browser auto-scroll restoration so our scrollTo isn't overridden
   useLayoutEffect(() => {
+    history.scrollRestoration = 'manual';
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [location.pathname]);
 
