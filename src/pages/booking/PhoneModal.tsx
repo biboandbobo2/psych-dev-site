@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { debugError } from '../../lib/debug';
@@ -12,6 +12,31 @@ export function PhoneModal({ uid, onComplete }: PhoneModalProps) {
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (isTouchDevice) return;
+
+    // Avoid mobile/browser auto-scroll when the modal opens, but still focus on desktop.
+    try {
+      input.focus({ preventScroll: true });
+    } catch {
+      input.focus();
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,13 +71,13 @@ export function PhoneModal({ uid, onComplete }: PhoneModalProps) {
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
+            ref={inputRef}
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="+7 (999) 123-45-67"
             required
             className="w-full px-4 py-3 rounded-xl border border-dom-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-dom-green/30 focus:border-dom-green"
-            autoFocus
           />
           {error && <p className="text-dom-red text-sm">{error}</p>}
           <button
