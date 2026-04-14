@@ -25,6 +25,7 @@ const TOTAL_HOURS = END_HOUR - START_HOUR;
 const ROW_HEIGHT = 40;
 const TOTAL_HEIGHT = TOTAL_HOURS * ROW_HEIGHT;
 const HALF_HOUR_PX = ROW_HEIGHT / 2;
+const MAX_WEEK_OFFSET = 8;
 
 function todayStr(): string {
   const d = new Date();
@@ -201,9 +202,12 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
               aria-label="Предыдущая неделя">
               <ChevronLeftIcon />
             </button>
-            <button onClick={() => onWeekChange(weekOffset + 1)} disabled={weekOffset >= 3}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${weekOffset >= 3 ? 'border-dom-gray-200 text-dom-gray-300 cursor-not-allowed' : 'border-dom-gray-200 text-dom-gray-700 hover:border-dom-green/40 hover:text-dom-green'}`}
-              aria-label="Следующая неделя">
+            <button
+              onClick={() => onWeekChange(weekOffset + 1)}
+              disabled={weekOffset >= MAX_WEEK_OFFSET}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${weekOffset >= MAX_WEEK_OFFSET ? 'border-dom-gray-200 text-dom-gray-300 cursor-not-allowed' : 'border-dom-gray-200 text-dom-gray-700 hover:border-dom-green/40 hover:text-dom-green'}`}
+              aria-label="Следующая неделя"
+            >
               <ChevronRightIcon />
             </button>
           </div>
