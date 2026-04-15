@@ -24,7 +24,7 @@ const END_HOUR = 22;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
 const ROW_HEIGHT = 40;
 const TOTAL_HEIGHT = TOTAL_HOURS * ROW_HEIGHT;
-const HALF_HOUR_PX = ROW_HEIGHT / 2;
+const QUARTER_HOUR_PX = ROW_HEIGHT / 4;
 const MAX_WEEK_OFFSET = 8;
 
 function todayStr(): string {
@@ -49,12 +49,12 @@ function blockToPosition(block: BusyBlock): { top: number; height: number } | nu
   return { top, height: bottom - top };
 }
 
-function yToHalfHourSlot(yPx: number): number {
-  return Math.floor(yPx / HALF_HOUR_PX);
+function yToQuarterSlot(yPx: number): number {
+  return Math.floor(yPx / QUARTER_HOUR_PX);
 }
 
-function halfSlotToTime(slot: number): string {
-  const totalMinutes = slot * 30 + START_HOUR * 60;
+function quarterSlotToTime(slot: number): string {
+  const totalMinutes = slot * 15 + START_HOUR * 60;
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
@@ -107,7 +107,7 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
 
   const today = useMemo(() => todayStr(), []);
   const [duration, setDuration] = useState<DurationOption>(DURATION_OPTIONS[0]);
-  const [hover, setHover] = useState<{ roomId: string; date: string; halfSlot: number } | null>(null);
+  const [hover, setHover] = useState<{ roomId: string; date: string; quarterSlot: number } | null>(null);
   const [mobileSelection, setMobileSelection] = useState<MobileSelection | null>(null);
   const isTouch = useMemo(() => isTouchDevice(), []);
 
@@ -117,7 +117,7 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
     if (isTouch) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    setHover({ roomId, date, halfSlot: yToHalfHourSlot(y) });
+    setHover({ roomId, date, quarterSlot: yToQuarterSlot(y) });
   }, [isTouch]);
 
   const handleMouseLeave = useCallback(() => {
@@ -127,8 +127,8 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>, room: Room, date: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const halfSlot = yToHalfHourSlot(y);
-    const time = halfSlotToTime(halfSlot);
+    const quarterSlot = yToQuarterSlot(y);
+    const time = quarterSlotToTime(quarterSlot);
     const slotMs = new Date(`${date}T${time}:00${BOOKING_UTC_OFFSET}`).getTime();
     if (slotMs < Date.now()) return;
     if (!slotFits(time, duration.minutes)) return;
@@ -143,7 +143,7 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
         onSlotClick(room, date, time, duration);
         setMobileSelection(null);
       } else {
-        setMobileSelection({ roomId: room.id, date, time, top: halfSlot * HALF_HOUR_PX });
+        setMobileSelection({ roomId: room.id, date, time, top: quarterSlot * QUARTER_HOUR_PX });
       }
     } else {
       onSlotClick(room, date, time, duration);
@@ -249,10 +249,10 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
                       const key = `${room.id}:${date}`;
                       const blocks = busy.get(key) || [];
                       const isHovered = hover?.roomId === room.id && hover?.date === date;
-                      const hoverSlot = isHovered ? hover.halfSlot : -1;
-                      const hoverTop = hoverSlot * HALF_HOUR_PX;
+                      const hoverSlot = isHovered ? hover.quarterSlot : -1;
+                      const hoverTop = hoverSlot * QUARTER_HOUR_PX;
 
-                      const hoverTime = hoverSlot >= 0 ? halfSlotToTime(hoverSlot) : '';
+                      const hoverTime = hoverSlot >= 0 ? quarterSlotToTime(hoverSlot) : '';
                       const hoverPast = hoverSlot >= 0 && new Date(`${date}T${hoverTime}:00${BOOKING_UTC_OFFSET}`).getTime() < Date.now();
                       const hoverFitsTime = hoverSlot >= 0 && slotFits(hoverTime, duration.minutes);
                       const hoverFitsBusy = hoverSlot >= 0 && !isRangeOverlapping(hoverTime, duration.minutes, date, blocks);
