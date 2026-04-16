@@ -1,6 +1,6 @@
 # 🗺️ Routes Reference
 
-> **Дата:** 2026-01-09
+> **Дата:** 2026-04-16
 > **Статус:** Актуальный справочник
 
 Полный список маршрутов приложения с правами доступа и описанием.
@@ -25,8 +25,28 @@
 
 | Маршрут | Компонент | Описание |
 |---------|-----------|----------|
-| `/` | `Home` | Главная страница с описанием курсов и CTA-кнопками |
+| `/` | `Profile` | Профиль (или редирект на `/homepage` для неавторизованных) |
+| `/homepage` | `HomePage` | Главная страница с описанием курсов и CTA-кнопками |
+| `/features` | `FeaturesPage` | Обзор возможностей платформы (курсы, тесты, заметки, таймлайн, поиск, бронирование) |
 | `/warm_springs2` | `WarmSprings2Page` | Лендинг интенсива по групповой психотерапии «Тёплые ключи» (Тбилиси, июль 2026) |
+| `/login` | `Login` | Страница входа (eager load, не через lazy.ts) |
+
+---
+
+### Бронирование кабинетов
+
+**Базовый путь:** `/booking`
+
+| Маршрут | Компонент | Описание |
+|---------|-----------|----------|
+| `/booking` | `BookingPage` | Выбор кабинета, даты и времени |
+| `/booking/account` | `BookingAccountPage` | Личный кабинет бронирований |
+| `/booking/photos` | `BookingPhotosPage` | Фотогалерея кабинетов |
+| `/booking/pricing` | `BookingPricingPage` | Тарифы и цены |
+
+**Layout:** `BookingSectionLayout` — standalone layout (Sofia Sans, DOM-цвета), отдельный от основного приложения.
+
+**См. подробности:** [docs/guides/booking-system.md](../guides/booking-system.md)
 
 ---
 
@@ -51,7 +71,7 @@
 | `/66-80` | Пожилой возраст | 66-80 лет |
 | `/80-plus` | Долголетие | 80+ лет |
 
-**Компонент:** `PeriodDetail` (src/pages/PeriodDetail.tsx)
+**Компонент:** `PeriodPage` (src/pages/PeriodPage.tsx) — eager load для быстрого отклика
 
 ---
 
@@ -110,9 +130,9 @@
 
 | Маршрут | Компонент | Описание |
 |---------|-----------|----------|
-| `/search` | `ResearchSearch` | Поиск научных статей (OpenAlex, Semantic Scholar) + AI-помощник (Gemini) |
+| `/research` | `ResearchPage` | Поиск научных статей (OpenAlex, Semantic Scholar) + AI-помощник (Gemini) |
 
-**Доступ:** открыт всем пользователям через кнопку поиска в header
+**Доступ:** требует авторизации (RequireAuth)
 
 ---
 
@@ -124,9 +144,10 @@
 
 | Маршрут | Компонент | Описание | Lazy |
 |---------|-----------|----------|------|
-| `/profile` | `UserProfile` | Профиль пользователя | ✅ |
-| `/notes` | `NotesPage` | Создание и просмотр заметок | ✅ |
-| `/timeline` | `TimelinePage` | Интерактивный таймлайн жизни | ✅ |
+| `/profile` | `Profile` | Профиль пользователя | ✅ |
+| `/notes` | `Notes` | Создание и просмотр заметок | ✅ |
+| `/timeline` | `Timeline` | Интерактивный таймлайн жизни | ✅ |
+| `/disorder-table` | `DisorderTable` | Таблица по расстройствам (матрица функции × диагнозы) | ✅ |
 
 **Lazy Loading:** Эти страницы загружаются через `React.lazy` (см. `src/pages/lazy.ts`)
 
@@ -136,8 +157,9 @@
 
 | Маршрут | Компонент | Описание | Lazy |
 |---------|-----------|----------|------|
-| `/tests` | `TestsOverview` | Список всех доступных тестов | ✅ |
-| `/tests/dynamic/:testId` | `TestPage` | Прохождение теста из Firestore | ✅ |
+| `/tests` | `TestsPage` | Список тестов (rubricFilter="full-course") | ✅ |
+| `/tests-lesson` | `TestsPage` | Тесты по возрастным периодам (rubricFilter="age-periods") | ✅ |
+| `/tests/dynamic/:testId` | `DynamicTest` | Прохождение теста из Firestore | ✅ |
 
 **Динамические тесты (Firestore):**
 - Создаются через админ-панель (`/admin/content` → "Создать тест")
@@ -169,8 +191,11 @@
 
 | Маршрут | Компонент | Роль | Описание | Lazy |
 |---------|-----------|------|----------|------|
-| `/admin` | `AdminDashboard` | Super Admin | Главная админ-панель | ✅ |
+| `/admin` | `AdminLanding` | Admin | Редирект на `/superadmin` (Super Admin) или `/admin/content` (Admin) | — |
+| `/superadmin` | `Admin` | Super Admin | Главная админ-панель | ✅ |
 | `/admin/users` | `AdminUsers` | Super Admin | Управление пользователями и ролями | ✅ |
+| `/admin/archive` | `AdminArchive` | Super Admin | Утилиты: диагностика токенов, загрузка ассетов, seed-admin | ✅ |
+| `/migrate-topics` | `MigrateTopics` | Super Admin | Миграция тем в Firestore | ✅ |
 
 ---
 
@@ -198,7 +223,7 @@
 |---------|-----------|------|----------|------|
 | `/admin/topics` | `AdminTopics` | Admin | Управление темами для заметок | ✅ |
 | `/admin/books` | `AdminBooks` | Admin | Управление книгами для RAG-поиска | ✅ |
-| `/admin/homepage` | `AdminHomepage` | Admin | Редактор главной страницы | ✅ |
+| `/admin/homepage` | `AdminHomePage` | Admin | Редактор главной страницы | ✅ |
 
 ---
 
@@ -219,12 +244,12 @@
 
 | Роль | Доступ | Маршруты |
 |------|--------|----------|
-| **Гость** | Публичный контент | `/`, `/intro`, `/prenatal`, `/0-1`, ... |
-| **Student** | Базовый доступ | + `/profile`, `/notes`, `/tests`, `/timeline` |
-| **Student + courseAccess.clinical** | Клиническая психология | + `/clinical/*` |
+| **Гость** | Публичный контент | `/homepage`, `/features`, `/booking`, `/login`, `/warm_springs2` |
+| **Student** | Базовый доступ | + `/profile`, `/notes`, `/tests`, `/tests-lesson`, `/timeline`, `/research` |
+| **Student + courseAccess.clinical** | Клиническая психология | + `/clinical/*`, `/disorder-table` |
 | **Student + courseAccess.general** | Общая психология | + `/general/*` |
 | **Admin** | Редактирование контента | + `/admin/content`, `/admin/topics`, `/admin/books`, `/admin/homepage` |
-| **Super Admin** | Полный доступ | + `/admin`, `/admin/users` |
+| **Super Admin** | Полный доступ | + `/superadmin`, `/admin/users`, `/admin/archive`, `/migrate-topics` |
 
 ### Гранулярный доступ к курсам
 
@@ -256,80 +281,39 @@ const hasGeneralAccess = useAuthStore(state => state.user?.courseAccess?.general
 
 **Файл:** `src/pages/lazy.ts`
 
-Все ленивые страницы экспортируются через `React.lazy`:
+Все ленивые страницы экспортируются через `React.lazy` + `lazyWithReload` (автоматический reload при chunk load failure).
 
-```typescript
-export const LazyTimelinePage = React.lazy(() => import('./TimelinePage'));
-export const LazyNotesPage = React.lazy(() => import('./NotesPage'));
-export const LazyTestsOverview = React.lazy(() => import('./TestsOverview'));
-export const LazyTestPage = React.lazy(() => import('./TestPage'));
-export const LazyUserProfile = React.lazy(() => import('./UserProfile'));
-export const LazyAdminDashboard = React.lazy(() => import('./Admin/AdminDashboard'));
-export const LazyAdminUsers = React.lazy(() => import('./Admin/AdminUsers'));
-export const LazyAdminContent = React.lazy(() => import('./Admin/AdminContent'));
-export const LazyAdminContentEdit = React.lazy(() => import('./Admin/AdminContentEdit'));
-export const LazyAdminTopics = React.lazy(() => import('./Admin/AdminTopics'));
-export const LazyAdminBooks = React.lazy(() => import('./Admin/AdminBooks'));
-export const LazyAdminHomepage = React.lazy(() => import('./Admin/AdminHomepage'));
-```
-
-### Использование в роутинге
-
-**Файл:** `src/app/AppRoutes.tsx`
-
-```typescript
-<Suspense fallback={<PageLoader />}>
-  <Routes>
-    <Route path="/timeline" element={<LazyTimelinePage />} />
-    <Route path="/notes" element={<LazyNotesPage />} />
-    <Route path="/tests" element={<LazyTestsOverview />} />
-    <Route path="/tests/dynamic/:testId" element={<LazyTestPage />} />
-    <Route path="/profile" element={<LazyUserProfile />} />
-
-    <Route path="/admin" element={<LazyAdminDashboard />} />
-    <Route path="/admin/users" element={<LazyAdminUsers />} />
-    <Route path="/admin/content" element={<LazyAdminContent />} />
-    <Route path="/admin/content/edit/:periodId" element={<LazyAdminContentEdit />} />
-    <Route path="/admin/topics" element={<LazyAdminTopics />} />
-    <Route path="/admin/books" element={<LazyAdminBooks />} />
-    <Route path="/admin/homepage" element={<LazyAdminHomepage />} />
-  </Routes>
-</Suspense>
-```
+**Исключения (eager load для быстрого отклика):**
+- `Login` — первое что видит пользователь
+- `PeriodPage` — самая посещаемая страница
+- `DynamicCoursePeriodPage` — аналогично для clinical/general курсов
+- `NotFound` — тривиальный компонент
 
 ### Manual Chunks (Vite)
 
 **Файл:** `vite.config.js`
 
-```javascript
-build: {
-  rollupOptions: {
-    output: {
-      manualChunks: {
-        'timeline': ['src/pages/TimelinePage.tsx'],
-        'timeline-canvas': ['src/features/timeline/TimelineCanvas.tsx'],
-        'timeline-left-panel': ['src/features/timeline/LeftPanel.tsx'],
-        'timeline-right-panel': ['src/features/timeline/RightPanel.tsx'],
-        'timeline-bulk': ['src/features/timeline/BulkOperations.tsx'],
-        'timeline-help': ['src/features/timeline/TimelineHelp.tsx'],
-        'tests': ['src/pages/TestsOverview.tsx', 'src/pages/TestPage.tsx'],
-        'admin': [
-          'src/pages/Admin/AdminDashboard.tsx',
-          'src/pages/Admin/AdminUsers.tsx',
-          'src/pages/Admin/AdminContent.tsx',
-          'src/pages/Admin/AdminTopics.tsx',
-          'src/pages/Admin/AdminBooks.tsx',
-          'src/pages/Admin/AdminHomepage.tsx'
-        ],
-        'notes': ['src/pages/NotesPage.tsx'],
-        'profile': ['src/pages/UserProfile.tsx'],
-      }
-    }
-  }
-}
-```
+Используется динамический `chunkMapper` (не статический объект `manualChunks`). Ключевые чанки:
 
-**Целевой размер чанков:** 200-600 KB
+| Чанк | Паттерн |
+|------|---------|
+| `timeline` | `src/pages/Timeline.tsx` |
+| `timeline-canvas` | `src/pages/timeline/components/TimelineCanvas` |
+| `timeline-left-panel` | `src/pages/timeline/components/TimelineLeftPanel` |
+| `timeline-right-panel` | `src/pages/timeline/components/TimelineRightPanel` |
+| `timeline-bulk` | `src/pages/timeline/components/BulkEventCreator` |
+| `timeline-help` | `src/pages/timeline/components/TimelineHelpModal` |
+| `timeline-hooks` | `src/pages/timeline/hooks/` |
+| `timeline-data` | `src/pages/timeline/data/` |
+| `timeline-export` | `src/pages/timeline/utils/exporters/` |
+| `tests` | `src/pages/TestsPage`, `src/pages/DynamicTest` |
+| `research` | `src/pages/ResearchPage`, `src/features/researchSearch` |
+| `admin` | `src/pages/Admin*`, `src/pages/admin/` |
+| `notes` | `src/pages/Notes`, `src/pages/notes/` |
+| `profile` | `src/pages/Profile` |
+| `booking` | `src/pages/BookingPage`, `src/pages/booking/` |
+| `event-icons` | `src/data/eventIconDataUrls` (тяжёлый, только dynamic import) |
+| `shared-constants` | types/notes, periodConfig, testAppearance, sortNotes, themePresets |
 
 **Проверка:** `npm run build` + анализ размеров в консоли
 
@@ -344,5 +328,5 @@ build: {
 
 ---
 
-**Последнее обновление:** 2026-01-09
-**Версия:** 1.0
+**Последнее обновление:** 2026-04-16
+**Версия:** 2.0
