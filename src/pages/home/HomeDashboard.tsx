@@ -22,6 +22,7 @@ import { CourseLessonsDrawer } from './CourseLessonsDrawer';
 import { GuestLanding } from './GuestLanding';
 import { RegisteredGuestHome } from './RegisteredGuestHome';
 import { useGuestStatus } from '../../hooks/useGuestStatus';
+import { useCoursesOpenness } from '../../hooks/useCoursesOpenness';
 
 export function HomeDashboard() {
   const { status } = useGuestStatus();
@@ -46,6 +47,7 @@ function StudentDashboard() {
   const { currentCourse, setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
   const { courses } = useCourses();
+  const { openCourseIds } = useCoursesOpenness(courses.map((course) => course.id));
   const {
     announcements,
     events,
@@ -387,7 +389,14 @@ function StudentDashboard() {
                   className="flex h-full cursor-pointer flex-col rounded-xl border border-[#D8E2EE] bg-[#F9FBFF] p-4 transition hover:border-[#B8CBEA] hover:bg-[#F3F7FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-offset-1"
                   aria-label={`Открыть главную страницу курса «${course.name}»`}
                 >
-                  <p className="text-2xl">{course.icon || '🎓'}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-2xl">{course.icon || '🎓'}</p>
+                    {openCourseIds.has(course.id) ? (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
+                        🔓 Открытый
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="mt-2 line-clamp-3 text-lg font-semibold leading-snug text-[#2C3E50]">
                     {course.name}
                   </p>
