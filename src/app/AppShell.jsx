@@ -157,7 +157,7 @@ export function AppShell() {
   const isSuperAdminPage = normalizedPath === '/superadmin';
   const isAdminContentPage = normalizedPath.startsWith('/admin/content');
   const isHomePage = normalizedPath === '/home' || normalizedPath === '/homepage';
-  const isProfilePage = normalizedPath === '/' || normalizedPath === '/profile';
+  const isProfilePage = normalizedPath === '/profile';
   const isNotesPage = normalizedPath === '/notes';
   const hideNavigation =
     normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/superadmin') || isHomePage || isProfilePage;
