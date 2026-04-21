@@ -19,6 +19,16 @@ import {
 import { EventsCalendarModal } from './EventsCalendarModal';
 import { AnnouncementAdminForm } from './AnnouncementAdminForm';
 import { CourseLessonsDrawer } from './CourseLessonsDrawer';
+import { GuestLanding } from './GuestLanding';
+import { useGuestStatus } from '../../hooks/useGuestStatus';
+
+export function HomeDashboard() {
+  const { status } = useGuestStatus();
+  if (status === 'unauthorized') {
+    return <GuestLanding />;
+  }
+  return <StudentDashboard />;
+}
 
 function getCourseIntroPath(courseId: string): string {
   if (courseId === 'development') return '/development/intro';
@@ -27,7 +37,7 @@ function getCourseIntroPath(courseId: string): string {
   return `/course/${encodeURIComponent(courseId)}/intro`;
 }
 
-export function HomeDashboard() {
+function StudentDashboard() {
   const { user, isAdmin, userRole, studentStream } = useAuth();
   const { currentCourse, setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
