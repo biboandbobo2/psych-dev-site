@@ -1,14 +1,11 @@
 import { useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { cn } from '../lib/cn';
 import { useCourses } from '../hooks/useCourses';
-import { useCourseStore } from '../stores';
 import { useActiveCourse } from '../hooks/useActiveCourse';
-import type { CourseType } from '../types/tests';
 import { prefetchDynamicCourseLessons } from '../hooks/useDynamicCourseLessons';
 import { isCoreCourse } from '../constants/courses';
 import { debugWarn } from '../lib/debug';
-import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG } from '../routes';
 import { Skeleton } from './ui/Skeleton';
 
 interface NavigationItem {
@@ -22,15 +19,20 @@ interface StudentCourseSidebarProps {
   courseNavigationError?: string | null;
 }
 
+function getCourseIntroPath(courseId: string): string {
+  if (courseId === 'development' || courseId === 'clinical' || courseId === 'general') {
+    return `/${courseId}/intro`;
+  }
+  return `/course/${encodeURIComponent(courseId)}/intro`;
+}
+
 export default function StudentCourseSidebar({
   navItems,
   courseNavigationLoading = false,
   courseNavigationError = null,
 }: StudentCourseSidebarProps) {
   const { courses, loading } = useCourses();
-  const { setCurrentCourse } = useCourseStore();
   const activeCourse = useActiveCourse(courses, loading);
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (loading) {
@@ -50,71 +52,33 @@ export default function StudentCourseSidebar({
     });
   }, [courses, loading]);
 
-  const getCoreCourseStartPath = (courseId: string): string | null => {
-    if (courseId === 'development') return '/development/intro';
-    if (courseId === 'clinical') return CLINICAL_ROUTE_CONFIG[0]?.path ?? '/clinical/intro';
-    if (courseId === 'general') return GENERAL_ROUTE_CONFIG[0]?.path ?? '/general/intro';
-    return null;
-  };
-
-  const resolveCourseStartPath = async (courseId: string): Promise<string | null> => {
-    const coreStartPath = getCoreCourseStartPath(courseId);
-    if (coreStartPath) {
-      return coreStartPath;
-    }
-    return `/course/${encodeURIComponent(courseId)}/intro`;
-  };
-
-  const handleCourseSelect = async (courseId: string) => {
-    setCurrentCourse(courseId as CourseType);
-
-    try {
-      const startPath = await resolveCourseStartPath(courseId);
-      if (!startPath) {
-        return;
-      }
-      navigate(startPath);
-    } catch (error) {
-      debugWarn('[StudentCourseSidebar] Failed to resolve course start path', error);
-    }
-  };
+  const introPath = activeCourse ? getCourseIntroPath(activeCourse) : null;
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-4 sm:p-5">
-        <div className="mb-3 space-y-1">
-          <p className="text-xs uppercase tracking-[0.3em] text-muted">Курсы</p>
-          <p className="text-xs text-muted">Выберите курс для навигации.</p>
-        </div>
-        <nav className="flex flex-col gap-2">
-          {courses.map((course) => (
-            <button
-              key={course.id}
-              type="button"
-              onClick={() => {
-                void handleCourseSelect(course.id);
-              }}
-              aria-pressed={activeCourse === course.id}
-              disabled={loading}
-              className={cn(
-                'flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-base font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20',
-                activeCourse === course.id
-                  ? 'bg-accent-100 text-accent border-accent/30 shadow-sm'
-                  : 'border-transparent text-muted hover:text-fg hover:bg-card2'
-              )}
-            >
-              <span className="text-lg" aria-hidden>
-                {course.icon}
-              </span>
-              <span className="block whitespace-normal break-words">{course.name}</span>
-            </button>
-          ))}
-        </nav>
-      </div>
+      {introPath ? (
+        <NavLink
+          to={introPath}
+          end
+          className={({ isActive }) =>
+            cn(
+              'flex items-center gap-3 rounded-2xl border px-4 py-3 text-base font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20',
+              isActive
+                ? 'border-accent/30 bg-accent-100 text-accent shadow-sm'
+                : 'border-border/60 bg-card text-fg hover:bg-card2'
+            )
+          }
+        >
+          <span className="text-lg" aria-hidden>
+            ℹ️
+          </span>
+          <span>О курсе</span>
+        </NavLink>
+      ) : null}
 
-      <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-3 sm:p-4">
+      <div className="rounded-2xl border border-border/60 bg-card p-3 shadow-brand sm:p-4">
         <div className="mb-3 px-1">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted">Навигация курса</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted">Занятия курса</p>
         </div>
         {courseNavigationError ? (
           <p className="px-2 py-2 text-xs text-destructive">Не удалось загрузить занятия курса.</p>
@@ -137,8 +101,8 @@ export default function StudentCourseSidebar({
                   cn(
                     'rounded-2xl border border-transparent px-4 py-3 text-base font-medium transition-colors',
                     isActive
-                      ? 'bg-accent-100 text-accent border-accent/30 shadow-sm'
-                      : 'text-muted hover:text-fg hover:bg-card2'
+                      ? 'border-accent/30 bg-accent-100 text-accent shadow-sm'
+                      : 'text-muted hover:bg-card2 hover:text-fg'
                   )
                 }
               >
