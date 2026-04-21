@@ -38,3 +38,4 @@ export const DynamicPeriodPage = lazy(() =>
 );
 export const FeaturesPage = lazy(() => lazyWithReload(() => import('./FeaturesPage'), 'FeaturesPage'));
 export const CourseIntroPage = lazy(() => lazyWithReload(() => import('./course/CourseIntroPage'), 'CourseIntroPage'));
+export const BookingPage = lazy(() => lazyWithReload(() => import('./BookingPage'), 'BookingPage'));

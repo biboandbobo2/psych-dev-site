@@ -24,6 +24,7 @@ import {
   DynamicPeriodPage,
   FeaturesPage,
   CourseIntroPage,
+  BookingPage,
 } from '../pages/lazy';
 import { PageLoader } from '../components/ui';
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
@@ -59,6 +60,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route path="/home" element={<HomePage />} />
         <Route path="/homepage" element={<Navigate to="/home" replace />} />
         <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/booking" element={<BookingPage />} />
         <Route path="/login" element={<Login />} />
         <Route
           path="/admin"
