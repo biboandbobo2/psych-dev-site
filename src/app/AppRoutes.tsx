@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { Routes, Route, Navigate, Location } from 'react-router-dom';
+import { Routes, Route, Navigate, Location, useParams } from 'react-router-dom';
 import RequireAuth from '../auth/RequireAuth';
 import RequireAdmin from '../auth/RequireAdmin';
 import Login from '../pages/Login';
@@ -23,6 +23,7 @@ import {
   ResearchPage,
   DynamicPeriodPage,
   FeaturesPage,
+  CourseIntroPage,
 } from '../pages/lazy';
 import { PageLoader } from '../components/ui';
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
@@ -42,6 +43,12 @@ interface AppRoutesProps {
 function AdminLanding() {
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   return <Navigate to={isSuperAdmin ? "/superadmin" : "/admin/content"} replace />;
+}
+
+function DynamicCourseIntroRoute() {
+  const { courseId } = useParams<{ courseId: string }>();
+  if (!courseId) return <Navigate to="/home" replace />;
+  return <CourseIntroPage courseId={courseId} />;
 }
 
 export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopicsMap, isSuperAdmin }: AppRoutesProps) {
@@ -102,27 +109,9 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           }
         />
         <Route path="/profile" element={<Profile />} />
-        <Route
-          path="/development/intro"
-          element={
-            <PeriodPage
-              config={{
-                path: '/development/intro',
-                navLabel: 'Психология развития',
-                periodId: 'development-intro',
-                themeKey: 'intro',
-                placeholderDefaultEnabled: false,
-                placeholderText:
-                  'Это главная страница курса психологии развития. Здесь собрана общая информация о структуре курса, экзамене и практических инструментах.',
-                meta: {
-                  title: 'Психология развития — главная страница курса',
-                  description: 'Общая информация о курсе психологии развития и ключевых инструментах обучения.',
-                },
-              }}
-              period={null}
-            />
-          }
-        />
+        <Route path="/development/intro" element={<CourseIntroPage courseId="development" />} />
+        <Route path="/clinical/intro" element={<CourseIntroPage courseId="clinical" />} />
+        <Route path="/general/intro" element={<CourseIntroPage courseId="general" />} />
         <Route
           path="/notes"
           element={
@@ -219,7 +208,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             }
           />
         ))}
-        {CLINICAL_ROUTE_CONFIG.map((config) => (
+        {CLINICAL_ROUTE_CONFIG.filter((config) => config.path !== '/clinical/intro').map((config) => (
           <Route
             key={config.path}
             path={config.path}
@@ -231,7 +220,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             }
           />
         ))}
-        {GENERAL_ROUTE_CONFIG.map((config) => (
+        {GENERAL_ROUTE_CONFIG.filter((config) => config.path !== '/general/intro').map((config) => (
           <Route
             key={config.path}
             path={config.path}
@@ -252,6 +241,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           path="/general/:periodId"
           element={<DynamicPeriodPage course="general" topicsMap={generalTopicsMap} />}
         />
+        <Route path="/course/:courseId/intro" element={<DynamicCourseIntroRoute />} />
         <Route
           path="/course/:courseId/:periodId"
           element={<DynamicCoursePeriodPage />}
