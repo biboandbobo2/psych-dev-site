@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { cn } from '../../lib/cn';
 import { useCourses } from '../../hooks/useCourses';
 import { useHomeFeed } from '../../hooks/useHomeFeed';
 import { useCourseStore } from '../../stores';
@@ -8,18 +7,17 @@ import { useAuth } from '../../auth/AuthProvider';
 import { getLastCourseLesson } from '../../lib/lastCourseLesson';
 import { getWatchedLessonIds } from '../../lib/courseWatchedLessons';
 import { buildCourseContinuePath, getCourseVideoResumePoint } from '../../lib/courseVideoResume';
-import { BaseModal, ModalCancelButton } from '../../components/ui/BaseModal';
 import type { CourseType } from '../../types/tests';
 import {
   resolvePrimaryLesson,
   getEstimatedCourseLessons,
-  WEEKDAY_LABELS,
   formatTimeFromSeconds,
   toDateKey,
-  formatDateKey,
   tryParseDateLabel,
   type ParsedCalendarEvent,
 } from './homeHelpers';
+import { EventsCalendarModal } from './EventsCalendarModal';
+import { AnnouncementAdminForm } from './AnnouncementAdminForm';
 
 export function HomeDashboard() {
   const { user, isAdmin, userRole, studentStream } = useAuth();
@@ -33,10 +31,6 @@ export function HomeDashboard() {
     addAnnouncement,
     addEvent,
   } = useHomeFeed();
-  const [announcementDraft, setAnnouncementDraft] = useState('');
-  const [eventDateDraft, setEventDateDraft] = useState('');
-  const [eventTextDraft, setEventTextDraft] = useState('');
-  const [isFeedSaving, setIsFeedSaving] = useState(false);
   const [feedActionError, setFeedActionError] = useState<string | null>(null);
   const [isEventsCalendarOpen, setIsEventsCalendarOpen] = useState(false);
   const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
@@ -187,32 +181,25 @@ export function HomeDashboard() {
     [parsedCalendarEvents]
   );
 
-  const handleAddAnnouncement = async () => {
-    if (!isAdmin || isFeedSaving) return;
+  const authorName = user?.displayName || user?.email || 'Администратор';
+
+  const submitAnnouncement = async (text: string) => {
     setFeedActionError(null);
-    setIsFeedSaving(true);
     try {
-      await addAnnouncement(announcementDraft, user?.displayName || user?.email || 'Администратор');
-      setAnnouncementDraft('');
+      await addAnnouncement(text, authorName);
     } catch (err: any) {
       setFeedActionError(err?.message || 'Не удалось добавить объявление');
-    } finally {
-      setIsFeedSaving(false);
+      throw err;
     }
   };
 
-  const handleAddEvent = async () => {
-    if (!isAdmin || isFeedSaving) return;
+  const submitEvent = async (date: string, text: string) => {
     setFeedActionError(null);
-    setIsFeedSaving(true);
     try {
-      await addEvent(eventDateDraft, eventTextDraft, user?.displayName || user?.email || 'Администратор');
-      setEventDateDraft('');
-      setEventTextDraft('');
+      await addEvent(date, text, authorName);
     } catch (err: any) {
       setFeedActionError(err?.message || 'Не удалось добавить событие');
-    } finally {
-      setIsFeedSaving(false);
+      throw err;
     }
   };
 
@@ -232,24 +219,6 @@ export function HomeDashboard() {
   };
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'студент';
-  const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
-  const firstWeekday = (monthStart.getDay() + 6) % 7;
-  const daysInMonth = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 0).getDate();
-  const calendarCells: Array<{ day: number; dateKey: string } | null> = [
-    ...Array.from({ length: firstWeekday }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, index) => {
-      const day = index + 1;
-      const date = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), day);
-      return { day, dateKey: toDateKey(date) };
-    }),
-  ];
-  const selectedDayEvents = selectedCalendarDateKey
-    ? calendarEventsByDate.get(selectedCalendarDateKey) ?? []
-    : [];
-  const calendarMonthLabel = calendarCursor.toLocaleDateString('ru-RU', {
-    month: 'long',
-    year: 'numeric',
-  });
   const currentCourseIds = new Set(primaryContinueCourses.map((course) => course.id));
   const catalogCourses = [
     ...courses.filter((course) => !currentCourseIds.has(course.id) && !course.isCore),
@@ -269,9 +238,7 @@ export function HomeDashboard() {
                 className="h-full overflow-hidden rounded-2xl border border-[#D4E4FF] bg-white shadow-[0_12px_26px_rgba(18,44,84,0.12)]"
               >
                 <div className="flex h-full min-h-[220px] flex-col sm:flex-row">
-                  <div
-                    className="flex w-full items-center justify-center bg-gradient-to-br from-[#EAF1FF] to-[#DCE8FF] p-6 sm:w-[34%] sm:self-stretch"
-                  >
+                  <div className="flex w-full items-center justify-center bg-gradient-to-br from-[#EAF1FF] to-[#DCE8FF] p-6 sm:w-[34%] sm:self-stretch">
                     <span className="text-[54px]" aria-hidden>
                       {course.icon || '📘'}
                     </span>
@@ -347,52 +314,10 @@ export function HomeDashboard() {
             )}
           </div>
           {isAdmin ? (
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <div className="space-y-2 rounded-xl border border-[#DFE7F3] bg-[#FAFCFF] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">Добавить объявление</p>
-                <textarea
-                  value={announcementDraft}
-                  onChange={(event) => setAnnouncementDraft(event.target.value)}
-                  rows={3}
-                  maxLength={400}
-                  placeholder="Текст объявления..."
-                  className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddAnnouncement}
-                  disabled={isFeedSaving}
-                  className="inline-flex rounded-lg bg-[#3359CB] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2A49A8] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isFeedSaving ? 'Сохранение...' : 'Опубликовать'}
-                </button>
-              </div>
-              <div className="space-y-2 rounded-xl border border-[#DFE7F3] bg-[#FAFCFF] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">Добавить событие</p>
-                <input
-                  type="date"
-                  value={eventDateDraft}
-                  onChange={(event) => setEventDateDraft(event.target.value)}
-                  className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
-                />
-                <textarea
-                  value={eventTextDraft}
-                  onChange={(event) => setEventTextDraft(event.target.value)}
-                  rows={2}
-                  maxLength={400}
-                  placeholder="Описание события..."
-                  className="w-full rounded-lg border border-[#C9D6E6] px-3 py-2 text-sm text-[#243447] focus:border-[#5B7FD1] focus:outline-none focus:ring-2 focus:ring-[#DCE7FF]"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddEvent}
-                  disabled={isFeedSaving}
-                  className="inline-flex rounded-lg bg-[#3359CB] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#2A49A8] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isFeedSaving ? 'Сохранение...' : 'Опубликовать'}
-                </button>
-              </div>
-            </div>
+            <AnnouncementAdminForm
+              onSubmitAnnouncement={submitAnnouncement}
+              onSubmitEvent={submitEvent}
+            />
           ) : null}
         </section>
 
@@ -423,113 +348,16 @@ export function HomeDashboard() {
           )}
         </section>
 
-        <BaseModal
+        <EventsCalendarModal
           isOpen={isEventsCalendarOpen}
           onClose={() => setIsEventsCalendarOpen(false)}
-          title="Календарь событий"
-          maxWidth="2xl"
-          footer={<ModalCancelButton onClick={() => setIsEventsCalendarOpen(false)}>Закрыть</ModalCancelButton>}
-        >
-          <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-xl border border-[#DDE5EE] bg-[#F8FAFD] px-3 py-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setCalendarCursor(
-                    new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() - 1, 1)
-                  )
-                }
-                className="rounded-lg border border-[#C9D6E6] bg-white px-3 py-1 text-sm font-semibold text-[#3359CB] transition hover:bg-[#F0F5FF]"
-              >
-                ←
-              </button>
-              <p className="text-sm font-bold capitalize text-[#2C3E50]">{calendarMonthLabel}</p>
-              <button
-                type="button"
-                onClick={() =>
-                  setCalendarCursor(
-                    new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 1)
-                  )
-                }
-                className="rounded-lg border border-[#C9D6E6] bg-white px-3 py-1 text-sm font-semibold text-[#3359CB] transition hover:bg-[#F0F5FF]"
-              >
-                →
-              </button>
-            </div>
-
-            <div className="grid grid-cols-7 gap-1">
-              {WEEKDAY_LABELS.map((label) => (
-                <div key={label} className="px-1 py-1 text-center text-xs font-semibold uppercase text-[#6B7A8D]">
-                  {label}
-                </div>
-              ))}
-              {calendarCells.map((cell, index) => {
-                if (!cell) {
-                  return <div key={`empty-${index}`} className="h-10 rounded-md bg-transparent" />;
-                }
-
-                const isSelected = selectedCalendarDateKey === cell.dateKey;
-                const hasEvents = calendarEventsByDate.has(cell.dateKey);
-                return (
-                  <button
-                    key={cell.dateKey}
-                    type="button"
-                    onClick={() => setSelectedCalendarDateKey(cell.dateKey)}
-                    className={cn(
-                      'relative h-10 rounded-md border text-sm transition',
-                      isSelected
-                        ? 'border-[#3359CB] bg-[#3359CB] text-white'
-                        : hasEvents
-                        ? 'border-[#9EB7D9] bg-[#EEF4FF] text-[#244A8F] hover:bg-[#E3EEFF]'
-                        : 'border-[#E5EBF3] bg-white text-[#465A75] hover:bg-[#F8FAFD]'
-                    )}
-                  >
-                    {cell.day}
-                    {hasEvents && !isSelected ? (
-                      <span className="absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#3359CB]" />
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="rounded-xl border border-[#DDE5EE] bg-[#FAFCFF] p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#4A5FA5]">
-                {selectedCalendarDateKey
-                  ? `События на ${formatDateKey(selectedCalendarDateKey)}`
-                  : 'Выберите дату в календаре'}
-              </p>
-              {selectedDayEvents.length ? (
-                <ul className="mt-2 space-y-2">
-                  {selectedDayEvents.map((event) => (
-                    <li key={event.id} className="rounded-lg bg-white px-3 py-2 text-sm text-[#44566F]">
-                      <p className="font-semibold text-[#2C3E50]">{event.dateLabel}</p>
-                      <p className="mt-1">{event.text}</p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-sm text-[#6B7A8D]">На выбранную дату событий пока нет.</p>
-              )}
-            </div>
-
-            {undatedCalendarEvents.length ? (
-              <div className="rounded-xl border border-[#E7EEF8] bg-[#F7FAFF] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[#5F6F87]">
-                  События без точной даты
-                </p>
-                <ul className="mt-2 space-y-2">
-                  {undatedCalendarEvents.map((event) => (
-                    <li key={event.id} className="rounded-lg bg-white px-3 py-2 text-sm text-[#556880]">
-                      <p className="font-semibold text-[#2C3E50]">{event.dateLabel}</p>
-                      <p className="mt-1">{event.text}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        </BaseModal>
+          cursor={calendarCursor}
+          onCursorChange={setCalendarCursor}
+          selectedDateKey={selectedCalendarDateKey}
+          onSelectDate={setSelectedCalendarDateKey}
+          eventsByDate={calendarEventsByDate}
+          undatedEvents={undatedCalendarEvents}
+        />
 
         {(feedError || feedActionError) && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

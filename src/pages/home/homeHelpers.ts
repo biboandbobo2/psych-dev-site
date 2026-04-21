@@ -1,16 +1,6 @@
 import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG } from '../../routes';
 import type { CourseType } from '../../types/tests';
 
-export function getBgClass(bgColor?: string): string {
-  if (!bgColor) return 'bg-[#F5F7FA]';
-  return `bg-[${bgColor}]`;
-}
-
-export function getBorderClass(borderColor?: string): string {
-  if (!borderColor) return 'border-l-[#4A5FA5]';
-  return `border-l-[${borderColor}]`;
-}
-
 export function resolvePrimaryLesson(courseId: string): { link: string; title: string } {
   if (courseId === 'development') {
     return {

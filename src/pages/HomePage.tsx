@@ -6,8 +6,6 @@ import { SITE_NAME } from '../routes';
 import { useHomePageContent } from '../hooks/useHomePageContent';
 import { PageLoader } from '../components/ui';
 import { HomeDashboard } from './home/HomeDashboard';
-import { renderSection } from './home/HomeSections';
-import type { HomePageSection } from '../types/homePage';
 
 export function HomePage() {
   const { content, loading, error } = useHomePageContent();
@@ -27,11 +25,6 @@ export function HomePage() {
     );
   }
 
-  // Секции из админ-редактируемого контента. В текущей ветке массивы пусты
-  // (логика наполнения ещё не подключена), но роутинг секций сохранён.
-  const activeSections: HomePageSection[] = [];
-  const nonHeroSections: HomePageSection[] = [];
-
   return (
     <Motion.div
       initial={{ opacity: 0 }}
@@ -49,10 +42,6 @@ export function HomePage() {
 
       <div className="max-w-[1200px] mx-auto px-5 sm:px-8 lg:px-10">
         <HomeDashboard />
-        {activeSections
-          .filter((s) => s.type === 'hero')
-          .map((section) => renderSection(section))}
-        {nonHeroSections.map((section) => renderSection(section))}
 
         <Link
           to="/features"
