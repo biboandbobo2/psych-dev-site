@@ -20,12 +20,16 @@ import { EventsCalendarModal } from './EventsCalendarModal';
 import { AnnouncementAdminForm } from './AnnouncementAdminForm';
 import { CourseLessonsDrawer } from './CourseLessonsDrawer';
 import { GuestLanding } from './GuestLanding';
+import { RegisteredGuestHome } from './RegisteredGuestHome';
 import { useGuestStatus } from '../../hooks/useGuestStatus';
 
 export function HomeDashboard() {
   const { status } = useGuestStatus();
   if (status === 'unauthorized') {
     return <GuestLanding />;
+  }
+  if (status === 'registered-guest') {
+    return <RegisteredGuestHome />;
   }
   return <StudentDashboard />;
 }
