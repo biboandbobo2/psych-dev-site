@@ -18,6 +18,7 @@ import {
 } from './homeHelpers';
 import { EventsCalendarModal } from './EventsCalendarModal';
 import { AnnouncementAdminForm } from './AnnouncementAdminForm';
+import { CourseLessonsDrawer } from './CourseLessonsDrawer';
 
 export function HomeDashboard() {
   const { user, isAdmin, userRole, studentStream } = useAuth();
@@ -38,6 +39,7 @@ export function HomeDashboard() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
+  const [lessonsDrawerCourseId, setLessonsDrawerCourseId] = useState<string | null>(null);
 
   const streamCourseIds = useMemo(() => {
     if (userRole !== 'student') return null;
@@ -238,11 +240,16 @@ export function HomeDashboard() {
                 className="h-full overflow-hidden rounded-2xl border border-[#D4E4FF] bg-white shadow-[0_12px_26px_rgba(18,44,84,0.12)]"
               >
                 <div className="flex h-full min-h-[220px] flex-col sm:flex-row">
-                  <div className="flex w-full items-center justify-center bg-gradient-to-br from-[#EAF1FF] to-[#DCE8FF] p-6 sm:w-[34%] sm:self-stretch">
+                  <button
+                    type="button"
+                    onClick={() => setLessonsDrawerCourseId(course.id)}
+                    className="flex w-full items-center justify-center bg-gradient-to-br from-[#EAF1FF] to-[#DCE8FF] p-6 transition hover:from-[#DFEAFF] hover:to-[#CFDCFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-offset-2 sm:w-[34%] sm:self-stretch"
+                    aria-label={`Открыть список занятий курса «${course.name}»`}
+                  >
                     <span className="text-[54px]" aria-hidden>
                       {course.icon || '📘'}
                     </span>
-                  </div>
+                  </button>
                   <div className="flex w-full flex-col justify-between p-5 sm:w-[66%]">
                     <div className="space-y-2">
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5D73A1]">
@@ -329,15 +336,22 @@ export function HomeDashboard() {
           {catalogCourses.length > 0 ? (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {catalogCourses.map((course) => (
-                <div key={course.id} className="rounded-xl border border-[#D8E2EE] bg-[#F9FBFF] p-4">
+                <div
+                  key={course.id}
+                  className="flex flex-col rounded-xl border border-[#D8E2EE] bg-[#F9FBFF] p-4"
+                >
                   <p className="text-2xl">{course.icon || '🎓'}</p>
                   <p className="mt-2 text-xl font-semibold text-[#2C3E50]">{course.name}</p>
                   <p className="text-sm text-[#5E6D7A]">
                     {course.isCore ? 'Основной курс платформы' : 'Дополнительный курс платформы'}
                   </p>
-                  <span className="mt-2 inline-flex rounded-full border border-[#D6DFED] bg-white px-2.5 py-1 text-xs font-semibold text-[#6B7A8D]">
-                    Доступен
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setLessonsDrawerCourseId(course.id)}
+                    className="mt-3 inline-flex items-center justify-center gap-1 rounded-lg border border-[#C5D6EE] bg-white px-3 py-2 text-xs font-semibold text-[#3359CB] transition hover:bg-[#EEF4FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-offset-1"
+                  >
+                    Посмотреть занятия →
+                  </button>
                 </div>
               ))}
             </div>
@@ -357,6 +371,11 @@ export function HomeDashboard() {
           onSelectDate={setSelectedCalendarDateKey}
           eventsByDate={calendarEventsByDate}
           undatedEvents={undatedCalendarEvents}
+        />
+
+        <CourseLessonsDrawer
+          courseId={lessonsDrawerCourseId}
+          onClose={() => setLessonsDrawerCourseId(null)}
         />
 
         {(feedError || feedActionError) && (
