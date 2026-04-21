@@ -3,28 +3,9 @@ import { motion as Motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { pageTransition } from '../theme/motion';
 import { SITE_NAME } from '../routes';
-import { useHomePageContent } from '../hooks/useHomePageContent';
-import { PageLoader } from '../components/ui';
 import { HomeDashboard } from './home/HomeDashboard';
 
 export function HomePage() {
-  const { content, loading, error } = useHomePageContent();
-
-  if (loading) {
-    return <PageLoader />;
-  }
-
-  if (error || !content) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <p className="text-red-700 mb-2">Ошибка загрузки страницы</p>
-          {error && <p className="text-sm text-muted">{error.message}</p>}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <Motion.div
       initial={{ opacity: 0 }}
