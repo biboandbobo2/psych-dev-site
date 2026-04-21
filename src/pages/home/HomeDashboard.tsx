@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useCourses } from '../../hooks/useCourses';
 import { useHomeFeed } from '../../hooks/useHomeFeed';
 import { useCourseStore } from '../../stores';
@@ -444,6 +444,33 @@ function StudentDashboard() {
             {feedActionError ?? feedError}
           </div>
         )}
+
+        <Link
+          to="/features"
+          className="block overflow-hidden rounded-2xl shadow-xl transition hover:shadow-2xl"
+        >
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4 sm:px-8 sm:py-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl sm:text-3xl">💡</span>
+                <div>
+                  <h3 className="text-lg font-bold text-white sm:text-xl">Возможности платформы</h3>
+                  <p className="hidden text-sm text-white/80 sm:block">
+                    Узнайте обо всех функциях: тесты, заметки, таймлайн, научный поиск
+                  </p>
+                </div>
+              </div>
+              <svg
+                className="h-6 w-6 text-white/80"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </div>
+        </Link>
       </div>
     </section>
   );

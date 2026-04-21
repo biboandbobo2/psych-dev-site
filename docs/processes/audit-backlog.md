@@ -11,7 +11,7 @@
 | HP-2 | H (L) | Расширенное Playwright покрытие | Seed-данные, full auth flow, stress-тесты, отчётность |
 | HP-3 | ✅ | Remediate container image vulnerabilities | NPM HIGH закрыты (2026-02-06), Go stdlib — buildpack-level |
 | HR-1 | H (M) | Защита `/api/books` | auth/quota contract, rate limit, restricted CORS, security tests |
-| MP-1 | M (M) | Изоляция бизнес-логики Timeline (lazy-hooks) | План 4.4 `docs/archive/legacy/lazy-loading-migration.md`, обновлённый билд-отчёт |
+| MP-1 | ✅ | Изоляция бизнес-логики Timeline (lazy-hooks) | Хуки вынесены в `src/pages/timeline/hooks/`, чанк `timeline-hooks` в vite.config.js (2026-04) |
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
 | MP-4 | M (S) | Документация и tooling вокруг тестов | Скрипт `ts:prune`, README policy, обновление lazy-docов и perf метрик |
@@ -95,11 +95,10 @@
 
 ## ⚖️ Medium Priority
 
-### MP‑1. Изоляция хук-логики Timeline (P: M, E: M)
-- [ ] Провести ревью текущего `timeline` chunk и выделить, какие хуки/утилиты (`useTimelineState`, drag/drop, history, export) ещё живут в основном файле (после коммита `6065075` визуальная часть уже разбита, бизнес-логика всё ещё тяжелая).  
-- [ ] Вынести бизнес-логику в отдельный ленивый модуль (`timeline-hooks` либо `TimelineInteractions`) по плану §4.4 из `docs/archive/legacy/lazy-loading-migration.md`.  
-- [ ] Вокруг новых lazy-компонентов добавить `Suspense` + `PageLoader`, обеспечить передачу состояния через пропсы/контекст без гонок.  
-- [ ] После каждого шага прогонять `npm run test` и фиксировать размеры чанков (`npm run build`).
+### MP‑1. ✅ Изоляция хук-логики Timeline — ВЫПОЛНЕНО (2026-04)
+- [x] Хуки вынесены в отдельные файлы: `useTimelineCRUD`, `useTimelineDragDrop`, `useTimelineHistory`, `useTimelinePanZoom`, `useTimelineBranch`, `useTimelineBirth`, `useTimelineForm`, `useDownloadMenu`
+- [x] Отдельный chunk `timeline-hooks` в `vite.config.js`
+- [x] Экспорт через `src/pages/timeline/hooks/index.ts`
 
 ### MP‑2. Повторные Lighthouse/Perf измерения (P: M, E: S)
 - [ ] Повторно запустить Lighthouse для `/`, `/tests`, `/timeline`, `/admin` после завершения ленивой миграции.  

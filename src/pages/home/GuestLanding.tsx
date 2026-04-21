@@ -164,7 +164,7 @@ export function GuestLanding() {
       <section className="rounded-2xl border border-[#DDE5EE] bg-[#F9FBFF] p-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7A8D]">Партнёр</p>
         <h2 className="mt-1 text-xl font-bold text-[#1F2F46]">
-          Психологический центр «Дом» в Тбилиси
+          Психологический центр «Dom» в Тбилиси
         </h2>
         <p className="mt-2 text-sm text-[#556476]">
           Очные сессии и аренда кабинета для работы с клиентами. Мы объединяем Академию Дом с
