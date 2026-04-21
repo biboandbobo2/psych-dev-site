@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useNotes } from '../hooks/useNotes';
 import { useActiveCourse, usePublishedLessonOptions } from '../hooks';
 import { buildNotePeriodKey, normalizeAgeRange, type Note } from '../types/notes';
@@ -172,6 +172,12 @@ export default function Notes() {
       alert('Ошибка при удалении заметки');
     }
   };
+
+  if (!lessonsLoading && !currentCourse && !courseParam) {
+    // Страница всегда открывается в контексте курса. Если курс не выбран
+    // (прямой заход без ?course=) — возвращаем на «Дом».
+    return <Navigate to="/home" replace />;
+  }
 
   if (loading) {
     return (

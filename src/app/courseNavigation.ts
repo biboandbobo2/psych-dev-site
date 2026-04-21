@@ -67,7 +67,16 @@ export function getPageCourseId(path: string | undefined | null) {
   return null;
 }
 
+const COURSE_CONTEXTUAL_TOP_LEVEL_PATHS = new Set([
+  '/profile',
+  '/notes',
+  '/tests',
+  '/tests-lesson',
+]);
+
 export function shouldShowStudentCourseSidebar(path: string | undefined | null) {
   const normalizedPath = normalizeAppPath(path);
-  return normalizedPath === '/' || normalizedPath === '/profile' || normalizedPath === '/notes' || Boolean(getPageCourseId(normalizedPath));
+  if (normalizedPath === '/') return true;
+  if (COURSE_CONTEXTUAL_TOP_LEVEL_PATHS.has(normalizedPath)) return true;
+  return Boolean(getPageCourseId(normalizedPath));
 }
