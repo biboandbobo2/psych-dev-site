@@ -24,7 +24,11 @@ import {
   DynamicPeriodPage,
   FeaturesPage,
   CourseIntroPage,
+  BookingSectionLayout,
   BookingPage,
+  BookingAccountPage,
+  BookingPhotosPage,
+  BookingPricingPage,
 } from '../pages/lazy';
 import { PageLoader } from '../components/ui';
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
@@ -60,7 +64,12 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route path="/home" element={<HomePage />} />
         <Route path="/homepage" element={<Navigate to="/home" replace />} />
         <Route path="/features" element={<FeaturesPage />} />
-        <Route path="/booking" element={<BookingPage />} />
+        <Route path="/booking" element={<BookingSectionLayout />}>
+          <Route index element={<BookingPage />} />
+          <Route path="account" element={<BookingAccountPage embedded />} />
+          <Route path="photos" element={<BookingPhotosPage embedded />} />
+          <Route path="pricing" element={<BookingPricingPage embedded />} />
+        </Route>
         <Route path="/login" element={<Login />} />
         <Route
           path="/admin"

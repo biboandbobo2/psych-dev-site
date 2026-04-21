@@ -38,4 +38,35 @@ export const DynamicPeriodPage = lazy(() =>
 );
 export const FeaturesPage = lazy(() => lazyWithReload(() => import('./FeaturesPage'), 'FeaturesPage'));
 export const CourseIntroPage = lazy(() => lazyWithReload(() => import('./course/CourseIntroPage'), 'CourseIntroPage'));
-export const BookingPage = lazy(() => lazyWithReload(() => import('./BookingPage'), 'BookingPage'));
+
+const importBookingPages = () => import('./booking');
+export const BookingSectionLayout = lazy(() =>
+  lazyWithReload(
+    () => importBookingPages().then((module) => ({ default: module.BookingSectionLayout })),
+    'BookingSectionLayout'
+  )
+);
+export const BookingPage = lazy(() =>
+  lazyWithReload(
+    () => importBookingPages().then((module) => ({ default: module.BookingPageRoute })),
+    'BookingPage'
+  )
+);
+export const BookingAccountPage = lazy(() =>
+  lazyWithReload(
+    () => importBookingPages().then((module) => ({ default: module.AccountPage })),
+    'BookingAccountPage'
+  )
+);
+export const BookingPhotosPage = lazy(() =>
+  lazyWithReload(
+    () => importBookingPages().then((module) => ({ default: module.PhotosPage })),
+    'BookingPhotosPage'
+  )
+);
+export const BookingPricingPage = lazy(() =>
+  lazyWithReload(
+    () => importBookingPages().then((module) => ({ default: module.PricingPage })),
+    'BookingPricingPage'
+  )
+);
