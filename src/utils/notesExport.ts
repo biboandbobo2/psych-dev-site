@@ -36,7 +36,7 @@ export function generateNotesMarkdown(notes: Note[]): string {
     });
   }
 
-  md += `\n_Экспортировано из Psych Dev Site_\n`;
+  md += `\n_Экспортировано из Академия Дом_\n`;
   return md;
 }
 
@@ -60,7 +60,7 @@ export function generateNotesText(notes: Note[]): string {
     });
   }
 
-  txt += `Экспортировано из Psych Dev Site\n`;
+  txt += `Экспортировано из Академия Дом\n`;
   return txt;
 }
 

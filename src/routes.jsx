@@ -1,4 +1,4 @@
-export const SITE_NAME = 'Psych Dev Site';
+export const SITE_NAME = 'Академия Дом';
 
 export const ROUTE_CONFIG = [
   {
@@ -9,7 +9,7 @@ export const ROUTE_CONFIG = [
     themeKey: 'intro',
     videoSrc: 'https://www.youtube.com/watch?v=0q4AZ3WsAAc',
     meta: {
-      title: 'Вводное занятие — Psych Dev Site',
+      title: 'Вводное занятие — Академия Дом',
       description: 'Знакомство с психологией развития: вводное занятие и ключевые вопросы курса.',
     },
   },
@@ -20,7 +20,7 @@ export const ROUTE_CONFIG = [
     periodId: 'prenatal',
     themeKey: 'prenatal',
     meta: {
-      title: 'Пренатальный период — Psych Dev Site',
+      title: 'Пренатальный период — Академия Дом',
       description: 'Ключевые понятия, литература и видео о пренатальном развитии ребёнка.'
     }
   },
@@ -31,7 +31,7 @@ export const ROUTE_CONFIG = [
     periodId: 'infancy',
     themeKey: 'infancy',
     meta: {
-      title: 'Младенчество 0–1 — Psych Dev Site',
+      title: 'Младенчество 0–1 — Академия Дом',
       description: 'Исследуем привязанность, сенсомоторное развитие и ключевых авторов младенчества.'
     }
   },
@@ -42,7 +42,7 @@ export const ROUTE_CONFIG = [
     periodId: 'toddler',
     themeKey: 'toddler',
     meta: {
-      title: 'Раннее детство 1–3 — Psych Dev Site',
+      title: 'Раннее детство 1–3 — Академия Дом',
       description: 'Речь, автономия и игры раннего детства в одном месте.'
     }
   },
@@ -53,7 +53,7 @@ export const ROUTE_CONFIG = [
     periodId: 'preschool',
     themeKey: 'preschool',
     meta: {
-      title: 'Дошкольный возраст 3–7 — Psych Dev Site',
+      title: 'Дошкольный возраст 3–7 — Академия Дом',
       description: 'Игра, развитие мышления и социальные навыки дошкольников.'
     }
   },
@@ -66,7 +66,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 7–10 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Младший школьный возраст 7–10 — Psych Dev Site',
+      title: 'Младший школьный возраст 7–10 — Академия Дом',
       description: 'Операции мышления, мотивация к учёбе и развитие школьников.'
     }
   },
@@ -79,7 +79,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 10–13 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Ранняя подростковость 10–13 — Psych Dev Site',
+      title: 'Ранняя подростковость 10–13 — Академия Дом',
       description: 'Нейробиология риска, идентичность и поддержка пре-подростков.'
     }
   },
@@ -92,7 +92,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 14–18 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Подростковость 14–18 — Psych Dev Site',
+      title: 'Подростковость 14–18 — Академия Дом',
       description: 'Социализация, принятие решений и развитие личности подростков.'
     }
   },
@@ -105,7 +105,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 19–22 года появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Юность 19–22 — Psych Dev Site',
+      title: 'Юность 19–22 — Академия Дом',
       description: 'Переход ко взрослости, идентичность и профессиональный поиск.'
     }
   },
@@ -118,7 +118,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 22–27 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Ранняя зрелость 22–27 — Psych Dev Site',
+      title: 'Ранняя зрелость 22–27 — Академия Дом',
       description: 'Мы готовим материалы для ранней взрослости 22–27 лет.'
     }
   },
@@ -131,7 +131,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 28–40 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Ранняя зрелость 28–40 — Psych Dev Site',
+      title: 'Ранняя зрелость 28–40 — Академия Дом',
       description: 'Работа, близость и развитие партнёрства в 28–40 лет.'
     }
   },
@@ -144,7 +144,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 40–65 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Средняя зрелость 40–65 — Psych Dev Site',
+      title: 'Средняя зрелость 40–65 — Академия Дом',
       description: 'Генеративность, кризисы и новые карьерные стратегии.'
     }
   },
@@ -157,7 +157,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 66–80 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Пожилой возраст 66–80 — Psych Dev Site',
+      title: 'Пожилой возраст 66–80 — Академия Дом',
       description: 'Когнитивные изменения и качество жизни пожилых людей.'
     }
   },
@@ -170,7 +170,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 80+ лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Долголетие 80+ — Psych Dev Site',
+      title: 'Долголетие 80+ — Академия Дом',
       description: 'Поддержка, исследования и смыслы самой поздней зрелости.'
     }
   }
@@ -197,7 +197,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Введение в клиническую психологию — Psych Dev Site',
+      title: 'Введение в клиническую психологию — Академия Дом',
       description: 'Вводное занятие курса клинической психологии.',
     },
   },
@@ -209,7 +209,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Патопсихология — Psych Dev Site',
+      title: 'Патопсихология — Академия Дом',
       description: 'Предмет, методы и задачи патопсихологии. Аномалии эмоционально-личностной сферы.',
     },
   },
@@ -221,7 +221,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Расстройства личности — Psych Dev Site',
+      title: 'Расстройства личности — Академия Дом',
       description: 'Диагностика и терапия расстройств личности.',
     },
   },
@@ -233,7 +233,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Аффективные расстройства — Psych Dev Site',
+      title: 'Аффективные расстройства — Академия Дом',
       description: 'Депрессия, мания и биполярное аффективное расстройство.',
     },
   },
@@ -245,7 +245,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Суицидальность — Psych Dev Site',
+      title: 'Суицидальность — Академия Дом',
       description: 'Аффективные расстройства и суицидальность.',
     },
   },
@@ -257,7 +257,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Психотические расстройства — Psych Dev Site',
+      title: 'Психотические расстройства — Академия Дом',
       description: 'Шизофрения и расстройства психотического спектра.',
     },
   },
@@ -269,7 +269,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Патология ВПФ — Psych Dev Site',
+      title: 'Патология ВПФ — Академия Дом',
       description: 'Патология памяти, восприятия и внимания.',
     },
   },
@@ -281,7 +281,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Расстройства ВПФ — Psych Dev Site',
+      title: 'Расстройства ВПФ — Академия Дом',
       description: 'Классификация расстройств высших психических функций.',
     },
   },
@@ -293,7 +293,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Патопсихологическая диагностика — Psych Dev Site',
+      title: 'Патопсихологическая диагностика — Академия Дом',
       description: 'Методы патопсихологической диагностики.',
     },
   },
@@ -305,7 +305,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Проективная диагностика — Psych Dev Site',
+      title: 'Проективная диагностика — Академия Дом',
       description: 'Проективные методы психодиагностики.',
     },
   },
@@ -317,7 +317,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Нарушения развития — Psych Dev Site',
+      title: 'Нарушения развития — Академия Дом',
       description: 'Нарушения психического развития в детском возрасте.',
     },
   },
@@ -344,7 +344,7 @@ export const GENERAL_ROUTE_CONFIG = [
       'На этой вводной странице собрана общая информация о курсе общей психологии, формате занятий и итоговой аттестации. Ниже переходите к первой теме.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Введение в курс общей психологии — Psych Dev Site',
+      title: 'Введение в курс общей психологии — Академия Дом',
       description: 'Общая информация о курсе, структуре занятий и экзамене.',
     },
   },
@@ -356,7 +356,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'История психологии и методы — Psych Dev Site',
+      title: 'История психологии и методы — Академия Дом',
       description: 'История психологии, подходы и методы исследования.',
     },
   },
@@ -368,7 +368,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Методологические проблемы — Psych Dev Site',
+      title: 'Методологические проблемы — Академия Дом',
       description: 'Методологические проблемы изучения психики.',
     },
   },
@@ -380,7 +380,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Ощущение и восприятие — Psych Dev Site',
+      title: 'Ощущение и восприятие — Академия Дом',
       description: 'Свойства образов и теории восприятия.',
     },
   },
@@ -392,7 +392,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Внимание — Psych Dev Site',
+      title: 'Внимание — Академия Дом',
       description: 'Классические и когнитивные модели внимания.',
     },
   },
@@ -404,7 +404,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Память. Часть 1 — Psych Dev Site',
+      title: 'Память. Часть 1 — Академия Дом',
       description: 'Классика, конструкции и искажения памяти.',
     },
   },
@@ -416,7 +416,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Память. Часть 2 — Psych Dev Site',
+      title: 'Память. Часть 2 — Академия Дом',
       description: 'Когнитивные модели и функции памяти.',
     },
   },
@@ -428,7 +428,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Мышление — Psych Dev Site',
+      title: 'Мышление — Академия Дом',
       description: 'Развитие мышления, интериоризация и когнитивные искажения.',
     },
   },
@@ -440,7 +440,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Речь — Psych Dev Site',
+      title: 'Речь — Академия Дом',
       description: 'Взаимосвязь речи и мышления, язык и билингвизм.',
     },
   },
@@ -452,7 +452,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Эмоциональная сфера — Psych Dev Site',
+      title: 'Эмоциональная сфера — Академия Дом',
       description: 'Теории эмоций, классификация и эволюция.',
     },
   },
@@ -464,7 +464,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Чувства и регуляция — Psych Dev Site',
+      title: 'Чувства и регуляция — Академия Дом',
       description: 'Регуляция эмоций и кросс-культурные исследования.',
     },
   },
@@ -476,7 +476,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Мотивация — Psych Dev Site',
+      title: 'Мотивация — Академия Дом',
       description: 'Теории мотивации и место в структуре личности.',
     },
   },
@@ -488,7 +488,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Саморегуляция и воля — Psych Dev Site',
+      title: 'Саморегуляция и воля — Академия Дом',
       description: 'Функции воли, онтогенез и практические модели.',
     },
   },
