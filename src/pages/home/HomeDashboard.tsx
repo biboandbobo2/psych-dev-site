@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useCourses } from '../../hooks/useCourses';
 import { useHomeFeed } from '../../hooks/useHomeFeed';
 import { useCourseStore } from '../../stores';
@@ -20,9 +20,17 @@ import { EventsCalendarModal } from './EventsCalendarModal';
 import { AnnouncementAdminForm } from './AnnouncementAdminForm';
 import { CourseLessonsDrawer } from './CourseLessonsDrawer';
 
+function getCourseIntroPath(courseId: string): string {
+  if (courseId === 'development') return '/development/intro';
+  if (courseId === 'clinical') return '/clinical/intro';
+  if (courseId === 'general') return '/general/intro';
+  return `/course/${encodeURIComponent(courseId)}/intro`;
+}
+
 export function HomeDashboard() {
   const { user, isAdmin, userRole, studentStream } = useAuth();
   const { currentCourse, setCurrentCourse } = useCourseStore();
+  const navigate = useNavigate();
   const { courses } = useCourses();
   const {
     announcements,
@@ -243,14 +251,29 @@ export function HomeDashboard() {
                   <button
                     type="button"
                     onClick={() => setLessonsDrawerCourseId(course.id)}
-                    className="flex w-full items-center justify-center bg-gradient-to-br from-[#EAF1FF] to-[#DCE8FF] p-6 transition hover:from-[#DFEAFF] hover:to-[#CFDCFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-offset-2 sm:w-[34%] sm:self-stretch"
+                    className="relative flex w-full items-center justify-center bg-gradient-to-br from-[#EAF1FF] to-[#DCE8FF] p-6 transition hover:from-[#DFEAFF] hover:to-[#CFDCFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-offset-2 sm:w-[34%] sm:self-stretch"
                     aria-label={`Открыть список занятий курса «${course.name}»`}
                   >
                     <span className="text-[54px]" aria-hidden>
                       {course.icon || '📘'}
                     </span>
+                    <span className="absolute bottom-3 left-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#3359CB]">
+                      Список занятий →
+                    </span>
                   </button>
-                  <div className="flex w-full flex-col justify-between p-5 sm:w-[66%]">
+                  <div
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => navigate(getCourseIntroPath(course.id))}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        navigate(getCourseIntroPath(course.id));
+                      }
+                    }}
+                    className="flex w-full cursor-pointer flex-col justify-between p-5 transition hover:bg-[#F9FBFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-inset sm:w-[66%]"
+                    aria-label={`Открыть главную страницу курса «${course.name}»`}
+                  >
                     <div className="space-y-2">
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5D73A1]">
                         Курс потока
@@ -266,7 +289,10 @@ export function HomeDashboard() {
                     <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
                       <NavLink
                         to={course.continuePath}
-                        onClick={() => setCurrentCourse(course.id as CourseType)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setCurrentCourse(course.id as CourseType);
+                        }}
                         className="inline-flex items-center justify-center rounded-xl bg-[#3359CB] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2A49A8]"
                       >
                         ▶ Продолжить
@@ -329,26 +355,38 @@ export function HomeDashboard() {
         </section>
 
         <section className="rounded-2xl border border-[#DDE5EE] bg-white p-4 text-[#2C3E50]">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-2xl font-bold">Каталог платформы</h3>
-            <span className="text-sm font-semibold text-[#3359CB]">Смотреть всё →</span>
-          </div>
+          <h3 className="mb-3 text-2xl font-bold">Каталог платформы</h3>
           {catalogCourses.length > 0 ? (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-3">
               {catalogCourses.map((course) => (
                 <div
                   key={course.id}
-                  className="flex flex-col rounded-xl border border-[#D8E2EE] bg-[#F9FBFF] p-4"
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate(getCourseIntroPath(course.id))}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      navigate(getCourseIntroPath(course.id));
+                    }
+                  }}
+                  className="flex h-full cursor-pointer flex-col rounded-xl border border-[#D8E2EE] bg-[#F9FBFF] p-4 transition hover:border-[#B8CBEA] hover:bg-[#F3F7FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-offset-1"
+                  aria-label={`Открыть главную страницу курса «${course.name}»`}
                 >
                   <p className="text-2xl">{course.icon || '🎓'}</p>
-                  <p className="mt-2 text-xl font-semibold text-[#2C3E50]">{course.name}</p>
+                  <p className="mt-2 line-clamp-3 text-lg font-semibold leading-snug text-[#2C3E50]">
+                    {course.name}
+                  </p>
                   <p className="text-sm text-[#5E6D7A]">
                     {course.isCore ? 'Основной курс платформы' : 'Дополнительный курс платформы'}
                   </p>
                   <button
                     type="button"
-                    onClick={() => setLessonsDrawerCourseId(course.id)}
-                    className="mt-3 inline-flex items-center justify-center gap-1 rounded-lg border border-[#C5D6EE] bg-white px-3 py-2 text-xs font-semibold text-[#3359CB] transition hover:bg-[#EEF4FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-offset-1"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setLessonsDrawerCourseId(course.id);
+                    }}
+                    className="mt-auto inline-flex items-center justify-center gap-1 rounded-lg border border-[#C5D6EE] bg-white px-3 py-2 text-xs font-semibold text-[#3359CB] transition hover:bg-[#EEF4FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-offset-1"
                   >
                     Посмотреть занятия →
                   </button>
