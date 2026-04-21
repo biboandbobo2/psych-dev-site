@@ -30,10 +30,10 @@ function buildId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function normalizeAnnouncements(value: unknown): HomeAnnouncement[] {
+export function normalizeAnnouncements(value: unknown): HomeAnnouncement[] {
   if (!Array.isArray(value)) return [];
   return value
-    .map((item) => {
+    .map((item): HomeAnnouncement | null => {
       if (!item || typeof item !== 'object') return null;
       const data = item as Record<string, unknown>;
       const text = typeof data.text === 'string' ? data.text.trim() : '';
@@ -43,16 +43,16 @@ function normalizeAnnouncements(value: unknown): HomeAnnouncement[] {
         text,
         createdAt: typeof data.createdAt === 'string' ? data.createdAt : '',
         createdByName: typeof data.createdByName === 'string' ? data.createdByName : undefined,
-      } satisfies HomeAnnouncement;
+      };
     })
-    .filter((item): item is HomeAnnouncement => Boolean(item))
+    .filter((item): item is HomeAnnouncement => item !== null)
     .slice(0, 30);
 }
 
-function normalizeEvents(value: unknown): HomeEventItem[] {
+export function normalizeEvents(value: unknown): HomeEventItem[] {
   if (!Array.isArray(value)) return [];
   return value
-    .map((item) => {
+    .map((item): HomeEventItem | null => {
       if (!item || typeof item !== 'object') return null;
       const data = item as Record<string, unknown>;
       const text = typeof data.text === 'string' ? data.text.trim() : '';
@@ -64,9 +64,9 @@ function normalizeEvents(value: unknown): HomeEventItem[] {
         dateLabel,
         createdAt: typeof data.createdAt === 'string' ? data.createdAt : '',
         createdByName: typeof data.createdByName === 'string' ? data.createdByName : undefined,
-      } satisfies HomeEventItem;
+      };
     })
-    .filter((item): item is HomeEventItem => Boolean(item))
+    .filter((item): item is HomeEventItem => item !== null)
     .slice(0, 40);
 }
 
