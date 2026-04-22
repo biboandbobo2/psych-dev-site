@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/AuthProvider';
@@ -6,6 +7,8 @@ import { SITE_NAME } from '../../../routes';
 import { useCourseIntroEditor, type AuthorFormState } from './useCourseIntroEditor';
 import { MarkdownView } from '../../../lib/MarkdownView';
 import { PageLoader } from '../../../components/ui';
+import { uploadCourseAuthorPhoto, validateImageFile } from '../../../utils/mediaUpload';
+import { debugError } from '../../../lib/debug';
 
 const INPUT_CLASS =
   'w-full rounded-lg border border-[#DDE5EE] bg-white px-3 py-2 text-sm text-[#2C3E50] outline-none transition focus:border-[#2F6DB5] focus:ring-2 focus:ring-[#2F6DB5]/20';
@@ -76,6 +79,7 @@ function AuthorCardEditor({
   author,
   index,
   total,
+  courseId,
   onUpdate,
   onRemove,
   onMove,
@@ -83,10 +87,38 @@ function AuthorCardEditor({
   author: AuthorFormState;
   index: number;
   total: number;
+  courseId: string;
   onUpdate: (patch: Partial<AuthorFormState>) => void;
   onRemove: () => void;
   onMove: (direction: 'up' | 'down') => void;
 }) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      setUploadError(validation.error ?? 'Неподдерживаемый файл.');
+      e.target.value = '';
+      return;
+    }
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const url = await uploadCourseAuthorPhoto(courseId, author.id, file);
+      onUpdate({ photoUrl: url });
+    } catch (err) {
+      debugError('uploadCourseAuthorPhoto failed', err);
+      setUploadError('Не удалось загрузить фото.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
   return (
     <li className="rounded-2xl border border-[#E5ECF3] bg-[#FAFCFE] p-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
@@ -146,17 +178,62 @@ function AuthorCardEditor({
       </div>
 
       <div>
-        <label className={LABEL_CLASS}>Фото (URL)</label>
-        <input
-          type="url"
-          value={author.photoUrl}
-          onChange={(e) => onUpdate({ photoUrl: e.target.value })}
-          placeholder="Оставьте пустым — показаны инициалы"
-          className={`${INPUT_CLASS} mt-1`}
-        />
-        <p className="mt-1 text-xs text-[#8A97AB]">
-          Загрузка файлов — в следующем коммите. Пока можно вставить URL.
-        </p>
+        <label className={LABEL_CLASS}>Фото</label>
+        <div className="mt-1 flex items-start gap-3">
+          {author.photoUrl ? (
+            <img
+              src={author.photoUrl}
+              alt=""
+              className="h-16 w-16 flex-shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[#E5ECF3] text-xs text-[#8A97AB]">
+              нет фото
+            </div>
+          )}
+          <div className="flex-1 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="rounded-md bg-[#2F6DB5] px-3 py-1.5 text-sm text-white hover:bg-[#1F4F86] disabled:opacity-50"
+              >
+                {uploading ? 'Загружаем…' : '📁 Загрузить фото'}
+              </button>
+              {author.photoUrl ? (
+                <button
+                  type="button"
+                  onClick={() => onUpdate({ photoUrl: '' })}
+                  className="rounded-md bg-rose-50 px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-100"
+                >
+                  Очистить
+                </button>
+              ) : null}
+            </div>
+            <input
+              type="url"
+              value={author.photoUrl}
+              onChange={(e) => onUpdate({ photoUrl: e.target.value })}
+              placeholder="Или вставьте URL"
+              className={INPUT_CLASS}
+            />
+            {uploadError ? (
+              <p className="text-xs text-rose-700">{uploadError}</p>
+            ) : (
+              <p className="text-xs text-[#8A97AB]">
+                JPEG / PNG / GIF / WebP, до 5 MB. Без фото — показаны инициалы.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div>
@@ -302,6 +379,7 @@ export default function CourseIntroEditor() {
                 author={author}
                 index={idx}
                 total={editor.form.authors.length}
+                courseId={courseId}
                 onUpdate={(patch) => editor.updateAuthor(author.id, patch)}
                 onRemove={() => editor.removeAuthor(author.id)}
                 onMove={(direction) => editor.moveAuthor(author.id, direction)}
