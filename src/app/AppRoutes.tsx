@@ -27,6 +27,7 @@ import {
   AdminCourseIntro,
   AdminAnnouncements,
   AdminGroups,
+  PaletteDebug,
   WarmSprings2Page,
   BookingSectionLayout,
   BookingPage,
@@ -140,6 +141,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             </RequireAdmin>
           }
         />
+        <Route path="/_debug/palette" element={<PaletteDebug />} />
         <Route
           path="/admin/books"
           element={
