@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { makeUserAdmin, removeAdmin, updateCourseAccess, setUserRole, toggleUserDisabled } from '../../../../lib/adminFunctions';
+import { removeAdmin, updateCourseAccess, toggleUserDisabled } from '../../../../lib/adminFunctions';
 import { auth, db } from '../../../../lib/firebase';
 import type { CourseAccessMap, StudentStream } from '../../../../types/user';
 import type { UserRecord } from '../../../../hooks/useAllUsers';
@@ -21,9 +21,7 @@ interface UseUserManagementReturn {
   editingCourseAccess: CourseAccessMap | null;
 
   // Handlers
-  handleMakeAdmin: (uid: string) => Promise<void>;
   handleRemoveAdmin: (uid: string) => Promise<void>;
-  handleSetRole: (targetUid: string, newRole: 'guest' | 'student') => Promise<void>;
   handleSetStudentStream: (targetUid: string, stream: StudentStream) => Promise<void>;
   handleToggleDisabled: (uid: string, currentDisabled: boolean) => Promise<void>;
   handleRowClick: (user: UserRecord) => void;
@@ -45,22 +43,6 @@ export function useUserManagement({
   const [editingCourseAccess, setEditingCourseAccess] = useState<CourseAccessMap | null>(null);
   const [courseAccessSaving, setCourseAccessSaving] = useState(false);
 
-  const handleMakeAdmin = useCallback(async (uid: string) => {
-    if (!isSuperAdmin) return;
-    if (!window.confirm('Назначить этого пользователя администратором?')) return;
-
-    setActionLoading(uid);
-    try {
-      await makeUserAdmin({ targetUid: uid });
-      window.alert('Пользователь назначен администратором');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Ошибка назначения администратора';
-      window.alert(message);
-    } finally {
-      setActionLoading(null);
-    }
-  }, [isSuperAdmin]);
-
   const handleRemoveAdmin = useCallback(async (uid: string) => {
     if (!isSuperAdmin) return;
     if (!window.confirm('Снять права администратора?')) return;
@@ -76,22 +58,6 @@ export function useUserManagement({
       setActionLoading(null);
     }
   }, [isSuperAdmin]);
-
-  const handleSetRole = useCallback(async (targetUid: string, newRole: 'guest' | 'student') => {
-    const roleLabel = newRole === 'guest' ? 'гостем' : 'студентом';
-    if (!window.confirm(`Сделать этого пользователя ${roleLabel}?`)) return;
-
-    setActionLoading(targetUid);
-    try {
-      await setUserRole({ targetUid, role: newRole });
-      window.alert(`Пользователь теперь ${roleLabel}. Изменения вступят в силу после перелогина.`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Ошибка смены роли';
-      window.alert(message);
-    } finally {
-      setActionLoading(null);
-    }
-  }, []);
 
   const handleSetStudentStream = useCallback(async (targetUid: string, stream: StudentStream) => {
     if (!isAdmin) return;
@@ -192,9 +158,7 @@ export function useUserManagement({
     courseAccessSaving,
     expandedUserId,
     editingCourseAccess,
-    handleMakeAdmin,
     handleRemoveAdmin,
-    handleSetRole,
     handleSetStudentStream,
     handleToggleDisabled,
     handleRowClick,

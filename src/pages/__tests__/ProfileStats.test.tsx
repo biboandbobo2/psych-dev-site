@@ -7,7 +7,8 @@ vi.mock('../../hooks/useAllUsers', () => ({
     users: [
       {
         uid: 'u1',
-        role: 'student',
+        role: null,
+        courseAccess: { development: true },
         email: 'student@example.com',
         displayName: 'Student',
         photoURL: null,

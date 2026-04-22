@@ -5,6 +5,17 @@ import type { CourseAccessMap, StudentStream, UpdateCourseAccessParams } from ".
 export interface MakeAdminParams {
   targetUid?: string;
   targetEmail?: string;
+  editableCourses: string[];
+}
+
+export interface SetAdminEditableCoursesParams {
+  targetUid: string;
+  editableCourses: string[];
+}
+
+interface SetAdminEditableCoursesResponse {
+  success: boolean;
+  editableCourses: string[];
 }
 
 interface AdminActionResponse {
@@ -68,6 +79,19 @@ export async function makeUserAdmin(params: MakeAdminParams) {
 export async function removeAdmin(targetUid: string) {
   const remove = httpsCallable<{ targetUid: string }, AdminActionResponse>(functions, "removeAdmin");
   const result = await remove({ targetUid });
+  return result.data;
+}
+
+/**
+ * Обновить список курсов, которые admin может редактировать.
+ * Только super-admin, список не должен быть пустым.
+ */
+export async function setAdminEditableCourses(params: SetAdminEditableCoursesParams) {
+  const call = httpsCallable<SetAdminEditableCoursesParams, SetAdminEditableCoursesResponse>(
+    functions,
+    "setAdminEditableCourses"
+  );
+  const result = await call(params);
   return result.data;
 }
 

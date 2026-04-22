@@ -17,7 +17,7 @@ describe('computeGuestStatus', () => {
     expect(
       computeGuestStatus({
         isAuthenticated: true,
-        userRole: 'guest',
+        userRole: null,
         courseAccess: {},
         courseIds: ['development', 'clinical'],
       })
@@ -28,7 +28,7 @@ describe('computeGuestStatus', () => {
     expect(
       computeGuestStatus({
         isAuthenticated: true,
-        userRole: 'guest',
+        userRole: null,
         courseAccess: { development: false, clinical: false },
         courseIds: ['development', 'clinical'],
       })
@@ -39,22 +39,22 @@ describe('computeGuestStatus', () => {
     expect(
       computeGuestStatus({
         isAuthenticated: true,
-        userRole: 'guest',
+        userRole: null,
         courseAccess: { development: true },
         courseIds: ['development', 'clinical'],
       })
     ).toEqual({ status: 'student', accessibleCount: 1 });
   });
 
-  it('returns student for legacy student without courseAccess (full access)', () => {
+  it('returns registered-guest for a regular user with null courseAccess (no longer legacy full access)', () => {
     expect(
       computeGuestStatus({
         isAuthenticated: true,
-        userRole: 'student',
+        userRole: null,
         courseAccess: null,
         courseIds: ['development', 'clinical', 'general'],
       })
-    ).toEqual({ status: 'student', accessibleCount: 3 });
+    ).toEqual({ status: 'registered-guest', accessibleCount: 0 });
   });
 
   it('returns student for admin and super-admin regardless of courseAccess', () => {
@@ -81,7 +81,7 @@ describe('computeGuestStatus', () => {
     expect(
       computeGuestStatus({
         isAuthenticated: true,
-        userRole: 'guest',
+        userRole: null,
         courseAccess: { development: true, 'group-therapy': true },
         courseIds: ['development', 'group-therapy', 'clinical'],
       })

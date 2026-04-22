@@ -18,11 +18,9 @@ export interface UserRowProps {
   editingCourseAccess: CourseAccessMap | null;
   courseAccessSaving: boolean;
   onRowClick: () => void;
-  onMakeAdmin: () => void;
   onRemoveAdmin: () => void;
   onCourseAccessChange: (courseId: string, value: boolean) => void;
   onSaveCourseAccess: () => void;
-  onSetRole: (role: 'guest' | 'student') => void;
   onSetStudentStream: (stream: StudentStream) => void;
   onToggleDisabled: () => void;
   canManageStudentStream: boolean;
@@ -38,11 +36,9 @@ export function UserRow({
   editingCourseAccess,
   courseAccessSaving,
   onRowClick,
-  onMakeAdmin,
   onRemoveAdmin,
   onCourseAccessChange,
   onSaveCourseAccess,
-  onSetRole,
   onSetStudentStream,
   onToggleDisabled,
   canManageStudentStream,
@@ -127,9 +123,7 @@ export function UserRow({
             currentUserUid={currentUserUid}
             isSuperAdmin={isSuperAdmin}
             actionLoading={actionLoading}
-            onMakeAdmin={onMakeAdmin}
             onRemoveAdmin={onRemoveAdmin}
-            onSetRole={onSetRole}
             onToggleDisabled={onToggleDisabled}
           />
         </td>
@@ -219,18 +213,14 @@ function RoleActions({
   currentUserUid,
   isSuperAdmin,
   actionLoading,
-  onMakeAdmin,
   onRemoveAdmin,
-  onSetRole,
   onToggleDisabled,
 }: {
   user: UserRecord;
   currentUserUid: string | undefined;
   isSuperAdmin: boolean;
   actionLoading: string | null;
-  onMakeAdmin: () => void;
   onRemoveAdmin: () => void;
-  onSetRole: (role: 'guest' | 'student') => void;
   onToggleDisabled: () => void;
 }) {
   if (!isSuperAdmin || user.uid === currentUserUid) {
@@ -253,14 +243,6 @@ function RoleActions({
         />
       )}
 
-      {!user.role && (
-        <ActionButton
-          onClick={onMakeAdmin}
-          disabled={isLoading}
-          variant="green"
-          label={isLoading ? 'Ждите...' : 'Админ'}
-        />
-      )}
       {user.role === 'admin' && (
         <ActionButton
           onClick={onRemoveAdmin}

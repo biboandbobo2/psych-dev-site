@@ -26,9 +26,7 @@ export default function AdminUsers() {
     courseAccessSaving,
     expandedUserId,
     editingCourseAccess,
-    handleMakeAdmin,
     handleRemoveAdmin,
-    handleSetRole,
     handleSetStudentStream,
     handleToggleDisabled,
     handleRowClick,
@@ -159,11 +157,9 @@ export default function AdminUsers() {
                 editingCourseAccess={expandedUserId === user.uid ? editingCourseAccess : null}
                 courseAccessSaving={courseAccessSaving}
                 onRowClick={() => handleRowClick(user)}
-                onMakeAdmin={() => handleMakeAdmin(user.uid)}
                 onRemoveAdmin={() => handleRemoveAdmin(user.uid)}
                 onCourseAccessChange={handleCourseAccessChange}
                 onSaveCourseAccess={() => handleSaveCourseAccess(user.uid)}
-                onSetRole={(role) => handleSetRole(user.uid, role)}
                 onSetStudentStream={(stream) => handleSetStudentStream(user.uid, stream)}
                 onToggleDisabled={() => handleToggleDisabled(user.uid, user.disabled === true)}
                 courseOptions={courseOptions}
