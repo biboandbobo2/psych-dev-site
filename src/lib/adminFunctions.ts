@@ -95,6 +95,57 @@ export async function setAdminEditableCourses(params: SetAdminEditableCoursesPar
   return result.data;
 }
 
+// === Группы ===
+
+export interface CreateGroupParams {
+  name: string;
+  description?: string;
+  memberIds?: string[];
+  grantedCourses?: string[];
+  announcementAdminIds?: string[];
+}
+export interface UpdateGroupParams {
+  groupId: string;
+  name?: string;
+  description?: string;
+  grantedCourses?: string[];
+  announcementAdminIds?: string[];
+}
+export interface SetGroupMembersParams {
+  groupId: string;
+  memberIds: string[];
+}
+
+export async function createGroup(params: CreateGroupParams) {
+  const call = httpsCallable<CreateGroupParams, { success: true; groupId: string }>(
+    functions,
+    "createGroup"
+  );
+  const result = await call(params);
+  return result.data;
+}
+
+export async function updateGroup(params: UpdateGroupParams) {
+  const call = httpsCallable<UpdateGroupParams, { success: true }>(functions, "updateGroup");
+  const result = await call(params);
+  return result.data;
+}
+
+export async function setGroupMembers(params: SetGroupMembersParams) {
+  const call = httpsCallable<SetGroupMembersParams, { success: true; count: number }>(
+    functions,
+    "setGroupMembers"
+  );
+  const result = await call(params);
+  return result.data;
+}
+
+export async function deleteGroup(groupId: string) {
+  const call = httpsCallable<{ groupId: string }, { success: true }>(functions, "deleteGroup");
+  const result = await call({ groupId });
+  return result.data;
+}
+
 /**
  * Обновляет доступ пользователя к курсам.
  * Только super-admin может вызывать эту функцию.
