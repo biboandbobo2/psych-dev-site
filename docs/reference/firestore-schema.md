@@ -14,9 +14,10 @@
 3. [Заметки и темы](#заметки-и-темы)
 4. [Система тестирования](#система-тестирования)
 5. [Таймлайн жизни](#таймлайн-жизни)
-6. [Книги (RAG)](#книги-rag)
-7. [Видео-транскрипты](#видео-транскрипты)
-8. [Правила доступа](#правила-доступа)
+6. [Таблица по расстройствам](#таблица-по-расстройствам)
+7. [Книги (RAG)](#книги-rag)
+8. [Видео-транскрипты](#видео-транскрипты)
+9. [Правила доступа](#правила-доступа)
 
 ---
 
@@ -474,6 +475,41 @@ interface TimelineEdge {
 ```
 
 **См. подробности:** [docs/guides/timeline.md](../guides/timeline.md)
+
+---
+
+## Таблица по расстройствам
+
+### `disorderTables/{userId}_{courseId}`
+
+Корневой документ таблицы студента. Один документ на пару пользователь + курс.
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `userId` | `string` | UID пользователя |
+| `courseId` | `string` | ID курса (пока только `clinical`) |
+| `updatedAt` | `Timestamp` | Время последнего изменения |
+
+**ID документа:** `{userId}_{courseId}` (например, `abc123_clinical`)
+
+### `disorderTables/{docId}/entries/{entryId}`
+
+Записи в ячейках таблицы (пересечение функция × расстройство).
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `rowIds` | `string[]` | Выбранные строки — ровно 1 элемент (функция: perception, attention, memory, thinking, consciousness, work-capacity, emotional-personality, behavior) |
+| `columnIds` | `string[]` | Выбранные столбцы — 1+ элементов (расстройства: schizophrenic-spectrum, epilepsy, alcoholism, dementia, frontal-syndrome, depression-bipolar, anxiety, personality-disorders) |
+| `text` | `string` | Текст наблюдения (3–4000 символов) |
+| `track` | `string \| null` | Цветовая метка: `patopsychology`, `psychiatry` или `null` |
+| `createdAt` | `Timestamp` | Время создания |
+| `updatedAt` | `Timestamp` | Время последнего изменения |
+
+**Правила доступа:** Пользователь может читать/писать только свои документы (docId начинается с его UID).
+
+**Batch-лимит:** При bulk-создании записи разбиваются на группы по 450 (лимит Firestore — 500 операций на batch).
+
+**См. подробности:** [docs/guides/disorder-table.md](../guides/disorder-table.md)
 
 ---
 

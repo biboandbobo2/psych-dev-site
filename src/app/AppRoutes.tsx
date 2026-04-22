@@ -24,6 +24,7 @@ import {
   DynamicPeriodPage,
   FeaturesPage,
   CourseIntroPage,
+  WarmSprings2Page,
   BookingSectionLayout,
   BookingPage,
   BookingAccountPage,
@@ -64,6 +65,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route path="/home" element={<HomePage />} />
         <Route path="/homepage" element={<Navigate to="/home" replace />} />
         <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/warm_springs2" element={<WarmSprings2Page />} />
         <Route path="/booking" element={<BookingSectionLayout />}>
           <Route index element={<BookingPage />} />
           <Route path="account" element={<BookingAccountPage embedded />} />

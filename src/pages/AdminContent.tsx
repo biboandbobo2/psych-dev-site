@@ -34,6 +34,7 @@ import {
 } from "../lib/courseLessons";
 import { isCoreCourse } from "../constants/courses";
 import { useCourses } from "../hooks/useCourses";
+import { useActiveCourse } from "../hooks/useActiveCourse";
 import type { CourseType } from "../types/tests";
 
 interface Period {
@@ -201,11 +202,7 @@ export default function AdminContent() {
     }
   }, [searchParams, location.state, setCurrentCourse]);
 
-  const activeCourse =
-    courses.find((courseOption) => courseOption.id === currentCourse)?.id ??
-    currentCourse ??
-    courses[0]?.id ??
-    'development';
+  const activeCourse = useActiveCourse(courses, coursesLoading);
   const isCore = isCoreCourse(activeCourse);
   const loadRequestId = useRef(0);
 
@@ -268,13 +265,6 @@ export default function AdminContent() {
     loadPeriods();
   }, [activeCourse]);
 
-  useEffect(() => {
-    if (coursesLoading || !courses.length) return;
-    const hasCurrent = courses.some((courseOption) => courseOption.id === currentCourse);
-    if (!hasCurrent && courses[0]?.id) {
-      setCurrentCourse(courses[0].id as CourseType);
-    }
-  }, [courses, coursesLoading, currentCourse, setCurrentCourse]);
 
   // Handle drag end
   const handleDragEnd = async (event: DragEndEvent) => {

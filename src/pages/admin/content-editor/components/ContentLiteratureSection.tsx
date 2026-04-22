@@ -2,10 +2,10 @@ import { EditableList } from './EditableList';
 import { SELECTABLE_TEXT_STYLE } from '../utils/constants';
 
 interface ContentLiteratureSectionProps {
-  coreLiterature: Array<{ title: string; url: string }>;
-  setCoreLiterature: (items: Array<{ title: string; url: string }>) => void;
-  extraLiterature: Array<{ title: string; url: string }>;
-  setExtraLiterature: (items: Array<{ title: string; url: string }>) => void;
+  coreLiterature: Array<{ title: string; url?: string }>;
+  setCoreLiterature: (items: Array<{ title: string; url?: string }>) => void;
+  extraLiterature: Array<{ title: string; url?: string }>;
+  setExtraLiterature: (items: Array<{ title: string; url?: string }>) => void;
   extraVideos: Array<{ title: string; url: string }>;
   setExtraVideos: (items: Array<{ title: string; url: string }>) => void;
   leisure: Array<{ title?: string; url?: string; type?: string; year?: string }>;
@@ -37,7 +37,7 @@ export function ContentLiteratureSection({
         <h2 className="text-xl font-bold mb-4">📚 Основная литература</h2>
         <EditableList
           items={coreLiterature}
-          onChange={(items) => setCoreLiterature(items as Array<{ title: string; url: string }>)}
+          onChange={(items) => setCoreLiterature(items as Array<{ title: string; url?: string }>)}
           label="Обязательная литература для периода"
           placeholder="Название книги/статьи"
           maxItems={10}
@@ -49,7 +49,7 @@ export function ContentLiteratureSection({
         <h2 className="text-xl font-bold mb-4">📖 Дополнительная литература</h2>
         <EditableList
           items={extraLiterature}
-          onChange={(items) => setExtraLiterature(items as Array<{ title: string; url: string }>)}
+          onChange={(items) => setExtraLiterature(items as Array<{ title: string; url?: string }>)}
           label="Дополнительные материалы для изучения"
           placeholder="Название материала"
           maxItems={10}

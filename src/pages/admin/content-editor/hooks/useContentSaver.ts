@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   doc,
   setDoc,
+  updateDoc,
   deleteDoc,
   deleteField,
   serverTimestamp,
@@ -16,9 +17,11 @@ import {
   normalizeConcepts,
   normalizeAuthors,
   normalizeLiterature,
+  normalizeLinkedResources,
   normalizeVideos,
   normalizeLeisure,
 } from '../utils/contentNormalizers';
+import { buildContentSections, buildSectionFieldPayload } from '../utils/contentSections';
 import { debugError } from '../../../../lib/debug';
 import {
   findCourseLessonDoc,
@@ -42,8 +45,8 @@ interface SaveParams {
   videos: VideoFormEntry[];
   concepts: Array<{ name: string; url?: string }>;
   authors: Array<{ name: string; url?: string }>;
-  coreLiterature: Array<{ title: string; url: string }>;
-  extraLiterature: Array<{ title: string; url: string }>;
+  coreLiterature: Array<{ title: string; url?: string }>;
+  extraLiterature: Array<{ title: string; url?: string }>;
   extraVideos: Array<{ title: string; url: string }>;
   leisure: Array<{ title?: string; url?: string; type?: string; year?: string }>;
   selfQuestionsUrl: string;
@@ -125,12 +128,23 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
       const normalizedAuthors = normalizeAuthors(authors);
       const normalizedCoreLiterature = normalizeLiterature(coreLiterature);
       const normalizedExtraLiterature = normalizeLiterature(extraLiterature);
-      const normalizedExtraVideos = normalizeLiterature(extraVideos);
+      const normalizedExtraVideos = normalizeLinkedResources(extraVideos);
       const normalizedLeisure = normalizeLeisure(leisure);
 
       const trimmedTitle = title.trim();
       const normalizedVideos = normalizeVideos(videos);
       const trimmedSelfQuestionsUrl = selfQuestionsUrl.trim();
+      const sections = buildContentSections({
+        title: trimmedTitle,
+        videos: normalizedVideos,
+        concepts: normalizedConcepts,
+        authors: normalizedAuthors,
+        coreLiterature: normalizedCoreLiterature,
+        extraLiterature: normalizedExtraLiterature,
+        extraVideos: normalizedExtraVideos,
+        leisure: normalizedLeisure,
+        selfQuestionsUrl: trimmedSelfQuestionsUrl,
+      });
 
       const data: Record<string, unknown> = {
         period: periodId,
@@ -158,81 +172,6 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
       // Explicitly delete legacy camelCase field to prevent conflicts
       data.placeholderEnabled = deleteField();
 
-      // === SECTIONS CONSTRUCTION (New Format) ===
-      const sections: Record<string, unknown> = {};
-
-      // Video Section
-      if (normalizedVideos.length) {
-        sections.video_section = {
-          title: 'Видео',
-          content: normalizedVideos.map((video) => ({
-            title: video.title || trimmedTitle || 'Видео-лекция',
-            url: video.url,
-            ...(video.deckUrl ? { deckUrl: video.deckUrl } : {}),
-            ...(video.audioUrl ? { audioUrl: video.audioUrl } : {}),
-            ...(video.isPublic ? { isPublic: true } : {}),
-          })),
-        };
-      }
-
-      // Concepts
-      if (normalizedConcepts.length) {
-        sections.concepts = {
-          title: 'Основные понятия',
-          content: normalizedConcepts,
-        };
-      }
-
-      // Authors
-      if (normalizedAuthors.length) {
-        sections.authors = {
-          title: 'Персоналии',
-          content: normalizedAuthors,
-        };
-      }
-
-      // Core Literature
-      if (normalizedCoreLiterature.length) {
-        sections.core_literature = {
-          title: 'Основная литература',
-          content: normalizedCoreLiterature,
-        };
-      }
-
-      // Extra Literature
-      if (normalizedExtraLiterature.length) {
-        sections.extra_literature = {
-          title: 'Дополнительная литература',
-          content: normalizedExtraLiterature,
-        };
-      }
-
-      // Extra Videos
-      if (normalizedExtraVideos.length) {
-        sections.extra_videos = {
-          title: 'Дополнительные видео',
-          content: normalizedExtraVideos,
-        };
-      }
-
-      // Leisure
-      if (normalizedLeisure.length) {
-        sections.leisure = {
-          title: 'Досуг',
-          content: normalizedLeisure,
-        };
-      }
-
-      // Self Questions
-      if (trimmedSelfQuestionsUrl) {
-        sections.self_questions = {
-          title: 'Вопросы для самопроверки',
-          content: [trimmedSelfQuestionsUrl],
-        };
-      }
-
-      data.sections = sections;
-
       // === LEGACY FIELDS CLEANUP ===
       // We delete legacy fields to avoid confusion and force usage of sections
       data.video_url = deleteField();
@@ -249,6 +188,7 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
 
       const trimmedSubtitle = subtitle.trim();
       data.subtitle = trimmedSubtitle ? trimmedSubtitle : deleteField();
+      const sectionFieldPayload = buildSectionFieldPayload(sections, deleteField);
 
       // Определяем коллекцию в зависимости от курса
       if (isCoreCourse(course) && periodId === 'intro') {
@@ -256,14 +196,27 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
         const singletonRef = doc(db, 'intro', 'singleton');
         const singletonSnap = await getDoc(singletonRef);
         if (singletonSnap.exists()) {
-          await setDoc(singletonRef, data, { merge: true });
+          await updateDoc(singletonRef, {
+            ...data,
+            ...sectionFieldPayload,
+          });
         } else {
           const introCol = collection(db, 'intro');
           const introSnap = await getDocs(introCol);
           if (!introSnap.empty) {
-            await setDoc(introSnap.docs[0].ref, data, { merge: true });
+            await updateDoc(introSnap.docs[0].ref, {
+              ...data,
+              ...sectionFieldPayload,
+            });
           } else {
-            await setDoc(singletonRef, data, { merge: true });
+            await setDoc(
+              singletonRef,
+              {
+                ...data,
+                sections,
+              },
+              { merge: true }
+            );
           }
         }
       } else {
@@ -274,7 +227,21 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
         const resolvedDoc = collectionName ? await findCourseLessonDoc(course, periodId!) : null;
         const docRef = resolvedDoc?.ref
           ?? (collectionName ? doc(db, collectionName, periodId!) : getCourseLessonDocRef(course, periodId!));
-        await setDoc(docRef as typeof resolvedDoc.ref, data, { merge: true });
+        if (resolvedDoc) {
+          await updateDoc(docRef as typeof resolvedDoc.ref, {
+            ...data,
+            ...sectionFieldPayload,
+          });
+        } else {
+          await setDoc(
+            docRef as typeof resolvedDoc.ref,
+            {
+              ...data,
+              sections,
+            },
+            { merge: true }
+          );
+        }
       }
 
       alert('✅ Изменения сохранены!');

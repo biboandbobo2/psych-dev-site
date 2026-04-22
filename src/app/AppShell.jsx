@@ -1,7 +1,7 @@
 // File: src/app/AppShell.jsx
 // AppShell отвечает за отображение основного контента и маршрутов,
 // опираясь на ROUTE_CONFIG, Zustand-сторы и UI-компоненты. Провайдеры (Router/Auth) живут в src/App.jsx.
-import React, { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { AnimatePresence } from 'framer-motion';
@@ -33,6 +33,7 @@ import { saveLastCourseLesson } from '../lib/lastCourseLesson';
 
 const normalizePath = (path) =>
   path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
+const EMPTY_ROUTE_DATA = new Map();
 
 function buildCourseNavItems({
   courseId,
@@ -142,17 +143,24 @@ function RoutePager({ currentPath, navItems }) {
   );
 }
 
-export function AppShell() {
-  useAuthSync();
-  useScrollRestoration();
+function StandaloneLandingShell({ location, isSuperAdmin }) {
+  return (
+    <AppRoutes
+      location={location}
+      periodMap={EMPTY_ROUTE_DATA}
+      clinicalTopicsMap={EMPTY_ROUTE_DATA}
+      generalTopicsMap={EMPTY_ROUTE_DATA}
+      isSuperAdmin={isSuperAdmin}
+    />
+  );
+}
+
+function MainAppShell({ location, normalizedPath, isSuperAdmin }) {
   const { periods, loading, error } = usePeriods();
   const { topics: clinicalTopics, loading: clinicalLoading, error: clinicalError } = useClinicalTopics();
   const { topics: generalTopics, loading: generalLoading, error: generalError } = useGeneralTopics();
-  const location = useLocation();
-  const normalizedPath = normalizePath(location.pathname);
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.loading);
-  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const setCurrentCourse = useCourseStore((state) => state.setCurrentCourse);
   const isSuperAdminPage = normalizedPath === '/superadmin';
   const isAdminContentPage = normalizedPath.startsWith('/admin/content');
@@ -325,5 +333,32 @@ export function AppShell() {
         <RoutePager currentPath={location.pathname} navItems={navItems} />
       </AppLayout>
     </>
+  );
+}
+
+export function AppShell() {
+  useAuthSync();
+  useScrollRestoration();
+  const location = useLocation();
+  const normalizedPath = normalizePath(location.pathname);
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+
+  // Standalone routes should not pay the cost of unrelated content hooks or generic loaders.
+  const isStandaloneLanding = normalizedPath === '/warm_springs2' || normalizedPath.startsWith('/booking');
+  if (isStandaloneLanding) {
+    return (
+      <StandaloneLandingShell
+        location={location}
+        isSuperAdmin={isSuperAdmin}
+      />
+    );
+  }
+
+  return (
+    <MainAppShell
+      location={location}
+      normalizedPath={normalizedPath}
+      isSuperAdmin={isSuperAdmin}
+    />
   );
 }

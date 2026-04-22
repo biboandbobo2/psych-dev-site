@@ -2,7 +2,7 @@ import { Timestamp } from "firebase/firestore";
 
 export interface ContentLink {
   title: string;
-  url: string;
+  url?: string;
 }
 
 export interface Author {
