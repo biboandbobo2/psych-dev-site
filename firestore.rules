@@ -60,12 +60,40 @@ service cloud.firestore {
     // Чтение — любые админы (для управления), участники группы и админы,
     // назначенные писать объявления этой группе (announcementAdminIds).
     match /groups/{groupId} {
-      allow read: if isAuthenticated() && (
-        isAdmin() ||
-        (request.auth.uid in resource.data.memberIds) ||
-        (request.auth.uid in resource.data.announcementAdminIds)
-      );
+      function canReadGroup() {
+        return isAuthenticated() && (
+          isAdmin() ||
+          (request.auth.uid in resource.data.memberIds) ||
+          (request.auth.uid in resource.data.announcementAdminIds)
+        );
+      }
+      function canWriteGroupFeed() {
+        return isSuperAdmin() || (
+          isAuthenticated() &&
+          request.auth.token.role == 'admin' &&
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.announcementAdminIds
+        );
+      }
+      function isGroupMemberOrAdmin() {
+        return isAuthenticated() && (
+          isAdmin() ||
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds ||
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.announcementAdminIds
+        );
+      }
+
+      allow read: if canReadGroup();
       allow create, update, delete: if isSuperAdmin();
+
+      match /announcements/{annId} {
+        allow read: if isGroupMemberOrAdmin();
+        allow create, update, delete: if canWriteGroupFeed();
+      }
+
+      match /events/{eventId} {
+        allow read: if isGroupMemberOrAdmin();
+        allow create, update, delete: if canWriteGroupFeed();
+      }
     }
 
     // Legacy коллекции курса "Психология развития" (возрастные периоды + intro)
