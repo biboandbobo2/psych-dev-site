@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
 import { auth, googleProvider, db } from '../lib/firebase';
-import { doc, getDoc, onSnapshot, type Unsubscribe } from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, query, where, type Unsubscribe } from 'firebase/firestore';
 import { SUPER_ADMIN_EMAIL } from '../constants/superAdmin';
 import { reportAppError } from '../lib/errorHandler';
 import { debugLog } from '../lib/debug';
@@ -16,8 +16,13 @@ interface AuthState {
   userRole: UserRole | null;
   /** Список courseId, которые admin может редактировать. Только для role='admin'. */
   adminEditableCourses: string[];
-  /** Гранулярный доступ к курсам */
+  /** Индивидуальный гранулярный доступ к курсам (без учёта групп) */
   courseAccess: CourseAccessMap | null;
+  /**
+   * Курсы, открытые пользователю через группы (union grantedCourses всех его групп).
+   * Обновляется реалтайм через подписку на collection('groups') where memberIds array-contains uid.
+   */
+  groupGrantedCourses: Record<string, boolean>;
   /** API ключ Gemini пользователя (BYOK) */
   geminiApiKey: string | null;
   /** Поток студента */
@@ -33,6 +38,7 @@ interface AuthState {
   setUserRole: (role: UserRole | null) => void;
   setAdminEditableCourses: (courses: string[]) => void;
   setCourseAccess: (access: CourseAccessMap | null) => void;
+  setGroupGrantedCourses: (granted: Record<string, boolean>) => void;
   setGeminiApiKey: (key: string | null) => void;
   setStudentStream: (stream: StudentStream) => void;
   signInWithGoogle: () => Promise<void>;
@@ -55,6 +61,7 @@ export const useAuthStore = create<AuthState>()(
       userRole: null,
       adminEditableCourses: [],
       courseAccess: null,
+      groupGrantedCourses: {},
       geminiApiKey: null,
       studentStream: 'none',
       isAdmin: false,
@@ -79,13 +86,16 @@ export const useAuthStore = create<AuthState>()(
 
       setCourseAccess: (courseAccess) => set({ courseAccess }),
 
+      setGroupGrantedCourses: (groupGrantedCourses) => set({ groupGrantedCourses }),
+
       setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey }),
 
       setStudentStream: (studentStream) => set({ studentStream }),
 
       hasCourseAccess: (courseType: CourseType) => {
-        const { userRole, courseAccess } = get();
-        return checkCourseAccess(userRole, courseAccess, courseType);
+        const { userRole, courseAccess, groupGrantedCourses } = get();
+        if (checkCourseAccess(userRole, courseAccess, courseType)) return true;
+        return groupGrantedCourses[courseType] === true;
       },
 
       signInWithGoogle: async () => {
@@ -109,6 +119,7 @@ export const useAuthStore = create<AuthState>()(
       initializeAuth: () => {
         let cancelled = false;
         let userDocUnsubscribe: Unsubscribe | null = null;
+        let myGroupsUnsubscribe: Unsubscribe | null = null;
 
         const unsubscribe = onAuthStateChanged(auth, async (next) => {
           if (cancelled) return;
@@ -118,6 +129,10 @@ export const useAuthStore = create<AuthState>()(
             userDocUnsubscribe();
             userDocUnsubscribe = null;
           }
+          if (myGroupsUnsubscribe) {
+            myGroupsUnsubscribe();
+            myGroupsUnsubscribe = null;
+          }
 
           get().setUser(next);
           get().setStudentStream('none');
@@ -126,6 +141,7 @@ export const useAuthStore = create<AuthState>()(
             get().setUserRole(null);
             get().setAdminEditableCourses([]);
             get().setCourseAccess(null);
+            get().setGroupGrantedCourses({});
             get().setGeminiApiKey(null);
             get().setStudentStream('none');
             get().setLoading(false);
@@ -170,6 +186,32 @@ export const useAuthStore = create<AuthState>()(
                 });
               });
             }
+
+            // Подписка на свои группы: собираем union grantedCourses
+            myGroupsUnsubscribe = onSnapshot(
+              query(collection(db, 'groups'), where('memberIds', 'array-contains', next.uid)),
+              (snap) => {
+                if (cancelled) return;
+                const granted: Record<string, boolean> = {};
+                snap.docs.forEach((d) => {
+                  const rawCourses = d.data()?.grantedCourses;
+                  if (Array.isArray(rawCourses)) {
+                    for (const c of rawCourses) {
+                      if (typeof c === 'string' && c) granted[c] = true;
+                    }
+                  }
+                });
+                get().setGroupGrantedCourses(granted);
+              },
+              (err) => {
+                reportAppError({
+                  message: 'Ошибка подписки на группы',
+                  error: err,
+                  context: 'useAuthStore.initializeAuth.myGroups',
+                });
+                get().setGroupGrantedCourses({});
+              }
+            );
 
             // Подписываемся на изменения courseAccess в реальном времени
             userDocUnsubscribe = onSnapshot(
@@ -217,6 +259,7 @@ export const useAuthStore = create<AuthState>()(
             get().setUserRole(null);
             get().setAdminEditableCourses([]);
             get().setCourseAccess(null);
+            get().setGroupGrantedCourses({});
             get().setGeminiApiKey(null);
             get().setStudentStream('none');
           } finally {
@@ -231,6 +274,9 @@ export const useAuthStore = create<AuthState>()(
           unsubscribe();
           if (userDocUnsubscribe) {
             userDocUnsubscribe();
+          }
+          if (myGroupsUnsubscribe) {
+            myGroupsUnsubscribe();
           }
         };
       },

@@ -56,6 +56,17 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // Группы студентов (потоки). Создание/редактирование — супер-админ.
+    // Чтение — участники группы, любые админы (для управления) и все для
+    // отображения названий в объявлениях (см. audience в 3c).
+    match /groups/{groupId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (request.auth.uid in resource.data.memberIds)
+      );
+      allow create, update, delete: if isSuperAdmin();
+    }
+
     // Legacy коллекции курса "Психология развития" (возрастные периоды + intro)
     match /intro/{document=**} {
       allow read: if true;

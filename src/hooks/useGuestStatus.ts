@@ -20,16 +20,18 @@ export function computeGuestStatus(params: {
   userRole: UserRole | null;
   courseAccess: CourseAccessMap | null;
   courseIds: string[];
+  groupGrantedCourses?: Record<string, boolean>;
 }): Omit<GuestStatusInfo, 'loading'> {
-  const { isAuthenticated, userRole, courseAccess, courseIds } = params;
+  const { isAuthenticated, userRole, courseAccess, courseIds, groupGrantedCourses } = params;
   if (!isAuthenticated) {
     return { status: 'unauthorized', accessibleCount: 0 };
   }
 
-  const accessibleCount = courseIds.reduce(
-    (count, courseId) => (hasCourseAccess(userRole, courseAccess, courseId) ? count + 1 : count),
-    0
-  );
+  const accessibleCount = courseIds.reduce((count, courseId) => {
+    if (hasCourseAccess(userRole, courseAccess, courseId)) return count + 1;
+    if (groupGrantedCourses?.[courseId] === true) return count + 1;
+    return count;
+  }, 0);
 
   const status: GuestStatus = accessibleCount === 0 ? 'registered-guest' : 'student';
   return { status, accessibleCount };
@@ -47,6 +49,7 @@ export function useGuestStatus(): GuestStatusInfo {
   const user = useAuthStore((state) => state.user);
   const userRole = useAuthStore((state) => state.userRole);
   const courseAccess = useAuthStore((state) => state.courseAccess);
+  const groupGrantedCourses = useAuthStore((state) => state.groupGrantedCourses);
   const { courses, loading } = useCourses();
 
   const { status, accessibleCount } = useMemo(
@@ -56,8 +59,9 @@ export function useGuestStatus(): GuestStatusInfo {
         userRole,
         courseAccess,
         courseIds: courses.map((course) => course.id),
+        groupGrantedCourses,
       }),
-    [user, userRole, courseAccess, courses]
+    [user, userRole, courseAccess, groupGrantedCourses, courses]
   );
 
   return { status, accessibleCount, loading };
