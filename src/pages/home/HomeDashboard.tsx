@@ -239,21 +239,24 @@ function StudentDashboard() {
           {/* LEFT */}
           <div className="space-y-6">
             {/* Карточки курсов */}
-            <div className="space-y-4">
+            <div className="grid auto-rows-fr grid-cols-1 gap-4">
               {primaryContinueCourses.map((course) => (
                 <article
                   key={course.id}
-                  className="overflow-hidden rounded-2xl border border-border bg-card shadow-brand"
+                  className="group overflow-hidden rounded-2xl border border-border bg-card shadow-brand transition"
                 >
-                  <div className="grid grid-cols-[104px_minmax(0,1fr)] sm:grid-cols-[200px_minmax(0,1fr)]">
+                  <div className="grid h-full auto-rows-fr grid-cols-[104px_minmax(0,1fr)] sm:grid-cols-[200px_minmax(0,1fr)]">
                     <button
                       type="button"
                       onClick={() => setLessonsDrawerCourseId(course.id)}
-                      className="flex items-center justify-center bg-[#CFEAD0] p-4 transition hover:bg-[#BFE0C1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                      className="relative flex h-full items-center justify-center bg-[#CFEAD0] p-4 transition group-hover:bg-[#A8D6AA] hover:bg-[#A8D6AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                       aria-label={`Открыть список занятий курса «${course.name}»`}
                     >
                       <span className="text-[44px] sm:text-[64px]" aria-hidden>
                         {course.icon || '📘'}
+                      </span>
+                      <span className="absolute bottom-2 left-3 text-[10px] font-medium uppercase tracking-[0.12em] text-[#1F4D22]/70 sm:bottom-3">
+                        Список занятий
                       </span>
                     </button>
                     <div
@@ -266,7 +269,7 @@ function StudentDashboard() {
                           navigate(getCourseIntroPath(course.id));
                         }
                       }}
-                      className="flex min-w-0 cursor-pointer flex-col gap-3 p-5 transition hover:bg-card2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+                      className="flex min-w-0 cursor-pointer flex-col justify-between gap-3 p-5 transition group-hover:bg-accent-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
                       aria-label={`Открыть главную страницу курса «${course.name}»`}
                     >
                       <div className="min-w-0">
@@ -416,7 +419,7 @@ function StudentDashboard() {
                       event.stopPropagation();
                       setLessonsDrawerCourseId(course.id);
                     }}
-                    className="self-start rounded-md text-xs font-semibold text-accent transition hover:underline"
+                    className="self-start rounded-md text-xs font-semibold text-accent transition hover:text-[#1F4D22]"
                   >
                     Занятия →
                   </button>
@@ -433,7 +436,7 @@ function StudentDashboard() {
         {/* Возможности платформы */}
         <Link
           to="/features"
-          className="block rounded-2xl border border-border bg-mark/60 p-5 transition hover:bg-mark"
+          className="block rounded-2xl border border-[#E8D880] bg-mark p-5 transition hover:bg-[#FFE98C]"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
 import { cn } from '../../lib/cn';
 import { useCourses } from '../../hooks/useCourses';
@@ -24,7 +25,7 @@ export function CourseLessonsDrawer({ courseId, onClose }: CourseLessonsDrawerPr
     return () => window.removeEventListener('keydown', onKeydown);
   }, [isOpen, onClose]);
 
-  return (
+  const content = (
     <>
       {isOpen ? (
         <div
@@ -36,11 +37,11 @@ export function CourseLessonsDrawer({ courseId, onClose }: CourseLessonsDrawerPr
       <aside
         aria-hidden={!isOpen}
         className={cn(
-          'fixed left-0 top-0 bottom-0 z-50 flex w-full max-w-[360px] flex-col bg-white shadow-xl transition-transform duration-300 overflow-hidden',
+          'fixed inset-y-0 left-0 z-50 flex w-full max-w-[360px] flex-col overflow-hidden rounded-r-2xl bg-white shadow-xl transition-transform duration-300',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#E5EBF3] bg-white px-4 py-3">
+        <div className="flex items-center justify-between gap-3 border-b border-[#E5EBF3] bg-white px-4 py-3">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wide text-[#6B7A8D]">Курс</p>
             <p className="truncate text-base font-semibold text-[#2C3E50]">{course?.name ?? 'Курс'}</p>
@@ -85,4 +86,6 @@ export function CourseLessonsDrawer({ courseId, onClose }: CourseLessonsDrawerPr
       </aside>
     </>
   );
+
+  return createPortal(content, document.body);
 }
