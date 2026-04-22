@@ -17,8 +17,8 @@ import {
   type ParsedCalendarEvent,
 } from './homeHelpers';
 import { EventsCalendarModal } from './EventsCalendarModal';
-import { AnnouncementAdminForm } from './AnnouncementAdminForm';
 import { CourseLessonsDrawer } from './CourseLessonsDrawer';
+import { useMyGroupsFeed } from '../../hooks/useMyGroupsFeed';
 import { GuestLanding } from './GuestLanding';
 import { RegisteredGuestHome } from './RegisteredGuestHome';
 import { useGuestStatus } from '../../hooks/useGuestStatus';
@@ -53,10 +53,7 @@ function StudentDashboard() {
     events,
     loading: feedLoading,
     error: feedError,
-    addAnnouncement,
-    addEvent,
   } = useHomeFeed();
-  const [feedActionError, setFeedActionError] = useState<string | null>(null);
   const [isEventsCalendarOpen, setIsEventsCalendarOpen] = useState(false);
   const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
     const now = new Date();
@@ -208,28 +205,6 @@ function StudentDashboard() {
     [parsedCalendarEvents]
   );
 
-  const authorName = user?.displayName || user?.email || 'Администратор';
-
-  const submitAnnouncement = async (text: string) => {
-    setFeedActionError(null);
-    try {
-      await addAnnouncement(text, authorName);
-    } catch (err: any) {
-      setFeedActionError(err?.message || 'Не удалось добавить объявление');
-      throw err;
-    }
-  };
-
-  const submitEvent = async (date: string, text: string) => {
-    setFeedActionError(null);
-    try {
-      await addEvent(date, text, authorName);
-    } catch (err: any) {
-      setFeedActionError(err?.message || 'Не удалось добавить событие');
-      throw err;
-    }
-  };
-
   const openEventsCalendar = () => {
     const firstDatedEvent = parsedCalendarEvents.find((event) => event.parsedDate);
     if (firstDatedEvent?.parsedDate) {
@@ -337,22 +312,34 @@ function StudentDashboard() {
           </div>
         </section>
 
+        <MyGroupsFeedSection />
+
         <section className="rounded-2xl border border-[#DDE5EE] bg-white p-4 text-[#2C3E50]">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-2xl font-bold">Объявления и события</h3>
-            <button
-              type="button"
-              onClick={openEventsCalendar}
-              className="inline-flex rounded-lg border border-[#C5D6EE] bg-[#F4F8FF] px-3 py-1.5 text-xs font-semibold text-[#3359CB] transition hover:bg-[#E9F1FF]"
-            >
-              Календарь
-            </button>
+            <h3 className="text-2xl font-bold">Общие объявления</h3>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={openEventsCalendar}
+                className="inline-flex rounded-lg border border-[#C5D6EE] bg-[#F4F8FF] px-3 py-1.5 text-xs font-semibold text-[#3359CB] transition hover:bg-[#E9F1FF]"
+              >
+                Календарь
+              </button>
+              {isAdmin ? (
+                <Link
+                  to="/admin/announcements"
+                  className="inline-flex rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-800 transition hover:bg-purple-100"
+                >
+                  📢 Кабинет объявлений
+                </Link>
+              ) : null}
+            </div>
           </div>
           <div className="rounded-xl bg-[#F5F8FC] px-4 py-3 text-sm text-[#5E6D7A]">
             {feedLoading ? (
               'Загрузка новостей...'
             ) : latestFeedItems.length === 0 ? (
-              'Пока нет новостей — появятся здесь, когда администратор добавит их.'
+              'Пока нет общих новостей — появятся здесь, когда администратор добавит их.'
             ) : (
               <ul className="space-y-2">
                 {latestFeedItems.map((item) => (
@@ -363,12 +350,6 @@ function StudentDashboard() {
               </ul>
             )}
           </div>
-          {isAdmin ? (
-            <AnnouncementAdminForm
-              onSubmitAnnouncement={submitAnnouncement}
-              onSubmitEvent={submitEvent}
-            />
-          ) : null}
         </section>
 
         <section className="rounded-2xl border border-[#DDE5EE] bg-white p-4 text-[#2C3E50]">
@@ -440,9 +421,9 @@ function StudentDashboard() {
           onClose={() => setLessonsDrawerCourseId(null)}
         />
 
-        {(feedError || feedActionError) && (
+        {feedError && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {feedActionError ?? feedError}
+            {feedError}
           </div>
         )}
 
@@ -472,6 +453,66 @@ function StudentDashboard() {
             </div>
           </div>
         </Link>
+      </div>
+    </section>
+  );
+}
+
+function MyGroupsFeedSection() {
+  const { items, loading } = useMyGroupsFeed();
+
+  if (loading) return null;
+  if (items.length === 0) return null;
+
+  // Группируем по groupName
+  const byGroup = new Map<string, typeof items>();
+  for (const item of items) {
+    const list = byGroup.get(item.groupName) ?? [];
+    list.push(item);
+    byGroup.set(item.groupName, list);
+  }
+
+  return (
+    <section className="rounded-2xl border border-[#D5DCE8] bg-[#F7F9FD] p-4 text-[#2C3E50]">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-2xl font-bold">Моя группа</h3>
+        <span className="text-xs text-[#8A97AB]">
+          {byGroup.size === 1 ? '1 группа' : `${byGroup.size} групп`}
+        </span>
+      </div>
+      <div className="space-y-3">
+        {Array.from(byGroup.entries()).map(([groupName, list]) => (
+          <div key={groupName} className="rounded-xl bg-white px-4 py-3">
+            <div className="mb-2 text-sm font-semibold text-[#1F4F86]">👥 {groupName}</div>
+            <ul className="space-y-2 text-sm text-[#5E6D7A]">
+              {list.slice(0, 6).map((item) => (
+                <li key={item.id}>
+                  {item.kind === 'event' && item.dateLabel ? (
+                    <>
+                      <span className="font-semibold text-purple-700">{item.dateLabel}</span>{' '}
+                    </>
+                  ) : (
+                    <span className="font-semibold text-[#2C3E50]">Объявление: </span>
+                  )}
+                  {item.text}
+                  {item.zoomLink ? (
+                    <>
+                      {' '}
+                      <a
+                        href={item.zoomLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline"
+                      >
+                        Zoom
+                      </a>
+                    </>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
     </section>
   );
