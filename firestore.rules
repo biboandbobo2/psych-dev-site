@@ -22,6 +22,15 @@ service cloud.firestore {
       );
     }
 
+    function canEditCourse(courseId) {
+      return isSuperAdmin() || (
+        isAuthenticated() &&
+        request.auth.token.role == 'admin' &&
+        request.auth.token.editableCourses is list &&
+        courseId in request.auth.token.editableCourses
+      );
+    }
+
     function isValidStudentStream(stream) {
       return stream in ['first', 'second', 'none'];
     }
@@ -30,7 +39,7 @@ service cloud.firestore {
       return isAdmin() &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['studentStream', 'studentStreamUpdatedAt', 'studentStreamUpdatedBy']) &&
-        resource.data.role == 'student' &&
+        !(resource.data.get('role', '') in ['admin', 'super-admin']) &&
         isValidStudentStream(request.resource.data.studentStream) &&
         request.resource.data.studentStreamUpdatedBy == request.auth.uid;
     }
@@ -47,44 +56,53 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // Legacy коллекции курса "Психология развития" (возрастные периоды + intro)
     match /intro/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
     match /prenatal/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
     match /early-childhood/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
     match /preschool/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
     match /primary-school/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
     match /adolescence/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
     match /periods/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
+    // Legacy: клинические темы курса "Клиническая психология"
     match /clinical-topics/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('clinical');
+    }
+    // Темы общей психологии
+    match /general-topics/{document=**} {
+      allow read: if true;
+      allow write: if canEditCourse('general');
+    }
+    // Dynamic-курсы: документ курса и его занятия
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if canEditCourse(courseId);
+      match /lessons/{document=**} {
+        allow read: if true;
+        allow write: if canEditCourse(courseId);
+      }
     }
 
     match /profiles/{userId} {

@@ -14,6 +14,7 @@
  *   npx tsx scripts/migrate-roles.ts --apply  # реально пишет в Firestore
  */
 import { FieldValue } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import { initAdmin } from './_adminInit';
 
 const CORE_COURSE_IDS = ['development', 'clinical', 'general'];
@@ -71,6 +72,15 @@ async function main() {
 
     if (apply) {
       await userDoc.ref.update(updates);
+      // Синхронизируем custom claims: admin → {role, editableCourses}, legacy → {}
+      if (role === 'admin') {
+        const editable = Array.isArray(updates.adminEditableCourses)
+          ? updates.adminEditableCourses
+          : (Array.isArray(data.adminEditableCourses) ? data.adminEditableCourses : allCourseIds);
+        await getAuth().setCustomUserClaims(uid, { role: 'admin', editableCourses: editable });
+      } else if (updates.role === FieldValue.delete()) {
+        await getAuth().setCustomUserClaims(uid, {});
+      }
     }
   }
 

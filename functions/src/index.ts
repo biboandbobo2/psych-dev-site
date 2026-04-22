@@ -302,7 +302,7 @@ export const toggleUserDisabled = functions.https.onCall(async (data, context) =
 // Re-export functions from separate modules
 export { onUserCreate } from './onUserCreate.js';
 export { migrateAdmins } from './migrateAdmins.js';
-export { makeUserAdmin, removeAdmin } from './makeAdmin.js';
+export { makeUserAdmin, removeAdmin, setAdminEditableCourses } from './makeAdmin.js';
 export { ingestBook } from './ingestBook.js';
 export { ingestLectureRag } from './ingestLectureRag.js';
 export { runVerify, runReconcile } from './verify.js';
