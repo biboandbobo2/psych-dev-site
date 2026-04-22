@@ -350,6 +350,51 @@ ${historyPrompt}
   return parsed;
 }
 
+const COURSE_INTRO_SYSTEM_INSTRUCTION = `Ты — редактор образовательных материалов на платформе «Академия Дом» (психология).
+Пиши в академичном, но дружелюбном тоне на русском языке. Никаких маркетинговых клише («уникальный», «революционный»).
+Не используй markdown, списки, заголовки. Только связный текст абзацами, разделёнными пустой строкой. Максимум 2–3 абзаца.`;
+
+const COURSE_PROGRAM_SYSTEM_INSTRUCTION = `Ты — редактор образовательных материалов на платформе «Академия Дом» (психология).
+Составь программу курса в виде нумерованного списка блоков с коротким описанием каждого (1–2 предложения). Язык — русский. Без воды и маркетинга.
+Формат: «1. Название блока — описание.» Каждый блок с новой строки.`;
+
+export interface CourseIntroDraftRequest {
+  action: 'courseIntroDraft';
+  courseName: string;
+  kind: 'idea' | 'program';
+  lessons?: string[];
+}
+
+export async function callGeminiCourseIntroDraft(
+  req: CourseIntroDraftRequest,
+  apiKey: string
+): Promise<string> {
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not configured');
+  }
+  const courseName = req.courseName.trim() || 'Неизвестный курс';
+  const lessons = (req.lessons ?? []).map((l) => l.trim()).filter(Boolean);
+  const lessonsText = lessons.length > 0
+    ? lessons.map((l, i) => `${i + 1}. ${l}`).join('\n')
+    : '(список уроков пока пуст)';
+
+  const prompt = req.kind === 'idea'
+    ? `Курс: «${courseName}».\n\nСписок уроков курса:\n${lessonsText}\n\nНапиши 1–2 абзаца «Идея курса»: для кого этот курс, что он даёт, какая логика его программы. Не перечисляй уроки по одному, говори на уровне целей и смысла.`
+    : `Курс: «${courseName}».\n\nСписок уроков курса:\n${lessonsText}\n\nСоставь связную программу курса: сгруппируй темы в 3–6 блоков и коротко опиши каждый блок.`;
+
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-lite',
+    contents: prompt,
+    config: {
+      maxOutputTokens: 800,
+      temperature: 0.6,
+      systemInstruction: req.kind === 'idea' ? COURSE_INTRO_SYSTEM_INSTRUCTION : COURSE_PROGRAM_SYSTEM_INSTRUCTION,
+    },
+  });
+  return (response.text ?? '').trim();
+}
+
 export function tryParseGeminiResponse(text: string): GeminiStructuredResponse | null {
   if (!text) return null;
 
@@ -454,6 +499,47 @@ export default async function handler(req: any, res: any) {
       code: 'INVALID_JSON',
     };
     res.status(400).json(errorResponse);
+    return;
+  }
+
+  // Action: courseIntroDraft — admin-only text generation for course intro editor
+  if (
+    body &&
+    typeof body === 'object' &&
+    (body as { action?: unknown }).action === 'courseIntroDraft'
+  ) {
+    const raw = body as Record<string, unknown>;
+    const courseName = typeof raw.courseName === 'string' ? raw.courseName : '';
+    const kind = raw.kind === 'program' ? 'program' : 'idea';
+    const lessons = Array.isArray(raw.lessons)
+      ? raw.lessons.filter((l): l is string => typeof l === 'string')
+      : [];
+    if (!courseName.trim()) {
+      res.status(400).json({ ok: false, error: 'courseName is required', code: 'INVALID_PAYLOAD' });
+      return;
+    }
+    const apiKey = getGeminiApiKey(req);
+    try {
+      const answer = await callGeminiCourseIntroDraft(
+        { action: 'courseIntroDraft', courseName, kind, lessons },
+        apiKey
+      );
+      const tokensUsed = estimateTokens(courseName) + estimateTokens(lessons.join('\n')) + estimateTokens(answer);
+      const usage = addUsage(tokensUsed);
+      res.status(200).json({
+        ok: true,
+        answer,
+        meta: { tookMs: Date.now() - started, tokensUsed, requestsToday: usage.requests },
+      });
+    } catch (error: any) {
+      const isConfig = error?.message?.includes('GEMINI_API_KEY');
+      res.status(isConfig ? 503 : 500).json({
+        ok: false,
+        error: isConfig ? 'Service not configured' : 'Не удалось сгенерировать черновик. Попробуйте позже.',
+        code: isConfig ? 'SERVICE_NOT_CONFIGURED' : 'GEMINI_ERROR',
+        ...(process.env.VERCEL_ENV !== 'production' && { debug: error?.message }),
+      });
+    }
     return;
   }
 

@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { useAuth } from '../../../auth/AuthProvider';
 import { useCourses } from '../../../hooks/useCourses';
 import { SITE_NAME } from '../../../routes';
@@ -9,6 +10,8 @@ import { MarkdownView } from '../../../lib/MarkdownView';
 import { PageLoader } from '../../../components/ui';
 import { uploadCourseAuthorPhoto, validateImageFile } from '../../../utils/mediaUpload';
 import { debugError } from '../../../lib/debug';
+import { db } from '../../../lib/firebase';
+import { useAuthStore } from '../../../stores/useAuthStore';
 
 const INPUT_CLASS =
   'w-full rounded-lg border border-[#DDE5EE] bg-white px-3 py-2 text-sm text-[#2C3E50] outline-none transition focus:border-[#2F6DB5] focus:ring-2 focus:ring-[#2F6DB5]/20';
@@ -261,12 +264,62 @@ function AuthorCardEditor({
   );
 }
 
+async function generateDraft(
+  courseName: string,
+  lessons: string[],
+  kind: 'idea' | 'program',
+  geminiKey: string | null
+): Promise<string> {
+  const response = await fetch('/api/assistant', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(geminiKey ? { 'X-Gemini-Api-Key': geminiKey } : {}),
+    },
+    body: JSON.stringify({ action: 'courseIntroDraft', courseName, lessons, kind }),
+  });
+  const data = await response.json();
+  if (!response.ok || !data.ok) {
+    throw new Error(data.error || `HTTP ${response.status}`);
+  }
+  return typeof data.answer === 'string' ? data.answer : '';
+}
+
 export default function CourseIntroEditor() {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const geminiKey = useAuthStore((s) => s.geminiApiKey);
   const { courseMap, loading: coursesLoading } = useCourses({ includeUnpublished: true });
   const editor = useCourseIntroEditor(courseId ?? '');
+  const [lessons, setLessons] = useState<string[]>([]);
+  const [generating, setGenerating] = useState<'idea' | 'program' | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!courseId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const snapshot = await getDocs(
+          query(collection(db, 'courses', courseId, 'lessons'), orderBy('order', 'asc'))
+        );
+        if (cancelled) return;
+        const titles = snapshot.docs
+          .map((d) => {
+            const data = d.data() as Record<string, unknown>;
+            return typeof data.title === 'string' ? data.title.trim() : '';
+          })
+          .filter(Boolean);
+        setLessons(titles);
+      } catch (err) {
+        debugError('CourseIntroEditor: failed to load lessons', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId]);
 
   if (!courseId) {
     return (
@@ -305,6 +358,24 @@ export default function CourseIntroEditor() {
     }
   };
 
+  const handleGenerate = async (kind: 'idea' | 'program') => {
+    setGenError(null);
+    setGenerating(kind);
+    try {
+      const draft = await generateDraft(courseName, lessons, kind, geminiKey);
+      if (!draft) {
+        setGenError('Модель вернула пустой ответ.');
+        return;
+      }
+      editor.setForm((prev) => ({ ...prev, [kind]: draft }));
+    } catch (err) {
+      debugError('generateDraft failed', err);
+      setGenError(err instanceof Error ? err.message : 'Не удалось сгенерировать.');
+    } finally {
+      setGenerating(null);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-5 p-6">
       <Helmet>
@@ -328,11 +399,20 @@ export default function CourseIntroEditor() {
       </header>
 
       <section className={SECTION_CLASS}>
-        <header className="flex items-center justify-between">
+        <header className="flex items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold text-[#2C3E50]">Идея курса</h2>
             <p className="text-xs text-[#8A97AB]">1–2 абзаца о целях и пользе курса.</p>
           </div>
+          <button
+            type="button"
+            onClick={() => handleGenerate('idea')}
+            disabled={generating !== null}
+            className="rounded-md bg-violet-600 px-3 py-2 text-sm text-white hover:bg-violet-700 disabled:opacity-50"
+            title="Сгенерировать черновик через Gemini Flash"
+          >
+            {generating === 'idea' ? 'Генерируем…' : '🤖 AI-черновик'}
+          </button>
         </header>
         <textarea
           value={editor.form.idea}
@@ -390,9 +470,20 @@ export default function CourseIntroEditor() {
       </section>
 
       <section className={SECTION_CLASS}>
-        <header>
-          <h2 className="text-lg font-semibold text-[#2C3E50]">Программа</h2>
-          <p className="text-xs text-[#8A97AB]">Структура курса свободным текстом.</p>
+        <header className="flex items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-semibold text-[#2C3E50]">Программа</h2>
+            <p className="text-xs text-[#8A97AB]">Структура курса свободным текстом.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleGenerate('program')}
+            disabled={generating !== null}
+            className="rounded-md bg-violet-600 px-3 py-2 text-sm text-white hover:bg-violet-700 disabled:opacity-50"
+            title="Сгенерировать черновик через Gemini Flash"
+          >
+            {generating === 'program' ? 'Генерируем…' : '🤖 AI-черновик'}
+          </button>
         </header>
         <textarea
           value={editor.form.program}
@@ -415,6 +506,12 @@ export default function CourseIntroEditor() {
       {editor.error ? (
         <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
           {editor.error}
+        </div>
+      ) : null}
+
+      {genError ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          AI-черновик: {genError}
         </div>
       ) : null}
 
