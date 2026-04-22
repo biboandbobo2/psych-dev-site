@@ -43,7 +43,7 @@ function getCourseIntroPath(courseId: string): string {
 }
 
 function StudentDashboard() {
-  const { user, isAdmin, userRole, studentStream } = useAuth();
+  const { user, userRole, studentStream } = useAuth();
   const { currentCourse, setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
   const { courses } = useCourses();
@@ -228,136 +228,157 @@ function StudentDashboard() {
   ].slice(0, 6);
 
   return (
-    <section className="py-8 sm:py-10">
-      <div className="space-y-4">
-        <section className="space-y-3">
-          <p className="text-sm font-medium text-[#556476]">Добрый день, {displayName}</p>
-          <h2 className="text-2xl font-black text-[#1F2F46] sm:text-3xl">Мои текущие курсы</h2>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {primaryContinueCourses.map((course) => (
-              <article
-                key={course.id}
-                className="h-full overflow-hidden rounded-2xl border border-[#D4E4FF] bg-white shadow-[0_12px_26px_rgba(18,44,84,0.12)]"
-              >
-                <div className="flex h-full min-h-[220px] flex-col sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={() => setLessonsDrawerCourseId(course.id)}
-                    className="relative flex w-full items-center justify-center bg-gradient-to-br from-[#EAF1FF] to-[#DCE8FF] p-6 transition hover:from-[#DFEAFF] hover:to-[#CFDCFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-offset-2 sm:w-[34%] sm:self-stretch"
-                    aria-label={`Открыть список занятий курса «${course.name}»`}
-                  >
-                    <span className="text-[54px]" aria-hidden>
-                      {course.icon || '📘'}
-                    </span>
-                    <span className="absolute bottom-3 left-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#3359CB]">
-                      Список занятий →
-                    </span>
-                  </button>
-                  <div
-                    role="link"
-                    tabIndex={0}
-                    onClick={() => navigate(getCourseIntroPath(course.id))}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        navigate(getCourseIntroPath(course.id));
-                      }
-                    }}
-                    className="flex w-full cursor-pointer flex-col justify-between p-5 transition hover:bg-[#F9FBFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-inset sm:w-[66%]"
-                    aria-label={`Открыть главную страницу курса «${course.name}»`}
-                  >
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5D73A1]">
-                        Курс потока
-                      </p>
-                      <h2 className="text-3xl font-black leading-tight text-[#1F2F46]">{course.name}</h2>
-                      <p className="text-sm text-[#4D607B]">Лекция: {course.lessonTitle}</p>
-                      {course.resumeTimeLabel ? (
-                        <p className="text-xs font-semibold text-[#3359CB]">{course.resumeTimeLabel}</p>
-                      ) : (
-                        <p className="text-xs font-semibold text-[#5E6D7A]">Продолжим с последнего урока</p>
-                      )}
-                    </div>
-                    <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
-                      <NavLink
-                        to={course.continuePath}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setCurrentCourse(course.id as CourseType);
-                        }}
-                        className="inline-flex items-center justify-center rounded-xl bg-[#3359CB] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2A49A8]"
-                      >
-                        ▶ Продолжить
-                      </NavLink>
-                      <div className="rounded-xl border border-[#D2DDF0] bg-[#F5F8FF] px-3 py-2 text-right">
-                        <p className="text-xl font-black leading-none text-[#1F2F46]">{course.progress.percent}%</p>
-                        <p className="mt-1 text-[11px] font-medium text-[#5E6D7A]">
-                          {course.progress.total > 0
-                            ? `${course.progress.completed}/${course.progress.total} занятий`
-                            : `${course.progress.completed} занятий`}
+    <section className="min-h-screen bg-bg py-8 sm:py-10">
+      <div className="mx-auto max-w-6xl space-y-6 px-4">
+        <header>
+          <p className="text-sm text-muted">Добрый день, {displayName}</p>
+          <h1 className="mt-1 text-3xl font-bold text-fg sm:text-4xl">Мои курсы</h1>
+        </header>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+          {/* LEFT */}
+          <div className="space-y-6">
+            {/* Карточки курсов */}
+            <div className="space-y-4">
+              {primaryContinueCourses.map((course) => (
+                <article
+                  key={course.id}
+                  className="overflow-hidden rounded-2xl border border-border bg-card shadow-brand"
+                >
+                  <div className="grid grid-cols-[104px_minmax(0,1fr)] sm:grid-cols-[200px_minmax(0,1fr)]">
+                    <button
+                      type="button"
+                      onClick={() => setLessonsDrawerCourseId(course.id)}
+                      className="flex items-center justify-center bg-[#CFEAD0] p-4 transition hover:bg-[#BFE0C1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                      aria-label={`Открыть список занятий курса «${course.name}»`}
+                    >
+                      <span className="text-[44px] sm:text-[64px]" aria-hidden>
+                        {course.icon || '📘'}
+                      </span>
+                    </button>
+                    <div
+                      role="link"
+                      tabIndex={0}
+                      onClick={() => navigate(getCourseIntroPath(course.id))}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          navigate(getCourseIntroPath(course.id));
+                        }
+                      }}
+                      className="flex min-w-0 cursor-pointer flex-col gap-3 p-5 transition hover:bg-card2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
+                      aria-label={`Открыть главную страницу курса «${course.name}»`}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                          Курс потока
                         </p>
+                        <h2 className="mt-1 break-words text-xl font-bold leading-tight text-fg sm:text-3xl">
+                          {course.name}
+                        </h2>
+                        <p className="mt-2 text-sm text-muted">Лекция: {course.lessonTitle}</p>
+                        <p className="mt-1 text-xs font-semibold text-accent">
+                          {course.resumeTimeLabel ?? 'Продолжим с последнего урока'}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <NavLink
+                          to={course.continuePath}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setCurrentCourse(course.id as CourseType);
+                          }}
+                          className="inline-flex items-center gap-2 rounded-xl border border-accent/30 bg-accent-100 px-5 py-2.5 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
+                        >
+                          ▶ Продолжить
+                        </NavLink>
+                        <div className="rounded-xl border border-border bg-card2 px-3 py-2 text-right">
+                          <p className="text-lg font-bold leading-none text-fg">
+                            {course.progress.percent}%
+                          </p>
+                          <p className="mt-1 text-[11px] text-muted">
+                            {course.progress.total > 0
+                              ? `${course.progress.completed}/${course.progress.total} занятий`
+                              : `${course.progress.completed} занятий`}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </article>
-            ))}
-            {primaryContinueCourses.length === 0 ? (
-              <article className="rounded-2xl border border-[#DDE5EE] bg-white p-6">
-                <p className="text-base text-[#5E6D7A]">
-                  Курсы для продолжения пока не найдены. Откройте нужный курс в профиле.
-                </p>
-              </article>
-            ) : null}
-          </div>
-        </section>
-
-        <MyGroupsFeedSection />
-
-        <section className="rounded-2xl border border-[#DDE5EE] bg-white p-4 text-[#2C3E50]">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-2xl font-bold">Общие объявления</h3>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={openEventsCalendar}
-                className="inline-flex rounded-lg border border-[#C5D6EE] bg-[#F4F8FF] px-3 py-1.5 text-xs font-semibold text-[#3359CB] transition hover:bg-[#E9F1FF]"
-              >
-                Календарь
-              </button>
-              {isAdmin ? (
-                <Link
-                  to="/admin/announcements"
-                  className="inline-flex rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-800 transition hover:bg-purple-100"
-                >
-                  📢 Кабинет объявлений
-                </Link>
+                </article>
+              ))}
+              {primaryContinueCourses.length === 0 ? (
+                <article className="rounded-2xl border border-border bg-card p-6">
+                  <p className="text-base text-muted">
+                    Курсы для продолжения пока не найдены. Откройте нужный курс в профиле.
+                  </p>
+                </article>
               ) : null}
             </div>
-          </div>
-          <div className="rounded-xl bg-[#F5F8FC] px-4 py-3 text-sm text-[#5E6D7A]">
-            {feedLoading ? (
-              'Загрузка новостей...'
-            ) : latestFeedItems.length === 0 ? (
-              'Пока нет общих новостей — появятся здесь, когда администратор добавит их.'
-            ) : (
-              <ul className="space-y-2">
-                {latestFeedItems.map((item) => (
-                  <li key={item.id}>
-                    <span className="font-semibold text-[#2C3E50]">{item.title}:</span> {item.text}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
 
-        <section className="rounded-2xl border border-[#DDE5EE] bg-white p-4 text-[#2C3E50]">
-          <h3 className="mb-3 text-2xl font-bold">Каталог платформы</h3>
+            {/* Общие объявления */}
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
+              <h3 className="mb-3 text-xl font-bold text-fg">Общие объявления</h3>
+              <div className="rounded-xl border border-border bg-card2 px-4 py-3 text-sm text-muted">
+                {feedLoading ? (
+                  'Загрузка новостей...'
+                ) : latestFeedItems.length === 0 ? (
+                  'Пока нет общих новостей — появятся здесь, когда администратор добавит их.'
+                ) : (
+                  <ul className="space-y-2">
+                    {latestFeedItems.map((item) => (
+                      <li key={item.id}>
+                        <span className="font-semibold text-fg">{item.title}:</span> {item.text}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </section>
+          </div>
+
+          {/* RIGHT (sticky) */}
+          <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+            <MiniWeekCalendar
+              calendarEventsByDate={calendarEventsByDate}
+              onSelectDate={(dateKey) => {
+                setSelectedCalendarDateKey(dateKey);
+                openEventsCalendar();
+              }}
+              onOpen={openEventsCalendar}
+            />
+
+            <section className="rounded-2xl border border-border bg-card p-4 shadow-brand">
+              <h3 className="mb-3 text-lg font-bold text-fg">Ближайшие события</h3>
+              {events.length === 0 ? (
+                <p className="text-sm text-muted">Нет предстоящих событий.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {events.slice(0, 3).map((event) => (
+                    <li key={event.id} className="rounded-xl border border-border bg-card2 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="min-w-0 flex-1 text-sm text-fg">{event.text}</p>
+                        <span className="whitespace-nowrap rounded-md bg-mark px-2 py-1 text-[11px] font-semibold text-[#5a4b00]">
+                          {event.dateLabel}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <MyGroupsFeedSection />
+          </aside>
+        </div>
+
+        {/* Каталог */}
+        <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
+          <h3 className="mb-4 text-xl font-bold text-fg">Каталог платформы</h3>
           {catalogCourses.length > 0 ? (
-            <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {catalogCourses.map((course) => (
-                <div
+                <article
                   key={course.id}
                   role="link"
                   tabIndex={0}
@@ -368,42 +389,67 @@ function StudentDashboard() {
                       navigate(getCourseIntroPath(course.id));
                     }
                   }}
-                  className="flex h-full cursor-pointer flex-col rounded-xl border border-[#D8E2EE] bg-[#F9FBFF] p-4 transition hover:border-[#B8CBEA] hover:bg-[#F3F7FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-offset-1"
+                  className="flex aspect-square cursor-pointer flex-col justify-between rounded-xl border border-border bg-card2 p-4 transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1"
                   aria-label={`Открыть главную страницу курса «${course.name}»`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-2xl">{course.icon || '🎓'}</p>
+                    <span className="text-3xl" aria-hidden>
+                      {course.icon || '🎓'}
+                    </span>
                     {openCourseIds.has(course.id) ? (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
-                        🔓 Открытый
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-semibold text-accent">
+                        🔓
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 line-clamp-3 text-lg font-semibold leading-snug text-[#2C3E50]">
-                    {course.name}
-                  </p>
-                  <p className="text-sm text-[#5E6D7A]">
-                    {course.isCore ? 'Основной курс платформы' : 'Дополнительный курс платформы'}
-                  </p>
+                  <div>
+                    <h4 className="line-clamp-3 text-sm font-semibold leading-tight text-fg">
+                      {course.name}
+                    </h4>
+                    <p className="mt-1 text-xs text-muted">
+                      {course.isCore ? 'Основной курс' : 'Дополнительный курс'}
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
                       setLessonsDrawerCourseId(course.id);
                     }}
-                    className="mt-auto inline-flex items-center justify-center gap-1 rounded-lg border border-[#C5D6EE] bg-white px-3 py-2 text-xs font-semibold text-[#3359CB] transition hover:bg-[#EEF4FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3359CB] focus-visible:ring-offset-1"
+                    className="self-start rounded-md text-xs font-semibold text-accent transition hover:underline"
                   >
-                    Посмотреть занятия →
+                    Занятия →
                   </button>
-                </div>
+                </article>
               ))}
             </div>
           ) : (
-            <div className="rounded-xl bg-[#F5F8FC] px-4 py-3 text-sm text-[#5E6D7A]">
+            <p className="rounded-xl border border-border bg-card2 px-4 py-3 text-sm text-muted">
               Дополнительные курсы пока не добавлены.
-            </div>
+            </p>
           )}
         </section>
+
+        {/* Возможности платформы */}
+        <Link
+          to="/features"
+          className="block rounded-2xl border border-border bg-mark/60 p-5 transition hover:bg-mark"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl" aria-hidden>
+                💡
+              </span>
+              <div>
+                <h3 className="text-lg font-bold text-[#5a4b00]">Возможности платформы</h3>
+                <p className="hidden text-sm text-[#5a4b00]/75 sm:block">
+                  Тесты, заметки, таймлайн, научный поиск
+                </p>
+              </div>
+            </div>
+            <span className="text-xl text-[#5a4b00]">→</span>
+          </div>
+        </Link>
 
         <EventsCalendarModal
           isOpen={isEventsCalendarOpen}
@@ -426,33 +472,6 @@ function StudentDashboard() {
             {feedError}
           </div>
         )}
-
-        <Link
-          to="/features"
-          className="block overflow-hidden rounded-2xl shadow-xl transition hover:shadow-2xl"
-        >
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4 sm:px-8 sm:py-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl sm:text-3xl">💡</span>
-                <div>
-                  <h3 className="text-lg font-bold text-white sm:text-xl">Возможности платформы</h3>
-                  <p className="hidden text-sm text-white/80 sm:block">
-                    Узнайте обо всех функциях: тесты, заметки, таймлайн, научный поиск
-                  </p>
-                </div>
-              </div>
-              <svg
-                className="h-6 w-6 text-white/80"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </div>
-        </Link>
       </div>
     </section>
   );
@@ -462,9 +481,16 @@ function MyGroupsFeedSection() {
   const { items, loading } = useMyGroupsFeed();
 
   if (loading) return null;
-  if (items.length === 0) return null;
 
-  // Группируем по groupName
+  if (items.length === 0) {
+    return (
+      <section className="rounded-2xl border border-border bg-accent-100/60 p-4">
+        <h3 className="mb-1 text-sm font-bold text-fg">Объявления моей группы</h3>
+        <p className="text-xs text-muted">На этой неделе нет новых.</p>
+      </section>
+    );
+  }
+
   const byGroup = new Map<string, typeof items>();
   for (const item of items) {
     const list = byGroup.get(item.groupName) ?? [];
@@ -473,26 +499,26 @@ function MyGroupsFeedSection() {
   }
 
   return (
-    <section className="rounded-2xl border border-[#D5DCE8] bg-[#F7F9FD] p-4 text-[#2C3E50]">
+    <section className="rounded-2xl border border-border bg-card p-4 shadow-brand">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-2xl font-bold">Моя группа</h3>
-        <span className="text-xs text-[#8A97AB]">
+        <h3 className="text-lg font-bold text-fg">Моя группа</h3>
+        <span className="text-xs text-muted">
           {byGroup.size === 1 ? '1 группа' : `${byGroup.size} групп`}
         </span>
       </div>
       <div className="space-y-3">
         {Array.from(byGroup.entries()).map(([groupName, list]) => (
-          <div key={groupName} className="rounded-xl bg-white px-4 py-3">
-            <div className="mb-2 text-sm font-semibold text-[#1F4F86]">👥 {groupName}</div>
-            <ul className="space-y-2 text-sm text-[#5E6D7A]">
+          <div key={groupName} className="rounded-xl border border-border bg-card2 p-3">
+            <div className="mb-2 text-sm font-semibold text-fg">👥 {groupName}</div>
+            <ul className="space-y-2 text-xs text-muted">
               {list.slice(0, 6).map((item) => (
                 <li key={item.id}>
                   {item.kind === 'event' && item.dateLabel ? (
-                    <>
-                      <span className="font-semibold text-purple-700">{item.dateLabel}</span>{' '}
-                    </>
+                    <span className="mr-1 inline-flex whitespace-nowrap rounded-md bg-mark px-1.5 py-0.5 text-[10px] font-semibold text-[#5a4b00]">
+                      {item.dateLabel}
+                    </span>
                   ) : (
-                    <span className="font-semibold text-[#2C3E50]">Объявление: </span>
+                    <span className="font-semibold text-fg">Объявление: </span>
                   )}
                   {item.text}
                   {item.zoomLink ? (
@@ -502,7 +528,7 @@ function MyGroupsFeedSection() {
                         href={item.zoomLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 underline"
+                        className="text-accent underline"
                       >
                         Zoom
                       </a>
@@ -513,6 +539,79 @@ function MyGroupsFeedSection() {
             </ul>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function MiniWeekCalendar({
+  calendarEventsByDate,
+  onSelectDate,
+  onOpen,
+}: {
+  calendarEventsByDate: Map<string, ParsedCalendarEvent[]>;
+  onSelectDate: (dateKey: string) => void;
+  onOpen: () => void;
+}) {
+  const days = useMemo(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + mondayOffset);
+    const weekday = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+    const todayKey = toDateKey(today);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const key = toDateKey(d);
+      return {
+        n: d.getDate(),
+        d: weekday[i],
+        dateKey: key,
+        isToday: key === todayKey,
+      };
+    });
+  }, []);
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-4 shadow-brand">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-lg font-bold text-fg">Календарь</h3>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="text-xs text-muted transition hover:text-accent"
+        >
+          Месяц ▾
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {days.map((day) => {
+          const hasEvents = calendarEventsByDate.has(day.dateKey);
+          return (
+            <button
+              key={day.dateKey}
+              type="button"
+              onClick={() => onSelectDate(day.dateKey)}
+              className="py-1 transition hover:opacity-80"
+            >
+              <div className="text-[10px] uppercase text-muted">{day.d}</div>
+              <div
+                className={`mx-auto mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm ${
+                  day.isToday ? 'bg-mark font-bold text-[#5a4b00]' : 'text-fg'
+                }`}
+              >
+                {day.n}
+              </div>
+              <div
+                className={`mx-auto mt-1 h-1.5 w-1.5 rounded-full ${
+                  hasEvents ? 'bg-accent' : 'bg-transparent'
+                }`}
+              />
+            </button>
+          );
+        })}
       </div>
     </section>
   );

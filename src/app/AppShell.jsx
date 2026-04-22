@@ -168,7 +168,11 @@ function MainAppShell({ location, normalizedPath, isSuperAdmin }) {
   const isProfilePage = normalizedPath === '/profile';
   const isNotesPage = normalizedPath === '/notes';
   const hideNavigation =
-    normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/superadmin') || isHomePage || isProfilePage;
+    normalizedPath.startsWith('/admin') ||
+    normalizedPath.startsWith('/superadmin') ||
+    normalizedPath.startsWith('/_debug') ||
+    isHomePage ||
+    isProfilePage;
   const { isOpen, openModal, closeModal } = useLoginModal();
 
   // Используем глобальный store для курса

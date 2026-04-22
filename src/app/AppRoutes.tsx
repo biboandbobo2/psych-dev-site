@@ -28,6 +28,7 @@ import {
   AdminAnnouncements,
   AdminGroups,
   PaletteDebug,
+  HomeV2Debug,
   WarmSprings2Page,
   BookingSectionLayout,
   BookingPage,
@@ -142,6 +143,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           }
         />
         <Route path="/_debug/palette" element={<PaletteDebug />} />
+        <Route path="/_debug/home-v2" element={<HomeV2Debug />} />
         <Route
           path="/admin/books"
           element={
