@@ -1,7 +1,7 @@
 import type { UserRecord } from '../../../../hooks/useAllUsers';
 import type { CourseAccessMap, StudentStream } from '../../../../types/user';
 import { countAccessibleCourses } from '../../../../types/user';
-import { getRoleLabel, getRoleBadgeClasses, isAdminRole, canEditCourseAccess } from '../utils/roleHelpers';
+import { getRoleLabel, getRoleBadgeClasses, computeDisplayRole } from '../utils/roleHelpers';
 
 interface CourseOption {
   id: string;
@@ -48,8 +48,9 @@ export function UserRow({
   canManageStudentStream,
 }: UserRowProps) {
   const isCurrentUser = user.uid === currentUserUid;
-  const userIsAdmin = isAdminRole(user.role);
-  const userCanEditCourseAccess = canEditCourseAccess(user.role);
+  const userIsAdmin = user.role === 'admin' || user.role === 'super-admin';
+  const displayRole = computeDisplayRole(user.role, user.courseAccess);
+  const userCanEditCourseAccess = !userIsAdmin;
   const displayName =
     user.displayName && user.displayName.trim()
       ? user.displayName
@@ -102,9 +103,9 @@ export function UserRow({
         </td>
         <td className="whitespace-nowrap px-6 py-4">
           <span
-            className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getRoleBadgeClasses(user.role)}`}
+            className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getRoleBadgeClasses(displayRole)}`}
           >
-            {getRoleLabel(user.role)}
+            {getRoleLabel(displayRole)}
           </span>
         </td>
         <td className="whitespace-nowrap px-6 py-4">
@@ -252,37 +253,13 @@ function RoleActions({
         />
       )}
 
-      {user.role === 'guest' && (
-        <>
-          <ActionButton
-            onClick={() => onSetRole('student')}
-            disabled={isLoading}
-            variant="blue"
-            label={isLoading ? 'Ждите...' : 'Студент'}
-          />
-          <ActionButton
-            onClick={onMakeAdmin}
-            disabled={isLoading}
-            variant="green"
-            label={isLoading ? 'Ждите...' : 'Админ'}
-          />
-        </>
-      )}
-      {user.role === 'student' && (
-        <>
-          <ActionButton
-            onClick={() => onSetRole('guest')}
-            disabled={isLoading}
-            variant="yellow"
-            label={isLoading ? 'Ждите...' : 'Гость'}
-          />
-          <ActionButton
-            onClick={onMakeAdmin}
-            disabled={isLoading}
-            variant="green"
-            label={isLoading ? 'Ждите...' : 'Админ'}
-          />
-        </>
+      {!user.role && (
+        <ActionButton
+          onClick={onMakeAdmin}
+          disabled={isLoading}
+          variant="green"
+          label={isLoading ? 'Ждите...' : 'Админ'}
+        />
       )}
       {user.role === 'admin' && (
         <ActionButton
@@ -374,12 +351,12 @@ function CourseAccessPanel({
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <h4 className="mb-3 text-sm font-semibold text-gray-700">
             Доступ к курсам
-            {isAdmin && (
+            {isAdmin && user.role && (
               <span className="ml-2 text-xs font-normal text-gray-500">
                 (роль {getRoleLabel(user.role)} имеет полный доступ)
               </span>
             )}
-            {user.role === 'student' && (
+            {!user.role && (
               <span className="ml-2 text-xs font-normal text-blue-500">
                 (снятие галочки ограничит доступ)
               </span>

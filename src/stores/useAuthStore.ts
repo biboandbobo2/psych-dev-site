@@ -8,13 +8,15 @@ import { reportAppError } from '../lib/errorHandler';
 import { debugLog } from '../lib/debug';
 import type { CourseType } from '../types/tests';
 import type { CourseAccessMap, StudentStream, UserRole } from '../types/user';
-import { hasCourseAccess as checkCourseAccess } from '../types/user';
+import { hasCourseAccess as checkCourseAccess, normalizeUserRole } from '../types/user';
 
 interface AuthState {
   user: User | null;
   loading: boolean;
   userRole: UserRole | null;
-  /** Гранулярный доступ к курсам (для guest) */
+  /** Список courseId, которые admin может редактировать. Только для role='admin'. */
+  adminEditableCourses: string[];
+  /** Гранулярный доступ к курсам */
   courseAccess: CourseAccessMap | null;
   /** API ключ Gemini пользователя (BYOK) */
   geminiApiKey: string | null;
@@ -22,8 +24,6 @@ interface AuthState {
   studentStream: StudentStream;
 
   // Computed properties
-  isGuest: boolean;
-  isStudent: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
 
@@ -31,6 +31,7 @@ interface AuthState {
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
   setUserRole: (role: UserRole | null) => void;
+  setAdminEditableCourses: (courses: string[]) => void;
   setCourseAccess: (access: CourseAccessMap | null) => void;
   setGeminiApiKey: (key: string | null) => void;
   setStudentStream: (stream: StudentStream) => void;
@@ -52,11 +53,10 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       loading: true,
       userRole: null,
+      adminEditableCourses: [],
       courseAccess: null,
       geminiApiKey: null,
       studentStream: 'none',
-      isGuest: false,
-      isStudent: false,
       isAdmin: false,
       isSuperAdmin: false,
 
@@ -67,17 +67,15 @@ export const useAuthStore = create<AuthState>()(
       setUserRole: (userRole) => {
         const isSuperAdmin = userRole === 'super-admin';
         const isAdmin = userRole === 'admin' || isSuperAdmin;
-        const isStudent = userRole === 'student';
-        const isGuest = userRole === 'guest';
 
         set({
           userRole,
           isSuperAdmin,
           isAdmin,
-          isStudent,
-          isGuest,
         });
       },
+
+      setAdminEditableCourses: (adminEditableCourses) => set({ adminEditableCourses }),
 
       setCourseAccess: (courseAccess) => set({ courseAccess }),
 
@@ -126,6 +124,7 @@ export const useAuthStore = create<AuthState>()(
 
           if (!next) {
             get().setUserRole(null);
+            get().setAdminEditableCourses([]);
             get().setCourseAccess(null);
             get().setGeminiApiKey(null);
             get().setStudentStream('none');
@@ -136,48 +135,30 @@ export const useAuthStore = create<AuthState>()(
           get().setLoading(true);
 
           try {
-            let resolvedRole: UserRole = 'guest';
+            let resolvedRole: UserRole | null = null;
 
             if (next.email === SUPER_ADMIN_EMAIL) {
               resolvedRole = 'super-admin';
             } else {
               // Фаза 1: пробуем кешированный токен (без сетевого запроса).
-              // Это позволяет мгновенно определить роль на мобильных.
               const cachedToken = await next.getIdTokenResult(false);
-              const cachedRole = cachedToken.claims.role;
+              resolvedRole = normalizeUserRole(cachedToken.claims.role);
 
-              if (cachedRole === 'admin' || cachedRole === 'super-admin') {
-                resolvedRole = cachedRole as UserRole;
-              } else if (cachedRole === 'student') {
-                resolvedRole = 'student';
-              } else if (cachedRole === 'guest') {
-                resolvedRole = 'guest';
-              } else {
-                // Нет role в claims — проверяем Firestore для legacy пользователей
+              if (!resolvedRole) {
+                // Нет admin-роли в claims — проверяем Firestore для legacy/freshly-granted
                 const snap = await getDoc(doc(db, 'users', next.uid));
-                const firestoreRole = snap.data()?.role;
-                if (firestoreRole === 'admin' || firestoreRole === 'super-admin') {
-                  resolvedRole = firestoreRole;
-                } else if (firestoreRole === 'student') {
-                  resolvedRole = 'student';
-                } else if (firestoreRole === 'guest') {
-                  resolvedRole = 'guest';
-                } else {
-                  // Legacy пользователи без явной роли считаются student
-                  resolvedRole = 'student';
-                }
+                resolvedRole = normalizeUserRole(snap.data()?.role);
               }
             }
 
             get().setUserRole(resolvedRole);
 
             // Фаза 2: обновляем токен в фоне (подхватит изменения claims).
-            // Не блокирует UI — роль уже установлена из кеша.
             if (next.email !== SUPER_ADMIN_EMAIL) {
               next.getIdTokenResult(true).then((freshToken) => {
                 if (cancelled) return;
-                const freshRole = freshToken.claims.role as UserRole | undefined;
-                if (freshRole && freshRole !== get().userRole) {
+                const freshRole = normalizeUserRole(freshToken.claims.role);
+                if (freshRole !== get().userRole) {
                   debugLog('🔄 Auth: role updated from fresh token:', freshRole);
                   get().setUserRole(freshRole);
                 }
@@ -211,10 +192,17 @@ export const useAuthStore = create<AuthState>()(
                 }
 
                 // Обновляем роль если изменилась
-                const newRole = data?.role as UserRole | undefined;
-                if (newRole && newRole !== get().userRole) {
+                const newRole = normalizeUserRole(data?.role);
+                if (newRole !== get().userRole) {
                   get().setUserRole(newRole);
                 }
+
+                // adminEditableCourses синхронно с Firestore
+                const editableRaw = data?.adminEditableCourses;
+                const editable = Array.isArray(editableRaw)
+                  ? editableRaw.filter((c): c is string => typeof c === 'string')
+                  : [];
+                get().setAdminEditableCourses(editable);
               },
               (error) => {
                 reportAppError({
@@ -226,7 +214,8 @@ export const useAuthStore = create<AuthState>()(
             );
           } catch (error) {
             reportAppError({ message: 'Не удалось определить роль пользователя', error, context: 'useAuthStore.initializeAuth' });
-            get().setUserRole('guest');
+            get().setUserRole(null);
+            get().setAdminEditableCourses([]);
             get().setCourseAccess(null);
             get().setGeminiApiKey(null);
             get().setStudentStream('none');

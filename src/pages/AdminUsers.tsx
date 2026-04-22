@@ -69,19 +69,23 @@ export default function AdminUsers() {
     );
   }
 
+  const hasAnyCourse = (u: typeof users[number]) =>
+    !!u.courseAccess && Object.values(u.courseAccess).some((v) => v === true);
+
   const filteredUsers = users.filter((user) => {
     if (filter === 'all') return true;
     if (filter === 'admins') return user.role === 'admin' || user.role === 'super-admin';
-    if (filter === 'students') return user.role === 'student';
-    if (filter === 'guests') return user.role === 'guest';
+    const isAdminUser = user.role === 'admin' || user.role === 'super-admin';
+    if (filter === 'students') return !isAdminUser && hasAnyCourse(user);
+    if (filter === 'guests') return !isAdminUser && !hasAnyCourse(user);
     return true;
   });
 
   const stats = {
     total: users.length,
     admins: users.filter((u) => u.role === 'admin' || u.role === 'super-admin').length,
-    students: users.filter((u) => u.role === 'student').length,
-    guests: users.filter((u) => u.role === 'guest').length,
+    students: users.filter((u) => !(u.role === 'admin' || u.role === 'super-admin') && hasAnyCourse(u)).length,
+    guests: users.filter((u) => !(u.role === 'admin' || u.role === 'super-admin') && !hasAnyCourse(u)).length,
   };
 
   return (
@@ -163,7 +167,7 @@ export default function AdminUsers() {
                 onSetStudentStream={(stream) => handleSetStudentStream(user.uid, stream)}
                 onToggleDisabled={() => handleToggleDisabled(user.uid, user.disabled === true)}
                 courseOptions={courseOptions}
-                canManageStudentStream={isAdmin && user.role === 'student'}
+                canManageStudentStream={isAdmin && !(user.role === 'admin' || user.role === 'super-admin') && hasAnyCourse(user)}
               />
             ))}
           </tbody>

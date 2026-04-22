@@ -66,7 +66,8 @@ function StudentDashboard() {
   const [lessonsDrawerCourseId, setLessonsDrawerCourseId] = useState<string | null>(null);
 
   const streamCourseIds = useMemo(() => {
-    if (userRole !== 'student') return null;
+    // Stream-приоритизация применяется только к обычным юзерам (не админам).
+    if (userRole) return null;
 
     const availableCourseIds = new Set(courses.map((course) => course.id));
     const clinicalIntroCourseId = availableCourseIds.has('vvedenie-v-osnovy-klinicheskoy-psihologii')

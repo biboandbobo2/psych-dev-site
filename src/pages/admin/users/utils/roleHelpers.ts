@@ -1,9 +1,11 @@
 import type { UserRole } from '../../../../types/user';
 
+export type DisplayRole = UserRole | 'student' | 'guest';
+
 /**
- * Возвращает читаемое название роли
+ * Возвращает читаемое название роли (включая computed student/guest).
  */
-export function getRoleLabel(role: UserRole): string {
+export function getRoleLabel(role: DisplayRole): string {
   switch (role) {
     case 'super-admin':
       return 'Супер-админ';
@@ -19,9 +21,9 @@ export function getRoleLabel(role: UserRole): string {
 }
 
 /**
- * Возвращает CSS классы для бейджа роли
+ * CSS классы для бейджа роли.
  */
-export function getRoleBadgeClasses(role: UserRole): string {
+export function getRoleBadgeClasses(role: DisplayRole): string {
   switch (role) {
     case 'super-admin':
       return 'bg-purple-100 text-purple-800';
@@ -37,15 +39,17 @@ export function getRoleBadgeClasses(role: UserRole): string {
 }
 
 /**
- * Проверяет, является ли роль административной (admin или super-admin)
+ * Вычисляет "отображаемую роль" пользователя для админских списков/фильтров.
+ * admin/super-admin — из поля role. Остальные: student если у юзера есть
+ * хоть один курс в courseAccess, иначе guest.
  */
-export function isAdminRole(role: UserRole): boolean {
-  return role === 'admin' || role === 'super-admin';
-}
-
-/**
- * Проверяет, можно ли редактировать доступ к курсам для данной роли
- */
-export function canEditCourseAccess(role: UserRole): boolean {
-  return role === 'student' || role === 'guest';
+export function computeDisplayRole(
+  role: UserRole | null,
+  courseAccess: Record<string, boolean | undefined> | null | undefined
+): DisplayRole {
+  if (role === 'admin' || role === 'super-admin') return role;
+  const hasAnyCourse = courseAccess
+    ? Object.values(courseAccess).some((v) => v === true)
+    : false;
+  return hasAnyCourse ? 'student' : 'guest';
 }
