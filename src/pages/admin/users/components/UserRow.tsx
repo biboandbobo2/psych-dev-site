@@ -19,6 +19,7 @@ export interface UserRowProps {
   courseAccessSaving: boolean;
   onRowClick: () => void;
   onRemoveAdmin: () => void;
+  onEditAdminCourses: () => void;
   onCourseAccessChange: (courseId: string, value: boolean) => void;
   onSaveCourseAccess: () => void;
   onSetStudentStream: (stream: StudentStream) => void;
@@ -37,6 +38,7 @@ export function UserRow({
   courseAccessSaving,
   onRowClick,
   onRemoveAdmin,
+  onEditAdminCourses,
   onCourseAccessChange,
   onSaveCourseAccess,
   onSetStudentStream,
@@ -124,6 +126,7 @@ export function UserRow({
             isSuperAdmin={isSuperAdmin}
             actionLoading={actionLoading}
             onRemoveAdmin={onRemoveAdmin}
+            onEditAdminCourses={onEditAdminCourses}
             onToggleDisabled={onToggleDisabled}
           />
         </td>
@@ -214,6 +217,7 @@ function RoleActions({
   isSuperAdmin,
   actionLoading,
   onRemoveAdmin,
+  onEditAdminCourses,
   onToggleDisabled,
 }: {
   user: UserRecord;
@@ -221,6 +225,7 @@ function RoleActions({
   isSuperAdmin: boolean;
   actionLoading: string | null;
   onRemoveAdmin: () => void;
+  onEditAdminCourses: () => void;
   onToggleDisabled: () => void;
 }) {
   if (!isSuperAdmin || user.uid === currentUserUid) {
@@ -244,12 +249,21 @@ function RoleActions({
       )}
 
       {user.role === 'admin' && (
-        <ActionButton
-          onClick={onRemoveAdmin}
-          disabled={isLoading}
-          variant="red"
-          label={isLoading ? 'Ждите...' : 'Снять права'}
-        />
+        <>
+          <ActionButton
+            onClick={onEditAdminCourses}
+            disabled={isLoading}
+            variant="blue"
+            label={isLoading ? 'Ждите...' : 'Курсы'}
+            title="Какие курсы может редактировать"
+          />
+          <ActionButton
+            onClick={onRemoveAdmin}
+            disabled={isLoading}
+            variant="red"
+            label={isLoading ? 'Ждите...' : 'Снять права'}
+          />
+        </>
       )}
       {user.role === 'super-admin' && (
         <span className="text-gray-400">Super-admin</span>

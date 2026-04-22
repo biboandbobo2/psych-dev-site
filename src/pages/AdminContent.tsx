@@ -35,6 +35,8 @@ import {
 import { isCoreCourse } from "../constants/courses";
 import { useCourses } from "../hooks/useCourses";
 import { useActiveCourse } from "../hooks/useActiveCourse";
+import { useAuthStore } from "../stores/useAuthStore";
+import { canEditCourse } from "../types/user";
 import type { CourseType } from "../types/tests";
 
 interface Period {
@@ -204,6 +206,9 @@ export default function AdminContent() {
 
   const activeCourse = useActiveCourse(courses, coursesLoading);
   const isCore = isCoreCourse(activeCourse);
+  const userRole = useAuthStore((s) => s.userRole);
+  const adminEditableCourses = useAuthStore((s) => s.adminEditableCourses);
+  const canEditActiveCourse = canEditCourse(userRole, adminEditableCourses, activeCourse);
   const loadRequestId = useRef(0);
 
   const loadPeriods = async (courseId: string = activeCourse) => {
@@ -340,14 +345,16 @@ export default function AdminContent() {
       <header className="flex items-center justify-between gap-3 mb-2">
         <h1 className="text-2xl font-bold sm:text-3xl">Управление контентом</h1>
         <div className="flex items-center gap-2">
-          <Link
-            to={`/admin/content/course-intro/${activeCourse}`}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#E8F0FA] px-4 py-2 text-[#1F4F86] transition-colors hover:bg-[#D5E4F5]"
-            title="«О курсе»: Идея, Авторы, Программа"
-          >
-            <span className="text-lg" aria-hidden>✨</span>
-            <span className="text-sm font-medium">О курсе</span>
-          </Link>
+          {canEditActiveCourse && (
+            <Link
+              to={`/admin/content/course-intro/${activeCourse}`}
+              className="inline-flex items-center gap-2 rounded-lg bg-[#E8F0FA] px-4 py-2 text-[#1F4F86] transition-colors hover:bg-[#D5E4F5]"
+              title="«О курсе»: Идея, Авторы, Программа"
+            >
+              <span className="text-lg" aria-hidden>✨</span>
+              <span className="text-sm font-medium">О курсе</span>
+            </Link>
+          )}
           <Link
             to="/admin/books"
             className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-4 py-2 text-amber-900 transition-colors hover:bg-amber-200"
@@ -359,23 +366,32 @@ export default function AdminContent() {
         </div>
       </header>
 
-      <Link
-        to={`/admin/content/course-intro/${activeCourse}`}
-        className="block rounded-xl border border-[#C6D7EA] bg-[#F4F9FF] p-4 transition hover:bg-[#E8F0FA]"
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span aria-hidden>✨</span>
-              <span className="text-sm font-semibold text-[#1F4F86]">Вводная страница курса</span>
-            </div>
-            <p className="mt-1 text-xs text-[#556476]">
-              Идея, авторы и программа — показываются на странице «О курсе» этого курса.
-            </p>
-          </div>
-          <span className="text-xl text-[#1F4F86]">→</span>
+      {!canEditActiveCourse && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Этот курс доступен только для просмотра — редактирование отключено. Супер-админ может
+          добавить курс в список ваших прав в разделе «Пользователи».
         </div>
-      </Link>
+      )}
+
+      {canEditActiveCourse && (
+        <Link
+          to={`/admin/content/course-intro/${activeCourse}`}
+          className="block rounded-xl border border-[#C6D7EA] bg-[#F4F9FF] p-4 transition hover:bg-[#E8F0FA]"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span aria-hidden>✨</span>
+                <span className="text-sm font-semibold text-[#1F4F86]">Вводная страница курса</span>
+              </div>
+              <p className="mt-1 text-xs text-[#556476]">
+                Идея, авторы и программа — показываются на странице «О курсе» этого курса.
+              </p>
+            </div>
+            <span className="text-xl text-[#1F4F86]">→</span>
+          </div>
+        </Link>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1">
@@ -387,13 +403,15 @@ export default function AdminContent() {
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-          <button
-            onClick={() => setShowCreateLesson(true)}
-            className={`${ACTION_BUTTON_CLASS} bg-emerald-600 hover:bg-emerald-700`}
-          >
-            <span aria-hidden>➕</span>
-            <span>Добавить занятие</span>
-          </button>
+          {canEditActiveCourse && (
+            <button
+              onClick={() => setShowCreateLesson(true)}
+              className={`${ACTION_BUTTON_CLASS} bg-emerald-600 hover:bg-emerald-700`}
+            >
+              <span aria-hidden>➕</span>
+              <span>Добавить занятие</span>
+            </button>
+          )}
 
           <button
             onClick={() => setShowTestEditor(true)}

@@ -10,9 +10,11 @@ export interface UserRecord {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  role: UserRole;
+  role: UserRole | null;
+  /** Список courseId, которые admin может редактировать. Только для role='admin'. */
+  adminEditableCourses?: string[];
   studentStream?: StudentStream;
-  /** Гранулярный доступ к курсам (для guest) */
+  /** Гранулярный доступ к курсам */
   courseAccess?: CourseAccessMap;
   /** Пользователь отключён (не может войти, но данные сохранены) */
   disabled?: boolean;

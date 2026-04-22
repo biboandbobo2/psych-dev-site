@@ -3,6 +3,7 @@ import { useAllUsers } from "../hooks/useAllUsers";
 import { useAuth } from "../auth/AuthProvider";
 import { AddAdminModal } from "../components/AddAdminModal";
 import { BulkStudentAccessModal } from "../components/BulkStudentAccessModal";
+import { EditAdminPermissionsModal } from "../components/EditAdminPermissionsModal";
 import { SuperAdminBadge } from "../components/SuperAdminBadge";
 import { useCourses } from "../hooks/useCourses";
 import { UserRow, useUserManagement } from "./admin/users";
@@ -20,6 +21,8 @@ export default function AdminUsers() {
   const [filter, setFilter] = useState<UserFilter>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [editingAdminUid, setEditingAdminUid] = useState<string | null>(null);
+  const editingAdmin = editingAdminUid ? users.find((u) => u.uid === editingAdminUid) : null;
 
   const {
     actionLoading,
@@ -158,6 +161,7 @@ export default function AdminUsers() {
                 courseAccessSaving={courseAccessSaving}
                 onRowClick={() => handleRowClick(user)}
                 onRemoveAdmin={() => handleRemoveAdmin(user.uid)}
+                onEditAdminCourses={() => setEditingAdminUid(user.uid)}
                 onCourseAccessChange={handleCourseAccessChange}
                 onSaveCourseAccess={() => handleSaveCourseAccess(user.uid)}
                 onSetStudentStream={(stream) => handleSetStudentStream(user.uid, stream)}
@@ -185,6 +189,17 @@ export default function AdminUsers() {
         onClose={() => setIsBulkModalOpen(false)}
         courseOptions={courseOptions}
       />
+
+      {editingAdmin && (
+        <EditAdminPermissionsModal
+          isOpen={Boolean(editingAdminUid)}
+          onClose={() => setEditingAdminUid(null)}
+          onSuccess={() => window.alert('Список редактируемых курсов обновлён')}
+          targetUid={editingAdmin.uid}
+          targetName={editingAdmin.displayName || editingAdmin.email || editingAdmin.uid}
+          currentEditableCourses={editingAdmin.adminEditableCourses ?? []}
+        />
+      )}
     </div>
   );
 }
