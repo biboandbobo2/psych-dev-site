@@ -11,6 +11,8 @@ import { getAllTestResults, groupResultsByTest } from '../../lib/testResults';
 import type { Test } from '../../types/tests';
 import type { TestAttemptSummary } from '../../types/testResults';
 import { PageLoader } from '../../components/ui';
+import { useCourseIntro } from '../../hooks/useCourseIntro';
+import { CourseAboutSection } from './CourseAboutSection';
 
 interface CourseIntroPageProps {
   courseId: string;
@@ -186,29 +188,6 @@ function NotesContent({ courseId }: { courseId: string }) {
   );
 }
 
-function AboutPlaceholder({ courseName }: { courseName: string }) {
-  return (
-    <section className="rounded-2xl border border-dashed border-[#DDE5EE] bg-[#F9FBFF] p-5">
-      <h2 className="text-lg font-semibold text-[#2C3E50]">О курсе</h2>
-      <p className="mt-1 text-xs uppercase tracking-wide text-[#8A97AB]">Раздел скоро заполнит администратор</p>
-      <dl className="mt-4 space-y-3 text-sm text-[#556476]">
-        <div>
-          <dt className="font-semibold text-[#2C3E50]">Авторы</dt>
-          <dd className="text-[#8A97AB]">—</dd>
-        </div>
-        <div>
-          <dt className="font-semibold text-[#2C3E50]">Идея курса</dt>
-          <dd className="text-[#8A97AB]">Будет добавлено описание целей «{courseName}».</dd>
-        </div>
-        <div>
-          <dt className="font-semibold text-[#2C3E50]">Программа</dt>
-          <dd className="text-[#8A97AB]">—</dd>
-        </div>
-      </dl>
-    </section>
-  );
-}
-
 export default function CourseIntroPage({ courseId }: CourseIntroPageProps) {
   const { user } = useAuth();
   const { courses, loading: coursesLoading } = useCourses();
@@ -218,6 +197,7 @@ export default function CourseIntroPage({ courseId }: CourseIntroPageProps) {
   const [resultsLoading, setResultsLoading] = useState(true);
   const [expanded, setExpanded] = useState<ExpandedSection>(null);
   const { notes: allNotes, loading: notesLoading } = useNotes();
+  const { intro, loading: introLoading } = useCourseIntro(courseId);
 
   useEffect(() => {
     let cancelled = false;
@@ -402,7 +382,7 @@ export default function CourseIntroPage({ courseId }: CourseIntroPageProps) {
         </section>
       ) : null}
 
-      <AboutPlaceholder courseName={courseName} />
+      <CourseAboutSection intro={intro} loading={introLoading} courseName={courseName} />
     </div>
   );
 }
