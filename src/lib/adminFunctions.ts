@@ -146,6 +146,22 @@ export async function deleteGroup(groupId: string) {
   return result.data;
 }
 
+export interface AddGroupMembersByEmailResponse {
+  success: true;
+  resolvedExisting: number;
+  createdPending: number;
+  uids: string[];
+}
+
+export async function addGroupMembersByEmail(params: { groupId: string; emails: string[] }) {
+  const call = httpsCallable<
+    { groupId: string; emails: string[] },
+    AddGroupMembersByEmailResponse
+  >(functions, "addGroupMembersByEmail");
+  const result = await call(params);
+  return result.data;
+}
+
 /**
  * Обновляет доступ пользователя к курсам.
  * Только super-admin может вызывать эту функцию.

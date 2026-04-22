@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { createGroup, updateGroup, setGroupMembers, deleteGroup } from '../../../lib/adminFunctions';
+import {
+  addGroupMembersByEmail,
+  createGroup,
+  deleteGroup,
+  setGroupMembers,
+  updateGroup,
+} from '../../../lib/adminFunctions';
 import { useCourses } from '../../../hooks/useCourses';
 import { useAllUsers } from '../../../hooks/useAllUsers';
 import type { Group } from '../../../types/groups';
@@ -21,6 +27,9 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
   const [memberIds, setMemberIds] = useState<Set<string>>(() => new Set());
   const [announcementAdminIds, setAnnouncementAdminIds] = useState<Set<string>>(() => new Set());
   const [memberSearch, setMemberSearch] = useState('');
+  const [inviteEmails, setInviteEmails] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [inviteNotice, setInviteNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +45,8 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
     setMemberIds(new Set(group?.memberIds ?? []));
     setAnnouncementAdminIds(new Set(group?.announcementAdminIds ?? []));
     setMemberSearch('');
+    setInviteEmails('');
+    setInviteNotice(null);
     setError(null);
   }, [isOpen, group]);
 
@@ -105,6 +116,37 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
       setError(err instanceof Error ? err.message : 'Не удалось сохранить группу.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleInvite = async () => {
+    if (!isEdit || !group) return;
+    const emails = inviteEmails
+      .split(/[\s,;]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => e.includes('@'));
+    if (emails.length === 0) {
+      setInviteNotice('Нет корректных email.');
+      return;
+    }
+    setInviting(true);
+    setInviteNotice(null);
+    try {
+      const res = await addGroupMembersByEmail({ groupId: group.id, emails });
+      setMemberIds((prev) => {
+        const next = new Set(prev);
+        res.uids.forEach((uid) => next.add(uid));
+        return next;
+      });
+      setInviteEmails('');
+      setInviteNotice(
+        `Добавлено: ${res.resolvedExisting} уже зарегистрированных, ${res.createdPending} приглашено заранее.`
+      );
+    } catch (err) {
+      debugError('addGroupMembersByEmail failed', err);
+      setInviteNotice(err instanceof Error ? err.message : 'Не удалось пригласить.');
+    } finally {
+      setInviting(false);
     }
   };
 
@@ -235,11 +277,48 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
             <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500">
               Участники ({memberIds.size})
             </legend>
+
+            {isEdit && group ? (
+              <div className="space-y-2 rounded-lg border border-dashed border-gray-300 bg-[#F9FBFF] p-3">
+                <p className="text-xs font-semibold text-[#2C3E50]">Пригласить по email</p>
+                <p className="text-xs text-gray-500">
+                  Вставь список email (через запятую, пробел или с новой строки). Уже зарегистрированные
+                  попадут в группу сразу; остальным зарезервируется место — они войдут в группу автоматически
+                  при первой регистрации.
+                </p>
+                <textarea
+                  value={inviteEmails}
+                  onChange={(e) => setInviteEmails(e.target.value)}
+                  rows={2}
+                  placeholder="alice@example.com, bob@example.com"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  disabled={inviting || saving}
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleInvite}
+                    disabled={inviting || saving || !inviteEmails.trim()}
+                    className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {inviting ? 'Добавляем…' : 'Пригласить'}
+                  </button>
+                  {inviteNotice && (
+                    <span className="text-xs text-gray-700">{inviteNotice}</span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                Приглашения по email доступны после создания группы — сначала сохраните её, затем откройте снова.
+              </p>
+            )}
+
             <input
               type="search"
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
-              placeholder="Поиск по имени или email"
+              placeholder="Поиск по имени или email среди зарегистрированных"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
               disabled={saving}
             />
