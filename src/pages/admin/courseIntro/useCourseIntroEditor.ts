@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { debugError } from '../../../lib/debug';
 import { normalizeCourseIntro } from '../../../hooks/useCourseIntro';
@@ -92,7 +92,6 @@ export function useCourseIntroEditor(courseId: string) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [courseExists, setCourseExists] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,14 +100,7 @@ export function useCourseIntroEditor(courseId: string) {
     getDoc(doc(db, 'courses', courseId))
       .then((snap) => {
         if (cancelled) return;
-        if (!snap.exists()) {
-          setCourseExists(false);
-          setForm(EMPTY_FORM);
-          setInitialForm(EMPTY_FORM);
-          return;
-        }
-        setCourseExists(true);
-        const intro = normalizeCourseIntro(snap.data()?.intro);
+        const intro = snap.exists() ? normalizeCourseIntro(snap.data()?.intro) : null;
         const loadedForm = introToForm(intro);
         setForm(loadedForm);
         setInitialForm(loadedForm);
@@ -131,10 +123,11 @@ export function useCourseIntroEditor(courseId: string) {
       setError(null);
       try {
         const payload = buildIntroPayload(form, userId);
-        await updateDoc(doc(db, 'courses', courseId), {
-          intro: payload,
-          updatedAt: serverTimestamp(),
-        });
+        await setDoc(
+          doc(db, 'courses', courseId),
+          { intro: payload, updatedAt: serverTimestamp() },
+          { merge: true }
+        );
         setInitialForm(form);
         return true;
       } catch (err) {
@@ -195,7 +188,6 @@ export function useCourseIntroEditor(courseId: string) {
     saving,
     error,
     dirty,
-    courseExists,
     save,
     reset,
     addAuthor,

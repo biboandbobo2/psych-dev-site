@@ -336,17 +336,6 @@ export default function CourseIntroEditor() {
     return <PageLoader />;
   }
 
-  if (!editor.courseExists) {
-    return (
-      <div className="mx-auto max-w-3xl space-y-3 p-6">
-        <p>Курс «{courseId}» не найден в Firestore.</p>
-        <Link to="/admin/content" className="text-[#2F6DB5] underline">
-          ← К управлению контентом
-        </Link>
-      </div>
-    );
-  }
-
   const course = courseMap.get(courseId);
   const courseName = course?.name ?? courseId;
   const introPath = course?.isCore ? `/${courseId}/intro` : `/course/${courseId}/intro`;
@@ -515,7 +504,7 @@ export default function CourseIntroEditor() {
         </div>
       ) : null}
 
-      <footer className="sticky bottom-0 flex items-center justify-between gap-3 rounded-xl border border-[#DDE5EE] bg-white/95 p-3 backdrop-blur">
+      <footer className="flex items-center justify-between gap-3 rounded-xl border border-[#DDE5EE] bg-white p-3">
         <div className="text-xs text-[#8A97AB]">
           {editor.dirty ? 'Есть несохранённые изменения' : 'Без изменений'}
         </div>
