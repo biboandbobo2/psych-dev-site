@@ -35,6 +35,7 @@ import {
 import { isCoreCourse } from "../constants/courses";
 import { useCourses } from "../hooks/useCourses";
 import { useActiveCourse } from "../hooks/useActiveCourse";
+import { useMyAnnouncementGroups } from "../hooks/useMyAnnouncementGroups";
 import { useAuthStore } from "../stores/useAuthStore";
 import { canEditCourse } from "../types/user";
 import type { CourseType } from "../types/tests";
@@ -223,10 +224,12 @@ export default function AdminContent() {
   const isCore = isCoreCourse(activeCourse);
   const userRole = useAuthStore((s) => s.userRole);
   const adminEditableCourses = useAuthStore((s) => s.adminEditableCourses);
+  const { groups: myAnnouncementGroups } = useMyAnnouncementGroups();
   const canEditActiveCourse = canEditCourse(userRole, adminEditableCourses, activeCourse);
-  // Право писать объявления: пока только super-admin. В 3b добавим
-  // per-group: admin с флагом announcementAdmin в любой из групп.
-  const canWriteAnnouncements = userRole === 'super-admin';
+  // Активно для super-admin всегда; для admin — если он в announcementAdminIds
+  // хотя бы одной группы (см. useMyAnnouncementGroups).
+  const canWriteAnnouncements =
+    userRole === 'super-admin' || myAnnouncementGroups.length > 0;
   const loadRequestId = useRef(0);
 
   const loadPeriods = async (courseId: string = activeCourse) => {

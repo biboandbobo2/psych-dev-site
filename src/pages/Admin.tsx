@@ -86,6 +86,18 @@ export default function Admin() {
           </Link>
           {isSuperAdmin && (
             <Link
+              to="/admin/groups"
+              className={`px-4 py-2 rounded font-medium transition-colors ${
+                location.pathname.startsWith('/admin/groups')
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200'
+              }`}
+            >
+              👥 Группы
+            </Link>
+          )}
+          {isSuperAdmin && (
+            <Link
               to="/admin/books"
               className={`px-4 py-2 rounded font-medium transition-colors ${
                 location.pathname.startsWith('/admin/books')
