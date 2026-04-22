@@ -25,6 +25,7 @@ import {
   FeaturesPage,
   CourseIntroPage,
   AdminCourseIntro,
+  AdminAnnouncements,
   WarmSprings2Page,
   BookingSectionLayout,
   BookingPage,
@@ -119,6 +120,14 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           element={
             <RequireAdmin>
               <AdminCourseIntro />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/announcements"
+          element={
+            <RequireAdmin>
+              <AdminAnnouncements />
             </RequireAdmin>
           }
         />
