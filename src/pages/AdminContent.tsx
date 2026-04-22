@@ -337,17 +337,45 @@ export default function AdminContent() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
-      <header className="flex items-center justify-between mb-2">
+      <header className="flex items-center justify-between gap-3 mb-2">
         <h1 className="text-2xl font-bold sm:text-3xl">Управление контентом</h1>
-        <Link
-          to="/admin/books"
-          className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-4 py-2 text-amber-900 transition-colors hover:bg-amber-200"
-          title="Управление книгами"
-        >
-          <span className="text-lg" aria-hidden>📚</span>
-          <span className="text-sm font-medium">Books</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/admin/content/course-intro/${activeCourse}`}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#E8F0FA] px-4 py-2 text-[#1F4F86] transition-colors hover:bg-[#D5E4F5]"
+            title="«О курсе»: Идея, Авторы, Программа"
+          >
+            <span className="text-lg" aria-hidden>✨</span>
+            <span className="text-sm font-medium">О курсе</span>
+          </Link>
+          <Link
+            to="/admin/books"
+            className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-4 py-2 text-amber-900 transition-colors hover:bg-amber-200"
+            title="Управление книгами"
+          >
+            <span className="text-lg" aria-hidden>📚</span>
+            <span className="text-sm font-medium">Books</span>
+          </Link>
+        </div>
       </header>
+
+      <Link
+        to={`/admin/content/course-intro/${activeCourse}`}
+        className="block rounded-xl border border-[#C6D7EA] bg-[#F4F9FF] p-4 transition hover:bg-[#E8F0FA]"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span aria-hidden>✨</span>
+              <span className="text-sm font-semibold text-[#1F4F86]">Вводная страница курса</span>
+            </div>
+            <p className="mt-1 text-xs text-[#556476]">
+              Идея, авторы и программа — показываются на странице «О курсе» этого курса.
+            </p>
+          </div>
+          <span className="text-xl text-[#1F4F86]">→</span>
+        </div>
+      </Link>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1">

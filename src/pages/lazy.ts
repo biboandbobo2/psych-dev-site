@@ -38,6 +38,7 @@ export const DynamicPeriodPage = lazy(() =>
 );
 export const FeaturesPage = lazy(() => lazyWithReload(() => import('./FeaturesPage'), 'FeaturesPage'));
 export const CourseIntroPage = lazy(() => lazyWithReload(() => import('./course/CourseIntroPage'), 'CourseIntroPage'));
+export const AdminCourseIntro = lazy(() => lazyWithReload(() => import('./admin/courseIntro/CourseIntroEditor'), 'AdminCourseIntro'));
 export const WarmSprings2Page = lazy(() => lazyWithReload(() => import('./WarmSprings2Page'), 'WarmSprings2Page'));
 
 const importBookingPages = () => import('./booking');

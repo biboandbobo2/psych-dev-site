@@ -24,6 +24,7 @@ import {
   DynamicPeriodPage,
   FeaturesPage,
   CourseIntroPage,
+  AdminCourseIntro,
   WarmSprings2Page,
   BookingSectionLayout,
   BookingPage,
@@ -110,6 +111,14 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           element={
             <RequireAdmin>
               <AdminContentEdit />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/content/course-intro/:courseId"
+          element={
+            <RequireAdmin>
+              <AdminCourseIntro />
             </RequireAdmin>
           }
         />

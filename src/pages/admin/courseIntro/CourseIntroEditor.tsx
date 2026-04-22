@@ -1,0 +1,368 @@
+import { Helmet } from 'react-helmet-async';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../../../auth/AuthProvider';
+import { useCourses } from '../../../hooks/useCourses';
+import { SITE_NAME } from '../../../routes';
+import { useCourseIntroEditor, type AuthorFormState } from './useCourseIntroEditor';
+import { MarkdownView } from '../../../lib/MarkdownView';
+import { PageLoader } from '../../../components/ui';
+
+const INPUT_CLASS =
+  'w-full rounded-lg border border-[#DDE5EE] bg-white px-3 py-2 text-sm text-[#2C3E50] outline-none transition focus:border-[#2F6DB5] focus:ring-2 focus:ring-[#2F6DB5]/20';
+const LABEL_CLASS = 'text-xs font-semibold uppercase tracking-wide text-[#8A97AB]';
+const SECTION_CLASS = 'rounded-2xl border border-[#DDE5EE] bg-white p-5 space-y-3';
+
+function AuthorLinksEditor({
+  author,
+  onChange,
+}: {
+  author: AuthorFormState;
+  onChange: (patch: Partial<AuthorFormState>) => void;
+}) {
+  const updateLink = (index: number, patch: Partial<{ label: string; url: string }>) => {
+    const next = author.links.map((link, i) => (i === index ? { ...link, ...patch } : link));
+    onChange({ links: next });
+  };
+  const addLink = () => onChange({ links: [...author.links, { label: '', url: '' }] });
+  const removeLink = (index: number) =>
+    onChange({ links: author.links.filter((_, i) => i !== index) });
+
+  return (
+    <div className="space-y-2">
+      <div className={LABEL_CLASS}>Ссылки (соцсети, сайт)</div>
+      {author.links.length === 0 ? (
+        <p className="text-xs text-[#8A97AB]">Пока нет ссылок.</p>
+      ) : (
+        <ul className="space-y-2">
+          {author.links.map((link, idx) => (
+            <li key={idx} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="text"
+                value={link.label}
+                onChange={(e) => updateLink(idx, { label: e.target.value })}
+                placeholder="Название"
+                className={`${INPUT_CLASS} sm:flex-1`}
+              />
+              <input
+                type="url"
+                value={link.url}
+                onChange={(e) => updateLink(idx, { url: e.target.value })}
+                placeholder="https://..."
+                className={`${INPUT_CLASS} sm:flex-[2]`}
+              />
+              <button
+                type="button"
+                onClick={() => removeLink(idx)}
+                className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 hover:bg-rose-100"
+              >
+                Удалить
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button
+        type="button"
+        onClick={addLink}
+        className="rounded-md bg-[#EEF2F7] px-3 py-1.5 text-sm text-[#2C3E50] hover:bg-[#DDE5EE]"
+      >
+        + Добавить ссылку
+      </button>
+    </div>
+  );
+}
+
+function AuthorCardEditor({
+  author,
+  index,
+  total,
+  onUpdate,
+  onRemove,
+  onMove,
+}: {
+  author: AuthorFormState;
+  index: number;
+  total: number;
+  onUpdate: (patch: Partial<AuthorFormState>) => void;
+  onRemove: () => void;
+  onMove: (direction: 'up' | 'down') => void;
+}) {
+  return (
+    <li className="rounded-2xl border border-[#E5ECF3] bg-[#FAFCFE] p-4 space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="text-xs font-semibold uppercase tracking-wide text-[#8A97AB]">
+          Автор {index + 1}
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onMove('up')}
+            disabled={index === 0}
+            aria-label="Поднять"
+            className="rounded-md px-2 py-1 text-[#556476] hover:bg-[#EEF2F7] disabled:opacity-30"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            onClick={() => onMove('down')}
+            disabled={index === total - 1}
+            aria-label="Опустить"
+            className="rounded-md px-2 py-1 text-[#556476] hover:bg-[#EEF2F7] disabled:opacity-30"
+          >
+            ↓
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded-md bg-rose-50 px-3 py-1 text-sm text-rose-700 hover:bg-rose-100"
+          >
+            Удалить
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label className={LABEL_CLASS}>Имя</label>
+          <input
+            type="text"
+            value={author.name}
+            onChange={(e) => onUpdate({ name: e.target.value })}
+            placeholder="Алексей Зыков"
+            className={`${INPUT_CLASS} mt-1`}
+          />
+        </div>
+        <div>
+          <label className={LABEL_CLASS}>Роль / должность</label>
+          <input
+            type="text"
+            value={author.role}
+            onChange={(e) => onUpdate({ role: e.target.value })}
+            placeholder="Автор курса, PhD"
+            className={`${INPUT_CLASS} mt-1`}
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className={LABEL_CLASS}>Фото (URL)</label>
+        <input
+          type="url"
+          value={author.photoUrl}
+          onChange={(e) => onUpdate({ photoUrl: e.target.value })}
+          placeholder="Оставьте пустым — показаны инициалы"
+          className={`${INPUT_CLASS} mt-1`}
+        />
+        <p className="mt-1 text-xs text-[#8A97AB]">
+          Загрузка файлов — в следующем коммите. Пока можно вставить URL.
+        </p>
+      </div>
+
+      <div>
+        <label className={LABEL_CLASS}>Биография (markdown)</label>
+        <textarea
+          value={author.bio}
+          onChange={(e) => onUpdate({ bio: e.target.value })}
+          rows={4}
+          placeholder="Короткий текст о профессиональном пути. Можно использовать **жирный** и ссылки [текст](https://...)."
+          className={`${INPUT_CLASS} mt-1 font-mono text-sm`}
+        />
+        {author.bio.trim() ? (
+          <details className="mt-2 text-sm text-[#556476]">
+            <summary className="cursor-pointer text-xs text-[#8A97AB]">Предпросмотр</summary>
+            <MarkdownView
+              source={author.bio}
+              className="mt-2 space-y-2 rounded-md bg-white p-3 [&_p]:leading-relaxed"
+            />
+          </details>
+        ) : null}
+      </div>
+
+      <AuthorLinksEditor author={author} onChange={onUpdate} />
+    </li>
+  );
+}
+
+export default function CourseIntroEditor() {
+  const { courseId } = useParams<{ courseId: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { courseMap, loading: coursesLoading } = useCourses({ includeUnpublished: true });
+  const editor = useCourseIntroEditor(courseId ?? '');
+
+  if (!courseId) {
+    return (
+      <div className="mx-auto max-w-3xl p-6">
+        <p>Не указан курс.</p>
+        <Link to="/admin/content" className="text-[#2F6DB5] underline">
+          ← К управлению контентом
+        </Link>
+      </div>
+    );
+  }
+
+  if (editor.loading || coursesLoading) {
+    return <PageLoader />;
+  }
+
+  if (!editor.courseExists) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-3 p-6">
+        <p>Курс «{courseId}» не найден в Firestore.</p>
+        <Link to="/admin/content" className="text-[#2F6DB5] underline">
+          ← К управлению контентом
+        </Link>
+      </div>
+    );
+  }
+
+  const course = courseMap.get(courseId);
+  const courseName = course?.name ?? courseId;
+  const introPath = course?.isCore ? `/${courseId}/intro` : `/course/${courseId}/intro`;
+
+  const handleSave = async () => {
+    const ok = await editor.save(user?.uid ?? null);
+    if (ok) {
+      navigate('/admin/content');
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-5 p-6">
+      <Helmet>
+        <title>Редактор «О курсе»: {courseName} — {SITE_NAME}</title>
+      </Helmet>
+
+      <header className="space-y-1">
+        <Link to="/admin/content" className="text-sm text-[#2F6DB5] hover:underline">
+          ← К управлению контентом
+        </Link>
+        <h1 className="text-2xl font-bold text-[#2C3E50] sm:text-3xl">
+          {course?.icon ?? '📘'} «О курсе»: {courseName}
+        </h1>
+        <p className="text-sm text-[#556476]">
+          Содержание будет показано на{' '}
+          <Link to={introPath} className="text-[#2F6DB5] underline">
+            {introPath}
+          </Link>
+          . Поддерживается markdown: **жирный**, *курсив*, [ссылки](https://...).
+        </p>
+      </header>
+
+      <section className={SECTION_CLASS}>
+        <header className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-[#2C3E50]">Идея курса</h2>
+            <p className="text-xs text-[#8A97AB]">1–2 абзаца о целях и пользе курса.</p>
+          </div>
+        </header>
+        <textarea
+          value={editor.form.idea}
+          onChange={(e) => editor.setForm((prev) => ({ ...prev, idea: e.target.value }))}
+          rows={6}
+          placeholder="Для кого этот курс, что он даёт, почему именно такая программа."
+          className={`${INPUT_CLASS} font-mono text-sm`}
+        />
+        {editor.form.idea.trim() ? (
+          <details className="text-sm text-[#556476]">
+            <summary className="cursor-pointer text-xs text-[#8A97AB]">Предпросмотр</summary>
+            <MarkdownView
+              source={editor.form.idea}
+              className="mt-2 space-y-2 rounded-md bg-[#F9FBFF] p-3 [&_p]:leading-relaxed"
+            />
+          </details>
+        ) : null}
+      </section>
+
+      <section className={SECTION_CLASS}>
+        <header className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-[#2C3E50]">Авторы курса</h2>
+            <p className="text-xs text-[#8A97AB]">
+              Преподаватели и создатели программы. Фото опционально — без него показаны инициалы.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={editor.addAuthor}
+            className="rounded-md bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
+          >
+            + Добавить автора
+          </button>
+        </header>
+
+        {editor.form.authors.length === 0 ? (
+          <p className="text-sm text-[#8A97AB]">Авторы пока не добавлены.</p>
+        ) : (
+          <ul className="space-y-3">
+            {editor.form.authors.map((author, idx) => (
+              <AuthorCardEditor
+                key={author.id}
+                author={author}
+                index={idx}
+                total={editor.form.authors.length}
+                onUpdate={(patch) => editor.updateAuthor(author.id, patch)}
+                onRemove={() => editor.removeAuthor(author.id)}
+                onMove={(direction) => editor.moveAuthor(author.id, direction)}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className={SECTION_CLASS}>
+        <header>
+          <h2 className="text-lg font-semibold text-[#2C3E50]">Программа</h2>
+          <p className="text-xs text-[#8A97AB]">Структура курса свободным текстом.</p>
+        </header>
+        <textarea
+          value={editor.form.program}
+          onChange={(e) => editor.setForm((prev) => ({ ...prev, program: e.target.value }))}
+          rows={8}
+          placeholder={'1. Первый блок — ...\n2. Второй блок — ...\n\nИли произвольный текст с ссылками на материалы.'}
+          className={`${INPUT_CLASS} font-mono text-sm`}
+        />
+        {editor.form.program.trim() ? (
+          <details className="text-sm text-[#556476]">
+            <summary className="cursor-pointer text-xs text-[#8A97AB]">Предпросмотр</summary>
+            <MarkdownView
+              source={editor.form.program}
+              className="mt-2 space-y-2 rounded-md bg-[#F9FBFF] p-3 [&_p]:leading-relaxed"
+            />
+          </details>
+        ) : null}
+      </section>
+
+      {editor.error ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          {editor.error}
+        </div>
+      ) : null}
+
+      <footer className="sticky bottom-0 flex items-center justify-between gap-3 rounded-xl border border-[#DDE5EE] bg-white/95 p-3 backdrop-blur">
+        <div className="text-xs text-[#8A97AB]">
+          {editor.dirty ? 'Есть несохранённые изменения' : 'Без изменений'}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={editor.reset}
+            disabled={!editor.dirty || editor.saving}
+            className="rounded-md bg-[#EEF2F7] px-4 py-2 text-sm text-[#2C3E50] hover:bg-[#DDE5EE] disabled:opacity-40"
+          >
+            Отменить
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!editor.dirty || editor.saving}
+            className="rounded-md bg-[#2F6DB5] px-4 py-2 text-sm font-medium text-white hover:bg-[#1F4F86] disabled:opacity-40"
+          >
+            {editor.saving ? 'Сохраняем…' : 'Сохранить'}
+          </button>
+        </div>
+      </footer>
+    </div>
+  );
+}
