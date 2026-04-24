@@ -418,6 +418,27 @@ function StudentDashboard() {
           </div>
         </Link>
 
+        {/* Бронирование кабинетов в центре «Dom» */}
+        <Link
+          to="/booking"
+          className="block rounded-2xl border border-border bg-card p-5 shadow-brand transition hover:bg-accent-100/60"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl" aria-hidden>
+                🏠
+              </span>
+              <div>
+                <h3 className="text-lg font-bold text-fg">Бронирование кабинетов</h3>
+                <p className="hidden text-sm text-muted sm:block">
+                  Центр «Dom» в Тбилиси — аренда кабинетов для сессий
+                </p>
+              </div>
+            </div>
+            <span className="text-xl text-accent">→</span>
+          </div>
+        </Link>
+
         <EventsCalendarModal
           isOpen={isEventsCalendarOpen}
           onClose={() => setIsEventsCalendarOpen(false)}
