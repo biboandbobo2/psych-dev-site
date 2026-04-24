@@ -2,6 +2,7 @@ import * as functions from "firebase-functions";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { SUPER_ADMIN_EMAIL, toPendingUid } from "./lib/shared.js";
+import { isEveryoneGroup } from "../../shared/groups/everyoneGroup.js";
 
 const db = getFirestore();
 
@@ -69,6 +70,12 @@ export const updateGroup = functions.https.onCall(async (data, context) => {
     if (!name) {
       throw new functions.https.HttpsError("invalid-argument", "name cannot be empty");
     }
+    if (isEveryoneGroup(groupId)) {
+      throw new functions.https.HttpsError(
+        "failed-precondition",
+        "Системную группу нельзя переименовывать"
+      );
+    }
     updates.name = name;
   }
   if (typeof d.description === "string") {
@@ -93,6 +100,13 @@ export const setGroupMembers = functions.https.onCall(async (data, context) => {
   const d = (data ?? {}) as Record<string, unknown>;
   const groupId = requireNonEmptyString(d.groupId, "groupId");
   const memberIds = normalizeStringArray(d.memberIds);
+
+  if (isEveryoneGroup(groupId)) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Состав системной группы управляется автоматически"
+    );
+  }
 
   await db.collection("groups").doc(groupId).update({
     memberIds,
@@ -204,6 +218,13 @@ export const deleteGroup = functions.https.onCall(async (data, context) => {
   const uid = assertSuperAdmin(context);
   const d = (data ?? {}) as Record<string, unknown>;
   const groupId = requireNonEmptyString(d.groupId, "groupId");
+
+  if (isEveryoneGroup(groupId)) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Системную группу нельзя удалить"
+    );
+  }
 
   await db.collection("groups").doc(groupId).delete();
   functions.logger.info("✅ Group deleted", { groupId, by: uid });

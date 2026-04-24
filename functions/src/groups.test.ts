@@ -294,3 +294,41 @@ describe('deleteGroup', () => {
     );
   });
 });
+
+// ── system group guards ─────────────────────────────────────
+
+describe('system group (everyone) guards', () => {
+  it('deleteGroup refuses to delete everyone', async () => {
+    await expect(
+      (deleteGroup as Function)({ groupId: 'everyone' }, superAdminCtx()),
+    ).rejects.toThrow('нельзя удалить');
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  it('updateGroup refuses to rename everyone', async () => {
+    await expect(
+      (updateGroup as Function)({ groupId: 'everyone', name: 'Rename' }, superAdminCtx()),
+    ).rejects.toThrow('нельзя переименовывать');
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('updateGroup allows changing description / grantedCourses for everyone', async () => {
+    mockUpdate.mockResolvedValue(undefined);
+    await (updateGroup as Function)(
+      { groupId: 'everyone', description: 'Broadcast', grantedCourses: ['development'] },
+      superAdminCtx(),
+    );
+    expect(mockUpdate).toHaveBeenCalledOnce();
+    const payload = mockUpdate.mock.calls[0][0];
+    expect(payload.description).toBe('Broadcast');
+    expect(payload.grantedCourses).toEqual(['development']);
+    expect(payload.name).toBeUndefined();
+  });
+
+  it('setGroupMembers refuses to overwrite everyone membership', async () => {
+    await expect(
+      (setGroupMembers as Function)({ groupId: 'everyone', memberIds: ['a'] }, superAdminCtx()),
+    ).rejects.toThrow('автоматически');
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+});
