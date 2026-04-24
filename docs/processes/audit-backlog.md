@@ -18,6 +18,8 @@
 | MR-1 | M (M) | Масштабирование `/api/transcript-search` | server-side retrieval без full collection scan |
 | MR-2 | M (S) | Починить `npm run test:ci` | совместимый Vitest CLI для CI/test scripts |
 | MR-3 | M (S) | Убрать `lessonRef as never` | типизированный payload dynamic course lessons |
+| MR-4 | M (S) | Починить stale `authStore.test.ts` | тест ссылается на удалённое `isStudent`; обновить или удалить |
+| UX-1 | L (L) | Profile v2 — унификация с акварельной палитрой | ожидаем брендбук от дизайнера, после — полный редизайн Profile + вложенных секций |
 | LP-1 | L (M) | Observability / telemetry | Базовый logger (Sentry/PostHog), описание процессов |
 | LP-5 | L (S-M) | Firebase/GCP follow-ups | dependency review, cleanup policy, индексы, Telegram formatting |
 | RS-1 | M (M) | Глубокий поиск через Wikidata | Кнопка + API параметр `deep=true`, расширение запроса через Wikidata |
@@ -142,6 +144,27 @@
   - [ ] Вынести явный тип lesson payload для dynamic course lessons.
   - [ ] Типизировать `getCourseLessonDocRef` и `setDoc` без `never`.
   - [ ] После правки прогнать `typecheck:app` и smoke создания нового курса.
+
+### MR‑4. Починить устаревший `authStore.test.ts` (P: M, E: S)
+- **Проблема:** `tests/integration/authStore.test.ts` ссылается на `store.isStudent`, которое было удалено в коммите `b4b37e8 feat(roles): narrow UserRole to admin/super-admin`. 2 теста падают: «помечает супер-админа и админа» и «оставляет студента только студентом».
+- **Риск:** шум в выводе `npm test` (2 ложно-красных), скрывает настоящие регрессии.
+- **Подтверждение:** повторяемо воспроизводится на чистом `main` (проверено 2026-04-24).
+- **Задачи:**
+  - [ ] Переписать тест под актуальную модель ролей (`'admin' | 'super-admin'` + null для студентов/гостей).
+  - [ ] Или удалить если покрытие дублирует unit-тесты `roleHelpers` из `621e2a8 test: add unit tests for pure helpers and cloud functions`.
+  - [ ] Проверить что `npm test` проходит без ожидаемых эмулятор-зависимых падений (4 integration теста — отдельный HP-1).
+
+### UX‑1. Profile v2 — унификация с акварельной палитрой (P: L, E: L)
+- **Проблема:** Profile.tsx оставлен в старой палитре: синий→фиолетовый градиент в hero-полосе, `bg-teal-*` / `bg-blue-*` / `bg-purple-*` / розово-фуксиевый gradient в `SuperAdminBadge`, `SearchHistorySection`, `GeminiKeySection`, `FeedbackButton variant="profile"`. Минимальная правка (hero max-w-4xl, role badges, avatar fallback) сделана в `9107e62`, остальное откладываем до получения брендбука от дизайнера.
+- **Риск:** визуальный диссонанс при переходе между /home (акварельная палитра) и /profile. Не блокер релиза.
+- **Как делать:**
+  - [ ] Дождаться брендбука — цветовой системы, типографики, tone-of-voice.
+  - [ ] Переработать hero-полосу (убрать синий→фиолетовый gradient).
+  - [ ] `SuperAdminBadge.tsx`: заменить `bg-gradient-to-r from-purple-600 to-pink-600` на один токен акцента.
+  - [ ] `FeedbackButton variant="profile"`: заменить teal→cyan gradient на нейтральный card/accent стиль.
+  - [ ] `SearchHistorySection` (445 строк, крупнейший): табы, «Показать все», карточки истории — перевести на `bg-card` / `bg-accent-100` / `text-fg` / `text-muted`.
+  - [ ] `GeminiKeySection`: пройтись точечно по `bg-blue-*` / `text-gray-*`.
+  - [ ] По возможности — обернуть каждую вложенную секцию в общую `bg-card rounded-2xl border border-border shadow-brand p-5` (как на /home).
 
 ### MP‑5. ✅ Исправление заглушки для clinical/general курсов - РЕШЕНО (2025-11-19)
 - **Проблема:** Заглушка показывалась даже когда `placeholder_enabled = false` если sections были пустыми
