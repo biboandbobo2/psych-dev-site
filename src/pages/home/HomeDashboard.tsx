@@ -26,6 +26,9 @@ import { GuestLanding } from './GuestLanding';
 import { RegisteredGuestHome } from './RegisteredGuestHome';
 import { useGuestStatus } from '../../hooks/useGuestStatus';
 import { useCoursesOpenness } from '../../hooks/useCoursesOpenness';
+import { usePlatformNews } from '../../hooks/usePlatformNews';
+import { PlatformNewsSection } from './PlatformNewsSection';
+import { isEveryoneGroup } from '../../../shared/groups/everyoneGroup';
 
 export function HomeDashboard() {
   const { status } = useGuestStatus();
@@ -59,6 +62,7 @@ function StudentDashboard() {
     error: feedError,
   } = useHomeFeed();
   const { items: myFeedItems, loading: myFeedLoading } = useMyGroupsFeed();
+  const { items: platformNews, loading: platformNewsLoading } = usePlatformNews();
   const [isEventsCalendarOpen, setIsEventsCalendarOpen] = useState(false);
   const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
     const now = new Date();
@@ -406,6 +410,8 @@ function StudentDashboard() {
           )}
         </section>
 
+        <PlatformNewsSection items={platformNews} loading={platformNewsLoading} />
+
         {/* Партнёр — центр Dom */}
         <section className="rounded-2xl border border-border bg-card2 p-5 shadow-brand">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">Партнёр</p>
@@ -642,7 +648,11 @@ function MyGroupsFeedSection({
   onOpen: (item: GroupFeedItem) => void;
 }) {
   // Assignments выведены в свою секцию — здесь только объявления и события.
-  const items = allItems.filter((item) => item.kind !== 'assignment');
+  // Объявления broadcast-группы «Все» показываются в отдельной секции
+  // «Новости платформы», поэтому их тоже исключаем из ленты моих групп.
+  const items = allItems.filter(
+    (item) => item.kind !== 'assignment' && !isEveryoneGroup(item.groupId)
+  );
 
   if (loading) return null;
 

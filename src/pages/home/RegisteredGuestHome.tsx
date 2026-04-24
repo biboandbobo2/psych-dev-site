@@ -7,6 +7,8 @@ import { useCourses } from '../../hooks/useCourses';
 import { useCoursesOpenness } from '../../hooks/useCoursesOpenness';
 import { getCourseIntroPath } from '../../lib/courseLinks';
 import { FeedbackModal } from '../../components/FeedbackModal';
+import { usePlatformNews } from '../../hooks/usePlatformNews';
+import { PlatformNewsSection } from './PlatformNewsSection';
 
 const TELEGRAM_CONTACT = 'https://t.me/BiboiBobo2';
 
@@ -17,6 +19,7 @@ export function RegisteredGuestHome() {
     courses.map((course) => course.id)
   );
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
+  const { items: platformNews, loading: newsLoading } = usePlatformNews();
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'гость';
 
@@ -47,6 +50,8 @@ export function RegisteredGuestHome() {
           доступ к закрытым курсам.
         </p>
       </section>
+
+      <PlatformNewsSection items={platformNews} loading={newsLoading} />
 
       <section className="space-y-3">
         <h2 className="text-xl font-bold text-[#1F2F46]">Вам уже открыто</h2>

@@ -85,8 +85,11 @@ service cloud.firestore {
       allow read: if canReadGroup();
       allow create, update, delete: if isSuperAdmin();
 
+      // Объявления группы «Все» читаются публично (anonymous) — это
+      // новости платформы, которые видят все гости /home. Для любой
+      // другой группы чтение ограничено участниками/админами.
       match /announcements/{annId} {
-        allow read: if isGroupMemberOrAdmin();
+        allow read: if groupId == 'everyone' || isGroupMemberOrAdmin();
         allow create, update, delete: if canWriteGroupFeed();
       }
 

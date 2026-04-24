@@ -5,6 +5,8 @@ import { useCourses } from '../../hooks/useCourses';
 import { useCoursesOpenness } from '../../hooks/useCoursesOpenness';
 import { getCourseIntroPath } from '../../lib/courseLinks';
 import { PageLoader } from '../../components/ui';
+import { usePlatformNews } from '../../hooks/usePlatformNews';
+import { PlatformNewsSection } from './PlatformNewsSection';
 
 interface FeatureItem {
   icon: string;
@@ -78,6 +80,7 @@ export function GuestLanding() {
   const { openCourseIds, loading: opennessLoading } = useCoursesOpenness(
     courses.map((course) => course.id)
   );
+  const { items: platformNews, loading: newsLoading } = usePlatformNews();
 
   if (coursesLoading) return <PageLoader />;
 
@@ -121,6 +124,8 @@ export function GuestLanding() {
           </a>
         </div>
       </section>
+
+      <PlatformNewsSection items={platformNews} loading={newsLoading} />
 
       <section id="catalog" className="space-y-4">
         <div>
