@@ -40,7 +40,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="space-y-6" onClickCapture={handleHapticClick}>
+    <div className="mx-auto max-w-4xl space-y-6" onClickCapture={handleHapticClick}>
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
         <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-32" />
 
@@ -53,35 +53,35 @@ export default function Profile() {
                 className="w-32 h-32 rounded-full border-4 border-white shadow-lg"
               />
             ) : (
-              <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl">
+              <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-accent flex items-center justify-center text-white font-bold text-4xl">
                 {displayName.charAt(0).toUpperCase()}
               </div>
             )}
 
             <div className="ml-6 mb-4">
               {!user ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700">
+                <span className="inline-flex items-center gap-2 rounded-full bg-card2 border border-border px-4 py-2 text-sm font-semibold text-muted">
                   <span className="text-lg" role="img" aria-label="Гость">
                     👤
                   </span>
                   Гость
                 </span>
               ) : role === 'super-admin' ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 text-sm font-semibold text-white shadow">
+                <span className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white">
                   <span className="text-lg" role="img" aria-label="Супер-админ">
                     ⭐
                   </span>
                   Супер-админ
                 </span>
               ) : role === 'admin' ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-800">
+                <span className="inline-flex items-center gap-2 rounded-full bg-mark px-4 py-2 text-sm font-semibold text-[#5a4b00]">
                   <span className="text-lg" role="img" aria-label="Администратор">
-                    👑
+                    ✏️
                   </span>
                   Администратор
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-800">
+                <span className="inline-flex items-center gap-2 rounded-full bg-accent-100 px-4 py-2 text-sm font-semibold text-accent">
                   <span className="text-lg" role="img" aria-label="Студент">
                     🎓
                   </span>
