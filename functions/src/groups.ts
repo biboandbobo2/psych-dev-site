@@ -137,6 +137,17 @@ export const addGroupMembersByEmail = functions.https.onCall(async (data, contex
   let createdPending = 0;
   let resolvedExisting = 0;
 
+  // Читаем grantedCourses группы для courseAccess pending-пользователей
+  const groupSnap = await db.collection("groups").doc(groupId).get();
+  const groupData = groupSnap.data() as Record<string, unknown> | undefined;
+  const grantedCourses = Array.isArray(groupData?.grantedCourses)
+    ? (groupData!.grantedCourses as string[])
+    : [];
+  const courseAccess: Record<string, boolean> = {};
+  for (const courseId of grantedCourses) {
+    courseAccess[courseId] = true;
+  }
+
   for (const email of emails) {
     try {
       const authUser = await adminAuth.getUserByEmail(email);
@@ -160,7 +171,7 @@ export const addGroupMembersByEmail = functions.https.onCall(async (data, contex
           email,
           displayName: email.split("@")[0],
           photoURL: null,
-          role: "student",
+          courseAccess,
           pendingRegistration: true,
           invitedAt: FieldValue.serverTimestamp(),
           invitedBy: callerUid,

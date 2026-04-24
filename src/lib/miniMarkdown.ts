@@ -23,7 +23,7 @@ function renderInline(line: string): string {
 
   html = html.replace(LINK_RE, (_full, label: string, url: string) => {
     const safe = safeUrl(url);
-    if (!safe) return escapeHtml(`[${label}](${url})`);
+    if (!safe) return `[${label}](${url})`;
     const encoded = safe.replace(/"/g, '&quot;');
     const external = /^https?:\/\//i.test(safe);
     const attrs = external ? ' target="_blank" rel="noopener noreferrer"' : '';
