@@ -50,7 +50,7 @@ vi.mock('firebase-functions', () => {
 
 // ── Import after mocks ─────────────────────────────────────────
 
-import { updateCourseAccess, setUserRole, setStudentStream } from './courseAccess';
+import { updateCourseAccess, setUserRole } from './courseAccess';
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -209,67 +209,3 @@ describe('setUserRole', () => {
   });
 });
 
-// ── setStudentStream ────────────────────────────────────────
-
-describe('setStudentStream', () => {
-  it('throws unauthenticated when no auth', async () => {
-    await expect((setStudentStream as Function)({}, noAuthCtx)).rejects.toThrow(
-      'Authentication required',
-    );
-  });
-
-  it('throws permission-denied for regular user', async () => {
-    await expect(
-      (setStudentStream as Function)({ targetUid: 'u1', stream: 'first' }, regularCtx()),
-    ).rejects.toThrow('Only admin or super-admin');
-  });
-
-  it('allows admin to call', async () => {
-    mockGet.mockResolvedValue({
-      exists: true,
-      data: () => ({ role: 'student', email: 'u@t.com' }),
-    });
-    mockUpdate.mockResolvedValue(undefined);
-
-    const result = await (setStudentStream as Function)(
-      { targetUid: 'u1', stream: 'first' },
-      adminCtx(),
-    );
-
-    expect(result.success).toBe(true);
-  });
-
-  it('throws for invalid stream value', async () => {
-    await expect(
-      (setStudentStream as Function)({ targetUid: 'u1', stream: 'third' }, superAdminCtx()),
-    ).rejects.toThrow('stream must be one of');
-  });
-
-  it('throws when user role is not student', async () => {
-    mockGet.mockResolvedValue({
-      exists: true,
-      data: () => ({ role: 'guest', email: 'u@t.com' }),
-    });
-
-    await expect(
-      (setStudentStream as Function)({ targetUid: 'u1', stream: 'first' }, superAdminCtx()),
-    ).rejects.toThrow("role 'student'");
-  });
-
-  it('sets stream for student user', async () => {
-    mockGet.mockResolvedValue({
-      exists: true,
-      data: () => ({ role: 'student', email: 'u@t.com', studentStream: 'none' }),
-    });
-    mockUpdate.mockResolvedValue(undefined);
-
-    const result = await (setStudentStream as Function)(
-      { targetUid: 'u1', stream: 'second' },
-      superAdminCtx(),
-    );
-
-    expect(result.success).toBe(true);
-    expect(result.previousStream).toBe('none');
-    expect(result.newStream).toBe('second');
-  });
-});

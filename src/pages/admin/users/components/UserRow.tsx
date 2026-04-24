@@ -1,5 +1,5 @@
 import type { UserRecord } from '../../../../hooks/useAllUsers';
-import type { CourseAccessMap, StudentStream } from '../../../../types/user';
+import type { CourseAccessMap } from '../../../../types/user';
 import { countAccessibleCourses } from '../../../../types/user';
 import { getRoleLabel, getRoleBadgeClasses, computeDisplayRole } from '../utils/roleHelpers';
 
@@ -22,9 +22,7 @@ export interface UserRowProps {
   onEditAdminCourses: () => void;
   onCourseAccessChange: (courseId: string, value: boolean) => void;
   onSaveCourseAccess: () => void;
-  onSetStudentStream: (stream: StudentStream) => void;
   onToggleDisabled: () => void;
-  canManageStudentStream: boolean;
 }
 
 export function UserRow({
@@ -41,9 +39,7 @@ export function UserRow({
   onEditAdminCourses,
   onCourseAccessChange,
   onSaveCourseAccess,
-  onSetStudentStream,
   onToggleDisabled,
-  canManageStudentStream,
 }: UserRowProps) {
   const isCurrentUser = user.uid === currentUserUid;
   const userIsAdmin = user.role === 'admin' || user.role === 'super-admin';
@@ -113,9 +109,6 @@ export function UserRow({
             total={courseIds.length}
           />
         </td>
-        <td className="whitespace-nowrap px-6 py-4">
-          <StudentStreamBadge stream={user.studentStream} />
-        </td>
         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
           {user.lastLoginAt?.toDate?.()?.toLocaleDateString('ru-RU') || 'Недавно'}
         </td>
@@ -141,13 +134,9 @@ export function UserRow({
           editingCourseAccess={editingCourseAccess}
           courseAccessSaving={courseAccessSaving}
           canManageCourseAccess={isSuperAdmin}
-          canManageStudentStream={canManageStudentStream}
           courseOptions={courseOptions}
           onCourseAccessChange={onCourseAccessChange}
           onSaveCourseAccess={onSaveCourseAccess}
-          onSetStudentStream={onSetStudentStream}
-          studentStream={user.studentStream ?? 'none'}
-          streamSaving={actionLoading === user.uid}
         />
       )}
     </>
@@ -180,32 +169,6 @@ function CourseAccessBadge({
       {count} из {total}
     </span>
   );
-}
-
-function getStudentStreamLabel(stream: StudentStream | undefined): string {
-  if (stream === 'first') return '1 поток';
-  if (stream === 'second') return '2 поток';
-  return 'Без потока';
-}
-
-function StudentStreamBadge({ stream }: { stream: StudentStream | undefined }) {
-  if (stream === 'first') {
-    return (
-      <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-        {getStudentStreamLabel(stream)}
-      </span>
-    );
-  }
-
-  if (stream === 'second') {
-    return (
-      <span className="inline-flex rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">
-        {getStudentStreamLabel(stream)}
-      </span>
-    );
-  }
-
-  return <span className="text-sm text-gray-500">{getStudentStreamLabel(stream)}</span>;
 }
 
 /**
@@ -317,33 +280,25 @@ function CourseAccessPanel({
   isAdmin,
   canEdit,
   canManageCourseAccess,
-  canManageStudentStream,
   editingCourseAccess,
   courseAccessSaving,
-  streamSaving,
-  studentStream,
   courseOptions,
   onCourseAccessChange,
   onSaveCourseAccess,
-  onSetStudentStream,
 }: {
   user: UserRecord;
   isAdmin: boolean;
   canEdit: boolean;
   canManageCourseAccess: boolean;
-  canManageStudentStream: boolean;
   editingCourseAccess: CourseAccessMap;
   courseAccessSaving: boolean;
-  streamSaving: boolean;
-  studentStream: StudentStream;
   courseOptions: CourseOption[];
   onCourseAccessChange: (courseId: string, value: boolean) => void;
   onSaveCourseAccess: () => void;
-  onSetStudentStream: (stream: StudentStream) => void;
 }) {
   return (
     <tr className="bg-gray-50">
-      <td colSpan={7} className="px-6 py-4">
+      <td colSpan={6} className="px-6 py-4">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <h4 className="mb-3 text-sm font-semibold text-gray-700">
             Доступ к курсам
@@ -396,32 +351,6 @@ function CourseAccessPanel({
               <span className="text-xs text-gray-500">
                 Изменения вступят в силу немедленно
               </span>
-            </div>
-          )}
-
-          {canManageStudentStream && (
-            <div className="mt-4 border-t border-gray-100 pt-4">
-              <h5 className="mb-2 text-sm font-semibold text-gray-700">Поток студента</h5>
-              <div className="flex flex-wrap items-center gap-2">
-                {(['none', 'first', 'second'] as StudentStream[]).map((streamOption) => (
-                  <button
-                    key={streamOption}
-                    type="button"
-                    onClick={() => onSetStudentStream(streamOption)}
-                    disabled={streamSaving}
-                    className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
-                      studentStream === streamOption
-                        ? 'border-blue-600 bg-blue-50 text-blue-700'
-                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                    } disabled:cursor-not-allowed disabled:opacity-60`}
-                  >
-                    {getStudentStreamLabel(streamOption)}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-xs text-gray-500">
-                Выбор потока влияет на список курсов на главной странице студента.
-              </p>
             </div>
           )}
 

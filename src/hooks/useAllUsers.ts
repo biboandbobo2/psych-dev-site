@@ -3,7 +3,7 @@ import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { debugError } from "../lib/debug";
-import type { CourseAccessMap, StudentStream, UserRole } from "../types/user";
+import type { CourseAccessMap, UserRole } from "../types/user";
 
 export interface UserRecord {
   uid: string;
@@ -13,7 +13,6 @@ export interface UserRecord {
   role: UserRole | null;
   /** Список courseId, которые admin может редактировать. Только для role='admin'. */
   adminEditableCourses?: string[];
-  studentStream?: StudentStream;
   /** Гранулярный доступ к курсам */
   courseAccess?: CourseAccessMap;
   /** Пользователь отключён (не может войти, но данные сохранены) */

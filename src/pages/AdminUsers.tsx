@@ -30,13 +30,11 @@ export default function AdminUsers() {
     expandedUserId,
     editingCourseAccess,
     handleRemoveAdmin,
-    handleSetStudentStream,
     handleToggleDisabled,
     handleRowClick,
     handleCourseAccessChange,
     handleSaveCourseAccess,
   } = useUserManagement({
-    isAdmin,
     isSuperAdmin,
     availableCourseIds: courseOptions.map((c) => c.id),
   });
@@ -138,9 +136,6 @@ export default function AdminUsers() {
                 Доступ к курсам
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Поток
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Последний вход
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -164,10 +159,8 @@ export default function AdminUsers() {
                 onEditAdminCourses={() => setEditingAdminUid(user.uid)}
                 onCourseAccessChange={handleCourseAccessChange}
                 onSaveCourseAccess={() => handleSaveCourseAccess(user.uid)}
-                onSetStudentStream={(stream) => handleSetStudentStream(user.uid, stream)}
                 onToggleDisabled={() => handleToggleDisabled(user.uid, user.disabled === true)}
                 courseOptions={courseOptions}
-                canManageStudentStream={isAdmin && !(user.role === 'admin' || user.role === 'super-admin') && hasAnyCourse(user)}
               />
             ))}
           </tbody>

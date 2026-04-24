@@ -1,12 +1,9 @@
 import { useState, useCallback } from 'react';
-import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { removeAdmin, updateCourseAccess, toggleUserDisabled } from '../../../../lib/adminFunctions';
-import { auth, db } from '../../../../lib/firebase';
-import type { CourseAccessMap, StudentStream } from '../../../../types/user';
+import type { CourseAccessMap } from '../../../../types/user';
 import type { UserRecord } from '../../../../hooks/useAllUsers';
 
 interface UseUserManagementOptions {
-  isAdmin: boolean;
   isSuperAdmin: boolean;
   availableCourseIds: string[];
 }
@@ -22,7 +19,6 @@ interface UseUserManagementReturn {
 
   // Handlers
   handleRemoveAdmin: (uid: string) => Promise<void>;
-  handleSetStudentStream: (targetUid: string, stream: StudentStream) => Promise<void>;
   handleToggleDisabled: (uid: string, currentDisabled: boolean) => Promise<void>;
   handleRowClick: (user: UserRecord) => void;
   handleCourseAccessChange: (courseId: string, value: boolean) => void;
@@ -34,7 +30,6 @@ interface UseUserManagementReturn {
  * Инкапсулирует всю логику работы с ролями и доступом к курсам
  */
 export function useUserManagement({
-  isAdmin,
   isSuperAdmin,
   availableCourseIds,
 }: UseUserManagementOptions): UseUserManagementReturn {
@@ -58,25 +53,6 @@ export function useUserManagement({
       setActionLoading(null);
     }
   }, [isSuperAdmin]);
-
-  const handleSetStudentStream = useCallback(async (targetUid: string, stream: StudentStream) => {
-    if (!isAdmin) return;
-
-    setActionLoading(targetUid);
-    try {
-      await updateDoc(doc(db, 'users', targetUid), {
-        studentStream: stream,
-        studentStreamUpdatedAt: serverTimestamp(),
-        studentStreamUpdatedBy: auth.currentUser?.uid ?? null,
-      });
-      window.alert('Поток студента обновлён');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Ошибка обновления потока';
-      window.alert(message);
-    } finally {
-      setActionLoading(null);
-    }
-  }, [isAdmin]);
 
   const handleToggleDisabled = useCallback(async (uid: string, currentDisabled: boolean) => {
     if (!isSuperAdmin) return;
@@ -159,7 +135,6 @@ export function useUserManagement({
     expandedUserId,
     editingCourseAccess,
     handleRemoveAdmin,
-    handleSetStudentStream,
     handleToggleDisabled,
     handleRowClick,
     handleCourseAccessChange,

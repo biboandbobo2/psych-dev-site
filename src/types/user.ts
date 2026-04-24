@@ -22,14 +22,6 @@ export function normalizeUserRole(raw: unknown): UserRole | null {
 }
 
 /**
- * Поток студента
- * - first: 1 поток
- * - second: 2 поток
- * - none: без потока
- */
-export type StudentStream = 'first' | 'second' | 'none';
-
-/**
  * Карта доступа к курсам.
  *
  * Логика:
@@ -62,8 +54,6 @@ export interface UserRecord {
    * Для super-admin игнорируется (всегда может всё).
    */
   adminEditableCourses?: string[];
-  /** Поток студента (для сегментации обучения) — legacy, мигрируется в groups */
-  studentStream?: StudentStream;
   /** Гранулярный доступ к курсам */
   courseAccess?: CourseAccessMap;
   createdAt: Timestamp | null;

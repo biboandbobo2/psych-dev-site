@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useCourses } from '../../hooks/useCourses';
 import { useHomeFeed } from '../../hooks/useHomeFeed';
@@ -43,8 +43,8 @@ function getCourseIntroPath(courseId: string): string {
 }
 
 function StudentDashboard() {
-  const { user, userRole, studentStream } = useAuth();
-  const { currentCourse, setCurrentCourse } = useCourseStore();
+  const { user } = useAuth();
+  const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
   const { courses } = useCourses();
   const { openCourseIds } = useCoursesOpenness(courses.map((course) => course.id));
@@ -62,29 +62,7 @@ function StudentDashboard() {
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
   const [lessonsDrawerCourseId, setLessonsDrawerCourseId] = useState<string | null>(null);
 
-  const streamCourseIds = useMemo(() => {
-    // Stream-приоритизация применяется только к обычным юзерам (не админам).
-    if (userRole) return null;
-
-    const availableCourseIds = new Set(courses.map((course) => course.id));
-    const clinicalIntroCourseId = availableCourseIds.has('vvedenie-v-osnovy-klinicheskoy-psihologii')
-      ? 'vvedenie-v-osnovy-klinicheskoy-psihologii'
-      : 'general';
-
-    if (studentStream === 'first') return ['clinical', 'general'];
-    if (studentStream === 'second') return [clinicalIntroCourseId, 'development'];
-    return null;
-  }, [courses, studentStream, userRole]);
-
-  const streamCourses = useMemo(() => {
-    if (!streamCourseIds) return courses;
-    const courseById = new Map(courses.map((course) => [course.id, course]));
-    return streamCourseIds
-      .map((courseId) => courseById.get(courseId))
-      .filter((course): course is typeof courses[number] => Boolean(course));
-  }, [courses, streamCourseIds]);
-
-  const featuredSubjects = streamCourses.slice(0, 4).map((course) => ({
+  const featuredSubjects = courses.slice(0, 4).map((course) => ({
     id: course.id,
     name: course.name,
     icon: course.icon,
@@ -94,23 +72,9 @@ function StudentDashboard() {
     { id: 'clinical', name: 'Основы патопсихологии', icon: '🧠' },
     { id: 'general', name: 'Введение в клиническую психологию', icon: '📘' },
   ];
-  const subjects = streamCourseIds
-    ? featuredSubjects
-    : featuredSubjects.length >= 4
+  const subjects = featuredSubjects.length >= 4
     ? featuredSubjects
     : [...featuredSubjects, ...fallbackSubjects.filter((item) => !featuredSubjects.some((course) => course.id === item.id))].slice(0, 4);
-
-  const effectiveCurrentCourse = useMemo(() => {
-    if (!streamCourseIds?.length) return currentCourse;
-    if (streamCourseIds.includes(currentCourse)) return currentCourse;
-    return streamCourseIds[0];
-  }, [currentCourse, streamCourseIds]);
-
-  useEffect(() => {
-    if (effectiveCurrentCourse !== currentCourse) {
-      setCurrentCourse(effectiveCurrentCourse as CourseType);
-    }
-  }, [currentCourse, effectiveCurrentCourse, setCurrentCourse]);
 
   const progressByCourse = useMemo(() => {
     const map = new Map<string, { completed: number; total: number; percent: number }>();
@@ -124,7 +88,7 @@ function StudentDashboard() {
   }, [subjects]);
 
   const primaryContinueCourses = useMemo(() => {
-    const selectedCourses = (streamCourses.length > 0 ? streamCourses : subjects).slice(0, 2);
+    const selectedCourses = (courses.length > 0 ? courses : subjects).slice(0, 2);
 
     return selectedCourses.map((course) => {
       const fallbackPrimaryLesson = resolvePrimaryLesson(course.id);
@@ -148,7 +112,7 @@ function StudentDashboard() {
             : null,
       };
     });
-  }, [progressByCourse, streamCourses, subjects]);
+  }, [courses, progressByCourse, subjects]);
 
   const latestFeedItems = useMemo(
     () =>

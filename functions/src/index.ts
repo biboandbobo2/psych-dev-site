@@ -307,7 +307,7 @@ export { createGroup, updateGroup, setGroupMembers, addGroupMembersByEmail, dele
 export { ingestBook } from './ingestBook.js';
 export { ingestLectureRag } from './ingestLectureRag.js';
 export { runVerify, runReconcile } from './verify.js';
-export { updateCourseAccess, setUserRole, setStudentStream } from './courseAccess.js';
+export { updateCourseAccess, setUserRole } from './courseAccess.js';
 export { bulkEnrollStudents, getStudentEmailLists, saveStudentEmailList } from './bulkEnrollment.js';
 export { sendFeedback } from './sendFeedback.js';
 export { billingBudgetAlert } from './billingBudgetAlert.js';
