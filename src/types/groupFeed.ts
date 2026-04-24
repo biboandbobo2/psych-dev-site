@@ -13,20 +13,32 @@ export interface GroupAnnouncement {
 }
 
 /**
- * Событие внутри группы. Хранится в `groups/{groupId}/events/{id}`.
+ * Тип записи в подколлекции `events` группы.
+ * - 'event' — обычное событие с `dateLabel` (обратная совместимость).
+ * - 'assignment' — задание с дедлайном (`dueDate` в ISO, YYYY-MM-DD).
+ */
+export type GroupEventKind = 'event' | 'assignment';
+
+/**
+ * Событие или задание внутри группы. Хранится в `groups/{groupId}/events/{id}`.
+ * Старые документы без `kind` считаются `event`.
  */
 export interface GroupEvent {
   id: string;
   groupId: string;
+  kind: GroupEventKind;
   text: string;
+  /** Для event — обязательно (человекочитаемая дата типа "10.11"). Для assignment — пустая строка. */
   dateLabel: string;
+  /** Для assignment — ISO дата YYYY-MM-DD. Для event — null. */
+  dueDate: string | null;
   zoomLink?: string;
   createdAt: Timestamp | null;
   createdBy: string;
   createdByName?: string;
 }
 
-export type GroupFeedItemKind = 'announcement' | 'event';
+export type GroupFeedItemKind = 'announcement' | 'event' | 'assignment';
 
 export interface GroupFeedItem {
   id: string;
@@ -35,6 +47,8 @@ export interface GroupFeedItem {
   kind: GroupFeedItemKind;
   text: string;
   dateLabel?: string;
+  /** ISO YYYY-MM-DD для kind='assignment'. */
+  dueDate?: string | null;
   zoomLink?: string;
   createdAt: Timestamp | null;
   createdByName?: string;
@@ -71,12 +85,20 @@ export function normalizeGroupEvent(
   const text = typeof data.text === 'string' ? data.text.trim() : '';
   const dateLabel = typeof data.dateLabel === 'string' ? data.dateLabel.trim() : '';
   const createdBy = typeof data.createdBy === 'string' ? data.createdBy : '';
-  if (!text || !dateLabel || !createdBy) return null;
+  const kind: GroupEventKind = data.kind === 'assignment' ? 'assignment' : 'event';
+  const dueDate = typeof data.dueDate === 'string' && data.dueDate.trim()
+    ? data.dueDate.trim()
+    : null;
+  if (!text || !createdBy) return null;
+  if (kind === 'event' && !dateLabel) return null;
+  if (kind === 'assignment' && !dueDate) return null;
   return {
     id,
     groupId,
+    kind,
     text,
     dateLabel,
+    dueDate,
     zoomLink: typeof data.zoomLink === 'string' && data.zoomLink.trim() ? data.zoomLink.trim() : undefined,
     createdAt: (data.createdAt as Timestamp | null) ?? null,
     createdBy,

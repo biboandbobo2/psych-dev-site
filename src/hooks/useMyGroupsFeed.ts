@@ -95,16 +95,17 @@ export function useMyGroupsFeed() {
                   id: `e:${ev.id}`,
                   groupId: group.id,
                   groupName: group.name,
-                  kind: 'event',
+                  kind: ev.kind,
                   text: ev.text,
-                  dateLabel: ev.dateLabel,
+                  dateLabel: ev.dateLabel || undefined,
+                  dueDate: ev.dueDate,
                   zoomLink: ev.zoomLink,
                   createdAt: ev.createdAt,
                   createdByName: ev.createdByName,
                 } as GroupFeedItem;
               })
               .filter((x): x is GroupFeedItem => x !== null);
-            const withoutEv = (perGroup.get(key) ?? []).filter((x) => x.kind !== 'event');
+            const withoutEv = (perGroup.get(key) ?? []).filter((x) => x.kind !== 'event' && x.kind !== 'assignment');
             perGroup.set(key, [...withoutEv, ...next]);
             emit();
           },

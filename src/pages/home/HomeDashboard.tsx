@@ -286,6 +286,8 @@ function StudentDashboard() {
               ) : null}
             </div>
 
+            <MyAssignmentsSection />
+
             {/* Общие объявления */}
             <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
               <h3 className="mb-3 text-xl font-bold text-fg">Общие объявления</h3>
@@ -447,8 +449,44 @@ function StudentDashboard() {
   );
 }
 
-function MyGroupsFeedSection() {
+function formatDueDateRu(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  return `${m[3]}.${m[2]}`;
+}
+
+function MyAssignmentsSection() {
   const { items, loading } = useMyGroupsFeed();
+  if (loading) return null;
+
+  const assignments = items.filter((item) => item.kind === 'assignment');
+  if (assignments.length === 0) return null;
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
+      <h3 className="mb-3 text-xl font-bold text-fg">Задания</h3>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {assignments.slice(0, 6).map((item) => (
+          <article key={item.id} className="rounded-xl border border-border bg-card2 p-4">
+            <p className="text-sm font-semibold text-fg">{item.groupName}</p>
+            <p className="mt-2 text-sm text-muted">{item.text}</p>
+            <p className="mt-3 text-xs">
+              <span className="inline-flex items-center gap-1 rounded-md bg-mark px-2 py-0.5 font-semibold text-[#5a4b00]">
+                Дедлайн: {formatDueDateRu(item.dueDate)}
+              </span>
+            </p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MyGroupsFeedSection() {
+  const { items: allItems, loading } = useMyGroupsFeed();
+  // Assignments выведены в свою секцию — здесь только объявления и события.
+  const items = allItems.filter((item) => item.kind !== 'assignment');
 
   if (loading) return null;
 

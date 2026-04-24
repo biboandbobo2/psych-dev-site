@@ -74,13 +74,24 @@ describe('normalizeGroupEvent', () => {
     expect(result).toEqual({
       id: ID,
       groupId: GROUP,
+      kind: 'event',
       text: 'Lecture',
       dateLabel: '2026-04-25',
+      dueDate: null,
       createdBy: 'user1',
       createdAt: null,
       zoomLink: undefined,
       createdByName: undefined,
     });
+  });
+
+  it('defaults kind to event when field missing', () => {
+    const result = normalizeGroupEvent(GROUP, ID, {
+      text: 'Lecture',
+      dateLabel: '2026-04-25',
+      createdBy: 'user1',
+    });
+    expect(result?.kind).toBe('event');
   });
 
   it('includes zoomLink when valid', () => {
@@ -128,5 +139,36 @@ describe('normalizeGroupEvent', () => {
 
   it('returns null for missing createdBy', () => {
     expect(normalizeGroupEvent(GROUP, ID, { text: 'Hi', dateLabel: 'x' })).toBeNull();
+  });
+
+  it('normalizes assignment with dueDate and empty dateLabel', () => {
+    const result = normalizeGroupEvent(GROUP, ID, {
+      kind: 'assignment',
+      text: 'Заполнить таблицу',
+      dueDate: '2026-05-24',
+      createdBy: 'u1',
+    });
+    expect(result).toEqual({
+      id: ID,
+      groupId: GROUP,
+      kind: 'assignment',
+      text: 'Заполнить таблицу',
+      dateLabel: '',
+      dueDate: '2026-05-24',
+      createdBy: 'u1',
+      createdAt: null,
+      zoomLink: undefined,
+      createdByName: undefined,
+    });
+  });
+
+  it('returns null for assignment without dueDate', () => {
+    expect(
+      normalizeGroupEvent(GROUP, ID, {
+        kind: 'assignment',
+        text: 'No due',
+        createdBy: 'u1',
+      })
+    ).toBeNull();
   });
 });

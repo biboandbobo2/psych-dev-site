@@ -18,7 +18,10 @@ import {
   normalizeGroupEvent,
   type GroupAnnouncement,
   type GroupEvent,
+  type GroupEventKind,
 } from '../types/groupFeed';
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface GroupAnnouncementInput {
   text: string;
@@ -26,8 +29,13 @@ export interface GroupAnnouncementInput {
 }
 
 export interface GroupEventInput {
+  /** 'event' по умолчанию; 'assignment' требует dueDate в ISO YYYY-MM-DD. */
+  kind?: GroupEventKind;
   text: string;
-  dateLabel: string;
+  /** Для kind='event' — обязательно. Для assignment — игнорируется. */
+  dateLabel?: string;
+  /** Для kind='assignment' — обязательно, ISO YYYY-MM-DD. */
+  dueDate?: string;
   zoomLink?: string;
   createdByName?: string;
 }
@@ -127,15 +135,40 @@ export async function createGroupEvent(
   userId: string
 ): Promise<void> {
   const text = input.text.trim();
-  const dateLabel = input.dateLabel.trim();
+  const kind: GroupEventKind = input.kind ?? 'event';
   if (text.length < 3) {
-    throw new Error('Описание события должно содержать минимум 3 символа');
+    throw new Error(
+      kind === 'assignment'
+        ? 'Описание задания должно содержать минимум 3 символа'
+        : 'Описание события должно содержать минимум 3 символа'
+    );
   }
+
+  if (kind === 'assignment') {
+    const dueDate = input.dueDate?.trim() ?? '';
+    if (!ISO_DATE_RE.test(dueDate)) {
+      throw new Error('Укажите дедлайн в формате YYYY-MM-DD');
+    }
+    const zoomLink = input.zoomLink?.trim();
+    await addDoc(collection(db, 'groups', groupId, 'events'), {
+      kind,
+      text,
+      dueDate,
+      createdAt: serverTimestamp(),
+      createdBy: userId,
+      ...(zoomLink ? { zoomLink } : {}),
+      ...(input.createdByName ? { createdByName: input.createdByName } : {}),
+    });
+    return;
+  }
+
+  const dateLabel = input.dateLabel?.trim() ?? '';
   if (dateLabel.length < 2) {
     throw new Error('Укажите дату или период события');
   }
   const zoomLink = input.zoomLink?.trim();
   await addDoc(collection(db, 'groups', groupId, 'events'), {
+    kind,
     text,
     dateLabel,
     createdAt: serverTimestamp(),
