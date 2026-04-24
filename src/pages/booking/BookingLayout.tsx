@@ -9,7 +9,7 @@ import { useUserPhone } from './useUserPhone';
 import { BookingContext } from './BookingContext';
 import type { BookingStep } from './types';
 import { debugError } from '../../lib/debug';
-import { ChevronDownIcon } from './icons';
+import { ChevronDownIcon, ChevronLeftIcon } from './icons';
 
 interface BookingLayoutProps {
   children: ReactNode;
@@ -55,6 +55,13 @@ export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
       <header className="h-[90px] border-b border-dom-gray-200/80 bg-[#f5f7ec] flex items-center px-4 md:px-8 lg:px-12">
         <div className="max-w-[1400px] w-full mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <Link
+              to="/home"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
+            >
+              <ChevronLeftIcon />
+              <span className="hidden sm:inline">На главную</span>
+            </Link>
             <Link to="/booking" className="flex-shrink-0">
               <img src="/images/dom-logo.png" alt="DOM" className="w-16 h-16 rounded-full" />
             </Link>
