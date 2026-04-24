@@ -1,7 +1,7 @@
 import type { UserRecord } from '../../../../hooks/useAllUsers';
-import type { CourseAccessMap } from '../../../../types/user';
+import type { CourseAccessMap, StudentStream } from '../../../../types/user';
 import { countAccessibleCourses } from '../../../../types/user';
-import { getRoleLabel, getRoleBadgeClasses, isAdminRole, canEditCourseAccess } from '../utils/roleHelpers';
+import { getRoleLabel, getRoleBadgeClasses, computeDisplayRole } from '../utils/roleHelpers';
 
 interface CourseOption {
   id: string;
@@ -18,12 +18,13 @@ export interface UserRowProps {
   editingCourseAccess: CourseAccessMap | null;
   courseAccessSaving: boolean;
   onRowClick: () => void;
-  onMakeAdmin: () => void;
   onRemoveAdmin: () => void;
+  onEditAdminCourses: () => void;
   onCourseAccessChange: (courseId: string, value: boolean) => void;
   onSaveCourseAccess: () => void;
-  onSetRole: (role: 'guest' | 'student') => void;
+  onSetStudentStream: (stream: StudentStream) => void;
   onToggleDisabled: () => void;
+  canManageStudentStream: boolean;
 }
 
 export function UserRow({
@@ -36,16 +37,18 @@ export function UserRow({
   editingCourseAccess,
   courseAccessSaving,
   onRowClick,
-  onMakeAdmin,
   onRemoveAdmin,
+  onEditAdminCourses,
   onCourseAccessChange,
   onSaveCourseAccess,
-  onSetRole,
+  onSetStudentStream,
   onToggleDisabled,
+  canManageStudentStream,
 }: UserRowProps) {
   const isCurrentUser = user.uid === currentUserUid;
-  const userIsAdmin = isAdminRole(user.role);
-  const userCanEditCourseAccess = canEditCourseAccess(user.role);
+  const userIsAdmin = user.role === 'admin' || user.role === 'super-admin';
+  const displayRole = computeDisplayRole(user.role, user.courseAccess);
+  const userCanEditCourseAccess = !userIsAdmin;
   const displayName =
     user.displayName && user.displayName.trim()
       ? user.displayName
@@ -98,9 +101,9 @@ export function UserRow({
         </td>
         <td className="whitespace-nowrap px-6 py-4">
           <span
-            className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getRoleBadgeClasses(user.role)}`}
+            className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getRoleBadgeClasses(displayRole)}`}
           >
-            {getRoleLabel(user.role)}
+            {getRoleLabel(displayRole)}
           </span>
         </td>
         <td className="whitespace-nowrap px-6 py-4">
@@ -109,6 +112,9 @@ export function UserRow({
             count={openCoursesCount}
             total={courseIds.length}
           />
+        </td>
+        <td className="whitespace-nowrap px-6 py-4">
+          <StudentStreamBadge stream={user.studentStream} />
         </td>
         <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
           {user.lastLoginAt?.toDate?.()?.toLocaleDateString('ru-RU') || 'Недавно'}
@@ -119,9 +125,8 @@ export function UserRow({
             currentUserUid={currentUserUid}
             isSuperAdmin={isSuperAdmin}
             actionLoading={actionLoading}
-            onMakeAdmin={onMakeAdmin}
             onRemoveAdmin={onRemoveAdmin}
-            onSetRole={onSetRole}
+            onEditAdminCourses={onEditAdminCourses}
             onToggleDisabled={onToggleDisabled}
           />
         </td>
@@ -135,9 +140,14 @@ export function UserRow({
           canEdit={userCanEditCourseAccess}
           editingCourseAccess={editingCourseAccess}
           courseAccessSaving={courseAccessSaving}
+          canManageCourseAccess={isSuperAdmin}
+          canManageStudentStream={canManageStudentStream}
           courseOptions={courseOptions}
           onCourseAccessChange={onCourseAccessChange}
           onSaveCourseAccess={onSaveCourseAccess}
+          onSetStudentStream={onSetStudentStream}
+          studentStream={user.studentStream ?? 'none'}
+          streamSaving={actionLoading === user.uid}
         />
       )}
     </>
@@ -172,6 +182,32 @@ function CourseAccessBadge({
   );
 }
 
+function getStudentStreamLabel(stream: StudentStream | undefined): string {
+  if (stream === 'first') return '1 поток';
+  if (stream === 'second') return '2 поток';
+  return 'Без потока';
+}
+
+function StudentStreamBadge({ stream }: { stream: StudentStream | undefined }) {
+  if (stream === 'first') {
+    return (
+      <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+        {getStudentStreamLabel(stream)}
+      </span>
+    );
+  }
+
+  if (stream === 'second') {
+    return (
+      <span className="inline-flex rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">
+        {getStudentStreamLabel(stream)}
+      </span>
+    );
+  }
+
+  return <span className="text-sm text-gray-500">{getStudentStreamLabel(stream)}</span>;
+}
+
 /**
  * Кнопки управления ролью пользователя
  */
@@ -180,18 +216,16 @@ function RoleActions({
   currentUserUid,
   isSuperAdmin,
   actionLoading,
-  onMakeAdmin,
   onRemoveAdmin,
-  onSetRole,
+  onEditAdminCourses,
   onToggleDisabled,
 }: {
   user: UserRecord;
   currentUserUid: string | undefined;
   isSuperAdmin: boolean;
   actionLoading: string | null;
-  onMakeAdmin: () => void;
   onRemoveAdmin: () => void;
-  onSetRole: (role: 'guest' | 'student') => void;
+  onEditAdminCourses: () => void;
   onToggleDisabled: () => void;
 }) {
   if (!isSuperAdmin || user.uid === currentUserUid) {
@@ -214,45 +248,22 @@ function RoleActions({
         />
       )}
 
-      {user.role === 'guest' && (
+      {user.role === 'admin' && (
         <>
           <ActionButton
-            onClick={() => onSetRole('student')}
+            onClick={onEditAdminCourses}
             disabled={isLoading}
             variant="blue"
-            label={isLoading ? 'Ждите...' : 'Студент'}
+            label={isLoading ? 'Ждите...' : 'Курсы'}
+            title="Какие курсы может редактировать"
           />
           <ActionButton
-            onClick={onMakeAdmin}
+            onClick={onRemoveAdmin}
             disabled={isLoading}
-            variant="green"
-            label={isLoading ? 'Ждите...' : 'Админ'}
+            variant="red"
+            label={isLoading ? 'Ждите...' : 'Снять права'}
           />
         </>
-      )}
-      {user.role === 'student' && (
-        <>
-          <ActionButton
-            onClick={() => onSetRole('guest')}
-            disabled={isLoading}
-            variant="yellow"
-            label={isLoading ? 'Ждите...' : 'Гость'}
-          />
-          <ActionButton
-            onClick={onMakeAdmin}
-            disabled={isLoading}
-            variant="green"
-            label={isLoading ? 'Ждите...' : 'Админ'}
-          />
-        </>
-      )}
-      {user.role === 'admin' && (
-        <ActionButton
-          onClick={onRemoveAdmin}
-          disabled={isLoading}
-          variant="red"
-          label={isLoading ? 'Ждите...' : 'Снять права'}
-        />
       )}
       {user.role === 'super-admin' && (
         <span className="text-gray-400">Super-admin</span>
@@ -305,33 +316,43 @@ function CourseAccessPanel({
   user,
   isAdmin,
   canEdit,
+  canManageCourseAccess,
+  canManageStudentStream,
   editingCourseAccess,
   courseAccessSaving,
+  streamSaving,
+  studentStream,
   courseOptions,
   onCourseAccessChange,
   onSaveCourseAccess,
+  onSetStudentStream,
 }: {
   user: UserRecord;
   isAdmin: boolean;
   canEdit: boolean;
+  canManageCourseAccess: boolean;
+  canManageStudentStream: boolean;
   editingCourseAccess: CourseAccessMap;
   courseAccessSaving: boolean;
+  streamSaving: boolean;
+  studentStream: StudentStream;
   courseOptions: CourseOption[];
   onCourseAccessChange: (courseId: string, value: boolean) => void;
   onSaveCourseAccess: () => void;
+  onSetStudentStream: (stream: StudentStream) => void;
 }) {
   return (
     <tr className="bg-gray-50">
-      <td colSpan={6} className="px-6 py-4">
+      <td colSpan={7} className="px-6 py-4">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <h4 className="mb-3 text-sm font-semibold text-gray-700">
             Доступ к курсам
-            {isAdmin && (
+            {isAdmin && user.role && (
               <span className="ml-2 text-xs font-normal text-gray-500">
                 (роль {getRoleLabel(user.role)} имеет полный доступ)
               </span>
             )}
-            {user.role === 'student' && (
+            {!user.role && (
               <span className="ml-2 text-xs font-normal text-blue-500">
                 (снятие галочки ограничит доступ)
               </span>
@@ -343,7 +364,7 @@ function CourseAccessPanel({
               <label
                 key={course.id}
                 className={`flex items-center gap-2 rounded-lg border p-3 transition ${
-                  isAdmin
+                  isAdmin || !canManageCourseAccess
                     ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60'
                     : editingCourseAccess[course.id]
                     ? 'border-green-300 bg-green-50'
@@ -353,7 +374,7 @@ function CourseAccessPanel({
                 <input
                   type="checkbox"
                   checked={isAdmin || editingCourseAccess[course.id] || false}
-                  disabled={isAdmin}
+                  disabled={isAdmin || !canManageCourseAccess}
                   onChange={(e) => onCourseAccessChange(course.id, e.target.checked)}
                   className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                 />
@@ -362,7 +383,7 @@ function CourseAccessPanel({
             ))}
           </div>
 
-          {canEdit && (
+          {canEdit && canManageCourseAccess && (
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -375,6 +396,32 @@ function CourseAccessPanel({
               <span className="text-xs text-gray-500">
                 Изменения вступят в силу немедленно
               </span>
+            </div>
+          )}
+
+          {canManageStudentStream && (
+            <div className="mt-4 border-t border-gray-100 pt-4">
+              <h5 className="mb-2 text-sm font-semibold text-gray-700">Поток студента</h5>
+              <div className="flex flex-wrap items-center gap-2">
+                {(['none', 'first', 'second'] as StudentStream[]).map((streamOption) => (
+                  <button
+                    key={streamOption}
+                    type="button"
+                    onClick={() => onSetStudentStream(streamOption)}
+                    disabled={streamSaving}
+                    className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
+                      studentStream === streamOption
+                        ? 'border-blue-600 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                  >
+                    {getStudentStreamLabel(streamOption)}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Выбор потока влияет на список курсов на главной странице студента.
+              </p>
             </div>
           )}
 

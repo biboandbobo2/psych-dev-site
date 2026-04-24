@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { getPublishedTests } from '../lib/tests';
 import { isTestUnlocked } from '../lib/testAccess';
@@ -112,26 +112,19 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const { currentCourse, setCurrentCourse } = useCourseStore();
-  const { courses, loading: coursesLoading } = useCourses();
+  const { loading: coursesLoading } = useCourses();
   const [firestoreTests, setFirestoreTests] = useState<FirestoreTest[]>([]);
   const [loadingTests, setLoadingTests] = useState(true);
   const [testUnlockStatus, setTestUnlockStatus] = useState<Record<string, boolean>>({});
 
+  const courseParam = searchParams.get('course');
+
   // Синхронизация с URL параметром при первой загрузке
   useEffect(() => {
-    const courseParam = searchParams.get('course');
-    if (courseParam) {
+    if (courseParam && courseParam !== currentCourse) {
       setCurrentCourse(courseParam as CourseType);
     }
-  }, [searchParams, setCurrentCourse]);
-
-  useEffect(() => {
-    if (coursesLoading || !courses.length) return;
-    const hasCurrent = courses.some((course) => course.id === currentCourse);
-    if (!hasCurrent && courses[0]?.id) {
-      setCurrentCourse(courses[0].id as CourseType);
-    }
-  }, [courses, coursesLoading, currentCourse, setCurrentCourse]);
+  }, [courseParam, currentCourse, setCurrentCourse]);
 
   const pageConfig = PAGE_CONFIGS[rubricFilter];
 
@@ -192,45 +185,21 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
 
   const showPlaceholders = rubricFilter === 'full-course' && !loadingTests;
 
+  // Страница всегда в контексте курса: если курс не выбран и нет ?course=,
+  // отправляем в «Дом», чтобы студент зашёл через intro-страницу курса.
+  if (!coursesLoading && !currentCourse && !courseParam) {
+    return <Navigate to="/home" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-12 px-4">
       <div className="max-w-5xl mx-auto">
-        <Link
-          to="/profile"
-          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors"
-        >
-          <span className="text-xl mr-2">←</span>
-          Вернуться в профиль
-        </Link>
-
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
           <div className="flex items-center gap-3 mb-4">
             <span className="text-4xl">{pageConfig.icon}</span>
             <h1 className="text-3xl font-bold text-gray-900">{pageConfig.title}</h1>
           </div>
           <p className="text-gray-600 mb-6">{pageConfig.description}</p>
-
-          {/* Переключатель курсов */}
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3 text-gray-700">Выберите курс</h2>
-            <div className="flex gap-2 border-b border-gray-200">
-              {courses.map((courseOption) => (
-                <button
-                  key={courseOption.id}
-                  onClick={() => setCurrentCourse(courseOption.id)}
-                  className={`px-4 py-2 font-medium transition-colors relative ${
-                    currentCourse === courseOption.id
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  disabled={coursesLoading}
-                >
-                  <span className="mr-2">{courseOption.icon}</span>
-                  {courseOption.name}
-                </button>
-              ))}
-            </div>
-          </div>
 
           <div
             className={`p-4 bg-${pageConfig.tipColor}-50 border border-${pageConfig.tipColor}-200 rounded-lg`}

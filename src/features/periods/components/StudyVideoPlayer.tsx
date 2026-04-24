@@ -13,6 +13,7 @@ interface YouTubePlayerApi {
     options: {
       events?: {
         onReady?: () => void;
+        onStateChange?: (event: { data: number }) => void;
       };
       height?: string;
       playerVars?: Record<string, number | string>;
@@ -22,6 +23,7 @@ interface YouTubePlayerApi {
   ) => {
     destroy: () => void;
     getCurrentTime: () => number;
+    getDuration: () => number;
     getPlayerState: () => number;
     seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
   };
@@ -40,6 +42,7 @@ function hasReadyPlayerMethods(
   return Boolean(
     player &&
       typeof player.getCurrentTime === 'function' &&
+      typeof player.getDuration === 'function' &&
       typeof player.getPlayerState === 'function' &&
       typeof player.seekTo === 'function'
   );
@@ -114,14 +117,64 @@ interface StudyVideoPlayerProps {
   embedUrl: string;
   initialSeekMs?: number | null;
   title: string;
+  watchThreshold?: number;
+  onWatchThresholdReached?: () => void;
+  onPlaybackProgressMs?: (currentTimeMs: number) => void;
 }
 
 export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPlayerProps>(
-  function StudyVideoPlayer({ embedUrl, initialSeekMs = null, title }, ref) {
+  function StudyVideoPlayer(
+    {
+      embedUrl,
+      initialSeekMs = null,
+      title,
+      watchThreshold = 0.95,
+      onWatchThresholdReached,
+      onPlaybackProgressMs,
+    },
+    ref
+  ) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const playerRef = useRef<InstanceType<YouTubePlayerApi['Player']> | null>(null);
     const pendingSeekMsRef = useRef<number | null>(null);
+    const watchReachedRef = useRef(false);
+    const progressIntervalRef = useRef<number | null>(null);
+    const onWatchThresholdReachedRef = useRef(onWatchThresholdReached);
+    const onPlaybackProgressMsRef = useRef(onPlaybackProgressMs);
     const playerConfig = useMemo(() => parseYouTubeEmbedConfig(embedUrl), [embedUrl]);
+
+    onWatchThresholdReachedRef.current = onWatchThresholdReached;
+    onPlaybackProgressMsRef.current = onPlaybackProgressMs;
+
+    const notifyWatchThresholdReached = () => {
+      if (watchReachedRef.current) return;
+      watchReachedRef.current = true;
+      onWatchThresholdReachedRef.current?.();
+    };
+
+    const clearProgressInterval = () => {
+      if (progressIntervalRef.current === null) return;
+      window.clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    };
+
+    const emitPlaybackProgress = () => {
+      if (!onPlaybackProgressMsRef.current) return;
+      if (!playerRef.current || typeof playerRef.current.getCurrentTime !== 'function') return;
+      const currentTimeMs = Math.max(0, Math.floor(playerRef.current.getCurrentTime() * 1000));
+      onPlaybackProgressMsRef.current(currentTimeMs);
+    };
+
+    const maybeNotifyByProgress = () => {
+      if (!hasReadyPlayerMethods(playerRef.current)) return;
+      const duration = playerRef.current.getDuration();
+      if (!duration || duration <= 0) return;
+      const current = playerRef.current.getCurrentTime();
+      emitPlaybackProgress();
+      if (current / duration >= watchThreshold) {
+        notifyWatchThresholdReached();
+      }
+    };
 
     useImperativeHandle(
       ref,
@@ -165,6 +218,11 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
     }, [initialSeekMs]);
 
     useEffect(() => {
+      watchReachedRef.current = false;
+      clearProgressInterval();
+    }, [embedUrl]);
+
+    useEffect(() => {
       if (!containerRef.current || !playerConfig) {
         return undefined;
       }
@@ -185,15 +243,35 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
             events: {
               onReady: () => {
                 if (
-                  pendingSeekMsRef.current === null ||
-                  !hasReadyPlayerMethods(playerRef.current)
+                  pendingSeekMsRef.current !== null &&
+                  hasReadyPlayerMethods(playerRef.current)
                 ) {
+                  const pendingSeekMs = pendingSeekMsRef.current;
+                  pendingSeekMsRef.current = null;
+                  playerRef.current.seekTo(Math.max(0, pendingSeekMs / 1000), true);
+                }
+
+                maybeNotifyByProgress();
+              },
+              onStateChange: ({ data }) => {
+                if (data === 0) {
+                  emitPlaybackProgress();
+                  notifyWatchThresholdReached();
+                  clearProgressInterval();
                   return;
                 }
 
-                const pendingSeekMs = pendingSeekMsRef.current;
-                pendingSeekMsRef.current = null;
-                playerRef.current.seekTo(Math.max(0, pendingSeekMs / 1000), true);
+                if (data === 1) {
+                  clearProgressInterval();
+                  maybeNotifyByProgress();
+                  progressIntervalRef.current = window.setInterval(() => {
+                    maybeNotifyByProgress();
+                  }, 1000);
+                  return;
+                }
+
+                emitPlaybackProgress();
+                clearProgressInterval();
               },
             },
           });
@@ -204,10 +282,12 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
 
       return () => {
         destroyed = true;
+        emitPlaybackProgress();
+        clearProgressInterval();
         playerRef.current?.destroy();
         playerRef.current = null;
       };
-    }, [playerConfig]);
+    }, [playerConfig, watchThreshold]);
 
     if (!playerConfig) {
       return (

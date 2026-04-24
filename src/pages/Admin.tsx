@@ -16,7 +16,7 @@ type AssistantStats = {
 };
 
 export default function Admin() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
   const location = useLocation();
   const [assistantStats, setAssistantStats] = useState<AssistantStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -84,6 +84,30 @@ export default function Admin() {
           >
             🗄️ Архив функций
           </Link>
+          {isSuperAdmin && (
+            <Link
+              to="/admin/groups"
+              className={`px-4 py-2 rounded font-medium transition-colors ${
+                location.pathname.startsWith('/admin/groups')
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200'
+              }`}
+            >
+              👥 Группы
+            </Link>
+          )}
+          {isSuperAdmin && (
+            <Link
+              to="/admin/books"
+              className={`px-4 py-2 rounded font-medium transition-colors ${
+                location.pathname.startsWith('/admin/books')
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-amber-100 text-amber-900 hover:bg-amber-200'
+              }`}
+            >
+              📚 Books
+            </Link>
+          )}
         </nav>
       )}
 

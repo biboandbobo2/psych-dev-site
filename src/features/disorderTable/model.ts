@@ -1,6 +1,7 @@
 import { DISORDER_TABLE_COURSE_IDS } from './config';
 import type {
   DisorderTableCellSelection,
+  DisorderTableCommentInput,
   DisorderTableEntry,
   DisorderTableEntryInput,
   DisorderTableEntryTrack,
@@ -8,6 +9,7 @@ import type {
 } from './types';
 
 export type DisorderTableSelectionMode = 'one-row-many-columns' | 'one-column-many-rows';
+export const DISORDER_TABLE_GENERAL_COMMENT_ENTRY_ID = '__table__';
 
 export function isDisorderTableCourse(courseId: string): boolean {
   return DISORDER_TABLE_COURSE_IDS.includes(courseId as (typeof DISORDER_TABLE_COURSE_IDS)[number]);
@@ -33,6 +35,13 @@ export function normalizeEntryInput(input: DisorderTableEntryInput): DisorderTab
 export function normalizeEntryTrack(track?: DisorderTableEntryTrack | null): DisorderTableEntryTrack | null {
   if (track === 'patopsychology' || track === 'psychiatry') return track;
   return null;
+}
+
+export function normalizeCommentInput(input: DisorderTableCommentInput): DisorderTableCommentInput {
+  return {
+    entryId: input.entryId.trim(),
+    text: input.text.trim(),
+  };
 }
 
 export function buildDisorderTableFilters(rowIds: string[], columnIds: string[]): DisorderTableFilters {

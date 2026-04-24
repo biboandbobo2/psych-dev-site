@@ -3,6 +3,7 @@ import { useAllUsers } from "../hooks/useAllUsers";
 import { useAuth } from "../auth/AuthProvider";
 import { AddAdminModal } from "../components/AddAdminModal";
 import { BulkStudentAccessModal } from "../components/BulkStudentAccessModal";
+import { EditAdminPermissionsModal } from "../components/EditAdminPermissionsModal";
 import { SuperAdminBadge } from "../components/SuperAdminBadge";
 import { useCourses } from "../hooks/useCourses";
 import { UserRow, useUserManagement } from "./admin/users";
@@ -11,7 +12,7 @@ type UserFilter = 'all' | 'students' | 'admins' | 'guests';
 
 export default function AdminUsers() {
   const { users, loading, error } = useAllUsers();
-  const { user: currentUser, isSuperAdmin } = useAuth();
+  const { user: currentUser, isAdmin, isSuperAdmin } = useAuth();
   const { courses } = useCourses({ includeUnpublished: true });
   const courseOptions = useMemo(
     () => courses.map((course) => ({ id: course.id, name: course.name })),
@@ -20,31 +21,33 @@ export default function AdminUsers() {
   const [filter, setFilter] = useState<UserFilter>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [editingAdminUid, setEditingAdminUid] = useState<string | null>(null);
+  const editingAdmin = editingAdminUid ? users.find((u) => u.uid === editingAdminUid) : null;
 
   const {
     actionLoading,
     courseAccessSaving,
     expandedUserId,
     editingCourseAccess,
-    handleMakeAdmin,
     handleRemoveAdmin,
-    handleSetRole,
+    handleSetStudentStream,
     handleToggleDisabled,
     handleRowClick,
     handleCourseAccessChange,
     handleSaveCourseAccess,
   } = useUserManagement({
+    isAdmin,
     isSuperAdmin,
     availableCourseIds: courseOptions.map((c) => c.id),
   });
 
-  if (!isSuperAdmin) {
+  if (!isAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4 text-center">
         <div className="max-w-md space-y-3">
           <h1 className="text-2xl font-semibold text-gray-900">Доступ запрещён</h1>
           <p className="text-gray-600">
-            Управление пользователями доступно только владельцу проекта (super-admin).
+            Управление пользователями доступно только администраторам платформы.
           </p>
         </div>
       </div>
@@ -67,19 +70,23 @@ export default function AdminUsers() {
     );
   }
 
+  const hasAnyCourse = (u: typeof users[number]) =>
+    !!u.courseAccess && Object.values(u.courseAccess).some((v) => v === true);
+
   const filteredUsers = users.filter((user) => {
     if (filter === 'all') return true;
     if (filter === 'admins') return user.role === 'admin' || user.role === 'super-admin';
-    if (filter === 'students') return user.role === 'student';
-    if (filter === 'guests') return user.role === 'guest';
+    const isAdminUser = user.role === 'admin' || user.role === 'super-admin';
+    if (filter === 'students') return !isAdminUser && hasAnyCourse(user);
+    if (filter === 'guests') return !isAdminUser && !hasAnyCourse(user);
     return true;
   });
 
   const stats = {
     total: users.length,
     admins: users.filter((u) => u.role === 'admin' || u.role === 'super-admin').length,
-    students: users.filter((u) => u.role === 'student').length,
-    guests: users.filter((u) => u.role === 'guest').length,
+    students: users.filter((u) => !(u.role === 'admin' || u.role === 'super-admin') && hasAnyCourse(u)).length,
+    guests: users.filter((u) => !(u.role === 'admin' || u.role === 'super-admin') && !hasAnyCourse(u)).length,
   };
 
   return (
@@ -131,6 +138,9 @@ export default function AdminUsers() {
                 Доступ к курсам
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                Поток
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Последний вход
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -150,13 +160,14 @@ export default function AdminUsers() {
                 editingCourseAccess={expandedUserId === user.uid ? editingCourseAccess : null}
                 courseAccessSaving={courseAccessSaving}
                 onRowClick={() => handleRowClick(user)}
-                onMakeAdmin={() => handleMakeAdmin(user.uid)}
                 onRemoveAdmin={() => handleRemoveAdmin(user.uid)}
+                onEditAdminCourses={() => setEditingAdminUid(user.uid)}
                 onCourseAccessChange={handleCourseAccessChange}
                 onSaveCourseAccess={() => handleSaveCourseAccess(user.uid)}
-                onSetRole={(role) => handleSetRole(user.uid, role)}
+                onSetStudentStream={(stream) => handleSetStudentStream(user.uid, stream)}
                 onToggleDisabled={() => handleToggleDisabled(user.uid, user.disabled === true)}
                 courseOptions={courseOptions}
+                canManageStudentStream={isAdmin && !(user.role === 'admin' || user.role === 'super-admin') && hasAnyCourse(user)}
               />
             ))}
           </tbody>
@@ -178,6 +189,17 @@ export default function AdminUsers() {
         onClose={() => setIsBulkModalOpen(false)}
         courseOptions={courseOptions}
       />
+
+      {editingAdmin && (
+        <EditAdminPermissionsModal
+          isOpen={Boolean(editingAdminUid)}
+          onClose={() => setEditingAdminUid(null)}
+          onSuccess={() => window.alert('Список редактируемых курсов обновлён')}
+          targetUid={editingAdmin.uid}
+          targetName={editingAdmin.displayName || editingAdmin.email || editingAdmin.uid}
+          currentEditableCourses={editingAdmin.adminEditableCourses ?? []}
+        />
+      )}
     </div>
   );
 }

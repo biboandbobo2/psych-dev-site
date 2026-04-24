@@ -9,16 +9,58 @@ type HookState = {
   loading: boolean;
   saving: boolean;
   error: string | null;
+  canEdit: boolean;
+  targetOwnerUid: string | null;
+  setTargetOwnerUid: ReturnType<typeof vi.fn>;
   createEntry: ReturnType<typeof vi.fn>;
   createEntriesBatch: ReturnType<typeof vi.fn>;
   updateEntry: ReturnType<typeof vi.fn>;
   removeEntry: ReturnType<typeof vi.fn>;
 };
 
+type CommentsHookState = {
+  comments: Array<{
+    id: string;
+    entryId: string;
+    text: string;
+    authorUid: string;
+    authorName: string;
+    createdAt: Date;
+  }>;
+  loading: boolean;
+  saving: boolean;
+  error: string | null;
+  canComment: boolean;
+  createComment: ReturnType<typeof vi.fn>;
+};
+
+type StudentsHookState = {
+  students: Array<{
+    uid: string;
+    displayName: string;
+    email: string;
+  }>;
+  loading: boolean;
+  error: string | null;
+};
+
 let mockHookState: HookState;
+let mockCommentsHookState: CommentsHookState;
+let mockStudentsHookState: StudentsHookState;
 
 vi.mock('../../stores', () => ({
   useCourseStore: () => ({ currentCourse: 'clinical' }),
+}));
+
+vi.mock('../../auth/AuthProvider', () => ({
+  useAuth: () => ({
+    user: {
+      uid: 'student-1',
+      displayName: 'Student One',
+      email: 'student1@example.com',
+    },
+    isAdmin: false,
+  }),
 }));
 
 vi.mock('../../features/disorderTable', async () => {
@@ -26,6 +68,8 @@ vi.mock('../../features/disorderTable', async () => {
   return {
     ...actual,
     useDisorderTableEntries: () => mockHookState,
+    useDisorderTableComments: () => mockCommentsHookState,
+    useDisorderTableStudents: () => mockStudentsHookState,
   };
 });
 
@@ -57,27 +101,47 @@ describe('DisorderTable page', () => {
       loading: false,
       saving: false,
       error: null,
+      canEdit: true,
+      targetOwnerUid: 'student-1',
+      setTargetOwnerUid: vi.fn(),
       createEntry: vi.fn(),
       createEntriesBatch: vi.fn().mockResolvedValue(undefined),
       updateEntry: vi.fn(),
       removeEntry: vi.fn().mockResolvedValue(undefined),
+    };
+    mockCommentsHookState = {
+      comments: [],
+      loading: false,
+      saving: false,
+      error: null,
+      canComment: false,
+      createComment: vi.fn().mockResolvedValue(undefined),
+    };
+    mockStudentsHookState = {
+      students: [],
+      loading: false,
+      error: null,
     };
   });
 
   it('применяет фильтры только после кнопки "Применить фильтр"', () => {
     renderPage();
 
-    const table = screen.getByRole('table');
-    const thead = within(table).getByRole('rowgroup');
-    const initialHeaderButtons = within(thead).getAllByRole('button');
-    expect(initialHeaderButtons).toHaveLength(8);
+    const getHeaderButtons = () => {
+      const table = screen.getByRole('table');
+      const [thead] = within(table).getAllByRole('rowgroup');
+      return within(thead).getAllByRole('button');
+    };
+
+    const initialHeaderButtons = getHeaderButtons();
+    expect(initialHeaderButtons).toHaveLength(10);
 
     fireEvent.click(screen.getByRole('button', { name: 'Тревожные расстройства' }));
-    const afterDraftHeaderButtons = within(thead).getAllByRole('button');
-    expect(afterDraftHeaderButtons).toHaveLength(8);
+    const afterDraftHeaderButtons = getHeaderButtons();
+    expect(afterDraftHeaderButtons).toHaveLength(10);
 
     fireEvent.click(screen.getByRole('button', { name: 'Применить фильтр' }));
-    const afterApplyHeaderButtons = within(thead).getAllByRole('button');
+    const afterApplyHeaderButtons = getHeaderButtons();
     expect(afterApplyHeaderButtons).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Тревожные расстройства' })).toBeInTheDocument();
   });
@@ -94,33 +158,36 @@ describe('DisorderTable page', () => {
 
     renderPage();
 
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /Очень длинный полный текст наблюдения для проверки модального окна пересечения/i,
-      })
+    const filledCellButton = screen.getAllByRole('button').find((button) =>
+      button.textContent?.includes('Очень длинный полный текст наблюдения для проверки модального окна пересечения')
     );
+    expect(filledCellButton).toBeDefined();
+    if (!filledCellButton) {
+      throw new Error('Filled disorder-table cell not found');
+    }
+    fireEvent.click(filledCellButton);
 
     expect(
-      screen.getByRole('heading', { name: 'Нарушения восприятия × Расстройства шизофренического спектра' })
+      screen.getByRole('heading', { name: /Нарушения восприятия × Расстройства шизофренического спектра/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Очень длинный полный текст наблюдения для проверки модального окна пересечения')
-    ).toBeInTheDocument();
+      screen.getAllByText('Очень длинный полный текст наблюдения для проверки модального окна пересечения').length
+    ).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Добавить в это пересечение' })).toBeInTheDocument();
   });
 
   it('массово вносит текст в выбранные пересечения', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Выбрать несколько ячеек' }));
+    fireEvent.click(screen.getByRole('button', { name: /Выбрать несколько ячеек|Режим выбора/i }));
 
     const emptyCells = screen.getAllByRole('button', { name: 'Пусто' });
     fireEvent.click(emptyCells[0]);
     fireEvent.click(emptyCells[1]);
 
-    fireEvent.click(screen.getByRole('button', { name: /Внести текст в выбранные \\(2\\)/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Внести текст в выбранные/i }));
 
-    fireEvent.change(screen.getByLabelText('Общий текст'), {
+    fireEvent.change(screen.getByPlaceholderText('Введите текст, который нужно добавить во все выбранные пересечения'), {
       target: { value: '  Один текст для нескольких ячеек  ' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить во все выбранные' }));

@@ -121,9 +121,10 @@ export default defineConfig(({ mode }) => {
   });
   const devApiPlugin = wrapApiMiddleware('/api/papers', 'api/papers.ts');
   const devBookingPlugin = wrapApiMiddleware('/api/booking', 'api/booking.ts');
+  const devAssistantPlugin = wrapApiMiddleware('/api/assistant', 'api/assistant.ts');
   const plugins = [react()];
   if (!isProd) {
-    plugins.push(devApiPlugin, devBookingPlugin);
+    plugins.push(devApiPlugin, devBookingPlugin, devAssistantPlugin);
   }
 
   return {

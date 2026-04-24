@@ -18,8 +18,7 @@ export function useAuth() {
   const loading = useAuthStore((state) => state.loading);
   const userRole = useAuthStore((state) => state.userRole);
   const courseAccess = useAuthStore((state) => state.courseAccess);
-  const isGuest = useAuthStore((state) => state.isGuest);
-  const isStudent = useAuthStore((state) => state.isStudent);
+  const studentStream = useAuthStore((state) => state.studentStream);
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
@@ -32,14 +31,13 @@ export function useAuth() {
       loading,
       userRole,
       courseAccess,
-      isGuest,
-      isStudent,
+      studentStream,
       isAdmin,
       isSuperAdmin,
       signInWithGoogle,
       logout,
       hasCourseAccess,
     }),
-    [user, loading, userRole, courseAccess, isGuest, isStudent, isAdmin, isSuperAdmin, signInWithGoogle, logout, hasCourseAccess]
+    [user, loading, userRole, courseAccess, studentStream, isAdmin, isSuperAdmin, signInWithGoogle, logout, hasCourseAccess]
   );
 }

@@ -37,7 +37,14 @@ export const DynamicPeriodPage = lazy(() =>
   )
 );
 export const FeaturesPage = lazy(() => lazyWithReload(() => import('./FeaturesPage'), 'FeaturesPage'));
+export const CourseIntroPage = lazy(() => lazyWithReload(() => import('./course/CourseIntroPage'), 'CourseIntroPage'));
+export const AdminCourseIntro = lazy(() => lazyWithReload(() => import('./admin/courseIntro/CourseIntroEditor'), 'AdminCourseIntro'));
+export const AdminAnnouncements = lazy(() => lazyWithReload(() => import('./admin/AdminAnnouncements'), 'AdminAnnouncements'));
+export const AdminGroups = lazy(() => lazyWithReload(() => import('./admin/groups/AdminGroups'), 'AdminGroups'));
+export const PaletteDebug = lazy(() => lazyWithReload(() => import('./debug/PaletteDebug'), 'PaletteDebug'));
+export const HomeV2Debug = lazy(() => lazyWithReload(() => import('./debug/HomeV2Debug'), 'HomeV2Debug'));
 export const WarmSprings2Page = lazy(() => lazyWithReload(() => import('./WarmSprings2Page'), 'WarmSprings2Page'));
+
 const importBookingPages = () => import('./booking');
 export const BookingSectionLayout = lazy(() =>
   lazyWithReload(

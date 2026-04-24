@@ -1,5 +1,6 @@
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '../lib/firebase';
+import { debugError } from '../lib/debug';
 
 /**
  * Допустимые типы файлов
@@ -99,6 +100,27 @@ export async function uploadQuestionAudio(
 }
 
 /**
+ * Загрузка фото автора курса в Storage
+ */
+export async function uploadCourseAuthorPhoto(
+  courseId: string,
+  authorId: string,
+  file: File
+): Promise<string> {
+  const validation = validateImageFile(file);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
+  const fileExtension = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const storagePath = `courses/${courseId}/authors/${authorId}.${fileExtension}`;
+  const storageRef = ref(storage, storagePath);
+
+  await uploadBytes(storageRef, file);
+  return getDownloadURL(storageRef);
+}
+
+/**
  * Удаление файла из Storage по URL
  */
 export async function deleteMediaFile(url: string): Promise<void> {
@@ -106,7 +128,7 @@ export async function deleteMediaFile(url: string): Promise<void> {
     const storageRef = ref(storage, url);
     await deleteObject(storageRef);
   } catch (error) {
-    console.error('Ошибка удаления файла:', error);
+    debugError('Ошибка удаления файла:', error);
     // Не бросаем ошибку, т.к. файл может быть уже удалён
   }
 }

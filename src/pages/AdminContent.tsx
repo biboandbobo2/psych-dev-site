@@ -35,6 +35,9 @@ import {
 import { isCoreCourse } from "../constants/courses";
 import { useCourses } from "../hooks/useCourses";
 import { useActiveCourse } from "../hooks/useActiveCourse";
+import { useMyAnnouncementGroups } from "../hooks/useMyAnnouncementGroups";
+import { useAuthStore } from "../stores/useAuthStore";
+import { canEditCourse } from "../types/user";
 import type { CourseType } from "../types/tests";
 
 interface Period {
@@ -57,9 +60,10 @@ const ACTION_BUTTON_CLASS =
 interface SortableItemProps {
   period: Period;
   currentCourse: CourseType;
+  canEdit: boolean;
 }
 
-function SortableItem({ period, currentCourse }: SortableItemProps) {
+function SortableItem({ period, currentCourse, canEdit }: SortableItemProps) {
   const navigate = useNavigate();
   const isPlaceholder = Boolean(period.isPlaceholder);
   const {
@@ -71,7 +75,7 @@ function SortableItem({ period, currentCourse }: SortableItemProps) {
     isDragging,
   } = useSortable({
     id: period.period,
-    disabled: isPlaceholder, // Запрещаем перетаскивание placeholder'ов
+    disabled: isPlaceholder || !canEdit,
   });
 
   const style = {
@@ -85,16 +89,24 @@ function SortableItem({ period, currentCourse }: SortableItemProps) {
   const isIntro = period.period === "intro";
 
   const handleClick = () => {
+    if (!canEdit) return;
     navigate(`/admin/content/edit/${period.period}?course=${currentCourse}`);
   };
+
+  const dragCursor = !canEdit
+    ? 'cursor-not-allowed'
+    : isPlaceholder
+      ? 'cursor-default'
+      : 'cursor-grab active:cursor-grabbing';
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`block rounded-lg shadow hover:shadow-lg transition-shadow ${
-        isPlaceholder ? "cursor-default" : "cursor-grab active:cursor-grabbing"
-      } ${
+      title={canEdit ? undefined : 'Нет прав на редактирование этого курса'}
+      className={`block rounded-lg shadow transition-shadow ${
+        canEdit ? 'hover:shadow-lg' : 'opacity-60'
+      } ${dragCursor} ${
         isIntro ? "bg-gradient-to-r from-yellow-400 to-yellow-500 text-white" : "bg-white"
       } ${isPlaceholder && !isIntro ? "border border-dashed border-blue-200 opacity-70" : ""} ${
         isDragging ? "shadow-xl ring-2 ring-blue-400" : ""
@@ -141,7 +153,13 @@ function SortableItem({ period, currentCourse }: SortableItemProps) {
         </div>
         <button
           onClick={handleClick}
-          className={`text-2xl ml-4 ${isIntro ? "text-white" : "text-gray-400"} hover:scale-110 transition-transform`}
+          disabled={!canEdit}
+          title={canEdit ? 'Редактировать' : 'Нет прав на редактирование этого курса'}
+          className={`text-2xl ml-4 transition-transform ${
+            !canEdit
+              ? 'cursor-not-allowed text-gray-300'
+              : `${isIntro ? 'text-white' : 'text-gray-400'} hover:scale-110`
+          }`}
         >
           ✏️
         </button>
@@ -204,6 +222,14 @@ export default function AdminContent() {
 
   const activeCourse = useActiveCourse(courses, coursesLoading);
   const isCore = isCoreCourse(activeCourse);
+  const userRole = useAuthStore((s) => s.userRole);
+  const adminEditableCourses = useAuthStore((s) => s.adminEditableCourses);
+  const { groups: myAnnouncementGroups } = useMyAnnouncementGroups();
+  const canEditActiveCourse = canEditCourse(userRole, adminEditableCourses, activeCourse);
+  // Активно для super-admin всегда; для admin — если он в announcementAdminIds
+  // хотя бы одной группы (см. useMyAnnouncementGroups).
+  const canWriteAnnouncements =
+    userRole === 'super-admin' || myAnnouncementGroups.length > 0;
   const loadRequestId = useRef(0);
 
   const loadPeriods = async (courseId: string = activeCourse) => {
@@ -337,17 +363,79 @@ export default function AdminContent() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
-      <header className="flex items-center justify-between mb-2">
+      <header className="flex items-center justify-between gap-3 mb-2">
         <h1 className="text-2xl font-bold sm:text-3xl">Управление контентом</h1>
-        <Link
-          to="/admin/books"
-          className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-4 py-2 text-amber-900 transition-colors hover:bg-amber-200"
-          title="Управление книгами"
-        >
-          <span className="text-lg" aria-hidden>📚</span>
-          <span className="text-sm font-medium">Books</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          {canEditActiveCourse ? (
+            <Link
+              to={`/admin/content/course-intro/${activeCourse}`}
+              className="inline-flex items-center gap-2 rounded-lg bg-[#E8F0FA] px-4 py-2 text-[#1F4F86] transition-colors hover:bg-[#D5E4F5]"
+              title="«О курсе»: Идея, Авторы, Программа"
+            >
+              <span className="text-lg" aria-hidden>✨</span>
+              <span className="text-sm font-medium">О курсе</span>
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-gray-400"
+              title="Нет прав на редактирование этого курса"
+            >
+              <span className="text-lg" aria-hidden>✨</span>
+              <span className="text-sm font-medium">О курсе</span>
+            </button>
+          )}
+          {canWriteAnnouncements ? (
+            <Link
+              to="/admin/announcements"
+              className="inline-flex items-center gap-2 rounded-lg bg-purple-100 px-4 py-2 text-purple-900 transition-colors hover:bg-purple-200"
+              title="Объявления и события для студентов"
+            >
+              <span className="text-lg" aria-hidden>📢</span>
+              <span className="text-sm font-medium">Кабинет объявлений</span>
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-gray-400"
+              title="Супер-админ должен назначить вас администратором объявлений в настройках группы"
+            >
+              <span className="text-lg" aria-hidden>📢</span>
+              <span className="text-sm font-medium">Кабинет объявлений</span>
+            </button>
+          )}
+        </div>
       </header>
+
+      <Link
+        to={canEditActiveCourse ? `/admin/content/course-intro/${activeCourse}` : '#'}
+        onClick={(e) => {
+          if (!canEditActiveCourse) e.preventDefault();
+        }}
+        className={`block rounded-xl border p-4 transition ${
+          canEditActiveCourse
+            ? 'border-[#C6D7EA] bg-[#F4F9FF] hover:bg-[#E8F0FA]'
+            : 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60'
+        }`}
+        title={canEditActiveCourse ? undefined : 'Нет прав на редактирование этого курса'}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span aria-hidden>✨</span>
+              <span className={`text-sm font-semibold ${canEditActiveCourse ? 'text-[#1F4F86]' : 'text-gray-500'}`}>
+                Вводная страница курса
+              </span>
+            </div>
+            <p className={`mt-1 text-xs ${canEditActiveCourse ? 'text-[#556476]' : 'text-gray-400'}`}>
+              Идея, авторы и программа — показываются на странице «О курсе» этого курса.
+            </p>
+          </div>
+          <span className={`text-xl ${canEditActiveCourse ? 'text-[#1F4F86]' : 'text-gray-400'}`}>→</span>
+        </div>
+      </Link>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1">
@@ -360,8 +448,14 @@ export default function AdminContent() {
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <button
-            onClick={() => setShowCreateLesson(true)}
-            className={`${ACTION_BUTTON_CLASS} bg-emerald-600 hover:bg-emerald-700`}
+            onClick={() => canEditActiveCourse && setShowCreateLesson(true)}
+            disabled={!canEditActiveCourse}
+            title={canEditActiveCourse ? undefined : 'Нет прав на редактирование этого курса'}
+            className={`${ACTION_BUTTON_CLASS} ${
+              canEditActiveCourse
+                ? 'bg-emerald-600 hover:bg-emerald-700'
+                : 'cursor-not-allowed bg-gray-300 text-gray-500'
+            }`}
           >
             <span aria-hidden>➕</span>
             <span>Добавить занятие</span>
@@ -405,6 +499,7 @@ export default function AdminContent() {
                   key={period.period}
                   period={period}
                   currentCourse={activeCourse}
+                  canEdit={canEditActiveCourse}
                 />
               ))
             )}

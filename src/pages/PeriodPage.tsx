@@ -1,6 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 import { motion as Motion } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { SectionMuted } from '../components/ui/Section';
 import { BACKGROUND_BY_PERIOD } from '../theme/backgrounds';
 import { pageTransition } from '../theme/motion';
@@ -26,6 +26,9 @@ interface PeriodRouteConfig {
   themeKey?: string;
   placeholderText?: string;
   placeholderDefaultEnabled?: boolean;
+  startCoursePath?: string;
+  startCourseLabel?: string;
+  startCourseDescription?: string;
   meta?: RouteMeta;
 }
 
@@ -35,6 +38,77 @@ interface StudyLaunchParams {
   initialSeekMs: number | null;
   requestedVideoId: string;
 }
+
+type IntroOverview = {
+  title: string;
+  summary: string;
+  examNote: string;
+};
+
+const INTRO_OVERVIEWS: Record<string, IntroOverview> = {
+  'development-intro': {
+    title: 'Как устроен курс',
+    summary:
+      'Это главная страница курса психологии развития: здесь собраны структура обучения, ключевые разделы и практические инструменты курса.',
+    examNote:
+      'Итоговая аттестация и проверка прогресса проходят через тесты по занятиям и итоговые задания.',
+  },
+  intro: {
+    title: 'Как устроен курс',
+    summary:
+      'На этой странице собрана вводная информация по курсу психологии развития: структура занятий, материалы и практические инструменты.',
+    examNote:
+      'Итоговая аттестация и проверка прогресса проходят через тесты по занятиям и по курсу.',
+  },
+  'clinical-intro': {
+    title: 'Как устроен курс',
+    summary:
+      'На вводной странице курса патопсихологии собрана общая логика курса, формат занятий и практические инструменты по теме расстройств.',
+    examNote:
+      'Итоговая аттестация и проверка прогресса доступны через тесты и практические задания курса.',
+  },
+  'general-intro': {
+    title: 'Как устроен курс',
+    summary:
+      'Это вводная страница курса общей психологии с обзором содержания, последовательности тем и формата обучения.',
+    examNote:
+      'Итоговая аттестация проходит через тесты по темам и итоговые проверочные задания курса.',
+  },
+  'dynamic-intro': {
+    title: 'Как устроен курс',
+    summary:
+      'Это вводная страница курса: здесь собрана общая логика обучения, структура тем и ключевые инструменты.',
+    examNote:
+      'Итоговая аттестация и проверка прогресса доступны через тесты и практические задания курса.',
+  },
+};
+
+const INTRO_PAGE_HEADING_BY_PATH: Record<string, string> = {
+  '/development/intro': 'Психология развития',
+  '/clinical/intro': 'Основы патопсихологии взрослого и детского возрастов',
+  '/general/intro': 'Введение в основы клинической психологии',
+};
+
+const DEFAULT_START_CTA_BY_PATH: Record<string, { path: string; title: string; description: string; buttonLabel: string }> = {
+  '/development/intro': {
+    path: '/intro',
+    title: 'Начните с вводной лекции',
+    description: 'Откройте первое занятие и получите ключевые ориентиры по курсу.',
+    buttonLabel: 'СТАРТ КУРСА',
+  },
+  '/clinical/intro': {
+    path: '/clinical/1',
+    title: 'Начните с первой темы курса',
+    description: 'Перейдите к базовой теме и начните практическую работу по курсу.',
+    buttonLabel: 'СТАРТ КУРСА',
+  },
+  '/general/intro': {
+    path: '/general/1',
+    title: 'Начните с первой темы курса',
+    description: 'Откройте стартовую тему и переходите к следующим занятиям по курсу.',
+    buttonLabel: 'СТАРТ КУРСА',
+  },
+};
 
 export interface PeriodPageProps {
   config: PeriodRouteConfig;
@@ -110,7 +184,10 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const location = useLocation();
   const themeKey = config.themeKey ?? config.periodId;
   usePeriodTheme(themeKey);
-  const heading = period?.label || config.navLabel;
+  const heading =
+    INTRO_PAGE_HEADING_BY_PATH[config.path] ||
+    period?.label ||
+    config.navLabel;
   const { tests: periodTests } = usePeriodTests(config.periodId);
 
   // Определяем тип курса на основе пути
@@ -182,6 +259,33 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
   const backgroundClass = backgroundImage ? 'bg-repeat bg-[length:180px]' : '';
   const backgroundStyle = backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined;
   const studyLaunch = getStudyLaunchParams(location.search);
+  const isDevelopmentCourseIntro = config.path === '/development/intro';
+  const isClinicalCourseIntro = config.path === '/clinical/intro';
+  const isGeneralCourseIntro = config.path === '/general/intro';
+  const isDynamicCourseIntro = config.periodId === 'dynamic-intro';
+  const showDisorderTableCta = isClinicalCourseIntro;
+  const showTimelineCta = isDevelopmentCourseIntro;
+  const introOverview = isDevelopmentCourseIntro
+    ? INTRO_OVERVIEWS['development-intro']
+    : isClinicalCourseIntro
+    ? INTRO_OVERVIEWS['clinical-intro']
+    : isGeneralCourseIntro
+    ? INTRO_OVERVIEWS['general-intro']
+    : isDynamicCourseIntro
+    ? INTRO_OVERVIEWS['dynamic-intro']
+    : null;
+
+  const fallbackStartCourseCta = DEFAULT_START_CTA_BY_PATH[config.path];
+  const startCoursePath = config.startCoursePath ?? fallbackStartCourseCta?.path ?? null;
+  const startCourseTitle = config.startCourseLabel ?? fallbackStartCourseCta?.title ?? 'Начните обучение по курсу';
+  const startCourseDescription =
+    config.startCourseDescription ??
+    fallbackStartCourseCta?.description ??
+    'Откройте первое занятие и двигайтесь по программе последовательно.';
+  const startCourseButtonLabel = fallbackStartCourseCta?.buttonLabel ?? 'СТАРТ КУРСА';
+  const showStartCourseCta =
+    Boolean(startCoursePath) &&
+    (isDevelopmentCourseIntro || isClinicalCourseIntro || isGeneralCourseIntro || isDynamicCourseIntro);
 
   return (
     <Motion.div
@@ -201,6 +305,82 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
         </h1>
         {period?.subtitle ? (
           <p className="text-lg leading-8 text-muted max-w-measure">{period.subtitle}</p>
+        ) : null}
+        {introOverview ? (
+          <section className="max-w-3xl rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+            <h2 className="text-base font-semibold text-slate-900">{introOverview.title}</h2>
+            <p className="mt-2 text-sm text-slate-700">{introOverview.summary}</p>
+            <p className="mt-2 text-sm font-medium text-slate-800">{introOverview.examNote}</p>
+          </section>
+        ) : null}
+        {showDisorderTableCta ? (
+          <div className="max-w-4xl rounded-3xl border border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 p-6 sm:p-7">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-rose-700">
+                  Практика курса
+                </p>
+                <p className="text-xl font-bold text-slate-900 sm:text-2xl">
+                  Перейти в «Таблицу по расстройствам»
+                </p>
+                <p className="text-base text-slate-700">
+                  Заполняйте и редактируйте ваши наблюдения по пересечениям симптомов и расстройств.
+                </p>
+              </div>
+              <Link
+                to="/disorder-table"
+                className="inline-flex items-center justify-center rounded-2xl bg-rose-600 px-6 py-3 text-base font-bold text-white transition hover:bg-rose-700"
+              >
+                Открыть таблицу
+              </Link>
+            </div>
+          </div>
+        ) : null}
+        {showTimelineCta ? (
+          <div className="max-w-4xl rounded-3xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-6 sm:p-7">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
+                  Практика курса
+                </p>
+                <p className="text-xl font-bold text-slate-900 sm:text-2xl">
+                  Откройте «Таймлайн жизни»
+                </p>
+                <p className="text-base text-slate-700">
+                  Заполняйте личный таймлайн, связывайте события жизни с этапами развития и отслеживайте динамику.
+                </p>
+              </div>
+              <Link
+                to="/timeline"
+                className="inline-flex items-center justify-center rounded-2xl bg-amber-600 px-6 py-3 text-base font-bold text-white transition hover:bg-amber-700"
+              >
+                Открыть таймлайн
+              </Link>
+            </div>
+          </div>
+        ) : null}
+        {showStartCourseCta && startCoursePath ? (
+          <div className="max-w-4xl rounded-3xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-blue-50 to-cyan-50 p-6 sm:p-7">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-700">
+                  Старт курса
+                </p>
+                <p className="text-xl font-bold text-slate-900 sm:text-2xl">
+                  {startCourseTitle}
+                </p>
+                <p className="text-base text-slate-700">
+                  {startCourseDescription}
+                </p>
+              </div>
+              <Link
+                to={startCoursePath}
+                className="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-8 py-3 text-base font-black uppercase tracking-wide text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-indigo-700 hover:shadow-xl"
+              >
+                {startCourseButtonLabel}
+              </Link>
+            </div>
+          </div>
         ) : null}
       </div>
 

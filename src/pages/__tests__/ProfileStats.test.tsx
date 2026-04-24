@@ -7,7 +7,8 @@ vi.mock('../../hooks/useAllUsers', () => ({
     users: [
       {
         uid: 'u1',
-        role: 'student',
+        role: null,
+        courseAccess: { development: true },
         email: 'student@example.com',
         displayName: 'Student',
         photoURL: null,
@@ -41,6 +42,7 @@ vi.mock('../../hooks/useAllUsers', () => ({
 vi.mock('../../auth/AuthProvider', () => ({
   useAuth: () => ({
     user: { uid: 'u3', email: 'super@example.com' },
+    isAdmin: true,
     isSuperAdmin: true,
   }),
 }));

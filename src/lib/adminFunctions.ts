@@ -1,10 +1,21 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase";
-import type { CourseAccessMap, UpdateCourseAccessParams } from "../types/user";
+import type { CourseAccessMap, StudentStream, UpdateCourseAccessParams } from "../types/user";
 
 export interface MakeAdminParams {
   targetUid?: string;
   targetEmail?: string;
+  editableCourses: string[];
+}
+
+export interface SetAdminEditableCoursesParams {
+  targetUid: string;
+  editableCourses: string[];
+}
+
+interface SetAdminEditableCoursesResponse {
+  success: boolean;
+  editableCourses: string[];
 }
 
 interface AdminActionResponse {
@@ -68,6 +79,86 @@ export async function makeUserAdmin(params: MakeAdminParams) {
 export async function removeAdmin(targetUid: string) {
   const remove = httpsCallable<{ targetUid: string }, AdminActionResponse>(functions, "removeAdmin");
   const result = await remove({ targetUid });
+  return result.data;
+}
+
+/**
+ * Обновить список курсов, которые admin может редактировать.
+ * Только super-admin, список не должен быть пустым.
+ */
+export async function setAdminEditableCourses(params: SetAdminEditableCoursesParams) {
+  const call = httpsCallable<SetAdminEditableCoursesParams, SetAdminEditableCoursesResponse>(
+    functions,
+    "setAdminEditableCourses"
+  );
+  const result = await call(params);
+  return result.data;
+}
+
+// === Группы ===
+
+export interface CreateGroupParams {
+  name: string;
+  description?: string;
+  memberIds?: string[];
+  grantedCourses?: string[];
+  announcementAdminIds?: string[];
+}
+export interface UpdateGroupParams {
+  groupId: string;
+  name?: string;
+  description?: string;
+  grantedCourses?: string[];
+  announcementAdminIds?: string[];
+}
+export interface SetGroupMembersParams {
+  groupId: string;
+  memberIds: string[];
+}
+
+export async function createGroup(params: CreateGroupParams) {
+  const call = httpsCallable<CreateGroupParams, { success: true; groupId: string }>(
+    functions,
+    "createGroup"
+  );
+  const result = await call(params);
+  return result.data;
+}
+
+export async function updateGroup(params: UpdateGroupParams) {
+  const call = httpsCallable<UpdateGroupParams, { success: true }>(functions, "updateGroup");
+  const result = await call(params);
+  return result.data;
+}
+
+export async function setGroupMembers(params: SetGroupMembersParams) {
+  const call = httpsCallable<SetGroupMembersParams, { success: true; count: number }>(
+    functions,
+    "setGroupMembers"
+  );
+  const result = await call(params);
+  return result.data;
+}
+
+export async function deleteGroup(groupId: string) {
+  const call = httpsCallable<{ groupId: string }, { success: true }>(functions, "deleteGroup");
+  const result = await call({ groupId });
+  return result.data;
+}
+
+export interface AddGroupMembersByEmailResponse {
+  success: true;
+  resolvedExisting: number;
+  createdPending: number;
+  uids: string[];
+}
+
+export async function addGroupMembersByEmail(params: { groupId: string; emails: string[] }) {
+  const call = httpsCallable<
+    { groupId: string; emails: string[] },
+    AddGroupMembersByEmailResponse
+  >(functions, "addGroupMembersByEmail");
+  const result = await call(params);
   return result.data;
 }
 
@@ -157,6 +248,20 @@ interface ToggleUserDisabledResponse {
   message: string;
 }
 
+export interface SetStudentStreamParams {
+  targetUid: string;
+  stream: StudentStream;
+}
+
+interface SetStudentStreamResponse {
+  success: boolean;
+  targetUid: string;
+  targetEmail: string | null;
+  previousStream: StudentStream;
+  newStream: StudentStream;
+  message: string;
+}
+
 /**
  * Отключает или включает пользователя.
  * Отключённый пользователь не может войти, но все его данные сохраняются.
@@ -171,5 +276,14 @@ export async function toggleUserDisabled(params: ToggleUserDisabledParams) {
     "toggleUserDisabled"
   );
   const result = await toggle(params);
+  return result.data;
+}
+
+export async function setStudentStream(params: SetStudentStreamParams) {
+  const setStream = httpsCallable<SetStudentStreamParams, SetStudentStreamResponse>(
+    functions,
+    "setStudentStream"
+  );
+  const result = await setStream(params);
   return result.data;
 }

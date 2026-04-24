@@ -6,11 +6,14 @@ import {
   buildDisorderTableCellKey,
   buildDisorderTableFilters,
   buildDisorderTableFullMatrix,
+  DISORDER_TABLE_GENERAL_COMMENT_ENTRY_ID,
   DISORDER_TABLE_COLUMNS,
   DISORDER_TABLE_ROWS,
   isDisorderTableCourse,
   isValidDisorderTableEntryInput,
+  useDisorderTableComments,
   useDisorderTableEntries,
+  useDisorderTableStudents,
 } from '../features/disorderTable';
 import type {
   DisorderTableCellSelection,
@@ -18,6 +21,7 @@ import type {
 } from '../features/disorderTable';
 import { BaseModal, ModalCancelButton, ModalSaveButton } from '../components/ui/BaseModal';
 import { useCourseStore } from '../stores';
+import { useAuth } from '../auth/AuthProvider';
 
 const TEXT_CLAMP_STYLE: CSSProperties = {
   display: '-webkit-box',
@@ -93,17 +97,34 @@ function renderHighlightedText(text: string, query: string): ReactNode {
 }
 
 export default function DisorderTable() {
+  const { user, isAdmin } = useAuth();
   const { currentCourse } = useCourseStore();
   const {
     entries,
     loading,
     saving,
     error,
+    canEdit,
+    targetOwnerUid,
+    setTargetOwnerUid,
     createEntry,
     createEntriesBatch,
     updateEntry,
     removeEntry,
   } = useDisorderTableEntries(currentCourse);
+  const {
+    comments,
+    loading: commentsLoading,
+    saving: commentsSaving,
+    error: commentsError,
+    canComment,
+    createComment,
+  } = useDisorderTableComments(currentCourse, targetOwnerUid);
+  const {
+    students,
+    loading: studentsLoading,
+    error: studentsError,
+  } = useDisorderTableStudents(isAdmin);
 
   const [isMobile, setIsMobile] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -133,8 +154,20 @@ export default function DisorderTable() {
   const [bulkText, setBulkText] = useState('');
   const [bulkTrack, setBulkTrack] = useState<OptionalTrack>(null);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [commentSubmitErrors, setCommentSubmitErrors] = useState<Record<string, string>>({});
+  const [commentSavingEntryId, setCommentSavingEntryId] = useState<string | null>(null);
+  const [isGeneralCommentsModalOpen, setIsGeneralCommentsModalOpen] = useState(false);
+  const [generalCommentDraft, setGeneralCommentDraft] = useState('');
+  const [generalCommentSubmitError, setGeneralCommentSubmitError] = useState<string | null>(null);
+  const [generalCommentSaving, setGeneralCommentSaving] = useState(false);
 
   useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      setIsMobile(false);
+      return;
+    }
+
     const media = window.matchMedia('(max-width: 639px)');
     const update = () => setIsMobile(media.matches);
     update();
@@ -142,8 +175,49 @@ export default function DisorderTable() {
     return () => media.removeEventListener('change', update);
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    if (!isAdmin) {
+      setTargetOwnerUid(user.uid);
+      return;
+    }
+
+    if (studentsLoading) return;
+    if (!students.length) return;
+
+    const selectedStillExists = students.some((student) => student.uid === targetOwnerUid);
+    if (!selectedStillExists) {
+      setTargetOwnerUid(students[0].uid);
+    }
+  }, [user, isAdmin, students, studentsLoading, targetOwnerUid, setTargetOwnerUid]);
+
   const rowLabels = useMemo(() => new Map(DISORDER_TABLE_ROWS.map((row) => [row.id, row.label])), []);
   const columnLabels = useMemo(() => new Map(DISORDER_TABLE_COLUMNS.map((column) => [column.id, column.label])), []);
+  const generalComments = useMemo(
+    () => comments.filter((comment) => comment.entryId === DISORDER_TABLE_GENERAL_COMMENT_ENTRY_ID),
+    [comments]
+  );
+  const commentsByEntryId = useMemo(() => {
+    const map = new Map<string, typeof comments>();
+    for (const comment of comments) {
+      const bucket = map.get(comment.entryId);
+      if (bucket) {
+        bucket.push(comment);
+      } else {
+        map.set(comment.entryId, [comment]);
+      }
+    }
+    return map;
+  }, [comments]);
+  const commentCountByEntryId = useMemo(
+    () => new Map(Array.from(commentsByEntryId.entries()).map(([entryId, list]) => [entryId, list.length])),
+    [commentsByEntryId]
+  );
+  const selectedStudent = useMemo(
+    () => students.find((student) => student.uid === targetOwnerUid) ?? null,
+    [students, targetOwnerUid]
+  );
+  const canEditEntries = canEdit && !isAdmin;
 
   const activeFilters = useMemo(
     () => buildDisorderTableFilters(activeFilterRowIds, activeFilterColumnIds),
@@ -226,7 +300,7 @@ export default function DisorderTable() {
   };
 
   const openCreateFromCell = (rowId: string, columnId: string) => {
-    if (isMobile) return;
+    if (isMobile || !canEditEntries) return;
     resetForm();
     setFormRowIds([rowId]);
     setFormColumnIds([columnId]);
@@ -240,7 +314,7 @@ export default function DisorderTable() {
   };
 
   const startEdit = (entryId: string) => {
-    if (isMobile) return;
+    if (isMobile || !canEditEntries) return;
     const entry = entries.find((item) => item.id === entryId);
     if (!entry) return;
     const rowId = activeCell?.rowId ?? entry.rowIds[0] ?? '';
@@ -277,7 +351,7 @@ export default function DisorderTable() {
   };
 
   const handleRemove = async (entryId: string) => {
-    if (isMobile) return;
+    if (isMobile || !canEditEntries) return;
     const confirmed = window.confirm('Удалить эту запись?');
     if (!confirmed) return;
 
@@ -352,6 +426,7 @@ export default function DisorderTable() {
   };
 
   const toggleCellSelectionMode = () => {
+    if (!canEditEntries) return;
     setIsCellSelectionMode((prev) => {
       const next = !prev;
       if (!next) setSelectedCells([]);
@@ -360,7 +435,7 @@ export default function DisorderTable() {
   };
 
   const openBulkModal = () => {
-    if (isMobile || selectedCells.length === 0) return;
+    if (isMobile || !canEditEntries || selectedCells.length === 0) return;
     setBulkError(null);
     setBulkText('');
     setBulkTrack(null);
@@ -396,6 +471,83 @@ export default function DisorderTable() {
       setIsCellSelectionMode(false);
     } catch (err: any) {
       setBulkError(err?.message || 'Не удалось сохранить текст в выбранные пересечения');
+    }
+  };
+
+  const setCommentDraft = (entryId: string, text: string) => {
+    setCommentDrafts((prev) => ({ ...prev, [entryId]: text }));
+    setCommentSubmitErrors((prev) => {
+      if (!prev[entryId]) return prev;
+      const next = { ...prev };
+      delete next[entryId];
+      return next;
+    });
+  };
+
+  const handleCommentSubmit = async (entryId: string) => {
+    if (!canComment) return;
+
+    const draft = (commentDrafts[entryId] ?? '').trim();
+    if (draft.length < 2) {
+      setCommentSubmitErrors((prev) => ({
+        ...prev,
+        [entryId]: 'Комментарий должен содержать минимум 2 символа',
+      }));
+      return;
+    }
+
+    setCommentSubmitErrors((prev) => {
+      if (!prev[entryId]) return prev;
+      const next = { ...prev };
+      delete next[entryId];
+      return next;
+    });
+    setCommentSavingEntryId(entryId);
+    try {
+      await createComment({ entryId, text: draft });
+      setCommentDraft(entryId, '');
+    } catch (err: any) {
+      setCommentSubmitErrors((prev) => ({
+        ...prev,
+        [entryId]: err?.message || 'Не удалось сохранить комментарий',
+      }));
+    } finally {
+      setCommentSavingEntryId(null);
+    }
+  };
+
+  const openGeneralCommentsModal = () => {
+    setGeneralCommentSubmitError(null);
+    setIsGeneralCommentsModalOpen(true);
+  };
+
+  const closeGeneralCommentsModal = () => {
+    if (generalCommentSaving) return;
+    setIsGeneralCommentsModalOpen(false);
+    setGeneralCommentSubmitError(null);
+  };
+
+  const handleGeneralCommentSubmit = async () => {
+    if (!canComment) return;
+
+    const draft = generalCommentDraft.trim();
+    if (draft.length < 2) {
+      setGeneralCommentSubmitError('Комментарий должен содержать минимум 2 символа');
+      return;
+    }
+
+    setGeneralCommentSubmitError(null);
+    setGeneralCommentSaving(true);
+    try {
+      await createComment({
+        entryId: DISORDER_TABLE_GENERAL_COMMENT_ENTRY_ID,
+        text: draft,
+      });
+      setGeneralCommentDraft('');
+    } catch (err: any) {
+      setGeneralCommentSubmitError(err?.message || 'Не удалось сохранить комментарий');
+    } finally {
+      setGeneralCommentSaving(false);
     }
   };
 
@@ -453,21 +605,21 @@ export default function DisorderTable() {
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-gradient-to-br from-slate-50 to-white">
-      <div className="flex h-full flex-col gap-3 p-3 sm:p-4">
-        <section className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur sm:p-4">
-          <div className="mb-3 border-b border-slate-200 pb-3">
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Таблица по расстройствам</h1>
+      <div className="flex h-full flex-col gap-2 p-2 sm:p-3">
+        <section className="rounded-2xl border border-slate-200 bg-white/95 p-2.5 shadow-sm backdrop-blur sm:p-3">
+          <div className="mb-2 border-b border-slate-200 pb-2">
+            <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Таблица по расстройствам</h1>
           </div>
 
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
             <Link
               to="/profile"
-              className="inline-flex rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 transition hover:bg-rose-100"
+              className="inline-flex rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-800 transition hover:bg-rose-100"
             >
               Выход
             </Link>
 
-            <label className="ml-auto flex min-w-[220px] flex-1 items-center rounded-lg border border-slate-300 bg-white px-3 py-2 sm:max-w-[420px]">
+            <label className="ml-auto flex min-w-[190px] flex-1 items-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 sm:max-w-[360px]">
               <input
                 type="text"
                 value={searchQuery}
@@ -477,37 +629,66 @@ export default function DisorderTable() {
                 }}
                 aria-label="Поиск по тексту записей"
                 placeholder="Найти запись по тексту"
-                className="w-full border-none bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                className="w-full border-none bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400 sm:text-sm"
               />
             </label>
           </div>
 
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2">
-            <span className="text-sm font-semibold text-blue-900">Фильтры</span>
+          {isAdmin && (
+            <section className="mb-2 rounded-xl border border-violet-200 bg-violet-50/70 px-2.5 py-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-violet-900">Режим преподавателя</span>
+                <select
+                  value={targetOwnerUid ?? ''}
+                  onChange={(event) => setTargetOwnerUid(event.target.value || null)}
+                  className="min-w-[220px] flex-1 rounded-lg border border-violet-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200 sm:max-w-[420px]"
+                >
+                  {studentsLoading && <option value="">Загрузка списка студентов...</option>}
+                  {!studentsLoading && students.length === 0 && <option value="">Студенты не найдены</option>}
+                  {!studentsLoading && students.map((student) => (
+                    <option key={student.uid} value={student.uid}>
+                      {student.displayName}{student.email ? ` (${student.email})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {selectedStudent && (
+                <p className="mt-1 text-xs text-violet-800">
+                  Просматривается таблица студента: <span className="font-semibold">{selectedStudent.displayName}</span>
+                </p>
+              )}
+              {studentsError && (
+                <p className="mt-1 text-xs text-red-700">{studentsError}</p>
+              )}
+            </section>
+          )}
+
+          <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/70 px-2.5 py-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-blue-900">Фильтры</span>
             <button
               type="button"
               onClick={applyDraftFilters}
               disabled={!canApplyFilters}
-              className="inline-flex rounded-lg border border-blue-300 bg-blue-100 px-3 py-2 text-sm font-medium text-blue-800 transition hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex rounded-lg border border-blue-300 bg-blue-100 px-2.5 py-1.5 text-xs font-medium text-blue-800 transition hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Применить фильтр
             </button>
             <button
               type="button"
               onClick={clearAllFilters}
-              className="inline-flex rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100"
+              className="inline-flex rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100"
             >
               Сбросить
             </button>
           </div>
 
-          {!isMobile && (
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2">
-              <span className="text-sm font-semibold text-amber-900">Несколько ячеек</span>
+          {!isMobile && canEditEntries && (
+            <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-2.5 py-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-amber-900">Несколько ячеек</span>
               <button
                 type="button"
                 onClick={toggleCellSelectionMode}
-                className={`inline-flex rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                className={`inline-flex rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
                   isCellSelectionMode
                     ? 'border-amber-400 bg-white text-amber-900 hover:bg-amber-100'
                     : 'border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200'
@@ -520,7 +701,7 @@ export default function DisorderTable() {
                   type="button"
                   onClick={openBulkModal}
                   disabled={selectedCells.length === 0}
-                  className="inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Внести текст в выбранные ({selectedCells.length})
                 </button>
@@ -529,25 +710,44 @@ export default function DisorderTable() {
           )}
 
           {isMobile && (
-            <p className="mb-2 text-sm text-slate-600">
+            <p className="mb-1 text-xs text-slate-600">
               Мобильный режим: доступен просмотр таблицы и содержимого ячеек. Редактирование доступно на компьютере.
             </p>
           )}
+          {isAdmin && (
+            <p className="mb-1 text-xs text-slate-600">
+              Для преподавателя доступен просмотр и комментирование таблицы студента.
+            </p>
+          )}
+
+          {(generalComments.length > 0 || canComment) && (
+            <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-emerald-900">Лектор</span>
+              <button
+                type="button"
+                onClick={openGeneralCommentsModal}
+                className="inline-flex rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-xs font-medium text-emerald-900 transition hover:bg-emerald-100"
+              >
+                Общие комментарии от лектора
+                {generalComments.length > 0 ? ` (${generalComments.length})` : ''}
+              </button>
+            </div>
+          )}
 
           {hasActiveFilters || hasActiveSearch ? (
-            <div className="flex flex-wrap gap-2 text-xs">
+            <div className="flex flex-wrap gap-1.5 text-[11px]">
               {hasActiveSearch && (
-                <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-700">
+                <span className="rounded-full bg-amber-50 px-2.5 py-0.5 font-medium text-amber-700">
                   Поиск: {searchQuery.trim()}
                 </span>
               )}
               {activeFilters.columnIds.map((columnId) => (
-                <span key={`active-column-${columnId}`} className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
+                <span key={`active-column-${columnId}`} className="rounded-full bg-blue-50 px-2.5 py-0.5 font-medium text-blue-700">
                   {columnLabels.get(columnId) ?? columnId}
                 </span>
               ))}
               {activeFilters.rowIds.map((rowId) => (
-                <span key={`active-row-${rowId}`} className="rounded-full bg-teal-50 px-3 py-1 font-medium text-teal-700">
+                <span key={`active-row-${rowId}`} className="rounded-full bg-teal-50 px-2.5 py-0.5 font-medium text-teal-700">
                   {rowLabels.get(rowId) ?? rowId}
                 </span>
               ))}
@@ -555,20 +755,20 @@ export default function DisorderTable() {
           ) : null}
 
           {hasActiveSearch && (
-            <section className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
-              <div className="mb-2 text-sm font-semibold text-emerald-900">
+            <section className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-2.5">
+              <div className="mb-1.5 text-xs font-semibold text-emerald-900">
                 Найдено пересечений: {searchIntersectionMatches.length}
               </div>
               {searchIntersectionMatches.length === 0 ? (
-                <p className="text-sm text-emerald-800">По текущим фильтрам совпадений нет.</p>
+                <p className="text-xs text-emerald-800">По текущим фильтрам совпадений нет.</p>
               ) : (
-                <div className="grid max-h-48 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
+                <div className="grid max-h-36 grid-cols-1 gap-1.5 overflow-auto sm:grid-cols-2">
                   {searchIntersectionMatches.map((match) => (
                     <button
                       key={match.key}
                       type="button"
                       onClick={() => openCellModal(match.rowId, match.columnId)}
-                      className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-left transition hover:border-emerald-400 hover:bg-emerald-50"
+                      className="rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-left transition hover:border-emerald-400 hover:bg-emerald-50"
                     >
                       <p className="text-xs font-semibold text-emerald-900">
                         {rowLabels.get(match.rowId) ?? match.rowId} × {columnLabels.get(match.columnId) ?? match.columnId}
@@ -586,15 +786,15 @@ export default function DisorderTable() {
             </section>
           )}
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
             <span className="font-semibold text-slate-600">Цвета заметок:</span>
-            <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">Без цвета</span>
-            <span className="rounded-full bg-sky-100 px-3 py-1 font-medium text-sky-800">Патопсихология</span>
-            <span className="rounded-full bg-fuchsia-100 px-3 py-1 font-medium text-fuchsia-800">Психиатрия</span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 font-medium text-slate-700">Без цвета</span>
+            <span className="rounded-full bg-sky-100 px-2.5 py-0.5 font-medium text-sky-800">Патопсихология</span>
+            <span className="rounded-full bg-fuchsia-100 px-2.5 py-0.5 font-medium text-fuchsia-800">Психиатрия</span>
           </div>
 
           {(error || listError) && (
-            <div className="mt-3 space-y-2">
+            <div className="mt-2 space-y-1.5">
               {error && (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
               )}
@@ -607,7 +807,7 @@ export default function DisorderTable() {
 
         <section className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex h-full flex-col">
-            <div className="shrink-0 border-b border-slate-200 px-4 py-3 text-sm text-slate-600">
+            <div className="shrink-0 border-b border-slate-200 px-4 py-2 text-xs text-slate-600 sm:text-sm">
               Показано записей: <span className="font-semibold text-slate-900">{filteredEntries.length}</span> из {entries.length}
             </div>
 
@@ -682,6 +882,10 @@ export default function DisorderTable() {
                             const previewText = cellEntries.length > 0
                               ? buildPreviewText(cellEntries[0].text, normalizedSearch, 120)
                               : '';
+                            const cellCommentCount = cellEntries.reduce(
+                              (sum, entry) => sum + (commentCountByEntryId.get(entry.id) ?? 0),
+                              0
+                            );
                             const hasPatopsychology = cellEntries.some((entry) => entry.track === 'patopsychology');
                             const hasPsychiatry = cellEntries.some((entry) => entry.track === 'psychiatry');
                             const isMixedTrack = hasPatopsychology && hasPsychiatry;
@@ -742,6 +946,11 @@ export default function DisorderTable() {
                                       {cellEntries.length > 1 && (
                                         <p className="mt-1 text-[10px] font-medium text-blue-700">
                                           +{cellEntries.length - 1} ещё
+                                        </p>
+                                      )}
+                                      {cellCommentCount > 0 && (
+                                        <p className="mt-1 text-[10px] font-medium text-emerald-700">
+                                          💬 {cellCommentCount}
                                         </p>
                                       )}
                                     </>
@@ -832,7 +1041,7 @@ export default function DisorderTable() {
         footer={(
           <>
             <ModalCancelButton onClick={closeCellModal}>Закрыть</ModalCancelButton>
-            {!isMobile && activeCell && (
+            {!isMobile && canEditEntries && activeCell && (
               <ModalSaveButton
                 onClick={() => {
                   closeCellModal();
@@ -850,6 +1059,9 @@ export default function DisorderTable() {
           <p className="text-sm text-slate-600">В этом пересечении пока нет записей.</p>
         ) : (
           <div className="space-y-3">
+            {commentsLoading && (
+              <p className="text-xs text-slate-500">Загрузка комментариев преподавателя...</p>
+            )}
             {activeCellEntries.map((entry) => (
               <article key={entry.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-800 [overflow-wrap:anywhere]">
@@ -865,7 +1077,7 @@ export default function DisorderTable() {
                       Без цвета
                     </span>
                   )}
-                  {!isMobile && (
+                  {!isMobile && canEditEntries && (
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -884,6 +1096,67 @@ export default function DisorderTable() {
                       >
                         Удалить
                       </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {(() => {
+                    const entryComments = commentsByEntryId.get(entry.id) ?? [];
+                    if (entryComments.length === 0) {
+                      return (
+                        <p className="rounded-md bg-white px-3 py-2 text-xs text-slate-500">
+                          Комментариев преподавателя пока нет.
+                        </p>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-2">
+                        {entryComments.map((comment) => (
+                          <div key={comment.id} className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+                            <p className="text-xs font-semibold text-emerald-900">{comment.authorName || 'Преподаватель'}</p>
+                            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-emerald-900 [overflow-wrap:anywhere]">
+                              {comment.text}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  {canComment && (
+                    <div className="rounded-md border border-violet-200 bg-violet-50 p-3">
+                      <label htmlFor={`comment-input-${entry.id}`} className="mb-1 block text-xs font-semibold text-violet-900">
+                        Комментарий преподавателя
+                      </label>
+                      <textarea
+                        id={`comment-input-${entry.id}`}
+                        value={commentDrafts[entry.id] ?? ''}
+                        onChange={(event) => setCommentDraft(entry.id, event.target.value)}
+                        rows={3}
+                        maxLength={2000}
+                        placeholder="Напишите комментарий для студента..."
+                        className="w-full rounded-md border border-violet-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
+                      />
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <p className="text-[11px] text-violet-800">
+                          {(commentDrafts[entry.id] ?? '').length}/2000
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleCommentSubmit(entry.id)}
+                          disabled={commentSavingEntryId === entry.id || commentsSaving}
+                          className="rounded-md border border-violet-300 bg-white px-2.5 py-1 text-xs font-medium text-violet-900 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {commentSavingEntryId === entry.id || commentsSaving ? 'Сохранение...' : 'Сохранить комментарий'}
+                        </button>
+                      </div>
+                      {(commentsError || commentSubmitErrors[entry.id]) && (
+                        <p className="mt-2 text-xs text-red-700">
+                          {commentSubmitErrors[entry.id] ?? commentsError}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -961,6 +1234,79 @@ export default function DisorderTable() {
 
           {bulkError && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{bulkError}</div>
+          )}
+        </div>
+      </BaseModal>
+
+      <BaseModal
+        isOpen={isGeneralCommentsModalOpen}
+        onClose={closeGeneralCommentsModal}
+        title="Общие комментарии от лектора"
+        maxWidth="2xl"
+        disabled={generalCommentSaving}
+        footer={(
+          <>
+            <ModalCancelButton onClick={closeGeneralCommentsModal} disabled={generalCommentSaving}>
+              Закрыть
+            </ModalCancelButton>
+          </>
+        )}
+      >
+        <div className="space-y-3">
+          {commentsLoading && (
+            <p className="text-xs text-slate-500">Загрузка комментариев преподавателя...</p>
+          )}
+
+          {generalComments.length === 0 ? (
+            <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              Общих комментариев пока нет.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {generalComments.map((comment) => (
+                <article key={comment.id} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <p className="text-xs font-semibold text-emerald-900">
+                    {comment.authorName || 'Преподаватель'}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm text-emerald-900 [overflow-wrap:anywhere]">
+                    {comment.text}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {canComment && (
+            <section className="rounded-lg border border-violet-200 bg-violet-50 p-3">
+              <label htmlFor="general-comment-input" className="mb-1 block text-xs font-semibold text-violet-900">
+                Новый общий комментарий
+              </label>
+              <textarea
+                id="general-comment-input"
+                value={generalCommentDraft}
+                onChange={(event) => setGeneralCommentDraft(event.target.value)}
+                rows={4}
+                maxLength={2000}
+                placeholder="Комментарий ко всей таблице студента..."
+                className="w-full rounded-md border border-violet-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
+              />
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] text-violet-800">{generalCommentDraft.length}/2000</p>
+                <button
+                  type="button"
+                  onClick={handleGeneralCommentSubmit}
+                  disabled={generalCommentSaving || commentsSaving || generalCommentDraft.trim().length < 2}
+                  className="rounded-md border border-violet-300 bg-white px-2.5 py-1 text-xs font-medium text-violet-900 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {generalCommentSaving || commentsSaving ? 'Сохранение...' : 'Сохранить комментарий'}
+                </button>
+              </div>
+              {(commentsError || generalCommentSubmitError) && (
+                <p className="mt-2 text-xs text-red-700">
+                  {generalCommentSubmitError ?? commentsError}
+                </p>
+              )}
+            </section>
           )}
         </div>
       </BaseModal>

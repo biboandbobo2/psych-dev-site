@@ -160,7 +160,7 @@ export const DEFAULT_HOME_PAGE_CONTENT: HomePageContent = {
           'Познакомьтесь с фундаментальными основами психологии. Изучите историю психологии, когнитивные процессы (восприятие, память, мышление, речь), эмоциональную сферу, мотивацию и волю.',
         primaryCta: {
           text: 'Перейти к курсу',
-          link: '/general/1',
+          link: '/general/intro',
         },
         secondaryCta: {
           text: 'Подробнее о курсе',

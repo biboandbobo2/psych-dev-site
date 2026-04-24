@@ -1,9 +1,12 @@
 import { useState, useCallback } from 'react';
-import { makeUserAdmin, removeAdmin, updateCourseAccess, setUserRole, toggleUserDisabled } from '../../../../lib/adminFunctions';
-import type { CourseAccessMap } from '../../../../types/user';
+import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { removeAdmin, updateCourseAccess, toggleUserDisabled } from '../../../../lib/adminFunctions';
+import { auth, db } from '../../../../lib/firebase';
+import type { CourseAccessMap, StudentStream } from '../../../../types/user';
 import type { UserRecord } from '../../../../hooks/useAllUsers';
 
 interface UseUserManagementOptions {
+  isAdmin: boolean;
   isSuperAdmin: boolean;
   availableCourseIds: string[];
 }
@@ -18,9 +21,8 @@ interface UseUserManagementReturn {
   editingCourseAccess: CourseAccessMap | null;
 
   // Handlers
-  handleMakeAdmin: (uid: string) => Promise<void>;
   handleRemoveAdmin: (uid: string) => Promise<void>;
-  handleSetRole: (targetUid: string, newRole: 'guest' | 'student') => Promise<void>;
+  handleSetStudentStream: (targetUid: string, stream: StudentStream) => Promise<void>;
   handleToggleDisabled: (uid: string, currentDisabled: boolean) => Promise<void>;
   handleRowClick: (user: UserRecord) => void;
   handleCourseAccessChange: (courseId: string, value: boolean) => void;
@@ -32,6 +34,7 @@ interface UseUserManagementReturn {
  * Инкапсулирует всю логику работы с ролями и доступом к курсам
  */
 export function useUserManagement({
+  isAdmin,
   isSuperAdmin,
   availableCourseIds,
 }: UseUserManagementOptions): UseUserManagementReturn {
@@ -39,22 +42,6 @@ export function useUserManagement({
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [editingCourseAccess, setEditingCourseAccess] = useState<CourseAccessMap | null>(null);
   const [courseAccessSaving, setCourseAccessSaving] = useState(false);
-
-  const handleMakeAdmin = useCallback(async (uid: string) => {
-    if (!isSuperAdmin) return;
-    if (!window.confirm('Назначить этого пользователя администратором?')) return;
-
-    setActionLoading(uid);
-    try {
-      await makeUserAdmin({ targetUid: uid });
-      window.alert('Пользователь назначен администратором');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Ошибка назначения администратора';
-      window.alert(message);
-    } finally {
-      setActionLoading(null);
-    }
-  }, [isSuperAdmin]);
 
   const handleRemoveAdmin = useCallback(async (uid: string) => {
     if (!isSuperAdmin) return;
@@ -72,21 +59,24 @@ export function useUserManagement({
     }
   }, [isSuperAdmin]);
 
-  const handleSetRole = useCallback(async (targetUid: string, newRole: 'guest' | 'student') => {
-    const roleLabel = newRole === 'guest' ? 'гостем' : 'студентом';
-    if (!window.confirm(`Сделать этого пользователя ${roleLabel}?`)) return;
+  const handleSetStudentStream = useCallback(async (targetUid: string, stream: StudentStream) => {
+    if (!isAdmin) return;
 
     setActionLoading(targetUid);
     try {
-      await setUserRole({ targetUid, role: newRole });
-      window.alert(`Пользователь теперь ${roleLabel}. Изменения вступят в силу после перелогина.`);
+      await updateDoc(doc(db, 'users', targetUid), {
+        studentStream: stream,
+        studentStreamUpdatedAt: serverTimestamp(),
+        studentStreamUpdatedBy: auth.currentUser?.uid ?? null,
+      });
+      window.alert('Поток студента обновлён');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Ошибка смены роли';
+      const message = err instanceof Error ? err.message : 'Ошибка обновления потока';
       window.alert(message);
     } finally {
       setActionLoading(null);
     }
-  }, []);
+  }, [isAdmin]);
 
   const handleToggleDisabled = useCallback(async (uid: string, currentDisabled: boolean) => {
     if (!isSuperAdmin) return;
@@ -168,9 +158,8 @@ export function useUserManagement({
     courseAccessSaving,
     expandedUserId,
     editingCourseAccess,
-    handleMakeAdmin,
     handleRemoveAdmin,
-    handleSetRole,
+    handleSetStudentStream,
     handleToggleDisabled,
     handleRowClick,
     handleCourseAccessChange,

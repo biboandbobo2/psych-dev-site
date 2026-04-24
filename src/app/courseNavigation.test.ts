@@ -10,6 +10,7 @@ describe('courseNavigation', () => {
 
   it('detects page course for static and dynamic lesson routes', () => {
     expect(getPageCourseId('/intro')).toBe('development');
+    expect(getPageCourseId('/development/intro')).toBe('development');
     expect(getPageCourseId('/clinical/1')).toBe('clinical');
     expect(getPageCourseId('/general/pamyat')).toBe('general');
     expect(getPageCourseId('/course/cognitive-base/lesson-2')).toBe('cognitive-base');
@@ -17,8 +18,10 @@ describe('courseNavigation', () => {
   });
 
   it('does not treat service pages as lesson routes', () => {
+    expect(getPageCourseId('/home')).toBeNull();
     expect(getPageCourseId('/profile')).toBeNull();
     expect(getPageCourseId('/notes')).toBeNull();
+    expect(getPageCourseId('/disorder-table')).toBeNull();
     expect(getPageCourseId('/tests')).toBeNull();
     expect(getPageCourseId('/course/custom')).toBeNull();
   });
@@ -27,8 +30,10 @@ describe('courseNavigation', () => {
     expect(shouldShowStudentCourseSidebar('/')).toBe(true);
     expect(shouldShowStudentCourseSidebar('/profile')).toBe(true);
     expect(shouldShowStudentCourseSidebar('/notes')).toBe(true);
+    expect(shouldShowStudentCourseSidebar('/home')).toBe(false);
     expect(shouldShowStudentCourseSidebar('/general/pamyat')).toBe(true);
     expect(shouldShowStudentCourseSidebar('/timeline')).toBe(false);
+    expect(shouldShowStudentCourseSidebar('/disorder-table')).toBe(false);
     expect(shouldShowStudentCourseSidebar('/research')).toBe(false);
   });
 });

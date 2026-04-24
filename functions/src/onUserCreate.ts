@@ -74,6 +74,46 @@ export const onUserCreate = functions.auth.user().onCreate(async (user) => {
       await pendingDocRef.delete().catch(() => {});
     }
 
+    // Replace pendingUid → realUid in memberIds / announcementAdminIds of any
+    // group that had this email pre-invited (see 3b.5 migration script and the
+    // «Добавить по email» path in GroupEditorModal).
+    if (email) {
+      try {
+        const pendingUid = toPendingUid(email.trim().toLowerCase());
+        const memberSnap = await db
+          .collection("groups")
+          .where("memberIds", "array-contains", pendingUid)
+          .get();
+        for (const groupDoc of memberSnap.docs) {
+          await groupDoc.ref.update({
+            memberIds: FieldValue.arrayRemove(pendingUid),
+          });
+          await groupDoc.ref.update({
+            memberIds: FieldValue.arrayUnion(uid),
+          });
+        }
+        const announcerSnap = await db
+          .collection("groups")
+          .where("announcementAdminIds", "array-contains", pendingUid)
+          .get();
+        for (const groupDoc of announcerSnap.docs) {
+          await groupDoc.ref.update({
+            announcementAdminIds: FieldValue.arrayRemove(pendingUid),
+          });
+          await groupDoc.ref.update({
+            announcementAdminIds: FieldValue.arrayUnion(uid),
+          });
+        }
+        if (memberSnap.size + announcerSnap.size > 0) {
+          debugLog(
+            `🔁 Replaced pendingUid in ${memberSnap.size + announcerSnap.size} group(s) for ${email}`
+          );
+        }
+      } catch (err) {
+        debugError("⚠️ Failed to reconcile pendingUid in groups:", err);
+      }
+    }
+
     await adminAuth.setCustomUserClaims(uid, { role });
 
     debugLog(`✅ User created: ${email ?? uid} with role: ${role}`);

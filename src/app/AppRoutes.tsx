@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { Routes, Route, Navigate, Location } from 'react-router-dom';
+import { Routes, Route, Navigate, Location, useParams } from 'react-router-dom';
 import RequireAuth from '../auth/RequireAuth';
 import RequireAdmin from '../auth/RequireAdmin';
 import Login from '../pages/Login';
@@ -23,6 +23,12 @@ import {
   ResearchPage,
   DynamicPeriodPage,
   FeaturesPage,
+  CourseIntroPage,
+  AdminCourseIntro,
+  AdminAnnouncements,
+  AdminGroups,
+  PaletteDebug,
+  HomeV2Debug,
   WarmSprings2Page,
   BookingSectionLayout,
   BookingPage,
@@ -50,12 +56,19 @@ function AdminLanding() {
   return <Navigate to={isSuperAdmin ? "/superadmin" : "/admin/content"} replace />;
 }
 
+function DynamicCourseIntroRoute() {
+  const { courseId } = useParams<{ courseId: string }>();
+  if (!courseId) return <Navigate to="/home" replace />;
+  return <CourseIntroPage courseId={courseId} />;
+}
+
 export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopicsMap, isSuperAdmin }: AppRoutesProps) {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<Profile />} />
-        <Route path="/homepage" element={<HomePage />} />
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/homepage" element={<Navigate to="/home" replace />} />
         <Route path="/features" element={<FeaturesPage />} />
         <Route path="/warm_springs2" element={<WarmSprings2Page />} />
         <Route path="/booking" element={<BookingSectionLayout />}>
@@ -106,6 +119,32 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           }
         />
         <Route
+          path="/admin/content/course-intro/:courseId"
+          element={
+            <RequireAdmin>
+              <AdminCourseIntro />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/announcements"
+          element={
+            <RequireAdmin>
+              <AdminAnnouncements />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/groups"
+          element={
+            <RequireAdmin>
+              <AdminGroups />
+            </RequireAdmin>
+          }
+        />
+        <Route path="/_debug/palette" element={<PaletteDebug />} />
+        <Route path="/_debug/home-v2" element={<HomeV2Debug />} />
+        <Route
           path="/admin/books"
           element={
             <RequireAdmin>
@@ -114,6 +153,9 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           }
         />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/development/intro" element={<CourseIntroPage courseId="development" />} />
+        <Route path="/clinical/intro" element={<CourseIntroPage courseId="clinical" />} />
+        <Route path="/general/intro" element={<CourseIntroPage courseId="general" />} />
         <Route
           path="/notes"
           element={
@@ -170,6 +212,14 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             </RequireAuth>
           }
         />
+        <Route
+          path="/admin/users"
+          element={
+            <RequireAdmin>
+              <AdminUsers />
+            </RequireAdmin>
+          }
+        />
         {isSuperAdmin && (
           <>
             <Route
@@ -177,14 +227,6 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
               element={
                 <RequireAdmin>
                   <AdminArchive />
-                </RequireAdmin>
-              }
-            />
-            <Route
-              path="/admin/users"
-              element={
-                <RequireAdmin>
-                  <AdminUsers />
                 </RequireAdmin>
               }
             />
@@ -210,7 +252,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             }
           />
         ))}
-        {CLINICAL_ROUTE_CONFIG.map((config) => (
+        {CLINICAL_ROUTE_CONFIG.filter((config) => config.path !== '/clinical/intro').map((config) => (
           <Route
             key={config.path}
             path={config.path}
@@ -222,7 +264,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             }
           />
         ))}
-        {GENERAL_ROUTE_CONFIG.map((config) => (
+        {GENERAL_ROUTE_CONFIG.filter((config) => config.path !== '/general/intro').map((config) => (
           <Route
             key={config.path}
             path={config.path}
@@ -243,6 +285,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           path="/general/:periodId"
           element={<DynamicPeriodPage course="general" topicsMap={generalTopicsMap} />}
         />
+        <Route path="/course/:courseId/intro" element={<DynamicCourseIntroRoute />} />
         <Route
           path="/course/:courseId/:periodId"
           element={<DynamicCoursePeriodPage />}

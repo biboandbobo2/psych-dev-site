@@ -6,6 +6,12 @@ import type { LectureNoteSegment } from '../../../types/notes';
 import { isUrlString, normalizeVideoEntry } from '../utils/media';
 import { VideoResourceLinks } from './VideoResourceLinks';
 import { VideoStudyOverlay } from './VideoStudyOverlay';
+import {
+  isLessonWatched,
+  markLessonWatched,
+} from '../../../lib/courseWatchedLessons';
+import { StudyVideoPlayer } from './StudyVideoPlayer';
+import { saveCourseVideoResumePoint } from '../../../lib/courseVideoResume';
 
 interface VideoSectionProps {
   slug: string;
@@ -117,6 +123,7 @@ function VideoSectionCard({
   const [mode, setMode] = useState<VideoLayoutMode>('embed');
   const [studyDraftSegments, setStudyDraftSegments] = useState<LectureNoteSegment[]>([]);
   const consumedStudyLaunchRef = useRef<string | null>(null);
+  const lastSavedPlaybackMsRef = useRef<number | null>(null);
   const effectiveVideoTitle = videoTitle?.trim() || defaultVideoTitle;
   const youtubeVideoId = useMemo(
     () => getYouTubeVideoId(originalUrl) ?? getYouTubeVideoId(embedUrl),
@@ -132,6 +139,10 @@ function VideoSectionCard({
     mode !== 'study' &&
     Boolean(studyLaunchKey) &&
     consumedStudyLaunchRef.current !== studyLaunchKey;
+  const canTrackWatched = Boolean(courseId && periodId);
+  const [isWatched, setIsWatched] = useState(
+    canTrackWatched ? isLessonWatched(courseId, periodId as string) : false
+  );
 
   useEffect(() => {
     if (shouldAutoOpenStudy) {
@@ -139,6 +150,49 @@ function VideoSectionCard({
       setMode('study');
     }
   }, [shouldAutoOpenStudy, studyLaunchKey]);
+
+  useEffect(() => {
+    if (!canTrackWatched) {
+      setIsWatched(false);
+      return;
+    }
+
+    setIsWatched(isLessonWatched(courseId, periodId as string));
+  }, [canTrackWatched, courseId, periodId]);
+
+  const handleWatchThresholdReached = () => {
+    if (!canTrackWatched) return;
+    const lessonId = periodId as string;
+    if (isLessonWatched(courseId, lessonId)) {
+      setIsWatched(true);
+      return;
+    }
+    markLessonWatched(courseId, lessonId);
+    setIsWatched(true);
+  };
+
+  const handlePlaybackProgress = (currentTimeMs: number) => {
+    if (!canTrackWatched || !youtubeVideoId) return;
+    if (!Number.isFinite(currentTimeMs) || currentTimeMs < 1000) return;
+
+    const lastSavedMs = lastSavedPlaybackMsRef.current;
+    if (lastSavedMs !== null && Math.abs(currentTimeMs - lastSavedMs) < 5000) {
+      return;
+    }
+
+    const path = typeof window !== 'undefined' ? window.location.pathname : '';
+    if (!path) return;
+
+    saveCourseVideoResumePoint({
+      courseId,
+      path,
+      videoId: youtubeVideoId,
+      timeMs: currentTimeMs,
+      lessonLabel: periodTitle,
+      videoTitle: effectiveVideoTitle,
+    });
+    lastSavedPlaybackMsRef.current = currentTimeMs;
+  };
 
   if (!embedUrl) {
     const isPlaylist = isUrlString(originalUrl) && originalUrl.includes('list=');
@@ -177,23 +231,40 @@ function VideoSectionCard({
             <h3 className="text-2xl font-semibold leading-tight text-fg">{effectiveVideoTitle}</h3>
           ) : null}
         </div>
-        <VideoModeButton
-          label={mode === 'study' ? 'Скрыть конспект' : 'Открыть конспект'}
-          isActive={mode === 'study'}
-          onClick={() => setMode((current) => (current === 'study' ? 'embed' : 'study'))}
-          controlsId={`${effectiveVideoTitle}-study-panel`}
-        />
+        <div className="flex items-center gap-2">
+          {canTrackWatched ? (
+            <span
+              className={cn(
+                'inline-flex h-9 w-9 items-center justify-center rounded-full border text-sm font-bold',
+                isWatched
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                  : 'border-slate-300 bg-slate-50 text-slate-400'
+              )}
+              title={isWatched ? 'Лекция просмотрена' : 'Лекция не отмечена как просмотренная'}
+              aria-label={isWatched ? 'Лекция просмотрена' : 'Лекция не просмотрена'}
+            >
+              ✓
+            </span>
+          ) : null}
+          <VideoModeButton
+            label={mode === 'study' ? 'Скрыть конспект' : 'Открыть конспект'}
+            isActive={mode === 'study'}
+            onClick={() => setMode((current) => (current === 'study' ? 'embed' : 'study'))}
+            controlsId={`${effectiveVideoTitle}-study-panel`}
+          />
+        </div>
       </div>
 
       <div className="space-y-4">
-        <iframe
-          title={effectiveVideoTitle}
-          src={embedUrl}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          className="aspect-video w-full rounded-2xl border border-border shadow-brand"
-        />
+        <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border shadow-brand">
+          <StudyVideoPlayer
+            title={effectiveVideoTitle}
+            embedUrl={embedUrl}
+            onWatchThresholdReached={handleWatchThresholdReached}
+            watchThreshold={0.8}
+            onPlaybackProgressMs={handlePlaybackProgress}
+          />
+        </div>
         <VideoResourceLinks
           audioUrl={audioUrl}
           deckUrl={deckUrl}

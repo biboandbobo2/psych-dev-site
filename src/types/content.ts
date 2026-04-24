@@ -20,7 +20,7 @@ export interface Period {
   title: string;
   subtitle: string;
   video_url?: string;
-  video_playlist?: Array<{ title?: string; url?: string; deckUrl?: string; deck_url?: string; audioUrl?: string; audio_url?: string }>;
+  video_playlist?: Array<{ title?: string; url?: string; deckUrl?: string; deck_url?: string; audioUrl?: string; audio_url?: string; isPublic?: boolean }>;
   concepts: Concept[];
   authors: Author[];
   core_literature: ContentLink[];

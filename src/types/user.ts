@@ -3,22 +3,38 @@ import type { CoreCourseType, CourseType } from './tests';
 import { CORE_COURSE_ORDER, CORE_COURSE_META } from '../constants/courses';
 
 /**
- * Роль пользователя в системе
- * - guest: новый пользователь, без доступа к видео
- * - student: оплаченный доступ к видео (либо выданный админом)
- * - admin: редактор контента
- * - super-admin: владелец проекта
+ * Роль администратора.
+ * Обычные пользователи (студенты, гости) не имеют этого поля — их статус
+ * вычисляется из courseAccess через computeGuestStatus (см. useGuestStatus.ts).
+ *
+ * - admin: редактор контента; может редактировать только курсы из adminEditableCourses
+ * - super-admin: владелец проекта; без ограничений
  */
-export type UserRole = 'guest' | 'student' | 'admin' | 'super-admin';
+export type UserRole = 'admin' | 'super-admin';
 
 /**
- * Карта доступа к курсам
- * Используется для гранулярного контроля доступа к видео-контенту
+ * Нормализует значение role из Firestore в строгий UserRole | null.
+ * Legacy-значения 'guest'/'student' считаются null (обычный пользователь).
+ */
+export function normalizeUserRole(raw: unknown): UserRole | null {
+  if (raw === 'admin' || raw === 'super-admin') return raw;
+  return null;
+}
+
+/**
+ * Поток студента
+ * - first: 1 поток
+ * - second: 2 поток
+ * - none: без потока
+ */
+export type StudentStream = 'first' | 'second' | 'none';
+
+/**
+ * Карта доступа к курсам.
  *
  * Логика:
  * - admin/super-admin → всегда полный доступ
- * - student → если courseAccess не задан (legacy) — полный доступ, иначе доступ только к явно true
- * - guest → проверяется courseAccess (нужен явный true для доступа)
+ * - обычный пользователь (role === null) → доступ только к явно true
  */
 export interface CourseAccessMap {
   [courseId: string]: boolean | undefined;
@@ -38,8 +54,17 @@ export interface UserRecord {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  role: UserRole;
-  /** Гранулярный доступ к курсам (для guest) */
+  /** Роль администратора. Null/undefined для обычных пользователей. */
+  role: UserRole | null;
+  /**
+   * Для role='admin': список courseId, которые этот админ может РЕДАКТИРОВАТЬ.
+   * Просмотр админ-UI доступен для всех курсов. Пустой массив = view-only.
+   * Для super-admin игнорируется (всегда может всё).
+   */
+  adminEditableCourses?: string[];
+  /** Поток студента (для сегментации обучения) — legacy, мигрируется в groups */
+  studentStream?: StudentStream;
+  /** Гранулярный доступ к курсам */
   courseAccess?: CourseAccessMap;
   createdAt: Timestamp | null;
   lastLoginAt: Timestamp | null;
@@ -62,9 +87,9 @@ export interface UpdateCourseAccessParams {
 }
 
 /**
- * Проверяет, есть ли у пользователя доступ к видео-контенту курса
+ * Проверяет, есть ли у пользователя доступ к видео-контенту курса.
  *
- * @param role - роль пользователя
+ * @param role - роль администратора (null для обычного пользователя)
  * @param courseAccess - карта доступа к курсам
  * @param courseType - тип курса для проверки
  * @returns true если доступ разрешён
@@ -74,29 +99,22 @@ export function hasCourseAccess(
   courseAccess: CourseAccessMap | null | undefined,
   courseType: CourseType
 ): boolean {
-  // Неавторизованные пользователи не имеют доступа
-  if (!role) return false;
+  if (role === 'admin' || role === 'super-admin') return true;
+  return courseAccess?.[courseType] === true;
+}
 
-  // admin и super-admin всегда имеют полный доступ
-  if (role === 'admin' || role === 'super-admin') {
-    return true;
-  }
-
-  // student:
-  // - нет courseAccess (legacy аккаунты) -> полный доступ
-  // - есть courseAccess -> доступ только к явно разрешённым курсам
-  if (role === 'student') {
-    if (!courseAccess) return true;
-    if (Object.keys(courseAccess).length === 0) return true;
-    return courseAccess[courseType] === true;
-  }
-
-  // guest: нужен явный true для доступа
-  if (role === 'guest') {
-    return courseAccess?.[courseType] === true;
-  }
-
-  return false;
+/**
+ * Может ли пользователь редактировать контент указанного курса.
+ * super-admin — всегда; admin — только если courseId в adminEditableCourses.
+ */
+export function canEditCourse(
+  role: UserRole | null,
+  adminEditableCourses: string[] | null | undefined,
+  courseId: string
+): boolean {
+  if (role === 'super-admin') return true;
+  if (role !== 'admin') return false;
+  return Array.isArray(adminEditableCourses) && adminEditableCourses.includes(courseId);
 }
 
 /**

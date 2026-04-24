@@ -20,6 +20,7 @@ describe('StudyVideoPlayer', () => {
       return {
         destroy: vi.fn(),
         getCurrentTime: vi.fn(() => 0),
+        getDuration: vi.fn(() => 120),
         getPlayerState: vi.fn(() => 2),
         seekTo: vi.fn(),
       };
@@ -53,6 +54,7 @@ describe('StudyVideoPlayer', () => {
       return {
         destroy: vi.fn(),
         getCurrentTime: vi.fn(() => 0),
+        getDuration: vi.fn(() => 120),
         getPlayerState: vi.fn(() => 2),
         seekTo: seekToMock,
       };

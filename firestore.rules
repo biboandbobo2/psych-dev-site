@@ -22,10 +22,32 @@ service cloud.firestore {
       );
     }
 
+    function canEditCourse(courseId) {
+      return isSuperAdmin() || (
+        isAuthenticated() &&
+        request.auth.token.role == 'admin' &&
+        request.auth.token.editableCourses is list &&
+        courseId in request.auth.token.editableCourses
+      );
+    }
+
+    function isValidStudentStream(stream) {
+      return stream in ['first', 'second', 'none'];
+    }
+
+    function isAdminStudentStreamUpdate() {
+      return isAdmin() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['studentStream', 'studentStreamUpdatedAt', 'studentStreamUpdatedBy']) &&
+        !(resource.data.get('role', '') in ['admin', 'super-admin']) &&
+        isValidStudentStream(request.resource.data.studentStream) &&
+        request.resource.data.studentStreamUpdatedBy == request.auth.uid;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isOwner(userId) || isSuperAdmin();
+      allow update: if isOwner(userId) || isSuperAdmin() || isAdminStudentStreamUpdate();
       allow delete: if isSuperAdmin();
     }
 
@@ -34,44 +56,93 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // Группы студентов (потоки). Создание/редактирование — супер-админ.
+    // Чтение — любые админы (для управления), участники группы и админы,
+    // назначенные писать объявления этой группе (announcementAdminIds).
+    match /groups/{groupId} {
+      function canReadGroup() {
+        return isAuthenticated() && (
+          isAdmin() ||
+          (request.auth.uid in resource.data.memberIds) ||
+          (request.auth.uid in resource.data.announcementAdminIds)
+        );
+      }
+      function canWriteGroupFeed() {
+        return isSuperAdmin() || (
+          isAuthenticated() &&
+          request.auth.token.role == 'admin' &&
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.announcementAdminIds
+        );
+      }
+      function isGroupMemberOrAdmin() {
+        return isAuthenticated() && (
+          isAdmin() ||
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds ||
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.announcementAdminIds
+        );
+      }
+
+      allow read: if canReadGroup();
+      allow create, update, delete: if isSuperAdmin();
+
+      match /announcements/{annId} {
+        allow read: if isGroupMemberOrAdmin();
+        allow create, update, delete: if canWriteGroupFeed();
+      }
+
+      match /events/{eventId} {
+        allow read: if isGroupMemberOrAdmin();
+        allow create, update, delete: if canWriteGroupFeed();
+      }
+    }
+
+    // Legacy коллекции курса "Психология развития" (возрастные периоды + intro)
     match /intro/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
     match /prenatal/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
     match /early-childhood/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
     match /preschool/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
     match /primary-school/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
     match /adolescence/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
     match /periods/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('development');
     }
-
+    // Legacy: клинические темы курса "Клиническая психология"
     match /clinical-topics/{document=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if canEditCourse('clinical');
+    }
+    // Темы общей психологии
+    match /general-topics/{document=**} {
+      allow read: if true;
+      allow write: if canEditCourse('general');
+    }
+    // Dynamic-курсы: документ курса и его занятия
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if canEditCourse(courseId);
+      match /lessons/{document=**} {
+        allow read: if true;
+        allow write: if canEditCourse(courseId);
+      }
     }
 
     match /profiles/{userId} {
@@ -110,10 +181,21 @@ service cloud.firestore {
 
     // Таблица по расстройствам (личные записи студента)
     match /disorderTables/{docId} {
-      allow read, write: if isAuthenticated() && docId.matches('^' + request.auth.uid + '_[A-Za-z0-9-]+$');
+      function isDisorderTableOwner() {
+        return isAuthenticated() && docId.matches('^' + request.auth.uid + '_[A-Za-z0-9-]+$');
+      }
+
+      allow read: if isDisorderTableOwner() || isAdmin();
+      allow create, update, delete: if isDisorderTableOwner();
 
       match /entries/{entryId} {
-        allow read, write: if isAuthenticated() && docId.matches('^' + request.auth.uid + '_[A-Za-z0-9-]+$');
+        allow read: if isDisorderTableOwner() || isAdmin();
+        allow create, update, delete: if isDisorderTableOwner();
+      }
+
+      match /comments/{commentId} {
+        allow read: if isDisorderTableOwner() || isAdmin();
+        allow create, update, delete: if isAdmin();
       }
     }
 
