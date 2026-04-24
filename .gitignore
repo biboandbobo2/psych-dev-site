@@ -41,4 +41,7 @@ backups/periods-backup-*.json
 
 # Claude Code local config
 CLAUDE.md
-.claude/commands/
+.claude/
+
+# Playwright/Claude screenshots in repo root (создаются при MCP-тестах)
+/*.png
