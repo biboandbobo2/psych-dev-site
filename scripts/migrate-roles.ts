@@ -79,7 +79,9 @@ async function main() {
           : (Array.isArray(data.adminEditableCourses) ? data.adminEditableCourses : allCourseIds);
         await getAuth().setCustomUserClaims(uid, { role: 'admin', editableCourses: editable });
       } else if (updates.role === FieldValue.delete()) {
-        await getAuth().setCustomUserClaims(uid, {});
+        if (!uid.startsWith('pending_')) {
+          await getAuth().setCustomUserClaims(uid, {});
+        }
       }
     }
   }
