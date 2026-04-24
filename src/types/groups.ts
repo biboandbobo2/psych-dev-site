@@ -11,6 +11,17 @@ import type { Timestamp } from 'firebase/firestore';
  *   объявления/события для ЭТОЙ группы. Супер-админ пишет любым группам
  *   независимо от этого поля.
  */
+/**
+ * Состояние инкрементального импорта из Google Calendar.
+ * syncToken обновляется после каждого успешного прохода; если Google вернёт
+ * 410 Gone, токен очищается и следующий проход делает full-sync.
+ */
+export interface GroupGcalSyncState {
+  syncToken?: string;
+  lastSyncedAt?: Timestamp | null;
+  lastError?: string;
+}
+
 export interface Group {
   id: string;
   name: string;
@@ -18,6 +29,9 @@ export interface Group {
   memberIds: string[];
   grantedCourses: string[];
   announcementAdminIds: string[];
+  /** ID Google Calendar для двусторонней синхронизации событий группы. */
+  gcalId?: string | null;
+  gcalSyncState?: GroupGcalSyncState;
   createdAt?: Timestamp | null;
   createdBy?: string;
   updatedAt?: Timestamp | null;
@@ -30,6 +44,7 @@ export interface GroupCreateInput {
   memberIds?: string[];
   grantedCourses?: string[];
   announcementAdminIds?: string[];
+  gcalId?: string | null;
 }
 
 export interface GroupUpdateInput {
@@ -38,6 +53,7 @@ export interface GroupUpdateInput {
   description?: string;
   grantedCourses?: string[];
   announcementAdminIds?: string[];
+  gcalId?: string | null;
 }
 
 /**

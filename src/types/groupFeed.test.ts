@@ -82,7 +82,37 @@ describe('normalizeGroupEvent', () => {
       createdAt: null,
       zoomLink: undefined,
       createdByName: undefined,
+      startAt: null,
+      endAt: null,
+      isAllDay: undefined,
+      gcalEventId: null,
+      lastWriteSource: undefined,
+      lastSyncedAt: null,
     });
+  });
+
+  it('reads gcal sync metadata when present', () => {
+    const result = normalizeGroupEvent(GROUP, ID, {
+      text: 'Lecture',
+      dateLabel: '2026-04-25',
+      createdBy: 'user1',
+      isAllDay: true,
+      gcalEventId: 'gcal-abc-123',
+      lastWriteSource: 'gcal',
+    });
+    expect(result?.isAllDay).toBe(true);
+    expect(result?.gcalEventId).toBe('gcal-abc-123');
+    expect(result?.lastWriteSource).toBe('gcal');
+  });
+
+  it('ignores unknown lastWriteSource', () => {
+    const result = normalizeGroupEvent(GROUP, ID, {
+      text: 'Lecture',
+      dateLabel: '2026-04-25',
+      createdBy: 'user1',
+      lastWriteSource: 'other',
+    });
+    expect(result?.lastWriteSource).toBeUndefined();
   });
 
   it('defaults kind to event when field missing', () => {
@@ -159,6 +189,12 @@ describe('normalizeGroupEvent', () => {
       createdAt: null,
       zoomLink: undefined,
       createdByName: undefined,
+      startAt: null,
+      endAt: null,
+      isAllDay: undefined,
+      gcalEventId: null,
+      lastWriteSource: undefined,
+      lastSyncedAt: null,
     });
   });
 

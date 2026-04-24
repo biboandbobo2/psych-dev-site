@@ -20,6 +20,14 @@ export interface GroupAnnouncement {
 export type GroupEventKind = 'event' | 'assignment';
 
 /**
+ * Источник последней записи, используется для anti-echo при двусторонней
+ * синхронизации с Google Calendar.
+ * - 'firestore' — документ создан/изменён в админке сайта.
+ * - 'gcal' — документ импортирован из Google Calendar.
+ */
+export type GroupEventWriteSource = 'firestore' | 'gcal';
+
+/**
  * Событие или задание внутри группы. Хранится в `groups/{groupId}/events/{id}`.
  * Старые документы без `kind` считаются `event`.
  */
@@ -33,6 +41,15 @@ export interface GroupEvent {
   /** Для assignment — ISO дата YYYY-MM-DD. Для event — null. */
   dueDate: string | null;
   zoomLink?: string;
+  /** Точное время начала события (только для kind='event', из Google Calendar). */
+  startAt?: Timestamp | null;
+  endAt?: Timestamp | null;
+  isAllDay?: boolean;
+  /** ID события в Google Calendar; null/undefined до первого экспорта. */
+  gcalEventId?: string | null;
+  /** Источник последней записи — используется для anti-echo петли синхронизации. */
+  lastWriteSource?: GroupEventWriteSource;
+  lastSyncedAt?: Timestamp | null;
   createdAt: Timestamp | null;
   createdBy: string;
   createdByName?: string;
@@ -92,6 +109,10 @@ export function normalizeGroupEvent(
   if (!text || !createdBy) return null;
   if (kind === 'event' && !dateLabel) return null;
   if (kind === 'assignment' && !dueDate) return null;
+  const lastWriteSource: GroupEventWriteSource | undefined =
+    data.lastWriteSource === 'gcal' || data.lastWriteSource === 'firestore'
+      ? data.lastWriteSource
+      : undefined;
   return {
     id,
     groupId,
@@ -100,6 +121,12 @@ export function normalizeGroupEvent(
     dateLabel,
     dueDate,
     zoomLink: typeof data.zoomLink === 'string' && data.zoomLink.trim() ? data.zoomLink.trim() : undefined,
+    startAt: (data.startAt as Timestamp | null) ?? null,
+    endAt: (data.endAt as Timestamp | null) ?? null,
+    isAllDay: typeof data.isAllDay === 'boolean' ? data.isAllDay : undefined,
+    gcalEventId: typeof data.gcalEventId === 'string' && data.gcalEventId ? data.gcalEventId : null,
+    lastWriteSource,
+    lastSyncedAt: (data.lastSyncedAt as Timestamp | null) ?? null,
     createdAt: (data.createdAt as Timestamp | null) ?? null,
     createdBy,
     createdByName:
