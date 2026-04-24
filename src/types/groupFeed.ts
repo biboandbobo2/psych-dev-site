@@ -1,6 +1,15 @@
 import type { Timestamp } from 'firebase/firestore';
 
 /**
+ * Тип новости платформы. Заполняется только для объявлений в системной
+ * broadcast-группе «Все» (EVERYONE_GROUP_ID). У обычных групповых объявлений
+ * поле отсутствует.
+ * - 'tech' — новости платформы (новая кнопка, фича, улучшение).
+ * - 'content' — новости контента (новая лекция, курс, книга в RAG).
+ */
+export type PlatformNewsType = 'tech' | 'content';
+
+/**
  * Объявление внутри группы. Хранится в `groups/{groupId}/announcements/{id}`.
  */
 export interface GroupAnnouncement {
@@ -10,6 +19,8 @@ export interface GroupAnnouncement {
   createdAt: Timestamp | null;
   createdBy: string;
   createdByName?: string;
+  /** Только для объявлений группы «Все»; помечает тип новости платформы. */
+  newsType?: PlatformNewsType;
 }
 
 /**
@@ -78,6 +89,8 @@ export interface GroupFeedItem {
   siteLink?: string;
   createdAt: Timestamp | null;
   createdByName?: string;
+  /** Только для объявлений группы «Все»; помечает тип новости платформы. */
+  newsType?: PlatformNewsType;
 }
 
 export function normalizeGroupAnnouncement(
@@ -90,6 +103,10 @@ export function normalizeGroupAnnouncement(
   const text = typeof data.text === 'string' ? data.text.trim() : '';
   const createdBy = typeof data.createdBy === 'string' ? data.createdBy : '';
   if (!text || !createdBy) return null;
+  const newsType: PlatformNewsType | undefined =
+    data.newsType === 'tech' || data.newsType === 'content'
+      ? data.newsType
+      : undefined;
   return {
     id,
     groupId,
@@ -98,6 +115,7 @@ export function normalizeGroupAnnouncement(
     createdBy,
     createdByName:
       typeof data.createdByName === 'string' ? data.createdByName : undefined,
+    newsType,
   };
 }
 

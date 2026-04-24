@@ -15,7 +15,8 @@ import {
 } from '../../hooks/useGroupFeed';
 import { debugError } from '../../lib/debug';
 import type { Group } from '../../types/groups';
-import type { GroupEvent } from '../../types/groupFeed';
+import type { GroupEvent, PlatformNewsType } from '../../types/groupFeed';
+import { isEveryoneGroup } from '../../../shared/groups/everyoneGroup';
 
 function formatDueDateRu(iso: string | null): string {
   if (!iso) return '';
@@ -122,6 +123,7 @@ export default function AdminAnnouncements() {
                 groupId={selectedGroup.id}
                 userId={user.uid}
                 createdByName={displayName}
+                isEveryone={isEveryoneGroup(selectedGroup.id)}
               />
               <NewEventForm
                 groupId={selectedGroup.id}
@@ -199,12 +201,15 @@ function NewAnnouncementForm({
   groupId,
   userId,
   createdByName,
+  isEveryone,
 }: {
   groupId: string;
   userId: string;
   createdByName?: string;
+  isEveryone: boolean;
 }) {
   const [text, setText] = useState('');
+  const [newsType, setNewsType] = useState<PlatformNewsType>('tech');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -213,7 +218,15 @@ function NewAnnouncementForm({
     setSaving(true);
     setError(null);
     try {
-      await createGroupAnnouncement(groupId, { text, createdByName }, userId);
+      await createGroupAnnouncement(
+        groupId,
+        {
+          text,
+          createdByName,
+          ...(isEveryone ? { newsType } : {}),
+        },
+        userId
+      );
       setText('');
     } catch (err) {
       debugError('createGroupAnnouncement failed', err);
@@ -225,12 +238,59 @@ function NewAnnouncementForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2 rounded-xl border border-gray-200 bg-white p-4">
-      <h3 className="text-sm font-semibold text-[#2C3E50]">Новое объявление</h3>
+      <h3 className="text-sm font-semibold text-[#2C3E50]">
+        {isEveryone ? 'Новая новость платформы' : 'Новое объявление'}
+      </h3>
+      {isEveryone && (
+        <fieldset className="space-y-1 rounded-md border border-dashed border-gray-300 bg-[#F9FBFF] p-3">
+          <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-[#8A97AB]">
+            Тип новости
+          </legend>
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-[#2C3E50]">
+            <input
+              type="radio"
+              name="newsType"
+              value="tech"
+              checked={newsType === 'tech'}
+              onChange={() => setNewsType('tech')}
+              disabled={saving}
+              className="mt-1"
+            />
+            <span>
+              <span className="font-semibold">Техническая</span>
+              <span className="ml-1 text-xs text-[#6B7A8D]">
+                (новая кнопка, фича, улучшение платформы)
+              </span>
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-[#2C3E50]">
+            <input
+              type="radio"
+              name="newsType"
+              value="content"
+              checked={newsType === 'content'}
+              onChange={() => setNewsType('content')}
+              disabled={saving}
+              className="mt-1"
+            />
+            <span>
+              <span className="font-semibold">Контентная</span>
+              <span className="ml-1 text-xs text-[#6B7A8D]">
+                (новая лекция, курс, книга в RAG)
+              </span>
+            </span>
+          </label>
+        </fieldset>
+      )}
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={3}
-        placeholder="Например: «В субботу пробный экзамен по клинической психологии»"
+        placeholder={
+          isEveryone
+            ? 'Например: «Добавили книгу Выготского в RAG — теперь можно задавать вопросы по ней»'
+            : 'Например: «В субботу пробный экзамен по клинической психологии»'
+        }
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         disabled={saving}
       />

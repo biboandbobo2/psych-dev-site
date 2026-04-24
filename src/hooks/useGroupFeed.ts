@@ -20,6 +20,7 @@ import {
   type GroupAnnouncement,
   type GroupEvent,
   type GroupEventKind,
+  type PlatformNewsType,
 } from '../types/groupFeed';
 import { formatDateLabel } from '../../shared/gcalMapping';
 
@@ -29,6 +30,8 @@ const GROUP_EVENT_TZ = 'Asia/Tbilisi';
 export interface GroupAnnouncementInput {
   text: string;
   createdByName?: string;
+  /** Только для группы «Все»; при передаче сохраняется в документ. */
+  newsType?: PlatformNewsType;
 }
 
 export interface GroupEventInput {
@@ -131,11 +134,16 @@ export async function createGroupAnnouncement(
   if (text.length < 3) {
     throw new Error('Текст объявления должен содержать минимум 3 символа');
   }
+  const newsType: PlatformNewsType | undefined =
+    input.newsType === 'tech' || input.newsType === 'content'
+      ? input.newsType
+      : undefined;
   await addDoc(collection(db, 'groups', groupId, 'announcements'), {
     text,
     createdAt: serverTimestamp(),
     createdBy: userId,
     ...(input.createdByName ? { createdByName: input.createdByName } : {}),
+    ...(newsType ? { newsType } : {}),
   });
 }
 
