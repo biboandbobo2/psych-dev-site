@@ -255,23 +255,56 @@ function NewEventForm({
   userId: string;
   createdByName?: string;
 }) {
-  const [dateLabel, setDateLabel] = useState('');
+  const [startLocal, setStartLocal] = useState('');
+  const [endLocal, setEndLocal] = useState('');
+  const [isAllDay, setIsAllDay] = useState(false);
   const [text, setText] = useState('');
   const [zoomLink, setZoomLink] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const canSubmit =
+    text.trim().length >= 3 && startLocal.length > 0 && endLocal.length > 0;
+
+  const handleStartChange = (value: string) => {
+    setStartLocal(value);
+    if (value && !endLocal) {
+      const startMs = Date.parse(value);
+      if (!Number.isNaN(startMs)) {
+        const defaultEnd = new Date(startMs + 90 * 60 * 1000);
+        setEndLocal(localInputValue(defaultEnd, isAllDay));
+      }
+    }
+  };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
     try {
+      const startMs = Date.parse(startLocal);
+      const endMs = Date.parse(endLocal);
+      if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
+        throw new Error('Укажите корректные дату и время');
+      }
+      if (endMs <= startMs) {
+        throw new Error('Время окончания должно быть позже начала');
+      }
       await createGroupEvent(
         groupId,
-        { text, dateLabel, zoomLink: zoomLink || undefined, createdByName },
+        {
+          text,
+          startAtMs: startMs,
+          endAtMs: endMs,
+          isAllDay,
+          zoomLink: zoomLink || undefined,
+          createdByName,
+        },
         userId
       );
-      setDateLabel('');
+      setStartLocal('');
+      setEndLocal('');
+      setIsAllDay(false);
       setText('');
       setZoomLink('');
     } catch (err) {
@@ -285,14 +318,39 @@ function NewEventForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-2 rounded-xl border border-gray-200 bg-white p-4">
       <h3 className="text-sm font-semibold text-[#2C3E50]">Новое событие</h3>
-      <input
-        type="text"
-        value={dateLabel}
-        onChange={(e) => setDateLabel(e.target.value)}
-        placeholder="Дата или период (например: «15 мая, 18:00»)"
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        disabled={saving}
-      />
+      <div className="flex flex-wrap gap-2">
+        <label className="flex flex-1 min-w-[180px] flex-col gap-1 text-xs text-gray-600">
+          Начало
+          <input
+            type={isAllDay ? 'date' : 'datetime-local'}
+            value={startLocal}
+            onChange={(e) => handleStartChange(e.target.value)}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            disabled={saving}
+            required
+          />
+        </label>
+        <label className="flex flex-1 min-w-[180px] flex-col gap-1 text-xs text-gray-600">
+          Окончание
+          <input
+            type={isAllDay ? 'date' : 'datetime-local'}
+            value={endLocal}
+            onChange={(e) => setEndLocal(e.target.value)}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            disabled={saving}
+            required
+          />
+        </label>
+      </div>
+      <label className="flex items-center gap-2 text-xs text-gray-600">
+        <input
+          type="checkbox"
+          checked={isAllDay}
+          onChange={(e) => setIsAllDay(e.target.checked)}
+          disabled={saving}
+        />
+        Весь день
+      </label>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -312,13 +370,22 @@ function NewEventForm({
       {error && <p className="text-xs text-rose-700">{error}</p>}
       <button
         type="submit"
-        disabled={saving || text.trim().length < 3 || dateLabel.trim().length < 2}
+        disabled={saving || !canSubmit}
         className="rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50"
       >
         {saving ? 'Сохраняем…' : 'Опубликовать событие'}
       </button>
     </form>
   );
+}
+
+function localInputValue(date: Date, allDay: boolean): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  const mm = pad(date.getMonth() + 1);
+  const dd = pad(date.getDate());
+  if (allDay) return `${yyyy}-${mm}-${dd}`;
+  return `${yyyy}-${mm}-${dd}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function NewAssignmentForm({

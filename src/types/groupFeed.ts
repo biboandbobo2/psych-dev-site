@@ -66,6 +66,8 @@ export interface GroupFeedItem {
   dateLabel?: string;
   /** ISO YYYY-MM-DD для kind='assignment'. */
   dueDate?: string | null;
+  /** Для kind='event' — точное время начала (если известно из формы/GCal). */
+  startAt?: Timestamp | null;
   zoomLink?: string;
   createdAt: Timestamp | null;
   createdByName?: string;

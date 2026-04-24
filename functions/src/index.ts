@@ -312,3 +312,4 @@ export { bulkEnrollStudents, getStudentEmailLists, saveStudentEmailList } from '
 export { sendFeedback } from './sendFeedback.js';
 export { billingBudgetAlert } from './billingBudgetAlert.js';
 export { weeklyTranscriptRefresh } from './weeklyTranscriptRefresh.js';
+export { syncGroupCalendars, onGroupEventWrite } from './gcalSync.js';

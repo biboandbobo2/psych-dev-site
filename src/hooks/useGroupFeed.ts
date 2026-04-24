@@ -8,6 +8,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  Timestamp,
   updateDoc,
   type Unsubscribe,
 } from 'firebase/firestore';
@@ -20,8 +21,10 @@ import {
   type GroupEvent,
   type GroupEventKind,
 } from '../types/groupFeed';
+import { formatDateLabel } from '../../shared/gcalMapping';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const GROUP_EVENT_TZ = 'Asia/Tbilisi';
 
 export interface GroupAnnouncementInput {
   text: string;
@@ -32,8 +35,11 @@ export interface GroupEventInput {
   /** 'event' по умолчанию; 'assignment' требует dueDate в ISO YYYY-MM-DD. */
   kind?: GroupEventKind;
   text: string;
-  /** Для kind='event' — обязательно. Для assignment — игнорируется. */
+  /** Для kind='event' — либо startAtMs/endAtMs (новый путь), либо dateLabel (legacy). */
   dateLabel?: string;
+  startAtMs?: number;
+  endAtMs?: number;
+  isAllDay?: boolean;
   /** Для kind='assignment' — обязательно, ISO YYYY-MM-DD. */
   dueDate?: string;
   zoomLink?: string;
@@ -162,7 +168,13 @@ export async function createGroupEvent(
     return;
   }
 
-  const dateLabel = input.dateLabel?.trim() ?? '';
+  const hasStructuredTime =
+    typeof input.startAtMs === 'number' && typeof input.endAtMs === 'number';
+  const isAllDay = Boolean(input.isAllDay);
+
+  const dateLabel = hasStructuredTime
+    ? formatDateLabel(input.startAtMs!, input.endAtMs!, isAllDay, GROUP_EVENT_TZ)
+    : input.dateLabel?.trim() ?? '';
   if (dateLabel.length < 2) {
     throw new Error('Укажите дату или период события');
   }
@@ -171,8 +183,16 @@ export async function createGroupEvent(
     kind,
     text,
     dateLabel,
+    ...(hasStructuredTime
+      ? {
+          startAt: Timestamp.fromMillis(input.startAtMs!),
+          endAt: Timestamp.fromMillis(input.endAtMs!),
+          isAllDay,
+        }
+      : {}),
     createdAt: serverTimestamp(),
     createdBy: userId,
+    lastWriteSource: 'firestore',
     ...(zoomLink ? { zoomLink } : {}),
     ...(input.createdByName ? { createdByName: input.createdByName } : {}),
   });
