@@ -30,8 +30,16 @@ export function RegisteredGuestHome() {
       </Helmet>
 
       <section className="rounded-2xl border border-[#DDE5EE] bg-white p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6B7A8D]">Привет</p>
-        <h1 className="mt-1 text-2xl font-black leading-tight text-[#1F2F46] sm:text-3xl">
+        <Link
+          to="/about"
+          className="inline-flex flex-col items-start rounded-xl px-2.5 py-1.5 -ml-2.5 transition hover:bg-[#F0F4FA]"
+        >
+          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#3359CB]">
+            DOM Academy
+          </span>
+          <span className="mt-0.5 text-[11px] italic text-[#6B7A8D]">Development Of Mind</span>
+        </Link>
+        <h1 className="mt-3 text-2xl font-black leading-tight text-[#1F2F46] sm:text-3xl">
           {displayName}, добро пожаловать
         </h1>
         <p className="mt-2 text-sm text-[#556476]">
@@ -63,7 +71,7 @@ export function RegisteredGuestHome() {
                   <div className="min-w-0 flex-1">
                     <p className="text-base font-semibold text-emerald-900">{course.name}</p>
                     <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                      🔓 Открытый курс
+                      Открытый доступ
                     </p>
                   </div>
                 </Link>
@@ -131,8 +139,8 @@ export function RegisteredGuestHome() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-base font-semibold text-[#2C3E50]">{course.name}</p>
-                    <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      🔒 Закрытый курс
+                    <p className="mt-1 text-xs font-semibold text-[#3359CB]">
+                      Посмотреть структуру →
                     </p>
                   </div>
                 </Link>

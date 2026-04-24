@@ -56,22 +56,18 @@ function CourseCard({
         <span className="text-3xl" aria-hidden>
           {course.icon || '📘'}
         </span>
-        <span
-          className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-            isOpen
-              ? 'bg-emerald-100 text-emerald-800'
-              : 'bg-slate-100 text-slate-600'
-          }`}
-        >
-          {isOpen ? '🔓 Открытый курс' : '🔒 Закрытый курс'}
-        </span>
+        {isOpen ? (
+          <span className="inline-flex shrink-0 items-center rounded-full bg-accent-100 px-2.5 py-1 text-xs font-semibold text-accent">
+            Открытый доступ
+          </span>
+        ) : null}
       </div>
       <h3 className="mt-3 text-lg font-semibold leading-snug text-[#2C3E50]">{course.name}</h3>
       <p className="mt-1 text-sm text-[#6B7A8D]">
         {course.isCore ? 'Основной курс платформы' : 'Дополнительный курс платформы'}
       </p>
       <span className="mt-auto pt-3 text-sm font-semibold text-[#3359CB]">
-        Посмотреть курс →
+        {isOpen ? 'Посмотреть курс →' : 'Посмотреть структуру →'}
       </span>
     </Link>
   );
@@ -96,8 +92,16 @@ export function GuestLanding() {
       </Helmet>
 
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#4A5FA5] to-[#6B7FB8] p-8 text-white sm:p-10">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] opacity-80">Платформа</p>
-        <h1 className="mt-2 text-4xl font-black leading-tight sm:text-5xl">DOM Academy</h1>
+        <Link
+          to="/about"
+          className="inline-flex flex-col items-start rounded-xl px-3 py-2 -ml-3 transition hover:bg-white/10"
+        >
+          <span className="text-xs font-semibold uppercase tracking-[0.25em] opacity-80">
+            DOM Academy
+          </span>
+          <span className="mt-0.5 text-[11px] italic opacity-75">Development Of Mind</span>
+        </Link>
+        <h1 className="mt-3 text-4xl font-black leading-tight sm:text-5xl">DOM Academy</h1>
         <p className="mt-3 max-w-2xl text-base opacity-90 sm:text-lg">
           Образовательная платформа по психологии и смежным с ней областям. Курсы, инструменты для
           самостоятельной работы и научный поиск.
