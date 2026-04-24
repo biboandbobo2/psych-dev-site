@@ -26,7 +26,7 @@ export default function PaletteDebug() {
 
       <div className="mx-auto max-w-4xl space-y-6">
         <header>
-          <h1 className="text-2xl font-bold">🎨 Палитра «Академия Дом» — акварельная</h1>
+          <h1 className="text-2xl font-bold">🎨 Палитра «DOM Academy» — акварельная</h1>
           <p className="mt-2 text-sm text-muted">
             Основа — кремовый фон + мягкие пастели (мятный, жёлтый).
             Насыщенный зелёный используем редко — только для главных CTA.

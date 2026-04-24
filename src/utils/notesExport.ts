@@ -36,7 +36,7 @@ export function generateNotesMarkdown(notes: Note[]): string {
     });
   }
 
-  md += `\n_Экспортировано из Академия Дом_\n`;
+  md += `\n_Экспортировано из DOM Academy_\n`;
   return md;
 }
 
@@ -60,7 +60,7 @@ export function generateNotesText(notes: Note[]): string {
     });
   }
 
-  txt += `Экспортировано из Академия Дом\n`;
+  txt += `Экспортировано из DOM Academy\n`;
   return txt;
 }
 

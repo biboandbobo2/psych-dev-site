@@ -126,7 +126,7 @@ export function AccountPage({ embedded = false }: AccountPageProps) {
   const content = (
     <>
       <Helmet>
-        <title>Мои бронирования — Психологический центр ДОМ</title>
+        <title>Мои бронирования — Психологический центр DOM</title>
       </Helmet>
 
       <div className="max-w-[800px] mx-auto px-4 md:px-8 py-12">
