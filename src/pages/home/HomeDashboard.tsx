@@ -19,6 +19,7 @@ import {
 import { EventsCalendarModal } from './EventsCalendarModal';
 import { CourseLessonsDrawer } from './CourseLessonsDrawer';
 import { useMyGroupsFeed } from '../../hooks/useMyGroupsFeed';
+import { useMyGroups } from '../../hooks/useMyGroups';
 import { GuestLanding } from './GuestLanding';
 import { RegisteredGuestHome } from './RegisteredGuestHome';
 import { useGuestStatus } from '../../hooks/useGuestStatus';
@@ -47,6 +48,8 @@ function StudentDashboard() {
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
   const { courses } = useCourses();
+  const { groups: myGroups } = useMyGroups();
+  const courseStreamLabel = myGroups.length > 0 ? 'Курс потока' : 'Мой курс';
   const { openCourseIds } = useCoursesOpenness(courses.map((course) => course.id));
   const {
     announcements,
@@ -238,7 +241,7 @@ function StudentDashboard() {
                     >
                       <div className="min-w-0">
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                          Курс потока
+                          {courseStreamLabel}
                         </p>
                         <h2 className="mt-1 break-words text-xl font-bold leading-tight text-fg sm:text-3xl">
                           {course.name}
@@ -550,7 +553,7 @@ function MiniWeekCalendar({
           onClick={onOpen}
           className="text-xs text-muted transition hover:text-accent"
         >
-          Месяц ▾
+          Открыть →
         </button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center">
