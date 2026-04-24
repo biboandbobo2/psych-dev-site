@@ -95,7 +95,7 @@ export function AppLayout({
           <NavLink
             to="/home"
             className="inline-flex items-center gap-2 rounded-xl border border-border/70 bg-card px-3 py-2 shadow-sm transition hover:bg-card2"
-            aria-label="Перейти на главную Академии Дом"
+            aria-label="Перейти на главную DOM Academy"
           >
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent-100 text-sm font-bold text-accent">
               Ψ

@@ -91,13 +91,13 @@ export function GuestLanding() {
         <title>{SITE_NAME} — образовательная платформа по психологии</title>
         <meta
           name="description"
-          content="Академия Дом — образовательная платформа по психологии и смежным с ней областям. Курсы, тесты, таймлайн, заметки, научный поиск и AI-помощник."
+          content="DOM Academy — образовательная платформа по психологии и смежным с ней областям. Курсы, тесты, таймлайн, заметки, научный поиск и AI-помощник."
         />
       </Helmet>
 
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#4A5FA5] to-[#6B7FB8] p-8 text-white sm:p-10">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] opacity-80">Платформа</p>
-        <h1 className="mt-2 text-4xl font-black leading-tight sm:text-5xl">Академия Дом</h1>
+        <h1 className="mt-2 text-4xl font-black leading-tight sm:text-5xl">DOM Academy</h1>
         <p className="mt-3 max-w-2xl text-base opacity-90 sm:text-lg">
           Образовательная платформа по психологии и смежным с ней областям. Курсы, инструменты для
           самостоятельной работы и научный поиск.
@@ -167,7 +167,7 @@ export function GuestLanding() {
           Психологический центр «Dom» в Тбилиси
         </h2>
         <p className="mt-2 text-sm text-[#556476]">
-          Очные сессии и аренда кабинета для работы с клиентами. Мы объединяем Академию Дом с
+          Очные сессии и аренда кабинета для работы с клиентами. Мы объединяем DOM Academy с
           сервисом бронирования центра.
         </p>
         <Link
