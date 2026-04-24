@@ -203,7 +203,16 @@ function StudentDashboard() {
     <section className="min-h-screen bg-bg py-8 sm:py-10">
       <div className="mx-auto max-w-6xl space-y-6 px-4">
         <header>
-          <p className="text-sm text-muted">Добрый день, {displayName}</p>
+          <Link
+            to="/about"
+            className="inline-flex flex-col items-start rounded-xl px-2.5 py-1.5 -ml-2.5 transition hover:bg-accent-100/50"
+          >
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+              DOM Academy
+            </span>
+            <span className="mt-0.5 text-[11px] italic text-muted">Development Of Mind</span>
+          </Link>
+          <p className="mt-3 text-sm text-muted">Добрый день, {displayName}</p>
           <h1 className="mt-1 text-3xl font-bold text-fg sm:text-4xl">Мои курсы</h1>
         </header>
 
@@ -395,6 +404,23 @@ function StudentDashboard() {
               Дополнительные курсы пока не добавлены.
             </p>
           )}
+        </section>
+
+        {/* Партнёр — центр Dom */}
+        <section className="rounded-2xl border border-border bg-card2 p-5 shadow-brand">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Партнёр</p>
+          <h2 className="mt-1 text-xl font-bold text-fg">
+            Психологический центр «Dom» в Тбилиси
+          </h2>
+          <p className="mt-2 text-sm text-muted">
+            Очные сессии и аренда кабинета для работы с клиентами.
+          </p>
+          <Link
+            to="/booking"
+            className="mt-3 inline-flex items-center gap-1 rounded-xl border border-accent/30 bg-accent-100 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
+          >
+            Бронирование кабинетов →
+          </Link>
         </section>
 
         {/* Возможности платформы */}
