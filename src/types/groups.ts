@@ -29,6 +29,11 @@ export interface Group {
   memberIds: string[];
   grantedCourses: string[];
   announcementAdminIds: string[];
+  /**
+   * Системная группа (напр. broadcast «Все»). Защищена от удаления,
+   * переименования и ручного изменения состава через админку.
+   */
+  isSystem?: boolean;
   /** ID Google Calendar для двусторонней синхронизации событий группы. */
   gcalId?: string | null;
   gcalSyncState?: GroupGcalSyncState;

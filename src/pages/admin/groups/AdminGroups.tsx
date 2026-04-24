@@ -92,7 +92,14 @@ export default function AdminGroups() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">{group.name}</h3>
+                      <h3 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-gray-900">
+                        {group.name}
+                        {group.isSystem && (
+                          <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+                            Системная
+                          </span>
+                        )}
+                      </h3>
                       {group.description && (
                         <p className="mt-1 text-sm text-gray-600">{group.description}</p>
                       )}

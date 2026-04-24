@@ -20,6 +20,7 @@ interface GroupEditorModalProps {
 
 export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEditorModalProps) {
   const isEdit = Boolean(group);
+  const isSystem = Boolean(group?.isSystem);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -94,12 +95,17 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
       if (isEdit && group) {
         await updateGroup({
           groupId: group.id,
-          name,
+          // Системные группы не переименовываются (серверный guard это подтвердит).
+          ...(isSystem ? {} : { name }),
           description,
           grantedCourses: Array.from(grantedCourses),
           announcementAdminIds: Array.from(announcementAdminIds),
         });
-        await setGroupMembers({ groupId: group.id, memberIds: Array.from(memberIds) });
+        // Состав системной группы управляется автоматически onUserCreate,
+        // ручной setGroupMembers для неё запрещён.
+        if (!isSystem) {
+          await setGroupMembers({ groupId: group.id, memberIds: Array.from(memberIds) });
+        }
       } else {
         await createGroup({
           name,
@@ -173,7 +179,14 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-lg bg-white shadow-xl">
         <header className="flex items-center justify-between border-b border-gray-200 p-4">
-          <h2 className="text-xl font-bold">{isEdit ? `Группа: ${group?.name}` : 'Новая группа'}</h2>
+          <h2 className="flex flex-wrap items-center gap-2 text-xl font-bold">
+            {isEdit ? `Группа: ${group?.name}` : 'Новая группа'}
+            {isSystem && (
+              <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+                Системная
+              </span>
+            )}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -194,9 +207,14 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Поток 2026, весна"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={saving}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+              disabled={saving || isSystem}
             />
+            {isSystem && (
+              <p className="text-xs text-gray-500">
+                Название системной группы изменить нельзя.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -278,7 +296,13 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
               Участники ({memberIds.size})
             </legend>
 
-            {isEdit && group ? (
+            {isSystem ? (
+              <p className="rounded-lg border border-dashed border-purple-200 bg-purple-50 px-3 py-2 text-xs text-purple-900">
+                Состав системной группы управляется автоматически: каждый новый
+                зарегистрированный пользователь добавляется сюда. Ручное
+                редактирование участников недоступно.
+              </p>
+            ) : isEdit && group ? (
               <div className="space-y-2 rounded-lg border border-dashed border-gray-300 bg-[#F9FBFF] p-3">
                 <p className="text-xs font-semibold text-[#2C3E50]">Пригласить по email</p>
                 <p className="text-xs text-gray-500">
@@ -314,37 +338,41 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
               </p>
             )}
 
-            <input
-              type="search"
-              value={memberSearch}
-              onChange={(e) => setMemberSearch(e.target.value)}
-              placeholder="Поиск по имени или email среди зарегистрированных"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              disabled={saving}
-            />
-            {usersLoading ? (
-              <div className="text-sm text-gray-500">Загрузка…</div>
-            ) : (
-              <ul className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-gray-200 p-2">
-                {filteredUsers.map((u) => (
-                  <li key={u.uid}>
-                    <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-gray-50">
-                      <input
-                        type="checkbox"
-                        checked={memberIds.has(u.uid)}
-                        onChange={() => toggleSet(memberIds, u.uid, setMemberIds)}
-                        disabled={saving}
-                      />
-                      <span className="flex-1 text-sm">
-                        {u.displayName || u.email || u.uid}
-                        {u.email && u.displayName && (
-                          <span className="ml-2 text-xs text-gray-500">{u.email}</span>
-                        )}
-                      </span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
+            {!isSystem && (
+              <>
+                <input
+                  type="search"
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  placeholder="Поиск по имени или email среди зарегистрированных"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  disabled={saving}
+                />
+                {usersLoading ? (
+                  <div className="text-sm text-gray-500">Загрузка…</div>
+                ) : (
+                  <ul className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-gray-200 p-2">
+                    {filteredUsers.map((u) => (
+                      <li key={u.uid}>
+                        <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-gray-50">
+                          <input
+                            type="checkbox"
+                            checked={memberIds.has(u.uid)}
+                            onChange={() => toggleSet(memberIds, u.uid, setMemberIds)}
+                            disabled={saving}
+                          />
+                          <span className="flex-1 text-sm">
+                            {u.displayName || u.email || u.uid}
+                            {u.email && u.displayName && (
+                              <span className="ml-2 text-xs text-gray-500">{u.email}</span>
+                            )}
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
           </fieldset>
 
@@ -356,7 +384,7 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
         </form>
 
         <footer className="flex items-center justify-between gap-3 border-t border-gray-200 p-4">
-          {isEdit ? (
+          {isEdit && !isSystem ? (
             <button
               type="button"
               onClick={handleDelete}

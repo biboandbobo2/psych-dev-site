@@ -26,6 +26,7 @@ export function normalizeGroupDoc(id: string, data: unknown): Group | null {
     memberIds: members,
     grantedCourses: courses,
     announcementAdminIds: announcers,
+    isSystem: raw.isSystem === true ? true : undefined,
   };
 }
 
