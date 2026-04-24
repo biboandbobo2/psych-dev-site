@@ -34,7 +34,9 @@ dist-ssr
 *service-account*.json
 *sa*.json
 playwright-report/
+.playwright-mcp/
 test-results/
+functions/lib/
 backups/periods-backup-*.json
 
 # Claude Code local config
