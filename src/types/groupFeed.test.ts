@@ -89,6 +89,7 @@ describe('normalizeGroupEvent', () => {
       lastWriteSource: undefined,
       lastSyncedAt: null,
       longText: undefined,
+      siteLink: undefined,
     });
   });
 
@@ -197,7 +198,28 @@ describe('normalizeGroupEvent', () => {
       lastWriteSource: undefined,
       lastSyncedAt: null,
       longText: undefined,
+      siteLink: undefined,
     });
+  });
+
+  it('reads siteLink when present', () => {
+    const result = normalizeGroupEvent(GROUP, ID, {
+      text: 'Лекция',
+      dateLabel: '2026-04-25',
+      createdBy: 'u1',
+      siteLink: 'https://academydom.com/lecture/intro',
+    });
+    expect(result?.siteLink).toBe('https://academydom.com/lecture/intro');
+  });
+
+  it('omits siteLink when empty', () => {
+    const result = normalizeGroupEvent(GROUP, ID, {
+      text: 'Лекция',
+      dateLabel: '2026-04-25',
+      createdBy: 'u1',
+      siteLink: '   ',
+    });
+    expect(result?.siteLink).toBeUndefined();
   });
 
   it('includes longText for assignment when present', () => {

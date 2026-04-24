@@ -29,6 +29,7 @@ export interface MappedFirestoreEvent {
   endAtMs: number;
   isAllDay: boolean;
   zoomLink?: string;
+  siteLink?: string;
   /** updated timestamp из GCal (ms) — используется для LWW. */
   remoteUpdatedMs: number;
 }
@@ -38,6 +39,7 @@ export interface MappedFirestoreEvent {
  * полные ссылки; возвращаем «чистый» URL без трейлинговой пунктуации.
  */
 const ZOOM_LINK_RE = /https?:\/\/(?:[a-z0-9-]+\.)?zoom\.us\/[^\s<>"')]+/i;
+const SITE_LINK_RE = /Сайт:\s*(https?:\/\/[^\s<>"')]+)/i;
 
 export function extractZoomLink(
   ...sources: Array<string | null | undefined>
@@ -47,6 +49,23 @@ export function extractZoomLink(
     const match = source.match(ZOOM_LINK_RE);
     if (match) {
       return match[0].replace(/[),.;]+$/, '');
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Ищем ссылку на страницу сайта в description по маркеру «Сайт: <url>».
+ * Маркер нужен, чтобы не путать её со случайным URL в тексте события.
+ */
+export function extractSiteLink(
+  ...sources: Array<string | null | undefined>
+): string | undefined {
+  for (const source of sources) {
+    if (!source) continue;
+    const match = source.match(SITE_LINK_RE);
+    if (match && match[1]) {
+      return match[1].replace(/[),.;]+$/, '');
     }
   }
   return undefined;
@@ -125,6 +144,7 @@ export function gcalEventToFirestore(
   const summary = (ev.summary ?? '').trim() || '(без названия)';
   const dateLabel = formatDateLabel(startAtMs, endAtMs, isAllDay, timeZone);
   const zoomLink = extractZoomLink(ev.location, ev.description);
+  const siteLink = extractSiteLink(ev.description);
 
   return {
     gcalEventId: ev.id,
@@ -134,6 +154,7 @@ export function gcalEventToFirestore(
     endAtMs,
     isAllDay,
     zoomLink,
+    siteLink,
     remoteUpdatedMs: Number.isNaN(remoteUpdatedMs) ? 0 : remoteUpdatedMs,
   };
 }
@@ -158,6 +179,7 @@ export interface FirestoreEventForExport {
   endAtMs: number;
   isAllDay: boolean;
   zoomLink?: string;
+  siteLink?: string;
 }
 
 /**
@@ -186,9 +208,16 @@ export function firestoreEventToGCal(
     },
   };
 
+  const descParts: string[] = [];
   if (doc.zoomLink) {
     payload.location = doc.zoomLink;
-    payload.description = `Zoom: ${doc.zoomLink}`;
+    descParts.push(`Zoom: ${doc.zoomLink}`);
+  }
+  if (doc.siteLink) {
+    descParts.push(`Сайт: ${doc.siteLink}`);
+  }
+  if (descParts.length > 0) {
+    payload.description = descParts.join('\n');
   }
   return payload;
 }

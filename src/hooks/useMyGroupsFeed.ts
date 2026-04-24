@@ -102,6 +102,7 @@ export function useMyGroupsFeed() {
                   longText: ev.longText,
                   startAt: ev.startAt ?? null,
                   zoomLink: ev.zoomLink,
+                  siteLink: ev.siteLink,
                   createdAt: ev.createdAt,
                   createdByName: ev.createdByName,
                 } as GroupFeedItem;

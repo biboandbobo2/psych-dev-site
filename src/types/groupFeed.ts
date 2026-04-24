@@ -43,6 +43,8 @@ export interface GroupEvent {
   /** Для assignment — опциональный развёрнутый текст, показываемый в модалке «Читать полностью». */
   longText?: string;
   zoomLink?: string;
+  /** Ссылка на страницу сайта (лекция, RAG-статья и т.п.). Показывается в модалке события. */
+  siteLink?: string;
   /** Точное время начала события (только для kind='event', из Google Calendar). */
   startAt?: Timestamp | null;
   endAt?: Timestamp | null;
@@ -73,6 +75,7 @@ export interface GroupFeedItem {
   /** Для kind='event' — точное время начала (если известно из формы/GCal). */
   startAt?: Timestamp | null;
   zoomLink?: string;
+  siteLink?: string;
   createdAt: Timestamp | null;
   createdByName?: string;
 }
@@ -127,6 +130,7 @@ export function normalizeGroupEvent(
     dateLabel,
     dueDate,
     zoomLink: typeof data.zoomLink === 'string' && data.zoomLink.trim() ? data.zoomLink.trim() : undefined,
+    siteLink: typeof data.siteLink === 'string' && data.siteLink.trim() ? data.siteLink.trim() : undefined,
     longText: typeof data.longText === 'string' && data.longText.trim() ? data.longText : undefined,
     startAt: (data.startAt as Timestamp | null) ?? null,
     endAt: (data.endAt as Timestamp | null) ?? null,

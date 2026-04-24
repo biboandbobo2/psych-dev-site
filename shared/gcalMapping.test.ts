@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   extractZoomLink,
+  extractSiteLink,
   formatDateLabel,
   gcalEventToFirestore,
   firestoreEventToGCal,
@@ -34,6 +35,24 @@ describe('extractZoomLink', () => {
   it('returns undefined when none found', () => {
     expect(extractZoomLink('https://example.com', 'no link')).toBeUndefined();
     expect(extractZoomLink(null, null, undefined)).toBeUndefined();
+  });
+});
+
+describe('extractSiteLink', () => {
+  it('finds marker "Сайт: <url>" in description', () => {
+    expect(extractSiteLink('Zoom: https://zoom.us/j/1\nСайт: https://academydom.com/lectures/1')).toBe(
+      'https://academydom.com/lectures/1'
+    );
+  });
+
+  it('strips trailing punctuation', () => {
+    expect(extractSiteLink('Подробнее Сайт: https://academydom.com/a,')).toBe(
+      'https://academydom.com/a'
+    );
+  });
+
+  it('returns undefined when marker is missing even if url exists', () => {
+    expect(extractSiteLink('Просто https://example.com без маркера')).toBeUndefined();
   });
 });
 
@@ -155,6 +174,49 @@ describe('firestoreEventToGCal', () => {
     expect(payload.start.dateTime).toBe('2026-05-20T10:00:00.000Z');
     expect(payload.start.timeZone).toBe('Asia/Tbilisi');
     expect(payload.extendedProperties?.private?.firestoreEventId).toBe('fs1');
+  });
+
+  it('puts both zoom and siteLink into description', () => {
+    const payload = firestoreEventToGCal(
+      {
+        id: 'fs-site',
+        text: 'Лекция со ссылкой',
+        startAtMs: Date.UTC(2026, 4, 20, 10, 0),
+        endAtMs: Date.UTC(2026, 4, 20, 11, 0),
+        isAllDay: false,
+        zoomLink: 'https://zoom.us/j/1',
+        siteLink: 'https://academydom.com/lectures/1',
+      },
+      TZ
+    );
+    expect(payload.description).toContain('Zoom: https://zoom.us/j/1');
+    expect(payload.description).toContain('Сайт: https://academydom.com/lectures/1');
+  });
+
+  it('round-trip: export then import preserves siteLink', () => {
+    const payload = firestoreEventToGCal(
+      {
+        id: 'fs-rt',
+        text: 'Тема',
+        startAtMs: Date.UTC(2026, 4, 20, 10, 0),
+        endAtMs: Date.UTC(2026, 4, 20, 11, 0),
+        isAllDay: false,
+        siteLink: 'https://academydom.com/rt',
+      },
+      TZ
+    );
+    const mapped = gcalEventToFirestore(
+      {
+        id: 'ev',
+        summary: payload.summary,
+        description: payload.description,
+        location: payload.location,
+        start: { dateTime: '2026-05-20T10:00:00.000Z' },
+        end: { dateTime: '2026-05-20T11:00:00.000Z' },
+      },
+      TZ
+    );
+    expect(mapped?.siteLink).toBe('https://academydom.com/rt');
   });
 
   it('creates all-day payload without time', () => {

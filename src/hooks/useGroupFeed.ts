@@ -45,6 +45,8 @@ export interface GroupEventInput {
   /** Для kind='assignment' — опциональный развёрнутый текст для модалки. */
   longText?: string;
   zoomLink?: string;
+  /** Ссылка на страницу сайта (лекция, RAG и т.п.). Отображается в модалке события. */
+  siteLink?: string;
   createdByName?: string;
 }
 
@@ -183,6 +185,7 @@ export async function createGroupEvent(
     throw new Error('Укажите дату или период события');
   }
   const zoomLink = input.zoomLink?.trim();
+  const siteLink = input.siteLink?.trim();
   await addDoc(collection(db, 'groups', groupId, 'events'), {
     kind,
     text,
@@ -198,6 +201,7 @@ export async function createGroupEvent(
     createdBy: userId,
     lastWriteSource: 'firestore',
     ...(zoomLink ? { zoomLink } : {}),
+    ...(siteLink ? { siteLink } : {}),
     ...(input.createdByName ? { createdByName: input.createdByName } : {}),
   });
 }

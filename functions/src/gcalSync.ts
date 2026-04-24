@@ -40,6 +40,7 @@ const USER_FIELDS = [
   "dateLabel",
   "dueDate",
   "zoomLink",
+  "siteLink",
   "startAt",
   "endAt",
   "isAllDay",
@@ -58,6 +59,7 @@ interface EventDocData {
   dateLabel?: string;
   dueDate?: string | null;
   zoomLink?: string | null;
+  siteLink?: string | null;
   startAt?: Timestamp | null;
   endAt?: Timestamp | null;
   isAllDay?: boolean;
@@ -143,6 +145,7 @@ async function syncSingleGroup(groupId: string, group: GroupDocData): Promise<vo
       dateLabel: mapped.dateLabel,
       dueDate: null,
       ...(mapped.zoomLink ? { zoomLink: mapped.zoomLink } : {}),
+      ...(mapped.siteLink ? { siteLink: mapped.siteLink } : {}),
       startAt: Timestamp.fromMillis(mapped.startAtMs),
       endAt: Timestamp.fromMillis(mapped.endAtMs),
       isAllDay: mapped.isAllDay,
@@ -228,6 +231,7 @@ export const onGroupEventWrite = functions.firestore
       endAtMs: after.endAt.toMillis(),
       isAllDay: Boolean(after.isAllDay),
       zoomLink: after.zoomLink ?? undefined,
+      siteLink: after.siteLink ?? undefined,
     };
     const payload = firestoreEventToGCal(exportDoc, TIME_ZONE);
 

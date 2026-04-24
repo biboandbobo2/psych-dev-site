@@ -55,10 +55,10 @@ function StudentDashboard() {
   const { openCourseIds } = useCoursesOpenness(courses.map((course) => course.id));
   const {
     announcements,
-    events,
     loading: feedLoading,
     error: feedError,
   } = useHomeFeed();
+  const { items: myFeedItems, loading: myFeedLoading } = useMyGroupsFeed();
   const [isEventsCalendarOpen, setIsEventsCalendarOpen] = useState(false);
   const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
     const now = new Date();
@@ -66,6 +66,7 @@ function StudentDashboard() {
   });
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
   const [lessonsDrawerCourseId, setLessonsDrawerCourseId] = useState<string | null>(null);
+  const [openFeedItem, setOpenFeedItem] = useState<GroupFeedItem | null>(null);
 
   const featuredSubjects = courses.slice(0, 4).map((course) => ({
     id: course.id,
@@ -121,38 +122,40 @@ function StudentDashboard() {
 
   const latestFeedItems = useMemo(
     () =>
-      [
-        ...announcements.map((item) => ({
+      announcements
+        .map((item) => ({
           id: `announcement-${item.id}`,
           title: 'Объявление',
           text: item.text,
           createdAt: item.createdAt,
-        })),
-        ...events.map((item) => ({
-          id: `event-${item.id}`,
-          title: item.dateLabel,
-          text: item.text,
-          createdAt: item.createdAt,
-        })),
-      ]
+        }))
         .sort((left, right) => (right.createdAt || '').localeCompare(left.createdAt || ''))
         .slice(0, 5),
-    [announcements, events]
+    [announcements]
   );
 
+  // Календарь справа показывает события из подписок группы (useMyGroupsFeed).
+  // Для events c точным startAt берём его; для legacy без startAt пытаемся
+  // распарсить `dateLabel` регэкспом (обратная совместимость).
   const parsedCalendarEvents = useMemo<ParsedCalendarEvent[]>(
     () =>
-      events.map((event) => {
-        const parsedDate = tryParseDateLabel(event.dateLabel) ?? null;
-        return {
-          id: event.id,
-          text: event.text,
-          dateLabel: event.dateLabel,
-          parsedDate,
-          dateKey: parsedDate ? toDateKey(parsedDate) : null,
-        };
-      }),
-    [events]
+      myFeedItems
+        .filter((item) => item.kind === 'event')
+        .map((item) => {
+          const startDate = item.startAt?.toDate
+            ? item.startAt.toDate()
+            : null;
+          const fallback = startDate ? null : tryParseDateLabel(item.dateLabel);
+          const parsedDate = startDate ?? fallback ?? null;
+          return {
+            id: item.id,
+            text: item.text,
+            dateLabel: item.dateLabel ?? '',
+            parsedDate,
+            dateKey: parsedDate ? toDateKey(parsedDate) : null,
+          };
+        }),
+    [myFeedItems]
   );
 
   const calendarEventsByDate = useMemo(() => {
@@ -288,7 +291,11 @@ function StudentDashboard() {
               ) : null}
             </div>
 
-            <MyAssignmentsSection />
+            <MyAssignmentsSection
+              items={myFeedItems}
+              loading={myFeedLoading}
+              onOpen={setOpenFeedItem}
+            />
 
             {/* Общие объявления */}
             <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
@@ -322,29 +329,15 @@ function StudentDashboard() {
               onOpen={openEventsCalendar}
             />
 
-            <section className="rounded-2xl border border-border bg-card p-4 shadow-brand">
-              <h3 className="mb-3 text-lg font-bold text-fg">Ближайшие события</h3>
-              {events.length === 0 ? (
-                <p className="text-sm text-muted">Нет предстоящих событий.</p>
-              ) : (
-                <ul className="space-y-3">
-                  {events.slice(0, 3).map((event) => (
-                    <li key={event.id} className="rounded-xl border border-border bg-card2 p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="min-w-0 flex-1 text-sm text-fg">{event.text}</p>
-                        <span className="whitespace-nowrap rounded-md bg-mark px-2 py-1 text-[11px] font-semibold text-[#5a4b00]">
-                          {event.dateLabel}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <MyGroupsFeedSection />
+            <MyGroupsFeedSection
+              items={myFeedItems}
+              loading={myFeedLoading}
+              onOpen={setOpenFeedItem}
+            />
+            <GeneralEventsSection />
           </aside>
         </div>
+        <FeedItemModal item={openFeedItem} onClose={() => setOpenFeedItem(null)} />
 
         {/* Каталог */}
         <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
@@ -458,47 +451,54 @@ function formatDueDateRu(iso: string | null | undefined): string {
   return `${m[3]}.${m[2]}`;
 }
 
-function MyAssignmentsSection() {
-  const { items, loading } = useMyGroupsFeed();
-  const [openAssignment, setOpenAssignment] = useState<GroupFeedItem | null>(null);
+function MyAssignmentsSection({
+  items,
+  loading,
+  onOpen,
+}: {
+  items: GroupFeedItem[];
+  loading: boolean;
+  onOpen: (item: GroupFeedItem) => void;
+}) {
   if (loading) return null;
-
   const assignments = items.filter((item) => item.kind === 'assignment');
   if (assignments.length === 0) return null;
 
   return (
-    <>
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
-        <h3 className="mb-3 text-xl font-bold text-fg">Задания</h3>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {assignments.slice(0, 6).map((item) => (
-            <article key={item.id} className="rounded-xl border border-border bg-card2 p-4">
-              <p className="text-sm font-semibold text-fg">{item.groupName}</p>
-              <p className="mt-2 text-sm text-muted">{item.text}</p>
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                <span className="inline-flex items-center gap-1 rounded-md bg-mark px-2 py-0.5 font-semibold text-[#5a4b00]">
-                  Дедлайн: {formatDueDateRu(item.dueDate)}
-                </span>
-                {item.longText ? (
-                  <button
-                    type="button"
-                    onClick={() => setOpenAssignment(item)}
-                    className="rounded-md border border-accent/30 bg-accent-100 px-2 py-0.5 font-semibold text-accent transition hover:bg-accent-100/70"
-                  >
-                    Читать полностью
-                  </button>
-                ) : null}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-      <AssignmentModal item={openAssignment} onClose={() => setOpenAssignment(null)} />
-    </>
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
+      <h3 className="mb-3 text-xl font-bold text-fg">Задания</h3>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {assignments.slice(0, 6).map((item) => (
+          <article key={item.id} className="rounded-xl border border-border bg-card2 p-4">
+            <p className="text-sm font-semibold text-fg">{item.groupName}</p>
+            <p className="mt-2 text-sm text-muted">{item.text}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1 rounded-md bg-mark px-2 py-0.5 font-semibold text-[#5a4b00]">
+                Дедлайн: {formatDueDateRu(item.dueDate)}
+              </span>
+              {item.longText ? (
+                <button
+                  type="button"
+                  onClick={() => onOpen(item)}
+                  className="rounded-md border border-accent/30 bg-accent-100 px-2 py-0.5 font-semibold text-accent transition hover:bg-accent-100/70"
+                >
+                  Читать полностью
+                </button>
+              ) : null}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
-function AssignmentModal({
+/**
+ * Универсальная модалка деталей для элементов ленты группы:
+ * - event: дата/время, zoom, ссылка на страницу сайта, полный текст;
+ * - assignment: дедлайн, полный текст (longText), опциональный zoom.
+ */
+function FeedItemModal({
   item,
   onClose,
 }: {
@@ -520,6 +520,11 @@ function AssignmentModal({
   }, [item, onClose]);
 
   if (!item) return null;
+  const isAssignment = item.kind === 'assignment';
+  const dateChip = isAssignment
+    ? `Дедлайн: ${formatDueDateRu(item.dueDate)}`
+    : item.dateLabel;
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
@@ -541,22 +546,75 @@ function AssignmentModal({
           {item.groupName}
         </p>
         <h3 className="mt-1 pr-6 text-lg font-bold text-fg">{item.text}</h3>
-        <p className="mt-2 text-xs">
-          <span className="inline-flex items-center gap-1 rounded-md bg-mark px-2 py-0.5 font-semibold text-[#5a4b00]">
-            Дедлайн: {formatDueDateRu(item.dueDate)}
-          </span>
-        </p>
-        <div className="mt-4 max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-fg">
-          {item.longText}
-        </div>
+        {dateChip ? (
+          <p className="mt-2 text-xs">
+            <span className="inline-flex items-center gap-1 rounded-md bg-mark px-2 py-0.5 font-semibold text-[#5a4b00]">
+              {dateChip}
+            </span>
+          </p>
+        ) : null}
+        {(item.zoomLink || item.siteLink) && (
+          <div className="mt-3 flex flex-wrap gap-2 text-sm">
+            {item.zoomLink ? (
+              <a
+                href={item.zoomLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-md border border-accent/30 bg-accent-100 px-3 py-1 font-semibold text-accent transition hover:bg-accent-100/70"
+              >
+                Открыть Zoom →
+              </a>
+            ) : null}
+            {item.siteLink ? (
+              <a
+                href={item.siteLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-md border border-accent/30 bg-accent-100 px-3 py-1 font-semibold text-accent transition hover:bg-accent-100/70"
+              >
+                Открыть на сайте →
+              </a>
+            ) : null}
+          </div>
+        )}
+        {item.longText ? (
+          <div className="mt-4 max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-fg">
+            {item.longText}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body
   );
 }
 
-function MyGroupsFeedSection() {
-  const { items: allItems, loading } = useMyGroupsFeed();
+/**
+ * Блок «Общие события» — заглушка на будущее. Сейчас источника данных нет;
+ * после того как появится концепция публичных событий или отдельных
+ * календарей, здесь появится свой feed, аналогичный `MyGroupsFeedSection`.
+ */
+function GeneralEventsSection() {
+  return (
+    <section className="rounded-2xl border border-border bg-card p-4 shadow-brand">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-lg font-bold text-fg">Общие события</h3>
+      </div>
+      <p className="text-xs text-muted">
+        Тут появятся события, доступные всем — новости и встречи вне курсов.
+      </p>
+    </section>
+  );
+}
+
+function MyGroupsFeedSection({
+  items: allItems,
+  loading,
+  onOpen,
+}: {
+  items: GroupFeedItem[];
+  loading: boolean;
+  onOpen: (item: GroupFeedItem) => void;
+}) {
   // Assignments выведены в свою секцию — здесь только объявления и события.
   const items = allItems.filter((item) => item.kind !== 'assignment');
 
@@ -616,27 +674,26 @@ function MyGroupsFeedSection() {
             <ul className="space-y-2 text-xs text-muted">
               {list.slice(0, 6).map((item) => (
                 <li key={item.id}>
-                  {item.kind === 'event' && item.dateLabel ? (
-                    <span className="mr-1 inline-flex whitespace-nowrap rounded-md bg-mark px-1.5 py-0.5 text-[10px] font-semibold text-[#5a4b00]">
-                      {item.dateLabel}
-                    </span>
-                  ) : (
-                    <span className="font-semibold text-fg">Объявление: </span>
-                  )}
-                  {item.text}
-                  {item.zoomLink ? (
-                    <>
-                      {' '}
-                      <a
-                        href={item.zoomLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-accent underline"
-                      >
-                        Zoom
-                      </a>
-                    </>
-                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => onOpen(item)}
+                    className="-mx-1 w-full rounded-md px-1 py-0.5 text-left transition hover:bg-accent-100/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  >
+                    {item.kind === 'event' && item.dateLabel ? (
+                      <span className="mr-1 inline-flex whitespace-nowrap rounded-md bg-mark px-1.5 py-0.5 text-[10px] font-semibold text-[#5a4b00]">
+                        {item.dateLabel}
+                      </span>
+                    ) : (
+                      <span className="font-semibold text-fg">Объявление: </span>
+                    )}
+                    <span>{item.text}</span>
+                    {item.zoomLink ? (
+                      <span className="ml-1 text-accent">· Zoom</span>
+                    ) : null}
+                    {item.siteLink ? (
+                      <span className="ml-1 text-accent">· Подробнее</span>
+                    ) : null}
+                  </button>
                 </li>
               ))}
             </ul>

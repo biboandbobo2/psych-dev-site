@@ -260,6 +260,7 @@ function NewEventForm({
   const [isAllDay, setIsAllDay] = useState(false);
   const [text, setText] = useState('');
   const [zoomLink, setZoomLink] = useState('');
+  const [siteLink, setSiteLink] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -298,6 +299,7 @@ function NewEventForm({
           endAtMs: endMs,
           isAllDay,
           zoomLink: zoomLink || undefined,
+          siteLink: siteLink || undefined,
           createdByName,
         },
         userId
@@ -307,6 +309,7 @@ function NewEventForm({
       setIsAllDay(false);
       setText('');
       setZoomLink('');
+      setSiteLink('');
     } catch (err) {
       debugError('createGroupEvent failed', err);
       setError(err instanceof Error ? err.message : 'Не удалось сохранить');
@@ -364,6 +367,14 @@ function NewEventForm({
         value={zoomLink}
         onChange={(e) => setZoomLink(e.target.value)}
         placeholder="Zoom-ссылка (опционально)"
+        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+        disabled={saving}
+      />
+      <input
+        type="url"
+        value={siteLink}
+        onChange={(e) => setSiteLink(e.target.value)}
+        placeholder="Ссылка на страницу сайта (опционально)"
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         disabled={saving}
       />
