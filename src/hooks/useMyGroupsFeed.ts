@@ -99,6 +99,7 @@ export function useMyGroupsFeed() {
                   text: ev.text,
                   dateLabel: ev.dateLabel || undefined,
                   dueDate: ev.dueDate,
+                  longText: ev.longText,
                   startAt: ev.startAt ?? null,
                   zoomLink: ev.zoomLink,
                   createdAt: ev.createdAt,

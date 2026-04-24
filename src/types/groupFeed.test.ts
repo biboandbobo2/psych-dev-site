@@ -88,6 +88,7 @@ describe('normalizeGroupEvent', () => {
       gcalEventId: null,
       lastWriteSource: undefined,
       lastSyncedAt: null,
+      longText: undefined,
     });
   });
 
@@ -195,7 +196,38 @@ describe('normalizeGroupEvent', () => {
       gcalEventId: null,
       lastWriteSource: undefined,
       lastSyncedAt: null,
+      longText: undefined,
     });
+  });
+
+  it('includes longText for assignment when present', () => {
+    const result = normalizeGroupEvent(GROUP, ID, {
+      kind: 'assignment',
+      text: 'Экзамен',
+      dueDate: '2026-05-15',
+      longText: 'Полный текст задания\nс несколькими строками',
+      createdBy: 'u1',
+    });
+    expect(result?.longText).toBe('Полный текст задания\nс несколькими строками');
+  });
+
+  it('omits longText when empty or missing', () => {
+    const withoutField = normalizeGroupEvent(GROUP, ID, {
+      kind: 'assignment',
+      text: 'Экзамен',
+      dueDate: '2026-05-15',
+      createdBy: 'u1',
+    });
+    expect(withoutField?.longText).toBeUndefined();
+
+    const withEmpty = normalizeGroupEvent(GROUP, ID, {
+      kind: 'assignment',
+      text: 'Экзамен',
+      dueDate: '2026-05-15',
+      longText: '   ',
+      createdBy: 'u1',
+    });
+    expect(withEmpty?.longText).toBeUndefined();
   });
 
   it('returns null for assignment without dueDate', () => {

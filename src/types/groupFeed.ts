@@ -40,6 +40,8 @@ export interface GroupEvent {
   dateLabel: string;
   /** Для assignment — ISO дата YYYY-MM-DD. Для event — null. */
   dueDate: string | null;
+  /** Для assignment — опциональный развёрнутый текст, показываемый в модалке «Читать полностью». */
+  longText?: string;
   zoomLink?: string;
   /** Точное время начала события (только для kind='event', из Google Calendar). */
   startAt?: Timestamp | null;
@@ -66,6 +68,8 @@ export interface GroupFeedItem {
   dateLabel?: string;
   /** ISO YYYY-MM-DD для kind='assignment'. */
   dueDate?: string | null;
+  /** Для kind='assignment' — развёрнутый текст в модалке. */
+  longText?: string;
   /** Для kind='event' — точное время начала (если известно из формы/GCal). */
   startAt?: Timestamp | null;
   zoomLink?: string;
@@ -123,6 +127,7 @@ export function normalizeGroupEvent(
     dateLabel,
     dueDate,
     zoomLink: typeof data.zoomLink === 'string' && data.zoomLink.trim() ? data.zoomLink.trim() : undefined,
+    longText: typeof data.longText === 'string' && data.longText.trim() ? data.longText : undefined,
     startAt: (data.startAt as Timestamp | null) ?? null,
     endAt: (data.endAt as Timestamp | null) ?? null,
     isAllDay: typeof data.isAllDay === 'boolean' ? data.isAllDay : undefined,

@@ -42,6 +42,8 @@ export interface GroupEventInput {
   isAllDay?: boolean;
   /** Для kind='assignment' — обязательно, ISO YYYY-MM-DD. */
   dueDate?: string;
+  /** Для kind='assignment' — опциональный развёрнутый текст для модалки. */
+  longText?: string;
   zoomLink?: string;
   createdByName?: string;
 }
@@ -156,6 +158,7 @@ export async function createGroupEvent(
       throw new Error('Укажите дедлайн в формате YYYY-MM-DD');
     }
     const zoomLink = input.zoomLink?.trim();
+    const longText = input.longText?.trim();
     await addDoc(collection(db, 'groups', groupId, 'events'), {
       kind,
       text,
@@ -163,6 +166,7 @@ export async function createGroupEvent(
       createdAt: serverTimestamp(),
       createdBy: userId,
       ...(zoomLink ? { zoomLink } : {}),
+      ...(longText ? { longText } : {}),
       ...(input.createdByName ? { createdByName: input.createdByName } : {}),
     });
     return;

@@ -399,6 +399,7 @@ function NewAssignmentForm({
 }) {
   const [dueDate, setDueDate] = useState('');
   const [text, setText] = useState('');
+  const [longText, setLongText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -409,11 +410,18 @@ function NewAssignmentForm({
     try {
       await createGroupEvent(
         groupId,
-        { kind: 'assignment', text, dueDate, createdByName },
+        {
+          kind: 'assignment',
+          text,
+          dueDate,
+          longText: longText.trim() || undefined,
+          createdByName,
+        },
         userId
       );
       setDueDate('');
       setText('');
+      setLongText('');
     } catch (err) {
       debugError('createGroupAssignment failed', err);
       setError(err instanceof Error ? err.message : 'Не удалось сохранить');
@@ -438,8 +446,16 @@ function NewAssignmentForm({
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        rows={3}
-        placeholder="Что нужно сделать (например: «Заполнить таблицу по итогу лекций»)"
+        rows={2}
+        placeholder="Короткое описание (1–2 строки, будет видно на главной)"
+        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+        disabled={saving}
+      />
+      <textarea
+        value={longText}
+        onChange={(e) => setLongText(e.target.value)}
+        rows={6}
+        placeholder="Полный текст задания (опционально) — откроется по кнопке «Читать полностью» на главной"
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         disabled={saving}
       />

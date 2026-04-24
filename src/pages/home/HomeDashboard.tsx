@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useCourses } from '../../hooks/useCourses';
 import { useHomeFeed } from '../../hooks/useHomeFeed';
@@ -19,6 +20,7 @@ import {
 import { EventsCalendarModal } from './EventsCalendarModal';
 import { CourseLessonsDrawer } from './CourseLessonsDrawer';
 import { useMyGroupsFeed } from '../../hooks/useMyGroupsFeed';
+import type { GroupFeedItem } from '../../types/groupFeed';
 import { useMyGroups } from '../../hooks/useMyGroups';
 import { GuestLanding } from './GuestLanding';
 import { RegisteredGuestHome } from './RegisteredGuestHome';
@@ -458,28 +460,98 @@ function formatDueDateRu(iso: string | null | undefined): string {
 
 function MyAssignmentsSection() {
   const { items, loading } = useMyGroupsFeed();
+  const [openAssignment, setOpenAssignment] = useState<GroupFeedItem | null>(null);
   if (loading) return null;
 
   const assignments = items.filter((item) => item.kind === 'assignment');
   if (assignments.length === 0) return null;
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
-      <h3 className="mb-3 text-xl font-bold text-fg">Задания</h3>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {assignments.slice(0, 6).map((item) => (
-          <article key={item.id} className="rounded-xl border border-border bg-card2 p-4">
-            <p className="text-sm font-semibold text-fg">{item.groupName}</p>
-            <p className="mt-2 text-sm text-muted">{item.text}</p>
-            <p className="mt-3 text-xs">
-              <span className="inline-flex items-center gap-1 rounded-md bg-mark px-2 py-0.5 font-semibold text-[#5a4b00]">
-                Дедлайн: {formatDueDateRu(item.dueDate)}
-              </span>
-            </p>
-          </article>
-        ))}
+    <>
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
+        <h3 className="mb-3 text-xl font-bold text-fg">Задания</h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {assignments.slice(0, 6).map((item) => (
+            <article key={item.id} className="rounded-xl border border-border bg-card2 p-4">
+              <p className="text-sm font-semibold text-fg">{item.groupName}</p>
+              <p className="mt-2 text-sm text-muted">{item.text}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                <span className="inline-flex items-center gap-1 rounded-md bg-mark px-2 py-0.5 font-semibold text-[#5a4b00]">
+                  Дедлайн: {formatDueDateRu(item.dueDate)}
+                </span>
+                {item.longText ? (
+                  <button
+                    type="button"
+                    onClick={() => setOpenAssignment(item)}
+                    className="rounded-md border border-accent/30 bg-accent-100 px-2 py-0.5 font-semibold text-accent transition hover:bg-accent-100/70"
+                  >
+                    Читать полностью
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+      <AssignmentModal item={openAssignment} onClose={() => setOpenAssignment(null)} />
+    </>
+  );
+}
+
+function AssignmentModal({
+  item,
+  onClose,
+}: {
+  item: GroupFeedItem | null;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!item) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [item, onClose]);
+
+  if (!item) return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-2xl rounded-2xl bg-card p-6 shadow-brand"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Закрыть"
+          className="absolute right-4 top-4 rounded-full p-1 text-muted transition hover:bg-card2"
+        >
+          ✕
+        </button>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+          {item.groupName}
+        </p>
+        <h3 className="mt-1 pr-6 text-lg font-bold text-fg">{item.text}</h3>
+        <p className="mt-2 text-xs">
+          <span className="inline-flex items-center gap-1 rounded-md bg-mark px-2 py-0.5 font-semibold text-[#5a4b00]">
+            Дедлайн: {formatDueDateRu(item.dueDate)}
+          </span>
+        </p>
+        <div className="mt-4 max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-fg">
+          {item.longText}
+        </div>
       </div>
-    </section>
+    </div>,
+    document.body
   );
 }
 
