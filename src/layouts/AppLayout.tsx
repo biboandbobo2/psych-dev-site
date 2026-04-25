@@ -101,8 +101,8 @@ export function AppLayout({
               Ψ
             </span>
             <span className="leading-tight">
-              <span className="block text-[10px] uppercase tracking-[0.2em] text-muted">Академия</span>
-              <span className="block text-sm font-semibold text-fg">Дом</span>
+              <span className="block text-[10px] uppercase tracking-[0.2em] text-muted">DOM</span>
+              <span className="block text-sm font-semibold text-fg">Academy</span>
             </span>
           </NavLink>
 
