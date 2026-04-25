@@ -77,25 +77,11 @@ export default function FeaturesPage() {
             Что можно делать на платформе
           </h1>
           <p className="mt-4 max-w-[60ch] text-base leading-relaxed text-fg sm:text-lg">
-            DOM Academy — это онлайн-пространство для изучения психологии: курсы с видеолекциями
-            и транскриптами, AI-ассистенты по лекциям и книгам, интерактивный таймлайн, клиническая
-            таблица по расстройствам, заметки, тесты и групповые объявления. Ниже — короткое
-            описание каждой фичи и как ей пользоваться.
+            DOM Academy — это онлайн-пространство для изучения психологии: видеокурсы
+            с транскриптами, AI-ассистенты по лекциям и книгам, интерактивный таймлайн,
+            клиническая таблица по расстройствам, заметки, тесты и групповые объявления.
+            Ниже — короткое описание каждой фичи и как ей пользоваться.
           </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Link
-              to="/home"
-              className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-            >
-              На главную
-            </Link>
-            <Link
-              to="/booking"
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card2 px-4 py-2 text-sm font-semibold text-fg transition hover:bg-card"
-            >
-              Бронирование кабинетов
-            </Link>
-          </div>
         </header>
 
         {FEATURE_GROUPS.map((group) => (
@@ -108,35 +94,6 @@ export default function FeaturesPage() {
             ))}
           </div>
         ))}
-
-        {/* CTA */}
-        <footer className="rounded-2xl border border-[#E8D880] bg-mark p-6 sm:p-8">
-          <h2 className="text-xl font-bold text-[#5a4b00] sm:text-2xl">Куда дальше?</h2>
-          <p className="mt-2 max-w-[55ch] text-sm leading-relaxed text-[#5a4b00]/85 sm:text-base">
-            Если только что пришли — начните с главной: там карточки ваших курсов, лента группы
-            и календарь событий. Остальные инструменты подключатся по мере надобности.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Link
-              to="/home"
-              className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-            >
-              На главную
-            </Link>
-            <Link
-              to="/research"
-              className="inline-flex items-center gap-2 rounded-xl border border-[#5a4b00]/30 bg-white/60 px-4 py-2 text-sm font-semibold text-[#5a4b00] transition hover:bg-white/80"
-            >
-              Научный поиск
-            </Link>
-            <Link
-              to="/booking"
-              className="inline-flex items-center gap-2 rounded-xl border border-[#5a4b00]/30 bg-white/60 px-4 py-2 text-sm font-semibold text-[#5a4b00] transition hover:bg-white/80"
-            >
-              Бронирование
-            </Link>
-          </div>
-        </footer>
       </div>
     </section>
   );

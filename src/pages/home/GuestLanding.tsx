@@ -65,9 +65,7 @@ function CourseCard({
         ) : null}
       </div>
       <h3 className="mt-3 text-lg font-semibold leading-snug text-[#2C3E50]">{course.name}</h3>
-      <p className="mt-1 text-sm text-[#6B7A8D]">
-        {course.isCore ? 'Основной курс платформы' : 'Дополнительный курс платформы'}
-      </p>
+      <p className="mt-1 text-sm text-[#6B7A8D]">Курс платформы</p>
       <span className="mt-auto pt-3 text-sm font-semibold text-[#3359CB]">
         {isOpen ? 'Посмотреть курс →' : 'Посмотреть структуру →'}
       </span>

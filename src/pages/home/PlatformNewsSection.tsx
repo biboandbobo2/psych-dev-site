@@ -32,16 +32,11 @@ export function PlatformNewsSection({
         compact ? 'p-4' : 'p-5'
       } ${className}`.trim()}
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2
-          className={`font-bold text-fg ${compact ? 'text-lg' : 'text-xl'}`}
-        >
-          Новости платформы и контента
-        </h2>
-        <span className="hidden text-xs text-muted sm:inline">
-          Платформа и новый материал
-        </span>
-      </div>
+      <h2
+        className={`mb-3 font-bold text-fg ${compact ? 'text-lg' : 'text-xl'}`}
+      >
+        Общие объявления
+      </h2>
       <ul className="space-y-2">
         {visible.map((item) => (
           <PlatformNewsCard key={item.id} item={item} />
@@ -53,21 +48,18 @@ export function PlatformNewsSection({
 
 function PlatformNewsCard({ item }: { item: GroupAnnouncement }) {
   const type = item.newsType as PlatformNewsType;
-  // Два явно различимых фона на watercolor-палитре:
-  // - tech     → голубой accent-100 (фиолетово-голубой)
-  // - content  → жёлтый mark
   const styles =
     type === 'tech'
       ? {
           container:
-            'border-accent/30 bg-accent-100/70 hover:bg-accent-100 text-fg',
+            'border-accent/15 bg-accent-100/25 hover:bg-accent-100/45 text-fg',
           badge: 'bg-accent-100 text-accent border border-accent/30',
           label: 'Платформа',
           icon: '⚙️',
         }
       : {
           container:
-            'border-[#E8D880] bg-mark hover:bg-[#FFE98C] text-[#5a4b00]',
+            'border-[#E8D880]/40 bg-mark/30 hover:bg-mark/55 text-fg',
           badge: 'bg-[#FFF3BF] text-[#5a4b00] border border-[#E8D880]',
           label: 'Новый материал',
           icon: '🆕',

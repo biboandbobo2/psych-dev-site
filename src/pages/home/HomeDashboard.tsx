@@ -386,9 +386,7 @@ function StudentDashboard() {
                     <h4 className="line-clamp-3 text-sm font-semibold leading-tight text-fg">
                       {course.name}
                     </h4>
-                    <p className="mt-1 text-xs text-muted">
-                      {course.isCore ? 'Основной курс' : 'Дополнительный курс'}
-                    </p>
+                    <p className="mt-1 text-xs text-muted">Курс платформы</p>
                   </div>
                   <button
                     type="button"
