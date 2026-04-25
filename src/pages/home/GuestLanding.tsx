@@ -52,7 +52,7 @@ function CourseCard({
   return (
     <Link
       to={getCourseIntroPath(course.id)}
-      className="flex h-full flex-col rounded-2xl border border-[#DDE5EE] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#9EB7D9] hover:shadow-md"
+      className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-brand transition hover:-translate-y-0.5 hover:border-accent/40 hover:bg-accent-100/40"
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-3xl" aria-hidden>
@@ -64,9 +64,9 @@ function CourseCard({
           </span>
         ) : null}
       </div>
-      <h3 className="mt-3 text-lg font-semibold leading-snug text-[#2C3E50]">{course.name}</h3>
-      <p className="mt-1 text-sm text-[#6B7A8D]">Курс платформы</p>
-      <span className="mt-auto pt-3 text-sm font-semibold text-[#3359CB]">
+      <h3 className="mt-3 text-lg font-semibold leading-snug text-fg">{course.name}</h3>
+      <p className="mt-1 text-sm text-muted">Курс платформы</p>
+      <span className="mt-auto pt-3 text-sm font-semibold text-accent">
         {isOpen ? 'Посмотреть курс →' : 'Посмотреть структуру →'}
       </span>
     </Link>
@@ -92,31 +92,31 @@ export function GuestLanding() {
         />
       </Helmet>
 
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#4A5FA5] to-[#6B7FB8] p-8 text-white sm:p-10">
+      <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-accent-100 to-mark p-8 shadow-brand sm:p-10">
         <Link
           to="/about"
-          className="inline-flex flex-col items-start rounded-xl px-3 py-2 -ml-3 transition hover:bg-white/10"
+          className="inline-flex flex-col items-start rounded-xl px-3 py-2 -ml-3 transition hover:bg-card/60"
         >
-          <span className="text-xs font-semibold uppercase tracking-[0.25em] opacity-80">
+          <span className="text-xs font-semibold uppercase tracking-[0.25em] text-accent">
             DOM Academy
           </span>
-          <span className="mt-0.5 text-[11px] italic opacity-75">Development Of Mind</span>
+          <span className="mt-0.5 text-[11px] italic text-muted">Development Of Mind</span>
         </Link>
-        <h1 className="mt-3 text-4xl font-black leading-tight sm:text-5xl">DOM Academy</h1>
-        <p className="mt-3 max-w-2xl text-base opacity-90 sm:text-lg">
+        <h1 className="mt-3 text-4xl font-black leading-tight text-fg sm:text-5xl">DOM Academy</h1>
+        <p className="mt-3 max-w-2xl text-base text-fg/80 sm:text-lg">
           Образовательная платформа по психологии и смежным с ней областям. Курсы, инструменты для
           самостоятельной работы и научный поиск.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
             to="/login"
-            className="inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-[#4A5FA5] transition hover:bg-slate-100"
+            className="inline-flex items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
           >
             Войти / Зарегистрироваться
           </Link>
           <a
             href="#catalog"
-            className="inline-flex items-center justify-center rounded-xl border-2 border-white px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+            className="inline-flex items-center justify-center rounded-xl border border-accent/40 bg-card px-5 py-3 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
           >
             Посмотреть курсы
           </a>
@@ -127,14 +127,14 @@ export function GuestLanding() {
 
       <section id="catalog" className="space-y-4">
         <div>
-          <h2 className="text-2xl font-bold text-[#1F2F46]">Наши курсы</h2>
-          <p className="mt-1 text-sm text-[#6B7A8D]">
+          <h2 className="text-2xl font-bold text-fg">Наши курсы</h2>
+          <p className="mt-1 text-sm text-muted">
             Нажмите на карточку, чтобы увидеть структуру курса и открыть вводную страницу.
             «Открытый курс» доступен без регистрации.
           </p>
         </div>
         {opennessLoading && courses.length > 0 ? (
-          <p className="text-sm text-[#6B7A8D]">Проверяем доступность материалов...</p>
+          <p className="text-sm text-muted">Проверяем доступность материалов...</p>
         ) : null}
         <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
           {courses.map((course) => (
@@ -145,8 +145,8 @@ export function GuestLanding() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-2xl font-bold text-[#1F2F46]">После регистрации</h2>
-          <p className="mt-1 text-sm text-[#6B7A8D]">
+          <h2 className="text-2xl font-bold text-fg">После регистрации</h2>
+          <p className="mt-1 text-sm text-muted">
             Зарегистрируйтесь, чтобы получить доступ к ключевым инструментам платформы.
           </p>
         </div>
@@ -154,32 +154,32 @@ export function GuestLanding() {
           {FEATURES_AFTER_SIGN_IN.map((feature) => (
             <li
               key={feature.title}
-              className="flex items-start gap-3 rounded-2xl border border-[#DDE5EE] bg-white p-4"
+              className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4"
             >
               <span className="text-2xl" aria-hidden>
                 {feature.icon}
               </span>
               <div>
-                <p className="text-sm font-semibold text-[#2C3E50]">{feature.title}</p>
-                <p className="mt-1 text-xs text-[#6B7A8D]">{feature.description}</p>
+                <p className="text-sm font-semibold text-fg">{feature.title}</p>
+                <p className="mt-1 text-xs text-muted">{feature.description}</p>
               </div>
             </li>
           ))}
         </ul>
       </section>
 
-      <section className="rounded-2xl border border-[#DDE5EE] bg-[#F9FBFF] p-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7A8D]">Партнёр</p>
-        <h2 className="mt-1 text-xl font-bold text-[#1F2F46]">
+      <section className="rounded-2xl border border-border bg-card2 p-6 shadow-brand">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted">Партнёр</p>
+        <h2 className="mt-1 text-xl font-bold text-fg">
           Психологический центр «Dom» в Тбилиси
         </h2>
-        <p className="mt-2 text-sm text-[#556476]">
+        <p className="mt-2 text-sm text-muted">
           Очные сессии и аренда кабинета для работы с клиентами. Мы объединяем DOM Academy с
           сервисом бронирования центра.
         </p>
         <Link
           to="/booking"
-          className="mt-4 inline-flex items-center gap-1 rounded-xl bg-[#3359CB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2A49A8]"
+          className="mt-4 inline-flex items-center gap-1 rounded-xl border border-accent/30 bg-accent-100 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
         >
           Бронирование кабинетов →
         </Link>
@@ -187,21 +187,21 @@ export function GuestLanding() {
 
       <Link
         to="/features"
-        className="block overflow-hidden rounded-2xl shadow-xl transition hover:shadow-2xl"
+        className="block overflow-hidden rounded-2xl border border-border bg-mark shadow-brand transition hover:bg-[#FFE98C]"
       >
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4 sm:px-8 sm:py-5">
+        <div className="px-6 py-4 sm:px-8 sm:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl sm:text-3xl">💡</span>
               <div>
-                <h3 className="text-lg font-bold text-white sm:text-xl">Возможности платформы</h3>
-                <p className="hidden text-sm text-white/80 sm:block">
+                <h3 className="text-lg font-bold text-[#5a4b00] sm:text-xl">Возможности платформы</h3>
+                <p className="hidden text-sm text-[#5a4b00]/75 sm:block">
                   Узнайте обо всех функциях: тесты, заметки, таймлайн, научный поиск
                 </p>
               </div>
             </div>
             <svg
-              className="h-6 w-6 text-white/80"
+              className="h-6 w-6 text-[#5a4b00]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -212,14 +212,14 @@ export function GuestLanding() {
         </div>
       </Link>
 
-      <section className="rounded-2xl bg-gradient-to-br from-[#4A5FA5] to-[#6B7FB8] p-6 text-center text-white">
-        <p className="text-2xl font-bold">Готовы начать?</p>
-        <p className="mt-1 text-sm opacity-90">
+      <section className="rounded-2xl border border-border bg-gradient-to-br from-accent-100 to-mark p-6 text-center shadow-brand">
+        <p className="text-2xl font-bold text-fg">Готовы начать?</p>
+        <p className="mt-1 text-sm text-fg/75">
           Регистрация занимает минуту — через Google.
         </p>
         <Link
           to="/login"
-          className="mt-4 inline-flex items-center justify-center rounded-xl bg-white px-5 py-3 text-sm font-semibold text-[#4A5FA5] transition hover:bg-slate-100"
+          className="mt-4 inline-flex items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
         >
           Зарегистрироваться
         </Link>
