@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useCourses } from '../../hooks/useCourses';
-import { useHomeFeed } from '../../hooks/useHomeFeed';
 import { useCourseStore } from '../../stores';
 import { useAuth } from '../../auth/AuthProvider';
 import { getLastCourseLesson } from '../../lib/lastCourseLesson';
@@ -56,11 +55,6 @@ function StudentDashboard() {
   const { groups: myGroups } = useMyGroups();
   const courseStreamLabel = myGroups.length > 0 ? 'Курс потока' : 'Мой курс';
   const { openCourseIds } = useCoursesOpenness(courses.map((course) => course.id));
-  const {
-    announcements,
-    loading: feedLoading,
-    error: feedError,
-  } = useHomeFeed();
   const { items: myFeedItems, loading: myFeedLoading } = useMyGroupsFeed();
   const { items: platformNews, loading: platformNewsLoading } = usePlatformNews();
   const [isEventsCalendarOpen, setIsEventsCalendarOpen] = useState(false);
@@ -123,20 +117,6 @@ function StudentDashboard() {
       };
     });
   }, [courses, progressByCourse, subjects]);
-
-  const latestFeedItems = useMemo(
-    () =>
-      announcements
-        .map((item) => ({
-          id: `announcement-${item.id}`,
-          title: 'Объявление',
-          text: item.text,
-          createdAt: item.createdAt,
-        }))
-        .sort((left, right) => (right.createdAt || '').localeCompare(left.createdAt || ''))
-        .slice(0, 5),
-    [announcements]
-  );
 
   // Календарь справа показывает события из подписок группы (useMyGroupsFeed).
   // Для events c точным startAt берём его; для legacy без startAt пытаемся
@@ -207,16 +187,7 @@ function StudentDashboard() {
     <section className="min-h-screen bg-bg py-8 sm:py-10">
       <div className="mx-auto max-w-6xl space-y-6 px-4">
         <header>
-          <Link
-            to="/about"
-            className="inline-flex flex-col items-start rounded-xl px-2.5 py-1.5 -ml-2.5 transition hover:bg-accent-100/50"
-          >
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-              DOM Academy
-            </span>
-            <span className="mt-0.5 text-[11px] italic text-muted">Development Of Mind</span>
-          </Link>
-          <p className="mt-3 text-sm text-muted">Добрый день, {displayName}</p>
+          <p className="text-sm text-muted">Добрый день, {displayName}</p>
           <h1 className="mt-1 text-3xl font-bold text-fg sm:text-4xl">Мои курсы</h1>
         </header>
 
@@ -310,29 +281,32 @@ function StudentDashboard() {
               onOpen={setOpenFeedItem}
             />
 
-            {/* Общие объявления */}
-            <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
-              <h3 className="mb-3 text-xl font-bold text-fg">Общие объявления</h3>
-              <div className="rounded-xl border border-border bg-card2 px-4 py-3 text-sm text-muted">
-                {feedLoading ? (
-                  'Загрузка новостей...'
-                ) : latestFeedItems.length === 0 ? (
-                  'Пока нет общих новостей — появятся здесь, когда администратор добавит их.'
-                ) : (
-                  <ul className="space-y-2">
-                    {latestFeedItems.map((item) => (
-                      <li key={item.id}>
-                        <span className="font-semibold text-fg">{item.title}:</span> {item.text}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </section>
+            <PlatformNewsSection
+              items={platformNews}
+              loading={platformNewsLoading}
+              showEmpty
+            />
           </div>
 
           {/* RIGHT (sticky) */}
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+            <Link
+              to="/about"
+              aria-label="О проекте: DOM Academy — Development Of Mind"
+              className="group flex items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent-100/60 px-4 py-3 shadow-brand transition hover:bg-accent-100"
+            >
+              <span className="leading-tight">
+                <span className="block text-base font-bold text-accent">DOM Academy</span>
+                <span className="block text-[11px] italic text-muted">Development Of Mind</span>
+              </span>
+              <span
+                aria-hidden
+                className="text-lg text-accent transition group-hover:translate-x-0.5"
+              >
+                →
+              </span>
+            </Link>
+
             <MiniWeekCalendar
               calendarEventsByDate={calendarEventsByDate}
               onSelectDate={(dateKey) => {
@@ -408,8 +382,6 @@ function StudentDashboard() {
           )}
         </section>
 
-        <PlatformNewsSection items={platformNews} loading={platformNewsLoading} />
-
         {/* Партнёр — центр Dom */}
         <section className="rounded-2xl border border-border bg-card2 p-5 shadow-brand">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">Партнёр</p>
@@ -463,12 +435,6 @@ function StudentDashboard() {
           courseId={lessonsDrawerCourseId}
           onClose={() => setLessonsDrawerCourseId(null)}
         />
-
-        {feedError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {feedError}
-          </div>
-        )}
       </div>
     </section>
   );

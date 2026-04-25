@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { GroupAnnouncement, PlatformNewsType } from '../../types/groupFeed';
 
 interface PlatformNewsSectionProps {
@@ -7,24 +8,26 @@ interface PlatformNewsSectionProps {
   compact?: boolean;
   /** Кол-во новостей, которые показываются в ленте. По умолчанию 5. */
   limit?: number;
+  /** Показывать секцию даже когда новостей нет (с placeholder). */
+  showEmpty?: boolean;
   className?: string;
 }
 
 /**
- * Секция «Новости платформы» на /home — показывает объявления системной
- * broadcast-группы «Все» с разным фоном для tech/content новостей.
- * Если новостей с проставленным `newsType` нет — секция не рендерится.
+ * Секция «Общие объявления» на /home — объявления системной broadcast-группы
+ * «Все» с разным фоном для tech/content новостей. По умолчанию скрывается,
+ * если новостей с типом нет. Со `showEmpty` показывает секцию с заглушкой.
  */
 export function PlatformNewsSection({
   items,
   loading,
   compact,
   limit = 5,
+  showEmpty = false,
   className = '',
 }: PlatformNewsSectionProps) {
-  if (loading) return null;
   const visible = items.filter((item) => !!item.newsType).slice(0, limit);
-  if (visible.length === 0) return null;
+  if (!showEmpty && !loading && visible.length === 0) return null;
 
   return (
     <section
@@ -37,14 +40,26 @@ export function PlatformNewsSection({
       >
         Общие объявления
       </h2>
-      <ul className="space-y-2">
-        {visible.map((item) => (
-          <PlatformNewsCard key={item.id} item={item} />
-        ))}
-      </ul>
+      {loading ? (
+        <p className="rounded-xl border border-border bg-card2 px-4 py-3 text-sm text-muted">
+          Загрузка новостей…
+        </p>
+      ) : visible.length === 0 ? (
+        <p className="rounded-xl border border-border bg-card2 px-4 py-3 text-sm text-muted">
+          Пока ничего нет. Здесь будут общие объявления — технические и о новых материалах.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {visible.map((item) => (
+            <PlatformNewsCard key={item.id} item={item} />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
+
+const COLLAPSED_TEXT_LIMIT = 220;
 
 function PlatformNewsCard({ item }: { item: GroupAnnouncement }) {
   const type = item.newsType as PlatformNewsType;
@@ -65,6 +80,11 @@ function PlatformNewsCard({ item }: { item: GroupAnnouncement }) {
           icon: '🆕',
         };
 
+  const text = item.text ?? '';
+  const isLong = text.length > COLLAPSED_TEXT_LIMIT;
+  const [expanded, setExpanded] = useState(false);
+  const visibleText = !isLong || expanded ? text : `${text.slice(0, COLLAPSED_TEXT_LIMIT).trimEnd()}…`;
+
   return (
     <li
       className={`rounded-xl border px-3 py-2 text-sm transition ${styles.container}`}
@@ -82,7 +102,17 @@ function PlatformNewsCard({ item }: { item: GroupAnnouncement }) {
           </span>
         ) : null}
       </div>
-      <p className="whitespace-pre-wrap leading-relaxed">{item.text}</p>
+      <p className="whitespace-pre-wrap leading-relaxed">{visibleText}</p>
+      {isLong ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="mt-1 text-xs font-semibold text-accent transition hover:underline"
+          aria-expanded={expanded}
+        >
+          {expanded ? 'Свернуть' : 'Прочитать полностью'}
+        </button>
+      ) : null}
     </li>
   );
 }
