@@ -37,7 +37,6 @@ export const DynamicPeriodPage = lazy(() =>
   )
 );
 export const FeaturesPage = lazy(() => lazyWithReload(() => import('./FeaturesPage'), 'FeaturesPage'));
-export const AboutPage = lazy(() => lazyWithReload(() => import('./AboutPage'), 'AboutPage'));
 export const CourseIntroPage = lazy(() => lazyWithReload(() => import('./course/CourseIntroPage'), 'CourseIntroPage'));
 export const AdminCourseIntro = lazy(() => lazyWithReload(() => import('./admin/courseIntro/CourseIntroEditor'), 'AdminCourseIntro'));
 export const AdminAnnouncements = lazy(() => lazyWithReload(() => import('./admin/AdminAnnouncements'), 'AdminAnnouncements'));

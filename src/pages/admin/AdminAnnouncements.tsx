@@ -17,6 +17,11 @@ import { debugError } from '../../lib/debug';
 import type { Group } from '../../types/groups';
 import type { GroupEvent, PlatformNewsType } from '../../types/groupFeed';
 import { isEveryoneGroup } from '../../../shared/groups/everyoneGroup';
+import {
+  publishToGroups,
+  formatPublishStatus,
+  type GroupRef,
+} from './announcementsMultiPublish';
 
 function formatDueDateRu(iso: string | null): string {
   if (!iso) return '';
@@ -50,20 +55,40 @@ export default function AdminAnnouncements() {
     return [];
   }, [isSuperAdmin, userRole, allGroups, myAnnouncementGroups]);
 
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (availableGroups.length === 0) {
-      setSelectedGroupId(null);
+      setSelectedGroupIds([]);
       return;
     }
-    if (!selectedGroupId || !availableGroups.some((g) => g.id === selectedGroupId)) {
-      setSelectedGroupId(availableGroups[0].id);
-    }
-  }, [availableGroups, selectedGroupId]);
+    setSelectedGroupIds((prev) => {
+      const filtered = prev.filter((id) =>
+        availableGroups.some((g) => g.id === id)
+      );
+      if (filtered.length > 0) return filtered;
+      return [availableGroups[0].id];
+    });
+  }, [availableGroups]);
 
-  const { announcements, events, loading: feedLoading } = useGroupFeed(selectedGroupId);
-  const selectedGroup = availableGroups.find((g) => g.id === selectedGroupId) ?? null;
+  const toggleGroupId = (id: string) => {
+    setSelectedGroupIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const selectedGroups: GroupRef[] = useMemo(
+    () =>
+      selectedGroupIds
+        .map((id) => availableGroups.find((g) => g.id === id))
+        .filter((g): g is Group => Boolean(g))
+        .map((g) => ({ id: g.id, name: g.name })),
+    [selectedGroupIds, availableGroups]
+  );
+
+  const previewGroupId = selectedGroupIds[0] ?? null;
+  const { announcements, events, loading: feedLoading } = useGroupFeed(previewGroupId);
+  const previewGroup = availableGroups.find((g) => g.id === previewGroupId) ?? null;
 
   if (!isAdmin) {
     return (
@@ -100,95 +125,125 @@ export default function AdminAnnouncements() {
         </div>
       ) : (
         <>
-          <label className="block">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[#8A97AB]">
-              Группа
-            </span>
-            <select
-              value={selectedGroupId ?? ''}
-              onChange={(e) => setSelectedGroupId(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
-            >
-              {availableGroups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name} ({g.memberIds.length} уч.)
-                </option>
-              ))}
-            </select>
-          </label>
+          <fieldset className="rounded-xl border border-gray-200 bg-white p-4">
+            <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-[#8A97AB]">
+              Получатели (одна или несколько групп)
+            </legend>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {availableGroups.map((g) => {
+                const checked = selectedGroupIds.includes(g.id);
+                return (
+                  <label
+                    key={g.id}
+                    className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${
+                      checked
+                        ? 'border-purple-300 bg-purple-50 text-[#2C3E50]'
+                        : 'border-gray-200 text-[#2C3E50] hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleGroupId(g.id)}
+                    />
+                    <span className="flex-1">{g.name}</span>
+                    <span className="text-xs text-gray-500">
+                      {g.memberIds.length} уч.
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            {selectedGroupIds.length === 0 && (
+              <p className="mt-2 text-xs text-rose-700">
+                Выберите хотя бы одну группу.
+              </p>
+            )}
+          </fieldset>
 
-          {selectedGroup && user && (
+          {user && (
             <>
               <NewAnnouncementForm
-                groupId={selectedGroup.id}
+                groups={selectedGroups}
                 userId={user.uid}
                 createdByName={displayName}
-                isEveryone={isEveryoneGroup(selectedGroup.id)}
+                isEveryone={selectedGroups.some((g) => isEveryoneGroup(g.id))}
               />
               <NewEventForm
-                groupId={selectedGroup.id}
+                groups={selectedGroups}
                 userId={user.uid}
                 createdByName={displayName}
               />
               <NewAssignmentForm
-                groupId={selectedGroup.id}
+                groups={selectedGroups}
                 userId={user.uid}
                 createdByName={displayName}
               />
 
-              <section className="space-y-3">
-                <h2 className="text-lg font-semibold">
-                  Объявления ({announcements.length})
-                </h2>
-                {feedLoading ? (
-                  <div className="text-sm text-gray-500">Загрузка…</div>
-                ) : announcements.length === 0 ? (
-                  <div className="text-sm text-gray-500">Пока нет объявлений.</div>
-                ) : (
-                  <ul className="space-y-2">
-                    {announcements.map((ann) => (
-                      <li
-                        key={ann.id}
-                        className="flex items-start justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3"
-                      >
-                        <div className="flex-1">
-                          <p className="text-sm text-[#2C3E50]">{ann.text}</p>
-                          <p className="mt-1 text-xs text-gray-500">
-                            {formatDate(ann.createdAt?.toDate?.() ?? null)}
-                            {ann.createdByName ? ` · ${ann.createdByName}` : ''}
-                          </p>
-                        </div>
-                        <DeleteButton
-                          onDelete={async () => {
-                            await deleteGroupAnnouncement(selectedGroup.id, ann.id);
-                          }}
-                          confirm="Удалить это объявление?"
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
+              {previewGroup && (
+                <>
+                  <p className="text-xs text-[#8A97AB]">
+                    Существующие записи показаны для группы «{previewGroup.name}»
+                    {selectedGroupIds.length > 1
+                      ? ' (первая из выбранных).'
+                      : '.'}
+                  </p>
 
-              <EventsList
-                title="События"
-                emptyLabel="Пока нет событий."
-                confirmDelete="Удалить это событие?"
-                loading={feedLoading}
-                items={events.filter((e) => e.kind !== 'assignment')}
-                onDelete={(id) => deleteGroupEvent(selectedGroup.id, id)}
-                formatDate={formatDate}
-              />
+                  <section className="space-y-3">
+                    <h2 className="text-lg font-semibold">
+                      Объявления ({announcements.length})
+                    </h2>
+                    {feedLoading ? (
+                      <div className="text-sm text-gray-500">Загрузка…</div>
+                    ) : announcements.length === 0 ? (
+                      <div className="text-sm text-gray-500">Пока нет объявлений.</div>
+                    ) : (
+                      <ul className="space-y-2">
+                        {announcements.map((ann) => (
+                          <li
+                            key={ann.id}
+                            className="flex items-start justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3"
+                          >
+                            <div className="flex-1">
+                              <p className="text-sm text-[#2C3E50]">{ann.text}</p>
+                              <p className="mt-1 text-xs text-gray-500">
+                                {formatDate(ann.createdAt?.toDate?.() ?? null)}
+                                {ann.createdByName ? ` · ${ann.createdByName}` : ''}
+                              </p>
+                            </div>
+                            <DeleteButton
+                              onDelete={async () => {
+                                await deleteGroupAnnouncement(previewGroup.id, ann.id);
+                              }}
+                              confirm="Удалить это объявление?"
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
 
-              <EventsList
-                title="Задания"
-                emptyLabel="Пока нет заданий."
-                confirmDelete="Удалить это задание?"
-                loading={feedLoading}
-                items={events.filter((e) => e.kind === 'assignment')}
-                onDelete={(id) => deleteGroupEvent(selectedGroup.id, id)}
-                formatDate={formatDate}
-              />
+                  <EventsList
+                    title="События"
+                    emptyLabel="Пока нет событий."
+                    confirmDelete="Удалить это событие?"
+                    loading={feedLoading}
+                    items={events.filter((e) => e.kind !== 'assignment')}
+                    onDelete={(id) => deleteGroupEvent(previewGroup.id, id)}
+                    formatDate={formatDate}
+                  />
+
+                  <EventsList
+                    title="Задания"
+                    emptyLabel="Пока нет заданий."
+                    confirmDelete="Удалить это задание?"
+                    loading={feedLoading}
+                    items={events.filter((e) => e.kind === 'assignment')}
+                    onDelete={(id) => deleteGroupEvent(previewGroup.id, id)}
+                    formatDate={formatDate}
+                  />
+                </>
+              )}
             </>
           )}
         </>
@@ -197,13 +252,28 @@ export default function AdminAnnouncements() {
   );
 }
 
+type StatusBanner =
+  | { kind: 'success' | 'partial' | 'error'; message: string }
+  | null;
+
+function StatusLine({ status }: { status: StatusBanner }) {
+  if (!status) return null;
+  const cls =
+    status.kind === 'success'
+      ? 'text-emerald-700'
+      : status.kind === 'partial'
+      ? 'text-amber-700'
+      : 'text-rose-700';
+  return <p className={`text-xs ${cls}`}>{status.message}</p>;
+}
+
 function NewAnnouncementForm({
-  groupId,
+  groups,
   userId,
   createdByName,
   isEveryone,
 }: {
-  groupId: string;
+  groups: GroupRef[];
   userId: string;
   createdByName?: string;
   isEveryone: boolean;
@@ -211,29 +281,33 @@ function NewAnnouncementForm({
   const [text, setText] = useState('');
   const [newsType, setNewsType] = useState<PlatformNewsType>('tech');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<StatusBanner>(null);
+
+  const noGroupsSelected = groups.length === 0;
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (noGroupsSelected) return;
     setSaving(true);
-    setError(null);
-    try {
-      await createGroupAnnouncement(
+    setStatus(null);
+    const result = await publishToGroups(groups, (groupId) =>
+      createGroupAnnouncement(
         groupId,
         {
           text,
           createdByName,
-          ...(isEveryone ? { newsType } : {}),
+          ...(isEveryoneGroup(groupId) ? { newsType } : {}),
         },
-        userId
-      );
-      setText('');
-    } catch (err) {
-      debugError('createGroupAnnouncement failed', err);
-      setError(err instanceof Error ? err.message : 'Не удалось сохранить');
-    } finally {
-      setSaving(false);
+        userId,
+      )
+    );
+    if (result.failures.length > 0) {
+      debugError('createGroupAnnouncement partial failure', result.failures);
     }
+    const formatted = formatPublishStatus(result);
+    setStatus(formatted);
+    if (formatted.kind === 'success') setText('');
+    setSaving(false);
   };
 
   return (
@@ -294,24 +368,29 @@ function NewAnnouncementForm({
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         disabled={saving}
       />
-      {error && <p className="text-xs text-rose-700">{error}</p>}
+      <StatusLine status={status} />
       <button
         type="submit"
-        disabled={saving || text.trim().length < 3}
+        disabled={saving || text.trim().length < 3 || noGroupsSelected}
+        title={noGroupsSelected ? 'Выберите хотя бы одну группу' : undefined}
         className="rounded-md bg-purple-600 px-3 py-2 text-sm text-white hover:bg-purple-700 disabled:opacity-50"
       >
-        {saving ? 'Сохраняем…' : 'Опубликовать'}
+        {saving
+          ? 'Сохраняем…'
+          : groups.length > 1
+          ? `Опубликовать в ${groups.length} группах`
+          : 'Опубликовать'}
       </button>
     </form>
   );
 }
 
 function NewEventForm({
-  groupId,
+  groups,
   userId,
   createdByName,
 }: {
-  groupId: string;
+  groups: GroupRef[];
   userId: string;
   createdByName?: string;
 }) {
@@ -322,10 +401,14 @@ function NewEventForm({
   const [zoomLink, setZoomLink] = useState('');
   const [siteLink, setSiteLink] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<StatusBanner>(null);
 
+  const noGroupsSelected = groups.length === 0;
   const canSubmit =
-    text.trim().length >= 3 && startLocal.length > 0 && endLocal.length > 0;
+    !noGroupsSelected &&
+    text.trim().length >= 3 &&
+    startLocal.length > 0 &&
+    endLocal.length > 0;
 
   const handleStartChange = (value: string) => {
     setStartLocal(value);
@@ -340,18 +423,26 @@ function NewEventForm({
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (noGroupsSelected) return;
     setSaving(true);
-    setError(null);
-    try {
-      const startMs = Date.parse(startLocal);
-      const endMs = Date.parse(endLocal);
-      if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
-        throw new Error('Укажите корректные дату и время');
-      }
-      if (endMs <= startMs) {
-        throw new Error('Время окончания должно быть позже начала');
-      }
-      await createGroupEvent(
+    setStatus(null);
+    const startMs = Date.parse(startLocal);
+    const endMs = Date.parse(endLocal);
+    if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
+      setStatus({ kind: 'error', message: 'Укажите корректные дату и время' });
+      setSaving(false);
+      return;
+    }
+    if (endMs <= startMs) {
+      setStatus({
+        kind: 'error',
+        message: 'Время окончания должно быть позже начала',
+      });
+      setSaving(false);
+      return;
+    }
+    const result = await publishToGroups(groups, (groupId) =>
+      createGroupEvent(
         groupId,
         {
           text,
@@ -363,19 +454,22 @@ function NewEventForm({
           createdByName,
         },
         userId
-      );
+      )
+    );
+    if (result.failures.length > 0) {
+      debugError('createGroupEvent partial failure', result.failures);
+    }
+    const formatted = formatPublishStatus(result);
+    setStatus(formatted);
+    if (formatted.kind === 'success') {
       setStartLocal('');
       setEndLocal('');
       setIsAllDay(false);
       setText('');
       setZoomLink('');
       setSiteLink('');
-    } catch (err) {
-      debugError('createGroupEvent failed', err);
-      setError(err instanceof Error ? err.message : 'Не удалось сохранить');
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   return (
@@ -438,13 +532,18 @@ function NewEventForm({
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         disabled={saving}
       />
-      {error && <p className="text-xs text-rose-700">{error}</p>}
+      <StatusLine status={status} />
       <button
         type="submit"
         disabled={saving || !canSubmit}
+        title={noGroupsSelected ? 'Выберите хотя бы одну группу' : undefined}
         className="rounded-md bg-indigo-600 px-3 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50"
       >
-        {saving ? 'Сохраняем…' : 'Опубликовать событие'}
+        {saving
+          ? 'Сохраняем…'
+          : groups.length > 1
+          ? `Опубликовать событие в ${groups.length} группах`
+          : 'Опубликовать событие'}
       </button>
     </form>
   );
@@ -460,11 +559,11 @@ function localInputValue(date: Date, allDay: boolean): string {
 }
 
 function NewAssignmentForm({
-  groupId,
+  groups,
   userId,
   createdByName,
 }: {
-  groupId: string;
+  groups: GroupRef[];
   userId: string;
   createdByName?: string;
 }) {
@@ -472,14 +571,17 @@ function NewAssignmentForm({
   const [text, setText] = useState('');
   const [longText, setLongText] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<StatusBanner>(null);
+
+  const noGroupsSelected = groups.length === 0;
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (noGroupsSelected) return;
     setSaving(true);
-    setError(null);
-    try {
-      await createGroupEvent(
+    setStatus(null);
+    const result = await publishToGroups(groups, (groupId) =>
+      createGroupEvent(
         groupId,
         {
           kind: 'assignment',
@@ -489,16 +591,19 @@ function NewAssignmentForm({
           createdByName,
         },
         userId
-      );
+      )
+    );
+    if (result.failures.length > 0) {
+      debugError('createGroupAssignment partial failure', result.failures);
+    }
+    const formatted = formatPublishStatus(result);
+    setStatus(formatted);
+    if (formatted.kind === 'success') {
       setDueDate('');
       setText('');
       setLongText('');
-    } catch (err) {
-      debugError('createGroupAssignment failed', err);
-      setError(err instanceof Error ? err.message : 'Не удалось сохранить');
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   };
 
   return (
@@ -530,13 +635,20 @@ function NewAssignmentForm({
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         disabled={saving}
       />
-      {error && <p className="text-xs text-rose-700">{error}</p>}
+      <StatusLine status={status} />
       <button
         type="submit"
-        disabled={saving || text.trim().length < 3 || !dueDate}
+        disabled={
+          saving || text.trim().length < 3 || !dueDate || noGroupsSelected
+        }
+        title={noGroupsSelected ? 'Выберите хотя бы одну группу' : undefined}
         className="rounded-md bg-amber-600 px-3 py-2 text-sm text-white hover:bg-amber-700 disabled:opacity-50"
       >
-        {saving ? 'Сохраняем…' : 'Опубликовать задание'}
+        {saving
+          ? 'Сохраняем…'
+          : groups.length > 1
+          ? `Опубликовать задание в ${groups.length} группах`
+          : 'Опубликовать задание'}
       </button>
     </form>
   );
