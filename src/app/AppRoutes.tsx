@@ -28,6 +28,9 @@ import {
   AdminCourseIntro,
   AdminAnnouncements,
   AdminGroups,
+  AdminPagesList,
+  AdminAboutPageEditor,
+  AdminProjectPageEditor,
   PaletteDebug,
   HomeV2Debug,
   WarmSprings2Page,
@@ -143,6 +146,30 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           element={
             <RequireAdmin>
               <AdminGroups />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/superadmin/pages"
+          element={
+            <RequireAdmin>
+              {isSuperAdmin ? <AdminPagesList /> : <Navigate to="/admin/content" replace />}
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/superadmin/pages/about"
+          element={
+            <RequireAdmin>
+              {isSuperAdmin ? <AdminAboutPageEditor /> : <Navigate to="/admin/content" replace />}
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/superadmin/pages/projects/:slug"
+          element={
+            <RequireAdmin>
+              {isSuperAdmin ? <AdminProjectPageEditor /> : <Navigate to="/admin/content" replace />}
             </RequireAdmin>
           }
         />

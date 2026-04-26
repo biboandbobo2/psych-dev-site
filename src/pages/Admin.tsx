@@ -108,6 +108,18 @@ export default function Admin() {
               📚 Books
             </Link>
           )}
+          {isSuperAdmin && (
+            <Link
+              to="/superadmin/pages"
+              className={`px-4 py-2 rounded font-medium transition-colors ${
+                location.pathname.startsWith('/superadmin/pages')
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-indigo-100 text-indigo-900 hover:bg-indigo-200'
+              }`}
+            >
+              📝 Страницы
+            </Link>
+          )}
         </nav>
       )}
 

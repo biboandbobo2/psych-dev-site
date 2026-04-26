@@ -41,6 +41,9 @@ export const CourseIntroPage = lazy(() => lazyWithReload(() => import('./course/
 export const AdminCourseIntro = lazy(() => lazyWithReload(() => import('./admin/courseIntro/CourseIntroEditor'), 'AdminCourseIntro'));
 export const AdminAnnouncements = lazy(() => lazyWithReload(() => import('./admin/AdminAnnouncements'), 'AdminAnnouncements'));
 export const AdminGroups = lazy(() => lazyWithReload(() => import('./admin/groups/AdminGroups'), 'AdminGroups'));
+export const AdminPagesList = lazy(() => lazyWithReload(() => import('./admin/pages/AdminPagesList'), 'AdminPagesList'));
+export const AdminAboutPageEditor = lazy(() => lazyWithReload(() => import('./admin/pages/about/AboutPageEditor'), 'AdminAboutPageEditor'));
+export const AdminProjectPageEditor = lazy(() => lazyWithReload(() => import('./admin/pages/project/ProjectPageEditor'), 'AdminProjectPageEditor'));
 export const PaletteDebug = lazy(() => lazyWithReload(() => import('./debug/PaletteDebug'), 'PaletteDebug'));
 export const HomeV2Debug = lazy(() => lazyWithReload(() => import('./debug/HomeV2Debug'), 'HomeV2Debug'));
 export const WarmSprings2Page = lazy(() => lazyWithReload(() => import('./WarmSprings2Page'), 'WarmSprings2Page'));
