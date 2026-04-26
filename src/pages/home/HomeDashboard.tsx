@@ -185,15 +185,15 @@ function StudentDashboard() {
 
   return (
     <section className="min-h-screen bg-bg py-8 sm:py-10">
-      <div className="mx-auto max-w-6xl space-y-6 px-4">
-        <header>
-          <p className="text-sm text-muted">Добрый день, {displayName}</p>
-          <h1 className="mt-1 text-3xl font-bold text-fg sm:text-4xl">Мои курсы</h1>
-        </header>
-
+      <div className="mx-auto max-w-6xl px-4">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
           {/* LEFT */}
           <div className="space-y-6">
+            <header>
+              <p className="text-sm text-muted">Добрый день, {displayName}</p>
+              <h1 className="mt-1 text-3xl font-bold text-fg sm:text-4xl">Мои курсы</h1>
+            </header>
+
             {/* Карточки курсов */}
             <div className="grid auto-rows-fr grid-cols-1 gap-4">
               {primaryContinueCourses.map((course) => (
@@ -293,11 +293,15 @@ function StudentDashboard() {
             <Link
               to="/about"
               aria-label="О проекте: DOM Academy — Development Of Mind"
-              className="group flex items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent-100/60 px-4 py-3 shadow-brand transition hover:bg-accent-100"
+              className="group flex items-center justify-between gap-3 rounded-2xl border border-border bg-gradient-to-br from-accent-100 to-mark px-4 py-2.5 shadow-brand transition hover:opacity-90"
             >
               <span className="leading-tight">
-                <span className="block text-base font-bold text-accent">DOM Academy</span>
-                <span className="block text-[11px] italic text-muted">Development Of Mind</span>
+                <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+                  DOM Academy
+                </span>
+                <span className="mt-0.5 block text-[11px] italic text-muted">
+                  Development Of Mind
+                </span>
               </span>
               <span
                 aria-hidden
@@ -384,7 +388,7 @@ function StudentDashboard() {
 
         {/* Партнёр — центр Dom */}
         <section className="rounded-2xl border border-border bg-card2 p-5 shadow-brand">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Партнёр</p>
+          <p className="text-sm font-semibold text-muted">Приходите знакомиться лично</p>
           <h2 className="mt-1 text-xl font-bold text-fg">
             Психологический центр «Dom» в Тбилиси
           </h2>

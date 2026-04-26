@@ -170,7 +170,7 @@ export function RegisteredGuestHome() {
       </section>
 
       <section className="rounded-2xl border border-border bg-card2 p-5 shadow-brand">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">Партнёр</p>
+        <p className="text-sm font-semibold text-muted">Приходите знакомиться лично</p>
         <h2 className="mt-1 text-lg font-bold text-fg">
           Психологический центр «Dom» в Тбилиси
         </h2>

@@ -52,7 +52,7 @@ function CourseCard({
   return (
     <Link
       to={getCourseIntroPath(course.id)}
-      className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-brand transition hover:-translate-y-0.5 hover:border-accent/40 hover:bg-accent-100/40"
+      className="group flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-brand transition hover:-translate-y-0.5 hover:border-accent/40 hover:bg-accent-100/40"
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-3xl" aria-hidden>
@@ -66,8 +66,14 @@ function CourseCard({
       </div>
       <h3 className="mt-3 text-lg font-semibold leading-snug text-fg">{course.name}</h3>
       <p className="mt-1 text-sm text-muted">Курс платформы</p>
-      <span className="mt-auto pt-3 text-sm font-semibold text-accent">
-        {isOpen ? 'Посмотреть курс →' : 'Посмотреть структуру →'}
+      <span className="mt-auto pt-4">
+        {isOpen ? (
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition group-hover:opacity-90">
+            ▶ Смотреть сейчас
+          </span>
+        ) : (
+          <span className="text-sm font-semibold text-accent">Посмотреть структуру →</span>
+        )}
       </span>
     </Link>
   );
@@ -92,34 +98,37 @@ export function GuestLanding() {
         />
       </Helmet>
 
-      <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-accent-100 to-mark p-8 shadow-brand sm:p-10">
+      <section className="group relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-accent-100 to-mark p-8 shadow-brand transition hover:shadow-xl sm:p-10">
         <Link
           to="/about"
-          className="inline-flex flex-col items-start rounded-xl px-3 py-2 -ml-3 transition hover:bg-card/60"
+          aria-label="О проекте: DOM Academy — Development Of Mind"
+          className="absolute inset-0 z-0 rounded-3xl"
         >
-          <span className="text-xs font-semibold uppercase tracking-[0.25em] text-accent">
-            DOM Academy
-          </span>
-          <span className="mt-0.5 text-[11px] italic text-muted">Development Of Mind</span>
+          <span className="sr-only">О проекте</span>
         </Link>
-        <h1 className="mt-3 text-4xl font-black leading-tight text-fg sm:text-5xl">DOM Academy</h1>
-        <p className="mt-3 max-w-2xl text-base text-fg/80 sm:text-lg">
-          Образовательная платформа по психологии и смежным с ней областям. Курсы, инструменты для
-          самостоятельной работы и научный поиск.
-        </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            to="/login"
-            className="inline-flex items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-          >
-            Войти / Зарегистрироваться
-          </Link>
-          <a
-            href="#catalog"
-            className="inline-flex items-center justify-center rounded-xl border border-accent/40 bg-card px-5 py-3 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
-          >
-            Посмотреть курсы
-          </a>
+        <div className="pointer-events-none relative z-10">
+          <h1 className="text-4xl font-black uppercase tracking-[0.18em] text-accent sm:text-5xl">
+            DOM Academy
+          </h1>
+          <p className="mt-1 text-sm italic text-muted sm:text-base">Development Of Mind</p>
+          <p className="mt-5 max-w-2xl text-base text-fg/80 sm:text-lg">
+            Образовательная платформа по психологии и смежным с ней областям. Курсы, инструменты
+            для самостоятельной работы и научный поиск.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              to="/login"
+              className="pointer-events-auto inline-flex items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+            >
+              Войти / Зарегистрироваться
+            </Link>
+            <a
+              href="#catalog"
+              className="pointer-events-auto inline-flex items-center justify-center rounded-xl border border-accent/40 bg-card px-5 py-3 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
+            >
+              Посмотреть курсы
+            </a>
+          </div>
         </div>
       </section>
 
@@ -137,9 +146,14 @@ export function GuestLanding() {
           <p className="text-sm text-muted">Проверяем доступность материалов...</p>
         ) : null}
         <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
-          {courses.map((course) => (
-            <CourseCard key={course.id} course={course} isOpen={openCourseIds.has(course.id)} />
-          ))}
+          {[...courses]
+            .sort(
+              (a, b) =>
+                Number(openCourseIds.has(b.id)) - Number(openCourseIds.has(a.id))
+            )
+            .map((course) => (
+              <CourseCard key={course.id} course={course} isOpen={openCourseIds.has(course.id)} />
+            ))}
         </div>
       </section>
 
@@ -169,7 +183,7 @@ export function GuestLanding() {
       </section>
 
       <section className="rounded-2xl border border-border bg-card2 p-6 shadow-brand">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">Партнёр</p>
+        <p className="text-sm font-semibold text-muted">Приходите знакомиться лично</p>
         <h2 className="mt-1 text-xl font-bold text-fg">
           Психологический центр «Dom» в Тбилиси
         </h2>
