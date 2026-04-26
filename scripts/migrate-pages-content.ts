@@ -14,7 +14,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { initAdmin } from './_adminInit';
 import { ABOUT_TABS } from '../src/pages/about/aboutContent';
 import { PARTNERS } from '../src/pages/about/partnersContent';
-import { getProjectFallback } from '../src/hooks/useProjectPageContent';
+import { getProjectFallback } from '../src/pages/projects/projectFallbacks';
 
 const PROJECT_SLUGS_TO_MIGRATE = ['dom-academy-overview'];
 
