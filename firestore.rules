@@ -214,6 +214,13 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // BYOK usage счётчик (волна 6). Документ ID = `${uid}_${day}`, где день в UTC.
+    // Read — только сам пользователь. Write — только server-side (admin SDK обходит rules).
+    match /aiUsageDaily/{docId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
     // История поисков пользователя
     match /searchHistory/{entryId} {
       allow read, delete: if isAuthenticated() &&
