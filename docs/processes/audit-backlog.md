@@ -38,7 +38,7 @@
 | BR-5 | M (M) | Объяснения из книг после тестов | Кнопка "Узнать подробнее" при ошибке |
 | BR-6 | M (M) | Семантический поиск по контенту | RAG для курсов (расширение Book RAG) |
 | BR-7 | M (L) | Персональные книги пользователей | Свои PDF у студента (как заметки/таймлайн), privacy/quota, upload+ingestion, UI в Profile |
-| AD-1 | M (M-L) | Admin events UX v2: редактирование + календарь-центричный CRUD | Кнопка «Редактировать» на карточках (минимум), затем календарь-grid как основной вход, список снизу с фильтром — похоже на Google Calendar. Включает: событие можно адресовать сразу нескольким группам |
+| AD-1 | ✅ | Admin events UX v2: edit modals + calendar grid + week view + search | Закрыт волной 5 (2026-04-26): /admin/announcements целиком переписан под Google-Calendar-style UX. Edit modals с GCal lastWriteSource fix (5.1), монт-grid + filtered list (5.2), week view + search + multi-group color-coding (5.3). 55 unit-тестов в 8 файлах. |
 | AD-2 | ✅ | Admin-редактор страницы `/about` | Закрыт волной HM-3: контент `/about` в `pages/about`, редактор `/superadmin/pages/about` (2026-04-26) |
 | HM-1 | ✅ | Continue-cards: настройка «актуальных» курсов | Поля `featuredCourseIds` у `groups/{id}` и `users/{id}` (max 3), волна 3 |
 | HM-2 | ✅ | `/about` → вкладочная структура + страницы проектов | 6 вкладок, шаблон `<ProjectPage>` (волна 3) |
