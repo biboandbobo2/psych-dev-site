@@ -297,7 +297,6 @@ describe('deleteGroup', () => {
   });
 });
 
-<<<<<<< HEAD
 // ── system group guards ─────────────────────────────────────
 
 describe('system group (everyone) guards', () => {
@@ -333,7 +332,9 @@ describe('system group (everyone) guards', () => {
       (setGroupMembers as Function)({ groupId: 'everyone', memberIds: ['a'] }, superAdminCtx()),
     ).rejects.toThrow('автоматически');
     expect(mockUpdate).not.toHaveBeenCalled();
-=======
+  });
+});
+
 // ── setGroupFeaturedCourses ─────────────────────────────────
 
 describe('setGroupFeaturedCourses', () => {
@@ -424,6 +425,5 @@ describe('setGroupFeaturedCourses', () => {
       ctx,
     );
     expect(result.courseIds).toEqual(['X']);
->>>>>>> worktree-agent-a27ab8b25d940361e
   });
 });
