@@ -89,4 +89,50 @@ describe('isCourseOpen', () => {
       ])
     ).toBe(false);
   });
+
+  it('reads videos from sections.video_section.content (modern lesson schema)', () => {
+    expect(
+      isCourseOpen([
+        makeLesson({
+          sections: {
+            video_section: {
+              title: 'Видео',
+              content: [{ url: 'a', isPublic: true }],
+            },
+          },
+        }),
+      ])
+    ).toBe(true);
+  });
+
+  it('returns false when section video has no isPublic flag', () => {
+    expect(
+      isCourseOpen([
+        makeLesson({
+          sections: {
+            video_section: {
+              title: 'Видео',
+              content: [{ url: 'a' }],
+            },
+          },
+        }),
+      ])
+    ).toBe(false);
+  });
+
+  it('combines videos from both schemas — all must be public', () => {
+    expect(
+      isCourseOpen([
+        makeLesson({
+          video_playlist: [{ url: 'a', isPublic: true }],
+          sections: {
+            video_section: {
+              title: 'Видео',
+              content: [{ url: 'b', isPublic: false }],
+            },
+          },
+        }),
+      ])
+    ).toBe(false);
+  });
 });

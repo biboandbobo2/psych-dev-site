@@ -185,15 +185,37 @@ function StudentDashboard() {
 
   return (
     <section className="min-h-screen bg-bg py-8 sm:py-10">
-      <div className="mx-auto max-w-6xl px-4">
+      <div className="mx-auto max-w-6xl space-y-6 px-4">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm text-muted">Добрый день, {displayName}</p>
+            <h1 className="mt-1 text-3xl font-bold text-fg sm:text-4xl">Мои курсы</h1>
+          </div>
+          <Link
+            to="/about"
+            aria-label="О проекте: DOM Academy — Development Of Mind"
+            className="group inline-flex items-center justify-between gap-3 rounded-2xl border border-border bg-gradient-to-br from-accent-100 to-mark px-4 py-2.5 shadow-brand transition hover:opacity-90"
+          >
+            <span className="leading-tight">
+              <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+                DOM Academy
+              </span>
+              <span className="mt-0.5 block text-[11px] italic text-muted">
+                Development Of Mind
+              </span>
+            </span>
+            <span
+              aria-hidden
+              className="text-lg text-accent transition group-hover:translate-x-0.5"
+            >
+              →
+            </span>
+          </Link>
+        </header>
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
           {/* LEFT */}
           <div className="space-y-6">
-            <header>
-              <p className="text-sm text-muted">Добрый день, {displayName}</p>
-              <h1 className="mt-1 text-3xl font-bold text-fg sm:text-4xl">Мои курсы</h1>
-            </header>
-
             {/* Карточки курсов */}
             <div className="grid auto-rows-fr grid-cols-1 gap-4">
               {primaryContinueCourses.map((course) => (
@@ -290,27 +312,6 @@ function StudentDashboard() {
 
           {/* RIGHT (sticky) */}
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-            <Link
-              to="/about"
-              aria-label="О проекте: DOM Academy — Development Of Mind"
-              className="group flex items-center justify-between gap-3 rounded-2xl border border-border bg-gradient-to-br from-accent-100 to-mark px-4 py-2.5 shadow-brand transition hover:opacity-90"
-            >
-              <span className="leading-tight">
-                <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                  DOM Academy
-                </span>
-                <span className="mt-0.5 block text-[11px] italic text-muted">
-                  Development Of Mind
-                </span>
-              </span>
-              <span
-                aria-hidden
-                className="text-lg text-accent transition group-hover:translate-x-0.5"
-              >
-                →
-              </span>
-            </Link>
-
             <MiniWeekCalendar
               calendarEventsByDate={calendarEventsByDate}
               onSelectDate={(dateKey) => {
