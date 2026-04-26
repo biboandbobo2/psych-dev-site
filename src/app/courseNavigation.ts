@@ -20,6 +20,8 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
   'general',
   'development',
   'course',
+  'about',
+  'projects',
 ]);
 
 const DEVELOPMENT_STATIC_PATHS = new Set(ROUTE_CONFIG.map((route) => route.path));

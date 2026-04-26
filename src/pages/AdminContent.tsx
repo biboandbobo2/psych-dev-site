@@ -409,34 +409,6 @@ export default function AdminContent() {
         </div>
       </header>
 
-      <Link
-        to={canEditActiveCourse ? `/admin/content/course-intro/${activeCourse}` : '#'}
-        onClick={(e) => {
-          if (!canEditActiveCourse) e.preventDefault();
-        }}
-        className={`block rounded-xl border p-4 transition ${
-          canEditActiveCourse
-            ? 'border-[#C6D7EA] bg-[#F4F9FF] hover:bg-[#E8F0FA]'
-            : 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60'
-        }`}
-        title={canEditActiveCourse ? undefined : 'Нет прав на редактирование этого курса'}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span aria-hidden>✨</span>
-              <span className={`text-sm font-semibold ${canEditActiveCourse ? 'text-[#1F4F86]' : 'text-gray-500'}`}>
-                Вводная страница курса
-              </span>
-            </div>
-            <p className={`mt-1 text-xs ${canEditActiveCourse ? 'text-[#556476]' : 'text-gray-400'}`}>
-              Идея, авторы и программа — показываются на странице «О курсе» этого курса.
-            </p>
-          </div>
-          <span className={`text-xl ${canEditActiveCourse ? 'text-[#1F4F86]' : 'text-gray-400'}`}>→</span>
-        </div>
-      </Link>
-
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1">
           {saving && (

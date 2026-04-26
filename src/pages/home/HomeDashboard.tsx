@@ -208,21 +208,13 @@ function StudentDashboard() {
           <Link
             to="/about"
             aria-label="О проекте: DOM Academy — Development Of Mind"
-            className="group inline-flex items-center justify-between gap-3 rounded-2xl border border-border bg-gradient-to-br from-accent-100 to-mark px-4 py-2.5 shadow-brand transition hover:opacity-90"
+            className="inline-flex flex-col items-start rounded-2xl border border-border bg-gradient-to-br from-accent-100 to-mark px-4 py-2.5 shadow-brand transition hover:opacity-90"
           >
-            <span className="leading-tight">
-              <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-accent">
-                DOM Academy
-              </span>
-              <span className="mt-0.5 block text-[11px] italic text-muted">
-                Development Of Mind
-              </span>
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+              DOM Academy
             </span>
-            <span
-              aria-hidden
-              className="text-lg text-accent transition group-hover:translate-x-0.5"
-            >
-              →
+            <span className="mt-0.5 text-[11px] italic text-muted">
+              Development Of Mind
             </span>
           </Link>
         </header>
