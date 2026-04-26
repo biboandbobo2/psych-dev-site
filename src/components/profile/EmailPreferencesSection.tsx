@@ -6,8 +6,9 @@ import { updateMyEmailPreferences } from '../../lib/userPreferences';
 import { debugError } from '../../lib/debug';
 
 /**
- * Секция профиля для управления email-уведомлениями.
- * Сейчас — только подтверждения броней кабинетов центра DOM (alteg.io).
+ * Секция управления email-уведомлениями о бронях кабинетов.
+ * Живёт между «Предстоящими» и «Прошлыми» бронями на /booking/account,
+ * чтобы пользователь видел настройку рядом с её эффектом.
  */
 export function EmailPreferencesSection() {
   const user = useAuthStore((s) => s.user);
@@ -58,27 +59,20 @@ export function EmailPreferencesSection() {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-6">
-      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-        <span role="img" aria-hidden="true">
-          ✉️
-        </span>
-        Email-уведомления
-      </h2>
-
+    <section className="bg-white border border-dom-gray-200 rounded-xl p-4">
       <label className="flex items-start gap-3 cursor-pointer select-none">
         <input
           type="checkbox"
           checked={enabled}
           onChange={handleToggle}
           disabled={loading || saving}
-          className="mt-1 h-5 w-5 rounded border-gray-300 text-accent focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed"
+          className="mt-0.5 h-5 w-5 rounded border-dom-gray-300 text-dom-green focus:ring-dom-green disabled:opacity-50 disabled:cursor-not-allowed"
         />
-        <div className="flex-1">
-          <p className="font-medium text-gray-900">
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-dom-gray-900">
             Получать email-подтверждения о бронировании кабинетов
           </p>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-dom-gray-500 mt-1">
             Если выключите — мы не будем присылать email на каждое подтверждение брони.
             Сами брони будут работать как обычно.
           </p>
@@ -88,6 +82,6 @@ export function EmailPreferencesSection() {
       {error && (
         <p className="mt-3 text-sm text-red-600">{error}</p>
       )}
-    </div>
+    </section>
   );
 }

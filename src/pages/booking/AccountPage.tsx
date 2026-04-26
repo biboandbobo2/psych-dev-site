@@ -8,6 +8,7 @@ import { buildAuthorizedHeaders } from '../../lib/apiAuth';
 import { canCancelBooking, getBookingCancelDeadlineDateParts } from '../../lib/bookingCancellation';
 import { debugError, debugLog } from '../../lib/debug';
 import { MONTH_LABELS } from './utils';
+import { EmailPreferencesSection } from '../../components/profile';
 
 interface AccountPageProps {
   embedded?: boolean;
@@ -238,6 +239,8 @@ export function AccountPage({ embedded = false }: AccountPageProps) {
                 </div>
               )}
             </section>
+
+            <EmailPreferencesSection />
 
             {/* Past */}
             {past.length > 0 && (

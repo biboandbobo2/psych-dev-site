@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
 import {
-  EmailPreferencesSection,
   FeaturedCoursesSection,
   GeminiKeySection,
   SearchHistorySection,
@@ -146,8 +145,6 @@ export default function Profile() {
       {user && <FeaturedCoursesSection />}
 
       {user && <SearchHistorySection />}
-
-      {user && <EmailPreferencesSection />}
 
       {user && <GeminiKeySection />}
     </div>
