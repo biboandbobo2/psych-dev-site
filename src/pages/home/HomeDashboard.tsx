@@ -378,8 +378,8 @@ function StudentDashboard() {
                       {course.icon || '🎓'}
                     </span>
                     {openCourseIds.has(course.id) ? (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-semibold text-accent">
-                        🔓
+                      <span className="inline-flex shrink-0 items-center rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-semibold text-accent">
+                        Открытый
                       </span>
                     ) : null}
                   </div>
