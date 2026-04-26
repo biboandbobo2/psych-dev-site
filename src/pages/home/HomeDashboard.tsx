@@ -92,7 +92,7 @@ function StudentDashboard() {
   }, [subjects]);
 
   const primaryContinueCourses = useMemo(() => {
-    const selectedCourses = (courses.length > 0 ? courses : subjects).slice(0, 2);
+    const selectedCourses = (courses.length > 0 ? courses : subjects).slice(0, 3);
 
     return selectedCourses.map((course) => {
       const fallbackPrimaryLesson = resolvePrimaryLesson(course.id);
