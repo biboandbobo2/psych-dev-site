@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useCourses } from '../../hooks/useCourses';
 import { useCourseStore } from '../../stores';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { useAuth } from '../../auth/AuthProvider';
-import { getLastCourseLesson } from '../../lib/lastCourseLesson';
+import { getLastCourseLesson, getMostRecentlyWatchedCourseId } from '../../lib/lastCourseLesson';
 import { getWatchedLessonIds } from '../../lib/courseWatchedLessons';
 import { buildCourseContinuePath, getCourseVideoResumePoint } from '../../lib/courseVideoResume';
 import type { CourseType } from '../../types/tests';
@@ -12,6 +13,7 @@ import {
   resolvePrimaryLesson,
   getEstimatedCourseLessons,
   formatTimeFromSeconds,
+  resolveContinueCourses,
   toDateKey,
   tryParseDateLabel,
   type ParsedCalendarEvent,
@@ -51,8 +53,10 @@ function StudentDashboard() {
   const { user } = useAuth();
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
-  const { courses } = useCourses();
+  const { courses, courseMap } = useCourses();
   const { groups: myGroups } = useMyGroups();
+  const userFeaturedCourseIds = useAuthStore((s) => s.featuredCourseIds);
+  const hasCourseAccess = useAuthStore((s) => s.hasCourseAccess);
   const courseStreamLabel = myGroups.length > 0 ? 'Курс потока' : 'Мой курс';
   const { openCourseIds } = useCoursesOpenness(courses.map((course) => course.id));
   const { items: myFeedItems, loading: myFeedLoading } = useMyGroupsFeed();
@@ -80,43 +84,53 @@ function StudentDashboard() {
     ? featuredSubjects
     : [...featuredSubjects, ...fallbackSubjects.filter((item) => !featuredSubjects.some((course) => course.id === item.id))].slice(0, 4);
 
-  const progressByCourse = useMemo(() => {
-    const map = new Map<string, { completed: number; total: number; percent: number }>();
-    subjects.forEach((course) => {
-      const completed = getWatchedLessonIds(course.id).size;
-      const total = getEstimatedCourseLessons(course.id);
-      const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
-      map.set(course.id, { completed, total, percent });
-    });
-    return map;
-  }, [subjects]);
+  const accessibleCourseIds = useMemo(
+    () => courses.filter((c) => hasCourseAccess(c.id as CourseType)).map((c) => c.id),
+    [courses, hasCourseAccess]
+  );
+
+  const continueResolution = useMemo(
+    () =>
+      resolveContinueCourses({
+        userFeaturedCourseIds,
+        groups: myGroups,
+        lastWatchedCourseId: getMostRecentlyWatchedCourseId(),
+        accessibleCourseIds,
+      }),
+    [userFeaturedCourseIds, myGroups, accessibleCourseIds]
+  );
 
   const primaryContinueCourses = useMemo(() => {
-    const selectedCourses = (courses.length > 0 ? courses : subjects).slice(0, 3);
-
-    return selectedCourses.map((course) => {
+    return continueResolution.ids.flatMap((courseId) => {
+      const course = courseMap.get(courseId);
+      if (!course) return [];
       const fallbackPrimaryLesson = resolvePrimaryLesson(course.id);
       const lastCourseLesson = getLastCourseLesson(course.id);
       const resumePoint = getCourseVideoResumePoint(course.id);
       const fallbackPath = lastCourseLesson?.path ?? fallbackPrimaryLesson.link;
       const continuePath = buildCourseContinuePath(course.id, fallbackPath);
-      const lessonTitle = lastCourseLesson?.label ?? resumePoint?.lessonLabel ?? fallbackPrimaryLesson.title;
-      const progress = progressByCourse.get(course.id) ?? { completed: 0, total: 0, percent: 0 };
+      const lessonTitle =
+        lastCourseLesson?.label ?? resumePoint?.lessonLabel ?? fallbackPrimaryLesson.title;
+      const completed = getWatchedLessonIds(course.id).size;
+      const total = getEstimatedCourseLessons(course.id);
+      const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
 
-      return {
-        id: course.id,
-        name: course.name,
-        icon: course.icon,
-        continuePath,
-        lessonTitle,
-        progress,
-        resumeTimeLabel:
-          resumePoint && resumePoint.timeSec > 0
-            ? `Продолжим с ${formatTimeFromSeconds(resumePoint.timeSec)}`
-            : null,
-      };
+      return [
+        {
+          id: course.id,
+          name: course.name,
+          icon: course.icon,
+          continuePath,
+          lessonTitle,
+          progress: { completed, total, percent },
+          resumeTimeLabel:
+            resumePoint && resumePoint.timeSec > 0
+              ? `Продолжим с ${formatTimeFromSeconds(resumePoint.timeSec)}`
+              : null,
+        },
+      ];
     });
-  }, [courses, progressByCourse, subjects]);
+  }, [continueResolution, courseMap]);
 
   // Календарь справа показывает события из подписок группы (useMyGroupsFeed).
   // Для events c точным startAt берём его; для legacy без startAt пытаемся
@@ -290,9 +304,17 @@ function StudentDashboard() {
               ))}
               {primaryContinueCourses.length === 0 ? (
                 <article className="rounded-2xl border border-border bg-card p-6">
-                  <p className="text-base text-muted">
-                    Курсы для продолжения пока не найдены. Откройте нужный курс в профиле.
+                  <h2 className="text-lg font-bold text-fg">Нет актуальных курсов</h2>
+                  <p className="mt-2 text-sm text-muted">
+                    Выберите курсы, которые сейчас активно проходите, — они будут
+                    показаны здесь.
                   </p>
+                  <Link
+                    to="/profile"
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-accent/30 bg-accent-100 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
+                  >
+                    Выбрать актуальные курсы в профиле →
+                  </Link>
                 </article>
               ) : null}
             </div>

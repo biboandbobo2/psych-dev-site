@@ -34,6 +34,12 @@ export interface Group {
    * переименования и ручного изменения состава через админку.
    */
   isSystem?: boolean;
+  /**
+   * Курсы, которые админ группы помечает как «актуальные» для всех её
+   * студентов. Показываются в continue-cards на /home, если у студента
+   * нет личных featuredCourseIds. Максимум 3 элемента.
+   */
+  featuredCourseIds?: string[];
   /** ID Google Calendar для двусторонней синхронизации событий группы. */
   gcalId?: string | null;
   gcalSyncState?: GroupGcalSyncState;

@@ -146,6 +146,47 @@ export async function deleteGroup(groupId: string) {
   return result.data;
 }
 
+export interface SetGroupFeaturedCoursesParams {
+  groupId: string;
+  courseIds: string[];
+}
+
+interface SetFeaturedCoursesResponse {
+  success: true;
+  courseIds: string[];
+}
+
+/**
+ * Записать «актуальные курсы» группы. Только super-admin или админ,
+ * указанный в announcementAdminIds группы. Максимум 3 курса.
+ */
+export async function setGroupFeaturedCourses(params: SetGroupFeaturedCoursesParams) {
+  const call = httpsCallable<SetGroupFeaturedCoursesParams, SetFeaturedCoursesResponse>(
+    functions,
+    "setGroupFeaturedCourses"
+  );
+  const result = await call(params);
+  return result.data;
+}
+
+export interface SetMyFeaturedCoursesParams {
+  courseIds: string[];
+  /** Только super-admin может менять чужие. По умолчанию — собственный uid. */
+  targetUid?: string;
+}
+
+/**
+ * Записать личные «актуальные курсы» текущего пользователя. Максимум 3 курса.
+ */
+export async function setMyFeaturedCourses(params: SetMyFeaturedCoursesParams) {
+  const call = httpsCallable<SetMyFeaturedCoursesParams, SetFeaturedCoursesResponse>(
+    functions,
+    "setMyFeaturedCourses"
+  );
+  const result = await call(params);
+  return result.data;
+}
+
 export interface AddGroupMembersByEmailResponse {
   success: true;
   resolvedExisting: number;

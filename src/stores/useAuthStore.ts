@@ -25,6 +25,11 @@ interface AuthState {
   groupGrantedCourses: Record<string, boolean>;
   /** API ключ Gemini пользователя (BYOK) */
   geminiApiKey: string | null;
+  /**
+   * Личный список «актуальных» курсов пользователя для continue-cards
+   * на /home. Максимум 3 элемента, имеет приоритет над group.featuredCourseIds.
+   */
+  featuredCourseIds: string[];
 
   // Computed properties
   isAdmin: boolean;
@@ -38,6 +43,7 @@ interface AuthState {
   setCourseAccess: (access: CourseAccessMap | null) => void;
   setGroupGrantedCourses: (granted: Record<string, boolean>) => void;
   setGeminiApiKey: (key: string | null) => void;
+  setFeaturedCourseIds: (ids: string[]) => void;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   initializeAuth: () => () => void;
@@ -60,6 +66,7 @@ export const useAuthStore = create<AuthState>()(
       courseAccess: null,
       groupGrantedCourses: {},
       geminiApiKey: null,
+      featuredCourseIds: [],
       isAdmin: false,
       isSuperAdmin: false,
 
@@ -85,6 +92,8 @@ export const useAuthStore = create<AuthState>()(
       setGroupGrantedCourses: (groupGrantedCourses) => set({ groupGrantedCourses }),
 
       setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey }),
+
+      setFeaturedCourseIds: (featuredCourseIds) => set({ featuredCourseIds }),
 
       hasCourseAccess: (courseType: CourseType) => {
         const { userRole, courseAccess, groupGrantedCourses } = get();
@@ -136,6 +145,7 @@ export const useAuthStore = create<AuthState>()(
             get().setCourseAccess(null);
             get().setGroupGrantedCourses({});
             get().setGeminiApiKey(null);
+            get().setFeaturedCourseIds([]);
             get().setLoading(false);
             return;
           }
@@ -218,6 +228,13 @@ export const useAuthStore = create<AuthState>()(
                 const geminiApiKey = data?.geminiApiKey as string | undefined;
                 get().setGeminiApiKey(geminiApiKey ?? null);
 
+                // Личные «актуальные курсы» пользователя (continue-cards)
+                const featuredRaw = data?.featuredCourseIds;
+                const featured = Array.isArray(featuredRaw)
+                  ? featuredRaw.filter((c): c is string => typeof c === 'string')
+                  : [];
+                get().setFeaturedCourseIds(featured);
+
                 // Обновляем роль если изменилась
                 const newRole = normalizeUserRole(data?.role);
                 if (newRole !== get().userRole) {
@@ -246,6 +263,7 @@ export const useAuthStore = create<AuthState>()(
             get().setCourseAccess(null);
             get().setGroupGrantedCourses({});
             get().setGeminiApiKey(null);
+            get().setFeaturedCourseIds([]);
           } finally {
             if (!cancelled) {
               get().setLoading(false);

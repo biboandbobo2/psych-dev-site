@@ -50,3 +50,24 @@ export function getLastCourseLesson(courseId: string): LastCourseLesson | null {
   return item;
 }
 
+/**
+ * Возвращает courseId с самой свежей `updatedAt` среди сохранённых записей.
+ * Используется на /home чтобы выбрать «продолжить» один курс, когда у
+ * пользователя нет личных/групповых featured-настроек. Если сохранений нет —
+ * возвращает null.
+ */
+export function getMostRecentlyWatchedCourseId(): string | null {
+  const current = readStorage();
+  let bestId: string | null = null;
+  let bestStamp = 0;
+  for (const [courseId, item] of Object.entries(current)) {
+    if (!item || typeof item.path !== 'string' || !item.path) continue;
+    const ts = item.updatedAt ? Date.parse(item.updatedAt) : 0;
+    if (Number.isFinite(ts) && ts > bestStamp) {
+      bestStamp = ts;
+      bestId = courseId;
+    }
+  }
+  return bestId;
+}
+

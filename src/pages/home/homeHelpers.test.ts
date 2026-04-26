@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { formatTimeFromSeconds, toDateKey, formatDateKey, tryParseDateLabel } from './homeHelpers';
+import {
+  formatTimeFromSeconds,
+  toDateKey,
+  formatDateKey,
+  tryParseDateLabel,
+  resolveContinueCourses,
+} from './homeHelpers';
 
 describe('formatTimeFromSeconds', () => {
   it('formats seconds only', () => {
@@ -128,5 +134,135 @@ describe('tryParseDateLabel', () => {
   it('trims input', () => {
     const date = tryParseDateLabel('  2026-01-01  ');
     expect(date).toBeInstanceOf(Date);
+  });
+});
+
+describe('resolveContinueCourses', () => {
+  const allAccessible = ['A', 'B', 'C', 'D', 'X', 'Y'];
+
+  it('возвращает empty при пустых настройках и без просмотров', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: [], source: 'empty' });
+  });
+
+  it('возвращает группу [A,B,C], если у пользователя пусто', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [{ featuredCourseIds: ['A', 'B', 'C'] }],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['A', 'B', 'C'], source: 'group' });
+  });
+
+  it('user-featured имеет приоритет над group', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: ['X', 'Y'],
+      groups: [{ featuredCourseIds: ['A', 'B', 'C'] }],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['X', 'Y'], source: 'user' });
+  });
+
+  it('lastWatched используется только если featured пусты', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [],
+      lastWatchedCourseId: 'A',
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['A'], source: 'lastWatched' });
+  });
+
+  it('lastWatched игнорируется, если курс недоступен', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [],
+      lastWatchedCourseId: 'Z',
+      accessibleCourseIds: ['A'],
+    });
+    expect(result).toEqual({ ids: [], source: 'empty' });
+  });
+
+  it('user-featured фильтруется по accessibleCourseIds', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: ['X', 'NO_ACCESS', 'Y'],
+      groups: [],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: ['X', 'Y'],
+    });
+    expect(result).toEqual({ ids: ['X', 'Y'], source: 'user' });
+  });
+
+  it('если user-featured содержит только недоступные — fallback на group', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: ['NO_1', 'NO_2'],
+      groups: [{ featuredCourseIds: ['A'] }],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: ['A'],
+    });
+    expect(result).toEqual({ ids: ['A'], source: 'group' });
+  });
+
+  it('объединяет featured из нескольких групп с дедупом и обрезкой до 3', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [
+        { featuredCourseIds: ['A', 'B'] },
+        { featuredCourseIds: ['B', 'C', 'D'] },
+      ],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['A', 'B', 'C'], source: 'group' });
+  });
+
+  it('сохраняет порядок групп (приоритет более ранней)', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [
+        { featuredCourseIds: ['C'] },
+        { featuredCourseIds: ['A', 'B'] },
+      ],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['C', 'A', 'B'], source: 'group' });
+  });
+
+  it('обрезает user-featured до 3', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: ['A', 'B', 'C', 'D'],
+      groups: [],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['A', 'B', 'C'], source: 'user' });
+  });
+
+  it('игнорирует группы с пустым/отсутствующим featuredCourseIds', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [{ featuredCourseIds: [] }, {}, { featuredCourseIds: ['A'] }],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['A'], source: 'group' });
+  });
+
+  it('group игнорируется, если все его курсы недоступны', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [{ featuredCourseIds: ['NO_1', 'NO_2'] }],
+      lastWatchedCourseId: 'A',
+      accessibleCourseIds: ['A'],
+    });
+    expect(result).toEqual({ ids: ['A'], source: 'lastWatched' });
   });
 });
