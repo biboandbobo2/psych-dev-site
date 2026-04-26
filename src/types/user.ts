@@ -56,6 +56,12 @@ export interface UserRecord {
   adminEditableCourses?: string[];
   /** Гранулярный доступ к курсам */
   courseAccess?: CourseAccessMap;
+  /**
+   * Курсы, которые сам пользователь выбрал как «актуальные» для себя.
+   * Если непустой — имеет приоритет над featuredCourseIds группы при
+   * формировании continue-cards на /home. Максимум 3 элемента.
+   */
+  featuredCourseIds?: string[];
   createdAt: Timestamp | null;
   lastLoginAt: Timestamp | null;
   /** Когда был повышен в роли */
