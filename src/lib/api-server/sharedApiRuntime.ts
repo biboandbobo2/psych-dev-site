@@ -10,7 +10,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getAuth } from 'firebase-admin/auth';
 import type { IncomingMessage } from 'http';
-import { getAllowedAppOrigin } from '../../src/lib/appOrigins.js';
+import { getAllowedAppOrigin } from '../appOrigins.js';
+import { debugError } from '../debug.js';
 
 // ============================================================================
 // CORS
@@ -181,8 +182,6 @@ export async function recordByokUsage(params: {
       { merge: true }
     );
   } catch (err) {
-    // Логируется через console т.к. /api без debugLog. Не блокируем ответ.
-    // eslint-disable-next-line no-console
-    console.error('[recordByokUsage]', err);
+    debugError('[recordByokUsage]', err);
   }
 }

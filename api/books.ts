@@ -17,7 +17,7 @@ import {
   enforceIpRateLimit,
   getClientIp,
   recordByokUsage,
-} from './lib/sharedApiRuntime.js';
+} from '../src/lib/api-server/sharedApiRuntime.js';
 
 const gunzip = promisify(zlib.gunzip);
 
