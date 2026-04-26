@@ -22,6 +22,7 @@ import {
   formatPublishStatus,
   type GroupRef,
 } from './announcementsMultiPublish';
+import { EditModal, type EditTarget } from './announcements/EditModal';
 
 function formatDueDateRu(iso: string | null): string {
   if (!iso) return '';
@@ -89,6 +90,7 @@ export default function AdminAnnouncements() {
   const previewGroupId = selectedGroupIds[0] ?? null;
   const { announcements, events, loading: feedLoading } = useGroupFeed(previewGroupId);
   const previewGroup = availableGroups.find((g) => g.id === previewGroupId) ?? null;
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
 
   if (!isAdmin) {
     return (
@@ -211,11 +213,18 @@ export default function AdminAnnouncements() {
                                 {ann.createdByName ? ` · ${ann.createdByName}` : ''}
                               </p>
                             </div>
-                            <DeleteButton
+                            <ItemActions
+                              onEdit={() =>
+                                setEditTarget({
+                                  kind: 'announcement',
+                                  groupId: previewGroup.id,
+                                  item: ann,
+                                })
+                              }
                               onDelete={async () => {
                                 await deleteGroupAnnouncement(previewGroup.id, ann.id);
                               }}
-                              confirm="Удалить это объявление?"
+                              confirmDelete="Удалить это объявление?"
                             />
                           </li>
                         ))}
@@ -230,6 +239,9 @@ export default function AdminAnnouncements() {
                     loading={feedLoading}
                     items={events.filter((e) => e.kind !== 'assignment')}
                     onDelete={(id) => deleteGroupEvent(previewGroup.id, id)}
+                    onEdit={(item) =>
+                      setEditTarget({ kind: 'event', groupId: previewGroup.id, item })
+                    }
                     formatDate={formatDate}
                   />
 
@@ -240,6 +252,9 @@ export default function AdminAnnouncements() {
                     loading={feedLoading}
                     items={events.filter((e) => e.kind === 'assignment')}
                     onDelete={(id) => deleteGroupEvent(previewGroup.id, id)}
+                    onEdit={(item) =>
+                      setEditTarget({ kind: 'assignment', groupId: previewGroup.id, item })
+                    }
                     formatDate={formatDate}
                   />
                 </>
@@ -248,6 +263,8 @@ export default function AdminAnnouncements() {
           )}
         </>
       )}
+
+      <EditModal target={editTarget} onClose={() => setEditTarget(null)} />
     </div>
   );
 }
@@ -661,6 +678,7 @@ function EventsList({
   loading,
   items,
   onDelete,
+  onEdit,
   formatDate,
 }: {
   title: string;
@@ -669,6 +687,7 @@ function EventsList({
   loading: boolean;
   items: GroupEvent[];
   onDelete: (id: string) => Promise<void>;
+  onEdit: (item: GroupEvent) => void;
   formatDate: (date: Date | null) => string;
 }) {
   return (
@@ -709,7 +728,11 @@ function EventsList({
                   {ev.createdByName ? ` · ${ev.createdByName}` : ''}
                 </p>
               </div>
-              <DeleteButton onDelete={() => onDelete(ev.id)} confirm={confirmDelete} />
+              <ItemActions
+                onEdit={() => onEdit(ev)}
+                onDelete={() => onDelete(ev.id)}
+                confirmDelete={confirmDelete}
+              />
             </li>
           ))}
         </ul>
@@ -718,27 +741,45 @@ function EventsList({
   );
 }
 
-function DeleteButton({ onDelete, confirm }: { onDelete: () => Promise<void>; confirm: string }) {
+function ItemActions({
+  onEdit,
+  onDelete,
+  confirmDelete,
+}: {
+  onEdit: () => void;
+  onDelete: () => Promise<void>;
+  confirmDelete: string;
+}) {
   const [busy, setBusy] = useState(false);
   return (
-    <button
-      type="button"
-      onClick={async () => {
-        if (!window.confirm(confirm)) return;
-        setBusy(true);
-        try {
-          await onDelete();
-        } catch (err) {
-          debugError('delete failed', err);
-          window.alert(err instanceof Error ? err.message : 'Ошибка удаления');
-        } finally {
-          setBusy(false);
-        }
-      }}
-      disabled={busy}
-      className="rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-700 hover:bg-rose-100 disabled:opacity-50"
-    >
-      {busy ? '…' : 'Удалить'}
-    </button>
+    <div className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={onEdit}
+        disabled={busy}
+        className="rounded-md bg-[#EEF2F7] px-2 py-1 text-xs text-[#2C3E50] hover:bg-[#DDE5EE] disabled:opacity-50"
+      >
+        ✏ Редактировать
+      </button>
+      <button
+        type="button"
+        onClick={async () => {
+          if (!window.confirm(confirmDelete)) return;
+          setBusy(true);
+          try {
+            await onDelete();
+          } catch (err) {
+            debugError('delete failed', err);
+            window.alert(err instanceof Error ? err.message : 'Ошибка удаления');
+          } finally {
+            setBusy(false);
+          }
+        }}
+        disabled={busy}
+        className="rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+      >
+        {busy ? '…' : '🗑 Удалить'}
+      </button>
+    </div>
   );
 }
