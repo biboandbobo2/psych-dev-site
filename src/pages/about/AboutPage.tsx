@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ABOUT_TABS, DEFAULT_TAB_ID, type AboutTab } from './aboutContent';
-import { PARTNERS } from './partnersContent';
+import { type AboutTab } from './aboutContent';
+import type { Partner } from './partnersContent';
+import { useAboutPageContent } from '../../hooks/useAboutPageContent';
 
 const TAB_QUERY_KEY = 'tab';
 
-function isValidTabId(id: string | null | undefined): id is string {
+function isValidTabId(
+  id: string | null | undefined,
+  tabs: AboutTab[]
+): id is string {
   if (!id) return false;
-  return ABOUT_TABS.some((tab) => tab.id === id);
+  return tabs.some((tab) => tab.id === id);
 }
 
 function PlaceholderTab({ tab }: { tab: Extract<AboutTab, { kind: 'placeholder' }> }) {
@@ -71,12 +75,18 @@ function OfflineTab({ tab }: { tab: Extract<AboutTab, { kind: 'offline' }> }) {
   );
 }
 
-function PartnersTab({ tab }: { tab: Extract<AboutTab, { kind: 'partners' }> }) {
+function PartnersTab({
+  tab,
+  partners,
+}: {
+  tab: Extract<AboutTab, { kind: 'partners' }>;
+  partners: Partner[];
+}) {
   return (
     <div className="space-y-5">
       <p className="text-base text-fg/90">{tab.intro}</p>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {PARTNERS.map((partner) => (
+        {partners.map((partner) => (
           <article
             key={partner.id}
             className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-brand"
@@ -104,7 +114,7 @@ function PartnersTab({ tab }: { tab: Extract<AboutTab, { kind: 'partners' }> }) 
   );
 }
 
-function TabContent({ tab }: { tab: AboutTab }) {
+function TabContent({ tab, partners }: { tab: AboutTab; partners: Partner[] }) {
   switch (tab.kind) {
     case 'text':
       return <TextTab tab={tab} />;
@@ -113,16 +123,20 @@ function TabContent({ tab }: { tab: AboutTab }) {
     case 'offline':
       return <OfflineTab tab={tab} />;
     case 'partners':
-      return <PartnersTab tab={tab} />;
+      return <PartnersTab tab={tab} partners={partners} />;
   }
 }
 
 export default function AboutPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { content } = useAboutPageContent();
+  const tabs = content.tabs;
+  const partners = content.partners;
+  const defaultTabId = tabs[0]?.id ?? '';
 
   const initialTabId = useMemo(() => {
     const fromUrl = searchParams.get(TAB_QUERY_KEY);
-    return isValidTabId(fromUrl) ? fromUrl : DEFAULT_TAB_ID;
+    return isValidTabId(fromUrl, tabs) ? fromUrl : defaultTabId;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -133,24 +147,27 @@ export default function AboutPage() {
     const fromUrl = searchParams.get(TAB_QUERY_KEY);
     if (fromUrl === activeId) return;
     const next = new URLSearchParams(searchParams);
-    if (activeId === DEFAULT_TAB_ID) {
+    if (activeId === defaultTabId) {
       next.delete(TAB_QUERY_KEY);
     } else {
       next.set(TAB_QUERY_KEY, activeId);
     }
     setSearchParams(next, { replace: true });
-  }, [activeId, searchParams, setSearchParams]);
+  }, [activeId, defaultTabId, searchParams, setSearchParams]);
 
   // Синхронизация URL -> state при ручном переходе (back/forward)
   useEffect(() => {
     const fromUrl = searchParams.get(TAB_QUERY_KEY);
-    const target = isValidTabId(fromUrl) ? fromUrl : DEFAULT_TAB_ID;
+    const target = isValidTabId(fromUrl, tabs) ? fromUrl : defaultTabId;
     if (target !== activeId) {
       setActiveId(target);
     }
-  }, [searchParams, activeId]);
+  }, [searchParams, activeId, tabs, defaultTabId]);
 
-  const activeTab = ABOUT_TABS.find((tab) => tab.id === activeId) ?? ABOUT_TABS[0];
+  const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
+  if (!activeTab) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-bg text-fg">
@@ -174,7 +191,7 @@ export default function AboutPage() {
         {/* Десктоп: горизонтальные табы */}
         <div className="hidden md:block">
           <div role="tablist" aria-label="Разделы страницы" className="mb-6 flex flex-wrap gap-2">
-            {ABOUT_TABS.map((tab) => {
+            {tabs.map((tab) => {
               const isActive = tab.id === activeId;
               return (
                 <button
@@ -204,13 +221,13 @@ export default function AboutPage() {
             className="rounded-2xl border border-border bg-card p-6 shadow-brand sm:p-8"
           >
             <h2 className="mb-4 text-2xl font-semibold">{activeTab.label}</h2>
-            <TabContent tab={activeTab} />
+            <TabContent tab={activeTab} partners={partners} />
           </section>
         </div>
 
         {/* Мобильный: details-аккордеон */}
         <div className="space-y-3 md:hidden">
-          {ABOUT_TABS.map((tab) => (
+          {tabs.map((tab) => (
             <details
               key={tab.id}
               open={tab.id === activeId}
@@ -233,7 +250,7 @@ export default function AboutPage() {
                 </span>
               </summary>
               <div className="border-t border-border px-5 py-4">
-                <TabContent tab={tab} />
+                <TabContent tab={tab} partners={partners} />
               </div>
             </details>
           ))}
