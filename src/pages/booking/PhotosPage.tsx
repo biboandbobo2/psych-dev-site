@@ -46,7 +46,7 @@ export function PhotosPage({ embedded = false }: PhotosPageProps) {
   const content = (
     <>
       <Helmet>
-        <title>Фотографии кабинетов — Психологический центр DOM</title>
+        <title>Бронирование кабинетов — Психологический центр DOM</title>
       </Helmet>
 
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12 py-12">

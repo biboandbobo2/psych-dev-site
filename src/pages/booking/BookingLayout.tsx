@@ -76,7 +76,7 @@ export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
                   to="/home"
                   className="px-5 py-2.5 rounded-xl text-base font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
                 >
-                  На главную DOM Academy
+                  DOM Academy
                 </Link>
               </nav>
             )}
