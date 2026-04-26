@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addDays,
   addMonths,
   buildMonthGrid,
+  buildWeekGrid,
   eventDurationDays,
   formatMonthYearRu,
+  formatWeekRangeRu,
   groupItemsByDate,
+  startOfWeek,
 } from '../calendarGrid';
 
 describe('buildMonthGrid', () => {
@@ -113,6 +117,53 @@ describe('formatMonthYearRu', () => {
   it('форматирует с заглавной буквы', () => {
     const out = formatMonthYearRu(new Date(2026, 4, 15));
     expect(out).toMatch(/^Май/);
+    expect(out).toContain('2026');
+  });
+});
+
+describe('addDays / startOfWeek / buildWeekGrid', () => {
+  it('addDays сдвигает на N дней', () => {
+    const out = addDays(new Date(2026, 4, 15), 3);
+    expect(out.getDate()).toBe(18);
+    expect(out.getMonth()).toBe(4);
+  });
+
+  it('startOfWeek возвращает понедельник для среды', () => {
+    // 13 мая 2026 — среда
+    const monday = startOfWeek(new Date(2026, 4, 13));
+    expect(monday.getDate()).toBe(11); // понедельник 11.05
+    expect(monday.getDay()).toBe(1);
+  });
+
+  it('startOfWeek для воскресенья возвращает понедельник той же недели (за 6 дней до)', () => {
+    // 17 мая 2026 — воскресенье
+    const monday = startOfWeek(new Date(2026, 4, 17));
+    expect(monday.getDate()).toBe(11);
+  });
+
+  it('buildWeekGrid возвращает 7 дней пн-вс', () => {
+    const grid = buildWeekGrid(new Date(2026, 4, 13));
+    expect(grid).toHaveLength(7);
+    expect(grid[0].dayOfWeek).toBe(1); // понедельник
+    expect(grid[6].dayOfWeek).toBe(0); // воскресенье
+    expect(grid[0].dayOfMonth).toBe(11);
+    expect(grid[6].dayOfMonth).toBe(17);
+  });
+
+  it('buildWeekGrid помечает today', () => {
+    const today = new Date(2026, 4, 13);
+    const grid = buildWeekGrid(new Date(2026, 4, 15), today);
+    const todayCell = grid.find((d) => d.isToday);
+    expect(todayCell?.dayOfMonth).toBe(13);
+  });
+});
+
+describe('formatWeekRangeRu', () => {
+  it('возвращает диапазон вида «11 – 17 мая 2026»', () => {
+    const out = formatWeekRangeRu(new Date(2026, 4, 13));
+    expect(out).toContain('11');
+    expect(out).toContain('17');
+    expect(out).toMatch(/мая|май/i);
     expect(out).toContain('2026');
   });
 });

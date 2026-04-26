@@ -94,6 +94,66 @@ export function addMonths(date: Date, delta: number): Date {
 }
 
 /**
+ * Сдвигает дату на N дней. Возвращает полночь нового дня.
+ */
+export function addDays(date: Date, delta: number): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + delta);
+}
+
+/**
+ * Возвращает понедельник недели, в которой лежит date (полночь).
+ */
+export function startOfWeek(date: Date): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayOfWeek = d.getDay(); // 0 = вс
+  const daysFromMonday = (dayOfWeek + 6) % 7;
+  return addDays(d, -daysFromMonday);
+}
+
+/**
+ * Возвращает 7 дней недели, начиная с понедельника той недели, в которой лежит date.
+ */
+export function buildWeekGrid(date: Date, today: Date = new Date()): CalendarMonthDay[] {
+  const start = startOfWeek(date);
+  const todayIso = toIsoDate(startOfDay(today));
+  const days: CalendarMonthDay[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(start, i);
+    days.push({
+      isoDate: toIsoDate(d),
+      date: d,
+      dayOfMonth: d.getDate(),
+      monthOfYear: d.getMonth(),
+      isCurrentMonth: true, // в week-grid все дни считаются «текущими»
+      isToday: toIsoDate(d) === todayIso,
+      dayOfWeek: d.getDay(),
+    });
+  }
+  return days;
+}
+
+/**
+ * Метка диапазона недели для toolbar-а: «4–10 мая 2026».
+ */
+export function formatWeekRangeRu(date: Date): string {
+  const start = startOfWeek(date);
+  const end = addDays(start, 6);
+  const sameMonth = start.getMonth() === end.getMonth();
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const startStr = start.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    ...(sameMonth ? {} : { month: 'short' }),
+    ...(sameYear ? {} : { year: 'numeric' }),
+  });
+  const endStr = end.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  return `${startStr} – ${endStr}`;
+}
+
+/**
  * Длительность события в днях (round-up). 1 для one-day, 5 для 22.07–26.07.
  */
 export function eventDurationDays(startMs: number, endMs: number): number {

@@ -13,8 +13,10 @@ import { CreateModal, type CreateKind } from './announcements/CreateModal';
 import {
   CalendarToolbar,
   ALL_GROUPS_VALUE,
+  type CalendarView,
 } from './announcements/calendar/CalendarToolbar';
 import { MonthGrid } from './announcements/calendar/MonthGrid';
+import { WeekGrid } from './announcements/calendar/WeekGrid';
 import {
   AdminFeedFilters,
   type FeedFilterKind,
@@ -46,14 +48,13 @@ export default function AdminAnnouncements() {
 
   // Toolbar selector: ALL_GROUPS_VALUE или одна группа.
   const [selectedGroupId, setSelectedGroupId] = useState<string>(ALL_GROUPS_VALUE);
-  const [monthDate, setMonthDate] = useState<Date>(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
+  const [view, setView] = useState<CalendarView>('month');
+  const [cursorDate, setCursorDate] = useState<Date>(() => new Date());
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [createPrefillDate, setCreatePrefillDate] = useState<Date | null>(null);
   const [createKind, setCreateKind] = useState<CreateKind | null>(null);
   const [feedFilterKind, setFeedFilterKind] = useState<FeedFilterKind>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Сброс selectedGroupId если группы загрузились/изменились и текущая больше недоступна.
   useEffect(() => {
@@ -93,20 +94,27 @@ export default function AdminAnnouncements() {
       ? groupAccentByGroupId.get(groupId)
       : undefined;
 
-  // Список под календарём — фильтруем по типу (announcements/event/assignment/all).
+  // Список под календарём — фильтруем по типу + поиск.
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const matchText = (s: string | undefined | null): boolean => {
+    if (!normalizedQuery) return true;
+    return Boolean(s && s.toLowerCase().includes(normalizedQuery));
+  };
+
   const filteredAnnouncements = useMemo(() => {
-    if (feedFilterKind === 'all' || feedFilterKind === 'announcement') {
-      return announcements;
-    }
-    return [];
-  }, [announcements, feedFilterKind]);
+    if (feedFilterKind !== 'all' && feedFilterKind !== 'announcement') return [];
+    return announcements.filter((a) => matchText(a.text));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [announcements, feedFilterKind, normalizedQuery]);
 
   const filteredEvents = useMemo(() => {
-    if (feedFilterKind === 'all') return events;
-    if (feedFilterKind === 'event') return events.filter((e) => e.kind !== 'assignment');
-    if (feedFilterKind === 'assignment') return events.filter((e) => e.kind === 'assignment');
-    return [];
-  }, [events, feedFilterKind]);
+    let pool = events;
+    if (feedFilterKind === 'event') pool = events.filter((e) => e.kind !== 'assignment');
+    else if (feedFilterKind === 'assignment') pool = events.filter((e) => e.kind === 'assignment');
+    else if (feedFilterKind === 'announcement') pool = [];
+    return pool.filter((e) => matchText(e.text) || matchText(e.longText));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, feedFilterKind, normalizedQuery]);
 
   const totalCount = filteredAnnouncements.length + filteredEvents.length;
 
@@ -161,27 +169,45 @@ export default function AdminAnnouncements() {
       ) : (
         <>
           <CalendarToolbar
-            monthDate={monthDate}
-            onMonthChange={setMonthDate}
+            view={view}
+            onViewChange={setView}
+            cursorDate={cursorDate}
+            onCursorChange={setCursorDate}
             groups={availableGroups}
             selectedGroupId={selectedGroupId}
             onGroupChange={setSelectedGroupId}
             onCreateClick={() => openCreate(null, 'event')}
           />
 
-          <MonthGrid
-            monthDate={monthDate}
-            events={events}
-            getGroupAccent={getGroupAccent}
-            onCreateClick={(date) => openCreate(date, 'event')}
-            onItemClick={(item) =>
-              setEditTarget({
-                kind: item.kind === 'assignment' ? 'assignment' : 'event',
-                groupId: item.groupId,
-                item,
-              })
-            }
-          />
+          {view === 'month' ? (
+            <MonthGrid
+              monthDate={cursorDate}
+              events={events}
+              getGroupAccent={getGroupAccent}
+              onCreateClick={(date) => openCreate(date, 'event')}
+              onItemClick={(item) =>
+                setEditTarget({
+                  kind: item.kind === 'assignment' ? 'assignment' : 'event',
+                  groupId: item.groupId,
+                  item,
+                })
+              }
+            />
+          ) : (
+            <WeekGrid
+              weekDate={cursorDate}
+              events={events}
+              getGroupAccent={getGroupAccent}
+              onCreateClick={(date) => openCreate(date, 'event')}
+              onItemClick={(item) =>
+                setEditTarget({
+                  kind: item.kind === 'assignment' ? 'assignment' : 'event',
+                  groupId: item.groupId,
+                  item,
+                })
+              }
+            />
+          )}
 
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -189,6 +215,8 @@ export default function AdminAnnouncements() {
               <AdminFeedFilters
                 kind={feedFilterKind}
                 onKindChange={setFeedFilterKind}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
                 totalCount={totalCount}
               />
             </div>
