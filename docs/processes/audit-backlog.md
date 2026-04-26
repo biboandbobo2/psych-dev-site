@@ -10,7 +10,7 @@
 | HP-1 | H (M) | Nightly интеграционные тесты (Firebase) | GH Actions job + артефакты прогонов |
 | HP-2 | H (L) | Расширенное Playwright покрытие | Seed-данные, full auth flow, stress-тесты, отчётность |
 | HP-3 | ✅ | Remediate container image vulnerabilities | NPM HIGH закрыты (2026-02-06), Go stdlib — buildpack-level |
-| HR-1 | H (M) | Защита `/api/books` | auth/quota contract, rate limit, restricted CORS, security tests |
+| HR-1 | ✅ | Защита `/api/books` | Закрыта волной 6 (2026-04-26): strict BYOK без env fallback, auth Bearer на search/answer, public только list/snippet с rate-limit, CORS allowlist через appOrigins. Плюс счётчик BYOK-usage в профиле через aiUsageDaily/{uid}_{day}. |
 | MP-1 | ✅ | Изоляция бизнес-логики Timeline (lazy-hooks) | Хуки вынесены в `src/pages/timeline/hooks/`, чанк `timeline-hooks` в vite.config.js (2026-04) |
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
@@ -50,15 +50,17 @@
 
 ## 🔴 High Priority
 
-### HR‑1. Защита `/api/books` (P: H, E: M)
-- **Проблема:** `api/books.ts` остаётся публичным AI endpoint с `Access-Control-Allow-Origin: *`, без auth, quota-contract и rate limiting для `search` / `answer`.
-- **Риск:** любой origin может дёргать embeddings/Gemini-path, что создаёт риск злоупотребления, роста расходов и расхождения с уже усиленной моделью безопасности `/api/lectures`.
-- **Подтверждение:** review `2026-03-12`, см. `docs/reports/CODE_REVIEW_2026-03-12.md`.
-- **Задачи:**
-  - [ ] Зафиксировать явный access model: authenticated-only или anonymous quota contract.
-  - [ ] Ограничить CORS allowlist вместо `*`.
-  - [ ] Добавить rate limit / abuse guard для дорогостоящих веток.
-  - [ ] Покрыть auth/CORS/rate-limit поведение тестами в `api/books.test.ts`.
+### HR‑1. ✅ Защита `/api/books` — РЕШЕНО (волна 6, 2026-04-26)
+- **Решение:** `list` / `snippet` остались публичными (read-only из Firestore), но получили rate-limit 60 req/min на IP. `search` / `answer` теперь требуют:
+  - Firebase Bearer ID token в заголовке Authorization (`verifyAuthBearer`).
+  - **Strict BYOK Gemini ключ** через `X-Gemini-Api-Key` (`requireBYOKGeminiKey` без env fallback). Если ключа нет — `402 BYOK_REQUIRED` с подсказкой подключить ключ в профиле.
+  - Rate-limit 20 req/min на IP.
+  - CORS allowlist через `src/lib/appOrigins.ts` (academydom.com, vercel preview, localhost) — больше нет `Access-Control-Allow-Origin: *`.
+- **Прод-ключ из env** удалён из user-facing path в `/api/books`. Singleton `genaiClient` убран; каждый запрос идёт под BYOK ключ. `GEMINI_API_KEY` в env остаётся только для server-side admin-функций (формирование новостей, ingestion, скрипты).
+- **Бонус:** счётчик BYOK-usage в профиле. После каждого успешного search/answer записывается `aiUsageDaily/{uid}_{day}` с tokens (из `usageMetadata.totalTokenCount`) и requests. На `/profile` блок «Использование сегодня» показывает: «N / 1500 запросов» + «X токенов (оценка)». Read разрешён только владельцу через Firestore rules.
+- **Helper в `src/lib/api-server/sharedApiRuntime.ts`** (не в `api/lib/`!) — общий код CORS/auth/BYOK/rate-limit/usage tracking, готов к переиспользованию в других AI-endpoints.
+- **Коммиты:** `0012100` (основная реализация), `2505b25` (move helper для соблюдения Vercel 12-fn лимита).
+- **Frontend:** `useBookAnswer` передаёт Authorization Bearer + X-Gemini-Api-Key, проверяет наличие ключа до запроса (показывает спец-ошибку с CTA в профиль). `GeminiKeySection` расширен пошаговой инструкцией «Как получить ключ» (4 шага, ссылка на aistudio.google.com/apikey, бесплатный лимит ~1500 RPD).
 
 ### HP‑1. Nightly интеграционные тесты (P: H, E: M)
 - [ ] Настроить GitHub Actions workflow, который раз в сутки поднимает Firebase эмуляторы (`npm run firebase:emulators:start`) и гоняет `npm run test:integration`.  
