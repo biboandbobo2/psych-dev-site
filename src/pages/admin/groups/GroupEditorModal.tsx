@@ -3,9 +3,12 @@ import {
   addGroupMembersByEmail,
   createGroup,
   deleteGroup,
+  setGroupFeaturedCourses,
   setGroupMembers,
   updateGroup,
 } from '../../../lib/adminFunctions';
+
+const MAX_FEATURED_COURSES = 3;
 import { useCourses } from '../../../hooks/useCourses';
 import { useAllUsers } from '../../../hooks/useAllUsers';
 import type { Group } from '../../../types/groups';
@@ -26,6 +29,7 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
   const [grantedCourses, setGrantedCourses] = useState<Set<string>>(() => new Set());
   const [memberIds, setMemberIds] = useState<Set<string>>(() => new Set());
   const [announcementAdminIds, setAnnouncementAdminIds] = useState<Set<string>>(() => new Set());
+  const [featuredCourseIds, setFeaturedCourseIds] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState('');
   const [inviteEmails, setInviteEmails] = useState('');
   const [inviting, setInviting] = useState(false);
@@ -44,6 +48,11 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
     setGrantedCourses(new Set(group?.grantedCourses ?? []));
     setMemberIds(new Set(group?.memberIds ?? []));
     setAnnouncementAdminIds(new Set(group?.announcementAdminIds ?? []));
+    setFeaturedCourseIds(
+      Array.isArray(group?.featuredCourseIds)
+        ? group!.featuredCourseIds!.slice(0, MAX_FEATURED_COURSES)
+        : []
+    );
     setMemberSearch('');
     setInviteEmails('');
     setInviteNotice(null);
@@ -91,6 +100,7 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
     setSaving(true);
     setError(null);
     try {
+      let targetGroupId: string;
       if (isEdit && group) {
         await updateGroup({
           groupId: group.id,
@@ -100,15 +110,23 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
           announcementAdminIds: Array.from(announcementAdminIds),
         });
         await setGroupMembers({ groupId: group.id, memberIds: Array.from(memberIds) });
+        targetGroupId = group.id;
       } else {
-        await createGroup({
+        const created = await createGroup({
           name,
           description: description || undefined,
           memberIds: Array.from(memberIds),
           grantedCourses: Array.from(grantedCourses),
           announcementAdminIds: Array.from(announcementAdminIds),
         });
+        targetGroupId = created.groupId;
       }
+      // featuredCourseIds сохраняются отдельным callable: используется
+      // в обоих режимах, чтобы не путать схему updateGroup.
+      await setGroupFeaturedCourses({
+        groupId: targetGroupId,
+        courseIds: featuredCourseIds,
+      });
       onSuccess();
       onClose();
     } catch (err) {
@@ -117,6 +135,16 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
     } finally {
       setSaving(false);
     }
+  };
+
+  const toggleFeaturedCourse = (courseId: string) => {
+    setFeaturedCourseIds((prev) => {
+      if (prev.includes(courseId)) {
+        return prev.filter((id) => id !== courseId);
+      }
+      if (prev.length >= MAX_FEATURED_COURSES) return prev;
+      return [...prev, courseId];
+    });
   };
 
   const handleInvite = async () => {
@@ -234,6 +262,48 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
                     </label>
                   </li>
                 ))}
+              </ul>
+            )}
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Актуальные курсы ({featuredCourseIds.length}/{MAX_FEATURED_COURSES})
+            </legend>
+            <p className="text-xs text-gray-500">
+              Эти курсы будут показаны как актуальные у студентов группы. Если студент сам
+              выбрал актуальные курсы в профиле — приоритет у его выбора.
+            </p>
+            {coursesLoading ? (
+              <div className="text-sm text-gray-500">Загрузка…</div>
+            ) : (
+              <ul className="grid grid-cols-1 gap-1 rounded-md border border-gray-200 p-2 sm:grid-cols-2">
+                {sortedCourses.map((c) => {
+                  const checked = featuredCourseIds.includes(c.id);
+                  const limitReached =
+                    !checked && featuredCourseIds.length >= MAX_FEATURED_COURSES;
+                  return (
+                    <li key={c.id}>
+                      <label
+                        className={`flex items-center gap-2 rounded px-2 py-1 ${
+                          limitReached
+                            ? 'cursor-not-allowed opacity-50'
+                            : 'cursor-pointer hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleFeaturedCourse(c.id)}
+                          disabled={saving || limitReached}
+                        />
+                        <span className="text-sm">
+                          {c.icon} {c.name}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </fieldset>
