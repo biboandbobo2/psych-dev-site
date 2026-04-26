@@ -39,6 +39,19 @@ export interface CourseAccessMap {
 }
 
 /**
+ * Пользовательские настройки (хранятся в users/{uid}.prefs).
+ * Все поля опциональные — отсутствие = поведение по умолчанию.
+ */
+export interface UserPreferences {
+  /**
+   * Получать ли email-подтверждения о бронировании кабинетов в DOM.
+   * undefined / true → отправляем (alteg.io notify_by_email).
+   * false → пропускаем рассылку.
+   */
+  emailBookingConfirmations?: boolean;
+}
+
+/**
  * Запись пользователя в Firestore (коллекция users)
  */
 export interface UserRecord {
@@ -66,6 +79,8 @@ export interface UserRecord {
   demotedAt?: Timestamp;
   /** Кем был понижен */
   demotedBy?: string;
+  /** Пользовательские настройки (notification preferences и т.п.). */
+  prefs?: UserPreferences;
 }
 
 /**

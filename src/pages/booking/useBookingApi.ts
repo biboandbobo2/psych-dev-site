@@ -3,6 +3,7 @@ import { debugLog, debugError } from '../../lib/debug';
 import type { Room, TimeSlot, BookingResult } from './types';
 import { ROOMS, DURATION_OPTIONS } from './types';
 import { BOOKING_UTC_OFFSET } from '../../lib/bookingCancellation';
+import { auth } from '../../lib/firebase';
 
 const DEFAULT_SERVICE_ID = DURATION_OPTIONS[0].serviceId;
 
@@ -200,10 +201,21 @@ export function useBooking() {
         throw new Error(checkResult.error || 'Выбранное время уже занято');
       }
 
-      // Book
+      // Book — пробрасываем Firebase ID token, чтобы сервер мог уважить
+      // users/{uid}.prefs.emailBookingConfirmations при отправке alteg.io email.
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          headers.Authorization = `Bearer ${token}`;
+        } catch (err) {
+          debugError('[Booking] Failed to attach auth token, continuing anonymously', err);
+        }
+      }
       const result = await fetch('/api/booking', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           action: 'book',
           appointments: appointments.map(({ id, ...rest }) => rest),

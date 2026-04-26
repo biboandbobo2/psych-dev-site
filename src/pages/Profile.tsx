@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { SuperAdminBadge } from '../components/SuperAdminBadge';
-import { GeminiKeySection, SearchHistorySection } from '../components/profile';
+import { GeminiKeySection, SearchHistorySection, EmailPreferencesSection } from '../components/profile';
 import { FeedbackButton } from '../components/FeedbackModal';
 import { useAuth } from '../auth/AuthProvider';
 import { triggerHaptic } from '../lib/haptics';
@@ -139,6 +139,8 @@ export default function Profile() {
       <FeedbackButton variant="profile" />
 
       {user && <SearchHistorySection />}
+
+      {user && <EmailPreferencesSection />}
 
       {user && <GeminiKeySection />}
     </div>

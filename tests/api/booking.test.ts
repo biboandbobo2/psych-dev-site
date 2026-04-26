@@ -629,4 +629,63 @@ describe('api/booking — check & book', () => {
     expect(sentBody.email).toBe('');
     expect(sentBody.comment).toBe('');
   });
+
+  it('book НЕ отправляет notify_by_email если у пользователя prefs.emailBookingConfirmations=false', async () => {
+    adminMocks.verifyIdToken.mockResolvedValue({ uid: 'user-optout', email: 'opt@example.com' });
+    adminMocks.userGet.mockResolvedValue({
+      data: () => ({
+        email: 'opt@example.com',
+        prefs: { emailBookingConfirmations: false },
+      }),
+    });
+    adminMocks.fetch.mockResolvedValueOnce(successResponse([
+      { id: 1, record_id: 1, record_hash: 'h' },
+    ]));
+
+    const req = mockReq({
+      headers: { authorization: 'Bearer token-optout', 'content-type': 'application/json' },
+      body: {
+        action: 'book',
+        appointments: [
+          { staffId: 3012185, serviceId: 12334505, datetime: '2026-04-20T14:00:00+04:00' },
+        ],
+        name: 'Opt Out',
+        phone: '+995500000000',
+      },
+    });
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    const sentBody = JSON.parse(adminMocks.fetch.mock.calls[0][1].body);
+    expect(sentBody).not.toHaveProperty('notify_by_email');
+  });
+
+  it('book отправляет notify_by_email=24 для авторизованного пользователя без opt-out', async () => {
+    adminMocks.verifyIdToken.mockResolvedValue({ uid: 'user-default', email: 'def@example.com' });
+    adminMocks.userGet.mockResolvedValue({
+      data: () => ({ email: 'def@example.com' }),
+    });
+    adminMocks.fetch.mockResolvedValueOnce(successResponse([
+      { id: 1, record_id: 1, record_hash: 'h' },
+    ]));
+
+    const req = mockReq({
+      headers: { authorization: 'Bearer token-def', 'content-type': 'application/json' },
+      body: {
+        action: 'book',
+        appointments: [
+          { staffId: 3012185, serviceId: 12334505, datetime: '2026-04-20T14:00:00+04:00' },
+        ],
+        name: 'Default User',
+        phone: '+995500000001',
+      },
+    });
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    const sentBody = JSON.parse(adminMocks.fetch.mock.calls[0][1].body);
+    expect(sentBody.notify_by_email).toBe(24);
+  });
 });
