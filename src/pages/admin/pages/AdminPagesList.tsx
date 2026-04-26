@@ -7,6 +7,22 @@ import { CreateProjectModal } from './CreateProjectModal';
 
 const CARD_CLASS =
   'block rounded-2xl border border-[#DDE5EE] bg-white p-4 transition hover:border-[#2F6DB5] hover:bg-[#F4F9FF]';
+const STATIC_CARD_CLASS =
+  'block rounded-2xl border border-dashed border-[#DDE5EE] bg-[#FAFBFD] p-4 transition hover:bg-white';
+
+interface StaticProject {
+  title: string;
+  url: string;
+  note: string;
+}
+
+const STATIC_PROJECTS: StaticProject[] = [
+  {
+    title: 'Тёплые ключи 2',
+    url: '/warm_springs2',
+    note: 'Статическая страница — собрана не через шаблон ProjectPage, в админке не редактируется.',
+  },
+];
 
 export default function AdminPagesList() {
   const navigate = useNavigate();
@@ -64,10 +80,6 @@ export default function AdminPagesList() {
           <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
             {projects.error}
           </p>
-        ) : projects.items.length === 0 ? (
-          <p className="text-sm text-[#8A97AB]">
-            Пока нет проектов. Нажмите «+ Новый проект» чтобы создать.
-          </p>
         ) : (
           <ul className="space-y-2">
             {projects.items.map((item) => (
@@ -85,6 +97,36 @@ export default function AdminPagesList() {
                 </Link>
               </li>
             ))}
+            {STATIC_PROJECTS.map((item) => (
+              <li key={item.url}>
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={STATIC_CARD_CLASS}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-[#2C3E50]">
+                        {item.title}{' '}
+                        <span className="ml-1 rounded bg-[#EEF2F7] px-1.5 py-0.5 text-xs font-normal text-[#556476]">
+                          без редактирования
+                        </span>
+                      </div>
+                      <div className="text-xs text-[#556476]">
+                        <span className="font-mono">{item.url}</span> — {item.note}
+                      </div>
+                    </div>
+                    <span className="text-sm text-[#8A97AB]">↗</span>
+                  </div>
+                </a>
+              </li>
+            ))}
+            {projects.items.length === 0 ? (
+              <li className="text-sm text-[#8A97AB]">
+                Динамических проектов ещё нет. Нажмите «+ Новый проект» чтобы создать.
+              </li>
+            ) : null}
           </ul>
         )}
       </section>

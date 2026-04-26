@@ -30,8 +30,9 @@
 | `/homepage` | `Navigate → /home` | Legacy-URL, сохранён для совместимости с внешними ссылками. |
 | `/profile` | `Profile` | Страница настроек/идентичности: аватар, роль, обратная связь, история поиска, Gemini API ключ (BYOK). |
 | `/features` | `FeaturesPage` | Обзор возможностей платформы (курсы, тесты, заметки, таймлайн, поиск, бронирование). |
-| `/about` | `AboutPage` | О проекте DOM Academy (Development Of Mind): миссия и раздел партнёров. |
-| `/warm_springs2` | `WarmSprings2Page` | Лендинг интенсива по групповой психотерапии «Тёплые ключи» (Тбилиси, июль 2026). |
+| `/about` | `AboutPage` | О проекте DOM Academy (Development Of Mind): 6 вкладок (проект/команды/история/офлайн-центр/партнёры). Контент в `pages/about`, fallback на хардкод. |
+| `/projects/:slug` | `DynamicProjectPage` | Страница проекта академии. Контент в `projectPages/{slug}`, fallback на хардкод-словарь (`dom-academy-overview`). |
+| `/warm_springs2` | `WarmSprings2Page` | Лендинг интенсива по групповой психотерапии «Тёплые ключи» (Тбилиси, июль 2026). Статическая, не редактируется через `/superadmin/pages`. |
 | `/login` | `Login` | Страница входа (eager load, не через lazy.ts). |
 
 **Вводные страницы курсов:**
@@ -235,6 +236,9 @@
 | `/admin/topics` | `AdminTopics` | Admin | Управление темами для заметок | ✅ |
 | `/admin/books` | `AdminBooks` | Admin | Управление книгами для RAG-поиска | ✅ |
 | `/admin/homepage` | `AdminHomePage` | Admin | Редактор главной страницы | ✅ |
+| `/superadmin/pages` | `AdminPagesList` | Super Admin | Список редактируемых статических страниц (`/about` + проекты) | ✅ |
+| `/superadmin/pages/about` | `AboutPageEditor` | Super Admin | Редактор `pages/about` — 6 фиксированных вкладок | ✅ |
+| `/superadmin/pages/projects/:slug` | `ProjectPageEditor` | Super Admin | Редактор `projectPages/{slug}` (создание/редактирование/удаление) | ✅ |
 
 ---
 
