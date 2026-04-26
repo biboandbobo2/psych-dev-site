@@ -4,25 +4,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { SITE_NAME } from '../../../routes';
 import { useProjectsList } from './useProjectsList';
 import { CreateProjectModal } from './CreateProjectModal';
+import { STATIC_PROJECTS } from '../../projects/staticProjects';
 
 const CARD_CLASS =
   'block rounded-2xl border border-[#DDE5EE] bg-white p-4 transition hover:border-[#2F6DB5] hover:bg-[#F4F9FF]';
 const STATIC_CARD_CLASS =
   'block rounded-2xl border border-dashed border-[#DDE5EE] bg-[#FAFBFD] p-4 transition hover:bg-white';
-
-interface StaticProject {
-  title: string;
-  url: string;
-  note: string;
-}
-
-const STATIC_PROJECTS: StaticProject[] = [
-  {
-    title: 'Тёплые ключи 2',
-    url: '/warm_springs2',
-    note: 'Статическая страница — собрана не через шаблон ProjectPage, в админке не редактируется.',
-  },
-];
 
 export default function AdminPagesList() {
   const navigate = useNavigate();
@@ -114,7 +101,7 @@ export default function AdminPagesList() {
                         </span>
                       </div>
                       <div className="text-xs text-[#556476]">
-                        <span className="font-mono">{item.url}</span> — {item.note}
+                        <span className="font-mono">{item.url}</span> — {item.adminNote}
                       </div>
                     </div>
                     <span className="text-sm text-[#8A97AB]">↗</span>

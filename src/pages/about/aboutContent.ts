@@ -41,7 +41,22 @@ export interface AboutPartnersTab extends AboutTabBase {
   intro: string;
 }
 
-export type AboutTab = AboutTextTab | AboutPlaceholderTab | AboutOfflineTab | AboutPartnersTab;
+/**
+ * Системная вкладка: список карточек проектов академии.
+ * Контент собирается автоматически из `projectPages/*` + статического каталога,
+ * через UI редактора напрямую не редактируется (только intro над списком).
+ */
+export interface AboutProjectsTab extends AboutTabBase {
+  kind: 'projects';
+  intro: string;
+}
+
+export type AboutTab =
+  | AboutTextTab
+  | AboutPlaceholderTab
+  | AboutOfflineTab
+  | AboutPartnersTab
+  | AboutProjectsTab;
 
 export const ABOUT_TABS: AboutTab[] = [
   {
@@ -93,6 +108,13 @@ export const ABOUT_TABS: AboutTab[] = [
     kind: 'placeholder',
     intro: 'Как появилась платформа и как она развивалась.',
     note: 'Информация скоро появится.',
+  },
+  {
+    id: 'projects',
+    label: 'Проекты академии',
+    kind: 'projects',
+    intro:
+      'Отдельные проекты и направления внутри академии. Каждая карточка ведёт на страницу проекта.',
   },
   {
     id: 'offline',

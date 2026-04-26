@@ -4,6 +4,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { type AboutTab } from './aboutContent';
 import type { Partner } from './partnersContent';
 import { useAboutPageContent } from '../../hooks/useAboutPageContent';
+import { useProjectsList } from '../admin/pages/useProjectsList';
+import { STATIC_PROJECTS } from '../projects/staticProjects';
 
 const TAB_QUERY_KEY = 'tab';
 
@@ -75,6 +77,55 @@ function OfflineTab({ tab }: { tab: Extract<AboutTab, { kind: 'offline' }> }) {
   );
 }
 
+function ProjectsTab({ tab }: { tab: Extract<AboutTab, { kind: 'projects' }> }) {
+  const { items, loading, error } = useProjectsList();
+
+  return (
+    <div className="space-y-5">
+      <p className="text-base text-fg/90">{tab.intro}</p>
+      {loading ? (
+        <p className="text-sm text-muted">Загружаем…</p>
+      ) : error ? (
+        <p className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          {error}
+        </p>
+      ) : null}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {items.map((item) => (
+          <Link
+            key={`dyn-${item.slug}`}
+            to={`/projects/${item.slug}`}
+            className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-brand transition hover:bg-card2"
+          >
+            <h3 className="text-lg font-semibold text-fg">{item.title}</h3>
+            <span className="mt-auto pt-3 text-sm font-semibold text-accent">
+              Подробнее →
+            </span>
+          </Link>
+        ))}
+        {STATIC_PROJECTS.map((item) => (
+          <Link
+            key={`static-${item.url}`}
+            to={item.url}
+            className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-brand transition hover:bg-card2"
+          >
+            <h3 className="text-lg font-semibold text-fg">{item.title}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-fg/85">{item.summary}</p>
+            <span className="mt-auto pt-3 text-sm font-semibold text-accent">
+              Подробнее →
+            </span>
+          </Link>
+        ))}
+      </div>
+      {!loading && !error && items.length === 0 && STATIC_PROJECTS.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-border bg-card2 px-5 py-6 text-sm text-muted">
+          Проекты пока не добавлены.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function PartnersTab({
   tab,
   partners,
@@ -124,6 +175,8 @@ function TabContent({ tab, partners }: { tab: AboutTab; partners: Partner[] }) {
       return <OfflineTab tab={tab} />;
     case 'partners':
       return <PartnersTab tab={tab} partners={partners} />;
+    case 'projects':
+      return <ProjectsTab tab={tab} />;
   }
 }
 

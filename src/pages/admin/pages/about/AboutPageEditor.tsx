@@ -8,6 +8,7 @@ import { TextTabEditor } from './TextTabEditor';
 import { PlaceholderTabEditor } from './PlaceholderTabEditor';
 import { OfflineTabEditor } from './OfflineTabEditor';
 import { PartnersTabEditor } from './PartnersTabEditor';
+import { ProjectsTabEditor } from './ProjectsTabEditor';
 
 export default function AboutPageEditor() {
   const editor = useAboutPageEditor();
@@ -58,6 +59,13 @@ export default function AboutPageEditor() {
             partners={editor.form.partners}
             onTabChange={(patch) => editor.updateTab(activeIndex, patch)}
             onPartnersChange={editor.setPartners}
+          />
+        );
+      case 'projects':
+        return (
+          <ProjectsTabEditor
+            tab={activeTab}
+            onChange={(patch) => editor.updateTab(activeIndex, patch)}
           />
         );
     }
