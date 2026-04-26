@@ -31,6 +31,8 @@ import {
   PaletteDebug,
   HomeV2Debug,
   WarmSprings2Page,
+  AboutPage,
+  DomAcademyOverviewPage,
   BookingSectionLayout,
   BookingPage,
   BookingAccountPage,
@@ -73,6 +75,8 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route path="/features" element={<FeaturesPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/warm_springs2" element={<WarmSprings2Page />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/projects/dom-academy-overview" element={<DomAcademyOverviewPage />} />
         <Route path="/booking" element={<BookingSectionLayout />}>
           <Route index element={<BookingPage />} />
           <Route path="account" element={<BookingAccountPage embedded />} />
