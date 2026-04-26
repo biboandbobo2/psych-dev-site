@@ -110,6 +110,29 @@ describe('onUserCreate', () => {
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('user-123', { role: 'guest' });
   });
 
+  it('adds new user to everyone broadcast group via arrayUnion', async () => {
+    mockGet.mockResolvedValue({ exists: false });
+
+    await (onUserCreate as Function)(makeUser());
+
+    // Первый update — на документ groups/everyone с memberIds: arrayUnion(uid).
+    // После него могут быть update'ы по pending→real uid (их в этом сценарии нет,
+    // т.к. mockWhere возвращает пустые снимки).
+    expect(mockDoc).toHaveBeenCalledWith('everyone');
+    const everyoneCall = mockUpdate.mock.calls.find((call) => {
+      const payload = call[0];
+      return (
+        payload &&
+        typeof payload === 'object' &&
+        'memberIds' in payload &&
+        payload.memberIds?._type === 'arrayUnion' &&
+        Array.isArray(payload.memberIds.args) &&
+        payload.memberIds.args.includes('user-123')
+      );
+    });
+    expect(everyoneCall).toBeDefined();
+  });
+
   it('assigns super-admin role for super-admin email', async () => {
     mockGet.mockResolvedValue({ exists: false });
 

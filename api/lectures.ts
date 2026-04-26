@@ -20,6 +20,7 @@ import {
   compareLectureOrder,
   groupLectureSourcesByCourse,
 } from './lib/lectureCourseConfig.js';
+import { recordByokUsage } from '../src/lib/api-server/sharedApiRuntime.js';
 
 export { getLectureApiAllowedOrigin, tryParseLectureGeminiJson } from './lib/lectureApiRuntime.js';
 export { groupLectureSourcesByCourse } from './lib/lectureCourseConfig.js';
@@ -524,13 +525,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (action === 'search') {
+      const apiKey = resolveLectureGeminiApiKey(req);
+      if (!apiKey) {
+        res.status(402).json({
+          ok: false,
+          error: 'Подключите свой Gemini API ключ в профиле — он бесплатный.',
+          code: 'BYOK_REQUIRED',
+        });
+        return;
+      }
       const startedAt = Date.now();
       const { matches, sources } = await retrieveLectureMatches(
         db,
         validation.value,
         'hybrid',
-        resolveLectureGeminiApiKey(req)
+        apiKey
       );
+
+      void recordByokUsage({
+        uid: authResult.uid,
+        action: 'lectures:search',
+        tokens: Math.ceil(validation.value.query.length / 4),
+        firestore: db,
+      });
 
       const results = matches.map((match) => ({
         chunkId: match.id,
@@ -558,8 +575,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (action === 'answer') {
-      const startedAt = Date.now();
       const apiKey = resolveLectureGeminiApiKey(req);
+      if (!apiKey) {
+        res.status(402).json({
+          ok: false,
+          error: 'Подключите свой Gemini API ключ в профиле — он бесплатный.',
+          code: 'BYOK_REQUIRED',
+        });
+        return;
+      }
+      const startedAt = Date.now();
       const { matches, sources } = await retrieveLectureMatches(db, validation.value, 'vector-only', apiKey);
 
       if (!sources.length) {
@@ -594,6 +619,13 @@ ${matches.map(buildLectureContext).join('\n\n')}
         model: 'gemini-2.5-flash-lite',
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: { maxOutputTokens: 4000, temperature: 0.3 },
+      });
+
+      void recordByokUsage({
+        uid: authResult.uid,
+        action: 'lectures:answer',
+        tokens: result.usageMetadata?.totalTokenCount ?? 0,
+        firestore: db,
       });
 
       const rawText = result.text || '';

@@ -39,6 +39,19 @@ export interface CourseAccessMap {
 }
 
 /**
+ * Пользовательские настройки (хранятся в users/{uid}.prefs).
+ * Все поля опциональные — отсутствие = поведение по умолчанию.
+ */
+export interface UserPreferences {
+  /**
+   * Получать ли email-подтверждения о бронировании кабинетов в DOM.
+   * undefined / true → отправляем (alteg.io notify_by_email).
+   * false → пропускаем рассылку.
+   */
+  emailBookingConfirmations?: boolean;
+}
+
+/**
  * Запись пользователя в Firestore (коллекция users)
  */
 export interface UserRecord {
@@ -56,6 +69,12 @@ export interface UserRecord {
   adminEditableCourses?: string[];
   /** Гранулярный доступ к курсам */
   courseAccess?: CourseAccessMap;
+  /**
+   * Курсы, которые сам пользователь выбрал как «актуальные» для себя.
+   * Если непустой — имеет приоритет над featuredCourseIds группы при
+   * формировании continue-cards на /home. Максимум 3 элемента.
+   */
+  featuredCourseIds?: string[];
   createdAt: Timestamp | null;
   lastLoginAt: Timestamp | null;
   /** Когда был повышен в роли */
@@ -66,6 +85,8 @@ export interface UserRecord {
   demotedAt?: Timestamp;
   /** Кем был понижен */
   demotedBy?: string;
+  /** Пользовательские настройки (notification preferences и т.п.). */
+  prefs?: UserPreferences;
 }
 
 /**

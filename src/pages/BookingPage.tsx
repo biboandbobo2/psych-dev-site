@@ -242,8 +242,8 @@ export function BookingPage({ embedded = false, onBookingStepChange }: BookingPa
   const content = (
     <>
       <Helmet>
-        <title>Бронирование кабинетов — Психологический центр ДОМ</title>
-        <meta name="description" content="Забронируйте кабинет в психологическом центре ДОМ для консультаций, тренингов и мероприятий." />
+        <title>Бронирование кабинетов — Психологический центр DOM</title>
+        <meta name="description" content="Забронируйте кабинет в психологическом центре DOM для консультаций, тренингов и мероприятий." />
       </Helmet>
 
       {bookingResults ? (

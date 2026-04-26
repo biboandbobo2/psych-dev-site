@@ -23,13 +23,18 @@ import {
   ResearchPage,
   DynamicPeriodPage,
   FeaturesPage,
+  AboutPage,
   CourseIntroPage,
   AdminCourseIntro,
   AdminAnnouncements,
   AdminGroups,
+  AdminPagesList,
+  AdminAboutPageEditor,
+  AdminProjectPageEditor,
   PaletteDebug,
   HomeV2Debug,
   WarmSprings2Page,
+  DynamicProjectPage,
   BookingSectionLayout,
   BookingPage,
   BookingAccountPage,
@@ -70,7 +75,9 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route path="/home" element={<HomePage />} />
         <Route path="/homepage" element={<Navigate to="/home" replace />} />
         <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/warm_springs2" element={<WarmSprings2Page />} />
+        <Route path="/projects/:slug" element={<DynamicProjectPage />} />
         <Route path="/booking" element={<BookingSectionLayout />}>
           <Route index element={<BookingPage />} />
           <Route path="account" element={<BookingAccountPage embedded />} />
@@ -139,6 +146,30 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           element={
             <RequireAdmin>
               <AdminGroups />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/superadmin/pages"
+          element={
+            <RequireAdmin>
+              {isSuperAdmin ? <AdminPagesList /> : <Navigate to="/admin/content" replace />}
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/superadmin/pages/about"
+          element={
+            <RequireAdmin>
+              {isSuperAdmin ? <AdminAboutPageEditor /> : <Navigate to="/admin/content" replace />}
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/superadmin/pages/projects/:slug"
+          element={
+            <RequireAdmin>
+              {isSuperAdmin ? <AdminProjectPageEditor /> : <Navigate to="/admin/content" replace />}
             </RequireAdmin>
           }
         />

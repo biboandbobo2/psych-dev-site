@@ -10,7 +10,7 @@
 | HP-1 | H (M) | Nightly интеграционные тесты (Firebase) | GH Actions job + артефакты прогонов |
 | HP-2 | H (L) | Расширенное Playwright покрытие | Seed-данные, full auth flow, stress-тесты, отчётность |
 | HP-3 | ✅ | Remediate container image vulnerabilities | NPM HIGH закрыты (2026-02-06), Go stdlib — buildpack-level |
-| HR-1 | H (M) | Защита `/api/books` | auth/quota contract, rate limit, restricted CORS, security tests |
+| HR-1 | ✅ | Защита `/api/books` | Закрыта волной 6 (2026-04-26): strict BYOK без env fallback, auth Bearer на search/answer, public только list/snippet с rate-limit, CORS allowlist через appOrigins. Плюс счётчик BYOK-usage в профиле через aiUsageDaily/{uid}_{day}. |
 | MP-1 | ✅ | Изоляция бизнес-логики Timeline (lazy-hooks) | Хуки вынесены в `src/pages/timeline/hooks/`, чанк `timeline-hooks` в vite.config.js (2026-04) |
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
@@ -38,21 +38,29 @@
 | BR-5 | M (M) | Объяснения из книг после тестов | Кнопка "Узнать подробнее" при ошибке |
 | BR-6 | M (M) | Семантический поиск по контенту | RAG для курсов (расширение Book RAG) |
 | BR-7 | M (L) | Персональные книги пользователей | Свои PDF у студента (как заметки/таймлайн), privacy/quota, upload+ingestion, UI в Profile |
-| AD-1 | M (M-L) | Admin events UX v2: редактирование + календарь-центричный CRUD | Кнопка «Редактировать» на карточках (минимум), затем календарь-grid как основной вход, список снизу с фильтром — похоже на Google Calendar |
+| AD-1 | ✅ | Admin events UX v2: edit modals + calendar grid + week view + search | Закрыт волной 5 (2026-04-26): /admin/announcements целиком переписан под Google-Calendar-style UX. Edit modals с GCal lastWriteSource fix (5.1), монт-grid + filtered list (5.2), week view + search + multi-group color-coding (5.3). 55 unit-тестов в 8 файлах. |
+| AD-2 | ✅ | Admin-редактор страницы `/about` | Закрыт волной HM-3: контент `/about` в `pages/about`, редактор `/superadmin/pages/about` (2026-04-26) |
+| HM-1 | ✅ | Continue-cards: настройка «актуальных» курсов | Поля `featuredCourseIds` у `groups/{id}` и `users/{id}` (max 3), волна 3 |
+| HM-2 | ✅ | `/about` → вкладочная структура + страницы проектов | 6 вкладок, шаблон `<ProjectPage>` (волна 3) |
+| HM-3 | ✅ | Супер-админский редактор статических страниц | `/superadmin/pages` + редакторы `/about` и `projectPages/{slug}` через client SDK + rules (2026-04-26) |
+| HM-4 | L (S) | Чекбокс «не присылать email о бронях кабинетов» | Профиль студента → флаг → Cloud Function рассылки уважает флаг при подтверждении броней |
+| HM-5 | L (S) | Vite dev overlay на `/booking`: «Cannot find module bookingCancellation.js» | Пред-существующая проблема (импорт в `api/booking.ts` появился в `8c53242`); прод-сборка работает, ломается только dev ESM-резолвер. Поправить vite/api dev-конфиг или alias |
 
 ---
 
 ## 🔴 High Priority
 
-### HR‑1. Защита `/api/books` (P: H, E: M)
-- **Проблема:** `api/books.ts` остаётся публичным AI endpoint с `Access-Control-Allow-Origin: *`, без auth, quota-contract и rate limiting для `search` / `answer`.
-- **Риск:** любой origin может дёргать embeddings/Gemini-path, что создаёт риск злоупотребления, роста расходов и расхождения с уже усиленной моделью безопасности `/api/lectures`.
-- **Подтверждение:** review `2026-03-12`, см. `docs/reports/CODE_REVIEW_2026-03-12.md`.
-- **Задачи:**
-  - [ ] Зафиксировать явный access model: authenticated-only или anonymous quota contract.
-  - [ ] Ограничить CORS allowlist вместо `*`.
-  - [ ] Добавить rate limit / abuse guard для дорогостоящих веток.
-  - [ ] Покрыть auth/CORS/rate-limit поведение тестами в `api/books.test.ts`.
+### HR‑1. ✅ Защита `/api/books` — РЕШЕНО (волна 6, 2026-04-26)
+- **Решение:** `list` / `snippet` остались публичными (read-only из Firestore), но получили rate-limit 60 req/min на IP. `search` / `answer` теперь требуют:
+  - Firebase Bearer ID token в заголовке Authorization (`verifyAuthBearer`).
+  - **Strict BYOK Gemini ключ** через `X-Gemini-Api-Key` (`requireBYOKGeminiKey` без env fallback). Если ключа нет — `402 BYOK_REQUIRED` с подсказкой подключить ключ в профиле.
+  - Rate-limit 20 req/min на IP.
+  - CORS allowlist через `src/lib/appOrigins.ts` (academydom.com, vercel preview, localhost) — больше нет `Access-Control-Allow-Origin: *`.
+- **Прод-ключ из env** удалён из user-facing path в `/api/books`. Singleton `genaiClient` убран; каждый запрос идёт под BYOK ключ. `GEMINI_API_KEY` в env остаётся только для server-side admin-функций (формирование новостей, ingestion, скрипты).
+- **Бонус:** счётчик BYOK-usage в профиле. После каждого успешного search/answer записывается `aiUsageDaily/{uid}_{day}` с tokens (из `usageMetadata.totalTokenCount`) и requests. На `/profile` блок «Использование сегодня» показывает: «N / 1500 запросов» + «X токенов (оценка)». Read разрешён только владельцу через Firestore rules.
+- **Helper в `src/lib/api-server/sharedApiRuntime.ts`** (не в `api/lib/`!) — общий код CORS/auth/BYOK/rate-limit/usage tracking, готов к переиспользованию в других AI-endpoints.
+- **Коммиты:** `0012100` (основная реализация), `2505b25` (move helper для соблюдения Vercel 12-fn лимита).
+- **Frontend:** `useBookAnswer` передаёт Authorization Bearer + X-Gemini-Api-Key, проверяет наличие ключа до запроса (показывает спец-ошибку с CTA в профиль). `GeminiKeySection` расширен пошаговой инструкцией «Как получить ключ» (4 шага, ссылка на aistudio.google.com/apikey, бесплатный лимит ~1500 RPD).
 
 ### HP‑1. Nightly интеграционные тесты (P: H, E: M)
 - [ ] Настроить GitHub Actions workflow, который раз в сутки поднимает Firebase эмуляторы (`npm run firebase:emulators:start`) и гоняет `npm run test:integration`.  
@@ -178,6 +186,72 @@
   - При edit event'а с `lastWriteSource='gcal'` нужно ставить `lastWriteSource='firestore'`, чтобы `onGroupEventWrite` триггернул export в GCal.
   - Booking (`WeekSchedule`) — неподходящий референс по коду: заточен под timeslot-grid кабинетов. Как визуальный образец — ок.
   - Events уже имеют `startAt`/`endAt` (точные) после BR-9 — сетку строить из них, а не из `dateLabel` regex.
+
+### AD‑2. Admin-редактор страницы `/about` (P: M, E: M)
+- **Проблема:** Сейчас контент страницы `/about` (миссия проекта + список партнёров) хранится хардкодом в `src/pages/AboutPage.tsx` — массивы `MISSION_PARAGRAPHS` и `PARTNERS`. Чтобы изменить текст или добавить нового партнёра, нужен релиз. По мере роста числа партнёров и обновлений миссии — это станет узким местом.
+- **Идея:** перевести контент `/about` в Firestore (документ `pages/about` с полями `mission: string[]`, `partners: Partner[]`), а в супер-админке добавить редактор по образцу того, что используется для страниц «О курсе» (sections-формат, multi-paragraph редактирование). На фронтенде `/about` читает данные из Firestore, fallback — текущие константы.
+- **Объём:**
+  - Firestore: документ `pages/about`, миграционный скрипт для первичного заполнения текущим черновиком.
+  - Backend: Cloud Function или прямые правила доступа (super-admin only на запись).
+  - Client: хук `useAboutPageContent`, рефакторинг `AboutPage.tsx` на чтение из хука с fallback на константы.
+  - Admin UI: страница `/admin/about-editor` (или встроенный редактор в существующей структуре админки) — переиспользует компоненты редактора курсовых страниц.
+- **Что помнить:**
+  - Посмотреть `docs/guides/multi-course.md` и реализацию редактора страниц «О курсе» — структура sections-формата, save/load паттерн.
+  - В Firestore rules — write только для super-admin, read — публичный (страница `/about` доступна гостям).
+  - Раздел партнёров уже спроектирован массивом `{ name, description, url?, logo? }` — миграция в Firestore прямолинейна.
+  - При rollout — оставить fallback на хардкод (если документ ещё не создан).
+
+### HM‑1. Continue-cards: настройка «актуальных» курсов (P: M, E: S)
+- **Проблема:** Сейчас в блоке «продолжить курс» на `/home` показываются первые 2 курса из `useCourses()` без учёта реального фокуса студента. По мере роста каталога это перестаёт отражать «что я сейчас читаю».
+- **Идея:**
+  - Поле `featuredCourseIds: string[]` (max 3) в Firestore у `groups/{id}` и у `users/{id}`.
+  - Логика выбора continue-cards (`primaryContinueCourses` в `HomeDashboard.tsx`):
+    1. `users/{me}.featuredCourseIds` — приоритет 1.
+    2. Иначе `groups/{myGroup}.featuredCourseIds`.
+    3. Иначе — последний просмотренный курс (метка last-watched сохраняется всегда, даже если курс не «актуальный»).
+    4. Иначе (нет просмотров и нет настроек) — текстовый блок-заглушка с CTA «Выберите актуальные курсы в профиле».
+- **UI:**
+  - Админка группы — мульти-селект курсов «Актуальные курсы группы» (max 3).
+  - Профиль студента — мульти-селект курсов «Мои актуальные курсы» (max 3).
+- **Что помнить:**
+  - «Открытый» и «актуальный» — разные понятия. Открытые — на что есть доступ. Актуальные — что сейчас активно проходит.
+  - Лимит карточек 3 уже выставлен в `HomeDashboard.tsx`.
+
+### HM‑2. `/about` → вкладочная структура + страницы проектов (P: M, E: M)
+- **Проблема:** `/about` сейчас одна простыня (миссия + партнёры). Нужно расширить под несколько разделов и архитектурно подготовить страницы под отдельные проекты академии.
+- **Структура `/about` (вкладки на одной странице, раскрываются):**
+  1. Проект «Академия» — главное о проекте.
+  2. Команда сайта — кто разрабатывает платформу.
+  3. Команда академии — преподаватели и кураторы.
+  4. История сайта.
+  5. Партнёры — сводный список партнёрских центров и проектов.
+- **Страницы проектов академии:**
+  - Каждый проект академии — отдельная страница в стилистике сайта (фото + текст), как уже сделана `WarmSprings2Page` («Тёплые ключи»). Это не лендинг, а контентная страница.
+  - Нужен повторяемый шаблон, чтобы суперадмин (после HM‑3) мог быстро завести новый проект.
+- **Что помнить:**
+  - Не превращать страницы проектов в маркетинговые лендинги. Они часть сайта, в общей watercolor-палитре.
+  - Партнёры приходят со своих сайтов — текст соберём из их источников и перепишем в стиле сайта.
+
+### HM‑3. Супер-админский редактор статических страниц (P: M, E: L)
+- **Расширение AD‑2.** Вместо одного редактора `/about` — общий редактор для нескольких страниц: `/about` (с вкладками HM‑2), страницы проектов, страница партнёров.
+- **Идея:**
+  - Коллекция `pages/{pageId}` в Firestore. Каждая страница — sections-формат (как у курсов).
+  - В супер-админке — список страниц с быстрым переходом в редактор (по образцу того, как сделан редактор страниц «о курсе»).
+  - Заведение новой страницы проекта — кнопкой «Новый проект» в админке: создаёт документ + регистрирует маршрут.
+- **Что помнить:**
+  - В rollout — fallback на хардкод-контент пока документ не создан в Firestore.
+  - Firestore rules: write — только super-admin, read — публичный.
+
+### HM‑4. Чекбокс «не присылать email-подтверждения броней» (P: L, E: S)
+- **Проблема:** На каждое бронирование кабинета центра «Dom» прилетает отдельный email подтверждения. Постоянным клиентам это превращается в спам.
+- **Идея:** Чекбокс в профиле студента «Не присылать email-подтверждения броней». Cloud Function, рассылающая подтверждения, читает флаг и пропускает рассылку для пользователей с включённым флагом.
+- **Что не делать:** Не отключать другие email-уведомления (события групп, объявления) — только бронь.
+
+### HM‑5. Vite dev overlay на `/booking`: «Cannot find module bookingCancellation.js» (P: L, E: S)
+- **Симптом:** При открытии `/booking` на dev-сервере (`npm run dev`) поверх контента появляется красный overlay Vite с текстом «Cannot find module '/Users/.../src/lib/bookingCancellation.js' imported from .../api/booking.ts». Реальный контент за overlay рендерится корректно. На прод-сборке ошибки нет.
+- **Контекст:** Импорт `import { canCancelBooking } from '../src/lib/bookingCancellation.js'` в [api/booking.ts](api/booking.ts) появился в коммите `8c53242` (давно на main). Аналогичный по стилю импорт `appOrigins.js` из того же `src/lib/` работает без overlay — значит дело не в `.js`-расширении как таковом, а в node ESM-резолвере, которого касается `vite-config.js.timestamp-...`.
+- **Идея:** Поправить Vite/api dev-конфиг — либо алиасом, либо плагином/`resolveExtensions`. Возможно нужен SSR-friendly импорт или явная конфигурация в `vite.config.js` для api-роутов.
+- **Что помнить:** Не блокирует прод и не связан с волнами 1-2 (импорт вне их). Симптом найден при смоук-тесте Smoke A (2026-04-26).
 
 ### MP‑5. ✅ Исправление заглушки для clinical/general курсов - РЕШЕНО (2025-11-19)
 - **Проблема:** Заглушка показывалась даже когда `placeholder_enabled = false` если sections были пустыми

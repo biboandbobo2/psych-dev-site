@@ -303,7 +303,15 @@ export const toggleUserDisabled = functions.https.onCall(async (data, context) =
 export { onUserCreate } from './onUserCreate.js';
 export { migrateAdmins } from './migrateAdmins.js';
 export { makeUserAdmin, removeAdmin, setAdminEditableCourses } from './makeAdmin.js';
-export { createGroup, updateGroup, setGroupMembers, addGroupMembersByEmail, deleteGroup } from './groups.js';
+export {
+  createGroup,
+  updateGroup,
+  setGroupMembers,
+  addGroupMembersByEmail,
+  deleteGroup,
+  setGroupFeaturedCourses,
+} from './groups.js';
+export { setMyFeaturedCourses } from './users.js';
 export { ingestBook } from './ingestBook.js';
 export { ingestLectureRag } from './ingestLectureRag.js';
 export { runVerify, runReconcile } from './verify.js';
@@ -313,3 +321,4 @@ export { sendFeedback } from './sendFeedback.js';
 export { billingBudgetAlert } from './billingBudgetAlert.js';
 export { weeklyTranscriptRefresh } from './weeklyTranscriptRefresh.js';
 export { syncGroupCalendars, onGroupEventWrite } from './gcalSync.js';
+export { updateMyEmailPreferences } from './userPreferences.js';

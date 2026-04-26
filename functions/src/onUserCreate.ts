@@ -4,6 +4,7 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { debugLog, debugError } from "./lib/debug.js";
 import { SUPER_ADMIN_EMAIL, toPendingUid, extractCourseAccess } from "./lib/shared.js";
+import { EVERYONE_GROUP_ID } from "../../shared/groups/everyoneGroup.js";
 
 if (!getApps().length) {
   initializeApp({ credential: applicationDefault() });
@@ -112,6 +113,22 @@ export const onUserCreate = functions.auth.user().onCreate(async (user) => {
       } catch (err) {
         debugError("⚠️ Failed to reconcile pendingUid in groups:", err);
       }
+    }
+
+    // Добавляем в системную broadcast-группу «Все». Документ создаётся
+    // миграционным скриптом scripts/ensure-everyone-group.ts; здесь только
+    // arrayUnion на memberIds. Если документ по какой-то причине
+    // отсутствует — update упадёт и мы просто логируем это, не ломая
+    // создание пользователя.
+    try {
+      await db.collection("groups").doc(EVERYONE_GROUP_ID).update({
+        memberIds: FieldValue.arrayUnion(uid),
+      });
+    } catch (err) {
+      debugError(
+        `⚠️ Failed to add ${uid} to '${EVERYONE_GROUP_ID}' group (run scripts/ensure-everyone-group.ts):`,
+        err
+      );
     }
 
     await adminAuth.setCustomUserClaims(uid, { role });

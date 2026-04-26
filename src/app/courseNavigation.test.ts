@@ -24,6 +24,8 @@ describe('courseNavigation', () => {
     expect(getPageCourseId('/disorder-table')).toBeNull();
     expect(getPageCourseId('/tests')).toBeNull();
     expect(getPageCourseId('/course/custom')).toBeNull();
+    expect(getPageCourseId('/about')).toBeNull();
+    expect(getPageCourseId('/projects')).toBeNull();
   });
 
   it('shows student course sidebar on profile, notes and lesson pages only', () => {
@@ -35,5 +37,7 @@ describe('courseNavigation', () => {
     expect(shouldShowStudentCourseSidebar('/timeline')).toBe(false);
     expect(shouldShowStudentCourseSidebar('/disorder-table')).toBe(false);
     expect(shouldShowStudentCourseSidebar('/research')).toBe(false);
+    expect(shouldShowStudentCourseSidebar('/about')).toBe(false);
+    expect(shouldShowStudentCourseSidebar('/projects/dom-academy-overview')).toBe(false);
   });
 });

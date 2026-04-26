@@ -195,6 +195,56 @@ interface CourseDescription {
 }
 ```
 
+### `pages/about`
+
+Контент страницы `/about` (6 вкладок + список партнёров). Read public, write `isAdmin`. Редактируется через `/superadmin/pages/about`.
+
+```typescript
+interface AboutPageDocument {
+  version: number;                 // схема, сейчас 1
+  lastModified?: string;           // ISO timestamp последней правки через UI
+  tabs: AboutTab[];                // 6 фиксированных вкладок
+  partners: Partner[];             // партнёры, отображаются на вкладке kind: 'partners'
+}
+
+// AboutTab — дискриминированный union по полю kind:
+//   - text: { intro?, sections: [{ heading?, paragraphs[] }] }
+//   - placeholder: { intro, note? }
+//   - offline: { intro, paragraphs[], bookingPath, bookingLabel, instagramUrl, instagramLabel }
+//   - partners: { intro }
+// Полные типы: src/pages/about/aboutContent.ts
+
+interface Partner {
+  id: string;                      // стабильный slug, например 'existedu'
+  name: string;
+  url: string;
+  description: string[];
+}
+```
+
+При отсутствии документа клиент показывает fallback-константы из `aboutContent.ts` + `partnersContent.ts`.
+
+### `projectPages/{slug}`
+
+Страницы проектов академии (`/projects/{slug}`). Read public, write **`isSuperAdmin`** (волна 4). Создаются и редактируются через `/superadmin/pages/projects/:slug`.
+
+```typescript
+interface ProjectPageDocument {
+  version: number;                 // схема, сейчас 1
+  lastModified?: string;
+  title: string;
+  subtitle?: string;
+  intro: string;
+  paragraphs?: string[];
+  images?: { src: string; alt: string; caption?: string }[];
+  cta?: { label: string; to?: string; href?: string };  // взаимоисключающие to/href
+}
+```
+
+Slug — строка `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`, сразу становится URL `/projects/{slug}` и ID документа. Авто-генерируется из названия через `generateLessonId`.
+
+Fallback-словарь `src/pages/projects/projectFallbacks.ts` содержит хардкод-данные для slug-ов, которые ещё не мигрированы (на момент wave 4 — `dom-academy-overview`).
+
 ---
 
 ## Заметки и темы

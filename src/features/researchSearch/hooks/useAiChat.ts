@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import type { AiAssistantState } from './useAiAssistant';
 import { MAX_MESSAGE_LENGTH } from './useAiAssistant';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { auth } from '../../../lib/firebase';
 
 export type ChatMessage = { role: 'user' | 'assistant'; text: string };
 
@@ -50,10 +51,12 @@ export function useAiChat() {
     setMessages((prev) => [...prev, { role: 'user', text: trimmed }]);
 
     try {
+      const idToken = await auth.currentUser?.getIdToken();
       const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(idToken && { Authorization: `Bearer ${idToken}` }),
           ...(geminiApiKey && { 'X-Gemini-Api-Key': geminiApiKey }),
         },
         body: JSON.stringify({ message: trimmed, locale: 'ru', history }),

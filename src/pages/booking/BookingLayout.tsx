@@ -72,6 +72,12 @@ export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
                 >
                   Стоимость аренды
                 </Link>
+                <Link
+                  to="/home"
+                  className="px-5 py-2.5 rounded-xl text-base font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
+                >
+                  DOM Academy
+                </Link>
               </nav>
             )}
           </div>
@@ -138,7 +144,7 @@ export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
         <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <img src="/images/dom-logo.png" alt="DOM" className="w-12 h-12 rounded-full" />
-            <span className="font-semibold">Психологический центр ДОМ</span>
+            <span className="font-semibold">Психологический центр DOM</span>
           </div>
           <p className="text-white/70 text-sm">
             &copy; {new Date().getFullYear()} Все права защищены

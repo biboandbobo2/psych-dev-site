@@ -1,4 +1,4 @@
-export const SITE_NAME = 'Академия Дом';
+export const SITE_NAME = 'DOM Academy';
 
 export const ROUTE_CONFIG = [
   {
@@ -9,7 +9,7 @@ export const ROUTE_CONFIG = [
     themeKey: 'intro',
     videoSrc: 'https://www.youtube.com/watch?v=0q4AZ3WsAAc',
     meta: {
-      title: 'Вводное занятие — Академия Дом',
+      title: 'Вводное занятие — DOM Academy',
       description: 'Знакомство с психологией развития: вводное занятие и ключевые вопросы курса.',
     },
   },
@@ -20,7 +20,7 @@ export const ROUTE_CONFIG = [
     periodId: 'prenatal',
     themeKey: 'prenatal',
     meta: {
-      title: 'Пренатальный период — Академия Дом',
+      title: 'Пренатальный период — DOM Academy',
       description: 'Ключевые понятия, литература и видео о пренатальном развитии ребёнка.'
     }
   },
@@ -31,7 +31,7 @@ export const ROUTE_CONFIG = [
     periodId: 'infancy',
     themeKey: 'infancy',
     meta: {
-      title: 'Младенчество 0–1 — Академия Дом',
+      title: 'Младенчество 0–1 — DOM Academy',
       description: 'Исследуем привязанность, сенсомоторное развитие и ключевых авторов младенчества.'
     }
   },
@@ -42,7 +42,7 @@ export const ROUTE_CONFIG = [
     periodId: 'toddler',
     themeKey: 'toddler',
     meta: {
-      title: 'Раннее детство 1–3 — Академия Дом',
+      title: 'Раннее детство 1–3 — DOM Academy',
       description: 'Речь, автономия и игры раннего детства в одном месте.'
     }
   },
@@ -53,7 +53,7 @@ export const ROUTE_CONFIG = [
     periodId: 'preschool',
     themeKey: 'preschool',
     meta: {
-      title: 'Дошкольный возраст 3–7 — Академия Дом',
+      title: 'Дошкольный возраст 3–7 — DOM Academy',
       description: 'Игра, развитие мышления и социальные навыки дошкольников.'
     }
   },
@@ -66,7 +66,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 7–10 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Младший школьный возраст 7–10 — Академия Дом',
+      title: 'Младший школьный возраст 7–10 — DOM Academy',
       description: 'Операции мышления, мотивация к учёбе и развитие школьников.'
     }
   },
@@ -79,7 +79,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 10–13 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Ранняя подростковость 10–13 — Академия Дом',
+      title: 'Ранняя подростковость 10–13 — DOM Academy',
       description: 'Нейробиология риска, идентичность и поддержка пре-подростков.'
     }
   },
@@ -92,7 +92,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 14–18 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Подростковость 14–18 — Академия Дом',
+      title: 'Подростковость 14–18 — DOM Academy',
       description: 'Социализация, принятие решений и развитие личности подростков.'
     }
   },
@@ -105,7 +105,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 19–22 года появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Юность 19–22 — Академия Дом',
+      title: 'Юность 19–22 — DOM Academy',
       description: 'Переход ко взрослости, идентичность и профессиональный поиск.'
     }
   },
@@ -118,7 +118,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 22–27 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Ранняя зрелость 22–27 — Академия Дом',
+      title: 'Ранняя зрелость 22–27 — DOM Academy',
       description: 'Мы готовим материалы для ранней взрослости 22–27 лет.'
     }
   },
@@ -131,7 +131,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 28–40 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Ранняя зрелость 28–40 — Академия Дом',
+      title: 'Ранняя зрелость 28–40 — DOM Academy',
       description: 'Работа, близость и развитие партнёрства в 28–40 лет.'
     }
   },
@@ -144,7 +144,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 40–65 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Средняя зрелость 40–65 — Академия Дом',
+      title: 'Средняя зрелость 40–65 — DOM Academy',
       description: 'Генеративность, кризисы и новые карьерные стратегии.'
     }
   },
@@ -157,7 +157,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 66–80 лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Пожилой возраст 66–80 — Академия Дом',
+      title: 'Пожилой возраст 66–80 — DOM Academy',
       description: 'Когнитивные изменения и качество жизни пожилых людей.'
     }
   },
@@ -170,7 +170,7 @@ export const ROUTE_CONFIG = [
     placeholderText: 'Контент для возраста 80+ лет появится в ближайшем обновлении.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Долголетие 80+ — Академия Дом',
+      title: 'Долголетие 80+ — DOM Academy',
       description: 'Поддержка, исследования и смыслы самой поздней зрелости.'
     }
   }
@@ -197,7 +197,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Введение в клиническую психологию — Академия Дом',
+      title: 'Введение в клиническую психологию — DOM Academy',
       description: 'Вводное занятие курса клинической психологии.',
     },
   },
@@ -209,7 +209,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Патопсихология — Академия Дом',
+      title: 'Патопсихология — DOM Academy',
       description: 'Предмет, методы и задачи патопсихологии. Аномалии эмоционально-личностной сферы.',
     },
   },
@@ -221,7 +221,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Расстройства личности — Академия Дом',
+      title: 'Расстройства личности — DOM Academy',
       description: 'Диагностика и терапия расстройств личности.',
     },
   },
@@ -233,7 +233,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Аффективные расстройства — Академия Дом',
+      title: 'Аффективные расстройства — DOM Academy',
       description: 'Депрессия, мания и биполярное аффективное расстройство.',
     },
   },
@@ -245,7 +245,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Суицидальность — Академия Дом',
+      title: 'Суицидальность — DOM Academy',
       description: 'Аффективные расстройства и суицидальность.',
     },
   },
@@ -257,7 +257,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Психотические расстройства — Академия Дом',
+      title: 'Психотические расстройства — DOM Academy',
       description: 'Шизофрения и расстройства психотического спектра.',
     },
   },
@@ -269,7 +269,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Патология ВПФ — Академия Дом',
+      title: 'Патология ВПФ — DOM Academy',
       description: 'Патология памяти, восприятия и внимания.',
     },
   },
@@ -281,7 +281,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Расстройства ВПФ — Академия Дом',
+      title: 'Расстройства ВПФ — DOM Academy',
       description: 'Классификация расстройств высших психических функций.',
     },
   },
@@ -293,7 +293,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Патопсихологическая диагностика — Академия Дом',
+      title: 'Патопсихологическая диагностика — DOM Academy',
       description: 'Методы патопсихологической диагностики.',
     },
   },
@@ -305,7 +305,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Проективная диагностика — Академия Дом',
+      title: 'Проективная диагностика — DOM Academy',
       description: 'Проективные методы психодиагностики.',
     },
   },
@@ -317,7 +317,7 @@ export const CLINICAL_ROUTE_CONFIG = [
     themeKey: 'clinical',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Нарушения развития — Академия Дом',
+      title: 'Нарушения развития — DOM Academy',
       description: 'Нарушения психического развития в детском возрасте.',
     },
   },
@@ -344,7 +344,7 @@ export const GENERAL_ROUTE_CONFIG = [
       'На этой вводной странице собрана общая информация о курсе общей психологии, формате занятий и итоговой аттестации. Ниже переходите к первой теме.',
     placeholderDefaultEnabled: true,
     meta: {
-      title: 'Введение в курс общей психологии — Академия Дом',
+      title: 'Введение в курс общей психологии — DOM Academy',
       description: 'Общая информация о курсе, структуре занятий и экзамене.',
     },
   },
@@ -356,7 +356,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'История психологии и методы — Академия Дом',
+      title: 'История психологии и методы — DOM Academy',
       description: 'История психологии, подходы и методы исследования.',
     },
   },
@@ -368,7 +368,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Методологические проблемы — Академия Дом',
+      title: 'Методологические проблемы — DOM Academy',
       description: 'Методологические проблемы изучения психики.',
     },
   },
@@ -380,7 +380,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Ощущение и восприятие — Академия Дом',
+      title: 'Ощущение и восприятие — DOM Academy',
       description: 'Свойства образов и теории восприятия.',
     },
   },
@@ -392,7 +392,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Внимание — Академия Дом',
+      title: 'Внимание — DOM Academy',
       description: 'Классические и когнитивные модели внимания.',
     },
   },
@@ -404,7 +404,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Память. Часть 1 — Академия Дом',
+      title: 'Память. Часть 1 — DOM Academy',
       description: 'Классика, конструкции и искажения памяти.',
     },
   },
@@ -416,7 +416,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Память. Часть 2 — Академия Дом',
+      title: 'Память. Часть 2 — DOM Academy',
       description: 'Когнитивные модели и функции памяти.',
     },
   },
@@ -428,7 +428,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Мышление — Академия Дом',
+      title: 'Мышление — DOM Academy',
       description: 'Развитие мышления, интериоризация и когнитивные искажения.',
     },
   },
@@ -440,7 +440,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Речь — Академия Дом',
+      title: 'Речь — DOM Academy',
       description: 'Взаимосвязь речи и мышления, язык и билингвизм.',
     },
   },
@@ -452,7 +452,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Эмоциональная сфера — Академия Дом',
+      title: 'Эмоциональная сфера — DOM Academy',
       description: 'Теории эмоций, классификация и эволюция.',
     },
   },
@@ -464,7 +464,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Чувства и регуляция — Академия Дом',
+      title: 'Чувства и регуляция — DOM Academy',
       description: 'Регуляция эмоций и кросс-культурные исследования.',
     },
   },
@@ -476,7 +476,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Мотивация — Академия Дом',
+      title: 'Мотивация — DOM Academy',
       description: 'Теории мотивации и место в структуре личности.',
     },
   },
@@ -488,7 +488,7 @@ export const GENERAL_ROUTE_CONFIG = [
     themeKey: 'general',
     placeholderDefaultEnabled: false,
     meta: {
-      title: 'Саморегуляция и воля — Академия Дом',
+      title: 'Саморегуляция и воля — DOM Academy',
       description: 'Функции воли, онтогенез и практические модели.',
     },
   },

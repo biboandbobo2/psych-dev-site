@@ -4,6 +4,8 @@
 import { useState, useCallback } from 'react';
 import { debugLog, debugError } from '../../../lib/debug';
 import { BOOK_SEARCH_CONFIG } from '../../../constants/books';
+import { auth } from '../../../lib/firebase';
+import { useAuthStore } from '../../../stores/useAuthStore';
 
 export interface Citation {
   chunkId: string;
@@ -19,6 +21,7 @@ export interface BookAnswerState {
   answer: string | null;
   citations: Citation[];
   error: string | null;
+  errorCode?: string;
   tookMs: number | null;
 }
 
@@ -70,6 +73,20 @@ export function useBookAnswer(): UseBookAnswerReturn {
       return;
     }
 
+    const geminiKey = useAuthStore.getState().geminiApiKey;
+    if (!geminiKey) {
+      setState({
+        status: 'error',
+        answer: null,
+        citations: [],
+        error:
+          'Подключите свой Gemini API ключ в профиле (раздел «AI-ключ») — он бесплатный.',
+        errorCode: 'BYOK_REQUIRED',
+        tookMs: null,
+      });
+      return;
+    }
+
     setState({
       status: 'loading',
       answer: null,
@@ -79,9 +96,26 @@ export function useBookAnswer(): UseBookAnswerReturn {
     });
 
     try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) {
+        setState({
+          status: 'error',
+          answer: null,
+          citations: [],
+          error: 'Войдите в аккаунт, чтобы задавать вопросы по книгам.',
+          errorCode: 'UNAUTHORIZED',
+          tookMs: null,
+        });
+        return;
+      }
+
       const res = await fetch('/api/books', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+          'X-Gemini-Api-Key': geminiKey,
+        },
         body: JSON.stringify({
           action: 'answer',
           query: trimmed,
@@ -92,7 +126,15 @@ export function useBookAnswer(): UseBookAnswerReturn {
       const data = await res.json();
 
       if (!data.ok) {
-        throw new Error(data.error || 'Ошибка получения ответа');
+        setState({
+          status: 'error',
+          answer: null,
+          citations: [],
+          error: data.error || 'Ошибка получения ответа',
+          errorCode: typeof data.code === 'string' ? data.code : undefined,
+          tookMs: null,
+        });
+        return;
       }
 
       setState({

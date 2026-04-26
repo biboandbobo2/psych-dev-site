@@ -3,34 +3,25 @@ import { getAuth } from 'firebase-admin/auth';
 import { GoogleGenAI } from '@google/genai';
 import { getAllowedAppOrigin } from '../../src/lib/appOrigins.js';
 
-let defaultGenAiClient: GoogleGenAI | null = null;
-
 const SAFE_LECTURE_API_ERROR = 'Сервис лекций временно недоступен. Попробуйте ещё раз позже.';
 
-export function resolveLectureGeminiApiKey(req?: VercelRequest): string {
-  const userKey = req?.headers['x-gemini-api-key'];
+/**
+ * Извлекает Gemini ключ ТОЛЬКО из заголовка X-Gemini-Api-Key (BYOK strict).
+ * Возвращает null если пользователь не передал ключ. Caller возвращает 402 BYOK_REQUIRED.
+ *
+ * До волны 7 здесь был fallback на process.env.GEMINI_API_KEY — это позволяло гостям
+ * дёргать AI на наш ключ. Сейчас прод-ключ остаётся только для server-side.
+ */
+export function resolveLectureGeminiApiKey(req: VercelRequest): string | null {
+  const userKey = req.headers['x-gemini-api-key'];
   if (typeof userKey === 'string' && userKey.trim()) {
     return userKey.trim();
   }
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY not configured');
-  }
-
-  return apiKey;
+  return null;
 }
 
-export function getLectureGenAiClient(apiKey?: string) {
-  if (apiKey) {
-    return new GoogleGenAI({ apiKey });
-  }
-
-  if (!defaultGenAiClient) {
-    defaultGenAiClient = new GoogleGenAI({ apiKey: resolveLectureGeminiApiKey() });
-  }
-
-  return defaultGenAiClient;
+export function getLectureGenAiClient(apiKey: string) {
+  return new GoogleGenAI({ apiKey });
 }
 
 export function getLectureApiAllowedOrigin(origin: string | undefined) {

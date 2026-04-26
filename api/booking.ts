@@ -399,6 +399,32 @@ async function handleCheck(
   return altegPost(`/book_check/${companyId}`, { appointments: mapped }, partnerToken);
 }
 
+/**
+ * Читает users/{uid}.prefs.emailBookingConfirmations.
+ * По умолчанию (поле отсутствует или не boolean) → true (рассылаем).
+ */
+async function shouldSendBookingEmail(req: VercelRequest): Promise<boolean> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return true;
+  }
+
+  try {
+    initFirebaseAdmin();
+    const auth = await verifyBookingAuth(req);
+    if (auth.valid === false) return true;
+
+    const userSnap = await getFirestore().collection('users').doc(auth.uid).get();
+    const data = userSnap.data() || {};
+    const prefs = (data.prefs && typeof data.prefs === 'object') ? data.prefs as Record<string, unknown> : {};
+    const flag = prefs.emailBookingConfirmations;
+    if (flag === false) return false;
+    return true;
+  } catch {
+    return true;
+  }
+}
+
 async function handleBook(
   companyId: string,
   body: {
@@ -409,6 +435,7 @@ async function handleBook(
     comment?: string;
   },
   partnerToken: string,
+  notifyByEmail: boolean,
 ) {
   const appointments = body.appointments.map((appt, i) => ({
     id: i + 1,
@@ -416,14 +443,19 @@ async function handleBook(
     services: [appt.serviceId],
     datetime: appt.datetime,
   }));
-  return altegPost(`/book_record/${companyId}`, {
+  const payload: Record<string, unknown> = {
     fullname: body.name,
     phone: body.phone,
     email: body.email || '',
     comment: body.comment || '',
-    notify_by_email: 24,
     appointments,
-  }, partnerToken);
+  };
+  // alteg.io: notify_by_email = часы до начала, за которые отправлять подтверждение.
+  // Пропускаем поле полностью если пользователь отписался — alteg.io не пришлёт email.
+  if (notifyByEmail) {
+    payload.notify_by_email = 24;
+  }
+  return altegPost(`/book_record/${companyId}`, payload, partnerToken);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -512,7 +544,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (req.method !== 'POST') {
           return res.status(405).json({ success: false, error: 'POST required' });
         }
-        const result = await handleBook(companyId, req.body, partnerToken);
+        const notifyByEmail = await shouldSendBookingEmail(req);
+        const result = await handleBook(companyId, req.body, partnerToken, notifyByEmail);
         return res.status(200).json({ success: true, data: result });
       }
       case 'resolveMyClientIds': {

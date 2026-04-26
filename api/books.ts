@@ -10,6 +10,14 @@ import { getStorage } from 'firebase-admin/storage';
 import { GoogleGenAI } from '@google/genai';
 import * as zlib from 'zlib';
 import { promisify } from 'util';
+import {
+  setSharedCorsHeaders,
+  verifyAuthBearer,
+  requireBYOKGeminiKey,
+  enforceIpRateLimit,
+  getClientIp,
+  recordByokUsage,
+} from '../src/lib/api-server/sharedApiRuntime.js';
 
 const gunzip = promisify(zlib.gunzip);
 
@@ -41,19 +49,18 @@ function initFirebaseAdmin() {
   });
 }
 
-let genaiClient: GoogleGenAI | null = null;
-
-function getGenAI(): GoogleGenAI {
-  if (!genaiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
-    genaiClient = new GoogleGenAI({ apiKey });
-  }
-  return genaiClient;
+/**
+ * Создаёт клиента GenAI с переданным API ключом. Singleton намеренно убран:
+ * каждый search/answer запрос идёт под BYOK ключ конкретного пользователя
+ * (HR-1 / wave 6, 2026-04). Прод-ключ из env больше НЕ используется в этом
+ * endpoint — он остаётся только для server-side admin-функций.
+ */
+function buildGenAI(apiKey: string): GoogleGenAI {
+  return new GoogleGenAI({ apiKey });
 }
 
-async function embedQuery(query: string): Promise<number[]> {
-  const client = getGenAI();
+async function embedQuery(query: string, apiKey: string): Promise<number[]> {
+  const client = buildGenAI(apiKey);
   const result = await client.models.embedContent({
     model: BOOK_SEARCH_CONFIG.embeddingModel,
     contents: [{ role: 'user', parts: [{ text: query }] }],
@@ -157,12 +164,18 @@ export const SYSTEM_PROMPT = `Ты — эксперт-психолог и пре
 - Все ссылки на источники — ТОЛЬКО в массиве citations
 - Верни ТОЛЬКО валидный JSON без markdown-блоков`;
 
+// Rate limits per IP (in-memory baseline; per-instance на serverless — см. LP-3).
+const RL_PUBLIC = { windowMs: 60_000, max: 60 } as const; // list/snippet: 60 req/min
+const RL_AI = { windowMs: 60_000, max: 20 } as const; // search/answer: 20 req/min
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  const allowedOrigin = setSharedCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
+    if (req.headers.origin && !allowedOrigin) {
+      res.status(403).json({ ok: false, error: 'Origin not allowed' });
+      return;
+    }
     res.status(200).end();
     return;
   }
@@ -170,9 +183,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     initFirebaseAdmin();
     const action = req.query.action as string || req.body?.action as string || '';
+    const ip = getClientIp(req);
 
     // LIST: GET public books
     if (action === 'list' && req.method === 'GET') {
+      if (!enforceIpRateLimit('books:public', ip, RL_PUBLIC)) {
+        res.status(429).json({ ok: false, error: 'Слишком много запросов', code: 'RATE_LIMIT' });
+        return;
+      }
       res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
 
       const db = getFirestore();
@@ -201,6 +219,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // SNIPPET: GET chunk snippet
     if (action === 'snippet' && req.method === 'GET') {
+      if (!enforceIpRateLimit('books:public', ip, RL_PUBLIC)) {
+        res.status(429).json({ ok: false, error: 'Слишком много запросов', code: 'RATE_LIMIT' });
+        return;
+      }
       const { chunkId, maxChars: maxCharsParam } = req.query;
 
       if (!chunkId || typeof chunkId !== 'string') {
@@ -258,8 +280,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const db = getFirestore();
     const body = req.body as Record<string, unknown>;
 
-    // SEARCH
+    // SEARCH (BYOK + auth required)
     if (action === 'search') {
+      if (!enforceIpRateLimit('books:ai', ip, RL_AI)) {
+        res.status(429).json({ ok: false, error: 'Слишком много запросов', code: 'RATE_LIMIT' });
+        return;
+      }
+      const auth = await verifyAuthBearer(req);
+      if (auth.valid !== true) {
+        res.status(401).json({ ok: false, error: auth.error, code: auth.code });
+        return;
+      }
+      const userKey = requireBYOKGeminiKey(req);
+      if (!userKey) {
+        res.status(402).json({
+          ok: false,
+          error: 'Подключите свой Gemini API ключ в профиле — он бесплатный.',
+          code: 'BYOK_REQUIRED',
+        });
+        return;
+      }
+
       const startTime = Date.now();
 
       const query = typeof body?.query === 'string' ? body.query.trim() : '';
@@ -285,7 +326,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         bookTitles.set(doc.id, doc.data().title || 'Untitled');
       });
 
-      const queryEmbedding = await embedQuery(query);
+      const queryEmbedding = await embedQuery(query, userKey);
 
       const allResults: Array<{
         id: string;
@@ -344,12 +385,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }));
 
       const tookMs = Date.now() - startTime;
+      // Embedding-вызов: usageMetadata из embedContent не возвращает токены,
+      // используем приближение по длине запроса. Для search это маленький
+      // вклад, точные числа — на answer.
+      void recordByokUsage({
+        uid: auth.uid,
+        action: 'books:search',
+        tokens: Math.ceil(query.length / 4),
+        firestore: db,
+      });
       res.status(200).json({ ok: true, results, tookMs });
       return;
     }
 
-    // ANSWER
+    // ANSWER (BYOK + auth required)
     if (action === 'answer') {
+      if (!enforceIpRateLimit('books:ai', ip, RL_AI)) {
+        res.status(429).json({ ok: false, error: 'Слишком много запросов', code: 'RATE_LIMIT' });
+        return;
+      }
+      const auth = await verifyAuthBearer(req);
+      if (auth.valid !== true) {
+        res.status(401).json({ ok: false, error: auth.error, code: auth.code });
+        return;
+      }
+      const userKey = requireBYOKGeminiKey(req);
+      if (!userKey) {
+        res.status(402).json({
+          ok: false,
+          error: 'Подключите свой Gemini API ключ в профиле — он бесплатный.',
+          code: 'BYOK_REQUIRED',
+        });
+        return;
+      }
+
       const startTime = Date.now();
 
       const query = typeof body?.query === 'string' ? body.query.trim() : '';
@@ -375,7 +444,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         bookTitles.set(doc.id, doc.data().title || 'Untitled');
       });
 
-      const queryEmbedding = await embedQuery(query);
+      const queryEmbedding = await embedQuery(query, userKey);
 
       const allChunks: Array<{
         id: string;
@@ -431,7 +500,7 @@ ${chunk.preview}
         })
         .join('\n\n');
 
-      const client = getGenAI();
+      const client = buildGenAI(userKey);
       const prompt = `${SYSTEM_PROMPT}
 
 ИСТОЧНИКИ:
@@ -441,6 +510,7 @@ ${context}
 
       let geminiResponse: { answer: string; citations: Array<{ chunkId: string; claim: string }> };
       let rawText = '';
+      let totalTokenCount = 0;
 
       try {
         const result = await client.models.generateContent({
@@ -450,6 +520,7 @@ ${context}
         });
 
         rawText = result.text || '';
+        totalTokenCount = result.usageMetadata?.totalTokenCount ?? 0;
         let jsonText = rawText.trim();
 
         // Try to extract JSON from markdown code block
@@ -524,6 +595,13 @@ ${context}
       }
 
       const tookMs = Date.now() - startTime;
+
+      void recordByokUsage({
+        uid: auth.uid,
+        action: 'books:answer',
+        tokens: totalTokenCount,
+        firestore: db,
+      });
 
       res.status(200).json({ ok: true, answer, citations, tookMs });
       return;

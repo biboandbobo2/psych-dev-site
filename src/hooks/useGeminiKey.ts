@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { doc, updateDoc, deleteField } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { useAuthStore } from '../stores/useAuthStore';
 import { reportAppError } from '../lib/errorHandler';
 import { debugLog, debugError } from '../lib/debug';
@@ -39,10 +39,16 @@ export function useGeminiKey(): UseGeminiKeyReturn {
     try {
       debugLog('[useGeminiKey] Validating key...');
 
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) {
+        return { valid: false, error: 'Войдите в аккаунт, чтобы добавить ключ' };
+      }
+
       const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
           'X-Gemini-Api-Key': key,
         },
         body: JSON.stringify({

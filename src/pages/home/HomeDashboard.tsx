@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useCourses } from '../../hooks/useCourses';
-import { useHomeFeed } from '../../hooks/useHomeFeed';
 import { useCourseStore } from '../../stores';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { useAuth } from '../../auth/AuthProvider';
-import { getLastCourseLesson } from '../../lib/lastCourseLesson';
+import { getLastCourseLesson, getMostRecentlyWatchedCourseId } from '../../lib/lastCourseLesson';
 import { getWatchedLessonIds } from '../../lib/courseWatchedLessons';
 import { buildCourseContinuePath, getCourseVideoResumePoint } from '../../lib/courseVideoResume';
 import type { CourseType } from '../../types/tests';
@@ -13,6 +13,7 @@ import {
   resolvePrimaryLesson,
   getEstimatedCourseLessons,
   formatTimeFromSeconds,
+  resolveContinueCourses,
   toDateKey,
   tryParseDateLabel,
   type ParsedCalendarEvent,
@@ -26,6 +27,9 @@ import { GuestLanding } from './GuestLanding';
 import { RegisteredGuestHome } from './RegisteredGuestHome';
 import { useGuestStatus } from '../../hooks/useGuestStatus';
 import { useCoursesOpenness } from '../../hooks/useCoursesOpenness';
+import { usePlatformNews } from '../../hooks/usePlatformNews';
+import { PlatformNewsSection } from './PlatformNewsSection';
+import { isEveryoneGroup } from '../../../shared/groups/everyoneGroup';
 
 export function HomeDashboard() {
   const { status } = useGuestStatus();
@@ -49,16 +53,14 @@ function StudentDashboard() {
   const { user } = useAuth();
   const { setCurrentCourse } = useCourseStore();
   const navigate = useNavigate();
-  const { courses } = useCourses();
+  const { courses, courseMap } = useCourses();
   const { groups: myGroups } = useMyGroups();
+  const userFeaturedCourseIds = useAuthStore((s) => s.featuredCourseIds);
+  const hasCourseAccess = useAuthStore((s) => s.hasCourseAccess);
   const courseStreamLabel = myGroups.length > 0 ? 'Курс потока' : 'Мой курс';
   const { openCourseIds } = useCoursesOpenness(courses.map((course) => course.id));
-  const {
-    announcements,
-    loading: feedLoading,
-    error: feedError,
-  } = useHomeFeed();
   const { items: myFeedItems, loading: myFeedLoading } = useMyGroupsFeed();
+  const { items: platformNews, loading: platformNewsLoading } = usePlatformNews();
   const [isEventsCalendarOpen, setIsEventsCalendarOpen] = useState(false);
   const [calendarCursor, setCalendarCursor] = useState<Date>(() => {
     const now = new Date();
@@ -82,57 +84,53 @@ function StudentDashboard() {
     ? featuredSubjects
     : [...featuredSubjects, ...fallbackSubjects.filter((item) => !featuredSubjects.some((course) => course.id === item.id))].slice(0, 4);
 
-  const progressByCourse = useMemo(() => {
-    const map = new Map<string, { completed: number; total: number; percent: number }>();
-    subjects.forEach((course) => {
-      const completed = getWatchedLessonIds(course.id).size;
-      const total = getEstimatedCourseLessons(course.id);
-      const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
-      map.set(course.id, { completed, total, percent });
-    });
-    return map;
-  }, [subjects]);
+  const accessibleCourseIds = useMemo(
+    () => courses.filter((c) => hasCourseAccess(c.id as CourseType)).map((c) => c.id),
+    [courses, hasCourseAccess]
+  );
+
+  const continueResolution = useMemo(
+    () =>
+      resolveContinueCourses({
+        userFeaturedCourseIds,
+        groups: myGroups,
+        lastWatchedCourseId: getMostRecentlyWatchedCourseId(),
+        accessibleCourseIds,
+      }),
+    [userFeaturedCourseIds, myGroups, accessibleCourseIds]
+  );
 
   const primaryContinueCourses = useMemo(() => {
-    const selectedCourses = (courses.length > 0 ? courses : subjects).slice(0, 2);
-
-    return selectedCourses.map((course) => {
+    return continueResolution.ids.flatMap((courseId) => {
+      const course = courseMap.get(courseId);
+      if (!course) return [];
       const fallbackPrimaryLesson = resolvePrimaryLesson(course.id);
       const lastCourseLesson = getLastCourseLesson(course.id);
       const resumePoint = getCourseVideoResumePoint(course.id);
       const fallbackPath = lastCourseLesson?.path ?? fallbackPrimaryLesson.link;
       const continuePath = buildCourseContinuePath(course.id, fallbackPath);
-      const lessonTitle = lastCourseLesson?.label ?? resumePoint?.lessonLabel ?? fallbackPrimaryLesson.title;
-      const progress = progressByCourse.get(course.id) ?? { completed: 0, total: 0, percent: 0 };
+      const lessonTitle =
+        lastCourseLesson?.label ?? resumePoint?.lessonLabel ?? fallbackPrimaryLesson.title;
+      const completed = getWatchedLessonIds(course.id).size;
+      const total = getEstimatedCourseLessons(course.id);
+      const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
 
-      return {
-        id: course.id,
-        name: course.name,
-        icon: course.icon,
-        continuePath,
-        lessonTitle,
-        progress,
-        resumeTimeLabel:
-          resumePoint && resumePoint.timeSec > 0
-            ? `Продолжим с ${formatTimeFromSeconds(resumePoint.timeSec)}`
-            : null,
-      };
+      return [
+        {
+          id: course.id,
+          name: course.name,
+          icon: course.icon,
+          continuePath,
+          lessonTitle,
+          progress: { completed, total, percent },
+          resumeTimeLabel:
+            resumePoint && resumePoint.timeSec > 0
+              ? `Продолжим с ${formatTimeFromSeconds(resumePoint.timeSec)}`
+              : null,
+        },
+      ];
     });
-  }, [courses, progressByCourse, subjects]);
-
-  const latestFeedItems = useMemo(
-    () =>
-      announcements
-        .map((item) => ({
-          id: `announcement-${item.id}`,
-          title: 'Объявление',
-          text: item.text,
-          createdAt: item.createdAt,
-        }))
-        .sort((left, right) => (right.createdAt || '').localeCompare(left.createdAt || ''))
-        .slice(0, 5),
-    [announcements]
-  );
+  }, [continueResolution, courseMap]);
 
   // Календарь справа показывает события из подписок группы (useMyGroupsFeed).
   // Для events c точным startAt берём его; для legacy без startAt пытаемся
@@ -202,9 +200,23 @@ function StudentDashboard() {
   return (
     <section className="min-h-screen bg-bg py-8 sm:py-10">
       <div className="mx-auto max-w-6xl space-y-6 px-4">
-        <header>
-          <p className="text-sm text-muted">Добрый день, {displayName}</p>
-          <h1 className="mt-1 text-3xl font-bold text-fg sm:text-4xl">Мои курсы</h1>
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm text-muted">Добрый день, {displayName}</p>
+            <h1 className="mt-1 text-3xl font-bold text-fg sm:text-4xl">Мои курсы</h1>
+          </div>
+          <Link
+            to="/about"
+            aria-label="О проекте: DOM Academy — Development Of Mind"
+            className="inline-flex flex-col items-start rounded-2xl border border-border bg-gradient-to-br from-accent-100 to-mark px-4 py-2.5 shadow-brand transition hover:opacity-90"
+          >
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+              DOM Academy
+            </span>
+            <span className="mt-0.5 text-[11px] italic text-muted">
+              Development Of Mind
+            </span>
+          </Link>
         </header>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
@@ -284,9 +296,17 @@ function StudentDashboard() {
               ))}
               {primaryContinueCourses.length === 0 ? (
                 <article className="rounded-2xl border border-border bg-card p-6">
-                  <p className="text-base text-muted">
-                    Курсы для продолжения пока не найдены. Откройте нужный курс в профиле.
+                  <h2 className="text-lg font-bold text-fg">Нет актуальных курсов</h2>
+                  <p className="mt-2 text-sm text-muted">
+                    Выберите курсы, которые сейчас активно проходите, — они будут
+                    показаны здесь.
                   </p>
+                  <Link
+                    to="/profile"
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-accent/30 bg-accent-100 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
+                  >
+                    Выбрать актуальные курсы в профиле →
+                  </Link>
                 </article>
               ) : null}
             </div>
@@ -297,25 +317,11 @@ function StudentDashboard() {
               onOpen={setOpenFeedItem}
             />
 
-            {/* Общие объявления */}
-            <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
-              <h3 className="mb-3 text-xl font-bold text-fg">Общие объявления</h3>
-              <div className="rounded-xl border border-border bg-card2 px-4 py-3 text-sm text-muted">
-                {feedLoading ? (
-                  'Загрузка новостей...'
-                ) : latestFeedItems.length === 0 ? (
-                  'Пока нет общих новостей — появятся здесь, когда администратор добавит их.'
-                ) : (
-                  <ul className="space-y-2">
-                    {latestFeedItems.map((item) => (
-                      <li key={item.id}>
-                        <span className="font-semibold text-fg">{item.title}:</span> {item.text}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </section>
+            <PlatformNewsSection
+              items={platformNews}
+              loading={platformNewsLoading}
+              showEmpty
+            />
           </div>
 
           {/* RIGHT (sticky) */}
@@ -364,8 +370,8 @@ function StudentDashboard() {
                       {course.icon || '🎓'}
                     </span>
                     {openCourseIds.has(course.id) ? (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-semibold text-accent">
-                        🔓
+                      <span className="inline-flex shrink-0 items-center rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-semibold text-accent">
+                        Открытый
                       </span>
                     ) : null}
                   </div>
@@ -373,9 +379,7 @@ function StudentDashboard() {
                     <h4 className="line-clamp-3 text-sm font-semibold leading-tight text-fg">
                       {course.name}
                     </h4>
-                    <p className="mt-1 text-xs text-muted">
-                      {course.isCore ? 'Основной курс' : 'Дополнительный курс'}
-                    </p>
+                    <p className="mt-1 text-xs text-muted">Курс платформы</p>
                   </div>
                   <button
                     type="button"
@@ -395,6 +399,23 @@ function StudentDashboard() {
               Дополнительные курсы пока не добавлены.
             </p>
           )}
+        </section>
+
+        {/* Партнёр — центр Dom */}
+        <section className="rounded-2xl border border-border bg-card2 p-5 shadow-brand">
+          <p className="text-sm font-semibold text-muted">Приходите знакомиться лично</p>
+          <h2 className="mt-1 text-xl font-bold text-fg">
+            Психологический центр «Dom» в Тбилиси
+          </h2>
+          <p className="mt-2 text-sm text-muted">
+            Очные сессии и аренда кабинета для работы с клиентами.
+          </p>
+          <Link
+            to="/booking"
+            className="mt-3 inline-flex items-center gap-1 rounded-xl border border-accent/30 bg-accent-100 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
+          >
+            Бронирование кабинетов →
+          </Link>
         </section>
 
         {/* Возможности платформы */}
@@ -433,12 +454,6 @@ function StudentDashboard() {
           courseId={lessonsDrawerCourseId}
           onClose={() => setLessonsDrawerCourseId(null)}
         />
-
-        {feedError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {feedError}
-          </div>
-        )}
       </div>
     </section>
   );
@@ -616,7 +631,11 @@ function MyGroupsFeedSection({
   onOpen: (item: GroupFeedItem) => void;
 }) {
   // Assignments выведены в свою секцию — здесь только объявления и события.
-  const items = allItems.filter((item) => item.kind !== 'assignment');
+  // Объявления broadcast-группы «Все» показываются в отдельной секции
+  // «Новости платформы», поэтому их тоже исключаем из ленты моих групп.
+  const items = allItems.filter(
+    (item) => item.kind !== 'assignment' && !isEveryoneGroup(item.groupId)
+  );
 
   if (loading) return null;
 

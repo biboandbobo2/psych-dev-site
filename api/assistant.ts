@@ -4,6 +4,24 @@
  */
 import type { IncomingMessage } from 'node:http';
 import { GoogleGenAI } from '@google/genai';
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import {
+  setSharedCorsHeaders,
+  verifyAuthBearer,
+  recordByokUsage,
+} from '../src/lib/api-server/sharedApiRuntime.js';
+
+function ensureFirebaseAdminInit() {
+  if (getApps().length > 0) return;
+  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!json) return;
+  const sa = JSON.parse(json);
+  initializeApp({
+    credential: cert(sa),
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${sa.project_id}.firebasestorage.app`,
+  });
+}
 
 // ============================================================================
 // TYPES
@@ -269,17 +287,17 @@ const SYSTEM_INSTRUCTION = `Ты — ИИ-помощник по психолог
 - Как биография Эриксона повлияла на его теорию развития`;
 
 /**
- * Извлекает API ключ Gemini из заголовка запроса или fallback на env
+ * Извлекает API ключ Gemini ТОЛЬКО из заголовка X-Gemini-Api-Key (BYOK strict).
+ * До волны 7 здесь был fallback на env-переменные — это позволяло гостям дёргать
+ * AI на наш ключ. Сейчас прод-ключ остаётся только для server-side admin-функций
+ * (Cloud Functions, скрипты). User-facing /api/assistant требует BYOK.
  */
 export function getGeminiApiKey(req: any): string {
-  // 1. Проверяем заголовок X-Gemini-Api-Key (пользовательский ключ)
   const userKey = req.headers?.['x-gemini-api-key'];
   if (userKey && typeof userKey === 'string' && userKey.trim()) {
     return userKey.trim();
   }
-
-  // 2. Fallback на дефолтный ключ из env
-  return process.env.GEMINI_API_KEY || process.env.MY_GEMINI_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_KEY || '';
+  return '';
 }
 
 async function callGemini(message: string, locale: string, history: AssistantHistoryItem[], apiKey: string): Promise<GeminiStructuredResponse> {
@@ -350,11 +368,11 @@ ${historyPrompt}
   return parsed;
 }
 
-const COURSE_INTRO_SYSTEM_INSTRUCTION = `Ты — редактор образовательных материалов на платформе «Академия Дом» (психология).
+const COURSE_INTRO_SYSTEM_INSTRUCTION = `Ты — редактор образовательных материалов на платформе «DOM Academy» (психология).
 Пиши в академичном, но дружелюбном тоне на русском языке. Никаких маркетинговых клише («уникальный», «революционный»).
 Не используй markdown, списки, заголовки. Только связный текст абзацами, разделёнными пустой строкой. Максимум 2–3 абзаца.`;
 
-const COURSE_PROGRAM_SYSTEM_INSTRUCTION = `Ты — редактор образовательных материалов на платформе «Академия Дом» (психология).
+const COURSE_PROGRAM_SYSTEM_INSTRUCTION = `Ты — редактор образовательных материалов на платформе «DOM Academy» (психология).
 Составь программу курса в виде нумерованного списка блоков с коротким описанием каждого (1–2 предложения). Язык — русский. Без воды и маркетинга.
 Формат: «1. Название блока — описание.» Каждый блок с новой строки.`;
 
@@ -429,12 +447,13 @@ export function tryParseGeminiResponse(text: string): GeminiStructuredResponse |
 export default async function handler(req: any, res: any) {
   const started = Date.now();
 
-  // CORS headers for preflight
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Gemini-Api-Key');
+  const allowedOrigin = setSharedCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
+    if (req.headers.origin && !allowedOrigin) {
+      res.status(403).json({ ok: false, error: 'Origin not allowed' });
+      return;
+    }
     res.status(200).end();
     return;
   }
@@ -508,6 +527,20 @@ export default async function handler(req: any, res: any) {
     typeof body === 'object' &&
     (body as { action?: unknown }).action === 'courseIntroDraft'
   ) {
+    const auth = await verifyAuthBearer(req);
+    if (auth.valid !== true) {
+      res.status(401).json({ ok: false, error: auth.error, code: auth.code });
+      return;
+    }
+    const apiKey = getGeminiApiKey(req);
+    if (!apiKey) {
+      res.status(402).json({
+        ok: false,
+        error: 'Подключите свой Gemini API ключ в профиле — он бесплатный.',
+        code: 'BYOK_REQUIRED',
+      });
+      return;
+    }
     const raw = body as Record<string, unknown>;
     const courseName = typeof raw.courseName === 'string' ? raw.courseName : '';
     const kind = raw.kind === 'program' ? 'program' : 'idea';
@@ -518,7 +551,6 @@ export default async function handler(req: any, res: any) {
       res.status(400).json({ ok: false, error: 'courseName is required', code: 'INVALID_PAYLOAD' });
       return;
     }
-    const apiKey = getGeminiApiKey(req);
     try {
       const answer = await callGeminiCourseIntroDraft(
         { action: 'courseIntroDraft', courseName, kind, lessons },
@@ -526,6 +558,13 @@ export default async function handler(req: any, res: any) {
       );
       const tokensUsed = estimateTokens(courseName) + estimateTokens(lessons.join('\n')) + estimateTokens(answer);
       const usage = addUsage(tokensUsed);
+      ensureFirebaseAdminInit();
+      void recordByokUsage({
+        uid: auth.uid,
+        action: 'assistant:courseIntroDraft',
+        tokens: tokensUsed,
+        firestore: getFirestore(),
+      });
       res.status(200).json({
         ok: true,
         answer,
@@ -558,8 +597,21 @@ export default async function handler(req: any, res: any) {
   // TypeScript now knows validation.valid === true
   const { message, locale, history } = validation as { valid: true; message: string; locale: string; history: AssistantHistoryItem[] };
 
-  // Получаем API ключ (пользовательский или дефолтный)
+  // BYOK: auth + ключ обязательны. Гость без ключа → 402.
+  const auth = await verifyAuthBearer(req);
+  if (auth.valid !== true) {
+    res.status(401).json({ ok: false, error: auth.error, code: auth.code });
+    return;
+  }
   const apiKey = getGeminiApiKey(req);
+  if (!apiKey) {
+    res.status(402).json({
+      ok: false,
+      error: 'Подключите свой Gemini API ключ в профиле — он бесплатный.',
+      code: 'BYOK_REQUIRED',
+    });
+    return;
+  }
 
   try {
     const geminiResponse = await callGemini(message, locale, history, apiKey);
@@ -570,6 +622,13 @@ export default async function handler(req: any, res: any) {
       estimateTokens(historyText) +
       estimateTokens(truncatedAnswer);
     const usage = addUsage(tokensUsed);
+    ensureFirebaseAdminInit();
+    void recordByokUsage({
+      uid: auth.uid,
+      action: 'assistant:chat',
+      tokens: tokensUsed,
+      firestore: getFirestore(),
+    });
 
     const response: AssistantResponse = {
       ok: true,

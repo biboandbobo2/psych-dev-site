@@ -18,7 +18,33 @@ describe('normalizeGroupAnnouncement', () => {
       createdBy: 'user1',
       createdAt: null,
       createdByName: undefined,
+      newsType: undefined,
     });
+  });
+
+  it('parses newsType when it is tech or content', () => {
+    const tech = normalizeGroupAnnouncement(GROUP, ID, {
+      text: 'Новая кнопка',
+      createdBy: 'user1',
+      newsType: 'tech',
+    });
+    expect(tech?.newsType).toBe('tech');
+
+    const content = normalizeGroupAnnouncement(GROUP, ID, {
+      text: 'Новая лекция',
+      createdBy: 'user1',
+      newsType: 'content',
+    });
+    expect(content?.newsType).toBe('content');
+  });
+
+  it('ignores unknown newsType values', () => {
+    const result = normalizeGroupAnnouncement(GROUP, ID, {
+      text: 'Hi',
+      createdBy: 'user1',
+      newsType: 'weird-value',
+    });
+    expect(result?.newsType).toBeUndefined();
   });
 
   it('includes createdByName when present', () => {

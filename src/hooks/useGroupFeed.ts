@@ -20,6 +20,7 @@ import {
   type GroupAnnouncement,
   type GroupEvent,
   type GroupEventKind,
+  type PlatformNewsType,
 } from '../types/groupFeed';
 import { formatDateLabel } from '../../shared/gcalMapping';
 
@@ -29,6 +30,8 @@ const GROUP_EVENT_TZ = 'Asia/Tbilisi';
 export interface GroupAnnouncementInput {
   text: string;
   createdByName?: string;
+  /** Только для группы «Все»; при передаче сохраняется в документ. */
+  newsType?: PlatformNewsType;
 }
 
 export interface GroupEventInput {
@@ -131,11 +134,16 @@ export async function createGroupAnnouncement(
   if (text.length < 3) {
     throw new Error('Текст объявления должен содержать минимум 3 символа');
   }
+  const newsType: PlatformNewsType | undefined =
+    input.newsType === 'tech' || input.newsType === 'content'
+      ? input.newsType
+      : undefined;
   await addDoc(collection(db, 'groups', groupId, 'announcements'), {
     text,
     createdAt: serverTimestamp(),
     createdBy: userId,
     ...(input.createdByName ? { createdByName: input.createdByName } : {}),
+    ...(newsType ? { newsType } : {}),
   });
 }
 
@@ -206,41 +214,107 @@ export async function createGroupEvent(
   });
 }
 
+export interface UpdateGroupAnnouncementPatch {
+  text?: string;
+  newsType?: PlatformNewsType | null;
+}
+
 export async function updateGroupAnnouncement(
   groupId: string,
   itemId: string,
-  text: string
+  patch: UpdateGroupAnnouncementPatch | string
 ): Promise<void> {
-  const trimmed = text.trim();
-  if (trimmed.length < 3) {
-    throw new Error('Текст объявления должен содержать минимум 3 символа');
+  // Backwards-compat: до волны 5.1 функция принимала просто строку текста.
+  const normalized: UpdateGroupAnnouncementPatch =
+    typeof patch === 'string' ? { text: patch } : patch;
+
+  const updates: Record<string, unknown> = {};
+  if (typeof normalized.text === 'string') {
+    const trimmed = normalized.text.trim();
+    if (trimmed.length < 3) {
+      throw new Error('Текст объявления должен содержать минимум 3 символа');
+    }
+    updates.text = trimmed;
   }
-  await updateDoc(doc(db, 'groups', groupId, 'announcements', itemId), { text: trimmed });
+  if (normalized.newsType === 'tech' || normalized.newsType === 'content') {
+    updates.newsType = normalized.newsType;
+  } else if (normalized.newsType === null) {
+    updates.newsType = null;
+  }
+
+  if (Object.keys(updates).length === 0) return;
+  await updateDoc(doc(db, 'groups', groupId, 'announcements', itemId), updates);
+}
+
+export interface UpdateGroupEventPatch {
+  text?: string;
+  startAtMs?: number;
+  endAtMs?: number;
+  isAllDay?: boolean;
+  zoomLink?: string | null;
+  siteLink?: string | null;
+  longText?: string | null;
+  dueDate?: string;
 }
 
 export async function updateGroupEvent(
   groupId: string,
   itemId: string,
-  patch: Partial<Pick<GroupEvent, 'text' | 'dateLabel' | 'zoomLink'>>
+  patch: UpdateGroupEventPatch
 ): Promise<void> {
   const updates: Record<string, unknown> = {};
+
   if (typeof patch.text === 'string') {
     const trimmed = patch.text.trim();
     if (trimmed.length < 3) {
-      throw new Error('Описание события должно содержать минимум 3 символа');
+      throw new Error('Описание должно содержать минимум 3 символа');
     }
     updates.text = trimmed;
   }
-  if (typeof patch.dateLabel === 'string') {
-    const trimmed = patch.dateLabel.trim();
-    if (trimmed.length < 2) {
-      throw new Error('Укажите дату или период события');
+
+  if (typeof patch.startAtMs === 'number' && typeof patch.endAtMs === 'number') {
+    if (patch.endAtMs <= patch.startAtMs) {
+      throw new Error('Время окончания должно быть позже начала');
     }
-    updates.dateLabel = trimmed;
+    const isAllDay = Boolean(patch.isAllDay);
+    updates.startAt = Timestamp.fromMillis(patch.startAtMs);
+    updates.endAt = Timestamp.fromMillis(patch.endAtMs);
+    updates.isAllDay = isAllDay;
+    updates.dateLabel = formatDateLabel(
+      patch.startAtMs,
+      patch.endAtMs,
+      isAllDay,
+      GROUP_EVENT_TZ
+    );
   }
-  if (typeof patch.zoomLink === 'string') {
-    updates.zoomLink = patch.zoomLink.trim() || null;
+
+  if (typeof patch.zoomLink === 'string' || patch.zoomLink === null) {
+    const v = typeof patch.zoomLink === 'string' ? patch.zoomLink.trim() : '';
+    updates.zoomLink = v || null;
   }
+  if (typeof patch.siteLink === 'string' || patch.siteLink === null) {
+    const v = typeof patch.siteLink === 'string' ? patch.siteLink.trim() : '';
+    updates.siteLink = v || null;
+  }
+  if (typeof patch.longText === 'string' || patch.longText === null) {
+    const v = typeof patch.longText === 'string' ? patch.longText.trim() : '';
+    updates.longText = v || null;
+  }
+  if (typeof patch.dueDate === 'string') {
+    if (!ISO_DATE_RE.test(patch.dueDate)) {
+      throw new Error('Укажите дедлайн в формате YYYY-MM-DD');
+    }
+    updates.dueDate = patch.dueDate;
+  }
+
+  if (Object.keys(updates).length === 0) return;
+
+  // GCal anti-echo guard: при любом редактировании из админки нужно ставить
+  // 'firestore', чтобы onGroupEventWrite экспортировал изменение в Google
+  // Calendar. Без этого update события, которое пришло из GCal
+  // (lastWriteSource='gcal'), не уехало бы обратно — был бы рассинхрон.
+  updates.lastWriteSource = 'firestore';
+
   await updateDoc(doc(db, 'groups', groupId, 'events', itemId), updates);
 }
 

@@ -8,6 +8,7 @@ import { buildAuthorizedHeaders } from '../../lib/apiAuth';
 import { canCancelBooking, getBookingCancelDeadlineDateParts } from '../../lib/bookingCancellation';
 import { debugError, debugLog } from '../../lib/debug';
 import { MONTH_LABELS } from './utils';
+import { EmailPreferencesSection } from '../../components/profile';
 
 interface AccountPageProps {
   embedded?: boolean;
@@ -126,7 +127,7 @@ export function AccountPage({ embedded = false }: AccountPageProps) {
   const content = (
     <>
       <Helmet>
-        <title>Мои бронирования — Психологический центр ДОМ</title>
+        <title>Бронирование кабинетов — Психологический центр DOM</title>
       </Helmet>
 
       <div className="max-w-[800px] mx-auto px-4 md:px-8 py-12">
@@ -148,9 +149,12 @@ export function AccountPage({ embedded = false }: AccountPageProps) {
             ))}
           </div>
         ) : upcoming.length === 0 && past.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-dom-gray-500 text-lg">У вас пока нет бронирований</p>
-          </div>
+          <>
+            <div className="text-center py-12">
+              <p className="text-dom-gray-500 text-lg">У вас пока нет бронирований</p>
+            </div>
+            <EmailPreferencesSection />
+          </>
         ) : (
           <>
             {/* Upcoming */}
@@ -238,6 +242,8 @@ export function AccountPage({ embedded = false }: AccountPageProps) {
                 </div>
               )}
             </section>
+
+            <EmailPreferencesSection />
 
             {/* Past */}
             {past.length > 0 && (

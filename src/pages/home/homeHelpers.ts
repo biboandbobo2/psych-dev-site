@@ -1,5 +1,8 @@
 import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG } from '../../routes';
 import type { CourseType } from '../../types/tests';
+import type { Group } from '../../types/groups';
+
+export const MAX_CONTINUE_CARDS = 3;
 
 export function resolvePrimaryLesson(courseId: string): { link: string; title: string } {
   if (courseId === 'development') {
@@ -88,6 +91,70 @@ export function formatDateKey(dateKey: string): string {
     month: 'long',
     year: 'numeric',
   });
+}
+
+export type ContinueCoursesSource = 'user' | 'group' | 'lastWatched' | 'empty';
+
+export interface ResolvedContinueCourses {
+  ids: string[];
+  source: ContinueCoursesSource;
+}
+
+/**
+ * Чистая функция выбора continue-cards для /home.
+ *
+ * Приоритет, сверху вниз:
+ *  1) `userFeaturedCourseIds` — личные «актуальные» курсы пользователя
+ *     (фильтруются по accessibleCourseIds, max 3).
+ *  2) Объединённые `featuredCourseIds` всех групп пользователя в порядке
+ *     `groups` (max 3, дедуп; фильтр по accessibleCourseIds).
+ *  3) `lastWatchedCourseId` — последний просмотренный (даже если не отмечен
+ *     как featured); должен принадлежать accessibleCourseIds.
+ *  4) `empty` — пустой список (UI показывает CTA-заглушку).
+ */
+export function resolveContinueCourses(params: {
+  userFeaturedCourseIds: string[];
+  groups: Pick<Group, 'featuredCourseIds'>[];
+  lastWatchedCourseId: string | null;
+  accessibleCourseIds: string[];
+}): ResolvedContinueCourses {
+  const { userFeaturedCourseIds, groups, lastWatchedCourseId, accessibleCourseIds } = params;
+  const accessible = new Set(accessibleCourseIds);
+
+  const filterAccessibleUnique = (ids: string[]): string[] => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const id of ids) {
+      if (!id || seen.has(id)) continue;
+      if (!accessible.has(id)) continue;
+      seen.add(id);
+      result.push(id);
+      if (result.length >= MAX_CONTINUE_CARDS) break;
+    }
+    return result;
+  };
+
+  const userPicks = filterAccessibleUnique(userFeaturedCourseIds);
+  if (userPicks.length > 0) {
+    return { ids: userPicks, source: 'user' };
+  }
+
+  const groupIds: string[] = [];
+  for (const group of groups) {
+    if (Array.isArray(group.featuredCourseIds)) {
+      groupIds.push(...group.featuredCourseIds);
+    }
+  }
+  const groupPicks = filterAccessibleUnique(groupIds);
+  if (groupPicks.length > 0) {
+    return { ids: groupPicks, source: 'group' };
+  }
+
+  if (lastWatchedCourseId && accessible.has(lastWatchedCourseId)) {
+    return { ids: [lastWatchedCourseId], source: 'lastWatched' };
+  }
+
+  return { ids: [], source: 'empty' };
 }
 
 export function tryParseDateLabel(dateLabel: string): Date | null {

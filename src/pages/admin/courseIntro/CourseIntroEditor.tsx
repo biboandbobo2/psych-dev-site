@@ -10,7 +10,7 @@ import { MarkdownView } from '../../../lib/MarkdownView';
 import { PageLoader } from '../../../components/ui';
 import { uploadCourseAuthorPhoto, validateImageFile } from '../../../utils/mediaUpload';
 import { debugError } from '../../../lib/debug';
-import { db } from '../../../lib/firebase';
+import { auth, db } from '../../../lib/firebase';
 import { useAuthStore } from '../../../stores/useAuthStore';
 
 const INPUT_CLASS =
@@ -270,11 +270,19 @@ async function generateDraft(
   kind: 'idea' | 'program',
   geminiKey: string | null
 ): Promise<string> {
+  if (!geminiKey) {
+    throw new Error('Подключите свой Gemini API ключ в профиле — он бесплатный.');
+  }
+  const idToken = await auth.currentUser?.getIdToken();
+  if (!idToken) {
+    throw new Error('Войдите в аккаунт, чтобы использовать AI-черновики.');
+  }
   const response = await fetch('/api/assistant', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(geminiKey ? { 'X-Gemini-Api-Key': geminiKey } : {}),
+      Authorization: `Bearer ${idToken}`,
+      'X-Gemini-Api-Key': geminiKey,
     },
     body: JSON.stringify({ action: 'courseIntroDraft', courseName, lessons, kind }),
   });

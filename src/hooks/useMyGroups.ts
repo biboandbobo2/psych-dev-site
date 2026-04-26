@@ -19,6 +19,9 @@ export function normalizeGroupDoc(id: string, data: unknown): Group | null {
   const announcers = Array.isArray(raw.announcementAdminIds)
     ? raw.announcementAdminIds.filter((x): x is string => typeof x === 'string')
     : [];
+  const featured = Array.isArray(raw.featuredCourseIds)
+    ? raw.featuredCourseIds.filter((x): x is string => typeof x === 'string')
+    : undefined;
   return {
     id,
     name,
@@ -26,6 +29,8 @@ export function normalizeGroupDoc(id: string, data: unknown): Group | null {
     memberIds: members,
     grantedCourses: courses,
     announcementAdminIds: announcers,
+    isSystem: raw.isSystem === true ? true : undefined,
+    featuredCourseIds: featured,
   };
 }
 

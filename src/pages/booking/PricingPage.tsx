@@ -14,7 +14,7 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
   const content = (
     <>
       <Helmet>
-        <title>Стоимость аренды — Психологический центр ДОМ</title>
+        <title>Бронирование кабинетов — Психологический центр DOM</title>
       </Helmet>
 
       <div className="max-w-[900px] mx-auto px-4 md:px-8 py-12">

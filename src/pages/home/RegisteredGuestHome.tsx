@@ -7,6 +7,8 @@ import { useCourses } from '../../hooks/useCourses';
 import { useCoursesOpenness } from '../../hooks/useCoursesOpenness';
 import { getCourseIntroPath } from '../../lib/courseLinks';
 import { FeedbackModal } from '../../components/FeedbackModal';
+import { usePlatformNews } from '../../hooks/usePlatformNews';
+import { PlatformNewsSection } from './PlatformNewsSection';
 
 const TELEGRAM_CONTACT = 'https://t.me/BiboiBobo2';
 
@@ -17,6 +19,7 @@ export function RegisteredGuestHome() {
     courses.map((course) => course.id)
   );
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
+  const { items: platformNews, loading: newsLoading } = usePlatformNews();
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'гость';
 
@@ -29,23 +32,33 @@ export function RegisteredGuestHome() {
         <title>{SITE_NAME} — ваш кабинет</title>
       </Helmet>
 
-      <section className="rounded-2xl border border-[#DDE5EE] bg-white p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6B7A8D]">Привет</p>
-        <h1 className="mt-1 text-2xl font-black leading-tight text-[#1F2F46] sm:text-3xl">
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-brand">
+        <Link
+          to="/about"
+          className="inline-flex flex-col items-start rounded-xl px-2.5 py-1.5 -ml-2.5 transition hover:bg-accent-100/50"
+        >
+          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+            DOM Academy
+          </span>
+          <span className="mt-0.5 text-[11px] italic text-muted">Development Of Mind</span>
+        </Link>
+        <h1 className="mt-3 text-2xl font-black leading-tight text-fg sm:text-3xl">
           {displayName}, добро пожаловать
         </h1>
-        <p className="mt-2 text-sm text-[#556476]">
-          У вас пока нет доступа к курсам Академии Дом. Ниже — что открыто уже сейчас и как получить
+        <p className="mt-2 text-sm text-muted">
+          У вас пока нет доступа к курсам DOM Academy. Ниже — что открыто уже сейчас и как получить
           доступ к закрытым курсам.
         </p>
       </section>
 
+      <PlatformNewsSection items={platformNews} loading={newsLoading} />
+
       <section className="space-y-3">
-        <h2 className="text-xl font-bold text-[#1F2F46]">Вам уже открыто</h2>
+        <h2 className="text-xl font-bold text-fg">Вам уже открыто</h2>
         {coursesLoading || opennessLoading ? (
-          <p className="text-sm text-[#6B7A8D]">Проверяем доступные материалы...</p>
+          <p className="text-sm text-muted">Проверяем доступные материалы...</p>
         ) : openCourses.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-[#DDE5EE] bg-[#F9FBFF] p-4 text-sm text-[#6B7A8D]">
+          <p className="rounded-2xl border border-dashed border-border bg-card2 p-4 text-sm text-muted">
             Полностью открытых курсов пока нет. В некоторых закрытых курсах могут быть отдельные
             бесплатные лекции — откройте курс, чтобы посмотреть его структуру.
           </p>
@@ -55,15 +68,15 @@ export function RegisteredGuestHome() {
               <li key={course.id}>
                 <Link
                   to={getCourseIntroPath(course.id)}
-                  className="flex h-full items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 transition hover:border-emerald-400 hover:bg-emerald-100/60"
+                  className="flex h-full items-start gap-3 rounded-2xl border border-accent/30 bg-accent-100 p-4 transition hover:border-accent/60 hover:bg-accent-100/70"
                 >
                   <span className="text-3xl" aria-hidden>
                     {course.icon || '📘'}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-base font-semibold text-emerald-900">{course.name}</p>
-                    <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                      🔓 Открытый курс
+                    <p className="text-base font-semibold text-fg">{course.name}</p>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-accent">
+                      Открытый доступ
                     </p>
                   </div>
                 </Link>
@@ -73,9 +86,9 @@ export function RegisteredGuestHome() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-[#DDE5EE] bg-[#F9FBFF] p-6">
-        <h2 className="text-xl font-bold text-[#1F2F46]">Как получить доступ</h2>
-        <p className="mt-2 text-sm text-[#556476]">
+      <section className="rounded-2xl border border-border bg-card2 p-6 shadow-brand">
+        <h2 className="text-xl font-bold text-fg">Как получить доступ</h2>
+        <p className="mt-2 text-sm text-muted">
           Напишите нам любым удобным способом — мы откроем нужный курс. Укажите email, с которым вы
           зарегистрированы.
         </p>
@@ -83,7 +96,7 @@ export function RegisteredGuestHome() {
           <button
             type="button"
             onClick={() => setIsAccessModalOpen(true)}
-            className="inline-flex items-center justify-center rounded-xl bg-[#3359CB] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2A49A8]"
+            className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
           >
             💬 Отправить запрос через бота
           </button>
@@ -91,7 +104,7 @@ export function RegisteredGuestHome() {
             href={TELEGRAM_CONTACT}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center rounded-xl border border-[#C5D6EE] bg-white px-4 py-2 text-sm font-semibold text-[#3359CB] transition hover:bg-[#EEF4FF]"
+            className="inline-flex items-center justify-center rounded-xl border border-accent/30 bg-accent-100 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
           >
             ✉️ Написать Алексею в Telegram
           </a>
@@ -114,8 +127,8 @@ export function RegisteredGuestHome() {
 
       {closedCourses.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="text-xl font-bold text-[#1F2F46]">Закрытые курсы</h2>
-          <p className="text-sm text-[#6B7A8D]">
+          <h2 className="text-xl font-bold text-fg">Закрытые курсы</h2>
+          <p className="text-sm text-muted">
             Откройте курс, чтобы увидеть его структуру и преподавателей. Для просмотра лекций нужен
             доступ — запросите его кнопкой выше.
           </p>
@@ -124,15 +137,15 @@ export function RegisteredGuestHome() {
               <li key={course.id}>
                 <Link
                   to={getCourseIntroPath(course.id)}
-                  className="flex h-full items-start gap-3 rounded-2xl border border-[#DDE5EE] bg-white p-4 transition hover:border-[#9EB7D9] hover:bg-[#F7FAFF]"
+                  className="flex h-full items-start gap-3 rounded-2xl border border-border bg-card p-4 transition hover:border-accent/40 hover:bg-accent-100/40"
                 >
                   <span className="text-3xl" aria-hidden>
                     {course.icon || '📘'}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-base font-semibold text-[#2C3E50]">{course.name}</p>
-                    <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      🔒 Закрытый курс
+                    <p className="text-base font-semibold text-fg">{course.name}</p>
+                    <p className="mt-1 text-xs font-semibold text-accent">
+                      Посмотреть структуру →
                     </p>
                   </div>
                 </Link>
@@ -142,31 +155,31 @@ export function RegisteredGuestHome() {
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-[#DDE5EE] bg-white p-5">
-        <h2 className="text-lg font-bold text-[#1F2F46]">🔑 Свой Gemini-ключ</h2>
-        <p className="mt-2 text-sm text-[#556476]">
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
+        <h2 className="text-lg font-bold text-fg">🔑 Свой Gemini-ключ</h2>
+        <p className="mt-2 text-sm text-muted">
           Добавьте свой API-ключ Google Gemini в профиле — и пользуйтесь AI-помощником и научным
           поиском на сайте бесплатно (по вашей квоте).
         </p>
         <Link
           to="/profile"
-          className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#3359CB] transition hover:text-[#2A49A8]"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-accent transition hover:opacity-80"
         >
           Открыть настройки профиля →
         </Link>
       </section>
 
-      <section className="rounded-2xl border border-[#DDE5EE] bg-[#F9FBFF] p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7A8D]">Партнёр</p>
-        <h2 className="mt-1 text-lg font-bold text-[#1F2F46]">
+      <section className="rounded-2xl border border-border bg-card2 p-5 shadow-brand">
+        <p className="text-sm font-semibold text-muted">Приходите знакомиться лично</p>
+        <h2 className="mt-1 text-lg font-bold text-fg">
           Психологический центр «Dom» в Тбилиси
         </h2>
-        <p className="mt-2 text-sm text-[#556476]">
+        <p className="mt-2 text-sm text-muted">
           Очные сессии и аренда кабинета для работы с клиентами.
         </p>
         <Link
           to="/booking"
-          className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#3359CB] transition hover:text-[#2A49A8]"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-accent transition hover:opacity-80"
         >
           Бронирование кабинетов →
         </Link>
@@ -174,21 +187,21 @@ export function RegisteredGuestHome() {
 
       <Link
         to="/features"
-        className="block overflow-hidden rounded-2xl shadow-xl transition hover:shadow-2xl"
+        className="block overflow-hidden rounded-2xl border border-border bg-mark shadow-brand transition hover:bg-[#FFE98C]"
       >
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-4 sm:px-8 sm:py-5">
+        <div className="px-6 py-4 sm:px-8 sm:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl sm:text-3xl">💡</span>
               <div>
-                <h3 className="text-lg font-bold text-white sm:text-xl">Возможности платформы</h3>
-                <p className="hidden text-sm text-white/80 sm:block">
+                <h3 className="text-lg font-bold text-[#5a4b00] sm:text-xl">Возможности платформы</h3>
+                <p className="hidden text-sm text-[#5a4b00]/75 sm:block">
                   Узнайте обо всех функциях: тесты, заметки, таймлайн, научный поиск
                 </p>
               </div>
             </div>
             <svg
-              className="h-6 w-6 text-white/80"
+              className="h-6 w-6 text-[#5a4b00]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
