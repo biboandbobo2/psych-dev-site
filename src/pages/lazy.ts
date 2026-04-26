@@ -44,6 +44,7 @@ export const AdminGroups = lazy(() => lazyWithReload(() => import('./admin/group
 export const PaletteDebug = lazy(() => lazyWithReload(() => import('./debug/PaletteDebug'), 'PaletteDebug'));
 export const HomeV2Debug = lazy(() => lazyWithReload(() => import('./debug/HomeV2Debug'), 'HomeV2Debug'));
 export const WarmSprings2Page = lazy(() => lazyWithReload(() => import('./WarmSprings2Page'), 'WarmSprings2Page'));
+export const AboutPage = lazy(() => lazyWithReload(() => import('./about/AboutPage'), 'AboutPage'));
 
 const importBookingPages = () => import('./booking');
 export const BookingSectionLayout = lazy(() =>
