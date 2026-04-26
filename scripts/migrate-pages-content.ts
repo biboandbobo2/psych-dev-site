@@ -1,10 +1,10 @@
 /**
- * One-shot миграция: переносит хардкод-контент `/about` (`aboutContent.ts` +
- * `partnersContent.ts`) в Firestore-документ `pages/about`. После миграции
- * `useAboutPageContent` начнёт читать из Firestore вместо fallback-констант.
+ * One-shot миграция: переносит хардкод-контент в Firestore.
+ *  - `pages/about`            ← `aboutContent.ts` + `partnersContent.ts`
+ *  - `projectPages/dom-academy-overview` ← хардкод-fallback из useProjectPageContent.
  *
- * Документ имеет форму AboutPageDocument:
- *   { version, lastModified, tabs: AboutTab[], partners: Partner[] }
+ * После миграции хуки `useAboutPageContent` и `useProjectPageContent`
+ * начинают читать из Firestore. Хардкод-данные остаются как fallback.
  *
  * Запуск:
  *   npx tsx scripts/migrate-pages-content.ts           # dry-run
@@ -14,11 +14,11 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { initAdmin } from './_adminInit';
 import { ABOUT_TABS } from '../src/pages/about/aboutContent';
 import { PARTNERS } from '../src/pages/about/partnersContent';
+import { getProjectFallback } from '../src/hooks/useProjectPageContent';
 
-async function main() {
-  const apply = process.argv.includes('--apply');
-  const { db } = initAdmin();
+const PROJECT_SLUGS_TO_MIGRATE = ['dom-academy-overview'];
 
+async function migrateAbout(db: FirebaseFirestore.Firestore, apply: boolean) {
   const ref = db.collection('pages').doc('about');
   const snap = await ref.get();
   const existed = snap.exists;
@@ -26,10 +26,7 @@ async function main() {
   console.log(`[pages/about] Документ ${existed ? 'уже существует' : 'будет создан'}.`);
   console.log(`[pages/about] Вкладок: ${ABOUT_TABS.length}, партнёров: ${PARTNERS.length}.`);
 
-  if (!apply) {
-    console.log('\n⚠️  DRY-RUN. Для записи запусти с --apply.');
-    return;
-  }
+  if (!apply) return;
 
   await ref.set(
     {
@@ -41,10 +38,48 @@ async function main() {
     },
     { merge: true }
   );
-
   console.log(
-    `✅ ${existed ? 'Обновлён' : 'Создан'} документ pages/about (${ABOUT_TABS.length} tabs, ${PARTNERS.length} partners).`
+    `✅ ${existed ? 'Обновлён' : 'Создан'} pages/about (${ABOUT_TABS.length} tabs, ${PARTNERS.length} partners).`
   );
+}
+
+async function migrateProject(db: FirebaseFirestore.Firestore, slug: string, apply: boolean) {
+  const data = getProjectFallback(slug);
+  if (!data) {
+    console.warn(`[projectPages/${slug}] Нет fallback-данных, пропускаем.`);
+    return;
+  }
+  const ref = db.collection('projectPages').doc(slug);
+  const snap = await ref.get();
+  const existed = snap.exists;
+
+  console.log(`[projectPages/${slug}] Документ ${existed ? 'уже существует' : 'будет создан'}.`);
+
+  if (!apply) return;
+
+  await ref.set(
+    {
+      ...data,
+      lastModified: new Date().toISOString(),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+  console.log(`✅ ${existed ? 'Обновлён' : 'Создан'} projectPages/${slug}.`);
+}
+
+async function main() {
+  const apply = process.argv.includes('--apply');
+  const { db } = initAdmin();
+
+  await migrateAbout(db, apply);
+  for (const slug of PROJECT_SLUGS_TO_MIGRATE) {
+    await migrateProject(db, slug, apply);
+  }
+
+  if (!apply) {
+    console.log('\n⚠️  DRY-RUN. Для записи запусти с --apply.');
+  }
 }
 
 main().catch((err) => {

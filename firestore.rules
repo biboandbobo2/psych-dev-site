@@ -208,6 +208,12 @@ service cloud.firestore {
       allow write: if isAdmin(); // Only admins can edit
     }
 
+    // Страницы проектов академии (/projects/:slug). Read public, write super-admin.
+    match /projectPages/{slug} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
     // История поисков пользователя
     match /searchHistory/{entryId} {
       allow read, delete: if isAuthenticated() &&
