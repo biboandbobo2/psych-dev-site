@@ -149,9 +149,12 @@ export function AccountPage({ embedded = false }: AccountPageProps) {
             ))}
           </div>
         ) : upcoming.length === 0 && past.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-dom-gray-500 text-lg">У вас пока нет бронирований</p>
-          </div>
+          <>
+            <div className="text-center py-12">
+              <p className="text-dom-gray-500 text-lg">У вас пока нет бронирований</p>
+            </div>
+            <EmailPreferencesSection />
+          </>
         ) : (
           <>
             {/* Upcoming */}
