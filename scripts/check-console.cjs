@@ -1,14 +1,27 @@
 #!/usr/bin/env node
 
 const { execSync, execFileSync } = require("child_process");
+const fs = require("fs");
+const path = require("path");
 
 const CAPTURE_REGEX = /console\.(log|info|warn|error|debug)\b/;
-const TARGET_DIRS = ["src/", "functions/src/"];
+
+// Все runtime-папки, в которых console.* запрещён.
+// Используется одинаково для staged-режима (pre-commit) и --all (validate).
+const TARGET_DIRS = ["src/", "functions/src/", "api/"];
+
 const ALLOWED = new Set([
   "src/lib/debug.ts",
   "functions/src/lib/debug.ts",
   "src/pages/timeline/utils/exporters/common.ts" // Dev-only export debugging
 ]);
+
+// CLI/admin-скрипты: console здесь — UX, не runtime-лог.
+const ALLOWED_PREFIXES = ["src/scripts/"];
+
+const FILE_EXTS = /\.(ts|tsx|js|jsx)$/;
+
+const checkAll = process.argv.includes("--all");
 
 function getStagedFiles() {
   const raw = execSync("git diff --cached --name-only --diff-filter=ACMR", {
@@ -21,8 +34,36 @@ function getStagedFiles() {
     .filter(Boolean);
 }
 
-function isTarget(file) {
-  return TARGET_DIRS.some((dir) => file.startsWith(dir));
+function walk(dir, acc) {
+  if (!fs.existsSync(dir)) return acc;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name === "node_modules") continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walk(full, acc);
+    } else if (FILE_EXTS.test(entry.name)) {
+      acc.push(full.replace(/\\/g, "/"));
+    }
+  }
+  return acc;
+}
+
+function getAllFiles(dirs) {
+  const acc = [];
+  for (const dir of dirs) {
+    walk(dir, acc);
+  }
+  return acc;
+}
+
+function isAllowed(file) {
+  if (ALLOWED.has(file)) return true;
+  return ALLOWED_PREFIXES.some((prefix) => file.startsWith(prefix));
+}
+
+function isTarget(file, dirs) {
+  return dirs.some((dir) => file.startsWith(dir));
 }
 
 function readStaged(file) {
@@ -33,8 +74,19 @@ function readStaged(file) {
   }
 }
 
-function report(offenders) {
-  console.error("🚫 Обнаружены необёрнутые console.* в staged-файлах:");
+function readFromDisk(file) {
+  try {
+    return fs.readFileSync(file, "utf8");
+  } catch (error) {
+    return null;
+  }
+}
+
+function report(offenders, mode) {
+  const header = mode === "all"
+    ? `🚫 Обнаружены необёрнутые console.* в runtime-коде (${offenders.length}):`
+    : "🚫 Обнаружены необёрнутые console.* в staged-файлах:";
+  console.error(header);
   offenders.forEach(({ file, line, text }) => {
     console.error(`  ${file}:${line}: ${text}`);
   });
@@ -43,18 +95,27 @@ function report(offenders) {
   );
 }
 
-const stagedFiles = getStagedFiles();
-if (!stagedFiles.length) {
-  process.exit(0);
+let files;
+let readContent;
+
+if (checkAll) {
+  files = getAllFiles(TARGET_DIRS);
+  readContent = readFromDisk;
+} else {
+  files = getStagedFiles();
+  if (!files.length) {
+    process.exit(0);
+  }
+  readContent = readStaged;
 }
 
 const offenders = [];
 
-for (const file of stagedFiles) {
-  if (!isTarget(file)) continue;
-  if (ALLOWED.has(file)) continue;
+for (const file of files) {
+  if (!isTarget(file, TARGET_DIRS)) continue;
+  if (isAllowed(file)) continue;
 
-  const content = readStaged(file);
+  const content = readContent(file);
   if (!content) continue;
 
   content.split(/\r?\n/).forEach((line, index) => {
@@ -69,7 +130,7 @@ for (const file of stagedFiles) {
 }
 
 if (offenders.length) {
-  report(offenders);
+  report(offenders, checkAll ? "all" : "staged");
   process.exit(1);
 }
 
