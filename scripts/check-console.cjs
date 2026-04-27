@@ -13,6 +13,7 @@ const TARGET_DIRS = ["src/", "functions/src/", "api/"];
 const ALLOWED = new Set([
   "src/lib/debug.ts",
   "functions/src/lib/debug.ts",
+  "src/lib/errorHandler.ts", // Central app-error reporter → DevTools
   "src/pages/timeline/utils/exporters/common.ts", // Dev-only export debugging
   "api/assistant.ts" // Production error reporting → Vercel logs (catch Gemini)
 ]);

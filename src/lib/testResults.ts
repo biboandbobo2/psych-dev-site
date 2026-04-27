@@ -8,21 +8,22 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { debugLog } from './debug';
 import type { TestResult, TestAttemptSummary } from '../types/testResults';
 
 export async function saveTestResult(result: Omit<TestResult, 'id'>): Promise<string> {
-  console.log('🔵 [saveTestResult] Начинаем сохранение в Firestore:', result);
+  debugLog('🔵 [saveTestResult] Начинаем сохранение в Firestore:', result);
   const testResultsRef = collection(db, 'testResults');
   const docRef = await addDoc(testResultsRef, {
     ...result,
     completedAt: Timestamp.fromDate(result.completedAt),
   });
-  console.log('✅ [saveTestResult] Сохранено с ID:', docRef.id);
+  debugLog('✅ [saveTestResult] Сохранено с ID:', docRef.id);
   return docRef.id;
 }
 
 export async function getTestResults(userId: string, testId: string): Promise<TestResult[]> {
-  console.log('🔵 [getTestResults] Загружаем результаты из Firestore для:', { userId, testId });
+  debugLog('🔵 [getTestResults] Загружаем результаты из Firestore для:', { userId, testId });
   const testResultsRef = collection(db, 'testResults');
   const q = query(
     testResultsRef,
@@ -32,11 +33,11 @@ export async function getTestResults(userId: string, testId: string): Promise<Te
   );
 
   const querySnapshot = await getDocs(q);
-  console.log('🔵 [getTestResults] Найдено документов:', querySnapshot.size);
+  debugLog('🔵 [getTestResults] Найдено документов:', querySnapshot.size);
 
   const results = querySnapshot.docs.map((doc) => {
     const data = doc.data();
-    console.log('🔵 [getTestResults] Документ:', doc.id, data);
+    debugLog('🔵 [getTestResults] Документ:', doc.id, data);
     return {
       id: doc.id,
       userId: data.userId,
@@ -50,7 +51,7 @@ export async function getTestResults(userId: string, testId: string): Promise<Te
     } as TestResult;
   });
 
-  console.log('✅ [getTestResults] Возвращаем результаты:', results);
+  debugLog('✅ [getTestResults] Возвращаем результаты:', results);
   return results;
 }
 
