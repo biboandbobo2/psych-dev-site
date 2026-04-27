@@ -33,7 +33,7 @@ export function ContinueCourseCard({ course, streamLabel, onOpenLessons }: Conti
         <button
           type="button"
           onClick={() => onOpenLessons(course.id)}
-          className="relative flex h-full items-center justify-center bg-[#CFEAD0] p-4 transition group-hover:bg-[#A8D6AA] hover:bg-[#A8D6AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          className="relative flex h-full items-center justify-center bg-[#CFEAD0] p-4 transition hover:bg-[#A8D6AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           aria-label={`Открыть список занятий курса «${course.name}»`}
         >
           <span className="text-[44px] sm:text-[64px]" aria-hidden>
