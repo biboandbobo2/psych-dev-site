@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useCourses } from '../../hooks/useCourses';
-import { useCourseStore } from '../../stores';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useAuth } from '../../auth/AuthProvider';
 import { getLastCourseLesson, getMostRecentlyWatchedCourseId } from '../../lib/lastCourseLesson';
@@ -29,7 +27,13 @@ import { useGuestStatus } from '../../hooks/useGuestStatus';
 import { useCoursesOpenness } from '../../hooks/useCoursesOpenness';
 import { usePlatformNews } from '../../hooks/usePlatformNews';
 import { PlatformNewsSection } from './PlatformNewsSection';
-import { isEveryoneGroup } from '../../../shared/groups/everyoneGroup';
+import { MyAssignmentsSection } from './components/MyAssignmentsSection';
+import { FeedItemModal } from './components/FeedItemModal';
+import { GeneralEventsSection } from './components/GeneralEventsSection';
+import { MyGroupsFeedSection } from './components/MyGroupsFeedSection';
+import { MiniWeekCalendar } from './components/MiniWeekCalendar';
+import { ContinueCourseCard } from './components/ContinueCourseCard';
+import { CatalogCourseCard } from './components/CatalogCourseCard';
 
 export function HomeDashboard() {
   const { status } = useGuestStatus();
@@ -42,17 +46,8 @@ export function HomeDashboard() {
   return <StudentDashboard />;
 }
 
-function getCourseIntroPath(courseId: string): string {
-  if (courseId === 'development') return '/development/intro';
-  if (courseId === 'clinical') return '/clinical/intro';
-  if (courseId === 'general') return '/general/intro';
-  return `/course/${encodeURIComponent(courseId)}/intro`;
-}
-
 function StudentDashboard() {
   const { user } = useAuth();
-  const { setCurrentCourse } = useCourseStore();
-  const navigate = useNavigate();
   const { courses, courseMap } = useCourses();
   const { groups: myGroups } = useMyGroups();
   const userFeaturedCourseIds = useAuthStore((s) => s.featuredCourseIds);
@@ -70,23 +65,9 @@ function StudentDashboard() {
   const [lessonsDrawerCourseId, setLessonsDrawerCourseId] = useState<string | null>(null);
   const [openFeedItem, setOpenFeedItem] = useState<GroupFeedItem | null>(null);
 
-  const featuredSubjects = courses.slice(0, 4).map((course) => ({
-    id: course.id,
-    name: course.name,
-    icon: course.icon,
-  }));
-  const fallbackSubjects = [
-    { id: 'development', name: 'Психология развития', icon: '👶' },
-    { id: 'clinical', name: 'Основы патопсихологии', icon: '🧠' },
-    { id: 'general', name: 'Введение в клиническую психологию', icon: '📘' },
-  ];
-  const subjects = featuredSubjects.length >= 4
-    ? featuredSubjects
-    : [...featuredSubjects, ...fallbackSubjects.filter((item) => !featuredSubjects.some((course) => course.id === item.id))].slice(0, 4);
-
   const accessibleCourseIds = useMemo(
     () => courses.filter((c) => hasCourseAccess(c.id as CourseType)).map((c) => c.id),
-    [courses, hasCourseAccess]
+    [courses, hasCourseAccess],
   );
 
   const continueResolution = useMemo(
@@ -97,7 +78,7 @@ function StudentDashboard() {
         lastWatchedCourseId: getMostRecentlyWatchedCourseId(),
         accessibleCourseIds,
       }),
-    [userFeaturedCourseIds, myGroups, accessibleCourseIds]
+    [userFeaturedCourseIds, myGroups, accessibleCourseIds],
   );
 
   const primaryContinueCourses = useMemo(() => {
@@ -140,9 +121,7 @@ function StudentDashboard() {
       myFeedItems
         .filter((item) => item.kind === 'event')
         .map((item) => {
-          const startDate = item.startAt?.toDate
-            ? item.startAt.toDate()
-            : null;
+          const startDate = item.startAt?.toDate ? item.startAt.toDate() : null;
           const fallback = startDate ? null : tryParseDateLabel(item.dateLabel);
           const parsedDate = startDate ?? fallback ?? null;
           return {
@@ -153,7 +132,7 @@ function StudentDashboard() {
             dateKey: parsedDate ? toDateKey(parsedDate) : null,
           };
         }),
-    [myFeedItems]
+    [myFeedItems],
   );
 
   const calendarEventsByDate = useMemo(() => {
@@ -161,25 +140,26 @@ function StudentDashboard() {
     parsedCalendarEvents.forEach((event) => {
       if (!event.dateKey) return;
       const current = map.get(event.dateKey);
-      if (current) {
-        current.push(event);
-      } else {
-        map.set(event.dateKey, [event]);
-      }
+      if (current) current.push(event);
+      else map.set(event.dateKey, [event]);
     });
     return map;
   }, [parsedCalendarEvents]);
 
   const undatedCalendarEvents = useMemo(
     () => parsedCalendarEvents.filter((event) => !event.dateKey),
-    [parsedCalendarEvents]
+    [parsedCalendarEvents],
   );
 
   const openEventsCalendar = () => {
     const firstDatedEvent = parsedCalendarEvents.find((event) => event.parsedDate);
     if (firstDatedEvent?.parsedDate) {
       setCalendarCursor(
-        new Date(firstDatedEvent.parsedDate.getFullYear(), firstDatedEvent.parsedDate.getMonth(), 1)
+        new Date(
+          firstDatedEvent.parsedDate.getFullYear(),
+          firstDatedEvent.parsedDate.getMonth(),
+          1,
+        ),
       );
       if (!selectedCalendarDateKey) {
         setSelectedCalendarDateKey(firstDatedEvent.dateKey);
@@ -213,93 +193,27 @@ function StudentDashboard() {
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
               DOM Academy
             </span>
-            <span className="mt-0.5 text-[11px] italic text-muted">
-              Development Of Mind
-            </span>
+            <span className="mt-0.5 text-[11px] italic text-muted">Development Of Mind</span>
           </Link>
         </header>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
           {/* LEFT */}
           <div className="space-y-6">
-            {/* Карточки курсов */}
             <div className="grid auto-rows-fr grid-cols-1 gap-4">
               {primaryContinueCourses.map((course) => (
-                <article
+                <ContinueCourseCard
                   key={course.id}
-                  className="group overflow-hidden rounded-2xl border border-border bg-card shadow-brand transition"
-                >
-                  <div className="grid h-full auto-rows-fr grid-cols-[104px_minmax(0,1fr)] sm:grid-cols-[200px_minmax(0,1fr)]">
-                    <button
-                      type="button"
-                      onClick={() => setLessonsDrawerCourseId(course.id)}
-                      className="relative flex h-full items-center justify-center bg-[#CFEAD0] p-4 transition group-hover:bg-[#A8D6AA] hover:bg-[#A8D6AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-                      aria-label={`Открыть список занятий курса «${course.name}»`}
-                    >
-                      <span className="text-[44px] sm:text-[64px]" aria-hidden>
-                        {course.icon || '📘'}
-                      </span>
-                      <span className="absolute bottom-2 left-3 text-[10px] font-medium uppercase tracking-[0.12em] text-[#1F4D22]/70 sm:bottom-3">
-                        Список занятий
-                      </span>
-                    </button>
-                    <div
-                      role="link"
-                      tabIndex={0}
-                      onClick={() => navigate(getCourseIntroPath(course.id))}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          navigate(getCourseIntroPath(course.id));
-                        }
-                      }}
-                      className="flex min-w-0 cursor-pointer flex-col justify-between gap-3 p-5 transition group-hover:bg-accent-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
-                      aria-label={`Открыть главную страницу курса «${course.name}»`}
-                    >
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-                          {courseStreamLabel}
-                        </p>
-                        <h2 className="mt-1 break-words text-xl font-bold leading-tight text-fg sm:text-3xl">
-                          {course.name}
-                        </h2>
-                        <p className="mt-2 text-sm text-muted">Лекция: {course.lessonTitle}</p>
-                        <p className="mt-1 text-xs font-semibold text-accent">
-                          {course.resumeTimeLabel ?? 'Продолжим с последнего урока'}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <NavLink
-                          to={course.continuePath}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setCurrentCourse(course.id as CourseType);
-                          }}
-                          className="inline-flex items-center gap-2 rounded-xl border border-accent/30 bg-accent-100 px-5 py-2.5 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
-                        >
-                          ▶ Продолжить
-                        </NavLink>
-                        <div className="rounded-xl border border-border bg-card2 px-3 py-2 text-right">
-                          <p className="text-lg font-bold leading-none text-fg">
-                            {course.progress.percent}%
-                          </p>
-                          <p className="mt-1 text-[11px] text-muted">
-                            {course.progress.total > 0
-                              ? `${course.progress.completed}/${course.progress.total} занятий`
-                              : `${course.progress.completed} занятий`}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </article>
+                  course={course}
+                  streamLabel={courseStreamLabel}
+                  onOpenLessons={setLessonsDrawerCourseId}
+                />
               ))}
               {primaryContinueCourses.length === 0 ? (
                 <article className="rounded-2xl border border-border bg-card p-6">
                   <h2 className="text-lg font-bold text-fg">Нет актуальных курсов</h2>
                   <p className="mt-2 text-sm text-muted">
-                    Выберите курсы, которые сейчас активно проходите, — они будут
-                    показаны здесь.
+                    Выберите курсы, которые сейчас активно проходите, — они будут показаны здесь.
                   </p>
                   <Link
                     to="/profile"
@@ -317,11 +231,7 @@ function StudentDashboard() {
               onOpen={setOpenFeedItem}
             />
 
-            <PlatformNewsSection
-              items={platformNews}
-              loading={platformNewsLoading}
-              showEmpty
-            />
+            <PlatformNewsSection items={platformNews} loading={platformNewsLoading} showEmpty />
           </div>
 
           {/* RIGHT (sticky) */}
@@ -351,47 +261,12 @@ function StudentDashboard() {
           {catalogCourses.length > 0 ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {catalogCourses.map((course) => (
-                <article
+                <CatalogCourseCard
                   key={course.id}
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => navigate(getCourseIntroPath(course.id))}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      navigate(getCourseIntroPath(course.id));
-                    }
-                  }}
-                  className="flex aspect-square cursor-pointer flex-col justify-between rounded-xl border border-border bg-card2 p-4 transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1"
-                  aria-label={`Открыть главную страницу курса «${course.name}»`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-3xl" aria-hidden>
-                      {course.icon || '🎓'}
-                    </span>
-                    {openCourseIds.has(course.id) ? (
-                      <span className="inline-flex shrink-0 items-center rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-semibold text-accent">
-                        Открытый
-                      </span>
-                    ) : null}
-                  </div>
-                  <div>
-                    <h4 className="line-clamp-3 text-sm font-semibold leading-tight text-fg">
-                      {course.name}
-                    </h4>
-                    <p className="mt-1 text-xs text-muted">Курс платформы</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setLessonsDrawerCourseId(course.id);
-                    }}
-                    className="self-start rounded-md text-xs font-semibold text-accent transition hover:text-[#1F4D22]"
-                  >
-                    Занятия →
-                  </button>
-                </article>
+                  course={course}
+                  isOpen={openCourseIds.has(course.id)}
+                  onOpenLessons={setLessonsDrawerCourseId}
+                />
               ))}
             </div>
           ) : (
@@ -454,343 +329,6 @@ function StudentDashboard() {
           courseId={lessonsDrawerCourseId}
           onClose={() => setLessonsDrawerCourseId(null)}
         />
-      </div>
-    </section>
-  );
-}
-
-function formatDueDateRu(iso: string | null | undefined): string {
-  if (!iso) return '';
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return iso;
-  return `${m[3]}.${m[2]}`;
-}
-
-function MyAssignmentsSection({
-  items,
-  loading,
-  onOpen,
-}: {
-  items: GroupFeedItem[];
-  loading: boolean;
-  onOpen: (item: GroupFeedItem) => void;
-}) {
-  if (loading) return null;
-  const assignments = items.filter((item) => item.kind === 'assignment');
-  if (assignments.length === 0) return null;
-
-  return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
-      <h3 className="mb-3 text-xl font-bold text-fg">Задания</h3>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {assignments.slice(0, 6).map((item) => (
-          <article key={item.id} className="rounded-xl border border-border bg-card2 p-4">
-            <p className="text-sm font-semibold text-fg">{item.groupName}</p>
-            <p className="mt-2 text-sm text-muted">{item.text}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-              <span className="inline-flex items-center gap-1 rounded-md bg-mark px-2 py-0.5 font-semibold text-[#5a4b00]">
-                Дедлайн: {formatDueDateRu(item.dueDate)}
-              </span>
-              {item.longText ? (
-                <button
-                  type="button"
-                  onClick={() => onOpen(item)}
-                  className="rounded-md border border-accent/30 bg-accent-100 px-2 py-0.5 font-semibold text-accent transition hover:bg-accent-100/70"
-                >
-                  Читать полностью
-                </button>
-              ) : null}
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/**
- * Универсальная модалка деталей для элементов ленты группы:
- * - event: дата/время, zoom, ссылка на страницу сайта, полный текст;
- * - assignment: дедлайн, полный текст (longText), опциональный zoom.
- */
-function FeedItemModal({
-  item,
-  onClose,
-}: {
-  item: GroupFeedItem | null;
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    if (!item) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [item, onClose]);
-
-  if (!item) return null;
-  const isAssignment = item.kind === 'assignment';
-  const dateChip = isAssignment
-    ? `Дедлайн: ${formatDueDateRu(item.dueDate)}`
-    : item.dateLabel;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-2xl rounded-2xl bg-card p-6 shadow-brand"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Закрыть"
-          className="absolute right-4 top-4 rounded-full p-1 text-muted transition hover:bg-card2"
-        >
-          ✕
-        </button>
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-          {item.groupName}
-        </p>
-        <h3 className="mt-1 pr-6 text-lg font-bold text-fg">{item.text}</h3>
-        {dateChip ? (
-          <p className="mt-2 text-xs">
-            <span className="inline-flex items-center gap-1 rounded-md bg-mark px-2 py-0.5 font-semibold text-[#5a4b00]">
-              {dateChip}
-            </span>
-          </p>
-        ) : null}
-        {(item.zoomLink || item.siteLink) && (
-          <div className="mt-3 flex flex-wrap gap-2 text-sm">
-            {item.zoomLink ? (
-              <a
-                href={item.zoomLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-md border border-accent/30 bg-accent-100 px-3 py-1 font-semibold text-accent transition hover:bg-accent-100/70"
-              >
-                Открыть Zoom →
-              </a>
-            ) : null}
-            {item.siteLink ? (
-              <a
-                href={item.siteLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-md border border-accent/30 bg-accent-100 px-3 py-1 font-semibold text-accent transition hover:bg-accent-100/70"
-              >
-                Открыть на сайте →
-              </a>
-            ) : null}
-          </div>
-        )}
-        {item.longText ? (
-          <div className="mt-4 max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-fg">
-            {item.longText}
-          </div>
-        ) : null}
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-/**
- * Блок «Общие события» — заглушка на будущее. Сейчас источника данных нет;
- * после того как появится концепция публичных событий или отдельных
- * календарей, здесь появится свой feed, аналогичный `MyGroupsFeedSection`.
- */
-function GeneralEventsSection() {
-  return (
-    <section className="rounded-2xl border border-border bg-card p-4 shadow-brand">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-lg font-bold text-fg">Общие события</h3>
-      </div>
-      <p className="text-xs text-muted">
-        Тут появятся события, доступные всем — новости и встречи вне курсов.
-      </p>
-    </section>
-  );
-}
-
-function MyGroupsFeedSection({
-  items: allItems,
-  loading,
-  onOpen,
-}: {
-  items: GroupFeedItem[];
-  loading: boolean;
-  onOpen: (item: GroupFeedItem) => void;
-}) {
-  // Assignments выведены в свою секцию — здесь только объявления и события.
-  // Объявления broadcast-группы «Все» показываются в отдельной секции
-  // «Новости платформы», поэтому их тоже исключаем из ленты моих групп.
-  const items = allItems.filter(
-    (item) => item.kind !== 'assignment' && !isEveryoneGroup(item.groupId)
-  );
-
-  if (loading) return null;
-
-  if (items.length === 0) {
-    return (
-      <section className="rounded-2xl border border-border bg-accent-100/60 p-4">
-        <h3 className="mb-1 text-sm font-bold text-fg">Объявления моей группы</h3>
-        <p className="text-xs text-muted">На этой неделе нет новых.</p>
-      </section>
-    );
-  }
-
-  const byGroup = new Map<string, typeof items>();
-  for (const item of items) {
-    const list = byGroup.get(item.groupName) ?? [];
-    list.push(item);
-    byGroup.set(item.groupName, list);
-  }
-  // Внутри группы: сначала будущие события по startAt ASC, потом объявления
-  // по createdAt DESC. Прошедшие события уходят в конец.
-  const nowMs = Date.now();
-  for (const [groupName, list] of byGroup) {
-    list.sort((a, b) => {
-      const aIsEvent = a.kind === 'event';
-      const bIsEvent = b.kind === 'event';
-      if (aIsEvent && bIsEvent) {
-        const aMs = a.startAt?.toMillis?.() ?? a.createdAt?.toMillis?.() ?? 0;
-        const bMs = b.startAt?.toMillis?.() ?? b.createdAt?.toMillis?.() ?? 0;
-        const aFuture = aMs >= nowMs ? 0 : 1;
-        const bFuture = bMs >= nowMs ? 0 : 1;
-        if (aFuture !== bFuture) return aFuture - bFuture;
-        return aFuture === 0 ? aMs - bMs : bMs - aMs;
-      }
-      if (aIsEvent) return -1;
-      if (bIsEvent) return 1;
-      const aMs = a.createdAt?.toMillis?.() ?? 0;
-      const bMs = b.createdAt?.toMillis?.() ?? 0;
-      return bMs - aMs;
-    });
-    byGroup.set(groupName, list);
-  }
-
-  return (
-    <section className="rounded-2xl border border-border bg-card p-4 shadow-brand">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-lg font-bold text-fg">Моя группа</h3>
-        <span className="text-xs text-muted">
-          {byGroup.size === 1 ? '1 группа' : `${byGroup.size} групп`}
-        </span>
-      </div>
-      <div className="space-y-3">
-        {Array.from(byGroup.entries()).map(([groupName, list]) => (
-          <div key={groupName} className="rounded-xl border border-border bg-card2 p-3">
-            <div className="mb-2 text-sm font-semibold text-fg">👥 {groupName}</div>
-            <ul className="space-y-2 text-xs text-muted">
-              {list.slice(0, 6).map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => onOpen(item)}
-                    className="-mx-1 w-full rounded-md px-1 py-0.5 text-left transition hover:bg-accent-100/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  >
-                    {item.kind === 'event' && item.dateLabel ? (
-                      <span className="mr-1 inline-flex whitespace-nowrap rounded-md bg-mark px-1.5 py-0.5 text-[10px] font-semibold text-[#5a4b00]">
-                        {item.dateLabel}
-                      </span>
-                    ) : (
-                      <span className="font-semibold text-fg">Объявление: </span>
-                    )}
-                    <span>{item.text}</span>
-                    {item.zoomLink ? (
-                      <span className="ml-1 text-accent">· Zoom</span>
-                    ) : null}
-                    {item.siteLink ? (
-                      <span className="ml-1 text-accent">· Подробнее</span>
-                    ) : null}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function MiniWeekCalendar({
-  calendarEventsByDate,
-  onSelectDate,
-  onOpen,
-}: {
-  calendarEventsByDate: Map<string, ParsedCalendarEvent[]>;
-  onSelectDate: (dateKey: string) => void;
-  onOpen: () => void;
-}) {
-  const days = useMemo(() => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + mondayOffset);
-    const weekday = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
-    const todayKey = toDateKey(today);
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      const key = toDateKey(d);
-      return {
-        n: d.getDate(),
-        d: weekday[i],
-        dateKey: key,
-        isToday: key === todayKey,
-      };
-    });
-  }, []);
-
-  return (
-    <section className="rounded-2xl border border-border bg-card p-4 shadow-brand">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-lg font-bold text-fg">Календарь</h3>
-        <button
-          type="button"
-          onClick={onOpen}
-          className="text-xs text-muted transition hover:text-accent"
-        >
-          Открыть →
-        </button>
-      </div>
-      <div className="grid grid-cols-7 gap-1 text-center">
-        {days.map((day) => {
-          const hasEvents = calendarEventsByDate.has(day.dateKey);
-          return (
-            <button
-              key={day.dateKey}
-              type="button"
-              onClick={() => onSelectDate(day.dateKey)}
-              className="py-1 transition hover:opacity-80"
-            >
-              <div className="text-[10px] uppercase text-muted">{day.d}</div>
-              <div
-                className={`mx-auto mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm ${
-                  day.isToday ? 'bg-mark font-bold text-[#5a4b00]' : 'text-fg'
-                }`}
-              >
-                {day.n}
-              </div>
-              <div
-                className={`mx-auto mt-1 h-1.5 w-1.5 rounded-full ${
-                  hasEvents ? 'bg-accent' : 'bg-transparent'
-                }`}
-              />
-            </button>
-          );
-        })}
       </div>
     </section>
   );
