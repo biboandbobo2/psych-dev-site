@@ -7,12 +7,20 @@ import {
   setGroupMembers,
   updateGroup,
 } from '../../../lib/adminFunctions';
-
-const MAX_FEATURED_COURSES = 3;
 import { useCourses } from '../../../hooks/useCourses';
 import { useAllUsers } from '../../../hooks/useAllUsers';
 import type { Group } from '../../../types/groups';
 import { debugError } from '../../../lib/debug';
+import { AnnouncementAdminsField } from './groupEditor/AnnouncementAdminsField';
+import { CourseChecklistField } from './groupEditor/CourseChecklistField';
+import { MembersField } from './groupEditor/MembersField';
+import {
+  parseInviteEmails,
+  toggleFeaturedCourse,
+  toggleSet,
+} from './groupEditor/helpers';
+
+const MAX_FEATURED_COURSES = 3;
 
 interface GroupEditorModalProps {
   isOpen: boolean;
@@ -52,7 +60,7 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
     setFeaturedCourseIds(
       Array.isArray(group?.featuredCourseIds)
         ? group!.featuredCourseIds!.slice(0, MAX_FEATURED_COURSES)
-        : []
+        : [],
     );
     setMemberSearch('');
     setInviteEmails('');
@@ -62,18 +70,18 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
 
   const sortedCourses = useMemo(
     () => [...courses].sort((a, b) => a.name.localeCompare(b.name, 'ru')),
-    [courses]
+    [courses],
   );
 
   const adminUsers = useMemo(
     () => users.filter((u) => u.role === 'admin' || u.role === 'super-admin'),
-    [users]
+    [users],
   );
 
   const filteredUsers = useMemo(() => {
     const q = memberSearch.trim().toLowerCase();
     const sorted = [...users].sort((a, b) =>
-      (a.displayName ?? a.email ?? a.uid).localeCompare(b.displayName ?? b.email ?? b.uid, 'ru')
+      (a.displayName ?? a.email ?? a.uid).localeCompare(b.displayName ?? b.email ?? b.uid, 'ru'),
     );
     if (!q) return sorted;
     return sorted.filter((u) => {
@@ -84,13 +92,6 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
   }, [users, memberSearch]);
 
   if (!isOpen) return null;
-
-  const toggleSet = (set: Set<string>, id: string, setter: (next: Set<string>) => void) => {
-    const next = new Set(set);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setter(next);
-  };
 
   const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -143,22 +144,9 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
     }
   };
 
-  const toggleFeaturedCourse = (courseId: string) => {
-    setFeaturedCourseIds((prev) => {
-      if (prev.includes(courseId)) {
-        return prev.filter((id) => id !== courseId);
-      }
-      if (prev.length >= MAX_FEATURED_COURSES) return prev;
-      return [...prev, courseId];
-    });
-  };
-
   const handleInvite = async () => {
     if (!isEdit || !group) return;
-    const emails = inviteEmails
-      .split(/[\s,;]+/)
-      .map((e) => e.trim().toLowerCase())
-      .filter((e) => e.includes('@'));
+    const emails = parseInviteEmails(inviteEmails);
     if (emails.length === 0) {
       setInviteNotice('Нет корректных email.');
       return;
@@ -174,7 +162,7 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
       });
       setInviteEmails('');
       setInviteNotice(
-        `Добавлено: ${res.resolvedExisting} уже зарегистрированных, ${res.createdPending} приглашено заранее.`
+        `Добавлено: ${res.resolvedExisting} уже зарегистрированных, ${res.createdPending} приглашено заранее.`,
       );
     } catch (err) {
       debugError('addGroupMembersByEmail failed', err);
@@ -186,7 +174,11 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
 
   const handleDelete = async () => {
     if (!isEdit || !group) return;
-    if (!window.confirm(`Удалить группу «${group.name}»? Доступ участников к курсам через эту группу будет снят.`)) {
+    if (
+      !window.confirm(
+        `Удалить группу «${group.name}»? Доступ участников к курсам через эту группу будет снят.`,
+      )
+    ) {
       return;
     }
     setDeleting(true);
@@ -259,192 +251,58 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
             />
           </div>
 
-          <fieldset className="space-y-2">
-            <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Курсы группы ({grantedCourses.size})
-            </legend>
-            {coursesLoading ? (
-              <div className="text-sm text-gray-500">Загрузка…</div>
-            ) : (
-              <ul className="grid grid-cols-1 gap-1 rounded-md border border-gray-200 p-2 sm:grid-cols-2">
-                {sortedCourses.map((c) => (
-                  <li key={c.id}>
-                    <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-gray-50">
-                      <input
-                        type="checkbox"
-                        checked={grantedCourses.has(c.id)}
-                        onChange={() => toggleSet(grantedCourses, c.id, setGrantedCourses)}
-                        disabled={saving}
-                      />
-                      <span className="text-sm">{c.icon} {c.name}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </fieldset>
+          <CourseChecklistField
+            legend={`Курсы группы (${grantedCourses.size})`}
+            courses={sortedCourses}
+            loading={coursesLoading}
+            isChecked={(id) => grantedCourses.has(id)}
+            onToggle={(id) => setGrantedCourses((prev) => toggleSet(prev, id))}
+            disabled={saving}
+          />
 
-          <fieldset className="space-y-2">
-            <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Актуальные курсы ({featuredCourseIds.length}/{MAX_FEATURED_COURSES})
-            </legend>
-            <p className="text-xs text-gray-500">
-              Эти курсы будут показаны как актуальные у студентов группы. Если студент сам
-              выбрал актуальные курсы в профиле — приоритет у его выбора.
-            </p>
-            {coursesLoading ? (
-              <div className="text-sm text-gray-500">Загрузка…</div>
-            ) : (
-              <ul className="grid grid-cols-1 gap-1 rounded-md border border-gray-200 p-2 sm:grid-cols-2">
-                {sortedCourses.map((c) => {
-                  const checked = featuredCourseIds.includes(c.id);
-                  const limitReached =
-                    !checked && featuredCourseIds.length >= MAX_FEATURED_COURSES;
-                  return (
-                    <li key={c.id}>
-                      <label
-                        className={`flex items-center gap-2 rounded px-2 py-1 ${
-                          limitReached
-                            ? 'cursor-not-allowed opacity-50'
-                            : 'cursor-pointer hover:bg-gray-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleFeaturedCourse(c.id)}
-                          disabled={saving || limitReached}
-                        />
-                        <span className="text-sm">
-                          {c.icon} {c.name}
-                        </span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </fieldset>
-
-          <fieldset className="space-y-2">
-            <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Кто может писать объявления этой группы ({announcementAdminIds.size})
-            </legend>
-            <p className="text-xs text-gray-500">
-              Супер-админ пишет всегда. Ниже — обычные администраторы, которым вы даёте это право именно для этой группы.
-            </p>
-            {usersLoading ? (
-              <div className="text-sm text-gray-500">Загрузка…</div>
-            ) : adminUsers.length === 0 ? (
-              <div className="text-sm text-gray-500">Нет обычных администраторов.</div>
-            ) : (
-              <ul className="space-y-1 rounded-md border border-gray-200 p-2">
-                {adminUsers.map((u) => (
-                  <li key={u.uid}>
-                    <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-gray-50">
-                      <input
-                        type="checkbox"
-                        checked={announcementAdminIds.has(u.uid)}
-                        onChange={() => toggleSet(announcementAdminIds, u.uid, setAnnouncementAdminIds)}
-                        disabled={saving || u.role === 'super-admin'}
-                      />
-                      <span className="text-sm">
-                        {u.displayName || u.email || u.uid}
-                        {u.role === 'super-admin' && (
-                          <span className="ml-2 text-xs text-purple-600">супер-админ (всегда)</span>
-                        )}
-                      </span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </fieldset>
-
-          <fieldset className="space-y-2">
-            <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Участники ({memberIds.size})
-            </legend>
-
-            {isSystem ? (
-              <p className="rounded-lg border border-dashed border-purple-200 bg-purple-50 px-3 py-2 text-xs text-purple-900">
-                Состав системной группы управляется автоматически: каждый новый
-                зарегистрированный пользователь добавляется сюда. Ручное
-                редактирование участников недоступно.
-              </p>
-            ) : isEdit && group ? (
-              <div className="space-y-2 rounded-lg border border-dashed border-gray-300 bg-[#F9FBFF] p-3">
-                <p className="text-xs font-semibold text-[#2C3E50]">Пригласить по email</p>
-                <p className="text-xs text-gray-500">
-                  Вставь список email (через запятую, пробел или с новой строки). Уже зарегистрированные
-                  попадут в группу сразу; остальным зарезервируется место — они войдут в группу автоматически
-                  при первой регистрации.
-                </p>
-                <textarea
-                  value={inviteEmails}
-                  onChange={(e) => setInviteEmails(e.target.value)}
-                  rows={2}
-                  placeholder="alice@example.com, bob@example.com"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                  disabled={inviting || saving}
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleInvite}
-                    disabled={inviting || saving || !inviteEmails.trim()}
-                    className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {inviting ? 'Добавляем…' : 'Пригласить'}
-                  </button>
-                  {inviteNotice && (
-                    <span className="text-xs text-gray-700">{inviteNotice}</span>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <p className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-                Приглашения по email доступны после создания группы — сначала сохраните её, затем откройте снова.
-              </p>
-            )}
-
-            {!isSystem && (
+          <CourseChecklistField
+            legend={`Актуальные курсы (${featuredCourseIds.length}/${MAX_FEATURED_COURSES})`}
+            description={
               <>
-                <input
-                  type="search"
-                  value={memberSearch}
-                  onChange={(e) => setMemberSearch(e.target.value)}
-                  placeholder="Поиск по имени или email среди зарегистрированных"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                  disabled={saving}
-                />
-                {usersLoading ? (
-                  <div className="text-sm text-gray-500">Загрузка…</div>
-                ) : (
-                  <ul className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-gray-200 p-2">
-                    {filteredUsers.map((u) => (
-                      <li key={u.uid}>
-                        <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-gray-50">
-                          <input
-                            type="checkbox"
-                            checked={memberIds.has(u.uid)}
-                            onChange={() => toggleSet(memberIds, u.uid, setMemberIds)}
-                            disabled={saving}
-                          />
-                          <span className="flex-1 text-sm">
-                            {u.displayName || u.email || u.uid}
-                            {u.email && u.displayName && (
-                              <span className="ml-2 text-xs text-gray-500">{u.email}</span>
-                            )}
-                          </span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                Эти курсы будут показаны как актуальные у студентов группы. Если студент сам
+                выбрал актуальные курсы в профиле — приоритет у его выбора.
               </>
-            )}
-          </fieldset>
+            }
+            courses={sortedCourses}
+            loading={coursesLoading}
+            isChecked={(id) => featuredCourseIds.includes(id)}
+            onToggle={(id) =>
+              setFeaturedCourseIds((prev) => toggleFeaturedCourse(prev, id, MAX_FEATURED_COURSES))
+            }
+            disabled={saving}
+            maxSelected={MAX_FEATURED_COURSES}
+            selectedCount={featuredCourseIds.length}
+          />
+
+          <AnnouncementAdminsField
+            adminUsers={adminUsers}
+            loading={usersLoading}
+            selected={announcementAdminIds}
+            onToggle={(uid) => setAnnouncementAdminIds((prev) => toggleSet(prev, uid))}
+            disabled={saving}
+          />
+
+          <MembersField
+            users={filteredUsers}
+            usersLoading={usersLoading}
+            memberIds={memberIds}
+            onToggleMember={(uid) => setMemberIds((prev) => toggleSet(prev, uid))}
+            memberSearch={memberSearch}
+            onMemberSearchChange={setMemberSearch}
+            inviteEnabled={isEdit && Boolean(group)}
+            inviteEmails={inviteEmails}
+            onInviteEmailsChange={setInviteEmails}
+            inviting={inviting}
+            inviteNotice={inviteNotice}
+            onInvite={handleInvite}
+            isSystem={isSystem}
+            saving={saving}
+          />
 
           {error && (
             <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
