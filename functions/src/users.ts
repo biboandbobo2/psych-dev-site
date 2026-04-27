@@ -1,6 +1,6 @@
 import * as functions from "firebase-functions";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
-import { SUPER_ADMIN_EMAIL } from "./lib/shared.js";
+import { CORE_COURSE_IDS, SUPER_ADMIN_EMAIL } from "./lib/shared.js";
 
 const db = getFirestore();
 
@@ -34,10 +34,17 @@ function normalizeFeaturedCourseIds(raw: unknown): string[] {
 
 async function assertCoursesExist(courseIds: string[]): Promise<void> {
   if (courseIds.length === 0) return;
-  const refs = courseIds.map((id) => db.collection("courses").doc(id));
+  // Core-курсы (development/clinical/general) считаются всегда существующими —
+  // их метаданные жёстко заданы в src/constants/courses.ts, документ в
+  // `courses/{id}` опционален. Проверяем через Firestore только динамические
+  // курсы, у которых документ обязателен.
+  const coreSet = new Set<string>(CORE_COURSE_IDS);
+  const dynamicIds = courseIds.filter((id) => !coreSet.has(id));
+  if (dynamicIds.length === 0) return;
+  const refs = dynamicIds.map((id) => db.collection("courses").doc(id));
   const snaps = await db.getAll(...refs);
   const missing = snaps
-    .map((snap, idx) => (snap.exists ? null : courseIds[idx]))
+    .map((snap, idx) => (snap.exists ? null : dynamicIds[idx]))
     .filter((id): id is string => id !== null);
   if (missing.length > 0) {
     throw new functions.https.HttpsError(

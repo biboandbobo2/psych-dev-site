@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
-import { SUPER_ADMIN_EMAIL, toPendingUid } from "./lib/shared.js";
+import { CORE_COURSE_IDS, SUPER_ADMIN_EMAIL, toPendingUid } from "./lib/shared.js";
 import { isEveryoneGroup } from "../../shared/groups/everyoneGroup.js";
 
 const db = getFirestore();
@@ -57,15 +57,20 @@ async function assertCanManageGroup(
 }
 
 /**
- * Проверяет что все courseIds существуют в коллекции courses/.
- * Бросает invalid-argument если какой-то отсутствует.
+ * Проверяет что все courseIds существуют. Core-курсы (development/clinical/
+ * general) считаются всегда существующими — их метаданные жёстко в
+ * src/constants/courses.ts, документ в `courses/{id}` опционален. Через
+ * Firestore проверяются только динамические курсы.
  */
 async function assertCoursesExist(courseIds: string[]): Promise<void> {
   if (courseIds.length === 0) return;
-  const refs = courseIds.map((id) => db.collection("courses").doc(id));
+  const coreSet = new Set<string>(CORE_COURSE_IDS);
+  const dynamicIds = courseIds.filter((id) => !coreSet.has(id));
+  if (dynamicIds.length === 0) return;
+  const refs = dynamicIds.map((id) => db.collection("courses").doc(id));
   const snaps = await db.getAll(...refs);
   const missing = snaps
-    .map((snap, idx) => (snap.exists ? null : courseIds[idx]))
+    .map((snap, idx) => (snap.exists ? null : dynamicIds[idx]))
     .filter((id): id is string => id !== null);
   if (missing.length > 0) {
     throw new functions.https.HttpsError(
