@@ -1,0 +1,136 @@
+import type { RouteConfig } from './types';
+
+export const CLINICAL_ROUTE_CONFIG: RouteConfig[] = [
+  {
+    path: '/clinical/intro',
+    key: 'clinical-intro',
+    navLabel: 'Введение',
+    periodId: 'clinical-intro',
+    themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
+    meta: {
+      title: 'Введение в клиническую психологию — DOM Academy',
+      description: 'Вводное занятие курса клинической психологии.',
+    },
+  },
+  {
+    path: '/clinical/1',
+    key: 'clinical-1',
+    navLabel: 'Предмет, методы патопсихологии',
+    periodId: 'clinical-1',
+    themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
+    meta: {
+      title: 'Патопсихология — DOM Academy',
+      description: 'Предмет, методы и задачи патопсихологии. Аномалии эмоционально-личностной сферы.',
+    },
+  },
+  {
+    path: '/clinical/2',
+    key: 'clinical-2',
+    navLabel: 'Расстройства личности',
+    periodId: 'clinical-2',
+    themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
+    meta: {
+      title: 'Расстройства личности — DOM Academy',
+      description: 'Диагностика и терапия расстройств личности.',
+    },
+  },
+  {
+    path: '/clinical/3',
+    key: 'clinical-3',
+    navLabel: 'Аффективные расстройства (БАР)',
+    periodId: 'clinical-3',
+    themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
+    meta: {
+      title: 'Аффективные расстройства — DOM Academy',
+      description: 'Депрессия, мания и биполярное аффективное расстройство.',
+    },
+  },
+  {
+    path: '/clinical/4',
+    key: 'clinical-4',
+    navLabel: 'Суицидальность',
+    periodId: 'clinical-4',
+    themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
+    meta: {
+      title: 'Суицидальность — DOM Academy',
+      description: 'Аффективные расстройства и суицидальность.',
+    },
+  },
+  {
+    path: '/clinical/5',
+    key: 'clinical-5',
+    navLabel: 'Расстройства психотического спектра',
+    periodId: 'clinical-5',
+    themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
+    meta: {
+      title: 'Психотические расстройства — DOM Academy',
+      description: 'Шизофрения и расстройства психотического спектра.',
+    },
+  },
+  {
+    path: '/clinical/6',
+    key: 'clinical-6',
+    navLabel: 'Патология памяти, восприятия',
+    periodId: 'clinical-6',
+    themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
+    meta: {
+      title: 'Патология ВПФ — DOM Academy',
+      description: 'Патология памяти, восприятия и внимания.',
+    },
+  },
+  {
+    path: '/clinical/7',
+    key: 'clinical-7',
+    navLabel: 'Классификация расстройств ВПФ',
+    periodId: 'clinical-7',
+    themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
+    meta: {
+      title: 'Расстройства ВПФ — DOM Academy',
+      description: 'Классификация расстройств высших психических функций.',
+    },
+  },
+  {
+    path: '/clinical/8',
+    key: 'clinical-8',
+    navLabel: 'Патопсихологическая диагностика',
+    periodId: 'clinical-8',
+    themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
+    meta: {
+      title: 'Патопсихологическая диагностика — DOM Academy',
+      description: 'Методы патопсихологической диагностики.',
+    },
+  },
+  {
+    path: '/clinical/9',
+    key: 'clinical-9',
+    navLabel: 'Проективные методы',
+    periodId: 'clinical-9',
+    themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
+    meta: {
+      title: 'Проективная диагностика — DOM Academy',
+      description: 'Проективные методы психодиагностики.',
+    },
+  },
+  {
+    path: '/clinical/10',
+    key: 'clinical-10',
+    navLabel: 'Нарушения развития у детей',
+    periodId: 'clinical-10',
+    themeKey: 'clinical',
+    placeholderDefaultEnabled: false,
+    meta: {
+      title: 'Нарушения развития — DOM Academy',
+      description: 'Нарушения психического развития в детском возрасте.',
+    },
+  },
+];
