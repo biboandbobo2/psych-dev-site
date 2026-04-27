@@ -1,22 +1,22 @@
 /* Serverless endpoint: GET /api/papers
  * Fetches open-access works from OpenAlex / OpenAIRE / Semantic Scholar,
  * applies allow-list + psychology relevance filtering, and per-IP rate
- * limiting. Helpers вынесены в api/lib/papers*.
+ * limiting. Helpers вынесены в api/_lib/papers*.
  */
 import type { IncomingMessage } from 'node:http';
-import { filterByOpenAccess } from './lib/papersAllowList.js';
-import { buildParagraph } from './lib/papersNormalization.js';
+import { filterByOpenAccess } from './_lib/papersAllowList.js';
+import { buildParagraph } from './_lib/papersNormalization.js';
 import {
   fetchOpenAIRE,
   fetchOpenAlex,
   fetchSemanticScholar,
-} from './lib/papersSources.js';
+} from './_lib/papersSources.js';
 import {
   PSYCHOLOGY_SCORE_THRESHOLD,
   getPsychologyScore,
-} from './lib/papersScoring.js';
-import { detectLang, translateRuToEn } from './lib/papersTranslation.js';
-import type { PapersApiResponse, ResearchSource, ResearchWork } from './lib/papersTypes.js';
+} from './_lib/papersScoring.js';
+import { detectLang, translateRuToEn } from './_lib/papersTranslation.js';
+import type { PapersApiResponse, ResearchSource, ResearchWork } from './_lib/papersTypes.js';
 
 const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 const RATE_LIMIT_MAX = 30; // 30 requests per window

@@ -11,6 +11,9 @@
 | HP-2 | H (L) | Расширенное Playwright покрытие | Seed-данные, full auth flow, stress-тесты, отчётность |
 | HP-3 | ✅ | Remediate container image vulnerabilities | NPM HIGH закрыты (2026-02-06), Go stdlib — buildpack-level |
 | HR-1 | ✅ | Защита `/api/books` | Закрыта волной 6 (2026-04-26): strict BYOK без env fallback, auth Bearer на search/answer, public только list/snippet с rate-limit, CORS allowlist через appOrigins. Плюс счётчик BYOK-usage в профиле через aiUsageDaily/{uid}_{day}. |
+| HR-2 | H (S-M) | Закрыть booking email-login auth bypass | Убрать custom-token login по одному email, заменить на настоящий email-link/password/challenge flow |
+| CQ-6 | H (M) | Починить TS lint + console guardrails | ESLint для TS/TSX, full-repo `check-console`, покрытие `api/`, устранение runtime `console.*` |
+| CQ-7 | M (L) | Рефакторинг новых монолитов и дублей | `DisorderTable`, API handlers, course-nav/API-runtime helpers |
 | MP-1 | ✅ | Изоляция бизнес-логики Timeline (lazy-hooks) | Хуки вынесены в `src/pages/timeline/hooks/`, чанк `timeline-hooks` в vite.config.js (2026-04) |
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
@@ -49,6 +52,29 @@
 ---
 
 ## 🔴 High Priority
+
+### HR‑2. Закрыть booking email-login auth bypass (P: H, E: S-M)
+- **Источник:** code review `2026-04-27`, см. `docs/reports/CODE_REVIEW_MAIN_2026-04-27.md`.
+- **Проблема:** `api/auth.ts?action=loginByEmail` выдаёт Firebase custom token по одному только verified email. Клиент `src/pages/booking/AuthModal.tsx` сразу вызывает `signInWithCustomToken`. Текущий тест `tests/api/booking-login.test.ts` закрепляет это поведение.
+- **Риск:** зная email существующего verified пользователя, можно войти в его аккаунт без проверки владения почтой в момент входа.
+- **Задачи:**
+  - [ ] Убрать выдачу Firebase custom token по одному email.
+  - [ ] Перевести booking email-вход на стандартный Firebase email-link/password flow или одноразовый server-side challenge.
+  - [ ] Переписать `tests/api/booking-login.test.ts` под новую модель.
+  - [ ] Обновить `docs/guides/booking-system.md`, где сейчас описан устаревший Email+password flow.
+  - [ ] Прогнать `npm test -- --run tests/api/booking-login.test.ts tests/api/booking.test.ts`, `npm run typecheck:api`, `npm run typecheck:app`, `npm run validate`.
+
+### CQ‑6. Починить TS lint + console guardrails (P: H, E: M)
+- **Источник:** code review `2026-04-27`, см. `docs/reports/CODE_REVIEW_MAIN_2026-04-27.md`.
+- **Проблема:** `npm run lint` зелёный, но `eslint --print-config src/lib/testResults.ts` возвращает `undefined`, потому что `eslint.config.js` применён только к `**/*.{js,jsx}`. `npm run check-console` тоже зелёный, но в runtime-коде найдено 56 прямых `console.*`.
+- **Риск:** ключевой инвариант проекта про логирование и часть code-quality проверок фактически не защищают `main`.
+- **Задачи:**
+  - [ ] Подключить ESLint для `ts`/`tsx` файлов.
+  - [ ] Добавить `api/` в console-check coverage.
+  - [ ] Разделить staged pre-commit режим и full-repo режим для `npm run check-console` / `npm run validate`.
+  - [ ] Заменить runtime `console.*` на `debugLog` / `debugWarn` / `debugError` или явно документированные исключения.
+  - [ ] Отдельно решить контракт `src/lib/errorHandler.ts`: прямой `console.error` или debug/error-reporting helper.
+  - [ ] Прогнать `npm run lint`, `npm run check-console`, `npm run validate`.
 
 ### HR‑1. ✅ Защита `/api/books` — РЕШЕНО (волна 6, 2026-04-26)
 - **Решение:** `list` / `snippet` остались публичными (read-only из Firestore), но получили rate-limit 60 req/min на IP. `search` / `answer` теперь требуют:
@@ -130,11 +156,23 @@
 ### MR‑1. Масштабирование `/api/transcript-search` (P: M, E: M)
 - **Проблема:** клиентский preload уже убран, но `api/transcript-search.ts` по-прежнему делает `collectionGroup(...).get()` по всему transcript-search индексу на каждый запрос и фильтрует результаты в памяти.
 - **Риск:** latency, cost и memory usage растут линейно от общего числа chunks; проблема больше не на клиенте, а на request path сервера.
-- **Подтверждение:** review `2026-03-12`, см. `docs/reports/CODE_REVIEW_2026-03-12.md`.
+- **Подтверждение:** review `2026-03-12`, см. `docs/reports/CODE_REVIEW_2026-03-12.md`; повторно подтверждено review `2026-04-27`, см. `docs/reports/CODE_REVIEW_MAIN_2026-04-27.md`.
 - **Задачи:**
   - [ ] Убрать full collection scan из hot path `GET /api/transcript-search`.
   - [ ] Спроектировать индекс/lookup/sharding стратегию под query-time retrieval.
   - [ ] После правки smoke-проверить глобальный поиск по транскриптам и обновить docs по search pipeline.
+
+### CQ‑7. Рефакторинг новых монолитов и дублей (P: M, E: L)
+- **Источник:** code review `2026-04-27`, см. `docs/reports/CODE_REVIEW_MAIN_2026-04-27.md`.
+- **Проблема:** после закрытых ранних CQ-задач в проекте снова появились крупные runtime-файлы и дубли helper-логики. На момент ревью: 57 runtime-файлов >300 строк, 13 >500, 2 >800. Крупнейшие: `src/pages/DisorderTable.tsx` (1315), `api/papers.ts` (1206), `src/pages/home/HomeDashboard.tsx` (797), `api/assistant.ts` / `api/lectures.ts` / `api/books.ts`.
+- **Риск:** сложность ревью, высокая связность, локальные изменения чаще цепляют соседнее поведение.
+- **Задачи:**
+  - [ ] Разбить `src/pages/DisorderTable.tsx` на components/hooks: фильтры, модалки, comments, entry form, matrix view.
+  - [ ] Свести course navigation helpers к одному canonical path (`AppShell.jsx`, `useCourseNavItems.ts`, `courseLessons.ts` сейчас частично дублируются).
+  - [ ] Свести API runtime helpers: Firebase init, CORS, auth/BYOK/rate-limit без нарушения Vercel function limit.
+  - [ ] Проверить и удалить устаревший дубль `api/lectureTranscriptFallback.ts`, если он действительно не используется.
+  - [ ] Вернуть route-level lazy discipline для `PeriodPage` и `DynamicCoursePeriodPage` через `src/pages/lazy.ts`.
+  - [ ] Синхронизировать `docs/reference/routes.md`, `docs/guides/booking-system.md`, `docs/reference/firestore-schema.md` после исправлений.
 
 ### MR‑2. Починить `npm run test:ci` (P: M, E: S)
 - **Проблема:** текущий root script использует `vitest --runInBand`, который не поддерживается текущей версией Vitest и падает с `CACError`.

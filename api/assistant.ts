@@ -2,7 +2,7 @@
  * AI assistant for psychology questions using Google Gemini.
  * Restricts topics to psychology/developmental psychology/clinical psychology.
  *
- * Helpers вынесены в api/lib/assistant*.ts.
+ * Helpers вынесены в api/_lib/assistant*.ts.
  */
 import type { IncomingMessage } from 'node:http';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -21,24 +21,24 @@ import {
   estimateTokens,
   getClientIp,
   resetUsageIfNeeded,
-} from './lib/assistantQuota.js';
+} from './_lib/assistantQuota.js';
 import {
   validateInput,
   truncateResponse,
-} from './lib/assistantValidation.js';
+} from './_lib/assistantValidation.js';
 import {
   callGemini,
   callGeminiCourseIntroDraft,
   getGeminiApiKey,
-} from './lib/assistantGemini.js';
+} from './_lib/assistantGemini.js';
 import type {
   AssistantErrorResponse,
   AssistantHistoryItem,
   AssistantResponse,
-} from './lib/assistantTypes.js';
+} from './_lib/assistantTypes.js';
 
 // Re-export для совместимости с tests/api/assistant.test.ts
-export { truncateResponse } from './lib/assistantValidation.js';
+export { truncateResponse } from './_lib/assistantValidation.js';
 
 /**
  * Silent firebase init для best-effort BYOK usage tracking. Если

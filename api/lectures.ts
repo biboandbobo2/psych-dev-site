@@ -3,8 +3,8 @@
  * Lecture transcript Q&A endpoint.
  * Actions: list (GET), search (POST), answer (POST).
  *
- * Helpers вынесены в api/lib/lectureRetrieval.ts (типы, validation, vector
- * retrieval pipeline) и api/lib/lectureAnswer.ts (prompt + cleanup).
+ * Helpers вынесены в api/_lib/lectureRetrieval.ts (типы, validation, vector
+ * retrieval pipeline) и api/_lib/lectureAnswer.ts (prompt + cleanup).
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -15,9 +15,9 @@ import {
   toSafeLectureApiError,
   tryParseLectureGeminiJson,
   verifyLectureApiAuth,
-} from './lib/lectureApiRuntime.js';
-import { loadFallbackLectureSources } from './lib/lectureFallback.js';
-import { groupLectureSourcesByCourse } from './lib/lectureCourseConfig.js';
+} from './_lib/lectureApiRuntime.js';
+import { loadFallbackLectureSources } from './_lib/lectureFallback.js';
+import { groupLectureSourcesByCourse } from './_lib/lectureCourseConfig.js';
 import {
   initFirebaseAdmin,
   recordByokUsage,
@@ -30,13 +30,13 @@ import {
   validateLectureScope,
   type LectureSearchMatch,
   type LectureSourceRecord,
-} from './lib/lectureRetrieval.js';
+} from './_lib/lectureRetrieval.js';
 import {
   LECTURE_SYSTEM_PROMPT,
   buildLectureAiUnavailableMessage,
   buildLectureContext,
   sanitizeLectureAnswer,
-} from './lib/lectureAnswer.js';
+} from './_lib/lectureAnswer.js';
 
 // Re-exports для совместимости с tests/api/lectures.test.ts и других потребителей.
 export {
@@ -44,14 +44,14 @@ export {
   LECTURE_SEARCH_CONFIG,
   buildLectureDeepLink,
   validateLectureScope,
-} from './lib/lectureRetrieval.js';
-export { buildLectureAiUnavailableMessage } from './lib/lectureAnswer.js';
+} from './_lib/lectureRetrieval.js';
+export { buildLectureAiUnavailableMessage } from './_lib/lectureAnswer.js';
 export {
   getLectureApiAllowedOrigin,
   tryParseLectureGeminiJson,
-} from './lib/lectureApiRuntime.js';
-export { groupLectureSourcesByCourse } from './lib/lectureCourseConfig.js';
-export { computeLexicalScore } from './lib/lectureFallback.js';
+} from './_lib/lectureApiRuntime.js';
+export { groupLectureSourcesByCourse } from './_lib/lectureCourseConfig.js';
+export { computeLexicalScore } from './_lib/lectureFallback.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const allowedOrigin = setLectureApiCorsHeaders(req, res);

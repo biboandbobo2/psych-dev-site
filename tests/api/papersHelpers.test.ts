@@ -3,20 +3,20 @@ import {
   detectLang,
   isStopword,
   translateRuToEn,
-} from '../../api/lib/papersTranslation.js';
+} from '../../api/_lib/papersTranslation.js';
 import {
   PSYCHOLOGY_SCORE_THRESHOLD,
   getPsychologyScore,
-} from '../../api/lib/papersScoring.js';
+} from '../../api/_lib/papersScoring.js';
 import {
   cleanHost,
   isAllowedUrl,
-} from '../../api/lib/papersAllowList.js';
+} from '../../api/_lib/papersAllowList.js';
 import {
   buildParagraph,
   reconstructAbstractFromIndex,
-} from '../../api/lib/papersNormalization.js';
-import type { ResearchWork } from '../../api/lib/papersTypes.js';
+} from '../../api/_lib/papersNormalization.js';
+import type { ResearchWork } from '../../api/_lib/papersTypes.js';
 
 describe('detectLang', () => {
   it('кириллица → ru', () => {

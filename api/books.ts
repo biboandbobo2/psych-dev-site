@@ -3,8 +3,8 @@
  * Unified endpoint для public book operations.
  * Actions: list, snippet (public, GET) / search, answer (BYOK + auth, POST).
  *
- * Helpers и actions вынесены в api/lib/booksHelpers.ts и
- * api/lib/booksActions.ts.
+ * Helpers и actions вынесены в api/_lib/booksHelpers.ts и
+ * api/_lib/booksActions.ts.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -20,11 +20,11 @@ import {
   RL_AI,
   RL_PUBLIC,
   getAdjacentChunks,
-} from './lib/booksHelpers.js';
+} from './_lib/booksHelpers.js';
 import {
   handleBooksAnswerAction,
   handleBooksSearchAction,
-} from './lib/booksActions.js';
+} from './_lib/booksActions.js';
 
 // Re-export для совместимости с tests/api/books.test.ts
 export {
@@ -33,7 +33,7 @@ export {
   BOOK_STORAGE_PATHS,
   computeLexicalScore,
   SYSTEM_PROMPT,
-} from './lib/booksHelpers.js';
+} from './_lib/booksHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const allowedOrigin = setSharedCorsHeaders(req, res);

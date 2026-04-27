@@ -4,18 +4,18 @@
  * Actions: rooms, services, slots, busy, batchBusy, dates, check, book,
  *          resolveMyClientIds, clientRecords, cancelRecord
  *
- * Helpers вынесены в api/lib/altegClient.ts, api/lib/bookingHandlers.ts,
- * api/lib/bookingAuth.ts.
+ * Helpers вынесены в api/_lib/altegClient.ts, api/_lib/bookingHandlers.ts,
+ * api/_lib/bookingAuth.ts.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { canCancelBooking } from '../src/lib/bookingCancellation.js';
 import { getAllowedAppOrigin } from '../src/lib/appOrigins.js';
-import { getAltegConfig } from './lib/altegClient.js';
+import { getAltegConfig } from './_lib/altegClient.js';
 import {
   canViewBusyClientNames,
   resolveAuthorizedBookingContext,
   shouldSendBookingEmail,
-} from './lib/bookingAuth.js';
+} from './_lib/bookingAuth.js';
 import {
   handleBook,
   handleBusy,
@@ -26,7 +26,7 @@ import {
   handleRooms,
   handleServices,
   handleSlots,
-} from './lib/bookingHandlers.js';
+} from './_lib/bookingHandlers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
