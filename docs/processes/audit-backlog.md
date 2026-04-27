@@ -7,7 +7,7 @@
 ## 📊 Priority board
 | ID | Priority | Фокус | Ключевые deliverables |
 |----|----------|-------|-----------------------|
-| HP-1 | H (M) | Nightly интеграционные тесты (Firebase) | GH Actions job + артефакты прогонов |
+| HP-1 | H (S) | Nightly интеграционные тесты (Firebase) — CI часть | Локальный прогон починен 2026-04-27 (6/6 зелёных, см. ниже). Осталось: GH Actions workflow + service account secret. |
 | HP-2 | H (L) | Расширенное Playwright покрытие | Seed-данные, full auth flow, stress-тесты, отчётность |
 | HP-3 | ✅ | Remediate container image vulnerabilities | NPM HIGH закрыты (2026-02-06), Go stdlib — buildpack-level |
 | HR-1 | ✅ | Защита `/api/books` | Закрыта волной 6 (2026-04-26): strict BYOK без env fallback, auth Bearer на search/answer, public только list/snippet с rate-limit, CORS allowlist через appOrigins. Плюс счётчик BYOK-usage в профиле через aiUsageDaily/{uid}_{day}. |
@@ -88,10 +88,22 @@
 - **Коммиты:** `0012100` (основная реализация), `2505b25` (move helper для соблюдения Vercel 12-fn лимита).
 - **Frontend:** `useBookAnswer` передаёт Authorization Bearer + X-Gemini-Api-Key, проверяет наличие ключа до запроса (показывает спец-ошибку с CTA в профиль). `GeminiKeySection` расширен пошаговой инструкцией «Как получить ключ» (4 шага, ссылка на aistudio.google.com/apikey, бесплатный лимит ~1500 RPD).
 
-### HP‑1. Nightly интеграционные тесты (P: H, E: M)
-- [ ] Настроить GitHub Actions workflow, который раз в сутки поднимает Firebase эмуляторы (`npm run firebase:emulators:start`) и гоняет `npm run test:integration`.  
-- [ ] Сохранять артефакты (лог успешных тестов, при падении — журнал/видео).  
-- [ ] Обновить документацию (README + `docs/guides/testing-system.md`) разделом «Как читать nightly-прогоны».
+### HP‑1. Nightly интеграционные тесты (P: H, E: S — осталась CI часть)
+
+**Локальный прогон — ✅ РЕШЕНО (2026-04-27).** До этого 4 эмулятор-зависимых теста не работали ни у кого: пути в `firebase.test.json` были битые, в `helper.ts` не было `storageBucket` для admin app, и Firebase JS SDK не подключался к эмуляторам. Сейчас одна команда `npm run test:integration` поднимает эмуляторы, прогоняет тесты, гасит — 6/6 зелёных.
+
+Что починено:
+- [x] `tests/integration/firebase.test.json`: пути `firestore.rules`/`storage.rules` относительно директории config-файла (раньше `tests/integration/...` от корня → firebase-tools резолвил в `tests/integration/tests/integration/...`).
+- [x] `tests/integration/helper.ts:getAdminApp()`: `storageBucket` добавлен в `initializeApp()` — без него `admin.storage().bucket()` падал.
+- [x] `tests/integration/helper.ts:setupIntegrationEnv()`: явный `connectFirestoreEmulator/connectAuthEmulator/connectStorageEmulator` для Firebase JS SDK — оно (в отличие от `firebase-admin`) не подхватывает `FIRESTORE_EMULATOR_HOST` из env.
+- [x] `package.json`: `test:integration` через `firebase emulators:exec` (autoboot эмуляторов), `VITEST_INTEGRATION=1` для надёжной активации integration setup; добавлен `test:integration:watch` для разработки.
+- [x] `docs/guides/testing-system.md`: integration-секция расширена требованиями (Java 11+, firebase-tools, порты), watch-сценарием, явной пометкой про бесплатность.
+
+CI часть (осталась):
+- [ ] GitHub Actions workflow `nightly-integration.yml`: cron-расписание, setup Java 21 + firebase-tools, прогон `npm run test:integration`, артефакты при падении.
+- [ ] Service account secret для Firebase в GitHub Secrets (или demo project — эмуляторы не требуют реального).
+- [ ] Нотификация при падении (Slack/email).
+- [ ] Документировать «Как читать nightly-прогоны» в `docs/guides/testing-system.md`.
 
 ### HP‑2. Полное Playwright покрытие (P: H, E: L)
 - [ ] Подготовить seed-данные (Firestore/Storage) для e2e сценариев с реальной авторизацией.  
