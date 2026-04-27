@@ -11,6 +11,7 @@ import { QuestionMediaUploader } from './questions/editor/QuestionMediaUploader'
 import { QuestionAnswersManager } from './questions/editor/QuestionAnswersManager';
 import { QuestionRevealPolicyEditor } from './questions/editor/QuestionRevealPolicyEditor';
 import { QuestionFeedbackEditor } from './questions/editor/QuestionFeedbackEditor';
+import { debugError } from '../lib/debug';
 
 type CopyState = 'idle' | 'success' | 'error';
 
@@ -229,7 +230,7 @@ export function QuestionEditor({
 
       setCopyState('success');
     } catch (error) {
-      console.error('Не удалось скопировать вопрос в буфер обмена:', error);
+      debugError('Не удалось скопировать вопрос в буфер обмена:', error);
       setCopyState('error');
     }
   };

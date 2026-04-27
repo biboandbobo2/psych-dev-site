@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import type { Test } from '../../../types/tests';
 import { exportTestToJson, importTestFromJson, readFileAsText, downloadJson } from '../../../utils/testImportExport';
+import { debugError } from '../../../lib/debug';
 
 interface TestImportExportProps {
   // Данные текущего теста для экспорта
@@ -37,7 +38,7 @@ export function TestImportExport({
       downloadJson(JSON.parse(json), filename);
     } catch (error) {
       alert('Ошибка экспорта теста');
-      console.error(error);
+      debugError(error);
     }
   };
 
@@ -80,7 +81,7 @@ export function TestImportExport({
       alert(`Тест успешно импортирован! Загружено ${result.questions?.length || 0} вопросов.`);
     } catch (error) {
       alert('Не удалось прочитать файл');
-      console.error(error);
+      debugError(error);
     } finally {
       // Reset file input
       if (fileInputRef.current) {

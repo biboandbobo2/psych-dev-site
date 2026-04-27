@@ -1,4 +1,5 @@
 import { EVENT_ICON_MAP, EVENT_ICONS, type EventIconId } from '../data/eventIcons';
+import { debugWarn } from '../lib/debug';
 
 const ICON_BASE_PATH = '/icons/events/';
 
@@ -13,9 +14,7 @@ export function Icon({ name, size = 48, className, title }: IconProps) {
   const icon = EVENT_ICON_MAP[name];
 
   if (!icon) {
-    if (import.meta.env.DEV) {
-      console.warn(`Icon "${name}" not found. Available icons: ${EVENT_ICONS.map((i) => i.id).join(', ')}`);
-    }
+    debugWarn(`Icon "${name}" not found. Available icons: ${EVENT_ICONS.map((i) => i.id).join(', ')}`);
     return null;
   }
 
