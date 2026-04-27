@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { migrateTopicsToFirestore } from '../scripts/migrateTopics';
 import { useAuth } from '../auth/AuthProvider';
+import { debugError } from '../lib/debug';
 
 export default function MigrateTopics() {
   const { user, isSuperAdmin } = useAuth();
@@ -19,7 +20,7 @@ export default function MigrateTopics() {
       setSuccess(true);
       alert('✅ Миграция завершена успешно!');
     } catch (err) {
-      console.error(err);
+      debugError(err);
       setError(err instanceof Error ? err.message : 'Ошибка миграции');
       alert('❌ Ошибка миграции');
     } finally {
