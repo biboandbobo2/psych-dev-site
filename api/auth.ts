@@ -4,15 +4,8 @@
  * Actions: loginByEmail
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-
-function initFirebaseAdmin() {
-  if (getApps().length > 0) return;
-  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!json) throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured');
-  initializeApp({ credential: cert(JSON.parse(json)) });
-}
+import { initFirebaseAdmin } from '../src/lib/api-server/sharedApiRuntime.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');

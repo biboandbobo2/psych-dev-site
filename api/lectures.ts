@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
   getLectureApiAllowedOrigin,
@@ -20,7 +19,10 @@ import {
   compareLectureOrder,
   groupLectureSourcesByCourse,
 } from './lib/lectureCourseConfig.js';
-import { recordByokUsage } from '../src/lib/api-server/sharedApiRuntime.js';
+import {
+  initFirebaseAdmin,
+  recordByokUsage,
+} from '../src/lib/api-server/sharedApiRuntime.js';
 
 export { getLectureApiAllowedOrigin, tryParseLectureGeminiJson } from './lib/lectureApiRuntime.js';
 export { groupLectureSourcesByCourse } from './lib/lectureCourseConfig.js';
@@ -118,20 +120,6 @@ const SYSTEM_PROMPT = `Ты — преподаватель психологии.
     { "chunkId": "lecture-key::0", "claim": "к какому утверждению относится источник" }
   ]
 }`;
-
-function initFirebaseAdmin() {
-  if (getApps().length > 0) {
-    return;
-  }
-
-  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!json) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured');
-  }
-
-  const sa = JSON.parse(json);
-  initializeApp({ credential: cert(sa) });
-}
 
 async function embedQuery(query: string, apiKey?: string): Promise<number[]> {
   const client = getLectureGenAiClient(apiKey);

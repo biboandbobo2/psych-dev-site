@@ -4,13 +4,13 @@
  * Actions: list, search, answer, snippet
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { GoogleGenAI } from '@google/genai';
 import * as zlib from 'zlib';
 import { promisify } from 'util';
 import {
+  initFirebaseAdmin,
   setSharedCorsHeaders,
   verifyAuthBearer,
   requireBYOKGeminiKey,
@@ -37,17 +37,6 @@ export const BOOK_SEARCH_CONFIG = {
 } as const;
 
 export const BOOK_STORAGE_PATHS = { pages: (bookId: string) => `books/text/${bookId}/pages.json.gz` } as const;
-
-function initFirebaseAdmin() {
-  if (getApps().length > 0) return;
-  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!json) throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured');
-  const sa = JSON.parse(json);
-  initializeApp({
-    credential: cert(sa),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${sa.project_id}.firebasestorage.app`,
-  });
-}
 
 /**
  * Создаёт клиента GenAI с переданным API ключом. Singleton намеренно убран:

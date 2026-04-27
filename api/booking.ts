@@ -4,20 +4,13 @@
  * Actions: rooms, slots, book, services
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { canCancelBooking } from '../src/lib/bookingCancellation.js';
 import { getAllowedAppOrigin } from '../src/lib/appOrigins.js';
+import { initFirebaseAdmin } from '../src/lib/api-server/sharedApiRuntime.js';
 
 const ALTEG_BASE = 'https://api.alteg.io/api/v1';
-
-function initFirebaseAdmin() {
-  if (getApps().length > 0) return;
-  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!json) throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured');
-  initializeApp({ credential: cert(JSON.parse(json)) });
-}
 
 function getConfig() {
   const partnerToken = process.env.ALTEG_PARTNER_TOKEN;
