@@ -336,10 +336,10 @@ npm run test:e2e:prod
 
 ### Правила логирования
 
-**❌ ЗАПРЕЩЕНО:**
+**❌ ЗАПРЕЩЕНО** в runtime-коде (`src/`, `api/`, `functions/src/`):
 ```typescript
-console.log('Debug message');     // Блокируется pre-commit hook
-console.error('Error occurred');  // Блокируется
+console.log('Debug message');     // ESLint error + check-console fail
+console.error('Error occurred');  // ESLint error + check-console fail
 ```
 
 **✅ ПРАВИЛЬНО:**
@@ -351,7 +351,24 @@ debugError('Failed to save note', error);
 debugWarn('Deprecated function called');
 ```
 
-**Проверка:** `npm run check-console`
+**Где `console.*` всё ещё допустим (без error):**
+- Тесты (`tests/`, `**/*.test.{ts,tsx}`).
+- CLI-скрипты (`scripts/`, `src/scripts/`).
+- Сами debug-обёртки (`**/lib/debug.ts`).
+- Dev-only export-debugging (`src/pages/timeline/utils/exporters/common.ts`).
+
+**Whitelist для prod-error reporting** (узкое исключение, документированный паттерн):
+если место — центральная точка ошибок и `debugError` молчит в проде → теряется
+видимость в DevTools / Vercel logs. Сейчас задокументированы:
+`api/assistant.ts` (catch Gemini), `src/lib/errorHandler.ts` (`reportAppError`).
+Расширение whitelist'а требует трёх шагов: `eslint-disable no-console` с
+комментарием *почему*, файл в `ALLOWED` set в `scripts/check-console.cjs`,
+согласование в PR.
+
+**Проверки:**
+- `npm run check-console` — full-repo (входит в `validate` и pre-push).
+- `npm run check-console:staged` — pre-commit, по staged-файлам (быстрый).
+- `npm run lint` — ESLint c `no-console: error` для ts/tsx.
 
 ### Система ролей
 
@@ -432,23 +449,33 @@ npm run validate:full
 npm run lint
 ```
 
-**Правила:**
-- Максимальная длина функции: 50 строк
-- Максимальная сложность: 15
-- Обязательные `return` types для функций
-- Запрет `any` без explicit comment
+**Конфигурация:** `eslint.config.js` (flat config, ESLint 9).
 
-### Pre-commit hooks
+**Правила (актуальные):**
+- ts/tsx — через `typescript-eslint` v8 (parser, без typed-rules для скорости).
+- `no-console: error` для runtime-кода (см. раздел *Логирование* выше для overrides).
+- `@typescript-eslint/no-unused-vars: warn` (legacy unused-vars в проекте — pre-existing,
+  будут чиститься постепенно; varsIgnorePattern `^[A-Z_]`, argsIgnorePattern `^_`).
+- `react-hooks` (recommended-latest), `react-refresh/only-export-components: warn`.
+- `no-undef`, `no-redeclare` — выключены для ts (TypeScript делает это сам).
 
-**Автоматически запускается при `git commit`:**
-1. ESLint
-2. Check console.*
-3. Check module initialization
+Ориентиры по размеру (компоненты ≤ 400 LoC, функции ≤ 50 строк) — это **soft-guideline
+из CLAUDE.md**, ESLint их не enforce-ит. Контроль через ревью и периодические code-аудиты.
 
-**Пропустить (не рекомендуется):**
-```bash
-git commit --no-verify -m "message"
-```
+### Pre-commit hooks (.husky/pre-commit)
+
+**Запускается при `git commit`:**
+1. `npm run lint` — ESLint.
+2. `npm run check-console:staged` — staged-файлы, быстрый.
+3. `npm run check:init` — проверка инициализации модулей.
+
+### Pre-push hooks (.husky/pre-push)
+
+**Запускается при `git push`:**
+1. `npm run validate` — `lint` + `check-console` (full-repo) + `check:init` +
+   `check:functions-runtime` + `build`.
+
+**Пропускать запрещено:** `--no-verify` не использовать (см. CLAUDE.md).
 
 ### Module initialization testing
 

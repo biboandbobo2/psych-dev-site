@@ -12,7 +12,7 @@
 | HP-3 | ✅ | Remediate container image vulnerabilities | NPM HIGH закрыты (2026-02-06), Go stdlib — buildpack-level |
 | HR-1 | ✅ | Защита `/api/books` | Закрыта волной 6 (2026-04-26): strict BYOK без env fallback, auth Bearer на search/answer, public только list/snippet с rate-limit, CORS allowlist через appOrigins. Плюс счётчик BYOK-usage в профиле через aiUsageDaily/{uid}_{day}. |
 | HR-2 | H (S-M) | Закрыть booking email-login auth bypass | Убрать custom-token login по одному email, заменить на настоящий email-link/password/challenge flow |
-| CQ-6 | H (M) | Починить TS lint + console guardrails | ESLint для TS/TSX, full-repo `check-console`, покрытие `api/`, устранение runtime `console.*` |
+| CQ-6 | ✅ | Починить TS lint + console guardrails | Закрыта волной 7 (2026-04-27): ESLint покрывает ts/tsx через typescript-eslint v8, `no-console: error` + overrides, `check-console --all` для validate / `:staged` для pre-commit, api/ под покрытием. 50 runtime `console.*` → `debugLog/debugError/debugWarn` (или whitelist для prod-error reporting). |
 | CQ-7 | M (L) | Рефакторинг новых монолитов и дублей | `DisorderTable`, API handlers, course-nav/API-runtime helpers |
 | MP-1 | ✅ | Изоляция бизнес-логики Timeline (lazy-hooks) | Хуки вынесены в `src/pages/timeline/hooks/`, чанк `timeline-hooks` в vite.config.js (2026-04) |
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
@@ -64,17 +64,17 @@
   - [ ] Обновить `docs/guides/booking-system.md`, где сейчас описан устаревший Email+password flow.
   - [ ] Прогнать `npm test -- --run tests/api/booking-login.test.ts tests/api/booking.test.ts`, `npm run typecheck:api`, `npm run typecheck:app`, `npm run validate`.
 
-### CQ‑6. Починить TS lint + console guardrails (P: H, E: M)
-- **Источник:** code review `2026-04-27`, см. `docs/reports/CODE_REVIEW_MAIN_2026-04-27.md`.
-- **Проблема:** `npm run lint` зелёный, но `eslint --print-config src/lib/testResults.ts` возвращает `undefined`, потому что `eslint.config.js` применён только к `**/*.{js,jsx}`. `npm run check-console` тоже зелёный, но в runtime-коде найдено 56 прямых `console.*`.
-- **Риск:** ключевой инвариант проекта про логирование и часть code-quality проверок фактически не защищают `main`.
-- **Задачи:**
-  - [ ] Подключить ESLint для `ts`/`tsx` файлов.
-  - [ ] Добавить `api/` в console-check coverage.
-  - [ ] Разделить staged pre-commit режим и full-repo режим для `npm run check-console` / `npm run validate`.
-  - [ ] Заменить runtime `console.*` на `debugLog` / `debugWarn` / `debugError` или явно документированные исключения.
-  - [ ] Отдельно решить контракт `src/lib/errorHandler.ts`: прямой `console.error` или debug/error-reporting helper.
-  - [ ] Прогнать `npm run lint`, `npm run check-console`, `npm run validate`.
+### CQ‑6. ✅ Починить TS lint + console guardrails — РЕШЕНО (волна 7, 2026-04-27)
+- **Решение:** коммиты `9dac357..b4a47fc` в `feature/initial-setup-sergo`.
+- **Что сделано:**
+  - [x] `eslint.config.js`: блок `**/*.{ts,tsx}` через `typescript-eslint` v8 (без typed-rules для скорости). `no-console: error`, `no-unused-vars: warn` + базовые legacy-правила понижены до warn. Override-блок: `**/lib/debug.ts`, `scripts/`, `src/scripts/`, `tests/`, `**/*.test.*`, `timeline/utils/exporters/common.ts` → `no-console: off`.
+  - [x] `scripts/check-console.cjs`: режим `--all` (full-repo), `TARGET_DIRS` расширен на `api/`, `ALLOWED_PREFIXES = ["src/scripts/"]` для CLI.
+  - [x] `package.json`: `check-console` (--all, для validate), `check-console:staged` (pre-commit, быстрый).
+  - [x] `.husky/pre-commit` переключен на `:staged`.
+  - [x] 50 runtime `console.*` → `debugLog/debugError/debugWarn`.
+  - [x] Whitelist для production-error reporting: `api/assistant.ts` (catch Gemini), `src/lib/errorHandler.ts` (центральный app-error reporter) — eslint-disable + ALLOWED + комментарий.
+  - [x] `docs/architecture/guidelines.md`, `CLAUDE.md` синхронизированы с реальной конфигурацией.
+- **Финал:** `npm run validate` зелёный (0 errors, ~79 pre-existing warnings unused-vars/react-hooks).
 
 ### HR‑1. ✅ Защита `/api/books` — РЕШЕНО (волна 6, 2026-04-26)
 - **Решение:** `list` / `snippet` остались публичными (read-only из Firestore), но получили rate-limit 60 req/min на IP. `search` / `answer` теперь требуют:
