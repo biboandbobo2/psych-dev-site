@@ -19,9 +19,9 @@
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
 | MP-4 | M (S) | Документация и tooling вокруг тестов | Скрипт `ts:prune`, README policy, обновление lazy-docов и perf метрик |
 | MR-1 | M (M) | Масштабирование `/api/transcript-search` | server-side retrieval без full collection scan |
-| MR-2 | M (S) | Починить `npm run test:ci` | совместимый Vitest CLI для CI/test scripts |
+| MR-2 | ✅ | Починить `npm run test:ci` | Закрыта 2026-04-27: `--runInBand` → `--no-file-parallelism` (Vitest 4 эквивалент) в `test:ci` и `test:integration`. |
 | MR-3 | M (S) | Убрать `lessonRef as never` | типизированный payload dynamic course lessons |
-| MR-4 | M (S) | Починить stale `authStore.test.ts` | тест ссылается на удалённое `isStudent`; обновить или удалить |
+| MR-4 | ✅ | Починить stale `authStore.test.ts` | Закрыта 2026-04-27: переписан под `UserRole = 'admin' \| 'super-admin' \| null`, убраны проверки удалённого `isStudent`, добавлен кейс role=null. 2/2 зелёных. |
 | UX-1 | L (L) | Profile v2 — унификация с акварельной палитрой | ожидаем брендбук от дизайнера, после — полный редизайн Profile + вложенных секций |
 | LP-1 | L (M) | Observability / telemetry | Базовый logger (Sentry/PostHog), описание процессов |
 | LP-5 | L (S-M) | Firebase/GCP follow-ups | dependency review, cleanup policy, индексы, Telegram formatting |
@@ -174,14 +174,12 @@
   - [ ] Вернуть route-level lazy discipline для `PeriodPage` и `DynamicCoursePeriodPage` через `src/pages/lazy.ts`.
   - [ ] Синхронизировать `docs/reference/routes.md`, `docs/guides/booking-system.md`, `docs/reference/firestore-schema.md` после исправлений.
 
-### MR‑2. Починить `npm run test:ci` (P: M, E: S)
-- **Проблема:** текущий root script использует `vitest --runInBand`, который не поддерживается текущей версией Vitest и падает с `CACError`.
-- **Риск:** automation/CI entrypoint формально существует, но не исполняется.
-- **Подтверждение:** локальный прогон `2026-03-12`, см. `docs/processes/qa-smoke-log.md` и `docs/reports/CODE_REVIEW_2026-03-12.md`.
-- **Задачи:**
-  - [ ] Заменить `test:ci` на поддерживаемую команду Vitest 4.
-  - [ ] Проверить соседний `test:integration`, где используется тот же флаг.
-  - [ ] После правки повторно прогнать `npm run test:ci` и зафиксировать результат в QA log.
+### MR‑2. ✅ Починить `npm run test:ci` — РЕШЕНО (2026-04-27)
+- **Решение:** `--runInBand` снят в Vitest 4. Заменён на `--no-file-parallelism` (canonical эквивалент: последовательный прогон файлов в одном пуле). Применено и к `test:ci`, и к `test:integration` / `test:integration:watch`.
+- **Что сделано:**
+  - [x] `test:ci`: `vitest --runInBand` → `vitest --no-file-parallelism`.
+  - [x] `test:integration`/`test:integration:watch`: тот же флаг.
+  - [x] Smoke-прогон `npx vitest --no-file-parallelism run tests/integration/authStore.test.ts` — зелёный.
 
 ### MR‑3. Убрать `lessonRef as never` в dynamic course creation (P: M, E: S)
 - **Проблема:** `src/hooks/useCreateCourse.ts` пишет lesson doc через `setDoc(lessonRef as never, ...)`, маскируя реальную проблему типизации payload/ref.
@@ -192,14 +190,13 @@
   - [ ] Типизировать `getCourseLessonDocRef` и `setDoc` без `never`.
   - [ ] После правки прогнать `typecheck:app` и smoke создания нового курса.
 
-### MR‑4. Починить устаревший `authStore.test.ts` (P: M, E: S)
-- **Проблема:** `tests/integration/authStore.test.ts` ссылается на `store.isStudent`, которое было удалено в коммите `b4b37e8 feat(roles): narrow UserRole to admin/super-admin`. 2 теста падают: «помечает супер-админа и админа» и «оставляет студента только студентом».
-- **Риск:** шум в выводе `npm test` (2 ложно-красных), скрывает настоящие регрессии.
-- **Подтверждение:** повторяемо воспроизводится на чистом `main` (проверено 2026-04-24).
-- **Задачи:**
-  - [ ] Переписать тест под актуальную модель ролей (`'admin' | 'super-admin'` + null для студентов/гостей).
-  - [ ] Или удалить если покрытие дублирует unit-тесты `roleHelpers` из `621e2a8 test: add unit tests for pure helpers and cloud functions`.
-  - [ ] Проверить что `npm test` проходит без ожидаемых эмулятор-зависимых падений (4 integration теста — отдельный HP-1).
+### MR‑4. ✅ Починить устаревший `authStore.test.ts` — РЕШЕНО (2026-04-27)
+- **Решение:** тест переписан под актуальную модель `UserRole = 'admin' | 'super-admin' | null`.
+- **Что сделано:**
+  - [x] Убраны ссылки на удалённый `store.isStudent` в `resetState` и обоих it-блоках.
+  - [x] Тест-кейс «студент» переименован в «role=null» — проверяет, что `isAdmin/isSuperAdmin` сбрасываются в false при `setUserRole(null)` (студенты/гости — это `userRole === null`, фактическая роль вычисляется через `computeDisplayRole(userRole, courseAccess)` поверх).
+  - [x] Не дублирует `roleHelpers.test.ts` — там тестируется чистая функция `computeDisplayRole`, здесь — собственно стор и derivation `isAdmin/isSuperAdmin` от `setUserRole`.
+  - [x] 2/2 зелёных в локальном прогоне.
 
 ### UX‑1. Profile v2 — унификация с акварельной палитрой (P: L, E: L)
 - **Проблема:** Profile.tsx оставлен в старой палитре: синий→фиолетовый градиент в hero-полосе, `bg-teal-*` / `bg-blue-*` / `bg-purple-*` / розово-фуксиевый gradient в `SuperAdminBadge`, `SearchHistorySection`, `GeminiKeySection`, `FeedbackButton variant="profile"`. Минимальная правка (hero max-w-4xl, role badges, avatar fallback) сделана в `9107e62`, остальное откладываем до получения брендбука от дизайнера.

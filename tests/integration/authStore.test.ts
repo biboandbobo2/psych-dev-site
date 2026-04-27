@@ -6,7 +6,6 @@ const resetState = () => {
     user: null,
     loading: true,
     userRole: null,
-    isStudent: false,
     isAdmin: false,
     isSuperAdmin: false,
   });
@@ -20,21 +19,23 @@ describe('useAuthStore role derivation', () => {
   it('помечает супер-админа и админа', () => {
     const store = useAuthStore.getState();
     store.setUserRole('super-admin');
-    expect(store.isSuperAdmin).toBe(true);
-    expect(store.isAdmin).toBe(true);
-    expect(store.isStudent).toBe(false);
+    expect(useAuthStore.getState().isSuperAdmin).toBe(true);
+    expect(useAuthStore.getState().isAdmin).toBe(true);
 
     store.setUserRole('admin');
-    expect(store.isSuperAdmin).toBe(false);
-    expect(store.isAdmin).toBe(true);
-    expect(store.isStudent).toBe(false);
+    expect(useAuthStore.getState().isSuperAdmin).toBe(false);
+    expect(useAuthStore.getState().isAdmin).toBe(true);
   });
 
-  it('оставляет студента только студентом', () => {
+  it('сбрасывает флаги для студентов и гостей (role=null)', () => {
     const store = useAuthStore.getState();
-    store.setUserRole('student');
-    expect(store.isStudent).toBe(true);
-    expect(store.isAdmin).toBe(false);
-    expect(store.isSuperAdmin).toBe(false);
+    // После сужения UserRole до 'admin' | 'super-admin' студенты и гости —
+    // это userRole === null. Флагов isStudent/isGuest в сторе нет (их роль
+    // вычисляется через computeDisplayRole от userRole + courseAccess).
+    store.setUserRole('admin');
+    store.setUserRole(null);
+    expect(useAuthStore.getState().isAdmin).toBe(false);
+    expect(useAuthStore.getState().isSuperAdmin).toBe(false);
+    expect(useAuthStore.getState().userRole).toBe(null);
   });
 });
