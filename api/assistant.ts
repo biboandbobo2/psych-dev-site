@@ -252,9 +252,12 @@ export default async function handler(req: any, res: any) {
 
     res.status(200).json(response);
   } catch (error: any) {
+    // Production error reporting → Vercel logs. Намеренно console.error.
+    /* eslint-disable no-console */
     console.error('[assistant] Gemini error:', error?.message || error);
     console.error('[assistant] Error stack:', error?.stack);
     console.error('[assistant] Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    /* eslint-enable no-console */
 
     const isConfig = error?.message?.includes('GEMINI_API_KEY');
 
