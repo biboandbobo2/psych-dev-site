@@ -34,6 +34,7 @@
 | CQ-4 | M (L) | Покрытие юнит-тестами stores/hooks | useAuthStore, useTestStore, testAccess — см. секцию TQ |
 | CQ-5 | ✅ | Исправление console.* нарушений | Все заменены на debugLog/debugError (2026-01-08) |
 | TQ-1 | M (M) | Юнит-тесты для утилит | theme.ts, sortNotes.ts, mediaUpload.ts и др. |
+| TQ-5 | M (M) | Расширить integration-coverage | `notes` CRUD + listener, prerequisite-цепочка для `tests` (поверх рабочей emulators-инфры) |
 | BR-1 | ✅ | Sentence-based Chunking | Чанки по предложениям, overlap по предложениям |
 | BR-2 | L (L) | Semantic Chunking | Определение глав/разделов, иерархия в метаданных |
 | BR-3 | L (S) | Кэширование RAG-ответов | Firestore cache, TTL 7 дней |
@@ -778,3 +779,32 @@ export function useClinicalTopics() {
 |------|-----------------|
 | `courseAccess.ts` | CRUD операции, валидация |
 | `verify.ts` | Reconcile логика |
+
+### TQ-5. Расширить integration-coverage (P: M, E: M)
+
+**Контекст:** wave-7 (2026-04-27) починил локальный прогон integration-тестов — сейчас `npm run test:integration` поднимает Firebase эмуляторы (`firebase emulators:exec`) и за ~3 секунды прогоняет 6 baseline-тестов. Инфраструктура работает, можно безопасно расширять покрытие.
+
+**Критерий что тест должен быть integration, а не unit:**
+- Зависит от специфичной Firestore query semantics (`where + orderBy` с индексами, `collectionGroup`, transactions, batch writes).
+- Multi-document или multi-collection взаимодействия (одна операция меняет N документов).
+- Timestamp/Date round-trip.
+- Регрессия дорого стоит (потеря данных, blocked feature).
+
+**Кандидаты:**
+
+| Файл/область | Объём | Что покрыть |
+|---|---|---|
+| `notes` CRUD + listener (`src/hooks/useNotes.ts`, `src/lib/notes.ts`) | M | createNote (lectureNote / manualNote / eventNote — три разных пути), updateNote, deleteNote, getLectureNote (специфичная query `userId + lectureId`), `onSnapshot` listener round-trip. Timestamp конверсия. **Регрессия = потеря заметок пользователей**. |
+| Расширить `tests/integration/testsWorkflow.test.ts` | S | Полная prerequisite-цепочка `A → B → C` с каскадным unlock через `isTestUnlocked`. Edge-cases percentage threshold (точно 70%, 69.99%, 100%). |
+
+**Что НЕ нужно integration-тестировать (вынесено отдельно):**
+- `courseAccess` matrix → unit с mocked Firestore (быстрее, проще). См. TQ-2.
+- `bookings` (alteg.io API) → требует HTTP-mock через `nock`/`msw`, не Firestore.
+- `lectures` RAG / AI endpoints → платные Gemini-вызовы, недопустимо в тестах.
+- Cloud Functions integration → отдельный scope (functions emulator, его сейчас нет в `tests/integration/firebase.test.json`).
+
+**Задачи:**
+- [ ] `tests/integration/notes.test.ts` — три create-paths, update, delete, getLectureNote query, snapshot round-trip.
+- [ ] Расширить `tests/integration/testsWorkflow.test.ts` блоком про полную prerequisite-цепочку и edge-cases threshold.
+- [ ] Прогон `npm run test:integration` — все зелёные.
+- [ ] Обновить список покрытия в `docs/guides/testing-system.md` под Integration Tests.
