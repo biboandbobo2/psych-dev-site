@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ageToRange } from '../utils/ageToRange';
 import { AGE_RANGE_LABELS, type AgeRange } from '../../../types/notes';
+import { debugLog, debugWarn, debugError } from '../../../lib/debug';
 import type { Sphere } from '../types';
 
 // Метаданные сфер жизни
@@ -49,41 +50,41 @@ export function SaveEventAsNoteButton({
   // Детектор состояния модального окна
   useEffect(() => {
     if (showConfirm) {
-      console.log('✅ [DETECTOR] Modal window is NOW OPEN (showConfirm = true)');
-      console.log('✅ [DETECTOR] Z-index should be: z-[9999]');
-      console.log('✅ [DETECTOR] Modal should be visible on screen');
+      debugLog('✅ [DETECTOR] Modal window is NOW OPEN (showConfirm = true)');
+      debugLog('✅ [DETECTOR] Z-index should be: z-[9999]');
+      debugLog('✅ [DETECTOR] Modal should be visible on screen');
 
       // Проверяем через небольшую задержку, что элемент действительно в DOM
       setTimeout(() => {
         const modalElement = document.querySelector('[data-modal="save-note"]');
         if (modalElement) {
-          console.log('✅ [DETECTOR] Modal element FOUND in DOM!');
+          debugLog('✅ [DETECTOR] Modal element FOUND in DOM!');
           const styles = window.getComputedStyle(modalElement);
-          console.log('✅ [DETECTOR] Modal computed z-index:', styles.zIndex);
-          console.log('✅ [DETECTOR] Modal position:', styles.position);
-          console.log('✅ [DETECTOR] Modal display:', styles.display);
+          debugLog('✅ [DETECTOR] Modal computed z-index:', styles.zIndex);
+          debugLog('✅ [DETECTOR] Modal position:', styles.position);
+          debugLog('✅ [DETECTOR] Modal display:', styles.display);
         } else {
-          console.warn('⚠️ [DETECTOR] Modal element NOT FOUND in DOM!');
+          debugWarn('⚠️ [DETECTOR] Modal element NOT FOUND in DOM!');
         }
       }, 100);
     } else {
-      console.log('❌ [DETECTOR] Modal window is CLOSED (showConfirm = false)');
+      debugLog('❌ [DETECTOR] Modal window is CLOSED (showConfirm = false)');
     }
   }, [showConfirm]);
 
   const handleSaveAsNote = async () => {
-    console.log('🔵 SaveEventAsNote: Starting save process...');
-    console.log('Event data:', { eventTitle, eventAge, eventNotes, eventSphere });
+    debugLog('🔵 SaveEventAsNote: Starting save process...');
+    debugLog('Event data:', { eventTitle, eventAge, eventNotes, eventSphere });
 
     setSaving(true);
     try {
       // Определяем возрастной период
-      console.log('🔵 Determining age range for age:', eventAge);
+      debugLog('🔵 Determining age range for age:', eventAge);
       const ageRange = ageToRange(eventAge);
-      console.log('🔵 Age range determined:', ageRange);
+      debugLog('🔵 Age range determined:', ageRange);
 
       const periodTitle = ageRange ? AGE_RANGE_LABELS[ageRange] : null;
-      console.log('🔵 Period title:', periodTitle);
+      debugLog('🔵 Period title:', periodTitle);
 
       // Формируем содержание заметки
       let content = '';
@@ -107,8 +108,8 @@ export function SaveEventAsNoteButton({
         content += `**Подробности:**\n${eventNotes}`;
       }
 
-      console.log('🔵 Note content prepared:', content);
-      console.log('🔵 Calling createNote...');
+      debugLog('🔵 Note content prepared:', content);
+      debugLog('🔵 Calling createNote...');
 
       // Создаём заметку
       await createNote(
@@ -119,15 +120,15 @@ export function SaveEventAsNoteButton({
         null  // topicTitle
       );
 
-      console.log('✅ Note created successfully!');
+      debugLog('✅ Note created successfully!');
       setShowConfirm(false);
       onSuccess?.();
     } catch (error) {
-      console.error('❌ Error saving event as note:', error);
+      debugError('❌ Error saving event as note:', error);
       alert('Ошибка при сохранении заметки: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setSaving(false);
-      console.log('🔵 Save process finished');
+      debugLog('🔵 Save process finished');
     }
   };
 
@@ -137,7 +138,7 @@ export function SaveEventAsNoteButton({
       <button
         type="button"
         onClick={() => {
-          console.log('🔘 [CLICK] Note icon clicked - opening modal...');
+          debugLog('🔘 [CLICK] Note icon clicked - opening modal...');
           setShowConfirm(true);
         }}
         className="p-2 rounded-lg hover:bg-slate-100 transition text-slate-600 hover:text-slate-900"
