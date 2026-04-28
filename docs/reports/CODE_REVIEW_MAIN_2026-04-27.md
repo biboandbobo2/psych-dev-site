@@ -37,7 +37,7 @@
 | M2. Feature → feature импорты | — | через barrel, ок |
 | M3. Устаревшие docs | ⏳ | синхронизация после fixes |
 | **M4. JS центральные файлы (`*.jsx`)** | 🟡 частично | `routes.jsx` → `routes/` (TS) ✅. Остаются `App.jsx`, `AppShell.jsx`. |
-| M5. Тестовые пробелы | 🟡 частично | Добавлено 78 unit/snapshot тестов в волне 1 (helpers/normalize/api). Для `api/admin/books.ts` тестов всё ещё нет. |
+| **M5. Тестовые пробелы** | ✅ | Wave 1: 78 unit/snapshot для helpers/normalize/api. Wave 8: 6 тестов для transcript-search. Wave 10: 24 теста для `api/admin/books.ts` (auth, CORS, list, jobStatus, create, update, uploadUrl, manage). |
 | M6. Stores | — | OK |
 
 ### Wave 1 итоги (UI-only декомпозиция)
