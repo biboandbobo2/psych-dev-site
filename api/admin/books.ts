@@ -8,7 +8,7 @@ import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 import { Storage } from '@google-cloud/storage';
-import { initFirebaseAdmin } from '../../src/lib/api-server/sharedApiRuntime.js';
+import { initFirebaseAdmin, setSharedCorsHeaders } from '../../src/lib/api-server/sharedApiRuntime.js';
 
 const SUPER_ADMIN_EMAIL = 'biboandbobo2@gmail.com';
 const BOOK_COLLECTIONS = { books: 'books', chunks: 'book_chunks', jobs: 'ingestion_jobs' } as const;
@@ -34,12 +34,10 @@ async function verifyAuth(req: VercelRequest) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  setSharedCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
+    res.status(204).end();
     return;
   }
 
