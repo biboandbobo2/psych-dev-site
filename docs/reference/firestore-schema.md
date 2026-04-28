@@ -1,6 +1,6 @@
 # 🗄️ Firestore Schema Reference
 
-> **Дата:** 2026-01-09
+> **Дата:** 2026-04-28
 > **Статус:** Актуальный справочник
 
 Полная структура данных Firestore для Psych Dev Site.
@@ -9,14 +9,14 @@
 
 ## 📋 Содержание
 
-1. [Пользователи и роли](#пользователи-и-роли)
+1. [Пользователи и роли](#пользователи-и-роли) — включая groups и aiUsageDaily
 2. [Образовательный контент](#образовательный-контент)
 3. [Заметки и темы](#заметки-и-темы)
 4. [Система тестирования](#система-тестирования)
 5. [Таймлайн жизни](#таймлайн-жизни)
 6. [Таблица по расстройствам](#таблица-по-расстройствам)
 7. [Книги (RAG)](#книги-rag)
-8. [Видео-транскрипты](#видео-транскрипты)
+8. [Видео-транскрипты](#видео-транскрипты) — включая search chunks с индексом
 9. [Правила доступа](#правила-доступа)
 
 ---
@@ -29,48 +29,131 @@
 
 ```typescript
 interface User {
-  // Основная информация
-  uid: string;                    // Уникальный ID пользователя (совпадает с Firebase Auth UID)
-  email: string;                  // Email пользователя
-  displayName: string;            // Отображаемое имя
-  photoURL?: string;              // URL аватара (из Google)
+  // Идентификация
+  uid: string;                            // Совпадает с Firebase Auth UID
+  email: string;
+  displayName?: string | null;
+  photoURL?: string | null;
 
-  // Роли
-  role: 'student' | 'admin' | 'super-admin';
+  // Роль (только для admin/super-admin; для гостей и студентов поле либо
+  // отсутствует, либо null — фактическая display-роль вычисляется через
+  // computeDisplayRole(role, courseAccess), см. src/lib/roleHelpers.ts)
+  role?: 'admin' | 'super-admin';
 
-  // Гранулярный доступ к курсам
+  // Гранулярный доступ к курсам (вкл/выкл per courseId).
+  // Обязательное поле для студентов — пустой объект для гостей.
   courseAccess?: {
-    clinical?: boolean;           // Доступ к клинической психологии
-    general?: boolean;            // Доступ к общей психологии
+    clinical?: boolean;
+    general?: boolean;
+    development?: boolean;
+    // ID динамических курсов (`courses/{courseId}`)
+    [courseId: string]: boolean | undefined;
   };
+  courseAccessUpdatedAt?: Timestamp;
+  courseAccessUpdatedBy?: string;         // uid того, кто менял доступ
+
+  // Поля admin-роли (только для role === 'admin')
+  adminEditableCourses?: string[];        // Список courseIds, которые admin может редактировать
+  promotedAt?: Timestamp;
+  promotedBy?: string;
+  roleUpdatedAt?: Timestamp;
+  roleUpdatedBy?: string;
+
+  // Booking integration (alteg.io)
+  phone?: string;                         // Международный формат, +XXXXXXXXXXX
+  altegClientIds?: number[];              // Cache связок с alteg.io clients
+  altegClientId?: number;                 // Legacy single-id (deprecated)
+
+  // BYOK для AI-фич (assistant, lectures, books)
+  geminiApiKey?: string;                  // Пользовательский Gemini API key
+
+  // /home featured-курсы пользователя (max 3)
+  featuredCourseIds?: string[];
+  featuredCoursesUpdatedAt?: Timestamp;
+  featuredCoursesUpdatedBy?: string;
+
+  // Студенческий поток (для grouping в админке)
+  studentStream?: string | 'none';
+  studentStreamUpdatedAt?: Timestamp;
+  studentStreamUpdatedBy?: string;
+
+  // Уведомления / preferences
+  prefs?: {
+    emailBookingConfirmations?: boolean;
+  };
+  prefsUpdatedAt?: Timestamp;
 
   // Метаданные
   createdAt: Timestamp;
-  lastLogin?: Timestamp;
+  lastLoginAt?: Timestamp;
 }
 ```
 
-**Права ролей:**
-- **Student** — базовый доступ (контент, заметки, тесты, таймлайн)
-- **Admin** — редактирование контента (`/admin/content`), управление темами (`/admin/topics`)
-- **Super Admin** — управление пользователями (`/admin/users`), выдача ролей
+**Display-роли** (вычисляются, не хранятся):
+- `userRole === null` + нет courseAccess → **guest**
+- `userRole === null` + есть хотя бы один courseAccess[*] === true → **student**
+- `userRole === 'admin'` → **admin** (редактирование контента; courseAccess может быть)
+- `userRole === 'super-admin'` → **super-admin** (полный доступ)
 
-**Пример документа:**
+См. [`src/lib/roleHelpers.ts:computeDisplayRole`](../../src/lib/roleHelpers.ts).
+
+**Пример документа (студент с booking):**
 ```json
 {
   "uid": "abc123def456",
   "email": "student@example.com",
   "displayName": "Иван Петров",
   "photoURL": "https://lh3.googleusercontent.com/...",
-  "role": "student",
   "courseAccess": {
     "clinical": true,
-    "general": false
+    "general": false,
+    "development": true
   },
-  "createdAt": "2025-11-01T10:00:00Z",
-  "lastLogin": "2026-01-08T15:30:00Z"
+  "phone": "+995555000000",
+  "altegClientIds": [181300000],
+  "createdAt": "2026-04-15T10:00:00Z",
+  "lastLoginAt": "2026-04-28T15:30:00Z"
 }
 ```
+
+### `groups/{groupId}`
+
+Группы пользователей — потоки, выпускные группы, тематические подборки. Используются для:
+- `featuredCourseIds[]` — какие курсы подсвечивать на `/home` для участников группы (max 3).
+- Email-рассылок об объявлениях (через Cloud Function).
+
+```typescript
+interface Group {
+  id: string;
+  name: string;
+  description?: string;
+  members?: string[];               // uids пользователей-участников
+  featuredCourseIds?: string[];     // max 3 — поднимаются на /home для members
+  emailListId?: string;             // Связка с email-рассылочной системой (legacy)
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+```
+
+**Special-case группа `everyone`** — все пользователи неявно её члены, используется для глобальных featured courses на /home.
+
+См. [docs/guides/multi-course.md](../guides/multi-course.md).
+
+### `aiUsageDaily/{uid}_{day}`
+
+Best-effort трекинг BYOK-усилий (запросов и токенов) пользователя за сутки — для отображения квоты в Profile (Wave 6, см. CODE_REVIEW). Не критичный — ошибки записи silently игнорируются в `api/assistant.ts`.
+
+```typescript
+interface AiUsageDaily {
+  uid: string;                      // user uid
+  day: string;                      // ISO date YYYY-MM-DD (UTC)
+  requests: number;                 // Количество запросов за день
+  tokensUsed: number;               // Сумма tokensUsed из ответов AI
+  updatedAt: Timestamp;
+}
+```
+
+ID документа: `{uid}_{day}` (например `abc123_2026-04-28`).
 
 ---
 
@@ -719,6 +802,57 @@ interface VideoTranscriptStoragePayload {
 - `Storage` хранит полный JSON с сегментами и таймкодами
 - один transcript можно использовать в нескольких курсах и уроках без дублирования
 
+### `videoTranscriptSearch/{youtubeVideoId}` + `searchChunks/{chunkId}`
+
+Производный индекс для глобального полнотекстового поиска по транскриптам через `/api/transcript-search`. Каждое видео разбито на ~300-character chunks по 4 segments максимум.
+
+```typescript
+interface VideoTranscriptSearchDoc {
+  youtubeVideoId: string;
+  chunkCount: number;               // Общее количество chunks (= chunks.length × references.length)
+  referenceCount: number;           // Сколько раз это видео используется в курсах/уроках
+  updatedAt: Timestamp;
+  version: number;
+}
+
+interface VideoTranscriptSearchChunkDoc {
+  // Ссылка на видео и контекст
+  youtubeVideoId: string;
+  referenceKey: string;             // {courseId}::{lessonId}::{referenceIndex}
+  courseId: string;
+  periodId: string;                 // = lessonId
+  periodTitle: string;
+  lectureTitle: string;
+  sourcePath: string;
+  sourceUrl: string;
+
+  // Содержимое chunk
+  chunkIndex: number;
+  startMs: number;
+  endMs: number;
+  timestampLabel: string;           // "MM:SS" формат
+  segmentCount: number;
+  text: string;                     // Оригинальный текст
+  normalizedText: string;           // lowercase + collapsed whitespace
+
+  // Wave 8 (H7/MR-1): префиксные токены для array-contains-any индекса.
+  // Каждое слово ≥ 3 символов разворачивается в префиксы длиной 3..N.
+  // Опциональное поле — на до-миграционных chunks может отсутствовать.
+  searchTokens?: string[];
+
+  updatedAt: Timestamp;
+  version: number;
+}
+```
+
+**Single-field collection-group index:** на `searchTokens` с `arrayConfig: CONTAINS, queryScope: COLLECTION_GROUP` (создан через REST API из-за бага firebase-tools 14.22, см. MR-5).
+
+См. [docs/guides/lecture-transcript-ai.md](../guides/lecture-transcript-ai.md) и `api/transcript-search.ts`.
+
+### `transcriptJobs/{jobId}` + `runs/{runId}`
+
+Очередь refresh-операций для transcripts (cron-fetch новых transcripts через Cloud Functions). Подробно в `shared/videoTranscripts/schema.ts`.
+
 ---
 
 ## Правила доступа
@@ -818,5 +952,11 @@ service cloud.firestore {
 
 ---
 
-**Последнее обновление:** 2026-01-09
+**Последнее обновление:** 2026-04-28
+
+> **Что обновлено в апреле 2026:**
+> - User: `role` сужен до `'admin' | 'super-admin'`, добавлены поля booking-интеграции (`phone`, `altegClientIds`), BYOK (`geminiApiKey`), home-customisation (`featuredCourseIds`, `studentStream`), preferences и метаданные обновлений (`courseAccessUpdatedAt/By`, `roleUpdatedAt/By`).
+> - Добавлены коллекции: `groups/{groupId}`, `aiUsageDaily/{uid}_{day}`, `videoTranscriptSearch/{videoId}` + `searchChunks/{chunkId}` (с полем `searchTokens` для индексированного поиска через `array-contains-any`), упоминание `transcriptJobs/runs`.
+>
+> Не покрыто: dynamic courses (`courses/{courseId}/periods/.../lessons/...`), bookings cache, lecture/book RAG-метаданные расширились — синхронизировать в следующей волне.
 **Версия:** 1.0

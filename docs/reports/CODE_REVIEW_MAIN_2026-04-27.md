@@ -35,7 +35,7 @@
 | **H7. transcript-search full scan (MR-1)** | ✅ | Wave 8 (2026-04-28): keyword prefix-индекс `searchTokens` + `array-contains-any`. Ожидает backfill+deploy на prod. |
 | **M1. Cross-layer features → pages** | ✅ | Wave 10: `roleHelpers` поднят в `src/lib/`, импорты обновлены, dead re-export из `pages/admin/users/index.ts` убран. |
 | M2. Feature → feature импорты | — | через barrel, ок |
-| M3. Устаревшие docs | ⏳ | синхронизация после fixes |
+| **M3. Устаревшие docs** | ✅ | Wave 10: routes.md (legacy `/tests/authors*` и `/admin/homepage` убраны, добавлены `/admin/announcements`, `/admin/groups`, динамические course routes, `/_debug/*` под DEV); firestore-schema.md (User под актуальную role-модель + booking/BYOK/home поля; добавлены `groups`, `aiUsageDaily`, `videoTranscriptSearch + searchChunks` с `searchTokens`); booking-system.md обновлён в Wave 9. |
 | **M4. JS центральные файлы (`*.jsx`)** | 🟡 частично | `routes.jsx` → `routes/` (TS) ✅. Остаются `App.jsx`, `AppShell.jsx`. |
 | **M5. Тестовые пробелы** | ✅ | Wave 1: 78 unit/snapshot для helpers/normalize/api. Wave 8: 6 тестов для transcript-search. Wave 10: 24 теста для `api/admin/books.ts` (auth, CORS, list, jobStatus, create, update, uploadUrl, manage). |
 | M6. Stores | — | OK |
