@@ -23,17 +23,17 @@
 | Find | Статус | Комментарий |
 |---|---|---|
 | **C1. Booking auth-bypass** | ✅ | Wave 9 (2026-04-28): `api/auth.ts:loginByEmail` удалён целиком, оба пути (Google + email-link) требуют физического подтверждения. Освобождена 1 Vercel function. |
-| C2. CORS wildcard | 🟡 частично | `api/auth.ts` ✅ (исчез вместе с файлом, wave-9). `api/admin/books.ts` ⏳ остался. |
+| **C2. CORS wildcard** | ✅ | Wave 9: `api/auth.ts` исчез вместе с файлом. Wave 10: `api/admin/books.ts` → `setSharedCorsHeaders` (allowlist через `appOrigins`). |
 | **C3. console.\* + слабый guard** | ✅ | Wave 7: 50 runtime `console.*` → `debug-helpers` или whitelist. ESLint+check-console защищают полный репо. |
 | **H1. Дубли API runtime helpers** | ✅ | Wave 2 step 0: общий `initFirebaseAdmin()` + cleanup мёртвого `getStorage`/`gunzip` в books.ts |
 | H2. Vercel function-budget впритык | — | constraint, не fix |
 | H3. Lazy для PeriodPage / DynamicCoursePeriodPage | — | разрешено CLAUDE.md |
-| H4. Debug-роуты `/_debug/*` | ⏳ | не трогалось |
+| **H4. Debug-роуты `/_debug/*`** | ✅ | Wave 10: оба роута за `import.meta.env.DEV` guard, в production не рендерятся. |
 | **H5. Монолиты выше 400 LoC (UI)** | ✅ | Wave 1: 10 файлов разрезаны (5abacdd…094a5d1) |
 | **H5. Монолиты выше 400 LoC (API)** | ✅ | Wave 2: 5 endpoints разрезаны (d8d14ab…22a4451) |
 | **H6. ESLint не покрывает TS** | ✅ | Wave 7: typescript-eslint v8 для ts/tsx, no-console: error + overrides |
 | **H7. transcript-search full scan (MR-1)** | ✅ | Wave 8 (2026-04-28): keyword prefix-индекс `searchTokens` + `array-contains-any`. Ожидает backfill+deploy на prod. |
-| M1. Cross-layer features → pages | ⏳ | `roleHelpers` |
+| **M1. Cross-layer features → pages** | ✅ | Wave 10: `roleHelpers` поднят в `src/lib/`, импорты обновлены, dead re-export из `pages/admin/users/index.ts` убран. |
 | M2. Feature → feature импорты | — | через barrel, ок |
 | M3. Устаревшие docs | ⏳ | синхронизация после fixes |
 | **M4. JS центральные файлы (`*.jsx`)** | 🟡 частично | `routes.jsx` → `routes/` (TS) ✅. Остаются `App.jsx`, `AppShell.jsx`. |
