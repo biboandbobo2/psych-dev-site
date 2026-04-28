@@ -4,19 +4,15 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { getAllowedAppOrigin } from '../src/lib/appOrigins.js';
 import { initFirebaseAdmin } from '../src/lib/api-server/sharedApiRuntime.js';
 import type { VideoTranscriptSearchChunkDoc } from '../src/types/videoTranscripts.js';
-import { VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION } from '../src/types/videoTranscripts.js';
-
-const STOP_WORDS = new Set([
-  'and', 'or', 'the', 'a', 'an', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'from', 'as',
-  'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
-  'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these',
-  'those', 'it', 'its',
-  'и', 'в', 'на', 'с', 'по', 'для', 'из', 'к', 'о', 'об', 'от', 'до', 'за', 'при', 'во', 'не',
-  'как', 'что', 'это', 'или', 'но', 'а', 'же', 'ли', 'бы', 'его', 'её', 'их', 'то', 'все',
-  'вся', 'всё',
-]);
+import {
+  TRANSCRIPT_STOP_WORDS,
+  TRANSCRIPT_TOKEN_MIN_LENGTH,
+  VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION,
+} from '../src/types/videoTranscripts.js';
 
 const MAX_MATCHED_CHUNKS = 120;
+// Firestore lazyt array-contains-any до 30 значений в запросе.
+const MAX_QUERY_TOKENS = 30;
 
 function matchesQuery(text: string, queryWords: string[]) {
   if (queryWords.length === 0) {
@@ -42,8 +38,10 @@ function normalizeQuery(query: string) {
   return query
     .trim()
     .toLowerCase()
-    .split(/\s+/)
-    .filter((word) => word.length >= 2 && !STOP_WORDS.has(word));
+    .split(/[^a-zа-яё0-9]+/u)
+    .filter(
+      (word) => word.length >= TRANSCRIPT_TOKEN_MIN_LENGTH && !TRANSCRIPT_STOP_WORDS.has(word),
+    );
 }
 
 function getAllowedOrigin(origin: string | undefined) {
@@ -86,7 +84,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     initFirebaseAdmin();
 
     const db = getFirestore();
-    const snapshot = await db.collectionGroup(VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION).get();
+    // array-contains-any принимает до 30 значений; для query из >30 слов берём
+    // первые 30 — оставшиеся проверяет matchesQuery в коде ниже.
+    const indexedTokens = queryWords.slice(0, MAX_QUERY_TOKENS);
+    const snapshot = await db
+      .collectionGroup(VIDEO_TRANSCRIPT_SEARCH_CHUNKS_SUBCOLLECTION)
+      .where('searchTokens', 'array-contains-any', indexedTokens)
+      .get();
     const chunks = snapshot.docs
       .map((docSnap) => docSnap.data() as VideoTranscriptSearchChunkDoc)
       .filter((chunk) => matchesQuery(chunk.normalizedText, queryWords))
