@@ -69,6 +69,9 @@ export interface VideoTranscriptSearchChunkDocShape<TTimestamp> {
   segmentCount: number;
   text: string;
   normalizedText: string;
+  // Префиксные токены normalizedText (length ≥ 3) для array-contains-any
+  // индексирования. Опционально для совместимости с до-миграционными chunks.
+  searchTokens?: string[];
   updatedAt: TTimestamp;
   version: number;
 }

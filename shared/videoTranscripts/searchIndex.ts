@@ -15,8 +15,45 @@ import { formatTimestampMs } from "../formatTimestamp.js";
 const SEARCH_CHUNK_MAX_SEGMENTS = 4;
 const SEARCH_CHUNK_MAX_CHARS = 320;
 
+export const TRANSCRIPT_TOKEN_MIN_LENGTH = 3;
+
+const TRANSCRIPT_STOP_WORDS_LIST = [
+  "and", "or", "the", "a", "an", "of", "in", "on", "at", "to", "for", "with", "by", "from", "as",
+  "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did",
+  "will", "would", "could", "should", "may", "might", "must", "can", "this", "that", "these",
+  "those", "it", "its",
+  "и", "в", "на", "с", "по", "для", "из", "к", "о", "об", "от", "до", "за", "при", "во", "не",
+  "как", "что", "это", "или", "но", "а", "же", "ли", "бы", "его", "её", "их", "то", "все",
+  "вся", "всё",
+] as const;
+
+export const TRANSCRIPT_STOP_WORDS: ReadonlySet<string> = new Set(TRANSCRIPT_STOP_WORDS_LIST);
+
 function normalizeTranscriptSearchText(text: string) {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Generates prefix tokens from normalized text for indexed search.
+ * Each word ≥ 3 chars (and not a stop-word) is expanded to all its prefixes
+ * of length 3..fullWordLength. Result is deduplicated.
+ *
+ * Example: "психология фрейда" → ["пси", "псих", "психо", ..., "психология",
+ *                                   "фре", "фрей", "фрейд", "фрейда"]
+ */
+export function buildSearchTokens(normalizedText: string): string[] {
+  const tokens = new Set<string>();
+  const words = normalizedText.toLowerCase().split(/[^a-zа-яё0-9]+/u);
+
+  for (const word of words) {
+    if (word.length < TRANSCRIPT_TOKEN_MIN_LENGTH) continue;
+    if (TRANSCRIPT_STOP_WORDS.has(word)) continue;
+    for (let len = TRANSCRIPT_TOKEN_MIN_LENGTH; len <= word.length; len += 1) {
+      tokens.add(word.slice(0, len));
+    }
+  }
+
+  return Array.from(tokens);
 }
 
 export function formatTranscriptTimestamp(startMs: number) {
@@ -152,6 +189,7 @@ export function buildTranscriptSearchChunkDocs<TTimestamp>(
         segmentCount: chunk.segmentCount,
         text: chunk.text,
         normalizedText: chunk.normalizedText,
+        searchTokens: buildSearchTokens(chunk.normalizedText),
         updatedAt: now,
         version: VIDEO_TRANSCRIPT_SEARCH_VERSION,
       } satisfies VideoTranscriptSearchChunkDocShape<TTimestamp>,
