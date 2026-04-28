@@ -18,7 +18,7 @@
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
 | MP-4 | M (S) | Документация и tooling вокруг тестов | Скрипт `ts:prune`, README policy, обновление lazy-docов и perf метрик |
-| MR-1 | M (M) | Масштабирование `/api/transcript-search` | server-side retrieval без full collection scan |
+| MR-1 | ✅ | Масштабирование `/api/transcript-search` | Закрыта 2026-04-28 (H7): keyword prefix-индекс через `searchTokens` array + `array-contains-any` query. Full scan убран. Ожидает запуска backfill на prod. |
 | MR-2 | ✅ | Починить `npm run test:ci` | Закрыта 2026-04-27: `--runInBand` → `--no-file-parallelism` (Vitest 4 эквивалент) в `test:ci` и `test:integration`. |
 | MR-3 | M (S) | Убрать `lessonRef as never` | типизированный payload dynamic course lessons |
 | MR-4 | ✅ | Починить stale `authStore.test.ts` | Закрыта 2026-04-27: переписан под `UserRole = 'admin' \| 'super-admin' \| null`, убраны проверки удалённого `isStudent`, добавлен кейс role=null. 2/2 зелёных. |
@@ -166,14 +166,24 @@ CI часть (осталась):
 - [ ] Явно закрепить в README требование прочитать `docs/architecture/guidelines.md` и `docs/guides/testing-system.md` перед началом задач.
 - [ ] Обновить ленивую документацию: описать политику добавления новых lazy-страниц и итоговые метрики в `docs/archive/legacy/lazy-loading-migration.md` / README, синхронизировать `docs/reference/perf-metrics.md` после завершения работ.
 
-### MR‑1. Масштабирование `/api/transcript-search` (P: M, E: M)
-- **Проблема:** клиентский preload уже убран, но `api/transcript-search.ts` по-прежнему делает `collectionGroup(...).get()` по всему transcript-search индексу на каждый запрос и фильтрует результаты в памяти.
-- **Риск:** latency, cost и memory usage растут линейно от общего числа chunks; проблема больше не на клиенте, а на request path сервера.
-- **Подтверждение:** review `2026-03-12`, см. `docs/reports/CODE_REVIEW_2026-03-12.md`; повторно подтверждено review `2026-04-27`, см. `docs/reports/CODE_REVIEW_MAIN_2026-04-27.md`.
-- **Задачи:**
-  - [ ] Убрать full collection scan из hot path `GET /api/transcript-search`.
-  - [ ] Спроектировать индекс/lookup/sharding стратегию под query-time retrieval.
-  - [ ] После правки smoke-проверить глобальный поиск по транскриптам и обновить docs по search pipeline.
+### MR‑1. ✅ Масштабирование `/api/transcript-search` — РЕШЕНО (2026-04-28, H7)
+- **Решение:** keyword prefix-индекс. В каждый chunk добавлено поле `searchTokens: string[]` — массив префиксов слов длиной ≥ 3 (lowercased, без stop-words). Endpoint использует `where('searchTokens', 'array-contains-any', queryWords)` вместо full scan.
+- **Что сделано:**
+  - [x] `shared/videoTranscripts/searchIndex.ts`: helper `buildSearchTokens` + общий `TRANSCRIPT_STOP_WORDS` set + 9 unit-тестов.
+  - [x] `VideoTranscriptSearchChunkDocShape`: добавлено опциональное поле `searchTokens?: string[]` (опциональное для совместимости с до-миграционными chunks).
+  - [x] `buildTranscriptSearchChunkDocs`: новые chunks получают `searchTokens` автоматически.
+  - [x] `scripts/backfillTranscriptSearchTokens.ts`: идемпотентный backfill (cursor pagination, batch 400, dry-run/--apply).
+  - [x] `firestore.indexes.json`: single-field collection-group index `searchChunks.searchTokens` (`arrayConfig: CONTAINS`).
+  - [x] `api/transcript-search.ts`: `where('searchTokens', 'array-contains-any', tokens)` + filter в коде (AND-семантика). Cap 30 tokens (Firestore limit).
+  - [x] `tests/api/transcript-search.test.ts`: 6 тестов (empty query, query construction, 30-cap, stop-words, AND-filter, scoring).
+  - [x] `npm run validate` зелёный, integration 6/6.
+- **Ожидаемый эффект:** ~20 700 reads/запрос → ≤200 reads (зависит от популярности слов). Замер до/после после prod-запуска backfill.
+- **Что осталось — ручной operator-step:**
+  - [ ] Запустить `npx tsx scripts/backfillTranscriptSearchTokens.ts` без флага (dry-run) → проверить отчёт.
+  - [ ] Запустить `npx tsx scripts/backfillTranscriptSearchTokens.ts --apply` → backfill ~20 700 chunks.
+  - [ ] `firebase deploy --only firestore:indexes` (создание composite index).
+  - [ ] Дождаться status=READY у индекса в Firebase Console.
+  - [ ] Smoke-проверить `https://academydom.com/api/transcript-search?q=психология` через UI.
 
 ### CQ‑7. Рефакторинг новых монолитов и дублей (P: M, E: L)
 - **Источник:** code review `2026-04-27`, см. `docs/reports/CODE_REVIEW_MAIN_2026-04-27.md`.

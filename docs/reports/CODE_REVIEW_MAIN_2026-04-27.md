@@ -32,7 +32,7 @@
 | **H5. Монолиты выше 400 LoC (UI)** | ✅ | Wave 1: 10 файлов разрезаны (5abacdd…094a5d1) |
 | **H5. Монолиты выше 400 LoC (API)** | ✅ | Wave 2: 5 endpoints разрезаны (d8d14ab…22a4451) |
 | **H6. ESLint не покрывает TS** | ✅ | Wave 7: typescript-eslint v8 для ts/tsx, no-console: error + overrides |
-| H7. transcript-search full scan (MR-1) | ⏳ | в audit-backlog |
+| **H7. transcript-search full scan (MR-1)** | ✅ | Wave 8 (2026-04-28): keyword prefix-индекс `searchTokens` + `array-contains-any`. Ожидает backfill+deploy на prod. |
 | M1. Cross-layer features → pages | ⏳ | `roleHelpers` |
 | M2. Feature → feature импорты | — | через barrel, ок |
 | M3. Устаревшие docs | ⏳ | синхронизация после fixes |
