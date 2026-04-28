@@ -77,7 +77,7 @@ export function DirectionsPage({ embedded = false }: DirectionsPageProps) {
 
           <aside className="rounded-2xl overflow-hidden border border-dom-gray-200 bg-white shadow-brand">
             <img
-              src="/images/tbilisi/tbilisi-cityview.jpg"
+              src="/images/tbilisi/tbilisi-old-town-river.jpg"
               alt="Тбилиси"
               className="w-full aspect-[4/3] object-cover"
               loading="lazy"

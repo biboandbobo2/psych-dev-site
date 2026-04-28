@@ -9,8 +9,9 @@ const ROOM_PHOTOS = [
 ];
 
 const TBILISI_PHOTOS = [
-  '/images/tbilisi/tbilisi-hill-view.jpg',
-  '/images/tbilisi/tbilisi-cityview.jpg',
+  '/images/tbilisi/tbilisi-old-town-river.jpg',
+  '/images/tbilisi/tbilisi-peace-bridge.jpg',
+  '/images/tbilisi/tbilisi-old-town-street.jpg',
 ];
 
 export function VenueSection() {
