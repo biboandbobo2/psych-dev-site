@@ -22,8 +22,8 @@
 
 | Find | Статус | Комментарий |
 |---|---|---|
-| C1. Booking auth-bypass | ⏳ | security risk, не трогался |
-| C2. CORS wildcard | ⏳ | `api/auth.ts`, `api/admin/books.ts` |
+| **C1. Booking auth-bypass** | ✅ | Wave 9 (2026-04-28): `api/auth.ts:loginByEmail` удалён целиком, оба пути (Google + email-link) требуют физического подтверждения. Освобождена 1 Vercel function. |
+| C2. CORS wildcard | 🟡 частично | `api/auth.ts` ✅ (исчез вместе с файлом, wave-9). `api/admin/books.ts` ⏳ остался. |
 | **C3. console.\* + слабый guard** | ✅ | Wave 7: 50 runtime `console.*` → `debug-helpers` или whitelist. ESLint+check-console защищают полный репо. |
 | **H1. Дубли API runtime helpers** | ✅ | Wave 2 step 0: общий `initFirebaseAdmin()` + cleanup мёртвого `getStorage`/`gunzip` в books.ts |
 | H2. Vercel function-budget впритык | — | constraint, не fix |

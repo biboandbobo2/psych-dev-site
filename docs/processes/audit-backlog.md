@@ -11,7 +11,7 @@
 | HP-2 | H (L) | Расширенное Playwright покрытие | Seed-данные, full auth flow, stress-тесты, отчётность |
 | HP-3 | ✅ | Remediate container image vulnerabilities | NPM HIGH закрыты (2026-02-06), Go stdlib — buildpack-level |
 | HR-1 | ✅ | Защита `/api/books` | Закрыта волной 6 (2026-04-26): strict BYOK без env fallback, auth Bearer на search/answer, public только list/snippet с rate-limit, CORS allowlist через appOrigins. Плюс счётчик BYOK-usage в профиле через aiUsageDaily/{uid}_{day}. |
-| HR-2 | H (S-M) | Закрыть booking email-login auth bypass | Убрать custom-token login по одному email, заменить на настоящий email-link/password/challenge flow |
+| HR-2 | ✅ | Закрыть booking email-login auth bypass | Закрыта 2026-04-28 (wave-9, C1 + часть C2): `api/auth.ts` удалён целиком, AuthModal использует только `sendSignInLinkToEmail`. Освобождена 1 Vercel function (9/12 → 8/12). |
 | CQ-6 | ✅ | Починить TS lint + console guardrails | Закрыта волной 7 (2026-04-27): ESLint покрывает ts/tsx через typescript-eslint v8, `no-console: error` + overrides, `check-console --all` для validate / `:staged` для pre-commit, api/ под покрытием. 50 runtime `console.*` → `debugLog/debugError/debugWarn` (или whitelist для prod-error reporting). |
 | CQ-7 | M (L) | Рефакторинг новых монолитов и дублей | `DisorderTable`, API handlers, course-nav/API-runtime helpers |
 | MP-1 | ✅ | Изоляция бизнес-логики Timeline (lazy-hooks) | Хуки вынесены в `src/pages/timeline/hooks/`, чанк `timeline-hooks` в vite.config.js (2026-04) |
@@ -55,16 +55,17 @@
 
 ## 🔴 High Priority
 
-### HR‑2. Закрыть booking email-login auth bypass (P: H, E: S-M)
-- **Источник:** code review `2026-04-27`, см. `docs/reports/CODE_REVIEW_MAIN_2026-04-27.md`.
-- **Проблема:** `api/auth.ts?action=loginByEmail` выдаёт Firebase custom token по одному только verified email. Клиент `src/pages/booking/AuthModal.tsx` сразу вызывает `signInWithCustomToken`. Текущий тест `tests/api/booking-login.test.ts` закрепляет это поведение.
-- **Риск:** зная email существующего verified пользователя, можно войти в его аккаунт без проверки владения почтой в момент входа.
-- **Задачи:**
-  - [ ] Убрать выдачу Firebase custom token по одному email.
-  - [ ] Перевести booking email-вход на стандартный Firebase email-link/password flow или одноразовый server-side challenge.
-  - [ ] Переписать `tests/api/booking-login.test.ts` под новую модель.
-  - [ ] Обновить `docs/guides/booking-system.md`, где сейчас описан устаревший Email+password flow.
-  - [ ] Прогнать `npm test -- --run tests/api/booking-login.test.ts tests/api/booking.test.ts`, `npm run typecheck:api`, `npm run typecheck:app`, `npm run validate`.
+### HR‑2. ✅ Закрыть booking email-login auth bypass — РЕШЕНО (wave-9, 2026-04-28)
+- **Решение:** Вариант 3 «email-link для всех» (после консультации с хозяином помещения, см. [BOOKING_AUTH_C1_DECISION_2026-04-28.md](../reports/BOOKING_AUTH_C1_DECISION_2026-04-28.md)). Endpoint `POST /api/auth?action=loginByEmail` удалён вместе с файлом — выдача custom token по verified email больше невозможна.
+- **Что сделано:**
+  - [x] `api/auth.ts` удалён целиком. Освобождена 1 Vercel function (9/12 → 8/12).
+  - [x] CORS wildcard в этом файле исчез вместе с ним — закрывается часть C2.
+  - [x] `src/pages/booking/AuthModal.tsx`: tabs «Вход»/«Регистрация» объединены в один экран. Оба пути используют `sendSignInLinkToEmail`. Импорт `signInWithCustomToken` удалён.
+  - [x] `BookingLayout.tsx:30-40` уже умел `signInWithEmailLink` для регистрации — теперь обслуживает оба сценария без изменений.
+  - [x] `tests/api/booking-login.test.ts` удалён (тестировал удалённый endpoint).
+  - [x] `docs/guides/booking-system.md` обновлён: новый flow описан, custom-token упоминание убрано, добавлена ссылка на decision document.
+  - [x] `npm run validate` зелёный.
+- **Совместимость:** все 28 существующих booking-пользователей сохраняют свои Firebase user records и текущие сессии. Ничего не ломается. При следующем входе с нового устройства увидят новый flow «получить ссылку на почту» — тот же что раньше использовался для регистрации.
 
 ### CQ‑6. ✅ Починить TS lint + console guardrails — РЕШЕНО (волна 7, 2026-04-27)
 - **Решение:** коммиты `9dac357..b4a47fc` в `feature/initial-setup-sergo`.

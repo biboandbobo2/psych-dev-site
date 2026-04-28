@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { signInWithPopup, signInWithCustomToken, sendSignInLinkToEmail } from 'firebase/auth';
+import { signInWithPopup, sendSignInLinkToEmail } from 'firebase/auth';
 import { auth, googleProvider } from '../../lib/firebase';
 import { debugError } from '../../lib/debug';
 import { CloseIcon } from './icons';
@@ -8,8 +8,6 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-type AuthTab = 'login' | 'register';
 
 function getErrorMessage(error: unknown): string {
   const err = error as { code?: string; message?: string };
@@ -24,8 +22,6 @@ function getErrorMessage(error: unknown): string {
       return 'Авторизация отменена.';
     case 'auth/popup-blocked':
       return 'Всплывающее окно заблокировано. Разрешите popup для этого сайта.';
-    case 'auth/email-already-in-use':
-      return 'Этот email уже зарегистрирован. Перейдите на вкладку «Вход».';
     case 'auth/invalid-email':
       return 'Некорректный email.';
     case 'auth/invalid-action-code':
@@ -40,7 +36,6 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
-  const [tab, setTab] = useState<AuthTab>('login');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -62,39 +57,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
   };
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const res = await fetch('/api/auth?action=loginByEmail', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const json = await res.json();
-      if (!json.success) {
-        if (json.error === 'USER_NOT_FOUND') {
-          setError('Email не зарегистрирован. Перейдите на вкладку «Регистрация».');
-          return;
-        }
-        if (json.error === 'EMAIL_NOT_VERIFIED') {
-          setError('Email не подтверждён. Зарегистрируйтесь заново — мы отправим ссылку для подтверждения.');
-          return;
-        }
-        throw new Error(json.error || 'Login failed');
-      }
-      await signInWithCustomToken(auth, json.data.token);
-      onClose();
-    } catch (err) {
-      debugError('[AuthModal] Email login error:', err);
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEmailRegister = async (e: React.FormEvent) => {
+  const handleEmailLink = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -106,7 +69,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       window.localStorage.setItem('emailForSignIn', email);
       setLinkSent(true);
     } catch (err) {
-      debugError('[AuthModal] Email register error:', err);
+      debugError('[AuthModal] Email link error:', err);
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
@@ -126,7 +89,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         </div>
 
         <h2 className="text-2xl font-bold text-dom-gray-900 text-center mb-6">
-          {tab === 'login' ? 'Войти' : 'Регистрация'}
+          Войти
         </h2>
 
         {linkSent ? (
@@ -138,7 +101,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </div>
             <p className="text-dom-gray-700 font-medium mb-2">Письмо отправлено!</p>
             <p className="text-dom-gray-500 text-sm mb-4">
-              Проверьте почту <strong>{email}</strong> и перейдите по ссылке для входа.
+              Проверьте почту <strong>{email}</strong> (включая папку «Спам») и перейдите по ссылке для входа.
             </p>
             <button onClick={onClose} className="text-dom-green hover:text-dom-green-hover font-medium text-sm">
               Закрыть
@@ -167,23 +130,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <div className="flex-1 h-px bg-dom-gray-200" />
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-1 mb-4 bg-dom-cream rounded-lg p-1">
-              <button
-                onClick={() => { setTab('login'); setError(''); }}
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${tab === 'login' ? 'bg-white text-dom-gray-900 shadow-sm' : 'text-dom-gray-500'}`}
-              >
-                Вход
-              </button>
-              <button
-                onClick={() => { setTab('register'); setError(''); }}
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${tab === 'register' ? 'bg-white text-dom-gray-900 shadow-sm' : 'text-dom-gray-500'}`}
-              >
-                Регистрация
-              </button>
-            </div>
+            <p className="text-xs text-dom-gray-500 text-center mb-3">
+              Введите email — пришлём ссылку для входа. Пароль не нужен.
+            </p>
 
-            <form onSubmit={tab === 'login' ? handleEmailLogin : handleEmailRegister} className="space-y-3">
+            <form onSubmit={handleEmailLink} className="space-y-3">
               <input
                 type="email"
                 value={email}
@@ -198,7 +149,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 disabled={loading}
                 className="w-full py-3 rounded-xl bg-dom-green hover:bg-dom-green-hover text-white font-medium text-sm transition-all disabled:opacity-50"
               >
-                {loading ? 'Подождите...' : tab === 'login' ? 'Войти' : 'Отправить ссылку'}
+                {loading ? 'Подождите...' : 'Получить ссылку для входа'}
               </button>
             </form>
           </>
