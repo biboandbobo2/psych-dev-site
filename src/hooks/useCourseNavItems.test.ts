@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Period } from '../types/content';
-import { buildCourseNavItems } from './useCourseNavItems';
+import { buildCourseNavItems } from '../lib/courseNavItems';
 import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG } from '../routes';
 
 function makeTopic(overrides: Partial<Period> = {}): Period {
@@ -44,13 +44,28 @@ describe('buildCourseNavItems', () => {
     expect(items[0].path).toBe(GENERAL_ROUTE_CONFIG[0].path);
   });
 
-  it('ignores topics argument for core courses', () => {
+  it('merges Firestore-only lessons into core courses', () => {
     const topics = new Map<string, Period>([
-      ['custom-lesson', makeTopic({ title: 'Custom', order: 0 })],
+      ['general-1', makeTopic({ period: 'general-1', title: 'Firestore title', order: 0 })],
+      ['vnimanie-teorii', makeTopic({ period: 'vnimanie-teorii', title: 'Внимание: теории', order: 4 })],
+      ['draft', makeTopic({ period: 'draft', title: 'Черновик', order: 5, published: false })],
     ]);
-    const coreItems = buildCourseNavItems('development', topics);
-    expect(coreItems).toHaveLength(ROUTE_CONFIG.length);
-    expect(coreItems.every((item) => item.path.startsWith('/'))).toBe(true);
+    const items = buildCourseNavItems('general', topics);
+    expect(items).toContainEqual({ path: '/general/1', label: 'Firestore title' });
+    expect(items).toContainEqual({ path: '/general/vnimanie-teorii', label: 'Внимание: теории' });
+    expect(items.some((item) => item.path === '/general/draft')).toBe(false);
+  });
+
+  it('can require backing data for static core routes', () => {
+    const items = buildCourseNavItems(
+      'general',
+      new Map([
+        ['general-1', makeTopic({ period: 'general-1', title: 'Firestore title', order: 0 })],
+      ]),
+      { includeMissingStaticRoutes: false }
+    );
+
+    expect(items).toEqual([{ path: '/general/1', label: 'Firestore title' }]);
   });
 
   it('builds items for dynamic course from topics sorted by order', () => {

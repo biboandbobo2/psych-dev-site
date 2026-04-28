@@ -27,25 +27,10 @@ import SuperAdminTaskPanel from '../components/SuperAdminTaskPanel';
 import AdminCourseSidebar from '../components/AdminCourseSidebar';
 import StudentCourseSidebar from '../components/StudentCourseSidebar';
 import { isCoreCourse } from '../constants/courses';
-import { sortNavItemsWithRouteFallback } from '../lib/courseLessons';
+import { buildCourseNavItems, type CourseNavItem } from '../lib/courseNavItems';
 import { getPageCourseId, shouldShowStudentCourseSidebar } from './courseNavigation';
 import { saveLastCourseLesson } from '../lib/lastCourseLesson';
 import type { Period, ClinicalTopic, GeneralTopic } from '../types/content';
-
-interface NavItem {
-  path: string;
-  label: string;
-  order: number;
-  navLabel?: string;
-}
-
-interface BuildCourseNavItemsArgs {
-  courseId: string | null;
-  periodMap: Map<string, Period>;
-  clinicalTopicsMap: Map<string, ClinicalTopic>;
-  generalTopicsMap: Map<string, GeneralTopic>;
-  dynamicLessonsMap: Map<string, Period>;
-}
 
 function normalizePath(path: string): string;
 function normalizePath(path: string | undefined | null): string | undefined | null;
@@ -54,70 +39,20 @@ function normalizePath(path: string | undefined | null): string | undefined | nu
 }
 const EMPTY_ROUTE_DATA: Map<string, Period> = new Map();
 
-function buildCourseNavItems({
-  courseId,
-  periodMap,
-  clinicalTopicsMap,
-  generalTopicsMap,
-  dynamicLessonsMap,
-}: BuildCourseNavItemsArgs): NavItem[] {
-  if (!courseId) {
-    return [];
-  }
-
-  const routes = courseId === 'clinical'
-    ? CLINICAL_ROUTE_CONFIG
-    : courseId === 'general'
-      ? GENERAL_ROUTE_CONFIG
-      : courseId === 'development'
-        ? ROUTE_CONFIG
-        : [];
-  const dataMap = courseId === 'clinical'
-    ? clinicalTopicsMap
-    : courseId === 'general'
-      ? generalTopicsMap
-      : courseId === 'development'
-        ? periodMap
-        : dynamicLessonsMap;
-  const basePath = courseId === 'clinical'
-    ? '/clinical/'
-    : courseId === 'general'
-      ? '/general/'
-      : courseId === 'development'
-        ? '/'
-        : `/course/${courseId}/`;
-
-  const staticIds = new Set(routes.map((route) => route.periodId).filter(Boolean));
-
-  const items = routes
-    .filter((config) => {
-      if (!config.periodId) return true;
-      const data = dataMap.get(config.periodId);
-      return data && data.published !== false;
-    })
-    .map((config) => {
-      const data = config.periodId ? dataMap.get(config.periodId) : null;
-      return {
-        path: config.path,
-        label: data?.label || data?.title || config.navLabel,
-        order: data?.order ?? 999,
-      };
-    });
-
-  dataMap.forEach((topic, periodId) => {
-    if (!staticIds.has(periodId) && topic.published !== false) {
-      items.push({
-        path: `${basePath}${periodId}`,
-        label: topic.title || topic.label,
-        order: topic.order ?? 999,
-      });
-    }
-  });
-
-  return sortNavItemsWithRouteFallback(routes, items);
+function getCourseNavTopicsMap(
+  courseId: string | null,
+  periodMap: Map<string, Period>,
+  clinicalTopicsMap: Map<string, ClinicalTopic>,
+  generalTopicsMap: Map<string, GeneralTopic>,
+  dynamicLessonsMap: Map<string, Period>
+): Map<string, Period> {
+  if (courseId === 'development') return periodMap;
+  if (courseId === 'clinical') return clinicalTopicsMap as Map<string, Period>;
+  if (courseId === 'general') return generalTopicsMap as Map<string, Period>;
+  return dynamicLessonsMap;
 }
 
-function RoutePager({ currentPath, navItems }: { currentPath: string; navItems: NavItem[] }) {
+function RoutePager({ currentPath, navItems }: { currentPath: string; navItems: CourseNavItem[] }) {
   const normalizedPath = normalizePath(currentPath);
   const currentIndex = navItems.findIndex((item) => normalizePath(item.path) === normalizedPath);
   if (currentIndex === -1) return null;
@@ -135,7 +70,7 @@ function RoutePager({ currentPath, navItems }: { currentPath: string; navItems: 
             className="w-full sm:w-auto flex items-center justify-center gap-2"
           >
             <span aria-hidden="true">←</span>
-            <span>{prev.label || prev.navLabel}</span>
+            <span>{prev.label}</span>
           </Button>
         ) : (
           <span className="hidden sm:block" />
@@ -151,7 +86,7 @@ function RoutePager({ currentPath, navItems }: { currentPath: string; navItems: 
             to={next.path}
             className="w-full sm:w-auto flex items-center justify-center gap-2"
           >
-            <span>{next.label || next.navLabel}</span>
+            <span>{next.label}</span>
             <span aria-hidden="true">→</span>
           </Button>
         ) : (
@@ -281,25 +216,31 @@ function MainAppShell({ location, normalizedPath, isSuperAdmin }: MainAppShellPr
   const { topics: sidebarDynamicLessonsMap, loading: sidebarDynamicLoading, error: sidebarDynamicError } =
     useDynamicCourseLessons(sidebarDynamicCourseId, true);
   const navItems = useMemo(
-    () =>
-      buildCourseNavItems({
-        courseId: pageNavigationCourseId,
+    () => buildCourseNavItems(
+      pageNavigationCourseId,
+      getCourseNavTopicsMap(
+        pageNavigationCourseId,
         periodMap,
         clinicalTopicsMap,
         generalTopicsMap,
-        dynamicLessonsMap: pageDynamicLessonsMap,
-      }),
+        pageDynamicLessonsMap,
+      ),
+      { includeMissingStaticRoutes: false }
+    ),
     [pageNavigationCourseId, periodMap, clinicalTopicsMap, generalTopicsMap, pageDynamicLessonsMap]
   );
   const sidebarNavItems = useMemo(
-    () =>
-      buildCourseNavItems({
-        courseId: sidebarCourseId,
+    () => buildCourseNavItems(
+      sidebarCourseId,
+      getCourseNavTopicsMap(
+        sidebarCourseId,
         periodMap,
         clinicalTopicsMap,
         generalTopicsMap,
-        dynamicLessonsMap: sidebarDynamicLessonsMap,
-      }),
+        sidebarDynamicLessonsMap,
+      ),
+      { includeMissingStaticRoutes: false }
+    ),
     [sidebarCourseId, periodMap, clinicalTopicsMap, generalTopicsMap, sidebarDynamicLessonsMap]
   );
   const dynamicNavigationLoading = Boolean(pageDynamicCourseId) && pageDynamicLoading;
