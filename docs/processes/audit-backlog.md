@@ -18,7 +18,7 @@
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
 | MP-4 | M (S) | Документация и tooling вокруг тестов | Скрипт `ts:prune`, README policy, обновление lazy-docов и perf метрик |
-| MR-1 | ✅ | Масштабирование `/api/transcript-search` | Закрыта 2026-04-28 (H7): keyword prefix-индекс через `searchTokens` array + `array-contains-any` query. Full scan убран. Ожидает запуска backfill на prod. |
+| MR-1 | ✅ | Масштабирование `/api/transcript-search` | Закрыта 2026-04-28 (H7), мерджено в main коммитом `b33bdc1`: keyword prefix-индекс через `searchTokens` array + `array-contains-any` query. Full scan убран. Backfill 20 693 chunks на prod выполнен до merge. UI smoke на preview подтвердил latency 355–873мс. |
 | MR-2 | ✅ | Починить `npm run test:ci` | Закрыта 2026-04-27: `--runInBand` → `--no-file-parallelism` (Vitest 4 эквивалент) в `test:ci` и `test:integration`. |
 | MR-3 | M (S) | Убрать `lessonRef as never` | типизированный payload dynamic course lessons |
 | MR-4 | ✅ | Починить stale `authStore.test.ts` | Закрыта 2026-04-27: переписан под `UserRole = 'admin' \| 'super-admin' \| null`, убраны проверки удалённого `isStudent`, добавлен кейс role=null. 2/2 зелёных. |
