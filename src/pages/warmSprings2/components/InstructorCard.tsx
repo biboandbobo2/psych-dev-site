@@ -2,7 +2,7 @@ import type { Instructor } from '../data';
 
 /**
  * Карточка одного ведущего: фото, имя, роль, два списка (Образование / Практика).
- * Используется на TeamSection дважды — для каждой ко-терапевтической пары.
+ * Используется на TeamSection дважды — для каждой терапевтической пары.
  */
 export function InstructorCard({ instructor }: { instructor: Instructor }) {
   return (
@@ -12,6 +12,7 @@ export function InstructorCard({ instructor }: { instructor: Instructor }) {
       </div>
       <h3>{instructor.name}</h3>
       <p className="ws2-instructor-role">{instructor.role}</p>
+      <p className="ws2-instructor-personal">{instructor.personal}</p>
       <p className="ws2-instructor-section-label">Образование</p>
       <ul className="ws2-instructor-edu">
         {instructor.education.map((d) => (

@@ -71,6 +71,14 @@
 .ws2-nowrap {
   white-space: nowrap;
 }
+.ws2-section-kicker {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6a865f;
+  margin-bottom: 0.75rem;
+}
 
 /* ---- Inline links ---- */
 .ws2-link {
@@ -197,19 +205,27 @@
   width: fit-content;
   max-width: min(620px, calc(100% - 2rem));
   box-sizing: border-box;
-  margin: 0 auto 2.25rem;
+  margin: 0 auto;
   padding: 0.8rem 1.35rem;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.94);
+  background: #4e6a4f;
+  color: #fff;
   font-size: clamp(0.95rem, 1.8vw, 1.1rem);
   font-weight: 600;
   line-height: 1.45;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(0, 11, 48, 0.18);
+  transition: background 0.25s, box-shadow 0.25s, transform 0.25s;
 }
-.ws2-hero-cta {
-  font-size: 1.1rem;
-  padding: 1.1rem 3rem;
+.ws2-hero-audience:hover {
+  background: #3d5640;
+  box-shadow: 0 14px 30px rgba(0, 11, 48, 0.25);
+  transform: translateY(-2px);
+}
+.ws2-hero-audience:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.58);
+  outline-offset: 4px;
 }
 
 /* ================================================================== */
@@ -333,6 +349,45 @@
   width: 100%;
   height: auto;
   display: block;
+}
+
+/* ================================================================== */
+/*  FORMAT                                                             */
+/* ================================================================== */
+.ws2-format {
+  background: #f3f7f2;
+}
+.ws2-format-intro {
+  max-width: 720px;
+  margin: -1.5rem auto 2.5rem;
+  text-align: center;
+  font-size: 1.05rem;
+  color: #4f4f4f;
+}
+.ws2-format-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+.ws2-format-card {
+  background: #fff;
+  border: 1px solid #dce8d8;
+  border-radius: 16px;
+  padding: 1.6rem;
+}
+.ws2-format-card h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: #2d3b2d;
+  margin-bottom: 0.75rem;
+}
+.ws2-format-card p {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: #555;
 }
 
 /* ================================================================== */
@@ -528,7 +583,21 @@
   font-size: 0.92rem;
   font-weight: 500;
   color: #6a865f;
+  min-height: 3.2rem;
   margin-bottom: 1rem;
+}
+.ws2-instructor-personal {
+  max-width: 420px;
+  min-height: 9.75rem;
+  margin: 0 auto 1.25rem;
+  padding: 1rem 1.1rem;
+  background: #faf9f6;
+  border: 1px solid #e0e8de;
+  border-radius: 16px;
+  text-align: left;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: #4f4f4f;
 }
 .ws2-instructor ul {
   list-style: none;
@@ -574,6 +643,133 @@
 }
 
 /* ================================================================== */
+/*  TESTIMONIALS                                                       */
+/* ================================================================== */
+.ws2-testimonials {
+  background: #faf9f6;
+}
+.ws2-testimonials-intro {
+  max-width: 760px;
+  margin: -1.5rem auto 2rem;
+  text-align: center;
+  font-size: 1.02rem;
+  color: #555;
+}
+.ws2-testimonials-photo {
+  max-width: 860px;
+  margin: 0 auto 1.5rem;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #e0e8de;
+  background: #fff;
+}
+.ws2-testimonials-photo img {
+  display: block;
+  width: 100%;
+  max-height: 460px;
+  object-fit: cover;
+  object-position: center;
+}
+.ws2-testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  max-width: 860px;
+  margin: 0 auto;
+}
+.ws2-testimonial-card {
+  appearance: none;
+  border: 1px solid #e0e8de;
+  border-radius: 16px;
+  background: #fff;
+  padding: 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+.ws2-testimonial-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+}
+.ws2-testimonial-card img {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+}
+.ws2-testimonial-card span {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6a865f;
+  margin-bottom: 0.6rem;
+}
+.ws2-testimonial-card p {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.18rem;
+  line-height: 1.45;
+  color: #2d3b2d;
+}
+.ws2-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(22, 30, 22, 0.7);
+}
+.ws2-modal {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: min(760px, 86vh);
+  overflow: auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+.ws2-modal h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.7rem;
+  font-weight: 500;
+  color: #2d3b2d;
+  margin-bottom: 1.25rem;
+}
+.ws2-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: #f3f7f2;
+  color: #2d3b2d;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.ws2-modal-image {
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #050505;
+}
+.ws2-modal-text p {
+  margin-bottom: 0.9rem;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #444;
+}
+
+/* ================================================================== */
 /*  VENUE                                                              */
 /* ================================================================== */
 .ws2-venue {
@@ -604,6 +800,7 @@
   margin-bottom: 1rem;
 }
 .ws2-venue-grid img,
+.ws2-venue-room-grid img,
 .ws2-venue-city-grid img {
   width: 100%;
   height: 280px;
@@ -611,20 +808,94 @@
   border-radius: 12px;
   transition: transform 0.3s;
 }
+.ws2-venue-gallery-label {
+  margin: 1.25rem 0 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6a865f;
+}
+.ws2-venue-room-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.ws2-venue-room-grid img {
+  height: 220px;
+}
 .ws2-venue-city-grid {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
 .ws2-venue-city-grid img:first-child {
-  grid-column: span 2;
+  grid-column: auto;
 }
 .ws2-venue-city-grid img {
   height: 180px;
 }
 .ws2-venue-grid img:hover,
+.ws2-venue-room-grid img:hover,
 .ws2-venue-city-grid img:hover {
   transform: scale(1.03);
+}
+
+/* ================================================================== */
+/*  INTERVIEW                                                          */
+/* ================================================================== */
+.ws2-interview {
+  background: #2d3b2d;
+}
+.ws2-interview-panel {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 2rem;
+  align-items: center;
+  padding: 2.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.ws2-interview .ws2-h2 {
+  color: #fff;
+  text-align: left;
+  margin-bottom: 1.25rem;
+}
+.ws2-interview .ws2-section-kicker {
+  color: #c5ddc2;
+}
+.ws2-interview-panel p {
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+.ws2-interview-card {
+  padding: 1.5rem;
+  background: #fff;
+  border-radius: 16px;
+}
+.ws2-interview-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+}
+.ws2-interview-card li {
+  position: relative;
+  padding-left: 1.45rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.96rem;
+  color: #4f4f4f;
+}
+.ws2-interview-card li:last-child {
+  margin-bottom: 0;
+}
+.ws2-interview-card li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: #6a865f;
+  font-weight: 700;
 }
 
 /* ================================================================== */
@@ -633,6 +904,13 @@
 .ws2-price {
   background: #fff;
   text-align: center;
+}
+.ws2-price-scope {
+  max-width: 700px;
+  margin: -1.5rem auto 2rem;
+  font-size: 1.02rem;
+  line-height: 1.65;
+  color: #555;
 }
 .ws2-price-grid {
   display: grid;
@@ -657,17 +935,18 @@
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
 }
 .ws2-price-accent {
-  background: #2d3b2d;
-  border-color: #2d3b2d;
+  background: #f1d08a;
+  border-color: #d6aa4c;
+  box-shadow: 0 18px 38px rgba(147, 100, 35, 0.18);
 }
 .ws2-price-accent .ws2-price-period {
-  color: #abc5a1;
+  color: #6f5525;
 }
 .ws2-price-accent .ws2-price-value {
-  color: #fff;
+  color: #2d3b2d;
 }
 .ws2-price-accent .ws2-price-value small {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(45, 59, 45, 0.62);
 }
 .ws2-price-period {
   font-size: 0.9rem;
@@ -714,6 +993,37 @@
 }
 
 /* ================================================================== */
+/*  FAQ                                                                */
+/* ================================================================== */
+.ws2-faq {
+  background: #faf9f6;
+}
+.ws2-faq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+.ws2-faq-item {
+  padding: 1.5rem;
+  background: #fff;
+  border: 1px solid #e0e8de;
+  border-radius: 16px;
+}
+.ws2-faq-item h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: #2d3b2d;
+  margin-bottom: 0.65rem;
+}
+.ws2-faq-item p {
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1.65;
+  color: #555;
+}
+
+/* ================================================================== */
 /*  FINAL CTA                                                          */
 /* ================================================================== */
 .ws2-final {
@@ -741,10 +1051,29 @@
   margin-right: auto;
   margin-bottom: 0.75rem;
 }
-.ws2-final p {
-  font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 2rem;
+.ws2-final-link {
+  appearance: none;
+  display: inline-block;
+  max-width: 760px;
+  padding: 0.85rem 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-weight: 600;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  transition: background 0.25s, border-color 0.25s, transform 0.25s;
+}
+.ws2-final-link:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.42);
+  transform: translateY(-2px);
+}
+.ws2-final-link:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.58);
+  outline-offset: 4px;
 }
 
 /* ================================================================== */
@@ -794,6 +1123,10 @@
     grid-template-columns: 1fr;
   }
 
+  .ws2-format-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .ws2-results-grid {
     grid-template-columns: 1fr;
   }
@@ -818,19 +1151,38 @@
   .ws2-venue-grid {
     grid-template-columns: 1fr;
   }
+  .ws2-venue-room-grid {
+    grid-template-columns: 1fr;
+  }
   .ws2-venue-city-grid {
     grid-template-columns: 1fr 1fr;
   }
   .ws2-venue-grid img {
     height: 220px;
   }
+  .ws2-venue-room-grid img {
+    height: 220px;
+  }
   .ws2-venue-city-grid img {
     height: 180px;
+  }
+
+  .ws2-interview-panel {
+    grid-template-columns: 1fr;
+    padding: 1.5rem;
+  }
+  .ws2-interview .ws2-h2 {
+    text-align: left;
   }
 
   .ws2-price-grid {
     grid-template-columns: 1fr;
     max-width: 320px;
+  }
+
+  .ws2-testimonials-grid,
+  .ws2-faq-grid {
+    grid-template-columns: 1fr;
   }
 
   .ws2-section {
@@ -855,8 +1207,20 @@
   .ws2-venue-city-grid img:first-child {
     grid-column: auto;
   }
+  .ws2-format-grid {
+    grid-template-columns: 1fr;
+  }
+  .ws2-modal {
+    padding: 1.35rem;
+  }
   .ws2-instructor-photo {
     width: 140px;
     height: 140px;
+  }
+  .ws2-instructor-personal {
+    min-height: 0;
+  }
+  .ws2-final-link {
+    border-radius: 22px;
   }
 }

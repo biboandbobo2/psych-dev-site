@@ -1,4 +1,4 @@
-import { CtaButton } from '../components/CtaButton';
+import { confirmInterviewRedirect } from '../utils/interviewLink';
 
 export function HeroSection() {
   return (
@@ -18,12 +18,11 @@ export function HeroSection() {
           <span className="ws2-nowrap">&laquo;Тёплые ключи&nbsp;2&raquo;</span>
           &mdash;&nbsp;пространство, где профессиональный рост неотделим от личного опыта
         </p>
-        <p className="ws2-hero-audience">
+        <button type="button" className="ws2-hero-audience" onClick={confirmInterviewRedirect}>
           Для психологов, которые боятся вести группы
           <br />
           или хотят делать это глубже и увереннее
-        </p>
-        <CtaButton className="ws2-hero-cta" />
+        </button>
       </div>
     </section>
   );

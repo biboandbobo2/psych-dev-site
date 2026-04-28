@@ -34,12 +34,16 @@ export function VenueSection() {
           <img src={`${IMG}/venue-small-group.jpg`} alt="Малая группа" loading="lazy" />
           <img src={`${IMG}/venue-details.jpg`} alt="Детали пространства" loading="lazy" />
         </div>
-        <div className="ws2-venue-city-grid" aria-label="Тбилиси и кабинеты DOM">
-          {TBILISI_PHOTOS.map((src) => (
-            <img key={src} src={src} alt="Тбилиси" loading="lazy" />
-          ))}
+        <p className="ws2-venue-gallery-label">Кабинеты DOM</p>
+        <div className="ws2-venue-room-grid" aria-label="Кабинеты DOM">
           {ROOM_PHOTOS.map((src) => (
             <img key={src} src={src} alt="Кабинет DOM" loading="lazy" />
+          ))}
+        </div>
+        <p className="ws2-venue-gallery-label">Центр Тбилиси рядом</p>
+        <div className="ws2-venue-city-grid" aria-label="Центр Тбилиси">
+          {TBILISI_PHOTOS.map((src) => (
+            <img key={src} src={src} alt="Тбилиси" loading="lazy" />
           ))}
         </div>
       </div>

@@ -4,12 +4,16 @@ import './warm-springs-2.css';
 import { Nav } from './warmSprings2/components/Nav';
 import { HeroSection } from './warmSprings2/sections/HeroSection';
 import { MethodSection } from './warmSprings2/sections/MethodSection';
+import { FormatSection } from './warmSprings2/sections/FormatSection';
 import { AudienceSection } from './warmSprings2/sections/AudienceSection';
 import { ResultsSection } from './warmSprings2/sections/ResultsSection';
 import { ProgramSection } from './warmSprings2/sections/ProgramSection';
 import { TeamSection } from './warmSprings2/sections/TeamSection';
+import { TestimonialsSection } from './warmSprings2/sections/TestimonialsSection';
 import { VenueSection } from './warmSprings2/sections/VenueSection';
+import { InterviewSection } from './warmSprings2/sections/InterviewSection';
 import { PriceSection } from './warmSprings2/sections/PriceSection';
+import { FaqSection } from './warmSprings2/sections/FaqSection';
 import { FinalCtaSection } from './warmSprings2/sections/FinalCtaSection';
 
 export default function WarmSprings2Page() {
@@ -31,12 +35,16 @@ export default function WarmSprings2Page() {
       <Nav />
       <HeroSection />
       <MethodSection />
+      <FormatSection />
       <AudienceSection />
       <ResultsSection />
       <ProgramSection />
       <TeamSection />
+      <TestimonialsSection />
       <VenueSection />
+      <InterviewSection />
       <PriceSection />
+      <FaqSection />
       <FinalCtaSection />
 
       <footer className="ws2-footer">

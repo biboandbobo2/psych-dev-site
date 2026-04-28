@@ -7,6 +7,10 @@ export function PriceSection() {
     <FadeSection id="price" className="ws2-section ws2-price">
       <div className="ws2-container">
         <h2 className="ws2-h2">Стоимость участия</h2>
+        <p className="ws2-price-scope">
+          В стоимость входит весь цикл участия: собеседование, подготовительный семинар, три дня
+          очной групповой работы, заключительная встреча и сертификат.
+        </p>
         <div className="ws2-price-grid">
           {prices.map((p) => (
             <div
@@ -21,9 +25,8 @@ export function PriceSection() {
           ))}
         </div>
         <p className="ws2-price-note">
-          Стоимость фиксируется по дате подачи заявки на собеседование. Размышляете об
-          участии? Запишитесь на <strong>бесплатное собеседование</strong> и обсудите все
-          подробности.
+          Стоимость фиксируется по дате подачи заявки на собеседование. Максимальный размер
+          группы — <strong>24 участника</strong>.
         </p>
         <p className="ws2-price-discount">Для членов комьюнити DOM действуют скидки.</p>
         <p className="ws2-price-school">
