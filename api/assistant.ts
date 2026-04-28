@@ -1,9 +1,10 @@
 /* Serverless endpoint: POST /api/assistant
  * AI assistant for psychology questions using Google Gemini.
  * Restricts topics to psychology/developmental psychology/clinical psychology.
+ *
+ * Helpers вынесены в api/_lib/assistant*.ts.
  */
 import type { IncomingMessage } from 'node:http';
-import { GoogleGenAI } from '@google/genai';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import {
@@ -11,7 +12,39 @@ import {
   verifyAuthBearer,
   recordByokUsage,
 } from '../src/lib/api-server/sharedApiRuntime.js';
+import {
+  DAILY_TOTAL_QUOTA,
+  PER_USER_DAILY_QUOTA,
+  addUsage,
+  enforceDailyQuota,
+  enforceRateLimit,
+  estimateTokens,
+  getClientIp,
+  resetUsageIfNeeded,
+} from './_lib/assistantQuota.js';
+import {
+  validateInput,
+  truncateResponse,
+} from './_lib/assistantValidation.js';
+import {
+  callGemini,
+  callGeminiCourseIntroDraft,
+  getGeminiApiKey,
+} from './_lib/assistantGemini.js';
+import type {
+  AssistantErrorResponse,
+  AssistantHistoryItem,
+  AssistantResponse,
+} from './_lib/assistantTypes.js';
 
+// Re-export для совместимости с tests/api/assistant.test.ts
+export { truncateResponse } from './_lib/assistantValidation.js';
+
+/**
+ * Silent firebase init для best-effort BYOK usage tracking. Если
+ * FIREBASE_SERVICE_ACCOUNT_KEY не задан — не валит запрос (в отличие от
+ * shared initFirebaseAdmin). Также конфигурирует storageBucket.
+ */
 function ensureFirebaseAdminInit() {
   if (getApps().length > 0) return;
   const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
@@ -22,427 +55,6 @@ function ensureFirebaseAdminInit() {
     storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${sa.project_id}.firebasestorage.app`,
   });
 }
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-export interface AssistantRequest {
-  message: string;
-  locale?: string;
-  history?: AssistantHistoryItem[];
-}
-
-export interface AssistantResponse {
-  ok: true;
-  answer: string;
-  refused?: boolean;
-  meta?: {
-    tookMs: number;
-    tokensUsed?: number;
-    requestsToday?: number;
-  };
-}
-
-export interface AssistantErrorResponse {
-  ok: false;
-  error: string;
-  code?: string;
-}
-
-export interface GeminiStructuredResponse {
-  allowed: boolean;
-  answer: string;
-}
-
-export type AssistantHistoryItem = {
-  role: 'user' | 'assistant';
-  message: string;
-};
-
-// ============================================================================
-// RATE LIMITING (in-memory, per IP)
-// ============================================================================
-
-// Exported for testing
-export const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
-export const RATE_LIMIT_MAX = 10; // 10 requests per window
-export const rateLimitStore = new Map<string, number[]>();
-
-export function enforceRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const entries = rateLimitStore.get(ip)?.filter((ts) => ts >= windowStart) ?? [];
-
-  if (entries.length >= RATE_LIMIT_MAX) {
-    rateLimitStore.set(ip, entries);
-    return false;
-  }
-
-  entries.push(now);
-  rateLimitStore.set(ip, entries);
-  return true;
-}
-
-function getClientIp(req: IncomingMessage): string {
-  const forwarded = (req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '') as string;
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return (req.socket && (req.socket as any).remoteAddress) || 'unknown';
-}
-
-// ========================================================================
-// DAILY QUOTA (per client key, reset daily)
-// ========================================================================
-
-const DAILY_TOTAL_RAW = Number(process.env.ASSISTANT_DAILY_TOTAL_QUOTA ?? 500);
-export const DAILY_TOTAL_QUOTA = Number.isFinite(DAILY_TOTAL_RAW) && DAILY_TOTAL_RAW > 0 ? DAILY_TOTAL_RAW : 500;
-export const PER_USER_DAILY_QUOTA = Math.max(1, Math.floor(DAILY_TOTAL_QUOTA / 5));
-export const dailyQuotaStore = new Map<string, { day: number; count: number }>();
-
-export function getDayKey(): number {
-  return Math.floor(Date.now() / (24 * 60 * 60 * 1000));
-}
-
-export function enforceDailyQuota(clientKey: string): boolean {
-  const today = getDayKey();
-  const entry = dailyQuotaStore.get(clientKey);
-  if (!entry || entry.day !== today) {
-    dailyQuotaStore.set(clientKey, { day: today, count: 1 });
-    return true;
-  }
-  if (entry.count >= PER_USER_DAILY_QUOTA) {
-    return false;
-  }
-  entry.count += 1;
-  dailyQuotaStore.set(clientKey, entry);
-  return true;
-}
-
-// ============================================================================
-// USAGE TRACKING (tokens/request count, per day, in-memory)
-// ============================================================================
-
-export type UsageState = { day: number; tokensUsed: number; requests: number };
-export const usageState: UsageState = { day: getDayKey(), tokensUsed: 0, requests: 0 };
-
-export function resetUsageIfNeeded(): UsageState {
-  const today = getDayKey();
-  if (usageState.day !== today) {
-    usageState.day = today;
-    usageState.tokensUsed = 0;
-    usageState.requests = 0;
-  }
-  return usageState;
-}
-
-export function estimateTokens(text: string): number {
-  if (!text) return 0;
-  const normalized = text.trim();
-  if (!normalized) return 0;
-  return Math.max(1, Math.ceil(normalized.length / 4));
-}
-
-export function addUsage(tokens: number): UsageState {
-  const state = resetUsageIfNeeded();
-  state.tokensUsed += Math.max(0, Math.floor(tokens));
-  state.requests += 1;
-  return state;
-}
-
-// ============================================================================
-// INPUT VALIDATION
-// ============================================================================
-
-export const MAX_MESSAGE_LENGTH = 200;
-export const MAX_HISTORY_ITEMS = 6;
-export const MAX_HISTORY_TOTAL_CHARS = 1200;
-
-export function sanitizeHistory(history: unknown): AssistantHistoryItem[] {
-  if (!Array.isArray(history)) return [];
-  const result: AssistantHistoryItem[] = [];
-  let totalChars = 0;
-
-  for (const item of history) {
-    if (!item || typeof item !== 'object') continue;
-    const role = (item as any).role;
-    const msg = typeof (item as any).message === 'string' ? (item as any).message.trim() : '';
-    if ((role === 'user' || role === 'assistant') && msg.length > 0) {
-      const clipped = msg.slice(0, MAX_MESSAGE_LENGTH);
-      const nextTotal = totalChars + clipped.length;
-      if (result.length < MAX_HISTORY_ITEMS && nextTotal <= MAX_HISTORY_TOTAL_CHARS) {
-        result.push({ role, message: clipped });
-        totalChars = nextTotal;
-      }
-    }
-    if (result.length >= MAX_HISTORY_ITEMS || totalChars >= MAX_HISTORY_TOTAL_CHARS) break;
-  }
-
-  return result;
-}
-
-export function validateInput(body: unknown): { valid: true; message: string; locale: string; history: AssistantHistoryItem[] } | { valid: false; error: string; code: string } {
-  if (!body || typeof body !== 'object') {
-    return { valid: false, error: 'Request body is required', code: 'INVALID_BODY' };
-  }
-
-  const { message, locale, history } = body as AssistantRequest;
-
-  if (!message || typeof message !== 'string') {
-    return { valid: false, error: 'Message is required', code: 'MISSING_MESSAGE' };
-  }
-
-  const trimmed = message.trim();
-  if (trimmed.length === 0) {
-    return { valid: false, error: 'Message cannot be empty', code: 'EMPTY_MESSAGE' };
-  }
-
-  if (trimmed.length > MAX_MESSAGE_LENGTH) {
-    return { valid: false, error: `Message exceeds ${MAX_MESSAGE_LENGTH} characters`, code: 'MESSAGE_TOO_LONG' };
-  }
-
-  return {
-    valid: true,
-    message: trimmed,
-    locale: typeof locale === 'string' ? locale : 'ru',
-    history: sanitizeHistory(history),
-  };
-}
-
-// ============================================================================
-// RESPONSE TRUNCATION
-// ============================================================================
-
-export const MAX_PARAGRAPHS = 6;
-export const MAX_CHARS = 3000;
-
-/**
- * Truncates response to max 6 paragraphs and 3000 characters.
- * Adds ellipsis if truncated.
- */
-export function truncateResponse(text: string): string {
-  if (!text) return '';
-
-  // Split by double newlines (paragraph separator)
-  const paragraphs = text.split(/\n\n+/).filter((p) => p.trim().length > 0);
-
-  // Limit to MAX_PARAGRAPHS
-  const limitedParagraphs = paragraphs.slice(0, MAX_PARAGRAPHS);
-  let result = limitedParagraphs.join('\n\n');
-
-  // Limit to MAX_CHARS
-  if (result.length > MAX_CHARS) {
-    result = result.slice(0, MAX_CHARS).trimEnd();
-    // Try to cut at last sentence or word boundary
-    const lastSentenceEnd = Math.max(
-      result.lastIndexOf('. '),
-      result.lastIndexOf('! '),
-      result.lastIndexOf('? ')
-    );
-    if (lastSentenceEnd > MAX_CHARS * 0.7) {
-      result = result.slice(0, lastSentenceEnd + 1);
-    }
-    result += '…';
-  } else if (paragraphs.length > MAX_PARAGRAPHS) {
-    // Was truncated by paragraphs, add ellipsis
-    result += '…';
-  }
-
-  return result;
-}
-
-// ============================================================================
-// GEMINI INTEGRATION
-// ============================================================================
-
-const SYSTEM_INSTRUCTION = `Ты — ИИ-помощник по психологии на образовательном сайте.
-
-СТРОГИЕ ПРАВИЛА:
-1. Отвечай ТОЛЬКО на вопросы по психологии, психологии развития, педагогической психологии, клинической психологии.
-2. Если вопрос НЕ относится к психологии — установи allowed=false и вежливо откажи, предложив переформулировать вопрос.
-3. НЕ давай медицинских диагнозов и не заменяй консультацию специалиста.
-4. При обсуждении клинических тем добавляй дисклеймер о необходимости консультации с профессионалом.
-5. Биографии известных психологов допустимы, если связываешь факты биографии с их идеями/теориями/вкладом в психологию.
-6. Ответ должен быть информативным но компактным: максимум 6 абзацев, до 3000 символов.
-7. Отвечай на языке вопроса (русский/английский).
-
-ФОРМАТ ОТВЕТА — строго JSON:
-{
-  "allowed": true/false,
-  "answer": "текст ответа"
-}
-
-Примеры отказа (allowed=false):
-- Вопросы про программирование, математику, физику
-- Вопросы про рецепты, путешествия, спорт
-- Просьбы написать код или сочинение
-
-Примеры принятия (allowed=true):
-- Что такое теория привязанности?
-- Как развивается память у детей?
-- Признаки тревожного расстройства
-- Стадии развития по Пиаже
-- Как биография Эриксона повлияла на его теорию развития`;
-
-/**
- * Извлекает API ключ Gemini ТОЛЬКО из заголовка X-Gemini-Api-Key (BYOK strict).
- * До волны 7 здесь был fallback на env-переменные — это позволяло гостям дёргать
- * AI на наш ключ. Сейчас прод-ключ остаётся только для server-side admin-функций
- * (Cloud Functions, скрипты). User-facing /api/assistant требует BYOK.
- */
-export function getGeminiApiKey(req: any): string {
-  const userKey = req.headers?.['x-gemini-api-key'];
-  if (userKey && typeof userKey === 'string' && userKey.trim()) {
-    return userKey.trim();
-  }
-  return '';
-}
-
-async function callGemini(message: string, locale: string, history: AssistantHistoryItem[], apiKey: string): Promise<GeminiStructuredResponse> {
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured');
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
-
-  const historyPrompt = history.length
-    ? history
-        .map((item) => `${item.role === 'user' ? 'Пользователь' : 'Ассистент'}: ${item.message}`)
-        .join('\n')
-    : 'История отсутствует.';
-
-  const userPrompt = `Контекст диалога:
-${historyPrompt}
-
-Новый вопрос (язык: ${locale}): ${message}
-
-Ответь строго в формате JSON: {"allowed": boolean, "answer": "текст"}`;
-
-  // First attempt
-  let response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-lite',
-    contents: userPrompt,
-    config: {
-      maxOutputTokens: 1000,
-      temperature: 0.5,
-      systemInstruction: SYSTEM_INSTRUCTION,
-    },
-  });
-
-  let text = response.text?.trim() ?? '';
-
-  // Try to parse JSON
-  let parsed = tryParseGeminiResponse(text);
-
-  // Retry with stricter instruction if parsing failed
-  if (!parsed) {
-    const retryPrompt = `${userPrompt}
-
-ВАЖНО: Верни ТОЛЬКО валидный JSON без markdown, без \`\`\`, без пояснений:
-{"allowed": boolean, "answer": "текст"}`;
-
-    response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-lite',
-      contents: retryPrompt,
-      config: {
-        maxOutputTokens: 1000,
-        temperature: 0.3,
-        systemInstruction: SYSTEM_INSTRUCTION,
-      },
-    });
-
-    text = response.text?.trim() ?? '';
-    parsed = tryParseGeminiResponse(text);
-  }
-
-  if (!parsed) {
-    // Fallback: treat as allowed response if we got any text
-    return {
-      allowed: true,
-      answer: text || 'Извините, не удалось обработать ваш вопрос. Попробуйте переформулировать.',
-    };
-  }
-
-  return parsed;
-}
-
-const COURSE_INTRO_SYSTEM_INSTRUCTION = `Ты — редактор образовательных материалов на платформе «DOM Academy» (психология).
-Пиши в академичном, но дружелюбном тоне на русском языке. Никаких маркетинговых клише («уникальный», «революционный»).
-Не используй markdown, списки, заголовки. Только связный текст абзацами, разделёнными пустой строкой. Максимум 2–3 абзаца.`;
-
-const COURSE_PROGRAM_SYSTEM_INSTRUCTION = `Ты — редактор образовательных материалов на платформе «DOM Academy» (психология).
-Составь программу курса в виде нумерованного списка блоков с коротким описанием каждого (1–2 предложения). Язык — русский. Без воды и маркетинга.
-Формат: «1. Название блока — описание.» Каждый блок с новой строки.`;
-
-export interface CourseIntroDraftRequest {
-  action: 'courseIntroDraft';
-  courseName: string;
-  kind: 'idea' | 'program';
-  lessons?: string[];
-}
-
-export async function callGeminiCourseIntroDraft(
-  req: CourseIntroDraftRequest,
-  apiKey: string
-): Promise<string> {
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured');
-  }
-  const courseName = req.courseName.trim() || 'Неизвестный курс';
-  const lessons = (req.lessons ?? []).map((l) => l.trim()).filter(Boolean);
-  const lessonsText = lessons.length > 0
-    ? lessons.map((l, i) => `${i + 1}. ${l}`).join('\n')
-    : '(список уроков пока пуст)';
-
-  const prompt = req.kind === 'idea'
-    ? `Курс: «${courseName}».\n\nСписок уроков курса:\n${lessonsText}\n\nНапиши 1–2 абзаца «Идея курса»: для кого этот курс, что он даёт, какая логика его программы. Не перечисляй уроки по одному, говори на уровне целей и смысла.`
-    : `Курс: «${courseName}».\n\nСписок уроков курса:\n${lessonsText}\n\nСоставь связную программу курса: сгруппируй темы в 3–6 блоков и коротко опиши каждый блок.`;
-
-  const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-lite',
-    contents: prompt,
-    config: {
-      maxOutputTokens: 800,
-      temperature: 0.6,
-      systemInstruction: req.kind === 'idea' ? COURSE_INTRO_SYSTEM_INSTRUCTION : COURSE_PROGRAM_SYSTEM_INSTRUCTION,
-    },
-  });
-  return (response.text ?? '').trim();
-}
-
-export function tryParseGeminiResponse(text: string): GeminiStructuredResponse | null {
-  if (!text) return null;
-
-  // Remove markdown code blocks if present
-  let cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-
-  // Try to extract JSON from the text
-  const jsonMatch = cleaned.match(/\{[\s\S]*"allowed"[\s\S]*"answer"[\s\S]*\}/);
-  if (jsonMatch) {
-    cleaned = jsonMatch[0];
-  }
-
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (typeof parsed.allowed === 'boolean' && typeof parsed.answer === 'string') {
-      return {
-        allowed: parsed.allowed,
-        answer: parsed.answer,
-      };
-    }
-  } catch {
-    // Parsing failed
-  }
-
-  return null;
-}
-
-// ============================================================================
-// HANDLER
-// ============================================================================
 
 export default async function handler(req: any, res: any) {
   const started = Date.now();
@@ -463,15 +75,14 @@ export default async function handler(req: any, res: any) {
 
   if (isStatsRequest) {
     const usage = resetUsageIfNeeded();
-    const statsResponse = {
+    res.status(200).json({
       ok: true,
       day: usage.day,
       tokensUsed: usage.tokensUsed,
       requests: usage.requests,
       perUserDailyQuota: PER_USER_DAILY_QUOTA,
       totalDailyQuota: DAILY_TOTAL_QUOTA,
-    };
-    res.status(200).json(statsResponse);
+    });
     return;
   }
 
@@ -488,22 +99,20 @@ export default async function handler(req: any, res: any) {
   // Rate limiting
   const clientIp = getClientIp(req as IncomingMessage);
   if (!enforceDailyQuota(clientIp)) {
-    const errorResponse: AssistantErrorResponse = {
+    res.status(429).json({
       ok: false,
       error: `Достигнут дневной лимит. Доступно запросов в день на пользователя: ${PER_USER_DAILY_QUOTA}`,
       code: 'DAILY_QUOTA_EXCEEDED',
-    };
-    res.status(429).json(errorResponse);
+    } satisfies AssistantErrorResponse);
     return;
   }
 
   if (!enforceRateLimit(clientIp)) {
-    const errorResponse: AssistantErrorResponse = {
+    res.status(429).json({
       ok: false,
       error: 'Слишком много запросов. Подождите несколько минут.',
       code: 'RATE_LIMITED',
-    };
-    res.status(429).json(errorResponse);
+    } satisfies AssistantErrorResponse);
     return;
   }
 
@@ -512,16 +121,15 @@ export default async function handler(req: any, res: any) {
   try {
     body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
   } catch {
-    const errorResponse: AssistantErrorResponse = {
+    res.status(400).json({
       ok: false,
       error: 'Invalid JSON body',
       code: 'INVALID_JSON',
-    };
-    res.status(400).json(errorResponse);
+    } satisfies AssistantErrorResponse);
     return;
   }
 
-  // Action: courseIntroDraft — admin-only text generation for course intro editor
+  // Action: courseIntroDraft — admin-only text generation для course intro editor
   if (
     body &&
     typeof body === 'object' &&
@@ -548,15 +156,18 @@ export default async function handler(req: any, res: any) {
       ? raw.lessons.filter((l): l is string => typeof l === 'string')
       : [];
     if (!courseName.trim()) {
-      res.status(400).json({ ok: false, error: 'courseName is required', code: 'INVALID_PAYLOAD' });
+      res
+        .status(400)
+        .json({ ok: false, error: 'courseName is required', code: 'INVALID_PAYLOAD' });
       return;
     }
     try {
       const answer = await callGeminiCourseIntroDraft(
         { action: 'courseIntroDraft', courseName, kind, lessons },
-        apiKey
+        apiKey,
       );
-      const tokensUsed = estimateTokens(courseName) + estimateTokens(lessons.join('\n')) + estimateTokens(answer);
+      const tokensUsed =
+        estimateTokens(courseName) + estimateTokens(lessons.join('\n')) + estimateTokens(answer);
       const usage = addUsage(tokensUsed);
       ensureFirebaseAdminInit();
       void recordByokUsage({
@@ -574,7 +185,9 @@ export default async function handler(req: any, res: any) {
       const isConfig = error?.message?.includes('GEMINI_API_KEY');
       res.status(isConfig ? 503 : 500).json({
         ok: false,
-        error: isConfig ? 'Service not configured' : 'Не удалось сгенерировать черновик. Попробуйте позже.',
+        error: isConfig
+          ? 'Service not configured'
+          : 'Не удалось сгенерировать черновик. Попробуйте позже.',
         code: isConfig ? 'SERVICE_NOT_CONFIGURED' : 'GEMINI_ERROR',
         ...(process.env.VERCEL_ENV !== 'production' && { debug: error?.message }),
       });
@@ -584,18 +197,16 @@ export default async function handler(req: any, res: any) {
 
   // Validate input
   const validation = validateInput(body);
-  if (!validation.valid) {
-    const errorResponse: AssistantErrorResponse = {
+  if (validation.valid !== true) {
+    res.status(400).json({
       ok: false,
-      error: (validation as { valid: false; error: string; code: string }).error,
-      code: (validation as { valid: false; error: string; code: string }).code,
-    };
-    res.status(400).json(errorResponse);
+      error: validation.error,
+      code: validation.code,
+    } satisfies AssistantErrorResponse);
     return;
   }
 
-  // TypeScript now knows validation.valid === true
-  const { message, locale, history } = validation as { valid: true; message: string; locale: string; history: AssistantHistoryItem[] };
+  const { message, locale, history } = validation;
 
   // BYOK: auth + ключ обязательны. Гость без ключа → 402.
   const auth = await verifyAuthBearer(req);
@@ -618,9 +229,7 @@ export default async function handler(req: any, res: any) {
     const truncatedAnswer = truncateResponse(geminiResponse.answer);
     const historyText = history.map((item) => `${item.role}: ${item.message}`).join('\n');
     const tokensUsed =
-      estimateTokens(message) +
-      estimateTokens(historyText) +
-      estimateTokens(truncatedAnswer);
+      estimateTokens(message) + estimateTokens(historyText) + estimateTokens(truncatedAnswer);
     const usage = addUsage(tokensUsed);
     ensureFirebaseAdminInit();
     void recordByokUsage({
@@ -643,9 +252,12 @@ export default async function handler(req: any, res: any) {
 
     res.status(200).json(response);
   } catch (error: any) {
+    // Production error reporting → Vercel logs. Намеренно console.error.
+    /* eslint-disable no-console */
     console.error('[assistant] Gemini error:', error?.message || error);
     console.error('[assistant] Error stack:', error?.stack);
     console.error('[assistant] Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    /* eslint-enable no-console */
 
     const isConfig = error?.message?.includes('GEMINI_API_KEY');
 
@@ -659,22 +271,19 @@ export default async function handler(req: any, res: any) {
       error?.message?.includes('Invalid');
 
     if (isInvalidKey && !isConfig) {
-      const errorResponse: AssistantErrorResponse = {
+      res.status(401).json({
         ok: false,
         error: 'Неверный API ключ Gemini. Проверьте ключ и попробуйте снова.',
         code: 'INVALID_API_KEY',
-      };
-      res.status(401).json(errorResponse);
+      } satisfies AssistantErrorResponse);
       return;
     }
 
-    const errorResponse: AssistantErrorResponse = {
+    res.status(isConfig ? 503 : 500).json({
       ok: false,
       error: isConfig ? 'Service not configured' : 'Не удалось получить ответ. Попробуйте позже.',
       code: isConfig ? 'SERVICE_NOT_CONFIGURED' : 'GEMINI_ERROR',
-      // Include error details in development/preview for debugging
       ...(process.env.VERCEL_ENV !== 'production' && { debug: error?.message }),
-    };
-    res.status(isConfig ? 503 : 500).json(errorResponse);
+    } satisfies AssistantErrorResponse);
   }
 }

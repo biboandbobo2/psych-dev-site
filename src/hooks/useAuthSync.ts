@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "../lib/firebase";
+import { debugError } from "../lib/debug";
 import { SUPER_ADMIN_EMAIL } from "../constants/superAdmin";
 
 export function useAuthSync() {
@@ -44,7 +45,7 @@ export function useAuthSync() {
 
         await updateDoc(userRef, updates);
       } catch (error) {
-        console.error("Error syncing user:", error);
+        debugError("Error syncing user:", error);
       }
     };
 

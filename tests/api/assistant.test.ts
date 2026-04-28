@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import handler, { truncateResponse } from '../../api/assistant.js';
 
 const geminiMocks = vi.hoisted(() => ({
   generateContent: vi.fn(),
 }));
+
+const verifyIdTokenMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@google/genai', () => {
   class MockGoogleGenAI {
@@ -19,14 +20,50 @@ vi.mock('@google/genai', () => {
   };
 });
 
+vi.mock('firebase-admin/auth', () => ({
+  getAuth: () => ({
+    verifyIdToken: verifyIdTokenMock,
+  }),
+}));
+
+vi.mock('firebase-admin/firestore', () => ({
+  getFirestore: () => ({
+    collection: () => ({
+      doc: () => ({
+        set: vi.fn().mockResolvedValue(undefined),
+      }),
+    }),
+  }),
+  FieldValue: {
+    increment: (n: number) => n,
+  },
+  Timestamp: {
+    now: () => ({}),
+  },
+}));
+
+import handler, { truncateResponse } from '../../api/assistant.js';
+
 // ============================================================================
 // MOCK HELPERS
 // ============================================================================
 
-const mockReq = (options: { method?: string; body?: unknown; headers?: Record<string, string> } = {}) =>
+/**
+ * Default headers для authed BYOK-запроса (после wave-7 /api/assistant требует
+ * Bearer ID token + X-Gemini-Api-Key).
+ */
+const AUTHED_HEADERS: Record<string, string> = {
+  'content-type': 'application/json',
+  authorization: 'Bearer fake-id-token',
+  'x-gemini-api-key': 'user-byok-key',
+};
+
+const mockReq = (
+  options: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
+) =>
   ({
     method: options.method ?? 'POST',
-    headers: options.headers ?? { 'content-type': 'application/json' },
+    headers: options.headers ?? AUTHED_HEADERS,
     body: options.body,
     socket: { remoteAddress: '127.0.0.1' },
   }) as any;
@@ -53,6 +90,11 @@ const mockRes = () => {
   };
   return res;
 };
+
+function setupAuthMock() {
+  verifyIdTokenMock.mockReset();
+  verifyIdTokenMock.mockResolvedValue({ uid: 'test-user', email: 'test@example.com' });
+}
 
 // ============================================================================
 // TRUNCATE RESPONSE TESTS
@@ -90,7 +132,6 @@ describe('truncateResponse', () => {
   });
 
   it('ограничивает до 3000 символов', () => {
-    // Create text longer than 3000 chars
     const longParagraph = 'Это очень длинный абзац. '.repeat(150); // ~3750 chars
     const result = truncateResponse(longParagraph);
 
@@ -115,14 +156,11 @@ describe('truncateResponse', () => {
   });
 
   it('обрезает на границе предложения если возможно', () => {
-    // Create text that's long enough to be truncated (>3000 chars)
-    // with sentence boundaries after 70% of MAX_CHARS (2100)
     const base = 'Предложение про психологию развития. ';
     const text = base.repeat(100); // ~3700 chars, many sentence boundaries
 
     const result = truncateResponse(text);
 
-    // Should end with period + ellipsis, not in middle of word
     expect(result).toMatch(/\.\s*…$/);
     expect(result.length).toBeLessThanOrEqual(3001);
   });
@@ -136,6 +174,7 @@ describe('api/assistant validation', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(globalThis['console'], 'error').mockImplementation(() => {});
+    setupAuthMock();
     geminiMocks.generateContent.mockReset();
     geminiMocks.generateContent.mockResolvedValue({
       text: JSON.stringify({
@@ -210,8 +249,6 @@ describe('api/assistant validation', () => {
     const req = mockReq({ body: { message: exactMessage } });
     const res = mockRes();
 
-    process.env.GEMINI_API_KEY = 'test-key';
-
     await handler(req, res);
 
     expect(res.statusCode).toBe(200);
@@ -220,13 +257,77 @@ describe('api/assistant validation', () => {
 
   it('возвращает 400 для невалидного JSON', async () => {
     const req = mockReq({ body: 'not valid json string that was not parsed' });
-    // Simulate string body that wasn't auto-parsed
     req.body = 'invalid{json';
     const res = mockRes();
     await handler(req, res);
 
     expect(res.statusCode).toBe(400);
     expect(res.body.code).toBe('INVALID_JSON');
+  });
+});
+
+// ============================================================================
+// AUTH / BYOK TESTS (wave-7 BYOK enforcement)
+// ============================================================================
+
+describe('api/assistant BYOK + auth', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(globalThis['console'], 'error').mockImplementation(() => {});
+    setupAuthMock();
+    geminiMocks.generateContent.mockReset();
+    geminiMocks.generateContent.mockResolvedValue({
+      text: JSON.stringify({ allowed: true, answer: 'Ответ.' }),
+    });
+  });
+
+  it('возвращает 401 если нет Authorization header', async () => {
+    const req = mockReq({
+      body: { message: 'Что такое привязанность?' },
+      headers: { 'content-type': 'application/json' },
+    });
+    req.socket = { remoteAddress: '10.0.0.20' };
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body.ok).toBe(false);
+  });
+
+  it('возвращает 401 если Bearer token невалидный', async () => {
+    verifyIdTokenMock.mockRejectedValueOnce(new Error('invalid'));
+
+    const req = mockReq({
+      body: { message: 'Что такое привязанность?' },
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer bad-token',
+      },
+    });
+    req.socket = { remoteAddress: '10.0.0.21' };
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body.ok).toBe(false);
+  });
+
+  it('возвращает 402 BYOK_REQUIRED если X-Gemini-Api-Key отсутствует', async () => {
+    const req = mockReq({
+      body: { message: 'Что такое привязанность?' },
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer fake-id-token',
+        // нет x-gemini-api-key
+      },
+    });
+    req.socket = { remoteAddress: '10.0.0.22' };
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(402);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.code).toBe('BYOK_REQUIRED');
   });
 });
 
@@ -238,6 +339,7 @@ describe('api/assistant rate limiting', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(globalThis['console'], 'error').mockImplementation(() => {});
+    setupAuthMock();
     geminiMocks.generateContent.mockReset();
     geminiMocks.generateContent.mockResolvedValue({
       text: JSON.stringify({
@@ -248,7 +350,7 @@ describe('api/assistant rate limiting', () => {
   });
 
   it('возвращает 429 после превышения лимита запросов', async () => {
-    // Make 11 requests from same IP (limit is 10)
+    // Make 12 requests from same IP (limit is 10/5min)
     const results: number[] = [];
 
     for (let i = 0; i < 12; i++) {
@@ -258,8 +360,6 @@ describe('api/assistant rate limiting', () => {
       // Use unique IP that won't conflict with other tests
       req.socket = { remoteAddress: '192.168.99.99' };
       const res = mockRes();
-
-      process.env.GEMINI_API_KEY = 'test-key';
 
       await handler(req, res);
       results.push(res.statusCode);
@@ -278,8 +378,8 @@ describe('api/assistant Gemini response handling', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(globalThis['console'], 'error').mockImplementation(() => {});
+    setupAuthMock();
     geminiMocks.generateContent.mockReset();
-    process.env.GEMINI_API_KEY = 'test-key';
   });
 
   it('возвращает refused=true когда модель отклоняет вопрос', async () => {
@@ -302,21 +402,5 @@ describe('api/assistant Gemini response handling', () => {
     expect(res.body.ok).toBe(true);
     expect(res.body.refused).toBe(true);
     expect(res.body.answer).toContain('не относится к психологии');
-  });
-
-  it('возвращает 503 когда GEMINI_API_KEY не настроен', async () => {
-    delete process.env.GEMINI_API_KEY;
-
-    const req = mockReq({
-      body: { message: 'Что такое привязанность?' },
-    });
-    req.socket = { remoteAddress: '10.0.0.2' };
-    const res = mockRes();
-
-    await handler(req, res);
-
-    expect(res.statusCode).toBe(503);
-    expect(res.body.ok).toBe(false);
-    expect(res.body.code).toBe('SERVICE_NOT_CONFIGURED');
   });
 });

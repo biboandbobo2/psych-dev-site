@@ -173,8 +173,8 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             </RequireAdmin>
           }
         />
-        <Route path="/_debug/palette" element={<PaletteDebug />} />
-        <Route path="/_debug/home-v2" element={<HomeV2Debug />} />
+        {import.meta.env.DEV && <Route path="/_debug/palette" element={<PaletteDebug />} />}
+        {import.meta.env.DEV && <Route path="/_debug/home-v2" element={<HomeV2Debug />} />}
         <Route
           path="/admin/books"
           element={

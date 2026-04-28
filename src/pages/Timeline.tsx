@@ -1,42 +1,19 @@
 // Timeline component with bulk event creation support
-import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
-import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Icon, type EventIconId } from '../components/Icon';
-import { EVENT_ICON_MAP } from '../data/eventIcons';
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
+import { motion } from 'framer-motion';
 import { useNotes } from '../hooks/useNotes';
 import { PageLoader } from '../components/ui';
-import { debugError } from '../lib/debug';
 
 // Импорт типов, констант, утилит и компонентов из модулей
-import type {
-  Sphere,
-  NodeT,
-  BirthDetails,
-  EdgeT,
-  TimelineData,
-  HistoryState,
-  SaveStatus,
-  Transform,
-} from './timeline/types';
+import type { NodeT, BirthDetails, EdgeT } from './timeline/types';
 import {
   YEAR_PX,
   LINE_X_POSITION,
-  MIN_SCALE,
-  MAX_SCALE,
-  SPHERE_META,
   BASE_NODE_RADIUS,
   MIN_NODE_RADIUS,
   MAX_NODE_RADIUS,
-  BRANCH_CLICK_WIDTH,
-  BRANCH_CLICK_WIDTH_UNSELECTED,
 } from './timeline/constants';
-import { screenToWorld, clamp, parseAge } from './timeline/utils';
-import { IconPickerButton } from './timeline/components/IconPickerButton';
-import { PeriodizationSelector } from './timeline/components/PeriodizationSelector';
-import { PeriodBoundaryModal } from './timeline/components/PeriodBoundaryModal';
-import { PERIODIZATIONS, getPeriodizationById } from './timeline/data/periodizations';
-import { exportTimelineJSON, exportTimelinePNG, exportTimelinePDF } from './timeline/utils/exporters';
+import { clamp } from './timeline/utils';
 import { useTimelineState } from './timeline/hooks/useTimelineState';
 import { useTimelineHistory } from './timeline/hooks/useTimelineHistory';
 import { useDownloadMenu } from './timeline/hooks/useDownloadMenu';
@@ -47,49 +24,25 @@ import { useTimelinePanZoom } from './timeline/hooks/useTimelinePanZoom';
 import { useTimelineDragDrop } from './timeline/hooks/useTimelineDragDrop';
 import { useTimelineBranch } from './timeline/hooks/useTimelineBranch';
 import { useTimelineCRUD } from './timeline/hooks/useTimelineCRUD';
-import { lazyWithReload } from '../lib/lazyWithReload';
-const TimelineLeftPanel = lazy(() =>
-  lazyWithReload(
-    () => import('./timeline/components/TimelineLeftPanel').then((module) => ({ default: module.TimelineLeftPanel })),
-    'TimelineLeftPanel'
-  )
-);
-const TimelineRightPanel = lazy(() =>
-  lazyWithReload(
-    () => import('./timeline/components/TimelineRightPanel').then((module) => ({ default: module.TimelineRightPanel })),
-    'TimelineRightPanel'
-  )
-);
-const TimelineCanvas = lazy(() =>
-  lazyWithReload(
-    () => import('./timeline/components/TimelineCanvas').then((module) => ({ default: module.TimelineCanvas })),
-    'TimelineCanvas'
-  )
-);
-const BulkEventCreator = lazy(() =>
-  lazyWithReload(
-    () => import('./timeline/components/BulkEventCreator').then((module) => ({ default: module.BulkEventCreator })),
-    'BulkEventCreator'
-  )
-);
-const TimelineHelpModal = lazy(() =>
-  lazyWithReload(
-    () => import('./timeline/components/TimelineHelpModal').then((module) => ({ default: module.TimelineHelpModal })),
-    'TimelineHelpModal'
-  )
-);
-
-
-// ============ MAIN COMPONENT ============
+import { useIsMobile } from './timeline/hooks/useIsMobile';
+import { handleTimelineDownload } from './timeline/utils/handleTimelineDownload';
+import { MobileReadOnlyBanner } from './timeline/components/MobileReadOnlyBanner';
+import { PeriodBoundaryModalContainer } from './timeline/components/PeriodBoundaryModalContainer';
+import {
+  BulkEventCreator,
+  TimelineCanvas,
+  TimelineHelpModal,
+  TimelineLeftPanel,
+  TimelineRightPanel,
+} from './timeline/lazyComponents';
 
 export default function Timeline() {
   const svgRef = useRef<SVGSVGElement>(null);
   const { createNote } = useNotes();
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
 
   // ============ STATE HOOKS ============
 
-  // Timeline state (data, transform, etc)
   const {
     currentAge,
     setCurrentAge,
@@ -109,7 +62,6 @@ export default function Timeline() {
     setViewportAge,
   } = useTimelineState();
 
-  // History (undo/redo)
   const {
     saveToHistory: pushHistory,
     undo: fetchUndoSnapshot,
@@ -124,7 +76,11 @@ export default function Timeline() {
 
   // ============ HANDLERS (must be declared before hooks that use them) ============
 
-  const recordHistory = (customNodes?: NodeT[], customEdges?: EdgeT[], customBirth?: BirthDetails) => {
+  const recordHistory = (
+    customNodes?: NodeT[],
+    customEdges?: EdgeT[],
+    customBirth?: BirthDetails,
+  ) => {
     pushHistory(customNodes ?? nodes, customEdges ?? edges, customBirth ?? birthDetails);
   };
 
@@ -148,13 +104,9 @@ export default function Timeline() {
 
   // ============ FORM HOOKS ============
 
-  // Event form
   const formHook = useTimelineForm();
-
-  // Birth details form
   const birthHook = useTimelineBirth({ birthDetails, setBirthDetails });
 
-  // Download menu
   const {
     isOpen: downloadMenuOpen,
     toggle: toggleDownloadMenu,
@@ -163,14 +115,12 @@ export default function Timeline() {
     menuRef: downloadMenuRef,
   } = useDownloadMenu();
 
-  // Pan & Zoom
   const panZoomHook = useTimelinePanZoom({
     transform,
     setTransform,
     onBirthDeselect: () => birthHook.setBirthSelected(false),
   });
 
-  // Drag & Drop
   const dragDropHook = useTimelineDragDrop({
     nodes,
     edges,
@@ -185,10 +135,11 @@ export default function Timeline() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
-  const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
+  const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(
+    null,
+  );
   const [showBulkCreator, setShowBulkCreator] = useState(false);
 
-  // Branch management
   const branchHook = useTimelineBranch({
     nodes,
     edges,
@@ -199,7 +150,6 @@ export default function Timeline() {
     onClearForm: formHook.clearForm,
   });
 
-  // CRUD operations
   const crudHook = useTimelineCRUD({
     nodes,
     edges,
@@ -224,8 +174,7 @@ export default function Timeline() {
   }, [birthHook.birthBaseYear, currentAge]);
   const exportFilenamePrefix = useMemo(() => {
     const now = new Date();
-    const iso = now.toISOString();
-    return `timeline-${iso.split('T')[0]}`;
+    return `timeline-${now.toISOString().split('T')[0]}`;
   }, []);
 
   // Auto-pickup sphere when selecting branch
@@ -250,23 +199,19 @@ export default function Timeline() {
 
   const handleDownload = async (type: 'json' | 'png' | 'pdf') => {
     closeDownloadMenu();
-    const exportPayload = { currentAge, ageMax, nodes, edges, birthDetails: { ...birthDetails }, selectedPeriodization };
-
-    try {
-      if (type === 'json') {
-        exportTimelineJSON(exportPayload, `${exportFilenamePrefix}.json`);
-        return;
-      }
-      if (!svgRef.current) throw new Error('SVG not ready');
-      if (type === 'png') {
-        await exportTimelinePNG(svgRef.current, `${exportFilenamePrefix}.png`);
-        return;
-      }
-      const periodization = selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null;
-      await exportTimelinePDF(svgRef.current, exportPayload, periodization, `${exportFilenamePrefix}.pdf`);
-    } catch (error) {
-      debugError('Export failed', error);
-    }
+    await handleTimelineDownload({
+      type,
+      payload: {
+        currentAge,
+        ageMax,
+        nodes,
+        edges,
+        birthDetails: { ...birthDetails },
+        selectedPeriodization,
+      },
+      filenamePrefix: exportFilenamePrefix,
+      svg: svgRef.current,
+    });
   };
 
   const handleViewportAgeChange = (age: number) => {
@@ -324,8 +269,6 @@ export default function Timeline() {
     },
   });
 
-  // ============ ADDITIONAL HANDLERS ============
-
   const handlePeriodBoundaryClick = (periodIndex: number) => {
     setPeriodBoundaryModal({ periodIndex });
   };
@@ -340,10 +283,6 @@ export default function Timeline() {
     birthHook.setBirthSelected(false);
   };
 
-  const handleOpenBulkCreator = () => {
-    setShowBulkCreator(true);
-  };
-
   const handleFormSubmit = () => {
     crudHook.handleFormSubmit(
       {
@@ -355,7 +294,7 @@ export default function Timeline() {
         isDecision: formHook.formEventIsDecision,
         icon: formHook.formEventIcon,
       },
-      branchHook.selectedBranchX
+      branchHook.selectedBranchX,
     );
   };
 
@@ -364,14 +303,6 @@ export default function Timeline() {
   const cursorClass = panZoomHook.isPanning ? 'cursor-grabbing' : 'cursor-grab';
   const readOnly = isMobile;
 
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 639px)');
-    const update = () => setIsMobile(media.matches);
-    update();
-    media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
-  }, []);
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -379,26 +310,7 @@ export default function Timeline() {
       transition={{ duration: 0.3 }}
       className="fixed inset-0 bg-gradient-to-br from-slate-50 to-white overflow-hidden"
     >
-      {readOnly && (
-        <div className="absolute top-4 left-4 right-4 z-10 sm:hidden">
-          <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-700 shadow-sm backdrop-blur">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold">Таймлайн в режиме просмотра</p>
-                <p className="text-xs text-slate-500">
-                  Редактирование доступно в веб-версии на компьютере.
-                </p>
-              </div>
-              <Link
-                to="/profile"
-                className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
-              >
-                Выход
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      {readOnly && <MobileReadOnlyBanner />}
 
       {!readOnly && (
         <Suspense fallback={<PageLoader label="Загрузка панели навигации..." />}>
@@ -456,83 +368,69 @@ export default function Timeline() {
       {!readOnly && (
         <Suspense fallback={<PageLoader label="Загрузка панели деталей..." />}>
           <TimelineRightPanel
-          saveStatus={saveStatus}
-          selectedPeriodization={selectedPeriodization}
-          onPeriodizationChange={setSelectedPeriodization}
-          birthSelected={birthHook.birthSelected}
-          birthFormDate={birthHook.birthFormDate}
-          birthFormPlace={birthHook.birthFormPlace}
-          birthFormNotes={birthHook.birthFormNotes}
-          onBirthDateChange={birthHook.setBirthFormDate}
-          onBirthPlaceChange={birthHook.setBirthFormPlace}
-          onBirthNotesChange={birthHook.setBirthFormNotes}
-          onBirthSave={() =>
-            birthHook.handleBirthSave((birth) => {
-              recordHistory(undefined, undefined, birth);
-            })
-          }
-          onBirthCancel={birthHook.handleBirthCancel}
-          birthHasChanges={birthHook.birthHasChanges}
-          formEventId={formHook.formEventId}
-          formEventAge={formHook.formEventAge}
-          onFormEventAgeChange={formHook.setFormEventAge}
-          formEventLabel={formHook.formEventLabel}
-          onFormEventLabelChange={formHook.setFormEventLabel}
-          formEventSphere={formHook.formEventSphere}
-          onFormEventSphereChange={formHook.setFormEventSphere}
-          formEventIsDecision={formHook.formEventIsDecision}
-          onFormEventIsDecisionChange={formHook.setFormEventIsDecision}
-          formEventIcon={formHook.formEventIcon}
-          onFormEventIconChange={formHook.setFormEventIcon}
-          formEventNotes={formHook.formEventNotes}
-          onFormEventNotesChange={formHook.setFormEventNotes}
-          hasFormChanges={formHook.hasFormChanges}
-          onEventFormSubmit={handleFormSubmit}
-          onClearForm={formHook.clearForm}
-          onDeleteEvent={crudHook.deleteNode}
-          createNote={createNote}
-          selectedBranchX={branchHook.selectedBranchX}
-          selectedEdge={branchHook.selectedEdge}
-          branchYears={branchHook.branchYears}
-          onBranchYearsChange={branchHook.setBranchYears}
-          onUpdateBranchLength={branchHook.updateBranchLength}
-          onDeleteBranch={branchHook.deleteBranch}
-          onHideBranchEditor={branchHook.handleHideBranchEditor}
-          onExtendBranch={() => branchHook.extendBranch(selectedNode)}
-          selectedNode={selectedNode}
-          edges={edges}
-          ageMax={ageMax}
-          onOpenBulkCreator={handleOpenBulkCreator}
-          undo={undo}
-          redo={redo}
-          historyIndex={historyIndex}
-          historyLength={historyLength}
+            saveStatus={saveStatus}
+            selectedPeriodization={selectedPeriodization}
+            onPeriodizationChange={setSelectedPeriodization}
+            birthSelected={birthHook.birthSelected}
+            birthFormDate={birthHook.birthFormDate}
+            birthFormPlace={birthHook.birthFormPlace}
+            birthFormNotes={birthHook.birthFormNotes}
+            onBirthDateChange={birthHook.setBirthFormDate}
+            onBirthPlaceChange={birthHook.setBirthFormPlace}
+            onBirthNotesChange={birthHook.setBirthFormNotes}
+            onBirthSave={() =>
+              birthHook.handleBirthSave((birth) => {
+                recordHistory(undefined, undefined, birth);
+              })
+            }
+            onBirthCancel={birthHook.handleBirthCancel}
+            birthHasChanges={birthHook.birthHasChanges}
+            formEventId={formHook.formEventId}
+            formEventAge={formHook.formEventAge}
+            onFormEventAgeChange={formHook.setFormEventAge}
+            formEventLabel={formHook.formEventLabel}
+            onFormEventLabelChange={formHook.setFormEventLabel}
+            formEventSphere={formHook.formEventSphere}
+            onFormEventSphereChange={formHook.setFormEventSphere}
+            formEventIsDecision={formHook.formEventIsDecision}
+            onFormEventIsDecisionChange={formHook.setFormEventIsDecision}
+            formEventIcon={formHook.formEventIcon}
+            onFormEventIconChange={formHook.setFormEventIcon}
+            formEventNotes={formHook.formEventNotes}
+            onFormEventNotesChange={formHook.setFormEventNotes}
+            hasFormChanges={formHook.hasFormChanges}
+            onEventFormSubmit={handleFormSubmit}
+            onClearForm={formHook.clearForm}
+            onDeleteEvent={crudHook.deleteNode}
+            createNote={createNote}
+            selectedBranchX={branchHook.selectedBranchX}
+            selectedEdge={branchHook.selectedEdge}
+            branchYears={branchHook.branchYears}
+            onBranchYearsChange={branchHook.setBranchYears}
+            onUpdateBranchLength={branchHook.updateBranchLength}
+            onDeleteBranch={branchHook.deleteBranch}
+            onHideBranchEditor={branchHook.handleHideBranchEditor}
+            onExtendBranch={() => branchHook.extendBranch(selectedNode)}
+            selectedNode={selectedNode}
+            edges={edges}
+            ageMax={ageMax}
+            onOpenBulkCreator={() => setShowBulkCreator(true)}
+            undo={undo}
+            redo={redo}
+            historyIndex={historyIndex}
+            historyLength={historyLength}
           />
         </Suspense>
       )}
 
-      {/* Periodization Boundary Modal */}      {/* Periodization Boundary Modal */}
-      {periodBoundaryModal && selectedPeriodization && (() => {
-        const periodization = getPeriodizationById(selectedPeriodization);
-        if (!periodization) return null;
+      {periodBoundaryModal && (
+        <PeriodBoundaryModalContainer
+          selectedPeriodization={selectedPeriodization}
+          periodIndex={periodBoundaryModal.periodIndex}
+          onClose={() => setPeriodBoundaryModal(null)}
+        />
+      )}
 
-        const periodBefore = periodization.periods[periodBoundaryModal.periodIndex];
-        const periodAfter = periodization.periods[periodBoundaryModal.periodIndex + 1];
-
-        if (!periodBefore || !periodAfter) return null;
-
-        return (
-          <PeriodBoundaryModal
-            periodization={periodization}
-            periodBefore={periodBefore}
-            periodAfter={periodAfter}
-            age={periodAfter.startAge}
-            onClose={() => setPeriodBoundaryModal(null)}
-          />
-        );
-      })()}
-
-      {/* Bulk Event Creator Modal */}
       {showBulkCreator && !readOnly && (
         <Suspense fallback={<PageLoader label="Подгрузка массового события..." />}>
           <BulkEventCreator
@@ -542,15 +440,18 @@ export default function Timeline() {
             ageMax={ageMax}
             selectedBranchX={branchHook.selectedBranchX}
             selectedEdge={branchHook.selectedEdge}
-            branchSphere={branchHook.selectedEdge ? (() => {
-              const originNode = nodes.find((n) => n.id === branchHook.selectedEdge!.nodeId);
-              return originNode?.sphere;
-            })() : undefined}
+            branchSphere={
+              branchHook.selectedEdge
+                ? (() => {
+                    const originNode = nodes.find((n) => n.id === branchHook.selectedEdge!.nodeId);
+                    return originNode?.sphere;
+                  })()
+                : undefined
+            }
           />
         </Suspense>
       )}
 
-      {/* Help Modal */}
       {!readOnly && (
         <Suspense fallback={<PageLoader label="Загрузка справки..." />}>
           <TimelineHelpModal open={showHelp} onClose={() => setShowHelp(false)} />

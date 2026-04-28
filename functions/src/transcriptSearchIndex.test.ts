@@ -1,9 +1,75 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildSearchTokens,
   buildTranscriptSearchChunkDocs,
   buildTranscriptSearchChunks,
   formatTranscriptTimestamp,
+  TRANSCRIPT_STOP_WORDS,
+  TRANSCRIPT_TOKEN_MIN_LENGTH,
 } from "../../shared/videoTranscripts/index.js";
+
+describe("buildSearchTokens", () => {
+  it("builds prefix tokens from length 3 to full word length", () => {
+    const tokens = buildSearchTokens("фрейд");
+    expect(tokens).toEqual(["фре", "фрей", "фрейд"]);
+  });
+
+  it("processes multiple words and deduplicates overlapping prefixes", () => {
+    const tokens = buildSearchTokens("психология психологический");
+    expect(tokens).toContain("пси");
+    expect(tokens).toContain("психология");
+    expect(tokens).toContain("психологический");
+    // dedup: "пси" / "псих" / "психо" / "психол" встречаются у обоих, считаем 1 раз
+    expect(tokens.filter((t) => t === "психо")).toHaveLength(1);
+  });
+
+  it("ignores stop-words", () => {
+    const tokens = buildSearchTokens("и или это");
+    expect(tokens).toEqual([]);
+  });
+
+  it("ignores words shorter than minimum length", () => {
+    const tokens = buildSearchTokens("сон ум я");
+    // "сон" (3) индексируется, "ум" (2) и "я" (1) — нет
+    expect(tokens).toContain("сон");
+    expect(tokens).not.toContain("ум");
+    expect(tokens).not.toContain("я");
+  });
+
+  it("splits on punctuation, whitespace and numbers boundaries", () => {
+    const tokens = buildSearchTokens("фрейд, юнг! адлер?");
+    expect(tokens).toContain("фрейд");
+    expect(tokens).toContain("юнг");
+    expect(tokens).toContain("адлер");
+  });
+
+  it("handles mixed russian and english", () => {
+    const tokens = buildSearchTokens("Freud считал, что");
+    expect(tokens).toContain("freud");
+    expect(tokens).toContain("счи");
+    expect(tokens).toContain("считал");
+    // stop-words "что" — не должно быть
+    expect(tokens).not.toContain("что");
+  });
+
+  it("preserves yo (ё) as part of word", () => {
+    const tokens = buildSearchTokens("моё");
+    // "моё" (3 chars) индексируется
+    expect(tokens).toContain("моё");
+  });
+
+  it("handles empty / whitespace-only input", () => {
+    expect(buildSearchTokens("")).toEqual([]);
+    expect(buildSearchTokens("   ")).toEqual([]);
+  });
+
+  it("constants are exposed for endpoint reuse", () => {
+    expect(TRANSCRIPT_TOKEN_MIN_LENGTH).toBe(3);
+    expect(TRANSCRIPT_STOP_WORDS.has("и")).toBe(true);
+    expect(TRANSCRIPT_STOP_WORDS.has("the")).toBe(true);
+    expect(TRANSCRIPT_STOP_WORDS.has("психология")).toBe(false);
+  });
+});
 
 describe("transcript search index builders", () => {
   it("builds compact search chunks with timestamps", () => {

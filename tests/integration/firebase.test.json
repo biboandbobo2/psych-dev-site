@@ -12,9 +12,9 @@
     }
   },
   "firestore": {
-    "rules": "tests/integration/firestore.rules"
+    "rules": "firestore.rules"
   },
   "storage": {
-    "rules": "tests/integration/storage.rules"
+    "rules": "storage.rules"
   }
 }

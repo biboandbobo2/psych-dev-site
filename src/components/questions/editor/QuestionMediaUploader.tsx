@@ -6,6 +6,7 @@ import {
   validateYouTubeUrl,
   getYouTubeEmbedUrl,
 } from '../../../utils/mediaUpload';
+import { debugError } from '../../../lib/debug';
 
 interface QuestionMediaUploaderProps {
   questionId: string;
@@ -59,7 +60,7 @@ export function QuestionMediaUploader({
       await deleteMediaFile(imageUrl);
       onImageChange(undefined);
     } catch (error) {
-      console.error('Ошибка удаления изображения:', error);
+      debugError('Ошибка удаления изображения:', error);
     }
   };
 
@@ -87,7 +88,7 @@ export function QuestionMediaUploader({
       await deleteMediaFile(audioUrl);
       onAudioChange(undefined);
     } catch (error) {
-      console.error('Ошибка удаления аудио:', error);
+      debugError('Ошибка удаления аудио:', error);
     }
   };
 

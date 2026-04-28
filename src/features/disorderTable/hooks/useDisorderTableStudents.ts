@@ -3,7 +3,7 @@ import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { debugError } from '../../../lib/debug';
 import type { DisorderTableStudent } from '../types';
-import { computeDisplayRole } from '../../../pages/admin/users/utils/roleHelpers';
+import { computeDisplayRole } from '../../../lib/roleHelpers';
 import { normalizeUserRole } from '../../../types/user';
 
 export function useDisorderTableStudents(enabled: boolean) {

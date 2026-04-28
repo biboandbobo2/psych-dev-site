@@ -7,18 +7,22 @@
 ## 📊 Priority board
 | ID | Priority | Фокус | Ключевые deliverables |
 |----|----------|-------|-----------------------|
-| HP-1 | H (M) | Nightly интеграционные тесты (Firebase) | GH Actions job + артефакты прогонов |
+| HP-1 | H (S) | Nightly интеграционные тесты (Firebase) — CI часть | Локальный прогон починен 2026-04-27 (6/6 зелёных, см. ниже). Осталось: GH Actions workflow + service account secret. |
 | HP-2 | H (L) | Расширенное Playwright покрытие | Seed-данные, full auth flow, stress-тесты, отчётность |
 | HP-3 | ✅ | Remediate container image vulnerabilities | NPM HIGH закрыты (2026-02-06), Go stdlib — buildpack-level |
 | HR-1 | ✅ | Защита `/api/books` | Закрыта волной 6 (2026-04-26): strict BYOK без env fallback, auth Bearer на search/answer, public только list/snippet с rate-limit, CORS allowlist через appOrigins. Плюс счётчик BYOK-usage в профиле через aiUsageDaily/{uid}_{day}. |
+| HR-2 | ✅ | Закрыть booking email-login auth bypass | Закрыта 2026-04-28 (wave-9, C1 + часть C2): `api/auth.ts` удалён целиком, AuthModal использует только `sendSignInLinkToEmail`. Освобождена 1 Vercel function (9/12 → 8/12). |
+| CQ-6 | ✅ | Починить TS lint + console guardrails | Закрыта волной 7 (2026-04-27): ESLint покрывает ts/tsx через typescript-eslint v8, `no-console: error` + overrides, `check-console --all` для validate / `:staged` для pre-commit, api/ под покрытием. 50 runtime `console.*` → `debugLog/debugError/debugWarn` (или whitelist для prod-error reporting). |
+| CQ-7 | M (L) | Рефакторинг новых монолитов и дублей | `DisorderTable`, API handlers, course-nav/API-runtime helpers |
 | MP-1 | ✅ | Изоляция бизнес-логики Timeline (lazy-hooks) | Хуки вынесены в `src/pages/timeline/hooks/`, чанк `timeline-hooks` в vite.config.js (2026-04) |
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
 | MP-4 | M (S) | Документация и tooling вокруг тестов | Скрипт `ts:prune`, README policy, обновление lazy-docов и perf метрик |
-| MR-1 | M (M) | Масштабирование `/api/transcript-search` | server-side retrieval без full collection scan |
-| MR-2 | M (S) | Починить `npm run test:ci` | совместимый Vitest CLI для CI/test scripts |
+| MR-1 | ✅ | Масштабирование `/api/transcript-search` | Закрыта 2026-04-28 (H7): keyword prefix-индекс через `searchTokens` array + `array-contains-any` query. Full scan убран. Ожидает запуска backfill на prod. |
+| MR-2 | ✅ | Починить `npm run test:ci` | Закрыта 2026-04-27: `--runInBand` → `--no-file-parallelism` (Vitest 4 эквивалент) в `test:ci` и `test:integration`. |
 | MR-3 | M (S) | Убрать `lessonRef as never` | типизированный payload dynamic course lessons |
-| MR-4 | M (S) | Починить stale `authStore.test.ts` | тест ссылается на удалённое `isStudent`; обновить или удалить |
+| MR-4 | ✅ | Починить stale `authStore.test.ts` | Закрыта 2026-04-27: переписан под `UserRole = 'admin' \| 'super-admin' \| null`, убраны проверки удалённого `isStudent`, добавлен кейс role=null. 2/2 зелёных. |
+| MR-5 | M (S-M) | Синхронизировать `firestore.indexes.json` с БД и починить vector-deploy | `firebase deploy --only firestore:indexes` падает на vector index `book_chunks/embedding` (CLI bug 14.22.0 с `__name__`); 4 prod-индекса есть в БД, но отсутствуют в файле. Workaround сейчас: создавать новые индексы через gcloud/REST. |
 | UX-1 | L (L) | Profile v2 — унификация с акварельной палитрой | ожидаем брендбук от дизайнера, после — полный редизайн Profile + вложенных секций |
 | LP-1 | L (M) | Observability / telemetry | Базовый logger (Sentry/PostHog), описание процессов |
 | LP-5 | L (S-M) | Firebase/GCP follow-ups | dependency review, cleanup policy, индексы, Telegram formatting |
@@ -31,6 +35,7 @@
 | CQ-4 | M (L) | Покрытие юнит-тестами stores/hooks | useAuthStore, useTestStore, testAccess — см. секцию TQ |
 | CQ-5 | ✅ | Исправление console.* нарушений | Все заменены на debugLog/debugError (2026-01-08) |
 | TQ-1 | M (M) | Юнит-тесты для утилит | theme.ts, sortNotes.ts, mediaUpload.ts и др. |
+| TQ-5 | M (M) | Расширить integration-coverage | `notes` CRUD + listener, prerequisite-цепочка для `tests` (поверх рабочей emulators-инфры) |
 | BR-1 | ✅ | Sentence-based Chunking | Чанки по предложениям, overlap по предложениям |
 | BR-2 | L (L) | Semantic Chunking | Определение глав/разделов, иерархия в метаданных |
 | BR-3 | L (S) | Кэширование RAG-ответов | Firestore cache, TTL 7 дней |
@@ -50,6 +55,30 @@
 
 ## 🔴 High Priority
 
+### HR‑2. ✅ Закрыть booking email-login auth bypass — РЕШЕНО (wave-9, 2026-04-28)
+- **Решение:** Вариант 3 «email-link для всех» (после консультации с хозяином помещения, см. [BOOKING_AUTH_C1_DECISION_2026-04-28.md](../reports/BOOKING_AUTH_C1_DECISION_2026-04-28.md)). Endpoint `POST /api/auth?action=loginByEmail` удалён вместе с файлом — выдача custom token по verified email больше невозможна.
+- **Что сделано:**
+  - [x] `api/auth.ts` удалён целиком. Освобождена 1 Vercel function (9/12 → 8/12).
+  - [x] CORS wildcard в этом файле исчез вместе с ним — закрывается часть C2.
+  - [x] `src/pages/booking/AuthModal.tsx`: tabs «Вход»/«Регистрация» объединены в один экран. Оба пути используют `sendSignInLinkToEmail`. Импорт `signInWithCustomToken` удалён.
+  - [x] `BookingLayout.tsx:30-40` уже умел `signInWithEmailLink` для регистрации — теперь обслуживает оба сценария без изменений.
+  - [x] `tests/api/booking-login.test.ts` удалён (тестировал удалённый endpoint).
+  - [x] `docs/guides/booking-system.md` обновлён: новый flow описан, custom-token упоминание убрано, добавлена ссылка на decision document.
+  - [x] `npm run validate` зелёный.
+- **Совместимость:** все 28 существующих booking-пользователей сохраняют свои Firebase user records и текущие сессии. Ничего не ломается. При следующем входе с нового устройства увидят новый flow «получить ссылку на почту» — тот же что раньше использовался для регистрации.
+
+### CQ‑6. ✅ Починить TS lint + console guardrails — РЕШЕНО (волна 7, 2026-04-27)
+- **Решение:** коммиты `9dac357..b4a47fc` в `feature/initial-setup-sergo`.
+- **Что сделано:**
+  - [x] `eslint.config.js`: блок `**/*.{ts,tsx}` через `typescript-eslint` v8 (без typed-rules для скорости). `no-console: error`, `no-unused-vars: warn` + базовые legacy-правила понижены до warn. Override-блок: `**/lib/debug.ts`, `scripts/`, `src/scripts/`, `tests/`, `**/*.test.*`, `timeline/utils/exporters/common.ts` → `no-console: off`.
+  - [x] `scripts/check-console.cjs`: режим `--all` (full-repo), `TARGET_DIRS` расширен на `api/`, `ALLOWED_PREFIXES = ["src/scripts/"]` для CLI.
+  - [x] `package.json`: `check-console` (--all, для validate), `check-console:staged` (pre-commit, быстрый).
+  - [x] `.husky/pre-commit` переключен на `:staged`.
+  - [x] 50 runtime `console.*` → `debugLog/debugError/debugWarn`.
+  - [x] Whitelist для production-error reporting: `api/assistant.ts` (catch Gemini), `src/lib/errorHandler.ts` (центральный app-error reporter) — eslint-disable + ALLOWED + комментарий.
+  - [x] `docs/architecture/guidelines.md`, `CLAUDE.md` синхронизированы с реальной конфигурацией.
+- **Финал:** `npm run validate` зелёный (0 errors, ~79 pre-existing warnings unused-vars/react-hooks).
+
 ### HR‑1. ✅ Защита `/api/books` — РЕШЕНО (волна 6, 2026-04-26)
 - **Решение:** `list` / `snippet` остались публичными (read-only из Firestore), но получили rate-limit 60 req/min на IP. `search` / `answer` теперь требуют:
   - Firebase Bearer ID token в заголовке Authorization (`verifyAuthBearer`).
@@ -62,10 +91,22 @@
 - **Коммиты:** `0012100` (основная реализация), `2505b25` (move helper для соблюдения Vercel 12-fn лимита).
 - **Frontend:** `useBookAnswer` передаёт Authorization Bearer + X-Gemini-Api-Key, проверяет наличие ключа до запроса (показывает спец-ошибку с CTA в профиль). `GeminiKeySection` расширен пошаговой инструкцией «Как получить ключ» (4 шага, ссылка на aistudio.google.com/apikey, бесплатный лимит ~1500 RPD).
 
-### HP‑1. Nightly интеграционные тесты (P: H, E: M)
-- [ ] Настроить GitHub Actions workflow, который раз в сутки поднимает Firebase эмуляторы (`npm run firebase:emulators:start`) и гоняет `npm run test:integration`.  
-- [ ] Сохранять артефакты (лог успешных тестов, при падении — журнал/видео).  
-- [ ] Обновить документацию (README + `docs/guides/testing-system.md`) разделом «Как читать nightly-прогоны».
+### HP‑1. Nightly интеграционные тесты (P: H, E: S — осталась CI часть)
+
+**Локальный прогон — ✅ РЕШЕНО (2026-04-27).** До этого 4 эмулятор-зависимых теста не работали ни у кого: пути в `firebase.test.json` были битые, в `helper.ts` не было `storageBucket` для admin app, и Firebase JS SDK не подключался к эмуляторам. Сейчас одна команда `npm run test:integration` поднимает эмуляторы, прогоняет тесты, гасит — 6/6 зелёных.
+
+Что починено:
+- [x] `tests/integration/firebase.test.json`: пути `firestore.rules`/`storage.rules` относительно директории config-файла (раньше `tests/integration/...` от корня → firebase-tools резолвил в `tests/integration/tests/integration/...`).
+- [x] `tests/integration/helper.ts:getAdminApp()`: `storageBucket` добавлен в `initializeApp()` — без него `admin.storage().bucket()` падал.
+- [x] `tests/integration/helper.ts:setupIntegrationEnv()`: явный `connectFirestoreEmulator/connectAuthEmulator/connectStorageEmulator` для Firebase JS SDK — оно (в отличие от `firebase-admin`) не подхватывает `FIRESTORE_EMULATOR_HOST` из env.
+- [x] `package.json`: `test:integration` через `firebase emulators:exec` (autoboot эмуляторов), `VITEST_INTEGRATION=1` для надёжной активации integration setup; добавлен `test:integration:watch` для разработки.
+- [x] `docs/guides/testing-system.md`: integration-секция расширена требованиями (Java 11+, firebase-tools, порты), watch-сценарием, явной пометкой про бесплатность.
+
+CI часть (осталась):
+- [ ] GitHub Actions workflow `nightly-integration.yml`: cron-расписание, setup Java 21 + firebase-tools, прогон `npm run test:integration`, артефакты при падении.
+- [ ] Service account secret для Firebase в GitHub Secrets (или demo project — эмуляторы не требуют реального).
+- [ ] Нотификация при падении (Slack/email).
+- [ ] Документировать «Как читать nightly-прогоны» в `docs/guides/testing-system.md`.
 
 ### HP‑2. Полное Playwright покрытие (P: H, E: L)
 - [ ] Подготовить seed-данные (Firestore/Storage) для e2e сценариев с реальной авторизацией.  
@@ -127,23 +168,43 @@
 - [ ] Явно закрепить в README требование прочитать `docs/architecture/guidelines.md` и `docs/guides/testing-system.md` перед началом задач.
 - [ ] Обновить ленивую документацию: описать политику добавления новых lazy-страниц и итоговые метрики в `docs/archive/legacy/lazy-loading-migration.md` / README, синхронизировать `docs/reference/perf-metrics.md` после завершения работ.
 
-### MR‑1. Масштабирование `/api/transcript-search` (P: M, E: M)
-- **Проблема:** клиентский preload уже убран, но `api/transcript-search.ts` по-прежнему делает `collectionGroup(...).get()` по всему transcript-search индексу на каждый запрос и фильтрует результаты в памяти.
-- **Риск:** latency, cost и memory usage растут линейно от общего числа chunks; проблема больше не на клиенте, а на request path сервера.
-- **Подтверждение:** review `2026-03-12`, см. `docs/reports/CODE_REVIEW_2026-03-12.md`.
-- **Задачи:**
-  - [ ] Убрать full collection scan из hot path `GET /api/transcript-search`.
-  - [ ] Спроектировать индекс/lookup/sharding стратегию под query-time retrieval.
-  - [ ] После правки smoke-проверить глобальный поиск по транскриптам и обновить docs по search pipeline.
+### MR‑1. ✅ Масштабирование `/api/transcript-search` — РЕШЕНО (2026-04-28, H7)
+- **Решение:** keyword prefix-индекс. В каждый chunk добавлено поле `searchTokens: string[]` — массив префиксов слов длиной ≥ 3 (lowercased, без stop-words). Endpoint использует `where('searchTokens', 'array-contains-any', queryWords)` вместо full scan.
+- **Что сделано:**
+  - [x] `shared/videoTranscripts/searchIndex.ts`: helper `buildSearchTokens` + общий `TRANSCRIPT_STOP_WORDS` set + 9 unit-тестов.
+  - [x] `VideoTranscriptSearchChunkDocShape`: добавлено опциональное поле `searchTokens?: string[]` (опциональное для совместимости с до-миграционными chunks).
+  - [x] `buildTranscriptSearchChunkDocs`: новые chunks получают `searchTokens` автоматически.
+  - [x] `scripts/backfillTranscriptSearchTokens.ts`: идемпотентный backfill (cursor pagination, batch 400, dry-run/--apply).
+  - [x] `firestore.indexes.json`: single-field collection-group index `searchChunks.searchTokens` (`arrayConfig: CONTAINS`).
+  - [x] `api/transcript-search.ts`: `where('searchTokens', 'array-contains-any', tokens)` + filter в коде (AND-семантика). Cap 30 tokens (Firestore limit).
+  - [x] `tests/api/transcript-search.test.ts`: 6 тестов (empty query, query construction, 30-cap, stop-words, AND-filter, scoring).
+  - [x] `npm run validate` зелёный, integration 6/6.
+- **Ожидаемый эффект:** ~20 700 reads/запрос → ≤200 reads (зависит от популярности слов). Замер до/после после prod-запуска backfill.
+- **Что осталось — ручной operator-step:**
+  - [ ] Запустить `npx tsx scripts/backfillTranscriptSearchTokens.ts` без флага (dry-run) → проверить отчёт.
+  - [ ] Запустить `npx tsx scripts/backfillTranscriptSearchTokens.ts --apply` → backfill ~20 700 chunks.
+  - [ ] `firebase deploy --only firestore:indexes` (создание composite index).
+  - [ ] Дождаться status=READY у индекса в Firebase Console.
+  - [ ] Smoke-проверить `https://academydom.com/api/transcript-search?q=психология` через UI.
 
-### MR‑2. Починить `npm run test:ci` (P: M, E: S)
-- **Проблема:** текущий root script использует `vitest --runInBand`, который не поддерживается текущей версией Vitest и падает с `CACError`.
-- **Риск:** automation/CI entrypoint формально существует, но не исполняется.
-- **Подтверждение:** локальный прогон `2026-03-12`, см. `docs/processes/qa-smoke-log.md` и `docs/reports/CODE_REVIEW_2026-03-12.md`.
+### CQ‑7. Рефакторинг новых монолитов и дублей (P: M, E: L)
+- **Источник:** code review `2026-04-27`, см. `docs/reports/CODE_REVIEW_MAIN_2026-04-27.md`.
+- **Проблема:** после закрытых ранних CQ-задач в проекте снова появились крупные runtime-файлы и дубли helper-логики. На момент ревью: 57 runtime-файлов >300 строк, 13 >500, 2 >800. Крупнейшие: `src/pages/DisorderTable.tsx` (1315), `api/papers.ts` (1206), `src/pages/home/HomeDashboard.tsx` (797), `api/assistant.ts` / `api/lectures.ts` / `api/books.ts`.
+- **Риск:** сложность ревью, высокая связность, локальные изменения чаще цепляют соседнее поведение.
 - **Задачи:**
-  - [ ] Заменить `test:ci` на поддерживаемую команду Vitest 4.
-  - [ ] Проверить соседний `test:integration`, где используется тот же флаг.
-  - [ ] После правки повторно прогнать `npm run test:ci` и зафиксировать результат в QA log.
+  - [ ] Разбить `src/pages/DisorderTable.tsx` на components/hooks: фильтры, модалки, comments, entry form, matrix view.
+  - [ ] Свести course navigation helpers к одному canonical path (`AppShell.jsx`, `useCourseNavItems.ts`, `courseLessons.ts` сейчас частично дублируются).
+  - [ ] Свести API runtime helpers: Firebase init, CORS, auth/BYOK/rate-limit без нарушения Vercel function limit.
+  - [ ] Проверить и удалить устаревший дубль `api/lectureTranscriptFallback.ts`, если он действительно не используется.
+  - [ ] Вернуть route-level lazy discipline для `PeriodPage` и `DynamicCoursePeriodPage` через `src/pages/lazy.ts`.
+  - [ ] Синхронизировать `docs/reference/routes.md`, `docs/guides/booking-system.md`, `docs/reference/firestore-schema.md` после исправлений.
+
+### MR‑2. ✅ Починить `npm run test:ci` — РЕШЕНО (2026-04-27)
+- **Решение:** `--runInBand` снят в Vitest 4. Заменён на `--no-file-parallelism` (canonical эквивалент: последовательный прогон файлов в одном пуле). Применено и к `test:ci`, и к `test:integration` / `test:integration:watch`.
+- **Что сделано:**
+  - [x] `test:ci`: `vitest --runInBand` → `vitest --no-file-parallelism`.
+  - [x] `test:integration`/`test:integration:watch`: тот же флаг.
+  - [x] Smoke-прогон `npx vitest --no-file-parallelism run tests/integration/authStore.test.ts` — зелёный.
 
 ### MR‑3. Убрать `lessonRef as never` в dynamic course creation (P: M, E: S)
 - **Проблема:** `src/hooks/useCreateCourse.ts` пишет lesson doc через `setDoc(lessonRef as never, ...)`, маскируя реальную проблему типизации payload/ref.
@@ -154,14 +215,49 @@
   - [ ] Типизировать `getCourseLessonDocRef` и `setDoc` без `never`.
   - [ ] После правки прогнать `typecheck:app` и smoke создания нового курса.
 
-### MR‑4. Починить устаревший `authStore.test.ts` (P: M, E: S)
-- **Проблема:** `tests/integration/authStore.test.ts` ссылается на `store.isStudent`, которое было удалено в коммите `b4b37e8 feat(roles): narrow UserRole to admin/super-admin`. 2 теста падают: «помечает супер-админа и админа» и «оставляет студента только студентом».
-- **Риск:** шум в выводе `npm test` (2 ложно-красных), скрывает настоящие регрессии.
-- **Подтверждение:** повторяемо воспроизводится на чистом `main` (проверено 2026-04-24).
+### MR‑4. ✅ Починить устаревший `authStore.test.ts` — РЕШЕНО (2026-04-27)
+- **Решение:** тест переписан под актуальную модель `UserRole = 'admin' | 'super-admin' | null`.
+- **Что сделано:**
+  - [x] Убраны ссылки на удалённый `store.isStudent` в `resetState` и обоих it-блоках.
+  - [x] Тест-кейс «студент» переименован в «role=null» — проверяет, что `isAdmin/isSuperAdmin` сбрасываются в false при `setUserRole(null)` (студенты/гости — это `userRole === null`, фактическая роль вычисляется через `computeDisplayRole(userRole, courseAccess)` поверх).
+  - [x] Не дублирует `roleHelpers.test.ts` — там тестируется чистая функция `computeDisplayRole`, здесь — собственно стор и derivation `isAdmin/isSuperAdmin` от `setUserRole`.
+  - [x] 2/2 зелёных в локальном прогоне.
+
+### MR‑5. Синхронизировать `firestore.indexes.json` с БД и починить vector-deploy (P: M, E: S-M)
+- **Источник:** замечено 2026-04-28 при попытке `firebase deploy --only firestore:indexes` для wave-8 (H7).
+- **Симптом 1 — vector-deploy ломается:**
+  ```
+  Error: ... book_chunks/indexes had HTTP Error: 400, No valid order or array
+  config provided: field_path: "__name__"
+  ```
+  CLI 14.22.0 при пересоздании composite index с `vectorConfig` (например
+  `book_chunks: bookId + embedding`) неявно добавляет `__name__` поле без
+  `order`/`array_config`, Firestore API это режектит. Известный баг
+  firebase-tools, нет надёжного фикса в актуальной версии.
+- **Симптом 2 — рассинхрон:**
+  ```
+  firestore: there are 4 indexes defined in your project that are not
+  present in your firestore indexes file.
+  ```
+  4 composite индекса на проде созданы вне файла (через Firebase Console UI
+  или auto-предложением Firestore при failing query). Файл не source of
+  truth — `firestore.indexes.json` (11 записей) расходится с БД (~15).
+- **Риск:** runtime не страдает (existing индексы работают), но
+  `firebase deploy --only firestore:indexes` неисполним. Любое будущее
+  изменение индексов требует workaround через gcloud/REST API/Console.
+- **Workaround сейчас (использован для wave-8):**
+  ```bash
+  TOKEN=$(gcloud auth print-access-token)
+  curl -X PATCH \
+    "https://firestore.googleapis.com/v1/projects/PROJECT/databases/(default)/collectionGroups/COLL_GROUP/fields/FIELD?updateMask=indexConfig" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -d '{"indexConfig":{"indexes":[{"queryScope":"COLLECTION_GROUP","fields":[...]}]}}'
+  ```
 - **Задачи:**
-  - [ ] Переписать тест под актуальную модель ролей (`'admin' | 'super-admin'` + null для студентов/гостей).
-  - [ ] Или удалить если покрытие дублирует unit-тесты `roleHelpers` из `621e2a8 test: add unit tests for pure helpers and cloud functions`.
-  - [ ] Проверить что `npm test` проходит без ожидаемых эмулятор-зависимых падений (4 integration теста — отдельный HP-1).
+  - [ ] Синхронизировать `firestore.indexes.json` с реальной БД — добавить 4 missing composite indexes (см. вывод `firebase deploy` без `--force`).
+  - [ ] Решить судьбу vector index в файле: либо вынести vector indexes из файла и держать только на сервере (создавать через `gcloud`/Console), либо дождаться фикса firebase-tools и обновить CLI.
+  - [ ] Прогнать `firebase deploy --only firestore:indexes` без ошибок.
+  - [ ] Документировать в `docs/architecture/guidelines.md` или `docs/development/testing-workflow.md`: «Firestore index workflow — где создаём через файл, где через gcloud/Console».
 
 ### UX‑1. Profile v2 — унификация с акварельной палитрой (P: L, E: L)
 - **Проблема:** Profile.tsx оставлен в старой палитре: синий→фиолетовый градиент в hero-полосе, `bg-teal-*` / `bg-blue-*` / `bg-purple-*` / розово-фуксиевый gradient в `SuperAdminBadge`, `SearchHistorySection`, `GeminiKeySection`, `FeedbackButton variant="profile"`. Минимальная правка (hero max-w-4xl, role badges, avatar fallback) сделана в `9107e62`, остальное откладываем до получения брендбука от дизайнера.
@@ -731,3 +827,32 @@ export function useClinicalTopics() {
 |------|-----------------|
 | `courseAccess.ts` | CRUD операции, валидация |
 | `verify.ts` | Reconcile логика |
+
+### TQ-5. Расширить integration-coverage (P: M, E: M)
+
+**Контекст:** wave-7 (2026-04-27) починил локальный прогон integration-тестов — сейчас `npm run test:integration` поднимает Firebase эмуляторы (`firebase emulators:exec`) и за ~3 секунды прогоняет 6 baseline-тестов. Инфраструктура работает, можно безопасно расширять покрытие.
+
+**Критерий что тест должен быть integration, а не unit:**
+- Зависит от специфичной Firestore query semantics (`where + orderBy` с индексами, `collectionGroup`, transactions, batch writes).
+- Multi-document или multi-collection взаимодействия (одна операция меняет N документов).
+- Timestamp/Date round-trip.
+- Регрессия дорого стоит (потеря данных, blocked feature).
+
+**Кандидаты:**
+
+| Файл/область | Объём | Что покрыть |
+|---|---|---|
+| `notes` CRUD + listener (`src/hooks/useNotes.ts`, `src/lib/notes.ts`) | M | createNote (lectureNote / manualNote / eventNote — три разных пути), updateNote, deleteNote, getLectureNote (специфичная query `userId + lectureId`), `onSnapshot` listener round-trip. Timestamp конверсия. **Регрессия = потеря заметок пользователей**. |
+| Расширить `tests/integration/testsWorkflow.test.ts` | S | Полная prerequisite-цепочка `A → B → C` с каскадным unlock через `isTestUnlocked`. Edge-cases percentage threshold (точно 70%, 69.99%, 100%). |
+
+**Что НЕ нужно integration-тестировать (вынесено отдельно):**
+- `courseAccess` matrix → unit с mocked Firestore (быстрее, проще). См. TQ-2.
+- `bookings` (alteg.io API) → требует HTTP-mock через `nock`/`msw`, не Firestore.
+- `lectures` RAG / AI endpoints → платные Gemini-вызовы, недопустимо в тестах.
+- Cloud Functions integration → отдельный scope (functions emulator, его сейчас нет в `tests/integration/firebase.test.json`).
+
+**Задачи:**
+- [ ] `tests/integration/notes.test.ts` — три create-paths, update, delete, getLectureNote query, snapshot round-trip.
+- [ ] Расширить `tests/integration/testsWorkflow.test.ts` блоком про полную prerequisite-цепочку и edge-cases threshold.
+- [ ] Прогон `npm run test:integration` — все зелёные.
+- [ ] Обновить список покрытия в `docs/guides/testing-system.md` под Integration Tests.

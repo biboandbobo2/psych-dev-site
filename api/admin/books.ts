@@ -4,27 +4,16 @@
  * Actions: list, create, manage, startIngestion, uploadUrl, jobStatus
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 import { Storage } from '@google-cloud/storage';
+import { initFirebaseAdmin, setSharedCorsHeaders } from '../../src/lib/api-server/sharedApiRuntime.js';
 
 const SUPER_ADMIN_EMAIL = 'biboandbobo2@gmail.com';
 const BOOK_COLLECTIONS = { books: 'books', chunks: 'book_chunks', jobs: 'ingestion_jobs' } as const;
 const BOOK_STORAGE_PATHS = { raw: (bookId: string) => `books/raw/${bookId}/original.pdf` } as const;
 const MAX_BOOK_FILE_SIZE = 100 * 1024 * 1024; // 100MB
-
-function initFirebaseAdmin() {
-  if (getApps().length > 0) return;
-  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!json) throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured');
-  const sa = JSON.parse(json);
-  initializeApp({
-    credential: cert(sa),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${sa.project_id}.firebasestorage.app`,
-  });
-}
 
 async function verifyAuth(req: VercelRequest) {
   const authHeader = req.headers.authorization;
@@ -45,17 +34,15 @@ async function verifyAuth(req: VercelRequest) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  setSharedCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
+    res.status(204).end();
     return;
   }
 
   try {
-    initFirebaseAdmin();
+    initFirebaseAdmin({ withStorageBucket: true });
     const action = req.query.action as string || req.body?.action as string || '';
 
     // GET endpoints: list, jobStatus

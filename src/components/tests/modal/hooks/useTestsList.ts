@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getAllTests, getTestById } from '../../../../lib/tests';
+import { debugError } from '../../../../lib/debug';
 import type { Test } from '../../../../types/tests';
 
 /**
@@ -45,7 +46,7 @@ export function useTestsList() {
               const result = await getTestById(id);
               return result ? { id, title: result.title } : { id, title: '' };
             } catch (fetchError) {
-              console.error(
+              debugError(
                 'Ошибка загрузки связанного теста:',
                 fetchError
               );
@@ -64,7 +65,7 @@ export function useTestsList() {
         });
       }
     } catch (err: unknown) {
-      console.error('Ошибка загрузки тестов:', err);
+      debugError('Ошибка загрузки тестов:', err);
       setError('Не удалось загрузить список тестов');
     } finally {
       setLoading(false);

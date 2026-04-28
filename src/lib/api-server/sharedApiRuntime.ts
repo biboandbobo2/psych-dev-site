@@ -8,10 +8,41 @@
  * Используется в /api/books и потенциально в других AI-endpoints.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import type { IncomingMessage } from 'http';
 import { getAllowedAppOrigin } from '../appOrigins.js';
 import { debugError } from '../debug.js';
+
+// ============================================================================
+// FIREBASE ADMIN INIT
+// ============================================================================
+
+/**
+ * Идемпотентная инициализация Firebase Admin SDK для Vercel API endpoints.
+ * Бросает ошибку если FIREBASE_SERVICE_ACCOUNT_KEY не установлен — это норма
+ * для прод/staging.
+ *
+ * Опция `withStorageBucket: true` дополнительно конфигурирует storageBucket
+ * (нужен в `admin/books.ts` для upload PDF). По умолчанию — без bucket.
+ *
+ * `assistant.ts` использует свою silent-версию (best-effort BYOK usage
+ * tracking не должен валить запрос если admin недоступен).
+ */
+export function initFirebaseAdmin(options: { withStorageBucket?: boolean } = {}): void {
+  if (getApps().length > 0) return;
+  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!json) throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured');
+  const sa = JSON.parse(json);
+  if (options.withStorageBucket) {
+    initializeApp({
+      credential: cert(sa),
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${sa.project_id}.firebasestorage.app`,
+    });
+    return;
+  }
+  initializeApp({ credential: cert(sa) });
+}
 
 // ============================================================================
 // CORS

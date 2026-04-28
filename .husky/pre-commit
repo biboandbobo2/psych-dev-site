@@ -5,7 +5,7 @@ echo "🔎 ESLint…"
 npm run -s lint
 
 echo "🕵️ Поиск запрещённых console.*…"
-npm run check-console
+npm run check-console:staged
 
 echo "🔍 Проверка инициализации модулей…"
 npm run check:init

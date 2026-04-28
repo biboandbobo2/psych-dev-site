@@ -14,14 +14,17 @@
 
 ### Pre-push (перед пушем)
 
-Запускается автоматически при каждом `git push`:
+Запускается автоматически при каждом `git push` через `npm run validate`:
 
 ```bash
 ✓ lint
-✓ check-console
+✓ check-console (full-repo, src/+api/+functions/src/)
 ✓ check:init
+✓ check:functions-runtime
 ✓ build (production сборка)
 ```
+
+Integration-тесты в pre-push не входят (требуют Java 11+ и могут быть медленными). Запускайте `npm run test:integration` отдельно перед важными PR.
 
 ## Ручные проверки
 
@@ -58,6 +61,29 @@ npm run test:e2e:prod
 Создаёт production build и запускает smoke тесты в Playwright.
 
 **Время выполнения:** ~30-60 секунд
+
+### Integration тесты (Firebase эмуляторы)
+
+```bash
+npm run test:integration
+```
+
+Автоматически поднимает Firebase эмуляторы (Firestore, Auth, Storage), гоняет тесты в `tests/integration/`, гасит эмуляторы. Все тесты бесплатные — только локальные эмуляторы, без AI-API и реальных Firebase project-вызовов.
+
+**Требования:** Java 11+ (для эмуляторов), `firebase-tools` (через `npm install`), свободные порты `8080/9099/9199`.
+
+**Время выполнения:** ~3-5 секунд (без cold start эмуляторов).
+
+**Watch-режим для разработки** (требует поднятых эмуляторов):
+```bash
+# Терминал 1
+npm run firebase:emulators:start
+
+# Терминал 2
+npm run test:integration:watch
+```
+
+**Подробности и список тестов:** [../guides/testing-system.md](../guides/testing-system.md#integration-tests).
 
 ## Рекомендуемый workflow
 
@@ -144,11 +170,14 @@ jobs:
 | `npm run check:init` | Проверка инициализации | 1 сек |
 | `npm run build` | Production build | 3-5 сек |
 | `npm run validate` | Всё выше вместе | 5-10 сек |
-| `npm run validate:full` | validate + tests | 15-30 сек |
+| `npm run validate:full` | validate + unit tests (без integration) | 15-30 сек |
 | `npm test` | Unit тесты (watch mode) | - |
+| `npm run test:ci` | Все тесты однократно (включая integration без эмуляторов — упадут) | 5-10 сек |
+| `npm run test:integration` | Integration tests с автозапуском эмуляторов | 3-5 сек |
+| `npm run test:integration:watch` | Integration в watch (требует firebase:emulators:start) | - |
 | `npm run test:e2e` | E2E тесты (dev) | 10-20 сек |
 | `npm run test:e2e:prod` | E2E тесты (prod) | 30-60 сек |
 
 ---
 
-**Последнее обновление:** 2025-11-14
+**Последнее обновление:** 2026-04-27

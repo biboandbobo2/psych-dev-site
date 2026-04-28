@@ -452,9 +452,29 @@ npm test
 npm run test:integration
 ```
 
+**Что происходит:** скрипт автоматически поднимает Firebase эмуляторы (Firestore, Auth, Storage) через `firebase emulators:exec`, гоняет тесты через `vitest run --no-file-parallelism`, гасит эмуляторы.
+
+**Требования:**
+- `firebase-tools` в `node_modules` (есть через `npm install`).
+- **Java 11+** (для эмуляторов Firestore/Auth). На macOS: `brew install openjdk@21`, затем добавить в PATH/`JAVA_HOME` (см. инструкции `brew info openjdk@21`).
+- Свободные порты `8080`, `9099`, `9199`.
+
+**Watch-режим (для разработки):**
+```bash
+# Терминал 1 — поднять эмуляторы один раз
+npm run firebase:emulators:start
+
+# Терминал 2 — vitest в watch-режиме
+npm run test:integration:watch
+```
+
 **Покрыто:**
-- `tests/integration/testsWorkflow.test.ts` — создание, публикация, prerequisite
-- `tests/integration/authStore.test.ts` — проверка ролей
+- `tests/integration/authStore.test.ts` — pure store role derivation (не требует эмуляторов).
+- `tests/integration/testsWorkflow.test.ts` — tests CRUD + prerequisite, testResults flows.
+- `tests/integration/topics.test.ts` — topics CRUD в Firestore.
+- `tests/integration/firestoreHelpers.test.ts` — periods canonical/публикация.
+
+**Бесплатность:** все integration-тесты идут только в локальные эмуляторы. Никаких реальных Firebase project-вызовов и AI-API. Эмуляторы — Java-процесс offline, project ID `psych-dev-site-test` фиктивный.
 
 ### E2E Tests (Playwright)
 

@@ -3,6 +3,7 @@
  */
 
 import { getTestResults } from './testResults';
+import { debugError } from './debug';
 
 /**
  * Проверить, доступен ли тест для пользователя
@@ -35,7 +36,7 @@ export async function isTestUnlocked(
 
     return hasPassingScore;
   } catch (error) {
-    console.error('Ошибка проверки доступа к тесту:', error);
+    debugError('Ошибка проверки доступа к тесту:', error);
     return false;
   }
 }
@@ -76,7 +77,7 @@ export async function getTestLockInfo(
       attemptsCount: results.length,
     };
   } catch (error) {
-    console.error('Ошибка получения информации о блокировке:', error);
+    debugError('Ошибка получения информации о блокировке:', error);
     return {
       isLocked: true,
       bestScore: null,

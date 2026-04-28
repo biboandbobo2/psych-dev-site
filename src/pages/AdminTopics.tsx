@@ -4,6 +4,7 @@ import { useTopics } from '../hooks/useTopics';
 import { useAuth } from '../auth/AuthProvider';
 import { AGE_RANGE_OPTIONS, AGE_RANGE_LABELS, type AgeRange, type TopicInput } from '../types/notes';
 import { parseTopicsText, previewTopics } from '../utils/topicParser';
+import { debugError } from '../lib/debug';
 
 export default function AdminTopics() {
   const { user, isAdmin } = useAuth();
@@ -55,7 +56,7 @@ export default function AdminTopics() {
       setBulkText('');
       setShowPreview(false);
     } catch (error) {
-      console.error(error);
+      debugError(error);
       alert('Ошибка при добавлении тем');
     } finally {
       setSaving(false);
@@ -67,7 +68,7 @@ export default function AdminTopics() {
     try {
       await deleteTopic(topicId);
     } catch (error) {
-      console.error(error);
+      debugError(error);
       alert('Ошибка при удалении темы');
     }
   };

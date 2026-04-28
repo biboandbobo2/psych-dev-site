@@ -13,7 +13,7 @@
   → useBookingApi (хуки) → /api/booking (Vercel serverless)
     → alteg.io REST API (book_times, book_record, records, clients)
   → useBookingAuth → Firestore users/{uid} ↔ alteg.io clients
-  → Firebase Auth (Google / Email+password)
+  → Firebase Auth (Google / Email-link)
 ```
 
 ## Кабинеты (alteg.io staff)
@@ -166,8 +166,12 @@ Vercel serverless function — прокси к alteg.io.
 **Общий Firebase Auth** — тот же аккаунт что на основном сайте (academydom.com).
 
 ### Методы входа
-- **Google** — `signInWithPopup()`, мгновенный вход
-- **Email + пароль** — `signInWithEmailAndPassword()` / `createUserWithEmailAndPassword()` + email verification
+- **Google** — `signInWithPopup()`, мгновенный вход.
+- **Email-link (passwordless)** — `sendSignInLinkToEmail()` → пользователь кликает магическую ссылку из письма → `signInWithEmailLink()` в `BookingLayout.tsx`. Паролей нет, регистрация и логин — один и тот же flow.
+
+После первого входа Firebase сохраняет refresh token в браузере **бессрочно** — на одном устройстве пользователь остаётся залогинен пока сам не выйдет (logout, очистка cookies, incognito).
+
+> **Безопасность:** до wave-9 (2026-04-28) был отдельный endpoint `POST /api/auth?action=loginByEmail`, который выдавал Firebase custom token по любому verified email — это позволяло войти в чужой аккаунт зная только email. Endpoint удалён, оба пути (Google и email-link) теперь требуют физического доказательства владения почтой / Google-аккаунтом. См. [BOOKING_AUTH_C1_DECISION_2026-04-28.md](../reports/BOOKING_AUTH_C1_DECISION_2026-04-28.md).
 
 ### После первого входа
 PhoneModal — обязательный ввод телефона. Валидация: `+`, 10-15 цифр, международный формат.

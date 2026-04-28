@@ -1,172 +1,39 @@
 /**
  * GET/POST /api/books
- * Unified endpoint for all public book operations
- * Actions: list, search, answer, snippet
+ * Unified endpoint для public book operations.
+ * Actions: list, snippet (public, GET) / search, answer (BYOK + auth, POST).
+ *
+ * Helpers и actions вынесены в api/_lib/booksHelpers.ts и
+ * api/_lib/booksActions.ts.
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
-import { GoogleGenAI } from '@google/genai';
-import * as zlib from 'zlib';
-import { promisify } from 'util';
+import { getFirestore } from 'firebase-admin/firestore';
 import {
-  setSharedCorsHeaders,
-  verifyAuthBearer,
-  requireBYOKGeminiKey,
   enforceIpRateLimit,
   getClientIp,
-  recordByokUsage,
+  initFirebaseAdmin,
+  setSharedCorsHeaders,
 } from '../src/lib/api-server/sharedApiRuntime.js';
+import {
+  BOOK_COLLECTIONS,
+  BOOK_SEARCH_CONFIG,
+  RL_AI,
+  RL_PUBLIC,
+  getAdjacentChunks,
+} from './_lib/booksHelpers.js';
+import {
+  handleBooksAnswerAction,
+  handleBooksSearchAction,
+} from './_lib/booksActions.js';
 
-const gunzip = promisify(zlib.gunzip);
-
-export const BOOK_COLLECTIONS = { books: 'books', chunks: 'book_chunks', jobs: 'ingestion_jobs' } as const;
-export const BOOK_SEARCH_CONFIG = {
-  maxBooksPerSearch: 10,
-  minBooksPerSearch: 1,
-  maxQuestionLength: 500,
-  minQuestionLength: 3,
-  candidateK: 50,
-  contextK: 10,
-  embeddingModel: 'gemini-embedding-001',
-  embeddingDims: 768,
-  answerMaxParagraphs: 4,
-  snippetMaxChars: 5000,
-  snippetDefaultChars: 3000,
-} as const;
-
-export const BOOK_STORAGE_PATHS = { pages: (bookId: string) => `books/text/${bookId}/pages.json.gz` } as const;
-
-function initFirebaseAdmin() {
-  if (getApps().length > 0) return;
-  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!json) throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured');
-  const sa = JSON.parse(json);
-  initializeApp({
-    credential: cert(sa),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${sa.project_id}.firebasestorage.app`,
-  });
-}
-
-/**
- * Создаёт клиента GenAI с переданным API ключом. Singleton намеренно убран:
- * каждый search/answer запрос идёт под BYOK ключ конкретного пользователя
- * (HR-1 / wave 6, 2026-04). Прод-ключ из env больше НЕ используется в этом
- * endpoint — он остаётся только для server-side admin-функций.
- */
-function buildGenAI(apiKey: string): GoogleGenAI {
-  return new GoogleGenAI({ apiKey });
-}
-
-async function embedQuery(query: string, apiKey: string): Promise<number[]> {
-  const client = buildGenAI(apiKey);
-  const result = await client.models.embedContent({
-    model: BOOK_SEARCH_CONFIG.embeddingModel,
-    contents: [{ role: 'user', parts: [{ text: query }] }],
-    config: { outputDimensionality: BOOK_SEARCH_CONFIG.embeddingDims },
-  });
-  const embedding = result.embeddings?.[0]?.values;
-  if (!embedding) throw new Error('Failed to get embedding');
-  return embedding;
-}
-
-interface AdjacentChunk {
-  id: string;
-  pageStart: number;
-  pageEnd: number;
-  preview: string;
-  text: string;
-}
-
-async function getAdjacentChunks(
-  db: FirebaseFirestore.Firestore,
-  bookId: string,
-  currentPageStart: number
-): Promise<{ prev: AdjacentChunk | null; next: AdjacentChunk | null }> {
-  // Get previous chunk (page before current)
-  const prevQuery = db
-    .collection(BOOK_COLLECTIONS.chunks)
-    .where('bookId', '==', bookId)
-    .where('pageEnd', '<', currentPageStart)
-    .orderBy('pageEnd', 'desc')
-    .limit(1);
-
-  // Get next chunk (page after current)
-  const nextQuery = db
-    .collection(BOOK_COLLECTIONS.chunks)
-    .where('bookId', '==', bookId)
-    .where('pageStart', '>', currentPageStart)
-    .orderBy('pageStart', 'asc')
-    .limit(1);
-
-  const [prevSnap, nextSnap] = await Promise.all([prevQuery.get(), nextQuery.get()]);
-
-  const prev = prevSnap.docs[0]
-    ? {
-        id: prevSnap.docs[0].id,
-        pageStart: prevSnap.docs[0].data().pageStart || 1,
-        pageEnd: prevSnap.docs[0].data().pageEnd || 1,
-        preview: prevSnap.docs[0].data().preview || '',
-        text: prevSnap.docs[0].data().text || '',
-      }
-    : null;
-
-  const next = nextSnap.docs[0]
-    ? {
-        id: nextSnap.docs[0].id,
-        pageStart: nextSnap.docs[0].data().pageStart || 1,
-        pageEnd: nextSnap.docs[0].data().pageEnd || 1,
-        preview: nextSnap.docs[0].data().preview || '',
-        text: nextSnap.docs[0].data().text || '',
-      }
-    : null;
-
-  return { prev, next };
-}
-
-export function computeLexicalScore(query: string, preview: string): number {
-  const queryTerms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
-  const previewLower = preview.toLowerCase();
-  let matches = 0;
-  for (const term of queryTerms) {
-    if (previewLower.includes(term)) matches++;
-  }
-  return queryTerms.length > 0 ? matches / queryTerms.length : 0;
-}
-
-export const SYSTEM_PROMPT = `Ты — эксперт-психолог и преподаватель. Твоя задача — дать развёрнутый, информативный ответ на вопрос студента, основываясь ИСКЛЮЧИТЕЛЬНО на предоставленных источниках.
-
-ПРАВИЛА ОТВЕТА:
-1. Пиши развёрнуто — от 3 до 6 абзацев. Раскрой тему полноценно.
-2. Используй только информацию из предоставленных источников.
-3. Пиши ЧИСТЫМ ТЕКСТОМ для чтения человеком. НИКАКИХ:
-   - Ссылок на источники в тексте ответа (НЕ пиши [chunkId=...], [SOURCE], [1], (источник) и т.п.)
-   - Технических символов (**, *, #, \`, [], {}, <>)
-   - Маркеров списка (-, •, 1., 2.)
-   - Markdown-разметки
-4. Структурируй ответ абзацами. Каждый абзац — отдельный аспект темы.
-5. Ссылки на источники указывай ТОЛЬКО в массиве citations, НЕ в тексте ответа.
-6. Если информации недостаточно — честно укажи это.
-7. Отвечай на русском языке.
-
-ФОРМАТ ОТВЕТА (строго JSON):
-{
-  "answer": "Чистый текст ответа БЕЗ каких-либо ссылок и технических символов. Только абзацы с пробелами между ними.",
-  "citations": [
-    {"chunkId": "abc123", "claim": "К какому утверждению в ответе относится этот источник"}
-  ]
-}
-
-КРИТИЧЕСКИ ВАЖНО:
-- В поле "answer" должен быть ТОЛЬКО читаемый текст
-- НЕ вставляй chunkId, номера источников или любые ссылки в текст ответа
-- Все ссылки на источники — ТОЛЬКО в массиве citations
-- Верни ТОЛЬКО валидный JSON без markdown-блоков`;
-
-// Rate limits per IP (in-memory baseline; per-instance на serverless — см. LP-3).
-const RL_PUBLIC = { windowMs: 60_000, max: 60 } as const; // list/snippet: 60 req/min
-const RL_AI = { windowMs: 60_000, max: 20 } as const; // search/answer: 20 req/min
+// Re-export для совместимости с tests/api/books.test.ts
+export {
+  BOOK_COLLECTIONS,
+  BOOK_SEARCH_CONFIG,
+  BOOK_STORAGE_PATHS,
+  computeLexicalScore,
+  SYSTEM_PROMPT,
+} from './_lib/booksHelpers.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const allowedOrigin = setSharedCorsHeaders(req, res);
@@ -182,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     initFirebaseAdmin();
-    const action = req.query.action as string || req.body?.action as string || '';
+    const action = (req.query.action as string) || (req.body?.action as string) || '';
     const ip = getClientIp(req);
 
     // LIST: GET public books
@@ -230,9 +97,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
 
-      const maxChars = Math.min(
+      // maxChars не используется на отрезке (используем full text), оставлено
+      // для API-совместимости: клиент может его передавать.
+      void Math.min(
         Number(maxCharsParam) || BOOK_SEARCH_CONFIG.snippetDefaultChars,
-        BOOK_SEARCH_CONFIG.snippetMaxChars
+        BOOK_SEARCH_CONFIG.snippetMaxChars,
       );
 
       const db = getFirestore();
@@ -250,12 +119,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const chapterTitle = chunkData.chapterTitle;
 
       const bookDoc = await db.collection(BOOK_COLLECTIONS.books).doc(bookId).get();
-      const bookTitle = bookDoc.exists ? (bookDoc.data()?.title || 'Untitled') : 'Untitled';
+      const bookTitle = bookDoc.exists ? bookDoc.data()?.title || 'Untitled' : 'Untitled';
 
-      // Use full text from chunk (no truncation for citation display)
       const text = chunkData.text || chunkData.preview || '';
-
-      // Get adjacent chunks for context
       const adjacentChunks = await getAdjacentChunks(db, bookId, chunkData.pageStart);
 
       res.status(200).json({
@@ -278,332 +144,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const db = getFirestore();
-    const body = req.body as Record<string, unknown>;
 
-    // SEARCH (BYOK + auth required)
     if (action === 'search') {
       if (!enforceIpRateLimit('books:ai', ip, RL_AI)) {
         res.status(429).json({ ok: false, error: 'Слишком много запросов', code: 'RATE_LIMIT' });
         return;
       }
-      const auth = await verifyAuthBearer(req);
-      if (auth.valid !== true) {
-        res.status(401).json({ ok: false, error: auth.error, code: auth.code });
-        return;
-      }
-      const userKey = requireBYOKGeminiKey(req);
-      if (!userKey) {
-        res.status(402).json({
-          ok: false,
-          error: 'Подключите свой Gemini API ключ в профиле — он бесплатный.',
-          code: 'BYOK_REQUIRED',
-        });
-        return;
-      }
-
-      const startTime = Date.now();
-
-      const query = typeof body?.query === 'string' ? body.query.trim() : '';
-      const bookIds = Array.isArray(body?.bookIds) ? body.bookIds : [];
-
-      if (query.length < BOOK_SEARCH_CONFIG.minQuestionLength) {
-        res.status(400).json({ ok: false, error: 'Query too short', code: 'VALIDATION_ERROR' });
-        return;
-      }
-
-      if (bookIds.length < BOOK_SEARCH_CONFIG.minBooksPerSearch || bookIds.length > BOOK_SEARCH_CONFIG.maxBooksPerSearch) {
-        res.status(400).json({ ok: false, error: 'Invalid bookIds', code: 'VALIDATION_ERROR' });
-        return;
-      }
-
-      const booksSnapshot = await db
-        .collection(BOOK_COLLECTIONS.books)
-        .where('__name__', 'in', bookIds)
-        .get();
-
-      const bookTitles = new Map<string, string>();
-      booksSnapshot.docs.forEach((doc) => {
-        bookTitles.set(doc.id, doc.data().title || 'Untitled');
-      });
-
-      const queryEmbedding = await embedQuery(query, userKey);
-
-      const allResults: Array<{
-        id: string;
-        bookId: string;
-        pageStart: number;
-        pageEnd: number;
-        preview: string;
-        vectorScore: number;
-      }> = [];
-
-      for (const bookId of bookIds) {
-        try {
-          const chunksQuery = db
-            .collection(BOOK_COLLECTIONS.chunks)
-            .where('bookId', '==', bookId)
-            .findNearest('embedding', FieldValue.vector(queryEmbedding), {
-              limit: Math.ceil(BOOK_SEARCH_CONFIG.candidateK / bookIds.length),
-              distanceMeasure: 'COSINE',
-            });
-
-          const snapshot = await chunksQuery.get();
-
-          snapshot.docs.forEach((doc, index) => {
-            const data = doc.data();
-            const vectorScore = 1 - (index / snapshot.docs.length) * 0.5;
-
-            allResults.push({
-              id: doc.id,
-              bookId: data.bookId,
-              pageStart: data.pageStart || 1,
-              pageEnd: data.pageEnd || 1,
-              preview: data.preview || '',
-              vectorScore,
-            });
-          });
-        } catch {}
-      }
-
-      const reranked = allResults.map((result) => {
-        const lexicalScore = computeLexicalScore(query, result.preview);
-        const combinedScore = result.vectorScore * 0.7 + lexicalScore * 0.3;
-        return { ...result, score: combinedScore };
-      });
-
-      reranked.sort((a, b) => b.score - a.score);
-      const topResults = reranked.slice(0, BOOK_SEARCH_CONFIG.contextK);
-
-      const results = topResults.map((r) => ({
-        id: r.id,
-        bookId: r.bookId,
-        bookTitle: bookTitles.get(r.bookId) || 'Untitled',
-        pageStart: r.pageStart,
-        pageEnd: r.pageEnd,
-        preview: r.preview,
-        score: Math.round(r.score * 100) / 100,
-      }));
-
-      const tookMs = Date.now() - startTime;
-      // Embedding-вызов: usageMetadata из embedContent не возвращает токены,
-      // используем приближение по длине запроса. Для search это маленький
-      // вклад, точные числа — на answer.
-      void recordByokUsage({
-        uid: auth.uid,
-        action: 'books:search',
-        tokens: Math.ceil(query.length / 4),
-        firestore: db,
-      });
-      res.status(200).json({ ok: true, results, tookMs });
+      await handleBooksSearchAction(req, res, db);
       return;
     }
 
-    // ANSWER (BYOK + auth required)
     if (action === 'answer') {
       if (!enforceIpRateLimit('books:ai', ip, RL_AI)) {
         res.status(429).json({ ok: false, error: 'Слишком много запросов', code: 'RATE_LIMIT' });
         return;
       }
-      const auth = await verifyAuthBearer(req);
-      if (auth.valid !== true) {
-        res.status(401).json({ ok: false, error: auth.error, code: auth.code });
-        return;
-      }
-      const userKey = requireBYOKGeminiKey(req);
-      if (!userKey) {
-        res.status(402).json({
-          ok: false,
-          error: 'Подключите свой Gemini API ключ в профиле — он бесплатный.',
-          code: 'BYOK_REQUIRED',
-        });
-        return;
-      }
-
-      const startTime = Date.now();
-
-      const query = typeof body?.query === 'string' ? body.query.trim() : '';
-      const bookIds = Array.isArray(body?.bookIds) ? body.bookIds : [];
-
-      if (query.length < BOOK_SEARCH_CONFIG.minQuestionLength) {
-        res.status(400).json({ ok: false, error: 'Query too short', code: 'VALIDATION_ERROR' });
-        return;
-      }
-
-      if (bookIds.length === 0 || bookIds.length > BOOK_SEARCH_CONFIG.maxBooksPerSearch) {
-        res.status(400).json({ ok: false, error: 'Invalid bookIds', code: 'VALIDATION_ERROR' });
-        return;
-      }
-
-      const booksSnapshot = await db
-        .collection(BOOK_COLLECTIONS.books)
-        .where('__name__', 'in', bookIds)
-        .get();
-
-      const bookTitles = new Map<string, string>();
-      booksSnapshot.docs.forEach((doc) => {
-        bookTitles.set(doc.id, doc.data().title || 'Untitled');
-      });
-
-      const queryEmbedding = await embedQuery(query, userKey);
-
-      const allChunks: Array<{
-        id: string;
-        bookId: string;
-        pageStart: number;
-        pageEnd: number;
-        preview: string;
-      }> = [];
-
-      for (const bookId of bookIds) {
-        try {
-          const chunksQuery = db
-            .collection(BOOK_COLLECTIONS.chunks)
-            .where('bookId', '==', bookId)
-            .findNearest('embedding', FieldValue.vector(queryEmbedding), {
-              limit: Math.ceil(BOOK_SEARCH_CONFIG.contextK / bookIds.length) + 2,
-              distanceMeasure: 'COSINE',
-            });
-
-          const snapshot = await chunksQuery.get();
-
-          snapshot.docs.forEach((doc) => {
-            const data = doc.data();
-            allChunks.push({
-              id: doc.id,
-              bookId: data.bookId,
-              pageStart: data.pageStart || 1,
-              pageEnd: data.pageEnd || 1,
-              preview: data.preview || '',
-            });
-          });
-        } catch {}
-      }
-
-      const topChunks = allChunks.slice(0, BOOK_SEARCH_CONFIG.contextK);
-
-      if (topChunks.length === 0) {
-        res.status(200).json({
-          ok: true,
-          answer: 'К сожалению, в выбранных книгах не найдено релевантной информации по вашему вопросу.',
-          citations: [],
-          tookMs: Date.now() - startTime,
-        });
-        return;
-      }
-
-      const context = topChunks
-        .map((chunk) => {
-          const bookTitle = bookTitles.get(chunk.bookId) || 'Untitled';
-          return `[SOURCE chunkId="${chunk.id}" book="${bookTitle}" pages="${chunk.pageStart}-${chunk.pageEnd}"]
-${chunk.preview}
-[/SOURCE]`;
-        })
-        .join('\n\n');
-
-      const client = buildGenAI(userKey);
-      const prompt = `${SYSTEM_PROMPT}
-
-ИСТОЧНИКИ:
-${context}
-
-ВОПРОС: ${query}`;
-
-      let geminiResponse: { answer: string; citations: Array<{ chunkId: string; claim: string }> };
-      let rawText = '';
-      let totalTokenCount = 0;
-
-      try {
-        const result = await client.models.generateContent({
-          model: 'gemini-2.5-flash-lite',
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: { temperature: 0.4, maxOutputTokens: 4000 },
-        });
-
-        rawText = result.text || '';
-        totalTokenCount = result.usageMetadata?.totalTokenCount ?? 0;
-        let jsonText = rawText.trim();
-
-        // Try to extract JSON from markdown code block
-        const codeBlockMatch = jsonText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-        if (codeBlockMatch) {
-          jsonText = codeBlockMatch[1].trim();
-        } else {
-          jsonText = jsonText.replace(/```json\s*\n?|\n?```/g, '').trim();
-        }
-
-        // If still has non-JSON text, try to extract JSON object
-        if (!jsonText.startsWith('{')) {
-          const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) jsonText = jsonMatch[0];
-        }
-
-        geminiResponse = JSON.parse(jsonText);
-      } catch (parseError) {
-        // Fallback: return raw text as answer without citations
-        geminiResponse = {
-          answer: rawText || 'Не удалось сгенерировать ответ. Попробуйте переформулировать вопрос.',
-          citations: []
-        };
-      }
-
-      const validChunkIds = new Set(topChunks.map((c) => c.id));
-      const chunkMap = new Map(topChunks.map((c) => [c.id, c]));
-
-      const citations = (geminiResponse!.citations || [])
-        .filter((c) => validChunkIds.has(c.chunkId))
-        .map((c) => {
-          const chunk = chunkMap.get(c.chunkId)!;
-          return {
-            chunkId: c.chunkId,
-            bookId: chunk.bookId,
-            bookTitle: bookTitles.get(chunk.bookId) || 'Untitled',
-            pageStart: chunk.pageStart,
-            pageEnd: chunk.pageEnd,
-            claim: c.claim || '',
-          };
-        });
-
-      let answer = geminiResponse!.answer || '';
-      // Clean up any remaining markdown symbols and source references
-      answer = answer
-        // Remove chunkId references like [chunkId=abc123] or (chunkId: abc123)
-        .replace(/\[chunkId[=:][^\]]+\]/gi, '')
-        .replace(/\(chunkId[=:][^\)]+\)/gi, '')
-        // Remove SOURCE references
-        .replace(/\[SOURCE[^\]]*\]/gi, '')
-        .replace(/\[\/SOURCE\]/gi, '')
-        // Remove numbered references like [1], [2], (1), (2)
-        .replace(/\[\d+\]/g, '')
-        .replace(/\(\d+\)/g, '')
-        // Remove markdown
-        .replace(/\*\*/g, '')
-        .replace(/\*/g, '')
-        .replace(/^#+\s*/gm, '')
-        .replace(/`/g, '')
-        .replace(/^\s*[-•]\s*/gm, '')
-        .replace(/^\s*\d+\.\s*/gm, '')
-        // Clean up extra spaces
-        .replace(/\s{2,}/g, ' ')
-        .replace(/\s+\./g, '.')
-        .replace(/\s+,/g, ',')
-        .trim();
-
-      const paragraphs = answer.split(/\n\n+/).filter((p) => p.trim().length > 0);
-      const maxParagraphs = 6; // Allow longer answers
-      if (paragraphs.length > maxParagraphs) {
-        answer = paragraphs.slice(0, maxParagraphs).join('\n\n') + '…';
-      }
-
-      const tookMs = Date.now() - startTime;
-
-      void recordByokUsage({
-        uid: auth.uid,
-        action: 'books:answer',
-        tokens: totalTokenCount,
-        firestore: db,
-      });
-
-      res.status(200).json({ ok: true, answer, citations, tookMs });
+      await handleBooksAnswerAction(req, res, db);
       return;
     }
 

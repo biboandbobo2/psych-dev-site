@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { getTestResults, groupResultsByTest } from '../lib/testResults';
+import { debugLog, debugError } from '../lib/debug';
 import type { TestResult } from '../types/testResults';
 
 interface TestHistoryProps {
@@ -15,19 +16,19 @@ export default function TestHistory({ testId }: TestHistoryProps) {
 
   useEffect(() => {
     if (!user) {
-      console.log('🟡 [TestHistory] User не авторизован');
+      debugLog('🟡 [TestHistory] User не авторизован');
       return;
     }
 
-    console.log('🔵 [TestHistory] Загружаем результаты для:', { userId: user.uid, testId });
+    debugLog('🔵 [TestHistory] Загружаем результаты для:', { userId: user.uid, testId });
 
     const loadResults = async () => {
       try {
         const data = await getTestResults(user.uid, testId);
-        console.log('✅ [TestHistory] Результаты загружены:', data);
+        debugLog('✅ [TestHistory] Результаты загружены:', data);
         setResults(data);
       } catch (error) {
-        console.error('❌ [TestHistory] Ошибка при загрузке результатов:', error);
+        debugError('❌ [TestHistory] Ошибка при загрузке результатов:', error);
       } finally {
         setLoading(false);
       }

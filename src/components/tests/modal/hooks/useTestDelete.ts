@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { deleteTest } from '../../../../lib/tests';
+import { debugError } from '../../../../lib/debug';
 
 interface PendingDelete {
   id: string;
@@ -60,7 +61,7 @@ export function useTestDelete(onDeleted: () => void) {
         setPendingDelete(null);
         onDeleted();
       } catch (err: unknown) {
-        console.error('Ошибка удаления теста:', err);
+        debugError('Ошибка удаления теста:', err);
         onFeedback({
           type: 'error',
           message: 'Не удалось удалить тест. Попробуйте ещё раз.',

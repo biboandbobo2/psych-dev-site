@@ -28,10 +28,13 @@ const EXPORT_DEBUG =
 
 function debugExportGroup(label: string, fn: () => void) {
   if (EXPORT_DEBUG) {
+    // Dev-only export grouping in DevTools.
+    // eslint-disable-next-line no-console
     console.groupCollapsed(`[timeline-export] ${label}`);
     try {
       fn();
     } finally {
+      // eslint-disable-next-line no-console
       console.groupEnd();
     }
   }

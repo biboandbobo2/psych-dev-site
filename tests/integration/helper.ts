@@ -1,4 +1,8 @@
 import admin from 'firebase-admin';
+import { connectAuthEmulator, getAuth } from 'firebase/auth';
+import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
+import { connectStorageEmulator, getStorage } from 'firebase/storage';
+import { app as clientApp } from '../../src/lib/firebase';
 
 const DEFAULT_PROJECT_ID = 'psych-dev-site-test';
 const EMULATOR_HOSTS: Record<string, string> = {
@@ -8,8 +12,21 @@ const EMULATOR_HOSTS: Record<string, string> = {
 };
 const DEFAULT_STORAGE_BUCKET = 'psych-dev-site-test.appspot.com';
 
+let clientEmulatorsConnected = false;
+
+function connectClientSdkToEmulators(): void {
+  if (clientEmulatorsConnected) return;
+  // Firebase JS SDK не подхватывает FIRESTORE_EMULATOR_HOST автоматически
+  // (в отличие от firebase-admin) — нужно подключать явно.
+  connectFirestoreEmulator(getFirestore(clientApp), 'localhost', 8080);
+  connectAuthEmulator(getAuth(clientApp), 'http://localhost:9099', { disableWarnings: true });
+  connectStorageEmulator(getStorage(clientApp), 'localhost', 9199);
+  clientEmulatorsConnected = true;
+}
+
 export function setupIntegrationEnv(): void {
   ensureEmulatorEnv();
+  connectClientSdkToEmulators();
 }
 
 function ensureEmulatorEnv(): void {
@@ -33,7 +50,13 @@ function getProjectId(): string {
 
 function getAdminApp() {
   ensureEmulatorEnv();
-  return admin.apps[0] ?? admin.initializeApp({ projectId: getProjectId() });
+  return (
+    admin.apps[0] ??
+    admin.initializeApp({
+      projectId: getProjectId(),
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || DEFAULT_STORAGE_BUCKET,
+    })
+  );
 }
 
 export function initializeIntegrationApp() {

@@ -24,6 +24,11 @@ export {
   type VideoTranscriptStatus,
   type VideoTranscriptStoragePayload,
 } from '../../shared/videoTranscripts/schema.js';
+export {
+  TRANSCRIPT_STOP_WORDS,
+  TRANSCRIPT_TOKEN_MIN_LENGTH,
+  buildSearchTokens,
+} from '../../shared/videoTranscripts/searchIndex.js';
 
 export type VideoTranscriptDoc = VideoTranscriptDocShape<Timestamp>;
 export type VideoTranscriptSearchDoc = VideoTranscriptSearchDocShape<Timestamp>;
