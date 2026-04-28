@@ -36,7 +36,7 @@
 | **M1. Cross-layer features → pages** | ✅ | Wave 10: `roleHelpers` поднят в `src/lib/`, импорты обновлены, dead re-export из `pages/admin/users/index.ts` убран. |
 | M2. Feature → feature импорты | — | через barrel, ок |
 | **M3. Устаревшие docs** | ✅ | Wave 10: routes.md (legacy `/tests/authors*` и `/admin/homepage` убраны, добавлены `/admin/announcements`, `/admin/groups`, динамические course routes, `/_debug/*` под DEV); firestore-schema.md (User под актуальную role-модель + booking/BYOK/home поля; добавлены `groups`, `aiUsageDaily`, `videoTranscriptSearch + searchChunks` с `searchTokens`); booking-system.md обновлён в Wave 9. |
-| **M4. JS центральные файлы (`*.jsx`)** | 🟡 частично | `routes.jsx` → `routes/` (TS) ✅. Остаются `App.jsx`, `AppShell.jsx`. |
+| **M4. JS центральные файлы (`*.jsx`)** | ✅ | `routes.jsx` → `routes/` (TS) ✅. Wave 11 (2026-04-28): `App.jsx` → `App.tsx`, `AppShell.jsx` → `AppShell.tsx` с типизацией пропсов и helper-сигнатур. Characterization-тест `AppShell.standalone.test.tsx` расширен до 5 кейсов (2 standalone + loading/error/happy-path) — зафиксировал поведение до и после миграции. |
 | **M5. Тестовые пробелы** | ✅ | Wave 1: 78 unit/snapshot для helpers/normalize/api. Wave 8: 6 тестов для transcript-search. Wave 10: 24 теста для `api/admin/books.ts` (auth, CORS, list, jobStatus, create, update, uploadUrl, manage). |
 | M6. Stores | — | OK |
 
@@ -339,13 +339,14 @@ Endpoint делает `collectionGroup(...).get()` по всем transcript chun
 
 ### 10. Центральные app files остаются JS без проверки типов
 
-> **Статус:** `src/routes.jsx` мигрирован в Wave 1 (5abacdd) — теперь
-> `src/routes/*.ts` с типизацией. `App.jsx`, `AppShell.jsx` остаются открытыми.
+> **Статус:** Закрыт. Wave 11 (2026-04-28): `App.jsx` → `App.tsx`, `AppShell.jsx` → `AppShell.tsx`.
+> `src/routes.jsx` мигрирован ранее в Wave 1 (5abacdd) → `src/routes/*.ts`.
+> Все три центральных файла теперь под typecheck.
 
 Файлы:
 
-- `src/App.jsx`
-- `src/app/AppShell.jsx`
+- ~~`src/App.jsx`~~ → `src/App.tsx` ✅
+- ~~`src/app/AppShell.jsx`~~ → `src/app/AppShell.tsx` ✅
 - ~~`src/routes.jsx`~~ → `src/routes/*.ts` (typed) ✅
 
 Риск:

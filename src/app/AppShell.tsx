@@ -1,8 +1,8 @@
-// File: src/app/AppShell.jsx
+// File: src/app/AppShell.tsx
 // AppShell отвечает за отображение основного контента и маршрутов,
-// опираясь на ROUTE_CONFIG, Zustand-сторы и UI-компоненты. Провайдеры (Router/Auth) живут в src/App.jsx.
-import { useMemo, useEffect, useRef } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+// опираясь на ROUTE_CONFIG, Zustand-сторы и UI-компоненты. Провайдеры (Router/Auth) живут в src/App.tsx.
+import { useMemo, useEffect, useRef, type ReactNode } from 'react';
+import { NavLink, useLocation, type Location } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { AnimatePresence } from 'framer-motion';
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, SITE_NAME } from '../routes';
@@ -30,10 +30,29 @@ import { isCoreCourse } from '../constants/courses';
 import { sortNavItemsWithRouteFallback } from '../lib/courseLessons';
 import { getPageCourseId, shouldShowStudentCourseSidebar } from './courseNavigation';
 import { saveLastCourseLesson } from '../lib/lastCourseLesson';
+import type { Period, ClinicalTopic, GeneralTopic } from '../types/content';
 
-const normalizePath = (path) =>
-  path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
-const EMPTY_ROUTE_DATA = new Map();
+interface NavItem {
+  path: string;
+  label: string;
+  order: number;
+  navLabel?: string;
+}
+
+interface BuildCourseNavItemsArgs {
+  courseId: string | null;
+  periodMap: Map<string, Period>;
+  clinicalTopicsMap: Map<string, ClinicalTopic>;
+  generalTopicsMap: Map<string, GeneralTopic>;
+  dynamicLessonsMap: Map<string, Period>;
+}
+
+function normalizePath(path: string): string;
+function normalizePath(path: string | undefined | null): string | undefined | null;
+function normalizePath(path: string | undefined | null): string | undefined | null {
+  return path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
+}
+const EMPTY_ROUTE_DATA: Map<string, Period> = new Map();
 
 function buildCourseNavItems({
   courseId,
@@ -41,7 +60,7 @@ function buildCourseNavItems({
   clinicalTopicsMap,
   generalTopicsMap,
   dynamicLessonsMap,
-}) {
+}: BuildCourseNavItemsArgs): NavItem[] {
   if (!courseId) {
     return [];
   }
@@ -98,7 +117,7 @@ function buildCourseNavItems({
   return sortNavItemsWithRouteFallback(routes, items);
 }
 
-function RoutePager({ currentPath, navItems }) {
+function RoutePager({ currentPath, navItems }: { currentPath: string; navItems: NavItem[] }) {
   const normalizedPath = normalizePath(currentPath);
   const currentIndex = navItems.findIndex((item) => normalizePath(item.path) === normalizedPath);
   if (currentIndex === -1) return null;
@@ -143,7 +162,12 @@ function RoutePager({ currentPath, navItems }) {
   );
 }
 
-function StandaloneLandingShell({ location, isSuperAdmin }) {
+interface StandaloneLandingShellProps {
+  location: Location;
+  isSuperAdmin: boolean;
+}
+
+function StandaloneLandingShell({ location, isSuperAdmin }: StandaloneLandingShellProps) {
   return (
     <AppRoutes
       location={location}
@@ -155,7 +179,13 @@ function StandaloneLandingShell({ location, isSuperAdmin }) {
   );
 }
 
-function MainAppShell({ location, normalizedPath, isSuperAdmin }) {
+interface MainAppShellProps {
+  location: Location;
+  normalizedPath: string;
+  isSuperAdmin: boolean;
+}
+
+function MainAppShell({ location, normalizedPath, isSuperAdmin }: MainAppShellProps) {
   const { periods, loading, error } = usePeriods();
   const { topics: clinicalTopics, loading: clinicalLoading, error: clinicalError } = useClinicalTopics();
   const { topics: generalTopics, loading: generalLoading, error: generalError } = useGeneralTopics();
@@ -183,7 +213,7 @@ function MainAppShell({ location, normalizedPath, isSuperAdmin }) {
   const currentCourse = useCourseStore((state) => state.currentCourse);
   const pageCourseId = getPageCourseId(normalizedPath);
   const showStudentSidebar = !isProfilePage && shouldShowStudentCourseSidebar(normalizedPath);
-  const lastSidebarPathRef = useRef(null);
+  const lastSidebarPathRef = useRef<string | null>(null);
   const shouldMirrorPageCourseInSidebar = Boolean(pageCourseId && lastSidebarPathRef.current !== normalizedPath);
   const sidebarCourseId = shouldMirrorPageCourseInSidebar ? pageCourseId : currentCourse;
 
@@ -217,9 +247,9 @@ function MainAppShell({ location, normalizedPath, isSuperAdmin }) {
   }, [normalizedPath, pageCourseId, setCurrentCourse]);
 
   const periodMap = useMemo(() => {
-    const map = new Map();
+    const map = new Map<string, Period>();
     periods.forEach((period) => {
-      const key = period.id ?? period.period;
+      const key = (period as Period & { id?: string }).id ?? period.period;
       if (key) {
         map.set(key, period);
       }
@@ -307,7 +337,7 @@ function MainAppShell({ location, normalizedPath, isSuperAdmin }) {
       : undefined;
 
   if (loading || clinicalLoading || generalLoading) return <LoadingSplash />;
-  if (error) return <ErrorState message={error.message} />;
+  if (error) return <ErrorState message={(error as unknown as { message: string }).message} />;
   if (clinicalError) return <ErrorState message={clinicalError.message} />;
   if (generalError) return <ErrorState message={generalError.message} />;
   if (!periods.length && !pageDynamicCourseId) return <EmptyState />;
