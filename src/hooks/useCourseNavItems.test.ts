@@ -56,6 +56,22 @@ describe('buildCourseNavItems', () => {
     expect(items.some((item) => item.path === '/general/draft')).toBe(false);
   });
 
+  it('keeps static intro before Firestore lessons with order 0', () => {
+    const items = buildCourseNavItems(
+      'general',
+      new Map([
+        ['general-1', makeTopic({ period: 'general-1', title: 'Первое занятие', order: 0 })],
+        ['general-2', makeTopic({ period: 'general-2', title: 'Второе занятие', order: 1 })],
+      ])
+    );
+
+    expect(items.slice(0, 3)).toEqual([
+      { path: '/general/intro', label: 'Введение' },
+      { path: '/general/1', label: 'Первое занятие' },
+      { path: '/general/2', label: 'Второе занятие' },
+    ]);
+  });
+
   it('can require backing data for static core routes', () => {
     const items = buildCourseNavItems(
       'general',

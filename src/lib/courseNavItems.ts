@@ -69,12 +69,12 @@ export function buildCourseNavItems(
       if (!data) return includeMissingStaticRoutes;
       return data.published !== false;
     })
-    .map((config) => {
+    .map((config, routeIndex) => {
       const data = config.periodId ? topics.get(config.periodId) : null;
       return {
         path: config.path,
         label: data?.label || data?.title || config.navLabel,
-        order: data?.order,
+        order: data?.order ?? routeIndex,
       };
     });
 
