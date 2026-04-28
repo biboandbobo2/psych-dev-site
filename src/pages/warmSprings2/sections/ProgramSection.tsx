@@ -13,7 +13,10 @@ export function ProgramSection() {
               <div className="ws2-timeline-body">
                 <h3>{item.title}</h3>
                 <span className="ws2-timeline-duration">{item.duration}</span>
-                <p>{item.text}</p>
+                <p>
+                  <strong className="ws2-timeline-lead">{item.lead}</strong>
+                  {item.text}
+                </p>
               </div>
             </div>
           ))}

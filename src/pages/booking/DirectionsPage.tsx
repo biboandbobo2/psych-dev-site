@@ -12,7 +12,7 @@ const ADDRESS_LINES = [
   'თბილისი, ორბელიანი 38 | მტკვარი 2',
 ];
 
-const MAP_LINK = 'https://www.google.com/maps/search/?api=1&query=Tbilisi%2C%20Orbeliani%2038%20Mtkvari%202';
+const MAP_LINK = 'https://maps.app.goo.gl/RPs8p2rAwCkdJP1f9';
 
 const SPACE_PHOTOS = [
   '/images/rooms/izumrudny/6n55tg9djb.jpg',
@@ -77,7 +77,7 @@ export function DirectionsPage({ embedded = false }: DirectionsPageProps) {
 
           <aside className="rounded-2xl overflow-hidden border border-dom-gray-200 bg-white shadow-brand">
             <img
-              src="/images/warm-springs-2/bg-hills.jpg"
+              src="/images/tbilisi/tbilisi-cityview.jpg"
               alt="Тбилиси"
               className="w-full aspect-[4/3] object-cover"
               loading="lazy"

@@ -8,6 +8,11 @@ const ROOM_PHOTOS = [
   '/images/rooms/bordovy/11kukj54bu.jpg',
 ];
 
+const TBILISI_PHOTOS = [
+  '/images/tbilisi/tbilisi-hill-view.jpg',
+  '/images/tbilisi/tbilisi-cityview.jpg',
+];
+
 export function VenueSection() {
   return (
     <FadeSection className="ws2-section ws2-venue">
@@ -29,8 +34,9 @@ export function VenueSection() {
           <img src={`${IMG}/venue-details.jpg`} alt="Детали пространства" loading="lazy" />
         </div>
         <div className="ws2-venue-city-grid" aria-label="Тбилиси и кабинеты DOM">
-          <img src={`${IMG}/bg-hills.jpg`} alt="Тбилиси" loading="lazy" />
-          <img src={`${IMG}/bg-plants.jpg`} alt="Тбилиси летом" loading="lazy" />
+          {TBILISI_PHOTOS.map((src) => (
+            <img key={src} src={src} alt="Тбилиси" loading="lazy" />
+          ))}
           {ROOM_PHOTOS.map((src) => (
             <img key={src} src={src} alt="Кабинет DOM" loading="lazy" />
           ))}
