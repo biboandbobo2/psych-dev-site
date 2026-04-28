@@ -1,7 +1,7 @@
 import type { UserRecord } from '../../../../hooks/useAllUsers';
 import type { CourseAccessMap } from '../../../../types/user';
 import { countAccessibleCourses } from '../../../../types/user';
-import { getRoleLabel, getRoleBadgeClasses, computeDisplayRole } from '../utils/roleHelpers';
+import { getRoleLabel, getRoleBadgeClasses, computeDisplayRole } from '../../../../lib/roleHelpers';
 
 interface CourseOption {
   id: string;
