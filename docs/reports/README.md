@@ -10,6 +10,10 @@
 - [PRE_GITHUB_CHANGES_PLAN.md](PRE_GITHUB_CHANGES_PLAN.md) — план подготовки репозитория к публикации
 - [PRE_GITHUB_CHANGES_DONE.md](PRE_GITHUB_CHANGES_DONE.md) — что было сделано по этому плану
 
+> Закрытые большие ревью переезжают в [`docs/archive/reports/`](../archive/reports/). Последние:
+> - `CODE_REVIEW_MAIN_2026-04-27.md` — полный аудит main с критическими/high/medium findings, закрыт 11 волнами рефакторинга, merge коммитом `b33bdc1` (2026-04-28). Сводка — [REFRACTORING_ARCHIVE.md](../archive/REFRACTORING_ARCHIVE.md#code-review-2026-04-27--waves-1-11-закрыт-2026-04-28).
+> - `BOOKING_AUTH_C1_DECISION_2026-04-28.md` — материалы для решения по C1 (booking auth-bypass). Реализован Вариант 3 «email-link для всех» (wave-9).
+
 ## Инфраструктурные cleanup-отчёты
 
 - [ARTIFACT_REGISTRY_INVESTIGATION.md](ARTIFACT_REGISTRY_INVESTIGATION.md) — инвентарь и анализ Artifact Registry
@@ -32,4 +36,4 @@
 
 его место в `docs/reports/`, а не в корне репозитория.
 
-**Последнее обновление:** 2026-03-12
+**Последнее обновление:** 2026-04-28

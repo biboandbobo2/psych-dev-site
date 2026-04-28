@@ -70,7 +70,7 @@ useEffect(() => {
 }, [searchParams, setCurrentCourse]);
 ```
 
-**Определение курса в AppShell.jsx:**
+**Определение курса в AppShell.tsx:**
 ```typescript
 const currentCourse = useCourseStore((state) => state.currentCourse);
 
@@ -125,8 +125,8 @@ const isDevelopmentCourse = !isClinicalCourse && !isGeneralCourse;
 
 ### Файлы маршрутизации
 
-#### `src/routes.jsx`
-Добавлены две новые конфигурации маршрутов:
+#### `src/routes/`
+Конфигурации маршрутов разнесены по типизированным модулям (`clinical.ts`, `general.ts`, `development.ts`, агрегация — `index.ts`):
 
 ```typescript
 export const CLINICAL_ROUTE_CONFIG = [
@@ -215,7 +215,7 @@ export function useClinicalTopics() {
 
 ### Компоненты отображения
 
-#### `src/app/AppShell.jsx`
+#### `src/app/AppShell.tsx`
 Обновлён для поддержки трёх курсов:
 
 ```typescript
@@ -729,11 +729,11 @@ npm run dev
 ## Рекомендации для разработки
 
 1. **При добавлении нового курса:**
-   - Создать конфигурацию в `src/routes.jsx`
+   - Создать конфигурацию в `src/routes/` (новый модуль + регистрация в `index.ts`)
    - Добавить хук загрузки данных в `src/hooks/`
    - Обновить типы в `src/types/content.ts`
    - Создать индекс в `firestore.indexes.json`
-   - Обновить `AppShell.jsx` и `AppRoutes.tsx`
+   - Обновить `AppShell.tsx` и `AppRoutes.tsx`
 
 2. **При изменении формата данных:**
    - Обновить типы в `src/types/content.ts`

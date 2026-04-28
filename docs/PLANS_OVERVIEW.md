@@ -24,6 +24,6 @@
 1. Подробные рефакторинг-планы перенесены в `docs/archive/REFRACTORING_ARCHIVE.md`; актуальные задачи находятся в `docs/processes/audit-backlog.md`.
 2. `docs/archive/legacy/TIMELINE_REFACTORING_PLAN.md` и `docs/archive/legacy/CORE_REFACTORING_PLAN.md` оставлены как указатели; при обновлении документации используйте `REFRACTORING_ARCHIVE`.
 3. Корневой `README.md` уже сокращён до роли entrypoint; глубокие guide/reference/process документы живут в `docs/*`.
-4. Последний полный review-pass сохранён в `docs/reports/CODE_REVIEW_2026-03-12.md`; новые runtime/documentation follow-up задачи синхронизируются через `docs/processes/audit-backlog.md`.
+4. Последний полный review-pass — `docs/archive/reports/CODE_REVIEW_MAIN_2026-04-27.md` (закрыт 11 волнами, merge коммитом `b33bdc1` 2026-04-28; сводка в [REFRACTORING_ARCHIVE.md](archive/REFRACTORING_ARCHIVE.md#code-review-2026-04-27--waves-1-11-закрыт-2026-04-28)). Предыдущий — `docs/reports/CODE_REVIEW_2026-03-12.md`. Новые runtime/documentation follow-up задачи синхронизируются через `docs/processes/audit-backlog.md`.
 
 > Обновляйте этот файл после каждой крупной фазы или аудита, чтобы новые участники сразу понимали статус.

@@ -43,14 +43,28 @@
                     └─────────────────────┘
 ```
 
-## Vercel Functions (4 из 12 лимита)
+## Vercel Functions (4 из текущего лимита 8/12)
+
+> Лимит — Vercel Hobby plan (12 functions). На 2026-04-28 проект использует 8/12 (было 9/12 до wave-9, освободилась `api/auth.ts`). Books подсистема занимает 2 точки входа из общих 8.
 
 | Файл | Назначение |
 |------|------------|
-| `/api/admin/books.ts` | Unified admin endpoint (6 actions) |
-| `/api/books.ts` | Unified public RAG endpoint (4 actions) |
+| `/api/admin/books.ts` | Unified admin endpoint (6 actions); CORS allowlist через `appOrigins` (wave-10) |
+| `/api/books.ts` | Unified public RAG endpoint (4 actions); strict BYOK + auth Bearer + rate-limit (wave-6) |
 | `/api/assistant.ts` | AI ассистент |
 | `/api/papers.ts` | Научные статьи |
+
+### Security model (after wave-6, 2026-04-26)
+
+- `list` / `snippet` — публичные read-only из Firestore, rate-limit 60 req/min на IP.
+- `search` / `answer` — обязательны:
+  - Firebase Bearer ID token в `Authorization` (`verifyAuthBearer`);
+  - **strict BYOK** Gemini ключ через `X-Gemini-Api-Key` (`requireBYOKGeminiKey` без env fallback). Если ключа нет → `402 BYOK_REQUIRED`;
+  - rate-limit 20 req/min на IP.
+- CORS — allowlist через `src/lib/appOrigins.ts` (academydom.com, vercel preview, localhost). Никаких `Access-Control-Allow-Origin: *`.
+- Каждый успешный search/answer пишет `aiUsageDaily/{uid}_{day}` (tokens из `usageMetadata.totalTokenCount`, requests). Read разрешён только владельцу через Firestore rules.
+- `GEMINI_API_KEY` из env удалён из user-facing path этого endpoint; остаётся только для server-side admin (Cloud Functions, скрипты).
+- Общий runtime helper в `src/lib/api-server/sharedApiRuntime.ts` (CORS / auth / BYOK / rate-limit / usage tracking).
 
 ## Firestore Коллекции
 

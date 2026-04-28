@@ -56,7 +56,7 @@
 ## 🔴 High Priority
 
 ### HR‑2. ✅ Закрыть booking email-login auth bypass — РЕШЕНО (wave-9, 2026-04-28)
-- **Решение:** Вариант 3 «email-link для всех» (после консультации с хозяином помещения, см. [BOOKING_AUTH_C1_DECISION_2026-04-28.md](../reports/BOOKING_AUTH_C1_DECISION_2026-04-28.md)). Endpoint `POST /api/auth?action=loginByEmail` удалён вместе с файлом — выдача custom token по verified email больше невозможна.
+- **Решение:** Вариант 3 «email-link для всех» (после консультации с хозяином помещения, см. [BOOKING_AUTH_C1_DECISION_2026-04-28.md](../archive/reports/BOOKING_AUTH_C1_DECISION_2026-04-28.md)). Endpoint `POST /api/auth?action=loginByEmail` удалён вместе с файлом — выдача custom token по verified email больше невозможна.
 - **Что сделано:**
   - [x] `api/auth.ts` удалён целиком. Освобождена 1 Vercel function (9/12 → 8/12).
   - [x] CORS wildcard в этом файле исчез вместе с ним — закрывается часть C2.
@@ -188,12 +188,12 @@ CI часть (осталась):
   - [ ] Smoke-проверить `https://academydom.com/api/transcript-search?q=психология` через UI.
 
 ### CQ‑7. Рефакторинг новых монолитов и дублей (P: M, E: L)
-- **Источник:** code review `2026-04-27`, см. `docs/reports/CODE_REVIEW_MAIN_2026-04-27.md`.
+- **Источник:** code review `2026-04-27`, см. `docs/archive/reports/CODE_REVIEW_MAIN_2026-04-27.md`.
 - **Проблема:** после закрытых ранних CQ-задач в проекте снова появились крупные runtime-файлы и дубли helper-логики. На момент ревью: 57 runtime-файлов >300 строк, 13 >500, 2 >800. Крупнейшие: `src/pages/DisorderTable.tsx` (1315), `api/papers.ts` (1206), `src/pages/home/HomeDashboard.tsx` (797), `api/assistant.ts` / `api/lectures.ts` / `api/books.ts`.
 - **Риск:** сложность ревью, высокая связность, локальные изменения чаще цепляют соседнее поведение.
 - **Задачи:**
   - [ ] Разбить `src/pages/DisorderTable.tsx` на components/hooks: фильтры, модалки, comments, entry form, matrix view.
-  - [ ] Свести course navigation helpers к одному canonical path (`AppShell.jsx`, `useCourseNavItems.ts`, `courseLessons.ts` сейчас частично дублируются).
+  - [ ] Свести course navigation helpers к одному canonical path (`AppShell.tsx`, `useCourseNavItems.ts`, `courseLessons.ts` сейчас частично дублируются).
   - [ ] Свести API runtime helpers: Firebase init, CORS, auth/BYOK/rate-limit без нарушения Vercel function limit.
   - [ ] Проверить и удалить устаревший дубль `api/lectureTranscriptFallback.ts`, если он действительно не используется.
   - [ ] Вернуть route-level lazy discipline для `PeriodPage` и `DynamicCoursePeriodPage` через `src/pages/lazy.ts`.

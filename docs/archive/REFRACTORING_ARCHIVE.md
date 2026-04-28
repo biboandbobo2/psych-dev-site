@@ -35,6 +35,7 @@
 | 2025-11-09 | Phase 6 | `SaveNoteAsEventButton` + `useTimeline` юнит-тесты | ✅ проходят, `npm run test` без ошибок | 
 | 2025-11-09 | Phase 6 | `npm run build` | ✅ бандл собирается, warning по большим чанкам (следить) | 
 | 2025-11-09 | Phase 6 (ручной smoke / TODO) | CRUD заметок, экспорт заметок, создание события из заметки | 🟧 выполняется вручную; нужно логировать результаты отдельно |
+| 2026-04-28 | Code Review 2026-04-27 (waves 1-11) | Полный аудит main + 48 коммитов с фиксами C1/C2/C3/H1/H4/H5/H6/H7/M1/M3/M4/M5; merge в main коммитом `b33bdc1` | ✅ все critical/high/medium закрыты; smoke на academydom.com подтвердил CORS allowlist + удаление `/api/auth`; integration 6/6, unit 912 passed |
 
 ## Что дальше
 1. Завести лог прогонов ручных сценариев (добавить сюда или в `docs/PLANS_OVERVIEW.md`) с датой/результатом. Пока процесс ручной, но важны метки.
@@ -119,6 +120,24 @@
 - **5. Тестирование и QA.** Добавлен `npm run test:ci`, настроен CI (lint → test → build → e2e), заведена интеграционная инфраструктура на Firebase эмуляторах (`tests/integration/**`, `test:integration`). Playwright настроен, `tests/e2e/production-smoke.spec.ts` покрывает базовые сценарии и запускается в CI, traces сохраняются. Скрипт `scripts/check-module-initialization.cjs` устранил 8 module-init warning'ов; `docs/architecture/guidelines.md` описывает политику тестирования загрузки модулей.
 - **6. Качество кода.** Удалены устаревшие хуки/скрипты (`usePeriods.js`, CSV tooling), централизована обработка ошибок (`ErrorBoundary`, `reportAppError`). 
 - **7. Документация и процессы.** Введён `docs/processes/qa-smoke-log.md`, `docs/guides/timeline.md` синхронизирован с архивом и актуальными задачами, `docs/guides/testing-system.md` отражает модульную архитектуру и новые хуки редактора тестов.
+
+
+### Code Review 2026-04-27 — waves 1-11 (закрыт 2026-04-28)
+- ✅ Полный аудит main, оформлен в [`CODE_REVIEW_MAIN_2026-04-27.md`](reports/CODE_REVIEW_MAIN_2026-04-27.md), все critical/high/medium закрыты 11 волнами рефакторинга и смерджены в main коммитом `b33bdc1`.
+- 📌 Ключевые блоки:
+  - **Wave 1 (UI распил):** 10 монолитов >400 LoC разбиты на 70+ модулей ≤200 LoC (DisorderTable, HomeDashboard, SuperAdminTaskPanel, Timeline, AdminContent, CourseIntroEditor, GroupEditorModal, useContentSearch, WarmSprings2Page, routes.jsx → routes/). +78 unit/snapshot.
+  - **Wave 2 (API распил):** 5 endpoints (papers, booking, assistant, books, lectures) с 3763 → 1195 LoC, +18 helper-модулей в `api/_lib/`. Общий `initFirebaseAdmin()` вместо 7 inline-копий.
+  - **Wave 6 (`/api/books` security):** strict BYOK без env fallback, auth Bearer, rate-limit, CORS allowlist через `appOrigins`, BYOK usage counter в профиле через `aiUsageDaily/{uid}_{day}`.
+  - **Wave 7 (guardrails):** ESLint покрывает ts/tsx через typescript-eslint v8, `no-console: error`, `check-console --all`, 50 runtime `console.*` → debug-helpers (плюс короткий whitelist для prod-error reporting).
+  - **Wave 8 (H7 transcript-search):** keyword prefix-индекс через `searchTokens` array + `array-contains-any` query, full scan по 20k chunks убран. Backfill выполнен на prod до merge.
+  - **Wave 9 (C1 booking auth-bypass):** `api/auth.ts` удалён целиком (с `loginByEmail`), оба пути входа через `sendSignInLinkToEmail`. Освобождена 1 Vercel function (9/12 → 8/12). Решение — Вариант 3 «email-link для всех» по [BOOKING_AUTH_C1_DECISION_2026-04-28.md](reports/BOOKING_AUTH_C1_DECISION_2026-04-28.md).
+  - **Wave 10:** C2-admin (`api/admin/books.ts` → CORS allowlist), H4 (debug-routes под `import.meta.env.DEV`), M1 (`roleHelpers` в `src/lib/`), M3 (sync `routes.md` и `firestore-schema.md`), M5 (24 теста для admin/books).
+  - **Wave 11 (M4):** `App.jsx` → `App.tsx`, `AppShell.jsx` → `AppShell.tsx` с типизацией; characterization-тест расширен до 5 кейсов.
+- 🔧 Verification (pre-merge):
+  - `npm run validate` ✅; `npm run test:integration` (Java 21) — 6/6 ✅; полный vitest unit-suite — 912 passed.
+  - Vercel preview smoke по 15 страницам — 0 console errors.
+  - C1 e2e подтверждён пользователем (silent login через email-link); CORS allowlist подтверждён на проде (`evil.com → нет Allow-Origin`; `academydom.com → точный origin + Vary`).
+- 🔗 Открытые follow-up'ы (CI часть HP-1, HP-2 Playwright, CQ-7 рефакторинг, MR-3, MR-5, HM-4/5) — в [`docs/processes/audit-backlog.md`](../processes/audit-backlog.md).
 
 > ℹ️ Полные версии планов доступны в истории git (перед архивацией). Если нужен оригинальный текст — используйте `git show` по предыдущим коммитам.
 
