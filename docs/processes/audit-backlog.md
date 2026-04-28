@@ -22,6 +22,7 @@
 | MR-2 | ✅ | Починить `npm run test:ci` | Закрыта 2026-04-27: `--runInBand` → `--no-file-parallelism` (Vitest 4 эквивалент) в `test:ci` и `test:integration`. |
 | MR-3 | M (S) | Убрать `lessonRef as never` | типизированный payload dynamic course lessons |
 | MR-4 | ✅ | Починить stale `authStore.test.ts` | Закрыта 2026-04-27: переписан под `UserRole = 'admin' \| 'super-admin' \| null`, убраны проверки удалённого `isStudent`, добавлен кейс role=null. 2/2 зелёных. |
+| MR-5 | M (S-M) | Синхронизировать `firestore.indexes.json` с БД и починить vector-deploy | `firebase deploy --only firestore:indexes` падает на vector index `book_chunks/embedding` (CLI bug 14.22.0 с `__name__`); 4 prod-индекса есть в БД, но отсутствуют в файле. Workaround сейчас: создавать новые индексы через gcloud/REST. |
 | UX-1 | L (L) | Profile v2 — унификация с акварельной палитрой | ожидаем брендбук от дизайнера, после — полный редизайн Profile + вложенных секций |
 | LP-1 | L (M) | Observability / telemetry | Базовый logger (Sentry/PostHog), описание процессов |
 | LP-5 | L (S-M) | Firebase/GCP follow-ups | dependency review, cleanup policy, индексы, Telegram formatting |
@@ -220,6 +221,42 @@ CI часть (осталась):
   - [x] Тест-кейс «студент» переименован в «role=null» — проверяет, что `isAdmin/isSuperAdmin` сбрасываются в false при `setUserRole(null)` (студенты/гости — это `userRole === null`, фактическая роль вычисляется через `computeDisplayRole(userRole, courseAccess)` поверх).
   - [x] Не дублирует `roleHelpers.test.ts` — там тестируется чистая функция `computeDisplayRole`, здесь — собственно стор и derivation `isAdmin/isSuperAdmin` от `setUserRole`.
   - [x] 2/2 зелёных в локальном прогоне.
+
+### MR‑5. Синхронизировать `firestore.indexes.json` с БД и починить vector-deploy (P: M, E: S-M)
+- **Источник:** замечено 2026-04-28 при попытке `firebase deploy --only firestore:indexes` для wave-8 (H7).
+- **Симптом 1 — vector-deploy ломается:**
+  ```
+  Error: ... book_chunks/indexes had HTTP Error: 400, No valid order or array
+  config provided: field_path: "__name__"
+  ```
+  CLI 14.22.0 при пересоздании composite index с `vectorConfig` (например
+  `book_chunks: bookId + embedding`) неявно добавляет `__name__` поле без
+  `order`/`array_config`, Firestore API это режектит. Известный баг
+  firebase-tools, нет надёжного фикса в актуальной версии.
+- **Симптом 2 — рассинхрон:**
+  ```
+  firestore: there are 4 indexes defined in your project that are not
+  present in your firestore indexes file.
+  ```
+  4 composite индекса на проде созданы вне файла (через Firebase Console UI
+  или auto-предложением Firestore при failing query). Файл не source of
+  truth — `firestore.indexes.json` (11 записей) расходится с БД (~15).
+- **Риск:** runtime не страдает (existing индексы работают), но
+  `firebase deploy --only firestore:indexes` неисполним. Любое будущее
+  изменение индексов требует workaround через gcloud/REST API/Console.
+- **Workaround сейчас (использован для wave-8):**
+  ```bash
+  TOKEN=$(gcloud auth print-access-token)
+  curl -X PATCH \
+    "https://firestore.googleapis.com/v1/projects/PROJECT/databases/(default)/collectionGroups/COLL_GROUP/fields/FIELD?updateMask=indexConfig" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -d '{"indexConfig":{"indexes":[{"queryScope":"COLLECTION_GROUP","fields":[...]}]}}'
+  ```
+- **Задачи:**
+  - [ ] Синхронизировать `firestore.indexes.json` с реальной БД — добавить 4 missing composite indexes (см. вывод `firebase deploy` без `--force`).
+  - [ ] Решить судьбу vector index в файле: либо вынести vector indexes из файла и держать только на сервере (создавать через `gcloud`/Console), либо дождаться фикса firebase-tools и обновить CLI.
+  - [ ] Прогнать `firebase deploy --only firestore:indexes` без ошибок.
+  - [ ] Документировать в `docs/architecture/guidelines.md` или `docs/development/testing-workflow.md`: «Firestore index workflow — где создаём через файл, где через gcloud/Console».
 
 ### UX‑1. Profile v2 — унификация с акварельной палитрой (P: L, E: L)
 - **Проблема:** Profile.tsx оставлен в старой палитре: синий→фиолетовый градиент в hero-полосе, `bg-teal-*` / `bg-blue-*` / `bg-purple-*` / розово-фуксиевый gradient в `SuperAdminBadge`, `SearchHistorySection`, `GeminiKeySection`, `FeedbackButton variant="profile"`. Минимальная правка (hero max-w-4xl, role badges, avatar fallback) сделана в `9107e62`, остальное откладываем до получения брендбука от дизайнера.
