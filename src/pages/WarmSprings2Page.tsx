@@ -5,6 +5,7 @@ import { Nav } from './warmSprings2/components/Nav';
 import { HeroSection } from './warmSprings2/sections/HeroSection';
 import { MethodSection } from './warmSprings2/sections/MethodSection';
 import { AudienceSection } from './warmSprings2/sections/AudienceSection';
+import { ResultsSection } from './warmSprings2/sections/ResultsSection';
 import { ProgramSection } from './warmSprings2/sections/ProgramSection';
 import { TeamSection } from './warmSprings2/sections/TeamSection';
 import { VenueSection } from './warmSprings2/sections/VenueSection';
@@ -31,6 +32,7 @@ export default function WarmSprings2Page() {
       <HeroSection />
       <MethodSection />
       <AudienceSection />
+      <ResultsSection />
       <ProgramSection />
       <TeamSection />
       <VenueSection />

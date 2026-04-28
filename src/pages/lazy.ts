@@ -83,3 +83,9 @@ export const BookingPricingPage = lazy(() =>
     'BookingPricingPage'
   )
 );
+export const BookingDirectionsPage = lazy(() =>
+  lazyWithReload(
+    () => importBookingPages().then((module) => ({ default: module.DirectionsPage })),
+    'BookingDirectionsPage'
+  )
+);

@@ -12,7 +12,7 @@ export function Nav() {
           <a href="#price">Стоимость</a>
         </div>
         <a href={TG_LINK} target="_blank" rel="noopener noreferrer" className="ws2-nav-cta">
-          Заявка
+          Собеседование
         </a>
       </div>
     </nav>

@@ -1,6 +1,6 @@
 import { FadeSection } from '../components/FadeSection';
 import { InstructorCard } from '../components/InstructorCard';
-import { IMG, instructors } from '../data';
+import { instructors } from '../data';
 
 export function TeamSection() {
   const pair1 = instructors.filter((i) => i.pair === 1);
@@ -15,9 +15,6 @@ export function TeamSection() {
           индивидуальной и групповой работы. Мультимодальная команда, связанная общими
           ценностями и подходом.
         </p>
-        <div className="ws2-team-anime">
-          <img src={`${IMG}/team-anime.jpg`} alt="Команда ведущих" loading="lazy" />
-        </div>
 
         <div className="ws2-pair-label">Ко-терапевты &middot; Первая пара</div>
         <div className="ws2-instructors-grid">

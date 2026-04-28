@@ -1,6 +1,6 @@
 import { CtaButton } from '../components/CtaButton';
 import { FadeSection } from '../components/FadeSection';
-import { prices } from '../data';
+import { SUMMER_SCHOOL_LINK, prices } from '../data';
 
 export function PriceSection() {
   return (
@@ -26,6 +26,19 @@ export function PriceSection() {
           подробности.
         </p>
         <p className="ws2-price-discount">Для членов комьюнити DOM действуют скидки.</p>
+        <p className="ws2-price-school">
+          Если вы едете на{' '}
+          <a
+            href={SUMMER_SCHOOL_LINK}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ws2-link"
+          >
+            летнюю психологическую школу
+          </a>
+          , вы получаете скидку на интенсив 100 лари. Скидка комьюнити действует, но не
+          суммируется.
+        </p>
         <p className="ws2-price-cert">
           По окончании курса участники получают официальный сертификат от Психологической
           академии DOM.

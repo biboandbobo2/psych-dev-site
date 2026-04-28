@@ -55,6 +55,7 @@
 | `/booking/account` | `BookingAccountPage` | Личный кабинет бронирований |
 | `/booking/photos` | `BookingPhotosPage` | Фотогалерея кабинетов |
 | `/booking/pricing` | `BookingPricingPage` | Тарифы и цены |
+| `/booking/directions` | `BookingDirectionsPage` | Адрес DOM и маршрут к пространству в Тбилиси |
 
 **Layout:** `BookingSectionLayout` — standalone layout (Sofia Sans, DOM-цвета), отдельный от основного приложения. Бронирование кабинетов в психологическом центре «Dom» в Тбилиси через alteg.io API.
 

@@ -5,8 +5,8 @@ export function FinalCtaSection() {
     <section className="ws2-final">
       <div className="ws2-final-overlay" />
       <div className="ws2-final-content">
-        <h2>Присоединяйтесь</h2>
-        <p>Тбилиси &middot; 31 июля — 2 августа 2026</p>
+        <h2>Начните вести группу уверенно уже этим летом</h2>
+        <p>Три дня практики, которые изменят ваши ощущения от групповой работы</p>
         <CtaButton />
       </div>
     </section>

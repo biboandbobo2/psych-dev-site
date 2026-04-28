@@ -73,6 +73,12 @@ export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
                   Стоимость аренды
                 </Link>
                 <Link
+                  to="/booking/directions"
+                  className="px-5 py-2.5 rounded-xl text-base font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
+                >
+                  Как добраться
+                </Link>
+                <Link
                   to="/home"
                   className="px-5 py-2.5 rounded-xl text-base font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
                 >

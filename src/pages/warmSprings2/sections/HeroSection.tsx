@@ -18,6 +18,11 @@ export function HeroSection() {
           <span className="ws2-nowrap">&laquo;Тёплые ключи&nbsp;2&raquo;</span>
           &mdash;&nbsp;пространство, где профессиональный рост неотделим от личного опыта
         </p>
+        <p className="ws2-hero-audience">
+          Для психологов, которые боятся вести группы
+          <br />
+          или хотят делать это глубже и увереннее
+        </p>
         <CtaButton className="ws2-hero-cta" />
       </div>
     </section>

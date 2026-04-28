@@ -50,7 +50,20 @@ export function PhotosPage({ embedded = false }: PhotosPageProps) {
       </Helmet>
 
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12 py-12">
-        <h1 className="text-3xl font-bold text-dom-gray-900 mb-10">Фотографии кабинетов</h1>
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-10">
+          <div>
+            <h1 className="text-3xl font-bold text-dom-gray-900 mb-2">Фотографии кабинетов</h1>
+            <p className="text-dom-gray-500">
+              DOM находится по адресу Орбелиани 38 | Мтквари 2.
+            </p>
+          </div>
+          <Link
+            to="/booking/directions"
+            className="inline-flex justify-center px-5 py-3 rounded-xl border border-dom-gray-200 text-dom-gray-700 font-medium hover:bg-dom-cream transition-all"
+          >
+            Как добраться
+          </Link>
+        </div>
 
         {ROOMS_WITH_PHOTOS.map((room) => (
           <section key={room.id} className="mb-14">

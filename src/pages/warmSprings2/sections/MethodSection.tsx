@@ -1,5 +1,5 @@
 import { FadeSection } from '../components/FadeSection';
-import { IMG } from '../data';
+import { IMG, participantOutcomes } from '../data';
 
 export function MethodSection() {
   return (
@@ -8,6 +8,9 @@ export function MethodSection() {
         <h2 className="ws2-h2">О методе</h2>
         <div className="ws2-method-grid">
           <div className="ws2-method-text">
+            <h3 className="ws2-method-lead">
+              Метод, который учит не техникам, а мышлению группового терапевта
+            </h3>
             <p>
               Интенсив наследует и развивает{' '}
               <a
@@ -45,27 +48,35 @@ export function MethodSection() {
               феноменов, которые участники успевают и прожить, и осмыслить, и понять с точки
               зрения ведения группы.
             </p>
+            <div className="ws2-participant-outcomes">
+              <h3>Участник интенсива сможет:</h3>
+              <ul>
+                {participantOutcomes.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
             <div className="ws2-method-levels">
               <h3>Три уровня работы</h3>
               <div className="ws2-level">
                 <span className="ws2-level-num">1</span>
                 <div>
-                  <strong>Проживание</strong>
-                  <p>Динамическое взаимодействие в группе, непосредственный опыт</p>
+                  <strong>Проживание опыта</strong>
+                  <p>перестанете бояться группы и почувствуете себя в ней почти как рыба в воде</p>
                 </div>
               </div>
               <div className="ws2-level">
                 <span className="ws2-level-num">2</span>
                 <div>
                   <strong>Осмысление</strong>
-                  <p>Анализ происходящего, осознавание процессов</p>
+                  <p>начнёте видеть процессы, а не «хаос», и поймёте, как их концептуализировать</p>
                 </div>
               </div>
               <div className="ws2-level">
                 <span className="ws2-level-num">3</span>
                 <div>
                   <strong>Методический анализ</strong>
-                  <p>Разбор с точки зрения ведения группы</p>
+                  <p>поймёте связь между действиями ведущего и происходящим в группе</p>
                 </div>
               </div>
             </div>
