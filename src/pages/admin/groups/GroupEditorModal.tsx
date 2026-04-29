@@ -73,6 +73,14 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
     [courses],
   );
 
+  // «Актуальные» — подсветка на /home, всегда подмножество «открытых».
+  // Кандидаты ограничиваем уже отмеченными в первом блоке, чтобы админ
+  // не выбрал actual-курс, который пейволл закроет участникам потока.
+  const featuredCandidateCourses = useMemo(
+    () => sortedCourses.filter((c) => grantedCourses.has(c.id)),
+    [sortedCourses, grantedCourses],
+  );
+
   const adminUsers = useMemo(
     () => users.filter((u) => u.role === 'admin' || u.role === 'super-admin'),
     [users],
@@ -252,23 +260,36 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
           </div>
 
           <CourseChecklistField
-            legend={`Курсы группы (${grantedCourses.size})`}
+            legend={`Открытые курсы группы (${grantedCourses.size})`}
+            description={
+              <>
+                Курсы открыты всем участникам потока — без отметки контент закрыт пейволлом.
+                Количество не ограничено.
+              </>
+            }
             courses={sortedCourses}
             loading={coursesLoading}
             isChecked={(id) => grantedCourses.has(id)}
-            onToggle={(id) => setGrantedCourses((prev) => toggleSet(prev, id))}
+            onToggle={(id) => {
+              const wasGranted = grantedCourses.has(id);
+              setGrantedCourses((prev) => toggleSet(prev, id));
+              if (wasGranted) {
+                setFeaturedCourseIds((prev) => prev.filter((cid) => cid !== id));
+              }
+            }}
             disabled={saving}
           />
 
           <CourseChecklistField
-            legend={`Актуальные курсы (${featuredCourseIds.length}/${MAX_FEATURED_COURSES})`}
+            legend={`Актуальные в этом семестре (${featuredCourseIds.length}/${MAX_FEATURED_COURSES})`}
             description={
               <>
-                Эти курсы будут показаны как актуальные у студентов группы. Если студент сам
-                выбрал актуальные курсы в профиле — приоритет у его выбора.
+                Подсветятся в карточке «Продолжить» на главной у студентов потока. Если у
+                студента есть личный выбор актуальных курсов — приоритет у него. Можно выбрать
+                только из открытых выше, максимум {MAX_FEATURED_COURSES}.
               </>
             }
-            courses={sortedCourses}
+            courses={featuredCandidateCourses}
             loading={coursesLoading}
             isChecked={(id) => featuredCourseIds.includes(id)}
             onToggle={(id) =>
