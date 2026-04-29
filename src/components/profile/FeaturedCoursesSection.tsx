@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useCourses } from '../../hooks/useCourses';
+import { useMyGroups } from '../../hooks/useMyGroups';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { setMyFeaturedCourses } from '../../lib/adminFunctions';
 import { debugError } from '../../lib/debug';
@@ -16,6 +17,7 @@ export function FeaturedCoursesSection() {
   const featuredCourseIds = useAuthStore((s) => s.featuredCourseIds);
   const hasCourseAccess = useAuthStore((s) => s.hasCourseAccess);
   const { courses, loading: coursesLoading } = useCourses();
+  const { groups } = useMyGroups();
 
   const [selected, setSelected] = useState<string[]>(featuredCourseIds);
   const [editing, setEditing] = useState(false);
@@ -40,6 +42,40 @@ export function FeaturedCoursesSection() {
     for (const c of courses) map.set(c.id, c);
     return map;
   }, [courses]);
+
+  // Объединение featured-курсов всех групп пользователя (дедуп, фильтр по
+  // accessible, лимит 3). Используется для подсказки в профиле: что сейчас
+  // подсвечивается на /home, если личного выбора нет.
+  const groupFeaturedCourseIds = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const g of groups) {
+      for (const id of g.featuredCourseIds ?? []) {
+        if (seen.has(id)) continue;
+        if (!hasCourseAccess(id as CourseType)) continue;
+        seen.add(id);
+        result.push(id);
+        if (result.length >= MAX_FEATURED_COURSES) return result;
+      }
+    }
+    return result;
+  }, [groups, hasCourseAccess]);
+
+  const groupFeaturedSet = useMemo(
+    () => new Set(groupFeaturedCourseIds),
+    [groupFeaturedCourseIds]
+  );
+
+  const startEditing = () => {
+    // Если личных нет — берём групповые как стартовый выбор, чтобы студент
+    // мог их подкрутить, а не собирать с нуля.
+    if (featuredCourseIds.length === 0 && groupFeaturedCourseIds.length > 0) {
+      setSelected(groupFeaturedCourseIds);
+    } else {
+      setSelected(featuredCourseIds);
+    }
+    setEditing(true);
+  };
 
   const toggle = (courseId: string) => {
     setSelected((prev) => {
@@ -86,14 +122,46 @@ export function FeaturedCoursesSection() {
       {!editing ? (
         <div className="mt-4 space-y-3">
           {featuredCourseIds.length === 0 ? (
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="w-full rounded-xl border border-dashed border-border bg-card2 px-4 py-3 text-left text-sm text-muted transition hover:bg-card"
-            >
-              Не выбрано. Сейчас показываются актуальные курсы группы (или
-              последний просмотренный). Нажмите, чтобы выбрать свои.
-            </button>
+            groupFeaturedCourseIds.length > 0 ? (
+              <>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Актуальные у вашего потока
+                </p>
+                <ul className="space-y-2">
+                  {groupFeaturedCourseIds.map((id) => {
+                    const c = courseMap.get(id);
+                    return (
+                      <li
+                        key={id}
+                        className="flex items-center gap-3 rounded-xl border border-border bg-card2 px-3 py-2 text-sm"
+                      >
+                        <span className="text-2xl" aria-hidden>
+                          {c?.icon || '🎓'}
+                        </span>
+                        <span className="flex-1 font-semibold text-fg">
+                          {c?.name ?? id}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="text-sm font-semibold text-accent transition hover:text-[#1F4D22]"
+                >
+                  Изменить под себя →
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={startEditing}
+                className="w-full rounded-xl border border-dashed border-border bg-card2 px-4 py-3 text-left text-sm text-muted transition hover:bg-card"
+              >
+                Не выбрано. Нажмите, чтобы выбрать актуальные курсы.
+              </button>
+            )
           ) : (
             <>
               <ul className="space-y-2">
@@ -119,7 +187,7 @@ export function FeaturedCoursesSection() {
               </ul>
               <button
                 type="button"
-                onClick={() => setEditing(true)}
+                onClick={startEditing}
                 className="text-sm font-semibold text-accent transition hover:text-[#1F4D22]"
               >
                 Изменить →
@@ -132,6 +200,12 @@ export function FeaturedCoursesSection() {
           <p className="text-xs text-muted">
             Выбрано: {selected.length}/{MAX_FEATURED_COURSES}
           </p>
+          {groupFeaturedCourseIds.length > 0 && featuredCourseIds.length === 0 ? (
+            <p className="text-xs text-muted">
+              Стартовый набор взят из актуальных вашего потока. Можете оставить,
+              убрать лишнее или выбрать свои.
+            </p>
+          ) : null}
           {coursesLoading ? (
             <p className="text-sm text-muted">Загрузка курсов…</p>
           ) : accessibleCourses.length === 0 ? (
@@ -161,7 +235,12 @@ export function FeaturedCoursesSection() {
                       <span className="text-lg" aria-hidden>
                         {c.icon}
                       </span>
-                      <span className="text-sm text-fg">{c.name}</span>
+                      <span className="flex-1 text-sm text-fg">{c.name}</span>
+                      {groupFeaturedSet.has(c.id) ? (
+                        <span className="rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                          у потока
+                        </span>
+                      ) : null}
                     </label>
                   </li>
                 );
