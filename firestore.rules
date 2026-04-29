@@ -49,6 +49,13 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow update: if isOwner(userId) || isSuperAdmin() || isAdminStudentStreamUpdate();
       allow delete: if isSuperAdmin();
+
+      // Прогресс просмотра курсов (resume point, last-lesson, watched).
+      // Один документ на курс. Multi-device: clients пишут гибридно
+      // (localStorage + cloud throttle); читают cloud-first.
+      match /courseProgress/{courseId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     match /admins/{adminId} {

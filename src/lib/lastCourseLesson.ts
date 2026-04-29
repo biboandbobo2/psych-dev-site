@@ -1,3 +1,9 @@
+import {
+  readAllCloudProgress,
+  readCloudProgress,
+  scheduleLastLessonUpload,
+} from './courseProgress/cloudSync';
+
 const STORAGE_KEY = 'course-last-lesson-v1';
 
 export interface LastCourseLesson {
@@ -33,17 +39,27 @@ function writeStorage(data: LastCourseLessonMap): void {
 export function saveLastCourseLesson(courseId: string, path: string, label?: string): void {
   if (!courseId || !path) return;
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const current = readStorage();
-  current[courseId] = {
+  const entry: LastCourseLesson = {
     path: normalizedPath,
     label: label?.trim() || undefined,
     updatedAt: new Date().toISOString(),
   };
+  const current = readStorage();
+  current[courseId] = entry;
   writeStorage(current);
+  scheduleLastLessonUpload(courseId, entry);
 }
 
 export function getLastCourseLesson(courseId: string): LastCourseLesson | null {
   if (!courseId) return null;
+  const cloud = readCloudProgress(courseId)?.lastLesson;
+  if (cloud && typeof cloud.path === 'string' && cloud.path) {
+    return {
+      path: cloud.path,
+      label: cloud.label,
+      updatedAt: cloud.updatedAt,
+    };
+  }
   const current = readStorage();
   const item = current[courseId];
   if (!item || typeof item.path !== 'string' || !item.path) return null;
@@ -57,16 +73,31 @@ export function getLastCourseLesson(courseId: string): LastCourseLesson | null {
  * возвращает null.
  */
 export function getMostRecentlyWatchedCourseId(): string | null {
-  const current = readStorage();
   let bestId: string | null = null;
   let bestStamp = 0;
-  for (const [courseId, item] of Object.entries(current)) {
-    if (!item || typeof item.path !== 'string' || !item.path) continue;
-    const ts = item.updatedAt ? Date.parse(item.updatedAt) : 0;
+  const consider = (courseId: string, updatedAt: string | undefined, hasPath: boolean): void => {
+    if (!hasPath) return;
+    const ts = updatedAt ? Date.parse(updatedAt) : 0;
     if (Number.isFinite(ts) && ts > bestStamp) {
       bestStamp = ts;
       bestId = courseId;
     }
+  };
+
+  const cloud = readAllCloudProgress();
+  if (cloud) {
+    for (const [courseId, doc] of Object.entries(cloud)) {
+      const ll = doc.lastLesson;
+      const vr = doc.videoResume;
+      const updatedAt = ll?.updatedAt ?? vr?.updatedAt;
+      consider(courseId, updatedAt, Boolean(ll?.path || vr?.path));
+    }
+    if (bestId) return bestId;
+  }
+
+  const local = readStorage();
+  for (const [courseId, item] of Object.entries(local)) {
+    consider(courseId, item?.updatedAt, Boolean(item?.path));
   }
   return bestId;
 }

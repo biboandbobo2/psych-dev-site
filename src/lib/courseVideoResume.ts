@@ -1,3 +1,5 @@
+import { readCloudProgress, scheduleVideoResumeUpload } from './courseProgress/cloudSync';
+
 const STORAGE_KEY = 'course-video-resume-v1';
 
 export interface CourseVideoResumePoint {
@@ -76,7 +78,7 @@ export function saveCourseVideoResumePoint({
     return;
   }
 
-  current[courseId] = {
+  const entry: CourseVideoResumePoint = {
     path: normalizedPath,
     videoId,
     timeSec: normalizedTimeSec,
@@ -84,12 +86,30 @@ export function saveCourseVideoResumePoint({
     videoTitle: videoTitle?.trim() || undefined,
     updatedAt: new Date().toISOString(),
   };
+  current[courseId] = entry;
 
   writeStorage(current);
+  scheduleVideoResumeUpload(courseId, entry);
 }
 
 export function getCourseVideoResumePoint(courseId: string): CourseVideoResumePoint | null {
   if (!courseId) return null;
+  const cloud = readCloudProgress(courseId)?.videoResume;
+  if (
+    cloud &&
+    cloud.path &&
+    cloud.videoId &&
+    Number.isFinite(cloud.timeSec)
+  ) {
+    return {
+      path: cloud.path,
+      videoId: cloud.videoId,
+      timeSec: cloud.timeSec,
+      lessonLabel: cloud.lessonLabel,
+      videoTitle: cloud.videoTitle,
+      updatedAt: cloud.updatedAt,
+    };
+  }
   const current = readStorage();
   const item = current[courseId];
 

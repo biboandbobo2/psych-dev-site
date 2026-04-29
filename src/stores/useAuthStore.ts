@@ -9,6 +9,11 @@ import { debugLog } from '../lib/debug';
 import type { CourseType } from '../types/tests';
 import type { CourseAccessMap, UserRole } from '../types/user';
 import { hasCourseAccess as checkCourseAccess, normalizeUserRole } from '../types/user';
+import {
+  cleanupCourseProgressSync,
+  initCourseProgressSync,
+} from '../lib/courseProgress/cloudSync';
+import { migrateLocalProgressIfNeeded } from '../lib/courseProgress/migration';
 
 interface AuthState {
   user: User | null;
@@ -136,6 +141,7 @@ export const useAuthStore = create<AuthState>()(
             myGroupsUnsubscribe();
             myGroupsUnsubscribe = null;
           }
+          cleanupCourseProgressSync();
 
           get().setUser(next);
 
@@ -149,6 +155,9 @@ export const useAuthStore = create<AuthState>()(
             get().setLoading(false);
             return;
           }
+
+          initCourseProgressSync(next.uid);
+          void migrateLocalProgressIfNeeded(next.uid);
 
           get().setLoading(true);
 
@@ -280,6 +289,7 @@ export const useAuthStore = create<AuthState>()(
           if (myGroupsUnsubscribe) {
             myGroupsUnsubscribe();
           }
+          cleanupCourseProgressSync();
         };
       },
     }),

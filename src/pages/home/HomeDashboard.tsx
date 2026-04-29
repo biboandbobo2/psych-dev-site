@@ -21,6 +21,7 @@ import { CourseLessonsDrawer } from './CourseLessonsDrawer';
 import { useMyGroupsFeed } from '../../hooks/useMyGroupsFeed';
 import type { GroupFeedItem } from '../../types/groupFeed';
 import { useMyGroups } from '../../hooks/useMyGroups';
+import { useCourseProgressStore } from '../../stores/useCourseProgressStore';
 import { GuestLanding } from './GuestLanding';
 import { RegisteredGuestHome } from './RegisteredGuestHome';
 import { useGuestStatus } from '../../hooks/useGuestStatus';
@@ -70,18 +71,22 @@ function StudentDashboard() {
     [courses, hasCourseAccess],
   );
 
-  const continueResolution = useMemo(
-    () =>
-      resolveContinueCourses({
-        userFeaturedCourseIds,
-        groups: myGroups,
-        lastWatchedCourseId: getMostRecentlyWatchedCourseId(),
-        accessibleCourseIds,
-      }),
-    [userFeaturedCourseIds, myGroups, accessibleCourseIds],
-  );
+  // Bump-tик store'а прогресса. Включаем в deps, чтобы карточки «продолжить»
+  // на /home обновлялись после cloud-snapshot или локальной записи.
+  const progressVersion = useCourseProgressStore((s) => s.version);
+
+  const continueResolution = useMemo(() => {
+    void progressVersion;
+    return resolveContinueCourses({
+      userFeaturedCourseIds,
+      groups: myGroups,
+      lastWatchedCourseId: getMostRecentlyWatchedCourseId(),
+      accessibleCourseIds,
+    });
+  }, [userFeaturedCourseIds, myGroups, accessibleCourseIds, progressVersion]);
 
   const primaryContinueCourses = useMemo(() => {
+    void progressVersion;
     return continueResolution.ids.flatMap((courseId) => {
       const course = courseMap.get(courseId);
       if (!course) return [];
@@ -111,7 +116,7 @@ function StudentDashboard() {
         },
       ];
     });
-  }, [continueResolution, courseMap]);
+  }, [continueResolution, courseMap, progressVersion]);
 
   // Календарь справа показывает события из подписок группы (useMyGroupsFeed).
   // Для events c точным startAt берём его; для legacy без startAt пытаемся
