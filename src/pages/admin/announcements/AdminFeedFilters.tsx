@@ -1,4 +1,7 @@
-export type FeedFilterKind = 'all' | 'event' | 'announcement' | 'assignment';
+// События (kind: 'event') в нижней ленте не показываем — они и так есть в
+// календаре выше, дублирование сбивает. В ленте остаются только объявления
+// и задания.
+export type FeedFilterKind = 'all' | 'announcement' | 'assignment';
 
 interface AdminFeedFiltersProps {
   kind: FeedFilterKind;
@@ -10,12 +13,11 @@ interface AdminFeedFiltersProps {
 
 const KIND_LABELS: Record<FeedFilterKind, string> = {
   all: 'Все',
-  event: '📅 События',
   announcement: '📢 Объявления',
   assignment: '📋 Задания',
 };
 
-const KINDS: FeedFilterKind[] = ['all', 'event', 'announcement', 'assignment'];
+const KINDS: FeedFilterKind[] = ['all', 'announcement', 'assignment'];
 
 export function AdminFeedFilters({
   kind,

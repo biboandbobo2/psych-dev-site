@@ -108,10 +108,11 @@ export default function AdminAnnouncements() {
   }, [announcements, feedFilterKind, normalizedQuery]);
 
   const filteredEvents = useMemo(() => {
-    let pool = events;
-    if (feedFilterKind === 'event') pool = events.filter((e) => e.kind !== 'assignment');
-    else if (feedFilterKind === 'assignment') pool = events.filter((e) => e.kind === 'assignment');
-    else if (feedFilterKind === 'announcement') pool = [];
+    // События (kind: 'event') в нижнюю ленту не пускаем — они уже видны в
+    // календаре выше. В режиме 'all' показываем только assignments
+    // (вместе с announcements в filteredAnnouncements).
+    if (feedFilterKind === 'announcement') return [];
+    const pool = events.filter((e) => e.kind === 'assignment');
     return pool.filter((e) => matchText(e.text) || matchText(e.longText));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [events, feedFilterKind, normalizedQuery]);
