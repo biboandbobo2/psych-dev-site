@@ -4,7 +4,6 @@
  *
  * Helpers вынесены в api/_lib/assistant*.ts.
  */
-import type { IncomingMessage } from 'node:http';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import {
@@ -12,16 +11,6 @@ import {
   verifyAuthBearer,
   recordByokUsage,
 } from '../src/lib/api-server/sharedApiRuntime.js';
-import {
-  DAILY_TOTAL_QUOTA,
-  PER_USER_DAILY_QUOTA,
-  addUsage,
-  enforceDailyQuota,
-  enforceRateLimit,
-  estimateTokens,
-  getClientIp,
-  resetUsageIfNeeded,
-} from './_lib/assistantQuota.js';
 import {
   validateInput,
   truncateResponse,
@@ -33,9 +22,15 @@ import {
 } from './_lib/assistantGemini.js';
 import type {
   AssistantErrorResponse,
-  AssistantHistoryItem,
   AssistantResponse,
 } from './_lib/assistantTypes.js';
+
+function estimateTokens(text: string): number {
+  if (!text) return 0;
+  const normalized = text.trim();
+  if (!normalized) return 0;
+  return Math.max(1, Math.ceil(normalized.length / 4));
+}
 
 // Re-export для совместимости с tests/api/assistant.test.ts
 export { truncateResponse } from './_lib/assistantValidation.js';
@@ -70,22 +65,6 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const parsedUrl = new URL(req.url ?? '/', 'http://localhost');
-  const isStatsRequest = req.method === 'GET' && parsedUrl.searchParams.get('stats') === '1';
-
-  if (isStatsRequest) {
-    const usage = resetUsageIfNeeded();
-    res.status(200).json({
-      ok: true,
-      day: usage.day,
-      tokensUsed: usage.tokensUsed,
-      requests: usage.requests,
-      perUserDailyQuota: PER_USER_DAILY_QUOTA,
-      totalDailyQuota: DAILY_TOTAL_QUOTA,
-    });
-    return;
-  }
-
   if (req.method !== 'POST') {
     const errorResponse: AssistantErrorResponse = {
       ok: false,
@@ -93,26 +72,6 @@ export default async function handler(req: any, res: any) {
       code: 'METHOD_NOT_ALLOWED',
     };
     res.status(405).json(errorResponse);
-    return;
-  }
-
-  // Rate limiting
-  const clientIp = getClientIp(req as IncomingMessage);
-  if (!enforceDailyQuota(clientIp)) {
-    res.status(429).json({
-      ok: false,
-      error: `Достигнут дневной лимит. Доступно запросов в день на пользователя: ${PER_USER_DAILY_QUOTA}`,
-      code: 'DAILY_QUOTA_EXCEEDED',
-    } satisfies AssistantErrorResponse);
-    return;
-  }
-
-  if (!enforceRateLimit(clientIp)) {
-    res.status(429).json({
-      ok: false,
-      error: 'Слишком много запросов. Подождите несколько минут.',
-      code: 'RATE_LIMITED',
-    } satisfies AssistantErrorResponse);
     return;
   }
 
@@ -173,7 +132,6 @@ export default async function handler(req: any, res: any) {
       );
       const tokensUsed =
         estimateTokens(courseName) + estimateTokens(lessons.join('\n')) + estimateTokens(answer);
-      const usage = addUsage(tokensUsed);
       ensureFirebaseAdminInit();
       void recordByokUsage({
         uid: auth.uid,
@@ -184,7 +142,7 @@ export default async function handler(req: any, res: any) {
       res.status(200).json({
         ok: true,
         answer,
-        meta: { tookMs: Date.now() - started, tokensUsed, requestsToday: usage.requests },
+        meta: { tookMs: Date.now() - started, tokensUsed },
       });
     } catch (error: any) {
       const isConfig = error?.message?.includes('GEMINI_API_KEY');
@@ -235,7 +193,6 @@ export default async function handler(req: any, res: any) {
     const historyText = history.map((item) => `${item.role}: ${item.message}`).join('\n');
     const tokensUsed =
       estimateTokens(message) + estimateTokens(historyText) + estimateTokens(truncatedAnswer);
-    const usage = addUsage(tokensUsed);
     ensureFirebaseAdminInit();
     void recordByokUsage({
       uid: auth.uid,
@@ -251,7 +208,6 @@ export default async function handler(req: any, res: any) {
       meta: {
         tookMs: Date.now() - started,
         tokensUsed,
-        requestsToday: usage.requests,
       },
     };
 

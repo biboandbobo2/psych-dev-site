@@ -18,7 +18,6 @@ export interface AssistantResponse {
   meta?: {
     tookMs: number;
     tokensUsed?: number;
-    requestsToday?: number;
   };
 }
 

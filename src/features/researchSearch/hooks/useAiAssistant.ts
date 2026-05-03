@@ -15,7 +15,7 @@ interface AiAssistantResponse {
   ok: true;
   answer: string;
   refused?: boolean;
-  meta?: { tookMs: number; tokensUsed?: number; requestsToday?: number };
+  meta?: { tookMs: number; tokensUsed?: number };
 }
 
 interface AiAssistantErrorResponse {

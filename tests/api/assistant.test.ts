@@ -332,45 +332,6 @@ describe('api/assistant BYOK + auth', () => {
 });
 
 // ============================================================================
-// RATE LIMITING TESTS
-// ============================================================================
-
-describe('api/assistant rate limiting', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    vi.spyOn(globalThis['console'], 'error').mockImplementation(() => {});
-    setupAuthMock();
-    geminiMocks.generateContent.mockReset();
-    geminiMocks.generateContent.mockResolvedValue({
-      text: JSON.stringify({
-        allowed: true,
-        answer: 'Ответ по теме психологии.',
-      }),
-    });
-  });
-
-  it('возвращает 429 после превышения лимита запросов', async () => {
-    // Make 12 requests from same IP (limit is 10/5min)
-    const results: number[] = [];
-
-    for (let i = 0; i < 12; i++) {
-      const req = mockReq({
-        body: { message: 'Что такое психология?' },
-      });
-      // Use unique IP that won't conflict with other tests
-      req.socket = { remoteAddress: '192.168.99.99' };
-      const res = mockRes();
-
-      await handler(req, res);
-      results.push(res.statusCode);
-    }
-
-    // Last requests should be rate limited
-    expect(results.filter((code) => code === 429).length).toBeGreaterThan(0);
-  });
-});
-
-// ============================================================================
 // GEMINI RESPONSE HANDLING TESTS
 // ============================================================================
 
