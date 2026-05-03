@@ -29,6 +29,10 @@
 | LP-6 | L (M) | Разбить `functions/src/billingExport.ts` на модули | 810 строк → queries / runner / discovery / archive / aggregator / index |
 | LP-7 | L (S-M) | Юнит-тесты для billing fallback и SQL builders | Покрыть `safeRunQuery`, `fetchArchiveSummary`, `getBillingSummaryData` ветки live/archive |
 | LP-8 | L (M-L) | Миграция `*-automation` функций в Cloud Functions | `timeline-biography-automation`, `*-extractor-automation` → Cloud Functions с Pub/Sub trigger; снимет 60s Vercel limit |
+| LP-9 | L (S) | Auth + per-user квота на `/api/transcript-search` | По образцу `/api/books` (HR-1): Bearer auth + лимит N запросов/день. Защита от ботов, фигачащих публичный endpoint. |
+| LP-10 | L (S-M) | Auto-disconnect Firestore listeners при бездействии | Page Visibility API + idle timer (~15 мин): отписка от `onSnapshot` в DisorderTable / GroupsFeed для забытых открытых вкладок. |
+| LP-11 | L (S) | Pagination/cache для `useCourses` при росте курсов | Триггер: курсов > 30. Сейчас free tier покрывает, но при росте `getDocs(courses)` × N пользователей = много reads. |
+| LP-12 | L (M-L) | Детальная статистика Firestore Read Ops в админке | Виджет «по фичам/коллекциям/дням». Фаза 1: Cloud Monitoring API → график агрегата. Фаза 2: instrumented client wrapper + Cloud Logging sink → BQ → разбивка по hooks/fea. |
 | RS-1 | M (M) | Глубокий поиск через Wikidata | Кнопка + API параметр `deep=true`, расширение запроса через Wikidata |
 | RS-2 | M (S) | Расширение словаря терминов | 500+ терминов RU→EN, словари для DE/FR/ES, JSON файлы |
 | RS-3 | M (L) | Мультиязычный поиск (не фильтр) | Переключатель режима, перевод запроса на выбранные языки |
@@ -497,15 +501,8 @@ CI часть (осталась):
   - [ ] Проверить что размер файла < 200 строк после рефакторинга
 - **Файлы:** `src/pages/HomePage.tsx` (364 строки)
 
-### LP‑3. Улучшение Rate Limiting для AI Assistant (P: L, E: S)
-- **Проблема:** In-memory rate limiting в `api/assistant.ts` не работает корректно на Vercel Serverless (каждый инстанс имеет свою память)
-- **Текущий статус:** 🟡 Работает для легкой нагрузки, но не масштабируется
-- **Решение:** Использовать Upstash Redis или Vercel KV для распределенного rate limiting
-- **Задачи:**
-  - [ ] Выбрать провайдер (Upstash Redis / Vercel KV)
-  - [ ] Реализовать distributed rate limiting
-  - [ ] Обновить документацию и env vars
-- **Файлы:** `api/assistant.ts` (строки 39-58)
+### LP‑3. ✅ Улучшение Rate Limiting для AI Assistant — НЕ АКТУАЛЬНО (2026-05-04)
+- **Контекст:** Закрыто 2026-05-04 (commit `d350a70`): in-memory `enforceDailyQuota` и `enforceRateLimit` удалены из `api/assistant.ts` целиком, файл `api/_lib/assistantQuota.ts` удалён. После полного перехода на BYOK Gemini key per user общая per-IP квота потеряла смысл — каждый пользователь сам отвечает за расходы своего ключа. Distributed rate-limit инфраструктура (Vercel KV) осталась нереализованной за ненадобностью; если в будущем понадобится для другого endpoint'а — открыть новую задачу.
 
 ### LP‑4. Очистка fallback env vars в AI Assistant (P: L, E: S) - ✅ МОЖНО ПРОПУСТИТЬ
 - **Проблема:** В `api/assistant.ts:178` есть fallback на несколько env var имён (MY_GEMINI_KEY, GOOGLE_API_KEY, VITE_GEMINI_KEY)
@@ -554,6 +551,55 @@ CI часть (осталась):
   - [ ] Освободит 2 слота на Vercel + снимет 60s ограничение.
 - **Риски:** cold-start Cloud Functions 1.5-3s — для admin-only / cron не критично.
 - **Файлы:** `api/timeline-biography-automation.ts`, `api/timeline-biography-extractor-automation.ts`, `server/api/timelineBiographyRuntime.ts`, новые `functions/src/timelineBiography*.ts`
+
+### LP‑9. Auth + per-user квота на `/api/transcript-search` (P: L, E: S)
+- **Проблема:** Endpoint публичный (без auth), читает Firestore (`videoTranscriptSearchChunks`). Бот, фигачащий запросы циклом, может за час сжечь дневной free-tier read quota.
+- **Текущая защита:** keyword prefix-индекс (MR-1, 2026-04-28) уже сильно сократил cost per query. Глобального rate-limit нет.
+- **Решение (по образцу HR-1 для `/api/books`):**
+  - [ ] Требовать Bearer ID token в headers, проверять через `verifyAuthBearer`.
+  - [ ] Лимит ~100 запросов/день на uid (хранение в Firestore: `aiUsageDaily/{uid}_{day}` — переиспользовать существующую коллекцию, action `transcript:search`).
+  - [ ] Возвращать 401 для гостей, 429 при превышении квоты.
+  - [ ] Опциональный публичный fallback: если для гостей нужен анонимный доступ — выдать строгий per-IP лимит (5/час) + отдельный flag в response.
+- **Триггер на действие:** если в Cloud Logging увидим >10k req/day с одного IP **или** Firestore Read Ops внезапно вырастут в 2-3×.
+- **Файлы:** `api/transcript-search.ts`, `src/lib/api-server/sharedApiRuntime.ts` (recordByokUsage уже подходит).
+
+### LP‑10. Auto-disconnect Firestore listeners при бездействии (P: L, E: S-M)
+- **Проблема:** `onSnapshot` listeners в DisorderTable (3 параллельных: students/entries/comments), GroupsFeed, AuthStore остаются активными в забытых открытых вкладках. Каждое изменение в коллекции = read с каждой такой вкладки.
+- **Триггер:** активных пользователей > 50 одновременно **или** Firestore Read Ops > $5/мес.
+- **Решение:**
+  - [ ] Создать общий хук `useIdleAwareSnapshot(ref, callback, { idleMs: 15*60*1000 })`.
+  - [ ] Использовать Page Visibility API + `setTimeout` на bestilg для отписки.
+  - [ ] При возврате фокуса: `onSnapshot` пере-подключается, делает один initial read.
+  - [ ] Применить в `useDisorderTable*`, `useMyGroupsFeed`, `useAllGroups`.
+- **Файлы:** `src/hooks/useIdleAwareSnapshot.ts` (новый), все hooks с `onSnapshot`.
+
+### LP‑11. Pagination/cache для `useCourses` при росте курсов (P: L, E: S)
+- **Проблема:** `getDocs(collection(db, 'courses'))` в `useCourses.ts` тянет все курсы целиком. При 10 курсах × 100 пользователей в час = 1000 reads/час. При 100 курсах = 10 000.
+- **Триггер:** курсов > 30 **или** активных пользователей > 50/час.
+- **Решение:**
+  - [ ] Pagination через `limit(20)` + cursor.
+  - [ ] Альтернатива: TanStack Query / SWR для shared cache между компонентами с TTL 5-10 мин.
+  - [ ] Server-side кэш: один Cloud Function `listCourses` с in-memory кэшем 60 сек (всё ещё дешевле, чем prod-Firestore reads).
+- **Файлы:** `src/hooks/useCourses.ts`, потенциально новый `functions/src/listCourses.ts`.
+
+### LP‑12. Детальная статистика Firestore Read Ops в админке (P: L, E: M-L)
+- **Цель:** Видеть в `/admin` сколько reads сделала каждая фича за день/неделю — чтобы поймать всплеск до того, как он превратится в счёт.
+- **Что доступно out-of-the-box:**
+  - **Cloud Monitoring** уже считает `firestore.googleapis.com/document/read_count` с разбивкой по `op_type` (LOOKUP/QUERY) и `database`. Прямо сейчас можно открыть [Cloud Console → Monitoring → Dashboards → Firestore](https://console.cloud.google.com/monitoring) — будет график и breakdown.
+  - НЕТ встроенной разбивки «какая фича / коллекция читала».
+- **Фаза 1 (быстро, ~2-3 ч): Embed Cloud Monitoring данных в админку.**
+  - [ ] Cloud Function `getFirestoreReadStats({rangeDays})`: вызов Cloud Monitoring API (`monitoring.timeSeries.list`) для метрики `document/read_count`, group by day.
+  - [ ] Виджет в `/admin` с графиком read_count по дням (последние 7/14/30).
+  - [ ] Breakdown по `op_type` (LOOKUP vs QUERY) — намекает где жгут.
+  - [ ] Минус: не покажет «какой хук виноват».
+- **Фаза 2 (среднее, ~6-10 ч): Custom инструментирование клиента.**
+  - [ ] Тонкий wrapper над `firebase/firestore`: `instrumentedGetDocs(ref, { feature: 'disorderTable.entries' })`.
+  - [ ] Wrapper отправляет structured log в Cloud Logging (бесплатно до 50 GiB/мес): `{ feature, opType, collection, count, uid, ts }`.
+  - [ ] Cloud Logging sink → BigQuery dataset `firestore_metrics` (free tier).
+  - [ ] Расширить наш существующий `getBillingSummary` callable новым параметром `view: 'firestore_breakdown'` — query по этому BQ датасету, breakdown по feature.
+  - [ ] Отдельный виджет в админке «Топ-10 фич по reads».
+- **Альтернатива (Фаза 0, ~30 мин): просто открыть [Cloud Monitoring Firestore dashboard](https://console.cloud.google.com/monitoring/dashboards)** прямо в Cloud Console — Google уже всё посчитал, отдельный код не нужен. Минус: нет интеграции в нашу админку, надо помнить ходить туда.
+- **Связь:** общий вектор с LP-1 (Observability/Telemetry).
 
 ### LP‑5. Firebase/GCP follow-ups (P: L, E: S-M)
 - **Контекст:** миграция с `functions.config()` уже закрыта 2026-03-09 (`seedAdmin` переведён на Secret Manager, runtime guard блокирует новые legacy-конфиги). Ниже оставлены только активные follow-up задачи.
@@ -723,9 +769,10 @@ CI часть (осталась):
   6. **Поиск:** помечать результаты «Моя / Общая», опционально переключатель области.
   7. **Лимиты (критично для бюджета):** N книг на юзера, M MB на книгу, rate limit на ingestion, квота на Gemini embeddings.
 - **Риски:**
-  - Стоимость embeddings пользовательских книг (оплачивает владелец сайта).
+  - Stale-формулировка: «embeddings оплачивает владелец сайта» — переписать через **BYOK Gemini key пользователя**: ingestion и embedding запросы для персональных книг идут через ключ владельца книги (как уже сделано для chat-assistant). Тогда финансовый риск с владельца сайта снимается полностью.
   - Abuse: нелегальный контент / PII / спам — нужны модерация и админская возможность удалять чужие.
   - Rate limits Gemini + Firestore quota.
+- **Возможная BYOG-оптимизация storage (опционально):** хранить сами PDF в **Google Drive пользователя** через OAuth scope `drive.file` (как сделано для AI assistant — BYOK pattern). Тогда не платим за Storage. Но **vector search всё равно остаётся в нашем Firestore** — embeddings и текстовые чанки физически в нашей БД, иначе vector search невозможен. Чистого «всё на пользователя» не получится; реалистично — embeddings via BYOK + опционально PDF в Drive.
 - **Связь:** смежная с HR-1 (защита `/api/books`). Реализовывать HR-1 перед или вместе с BR-7.
 - **Приоритет реализации:** после мёржа `feature/initial-setup-sergo` в main.
 - **Файлы:** `api/books.ts`, `api/admin/books.ts`, `functions/src/ingestBook.ts`, `firestore.rules`, `src/pages/Profile.tsx`, `src/pages/admin/books/`, `src/features/bookSearch/`.
