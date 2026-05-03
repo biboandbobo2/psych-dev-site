@@ -211,6 +211,67 @@ CI часть (осталась):
   - [ ] Вернуть route-level lazy discipline для `PeriodPage` и `DynamicCoursePeriodPage` через `src/pages/lazy.ts`.
   - [ ] Синхронизировать `docs/reference/routes.md`, `docs/guides/booking-system.md`, `docs/reference/firestore-schema.md` после исправлений.
 
+### BPT. Biography Pipeline tech debt (P: M, E: L)
+- **Источник:** ревью после squash-merge `feature/video-study-notes` (PR #65, 2026-05-03). Pipeline функционально работает, но 4 файла стали монолитами, есть дубли legacy-кода и пробелы в test coverage.
+- **Размеры файлов** (CLAUDE.md лимит < 400 строк):
+
+  | Файл | Строк | Статус |
+  |---|---|---|
+  | `server/api/timelineBiographyRuntime.ts` | 1098 | 🔴 deprecated, дублирует CF |
+  | `src/pages/timeline/components/TimelineLeftPanel.tsx` | 856 | 🔴 раздут iPad/Safari debug |
+  | `functions/src/biographyImport.ts` | 843 | 🔴 главный CF, `runFullBiographyPipeline` 380 строк |
+  | `src/pages/Timeline.tsx` | 771 | 🟡 был 1125, нужно ещё |
+  | `timelineBiographyFacts.ts` / `Lint.ts` / `Heuristics.ts` | ~500 | 🟡 |
+
+- **Задачи (рекомендованный порядок):**
+
+  **BPT-1. Deprecate + удалить `timelineBiographyRuntime.ts` и `api/timeline-biography.ts` (P: M, E: S)**
+  - UI после переезда главного pipeline в Cloud Function использует `useBiographyImport` с прямым вызовом CF. Vercel jobs flow (`/api/timeline-biography`) фактически не вызывается ни UI, ни тестами.
+  - [ ] Подтвердить grep'ом что нет live-вызовов: `grep -rn "/api/timeline-biography[^-]" src/ tests/`
+  - [ ] Удалить `api/timeline-biography.ts` (258 строк) и `server/api/timelineBiographyRuntime.ts` (1098)
+  - [ ] Vercel functions count -1 (запас под другие фичи)
+  - [ ] Сохранить `api/timeline-biography-automation.ts` и `extractor-automation.ts` — используются CLI-бенчмарками
+
+  **BPT-2. Декомпозиция `functions/src/biographyImport.ts` (P: M, E: M)**
+  - Cel: 843 → ~150 строк handler + 6 шагов по ~100 строк
+  - Структура `functions/src/biography/`:
+    - `index.ts` — Cloud Function handler + verifyAuth (~50 строк)
+    - `pipeline.ts` — orchestration (~80)
+    - `step1-wikipedia.ts`, `step2-extraction.ts`, `step3-gap-filling.ts`, `step4-annotation.ts`, `step5-redaktura.ts`, `step6-composition.ts`
+    - `helpers.ts` — `callGeminiWithRetry`, `extractGeminiTokens`, `recordBiographyByokUsage`, `collectGeminiResultText`
+    - `parsers.ts` — `parseSimpleJsonFacts`, `parseAnnotationResponse`, `parseRedakturaResponse`, `normalizeError`
+  - Бонус: каждый шаг легче покрыть unit-тестом (см. BPT-5)
+
+  **BPT-3. Чистка `TimelineLeftPanel.tsx` (P: M, E: M)**
+  - Удалить iPad/Safari debug counters/popover (баг исправлен `884b951`, диагностика мёртвая):
+    - state `leftPanelSignalCounts`, `leftPanelDiagnostics`, `showDebugPopover`
+    - props `biographyDiagnostics`, `biographyUiSignals`, `biographyLastUiSignal`, `onBiographyDiagnostic`, `onBiographyUiSignal`
+    - native addEventListener в useEffect (строки 240-285) — дублирует React onClickCapture
+  - Вынести `BiographyImportSection`, `DownloadMenu`, `CanvasManager` в отдельные компоненты
+  - Цель: 856 → ~400 строк
+
+  **BPT-4. Дофинишировать `Timeline.tsx` (P: L, E: M)**
+  - Вынести `useTimelineExport` hook (handleDownload + status + diagnostics)
+  - Удалить остатки `recordBiographyUiSignal`/`appendBiographyDiagnostic` после BPT-3
+  - Цель: 771 → ~400 строк
+
+  **BPT-5. Test coverage gap (P: M, E: M)**
+  - **Cloud Function `functions/src/biographyImport.ts` — 0 unit тестов** (главный entry pipeline не покрыт). Желательно после BPT-2:
+    - [ ] `pipeline.test.ts` — orchestration с замоканными Gemini calls
+    - [ ] `step2-extraction.test.ts` — slice loop, post-death filter (использует findDeathFact)
+    - [ ] `step3-gap-filling.test.ts` — density mode, post-gap filter
+    - [ ] `helpers.test.ts` — `extractGeminiTokens`, `recordBiographyByokUsage` с mocked Firestore
+  - **Hook `src/pages/timeline/hooks/useBiographyImport.ts`** — 0 тестов:
+    - [ ] open/close/handleSourceUrlChange — простые state transitions
+    - [ ] submit success path — mock fetch + onSnapshot status='done'
+    - [ ] submit error path — onSnapshot status='error'
+    - [ ] submit network error path — fetch rejects, polling всё равно работает
+  - **Death detection regression test:**
+    - [ ] Тест с фактом-родственником (смерть отца) на середине жизни subject'а — pipeline должен продолжить до реальной смерти
+
+  **BPT-6. Опционально разбить `timelineBiographyFacts/Lint/Heuristics.ts` (P: L, E: S)**
+  - По логическим единицам (parsing, normalization, dedup, baseline, salience). Делать только если кто-то начнёт активно править эти файлы.
+
 ### MR‑2. ✅ Починить `npm run test:ci` — РЕШЕНО (2026-04-27)
 - **Решение:** `--runInBand` снят в Vitest 4. Заменён на `--no-file-parallelism` (canonical эквивалент: последовательный прогон файлов в одном пуле). Применено и к `test:ci`, и к `test:integration` / `test:integration:watch`.
 - **Что сделано:**
