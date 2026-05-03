@@ -109,64 +109,72 @@ export function useBiographyImport({
     const jobId = crypto.randomUUID();
     setProgress({ step: 1, total: 6, label: 'Запуск Cloud Function...' });
 
+    // Pipeline в CF может занять 5+ минут — fetch браузера разрывает idle TCP
+    // соединения раньше. Поэтому Firestore — main source: ждём status='done'/'error'
+    // в biographyJobs/{jobId}, fetch только триггерит запуск.
     const jobDocRef = doc(db, 'biographyJobs', jobId);
-    const unsubscribe = onSnapshot(jobDocRef, (snapshot) => {
-      if (!snapshot.exists()) return;
-      const data = snapshot.data();
-      if (data?.progress) {
-        setProgress({
-          step: data.progress.step ?? 1,
-          total: data.progress.total ?? 6,
-          label: data.progress.label ?? 'Обработка...',
-          detail: data.progress.detail,
-        });
-      }
+    let unsubscribe: () => void = () => {};
+
+    const finalResultPromise = new Promise<{
+      timeline: TimelineData;
+      subjectName?: string;
+      canvasName?: string;
+      meta?: { model?: string; timelineStats?: { nodes?: number; edges?: number } };
+    }>((resolve, reject) => {
+      unsubscribe = onSnapshot(jobDocRef, (snapshot) => {
+        if (!snapshot.exists()) return;
+        const data = snapshot.data();
+        if (data?.progress) {
+          setProgress({
+            step: data.progress.step ?? 1,
+            total: data.progress.total ?? 6,
+            label: data.progress.label ?? 'Обработка...',
+            detail: data.progress.detail,
+          });
+        }
+        if (data?.status === 'done') {
+          const step4 = data.step4 as { timeline?: TimelineData; canvasName?: string; meta?: unknown } | undefined;
+          if (!step4?.timeline) {
+            reject(new Error('CF завершилась без timeline в Firestore'));
+            return;
+          }
+          resolve({
+            timeline: step4.timeline,
+            subjectName: data.subjectName as string | undefined,
+            canvasName: step4.canvasName,
+            meta: step4.meta as { model?: string; timelineStats?: { nodes?: number; edges?: number } } | undefined,
+          });
+        } else if (data?.status === 'error') {
+          reject(new Error((data.error as string) || 'Cloud Function вернула ошибку'));
+        }
+      });
     });
 
+    // Запускаем CF — fetch fire-and-forget. Network errors игнорируем,
+    // так как pipeline пишет результат в Firestore сам.
     try {
       const headers = await buildAuthorizedHeaders({
         'Content-Type': 'application/json',
         ...buildGeminiApiKeyHeader(apiKeyOverride),
       });
-      const cfResponse = await fetch(CLOUD_FUNCTION_URL, {
+      fetch(CLOUD_FUNCTION_URL, {
         method: 'POST',
         headers,
         body: JSON.stringify({ sourceUrl: trimmedUrl, canvasId: activeTimelineId ?? '', jobId }),
+      }).catch((fetchErr) => {
+        debugLog('[Timeline] CF fetch error (ignored, polling Firestore)', fetchErr);
       });
+    } catch (authErr) {
+      unsubscribe();
+      const message = authErr instanceof Error ? authErr.message : 'Не удалось подготовить запрос.';
+      setError(message);
+      setMeta(null);
+      setLoading(false);
+      return false;
+    }
 
-      const contentType = cfResponse.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) {
-        const hint =
-          cfResponse.status === 504
-            ? 'Cloud Function не уложилась в таймаут.'
-            : `Сервер вернул неожиданный ответ (HTTP ${cfResponse.status}).`;
-        setErrorDetail(hint);
-        throw new Error(hint);
-      }
-
-      const result = (await cfResponse.json()) as {
-        ok?: boolean;
-        error?: string;
-        detail?: string;
-        jobId?: string;
-        subjectName?: string;
-        canvasName?: string;
-        timeline?: TimelineData;
-        meta?: {
-          model?: string;
-          factCount?: number;
-          timelineStats?: { nodes?: number; edges?: number };
-        };
-      };
-
-      if (!cfResponse.ok || !result.ok) {
-        if (result.detail) setErrorDetail(result.detail);
-        throw new Error(result.error || 'Ошибка Cloud Function');
-      }
-      if (!result.timeline) {
-        throw new Error('Сервер не вернул данные таймлайна.');
-      }
-
+    try {
+      const result = await finalResultPromise;
       setMeta({
         model: result.meta?.model,
         nodes: result.meta?.timelineStats?.nodes,
@@ -179,7 +187,7 @@ export function useBiographyImport({
       });
       setExpanded(false);
       setSourceUrl('');
-      debugLog('[Timeline] Biography import applied', { jobId: result.jobId });
+      debugLog('[Timeline] Biography import applied via Firestore', { jobId });
       return true;
     } catch (err) {
       const message =
