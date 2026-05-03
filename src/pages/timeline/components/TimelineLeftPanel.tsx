@@ -612,6 +612,7 @@ export function TimelineLeftPanel({
                     onBiographyDiagnostic('button click capture');
                     onBiographyUiSignal('reactClick');
                   }}
+                  onClick={biographyImportExpanded ? onCloseBiographyImport : onOpenBiographyImport}
                   disabled={biographyImportLoading}
                   className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
