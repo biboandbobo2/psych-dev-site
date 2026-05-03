@@ -40,9 +40,9 @@ export function useGeminiKey(): UseGeminiKeyReturn {
     try {
       debugLog('[useGeminiKey] Validating key...');
 
-      const idToken = await auth.currentUser?.getIdToken();
+      const idToken = await auth.currentUser?.getIdToken(true);
       if (!idToken) {
-        return { valid: false, error: 'Войдите в аккаунт, чтобы добавить ключ' };
+        return { valid: false, error: 'Войдите в аккаунт, чтобы добавить ключ [код: NO_ID_TOKEN]' };
       }
 
       const response = await fetch('/api/assistant', {
@@ -59,20 +59,46 @@ export function useGeminiKey(): UseGeminiKeyReturn {
         }),
       });
 
-      if (response.status === 401) {
-        const data = await response.json().catch(() => ({}));
-        return { valid: false, error: data.error || 'Неверный API ключ' };
-      }
-
       if (!response.ok) {
-        return { valid: false, error: `Ошибка сервера: ${response.status}` };
+        const data: { error?: string; code?: string } = await response
+          .json()
+          .catch(() => ({}));
+        const code = data.code ?? `HTTP_${response.status}`;
+        const serverMessage = data.error ?? `Ошибка сервера ${response.status}`;
+
+        const hintByCode: Record<string, string> = {
+          UNAUTHORIZED:
+            'Сессия истекла или не обновляется. Жёстко обновите страницу (Ctrl+Shift+R), либо выйдите и войдите заново. Если не помогло — попробуйте Chrome/Edge и проверьте, что часы на компьютере правильные.',
+          INVALID_API_KEY:
+            'Ключ Google не принят. Проверьте, что ключ скопирован полностью, без пробелов, начинается с AIzaSy.',
+          BYOK_REQUIRED:
+            'Сервер не получил ключ. Попробуйте ещё раз — если повторяется, расширение/блокировщик мог вырезать заголовок.',
+          RATE_LIMITED:
+            'Сработал защитный лимит частоты запросов. Подождите 5 минут и попробуйте снова.',
+          DAILY_QUOTA_EXCEEDED:
+            'Сработал дневной лимит на ваш IP. Попробуйте завтра либо смените сеть (мобильный интернет вместо Wi-Fi).',
+          SERVICE_NOT_CONFIGURED:
+            'На сервере не настроены ключи. Это баг сайта — напишите в поддержку.',
+          GEMINI_ERROR:
+            'Сервер дошёл до Google, но получил ошибку. Если повторяется — напишите в поддержку.',
+        };
+        const hint = hintByCode[code] ?? 'Если повторяется — напишите в поддержку.';
+
+        return {
+          valid: false,
+          error: `${serverMessage}. ${hint} [код: ${code}]`,
+        };
       }
 
       debugLog('[useGeminiKey] Key validated successfully');
       return { valid: true };
     } catch (err) {
       debugError('[useGeminiKey] Validation error:', err);
-      return { valid: false, error: 'Ошибка проверки ключа. Проверьте подключение к интернету.' };
+      const detail = err instanceof Error ? err.message : String(err);
+      return {
+        valid: false,
+        error: `Не удалось связаться с сервером. Проверьте интернет. [детали: ${detail}]`,
+      };
     }
   }, []);
 
