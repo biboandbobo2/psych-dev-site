@@ -272,6 +272,13 @@ CI часть (осталась):
   **BPT-6. Опционально разбить `timelineBiographyFacts/Lint/Heuristics.ts` (P: L, E: S)**
   - По логическим единицам (parsing, normalization, dedup, baseline, salience). Делать только если кто-то начнёт активно править эти файлы.
 
+### MR‑6. Удалить orphan Cloud Function setStudentStream(us-central1) (P: L, E: XS)
+- **Контекст:** обнаружена при попытке `npm run firebase:deploy:functions` 2026-05-03. Firebase abort'ит full deploy потому что функция в проде, но её нет в локальном коде.
+- **История:** добавлена коммитом `2374c98` (11 апреля), удалена из репо коммитом `8781443` (24 апреля, post-migration cleanup), но `firebase functions:delete` не выполнялся.
+- **Безопасность:** 0 callers в активном коде (`grep -rn "setStudentStream"` пусто), миграция streams→groups завершена в апреле, поле `users.studentStream === 'none'` для всех пользователей.
+- **Команда:** `firebase functions:delete setStudentStream --region us-central1 --project psych-dev-site-prod`
+- **Эффект:** `firebase:deploy:functions` снова работает без targeted-only режима.
+
 ### MR‑2. ✅ Починить `npm run test:ci` — РЕШЕНО (2026-04-27)
 - **Решение:** `--runInBand` снят в Vitest 4. Заменён на `--no-file-parallelism` (canonical эквивалент: последовательный прогон файлов в одном пуле). Применено и к `test:ci`, и к `test:integration` / `test:integration:watch`.
 - **Что сделано:**
