@@ -423,16 +423,10 @@ export function TimelineLeftPanel({
   const handlePanelClickCapture = (event: React.MouseEvent<HTMLElement>) => {
     const actionTarget = resolveActionTarget(event.target);
     recordLeftPanelSignal('panel', 'react', 'click', actionTarget);
-
-    if (actionTarget !== 'bio-import') return;
-    if (biographyImportLoading) return;
-
-    onBiographyDiagnostic('panel delegated bio click');
-    if (biographyImportExpanded) {
-      onCloseBiographyImport();
-      return;
-    }
-    onOpenBiographyImport();
+    // Раньше здесь было aside-делегирование bio-import клика как iPad/Safari backup,
+    // но на desktop оно создавало race: aside-handler синхронно вызывал open(),
+    // обновлённый state читался кнопкой в onClick тернарнике как уже-true и сразу
+    // вызывал close(). Прямой onClick на самой кнопке (см. JSX ниже) надёжнее.
   };
 
   return (
@@ -612,11 +606,7 @@ export function TimelineLeftPanel({
                     onBiographyDiagnostic('button click capture');
                     onBiographyUiSignal('reactClick');
                   }}
-                  onClick={() => {
-                    // ISOLATION TEST: всегда open, чтобы исключить тернарник + delegation interference
-                    onBiographyDiagnostic('direct onClick fired', { expandedAtRender: biographyImportExpanded });
-                    onOpenBiographyImport();
-                  }}
+                  onClick={biographyImportExpanded ? onCloseBiographyImport : onOpenBiographyImport}
                   disabled={biographyImportLoading}
                   className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
