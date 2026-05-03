@@ -26,6 +26,9 @@
 | UX-1 | L (L) | Profile v2 — унификация с акварельной палитрой | ожидаем брендбук от дизайнера, после — полный редизайн Profile + вложенных секций |
 | LP-1 | L (M) | Observability / telemetry | Базовый logger (Sentry/PostHog), описание процессов |
 | LP-5 | L (S-M) | Firebase/GCP follow-ups | dependency review, cleanup policy, индексы, Telegram formatting |
+| LP-6 | L (M) | Разбить `functions/src/billingExport.ts` на модули | 810 строк → queries / runner / discovery / archive / aggregator / index |
+| LP-7 | L (S-M) | Юнит-тесты для billing fallback и SQL builders | Покрыть `safeRunQuery`, `fetchArchiveSummary`, `getBillingSummaryData` ветки live/archive |
+| LP-8 | L (M-L) | Миграция `*-automation` функций в Cloud Functions | `timeline-biography-automation`, `*-extractor-automation` → Cloud Functions с Pub/Sub trigger; снимет 60s Vercel limit |
 | RS-1 | M (M) | Глубокий поиск через Wikidata | Кнопка + API параметр `deep=true`, расширение запроса через Wikidata |
 | RS-2 | M (S) | Расширение словаря терминов | 500+ терминов RU→EN, словари для DE/FR/ES, JSON файлы |
 | RS-3 | M (L) | Мультиязычный поиск (не фильтр) | Переключатель режима, перевод запроса на выбранные языки |
@@ -509,6 +512,48 @@ CI часть (осталась):
 - **Контекст:** Добавлено при отладке, когда Vercel Dashboard не сохранял env vars
 - **Решение:** Сейчас работает GEMINI_API_KEY, остальные можно удалить
 - **Статус:** 🟢 Не критично — fallbacks не мешают, но добавляют шум в код
+
+### LP‑6. Разбить `functions/src/billingExport.ts` на модули (P: L, E: M)
+- **Проблема:** Файл вырос до 810 строк после добавления archive fallback и available-months. Превышает проектный норматив `< 400`.
+- **Триггер:** Любое следующее расширение billing-логики (например, drill-down по resource из detailed export, графики тренда, отдельный SQL для labels).
+- **Решение:** Разбить на:
+  - `billingExport/queries.ts` — все SQL builders (live + archive + available months)
+  - `billingExport/runner.ts` — `getAccessToken`, `runBigQueryQuery`, `safeRunQuery`, `fetchBigQueryJson`
+  - `billingExport/discovery.ts` — `discoverBillingExportTable`, `pickBillingExportTable`, `listDatasets/Tables`
+  - `billingExport/archive.ts` — `fetchArchiveSummary`, `getArchiveTablePath`, `fetchAvailableMonths`
+  - `billingExport/aggregator.ts` — `groupBillingServiceRows`, `decodeBigQueryRows`
+  - `billingExport/index.ts` — `getBillingSummaryData` + публичные типы (~150 строк)
+- **Без поведенческих изменений**, безопасно.
+- **Файлы:** `functions/src/billingExport.ts` (810 строк)
+
+### LP‑7. Юнит-тесты для billing fallback и SQL builders (P: L, E: S-M)
+- **Контекст:** После добавления archive fallback покрытие осталось на двух старых тестах (`pickBillingExportTable`, `groupBillingServiceRows`). Новая логика не покрыта.
+- **Что покрыть:**
+  - [ ] SQL builders: `buildArchiveServiceSkuQuery`, `buildArchiveDailyTrendQuery`, `buildArchiveMetadataQuery`, `buildArchiveAvailableMonthsQuery`, `buildLiveAvailableMonthsQuery` — snapshot-проверки на параметризацию.
+  - [ ] `safeRunQuery` — возвращает null при error от `runBigQueryQuery` (мок).
+  - [ ] `fetchArchiveSummary` — возвращает null если archive table 404; возвращает payload при наличии.
+  - [ ] `fetchAvailableMonths` — корректно объединяет live + archive, dedup, sort DESC.
+  - [ ] `getBillingSummaryData` ветки:
+    - live есть → используется live.
+    - live пуст → fallback в archive.
+    - оба пусты → пустой summary с availableMonths.
+    - ничего нет → ok:false.
+    - invalid invoiceMonth → ok:false с message.
+- **Подход:** мокать `fetch` (через `vi.mock` глобально или `vi.spyOn(globalThis, 'fetch')`). `BigQueryQueryResponse` собирать руками.
+- **Оценка:** ~150-200 строк тестов на 8-10 кейсов.
+- **Файлы:** `functions/src/billingExport.test.ts` (49 строк → ~250)
+
+### LP‑8. Миграция `timeline-biography-*-automation` в Cloud Functions с Pub/Sub trigger (P: L, E: M-L)
+- **Контекст:** Сейчас на Vercel 10/12 функций (Hobby лимит). Два automation endpoint'а (`api/timeline-biography-automation.ts`, `api/timeline-biography-extractor-automation.ts`) — admin/cron-only, не пользовательские. Vercel maxDuration=60s часто граничит для тяжёлых LLM-задач (см. `vercel.json`).
+- **Триггер:** Если упрёмся в 12-функциональный лимит Vercel **или** automation начнёт упираться в 60s.
+- **Что сделать:**
+  - [ ] Создать pair Cloud Functions (`functions/src/timelineBiographyAutomation.ts` + extractor) с `pubsub.topic(...).onPublish` trigger и runtime до 540s (1st gen) или 9 min (2nd gen).
+  - [ ] Перенести логику из `api/*-automation.ts` (учитывая, что там `server/api/timelineBiographyRuntime.ts` уже изолирован — миграция в основном про trigger обвязку).
+  - [ ] Заменить HTTP-вызов с админки на `pubsub.publish` (через client SDK `firebase/functions` callable wrapper или прямой Pub/Sub).
+  - [ ] Удалить старые `api/*-automation.ts` после прогона на проде.
+  - [ ] Освободит 2 слота на Vercel + снимет 60s ограничение.
+- **Риски:** cold-start Cloud Functions 1.5-3s — для admin-only / cron не критично.
+- **Файлы:** `api/timeline-biography-automation.ts`, `api/timeline-biography-extractor-automation.ts`, `server/api/timelineBiographyRuntime.ts`, новые `functions/src/timelineBiography*.ts`
 
 ### LP‑5. Firebase/GCP follow-ups (P: L, E: S-M)
 - **Контекст:** миграция с `functions.config()` уже закрыта 2026-03-09 (`seedAdmin` переведён на Secret Manager, runtime guard блокирует новые legacy-конфиги). Ниже оставлены только активные follow-up задачи.
