@@ -116,6 +116,11 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
+  // Firebase Admin init — обязательно ДО verifyAuthBearer (иначе на cold-start
+  // инстансе getAuth() бросает app/no-app, и пользователь видит
+  // "Недействительная авторизация" без своей вины).
+  ensureFirebaseAdminInit();
+
   // Parse body
   let body: unknown;
   try {
