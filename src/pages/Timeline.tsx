@@ -313,6 +313,12 @@ export default function Timeline() {
     },
   });
 
+  // Stable ref на biographyImport.reset чтобы не пересоздавать resetTransientTimelineUi
+  // на каждом render hook'а (иначе useEffect[activeTimelineId, resetTransientTimelineUi]
+  // срабатывает на каждом render и сбрасывает expanded сразу после setExpanded(true)).
+  const biographyImportResetRef = useRef(biographyImport.reset);
+  biographyImportResetRef.current = biographyImport.reset;
+
   const resetTransientTimelineUi = useCallback(() => {
     formHook.clearForm();
     setSelectedId(null);
@@ -320,7 +326,7 @@ export default function Timeline() {
     birthHook.setBirthSelected(false);
     setPeriodBoundaryModal(null);
     setShowBulkCreator(false);
-    biographyImport.reset();
+    biographyImportResetRef.current();
     setBiographyDiagnostics([]);
     setExportStatus({
       state: 'idle',
@@ -344,7 +350,7 @@ export default function Timeline() {
     });
     setBiographyLastUiSignal(null);
     resetHistory();
-  }, [biographyImport, birthHook.setBirthSelected, branchHook.setSelectedBranchX, formHook.clearForm, resetHistory]);
+  }, [birthHook.setBirthSelected, branchHook.setSelectedBranchX, formHook.clearForm, resetHistory]);
 
   // Auto-pickup sphere when selecting branch
   useEffect(() => {
