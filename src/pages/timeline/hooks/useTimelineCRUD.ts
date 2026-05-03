@@ -12,6 +12,7 @@ interface UseTimelineCRUDOptions {
   onHistoryRecord?: (nodes?: NodeT[], edges?: EdgeT[]) => void;
   onClearForm?: () => void;
   onSetSelectedId?: (id: string | null) => void;
+  onAfterClearAll?: () => void;
 }
 
 interface FormEventData {
@@ -36,6 +37,7 @@ export function useTimelineCRUD({
   onHistoryRecord,
   onClearForm,
   onSetSelectedId,
+  onAfterClearAll,
 }: UseTimelineCRUDOptions) {
   /**
    * Create or update an event
@@ -185,13 +187,14 @@ export function useTimelineCRUD({
    * Clear all events
    */
   const handleClearAll = useCallback(() => {
-    if (confirm('Удалить все события? Это действие нельзя отменить.')) {
+    if (confirm('Очистить весь холст? Это действие нельзя отменить.')) {
       onClearForm?.();
       setNodes([]);
       setEdges([]);
       onHistoryRecord?.([], []);
+      onAfterClearAll?.();
     }
-  }, [setNodes, setEdges, onClearForm, onHistoryRecord]);
+  }, [setNodes, setEdges, onClearForm, onHistoryRecord, onAfterClearAll]);
 
   return {
     handleFormSubmit,

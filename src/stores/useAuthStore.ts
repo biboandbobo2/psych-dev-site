@@ -6,6 +6,7 @@ import { collection, doc, getDoc, onSnapshot, query, where, type Unsubscribe } f
 import { SUPER_ADMIN_EMAIL } from '../constants/superAdmin';
 import { reportAppError } from '../lib/errorHandler';
 import { debugLog } from '../lib/debug';
+import { sanitizeGeminiApiKey } from '../lib/geminiKey';
 import type { CourseType } from '../types/tests';
 import type { CourseAccessMap, UserRole } from '../types/user';
 import { hasCourseAccess as checkCourseAccess, normalizeUserRole } from '../types/user';
@@ -96,7 +97,7 @@ export const useAuthStore = create<AuthState>()(
 
       setGroupGrantedCourses: (groupGrantedCourses) => set({ groupGrantedCourses }),
 
-      setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey }),
+      setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey: sanitizeGeminiApiKey(geminiApiKey) ?? null }),
 
       setFeaturedCourseIds: (featuredCourseIds) => set({ featuredCourseIds }),
 

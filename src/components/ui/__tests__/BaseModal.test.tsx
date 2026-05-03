@@ -66,13 +66,13 @@ describe('BaseModal', () => {
   });
 
   it('применяет правильный maxWidth класс', () => {
-    const { container } = render(
+    render(
       <BaseModal isOpen={true} onClose={vi.fn()} title="Test Modal" maxWidth="md">
         <div>Content</div>
       </BaseModal>
     );
 
-    const modal = container.querySelector('.max-w-md');
+    const modal = document.body.querySelector('.max-w-md');
     expect(modal).toBeInTheDocument();
   });
 });

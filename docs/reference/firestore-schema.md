@@ -535,74 +535,89 @@ interface Answer {
 ```typescript
 interface Timeline {
   userId: string;                 // ID владельца (совпадает с document ID)
-
-  nodes: TimelineNode[];          // События
-  edges: TimelineEdge[];          // Связи между событиями
-
-  ageMax: number;                 // Максимальный возраст на таймлайне (лет)
-
-  // Метаданные
-  createdAt: Timestamp;
+  activeCanvasId: string;         // Какой холст сейчас открыт у пользователя
+  canvases: TimelineCanvas[];     // Все холсты пользователя
   updatedAt: Timestamp;
 }
 
+interface TimelineCanvas {
+  id: string;
+  name: string;
+  createdAt: string;              // ISO string
+  data: TimelineData;
+}
+
+interface TimelineData {
+  currentAge: number;
+  ageMax: number;
+  nodes: TimelineNode[];
+  edges: TimelineEdge[];
+  birthDetails?: {
+    date?: string;
+    place?: string;
+    notes?: string;
+  };
+  selectedPeriodization?: string | null;
+}
+
 interface TimelineNode {
-  id: string;                     // Уникальный ID узла
-  type: 'event' | 'branch';       // Тип узла
-
-  // Позиция
-  position: {
-    x: number;                    // Координата X (px)
-    y: number;                    // Координата Y (px)
-  };
-
-  // Данные события
-  data: {
-    year?: number;                // Год события
-    age?: number;                 // Возраст (лет)
-
-    label: string;                // Название события
-    details?: string;             // Детали
-
-    icon?: string;                // ID иконки (из eventIconDataUrls)
-    category?: string;            // Категория (family, education, work, ...)
-    isMyDecision?: boolean;       // "Моё решение" (метка)
-  };
+  id: string;
+  age: number;
+  x?: number;                     // X-координата узла
+  parentX?: number;               // X-координата линии-родителя
+  label: string;
+  notes?: string;
+  sphere?: 'education' | 'career' | 'family' | 'health' | 'friends' | 'place' | 'finance' | 'hobby' | 'other';
+  isDecision: boolean;
+  iconId?: string;
 }
 
 interface TimelineEdge {
-  id: string;                     // Уникальный ID связи
-  source: string;                 // ID исходного узла
-  target: string;                 // ID целевого узла
-  type?: string;                  // Тип связи (напр., 'smoothstep')
+  id: string;
+  x: number;                      // X-координата ветки
+  startAge: number;
+  endAge: number;
+  color: string;
+  nodeId: string;                 // Событие, от которого идёт ветка
 }
 ```
 
 **Правила доступа:**
-- Пользователь видит только свой таймлайн (`request.auth.uid == resource.id`)
+- Пользователь видит только свой таймлайн (`request.auth.uid == userId`)
 
 **Пример документа:**
 ```json
 {
   "userId": "user_xyz789",
-  "nodes": [
+  "activeCanvasId": "canvas_main",
+  "canvases": [
     {
-      "id": "node_1",
-      "type": "event",
-      "position": { "x": 100, "y": 200 },
+      "id": "canvas_main",
+      "name": "Таймлайн 1",
+      "createdAt": "2026-03-12T12:00:00.000Z",
       "data": {
-        "year": 2000,
-        "age": 0,
-        "label": "Рождение",
-        "icon": "baby",
-        "category": "life_milestone",
-        "isMyDecision": false
+        "currentAge": 25,
+        "ageMax": 100,
+        "nodes": [
+          {
+            "id": "node_1",
+            "age": 18,
+            "x": 2000,
+            "label": "Поступление в университет",
+            "notes": "Переезд в другой город",
+            "sphere": "education",
+            "isDecision": true,
+            "iconId": "graduation-cap"
+          }
+        ],
+        "edges": [],
+        "birthDetails": {
+          "place": "Санкт-Петербург"
+        },
+        "selectedPeriodization": "erikson"
       }
     }
   ],
-  "edges": [],
-  "ageMax": 25,
-  "createdAt": "2025-12-01T10:00:00Z",
   "updatedAt": "2026-01-08T14:30:00Z"
 }
 ```
@@ -952,11 +967,36 @@ service cloud.firestore {
 
 ---
 
+## Операционные коллекции
+
+### `opsRuntime/{docId}`
+
+Служебные документы runtime-автоматизации. Сейчас используется для дедупликации budget-alert уведомлений.
+
+Пример документа:
+
+```typescript
+{
+  periodKey: "2026-03",          // billing period в UTC
+  thresholdKey: "0.2",           // threshold-бакет budget alert
+  lastCostCents: 688,            // последний зафиксированный spend в центах
+  sentCount: 2,                  // сколько Telegram-сообщений уже ушло в этом threshold-бакете
+  updatedAt: Timestamp,          // server timestamp последнего обновления
+}
+```
+
+Примечания:
+- Коллекция не пользовательская, а operational/runtime.
+- Документы создаются Cloud Function `billingBudgetAlert`.
+- Предназначение: остановить повторяющиеся Telegram-сообщения, если расход больше не растёт.
+
+---
+
 **Последнее обновление:** 2026-04-28
 
 > **Что обновлено в апреле 2026:**
 > - User: `role` сужен до `'admin' | 'super-admin'`, добавлены поля booking-интеграции (`phone`, `altegClientIds`), BYOK (`geminiApiKey`), home-customisation (`featuredCourseIds`, `studentStream`), preferences и метаданные обновлений (`courseAccessUpdatedAt/By`, `roleUpdatedAt/By`).
-> - Добавлены коллекции: `groups/{groupId}`, `aiUsageDaily/{uid}_{day}`, `videoTranscriptSearch/{videoId}` + `searchChunks/{chunkId}` (с полем `searchTokens` для индексированного поиска через `array-contains-any`), упоминание `transcriptJobs/runs`.
+> - Добавлены коллекции: `groups/{groupId}`, `aiUsageDaily/{uid}_{day}`, `videoTranscriptSearch/{videoId}` + `searchChunks/{chunkId}` (с полем `searchTokens` для индексированного поиска через `array-contains-any`), упоминание `transcriptJobs/runs`, `opsRuntime/{docId}` (operational), `biographyJobs/{jobId}` (timeline auto-generation pipeline).
 >
 > Не покрыто: dynamic courses (`courses/{courseId}/periods/.../lessons/...`), bookings cache, lecture/book RAG-метаданные расширились — синхронизировать в следующей волне.
 **Версия:** 1.0

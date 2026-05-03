@@ -32,15 +32,13 @@ export function useTimelineBirth({ birthDetails, setBirthDetails }: UseTimelineB
   }, [birthDetails, birthFormDate, birthFormPlace, birthFormNotes]);
 
   /**
-   * Sync form values when birthDetails or birthSelected changes
+   * Sync form values when birthDetails changes (e.g. after biography import)
    */
   useEffect(() => {
-    if (birthSelected) {
-      setBirthFormDate(birthDetails.date ?? '');
-      setBirthFormPlace(birthDetails.place ?? '');
-      setBirthFormNotes(birthDetails.notes ?? '');
-    }
-  }, [birthDetails, birthSelected]);
+    setBirthFormDate(birthDetails.date ?? '');
+    setBirthFormPlace(birthDetails.place ?? '');
+    setBirthFormNotes(birthDetails.notes ?? '');
+  }, [birthDetails]);
 
   /**
    * Parse birth date to Date object

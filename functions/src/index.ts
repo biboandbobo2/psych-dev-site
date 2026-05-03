@@ -319,6 +319,8 @@ export { updateCourseAccess, setUserRole } from './courseAccess.js';
 export { bulkEnrollStudents, getStudentEmailLists, saveStudentEmailList } from './bulkEnrollment.js';
 export { sendFeedback } from './sendFeedback.js';
 export { billingBudgetAlert } from './billingBudgetAlert.js';
+export { getBillingSummary } from './billingSummary.js';
 export { weeklyTranscriptRefresh } from './weeklyTranscriptRefresh.js';
 export { syncGroupCalendars, onGroupEventWrite } from './gcalSync.js';
 export { updateMyEmailPreferences } from './userPreferences.js';
+export { biographyImport } from './biographyImport.js';

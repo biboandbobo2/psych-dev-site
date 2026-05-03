@@ -18,6 +18,7 @@ import {
   Notes,
   Timeline,
   DisorderTable,
+  TimelineAutomation,
   DynamicTest,
   TestsPage,
   ResearchPage,
@@ -189,6 +190,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route path="/development/intro" element={<CourseIntroPage courseId="development" />} />
         <Route path="/clinical/intro" element={<CourseIntroPage courseId="clinical" />} />
         <Route path="/general/intro" element={<CourseIntroPage courseId="general" />} />
+        <Route path="/_timeline/automation" element={<TimelineAutomation />} />
         <Route
           path="/notes"
           element={

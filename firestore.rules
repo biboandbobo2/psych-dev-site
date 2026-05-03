@@ -228,6 +228,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Biography pipeline jobs (server writes via Admin SDK, user reads own)
+    match /biographyJobs/{jobId} {
+      allow read: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
     // История поисков пользователя
     match /searchHistory/{entryId} {
       allow read, delete: if isAuthenticated() &&

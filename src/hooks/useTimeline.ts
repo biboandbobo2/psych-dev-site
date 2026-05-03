@@ -1,8 +1,13 @@
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../auth/AuthProvider';
-import type { NodeT, EdgeT, TimelineData } from '../pages/timeline/types';
-import { removeUndefined } from '../utils/removeUndefined';
+import type { NodeT, TimelineDocument } from '../pages/timeline/types';
+import {
+  buildTimelineDocument,
+  createTimelineCanvas,
+  DEFAULT_TIMELINE_NAME,
+  normalizeTimelineDocument,
+} from '../pages/timeline/persistence';
 import { debugError, debugLog } from '../lib/debug';
 
 /**
@@ -24,27 +29,16 @@ export function useTimeline() {
     const docRef = doc(db, 'timelines', user.uid);
 
     try {
-      // Загружаем текущий таймлайн
       const snap = await getDoc(docRef);
-
-      let currentNodes: NodeT[] = [];
-      let currentEdges: EdgeT[] = [];
-      let currentAge = 35; // По умолчанию
-      let ageMax = 100;
-      let birthDetails = {};
-      let selectedPeriodization = null;
-
-      if (snap.exists()) {
-        const data = snap.data()?.data as TimelineData | undefined;
-        if (data) {
-          currentNodes = data.nodes || [];
-          currentEdges = data.edges || [];
-          currentAge = data.currentAge || 35;
-          ageMax = data.ageMax || 100;
-          birthDetails = data.birthDetails || {};
-          selectedPeriodization = data.selectedPeriodization || null;
-        }
-      }
+      const normalized = snap.exists()
+        ? normalizeTimelineDocument(snap.data() as TimelineDocument)
+        : (() => {
+            const initialCanvas = createTimelineCanvas(DEFAULT_TIMELINE_NAME);
+            return {
+              activeCanvasId: initialCanvas.id,
+              canvases: [initialCanvas],
+            };
+          })();
 
       // Создаём новое событие с ID
       const newEvent: NodeT = {
@@ -52,25 +46,23 @@ export function useTimeline() {
         id: crypto.randomUUID(),
       };
 
-      // Добавляем событие
-      const updatedNodes = [...currentNodes, newEvent];
-
-      // Сохраняем обновлённый таймлайн
-      const cleanedData = removeUndefined({
-        currentAge,
-        ageMax,
-        nodes: updatedNodes,
-        edges: currentEdges,
-        birthDetails,
-        selectedPeriodization,
-      });
+      const updatedCanvases = normalized.canvases.map((canvas) =>
+        canvas.id === normalized.activeCanvasId
+          ? {
+              ...canvas,
+              data: {
+                ...canvas.data,
+                nodes: [...canvas.data.nodes, newEvent],
+              },
+            }
+          : canvas
+      );
 
       await setDoc(
         docRef,
         {
-          userId: user.uid,
+          ...buildTimelineDocument(user.uid, normalized.activeCanvasId, updatedCanvases),
           updatedAt: serverTimestamp(),
-          data: cleanedData,
         },
         { merge: true }
       );

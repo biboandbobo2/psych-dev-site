@@ -35,6 +35,7 @@ export type Periodization = {
 export type Sphere =
   | 'education' // Образование
   | 'career' // Карьера
+  | 'creativity' // Творчество
   | 'family' // Семья
   | 'health' // Здоровье
   | 'friends' // Друзья
@@ -89,6 +90,21 @@ export type TimelineData = {
   edges: EdgeT[];
   birthDetails?: BirthDetails;
   selectedPeriodization?: string | null; // ID выбранной периодизации или null
+};
+
+export type TimelineCanvas = {
+  id: string;
+  name: string;
+  createdAt: string;
+  data: TimelineData;
+};
+
+export type TimelineDocument = {
+  userId: string;
+  updatedAt?: unknown;
+  activeCanvasId?: string;
+  canvases?: TimelineCanvas[];
+  data?: TimelineData;
 };
 
 /**

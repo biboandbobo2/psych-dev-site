@@ -76,6 +76,7 @@ export const SAVE_DEBOUNCE_MS = 10000;
 export const SPHERE_META: Record<Sphere, { color: string; label: string; emoji: string }> = {
   education: { color: '#a5b4fc', label: 'Образование', emoji: '🎓' }, // Пастельный индиго
   career: { color: '#7dd3fc', label: 'Карьера', emoji: '💼' }, // Пастельный голубой
+  creativity: { color: '#fdba74', label: 'Творчество', emoji: '✍️' }, // Пастельный оранжевый
   family: { color: '#fca5a5', label: 'Семья', emoji: '❤️' }, // Пастельный красный
   health: { color: '#86efac', label: 'Здоровье', emoji: '💪' }, // Пастельный зелёный
   friends: { color: '#fcd34d', label: 'Друзья', emoji: '🤝' }, // Пастельный оранжевый

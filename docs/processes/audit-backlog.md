@@ -168,6 +168,18 @@ CI часть (осталась):
 - [ ] Явно закрепить в README требование прочитать `docs/architecture/guidelines.md` и `docs/guides/testing-system.md` перед началом задач.
 - [ ] Обновить ленивую документацию: описать политику добавления новых lazy-страниц и итоговые метрики в `docs/archive/legacy/lazy-loading-migration.md` / README, синхронизировать `docs/reference/perf-metrics.md` после завершения работ.
 
+### MP‑7. Timeline UX follow-ups (P: M, E: S-M)
+- [ ] Добавить удаление дополнительных холстов в multi-canvas timeline: пользователь должен иметь возможность удалить любой холст, кроме первого (`Таймлайн 1`/legacy base canvas).
+- [ ] Сделать экспорт `PDF`/`PNG` адаптивным к фактической длине жизни и заполненности холста: если активная часть таймлайна заканчивается раньше `ageMax`, не выгружать длинное пустое полотно.
+- [ ] Привести `Очистить всё` к полному reset empty-canvas state: после очистки активный холст должен снова считаться пустым и позволять импорт внешних источников (`Wikipedia`/`.json`) без дополнительных действий.
+
+### MP‑8. Biography import richness follow-up (P: M, E: M)
+- **Контекст:** facts-first каскад уже умеет approximate ages, high-salience facts и theme-ветки, но legacy fallback и часть heuristic labels всё ещё периодически выдают generic события вроде `Учёба`/`Ссылка` и недобирают theme branches на sparse inputs.
+- **Задачи:**
+  - [ ] Дожать generic-label cleanup в legacy path, чтобы при деградации quality не откатывалась к старым заглушкам.
+  - [ ] Расширить sparse-biography coverage tests для theme branches (`friends`, `romance`, `travel`, `losses`) на нескольких не-пушкинских fixture’ах.
+  - [ ] Решить, какие metrics из локального `timeline:eval` стоит поднимать в API-meta/UI для быстрой диагностики без CLI.
+
 ### MR‑1. ✅ Масштабирование `/api/transcript-search` — РЕШЕНО (2026-04-28, H7)
 - **Решение:** keyword prefix-индекс. В каждый chunk добавлено поле `searchTokens: string[]` — массив префиксов слов длиной ≥ 3 (lowercased, без stop-words). Endpoint использует `where('searchTokens', 'array-contains-any', queryWords)` вместо full scan.
 - **Что сделано:**
@@ -198,6 +210,81 @@ CI часть (осталась):
   - [ ] Проверить и удалить устаревший дубль `api/lectureTranscriptFallback.ts`, если он действительно не используется.
   - [ ] Вернуть route-level lazy discipline для `PeriodPage` и `DynamicCoursePeriodPage` через `src/pages/lazy.ts`.
   - [ ] Синхронизировать `docs/reference/routes.md`, `docs/guides/booking-system.md`, `docs/reference/firestore-schema.md` после исправлений.
+
+### BPT. Biography Pipeline tech debt (P: M, E: L)
+- **Источник:** ревью после squash-merge `feature/video-study-notes` (PR #65, 2026-05-03). Pipeline функционально работает, но 4 файла стали монолитами, есть дубли legacy-кода и пробелы в test coverage.
+- **Размеры файлов** (CLAUDE.md лимит < 400 строк):
+
+  | Файл | Строк | Статус |
+  |---|---|---|
+  | `server/api/timelineBiographyRuntime.ts` | 1098 | 🔴 deprecated, дублирует CF |
+  | `src/pages/timeline/components/TimelineLeftPanel.tsx` | 856 | 🔴 раздут iPad/Safari debug |
+  | `functions/src/biographyImport.ts` | 843 | 🔴 главный CF, `runFullBiographyPipeline` 380 строк |
+  | `src/pages/Timeline.tsx` | 771 | 🟡 был 1125, нужно ещё |
+  | `timelineBiographyFacts.ts` / `Lint.ts` / `Heuristics.ts` | ~500 | 🟡 |
+
+- **Задачи (рекомендованный порядок):**
+
+  **BPT-1. Deprecate + удалить `timelineBiographyRuntime.ts` и `api/timeline-biography.ts` (P: M, E: S)**
+  - UI после переезда главного pipeline в Cloud Function использует `useBiographyImport` с прямым вызовом CF. Vercel jobs flow (`/api/timeline-biography`) фактически не вызывается ни UI, ни тестами.
+  - [ ] Подтвердить grep'ом что нет live-вызовов: `grep -rn "/api/timeline-biography[^-]" src/ tests/`
+  - [ ] Удалить `api/timeline-biography.ts` (258 строк) и `server/api/timelineBiographyRuntime.ts` (1098)
+  - [ ] Vercel functions count -1 (запас под другие фичи)
+  - [ ] Сохранить `api/timeline-biography-automation.ts` и `extractor-automation.ts` — используются CLI-бенчмарками
+
+  **BPT-2. Декомпозиция `functions/src/biographyImport.ts` (P: M, E: M)**
+  - Cel: 843 → ~150 строк handler + 6 шагов по ~100 строк
+  - Структура `functions/src/biography/`:
+    - `index.ts` — Cloud Function handler + verifyAuth (~50 строк)
+    - `pipeline.ts` — orchestration (~80)
+    - `step1-wikipedia.ts`, `step2-extraction.ts`, `step3-gap-filling.ts`, `step4-annotation.ts`, `step5-redaktura.ts`, `step6-composition.ts`
+    - `helpers.ts` — `callGeminiWithRetry`, `extractGeminiTokens`, `recordBiographyByokUsage`, `collectGeminiResultText`
+    - `parsers.ts` — `parseSimpleJsonFacts`, `parseAnnotationResponse`, `parseRedakturaResponse`, `normalizeError`
+  - Бонус: каждый шаг легче покрыть unit-тестом (см. BPT-5)
+
+  **BPT-3. Чистка `TimelineLeftPanel.tsx` (P: M, E: M)**
+  - Удалить iPad/Safari debug counters/popover (баг исправлен `884b951`, диагностика мёртвая):
+    - state `leftPanelSignalCounts`, `leftPanelDiagnostics`, `showDebugPopover`
+    - props `biographyDiagnostics`, `biographyUiSignals`, `biographyLastUiSignal`, `onBiographyDiagnostic`, `onBiographyUiSignal`
+    - native addEventListener в useEffect (строки 240-285) — дублирует React onClickCapture
+  - Вынести `BiographyImportSection`, `DownloadMenu`, `CanvasManager` в отдельные компоненты
+  - Цель: 856 → ~400 строк
+
+  **BPT-4. Дофинишировать `Timeline.tsx` (P: L, E: M)**
+  - Вынести `useTimelineExport` hook (handleDownload + status + diagnostics)
+  - Удалить остатки `recordBiographyUiSignal`/`appendBiographyDiagnostic` после BPT-3
+  - Цель: 771 → ~400 строк
+
+  **BPT-5. Test coverage gap (P: M, E: M)**
+  - **Cloud Function `functions/src/biographyImport.ts` — 0 unit тестов** (главный entry pipeline не покрыт). Желательно после BPT-2:
+    - [ ] `pipeline.test.ts` — orchestration с замоканными Gemini calls
+    - [ ] `step2-extraction.test.ts` — slice loop, post-death filter (использует findDeathFact)
+    - [ ] `step3-gap-filling.test.ts` — density mode, post-gap filter
+    - [ ] `helpers.test.ts` — `extractGeminiTokens`, `recordBiographyByokUsage` с mocked Firestore
+  - **Hook `src/pages/timeline/hooks/useBiographyImport.ts`** — 0 тестов:
+    - [ ] open/close/handleSourceUrlChange — простые state transitions
+    - [ ] submit success path — mock fetch + onSnapshot status='done'
+    - [ ] submit error path — onSnapshot status='error'
+    - [ ] submit network error path — fetch rejects, polling всё равно работает
+  - **Death detection regression test:**
+    - [ ] Тест с фактом-родственником (смерть отца) на середине жизни subject'а — pipeline должен продолжить до реальной смерти
+
+  **BPT-6. Опционально разбить `timelineBiographyFacts/Lint/Heuristics.ts` (P: L, E: S)**
+  - По логическим единицам (parsing, normalization, dedup, baseline, salience). Делать только если кто-то начнёт активно править эти файлы.
+
+### MR‑7. Починить AdminFeedFilters.test.tsx — pre-existing typecheck regression (P: L, E: XS)
+- **Симптом:** 3 теста в `src/pages/admin/announcements/__tests__/AdminFeedFilters.test.tsx` падают: `Type '"event"' is not assignable to type 'FeedFilterKind'`. Проявляется в `typecheck:tests` и в `vitest run` (отображается через jsdom assertion).
+- **Когда появилось:** уже было до merge `feature/biography-timeline-merge` (PR #65) — тесты были красные на main.
+- **Гипотеза:** тип `FeedFilterKind` в `src/pages/admin/announcements/...` был сужен (например, `'event'` стало `'events'` или `'group-event'`), а тест не обновили.
+- **Эффект сейчас:** локально 7 fail в vitest вместо ожидаемых 4 integration. CI red.
+- **Эффорт:** XS — поправить literal в тесте.
+
+### MR‑6. Удалить orphan Cloud Function setStudentStream(us-central1) (P: L, E: XS)
+- **Контекст:** обнаружена при попытке `npm run firebase:deploy:functions` 2026-05-03. Firebase abort'ит full deploy потому что функция в проде, но её нет в локальном коде.
+- **История:** добавлена коммитом `2374c98` (11 апреля), удалена из репо коммитом `8781443` (24 апреля, post-migration cleanup), но `firebase functions:delete` не выполнялся.
+- **Безопасность:** 0 callers в активном коде (`grep -rn "setStudentStream"` пусто), миграция streams→groups завершена в апреле, поле `users.studentStream === 'none'` для всех пользователей.
+- **Команда:** `firebase functions:delete setStudentStream --region us-central1 --project psych-dev-site-prod`
+- **Эффект:** `firebase:deploy:functions` снова работает без targeted-only режима.
 
 ### MR‑2. ✅ Починить `npm run test:ci` — РЕШЕНО (2026-04-27)
 - **Решение:** `--runInBand` снят в Vitest 4. Заменён на `--no-file-parallelism` (canonical эквивалент: последовательный прогон файлов в одном пуле). Применено и к `test:ci`, и к `test:integration` / `test:integration:watch`.
@@ -856,3 +943,34 @@ export function useClinicalTopics() {
 - [ ] Расширить `tests/integration/testsWorkflow.test.ts` блоком про полную prerequisite-цепочку и edge-cases threshold.
 - [ ] Прогон `npm run test:integration` — все зелёные.
 - [ ] Обновить список покрытия в `docs/guides/testing-system.md` под Integration Tests.
+
+---
+
+## 🕰️ Biography Timeline Pipeline (BTP)
+
+> **Pipeline:** extraction → gap-filling → annotation → redaktura → composition → render
+> **Ключевые файлы:** `server/api/timelineBiographyPrompts.ts`, `server/api/timelineBiographyRuntime.ts`
+> **Текущая версия:** two-pass-v5
+
+### BTP-1. Батчевание annotation/redaktura для длинных биографий (P: M, E: S)
+- **Проблема:** При >250 фактах (Вертинский — 257) один вызов с maxOutputTokens=65536 может упираться в входной контекст или порождать неполный ответ. Сейчас работает, но для статей с 400+ фактами может потребоваться батчевание.
+- **Триггер:** Если появится биография с >300 фактами и annotation/redaktura вернут <90% покрытия.
+- **Решение:** Батчевание по ~120 фактов с `Promise.allSettled` (проверено в тесте Вертинского). Для importance — адаптивный лимит `Math.ceil(15 * batchSize / totalSize)` + пост-процессинг overflow.
+
+### BTP-2. Улучшение composition — баланс mainLine/branches (P: M, E: M)
+- **Проблема:** На Павлове mainLine слишком жирный (35 фактов вместо ~15-20), слишком мало веток (3 вместо 6-8).
+- **Задачи:**
+  - [ ] Ужесточить промпт composition: явнее ограничить mainLine, увеличить минимум веток
+  - [ ] Тестировать на Павлове и Вертинском
+  - [ ] Возможно передавать importance из редактуры как дополнительный сигнал
+
+### BTP-3. Рендер timeline на canvas (P: H, E: M)
+- **Описание:** Интегрировать конвертер из `tmp/render-composition.ts` в production — преобразование composition result в визуальный таймлайн.
+- **Задачи:**
+  - [ ] Перенести логику из tmp в production код
+  - [ ] Связать с существующим TimelineCanvas компонентом
+
+### BTP-4. shortLabel длина >25 символов (P: L, E: S)
+- **Проблема:** ~12% лейблов превышают 25 символов. Не критично — UI обрезает через CSS.
+- **Триггер:** Если при рендере на canvas появятся визуальные артефакты из-за длинных лейблов.
+- **Решение:** Runtime обрезка по слову до 25 + «…» или CSS text-overflow.

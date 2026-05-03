@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface BaseModalProps {
   /** Флаг открытия модального окна */
@@ -56,8 +57,7 @@ export function BaseModal({
   if (!isOpen) return null;
 
   const maxWidthClass = MAX_WIDTH_CLASSES[maxWidth] || MAX_WIDTH_CLASSES['3xl'];
-
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div
         className={`max-h-[90vh] w-full overflow-y-auto rounded-lg bg-white shadow-2xl ${maxWidthClass} ${className}`}
@@ -87,6 +87,15 @@ export function BaseModal({
         )}
       </div>
     </div>
+  );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999]">{modalContent}</div>,
+    document.body
   );
 }
 

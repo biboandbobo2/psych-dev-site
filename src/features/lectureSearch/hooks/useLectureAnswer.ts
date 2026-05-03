@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { debugError, debugLog } from '../../../lib/debug';
 import { buildAuthorizedHeaders } from '../../../lib/apiAuth';
+import { buildGeminiApiKeyHeader, sanitizeGeminiApiKey } from '../../../lib/geminiKey';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import {
   LECTURE_AI_MAX_QUESTION_LENGTH,
@@ -137,9 +138,10 @@ export function useLectureAnswer(): UseLectureAnswerReturn {
     });
 
     try {
+      const geminiApiKeyOverride = sanitizeGeminiApiKey(geminiApiKey);
       const headers = await buildAuthorizedHeaders({
         'Content-Type': 'application/json',
-        'X-Gemini-Api-Key': geminiApiKey ?? undefined,
+        ...buildGeminiApiKeyHeader(geminiApiKeyOverride),
       });
       const res = await fetch('/api/lectures', {
         method: 'POST',
