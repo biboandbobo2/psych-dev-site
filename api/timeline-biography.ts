@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { debugError, debugLog } from '../src/lib/debug.js';
+import { initFirebaseAdmin } from '../src/lib/api-server/sharedApiRuntime.js';
 import { resolveLectureGeminiApiKey, setLectureApiCorsHeaders, verifyLectureApiAuth } from './_lib/lectureApiRuntime.js';
 import {
   normalizeBiographyApiError,
@@ -12,16 +12,6 @@ import {
   runBiographyStep4,
   validateBiographyImportRequest,
 } from '../server/api/timelineBiography.js';
-
-function initFirebaseAdmin() {
-  if (getApps().length > 0) return;
-  const json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!json) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY not configured');
-  }
-  const sa = JSON.parse(json);
-  initializeApp({ credential: cert(sa) });
-}
 
 const JOBS_COLLECTION = 'biographyJobs';
 

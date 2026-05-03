@@ -1,51 +1,26 @@
 // Timeline component with bulk event creation support
-import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
-import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { flushSync } from 'react-dom';
-import { Icon, type EventIconId } from '../components/Icon';
-import { EVENT_ICON_MAP } from '../data/eventIcons';
+import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
+import { motion } from 'framer-motion';
 import { useNotes } from '../hooks/useNotes';
 import { PageLoader } from '../components/ui';
 import { debugError, debugLog } from '../lib/debug';
-import { buildAuthorizedHeaders } from '../lib/apiAuth';
-import { buildGeminiApiKeyHeader, sanitizeGeminiApiKey } from '../lib/geminiKey';
-import { reportAppError } from '../lib/errorHandler';
-import { useAuthStore } from '../stores/useAuthStore';
-import { db } from '../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
 
 // Импорт типов, констант, утилит и компонентов из модулей
 import type {
-  Sphere,
   NodeT,
   BirthDetails,
   EdgeT,
-  TimelineData,
-  HistoryState,
-  SaveStatus,
-  Transform,
 } from './timeline/types';
 import {
   YEAR_PX,
   LINE_X_POSITION,
-  MIN_SCALE,
-  MAX_SCALE,
-  SPHERE_META,
   BASE_NODE_RADIUS,
   MIN_NODE_RADIUS,
   MAX_NODE_RADIUS,
-  BRANCH_CLICK_WIDTH,
-  BRANCH_CLICK_WIDTH_UNSELECTED,
   DEFAULT_CURRENT_AGE,
   DEFAULT_AGE_MAX,
 } from './timeline/constants';
-import { screenToWorld, clamp, parseAge } from './timeline/utils';
-import { IconPickerButton } from './timeline/components/IconPickerButton';
-import { PeriodizationSelector } from './timeline/components/PeriodizationSelector';
-import { PeriodBoundaryModal } from './timeline/components/PeriodBoundaryModal';
-import { PERIODIZATIONS, getPeriodizationById } from './timeline/data/periodizations';
-import { buildTimelineExportPayload, exportTimelineJSON, exportTimelinePNG, exportTimelinePDF } from './timeline/utils/exporters';
+import { clamp } from './timeline/utils';
 import { useTimelineState } from './timeline/hooks/useTimelineState';
 import { useTimelineHistory } from './timeline/hooks/useTimelineHistory';
 import { useDownloadMenu } from './timeline/hooks/useDownloadMenu';
@@ -56,47 +31,28 @@ import { useTimelinePanZoom } from './timeline/hooks/useTimelinePanZoom';
 import { useTimelineDragDrop } from './timeline/hooks/useTimelineDragDrop';
 import { useTimelineBranch } from './timeline/hooks/useTimelineBranch';
 import { useTimelineCRUD } from './timeline/hooks/useTimelineCRUD';
-import { hasTimelineContent, normalizeImportedTimelineData } from './timeline/persistence';
-import { BiographyImportModal, type BiographyProgressEvent } from './timeline/components/BiographyImportModal';
-import { lazyWithReload } from '../lib/lazyWithReload';
-const TimelineLeftPanel = lazy(() =>
-  lazyWithReload(
-    () => import('./timeline/components/TimelineLeftPanel').then((module) => ({ default: module.TimelineLeftPanel })),
-    'TimelineLeftPanel'
-  )
-);
-const TimelineRightPanel = lazy(() =>
-  lazyWithReload(
-    () => import('./timeline/components/TimelineRightPanel').then((module) => ({ default: module.TimelineRightPanel })),
-    'TimelineRightPanel'
-  )
-);
-const TimelineCanvas = lazy(() =>
-  lazyWithReload(
-    () => import('./timeline/components/TimelineCanvas').then((module) => ({ default: module.TimelineCanvas })),
-    'TimelineCanvas'
-  )
-);
-const BulkEventCreator = lazy(() =>
-  lazyWithReload(
-    () => import('./timeline/components/BulkEventCreator').then((module) => ({ default: module.BulkEventCreator })),
-    'BulkEventCreator'
-  )
-);
-const TimelineHelpModal = lazy(() =>
-  lazyWithReload(
-    () => import('./timeline/components/TimelineHelpModal').then((module) => ({ default: module.TimelineHelpModal })),
-    'TimelineHelpModal'
-  )
-);
+import { useIsMobile } from './timeline/hooks/useIsMobile';
+import { useBiographyImport } from './timeline/hooks/useBiographyImport';
+import { hasTimelineContent } from './timeline/persistence';
+import { BiographyImportModal } from './timeline/components/BiographyImportModal';
+import { MobileReadOnlyBanner } from './timeline/components/MobileReadOnlyBanner';
+import { PeriodBoundaryModalContainer } from './timeline/components/PeriodBoundaryModalContainer';
+import { buildTimelineExportPayload, exportTimelineJSON, exportTimelinePNG, exportTimelinePDF } from './timeline/utils/exporters';
+import { getPeriodizationById } from './timeline/data/periodizations';
+import {
+  BulkEventCreator,
+  TimelineCanvas,
+  TimelineHelpModal,
+  TimelineLeftPanel,
+  TimelineRightPanel,
+} from './timeline/lazyComponents';
 
 // ============ MAIN COMPONENT ============
 
 export default function Timeline() {
   const svgRef = useRef<SVGSVGElement>(null);
   const { createNote } = useNotes();
-  const geminiApiKey = useAuthStore((state) => state.geminiApiKey);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
 
   // ============ STATE HOOKS ============
 
@@ -206,20 +162,7 @@ export default function Timeline() {
   const [showHelp, setShowHelp] = useState(false);
   const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
   const [showBulkCreator, setShowBulkCreator] = useState(false);
-  const [showBiographyImportExpanded, setShowBiographyImportExpanded] = useState(false);
-  const [biographySourceUrl, setBiographySourceUrl] = useState('');
-  const [biographyImportLoading, setBiographyImportLoading] = useState(false);
-  const [biographyImportError, setBiographyImportError] = useState<string | null>(null);
   const [biographyDiagnostics, setBiographyDiagnostics] = useState<string[]>([]);
-  const [biographyMeta, setBiographyMeta] = useState<{
-    source?: string;
-    model?: string;
-    nodes?: number;
-    edges?: number;
-  } | null>(null);
-  const [biographyProgress, setBiographyProgress] = useState<BiographyProgressEvent | null>(null);
-  const [biographyErrorDetail, setBiographyErrorDetail] = useState<string | null>(null);
-  const [showBiographyModal, setShowBiographyModal] = useState(false);
   const [exportStatus, setExportStatus] = useState<{
     state: 'idle' | 'running' | 'success' | 'error';
     type: 'json' | 'png' | 'pdf' | null;
@@ -361,6 +304,15 @@ export default function Timeline() {
     [ageMax, birthDetails, currentAge, edges, nodes, selectedPeriodization]
   );
 
+  // Biography import (Wikipedia → CF → timeline)
+  const biographyImport = useBiographyImport({
+    activeTimelineId,
+    activeTimelineName,
+    applyTimeline: ({ timeline, canvasName, subjectName }) => {
+      replaceActiveTimeline(timeline, { name: canvasName || subjectName });
+    },
+  });
+
   const resetTransientTimelineUi = useCallback(() => {
     formHook.clearForm();
     setSelectedId(null);
@@ -368,9 +320,7 @@ export default function Timeline() {
     birthHook.setBirthSelected(false);
     setPeriodBoundaryModal(null);
     setShowBulkCreator(false);
-    setShowBiographyImportExpanded(false);
-    setBiographyImportError(null);
-    setBiographySourceUrl('');
+    biographyImport.reset();
     setBiographyDiagnostics([]);
     setExportStatus({
       state: 'idle',
@@ -394,26 +344,7 @@ export default function Timeline() {
     });
     setBiographyLastUiSignal(null);
     resetHistory();
-  }, [birthHook.setBirthSelected, branchHook.setSelectedBranchX, formHook.clearForm, resetHistory]);
-
-  useEffect(() => {
-    appendBiographyDiagnostic('render state', {
-      showBiographyImportExpanded,
-      biographyImportLoading,
-      hasError: Boolean(biographyImportError),
-      sourceUrlLength: biographySourceUrl.length,
-      activeTimelineId,
-      activeTimelineHasContent,
-    });
-  }, [
-    activeTimelineHasContent,
-    activeTimelineId,
-    appendBiographyDiagnostic,
-    biographyImportError,
-    biographyImportLoading,
-    biographySourceUrl.length,
-    showBiographyImportExpanded,
-  ]);
+  }, [biographyImport, birthHook.setBirthSelected, branchHook.setSelectedBranchX, formHook.clearForm, resetHistory]);
 
   // Auto-pickup sphere when selecting branch
   useEffect(() => {
@@ -591,289 +522,38 @@ export default function Timeline() {
   };
 
   const handleOpenBiographyImport = () => {
-    debugLog('[Timeline] Open biography import');
     recordBiographyUiSignal('open');
     appendBiographyDiagnostic('open requested');
-    setBiographyImportError(null);
-    setBiographyMeta(null);
-    setShowBiographyImportExpanded(true);
+    biographyImport.open();
   };
 
   const handleCloseBiographyImport = () => {
-    if (biographyImportLoading) return;
-    debugLog('[Timeline] Close biography import');
     recordBiographyUiSignal('close');
     appendBiographyDiagnostic('close requested');
-    setShowBiographyImportExpanded(false);
-    setBiographyImportError(null);
-    setBiographySourceUrl('');
+    biographyImport.close();
   };
 
   const handleBiographySourceUrlChange = (value: string) => {
-    debugLog('[Timeline] Biography source url changed', value);
     appendBiographyDiagnostic('source url changed', value);
-    setBiographySourceUrl(value);
-    if (biographyImportError) {
-      setBiographyImportError(null);
-    }
+    biographyImport.handleSourceUrlChange(value);
   };
 
   const handleImportBiography = async () => {
-    const sourceUrl = biographySourceUrl.trim();
-    const geminiApiKeyOverride = sanitizeGeminiApiKey(geminiApiKey);
-    debugLog('[Timeline] Biography import submit', {
-      sourceUrl,
-      activeTimelineId,
-      activeTimelineName,
-      hasGeminiApiKeyOverride: Boolean(geminiApiKeyOverride),
-    });
-    recordBiographyUiSignal('submit', {
-      sourceUrl,
-      activeTimelineId,
-      activeTimelineName,
-    });
-    appendBiographyDiagnostic('submit requested', {
-      sourceUrl,
-      activeTimelineId,
-      activeTimelineName,
-    });
-    if (!sourceUrl) {
-      setBiographyImportError('Укажите ссылку на статью Wikipedia.');
-      debugError('[Timeline] Biography import blocked: empty url');
-      appendBiographyDiagnostic('submit blocked: empty url');
-      return;
-    }
-
-    setBiographyImportLoading(true);
-    setBiographyImportError(null);
-    setBiographyErrorDetail(null);
-    setBiographyProgress(null);
-    setBiographyMeta(null);
-    flushSync(() => {
-      setShowBiographyModal(true);
-    });
-    await new Promise<void>((resolve) => {
-      window.requestAnimationFrame(() => resolve());
-    });
-
-    const buildStepHeaders = async (apiKeyOverride: string | undefined) =>
-      buildAuthorizedHeaders({
-        'Content-Type': 'application/json',
-        ...buildGeminiApiKeyHeader(apiKeyOverride),
-      });
-
-    const callStep = async (body: Record<string, unknown>, apiKeyOverride: string | undefined) => {
-      let response: Response;
-      try {
-        const headers = await buildStepHeaders(apiKeyOverride);
-        response = await fetch('/api/timeline-biography', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(body),
-        });
-      } catch (fetchError) {
-        // Browser rejects special chars in header values — retry without BYOK key
-        if (apiKeyOverride && fetchError instanceof SyntaxError && /expected pattern/i.test(fetchError.message)) {
-          debugLog('[Timeline] Retrying step without BYOK header after syntax error');
-          const headers = await buildStepHeaders(undefined);
-          response = await fetch('/api/timeline-biography', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(body),
-          });
-        } else {
-          throw fetchError;
-        }
-      }
-      // Handle non-JSON responses (e.g. Vercel 504 timeout HTML page)
-      const contentType = response.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) {
-        const status = response.status;
-        const hint = status === 504
-          ? `Серверная функция не уложилась в таймаут (шаг ${body.step ?? '?'}). Попробуйте ещё раз — повторный запуск обычно быстрее.`
-          : `Сервер вернул неожиданный ответ (HTTP ${status}).`;
-        setBiographyErrorDetail(hint);
-        throw new Error(hint);
-      }
-      const data = await response.json() as {
-        ok?: boolean;
-        error?: string;
-        detail?: string;
-        stack?: string;
-        jobId?: string;
-        subjectName?: string;
-        canvasName?: string;
-        factsCount?: number;
-        rawTextChars?: number;
-        model?: string;
-        slicesTotal?: number;
-        slicesDone?: number;
-        timeline?: TimelineData;
-        meta?: {
-          model?: string;
-          timelineStats?: { nodes?: number; edges?: number };
-        };
-      };
-      if (!response.ok || !data.ok) {
-        const detailParts = [
-          data.detail && `Ошибка: ${data.detail}`,
-          data.stack && `\nStack trace:\n${data.stack}`,
-        ].filter(Boolean);
-        if (detailParts.length > 0) {
-          setBiographyErrorDetail(detailParts.join('\n'));
-        }
-        throw new Error(data.error || `Ошибка на шаге ${body.step ?? 1}`);
-      }
-      return data;
-    };
-
-    try {
-      debugLog('[Timeline] Biography import request start', { sourceUrl });
-      appendBiographyDiagnostic('request start', { sourceUrl });
-
-      // Generate jobId so we can track progress via Firestore onSnapshot
-      const jobId = crypto.randomUUID();
-      setBiographyProgress({ step: 1, total: 6, label: 'Запуск Cloud Function...' });
-
-      // Subscribe to Firestore job document for real-time progress
-      const jobDocRef = doc(db, 'biographyJobs', jobId);
-      const unsubscribe = onSnapshot(jobDocRef, (snapshot) => {
-        if (!snapshot.exists()) return;
-        const data = snapshot.data();
-        if (data?.progress) {
-          setBiographyProgress({
-            step: data.progress.step ?? 1,
-            total: data.progress.total ?? 6,
-            label: data.progress.label ?? 'Обработка...',
-            detail: data.progress.detail,
-          });
-        }
-      });
-
-      try {
-        const cfUrl = `https://europe-west1-psych-dev-site-prod.cloudfunctions.net/biographyImport`;
-        const headers = await buildStepHeaders(geminiApiKeyOverride);
-        const cfResponse = await fetch(cfUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ sourceUrl, canvasId: activeTimelineId ?? '', jobId }),
-        });
-
-        const contentType = cfResponse.headers.get('content-type') ?? '';
-        if (!contentType.includes('application/json')) {
-          const hint = cfResponse.status === 504
-            ? 'Cloud Function не уложилась в таймаут.'
-            : `Сервер вернул неожиданный ответ (HTTP ${cfResponse.status}).`;
-          setBiographyErrorDetail(hint);
-          throw new Error(hint);
-        }
-
-        const result = await cfResponse.json() as {
-          ok?: boolean;
-          error?: string;
-          detail?: string;
-          jobId?: string;
-          subjectName?: string;
-          canvasName?: string;
-          timeline?: TimelineData;
-          meta?: {
-            model?: string;
-            factCount?: number;
-            timelineStats?: { nodes?: number; edges?: number };
-          };
-        };
-
-        if (!cfResponse.ok || !result.ok) {
-          if (result.detail) setBiographyErrorDetail(result.detail);
-          throw new Error(result.error || 'Ошибка Cloud Function');
-        }
-
-        appendBiographyDiagnostic('cloud function done', { jobId: result.jobId, nodes: result.meta?.timelineStats?.nodes });
-
-        if (!result.timeline) {
-          throw new Error('Сервер не вернул данные таймлайна.');
-        }
-
-        setBiographyMeta({
-          model: result.meta?.model,
-          nodes: result.meta?.timelineStats?.nodes,
-          edges: result.meta?.timelineStats?.edges,
-        });
-
-        replaceActiveTimeline(result.timeline, {
-          name: result.canvasName || result.subjectName,
-        });
-        resetTransientTimelineUi();
-        setShowBiographyImportExpanded(false);
-        setBiographySourceUrl('');
-        debugLog('[Timeline] Biography import applied successfully', { jobId: result.jobId });
-        appendBiographyDiagnostic('timeline applied', { jobId: result.jobId });
-      } finally {
-        unsubscribe();
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось построить таймлайн по биографии.';
-      reportAppError({ message: 'Ошибка импорта биографии в таймлайн', error, context: 'Timeline.handleImportBiography' });
-      setBiographyImportError(message);
-      setBiographyErrorDetail((prev) => prev ?? (error instanceof Error ? error.message : String(error)));
-      setBiographyMeta(null);
-      debugError('Timeline biography import failed', { error, sourceUrl });
-      appendBiographyDiagnostic('request failed', message);
-    } finally {
-      setBiographyImportLoading(false);
-      appendBiographyDiagnostic('request finished');
+    recordBiographyUiSignal('submit', { sourceUrl: biographyImport.sourceUrl, activeTimelineId });
+    appendBiographyDiagnostic('submit requested', { sourceUrl: biographyImport.sourceUrl });
+    const ok = await biographyImport.submit();
+    appendBiographyDiagnostic(ok ? 'timeline applied' : 'request finished');
+    if (ok) {
+      resetTransientTimelineUi();
     }
   };
 
   const handleImportTimelineJsonFile = async (file: File | null) => {
-    if (!file) {
-      return;
-    }
-
-    debugLog('[Timeline] Timeline JSON import submit', {
-      fileName: file.name,
-      fileSize: file.size,
-      activeTimelineId,
-      activeTimelineName,
-    });
-    appendBiographyDiagnostic('json import requested', {
-      fileName: file.name,
-      fileSize: file.size,
-    });
-    setBiographyImportLoading(true);
-    setBiographyImportError(null);
-
-    try {
-      const rawText = await file.text();
-      const parsed = JSON.parse(rawText) as unknown;
-      const normalizedTimeline = normalizeImportedTimelineData(parsed);
-
-      replaceActiveTimeline(normalizedTimeline, {
-        name: file.name.replace(/\.json$/i, '').trim() || activeTimelineName,
-      });
+    appendBiographyDiagnostic('json import requested', file ? { fileName: file.name, fileSize: file.size } : null);
+    const ok = await biographyImport.importTimelineJsonFile(file);
+    if (ok) {
       resetTransientTimelineUi();
-      setShowBiographyImportExpanded(false);
-      debugLog('[Timeline] Timeline JSON import applied successfully', {
-        fileName: file.name,
-        nodes: normalizedTimeline.nodes.length,
-        edges: normalizedTimeline.edges.length,
-      });
-      appendBiographyDiagnostic('json timeline applied', {
-        fileName: file.name,
-        nodes: normalizedTimeline.nodes.length,
-        edges: normalizedTimeline.edges.length,
-      });
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Не удалось загрузить JSON-файл таймлайна.';
-      setBiographyImportError(message);
-      debugError('Timeline JSON import failed', error);
-      appendBiographyDiagnostic('json import failed', message);
-    } finally {
-      setBiographyImportLoading(false);
-      appendBiographyDiagnostic('json import finished');
+      appendBiographyDiagnostic('json timeline applied');
     }
   };
 
@@ -897,14 +577,6 @@ export default function Timeline() {
   const cursorClass = panZoomHook.isPanning ? 'cursor-grabbing' : 'cursor-grab';
   const readOnly = isMobile;
 
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 639px)');
-    const update = () => setIsMobile(media.matches);
-    update();
-    media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
-  }, []);
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -912,26 +584,7 @@ export default function Timeline() {
       transition={{ duration: 0.3 }}
       className="fixed inset-0 bg-gradient-to-br from-slate-50 to-white overflow-hidden"
     >
-      {readOnly && (
-        <div className="absolute top-4 left-4 right-4 z-10 sm:hidden">
-          <div className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-700 shadow-sm backdrop-blur">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold">Таймлайн в режиме просмотра</p>
-                <p className="text-xs text-slate-500">
-                  Редактирование доступно в веб-версии на компьютере.
-                </p>
-              </div>
-              <Link
-                to="/profile"
-                className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
-              >
-                Выход
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      {readOnly && <MobileReadOnlyBanner />}
 
       {!readOnly && (
         <Suspense fallback={<PageLoader label="Загрузка панели навигации..." />}>
@@ -945,12 +598,12 @@ export default function Timeline() {
             activeTimelineId={activeTimelineId}
             activeTimelineName={activeTimelineName}
             showBiographyImportAction={!activeTimelineHasContent}
-            biographyImportExpanded={showBiographyImportExpanded}
-            biographyImportLoading={biographyImportLoading}
-            biographySourceUrl={biographySourceUrl}
-            biographyImportError={biographyImportError}
+            biographyImportExpanded={biographyImport.expanded}
+            biographyImportLoading={biographyImport.loading}
+            biographySourceUrl={biographyImport.sourceUrl}
+            biographyImportError={biographyImport.error}
             biographyDiagnostics={biographyDiagnostics}
-            biographyMeta={biographyMeta}
+            biographyMeta={biographyImport.meta}
             biographyUiSignals={biographyUiSignals}
             biographyLastUiSignal={biographyLastUiSignal}
             exportStatus={exportStatus}
@@ -1067,26 +720,13 @@ export default function Timeline() {
         </Suspense>
       )}
 
-      {/* Periodization Boundary Modal */}      {/* Periodization Boundary Modal */}
-      {periodBoundaryModal && selectedPeriodization && (() => {
-        const periodization = getPeriodizationById(selectedPeriodization);
-        if (!periodization) return null;
-
-        const periodBefore = periodization.periods[periodBoundaryModal.periodIndex];
-        const periodAfter = periodization.periods[periodBoundaryModal.periodIndex + 1];
-
-        if (!periodBefore || !periodAfter) return null;
-
-        return (
-          <PeriodBoundaryModal
-            periodization={periodization}
-            periodBefore={periodBefore}
-            periodAfter={periodAfter}
-            age={periodAfter.startAge}
-            onClose={() => setPeriodBoundaryModal(null)}
-          />
-        );
-      })()}
+      {periodBoundaryModal && (
+        <PeriodBoundaryModalContainer
+          selectedPeriodization={selectedPeriodization}
+          periodIndex={periodBoundaryModal.periodIndex}
+          onClose={() => setPeriodBoundaryModal(null)}
+        />
+      )}
 
       {/* Bulk Event Creator Modal */}
       {showBulkCreator && !readOnly && (
@@ -1112,13 +752,13 @@ export default function Timeline() {
         </Suspense>
       )}
       <BiographyImportModal
-        isOpen={showBiographyModal}
-        loading={biographyImportLoading}
-        error={biographyImportError}
-        errorDetail={biographyErrorDetail}
-        meta={biographyMeta}
-        progress={biographyProgress}
-        onClose={() => setShowBiographyModal(false)}
+        isOpen={biographyImport.modalOpen}
+        loading={biographyImport.loading}
+        error={biographyImport.error}
+        errorDetail={biographyImport.errorDetail}
+        meta={biographyImport.meta}
+        progress={biographyImport.progress}
+        onClose={biographyImport.closeModal}
       />
     </motion.div>
   );

@@ -442,9 +442,10 @@ src/hooks/
 
 ## Импорт биографии через Wikipedia + Gemini
 
-- Клиентский вход: inline import block в `src/pages/timeline/components/TimelineLeftPanel.tsx` + orchestration в `src/pages/Timeline.tsx`.
-- Endpoint: `POST /api/timeline-biography`.
-- Авторизация обязательна: endpoint использует `Authorization: Bearer <Firebase ID token>` и принимает optional BYOK через `X-Gemini-Api-Key`.
+- Клиентский вход: inline import block в `src/pages/timeline/components/TimelineLeftPanel.tsx` + hook `src/pages/timeline/hooks/useBiographyImport.ts` (выносит state/fetch/Firestore subscription из Timeline.tsx).
+- **Главный entry — Cloud Function** `biographyImport` (`functions/src/biographyImport.ts`, `europe-west1`, до 3600s). UI напрямую вызывает CF, прогресс приходит через Firestore subscription на `biographyJobs/{jobId}`.
+- Vercel API эндпоинты (`/api/timeline-biography*`) используются для job-creation бэкенда и automation flow (см. ниже), не как основной импорт.
+- Авторизация обязательна: BYOK strict — без `X-Gemini-Api-Key` endpoint возвращает 402 `BYOK_REQUIRED`. Прод-ключ из env в этом контуре не используется.
 - Источник пока один: только прямые URL вида `https://*.wikipedia.org/wiki/...`.
 - Сервер получает plain-text extract статьи через MediaWiki API и работает каскадом:
   1. Gemini сначала возвращает максимально полный line-based список недублирующихся facts с evidence, time precision, themes и связанными людьми.
@@ -454,7 +455,7 @@ src/hooks/
   5. Если facts-first каскад не прошёл checks, endpoint переключается на legacy draft/review/fallback pipeline и всё равно пытается собрать TL.
 - `birthDetails` остаются обязательной частью импорта, но отдельный узел `Рождение` больше не должен рендериться как обычный `mainEvent`: старт жизни показывается через birth marker и данные рождения в правой панели.
 - Metadata-фразы вроде записей из метрической книги не должны превращаться в `publication/creativity`-события: нормализация facts переводит их в birth-context или отбрасывает.
-- Основная модель: `gemini-2.5-pro`; при ошибке отдельных стадий используется fallback `gemini-2.5-flash`. Обе доступны через тот же Gemini API ключ.
+- **Только Flash модель**: `gemini-2.5-flash` для всех 5 шагов pipeline (extraction / gap-filling / annotation / redaktura / composition). Pro модели запрещены проектным инвариантом — массив `TIMELINE_BIOGRAPHY_MODELS` содержит только Flash.
 - Few-shot exemplar в prompt обезличен: он задаёт форму хорошего timeline без привязки к конкретной биографии.
 - В facts-first режиме модель больше не возвращает готовый plan как единственный source of truth: она поставляет facts, а окончательная раскладка по `mainEvents/branches/nodes/edges` делается кодом.
 - Раскладка ветвей по `x` вычисляется на сервере: overlapping branch lanes разводятся автоматически, а main events одного возраста получают отдельные `x`-offset без создания новой ветки.
@@ -478,7 +479,6 @@ src/hooks/
   - Принимает `sourceUrl`, optional `extractionMode=general|editorial` и `X-Gemini-Api-Key`, возвращает сырые `facts` модели и meta по extractor stage.
   - Основная стратегия: `URL context`; если инструмент или модель недоступны, runtime пробует `Google Search grounding`, но по-прежнему не подсовывает модели локально выкачанный текст статьи.
   - `general` — текущий event-spine / mixed facts extractor; `editorial` — отдельный prompt для формирующих влияний, programmatic struggles, institutional roles, relationship axes и ideological turns.
-  - Для `editorial` runtime теперь предпочитает `gemini-2.5-pro`, а не `gemini-3-flash-preview`, потому что у этого pass важнее semantic discrimination, чем скорость.
   - CLI для remote extractor smoke: `npm run timeline:extractor-remote-eval -- --base-url=https://...vercel.app --source-url=https://ru.wikipedia.org/wiki/... --mode=editorial`
   - CLI для extractor benchmark: `npm run timeline:extractor-benchmark -- --benchmark=gandhi --response-json=tmp/extractor-runs/.../response.json --out=tmp/gandhi-extractor-benchmark.json`
 - `Очистить всё` по-прежнему очищает только активный холст.
