@@ -2,6 +2,11 @@
 
 Подробное описание текущей реализации страницы `src/pages/Timeline.tsx` и связанных модулей.
 
+> **2026-05-03:** перенесена ветка `feature/video-study-notes` (biography auto-generation),
+> сделаны критичные фиксы pipeline. Самая актуальная информация по импорту биографии —
+> в разделе [Biography Pipeline — современная архитектура](#biography-pipeline--современная-архитектура-2026-05).
+> Разделы ниже про legacy импорт оставлены для истории.
+
 ## 🔗 Связанные документы
 
 - 📋 **[Главная документация](../README.md)** - навигация по всем документам проекта
@@ -9,6 +14,205 @@
 - 🔧 **[Архив рефакторингов](../archive/REFRACTORING_ARCHIVE.md#timeline)** - завершённые этапы и контекст по Timeline
 - 🗂️ **[Актуальный бэклог](../processes/audit-backlog.md)** - текущие задачи и техдолг по системе
 - 📚 **[Система тестирования](./testing-system.md)** - связанная система (интеграция через заметки и возрастные периоды)
+
+---
+
+## Biography Pipeline — современная архитектура (2026-05)
+
+Полный гайд по auto-generation биографий: от клика по «Загрузить источник биографии» до отрисованного timeline.
+
+### Архитектура запуска
+
+```
+Browser /timeline
+   │
+   │ 1. POST https://europe-west1-psych-dev-site-prod.cloudfunctions.net/biographyImport
+   │    headers: Authorization: Bearer <Firebase ID token>
+   │             X-Gemini-Api-Key: <BYOK>
+   │    body: { sourceUrl, canvasId, jobId: <client-generated UUID> }
+   │
+   │ 2. fetch fire-and-forget — network errors игнорируются
+   │
+   ▼
+Cloud Function biographyImport (europe-west1, 600s timeout, 2GiB)
+   │
+   ├─ Создаёт документ biographyJobs/{jobId} в Firestore с userId=auth.uid
+   ├─ Шаги pipeline (см. ниже), каждый шаг updateJob({status, progress})
+   └─ Финал: updateJob({status: 'done', step4: { timeline, composition, canvasName, meta }})
+
+   ▲
+   │ 3. UI подписан onSnapshot(biographyJobs/{jobId})
+   │    - data.progress → обновляет модалку прогресса
+   │    - data.status === 'done' → берёт step4.timeline, applyTimeline() в активный canvas
+   │    - data.status === 'error' → показывает ошибку
+   │
+Browser
+```
+
+**Почему Firestore-as-primary-source:** pipeline занимает 3-10 минут. Браузер закрывает idle TCP соединение раньше (Safari ~2 мин). Поэтому fetch — только триггер, результат всегда читается из Firestore.
+
+### Шаги pipeline (6 шагов, all Flash-only)
+
+Все шаги логируются в Cloud Functions logs с префиксом `[biographyImport]`.
+
+| # | Stage | Что делает | Gemini call | Время |
+|---|-------|-----------|-------------|-------|
+| 1 | Wikipedia fetch | Скачивает plain extract через MediaWiki API, валидирует URL (только `*.wikipedia.org`) | нет | ~1-2 сек |
+| 2 | Extraction | По slice'ам извлекает hard facts (год, текст, category, eventType). После — post-death filter (см. edge cases). | gemini-2.5-flash, до 65536 tokens, может retry до 3 раз с 60s delay на 429 | 30-90 сек |
+| 3 | Gap-filling | Дозаполняет дыры между фактами (для биографий с density < 3 facts/year). Условно skip если density высокая. | gemini-2.5-flash | 60-120 сек |
+| 4 | Annotation + Redaktura | Аннотирует (themes, people, month, day) и редактирует (importance 1-5, shortLabel ≤ 25 chars). | 2 sequential calls | 30-60 сек |
+| 5 | Composition | Строит mainLine + branches из facts через Gemini. После — `buildPlanFromCompositionResult` локально. | gemini-2.5-flash | 20-90 сек |
+| 6 | Render | Локальная сборка `TimelineData` из composition: разводит x-координаты веток, фильтрует posthumous, добавляет terminal death event. | нет | <100 мс |
+
+### Файлы и их роли
+
+```
+functions/src/biographyImport.ts    ← Cloud Function entry, оркестрирует все 6 шагов
+                                      Пишет в biographyJobs/{jobId}, использует helpers ниже
+
+server/api/timelineBiography*.ts    ← shared helpers (импортируются и из CF, и из Vercel API)
+  ├─ Types.ts                       ← BiographyFactCandidate, model lists
+  ├─ Wikipedia.ts                   ← URL validation, fetchWikipediaPlainExtract,
+  │                                   biographyExtract (без библиографий) и promptExtract (срез)
+  ├─ Prompts.ts                     ← все Gemini prompt builders (5 штук)
+  ├─ Composer.ts                    ← findDeathFact(), buildPlanFromCompositionResult,
+  │                                   разводка x-координат веток, posthumous pruning
+  ├─ Quality.ts                     ← buildTimelineDataFromBiographyPlan, conservative normalize
+  ├─ Heuristics.ts                  ← line-based facts parsing, baseline facts, deduplication
+  ├─ Lint.ts                        ← post-compose checks: empty notes, generic labels, dups
+  ├─ Metrics.ts                     ← локальная оценка для CLI-итераций (не в CF)
+  └─ LabelQuality.ts                ← shortLabel длина, обрезка по словам
+
+api/timeline-biography-automation.ts  ← Vercel API: полный pipeline за один вызов <60 сек
+                                        (для коротких биографий + CLI бенчмарков)
+api/timeline-biography-extractor-automation.ts ← extraction-only endpoint (для бенчмарков)
+api/timeline-biography.ts            ← legacy 3-step jobs flow (можно удалить — не используется UI)
+
+src/pages/timeline/hooks/useBiographyImport.ts ← клиентский hook:
+                                                 fetch к CF + onSnapshot Firestore + state
+src/pages/timeline/components/BiographyImportModal.tsx ← модалка прогресса
+src/pages/Timeline.tsx               ← интеграция: useBiographyImport + applyTimeline
+```
+
+### Firestore схема `biographyJobs/{jobId}`
+
+```ts
+{
+  userId: string,           // CF пишет, rules фильтруют read по этому полю
+  userEmail: string,
+  canvasId: string,         // куда приземлять результат
+  sourceUrl: string,
+  subjectName: string,
+  status: 'running' | 'step1_done' | 'step2_done' | 'step3_done' | 'done' | 'error',
+  progress: { step: number, total: 6, label: string, detail?: string },
+  step1: { facts, model, rawTextChars, extract },
+  step2: { facts },
+  step3: { facts },
+  step4: { timeline, composition, canvasName, meta },  // финальный результат
+  error?: string,           // только при status='error'
+  createdAt, updatedAt,
+}
+```
+
+**Firestore rules:** read только для `resource.data.userId == request.auth.uid`. Write — только Admin SDK (CF). См. `firestore.rules` блок `match /biographyJobs/{jobId}`.
+
+### Edge cases и что важно знать
+
+#### Death detection (баг рецидивен!)
+- **Проблема**: Gemini extract'ит смерть отца/матери/жены/коллеги тоже как `category='death'`. Если взять первый встреченный death-fact (наивная логика), pipeline решит что subject умер в этом году и обрежет всю взрослую жизнь.
+- **Решение**: `findDeathFact(facts, birthYear)` в `server/api/timelineBiographyComposer.ts`:
+  - фильтрует кандидатов по age 15-120 от birthYear
+  - предпочитает high-importance
+  - среди оставшихся — самый поздний
+- **Где применяется**: и в composer (для финального terminal event), и в CF post-extraction filter (`functions/src/biographyImport.ts:445`).
+- **Симптом регрессии**: в логах `post-death filter: removed N facts after <year>` — год сильно меньше реального death year. Например для Плеханова (умер 1918) детектор взял 1883 (смерть отца).
+
+#### Pro модели запрещены
+- `TIMELINE_BIOGRAPHY_MODELS = ['gemini-2.5-flash']` (только Flash). Pro модели запрещены проектным инвариантом — см. memory `feedback_no_pro_model`.
+- Если в логах увидишь `gemini-2.5-pro` или `gemini-2.5-pro` — это нарушение, искать в коммитах кто добавил.
+
+#### BYOK strict
+- Все user-facing endpoints требуют `X-Gemini-Api-Key` header. Без него возвращают 402 BYOK_REQUIRED (или 400 в automation endpoints — небольшая инконсистентность). Прод-ключ из env используется только в CF как fallback (для serverless admin путей).
+
+#### Fetch timeout vs Firestore polling
+- Pipeline 3-10 минут. Любой long-await fetch в браузере **разорвётся** (Safari/Chrome ~2 мин idle). UI **обязан** читать результат через `onSnapshot(biographyJobs/{jobId})` — fetch только триггер.
+- Симптом регрессии: `TypeError: Load failed` в console + ошибка в UI, при этом в CF logs видно `[biographyImport] complete` — значит UI снова синхронно ждёт fetch вместо Firestore.
+
+#### Vercel functions limit
+- Hobby plan = 12 функций. Текущее состояние: ~9 (включая 3 timeline-biography*). Новые helpers выносить в `src/lib/api-server/sharedApiRuntime.ts` или `server/api/`, **не** в `api/_lib/`.
+
+### Debugging — где что искать
+
+#### Cloud Function logs
+```bash
+# Через Firebase CLI:
+firebase --project=psych-dev-site-prod functions:log --only=biographyImport
+
+# Через MCP (внутри Claude):
+mcp__firebase__functions_get_logs(function_names=["biographyImport"], page_size=50)
+
+# Полный фильтр по jobId:
+firebase --project=psych-dev-site-prod functions:log --only=biographyImport \
+  --filter='textPayload:"<jobId>"'
+```
+
+Главные логи (по `message` field):
+- `[biographyImport] fetching Wikipedia` — старт
+- `[biographyImport] extraction slice N/M done` — extraction шаг
+- `[biographyImport] post-death filter: removed N facts after YEAR` — death detection срабатывает
+- `[biographyImport] density analysis` — gap-filling mode
+- `[biographyImport] gap-filling done` — facts после добивки
+- `[biographyImport] annotation+redaktura done`
+- `[biographyImport] composition: Gemini call took Ns`
+- `[biographyImport] complete` — успешное завершение, timeline записан в step4
+
+#### Firestore документ конкретного импорта
+```bash
+# Через Firebase Console: Firestore → biographyJobs → <jobId>
+# Через MCP:
+mcp__firebase__firestore_get_document(path="biographyJobs/<jobId>")
+```
+
+Полезно: сравнить `step1.facts.length` (после extraction) → `step2.facts.length` (после gap-filling) → `step4.timeline.nodes.length` (финал) — большая просадка где-то в середине = проблема.
+
+#### Локальный CLI eval (без UI)
+```bash
+# Прогон полного pipeline локально:
+npm run timeline:eval -- --source-url=https://ru.wikipedia.org/wiki/...
+
+# Бенчмарк по curated facts:
+npm run timeline:benchmark -- --benchmark=elizabeth-ii \
+  --response-json=tmp/timeline-runs/.../response.json
+
+# Remote smoke против preview/prod деплоя:
+npm run timeline:remote-eval -- --base-url=https://...vercel.app \
+  --source-url=https://ru.wikipedia.org/wiki/... \
+  --filename=test-name
+```
+
+CLI `timeline:remote-eval` использует `/_timeline/automation` route и инжектит payload через `window.__TIMELINE_AUTOMATION_PAYLOAD__`.
+
+#### Воспроизведение бага в браузере (под user сессией)
+1. Открой `/timeline` под своей сессией.
+2. Создай **новый пустой холст** (кнопка `+` в левой панели) — кнопка биографии появляется только на пустом холсте, чтобы не затереть существующую работу.
+3. Открой DevTools → Network, фильтр по `cloudfunctions.net`.
+4. Введи URL Wikipedia и нажми «Построить».
+5. Параллельно открой Firestore Console → `biographyJobs` → найди новый документ по timestamp → следи за изменением `progress`.
+6. Если в браузере «Load failed» через 2 минуты, но в Firestore `status='done'` появляется — значит UI снова ждёт fetch вместо Firestore polling (регрессия).
+
+### Что было сделано в перенесении ветки (2026-05)
+
+История фиксов (см. PR #65):
+1. `588ae02` — squash merge `feature/video-study-notes` (128 коммитов → 1)
+2. `b7bbd97` — возврат к main архитектуре (lazyComponents, useIsMobile, бэннеры)
+3. `a58da12` — docs (timeline.md, qa-smoke-log.md)
+4. `3e40b76` — onClick на bio-import button (был удалён `8d71fc0` в пользу делегации)
+5. `2739bea` — infinite reset loop в `useBiographyImport` (нестабильный hook return identity → useEffect сбрасывал expanded на каждом render)
+6. `884b951` — race condition aside-delegation vs button onClick (capture phase синхронно делал setExpanded, тернарник в onClick видел уже-true и сразу close)
+7. `ad27869` — Firestore-as-primary-source вместо fetch await (CF может занять 5+ мин, браузер рвёт TCP)
+8. `e71b47b` — `findDeathFact` в CF post-extraction filter (наивная `.find(category=death)` находила смерть родственника)
+
+Аудит коммитов оригинальной ветки (через Explore agent) подтвердил: остальные 124 коммита либо уже в squash, либо повторяют то же самое. Скрытых неприменённых фиксов нет.
 
 ---
 
