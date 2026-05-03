@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ageToRange } from '../utils/ageToRange';
 import { AGE_RANGE_LABELS, type AgeRange } from '../../../types/notes';
-import { debugLog, debugWarn, debugError } from '../../../lib/debug';
+import { debugError } from '../../../lib/debug';
 import type { Sphere } from '../types';
 
 // Метаданные сфер жизни
 const SPHERE_LABELS: Record<Sphere, string> = {
   education: 'Образование',
   career: 'Карьера',
+  creativity: 'Творчество',
   family: 'Семья',
   health: 'Здоровье',
   friends: 'Друзья',
@@ -47,71 +48,24 @@ export function SaveEventAsNoteButton({
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Детектор состояния модального окна
-  useEffect(() => {
-    if (showConfirm) {
-      debugLog('✅ [DETECTOR] Modal window is NOW OPEN (showConfirm = true)');
-      debugLog('✅ [DETECTOR] Z-index should be: z-[9999]');
-      debugLog('✅ [DETECTOR] Modal should be visible on screen');
-
-      // Проверяем через небольшую задержку, что элемент действительно в DOM
-      setTimeout(() => {
-        const modalElement = document.querySelector('[data-modal="save-note"]');
-        if (modalElement) {
-          debugLog('✅ [DETECTOR] Modal element FOUND in DOM!');
-          const styles = window.getComputedStyle(modalElement);
-          debugLog('✅ [DETECTOR] Modal computed z-index:', styles.zIndex);
-          debugLog('✅ [DETECTOR] Modal position:', styles.position);
-          debugLog('✅ [DETECTOR] Modal display:', styles.display);
-        } else {
-          debugWarn('⚠️ [DETECTOR] Modal element NOT FOUND in DOM!');
-        }
-      }, 100);
-    } else {
-      debugLog('❌ [DETECTOR] Modal window is CLOSED (showConfirm = false)');
-    }
-  }, [showConfirm]);
-
   const handleSaveAsNote = async () => {
-    debugLog('🔵 SaveEventAsNote: Starting save process...');
-    debugLog('Event data:', { eventTitle, eventAge, eventNotes, eventSphere });
-
     setSaving(true);
     try {
-      // Определяем возрастной период
-      debugLog('🔵 Determining age range for age:', eventAge);
       const ageRange = ageToRange(eventAge);
-      debugLog('🔵 Age range determined:', ageRange);
-
       const periodTitle = ageRange ? AGE_RANGE_LABELS[ageRange] : null;
-      debugLog('🔵 Period title:', periodTitle);
 
-      // Формируем содержание заметки
       let content = '';
-
-      // Добавляем возраст
       content += `**Возраст:** ${eventAge} лет\n\n`;
-
-      // Добавляем период
       if (periodTitle) {
         content += `**Период:** ${periodTitle}\n\n`;
       }
-
-      // Добавляем сферу жизни
       if (eventSphere) {
         const sphereLabel = SPHERE_LABELS[eventSphere];
         content += `**Сфера жизни:** ${sphereLabel}\n\n`;
       }
-
-      // Добавляем подробности
       if (eventNotes && eventNotes.trim()) {
         content += `**Подробности:**\n${eventNotes}`;
       }
-
-      debugLog('🔵 Note content prepared:', content);
-      debugLog('🔵 Calling createNote...');
-
-      // Создаём заметку
       await createNote(
         eventTitle || 'Событие из таймлайна',
         content,
@@ -119,16 +73,13 @@ export function SaveEventAsNoteButton({
         null, // topicId
         null  // topicTitle
       );
-
-      debugLog('✅ Note created successfully!');
       setShowConfirm(false);
       onSuccess?.();
     } catch (error) {
-      debugError('❌ Error saving event as note:', error);
+      debugError('Error saving event as note', error);
       alert('Ошибка при сохранении заметки: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setSaving(false);
-      debugLog('🔵 Save process finished');
     }
   };
 
@@ -137,10 +88,7 @@ export function SaveEventAsNoteButton({
       {/* Иконка заметки */}
       <button
         type="button"
-        onClick={() => {
-          debugLog('🔘 [CLICK] Note icon clicked - opening modal...');
-          setShowConfirm(true);
-        }}
+        onClick={() => setShowConfirm(true)}
         className="p-2 rounded-lg hover:bg-slate-100 transition text-slate-600 hover:text-slate-900"
         title="Сохранить событие в заметки"
       >

@@ -4,6 +4,9 @@ export * from './types';
 // Constants
 export * from './constants';
 
+// Persistence
+export * from './persistence';
+
 // Utils
 export * from './utils';
 

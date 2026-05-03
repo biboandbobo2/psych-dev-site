@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { auth } from '../../../lib/firebase';
+import { buildGeminiApiKeyHeader, sanitizeGeminiApiKey } from '../../../lib/geminiKey';
 
 export interface AiAssistantState {
   status: 'idle' | 'loading' | 'success' | 'error';
@@ -51,12 +52,13 @@ export function useAiAssistant() {
 
     try {
       const idToken = await auth.currentUser?.getIdToken();
+      const geminiApiKeyOverride = sanitizeGeminiApiKey(geminiApiKey);
       const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(idToken && { Authorization: `Bearer ${idToken}` }),
-          ...(geminiApiKey && { 'X-Gemini-Api-Key': geminiApiKey }),
+          ...buildGeminiApiKeyHeader(geminiApiKeyOverride),
         },
         body: JSON.stringify({ message: trimmed, locale: 'ru' }),
       });

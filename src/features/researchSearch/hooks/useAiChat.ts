@@ -3,6 +3,7 @@ import type { AiAssistantState } from './useAiAssistant';
 import { MAX_MESSAGE_LENGTH } from './useAiAssistant';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { auth } from '../../../lib/firebase';
+import { buildGeminiApiKeyHeader, sanitizeGeminiApiKey } from '../../../lib/geminiKey';
 
 export type ChatMessage = { role: 'user' | 'assistant'; text: string };
 
@@ -52,12 +53,13 @@ export function useAiChat() {
 
     try {
       const idToken = await auth.currentUser?.getIdToken();
+      const geminiApiKeyOverride = sanitizeGeminiApiKey(geminiApiKey);
       const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(idToken && { Authorization: `Bearer ${idToken}` }),
-          ...(geminiApiKey && { 'X-Gemini-Api-Key': geminiApiKey }),
+          ...buildGeminiApiKeyHeader(geminiApiKeyOverride),
         },
         body: JSON.stringify({ message: trimmed, locale: 'ru', history }),
       });

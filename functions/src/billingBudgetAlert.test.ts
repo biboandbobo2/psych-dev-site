@@ -13,7 +13,13 @@ const baseConfig: BillingConfig = {
   hardStopUsd: 5,
   alertThreshold: 0.2,
   hardStopThreshold: 1,
+  alertMaxMessagesPerThreshold: 2,
 };
+
+const allowDelivery = vi.fn().mockResolvedValue({
+  shouldSend: true,
+  persist: vi.fn().mockResolvedValue(undefined),
+});
 
 describe("billingBudgetAlert helpers", () => {
   it("parses message.json payload", () => {
@@ -52,6 +58,7 @@ describe("handleBudgetAlert", () => {
     logger.info.mockClear();
     logger.warn.mockClear();
     logger.error.mockClear();
+    allowDelivery.mockClear();
   });
 
   it("sends alert when spend exceeds alert threshold", async () => {
@@ -66,7 +73,13 @@ describe("handleBudgetAlert", () => {
         alertThresholdExceeded: 0.2,
         budgetDisplayName: "Test Budget",
       },
-      { logger, sendMessage, disableBilling, config: baseConfig }
+      {
+        logger,
+        sendMessage,
+        disableBilling,
+        config: baseConfig,
+        shouldSendBudgetAlertMessage: allowDelivery,
+      }
     );
 
     expect(sendMessage).toHaveBeenCalledTimes(1);
@@ -85,7 +98,13 @@ describe("handleBudgetAlert", () => {
         alertThresholdExceeded: 1,
         budgetDisplayName: "Test Budget",
       },
-      { logger, sendMessage, disableBilling, config: baseConfig }
+      {
+        logger,
+        sendMessage,
+        disableBilling,
+        config: baseConfig,
+        shouldSendBudgetAlertMessage: allowDelivery,
+      }
     );
 
     expect(sendMessage).toHaveBeenCalledTimes(2);
@@ -104,7 +123,13 @@ describe("handleBudgetAlert", () => {
         alertThresholdExceeded: 1,
         budgetDisplayName: "Test Budget",
       },
-      { logger, sendMessage, disableBilling, config: baseConfig }
+      {
+        logger,
+        sendMessage,
+        disableBilling,
+        config: baseConfig,
+        shouldSendBudgetAlertMessage: allowDelivery,
+      }
     );
 
     expect(sendMessage).toHaveBeenCalledTimes(2);

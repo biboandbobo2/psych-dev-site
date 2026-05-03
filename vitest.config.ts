@@ -8,7 +8,7 @@ export default defineConfig({
     environment: 'jsdom',
     include: [
       'src/**/*.test.{ts,tsx,js,jsx}',
-      'api/**/*.test.{ts,tsx,js,jsx}',
+      'tests/**/*.test.{ts,tsx,js,jsx}',
       'scripts/**/*.test.{ts,tsx,js,jsx}',
       'shared/**/*.test.{ts,tsx}',
       'tests/**/*.test.{ts,tsx}',

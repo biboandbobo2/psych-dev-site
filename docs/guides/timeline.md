@@ -16,6 +16,9 @@
 
 - Доступна авторизованным пользователям по маршруту `/timeline`.
 - Рендерится как полноэкранный `SVG`‑холст с панелями управления слева и справа.
+- Один пользователь теперь может хранить несколько отдельных холстов внутри одного документа `timelines/{userId}` и переключаться между ними из левой панели.
+- Если активный холст пустой, левая панель вместо `Очистить всё` показывает CTA `Загрузить источник биографии`; внутри раскрытого блока можно либо дать ссылку на статью Wikipedia для генерации через Gemini, либо загрузить готовый `.json` в формате `TimelineData` и сразу подменить текущий холст.
+- После submit по Wikipedia URL поверх страницы открывается progress-modal: ссылка остаётся в левом блоке, а модалка отдельным overlay показывает стадии импорта (`Wikipedia -> facts -> plan -> review -> timeline`) и финальный результат/ошибку.
 - Основная цель — визуализировать жизненный путь пользователя, фиксировать события, личные решения и альтернативные ветки развития.
 
 ## Структура кода
@@ -67,7 +70,7 @@ src/hooks/
 ## Новая структура после рефакторинга
 
 - **`TimelineCanvas.tsx`** — теперь весь `SVG`‑рендер и обработка мыши/колёсика вынесены сюда; Canvas получает трансформацию, события, ветки и callback’и (`onSelectBranch`, `onSelectBirth`, `onPeriodBoundaryClick`).
-- **`TimelineLeftPanel.tsx`** и **`TimelineRightPanel.tsx`** собирают UI управления (возраст, прокрутка, экспорт, формы) и передают действия обратно в `Timeline.tsx`.
+- **`TimelineLeftPanel.tsx`** и **`TimelineRightPanel.tsx`** собирают UI управления (возраст, прокрутка, экспорт, формы и выбор активного холста) и передают действия обратно в `Timeline.tsx`.
 - **Формы** (`TimelineBirthForm`, `TimelineEventForm`, `TimelineBranchContinuation`, `TimelineBranchEditor`) теперь компоненты с минимальной логикой, они получают только пропсы и используют shared UI (IconPicker, сохранение заметки).
 - **Утилиты**: `parseBulkEvents` и `formatEventAsNote` находятся в `src/pages/timeline/utils/`; они покрыты Vitest и используются в `BulkEventCreator` и `SaveEventAsNoteButton`.
 - **`BulkEventCreator.tsx`** продолжает жить в `timeline/components` и теперь вызывает `parseBulkEvents`, которые возвращают структурированные строчки и статус расширения ветки.
@@ -81,6 +84,7 @@ src/hooks/
 - `EdgeT` - ветка (альтернативная линия жизни)
 - `BirthDetails` - детали рождения
 - `TimelineData` - полные данные таймлайна (включая `selectedPeriodization`)
+- `TimelineCanvas` - отдельный холст пользователя (`id`, `name`, `createdAt`, `data`)
 - `HistoryState` - состояние для undo/redo
 - `SaveStatus` - статус сохранения
 - `Transform` - трансформация SVG-холста
@@ -210,6 +214,9 @@ src/hooks/
   - Ползунок «Прокрутка» — вертикально перемещает вьюпорт по возрастам.
   - Вертикальный слайдер масштаба и отображение текущего zoom'а.
   - Блок статистики: количество событий и распределение по сферам.
+  - Для пустого холста внизу карточки показывается кнопка импорта биографии: внутри раскрытого блока доступны URL статьи Wikipedia и загрузка готового `.json` таймлайна; для непустого холста остаётся `Очистить всё`.
+  - Во время импорта открывается отдельная progress-modal карточка, чтобы длительный Gemini/Wikipedia pipeline был виден пользователю и не терялся на фоне холста.
+  - Под карточкой находятся controls multi-canvas: компактные кнопки `Выбор ТЛ` и `+`, а список холстов раскрывается вправо.
 - **Центральный холст**:
   - Вертикальная линия жизни по центру (`LINE_X_POSITION = 2000`), разделённая на сплошную (прошедшее) и пунктирную (будущее) части.
   - Шкала возраста каждые 5 лет по всей ширине холста.
@@ -246,6 +253,46 @@ src/hooks/
   - `name`, `description` — название и описание периода.
   - `color` — пастельный цвет для визуализации на холсте.
 - История (`history`, `historyIndex`) хранит последовательные снимки `nodes + edges` с глубиной до 50 шагов.
+
+## Biography Import Pipeline
+
+- Серверный контур для импорта биографии больше не живёт в одном монолитном файле. `server/api/timelineBiography.ts` теперь выступает thin barrel и переэкспортирует:
+  - `server/api/timelineBiographyTypes.ts`
+  - `server/api/timelineBiographyWikipedia.ts`
+  - `server/api/timelineBiographyPrompts.ts`
+  - `server/api/timelineBiographyFacts.ts`
+  - `server/api/timelineBiographyThemes.ts`
+  - `server/api/timelineBiographyComposer.ts`
+  - `server/api/timelineBiographyHeuristics.ts`
+  - `server/api/timelineBiographyLint.ts`
+  - `server/api/timelineBiographyMetrics.ts`
+  - `server/api/timelineBiographyQuality.ts`
+- Это разделение фиксирует ответственности:
+  - `Types` — канонические типы, константы и metadata каталоги.
+  - `Wikipedia` — нормализация URL, загрузка plain extract и сборка `biographyExtract` / `promptExtract`.
+  - `Prompts` — prompts/few-shot/schema для Gemini.
+  - `Facts` — line-based facts parsing, normalisation, dedupe и merge model/heuristics.
+  - `Themes` — внутренние biography themes (`friends_network`, `romance`, `travel_moves_exile`, `conflict_duels` и т.д.), из которых локальный composer строит branch labels и приоритеты.
+  - `Composer` — локальный отбор main line, approximate-notes, сборка theme-веток и branch-anchor правила.
+  - `Heuristics` — sentence parsing, baseline facts, relative childhood helpers, high-salience facts и legacy fallback.
+  - `Lint` — post-compose checks/repair: empty notes, generic labels, duplicate events, birth-anchored branches.
+  - `Metrics` — локальная оценка результата (facts/theme coverage, generic labels, notes, branch density) для итераций вне UI.
+  - `Quality` — финальная сборка `TimelineData`, conservative normalize и legacy review/enrich path.
+- Quality-gates перед сборкой холста теперь жёстче:
+  - facts-first путь не может создать ветку, якорённую к рождению;
+  - facts-first путь больше не обязан дублировать `birthDetails` обычным main-event `Рождение`;
+  - пустые ветки и дубли branch/main отбрасываются;
+  - ранняя жизнь проверяется по окнам `0-6`, `7-12`, `13-18`, а не только по общему количеству событий;
+  - approximate facts теперь можно сохранять без фальшивой точности: возраст вычисляется по диапазону, а notes помечают, что дата оценочная;
+  - если facts-first путь ломается на extraction/composition/lint, endpoint деградирует в legacy pipeline вместо пустого TL.
+- Для длинных биографий сервер теперь держит три представления статьи:
+  - `extract` — полный исходный plain extract из Wikipedia для меты, heuristics и пост-ремонта;
+  - `biographyExtract` — extract без явно небіографических секций (`память`, библиографии, списки потомков, музейные/мемориальные блоки), именно его используют heuristics/composer/repair;
+  - `promptExtract` — компактный head/middle/tail срез для Gemini prompts, чтобы не терять позднюю жизнь и не упираться в token budget.
+- Даже при переходе в legacy draft/review path endpoint больше не опирается только на “сырой” model plan:
+  - facts-first слой всё равно заранее собирает и merge-ит model facts с heuristic facts;
+  - итоговый `repairBiographyPlan(...)` прогоняется поверх любого normalized plan, включая legacy fallback;
+  - repair умеет выкидывать low-quality labels, добирать terminal event и раннюю жизнь из merged facts, а generic `Ссылка` в очевидных кейсах заменяется на более конкретные labels вроде `Южная ссылка` или `Возвращение из ссылки`.
 
 ## Ключевые сценарии
 
@@ -330,10 +377,10 @@ src/hooks/
      - **isDecision**: `false`
      - **iconId**: `undefined`
   3. Событие добавляется в Firestore в коллекцию `timelines/{userId}` через функцию `addEventToTimeline`:
-     - Загружаются текущие данные таймлайна
+     - Загружается документ пользователя и нормализуется active canvas
      - Генерируется UUID для нового события
-     - Событие добавляется к существующему массиву `nodes`
-     - Обновлённые данные сохраняются с `serverTimestamp()`
+     - Событие добавляется в `nodes` активного холста
+     - Обновлённые `canvases` и `activeCanvasId` сохраняются с `serverTimestamp()`
   4. Модальное окно рендерится через **React Portal** для корректного z-index
   5. После успешного создания показывается уведомление "Событие добавлено на таймлайн!"
 
@@ -386,11 +433,55 @@ src/hooks/
 
 ## Сохранение и загрузка
 
-- Автосохранение (`setTimeout` на 10 секунд) срабатывает при наличии событий или веток.
-- Перед отправкой в Firestore данные проходят через `removeUndefined`.
-- Документ сохраняется в коллекции `timelines/{userId}` с `updatedAt`.
-- При загрузке:
-  - Восстанавливаются события и ветки, нормализуются `x`/`parentX`.
+- Документ по-прежнему хранится в `timelines/{userId}`, но теперь содержит `activeCanvasId` и массив `canvases`.
+- Каждый элемент `canvases[]` хранит отдельный холст (`id`, `name`, `createdAt`, `data`), где `data` соответствует текущему `TimelineData`.
+- Автосохранение (`setTimeout` на 10 секунд) сохраняет весь документ пользователя при наличии контента хотя бы в одном холсте или при наличии нескольких холстов.
+- При загрузке legacy single-canvas документ с полем `data` автоматически мигрируется в первый холст `Таймлайн 1`.
+- При переключении активного холста форма, выделение и undo/redo сбрасываются, а viewport центрируется под выбранный таймлайн.
+- Импорт биографии заменяет только активный холст, не затрагивая остальные `canvases[]`, и при успешной генерации может переименовать текущий холст под имя персоны.
+
+## Импорт биографии через Wikipedia + Gemini
+
+- Клиентский вход: inline import block в `src/pages/timeline/components/TimelineLeftPanel.tsx` + orchestration в `src/pages/Timeline.tsx`.
+- Endpoint: `POST /api/timeline-biography`.
+- Авторизация обязательна: endpoint использует `Authorization: Bearer <Firebase ID token>` и принимает optional BYOK через `X-Gemini-Api-Key`.
+- Источник пока один: только прямые URL вида `https://*.wikipedia.org/wiki/...`.
+- Сервер получает plain-text extract статьи через MediaWiki API и работает каскадом:
+  1. Gemini сначала возвращает максимально полный line-based список недублирующихся facts с evidence, time precision, themes и связанными людьми.
+  2. Server-side `Facts` слой нормализует facts, дедуплицирует их и при необходимости добирает missing coverage/high-salience facts из heuristics.
+  3. Локальный `Composer` строит main line и theme-ветки уже кодом, а не просит модель разложить весь timeline целиком.
+  4. `Lint/repair` слой чистит generic labels, восстанавливает notes из facts, добавляет approximate-note и запрещает birth-anchored branches.
+  5. Если facts-first каскад не прошёл checks, endpoint переключается на legacy draft/review/fallback pipeline и всё равно пытается собрать TL.
+- `birthDetails` остаются обязательной частью импорта, но отдельный узел `Рождение` больше не должен рендериться как обычный `mainEvent`: старт жизни показывается через birth marker и данные рождения в правой панели.
+- Metadata-фразы вроде записей из метрической книги не должны превращаться в `publication/creativity`-события: нормализация facts переводит их в birth-context или отбрасывает.
+- Основная модель: `gemini-2.5-pro`; при ошибке отдельных стадий используется fallback `gemini-2.5-flash`. Обе доступны через тот же Gemini API ключ.
+- Few-shot exemplar в prompt обезличен: он задаёт форму хорошего timeline без привязки к конкретной биографии.
+- В facts-first режиме модель больше не возвращает готовый plan как единственный source of truth: она поставляет facts, а окончательная раскладка по `mainEvents/branches/nodes/edges` делается кодом.
+- Раскладка ветвей по `x` вычисляется на сервере: overlapping branch lanes разводятся автоматически, а main events одного возраста получают отдельные `x`-offset без создания новой ветки.
+- На клиенте подписи для левых веток рендерятся влево от иконки, чтобы длинные labels меньше наползали на центральную линию.
+- API дополнительно возвращает `planDiagnostics`, `timelineStats`, `stageDiagnostics` и `compositionStats`, чтобы было видно, как отработал каскад и насколько сильным получился итоговый план.
+- Для локальных итераций без UI добавлен CLI: `npm run timeline:eval -- --source-url=https://ru.wikipedia.org/wiki/... [--heuristics-only] [--out=tmp/biography-eval.json]`.
+  - Скрипт тянет тот же Wikipedia extract, прогоняет facts-first каскад локально и печатает metrics по facts/main/branches/generic labels.
+- Для удалённого end-to-end smoke поверх preview/prod добавлен automation harness:
+  - Endpoint: `POST /api/timeline-biography-automation`
+  - Требует только `X-Gemini-Api-Key` и принимает тот же `sourceUrl`, что и основной import endpoint.
+  - Не использует server Gemini key fallback и не требует Firebase auth, поэтому подходит для машинного smoke через preview URL и пользовательский BYOK.
+  - Automation render route: `/_timeline/automation`
+  - Страница ждёт `window.__TIMELINE_AUTOMATION_PAYLOAD__`, рендерит готовый timeline тем же `TimelineCanvas` и умеет скачать `JSON`/`PDF` как обычные browser downloads.
+  - CLI: `npm run timeline:remote-eval -- --base-url=https://...vercel.app --source-url=https://ru.wikipedia.org/wiki/...`
+    - Скрипт вызывает automation endpoint, сохраняет `response.json`, затем через Playwright открывает render route и сохраняет `timeline.json`, `timeline.pdf` и screenshot в `tmp/timeline-runs/...`.
+- Для фактологической оценки поверх готового `response.json` добавлен benchmark CLI:
+  - `npm run timeline:benchmark -- --benchmark=elizabeth-ii --source-url=https://ru.wikipedia.org/wiki/Елизавета_II --response-json=tmp/timeline-runs/.../response.json --out=tmp/elizabeth-ii-benchmark.json`
+  - Скрипт сравнивает timeline с curated benchmark facts, считает общее и critical coverage и помогает ловить регрессии универсальности между разными биографиями.
+- Для extractor-only baseline без composer/repair добавлен отдельный remote path:
+  - Endpoint: `POST /api/timeline-biography-extractor-automation`
+  - Принимает `sourceUrl`, optional `extractionMode=general|editorial` и `X-Gemini-Api-Key`, возвращает сырые `facts` модели и meta по extractor stage.
+  - Основная стратегия: `URL context`; если инструмент или модель недоступны, runtime пробует `Google Search grounding`, но по-прежнему не подсовывает модели локально выкачанный текст статьи.
+  - `general` — текущий event-spine / mixed facts extractor; `editorial` — отдельный prompt для формирующих влияний, programmatic struggles, institutional roles, relationship axes и ideological turns.
+  - Для `editorial` runtime теперь предпочитает `gemini-2.5-pro`, а не `gemini-3-flash-preview`, потому что у этого pass важнее semantic discrimination, чем скорость.
+  - CLI для remote extractor smoke: `npm run timeline:extractor-remote-eval -- --base-url=https://...vercel.app --source-url=https://ru.wikipedia.org/wiki/... --mode=editorial`
+  - CLI для extractor benchmark: `npm run timeline:extractor-benchmark -- --benchmark=gandhi --response-json=tmp/extractor-runs/.../response.json --out=tmp/gandhi-extractor-benchmark.json`
+- `Очистить всё` по-прежнему очищает только активный холст.
 
 ## Экспорт таймлайна
 

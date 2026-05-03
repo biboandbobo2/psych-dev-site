@@ -22,6 +22,9 @@ export const Profile = lazy(() => lazyWithReload(() => import('./Profile'), 'Pro
 export const Notes = lazy(() => lazyWithReload(() => import('./Notes'), 'Notes'));
 export const Timeline = lazy(() => lazyWithReload(() => import('./Timeline'), 'Timeline'));
 export const DisorderTable = lazy(() => lazyWithReload(() => import('./DisorderTable'), 'DisorderTable'));
+export const TimelineAutomation = lazy(() =>
+  lazyWithReload(() => import('./TimelineAutomation'), 'TimelineAutomation')
+);
 export const DynamicTest = lazy(() => lazyWithReload(() => import('./DynamicTest'), 'DynamicTest'));
 export const TestsPage = lazy(() =>
   lazyWithReload(

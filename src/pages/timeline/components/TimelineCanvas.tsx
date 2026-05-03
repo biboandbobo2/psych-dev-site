@@ -268,8 +268,47 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
 
           {validEdges.map((edge) => {
               const isSelected = selectedBranchX === edge.x;
+              const originNode = validNodes.find((node) => node.id === edge.nodeId);
+              const originX = originNode?.x ?? LINE_X_POSITION;
+              const connectorY = worldHeight - edge.startAge * YEAR_PX;
+              const shouldDrawConnector =
+                typeof originX === 'number' &&
+                typeof edge.x === 'number' &&
+                !isNaN(originX) &&
+                !isNaN(edge.x) &&
+                originX !== edge.x;
               return (
                 <g key={edge.id}>
+                  {shouldDrawConnector && (
+                    <>
+                      <line
+                        x1={originX}
+                        y1={connectorY}
+                        x2={edge.x}
+                        y2={connectorY}
+                        stroke="transparent"
+                        strokeWidth={isSelected ? 22 : 12}
+                        strokeLinecap="round"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectBranch(edge.x);
+                        }}
+                        className="cursor-pointer"
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <line
+                        x1={originX}
+                        y1={connectorY}
+                        x2={edge.x}
+                        y2={connectorY}
+                        stroke={edge.color}
+                        strokeWidth={isSelected ? 6 : 3}
+                        strokeLinecap="round"
+                        opacity={isSelected ? 1 : 0.75}
+                        pointerEvents="none"
+                      />
+                    </>
+                  )}
                   <line
                     x1={edge.x}
                     y1={worldHeight - edge.startAge * YEAR_PX}
@@ -313,6 +352,8 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                 x === selectedBranchX &&
                 x !== LINE_X_POSITION;
               const parentLineX = node.parentX ?? LINE_X_POSITION;
+              const labelOnLeft = x < LINE_X_POSITION;
+              const labelX = labelOnLeft ? x - adaptiveRadius - 10 : x + adaptiveRadius + 10;
               const shouldDrawHorizontalLine =
                 x !== parentLineX &&
                 typeof parentLineX === 'number' &&
@@ -394,12 +435,13 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                       </g>
                     )}
                     <text
-                      x={x + adaptiveRadius + 10}
+                      x={labelX}
                       y={y - adaptiveRadius - 5}
                       fontSize={28}
                       fontWeight="500"
                       fill="#0f172a"
                       fontFamily="Georgia, serif"
+                      textAnchor={labelOnLeft ? 'end' : 'start'}
                     >
                       {node.label}
                     </text>

@@ -168,6 +168,18 @@ CI часть (осталась):
 - [ ] Явно закрепить в README требование прочитать `docs/architecture/guidelines.md` и `docs/guides/testing-system.md` перед началом задач.
 - [ ] Обновить ленивую документацию: описать политику добавления новых lazy-страниц и итоговые метрики в `docs/archive/legacy/lazy-loading-migration.md` / README, синхронизировать `docs/reference/perf-metrics.md` после завершения работ.
 
+### MP‑7. Timeline UX follow-ups (P: M, E: S-M)
+- [ ] Добавить удаление дополнительных холстов в multi-canvas timeline: пользователь должен иметь возможность удалить любой холст, кроме первого (`Таймлайн 1`/legacy base canvas).
+- [ ] Сделать экспорт `PDF`/`PNG` адаптивным к фактической длине жизни и заполненности холста: если активная часть таймлайна заканчивается раньше `ageMax`, не выгружать длинное пустое полотно.
+- [ ] Привести `Очистить всё` к полному reset empty-canvas state: после очистки активный холст должен снова считаться пустым и позволять импорт внешних источников (`Wikipedia`/`.json`) без дополнительных действий.
+
+### MP‑8. Biography import richness follow-up (P: M, E: M)
+- **Контекст:** facts-first каскад уже умеет approximate ages, high-salience facts и theme-ветки, но legacy fallback и часть heuristic labels всё ещё периодически выдают generic события вроде `Учёба`/`Ссылка` и недобирают theme branches на sparse inputs.
+- **Задачи:**
+  - [ ] Дожать generic-label cleanup в legacy path, чтобы при деградации quality не откатывалась к старым заглушкам.
+  - [ ] Расширить sparse-biography coverage tests для theme branches (`friends`, `romance`, `travel`, `losses`) на нескольких не-пушкинских fixture’ах.
+  - [ ] Решить, какие metrics из локального `timeline:eval` стоит поднимать в API-meta/UI для быстрой диагностики без CLI.
+
 ### MR‑1. ✅ Масштабирование `/api/transcript-search` — РЕШЕНО (2026-04-28, H7)
 - **Решение:** keyword prefix-индекс. В каждый chunk добавлено поле `searchTokens: string[]` — массив префиксов слов длиной ≥ 3 (lowercased, без stop-words). Endpoint использует `where('searchTokens', 'array-contains-any', queryWords)` вместо full scan.
 - **Что сделано:**
@@ -856,3 +868,34 @@ export function useClinicalTopics() {
 - [ ] Расширить `tests/integration/testsWorkflow.test.ts` блоком про полную prerequisite-цепочку и edge-cases threshold.
 - [ ] Прогон `npm run test:integration` — все зелёные.
 - [ ] Обновить список покрытия в `docs/guides/testing-system.md` под Integration Tests.
+
+---
+
+## 🕰️ Biography Timeline Pipeline (BTP)
+
+> **Pipeline:** extraction → gap-filling → annotation → redaktura → composition → render
+> **Ключевые файлы:** `server/api/timelineBiographyPrompts.ts`, `server/api/timelineBiographyRuntime.ts`
+> **Текущая версия:** two-pass-v5
+
+### BTP-1. Батчевание annotation/redaktura для длинных биографий (P: M, E: S)
+- **Проблема:** При >250 фактах (Вертинский — 257) один вызов с maxOutputTokens=65536 может упираться в входной контекст или порождать неполный ответ. Сейчас работает, но для статей с 400+ фактами может потребоваться батчевание.
+- **Триггер:** Если появится биография с >300 фактами и annotation/redaktura вернут <90% покрытия.
+- **Решение:** Батчевание по ~120 фактов с `Promise.allSettled` (проверено в тесте Вертинского). Для importance — адаптивный лимит `Math.ceil(15 * batchSize / totalSize)` + пост-процессинг overflow.
+
+### BTP-2. Улучшение composition — баланс mainLine/branches (P: M, E: M)
+- **Проблема:** На Павлове mainLine слишком жирный (35 фактов вместо ~15-20), слишком мало веток (3 вместо 6-8).
+- **Задачи:**
+  - [ ] Ужесточить промпт composition: явнее ограничить mainLine, увеличить минимум веток
+  - [ ] Тестировать на Павлове и Вертинском
+  - [ ] Возможно передавать importance из редактуры как дополнительный сигнал
+
+### BTP-3. Рендер timeline на canvas (P: H, E: M)
+- **Описание:** Интегрировать конвертер из `tmp/render-composition.ts` в production — преобразование composition result в визуальный таймлайн.
+- **Задачи:**
+  - [ ] Перенести логику из tmp в production код
+  - [ ] Связать с существующим TimelineCanvas компонентом
+
+### BTP-4. shortLabel длина >25 символов (P: L, E: S)
+- **Проблема:** ~12% лейблов превышают 25 символов. Не критично — UI обрезает через CSS.
+- **Триггер:** Если при рендере на canvas появятся визуальные артефакты из-за длинных лейблов.
+- **Решение:** Runtime обрезка по слову до 25 + «…» или CSS text-overflow.
