@@ -79,12 +79,21 @@ export interface BillingSummaryData {
   recentDays: Array<{ date: string; costUsd: number }>;
   services: BillingSummaryService[];
   tableRef: string;
-  dataSource: "bigquery";
+  dataSource: "bigquery" | "bigquery_archive";
 }
 
 export type BillingSummaryResult =
-  | { ok: true; configured: true; summary: BillingSummaryData }
+  | {
+      ok: true;
+      configured: true;
+      summary: BillingSummaryData;
+      availableMonths: string[];
+    }
   | { ok: false; configured: false; error: string; diagnostics?: string[] };
+
+export interface BillingSummaryRequest {
+  invoiceMonth?: string;
+}
 
 interface BillingExportConfig {
   billingProjectId: string;
@@ -441,62 +450,143 @@ function buildBillingMetadataQuery(tablePath: string) {
   `;
 }
 
-export async function getBillingSummaryData(): Promise<BillingSummaryResult> {
-  const config = getBillingExportConfig();
-  const token = await getAccessToken();
-  const tableRef = await discoverBillingExportTable(token, config);
+function buildArchiveServiceSkuQuery(archivePath: string, rowLimit: number) {
+  return `
+    SELECT
+      service AS service,
+      sku AS sku,
+      ROUND(SUM(cost_usd), 2) AS costUsd
+    FROM \`${archivePath}\`
+    WHERE project_id = @projectId
+      AND invoice_month = @invoiceMonth
+      AND cost_type = 'Usage'
+      AND service IS NOT NULL
+      AND sku IS NOT NULL
+    GROUP BY 1, 2
+    HAVING costUsd > 0.009
+    ORDER BY costUsd DESC
+    LIMIT ${Math.max(1, Math.floor(rowLimit))}
+  `;
+}
 
-  if (!tableRef) {
-    return {
-      ok: false,
-      configured: false,
-      error: "Billing export table not found",
-      diagnostics: [
-        "В проекте не найден BigQuery billing export.",
-        "Включи Cloud Billing export в BigQuery или задай BILLING_EXPORT_BQ_DATASET / BILLING_EXPORT_BQ_TABLE.",
-      ],
-    };
+function buildArchiveDailyTrendQuery(archivePath: string) {
+  return `
+    SELECT
+      FORMAT_DATE('%Y-%m-%d', usage_start_date) AS usageDate,
+      ROUND(SUM(cost_usd), 2) AS costUsd
+    FROM \`${archivePath}\`
+    WHERE project_id = @projectId
+      AND invoice_month = @invoiceMonth
+      AND cost_type = 'Usage'
+      AND usage_start_date IS NOT NULL
+    GROUP BY 1
+    ORDER BY usageDate DESC
+  `;
+}
+
+function buildArchiveMetadataQuery(archivePath: string) {
+  return `
+    SELECT
+      ROUND(SUM(cost_usd), 2) AS totalCostUsd,
+      CAST(MAX(usage_end_date) AS STRING) AS lastUsageEnd
+    FROM \`${archivePath}\`
+    WHERE project_id = @projectId
+      AND invoice_month = @invoiceMonth
+      AND cost_type = 'Usage'
+  `;
+}
+
+function buildArchiveAvailableMonthsQuery(archivePath: string) {
+  return `
+    SELECT DISTINCT invoice_month
+    FROM \`${archivePath}\`
+    WHERE project_id = @projectId
+      AND cost_type = 'Usage'
+    ORDER BY invoice_month DESC
+  `;
+}
+
+function buildLiveAvailableMonthsQuery(tablePath: string) {
+  return `
+    SELECT DISTINCT invoice.month AS invoice_month
+    FROM \`${tablePath}\`
+    WHERE project.id = @projectId
+    ORDER BY invoice_month DESC
+    LIMIT 24
+  `;
+}
+
+function getArchiveTablePath(
+  config: BillingExportConfig,
+  liveTableRef: BillingExportTableRef | null
+): string {
+  const datasetId = liveTableRef?.datasetId || config.datasetId || "billing_export";
+  return `${config.exportProjectId}.${datasetId}.billing_archive`;
+}
+
+async function safeRunQuery<T>(
+  token: string,
+  tableRef: { projectId: string; location?: string },
+  query: string,
+  queryParameters: Array<{ name: string; type: string; value: string | number }>
+): Promise<BigQueryQueryResponse | null> {
+  try {
+    return await runBigQueryQuery<T>(token, tableRef as BillingExportTableRef, query, queryParameters);
+  } catch {
+    // Таблицы может не быть (404) — возвращаем null, дальше работаем без неё.
+    return null;
   }
+}
 
-  const invoiceMonth = getCurrentInvoiceMonth();
+async function fetchArchiveSummary(
+  token: string,
+  archivePath: string,
+  archiveLocation: string | undefined,
+  projectId: string,
+  invoiceMonth: string,
+  config: BillingExportConfig
+): Promise<{
+  totalCostUsd: number;
+  lastUsageEnd: string | null;
+  services: BillingSummaryService[];
+  recentDays: Array<{ date: string; costUsd: number }>;
+} | null> {
+  const tableRef = { projectId: config.exportProjectId, location: archiveLocation };
   const rowLimit = Math.max(50, config.maxServices * config.maxSkusPerService * 3);
 
   const [serviceSkuPayload, dailyPayload, metadataPayload] = await Promise.all([
-    runBigQueryQuery(
-      token,
-      tableRef,
-      buildBillingServiceSkuQuery(tableRef.tablePath, rowLimit),
-      [
-        { name: "projectId", type: "STRING", value: config.billingProjectId },
-        { name: "invoiceMonth", type: "STRING", value: invoiceMonth },
-      ]
-    ),
-    runBigQueryQuery(
-      token,
-      tableRef,
-      buildBillingDailyTrendQuery(tableRef.tablePath, config.lookbackDays),
-      [{ name: "projectId", type: "STRING", value: config.billingProjectId }]
-    ),
-    runBigQueryQuery(
-      token,
-      tableRef,
-      buildBillingMetadataQuery(tableRef.tablePath),
-      [
-        { name: "projectId", type: "STRING", value: config.billingProjectId },
-        { name: "invoiceMonth", type: "STRING", value: invoiceMonth },
-      ]
-    ),
+    safeRunQuery(token, tableRef, buildArchiveServiceSkuQuery(archivePath, rowLimit), [
+      { name: "projectId", type: "STRING", value: projectId },
+      { name: "invoiceMonth", type: "STRING", value: invoiceMonth },
+    ]),
+    safeRunQuery(token, tableRef, buildArchiveDailyTrendQuery(archivePath), [
+      { name: "projectId", type: "STRING", value: projectId },
+      { name: "invoiceMonth", type: "STRING", value: invoiceMonth },
+    ]),
+    safeRunQuery(token, tableRef, buildArchiveMetadataQuery(archivePath), [
+      { name: "projectId", type: "STRING", value: projectId },
+      { name: "invoiceMonth", type: "STRING", value: invoiceMonth },
+    ]),
   ]);
 
-  const serviceRows = decodeBigQueryRows(serviceSkuPayload, (record): BillingServiceSkuRow => ({
-    service: record.service || "Unknown service",
-    sku: record.sku || "Unknown SKU",
-    costUsd: Number(record.costUsd || 0),
-  }));
-  const dailyRows = decodeBigQueryRows(dailyPayload, (record): BillingDailyCostRow => ({
-    usageDate: record.usageDate || "",
-    costUsd: Number(record.costUsd || 0),
-  }));
+  if (!metadataPayload) {
+    // Архивной таблицы нет вообще.
+    return null;
+  }
+
+  const serviceRows = serviceSkuPayload
+    ? decodeBigQueryRows(serviceSkuPayload, (record): BillingServiceSkuRow => ({
+        service: record.service || "Unknown service",
+        sku: record.sku || "Unknown SKU",
+        costUsd: Number(record.costUsd || 0),
+      }))
+    : [];
+  const dailyRows = dailyPayload
+    ? decodeBigQueryRows(dailyPayload, (record): BillingDailyCostRow => ({
+        usageDate: record.usageDate || "",
+        costUsd: Number(record.costUsd || 0),
+      }))
+    : [];
   const metadata =
     decodeBigQueryRows(metadataPayload, (record): BillingMetadataRow => ({
       totalCostUsd: Number(record.totalCostUsd || 0),
@@ -504,22 +594,217 @@ export async function getBillingSummaryData(): Promise<BillingSummaryResult> {
     }))[0] || { totalCostUsd: 0, lastUsageEnd: null };
 
   return {
+    totalCostUsd: metadata.totalCostUsd,
+    lastUsageEnd: metadata.lastUsageEnd,
+    services: groupBillingServiceRows(serviceRows, config.maxServices, config.maxSkusPerService),
+    recentDays: dailyRows.map((row) => ({ date: row.usageDate, costUsd: row.costUsd })),
+  };
+}
+
+async function fetchAvailableMonths(
+  token: string,
+  liveTableRef: BillingExportTableRef | null,
+  archivePath: string,
+  archiveLocation: string | undefined,
+  projectId: string,
+  config: BillingExportConfig
+): Promise<string[]> {
+  const requests: Array<Promise<BigQueryQueryResponse | null>> = [];
+
+  if (liveTableRef) {
+    requests.push(
+      safeRunQuery(token, liveTableRef, buildLiveAvailableMonthsQuery(liveTableRef.tablePath), [
+        { name: "projectId", type: "STRING", value: projectId },
+      ])
+    );
+  } else {
+    requests.push(Promise.resolve(null));
+  }
+
+  requests.push(
+    safeRunQuery(
+      token,
+      { projectId: config.exportProjectId, location: archiveLocation },
+      buildArchiveAvailableMonthsQuery(archivePath),
+      [{ name: "projectId", type: "STRING", value: projectId }]
+    )
+  );
+
+  const [livePayload, archivePayload] = await Promise.all(requests);
+  const months = new Set<string>();
+  for (const payload of [livePayload, archivePayload]) {
+    if (!payload) continue;
+    decodeBigQueryRows(payload, (record): { invoice_month: string } => ({
+      invoice_month: record.invoice_month || "",
+    })).forEach((row) => {
+      if (row.invoice_month) months.add(row.invoice_month);
+    });
+  }
+  return Array.from(months).sort((a, b) => b.localeCompare(a));
+}
+
+export async function getBillingSummaryData(
+  request: BillingSummaryRequest = {}
+): Promise<BillingSummaryResult> {
+  const config = getBillingExportConfig();
+  const token = await getAccessToken();
+  const liveTableRef = await discoverBillingExportTable(token, config);
+  const archivePath = getArchiveTablePath(config, liveTableRef);
+  const archiveLocation = liveTableRef?.location || config.location;
+
+  const requestedMonth = request.invoiceMonth?.trim() || getCurrentInvoiceMonth();
+  if (!/^\d{6}$/.test(requestedMonth)) {
+    return {
+      ok: false,
+      configured: false,
+      error: `Invalid invoiceMonth: "${requestedMonth}". Expected YYYYMM.`,
+    };
+  }
+
+  const availableMonths = await fetchAvailableMonths(
+    token,
+    liveTableRef,
+    archivePath,
+    archiveLocation,
+    config.billingProjectId,
+    config
+  );
+
+  // 1) Live export (если есть таблица).
+  let liveSummary: {
+    totalCostUsd: number;
+    lastUsageEnd: string | null;
+    services: BillingSummaryService[];
+    recentDays: Array<{ date: string; costUsd: number }>;
+  } | null = null;
+  if (liveTableRef) {
+    const rowLimit = Math.max(50, config.maxServices * config.maxSkusPerService * 3);
+    const [serviceSkuPayload, dailyPayload, metadataPayload] = await Promise.all([
+      runBigQueryQuery(
+        token,
+        liveTableRef,
+        buildBillingServiceSkuQuery(liveTableRef.tablePath, rowLimit),
+        [
+          { name: "projectId", type: "STRING", value: config.billingProjectId },
+          { name: "invoiceMonth", type: "STRING", value: requestedMonth },
+        ]
+      ),
+      runBigQueryQuery(
+        token,
+        liveTableRef,
+        buildBillingDailyTrendQuery(liveTableRef.tablePath, config.lookbackDays),
+        [{ name: "projectId", type: "STRING", value: config.billingProjectId }]
+      ),
+      runBigQueryQuery(
+        token,
+        liveTableRef,
+        buildBillingMetadataQuery(liveTableRef.tablePath),
+        [
+          { name: "projectId", type: "STRING", value: config.billingProjectId },
+          { name: "invoiceMonth", type: "STRING", value: requestedMonth },
+        ]
+      ),
+    ]);
+
+    const serviceRows = decodeBigQueryRows(serviceSkuPayload, (record): BillingServiceSkuRow => ({
+      service: record.service || "Unknown service",
+      sku: record.sku || "Unknown SKU",
+      costUsd: Number(record.costUsd || 0),
+    }));
+    const dailyRows = decodeBigQueryRows(dailyPayload, (record): BillingDailyCostRow => ({
+      usageDate: record.usageDate || "",
+      costUsd: Number(record.costUsd || 0),
+    }));
+    const metadata =
+      decodeBigQueryRows(metadataPayload, (record): BillingMetadataRow => ({
+        totalCostUsd: Number(record.totalCostUsd || 0),
+        lastUsageEnd: record.lastUsageEnd || null,
+      }))[0] || { totalCostUsd: 0, lastUsageEnd: null };
+
+    liveSummary = {
+      totalCostUsd: metadata.totalCostUsd,
+      lastUsageEnd: metadata.lastUsageEnd,
+      services: groupBillingServiceRows(serviceRows, config.maxServices, config.maxSkusPerService),
+      recentDays: dailyRows.map((row) => ({ date: row.usageDate, costUsd: row.costUsd })),
+    };
+
+    if (liveSummary.totalCostUsd > 0 || liveSummary.services.length > 0) {
+      return {
+        ok: true,
+        configured: true,
+        availableMonths,
+        summary: {
+          projectId: config.billingProjectId,
+          month: requestedMonth,
+          monthLabel: getMonthLabel(requestedMonth),
+          totalCostUsd: Number(liveSummary.totalCostUsd.toFixed(2)),
+          lastUsageEnd: liveSummary.lastUsageEnd,
+          recentDays: liveSummary.recentDays,
+          services: liveSummary.services,
+          tableRef: liveTableRef.tablePath,
+          dataSource: "bigquery",
+        },
+      };
+    }
+  }
+
+  // 2) Fallback на архив (загруженный из CSV).
+  const archiveSummary = await fetchArchiveSummary(
+    token,
+    archivePath,
+    archiveLocation,
+    config.billingProjectId,
+    requestedMonth,
+    config
+  );
+
+  if (archiveSummary && (archiveSummary.totalCostUsd > 0 || archiveSummary.services.length > 0)) {
+    return {
+      ok: true,
+      configured: true,
+      availableMonths,
+      summary: {
+        projectId: config.billingProjectId,
+        month: requestedMonth,
+        monthLabel: getMonthLabel(requestedMonth),
+        totalCostUsd: Number(archiveSummary.totalCostUsd.toFixed(2)),
+        lastUsageEnd: archiveSummary.lastUsageEnd,
+        recentDays: archiveSummary.recentDays,
+        services: archiveSummary.services,
+        tableRef: archivePath,
+        dataSource: "bigquery_archive",
+      },
+    };
+  }
+
+  // 3) Ничего нет.
+  if (!liveTableRef && !archiveSummary) {
+    return {
+      ok: false,
+      configured: false,
+      error: "Billing export table not found",
+      diagnostics: [
+        "В проекте не найден BigQuery billing export и архивная таблица billing_archive.",
+        "Включи Cloud Billing export в BigQuery или задай BILLING_EXPORT_BQ_DATASET / BILLING_EXPORT_BQ_TABLE.",
+      ],
+    };
+  }
+
+  // Live и/или archive существуют, но за этот месяц пусто — возвращаем валидный пустой summary.
+  return {
     ok: true,
     configured: true,
+    availableMonths,
     summary: {
       projectId: config.billingProjectId,
-      month: invoiceMonth,
-      monthLabel: getMonthLabel(invoiceMonth),
-      totalCostUsd: Number(metadata.totalCostUsd.toFixed(2)),
-      lastUsageEnd: metadata.lastUsageEnd,
-      recentDays: dailyRows.map((row) => ({ date: row.usageDate, costUsd: row.costUsd })),
-      services: groupBillingServiceRows(
-        serviceRows,
-        config.maxServices,
-        config.maxSkusPerService
-      ),
-      tableRef: tableRef.tablePath,
-      dataSource: "bigquery",
+      month: requestedMonth,
+      monthLabel: getMonthLabel(requestedMonth),
+      totalCostUsd: 0,
+      lastUsageEnd: null,
+      recentDays: [],
+      services: [],
+      tableRef: liveTableRef?.tablePath ?? archivePath,
+      dataSource: liveTableRef ? "bigquery" : "bigquery_archive",
     },
   };
 }

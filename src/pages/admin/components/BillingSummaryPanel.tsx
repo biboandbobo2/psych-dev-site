@@ -4,7 +4,18 @@ interface BillingSummaryPanelProps {
   summary: BillingSummaryResponse | null;
   loading: boolean;
   error: string | null;
+  selectedMonth: string | null;
   onRefresh: () => void | Promise<void>;
+  onSelectMonth: (month: string) => void;
+}
+
+function formatMonthLabel(month: string): string {
+  if (!/^\d{6}$/.test(month)) return month;
+  const year = Number(month.slice(0, 4));
+  const monthIndex = Number(month.slice(4, 6)) - 1;
+  return new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(
+    new Date(Date.UTC(year, monthIndex, 1))
+  );
 }
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
@@ -38,10 +49,14 @@ export function BillingSummaryPanel({
   summary,
   loading,
   error,
+  selectedMonth,
   onRefresh,
+  onSelectMonth,
 }: BillingSummaryPanelProps) {
   const hasData = summary?.ok === true && summary.configured === true;
   const resolvedSummary = hasData ? summary.summary : null;
+  const availableMonths = hasData ? summary.availableMonths : [];
+  const activeMonth = selectedMonth || resolvedSummary?.month || "";
 
   return (
     <section className="rounded-2xl border border-border/60 bg-card shadow-brand p-5 space-y-4">
@@ -49,17 +64,33 @@ export function BillingSummaryPanel({
         <div>
           <h2 className="text-xl font-semibold">GCP billing по проекту</h2>
           <p className="text-sm text-muted">
-            Breakdown текущего месяца по Service и SKU прямо на superadmin-странице.
+            Breakdown по Service и SKU. Выбери месяц — данные подтягиваются из live billing export или архива.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onRefresh}
-          className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-muted transition hover:bg-card2 hover:text-fg disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={loading}
-        >
-          {loading ? "Обновляю…" : "Обновить"}
-        </button>
+        <div className="flex items-center gap-2">
+          {availableMonths.length > 0 && (
+            <select
+              value={activeMonth}
+              onChange={(event) => onSelectMonth(event.target.value)}
+              disabled={loading}
+              className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-fg transition hover:bg-card2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {availableMonths.map((month) => (
+                <option key={month} value={month}>
+                  {formatMonthLabel(month)}
+                </option>
+              ))}
+            </select>
+          )}
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-muted transition hover:bg-card2 hover:text-fg disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={loading}
+          >
+            {loading ? "Обновляю…" : "Обновить"}
+          </button>
+        </div>
       </div>
 
       {error ? (
@@ -91,9 +122,12 @@ export function BillingSummaryPanel({
         <>
           <div className="grid gap-4 md:grid-cols-4">
             <MetricCard label="Месяц" value={resolvedSummary.monthLabel} />
-            <MetricCard label="Текущий расход" value={formatMoney(resolvedSummary.totalCostUsd)} />
+            <MetricCard label="Расход за месяц" value={formatMoney(resolvedSummary.totalCostUsd)} />
             <MetricCard label="Последний usage" value={formatDateTime(resolvedSummary.lastUsageEnd)} />
-            <MetricCard label="Источник" value={resolvedSummary.dataSource} />
+            <MetricCard
+              label="Источник"
+              value={resolvedSummary.dataSource === "bigquery_archive" ? "архив (CSV)" : "live export"}
+            />
           </div>
 
           <div className="rounded-lg border border-border bg-card2 px-4 py-3 text-sm text-muted">

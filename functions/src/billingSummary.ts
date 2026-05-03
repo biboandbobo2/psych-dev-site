@@ -3,10 +3,14 @@ import * as functions from "firebase-functions";
 import { getBillingSummaryData } from "./billingExport.js";
 import { ensureSuperAdmin } from "./lib/shared.js";
 
-export const getBillingSummary = functions.https.onCall(async (_data, context) => {
+export const getBillingSummary = functions.https.onCall(async (data, context) => {
   ensureSuperAdmin(context);
   try {
-    return await getBillingSummaryData();
+    const invoiceMonth =
+      data && typeof data === "object" && typeof (data as { invoiceMonth?: unknown }).invoiceMonth === "string"
+        ? ((data as { invoiceMonth: string }).invoiceMonth)
+        : undefined;
+    return await getBillingSummaryData({ invoiceMonth });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     const stack = error instanceof Error && error.stack ? error.stack.split("\n").slice(0, 4) : [];

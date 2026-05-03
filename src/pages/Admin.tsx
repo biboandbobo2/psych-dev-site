@@ -17,26 +17,38 @@ export default function Admin() {
   const [billingSummary, setBillingSummary] = useState<BillingSummaryResponse | null>(null);
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
-  const fetchBillingSummary = useCallback(async () => {
-    if (!isAdmin) return;
-    setBillingLoading(true);
-    setBillingError(null);
-    try {
-      const data = await getBillingSummary();
-      setBillingSummary(data);
-    } catch (error: any) {
-      debugWarn("[admin] billing summary error", error);
-      setBillingError(error?.message ?? "Не удалось получить billing summary");
-    } finally {
-      setBillingLoading(false);
-    }
-  }, [isAdmin]);
+  const fetchBillingSummary = useCallback(
+    async (invoiceMonth?: string) => {
+      if (!isAdmin) return;
+      setBillingLoading(true);
+      setBillingError(null);
+      try {
+        const data = await getBillingSummary(invoiceMonth ? { invoiceMonth } : {});
+        setBillingSummary(data);
+      } catch (error: any) {
+        debugWarn("[admin] billing summary error", error);
+        setBillingError(error?.message ?? "Не удалось получить billing summary");
+      } finally {
+        setBillingLoading(false);
+      }
+    },
+    [isAdmin]
+  );
 
   useEffect(() => {
     if (!isAdmin) return;
     fetchBillingSummary();
   }, [isAdmin, fetchBillingSummary]);
+
+  const handleSelectMonth = useCallback(
+    (month: string) => {
+      setSelectedMonth(month);
+      fetchBillingSummary(month);
+    },
+    [fetchBillingSummary]
+  );
 
   return (
     <div className="p-6 space-y-6">
@@ -114,7 +126,9 @@ export default function Admin() {
           summary={billingSummary}
           loading={billingLoading}
           error={billingError}
-          onRefresh={fetchBillingSummary}
+          selectedMonth={selectedMonth}
+          onRefresh={() => fetchBillingSummary(selectedMonth ?? undefined)}
+          onSelectMonth={handleSelectMonth}
         />
       )}
 

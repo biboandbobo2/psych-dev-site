@@ -326,18 +326,27 @@ export interface BillingSummaryData {
   recentDays: Array<{ date: string; costUsd: number }>;
   services: BillingSummaryService[];
   tableRef: string;
-  dataSource: "bigquery";
+  dataSource: "bigquery" | "bigquery_archive";
 }
 
 export type BillingSummaryResponse =
-  | { ok: true; configured: true; summary: BillingSummaryData }
+  | {
+      ok: true;
+      configured: true;
+      summary: BillingSummaryData;
+      availableMonths: string[];
+    }
   | { ok: false; configured: false; error: string; diagnostics?: string[] };
 
-export async function getBillingSummary() {
-  const fn = httpsCallable<Record<string, never>, BillingSummaryResponse>(
+export interface BillingSummaryRequest {
+  invoiceMonth?: string;
+}
+
+export async function getBillingSummary(request: BillingSummaryRequest = {}) {
+  const fn = httpsCallable<BillingSummaryRequest, BillingSummaryResponse>(
     functions,
     "getBillingSummary"
   );
-  const result = await fn({});
+  const result = await fn(request);
   return result.data;
 }
