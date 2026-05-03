@@ -86,8 +86,20 @@ export async function verifyAuthBearer(req: VercelRequest): Promise<AuthVerifyRe
   try {
     const decoded = await getAuth().verifyIdToken(authHeader.slice(7));
     return { valid: true as const, uid: decoded.uid };
-  } catch {
-    return { valid: false as const, error: 'Недействительная авторизация', code: 'UNAUTHORIZED' };
+  } catch (err) {
+    const detail =
+      err && typeof err === 'object' && 'message' in err
+        ? String((err as { message: unknown }).message)
+        : String(err);
+    const fbCode =
+      err && typeof err === 'object' && 'code' in err
+        ? String((err as { code: unknown }).code)
+        : 'unknown';
+    return {
+      valid: false as const,
+      error: `Недействительная авторизация [firebase: ${fbCode} — ${detail}]`,
+      code: 'UNAUTHORIZED',
+    };
   }
 }
 
