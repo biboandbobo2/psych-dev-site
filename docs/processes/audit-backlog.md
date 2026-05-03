@@ -272,6 +272,13 @@ CI часть (осталась):
   **BPT-6. Опционально разбить `timelineBiographyFacts/Lint/Heuristics.ts` (P: L, E: S)**
   - По логическим единицам (parsing, normalization, dedup, baseline, salience). Делать только если кто-то начнёт активно править эти файлы.
 
+### MR‑7. Починить AdminFeedFilters.test.tsx — pre-existing typecheck regression (P: L, E: XS)
+- **Симптом:** 3 теста в `src/pages/admin/announcements/__tests__/AdminFeedFilters.test.tsx` падают: `Type '"event"' is not assignable to type 'FeedFilterKind'`. Проявляется в `typecheck:tests` и в `vitest run` (отображается через jsdom assertion).
+- **Когда появилось:** уже было до merge `feature/biography-timeline-merge` (PR #65) — тесты были красные на main.
+- **Гипотеза:** тип `FeedFilterKind` в `src/pages/admin/announcements/...` был сужен (например, `'event'` стало `'events'` или `'group-event'`), а тест не обновили.
+- **Эффект сейчас:** локально 7 fail в vitest вместо ожидаемых 4 integration. CI red.
+- **Эффорт:** XS — поправить literal в тесте.
+
 ### MR‑6. Удалить orphan Cloud Function setStudentStream(us-central1) (P: L, E: XS)
 - **Контекст:** обнаружена при попытке `npm run firebase:deploy:functions` 2026-05-03. Firebase abort'ит full deploy потому что функция в проде, но её нет в локальном коде.
 - **История:** добавлена коммитом `2374c98` (11 апреля), удалена из репо коммитом `8781443` (24 апреля, post-migration cleanup), но `firebase functions:delete` не выполнялся.
