@@ -141,6 +141,14 @@ src/pages/Timeline.tsx               ← интеграция: useBiographyImpor
 #### Vercel functions limit
 - Hobby plan = 12 функций. Текущее состояние: ~9 (включая 3 timeline-biography*). Новые helpers выносить в `src/lib/api-server/sharedApiRuntime.ts` или `server/api/`, **не** в `api/_lib/`.
 
+#### BYOK usage accounting
+- `/profile` показывает счётчик потраченных tokens из `aiUsageDaily/{uid}_{day}`.
+- Vercel API endpoints (lectures, assistant, books) пишут туда через `recordByokUsage` из `src/lib/api-server/sharedApiRuntime.ts`.
+- **CF biographyImport** имеет свою локальную копию helper'а (`recordBiographyByokUsage`) — cross-folder import из functions/ в src/ нежелателен из-за разных tsconfig moduleResolution.
+- Action label: `biography:import` (видно в `byAction.biography:import.{tokens,requests}` в Firestore document).
+- Tokens учитываются **только если использован BYOK ключ** (header `X-Gemini-Api-Key`). Server fallback (`process.env.GEMINI_API_KEY`) не пишется — это admin/server-side path.
+- Сумма tokens по всему pipeline (5 Gemini calls) суммируется через `extractGeminiTokens(result.usageMetadata?.totalTokenCount)` после каждого call.
+
 ### Debugging — где что искать
 
 #### Cloud Function logs

@@ -90,6 +90,42 @@ async function callGeminiWithRetry(
   throw new Error(`${label}: max retries exceeded`);
 }
 
+/** Извлекает totalTokenCount из usageMetadata Gemini response (для BYOK accounting). */
+function extractGeminiTokens(result: unknown): number {
+  if (!result || typeof result !== 'object' || !('usageMetadata' in result)) return 0;
+  const meta = (result as { usageMetadata?: { totalTokenCount?: number } }).usageMetadata;
+  return typeof meta?.totalTokenCount === 'number' ? meta.totalTokenCount : 0;
+}
+
+/**
+ * Дублирует логику recordByokUsage из src/lib/api-server/sharedApiRuntime.ts.
+ * Cross-folder import из functions/ в src/ нежелателен (разные tsconfig moduleResolution),
+ * поэтому helper тут локальный. Action `biography:import` чтобы был отдельный счётчик
+ * наряду с lectures:*, books:*, assistant в /profile.
+ */
+async function recordBiographyByokUsage(uid: string, tokens: number): Promise<void> {
+  if (tokens <= 0) return;
+  try {
+    const day = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
+    const docId = `${uid}_${day}`;
+    const ref = getFirestore().collection('aiUsageDaily').doc(docId);
+    await ref.set(
+      {
+        uid,
+        day,
+        tokens: FieldValue.increment(tokens),
+        requests: FieldValue.increment(1),
+        'byAction.biography:import.tokens': FieldValue.increment(tokens),
+        'byAction.biography:import.requests': FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  } catch (err) {
+    logger.error('[biographyImport] recordByokUsage failed', err);
+  }
+}
+
 function collectGeminiResultText(result: unknown) {
   if (result && typeof result === 'object') {
     const directText = 'text' in result && typeof result.text === 'string' ? result.text : '';
@@ -345,6 +381,8 @@ async function runFullBiographyPipeline(params: {
   userEmail: string;
   canvasId: string;
   jobId?: string;
+  /** True если использован user's BYOK ключ (а не server fallback) — учитывать токены в /profile. */
+  isBYOK: boolean;
 }): Promise<{
   jobId: string;
   subjectName: string;
@@ -373,6 +411,10 @@ async function runFullBiographyPipeline(params: {
 }> {
   const db = getFirestore();
   const client = getGenAiClient(params.apiKey);
+
+  // Накопление total Gemini tokens для BYOK usage tracking (отображается в /profile).
+  // Все Gemini calls ниже инкрементируют этот счётчик через extractGeminiTokens(result).
+  let totalTokens = 0;
 
   // Create job document (use client-provided jobId for onSnapshot tracking)
   const jobRef = params.jobId
@@ -431,6 +473,7 @@ async function runFullBiographyPipeline(params: {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'text/plain' },
       }, `extraction slice ${i + 1}/${slices.length}`);
+      totalTokens += extractGeminiTokens(result);
 
       const rawText = collectGeminiResultText(result);
       const facts = parseSimpleJsonFacts(rawText);
@@ -512,6 +555,7 @@ async function runFullBiographyPipeline(params: {
             contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
             config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'text/plain' },
           }, 'gap-filling');
+          totalTokens += extractGeminiTokens(gapResult);
           const gapFacts = parseSimpleJsonFacts(collectGeminiResultText(gapResult));
           if (gapFacts.length > 0) allFacts.push(...gapFacts);
         } catch {
@@ -559,6 +603,7 @@ async function runFullBiographyPipeline(params: {
         contents: [{ role: 'user', parts: [{ text: annotationPrompt }] }],
         config: { temperature: 0.05, maxOutputTokens: 65536, responseMimeType: 'text/plain' },
       }, 'annotation');
+      totalTokens += extractGeminiTokens(annotResult);
       annotations = parseAnnotationResponse(collectGeminiResultText(annotResult));
     } catch (error) {
       logger.error('[biographyImport] annotation failed', { error });
@@ -588,6 +633,7 @@ async function runFullBiographyPipeline(params: {
         contents: [{ role: 'user', parts: [{ text: redakturaPrompt }] }],
         config: { temperature: 0.05, maxOutputTokens: 16384, responseMimeType: 'text/plain' },
       }, 'redaktura');
+      totalTokens += extractGeminiTokens(redResult);
       const redaktura = parseRedakturaResponse(collectGeminiResultText(redResult));
       finalFacts = annotatedFacts.map((fact, index) => {
         const red = redaktura.get(index);
@@ -641,6 +687,7 @@ async function runFullBiographyPipeline(params: {
         contents: [{ role: 'user', parts: [{ text: compositionPrompt }] }],
         config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'application/json' },
       }, 'composition');
+      totalTokens += extractGeminiTokens(compResult);
       composition = JSON.parse(collectGeminiResultText(compResult)) as BiographyCompositionResult;
     } catch (error) {
       logger.error('[biographyImport] composition failed, using fallback single-branch layout', { error });
@@ -706,7 +753,18 @@ async function runFullBiographyPipeline(params: {
       step4: { timeline, composition, canvasName: subjectName, meta },
     });
 
-    logger.info('[biographyImport] complete', { jobId: jobRef.id, nodes: timelineStats?.nodes });
+    // BYOK usage tracking — учитываем потраченные tokens в /profile под action `biography:import`.
+    // Записываем только если использован user's BYOK ключ (не server fallback).
+    if (params.isBYOK) {
+      await recordBiographyByokUsage(params.uid, totalTokens);
+    }
+
+    logger.info('[biographyImport] complete', {
+      jobId: jobRef.id,
+      nodes: timelineStats?.nodes,
+      totalTokens,
+      byokTracked: params.isBYOK,
+    });
 
     return {
       jobId: jobRef.id,
@@ -753,14 +811,16 @@ export const biographyImport = onRequest(
       const canvasId = typeof req.body?.canvasId === 'string' ? req.body.canvasId : '';
       // BYOK: user's key from header takes priority over server secret
       const userKey = req.headers['x-gemini-api-key'];
-      const apiKey = (typeof userKey === 'string' && userKey.trim()) ? userKey.trim() : process.env.GEMINI_API_KEY;
+      const trimmedUserKey = typeof userKey === 'string' ? userKey.trim() : '';
+      const apiKey = trimmedUserKey || process.env.GEMINI_API_KEY;
       if (!apiKey) {
         res.status(503).json({ ok: false, error: 'GEMINI_API_KEY not configured' });
         return;
       }
+      const isBYOK = Boolean(trimmedUserKey);
 
       const clientJobId = typeof req.body?.jobId === 'string' ? req.body.jobId : undefined;
-      const result = await runFullBiographyPipeline({ sourceUrl, apiKey, uid, userEmail: email, canvasId, jobId: clientJobId });
+      const result = await runFullBiographyPipeline({ sourceUrl, apiKey, uid, userEmail: email, canvasId, jobId: clientJobId, isBYOK });
 
       res.status(200).json({
         ok: true,
