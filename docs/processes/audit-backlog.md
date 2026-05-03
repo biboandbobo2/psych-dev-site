@@ -272,6 +272,17 @@ CI часть (осталась):
   **BPT-6. Опционально разбить `timelineBiographyFacts/Lint/Heuristics.ts` (P: L, E: S)**
   - По логическим единицам (parsing, normalization, dedup, baseline, salience). Делать только если кто-то начнёт активно править эти файлы.
 
+### MR‑8. Задеплоить Firestore rules для biographyJobs strict-read (P: M, E: XS)
+- **Текущее состояние:** rules для `biographyJobs/{jobId}` написаны (`allow read: if isAuthenticated() && resource.data.userId == request.auth.uid`) и в репо после PR #65, но **не задеплоены** в production. Сейчас работают по fallback `match /{document=**} { allow read: if true }`.
+- **Риск:** любой authenticated пользователь, узнавший чужой `jobId`, может прочитать чужой импорт. UUID v4 практически unguessable (122 bits), но это нарушение principle of least privilege. Сейчас в `step1.extract` хранится текст Wikipedia-статьи, в `step4.timeline` — построенный таймлайн с meta. Утечка не критическая, но желательно закрыть.
+- **Команда:** `firebase deploy --only firestore:rules --project psych-dev-site-prod`
+- **Перед деплоем:** убедиться что нет других новых правил которые могут что-то сломать. Сравнить `firestore.rules` локально с проде через `mcp__firebase__firebase_get_security_rules`.
+
+### MR‑9. Functions Checks CI red — vitest config mismatch (P: L, E: XS)
+- **Симптом:** GitHub Actions job `Functions Checks` падает: `Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vitest' imported from .../vitest.config.ts.timestamp-...mjs`. Происходит при `npm run test` в директории `functions/` — подхватывается **root** `vitest.config.ts`, а не `functions/`-локальный, и в functions/node_modules нет vitest.
+- **Pre-existing на main** (не из PR #65).
+- **Решение:** либо в CI workflow вызывать `cd functions && vitest run` с указанием явного config (если есть локальный), либо использовать root vitest с явным `--root functions`, либо добавить `vitest` в `functions/package.json` devDependencies.
+
 ### MR‑7. Починить AdminFeedFilters.test.tsx — pre-existing typecheck regression (P: L, E: XS)
 - **Симптом:** 3 теста в `src/pages/admin/announcements/__tests__/AdminFeedFilters.test.tsx` падают: `Type '"event"' is not assignable to type 'FeedFilterKind'`. Проявляется в `typecheck:tests` и в `vitest run` (отображается через jsdom assertion).
 - **Когда появилось:** уже было до merge `feature/biography-timeline-merge` (PR #65) — тесты были красные на main.
