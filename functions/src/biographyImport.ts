@@ -36,7 +36,7 @@ import {
   buildBiographyRedakturaPrompt,
   buildBiographyCompositionPrompt,
 } from '../../server/api/timelineBiographyPrompts.js';
-import { buildPlanFromCompositionResult } from '../../server/api/timelineBiographyComposer.js';
+import { buildPlanFromCompositionResult, findDeathFact } from '../../server/api/timelineBiographyComposer.js';
 import { buildTimelineDataFromBiographyPlan } from '../../server/api/timelineBiographyQuality.js';
 
 // ============================================================================
@@ -443,7 +443,13 @@ async function runFullBiographyPipeline(params: {
     allFacts = deduplicateFacts(allFacts);
 
     // --- Post-extraction: filter facts beyond death + grace period ---
-    const extractedDeathFact = allFacts.find(f => f.category === 'death');
+    // Используем findDeathFact из composer'а: он фильтрует кандидатов по age 15-120
+    // и предпочитает high-importance, чтобы не спутать смерть родственника со смертью subject'а.
+    // Без этого первый встреченный death-fact (часто это смерть отца/матери) обрезает
+    // всю взрослую жизнь subject'а.
+    const extractedBirthFact = allFacts.find(f => f.category === 'birth' || f.eventType === 'birth');
+    const extractedBirthYear = extractedBirthFact?.year ?? null;
+    const extractedDeathFact = findDeathFact(allFacts, extractedBirthYear ?? undefined);
     const extractedDeathYear = extractedDeathFact?.year;
     if (extractedDeathYear != null) {
       const cutoffYear = extractedDeathYear + 10;
@@ -456,8 +462,6 @@ async function runFullBiographyPipeline(params: {
     }
 
     // --- Density calculation for gap-filling control ---
-    const extractedBirthFact = allFacts.find(f => f.category === 'birth' || f.eventType === 'birth');
-    const extractedBirthYear = extractedBirthFact?.year ?? null;
     const datedForDensity = allFacts.filter(f => f.year != null);
     const factYears = datedForDensity.map(f => f.year!);
     // Use birth/death years for lifespan, not min/max of all facts (ancestors skew min)

@@ -121,7 +121,7 @@ function findBirthFact(facts: BiographyFactCandidate[]): BiographyFactCandidate 
   return facts.find(f => f.eventType === 'birth' || f.category === 'birth');
 }
 
-function findDeathFact(facts: BiographyFactCandidate[], birthYear: number | undefined): BiographyFactCandidate | undefined {
+export function findDeathFact(facts: BiographyFactCandidate[], birthYear: number | undefined): BiographyFactCandidate | undefined {
   // Find death facts that are plausibly the subject's own death:
   // - at least 15 years after birth (skip infant/child relative deaths)
   // - at most 120 years after birth (skip deaths of spouse/children much later)
