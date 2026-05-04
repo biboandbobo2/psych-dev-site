@@ -290,6 +290,7 @@ export function useTimelineState() {
     activeTimelineName: activeCanvas?.name ?? DEFAULT_TIMELINE_NAME,
     createTimelineCanvas,
     selectTimelineCanvas,
+    deleteTimelineCanvas,
     replaceActiveTimeline,
   };
 }

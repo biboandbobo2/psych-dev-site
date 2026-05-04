@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ChangeEvent, FormEvent, RefObject } from 'react';
+import type { ChangeEvent, RefObject } from 'react';
 import type { NodeT, TimelineCanvas } from '../types';
 import { MIN_SCALE, MAX_SCALE, SPHERE_META } from '../constants';
 import { DeleteTimelineConfirmModal } from './DeleteTimelineConfirmModal';
+import { BiographyImportFormModal } from './BiographyImportFormModal';
 
 interface TimelineLeftPanelProps {
   currentAge: number;
@@ -135,7 +136,6 @@ export function TimelineLeftPanel({
   const exitLinkRef = useRef<HTMLAnchorElement>(null);
   const timelineSelectButtonRef = useRef<HTMLButtonElement>(null);
   const createTimelineButtonRef = useRef<HTMLButtonElement>(null);
-  const timelineJsonInputRef = useRef<HTMLInputElement>(null);
   const [biographyButtonProbe, setBiographyButtonProbe] = useState<string>('probe: not-ready');
   const [leftPanelSignalCounts, setLeftPanelSignalCounts] = useState({
     panel: 0,
@@ -397,25 +397,6 @@ export function TimelineLeftPanel({
     onCreateTimeline();
   };
 
-  const handleBiographySourceUrlChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onBiographySourceUrlChange(event.target.value);
-  };
-
-  const handleBiographySubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    onSubmitBiographyImport();
-  };
-
-  const handleTimelineJsonUploadClick = () => {
-    timelineJsonInputRef.current?.click();
-  };
-
-  const handleTimelineJsonFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    onImportTimelineJsonFile(file);
-    event.target.value = '';
-  };
-
   const handlePanelPointerDownCapture = (event: React.PointerEvent<HTMLElement>) => {
     recordLeftPanelSignal('panel', 'react', 'pointerdown', resolveActionTarget(event.target));
   };
@@ -610,14 +591,14 @@ export function TimelineLeftPanel({
                     onBiographyDiagnostic('button click capture');
                     onBiographyUiSignal('reactClick');
                   }}
-                  onClick={biographyImportExpanded ? onCloseBiographyImport : onOpenBiographyImport}
+                  onClick={onOpenBiographyImport}
                   disabled={biographyImportLoading}
                   className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {biographyImportExpanded ? 'Скрыть импорт' : 'Загрузить источник биографии'}
+                  Загрузить источник биографии
                 </button>
 
-                {!biographyImportExpanded && biographyMeta ? (
+                {biographyMeta ? (
                   <div className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5 text-[10px] leading-[14px] text-sky-800">
                     <span className="font-semibold">{biographyMeta.source ?? '?'}</span>
                     {' · '}facts: {biographyMeta.factsModel ?? '?'}
@@ -641,58 +622,6 @@ export function TimelineLeftPanel({
                     {showDebugPopover ? 'Скрыть dbg' : 'Dbg'}
                   </button>
                 </div>
-
-                {biographyImportExpanded ? (
-                  <form onSubmit={handleBiographySubmit} className="space-y-2 rounded-xl border border-blue-100 bg-blue-50/70 p-2">
-                    <div className="text-[10px] leading-4 text-slate-600">
-                      Вставь прямую ссылку на статью Wikipedia или загрузи готовый `.json` таймлайна. Импорт заполнит текущий пустой холст.
-                    </div>
-                    {biographyMeta ? (
-                      <div className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5 text-[10px] leading-[14px] text-sky-800">
-                        <span className="font-semibold">{biographyMeta.source ?? '?'}</span>
-                        {' · '}facts: {biographyMeta.factsModel ?? '?'}
-                        {' · '}plan: {biographyMeta.model ?? '?'}
-                        {biographyMeta.reviewApplied ? ' · review' : ''}
-                        {' · '}{biographyMeta.nodes ?? 0} узл / {biographyMeta.edges ?? 0} вет
-                      </div>
-                    ) : null}
-                    <input
-                      ref={timelineJsonInputRef}
-                      type="file"
-                      accept=".json,application/json"
-                      onChange={handleTimelineJsonFileChange}
-                      className="hidden"
-                    />
-                    <input
-                      type="url"
-                      value={biographySourceUrl}
-                      onChange={handleBiographySourceUrlChange}
-                      placeholder="https://ru.wikipedia.org/wiki/..."
-                      className="w-full rounded-lg border border-blue-200 bg-white px-2 py-2 text-[11px] text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    />
-                    {biographyImportError ? (
-                      <div className="rounded-lg border border-red-200 bg-red-50 px-2 py-2 text-[10px] leading-4 text-red-700">
-                        {biographyImportError}
-                      </div>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={handleTimelineJsonUploadClick}
-                      disabled={biographyImportLoading}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                    >
-                      Загрузить JSON таймлайна
-                    </button>
-                    <button
-                      type="submit"
-                      onClickCapture={() => onBiographyDiagnostic('submit button click capture')}
-                      disabled={biographyImportLoading || !biographySourceUrl.trim()}
-                      className="w-full rounded-lg bg-blue-600 px-2 py-2 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-                    >
-                      {biographyImportLoading ? 'Строим таймлайн...' : 'Построить таймлайн'}
-                    </button>
-                  </form>
-                ) : null}
               </div>
             ) : (
               <button
@@ -871,6 +800,19 @@ export function TimelineLeftPanel({
             )}
           </div>
         </div>
+      ) : null}
+
+      {biographyImportExpanded && showBiographyImportAction ? (
+        <BiographyImportFormModal
+          sourceUrl={biographySourceUrl}
+          loading={biographyImportLoading}
+          error={biographyImportError}
+          meta={biographyMeta}
+          onSourceUrlChange={onBiographySourceUrlChange}
+          onSubmit={onSubmitBiographyImport}
+          onClose={onCloseBiographyImport}
+          onImportTimelineJsonFile={onImportTimelineJsonFile}
+        />
       ) : null}
 
       {pendingDeleteTimelineId
