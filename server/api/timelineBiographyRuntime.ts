@@ -16,6 +16,7 @@ import {
   type BiographyTimelineData,
 } from './timelineBiography.js';
 import { buildTimelineDataFromBiographyPlan } from './timelineBiographyQuality.js';
+import { cleanGenericEventLabels } from './timelineBiographyLint.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -791,11 +792,12 @@ async function runBiographyTwoPassExtraction(params: {
   let timelineStats: BiographyExtractorSuccessPayload['meta']['timelineStats'];
 
   try {
-    const plan = buildPlanFromCompositionResult({
+    const rawPlan = buildPlanFromCompositionResult({
       subjectName,
       facts: finalFacts,
       composition,
     });
+    const plan = cleanGenericEventLabels({ plan: rawPlan, facts: finalFacts });
 
     timeline = buildTimelineDataFromBiographyPlan(plan);
 
@@ -1030,11 +1032,12 @@ export async function runBiographyStep4(params: {
   let timelineStats: BiographyExtractorSuccessPayload['meta']['timelineStats'];
 
   try {
-    const plan = buildPlanFromCompositionResult({
+    const rawPlan = buildPlanFromCompositionResult({
       subjectName: params.subjectName,
       facts: params.facts,
       composition,
     });
+    const plan = cleanGenericEventLabels({ plan: rawPlan, facts: params.facts });
     timeline = buildTimelineDataFromBiographyPlan(plan);
     planDiagnostics = {
       source: 'facts-first',

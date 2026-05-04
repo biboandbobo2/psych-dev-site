@@ -209,14 +209,14 @@ function findEquivalentEventIndex(events: BiographyTimelineEventPlan[], candidat
 }
 
 function buildEventFromFact(fact: BiographyFactCandidate, fallbackSphere?: BiographyTimelineEventPlan['sphere']) {
-  const age = Number.isFinite(fact.age)
+  const age: number | undefined = Number.isFinite(fact.age)
     ? Number(fact.age)
     : Number.isFinite(fact.ageMin)
       ? Number(fact.ageMin)
       : Number.isFinite(fact.ageMax)
         ? Number(fact.ageMax)
         : undefined;
-  if (!Number.isFinite(age)) return null;
+  if (age === undefined || !Number.isFinite(age)) return null;
 
   const sphere = normalizeSphere(fact.sphere) ?? fallbackSphere;
   const label = isSpecificFactLabel(fact.labelHint) ? fact.labelHint.trim() : buildHeuristicLabel(fact.evidence, sphere ?? 'other');
@@ -317,11 +317,42 @@ function buildFactsIndex(facts?: BiographyFactCandidate[]): FactsIndex {
   const map = new Map<number, BiographyFactCandidate[]>();
   const allFacts = facts ?? [];
   for (const fact of allFacts) {
-    const age = Number.isFinite(fact.age) ? Math.round(Number(fact.age)) : undefined;
-    if (!Number.isFinite(age)) continue;
+    const age: number | undefined = Number.isFinite(fact.age) ? Math.round(Number(fact.age)) : undefined;
+    if (age === undefined || !Number.isFinite(age)) continue;
     map.set(age, [...(map.get(age) ?? []), fact]);
   }
   return { all: allFacts, byAge: map };
+}
+
+/**
+ * Light-touch alternative to repairBiographyPlan: replaces generic / truncated /
+ * raw-sentence labels with concrete ones derived from the matching fact, but
+ * does NOT drop events or branches. Safe to apply unconditionally on every
+ * pipeline output — the sparse one-event theme branches that MP-8b pinned will
+ * survive, and the generic labels that MP-8a complained about get cleaned up.
+ */
+export function cleanGenericEventLabels(params: {
+  plan: BiographyTimelinePlan;
+  facts?: BiographyFactCandidate[];
+}): BiographyTimelinePlan {
+  const factsIndex = buildFactsIndex(params.facts);
+
+  const cleanedMainEvents = params.plan.mainEvents
+    .map((event) => repairEventPlan(event, factsIndex))
+    .filter((event): event is BiographyTimelineEventPlan => Boolean(event));
+
+  const cleanedBranches = params.plan.branches.map((branch) => ({
+    ...branch,
+    events: branch.events
+      .map((event) => repairEventPlan(event, factsIndex, branch.sphere))
+      .filter((event): event is BiographyTimelineEventPlan => Boolean(event)),
+  }));
+
+  return {
+    ...params.plan,
+    mainEvents: cleanedMainEvents,
+    branches: cleanedBranches,
+  };
 }
 
 export function repairBiographyPlan(params: {
@@ -371,7 +402,8 @@ export function repairBiographyPlan(params: {
   const repairedBranches = params.plan.branches
     .map((branch) => {
       const mappedSourceIndex = remappedMainIndexMap.get(branch.sourceMainEventIndex);
-      const sourceEvent = mappedSourceIndex !== undefined ? supplementedMainEvents[mappedSourceIndex] : undefined;
+      if (mappedSourceIndex === undefined) return null;
+      const sourceEvent = supplementedMainEvents[mappedSourceIndex];
       if (!sourceEvent || sourceEvent.age === 0) return null;
 
       const branchKeys = new Set<string>();

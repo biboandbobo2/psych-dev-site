@@ -39,6 +39,7 @@ import {
 import { buildPlanFromCompositionResult, findDeathFact } from '../../server/api/timelineBiographyComposer.js';
 import { buildTimelineDataFromBiographyPlan } from '../../server/api/timelineBiographyQuality.js';
 import { buildBiographyEvaluationMetrics } from '../../server/api/timelineBiographyMetrics.js';
+import { cleanGenericEventLabels } from '../../server/api/timelineBiographyLint.js';
 
 // ============================================================================
 // INIT
@@ -743,7 +744,8 @@ async function runFullBiographyPipeline(params: {
     } | undefined;
 
     try {
-      const plan = buildPlanFromCompositionResult({ subjectName, facts: finalFacts, composition });
+      const rawPlan = buildPlanFromCompositionResult({ subjectName, facts: finalFacts, composition });
+      const plan = cleanGenericEventLabels({ plan: rawPlan, facts: finalFacts });
       timeline = buildTimelineDataFromBiographyPlan(plan);
       planDiagnostics = {
         source: 'facts-first',

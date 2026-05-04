@@ -70,11 +70,11 @@ function normalizeTheme(value: string | undefined): BiographyEventTheme | null {
   }
 }
 
-function parsePipeList(value: string | undefined) {
+function parsePipeList(value: string | undefined): string[] {
   return (value || '')
     .split('|')
     .map((item) => normalizeText(item, 120))
-    .filter(Boolean);
+    .filter((item): item is string => Boolean(item));
 }
 
 function parseThemes(value: string | undefined) {
@@ -277,8 +277,12 @@ export function normalizeFactCandidate(candidate: BiographyFactCandidate): Biogr
           ? 'inferred'
           : undefined);
   const themes = candidate.themes?.length ? candidate.themes : inferThemesFromCandidate({ eventType, sphere, evidence });
-  const people = candidate.people?.map((person) => normalizeText(person, 120)).filter(Boolean);
-  const relationRoles = candidate.relationRoles?.map((role) => normalizeText(role, 80)).filter(Boolean);
+  const people = candidate.people
+    ?.map((person) => normalizeText(person, 120))
+    .filter((item): item is string => Boolean(item));
+  const relationRoles = candidate.relationRoles
+    ?.map((role) => normalizeText(role, 80))
+    .filter((item): item is string => Boolean(item));
 
   if (isBrokenFactFragment(labelHint)) {
     labelHint = undefined;
