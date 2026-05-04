@@ -2,8 +2,15 @@
  * SVG to Canvas rendering utilities for timeline export
  */
 import type { EventIconId } from '../../../../data/eventIcons';
+import { YEAR_PX } from '../../constants';
 import { debugExport } from './common';
 import { debugWarn } from '../../../../lib/debug';
+
+export type RenderSvgOptions = {
+  // Crop the SVG above this age to avoid exporting empty future slices.
+  // Without it the renderer keeps the full canvas.
+  topAge?: number;
+};
 
 type ExportDebugIcon = {
   index: number;
@@ -59,8 +66,8 @@ function resetDebugState() {
 /**
  * Renders an SVG element to a canvas
  */
-export async function renderSvgToCanvas(svg: SVGSVGElement) {
-  const { serializedSvg, width, height } = await serializeSvg(svg);
+export async function renderSvgToCanvas(svg: SVGSVGElement, options: RenderSvgOptions = {}) {
+  const { serializedSvg, width, height } = await serializeSvg(svg, options);
   const svgBlob = new Blob([serializedSvg], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(svgBlob);
 
@@ -92,7 +99,7 @@ export async function renderSvgToCanvas(svg: SVGSVGElement) {
   }
 }
 
-async function serializeSvg(svg: SVGSVGElement) {
+async function serializeSvg(svg: SVGSVGElement, options: RenderSvgOptions = {}) {
   resetDebugState();
   const clone = svg.cloneNode(true) as SVGSVGElement;
   debugExportGroup('Serialize SVG', () => {
@@ -100,6 +107,7 @@ async function serializeSvg(svg: SVGSVGElement) {
       worldWidth: svg.dataset.worldWidth,
       worldHeight: svg.dataset.worldHeight,
       exportRoot: !!svg.querySelector('[data-export-root="true"]'),
+      topAge: options.topAge,
     });
   });
 
@@ -109,12 +117,21 @@ async function serializeSvg(svg: SVGSVGElement) {
   const PADDING_TOP = 160;
   const PADDING_BOTTOM = 480;
 
+  // Crop the empty future slice when topAge is provided. Birth sits at world
+  // Y=DEFAULT_HEIGHT (bottom); higher ages are higher up. Render only
+  // [worldHeight - topAge*YEAR_PX, worldHeight] plus paddings.
+  const usefulWorldHeight =
+    options.topAge !== undefined && options.topAge > 0
+      ? Math.min(options.topAge * YEAR_PX, DEFAULT_HEIGHT)
+      : DEFAULT_HEIGHT;
+  const usefulTopWorldY = DEFAULT_HEIGHT - usefulWorldHeight;
+
   const width = DEFAULT_WIDTH + PADDING_X * 2;
-  const height = DEFAULT_HEIGHT + PADDING_TOP + PADDING_BOTTOM;
+  const height = usefulWorldHeight + PADDING_TOP + PADDING_BOTTOM;
 
   clone.setAttribute('width', String(width));
   clone.setAttribute('height', String(height));
-  clone.setAttribute('viewBox', `-${PADDING_X} -${PADDING_TOP} ${width} ${height}`);
+  clone.setAttribute('viewBox', `-${PADDING_X} ${usefulTopWorldY} ${width} ${height}`);
 
   const exportRoot = clone.querySelector<SVGGElement>('[data-export-root="true"]');
   if (exportRoot) {

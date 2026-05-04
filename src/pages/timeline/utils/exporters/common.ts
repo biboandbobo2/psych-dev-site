@@ -31,6 +31,21 @@ export function buildTimelineExportPayload(data: TimelineData): TimelineExportPa
 }
 
 /**
+ * Returns the upper age bound that the export should actually render —
+ * max(currentAge, latest node, latest edge.endAge) + a small visual buffer,
+ * clamped to ageMax. Used by renderSvgToCanvas to crop the empty future
+ * slice so PDF/PNG don't waste pages on unused decades.
+ */
+const EXPORT_TOP_AGE_BUFFER = 5;
+
+export function computeExportTopAge(data: TimelineExportPayload): number {
+  const maxNodeAge = data.nodes.reduce((max, node) => Math.max(max, node.age), 0);
+  const maxEdgeAge = data.edges.reduce((max, edge) => Math.max(max, edge.endAge ?? 0), 0);
+  const used = Math.max(data.currentAge ?? 0, maxNodeAge, maxEdgeAge, 0);
+  return Math.min(Math.ceil(used) + EXPORT_TOP_AGE_BUFFER, data.ageMax);
+}
+
+/**
  * Generates a unique filename with timestamp
  * Format: timeline_2024-01-15_14-30-45.ext
  */

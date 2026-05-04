@@ -298,7 +298,7 @@ export default function Timeline() {
       }
       if (!svgRef.current) throw new Error('SVG not ready');
       if (type === 'png') {
-        await exportTimelinePNG(svgRef.current, `${exportFilenamePrefix}.png`);
+        await exportTimelinePNG(svgRef.current, exportPayload, `${exportFilenamePrefix}.png`);
         return;
       }
       const periodization = selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null;

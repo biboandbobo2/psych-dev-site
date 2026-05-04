@@ -177,7 +177,7 @@ CI часть (осталась):
 
 ### MP‑7. Timeline UX follow-ups (P: M, E: S-M)
 - [x] ✅ Удаление дополнительных холстов в multi-canvas timeline (2026-05-04, коммит `157f664`). «×» в выпадающем списке + confirm-модалка; последний холст удалить нельзя.
-- [ ] Сделать экспорт `PDF`/`PNG` адаптивным к фактической длине жизни и заполненности холста: если активная часть таймлайна заканчивается раньше `ageMax`, не выгружать длинное пустое полотно.
+- [x] ✅ Адаптивный экспорт `PDF`/`PNG` (2026-05-04). `computeExportTopAge` берёт `max(currentAge, latest node, latest edge.endAge) + 5`-летний буфер, clamp к `ageMax`. `renderSvgToCanvas({ topAge })` обрезает viewBox сверху, поэтому пустые декады в будущее в файл не попадают.
 - [x] ✅ `Очистить всё` приводит холст к empty-canvas state (purpose-fixed PR #65 через `onAfterClearAll` в Timeline.tsx — сбрасывает `birthDetails`/`selectedPeriodization`/`currentAge`/`ageMax`). Регрессионный тест на инвариант `hasTimelineContent` зафиксирован 2026-05-04.
 
 ### MP‑8. Biography import richness follow-up (P: M, E: M)

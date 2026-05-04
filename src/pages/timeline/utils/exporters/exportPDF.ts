@@ -2,6 +2,7 @@ import type { Periodization } from '../../data/periodizations';
 import type { TimelineExportPayload } from './common';
 import {
   buildPdfWithImage,
+  computeExportTopAge,
   dataUriToUint8Array,
   debugExport,
   downloadBlob,
@@ -16,7 +17,8 @@ export async function exportTimelinePDF(
   filename?: string
 ) {
   debugExport('Starting PDF export');
-  const { canvas, width, height } = await renderSvgToCanvas(svg);
+  const topAge = computeExportTopAge(data);
+  const { canvas, width, height } = await renderSvgToCanvas(svg, { topAge });
   const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.92);
   const jpegBytes = dataUriToUint8Array(jpegDataUrl);
   const pdfBytes = buildPdfWithImage(jpegBytes, width, height, periodization, data);
