@@ -10,6 +10,7 @@ export const HomePage = lazy(() =>
   )
 );
 export const Admin = lazy(() => lazyWithReload(() => import('./Admin'), 'Admin'));
+export const CoAdmin = lazy(() => lazyWithReload(() => import('./CoAdmin'), 'CoAdmin'));
 export const AdminArchive = lazy(() => lazyWithReload(() => import('./AdminArchive'), 'AdminArchive'));
 export const AdminUsers = lazy(() => lazyWithReload(() => import('./AdminUsers'), 'AdminUsers'));
 export const AdminContent = lazy(() => lazyWithReload(() => import('./AdminContent'), 'AdminContent'));

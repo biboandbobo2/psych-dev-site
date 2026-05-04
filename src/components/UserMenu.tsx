@@ -23,6 +23,9 @@ export default function UserMenu({ user }: UserMenuProps) {
   const photoURL = user.photoURL;
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+  const isCoAdmin = useAuthStore((state) => state.isCoAdmin);
+  // Чистый со-админ (не super-admin) — для отдельной кнопки в меню.
+  const isCoAdminOnly = isCoAdmin && !isSuperAdmin;
   const { isOpen: isSearchOpen, openSearch, closeSearch } = useContentSearchStore();
   const currentCourse = useCourseStore((state) => state.currentCourse);
 
@@ -143,6 +146,16 @@ export default function UserMenu({ user }: UserMenuProps) {
           </Link>
         )}
 
+        {isCoAdminOnly && (
+          <Link
+            to="/coadmin"
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
+          >
+            <span aria-hidden className="text-base">📝</span>
+            <span>Со-админ</span>
+          </Link>
+        )}
+
         <Link
           to="/profile"
           className="flex items-center gap-2 bg-white rounded-lg shadow-lg px-3 py-2 hover:shadow-xl transition-shadow"
@@ -255,6 +268,16 @@ export default function UserMenu({ user }: UserMenuProps) {
                 >
                   <span aria-hidden>⚙️</span>
                   Админ-панель
+                </Link>
+              )}
+              {isCoAdminOnly && (
+                <Link
+                  to="/coadmin"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800"
+                >
+                  <span aria-hidden>📝</span>
+                  Со-админ
                 </Link>
               )}
               <Link

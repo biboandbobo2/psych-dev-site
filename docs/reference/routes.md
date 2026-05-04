@@ -202,6 +202,7 @@
 |---------|-----------|------|----------|------|
 | `/admin` | `AdminLanding` | Admin | Редирект на `/superadmin` (Super Admin) или `/admin/content` (Admin) | — |
 | `/superadmin` | `Admin` | Super Admin | Главная админ-панель | ✅ |
+| `/coadmin` | `CoAdmin` | Co-admin | Лендинг для со-админа: ссылка на редактор страниц DOM Academy | ✅ |
 | `/admin/users` | `AdminUsers` | Super Admin | Управление пользователями и ролями | ✅ |
 | `/admin/archive` | `AdminArchive` | Super Admin | Утилиты: диагностика токенов, загрузка ассетов, seed-admin | ✅ |
 | `/migrate-topics` | `MigrateTopics` | Super Admin | Миграция тем в Firestore | ✅ |
@@ -235,9 +236,9 @@
 | `/admin/announcements` | `AdminAnnouncements` | Admin | События/объявления (calendar-style UX) | ✅ |
 | `/admin/groups` | `AdminGroups` | Admin | Группы пользователей (потоки/featuredCourses) | ✅ |
 | `/admin/content/course-intro/:courseId` | `AdminCourseIntro` | Admin | Редактор вводной страницы курса | ✅ |
-| `/superadmin/pages` | `AdminPagesList` | Super Admin | Список редактируемых статических страниц (`/about` + проекты) | ✅ |
-| `/superadmin/pages/about` | `AdminAboutPageEditor` | Super Admin | Редактор `pages/about` — 6 фиксированных вкладок | ✅ |
-| `/superadmin/pages/projects/:slug` | `AdminProjectPageEditor` | Super Admin | Редактор `projectPages/{slug}` (создание/редактирование/удаление) | ✅ |
+| `/superadmin/pages` | `AdminPagesList` | Super Admin · Co-admin | Список редактируемых статических страниц (`/about` + проекты) | ✅ |
+| `/superadmin/pages/about` | `AdminAboutPageEditor` | Super Admin · Co-admin | Редактор `pages/about` — 6 фиксированных вкладок | ✅ |
+| `/superadmin/pages/projects/:slug` | `AdminProjectPageEditor` | Super Admin · Co-admin | Редактор `projectPages/{slug}` (создание/редактирование/удаление) | ✅ |
 
 ---
 

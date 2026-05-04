@@ -100,9 +100,10 @@ function RoutePager({ currentPath, navItems }: { currentPath: string; navItems: 
 interface StandaloneLandingShellProps {
   location: Location;
   isSuperAdmin: boolean;
+  isCoAdmin: boolean;
 }
 
-function StandaloneLandingShell({ location, isSuperAdmin }: StandaloneLandingShellProps) {
+function StandaloneLandingShell({ location, isSuperAdmin, isCoAdmin }: StandaloneLandingShellProps) {
   return (
     <AppRoutes
       location={location}
@@ -110,6 +111,7 @@ function StandaloneLandingShell({ location, isSuperAdmin }: StandaloneLandingShe
       clinicalTopicsMap={EMPTY_ROUTE_DATA}
       generalTopicsMap={EMPTY_ROUTE_DATA}
       isSuperAdmin={isSuperAdmin}
+      isCoAdmin={isCoAdmin}
     />
   );
 }
@@ -118,9 +120,10 @@ interface MainAppShellProps {
   location: Location;
   normalizedPath: string;
   isSuperAdmin: boolean;
+  isCoAdmin: boolean;
 }
 
-function MainAppShell({ location, normalizedPath, isSuperAdmin }: MainAppShellProps) {
+function MainAppShell({ location, normalizedPath, isSuperAdmin, isCoAdmin }: MainAppShellProps) {
   const { periods, loading, error } = usePeriods();
   const { topics: clinicalTopics, loading: clinicalLoading, error: clinicalError } = useClinicalTopics();
   const { topics: generalTopics, loading: generalLoading, error: generalError } = useGeneralTopics();
@@ -137,6 +140,7 @@ function MainAppShell({ location, normalizedPath, isSuperAdmin }: MainAppShellPr
   const hideNavigation =
     normalizedPath.startsWith('/admin') ||
     normalizedPath.startsWith('/superadmin') ||
+    normalizedPath.startsWith('/coadmin') ||
     normalizedPath.startsWith('/_debug') ||
     isHomePage ||
     isProfilePage ||
@@ -307,7 +311,7 @@ function MainAppShell({ location, normalizedPath, isSuperAdmin }: MainAppShellPr
         navigationErrorMessage={dynamicNavigationErrorMessage}
       >
         <AnimatePresence mode="wait" initial={false}>
-          <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} generalTopicsMap={generalTopicsMap} isSuperAdmin={isSuperAdmin} />
+          <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} generalTopicsMap={generalTopicsMap} isSuperAdmin={isSuperAdmin} isCoAdmin={isCoAdmin} />
         </AnimatePresence>
         <RoutePager currentPath={location.pathname} navItems={navItems} />
       </AppLayout>
@@ -321,6 +325,7 @@ export function AppShell() {
   const location = useLocation();
   const normalizedPath = normalizePath(location.pathname);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+  const isCoAdmin = useAuthStore((state) => state.isCoAdmin);
 
   // Standalone routes should not pay the cost of unrelated content hooks or generic loaders.
   const isStandaloneLanding = normalizedPath === '/warm_springs2' || normalizedPath.startsWith('/booking');
@@ -329,6 +334,7 @@ export function AppShell() {
       <StandaloneLandingShell
         location={location}
         isSuperAdmin={isSuperAdmin}
+        isCoAdmin={isCoAdmin}
       />
     );
   }
@@ -338,6 +344,7 @@ export function AppShell() {
       location={location}
       normalizedPath={normalizedPath}
       isSuperAdmin={isSuperAdmin}
+      isCoAdmin={isCoAdmin}
     />
   );
 }

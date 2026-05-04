@@ -82,6 +82,26 @@ export async function removeAdmin(targetUid: string) {
   return result.data;
 }
 
+export interface MakeCoAdminParams {
+  targetUid?: string;
+  targetEmail?: string;
+}
+
+export async function makeUserCoAdmin(params: MakeCoAdminParams) {
+  const call = httpsCallable<MakeCoAdminParams, AdminActionResponse & { uid: string }>(
+    functions,
+    "makeUserCoAdmin"
+  );
+  const result = await call(params);
+  return result.data;
+}
+
+export async function removeCoAdmin(targetUid: string) {
+  const call = httpsCallable<{ targetUid: string }, AdminActionResponse>(functions, "removeCoAdmin");
+  const result = await call({ targetUid });
+  return result.data;
+}
+
 /**
  * Обновить список курсов, которые admin может редактировать.
  * Только super-admin, список не должен быть пустым.

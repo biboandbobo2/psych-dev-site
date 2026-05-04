@@ -40,6 +40,12 @@ interface AuthState {
   // Computed properties
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  /**
+   * Со-админ: ограниченный администратор страниц DOM Academy
+   * (редактор /superadmin/pages*). НЕ влечёт isAdmin/isSuperAdmin.
+   * Для super-admin тоже true (включает все co-admin-фичи).
+   */
+  isCoAdmin: boolean;
 
   // Actions
   setUser: (user: User | null) => void;
@@ -75,6 +81,7 @@ export const useAuthStore = create<AuthState>()(
       featuredCourseIds: [],
       isAdmin: false,
       isSuperAdmin: false,
+      isCoAdmin: false,
 
       setUser: (user) => set({ user }),
 
@@ -83,11 +90,13 @@ export const useAuthStore = create<AuthState>()(
       setUserRole: (userRole) => {
         const isSuperAdmin = userRole === 'super-admin';
         const isAdmin = userRole === 'admin' || isSuperAdmin;
+        const isCoAdmin = userRole === 'co-admin' || isSuperAdmin;
 
         set({
           userRole,
           isSuperAdmin,
           isAdmin,
+          isCoAdmin,
         });
       },
 

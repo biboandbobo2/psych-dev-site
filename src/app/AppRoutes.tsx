@@ -2,11 +2,13 @@ import { Suspense } from 'react';
 import { Routes, Route, Navigate, Location, useParams } from 'react-router-dom';
 import RequireAuth from '../auth/RequireAuth';
 import RequireAdmin from '../auth/RequireAdmin';
+import RequireCoAdmin from '../auth/RequireCoAdmin';
 import Login from '../pages/Login';
 import { useAuthStore } from '../stores/useAuthStore';
 import {
   HomePage,
   Admin,
+  CoAdmin,
   AdminArchive,
   AdminUsers,
   AdminContent,
@@ -56,6 +58,7 @@ interface AppRoutesProps {
   clinicalTopicsMap: Map<string, ClinicalTopic>;
   generalTopicsMap: Map<string, GeneralTopic>;
   isSuperAdmin: boolean;
+  isCoAdmin: boolean;
 }
 
 function AdminLanding() {
@@ -69,7 +72,8 @@ function DynamicCourseIntroRoute() {
   return <CourseIntroPage courseId={courseId} />;
 }
 
-export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopicsMap, isSuperAdmin }: AppRoutesProps) {
+export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopicsMap, isSuperAdmin, isCoAdmin }: AppRoutesProps) {
+  const canEditPages = isSuperAdmin || isCoAdmin;
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes location={location} key={location.pathname}>
@@ -153,27 +157,35 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           }
         />
         <Route
+          path="/coadmin"
+          element={
+            <RequireCoAdmin>
+              <CoAdmin />
+            </RequireCoAdmin>
+          }
+        />
+        <Route
           path="/superadmin/pages"
           element={
-            <RequireAdmin>
-              {isSuperAdmin ? <AdminPagesList /> : <Navigate to="/admin/content" replace />}
-            </RequireAdmin>
+            <RequireCoAdmin>
+              {canEditPages ? <AdminPagesList /> : <Navigate to="/home" replace />}
+            </RequireCoAdmin>
           }
         />
         <Route
           path="/superadmin/pages/about"
           element={
-            <RequireAdmin>
-              {isSuperAdmin ? <AdminAboutPageEditor /> : <Navigate to="/admin/content" replace />}
-            </RequireAdmin>
+            <RequireCoAdmin>
+              {canEditPages ? <AdminAboutPageEditor /> : <Navigate to="/home" replace />}
+            </RequireCoAdmin>
           }
         />
         <Route
           path="/superadmin/pages/projects/:slug"
           element={
-            <RequireAdmin>
-              {isSuperAdmin ? <AdminProjectPageEditor /> : <Navigate to="/admin/content" replace />}
-            </RequireAdmin>
+            <RequireCoAdmin>
+              {canEditPages ? <AdminProjectPageEditor /> : <Navigate to="/home" replace />}
+            </RequireCoAdmin>
           }
         />
         {import.meta.env.DEV && <Route path="/_debug/palette" element={<PaletteDebug />} />}

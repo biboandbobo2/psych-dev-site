@@ -19,6 +19,7 @@ export interface UserRowProps {
   courseAccessSaving: boolean;
   onRowClick: () => void;
   onRemoveAdmin: () => void;
+  onRemoveCoAdmin: () => void;
   onEditAdminCourses: () => void;
   onCourseAccessChange: (courseId: string, value: boolean) => void;
   onSaveCourseAccess: () => void;
@@ -36,6 +37,7 @@ export function UserRow({
   courseAccessSaving,
   onRowClick,
   onRemoveAdmin,
+  onRemoveCoAdmin,
   onEditAdminCourses,
   onCourseAccessChange,
   onSaveCourseAccess,
@@ -119,6 +121,7 @@ export function UserRow({
             isSuperAdmin={isSuperAdmin}
             actionLoading={actionLoading}
             onRemoveAdmin={onRemoveAdmin}
+            onRemoveCoAdmin={onRemoveCoAdmin}
             onEditAdminCourses={onEditAdminCourses}
             onToggleDisabled={onToggleDisabled}
           />
@@ -180,6 +183,7 @@ function RoleActions({
   isSuperAdmin,
   actionLoading,
   onRemoveAdmin,
+  onRemoveCoAdmin,
   onEditAdminCourses,
   onToggleDisabled,
 }: {
@@ -188,6 +192,7 @@ function RoleActions({
   isSuperAdmin: boolean;
   actionLoading: string | null;
   onRemoveAdmin: () => void;
+  onRemoveCoAdmin: () => void;
   onEditAdminCourses: () => void;
   onToggleDisabled: () => void;
 }) {
@@ -227,6 +232,14 @@ function RoleActions({
             label={isLoading ? 'Ждите...' : 'Снять права'}
           />
         </>
+      )}
+      {user.role === 'co-admin' && (
+        <ActionButton
+          onClick={onRemoveCoAdmin}
+          disabled={isLoading}
+          variant="red"
+          label={isLoading ? 'Ждите...' : 'Снять со-админа'}
+        />
       )}
       {user.role === 'super-admin' && (
         <span className="text-gray-400">Super-admin</span>

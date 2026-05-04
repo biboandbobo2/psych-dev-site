@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router-dom';
 import { SITE_NAME } from '../../../routes';
+import { useAuthStore } from '../../../stores/useAuthStore';
 import { useProjectsList } from './useProjectsList';
 import { CreateProjectModal } from './CreateProjectModal';
 import { STATIC_PROJECTS } from '../../projects/staticProjects';
@@ -14,7 +15,10 @@ const STATIC_CARD_CLASS =
 export default function AdminPagesList() {
   const navigate = useNavigate();
   const projects = useProjectsList();
+  const isSuperAdmin = useAuthStore((s) => s.isSuperAdmin);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const backTo = isSuperAdmin ? '/superadmin' : '/coadmin';
+  const backLabel = isSuperAdmin ? '← В супер-админку' : '← В панель со-админа';
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
@@ -23,8 +27,8 @@ export default function AdminPagesList() {
       </Helmet>
 
       <header className="space-y-1">
-        <Link to="/superadmin" className="text-sm text-[#2F6DB5] hover:underline">
-          ← В супер-админку
+        <Link to={backTo} className="text-sm text-[#2F6DB5] hover:underline">
+          {backLabel}
         </Link>
         <h1 className="text-2xl font-bold text-[#2C3E50] sm:text-3xl">📝 Редактор страниц</h1>
         <p className="text-sm text-[#556476]">

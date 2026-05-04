@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { removeAdmin, updateCourseAccess, toggleUserDisabled } from '../../../../lib/adminFunctions';
+import { removeAdmin, removeCoAdmin, updateCourseAccess, toggleUserDisabled } from '../../../../lib/adminFunctions';
 import type { CourseAccessMap } from '../../../../types/user';
 import type { UserRecord } from '../../../../hooks/useAllUsers';
 
@@ -19,6 +19,7 @@ interface UseUserManagementReturn {
 
   // Handlers
   handleRemoveAdmin: (uid: string) => Promise<void>;
+  handleRemoveCoAdmin: (uid: string) => Promise<void>;
   handleToggleDisabled: (uid: string, currentDisabled: boolean) => Promise<void>;
   handleRowClick: (user: UserRecord) => void;
   handleCourseAccessChange: (courseId: string, value: boolean) => void;
@@ -48,6 +49,22 @@ export function useUserManagement({
       window.alert('Права администратора сняты');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Ошибка снятия прав администратора';
+      window.alert(message);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [isSuperAdmin]);
+
+  const handleRemoveCoAdmin = useCallback(async (uid: string) => {
+    if (!isSuperAdmin) return;
+    if (!window.confirm('Снять права со-админа?')) return;
+
+    setActionLoading(uid);
+    try {
+      await removeCoAdmin(uid);
+      window.alert('Права со-админа сняты');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Ошибка снятия прав со-админа';
       window.alert(message);
     } finally {
       setActionLoading(null);
@@ -135,6 +152,7 @@ export function useUserManagement({
     expandedUserId,
     editingCourseAccess,
     handleRemoveAdmin,
+    handleRemoveCoAdmin,
     handleToggleDisabled,
     handleRowClick,
     handleCourseAccessChange,

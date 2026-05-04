@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useAllUsers } from "../hooks/useAllUsers";
 import { useAuth } from "../auth/AuthProvider";
 import { AddAdminModal } from "../components/AddAdminModal";
+import { AddCoAdminModal } from "../components/AddCoAdminModal";
 import { BulkStudentAccessModal } from "../components/BulkStudentAccessModal";
 import { EditAdminPermissionsModal } from "../components/EditAdminPermissionsModal";
 import { SuperAdminBadge } from "../components/SuperAdminBadge";
@@ -20,6 +21,7 @@ export default function AdminUsers() {
   );
   const [filter, setFilter] = useState<UserFilter>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCoAdminModalOpen, setIsCoAdminModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [editingAdminUid, setEditingAdminUid] = useState<string | null>(null);
   const editingAdmin = editingAdminUid ? users.find((u) => u.uid === editingAdminUid) : null;
@@ -30,6 +32,7 @@ export default function AdminUsers() {
     expandedUserId,
     editingCourseAccess,
     handleRemoveAdmin,
+    handleRemoveCoAdmin,
     handleToggleDisabled,
     handleRowClick,
     handleCourseAccessChange,
@@ -71,10 +74,13 @@ export default function AdminUsers() {
   const hasAnyCourse = (u: typeof users[number]) =>
     !!u.courseAccess && Object.values(u.courseAccess).some((v) => v === true);
 
+  const hasAnyAdminRole = (u: typeof users[number]) =>
+    u.role === 'admin' || u.role === 'super-admin' || u.role === 'co-admin';
+
   const filteredUsers = users.filter((user) => {
     if (filter === 'all') return true;
-    if (filter === 'admins') return user.role === 'admin' || user.role === 'super-admin';
-    const isAdminUser = user.role === 'admin' || user.role === 'super-admin';
+    if (filter === 'admins') return hasAnyAdminRole(user);
+    const isAdminUser = hasAnyAdminRole(user);
     if (filter === 'students') return !isAdminUser && hasAnyCourse(user);
     if (filter === 'guests') return !isAdminUser && !hasAnyCourse(user);
     return true;
@@ -82,9 +88,9 @@ export default function AdminUsers() {
 
   const stats = {
     total: users.length,
-    admins: users.filter((u) => u.role === 'admin' || u.role === 'super-admin').length,
-    students: users.filter((u) => !(u.role === 'admin' || u.role === 'super-admin') && hasAnyCourse(u)).length,
-    guests: users.filter((u) => !(u.role === 'admin' || u.role === 'super-admin') && !hasAnyCourse(u)).length,
+    admins: users.filter(hasAnyAdminRole).length,
+    students: users.filter((u) => !hasAnyAdminRole(u) && hasAnyCourse(u)).length,
+    guests: users.filter((u) => !hasAnyAdminRole(u) && !hasAnyCourse(u)).length,
   };
 
   return (
@@ -112,6 +118,14 @@ export default function AdminUsers() {
               className="rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700"
             >
               + Добавить админа
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsCoAdminModalOpen(true)}
+              className="rounded-md bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-700"
+              title="Доступ только к редактору страниц DOM Academy"
+            >
+              + Добавить со-админа
             </button>
           </div>
         )}
@@ -156,6 +170,7 @@ export default function AdminUsers() {
                 courseAccessSaving={courseAccessSaving}
                 onRowClick={() => handleRowClick(user)}
                 onRemoveAdmin={() => handleRemoveAdmin(user.uid)}
+                onRemoveCoAdmin={() => handleRemoveCoAdmin(user.uid)}
                 onEditAdminCourses={() => setEditingAdminUid(user.uid)}
                 onCourseAccessChange={handleCourseAccessChange}
                 onSaveCourseAccess={() => handleSaveCourseAccess(user.uid)}
@@ -175,6 +190,12 @@ export default function AdminUsers() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => window.alert('Администратор добавлен!')}
+      />
+
+      <AddCoAdminModal
+        isOpen={isCoAdminModalOpen}
+        onClose={() => setIsCoAdminModalOpen(false)}
+        onSuccess={() => window.alert('Со-админ добавлен!')}
       />
 
       <BulkStudentAccessModal

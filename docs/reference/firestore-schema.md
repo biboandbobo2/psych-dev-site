@@ -35,10 +35,12 @@ interface User {
   displayName?: string | null;
   photoURL?: string | null;
 
-  // Роль (только для admin/super-admin; для гостей и студентов поле либо
-  // отсутствует, либо null — фактическая display-роль вычисляется через
-  // computeDisplayRole(role, courseAccess), см. src/lib/roleHelpers.ts)
-  role?: 'admin' | 'super-admin';
+  // Роль (только для admin/super-admin/co-admin; для гостей и студентов поле
+  // либо отсутствует, либо null — фактическая display-роль вычисляется через
+  // computeDisplayRole(role, courseAccess), см. src/lib/roleHelpers.ts).
+  // co-admin — ограниченный администратор страниц DOM Academy (/superadmin/pages*),
+  // прав admin/super-admin не получает.
+  role?: 'admin' | 'super-admin' | 'co-admin';
 
   // Гранулярный доступ к курсам (вкл/выкл per courseId).
   // Обязательное поле для студентов — пустой объект для гостей.
@@ -93,7 +95,8 @@ interface User {
 - `userRole === null` + нет courseAccess → **guest**
 - `userRole === null` + есть хотя бы один courseAccess[*] === true → **student**
 - `userRole === 'admin'` → **admin** (редактирование контента; courseAccess может быть)
-- `userRole === 'super-admin'` → **super-admin** (полный доступ)
+- `userRole === 'co-admin'` → **co-admin** (только редактор `/superadmin/pages*`)
+- `userRole === 'super-admin'` → **super-admin** (полный доступ; включает admin и co-admin)
 
 См. [`src/lib/roleHelpers.ts:computeDisplayRole`](../../src/lib/roleHelpers.ts).
 

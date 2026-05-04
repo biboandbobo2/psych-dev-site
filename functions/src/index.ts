@@ -303,6 +303,7 @@ export const toggleUserDisabled = functions.https.onCall(async (data, context) =
 export { onUserCreate } from './onUserCreate.js';
 export { migrateAdmins } from './migrateAdmins.js';
 export { makeUserAdmin, removeAdmin, setAdminEditableCourses } from './makeAdmin.js';
+export { makeUserCoAdmin, removeCoAdmin } from './coAdmin.js';
 export {
   createGroup,
   updateGroup,

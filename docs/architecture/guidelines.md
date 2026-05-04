@@ -392,8 +392,13 @@ function AdminPanel() {
 
 **Роли:**
 - **Student** — базовый доступ
-- **Admin** — редактирование контента
-- **Super Admin** — управление пользователями
+- **Admin** — редактирование контента курсов (по списку `adminEditableCourses`)
+- **Co-admin** — ограниченный администратор страниц DOM Academy.
+  Доступ только к редактору `/superadmin/pages*` (страница «О нас», страницы проектов).
+  Прав admin/super-admin не получает. Назначается super-admin'ом через
+  AdminUsers UI (кнопка «+ Добавить со-админа»). Лендинг: `/coadmin`.
+  Cloud Functions: `makeUserCoAdmin` / `removeCoAdmin`.
+- **Super Admin** — управление пользователями, всегда включает права admin и co-admin
 
 ---
 
