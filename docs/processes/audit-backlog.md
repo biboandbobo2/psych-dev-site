@@ -176,9 +176,9 @@ CI часть (осталась):
 - [ ] Обновить ленивую документацию: описать политику добавления новых lazy-страниц и итоговые метрики в `docs/archive/legacy/lazy-loading-migration.md` / README, синхронизировать `docs/reference/perf-metrics.md` после завершения работ.
 
 ### MP‑7. Timeline UX follow-ups (P: M, E: S-M)
-- [ ] Добавить удаление дополнительных холстов в multi-canvas timeline: пользователь должен иметь возможность удалить любой холст, кроме первого (`Таймлайн 1`/legacy base canvas).
+- [x] ✅ Удаление дополнительных холстов в multi-canvas timeline (2026-05-04, коммит `157f664`). «×» в выпадающем списке + confirm-модалка; последний холст удалить нельзя.
 - [ ] Сделать экспорт `PDF`/`PNG` адаптивным к фактической длине жизни и заполненности холста: если активная часть таймлайна заканчивается раньше `ageMax`, не выгружать длинное пустое полотно.
-- [ ] Привести `Очистить всё` к полному reset empty-canvas state: после очистки активный холст должен снова считаться пустым и позволять импорт внешних источников (`Wikipedia`/`.json`) без дополнительных действий.
+- [x] ✅ `Очистить всё` приводит холст к empty-canvas state (purpose-fixed PR #65 через `onAfterClearAll` в Timeline.tsx — сбрасывает `birthDetails`/`selectedPeriodization`/`currentAge`/`ageMax`). Регрессионный тест на инвариант `hasTimelineContent` зафиксирован 2026-05-04.
 
 ### MP‑8. Biography import richness follow-up (P: M, E: M)
 - **Контекст:** facts-first каскад уже умеет approximate ages, high-salience facts и theme-ветки, но legacy fallback и часть heuristic labels всё ещё периодически выдают generic события вроде `Учёба`/`Ссылка` и недобирают theme branches на sparse inputs.

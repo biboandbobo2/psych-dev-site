@@ -4,9 +4,11 @@ import {
   createEmptyTimelineData,
   createTimelineCanvas,
   DEFAULT_TIMELINE_NAME,
+  hasTimelineContent,
   normalizeImportedTimelineData,
   normalizeTimelineDocument,
 } from './persistence';
+import { DEFAULT_AGE_MAX, DEFAULT_CURRENT_AGE } from './constants';
 
 describe('timeline persistence', () => {
   it('migrates legacy single-canvas document into canvases array', () => {
@@ -83,5 +85,46 @@ describe('timeline persistence', () => {
     expect(normalized.edges).toHaveLength(1);
     expect(normalized.birthDetails?.place).toBe('Москва');
     expect(normalized.selectedPeriodization).toBe('erikson');
+  });
+});
+
+describe('hasTimelineContent', () => {
+  it('treats post-clearAll state as empty so the biography-import CTA returns', () => {
+    expect(
+      hasTimelineContent({
+        currentAge: DEFAULT_CURRENT_AGE,
+        ageMax: DEFAULT_AGE_MAX,
+        nodes: [],
+        edges: [],
+        birthDetails: {},
+        selectedPeriodization: null,
+      })
+    ).toBe(false);
+  });
+
+  it('detects content via birthDetails alone', () => {
+    expect(
+      hasTimelineContent({
+        currentAge: DEFAULT_CURRENT_AGE,
+        ageMax: DEFAULT_AGE_MAX,
+        nodes: [],
+        edges: [],
+        birthDetails: { place: 'Москва' },
+        selectedPeriodization: null,
+      })
+    ).toBe(true);
+  });
+
+  it('detects content via selectedPeriodization alone', () => {
+    expect(
+      hasTimelineContent({
+        currentAge: DEFAULT_CURRENT_AGE,
+        ageMax: DEFAULT_AGE_MAX,
+        nodes: [],
+        edges: [],
+        birthDetails: {},
+        selectedPeriodization: 'erikson',
+      })
+    ).toBe(true);
   });
 });
