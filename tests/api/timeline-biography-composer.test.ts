@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlanFromCompositionResult } from '../../server/api/timelineBiographyComposer.js';
+import { buildPlanFromCompositionResult, findDeathFact } from '../../server/api/timelineBiographyComposer.js';
 import type { BiographyFactCandidate, BiographyCompositionResult } from '../../server/api/timelineBiographyTypes.js';
 
 function makeFact(overrides: Partial<BiographyFactCandidate> & { year: number; details: string }): BiographyFactCandidate {
@@ -215,5 +215,84 @@ describe('buildPlanFromCompositionResult — sparse theme branches', () => {
 
     expect(plan.branches).toHaveLength(1);
     expect(plan.branches[0].events[0].label).toContain('Эвакуация');
+  });
+});
+
+// BPT-5a: death-detection regression. The bug is recurrent: if the picker
+// grabs the first death-category fact, a relative's death (parent / spouse)
+// in the subject's middle years truncates the timeline. findDeathFact must
+// keep filtering by birthYear+15..birthYear+120 and prefer high-importance.
+describe('findDeathFact (BPT-5a regression)', () => {
+  function fact(
+    year: number,
+    details: string,
+    overrides: Partial<BiographyFactCandidate> = {}
+  ): BiographyFactCandidate {
+    return {
+      year,
+      age: undefined,
+      sphere: 'other',
+      category: 'death',
+      eventType: 'death',
+      labelHint: details,
+      shortLabel: details.slice(0, 25),
+      details,
+      evidence: details,
+      importance: 'medium',
+      confidence: 'medium',
+      source: 'model',
+      ...overrides,
+    };
+  }
+
+  it('skips a relative death that arrives before subject is 15', () => {
+    // Plekhanov-style regression: birthYear=1856, but a death fact at 1860
+    // (subject's father / nurse) was wrongly picked as terminal event,
+    // truncating the whole adult life.
+    const facts = [
+      fact(1860, 'Умер отец', { importance: 'low' }),
+      fact(1880, 'Высылка', { category: 'exile', eventType: 'exile' }),
+      fact(1918, 'Умер от туберкулёза', { importance: 'high' }),
+    ];
+    const death = findDeathFact(facts, 1856);
+    expect(death?.year).toBe(1918);
+  });
+
+  it('prefers the high-importance death over a same-window low-importance one', () => {
+    const facts = [
+      fact(1860, 'Умерла мать', { importance: 'low' }),
+      fact(1900, 'Умер субъект', { importance: 'high' }),
+    ];
+    const death = findDeathFact(facts, 1840);
+    expect(death?.year).toBe(1900);
+  });
+
+  it('picks the latest death within lifespan when there is no high-importance', () => {
+    const facts = [
+      fact(1880, 'Смерть отца'),
+      fact(1895, 'Смерть жены'),
+      fact(1912, 'Смерть субъекта'),
+    ];
+    const death = findDeathFact(facts, 1850);
+    expect(death?.year).toBe(1912);
+  });
+
+  it('does not pick a "death" outside subject lifespan (>120 years after birth)', () => {
+    const facts = [
+      fact(2050, 'Смерть кого-то спустя 200 лет'),
+      fact(1900, 'Смерть субъекта', { importance: 'high' }),
+    ];
+    const death = findDeathFact(facts, 1850);
+    expect(death?.year).toBe(1900);
+  });
+
+  it('returns undefined when no death falls inside the lifespan window', () => {
+    const facts = [fact(1840, 'Смерть отца')];
+    expect(findDeathFact(facts, 1850)).toBeUndefined();
+  });
+
+  it('without birthYear falls back to all death facts (latest wins)', () => {
+    const facts = [fact(1860, 'X'), fact(1900, 'Y')];
+    expect(findDeathFact(facts, undefined)?.year).toBe(1900);
   });
 });
