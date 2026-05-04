@@ -224,7 +224,7 @@ CI часть (осталась):
 
   | Файл | Строк | Статус |
   |---|---|---|
-  | `server/api/timelineBiographyRuntime.ts` | 1098 | 🔴 deprecated, дублирует CF |
+  | `server/api/timelineBiographyRuntime.ts` | 1098 | 🟡 живой — питает automation endpoints, см. BPT-1 |
   | `src/pages/timeline/components/TimelineLeftPanel.tsx` | 856 | 🔴 раздут iPad/Safari debug |
   | `functions/src/biographyImport.ts` | 843 | 🔴 главный CF, `runFullBiographyPipeline` 380 строк |
   | `src/pages/Timeline.tsx` | 771 | 🟡 был 1125, нужно ещё |
@@ -232,12 +232,10 @@ CI часть (осталась):
 
 - **Задачи (рекомендованный порядок):**
 
-  **BPT-1. Deprecate + удалить `timelineBiographyRuntime.ts` и `api/timeline-biography.ts` (P: M, E: S)**
-  - UI после переезда главного pipeline в Cloud Function использует `useBiographyImport` с прямым вызовом CF. Vercel jobs flow (`/api/timeline-biography`) фактически не вызывается ни UI, ни тестами.
-  - [ ] Подтвердить grep'ом что нет live-вызовов: `grep -rn "/api/timeline-biography[^-]" src/ tests/`
-  - [ ] Удалить `api/timeline-biography.ts` (258 строк) и `server/api/timelineBiographyRuntime.ts` (1098)
-  - [ ] Vercel functions count -1 (запас под другие фичи)
-  - [ ] Сохранить `api/timeline-biography-automation.ts` и `extractor-automation.ts` — используются CLI-бенчмарками
+  **BPT-1. ✅ Удалить deprecated jobs endpoint — ВЫПОЛНЕНО ЧАСТИЧНО (2026-05-04)**
+  - [x] Удалить `api/timeline-biography.ts` (258 строк) + `tests/api/timeline-biography.test.ts` — UI на CF, jobs flow никем не вызывался. Vercel functions count -1.
+  - [x] Сохранить `api/timeline-biography-automation.ts` и `extractor-automation.ts` — используются CLI-бенчмарками.
+  - **`server/api/timelineBiographyRuntime.ts` (1098 строк) НЕ deprecated:** оба automation endpoint'а импортируют из него `runBiographyImport`, `runBiographyFactExtraction`, `validateBiographyImportRequest` через barrel `server/api/timelineBiography.ts`. Если нужна декомпозиция runtime — отдельной задачей (BPT-1b), но она не «удалить целиком», а «разделить по ответственностям» вроде BPT-2.
 
   **BPT-2. Декомпозиция `functions/src/biographyImport.ts` (P: M, E: M)**
   - Cel: 843 → ~150 строк handler + 6 шагов по ~100 строк
