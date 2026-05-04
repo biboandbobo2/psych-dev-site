@@ -163,7 +163,6 @@ export default function Timeline() {
   const [showHelp, setShowHelp] = useState(false);
   const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
   const [showBulkCreator, setShowBulkCreator] = useState(false);
-  const [biographyDiagnostics, setBiographyDiagnostics] = useState<string[]>([]);
   const [exportStatus, setExportStatus] = useState<{
     state: 'idle' | 'running' | 'success' | 'error';
     type: 'json' | 'png' | 'pdf' | null;
@@ -173,79 +172,6 @@ export default function Timeline() {
     type: null,
     message: null,
   });
-  const [exportDiagnostics, setExportDiagnostics] = useState<string[]>([]);
-  const [biographyUiSignals, setBiographyUiSignals] = useState({
-    reactPointerdown: 0,
-    reactClick: 0,
-    reactTouchstart: 0,
-    nativePointerdown: 0,
-    nativeClick: 0,
-    nativeTouchstart: 0,
-    docPointerdown: 0,
-    docClick: 0,
-    docTouchstart: 0,
-    open: 0,
-    close: 0,
-    submit: 0,
-  });
-  const [biographyLastUiSignal, setBiographyLastUiSignal] = useState<string | null>(null);
-
-  const appendBiographyDiagnostic = useCallback((message: string, details?: unknown) => {
-    const timestamp = new Date().toLocaleTimeString('ru-RU', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    const suffix =
-      details === undefined
-        ? ''
-        : ` | ${typeof details === 'string' ? details : JSON.stringify(details)}`;
-    const entry = `${timestamp} ${message}${suffix}`;
-    debugLog('[Timeline][Biography]', entry);
-    setBiographyDiagnostics((prev) => [entry, ...prev].slice(0, 8));
-  }, []);
-
-  const appendExportDiagnostic = useCallback((message: string, details?: unknown) => {
-    const timestamp = new Date().toLocaleTimeString('ru-RU', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-    const suffix =
-      details === undefined
-        ? ''
-        : ` | ${typeof details === 'string' ? details : JSON.stringify(details)}`;
-    const entry = `${timestamp} ${message}${suffix}`;
-    debugLog('[Timeline][Export]', entry);
-    setExportDiagnostics((prev) => [entry, ...prev].slice(0, 8));
-  }, []);
-
-  const recordBiographyUiSignal = useCallback(
-    (
-      signal:
-        | 'reactPointerdown'
-        | 'reactClick'
-        | 'reactTouchstart'
-        | 'nativePointerdown'
-        | 'nativeClick'
-        | 'nativeTouchstart'
-        | 'docPointerdown'
-        | 'docClick'
-        | 'docTouchstart'
-        | 'open'
-        | 'close'
-        | 'submit',
-      details?: unknown
-    ) => {
-      setBiographyUiSignals((prev) => ({
-        ...prev,
-        [signal]: prev[signal] + 1,
-      }));
-      setBiographyLastUiSignal(signal);
-      appendBiographyDiagnostic(`ui signal: ${signal}`, details);
-    },
-    [appendBiographyDiagnostic]
-  );
 
   // Branch management
   const branchHook = useTimelineBranch({
@@ -328,28 +254,11 @@ export default function Timeline() {
     setPeriodBoundaryModal(null);
     setShowBulkCreator(false);
     biographyImportResetRef.current();
-    setBiographyDiagnostics([]);
     setExportStatus({
       state: 'idle',
       type: null,
       message: null,
     });
-    setExportDiagnostics([]);
-    setBiographyUiSignals({
-      reactPointerdown: 0,
-      reactClick: 0,
-      reactTouchstart: 0,
-      nativePointerdown: 0,
-      nativeClick: 0,
-      nativeTouchstart: 0,
-      docPointerdown: 0,
-      docClick: 0,
-      docTouchstart: 0,
-      open: 0,
-      close: 0,
-      submit: 0,
-    });
-    setBiographyLastUiSignal(null);
     resetHistory();
   }, [birthHook.setBirthSelected, branchHook.setSelectedBranchX, formHook.clearForm, resetHistory]);
 
@@ -401,13 +310,6 @@ export default function Timeline() {
       type,
       message: null,
     });
-    appendExportDiagnostic('export requested', {
-      type,
-      hasSvg: Boolean(svgRef.current),
-      nodeCount: nodes.length,
-      edgeCount: edges.length,
-    });
-
     try {
       if (type === 'json') {
         exportTimelineJSON(exportPayload, `${exportFilenamePrefix}.json`);
@@ -416,7 +318,6 @@ export default function Timeline() {
           type,
           message: 'JSON выгружен',
         });
-        appendExportDiagnostic('export complete', { type });
         return;
       }
       if (!svgRef.current) throw new Error('SVG not ready');
@@ -427,7 +328,6 @@ export default function Timeline() {
           type,
           message: 'PNG выгружен',
         });
-        appendExportDiagnostic('export complete', { type });
         return;
       }
       const periodization = selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null;
@@ -437,15 +337,10 @@ export default function Timeline() {
         type,
         message: 'PDF выгружен',
       });
-      appendExportDiagnostic('export complete', { type });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось выполнить экспорт.';
       setExportStatus({
         state: 'error',
-        type,
-        message,
-      });
-      appendExportDiagnostic('export failed', {
         type,
         message,
       });
@@ -529,38 +424,28 @@ export default function Timeline() {
   };
 
   const handleOpenBiographyImport = () => {
-    recordBiographyUiSignal('open');
-    appendBiographyDiagnostic('open requested');
     biographyImport.open();
   };
 
   const handleCloseBiographyImport = () => {
-    recordBiographyUiSignal('close');
-    appendBiographyDiagnostic('close requested');
     biographyImport.close();
   };
 
   const handleBiographySourceUrlChange = (value: string) => {
-    appendBiographyDiagnostic('source url changed', value);
     biographyImport.handleSourceUrlChange(value);
   };
 
   const handleImportBiography = async () => {
-    recordBiographyUiSignal('submit', { sourceUrl: biographyImport.sourceUrl, activeTimelineId });
-    appendBiographyDiagnostic('submit requested', { sourceUrl: biographyImport.sourceUrl });
     const ok = await biographyImport.submit();
-    appendBiographyDiagnostic(ok ? 'timeline applied' : 'request finished');
     if (ok) {
       resetTransientTimelineUi();
     }
   };
 
   const handleImportTimelineJsonFile = async (file: File | null) => {
-    appendBiographyDiagnostic('json import requested', file ? { fileName: file.name, fileSize: file.size } : null);
     const ok = await biographyImport.importTimelineJsonFile(file);
     if (ok) {
       resetTransientTimelineUi();
-      appendBiographyDiagnostic('json timeline applied');
     }
   };
 
@@ -609,12 +494,7 @@ export default function Timeline() {
             biographyImportLoading={biographyImport.loading}
             biographySourceUrl={biographyImport.sourceUrl}
             biographyImportError={biographyImport.error}
-            biographyDiagnostics={biographyDiagnostics}
             biographyMeta={biographyImport.meta}
-            biographyUiSignals={biographyUiSignals}
-            biographyLastUiSignal={biographyLastUiSignal}
-            exportStatus={exportStatus}
-            exportDiagnostics={exportDiagnostics}
             downloadMenuOpen={downloadMenuOpen}
             downloadButtonRef={downloadButtonRef}
             downloadMenuRef={downloadMenuRef}
@@ -632,8 +512,6 @@ export default function Timeline() {
             onBiographySourceUrlChange={handleBiographySourceUrlChange}
             onSubmitBiographyImport={handleImportBiography}
             onImportTimelineJsonFile={handleImportTimelineJsonFile}
-            onBiographyDiagnostic={appendBiographyDiagnostic}
-            onBiographyUiSignal={recordBiographyUiSignal}
           />
         </Suspense>
       )}
