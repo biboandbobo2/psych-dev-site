@@ -98,3 +98,122 @@ describe('buildPlanFromCompositionResult', () => {
     expect(plan.branches.length).toBe(0);
   });
 });
+
+// MP-8: sparse-biography theme branches.
+// Even with few facts, theme-driven branches (friends, romance, travel, losses)
+// must survive composition + post-filtering. These pin the contract that the
+// composer doesn't quietly drop one-event theme branches that are valid.
+describe('buildPlanFromCompositionResult — sparse theme branches', () => {
+  const themeBranchCases: Array<{
+    label: string;
+    sphere: string;
+    expectedSphere: string;
+    branchDetails: string;
+    branchYear: number;
+  }> = [
+    {
+      label: 'friends_network',
+      sphere: 'friends',
+      expectedSphere: 'friends',
+      branchDetails: 'Дружба с поэтами лицея',
+      branchYear: 1815,
+    },
+    {
+      label: 'romance',
+      sphere: 'family',
+      expectedSphere: 'family',
+      branchDetails: 'Знакомство с Натальей',
+      branchYear: 1828,
+    },
+    {
+      label: 'travel_moves_exile',
+      sphere: 'place',
+      expectedSphere: 'place',
+      branchDetails: 'Южная ссылка',
+      branchYear: 1820,
+    },
+    {
+      label: 'losses',
+      sphere: 'family',
+      expectedSphere: 'family',
+      branchDetails: 'Смерть матери',
+      branchYear: 1836,
+    },
+  ];
+
+  themeBranchCases.forEach(({ label, sphere, expectedSphere, branchDetails, branchYear }) => {
+    it(`сохраняет sparse "${label}" ветку с одним событием`, () => {
+      const facts: BiographyFactCandidate[] = [
+        makeFact({ year: 1799, details: 'Родился в Москве', category: 'birth', importance: 'high' }),
+        makeFact({ year: 1817, details: 'Лицей закончен', category: 'education', importance: 'high' }),
+        makeFact({ year: 1837, details: 'Смерть после дуэли', category: 'death', importance: 'high' }),
+        makeFact({ year: branchYear, details: branchDetails, category: 'other', sphere }),
+      ];
+      const composition: BiographyCompositionResult = {
+        mainLine: [0, 1, 2],
+        branches: [{ name: label, sphere, facts: [3] }],
+      };
+
+      const plan = buildPlanFromCompositionResult({
+        subjectName: 'Sparse subject',
+        facts,
+        composition,
+      });
+
+      expect(plan.branches).toHaveLength(1);
+      expect(plan.branches[0].label).toBe(label);
+      expect(plan.branches[0].events).toHaveLength(1);
+      expect(plan.branches[0].events[0].label).toContain(branchDetails.slice(0, 12));
+      expect(plan.branches[0].sphere).toBe(expectedSphere);
+    });
+  });
+
+  it('обрабатывает ветку с unmapped sphere через "other" fallback', () => {
+    const facts: BiographyFactCandidate[] = [
+      makeFact({ year: 1799, details: 'Родился', category: 'birth', importance: 'high' }),
+      makeFact({ year: 1837, details: 'Смерть', category: 'death', importance: 'high' }),
+      makeFact({
+        year: 1820,
+        details: 'Странное обстоятельство',
+        category: 'other',
+        sphere: 'no_such_theme',
+      }),
+    ];
+    const composition: BiographyCompositionResult = {
+      mainLine: [0, 1],
+      branches: [{ name: 'Загадка', sphere: 'no_such_theme', facts: [2] }],
+    };
+
+    const plan = buildPlanFromCompositionResult({
+      subjectName: 'Test',
+      facts,
+      composition,
+    });
+
+    expect(plan.branches).toHaveLength(1);
+    expect(plan.branches[0].sphere).toBe('other');
+  });
+
+  it('не теряет ветку из 1 события когда у subject мало фактов всего', () => {
+    // Edge case: extreme sparsity — 4 facts total, 1 of them is a theme branch.
+    const facts: BiographyFactCandidate[] = [
+      makeFact({ year: 1900, details: 'Родился', category: 'birth' }),
+      makeFact({ year: 1925, details: 'Брак', category: 'marriage', sphere: 'family' }),
+      makeFact({ year: 1970, details: 'Умер', category: 'death', importance: 'high' }),
+      makeFact({ year: 1940, details: 'Эвакуация', category: 'other', sphere: 'place' }),
+    ];
+    const composition: BiographyCompositionResult = {
+      mainLine: [0, 1, 2],
+      branches: [{ name: 'travel_moves_exile', sphere: 'place', facts: [3] }],
+    };
+
+    const plan = buildPlanFromCompositionResult({
+      subjectName: 'Sparse subject',
+      facts,
+      composition,
+    });
+
+    expect(plan.branches).toHaveLength(1);
+    expect(plan.branches[0].events[0].label).toContain('Эвакуация');
+  });
+});
