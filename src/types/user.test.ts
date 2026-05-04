@@ -99,40 +99,18 @@ describe('canEditCourse', () => {
 });
 
 describe('normalizeUserRole', () => {
-  it('keeps admin, super-admin and co-admin', () => {
+  it('keeps admin and super-admin', () => {
     expect(normalizeUserRole('admin')).toBe('admin');
     expect(normalizeUserRole('super-admin')).toBe('super-admin');
-    expect(normalizeUserRole('co-admin')).toBe('co-admin');
   });
 
   it('turns legacy values into null', () => {
     expect(normalizeUserRole('student')).toBeNull();
     expect(normalizeUserRole('guest')).toBeNull();
     expect(normalizeUserRole('unknown')).toBeNull();
+    expect(normalizeUserRole('co-admin')).toBeNull(); // co-admin — отдельный флаг, не role
     expect(normalizeUserRole(undefined)).toBeNull();
     expect(normalizeUserRole(null)).toBeNull();
     expect(normalizeUserRole(42)).toBeNull();
-  });
-});
-
-describe('co-admin role does not grant admin privileges', () => {
-  it('co-admin has no automatic course access', () => {
-    expect(hasCourseAccess('co-admin' as UserRole, null, 'development')).toBe(false);
-    expect(hasCourseAccess('co-admin' as UserRole, {}, 'clinical')).toBe(false);
-    expect(
-      hasCourseAccess('co-admin' as UserRole, { development: true }, 'development')
-    ).toBe(true);
-  });
-
-  it('co-admin cannot edit any course', () => {
-    expect(canEditCourse('co-admin' as UserRole, ['development'], 'development')).toBe(false);
-    expect(canEditCourse('co-admin' as UserRole, undefined, 'development')).toBe(false);
-  });
-
-  it('co-admin counts only explicitly granted courses', () => {
-    expect(countAccessibleCourses('co-admin' as UserRole, null)).toBe(0);
-    expect(
-      countAccessibleCourses('co-admin' as UserRole, { development: true, clinical: false, general: true })
-    ).toBe(2);
   });
 });

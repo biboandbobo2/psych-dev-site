@@ -98,11 +98,21 @@ export function UserRow({
           <div className="text-sm text-gray-900">{user.email}</div>
         </td>
         <td className="whitespace-nowrap px-6 py-4">
-          <span
-            className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getRoleBadgeClasses(displayRole)}`}
-          >
-            {getRoleLabel(displayRole)}
-          </span>
+          <div className="flex flex-wrap items-center gap-1">
+            <span
+              className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getRoleBadgeClasses(displayRole)}`}
+            >
+              {getRoleLabel(displayRole)}
+            </span>
+            {user.coAdmin === true && user.role !== 'super-admin' && (
+              <span
+                className="inline-flex rounded-full bg-indigo-100 px-2 text-xs font-semibold leading-5 text-indigo-800"
+                title="Может редактировать страницы DOM Academy (/superadmin/pages)"
+              >
+                Со-админ
+              </span>
+            )}
+          </div>
         </td>
         <td className="whitespace-nowrap px-6 py-4">
           <CourseAccessBadge
@@ -233,7 +243,7 @@ function RoleActions({
           />
         </>
       )}
-      {user.role === 'co-admin' && (
+      {user.coAdmin === true && user.role !== 'super-admin' && (
         <ActionButton
           onClick={onRemoveCoAdmin}
           disabled={isLoading}

@@ -41,9 +41,11 @@ interface AuthState {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   /**
-   * Со-админ: ограниченный администратор страниц DOM Academy
-   * (редактор /superadmin/pages*). НЕ влечёт isAdmin/isSuperAdmin.
-   * Для super-admin тоже true (включает все co-admin-фичи).
+   * Со-админ страниц DOM Academy (/superadmin/pages*). Параллельный
+   * флаг — не зависит от userRole, может быть выдан поверх admin или
+   * обычного пользователя. super-admin всегда имеет true.
+   * Источник истины: custom claim `coAdmin: true` + Firestore
+   * `users/{uid}.coAdmin: true`.
    */
   isCoAdmin: boolean;
 
@@ -51,6 +53,7 @@ interface AuthState {
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
   setUserRole: (role: UserRole | null) => void;
+  setCoAdminFlag: (value: boolean) => void;
   setAdminEditableCourses: (courses: string[]) => void;
   setCourseAccess: (access: CourseAccessMap | null) => void;
   setGroupGrantedCourses: (granted: Record<string, boolean>) => void;
@@ -90,14 +93,22 @@ export const useAuthStore = create<AuthState>()(
       setUserRole: (userRole) => {
         const isSuperAdmin = userRole === 'super-admin';
         const isAdmin = userRole === 'admin' || isSuperAdmin;
-        const isCoAdmin = userRole === 'co-admin' || isSuperAdmin;
 
-        set({
+        set((state) => ({
           userRole,
           isSuperAdmin,
           isAdmin,
-          isCoAdmin,
-        });
+          // super-admin всегда co-admin; для остальных ролей сохраняем
+          // ранее выставленный флаг (управляется отдельно через setCoAdminFlag).
+          isCoAdmin: isSuperAdmin || state.isCoAdmin,
+        }));
+      },
+
+      setCoAdminFlag: (value) => {
+        set((state) => ({
+          // super-admin всегда остаётся co-admin, его флаг не понижаем.
+          isCoAdmin: state.isSuperAdmin || value,
+        }));
       },
 
       setAdminEditableCourses: (adminEditableCourses) => set({ adminEditableCourses }),
@@ -156,6 +167,7 @@ export const useAuthStore = create<AuthState>()(
           get().setUser(next);
 
           if (!next) {
+            get().setCoAdminFlag(false);
             get().setUserRole(null);
             get().setAdminEditableCourses([]);
             get().setCourseAccess(null);
@@ -173,31 +185,43 @@ export const useAuthStore = create<AuthState>()(
 
           try {
             let resolvedRole: UserRole | null = null;
+            let resolvedCoAdmin = false;
 
             if (next.email === SUPER_ADMIN_EMAIL) {
               resolvedRole = 'super-admin';
+              resolvedCoAdmin = true;
             } else {
               // Фаза 1: пробуем кешированный токен (без сетевого запроса).
               const cachedToken = await next.getIdTokenResult(false);
               resolvedRole = normalizeUserRole(cachedToken.claims.role);
+              resolvedCoAdmin = cachedToken.claims.coAdmin === true;
 
-              if (!resolvedRole) {
-                // Нет admin-роли в claims — проверяем Firestore для legacy/freshly-granted
+              if (!resolvedRole || !resolvedCoAdmin) {
+                // Нет роли/флага в claims — проверяем Firestore для legacy/freshly-granted
                 const snap = await getDoc(doc(db, 'users', next.uid));
-                resolvedRole = normalizeUserRole(snap.data()?.role);
+                if (!resolvedRole) resolvedRole = normalizeUserRole(snap.data()?.role);
+                if (!resolvedCoAdmin) resolvedCoAdmin = snap.data()?.coAdmin === true;
               }
             }
 
+            // Порядок важен: setCoAdminFlag читает state.isSuperAdmin,
+            // который выставляется в setUserRole.
             get().setUserRole(resolvedRole);
+            get().setCoAdminFlag(resolvedCoAdmin);
 
             // Фаза 2: обновляем токен в фоне (подхватит изменения claims).
             if (next.email !== SUPER_ADMIN_EMAIL) {
               next.getIdTokenResult(true).then((freshToken) => {
                 if (cancelled) return;
                 const freshRole = normalizeUserRole(freshToken.claims.role);
+                const freshCoAdmin = freshToken.claims.coAdmin === true;
                 if (freshRole !== get().userRole) {
                   debugLog('🔄 Auth: role updated from fresh token:', freshRole);
                   get().setUserRole(freshRole);
+                }
+                if (freshCoAdmin !== get().isCoAdmin) {
+                  debugLog('🔄 Auth: coAdmin flag updated from fresh token:', freshCoAdmin);
+                  get().setCoAdminFlag(freshCoAdmin);
                 }
               }).catch((err) => {
                 reportAppError({
@@ -258,6 +282,14 @@ export const useAuthStore = create<AuthState>()(
                 const newRole = normalizeUserRole(data?.role);
                 if (newRole !== get().userRole) {
                   get().setUserRole(newRole);
+                }
+
+                // Обновляем флаг co-admin (страницы DOM Academy) — параллельная роль.
+                // Источник истины — claim, но Firestore reflects последнее назначение
+                // и даёт мгновенную реактивность для super-admin'а UI.
+                const newCoAdmin = data?.coAdmin === true;
+                if (newCoAdmin !== get().isCoAdmin && !get().isSuperAdmin) {
+                  get().setCoAdminFlag(newCoAdmin);
                 }
 
                 // adminEditableCourses синхронно с Firestore

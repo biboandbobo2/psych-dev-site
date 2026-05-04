@@ -74,13 +74,15 @@ export default function AdminUsers() {
   const hasAnyCourse = (u: typeof users[number]) =>
     !!u.courseAccess && Object.values(u.courseAccess).some((v) => v === true);
 
-  const hasAnyAdminRole = (u: typeof users[number]) =>
-    u.role === 'admin' || u.role === 'super-admin' || u.role === 'co-admin';
+  // co-admin — параллельный флаг, считаем юзера админом для целей фильтра,
+  // если у него есть admin-role ИЛИ он со-админ страниц.
+  const hasAnyAdminMembership = (u: typeof users[number]) =>
+    u.role === 'admin' || u.role === 'super-admin' || u.coAdmin === true;
 
   const filteredUsers = users.filter((user) => {
     if (filter === 'all') return true;
-    if (filter === 'admins') return hasAnyAdminRole(user);
-    const isAdminUser = hasAnyAdminRole(user);
+    if (filter === 'admins') return hasAnyAdminMembership(user);
+    const isAdminUser = hasAnyAdminMembership(user);
     if (filter === 'students') return !isAdminUser && hasAnyCourse(user);
     if (filter === 'guests') return !isAdminUser && !hasAnyCourse(user);
     return true;
@@ -88,9 +90,9 @@ export default function AdminUsers() {
 
   const stats = {
     total: users.length,
-    admins: users.filter(hasAnyAdminRole).length,
-    students: users.filter((u) => !hasAnyAdminRole(u) && hasAnyCourse(u)).length,
-    guests: users.filter((u) => !hasAnyAdminRole(u) && !hasAnyCourse(u)).length,
+    admins: users.filter(hasAnyAdminMembership).length,
+    students: users.filter((u) => !hasAnyAdminMembership(u) && hasAnyCourse(u)).length,
+    guests: users.filter((u) => !hasAnyAdminMembership(u) && !hasAnyCourse(u)).length,
   };
 
   return (

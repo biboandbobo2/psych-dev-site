@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ── Firebase mocks ──────────────────────────────────────────────
 
 const {
-  mockUpdate, mockGet, mockCollection, mockSetCustomUserClaims, mockGetUserByEmail,
+  mockUpdate, mockGet, mockCollection, mockSetCustomUserClaims, mockGetUserByEmail, mockGetUser,
 } = vi.hoisted(() => {
   const mockUpdate = vi.fn();
   const mockGet = vi.fn();
@@ -12,7 +12,8 @@ const {
   const mockCollection = vi.fn(() => ({ doc: mockDoc }));
   const mockSetCustomUserClaims = vi.fn();
   const mockGetUserByEmail = vi.fn();
-  return { mockUpdate, mockGet, mockCollection, mockSetCustomUserClaims, mockGetUserByEmail };
+  const mockGetUser = vi.fn();
+  return { mockUpdate, mockGet, mockCollection, mockSetCustomUserClaims, mockGetUserByEmail, mockGetUser };
 });
 
 vi.mock('firebase-admin/firestore', () => ({
@@ -27,6 +28,7 @@ vi.mock('firebase-admin/auth', () => ({
   getAuth: () => ({
     setCustomUserClaims: mockSetCustomUserClaims,
     getUserByEmail: mockGetUserByEmail,
+    getUser: mockGetUser,
   }),
 }));
 
@@ -73,6 +75,9 @@ function regularCtx(uid = 'regular-uid') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // По умолчанию у целевого юзера нет существующих claims.
+  // Тесты, где это важно (merge с coAdmin), переопределяют локально.
+  mockGetUser.mockResolvedValue({ customClaims: {} });
 });
 
 // ── Auth checks ─────────────────────────────────────────────
@@ -172,6 +177,24 @@ describe('makeUserAdmin', () => {
       editableCourses: ['development', 'clinical'],
     });
   });
+
+  it('preserves coAdmin claim when promoting existing co-admin to admin', async () => {
+    mockGet.mockResolvedValue({ exists: true, data: () => ({ coAdmin: true }) });
+    mockUpdate.mockResolvedValue(undefined);
+    mockGetUser.mockResolvedValue({ customClaims: { coAdmin: true } });
+    mockSetCustomUserClaims.mockResolvedValue(undefined);
+
+    await (makeUserAdmin as Function)(
+      { targetUid: 'u1', editableCourses: ['development'] },
+      superAdminCtx(),
+    );
+
+    expect(mockSetCustomUserClaims).toHaveBeenCalledWith('u1', {
+      coAdmin: true,
+      role: 'admin',
+      editableCourses: ['development'],
+    });
+  });
 });
 
 // ── removeAdmin ─────────────────────────────────────────────
@@ -187,7 +210,7 @@ describe('removeAdmin', () => {
     ).rejects.toThrow('у самого себя');
   });
 
-  it('removes admin role and clears claims', async () => {
+  it('removes admin role and clears admin claims', async () => {
     mockUpdate.mockResolvedValue(undefined);
     mockSetCustomUserClaims.mockResolvedValue(undefined);
 
@@ -200,6 +223,18 @@ describe('removeAdmin', () => {
     expect(updatePayload.adminEditableCourses).toBe('__DELETE__');
 
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('admin-1', {});
+  });
+
+  it('preserves coAdmin claim when removing admin role', async () => {
+    mockUpdate.mockResolvedValue(undefined);
+    mockGetUser.mockResolvedValue({
+      customClaims: { role: 'admin', editableCourses: ['development'], coAdmin: true },
+    });
+    mockSetCustomUserClaims.mockResolvedValue(undefined);
+
+    await (removeAdmin as Function)({ targetUid: 'admin-1' }, superAdminCtx());
+
+    expect(mockSetCustomUserClaims).toHaveBeenCalledWith('admin-1', { coAdmin: true });
   });
 });
 
@@ -244,6 +279,7 @@ describe('setAdminEditableCourses', () => {
   it('updates editable courses for existing admin', async () => {
     mockGet.mockResolvedValue({ exists: true, data: () => ({ role: 'admin' }) });
     mockUpdate.mockResolvedValue(undefined);
+    mockGetUser.mockResolvedValue({ customClaims: { role: 'admin', editableCourses: ['development'] } });
     mockSetCustomUserClaims.mockResolvedValue(undefined);
 
     const result = await (setAdminEditableCourses as Function)(
@@ -257,6 +293,26 @@ describe('setAdminEditableCourses', () => {
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('u1', {
       role: 'admin',
       editableCourses: ['development', 'clinical'],
+    });
+  });
+
+  it('preserves coAdmin when updating editable courses', async () => {
+    mockGet.mockResolvedValue({ exists: true, data: () => ({ role: 'admin' }) });
+    mockUpdate.mockResolvedValue(undefined);
+    mockGetUser.mockResolvedValue({
+      customClaims: { role: 'admin', editableCourses: ['development'], coAdmin: true },
+    });
+    mockSetCustomUserClaims.mockResolvedValue(undefined);
+
+    await (setAdminEditableCourses as Function)(
+      { targetUid: 'u1', editableCourses: ['clinical'] },
+      superAdminCtx(),
+    );
+
+    expect(mockSetCustomUserClaims).toHaveBeenCalledWith('u1', {
+      coAdmin: true,
+      role: 'admin',
+      editableCourses: ['clinical'],
     });
   });
 });

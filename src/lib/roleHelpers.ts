@@ -11,8 +11,6 @@ export function getRoleLabel(role: DisplayRole): string {
       return 'Супер-админ';
     case 'admin':
       return 'Админ';
-    case 'co-admin':
-      return 'Со-админ';
     case 'student':
       return 'Студент';
     case 'guest':
@@ -31,8 +29,6 @@ export function getRoleBadgeClasses(role: DisplayRole): string {
       return 'bg-purple-100 text-purple-800';
     case 'admin':
       return 'bg-blue-100 text-blue-800';
-    case 'co-admin':
-      return 'bg-indigo-100 text-indigo-800';
     case 'student':
       return 'bg-green-100 text-green-800';
     case 'guest':
@@ -44,14 +40,15 @@ export function getRoleBadgeClasses(role: DisplayRole): string {
 
 /**
  * Вычисляет "отображаемую роль" пользователя для админских списков/фильтров.
- * admin/super-admin/co-admin — из поля role. Остальные: student если у юзера
- * есть хоть один курс в courseAccess, иначе guest.
+ * admin/super-admin — из поля role. Остальные: student если у юзера есть
+ * хоть один курс в courseAccess, иначе guest. Флаг co-admin показывается
+ * отдельным бейджем поверх основной роли (см. UserRow.tsx).
  */
 export function computeDisplayRole(
   role: UserRole | null,
   courseAccess: Record<string, boolean | undefined> | null | undefined
 ): DisplayRole {
-  if (role === 'admin' || role === 'super-admin' || role === 'co-admin') return role;
+  if (role === 'admin' || role === 'super-admin') return role;
   const hasAnyCourse = courseAccess
     ? Object.values(courseAccess).some((v) => v === true)
     : false;

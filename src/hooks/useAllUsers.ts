@@ -11,6 +11,8 @@ export interface UserRecord {
   displayName: string | null;
   photoURL: string | null;
   role: UserRole | null;
+  /** Параллельный флаг: со-админ страниц DOM Academy. Может стоять поверх любой роли. */
+  coAdmin?: boolean;
   /** Список courseId, которые admin может редактировать. Только для role='admin'. */
   adminEditableCourses?: string[];
   /** Гранулярный доступ к курсам */

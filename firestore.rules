@@ -22,13 +22,13 @@ service cloud.firestore {
       );
     }
 
-    // Со-админ: ограниченная роль для редактирования страниц DOM Academy.
-    // НЕ влечёт isAdmin/isSuperAdmin. super-admin тоже считается co-admin
-    // (включает все co-admin-фичи).
+    // Со-админ страниц DOM Academy. Параллельный флаг — не зависит от
+    // userRole. Источник истины: custom claim `coAdmin: true`.
+    // super-admin всегда считается co-admin (включает все co-admin-фичи).
     function isCoAdmin() {
       return isSuperAdmin() || (
         isAuthenticated() &&
-        request.auth.token.role == 'co-admin'
+        request.auth.token.coAdmin == true
       );
     }
 

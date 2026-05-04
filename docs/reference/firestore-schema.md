@@ -35,12 +35,18 @@ interface User {
   displayName?: string | null;
   photoURL?: string | null;
 
-  // Роль (только для admin/super-admin/co-admin; для гостей и студентов поле
-  // либо отсутствует, либо null — фактическая display-роль вычисляется через
-  // computeDisplayRole(role, courseAccess), см. src/lib/roleHelpers.ts).
-  // co-admin — ограниченный администратор страниц DOM Academy (/superadmin/pages*),
-  // прав admin/super-admin не получает.
-  role?: 'admin' | 'super-admin' | 'co-admin';
+  // Роль (только для admin/super-admin; для гостей и студентов поле либо
+  // отсутствует, либо null — фактическая display-роль вычисляется через
+  // computeDisplayRole(role, courseAccess), см. src/lib/roleHelpers.ts)
+  role?: 'admin' | 'super-admin';
+
+  // Параллельный флаг: со-админ страниц DOM Academy (/superadmin/pages*).
+  // Не зависит от role — может стоять поверх admin'а или обычного юзера.
+  // Источник истины — custom claim `coAdmin: true`; здесь дублируется для
+  // отображения в админ-UI и реактивной подписки клиента.
+  coAdmin?: boolean;
+  coAdminPromotedAt?: Timestamp;
+  coAdminPromotedBy?: string;
 
   // Гранулярный доступ к курсам (вкл/выкл per courseId).
   // Обязательное поле для студентов — пустой объект для гостей.
@@ -95,8 +101,8 @@ interface User {
 - `userRole === null` + нет courseAccess → **guest**
 - `userRole === null` + есть хотя бы один courseAccess[*] === true → **student**
 - `userRole === 'admin'` → **admin** (редактирование контента; courseAccess может быть)
-- `userRole === 'co-admin'` → **co-admin** (только редактор `/superadmin/pages*`)
-- `userRole === 'super-admin'` → **super-admin** (полный доступ; включает admin и co-admin)
+- `userRole === 'super-admin'` → **super-admin** (полный доступ; всегда co-admin)
+- `coAdmin === true` → дополнительный бейдж «Со-админ» поверх любой роли (доступ к `/superadmin/pages*`)
 
 См. [`src/lib/roleHelpers.ts:computeDisplayRole`](../../src/lib/roleHelpers.ts).
 

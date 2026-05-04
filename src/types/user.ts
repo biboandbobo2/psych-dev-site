@@ -9,17 +9,19 @@ import { CORE_COURSE_ORDER, CORE_COURSE_META } from '../constants/courses';
  *
  * - admin: редактор контента; может редактировать только курсы из adminEditableCourses
  * - super-admin: владелец проекта; без ограничений
- * - co-admin: ограниченный администратор страниц DOM Academy
- *   (редактор /superadmin/pages*); НЕ имеет прав admin/super-admin.
+ *
+ * Со-админ страниц DOM Academy — параллельный, независимый флаг
+ * `users/{uid}.coAdmin: boolean` + custom claim `coAdmin: true`. Не значение role.
+ * Может выдаваться поверх любой роли (admin, обычный пользователь).
  */
-export type UserRole = 'admin' | 'super-admin' | 'co-admin';
+export type UserRole = 'admin' | 'super-admin';
 
 /**
  * Нормализует значение role из Firestore в строгий UserRole | null.
  * Legacy-значения 'guest'/'student' считаются null (обычный пользователь).
  */
 export function normalizeUserRole(raw: unknown): UserRole | null {
-  if (raw === 'admin' || raw === 'super-admin' || raw === 'co-admin') return raw;
+  if (raw === 'admin' || raw === 'super-admin') return raw;
   return null;
 }
 

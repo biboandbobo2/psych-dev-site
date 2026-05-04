@@ -85,7 +85,11 @@ export const makeUserAdmin = functions.https.onCall(async (data, context) => {
     promotedBy: callerUid,
   });
 
+  // Merge claims: добавляем admin-claims, не затирая coAdmin (параллельная роль).
+  const userRecord = await adminAuth.getUser(userUid);
+  const existingClaims = userRecord.customClaims ?? {};
   await adminAuth.setCustomUserClaims(userUid, {
+    ...existingClaims,
     role: "admin",
     editableCourses,
   });
@@ -125,7 +129,16 @@ export const removeAdmin = functions.https.onCall(async (data, context) => {
     demotedBy: callerUid,
   });
 
-  await adminAuth.setCustomUserClaims(targetUid, {});
+  // Merge claims: убираем role/editableCourses, сохраняем coAdmin (если есть).
+  const userRecord = await adminAuth.getUser(targetUid);
+  const existingClaims = userRecord.customClaims ?? {};
+  const { role: _r, editableCourses: _ec, ...rest } = existingClaims as {
+    role?: string;
+    editableCourses?: string[];
+  } & Record<string, unknown>;
+  void _r;
+  void _ec;
+  await adminAuth.setCustomUserClaims(targetUid, rest);
 
   functions.logger.info(`✅ User ${targetUid} demoted from admin`, { by: callerUid });
   return { success: true, message: "Права администратора сняты" };
@@ -165,7 +178,14 @@ export const setAdminEditableCourses = functions.https.onCall(async (data, conte
   }
 
   await userRef.update({ adminEditableCourses: editableCourses });
-  await adminAuth.setCustomUserClaims(targetUid, { role: "admin", editableCourses });
+  // Merge claims: обновляем editableCourses, сохраняя coAdmin и прочие.
+  const userRecord = await adminAuth.getUser(targetUid);
+  const existingClaims = userRecord.customClaims ?? {};
+  await adminAuth.setCustomUserClaims(targetUid, {
+    ...existingClaims,
+    role: "admin",
+    editableCourses,
+  });
 
   functions.logger.info(`✅ Admin ${targetUid} editable courses updated`, {
     editableCourses,

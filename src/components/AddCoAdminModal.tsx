@@ -68,8 +68,9 @@ export function AddCoAdminModal({ isOpen, onClose, onSuccess }: AddCoAdminModalP
           </div>
 
           <div className="rounded-md border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-900">
-            Со-админ получит доступ только к редактору страниц DOM Academy
-            («О нас» и страницы проектов). Прав admin/super-admin не выдаётся.
+            Со-админ получает дополнительный доступ к редактору страниц
+            DOM Academy («О нас» и страницы проектов). Это параллельная роль —
+            можно выдать поверх admin'а; существующие права не меняются.
           </div>
 
           {error && (

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ── Firebase mocks ──────────────────────────────────────────────
 
 const {
-  mockUpdate, mockGet, mockCollection, mockSetCustomUserClaims, mockGetUserByEmail,
+  mockUpdate, mockGet, mockCollection, mockSetCustomUserClaims, mockGetUserByEmail, mockGetUser,
 } = vi.hoisted(() => {
   const mockUpdate = vi.fn();
   const mockGet = vi.fn();
@@ -12,7 +12,8 @@ const {
   const mockCollection = vi.fn(() => ({ doc: mockDoc }));
   const mockSetCustomUserClaims = vi.fn();
   const mockGetUserByEmail = vi.fn();
-  return { mockUpdate, mockGet, mockCollection, mockSetCustomUserClaims, mockGetUserByEmail };
+  const mockGetUser = vi.fn();
+  return { mockUpdate, mockGet, mockCollection, mockSetCustomUserClaims, mockGetUserByEmail, mockGetUser };
 });
 
 vi.mock('firebase-admin/firestore', () => ({
@@ -27,6 +28,7 @@ vi.mock('firebase-admin/auth', () => ({
   getAuth: () => ({
     setCustomUserClaims: mockSetCustomUserClaims,
     getUserByEmail: mockGetUserByEmail,
+    getUser: mockGetUser,
   }),
 }));
 
@@ -71,6 +73,8 @@ function regularCtx(uid = 'regular-uid') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // По умолчанию — у юзера нет существующих claims.
+  mockGetUser.mockResolvedValue({ customClaims: {} });
 });
 
 // ── Auth checks ─────────────────────────────────────────────
@@ -108,7 +112,6 @@ describe('makeUserCoAdmin', () => {
 
   it('throws not-found when email lookup fails', async () => {
     mockGetUserByEmail.mockRejectedValue(new Error('not found'));
-
     await expect(
       (makeUserCoAdmin as Function)({ targetEmail: 'missing@test.com' }, superAdminCtx()),
     ).rejects.toThrow('не найден');
@@ -127,36 +130,36 @@ describe('makeUserCoAdmin', () => {
     ).rejects.toThrow('хотя бы раз войти');
   });
 
-  it('refuses to overwrite existing admin', async () => {
-    mockGet.mockResolvedValue({ exists: true, data: () => ({ role: 'admin' }) });
-    await expect(
-      (makeUserCoAdmin as Function)({ targetUid: 'u1' }, superAdminCtx()),
-    ).rejects.toThrow('уже admin/super-admin');
-  });
-
-  it('refuses to overwrite super-admin', async () => {
-    mockGet.mockResolvedValue({ exists: true, data: () => ({ role: 'super-admin' }) });
-    await expect(
-      (makeUserCoAdmin as Function)({ targetUid: 'u1' }, superAdminCtx()),
-    ).rejects.toThrow('уже admin/super-admin');
-  });
-
-  it('promotes user to co-admin', async () => {
+  it('promotes regular user to co-admin (sets users.coAdmin and claim coAdmin)', async () => {
     mockGet.mockResolvedValue({ exists: true, data: () => ({}) });
     mockUpdate.mockResolvedValue(undefined);
     mockSetCustomUserClaims.mockResolvedValue(undefined);
 
-    const result = await (makeUserCoAdmin as Function)(
-      { targetUid: 'u1' },
-      superAdminCtx(),
-    );
-
-    expect(result.success).toBe(true);
+    await (makeUserCoAdmin as Function)({ targetUid: 'u1' }, superAdminCtx());
 
     const updatePayload = mockUpdate.mock.calls[0][0];
-    expect(updatePayload.role).toBe('co-admin');
+    expect(updatePayload.coAdmin).toBe(true);
+    expect(mockSetCustomUserClaims).toHaveBeenCalledWith('u1', { coAdmin: true });
+  });
 
-    expect(mockSetCustomUserClaims).toHaveBeenCalledWith('u1', { role: 'co-admin' });
+  it('promotes existing admin to also be co-admin without losing admin claims', async () => {
+    mockGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ role: 'admin', adminEditableCourses: ['development'] }),
+    });
+    mockUpdate.mockResolvedValue(undefined);
+    mockGetUser.mockResolvedValue({
+      customClaims: { role: 'admin', editableCourses: ['development'] },
+    });
+    mockSetCustomUserClaims.mockResolvedValue(undefined);
+
+    await (makeUserCoAdmin as Function)({ targetUid: 'admin-1' }, superAdminCtx());
+
+    expect(mockSetCustomUserClaims).toHaveBeenCalledWith('admin-1', {
+      role: 'admin',
+      editableCourses: ['development'],
+      coAdmin: true,
+    });
   });
 });
 
@@ -180,24 +183,34 @@ describe('removeCoAdmin', () => {
     ).rejects.toThrow('не найден');
   });
 
-  it('refuses to demote a regular admin (use removeAdmin)', async () => {
-    mockGet.mockResolvedValue({ exists: true, data: () => ({ role: 'admin' }) });
-    await expect(
-      (removeCoAdmin as Function)({ targetUid: 'admin-1' }, superAdminCtx()),
-    ).rejects.toThrow('Снять можно только со-админа');
-  });
-
-  it('removes co-admin role and clears claims', async () => {
-    mockGet.mockResolvedValue({ exists: true, data: () => ({ role: 'co-admin' }) });
+  it('removes coAdmin field and claim, keeps admin role intact', async () => {
+    mockGet.mockResolvedValue({ exists: true, data: () => ({ role: 'admin', coAdmin: true }) });
     mockUpdate.mockResolvedValue(undefined);
+    mockGetUser.mockResolvedValue({
+      customClaims: { role: 'admin', editableCourses: ['development'], coAdmin: true },
+    });
     mockSetCustomUserClaims.mockResolvedValue(undefined);
 
-    const result = await (removeCoAdmin as Function)({ targetUid: 'co-1' }, superAdminCtx());
-
+    const result = await (removeCoAdmin as Function)({ targetUid: 'admin-1' }, superAdminCtx());
     expect(result.success).toBe(true);
 
     const updatePayload = mockUpdate.mock.calls[0][0];
-    expect(updatePayload.role).toBe('__DELETE__');
+    expect(updatePayload.coAdmin).toBe('__DELETE__');
+
+    // role-claims остаются нетронутыми, coAdmin удалён.
+    expect(mockSetCustomUserClaims).toHaveBeenCalledWith('admin-1', {
+      role: 'admin',
+      editableCourses: ['development'],
+    });
+  });
+
+  it('removes coAdmin from regular user (no admin role)', async () => {
+    mockGet.mockResolvedValue({ exists: true, data: () => ({ coAdmin: true }) });
+    mockUpdate.mockResolvedValue(undefined);
+    mockGetUser.mockResolvedValue({ customClaims: { coAdmin: true } });
+    mockSetCustomUserClaims.mockResolvedValue(undefined);
+
+    await (removeCoAdmin as Function)({ targetUid: 'co-1' }, superAdminCtx());
 
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('co-1', {});
   });

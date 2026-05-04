@@ -27,8 +27,8 @@ function assertSuperAdmin(context: functions.https.CallableContext): string {
 
 /**
  * Назначение пользователя со-админом.
- * Со-админ — ограниченная роль: доступ только к редактору страниц
- * (/superadmin/pages*). Прав admin/super-admin не даёт.
+ * Со-админ — параллельная роль для редактора страниц `/superadmin/pages*`.
+ * Не пересекается с admin/super-admin: можно дать поверх admin'а.
  * Только super-admin.
  */
 export const makeUserCoAdmin = functions.https.onCall(async (data, context) => {
@@ -63,21 +63,16 @@ export const makeUserCoAdmin = functions.https.onCall(async (data, context) => {
     );
   }
 
-  const currentRole = userDoc.data()?.role;
-  if (currentRole === "admin" || currentRole === "super-admin") {
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "Этот пользователь уже admin/super-admin. Сначала снимите текущую роль."
-    );
-  }
-
   await db.collection("users").doc(userUid).update({
-    role: "co-admin",
-    promotedAt: FieldValue.serverTimestamp(),
-    promotedBy: callerUid,
+    coAdmin: true,
+    coAdminPromotedAt: FieldValue.serverTimestamp(),
+    coAdminPromotedBy: callerUid,
   });
 
-  await adminAuth.setCustomUserClaims(userUid, { role: "co-admin" });
+  // Merge claims — не затираем role/editableCourses, если они есть.
+  const userRecord = await adminAuth.getUser(userUid);
+  const existingClaims = userRecord.customClaims ?? {};
+  await adminAuth.setCustomUserClaims(userUid, { ...existingClaims, coAdmin: true });
 
   functions.logger.info(`✅ User ${userUid} promoted to co-admin`, { by: callerUid });
 
@@ -89,9 +84,9 @@ export const makeUserCoAdmin = functions.https.onCall(async (data, context) => {
 });
 
 /**
- * Снятие роли со-админа. Удаляет поле role и custom claims.
- * Только super-admin. Работает только для пользователей с role='co-admin',
- * чтобы случайно не снять роль обычного admin.
+ * Снятие роли со-админа. Сбрасывает поле coAdmin и убирает claim,
+ * остальные claims (например role: 'admin') остаются нетронутыми.
+ * Только super-admin.
  */
 export const removeCoAdmin = functions.https.onCall(async (data, context) => {
   const callerUid = assertSuperAdmin(context);
@@ -110,21 +105,20 @@ export const removeCoAdmin = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError("not-found", "Пользователь не найден");
   }
 
-  const currentRole = userDoc.data()?.role;
-  if (currentRole !== "co-admin") {
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "Снять можно только со-админа. Для admin используйте кнопку «Снять права»."
-    );
-  }
-
   await userRef.update({
-    role: FieldValue.delete(),
-    demotedAt: FieldValue.serverTimestamp(),
-    demotedBy: callerUid,
+    coAdmin: FieldValue.delete(),
+    coAdminPromotedAt: FieldValue.delete(),
+    coAdminPromotedBy: FieldValue.delete(),
+    coAdminDemotedAt: FieldValue.serverTimestamp(),
+    coAdminDemotedBy: callerUid,
   });
 
-  await adminAuth.setCustomUserClaims(targetUid, {});
+  // Merge claims: сохраняем role, удаляем только coAdmin.
+  const userRecord = await adminAuth.getUser(targetUid);
+  const existingClaims = userRecord.customClaims ?? {};
+  const { coAdmin: _removed, ...rest } = existingClaims as { coAdmin?: boolean } & Record<string, unknown>;
+  void _removed;
+  await adminAuth.setCustomUserClaims(targetUid, rest);
 
   functions.logger.info(`✅ User ${targetUid} demoted from co-admin`, { by: callerUid });
   return { success: true, message: "Права со-админа сняты" };
