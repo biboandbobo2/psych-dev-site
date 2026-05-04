@@ -10,6 +10,16 @@ interface BiographyMeta {
   reviewIssues?: string[];
   nodes?: number;
   edges?: number;
+  qualityMetrics?: {
+    factsTotal: number;
+    factsWithThemes: number;
+    themesCovered: number;
+    mainEvents: number;
+    branches: number;
+    branchEvents: number;
+    genericLabels: number;
+    emptyNotes: number;
+  };
 }
 
 interface BiographyImportFormModalProps {
@@ -81,12 +91,28 @@ export function BiographyImportFormModal({
         </div>
 
         {meta ? (
-          <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5 text-[10px] leading-[14px] text-sky-800">
-            <span className="font-semibold">{meta.source ?? '?'}</span>
-            {' · '}facts: {meta.factsModel ?? '?'}
-            {' · '}plan: {meta.model ?? '?'}
-            {meta.reviewApplied ? ' · review' : ''}
-            {' · '}{meta.nodes ?? 0} узл / {meta.edges ?? 0} вет
+          <div className="mt-3 space-y-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5 text-[10px] leading-[14px] text-sky-800">
+            <div>
+              <span className="font-semibold">{meta.source ?? '?'}</span>
+              {' · '}facts: {meta.factsModel ?? '?'}
+              {' · '}plan: {meta.model ?? '?'}
+              {meta.reviewApplied ? ' · review' : ''}
+              {' · '}{meta.nodes ?? 0} узл / {meta.edges ?? 0} вет
+            </div>
+            {meta.qualityMetrics ? (
+              <div className="border-t border-sky-200/70 pt-1 text-sky-700">
+                facts {meta.qualityMetrics.factsTotal}
+                {' · '}themes {meta.qualityMetrics.themesCovered}
+                {' · '}main {meta.qualityMetrics.mainEvents}
+                {' / '}branches {meta.qualityMetrics.branches}
+                {(meta.qualityMetrics.genericLabels > 0 || meta.qualityMetrics.emptyNotes > 0) && (
+                  <span className="text-amber-700">
+                    {' · '}generic {meta.qualityMetrics.genericLabels}
+                    {' · '}no-notes {meta.qualityMetrics.emptyNotes}
+                  </span>
+                )}
+              </div>
+            ) : null}
           </div>
         ) : null}
 

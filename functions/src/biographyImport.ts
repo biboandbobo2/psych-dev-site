@@ -38,6 +38,7 @@ import {
 } from '../../server/api/timelineBiographyPrompts.js';
 import { buildPlanFromCompositionResult, findDeathFact } from '../../server/api/timelineBiographyComposer.js';
 import { buildTimelineDataFromBiographyPlan } from '../../server/api/timelineBiographyQuality.js';
+import { buildBiographyEvaluationMetrics } from '../../server/api/timelineBiographyMetrics.js';
 
 // ============================================================================
 // INIT
@@ -407,6 +408,17 @@ async function runFullBiographyPipeline(params: {
       hasBirthDate: boolean;
       hasBirthPlace: boolean;
     };
+    /** Lightweight quality summary for fast UI/log diagnostics without running timeline:eval CLI. */
+    qualityMetrics?: {
+      factsTotal: number;
+      factsWithThemes: number;
+      themesCovered: number;
+      mainEvents: number;
+      branches: number;
+      branchEvents: number;
+      genericLabels: number;
+      emptyNotes: number;
+    };
   };
 }> {
   const db = getFirestore();
@@ -719,6 +731,17 @@ async function runFullBiographyPipeline(params: {
       nodes: number; edges: number; hasBirthDate: boolean; hasBirthPlace: boolean;
     } | undefined;
 
+    let qualityMetrics: {
+      factsTotal: number;
+      factsWithThemes: number;
+      themesCovered: number;
+      mainEvents: number;
+      branches: number;
+      branchEvents: number;
+      genericLabels: number;
+      emptyNotes: number;
+    } | undefined;
+
     try {
       const plan = buildPlanFromCompositionResult({ subjectName, facts: finalFacts, composition });
       timeline = buildTimelineDataFromBiographyPlan(plan);
@@ -736,6 +759,18 @@ async function runFullBiographyPipeline(params: {
         hasBirthDate: Boolean(timeline.birthDetails?.date),
         hasBirthPlace: Boolean(timeline.birthDetails?.place),
       };
+
+      const evalMetrics = buildBiographyEvaluationMetrics({ facts: finalFacts, plan, timeline });
+      qualityMetrics = {
+        factsTotal: evalMetrics.facts.total,
+        factsWithThemes: evalMetrics.facts.withThemes,
+        themesCovered: Object.keys(evalMetrics.facts.themeCoverage).length,
+        mainEvents: evalMetrics.plan.mainEvents,
+        branches: evalMetrics.plan.branches,
+        branchEvents: evalMetrics.plan.branchEvents,
+        genericLabels: evalMetrics.plan.genericLabels,
+        emptyNotes: evalMetrics.plan.emptyNotes,
+      };
     } catch (error) {
       logger.error('[biographyImport] plan/timeline conversion failed', { error });
     }
@@ -746,6 +781,7 @@ async function runFullBiographyPipeline(params: {
       rawTextChars: len,
       planDiagnostics,
       timelineStats,
+      qualityMetrics,
     };
 
     await updateJob({

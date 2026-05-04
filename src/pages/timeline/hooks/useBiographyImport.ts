@@ -37,6 +37,16 @@ export interface BiographyMeta {
   model?: string;
   nodes?: number;
   edges?: number;
+  qualityMetrics?: {
+    factsTotal: number;
+    factsWithThemes: number;
+    themesCovered: number;
+    mainEvents: number;
+    branches: number;
+    branchEvents: number;
+    genericLabels: number;
+    emptyNotes: number;
+  };
 }
 
 export function useBiographyImport({
@@ -119,7 +129,11 @@ export function useBiographyImport({
       timeline: TimelineData;
       subjectName?: string;
       canvasName?: string;
-      meta?: { model?: string; timelineStats?: { nodes?: number; edges?: number } };
+      meta?: {
+        model?: string;
+        timelineStats?: { nodes?: number; edges?: number };
+        qualityMetrics?: BiographyMeta['qualityMetrics'];
+      };
     }>((resolve, reject) => {
       unsubscribe = onSnapshot(jobDocRef, (snapshot) => {
         if (!snapshot.exists()) return;
@@ -142,7 +156,13 @@ export function useBiographyImport({
             timeline: step4.timeline,
             subjectName: data.subjectName as string | undefined,
             canvasName: step4.canvasName,
-            meta: step4.meta as { model?: string; timelineStats?: { nodes?: number; edges?: number } } | undefined,
+            meta: step4.meta as
+              | {
+                  model?: string;
+                  timelineStats?: { nodes?: number; edges?: number };
+                  qualityMetrics?: BiographyMeta['qualityMetrics'];
+                }
+              | undefined,
           });
         } else if (data?.status === 'error') {
           reject(new Error((data.error as string) || 'Cloud Function вернула ошибку'));
@@ -179,6 +199,7 @@ export function useBiographyImport({
         model: result.meta?.model,
         nodes: result.meta?.timelineStats?.nodes,
         edges: result.meta?.timelineStats?.edges,
+        qualityMetrics: result.meta?.qualityMetrics,
       });
       applyTimeline({
         timeline: result.timeline,
