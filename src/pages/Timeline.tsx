@@ -80,6 +80,7 @@ export default function Timeline() {
     activeTimelineName,
     createTimelineCanvas,
     selectTimelineCanvas,
+    deleteTimelineCanvas,
     replaceActiveTimeline,
   } = useTimelineState();
 
@@ -622,6 +623,7 @@ export default function Timeline() {
             onScaleChange={handleScaleChange}
             onCreateTimeline={createTimelineCanvas}
             onSelectTimeline={selectTimelineCanvas}
+            onDeleteTimeline={deleteTimelineCanvas}
             onDownloadMenuToggle={toggleDownloadMenu}
             onDownloadSelect={handleDownload}
             onClearAll={crudHook.handleClearAll}

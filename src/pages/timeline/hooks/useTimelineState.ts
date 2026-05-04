@@ -180,6 +180,28 @@ export function useTimelineState() {
     syncViewportForTimeline(newCanvas.data);
   }, [canvases, syncViewportForTimeline]);
 
+  const deleteTimelineCanvas = useCallback(
+    (canvasId: string) => {
+      if (canvases.length <= 1) return;
+      const targetIndex = canvases.findIndex((canvas) => canvas.id === canvasId);
+      if (targetIndex === -1) return;
+
+      const nextCanvases = canvases.filter((canvas) => canvas.id !== canvasId);
+      const wasActive = activeCanvasId === canvasId;
+      const nextActive = wasActive
+        ? nextCanvases[Math.max(0, targetIndex - 1)]
+        : nextCanvases.find((canvas) => canvas.id === activeCanvasId) ?? nextCanvases[0];
+
+      setCanvases(nextCanvases);
+      setActiveCanvasId(nextActive.id);
+      if (wasActive) {
+        syncViewportForTimeline(nextActive.data);
+      }
+      saveToFirestore(nextActive.id, nextCanvases);
+    },
+    [canvases, activeCanvasId, syncViewportForTimeline, saveToFirestore]
+  );
+
   const replaceActiveTimeline = useCallback(
     (nextData: TimelineData, options?: { name?: string }) => {
       const normalizedData = normalizeImportedTimelineData(nextData);

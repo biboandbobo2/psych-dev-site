@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, RefObject } from 'react';
 import type { NodeT, TimelineCanvas } from '../types';
 import { MIN_SCALE, MAX_SCALE, SPHERE_META } from '../constants';
+import { DeleteTimelineConfirmModal } from './DeleteTimelineConfirmModal';
 
 interface TimelineLeftPanelProps {
   currentAge: number;
@@ -57,6 +58,7 @@ interface TimelineLeftPanelProps {
   onScaleChange: (scale: number) => void;
   onCreateTimeline: () => void;
   onSelectTimeline: (timelineId: string) => void;
+  onDeleteTimeline: (timelineId: string) => void;
   onDownloadMenuToggle: () => void;
   onDownloadSelect: (type: 'json' | 'png' | 'pdf') => void;
   onClearAll: () => void;
@@ -112,6 +114,7 @@ export function TimelineLeftPanel({
   onScaleChange,
   onCreateTimeline,
   onSelectTimeline,
+  onDeleteTimeline,
   onDownloadMenuToggle,
   onDownloadSelect,
   onClearAll,
@@ -124,6 +127,7 @@ export function TimelineLeftPanel({
   onBiographyUiSignal,
 }: TimelineLeftPanelProps) {
   const [timelineMenuOpen, setTimelineMenuOpen] = useState(false);
+  const [pendingDeleteTimelineId, setPendingDeleteTimelineId] = useState<string | null>(null);
   const [showDebugPopover, setShowDebugPopover] = useState(false);
   const timelineMenuRef = useRef<HTMLDivElement>(null);
   const leftPanelRef = useRef<HTMLElement>(null);
@@ -731,18 +735,35 @@ export function TimelineLeftPanel({
                       {timelineCanvases.map((timeline) => {
                         const isActive = timeline.id === activeTimelineId;
                         return (
-                          <button
+                          <div
                             key={timeline.id}
-                            type="button"
-                            onClick={() => onSelectTimeline(timeline.id)}
-                            className={`w-full rounded-xl px-2 py-2 text-left text-xs transition ${
-                              isActive
-                                ? 'bg-blue-50 font-semibold text-blue-700'
-                                : 'text-slate-700 hover:bg-slate-50'
+                            className={`flex items-center gap-1 rounded-xl transition ${
+                              isActive ? 'bg-blue-50' : 'hover:bg-slate-50'
                             }`}
                           >
-                            {timeline.name}
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => onSelectTimeline(timeline.id)}
+                              className={`flex-1 truncate px-2 py-2 text-left text-xs transition ${
+                                isActive ? 'font-semibold text-blue-700' : 'text-slate-700'
+                              }`}
+                            >
+                              {timeline.name}
+                            </button>
+                            {hasAdditionalTimelines ? (
+                              <button
+                                type="button"
+                                title="Удалить таймлайн"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setPendingDeleteTimelineId(timeline.id);
+                                }}
+                                className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                              >
+                                ×
+                              </button>
+                            ) : null}
+                          </div>
                         );
                       })}
                     </div>
@@ -851,6 +872,23 @@ export function TimelineLeftPanel({
           </div>
         </div>
       ) : null}
+
+      {pendingDeleteTimelineId
+        ? (() => {
+            const target = timelineCanvases.find((canvas) => canvas.id === pendingDeleteTimelineId);
+            if (!target) return null;
+            return (
+              <DeleteTimelineConfirmModal
+                timelineName={target.name}
+                onCancel={() => setPendingDeleteTimelineId(null)}
+                onConfirm={() => {
+                  onDeleteTimeline(pendingDeleteTimelineId);
+                  setPendingDeleteTimelineId(null);
+                }}
+              />
+            );
+          })()
+        : null}
     </div>
   );
 }
