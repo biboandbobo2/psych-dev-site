@@ -3,7 +3,6 @@ import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'rea
 import { motion } from 'framer-motion';
 import { useNotes } from '../hooks/useNotes';
 import { PageLoader } from '../components/ui';
-import { debugError } from '../lib/debug';
 
 // Импорт типов, констант, утилит и компонентов из модулей
 import type {
@@ -31,14 +30,13 @@ import { useTimelinePanZoom } from './timeline/hooks/useTimelinePanZoom';
 import { useTimelineDragDrop } from './timeline/hooks/useTimelineDragDrop';
 import { useTimelineBranch } from './timeline/hooks/useTimelineBranch';
 import { useTimelineCRUD } from './timeline/hooks/useTimelineCRUD';
+import { useTimelineExport } from './timeline/hooks/useTimelineExport';
 import { useIsMobile } from './timeline/hooks/useIsMobile';
 import { useBiographyImport } from './timeline/hooks/useBiographyImport';
 import { hasTimelineContent } from './timeline/persistence';
 import { BiographyImportModal } from './timeline/components/BiographyImportModal';
 import { MobileReadOnlyBanner } from './timeline/components/MobileReadOnlyBanner';
 import { PeriodBoundaryModalContainer } from './timeline/components/PeriodBoundaryModalContainer';
-import { buildTimelineExportPayload, exportTimelineJSON, exportTimelinePNG, exportTimelinePDF } from './timeline/utils/exporters';
-import { getPeriodizationById } from './timeline/data/periodizations';
 import {
   BulkEventCreator,
   TimelineCanvas,
@@ -281,32 +279,17 @@ export default function Timeline() {
 
   // ============ ADDITIONAL HANDLERS ============
 
-  const handleDownload = async (type: 'json' | 'png' | 'pdf') => {
-    closeDownloadMenu();
-    const exportPayload = buildTimelineExportPayload({
-      currentAge,
-      ageMax,
-      nodes,
-      edges,
-      birthDetails,
-      selectedPeriodization,
-    });
-    try {
-      if (type === 'json') {
-        exportTimelineJSON(exportPayload, `${exportFilenamePrefix}.json`);
-        return;
-      }
-      if (!svgRef.current) throw new Error('SVG not ready');
-      if (type === 'png') {
-        await exportTimelinePNG(svgRef.current, exportPayload, `${exportFilenamePrefix}.png`);
-        return;
-      }
-      const periodization = selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null;
-      await exportTimelinePDF(svgRef.current, exportPayload, periodization, `${exportFilenamePrefix}.pdf`);
-    } catch (error) {
-      debugError('Export failed', error);
-    }
-  };
+  const { handleDownload } = useTimelineExport({
+    svgRef,
+    currentAge,
+    ageMax,
+    nodes,
+    edges,
+    birthDetails,
+    selectedPeriodization,
+    filenamePrefix: exportFilenamePrefix,
+    onBeforeDownload: closeDownloadMenu,
+  });
 
   const handleViewportAgeChange = (age: number) => {
     setViewportAge(age);
