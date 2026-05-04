@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'rea
 import { motion } from 'framer-motion';
 import { useNotes } from '../hooks/useNotes';
 import { PageLoader } from '../components/ui';
-import { debugError, debugLog } from '../lib/debug';
+import { debugError } from '../lib/debug';
 
 // Импорт типов, констант, утилит и компонентов из модулей
 import type {
@@ -163,15 +163,6 @@ export default function Timeline() {
   const [showHelp, setShowHelp] = useState(false);
   const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
   const [showBulkCreator, setShowBulkCreator] = useState(false);
-  const [exportStatus, setExportStatus] = useState<{
-    state: 'idle' | 'running' | 'success' | 'error';
-    type: 'json' | 'png' | 'pdf' | null;
-    message: string | null;
-  }>({
-    state: 'idle',
-    type: null,
-    message: null,
-  });
 
   // Branch management
   const branchHook = useTimelineBranch({
@@ -254,11 +245,6 @@ export default function Timeline() {
     setPeriodBoundaryModal(null);
     setShowBulkCreator(false);
     biographyImportResetRef.current();
-    setExportStatus({
-      state: 'idle',
-      type: null,
-      message: null,
-    });
     resetHistory();
   }, [birthHook.setBirthSelected, branchHook.setSelectedBranchX, formHook.clearForm, resetHistory]);
 
@@ -305,45 +291,19 @@ export default function Timeline() {
       birthDetails,
       selectedPeriodization,
     });
-    setExportStatus({
-      state: 'running',
-      type,
-      message: null,
-    });
     try {
       if (type === 'json') {
         exportTimelineJSON(exportPayload, `${exportFilenamePrefix}.json`);
-        setExportStatus({
-          state: 'success',
-          type,
-          message: 'JSON выгружен',
-        });
         return;
       }
       if (!svgRef.current) throw new Error('SVG not ready');
       if (type === 'png') {
         await exportTimelinePNG(svgRef.current, `${exportFilenamePrefix}.png`);
-        setExportStatus({
-          state: 'success',
-          type,
-          message: 'PNG выгружен',
-        });
         return;
       }
       const periodization = selectedPeriodization ? getPeriodizationById(selectedPeriodization) ?? null : null;
       await exportTimelinePDF(svgRef.current, exportPayload, periodization, `${exportFilenamePrefix}.pdf`);
-      setExportStatus({
-        state: 'success',
-        type,
-        message: 'PDF выгружен',
-      });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось выполнить экспорт.';
-      setExportStatus({
-        state: 'error',
-        type,
-        message,
-      });
       debugError('Export failed', error);
     }
   };
