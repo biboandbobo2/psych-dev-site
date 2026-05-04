@@ -3,7 +3,10 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "functions": {
-    "api/timeline-biography.ts": {
+    "api/timeline-biography-automation.ts": {
+      "maxDuration": 60
+    },
+    "api/timeline-biography-extractor-automation.ts": {
       "maxDuration": 60
     }
   },
