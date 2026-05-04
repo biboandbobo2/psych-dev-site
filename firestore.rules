@@ -239,7 +239,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Biography pipeline jobs (server writes via Admin SDK, user reads own)
+    // Biography pipeline jobs (server writes via Admin SDK, user reads own).
+    // NOTE (MR-8): the catch-all `match /{document=**} { allow read: if true }`
+    // at the bottom of this file currently overrides the per-uid restriction
+    // here — Firestore evaluates rules as a union, so any matching `allow read`
+    // grants access. Tightening (or scoping) the catch-all is tracked in
+    // backlog MR-8 and needs its own deploy + smoke pass.
     match /biographyJobs/{jobId} {
       allow read: if isAuthenticated() &&
         resource.data.userId == request.auth.uid;

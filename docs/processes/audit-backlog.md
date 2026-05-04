@@ -277,11 +277,16 @@ CI часть (осталась):
   **BPT-6. Опционально разбить `timelineBiographyFacts/Lint/Heuristics.ts` (P: L, E: S)**
   - По логическим единицам (parsing, normalization, dedup, baseline, salience). Делать только если кто-то начнёт активно править эти файлы.
 
-### MR‑8. Задеплоить Firestore rules для biographyJobs strict-read (P: M, E: XS)
-- **Текущее состояние:** rules для `biographyJobs/{jobId}` написаны (`allow read: if isAuthenticated() && resource.data.userId == request.auth.uid`) и в репо после PR #65, но **не задеплоены** в production. Сейчас работают по fallback `match /{document=**} { allow read: if true }`.
-- **Риск:** любой authenticated пользователь, узнавший чужой `jobId`, может прочитать чужой импорт. UUID v4 практически unguessable (122 bits), но это нарушение principle of least privilege. Сейчас в `step1.extract` хранится текст Wikipedia-статьи, в `step4.timeline` — построенный таймлайн с meta. Утечка не критическая, но желательно закрыть.
-- **Команда:** `firebase deploy --only firestore:rules --project psych-dev-site-prod`
-- **Перед деплоем:** убедиться что нет других новых правил которые могут что-то сломать. Сравнить `firestore.rules` локально с проде через `mcp__firebase__firebase_get_security_rules`.
+### MR‑8. Уточнено 2026-05-04: rules-блок задеплоен, но catch-all всё ещё доминирует (P: M, E: S)
+- **Что выяснилось при verify:** `match /biographyJobs/{jobId}` уже в production rules (`mcp__firebase__firebase_get_security_rules` показывает идентичный prod-snapshot с локальным `firestore.rules`). Strict-read как блок написан корректно.
+- **Незакрытая часть:** в самом низу файла остался legacy catch-all `match /{document=**} { allow read: if true; ... }`. Firestore оценивает правила как объединение — любой match с `allow read: if true` отменяет per-uid ограничение биографии. То есть фактически `biographyJobs` всё ещё открыты для любого authenticated пользователя.
+- **Риск:** UUID v4 jobId почти угадать нельзя (122 bits), но это formal principle-of-least-privilege нарушение. В `step1.extract` лежит plain Wikipedia, в `step4.timeline` — собранный таймлайн с meta.
+- **Что нужно (отдельный PR):**
+  1. Перечислить все коллекции, которые сейчас полагаются на catch-all read=true (через grep по приложению + audit). Минимум: `intro/`, `prenatal/`, `early-childhood/`, `preschool/`, `primary-school/`, `adolescence/`, `periods/`, `clinical-topics/`, `general-topics/`, `courses/` уже имеют свои явные `allow read: if true` — они переживут удаление catch-all.
+  2. Решить: либо `match /{document=**} { allow read: if false; allow write: if isAdmin(); }`, либо убрать целиком (если `allow write: if isAdmin()` тоже не нужен в качестве escape hatch).
+  3. Прогнать smoke по всем главным route'ам (особенно guest-чтение `/home`, lesson list, period content) перед деплоем.
+  4. `firebase deploy --only firestore:rules --project psych-dev-site-prod`.
+- **Стояло отметить локально:** в `firestore.rules` рядом с блоком `biographyJobs` оставлен NOTE-комментарий, чтобы будущий читатель сразу видел зависимость от catch-all.
 
 ### MR‑9. Functions Checks CI red — vitest config mismatch (P: L, E: XS)
 - **Симптом:** GitHub Actions job `Functions Checks` падает: `Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vitest' imported from .../vitest.config.ts.timestamp-...mjs`. Происходит при `npm run test` в директории `functions/` — подхватывается **root** `vitest.config.ts`, а не `functions/`-локальный, и в functions/node_modules нет vitest.
