@@ -299,8 +299,15 @@ service cloud.firestore {
     // public-страниц), но приватные секции экзамена выводим из-под этого
     // правила — иначе эссе и имена студентов утекают всем авторизованным
     // пользователям (см. MR-8 про общий баг catch-all).
+    //
+    // document — это `path`; используем сегменты вместо matches со
+    // строкой (rules-compiler жалуется на mismatch типов).
     match /{document=**} {
-      allow read: if !document.matches('exams/.+/(essays|userIndex|bookingDetails)/.+');
+      allow read: if !(
+        document.size() >= 4 &&
+        document[0] == 'exams' &&
+        (document[2] == 'essays' || document[2] == 'userIndex' || document[2] == 'bookingDetails')
+      );
       allow write: if isAdmin();
     }
   }

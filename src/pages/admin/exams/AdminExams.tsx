@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   collection,
   onSnapshot,
-  orderBy,
   query,
   where,
 } from 'firebase/firestore';
@@ -37,15 +36,19 @@ export default function AdminExams() {
     if (!isSuperAdmin) return;
     const q = query(
       collection(db, 'exams'),
-      where('status', '==', 'active'),
-      orderBy('createdAt', 'desc')
+      where('status', '==', 'active')
     );
     const unsub = onSnapshot(
       q,
       (snap) => {
         const next = snap.docs
           .map((d) => normalizeExamDoc(d.id, d.data()))
-          .filter((e): e is Exam => e !== null);
+          .filter((e): e is Exam => e !== null)
+          .sort((a, b) => {
+            const am = a.createdAt?.toMillis?.() ?? 0;
+            const bm = b.createdAt?.toMillis?.() ?? 0;
+            return bm - am;
+          });
         setActiveExams(next);
         setSelectedExamId((prev) => {
           if (prev && next.some((e) => e.id === prev)) return prev;
