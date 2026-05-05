@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { GroupFeedItem } from '../../../types/groupFeed';
 import { formatDueDateRu } from '../utils';
+import { MarkdownView } from '../../../lib/MarkdownView';
 
 interface FeedItemModalProps {
   item: GroupFeedItem | null;
@@ -85,9 +86,10 @@ export function FeedItemModal({ item, onClose }: FeedItemModalProps) {
           </div>
         )}
         {item.longText ? (
-          <div className="mt-4 max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-fg">
-            {item.longText}
-          </div>
+          <MarkdownView
+            source={item.longText}
+            className="mt-4 max-h-[60vh] space-y-2 overflow-y-auto text-sm leading-relaxed text-fg"
+          />
         ) : null}
       </div>
     </div>,
