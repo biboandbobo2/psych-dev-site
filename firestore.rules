@@ -259,8 +259,48 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid;
     }
 
+    // Экзамены и бронирование слотов. Запись (создание слотов и брони) —
+    // только server-side (super-admin вручную через консоль или Cloud
+    // Function под Admin SDK). Клиентам разрешён только read согласно
+    // приватности: публичный факт занятости — всем, имена и эссе — только
+    // владельцу и super-admin.
+    match /exams/{examId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isSuperAdmin();
+
+      // Слот: время начала/конца + map bookings (только {bookedAt} как факт занятости).
+      match /slots/{slotId} {
+        allow read: if isAuthenticated();
+        allow create, update, delete: if isSuperAdmin();
+      }
+
+      // Детали брони (имя, email, slotId, groupId). Document ID = `${slotId}__${groupId}`.
+      // Read: только владелец брони или super-admin. Соседу по слоту имена не видны.
+      match /bookingDetails/{detailsId} {
+        allow read: if isSuperAdmin() ||
+          (isAuthenticated() && resource.data.userId == request.auth.uid);
+        allow create, update, delete: if isSuperAdmin();
+      }
+
+      // Эссе. Read: владелец или super-admin. Write — только server-side.
+      match /essays/{userId} {
+        allow read: if isOwner(userId) || isSuperAdmin();
+        allow create, update, delete: if isSuperAdmin();
+      }
+
+      // Индекс «у юзера есть бронь» (для O(1) проверки уникальности). Read: владелец или super-admin.
+      match /userIndex/{userId} {
+        allow read: if isOwner(userId) || isSuperAdmin();
+        allow create, update, delete: if isSuperAdmin();
+      }
+    }
+
+    // Catch-all. По умолчанию любой документ читаем (нужно для legacy
+    // public-страниц), но приватные секции экзамена выводим из-под этого
+    // правила — иначе эссе и имена студентов утекают всем авторизованным
+    // пользователям (см. MR-8 про общий баг catch-all).
     match /{document=**} {
-      allow read: if true;
+      allow read: if !document.matches('exams/.+/(essays|userIndex|bookingDetails)/.+');
       allow write: if isAdmin();
     }
   }
