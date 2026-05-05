@@ -325,3 +325,4 @@ export { weeklyTranscriptRefresh } from './weeklyTranscriptRefresh.js';
 export { syncGroupCalendars, onGroupEventWrite } from './gcalSync.js';
 export { updateMyEmailPreferences } from './userPreferences.js';
 export { biographyImport } from './biographyImport.js';
+export { bookExamSlot, cancelExamBooking } from './exams.js';
