@@ -29,6 +29,7 @@ import { useCoursesOpenness } from '../../hooks/useCoursesOpenness';
 import { usePlatformNews } from '../../hooks/usePlatformNews';
 import { PlatformNewsSection } from './PlatformNewsSection';
 import { MyAssignmentsSection } from './components/MyAssignmentsSection';
+import { MyExamsSection } from './components/MyExamsSection';
 import { FeedItemModal } from './components/FeedItemModal';
 import { GeneralEventsSection } from './components/GeneralEventsSection';
 import { MyGroupsFeedSection } from './components/MyGroupsFeedSection';
@@ -235,6 +236,8 @@ function StudentDashboard() {
               loading={myFeedLoading}
               onOpen={setOpenFeedItem}
             />
+
+            <MyExamsSection />
 
             <PlatformNewsSection items={platformNews} loading={platformNewsLoading} showEmpty />
           </div>
