@@ -118,6 +118,18 @@ export default function Admin() {
               📝 Страницы
             </Link>
           )}
+          {isSuperAdmin && (
+            <Link
+              to="/superadmin/exams"
+              className={`px-4 py-2 rounded font-medium transition-colors ${
+                location.pathname.startsWith('/superadmin/exams')
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-purple-100 text-purple-900 hover:bg-purple-200'
+              }`}
+            >
+              📅 Экзамены
+            </Link>
+          )}
         </nav>
       )}
 

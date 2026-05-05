@@ -30,6 +30,7 @@ import {
   CourseIntroPage,
   AdminCourseIntro,
   AdminAnnouncements,
+  AdminExams,
   AdminGroups,
   AdminPagesList,
   AdminAboutPageEditor,
@@ -145,6 +146,14 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           element={
             <RequireAdmin>
               <AdminAnnouncements />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/superadmin/exams"
+          element={
+            <RequireAdmin>
+              <AdminExams />
             </RequireAdmin>
           }
         />
