@@ -1080,3 +1080,28 @@ export function useClinicalTopics() {
 - **Проблема:** ~12% лейблов превышают 25 символов. Не критично — UI обрезает через CSS.
 - **Триггер:** Если при рендере на canvas появятся визуальные артефакты из-за длинных лейблов.
 - **Решение:** Runtime обрезка по слову до 25 + «…» или CSS text-overflow.
+
+---
+
+## 🎓 Exam Booking (EX)
+
+> **Гид:** [docs/guides/exam-booking.md](../guides/exam-booking.md)
+> **Тесты:** `functions/src/exams.test.ts` (16), `src/lib/exams/__tests__/` (9), `src/pages/admin/exams/__tests__/` (6).
+
+### EX-1. Smoke с двумя реальными аккаунтами разных потоков (P: M, E: S)
+- **Что не покрыто live:** multi-group user error (`bookExamSlot` отказывает, если юзер в нескольких из `exam.groupIds`), попытка повторной брони у существующего юзера (`already-exists`), приватность чужого эссе через прямой `getDoc(/essays/{otherUid})` (rules должен вернуть permission-denied). Все три ветки покрыты unit-тестами `functions/src/exams.test.ts`, но в проде с реальной Firebase Auth/Rules не проверены.
+- **Триггер:** Когда появятся два студента с реальной комбинацией ролей в разных потоках.
+- **Решение:** Pass через Playwright под двумя сессиями.
+
+### EX-2. Поддержка нескольких активных экзаменов одновременно в /home календаре (P: L, E: S)
+- **Проблема:** `HomeDashboard` мерджит в общий календарь только бронь первого active экзамена (`exams[0]`). Если у юзера будет несколько одновременно (например, общая + клиническая), вторая бронь не видна в `MiniWeekCalendar`/`EventsCalendarModal`. Карточки в `MyExamsSection` отображаются все.
+- **Решение:** multi-subscription хук `useMyExamCalendarEvents()`, который собирает броней по всем `useActiveExamsForMe` через collectionGroup query или массив подписок.
+
+### EX-3. Архив экзаменов и перенос слотов в UI (P: L, E: S)
+- **Что есть:** Хелпер `rescheduleSlot` в `src/lib/exams/examsFirestore.ts`, поле `status='archived'` в БД.
+- **Что нет:** UI-страницы списка архивных, кнопки «Перенести слот» в `SlotDetailsModal`.
+- **Решение:** `/superadmin/exams/archive` + extra кнопка с datetime-local пикером в SlotDetailsModal.
+
+### EX-4. Уведомления о бронировании/отмене (P: M, E: M)
+- **Описание:** Cloud Function trigger на `bookingDetails` write/delete → отправка email или Telegram (как у `sendFeedback`).
+- **Не делалось намеренно** — пользователь сказал «только UI на данном этапе».

@@ -30,6 +30,9 @@ import { usePlatformNews } from '../../hooks/usePlatformNews';
 import { PlatformNewsSection } from './PlatformNewsSection';
 import { MyAssignmentsSection } from './components/MyAssignmentsSection';
 import { MyExamsSection } from './components/MyExamsSection';
+import { useActiveExamsForMe } from '../../hooks/useActiveExamsForMe';
+import { useExam } from '../../hooks/useExam';
+import { useMyExamBooking } from '../../hooks/useMyExamBooking';
 import { FeedItemModal } from './components/FeedItemModal';
 import { GeneralEventsSection } from './components/GeneralEventsSection';
 import { MyGroupsFeedSection } from './components/MyGroupsFeedSection';
@@ -141,16 +144,51 @@ function StudentDashboard() {
     [myFeedItems],
   );
 
+  // Бронь экзамена живёт в /exams и не попадает в groupFeed. Мерджу её
+  // как синтетический ParsedCalendarEvent, чтобы запись отображалась в
+  // мини-неделе и большом календаре наравне с обычными событиями.
+  // Покрываю «один активный экзамен» — для нескольких одновременно нужен
+  // отдельный multi-subscription хук, см. audit-backlog.
+  const { exams: myExams } = useActiveExamsForMe();
+  const primaryExam = myExams[0] ?? null;
+  const { booking: primaryBooking } = useMyExamBooking(primaryExam?.id ?? null);
+  const { slots: primarySlots } = useExam(primaryExam?.id ?? null);
+  const examCalendarEvents = useMemo<ParsedCalendarEvent[]>(() => {
+    if (!primaryExam || !primaryBooking) return [];
+    const slot = primarySlots.find((s) => s.id === primaryBooking.slotId);
+    if (!slot) return [];
+    const startDate = slot.startAt.toDate();
+    const time = startDate.toLocaleTimeString('ru-RU', {
+      timeZone: primaryExam.timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const dateLabel = startDate.toLocaleDateString('ru-RU', {
+      timeZone: primaryExam.timezone,
+      day: '2-digit',
+      month: '2-digit',
+    });
+    return [
+      {
+        id: `exam-${primaryExam.id}`,
+        text: `Экзамен: ${primaryExam.title} в ${time}`,
+        dateLabel: `${dateLabel} ${time}`,
+        parsedDate: startDate,
+        dateKey: toDateKey(startDate),
+      },
+    ];
+  }, [primaryExam, primaryBooking, primarySlots]);
+
   const calendarEventsByDate = useMemo(() => {
     const map = new Map<string, ParsedCalendarEvent[]>();
-    parsedCalendarEvents.forEach((event) => {
+    [...parsedCalendarEvents, ...examCalendarEvents].forEach((event) => {
       if (!event.dateKey) return;
       const current = map.get(event.dateKey);
       if (current) current.push(event);
       else map.set(event.dateKey, [event]);
     });
     return map;
-  }, [parsedCalendarEvents]);
+  }, [parsedCalendarEvents, examCalendarEvents]);
 
   const undatedCalendarEvents = useMemo(
     () => parsedCalendarEvents.filter((event) => !event.dateKey),

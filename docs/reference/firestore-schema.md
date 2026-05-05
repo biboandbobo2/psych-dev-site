@@ -1001,6 +1001,88 @@ service cloud.firestore {
 
 ---
 
+## Бронирование экзамена
+
+### `exams/{examId}`
+
+Конфигурация экзамена. Полный гид: [docs/guides/exam-booking.md](../guides/exam-booking.md).
+
+```typescript
+{
+  title: string;                       // "Зачёт по курсу общей психологии"
+  courseId: string;                    // "general"
+  groupIds: string[];                  // ["stream-first", "студенты-второго-потока-..."]
+  slotDurationMinutes: number;         // 40 по умолчанию
+  essayMinChars: number;               // 1000
+  essayMaxChars: number;               // 3500
+  cancelLeadTimeHours: number;         // 48
+  timezone: string;                    // "Asia/Tbilisi"
+  status: 'active' | 'archived';
+  announcement: { title: string; body: string };
+  createdAt: Timestamp;
+  createdBy: string;
+  updatedAt: Timestamp;
+}
+```
+
+### `exams/{examId}/slots/{slotId}`
+
+Один временной слот. `bookings` — публичный факт занятости (без имён).
+
+```typescript
+{
+  startAt: Timestamp;                  // UTC
+  endAt: Timestamp;                    // = startAt + slotDurationMinutes
+  bookings: Record<string, { bookedAt: Timestamp } | null>;
+  createdAt: Timestamp;
+  createdBy: string;
+}
+```
+
+### `exams/{examId}/bookingDetails/{slotId}__{groupId}`
+
+Приватные детали брони (имя, email). Read только владелец брони + super-admin.
+
+```typescript
+{
+  slotId: string;
+  groupId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  bookedAt: Timestamp;
+}
+```
+
+### `exams/{examId}/essays/{userId}`
+
+Текст эссе. Read только владелец + super-admin. Write — только server-side через Cloud Function.
+
+```typescript
+{
+  userId: string;
+  slotId: string;
+  groupId: string;
+  text: string;
+  charCount: number;
+  createdAt: Timestamp;
+}
+```
+
+### `exams/{examId}/userIndex/{userId}`
+
+Индекс «у юзера есть бронь» — O(1) проверка уникальности «один юзер ≤ одна бронь». Read только владелец + super-admin.
+
+```typescript
+{
+  slotId: string;
+  groupId: string;
+  bookedAt: Timestamp;
+}
+```
+
+---
+
 **Последнее обновление:** 2026-04-28
 
 > **Что обновлено в апреле 2026:**
