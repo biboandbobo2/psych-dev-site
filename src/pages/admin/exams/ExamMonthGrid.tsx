@@ -186,12 +186,23 @@ function SlotBadge({ slot, exam, mode, isMine, myGroupId, onClick }: SlotBadgePr
     }
   }
 
+  // Студенту счётчик «N/M» не нужен — статус для него бинарный
+  // (доступен / моя бронь / недоступен). Админу — наоборот, видна заполняемость.
+  const titleSuffix =
+    mode === 'admin'
+      ? ` — занято ${occupied}/${total}`
+      : isMine
+      ? ' — моя запись'
+      : disabled
+      ? ' — недоступно'
+      : ' — свободно';
+
   return (
     <button
       type="button"
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
-      title={`${shortTime(slot.startAt.toMillis())} — занято ${occupied}/${total}`}
+      title={`${shortTime(slot.startAt.toMillis())}${titleSuffix}`}
       className={`flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[11px] leading-tight ${baseColor} disabled:cursor-not-allowed`}
     >
       <span aria-hidden className="shrink-0">
@@ -200,9 +211,11 @@ function SlotBadge({ slot, exam, mode, isMine, myGroupId, onClick }: SlotBadgePr
       <span className="shrink-0 font-mono text-[10px] opacity-70">
         {shortTime(slot.startAt.toMillis())}
       </span>
-      <span className="truncate">
-        {occupied}/{total}
-      </span>
+      {mode === 'admin' && (
+        <span className="truncate">
+          {occupied}/{total}
+        </span>
+      )}
     </button>
   );
 }
