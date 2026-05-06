@@ -209,6 +209,165 @@ describe('useTimelineCRUD', () => {
       expect(alert).toHaveBeenCalledWith('Возраст должен быть от 0 до 100 лет');
       expect(setNodes).not.toHaveBeenCalled();
     });
+
+    it('B10: editing the age of a branch origin slides edge.startAge/endAge by the same delta', () => {
+      const nodesWithOrigin: NodeT[] = [
+        { id: 'origin', age: 20, x: 2000, label: 'Origin', isDecision: false, sphere: 'career' },
+      ];
+      const edgesFromOrigin: EdgeT[] = [
+        { id: 'e1', x: 2100, startAge: 20, endAge: 30, color: '#000', nodeId: 'origin' },
+      ];
+
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: nodesWithOrigin,
+          edges: edgesFromOrigin,
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+
+      act(() => {
+        result.current.handleFormSubmit(
+          {
+            id: 'origin',
+            age: '25',
+            label: 'Origin',
+            notes: '',
+            sphere: 'career',
+            isDecision: false,
+            icon: null,
+          },
+          null
+        );
+      });
+
+      expect(setEdges).toHaveBeenCalledTimes(1);
+      const edgesArg = setEdges.mock.calls[0]![0];
+      expect(edgesArg[0]).toMatchObject({ id: 'e1', startAge: 25, endAge: 35 });
+    });
+
+    it('B10: clamps endAge to ageMax when origin moves close to ageMax', () => {
+      const nodesWithOrigin: NodeT[] = [
+        { id: 'origin', age: 90, x: 2000, label: 'Old', isDecision: false, sphere: 'career' },
+      ];
+      const edgesFromOrigin: EdgeT[] = [
+        { id: 'e1', x: 2100, startAge: 90, endAge: 95, color: '#000', nodeId: 'origin' },
+      ];
+
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: nodesWithOrigin,
+          edges: edgesFromOrigin,
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+
+      act(() => {
+        result.current.handleFormSubmit(
+          {
+            id: 'origin',
+            age: '98',
+            label: 'Old',
+            notes: '',
+            sphere: 'career',
+            isDecision: false,
+            icon: null,
+          },
+          null
+        );
+      });
+
+      const edgesArg = setEdges.mock.calls[0]![0];
+      expect(edgesArg[0]).toMatchObject({ id: 'e1', startAge: 98, endAge: 100 }); // clamped
+    });
+
+    it('does NOT touch edges when editing an event that is not a branch origin', () => {
+      const nodesWithChild: NodeT[] = [
+        { id: 'child', age: 25, x: 2100, parentX: 2100, label: 'Child', isDecision: false, sphere: 'career' },
+      ];
+      const edgesUnrelated: EdgeT[] = [
+        { id: 'e1', x: 2100, startAge: 20, endAge: 30, color: '#000', nodeId: 'origin' },
+      ];
+
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: nodesWithChild,
+          edges: edgesUnrelated,
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+
+      act(() => {
+        result.current.handleFormSubmit(
+          {
+            id: 'child',
+            age: '27',
+            label: 'Child',
+            notes: '',
+            sphere: 'career',
+            isDecision: false,
+            icon: null,
+          },
+          null
+        );
+      });
+
+      expect(setEdges).not.toHaveBeenCalled();
+    });
+
+    it('does not call setEdges when age is unchanged', () => {
+      const nodesWithOrigin: NodeT[] = [
+        { id: 'origin', age: 20, x: 2000, label: 'Origin', isDecision: false, sphere: 'career' },
+      ];
+      const edgesFromOrigin: EdgeT[] = [
+        { id: 'e1', x: 2100, startAge: 20, endAge: 30, color: '#000', nodeId: 'origin' },
+      ];
+
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: nodesWithOrigin,
+          edges: edgesFromOrigin,
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+
+      act(() => {
+        result.current.handleFormSubmit(
+          {
+            id: 'origin',
+            age: '20',
+            label: 'Renamed',
+            notes: '',
+            sphere: 'career',
+            isDecision: false,
+            icon: null,
+          },
+          null
+        );
+      });
+
+      expect(setEdges).not.toHaveBeenCalled();
+    });
   });
 
   describe('deleteNode', () => {

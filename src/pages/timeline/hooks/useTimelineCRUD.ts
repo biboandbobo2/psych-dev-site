@@ -60,6 +60,8 @@ export function useTimelineCRUD({
 
       if (formData.id) {
         // Edit existing event
+        const original = nodes.find((n) => n.id === formData.id);
+        const oldAge = original?.age;
         const updatedNodes = nodes.map((n) =>
           n.id === formData.id
             ? {
@@ -75,8 +77,30 @@ export function useTimelineCRUD({
               }
             : n
         );
+
+        // B10: if the edited event is the origin of one or more branches,
+        // slide each branch's age window by the same delta so the branch
+        // stays attached to its origin event. Length is preserved.
+        const ageChanged = oldAge !== undefined && oldAge !== parsedAge;
+        let updatedEdges = edges;
+        if (ageChanged) {
+          const deltaAge = parsedAge - oldAge!;
+          let mutated = false;
+          const next = edges.map((e) => {
+            if (e.nodeId !== formData.id) return e;
+            mutated = true;
+            const newStart = e.startAge + deltaAge;
+            const newEnd = Math.min(e.endAge + deltaAge, ageMax);
+            return { ...e, startAge: newStart, endAge: newEnd };
+          });
+          if (mutated) {
+            updatedEdges = next;
+            setEdges(updatedEdges);
+          }
+        }
+
         setNodes(updatedNodes);
-        onHistoryRecord?.(updatedNodes, edges);
+        onHistoryRecord?.(updatedNodes, updatedEdges);
       } else {
         // Add new event
         let eventX = LINE_X_POSITION;
