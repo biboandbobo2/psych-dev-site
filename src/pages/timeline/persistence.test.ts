@@ -88,6 +88,55 @@ describe('timeline persistence', () => {
   });
 });
 
+describe('normalizeImportedTimelineData (B5 healing)', () => {
+  it('heals orphan nodes whose parentX points at no existing branch', () => {
+    const normalized = normalizeImportedTimelineData({
+      currentAge: 30,
+      ageMax: 100,
+      nodes: [
+        { id: 'a', age: 10, label: 'On main', isDecision: false, x: 2000 },
+        // parentX 9999 has no matching edge.x — orphaned
+        { id: 'b', age: 20, label: 'Orphan', isDecision: false, x: 9999, parentX: 9999 },
+      ],
+      edges: [],
+    });
+    const orphan = normalized.nodes.find((n) => n.id === 'b')!;
+    expect(orphan.parentX).toBeUndefined();
+    expect(orphan.x).toBeDefined();
+    expect(orphan.x).not.toBe(9999); // moved to main line
+  });
+
+  it('keeps nodes whose parentX matches an existing edge', () => {
+    const normalized = normalizeImportedTimelineData({
+      currentAge: 30,
+      ageMax: 100,
+      nodes: [
+        { id: 'origin', age: 10, label: 'Origin', isDecision: false, x: 2000 },
+        { id: 'on-branch', age: 20, label: 'On branch', isDecision: false, x: 2100, parentX: 2100 },
+      ],
+      edges: [
+        { id: 'e1', x: 2100, startAge: 10, endAge: 30, color: '#000', nodeId: 'origin' },
+      ],
+    });
+    const onBranch = normalized.nodes.find((n) => n.id === 'on-branch')!;
+    expect(onBranch.parentX).toBe(2100);
+    expect(onBranch.x).toBe(2100);
+  });
+
+  it('drops edges whose origin node is missing (existing behaviour)', () => {
+    const normalized = normalizeImportedTimelineData({
+      currentAge: 30,
+      ageMax: 100,
+      nodes: [{ id: 'a', age: 10, label: 'A', isDecision: false, x: 2000 }],
+      edges: [
+        { id: 'e1', x: 2100, startAge: 10, endAge: 30, color: '#000', nodeId: 'a' },
+        { id: 'broken', x: 2200, startAge: 10, endAge: 30, color: '#000', nodeId: 'missing' },
+      ],
+    });
+    expect(normalized.edges.map((x) => x.id)).toEqual(['e1']);
+  });
+});
+
 describe('hasTimelineContent', () => {
   it('treats post-clearAll state as empty so the biography-import CTA returns', () => {
     expect(
