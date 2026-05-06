@@ -123,6 +123,28 @@ describe('normalizeImportedTimelineData (B5 healing)', () => {
     expect(onBranch.x).toBe(2100);
   });
 
+  it('CRITICAL: dedupes nodes/edges by id when loading a corrupted document', () => {
+    // A canvas damaged by the pre-fix exponential-drag bug can have
+    // the same node id present hundreds of times. normalize must collapse
+    // them to one occurrence on read so the canvas heals next save.
+    const normalized = normalizeImportedTimelineData({
+      currentAge: 30,
+      ageMax: 100,
+      nodes: [
+        { id: 'a', age: 10, label: 'A', isDecision: false, x: 2000 },
+        { id: 'a', age: 10, label: 'A', isDecision: false, x: 2000 },
+        { id: 'a', age: 10, label: 'A', isDecision: false, x: 2000 },
+        { id: 'b', age: 20, label: 'B', isDecision: false, x: 2000 },
+      ],
+      edges: [
+        { id: 'e1', x: 2100, startAge: 10, endAge: 30, color: '#000', nodeId: 'a' },
+        { id: 'e1', x: 2100, startAge: 10, endAge: 30, color: '#000', nodeId: 'a' },
+      ],
+    });
+    expect(normalized.nodes.map((n) => n.id).sort()).toEqual(['a', 'b']);
+    expect(normalized.edges.map((e) => e.id)).toEqual(['e1']);
+  });
+
   it('drops edges whose origin node is missing (existing behaviour)', () => {
     const normalized = normalizeImportedTimelineData({
       currentAge: 30,

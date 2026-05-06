@@ -102,6 +102,38 @@ describe('buildTimelineTree', () => {
     expect(out.map((x) => x.id)).toEqual(['e1']);
   });
 
+  it('CRITICAL: a node only enters the tree once, even when two branches share x', () => {
+    // Real production regression — two edges with the same x both
+    // pulled the same nodesByParentX[x] list, so events on the branch
+    // got duplicated. Drag → flatten → setNodes then doubled the
+    // state on every mousemove, blowing up to tens of thousands.
+    const nodes = [
+      n('a', 10, { x: LINE_X_POSITION }),
+      n('on-shared', 20, { x: 2100, parentX: 2100 }),
+    ];
+    const edges = [
+      e('e1', 2100, 'a'),
+      e('e2', 2100, 'a'), // legacy: same x as e1
+    ];
+    const flat = flattenTree(buildTimelineTree(nodes, edges));
+    expect(flat.nodes.filter((x) => x.id === 'on-shared')).toHaveLength(1);
+  });
+
+  it('CRITICAL: drag flatten/build is idempotent (no state explosion)', () => {
+    const nodes = [
+      n('a', 10, { x: LINE_X_POSITION }),
+      n('on-shared', 20, { x: 2100, parentX: 2100 }),
+    ];
+    const edges = [e('e1', 2100, 'a'), e('e2', 2100, 'a')];
+
+    let state = { nodes, edges };
+    for (let i = 0; i < 20; i++) {
+      state = flattenTree(buildTimelineTree(state.nodes, state.edges));
+    }
+    // Without dedup this would be ~2^20. With dedup it stays at 2.
+    expect(state.nodes).toHaveLength(2);
+  });
+
   it('rescues orphan nodes (parentX with no matching edge) as roots', () => {
     const nodes = [
       n('a', 10, { x: LINE_X_POSITION }),

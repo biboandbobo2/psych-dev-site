@@ -65,28 +65,43 @@ export function buildTimelineTree(nodes: NodeT[], edges: EdgeT[]): TimelineTree 
     }
   }
 
-  // Track which edge.x have been claimed by a parent so that orphan
-  // detection knows what's reachable. Multiple edges can share the same
-  // x (legacy bug B12): the tree picks the first one and treats the rest
-  // as siblings under the same node — flattenTree preserves them.
+  // CRITICAL: every event must enter the tree exactly once. If two
+  // legacy branches share the same edge.x, both nodesByParentX[edge.x]
+  // lookups return the same array — without this dedup, flattenTree
+  // would output the events twice, drag → flatten → setNodes
+  // re-feeds the doubled state on the next move, and node count
+  // explodes 2× per mousemove (real production incident:
+  // ~60k events after a few seconds of dragging).
+  const claimedNodeIds = new Set<string>();
   const claimedEdgeXs = new Set<number>();
 
   function buildEvent(node: NodeT): TimelineTreeNode {
+    claimedNodeIds.add(node.id);
     const branches = (edgesByOrigin.get(node.id) ?? []).map((edge): TimelineTreeBranch => {
       claimedEdgeXs.add(edge.x);
-      const eventsOnBranch = (nodesByParentX.get(edge.x) ?? []).map(buildEvent);
+      const candidates = nodesByParentX.get(edge.x) ?? [];
+      const eventsOnBranch: TimelineTreeNode[] = [];
+      for (const candidate of candidates) {
+        if (claimedNodeIds.has(candidate.id)) continue;
+        eventsOnBranch.push(buildEvent(candidate));
+      }
       return { data: edge, events: eventsOnBranch };
     });
     return { data: node, branches };
   }
 
-  const tree: TimelineTree = rootNodes.map(buildEvent);
+  const tree: TimelineTree = [];
+  for (const root of rootNodes) {
+    if (claimedNodeIds.has(root.id)) continue;
+    tree.push(buildEvent(root));
+  }
 
   // Orphan nodes whose parentX points at no existing edge — surface them
   // as extra roots so they don't silently disappear.
   for (const [parentX, orphans] of nodesByParentX) {
     if (claimedEdgeXs.has(parentX)) continue;
     for (const orphan of orphans) {
+      if (claimedNodeIds.has(orphan.id)) continue;
       tree.push(buildEvent(orphan));
     }
   }
