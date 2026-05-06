@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyBranchDeletionToFlat,
   applyDragToTree,
   buildTimelineTree,
   collectDescendantIds,
@@ -318,5 +319,83 @@ describe('collectDescendantIds (B6 + B7 regression)', () => {
   it('returns null when the event is not in the tree', () => {
     const { tree } = setup();
     expect(collectDescendantIds(tree, 'no-such-id')).toBeNull();
+  });
+});
+
+describe('applyBranchDeletionToFlat (B8 regression)', () => {
+  // Topology:
+  //   ROOT a (x=2000) on main line
+  //     └─ branch e1 (x=2100)
+  //         └─ b (x=2100, parentX=2100)
+  //             └─ branch e2 (x=2200)
+  //                 └─ c (x=2230, parentX=2200, +30 offset)
+  // Deleting e1 should:
+  //  - move b to the main line (x=2000), parentX=undefined (since a is root)
+  //  - shift e2 to x=2100 (delta = -100), c follows to x=2130 (offset preserved)
+  function setup() {
+    const nodes = [
+      n('a', 10, { x: LINE_X_POSITION }),
+      n('b', 20, { x: 2100, parentX: 2100 }),
+      n('c', 30, { x: 2230, parentX: 2200 }),
+    ];
+    const edges = [e('e1', 2100, 'a'), e('e2', 2200, 'b')];
+    return { nodes, edges };
+  }
+
+  it('B8: migrates events to the parent line (node.x updated, not just parentX)', () => {
+    const { nodes, edges } = setup();
+    const out = applyBranchDeletionToFlat(nodes, edges, 'e1');
+    const b = out.nodes.find((x) => x.id === 'b')!;
+    expect(b.x).toBe(LINE_X_POSITION); // collapsed onto main line
+    expect(b.parentX).toBeUndefined(); // origin a is root → migrant becomes root
+  });
+
+  it('drops the deleted branch from edges', () => {
+    const { nodes, edges } = setup();
+    const out = applyBranchDeletionToFlat(nodes, edges, 'e1');
+    expect(out.edges.find((x) => x.id === 'e1')).toBeUndefined();
+  });
+
+  it('drags grand-branch e2 with the migrated event b', () => {
+    const { nodes, edges } = setup();
+    const out = applyBranchDeletionToFlat(nodes, edges, 'e1');
+    const e2 = out.edges.find((x) => x.id === 'e2')!;
+    expect(e2.x).toBe(2100); // 2200 + (2000 - 2100)
+  });
+
+  it('preserves per-event offset on grand-branch descendants', () => {
+    const { nodes, edges } = setup();
+    const out = applyBranchDeletionToFlat(nodes, edges, 'e1');
+    const c = out.nodes.find((x) => x.id === 'c')!;
+    expect(c.x).toBe(2130); // 2230 + delta(-100), offset of +30 preserved
+    expect(c.parentX).toBe(2100); // re-anchored to the moved e2
+  });
+
+  it('migrates onto a non-root line when origin event lives on another branch', () => {
+    // a (root) → branch e1 → b on e1 → branch e2 → c on e2 → branch e3 → d on e3
+    // delete e3 → d should move to b's line (x=2100, parentX=undefined? no — parent of d is c, which lives on e2)
+    // After deletion, d should sit at c.x with parentX=e2.x.
+    const nodes = [
+      n('a', 10, { x: LINE_X_POSITION }),
+      n('b', 20, { x: 2100, parentX: 2100 }),
+      n('c', 30, { x: 2200, parentX: 2200 }),
+      n('d', 40, { x: 2300, parentX: 2300 }),
+    ];
+    const edges = [
+      e('e1', 2100, 'a'),
+      e('e2', 2200, 'b'),
+      e('e3', 2300, 'c'),
+    ];
+    const out = applyBranchDeletionToFlat(nodes, edges, 'e3');
+    const d = out.nodes.find((x) => x.id === 'd')!;
+    expect(d.x).toBe(2200); // c's x
+    expect(d.parentX).toBe(2200); // c lives on e2 (x=2200)
+  });
+
+  it('returns input unchanged when edge id is unknown', () => {
+    const { nodes, edges } = setup();
+    const out = applyBranchDeletionToFlat(nodes, edges, 'no-such-edge');
+    expect(out.nodes).toEqual(nodes);
+    expect(out.edges).toEqual(edges);
   });
 });

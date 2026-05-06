@@ -195,6 +195,89 @@ function shiftEventOnShiftedBranch(
 }
 
 /**
+ * Delete a branch and migrate every event living on it to the parent
+ * line (the line where the branch's origin event sits). Each migrated
+ * event also brings its own grand-branches and their events along —
+ * those keep their per-event offsets relative to their own branch.
+ *
+ * Fixes B8 — the previous implementation only rewrote `parentX` and
+ * left `node.x` on the deleted branch's coordinate, so events visually
+ * "hung in the air" instead of joining the parent line.
+ *
+ * Returns the original arrays unchanged if the edge isn't found.
+ */
+export function applyBranchDeletionToFlat(
+  nodes: NodeT[],
+  edges: EdgeT[],
+  edgeId: string
+): { nodes: NodeT[]; edges: EdgeT[] } {
+  const tree = buildTimelineTree(nodes, edges);
+
+  const branchEdge = edges.find((e) => e.id === edgeId);
+  if (!branchEdge) return { nodes, edges };
+
+  const originInTree = findEventInTree(tree, branchEdge.nodeId);
+  if (!originInTree) {
+    // Origin event missing — drop the edge, leave events that pointed
+    // at it as orphans recoverable by the next operation. Defensive.
+    return { nodes, edges: edges.filter((e) => e.id !== edgeId) };
+  }
+  const branchInTree = originInTree.branches.find((b) => b.data.id === edgeId);
+  if (!branchInTree) return { nodes, edges };
+
+  const newParentLineX = originInTree.data.x ?? LINE_X_POSITION;
+  const newAnchorParentX = originInTree.data.parentX; // where origin lives
+
+  const updatedNodes = new Map<string, NodeT>();
+  const updatedEdges = new Map<string, EdgeT>();
+
+  // Top-level migrant: collapses to the new parent line (no offset).
+  function migrateTopLevel(event: TimelineTreeNode) {
+    const oldX = event.data.x ?? LINE_X_POSITION;
+    const deltaX = newParentLineX - oldX;
+    updatedNodes.set(event.data.id, {
+      ...event.data,
+      x: newParentLineX,
+      parentX: newAnchorParentX,
+    });
+    for (const branch of event.branches) {
+      shiftBranch(branch, deltaX);
+    }
+  }
+
+  // Descendant migrant: preserves its per-event offset relative to its
+  // own branch — only the absolute coordinates slide by deltaX.
+  function migrateDescendant(event: TimelineTreeNode, deltaX: number, newOwnParentX: number) {
+    const oldX = event.data.x ?? LINE_X_POSITION;
+    updatedNodes.set(event.data.id, {
+      ...event.data,
+      x: oldX + deltaX,
+      parentX: newOwnParentX,
+    });
+    for (const branch of event.branches) {
+      shiftBranch(branch, deltaX);
+    }
+  }
+
+  function shiftBranch(branch: TimelineTreeBranch, deltaX: number) {
+    const newBranchX = branch.data.x + deltaX;
+    updatedEdges.set(branch.data.id, { ...branch.data, x: newBranchX });
+    for (const child of branch.events) {
+      migrateDescendant(child, deltaX, newBranchX);
+    }
+  }
+
+  for (const child of branchInTree.events) migrateTopLevel(child);
+
+  return {
+    nodes: nodes.map((n) => updatedNodes.get(n.id) ?? n),
+    edges: edges
+      .filter((e) => e.id !== edgeId)
+      .map((e) => updatedEdges.get(e.id) ?? e),
+  };
+}
+
+/**
  * Collect every event id and every edge id reachable from `eventId` in
  * the tree, including `eventId` itself. Returns null if `eventId` is
  * not in the tree (caller should fall back to id-only delete).

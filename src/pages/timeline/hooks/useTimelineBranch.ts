@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { LINE_X_POSITION, SPHERE_META } from '../constants';
+import { applyBranchDeletionToFlat } from '../utils/timelineTree';
 import type { NodeT, EdgeT } from '../types';
 
 interface UseTimelineBranchOptions {
@@ -111,7 +112,10 @@ export function useTimelineBranch({
   }, [selectedEdge, branchYears, ageMax, edges, nodes, setEdges, onHistoryRecord]);
 
   /**
-   * Delete branch and move events to parent line
+   * Delete branch and migrate every event on it (with its grand-branches)
+   * to the parent line. The actual topology walk lives in
+   * applyBranchDeletionToFlat — fixes B8 by also moving node.x, not just
+   * parentX, so migrated events end up on the line and not in midair.
    */
   const deleteBranch = useCallback(() => {
     if (!selectedEdge) return;
@@ -121,23 +125,11 @@ export function useTimelineBranch({
     );
     if (!confirmed) return;
 
-    // Find parent line of the branch being deleted
-    const originNode = nodes.find((n) => n.id === selectedEdge.nodeId);
-    const branchParentX = originNode?.parentX ?? LINE_X_POSITION;
-
-    // Update parentX for all events on this branch
-    const updatedNodes = nodes.map((node) => {
-      if (node.parentX === selectedEdge.x) {
-        return {
-          ...node,
-          parentX: branchParentX === LINE_X_POSITION ? undefined : branchParentX,
-        };
-      }
-      return node;
-    });
-
-    // Delete branch
-    const updatedEdges = edges.filter((e) => e.id !== selectedEdge.id);
+    const { nodes: updatedNodes, edges: updatedEdges } = applyBranchDeletionToFlat(
+      nodes,
+      edges,
+      selectedEdge.id
+    );
 
     setNodes(updatedNodes);
     setEdges(updatedEdges);
