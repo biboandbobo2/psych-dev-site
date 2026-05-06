@@ -49,6 +49,47 @@ describe('useTimelineBranch', () => {
       expect(setEdges).not.toHaveBeenCalled();
     });
 
+    it('B12: offsets a new branch when source event already sits on one', () => {
+      // Event b lives on existing branch e1 at x=2100. Creating a new
+      // branch from b should pick the next free x, not collide with e1.
+      const b: NodeT = {
+        id: 'b',
+        age: 25,
+        x: 2100,
+        parentX: 2100,
+        label: 'B',
+        isDecision: false,
+        sphere: 'career',
+      };
+      const existing: EdgeT = {
+        id: 'e1',
+        x: 2100,
+        startAge: 20,
+        endAge: 35,
+        color: '#000',
+        nodeId: 'origin',
+      };
+      const { result } = renderHook(() =>
+        useTimelineBranch({
+          nodes: [b],
+          edges: [existing],
+          setNodes,
+          setEdges,
+          ageMax: 100,
+          onHistoryRecord,
+          onClearForm,
+        })
+      );
+
+      act(() => result.current.setBranchYears('5'));
+      act(() => result.current.extendBranch(b));
+
+      const edgesArg = setEdges.mock.calls[0]![0];
+      const newBranch = edgesArg.find((edge: EdgeT) => edge.id !== 'e1')!;
+      expect(newBranch.x).toBeGreaterThan(2100); // shifted away from existing
+      expect(newBranch.nodeId).toBe('b');
+    });
+
     it('creates a branch that fits within ageMax', () => {
       const node: NodeT = {
         id: 'n1',
