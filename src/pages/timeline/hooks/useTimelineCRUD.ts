@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { LINE_X_POSITION } from '../constants';
 import { parseAge } from '../utils';
+import { buildTimelineTree, collectDescendantIds } from '../utils/timelineTree';
 import type { NodeT, EdgeT, Sphere, EventIconId } from '../types';
 
 interface UseTimelineCRUDOptions {
@@ -153,13 +154,28 @@ export function useTimelineCRUD({
   );
 
   /**
-   * Delete a node and all its branches
+   * Delete a node and the entire subtree rooted at it: every direct
+   * branch from the event, every event living on those branches, and
+   * (recursively) any branches and events those carry. Walks the
+   * topology tree so nothing is left orphaned in Firestore — fixes
+   * B6 (events on deleted branches) and B7 (cascade past one level).
    */
   const deleteNode = useCallback(
     (id: string) => {
-      setNodes(nodes.filter((n) => n.id !== id));
-      // Also delete all branches connected to this event
-      setEdges(edges.filter((e) => e.nodeId !== id));
+      const tree = buildTimelineTree(nodes, edges);
+      const collected = collectDescendantIds(tree, id);
+
+      if (!collected) {
+        // Event isn't in the tree (orphan with broken parentX, or
+        // already gone). Defensive single-id delete.
+        setNodes(nodes.filter((n) => n.id !== id));
+        setEdges(edges.filter((e) => e.nodeId !== id));
+      } else {
+        const { eventIds, edgeIds } = collected;
+        setNodes(nodes.filter((n) => !eventIds.has(n.id)));
+        setEdges(edges.filter((e) => !edgeIds.has(e.id)));
+      }
+
       onClearForm?.();
       onHistoryRecord?.();
     },

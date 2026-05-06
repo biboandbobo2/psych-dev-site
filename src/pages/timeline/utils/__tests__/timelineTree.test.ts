@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyDragToTree,
   buildTimelineTree,
+  collectDescendantIds,
   findEventInTree,
   flattenTree,
   mapTree,
@@ -268,5 +269,54 @@ describe('applyDragToTree (B1 + B2 regression)', () => {
     const { tree } = setup();
     const next = applyDragToTree(tree, 'no-such-id', 9999, 100);
     expect(flattenTree(next)).toEqual(flattenTree(tree));
+  });
+});
+
+describe('collectDescendantIds (B6 + B7 regression)', () => {
+  // Same topology as applyDragToTree tests:
+  //   ROOT a → branch e1 → b, c → b's branch e2 → d
+  function setup() {
+    const nodes = [
+      n('a', 10, { x: LINE_X_POSITION }),
+      n('b', 20, { x: 2100, parentX: 2100 }),
+      n('c', 25, { x: 2100, parentX: 2100 }),
+      n('d', 30, { x: 2200, parentX: 2200 }),
+    ];
+    const edges = [e('e1', 2100, 'a'), e('e2', 2200, 'b')];
+    return { tree: buildTimelineTree(nodes, edges) };
+  }
+
+  it('B6: deleting the root collects every descendant event AND edge', () => {
+    const { tree } = setup();
+    const collected = collectDescendantIds(tree, 'a');
+    expect(collected).not.toBeNull();
+    expect([...collected!.eventIds].sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect([...collected!.edgeIds].sort()).toEqual(['e1', 'e2']);
+  });
+
+  it('B7: deleting an event on a branch cascades into its grand-branch', () => {
+    const { tree } = setup();
+    const collected = collectDescendantIds(tree, 'b');
+    expect([...collected!.eventIds].sort()).toEqual(['b', 'd']);
+    expect([...collected!.edgeIds]).toEqual(['e2']);
+  });
+
+  it('deleting a leaf event has no descendants beyond itself', () => {
+    const { tree } = setup();
+    const collected = collectDescendantIds(tree, 'd');
+    expect([...collected!.eventIds]).toEqual(['d']);
+    expect([...collected!.edgeIds]).toEqual([]);
+  });
+
+  it('deleting a sibling does NOT collect the other sibling', () => {
+    const { tree } = setup();
+    const collected = collectDescendantIds(tree, 'c');
+    expect([...collected!.eventIds]).toEqual(['c']); // no 'b'
+    expect([...collected!.edgeIds]).toEqual([]);
+  });
+
+  it('returns null when the event is not in the tree', () => {
+    const { tree } = setup();
+    expect(collectDescendantIds(tree, 'no-such-id')).toBeNull();
   });
 });

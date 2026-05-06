@@ -195,6 +195,39 @@ function shiftEventOnShiftedBranch(
 }
 
 /**
+ * Collect every event id and every edge id reachable from `eventId` in
+ * the tree, including `eventId` itself. Returns null if `eventId` is
+ * not in the tree (caller should fall back to id-only delete).
+ *
+ * Used by deleteNode to drop the entire subtree of an event in one
+ * pass — fixes B6 (orphan branch events left behind) and B7 (cascade
+ * not going past one level).
+ */
+export function collectDescendantIds(
+  tree: TimelineTree,
+  eventId: string
+): { eventIds: Set<string>; edgeIds: Set<string> } | null {
+  const subtree = findEventInTree(tree, eventId);
+  if (!subtree) return null;
+  const eventIds = new Set<string>();
+  const edgeIds = new Set<string>();
+  collectSubtreeIds(subtree, eventIds, edgeIds);
+  return { eventIds, edgeIds };
+}
+
+function collectSubtreeIds(
+  event: TimelineTreeNode,
+  eventIds: Set<string>,
+  edgeIds: Set<string>
+): void {
+  eventIds.add(event.data.id);
+  for (const branch of event.branches) {
+    edgeIds.add(branch.data.id);
+    for (const child of branch.events) collectSubtreeIds(child, eventIds, edgeIds);
+  }
+}
+
+/**
  * Map every event in the tree, optionally also transforming branches.
  * Used by drag/edit operations to produce a new tree without mutating.
  */
