@@ -62,12 +62,22 @@ export function useTimelineBranch({
         return;
       }
 
+      // B13: clamp endAge to ageMax — отказ вместо тихого создания
+      // ветки за пределами холста.
+      const proposedEndAge = selectedNode.age + years;
+      if (proposedEndAge > ageMax) {
+        alert(
+          `Ветка не помещается на холсте. Максимальная длина — ${ageMax - selectedNode.age} лет (до ${ageMax}-летия).`
+        );
+        return;
+      }
+
       const meta = SPHERE_META[selectedNode.sphere];
       const edge: EdgeT = {
         id: crypto.randomUUID(),
         x: nodeX,
         startAge: selectedNode.age,
-        endAge: selectedNode.age + years,
+        endAge: proposedEndAge,
         color: meta.color,
         nodeId: selectedNode.id,
       };
@@ -101,6 +111,25 @@ export function useTimelineBranch({
     if (newEndAge > ageMax) {
       alert(`Максимальный возраст: ${ageMax} лет`);
       return;
+    }
+
+    // B14: refuse to shorten the branch past events that already live
+    // on it — those events would silently orphan above the new endAge.
+    if (newEndAge < selectedEdge.endAge) {
+      const eventsBeyond = nodes.filter(
+        (n) => n.parentX === selectedEdge.x && n.age > newEndAge
+      );
+      if (eventsBeyond.length > 0) {
+        const sample = eventsBeyond
+          .slice(0, 3)
+          .map((n) => `«${n.label}» (${n.age} лет)`)
+          .join(', ');
+        const more = eventsBeyond.length > 3 ? ` и ещё ${eventsBeyond.length - 3}` : '';
+        alert(
+          `На ветке есть события за пределами новой длины: ${sample}${more}. Сначала перенесите их или удалите.`
+        );
+        return;
+      }
     }
 
     // Update branch

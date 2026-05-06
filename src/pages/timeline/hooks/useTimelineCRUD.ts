@@ -62,6 +62,26 @@ export function useTimelineCRUD({
         // Edit existing event
         const original = nodes.find((n) => n.id === formData.id);
         const oldAge = original?.age;
+
+        // B11: if the edited event lives on a branch, the new age must
+        // stay within that branch's age window — otherwise it would
+        // visually orphan above/below the line that anchors it.
+        if (
+          original &&
+          original.parentX !== undefined &&
+          original.parentX !== LINE_X_POSITION
+        ) {
+          const parentBranch = edges.find((e) => e.x === original.parentX);
+          if (
+            parentBranch &&
+            (parsedAge < parentBranch.startAge || parsedAge > parentBranch.endAge)
+          ) {
+            alert(
+              `Возраст ${parsedAge} вне диапазона ветки (${parentBranch.startAge}–${parentBranch.endAge} лет). Сначала измените длину ветки или перенесите событие на главную линию.`
+            );
+            return;
+          }
+        }
         const updatedNodes = nodes.map((n) =>
           n.id === formData.id
             ? {

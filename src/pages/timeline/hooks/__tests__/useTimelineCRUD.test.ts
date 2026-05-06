@@ -330,6 +330,85 @@ describe('useTimelineCRUD', () => {
       expect(setEdges).not.toHaveBeenCalled();
     });
 
+    it('B11: rejects an edit that pushes a branch event outside the branch range', () => {
+      const nodesOnBranch: NodeT[] = [
+        { id: 'b', age: 25, x: 2100, parentX: 2100, label: 'Event', isDecision: false, sphere: 'career' },
+      ];
+      const branchEdge: EdgeT[] = [
+        { id: 'e1', x: 2100, startAge: 20, endAge: 30, color: '#000', nodeId: 'origin' },
+      ];
+
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: nodesOnBranch,
+          edges: branchEdge,
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+
+      act(() => {
+        result.current.handleFormSubmit(
+          {
+            id: 'b',
+            age: '50', // outside [20, 30]
+            label: 'Event',
+            notes: '',
+            sphere: 'career',
+            isDecision: false,
+            icon: null,
+          },
+          null
+        );
+      });
+
+      expect(alert).toHaveBeenCalledWith(expect.stringContaining('вне диапазона ветки'));
+      expect(setNodes).not.toHaveBeenCalled();
+    });
+
+    it('B11: allows an edit that stays within the branch range', () => {
+      const nodesOnBranch: NodeT[] = [
+        { id: 'b', age: 25, x: 2100, parentX: 2100, label: 'Event', isDecision: false, sphere: 'career' },
+      ];
+      const branchEdge: EdgeT[] = [
+        { id: 'e1', x: 2100, startAge: 20, endAge: 30, color: '#000', nodeId: 'origin' },
+      ];
+
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: nodesOnBranch,
+          edges: branchEdge,
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+
+      act(() => {
+        result.current.handleFormSubmit(
+          {
+            id: 'b',
+            age: '28', // inside [20, 30]
+            label: 'Event',
+            notes: '',
+            sphere: 'career',
+            isDecision: false,
+            icon: null,
+          },
+          null
+        );
+      });
+
+      expect(setNodes).toHaveBeenCalled();
+    });
+
     it('does not call setEdges when age is unchanged', () => {
       const nodesWithOrigin: NodeT[] = [
         { id: 'origin', age: 20, x: 2000, label: 'Origin', isDecision: false, sphere: 'career' },
