@@ -44,7 +44,7 @@ export function useTimelineCRUD({
    * Create or update an event
    */
   const handleFormSubmit = useCallback(
-    (formData: FormEventData, selectedBranchX: number | null) => {
+    (formData: FormEventData, selectedBranchId: string | null) => {
       if (!formData.label.trim()) return;
 
       if (!formData.age.trim()) {
@@ -124,42 +124,27 @@ export function useTimelineCRUD({
       } else {
         // Add new event
         let eventX = LINE_X_POSITION;
+        let eventParentX: number | undefined = undefined;
         let eventSphere = formData.sphere;
 
-        // If branch is selected, check if age falls within its range
-        if (selectedBranchX !== null) {
-          // Find edge with matching X that covers the specified age
-          const selectedEdge = edges.find(
-            (e) => e.x === selectedBranchX && parsedAge >= e.startAge && parsedAge <= e.endAge
-          );
-
+        if (selectedBranchId !== null) {
+          const selectedEdge = edges.find((e) => e.id === selectedBranchId);
           if (selectedEdge) {
-            // Age falls within branch range
-            eventX = selectedBranchX;
-
-            // Take sphere from branch origin node (always, if not manually specified)
+            const inRange = parsedAge >= selectedEdge.startAge && parsedAge <= selectedEdge.endAge;
+            if (inRange) {
+              eventX = selectedEdge.x;
+              eventParentX = selectedEdge.x;
+            } else {
+              alert(
+                `Возраст события (${parsedAge} лет) не попадает в диапазон выбранной ветки (${selectedEdge.startAge}-${selectedEdge.endAge} лет). Событие будет добавлено на основную линию жизни.`
+              );
+            }
+            // Auto-pickup sphere from branch origin even if age out of range.
             if (!eventSphere) {
               const originNode = nodes.find((n) => n.id === selectedEdge.nodeId);
               if (originNode && originNode.sphere) {
                 eventSphere = originNode.sphere;
               }
-            }
-          } else {
-            // If no exact match, try to find any branch with this X
-            // and take sphere from its origin node (for auto-pickup)
-            const anyEdgeAtX = edges.find((e) => e.x === selectedBranchX);
-            if (anyEdgeAtX) {
-              // Auto-pickup sphere even if age not in range
-              if (!eventSphere) {
-                const originNode = nodes.find((n) => n.id === anyEdgeAtX.nodeId);
-                if (originNode && originNode.sphere) {
-                  eventSphere = originNode.sphere;
-                }
-              }
-
-              alert(
-                `Возраст события (${parsedAge} лет) не попадает в диапазон выбранной ветки (${anyEdgeAtX.startAge}-${anyEdgeAtX.endAge} лет). Событие будет добавлено на основную линию жизни.`
-              );
             }
           }
         }
@@ -168,7 +153,7 @@ export function useTimelineCRUD({
           id: crypto.randomUUID(),
           age: parsedAge,
           x: eventX,
-          parentX: selectedBranchX ?? undefined, // Remember parent line
+          parentX: eventParentX, // Branch x (or undefined for main line)
           label: formData.label,
           notes: formData.notes,
           sphere: eventSphere,

@@ -26,11 +26,13 @@ export function useTimelineBranch({
   onClearForm,
 }: UseTimelineBranchOptions) {
   const [branchYears, setBranchYears] = useState<string>('5');
-  const [selectedBranchX, setSelectedBranchX] = useState<number | null>(null);
+  // B15: identify the current selection by edge.id, not by x — two
+  // branches can legitimately share an x-coord (legacy data) and id
+  // is the actual primary key.
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
 
-  // Get currently selected edge
-  const selectedEdge = selectedBranchX !== null
-    ? edges.find((e) => e.x === selectedBranchX) ?? null
+  const selectedEdge = selectedBranchId
+    ? edges.find((e) => e.id === selectedBranchId) ?? null
     : null;
 
   /**
@@ -98,7 +100,7 @@ export function useTimelineBranch({
 
       // Clear form and deselect
       onClearForm?.();
-      setSelectedBranchX(null);
+      setSelectedBranchId(null);
     },
     [branchYears, edges, nodes, setEdges, onHistoryRecord, onClearForm]
   );
@@ -172,7 +174,7 @@ export function useTimelineBranch({
 
     setNodes(updatedNodes);
     setEdges(updatedEdges);
-    setSelectedBranchX(null); // Deselect
+    setSelectedBranchId(null); // Deselect
     onHistoryRecord?.(updatedNodes, updatedEdges);
   }, [selectedEdge, nodes, edges, setNodes, setEdges, onHistoryRecord]);
 
@@ -193,28 +195,28 @@ export function useTimelineBranch({
   );
 
   /**
-   * Select a branch for editing
+   * Select a branch for editing — by edge.id, the primary key.
    */
-  const handleSelectBranch = useCallback((x: number) => {
-    setSelectedBranchX(x);
+  const handleSelectBranch = useCallback((edgeId: string) => {
+    setSelectedBranchId(edgeId);
   }, []);
 
   /**
    * Deselect branch
    */
   const handleHideBranchEditor = useCallback(() => {
-    setSelectedBranchX(null);
+    setSelectedBranchId(null);
   }, []);
 
   return {
     // State
     branchYears,
-    selectedBranchX,
+    selectedBranchId,
     selectedEdge,
 
     // Setters
     setBranchYears,
-    setSelectedBranchX,
+    setSelectedBranchId,
 
     // Handlers
     extendBranch,

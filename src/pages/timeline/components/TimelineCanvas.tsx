@@ -23,7 +23,7 @@ interface TimelineCanvasProps {
   onNodeClick: (nodeId: string) => void;
   onNodeDragStart: (event: PointerEvent, nodeId: string) => void;
   onPeriodBoundaryClick: (periodIndex: number) => void;
-  onSelectBranch: (x: number) => void;
+  onSelectBranch: (edgeId: string) => void;
   onClearSelection: () => void;
   onSelectBirth: () => void;
   worldWidth: number;
@@ -34,7 +34,7 @@ interface TimelineCanvasProps {
   edges: EdgeT[];
   selectedPeriodization: string | null;
   selectedId: string | null;
-  selectedBranchX: number | null;
+  selectedBranchId: string | null;
   draggingNodeId: string | null;
   birthSelected: boolean;
   birthBaseYear: number | null;
@@ -65,7 +65,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
     edges,
     selectedPeriodization,
     selectedId,
-    selectedBranchX,
+    selectedBranchId,
     draggingNodeId,
     birthSelected,
     birthBaseYear,
@@ -181,7 +181,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
             x2={LINE_X_POSITION}
             y2={worldHeight - currentAge * YEAR_PX}
             stroke="#93c5fd"
-            strokeWidth={selectedBranchX === null ? 16 : 11}
+            strokeWidth={selectedBranchId === null ? 16 : 11}
             strokeLinecap="round"
             onClick={(e) => {
               e.stopPropagation();
@@ -197,7 +197,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
             x2={LINE_X_POSITION}
             y2={worldHeight - ageMax * YEAR_PX}
             stroke="#cbd5e1"
-            strokeWidth={selectedBranchX === null ? 16 : 11}
+            strokeWidth={selectedBranchId === null ? 16 : 11}
             strokeLinecap="round"
             strokeDasharray="10 5"
             onClick={(e) => {
@@ -267,7 +267,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
           </g>
 
           {validEdges.map((edge) => {
-              const isSelected = selectedBranchX === edge.x;
+              const isSelected = selectedBranchId === edge.id;
               const originNode = validNodes.find((node) => node.id === edge.nodeId);
               const originX = originNode?.x ?? LINE_X_POSITION;
               const connectorY = worldHeight - edge.startAge * YEAR_PX;
@@ -291,7 +291,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                         strokeLinecap="round"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onSelectBranch(edge.x);
+                          onSelectBranch(edge.id);
                         }}
                         className="cursor-pointer"
                         style={{ cursor: 'pointer' }}
@@ -319,7 +319,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                     strokeLinecap="round"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSelectBranch(edge.x);
+                      onSelectBranch(edge.id);
                     }}
                     className="cursor-pointer"
                     style={{ cursor: 'pointer' }}
@@ -347,9 +347,14 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
               const x = node.x ?? LINE_X_POSITION;
               const iconMeta = node.iconId ? EVENT_ICON_MAP[node.iconId] : null;
               const iconSize = adaptiveRadius * 2;
+              // Highlight events sitting on the currently selected branch.
+              // selectedBranchId resolves to an edge.x via the edges list.
+              const selectedBranchEdgeX = selectedBranchId
+                ? validEdges.find((e) => e.id === selectedBranchId)?.x ?? null
+                : null;
               const isBranchSelected =
-                selectedBranchX !== null &&
-                x === selectedBranchX &&
+                selectedBranchEdgeX !== null &&
+                x === selectedBranchEdgeX &&
                 x !== LINE_X_POSITION;
               const parentLineX = node.parentX ?? LINE_X_POSITION;
               const labelOnLeft = x < LINE_X_POSITION;

@@ -161,7 +161,7 @@ describe('useTimelineBranch', () => {
         })
       );
 
-      act(() => result.current.setSelectedBranchX(2100));
+      act(() => result.current.setSelectedBranchId("e1"));
       act(() => result.current.setBranchYears('5')); // new endAge = 25, but b.age = 28
       act(() => result.current.updateBranchLength());
 
@@ -199,7 +199,7 @@ describe('useTimelineBranch', () => {
         })
       );
 
-      act(() => result.current.setSelectedBranchX(2100));
+      act(() => result.current.setSelectedBranchId("e1"));
       act(() => result.current.setBranchYears('5'));
       act(() => result.current.updateBranchLength());
 
@@ -238,7 +238,7 @@ describe('useTimelineBranch', () => {
         })
       );
 
-      act(() => result.current.setSelectedBranchX(2100));
+      act(() => result.current.setSelectedBranchId("e1"));
       act(() => result.current.setBranchYears('25')); // 20..45
       act(() => result.current.updateBranchLength());
 

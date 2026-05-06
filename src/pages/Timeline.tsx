@@ -238,19 +238,19 @@ export default function Timeline() {
   const resetTransientTimelineUi = useCallback(() => {
     formHook.clearForm();
     setSelectedId(null);
-    branchHook.setSelectedBranchX(null);
+    branchHook.setSelectedBranchId(null);
     birthHook.setBirthSelected(false);
     setPeriodBoundaryModal(null);
     setShowBulkCreator(false);
     biographyImportResetRef.current();
     resetHistory();
-  }, [birthHook.setBirthSelected, branchHook.setSelectedBranchX, formHook.clearForm, resetHistory]);
+  }, [birthHook.setBirthSelected, branchHook.setSelectedBranchId, formHook.clearForm, resetHistory]);
 
   // Auto-pickup sphere when selecting branch
   useEffect(() => {
     if (formHook.formEventId !== null) return;
-    if (branchHook.selectedBranchX !== null) {
-      const selectedEdge = edges.find((e) => e.x === branchHook.selectedBranchX);
+    if (branchHook.selectedBranchId !== null) {
+      const selectedEdge = edges.find((e) => e.id === branchHook.selectedBranchId);
       if (selectedEdge) {
         const originNode = nodes.find((n) => n.id === selectedEdge.nodeId);
         if (originNode && originNode.sphere) {
@@ -258,7 +258,7 @@ export default function Timeline() {
         }
       }
     }
-  }, [branchHook.selectedBranchX, edges, nodes, formHook.formEventId]);
+  }, [branchHook.selectedBranchId, edges, nodes, formHook.formEventId]);
 
   useEffect(() => {
     resetTransientTimelineUi();
@@ -341,7 +341,7 @@ export default function Timeline() {
     onEscape: () => {
       formHook.clearForm();
       setSelectedId(null);
-      branchHook.setSelectedBranchX(null);
+      branchHook.setSelectedBranchId(null);
       birthHook.setBirthSelected(false);
     },
   });
@@ -352,13 +352,13 @@ export default function Timeline() {
     setPeriodBoundaryModal({ periodIndex });
   };
 
-  const handleSelectBranch = (x: number) => {
-    branchHook.handleSelectBranch(x);
+  const handleSelectBranch = (edgeId: string) => {
+    branchHook.handleSelectBranch(edgeId);
     birthHook.setBirthSelected(false);
   };
 
   const handleClearSelection = () => {
-    branchHook.setSelectedBranchX(null);
+    branchHook.setSelectedBranchId(null);
     birthHook.setBirthSelected(false);
   };
 
@@ -403,7 +403,7 @@ export default function Timeline() {
         isDecision: formHook.formEventIsDecision,
         icon: formHook.formEventIcon,
       },
-      branchHook.selectedBranchX
+      branchHook.selectedBranchId
     );
   };
 
@@ -471,7 +471,7 @@ export default function Timeline() {
           edges={edges}
           selectedPeriodization={selectedPeriodization}
           selectedId={selectedId}
-          selectedBranchX={branchHook.selectedBranchX}
+          selectedBranchId={branchHook.selectedBranchId}
           draggingNodeId={dragDropHook.draggingNodeId}
           birthSelected={birthHook.birthSelected}
           birthBaseYear={birthHook.birthBaseYear}
@@ -529,7 +529,7 @@ export default function Timeline() {
           onClearForm={formHook.clearForm}
           onDeleteEvent={crudHook.deleteNode}
           createNote={createNote}
-          selectedBranchX={branchHook.selectedBranchX}
+          selectedBranchId={branchHook.selectedBranchId}
           selectedEdge={branchHook.selectedEdge}
           branchYears={branchHook.branchYears}
           onBranchYearsChange={branchHook.setBranchYears}
@@ -565,7 +565,6 @@ export default function Timeline() {
             onCreate={crudHook.handleBulkCreate}
             onExtendBranch={branchHook.handleExtendBranchForBulk}
             ageMax={ageMax}
-            selectedBranchX={branchHook.selectedBranchX}
             selectedEdge={branchHook.selectedEdge}
             branchSphere={branchHook.selectedEdge ? (() => {
               const originNode = nodes.find((n) => n.id === branchHook.selectedEdge!.nodeId);
