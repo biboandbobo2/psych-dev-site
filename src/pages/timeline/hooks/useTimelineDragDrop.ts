@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { screenToWorld } from '../utils';
 import { LINE_X_POSITION } from '../constants';
+import { applyDragToTree, buildTimelineTree, flattenTree } from '../utils/timelineTree';
 import type { NodeT, EdgeT, Transform } from '../types';
 
 interface UseTimelineDragDropOptions {
@@ -14,8 +15,11 @@ interface UseTimelineDragDropOptions {
 }
 
 /**
- * Hook for managing drag & drop of timeline events
- * Includes recursive update logic for branches
+ * Hook for managing drag & drop of timeline events.
+ * Cascade logic walks the actual parent→child topology via
+ * applyDragToTree (see timelineTree.ts) so siblings on the same branch
+ * stay put when one of them moves, and grand-branches don't get a
+ * double shift.
  */
 export function useTimelineDragDrop({
   nodes,
@@ -29,64 +33,6 @@ export function useTimelineDragDrop({
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dragStartX, setDragStartX] = useState<number>(0);
   const [dragStartNodeX, setDragStartNodeX] = useState<number>(LINE_X_POSITION);
-
-  /**
-   * Recursively update child nodes and edges when parent is moved
-   */
-  const updateRecursively = useCallback(
-    (
-      currentNodes: NodeT[],
-      currentEdges: EdgeT[],
-      fromX: number,
-      toX: number,
-      deltaX: number
-    ): { nodes: NodeT[]; edges: EdgeT[] } => {
-      let updatedNodes = [...currentNodes];
-      let updatedEdges = [...currentEdges];
-
-      // Find node IDs with parentX === fromX (before update)
-      const childNodeIds = updatedNodes.filter((n) => n.parentX === fromX).map((n) => n.id);
-
-      // Update parentX and x for these nodes
-      updatedNodes = updatedNodes.map((n) => {
-        if (n.parentX === fromX) {
-          // Determine current position of node
-          const currentX = n.x ?? LINE_X_POSITION;
-
-          // If node is on parent line (not offset), move to new line
-          // If node is offset, preserve the offset
-          const newX = currentX === fromX ? toX : currentX + deltaX;
-
-          return { ...n, x: newX, parentX: toX };
-        }
-        return n;
-      });
-
-      // For each child node, update its branches and recursively process
-      for (const childNodeId of childNodeIds) {
-        // Find branches from this node
-        const childEdges = updatedEdges.filter((e) => e.nodeId === childNodeId);
-
-        for (const childEdge of childEdges) {
-          const oldEdgeX = childEdge.x;
-          const newEdgeX = oldEdgeX + deltaX;
-
-          // Update x-coordinate of branch
-          updatedEdges = updatedEdges.map((e) =>
-            e.id === childEdge.id ? { ...e, x: newEdgeX } : e
-          );
-
-          // Recursively update descendants on this branch
-          const result = updateRecursively(updatedNodes, updatedEdges, oldEdgeX, newEdgeX, deltaX);
-          updatedNodes = result.nodes;
-          updatedEdges = result.edges;
-        }
-      }
-
-      return { nodes: updatedNodes, edges: updatedEdges };
-    },
-    []
-  );
 
   /**
    * Start dragging a node
@@ -118,24 +64,18 @@ export function useTimelineDragDrop({
       if (!node) return;
 
       const newX = worldPoint.x;
-      const oldX = node.x ?? LINE_X_POSITION; // Use CURRENT coordinate
+      const oldX = node.x ?? LINE_X_POSITION; // CURRENT coordinate
       const deltaX = newX - oldX;
+      if (deltaX === 0) return;
 
-      // Update x-coordinate of the dragged node
-      let updatedNodes = nodes.map((n) => (n.id === draggingNodeId ? { ...n, x: newX } : n));
-
-      // Update x-coordinate of all branches connected to dragged node
-      let updatedEdges = edges.map((edge) =>
-        edge.nodeId === draggingNodeId ? { ...edge, x: newX } : edge
-      );
-
-      // Recursively update all children
-      const result = updateRecursively(updatedNodes, updatedEdges, oldX, newX, deltaX);
+      const tree = buildTimelineTree(nodes, edges);
+      const nextTree = applyDragToTree(tree, draggingNodeId, newX, deltaX);
+      const result = flattenTree(nextTree);
 
       setNodes(result.nodes);
       setEdges(result.edges);
     },
-    [draggingNodeId, nodes, edges, svgRef, transform, setNodes, setEdges, updateRecursively]
+    [draggingNodeId, nodes, edges, svgRef, transform, setNodes, setEdges]
   );
 
   /**

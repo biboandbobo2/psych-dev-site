@@ -134,6 +134,67 @@ function findInSubtree(event: TimelineTreeNode, eventId: string): TimelineTreeNo
 }
 
 /**
+ * Apply a drag to the tree: change the dragged event's x to newSelfX,
+ * and shift all of its descendants (branches + their events) by deltaX.
+ *
+ * Sibling events on the dragged event's parent branch DO NOT move —
+ * the drag is purely a subtree operation. This is the structural
+ * answer to B1 (siblings followed) and B2 (double-shift on grand-
+ * branches), both of which only existed because the old implementation
+ * walked the flat arrays via `parentX === fromX` matching.
+ */
+export function applyDragToTree(
+  tree: TimelineTree,
+  draggedId: string,
+  newSelfX: number,
+  deltaX: number
+): TimelineTree {
+  const transformEvent = (event: TimelineTreeNode): TimelineTreeNode => {
+    if (event.data.id === draggedId) {
+      return {
+        ...event,
+        data: { ...event.data, x: newSelfX },
+        branches: event.branches.map((b) => shiftBranchSubtree(b, deltaX)),
+      };
+    }
+    return {
+      ...event,
+      branches: event.branches.map((b) => ({
+        ...b,
+        events: b.events.map(transformEvent),
+      })),
+    };
+  };
+  return tree.map(transformEvent);
+}
+
+function shiftBranchSubtree(branch: TimelineTreeBranch, deltaX: number): TimelineTreeBranch {
+  const newBranchX = branch.data.x + deltaX;
+  return {
+    ...branch,
+    data: { ...branch.data, x: newBranchX },
+    events: branch.events.map((child) => shiftEventOnShiftedBranch(child, newBranchX, deltaX)),
+  };
+}
+
+function shiftEventOnShiftedBranch(
+  event: TimelineTreeNode,
+  newParentX: number,
+  deltaX: number
+): TimelineTreeNode {
+  const currentX = event.data.x ?? LINE_X_POSITION;
+  return {
+    ...event,
+    data: {
+      ...event.data,
+      x: currentX + deltaX, // preserve any per-node offset
+      parentX: newParentX,
+    },
+    branches: event.branches.map((b) => shiftBranchSubtree(b, deltaX)),
+  };
+}
+
+/**
  * Map every event in the tree, optionally also transforming branches.
  * Used by drag/edit operations to produce a new tree without mutating.
  */
