@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { LINE_X_POSITION, SPHERE_META } from '../constants';
+import { applyBranchDeletionToFlat } from '../utils/timelineTree';
 import type { NodeT, EdgeT } from '../types';
 
 interface UseTimelineBranchOptions {
@@ -25,11 +26,13 @@ export function useTimelineBranch({
   onClearForm,
 }: UseTimelineBranchOptions) {
   const [branchYears, setBranchYears] = useState<string>('5');
-  const [selectedBranchX, setSelectedBranchX] = useState<number | null>(null);
+  // B15: identify the current selection by edge.id, not by x — two
+  // branches can legitimately share an x-coord (legacy data) and id
+  // is the actual primary key.
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
 
-  // Get currently selected edge
-  const selectedEdge = selectedBranchX !== null
-    ? edges.find((e) => e.x === selectedBranchX) ?? null
+  const selectedEdge = selectedBranchId
+    ? edges.find((e) => e.id === selectedBranchId) ?? null
     : null;
 
   /**
@@ -61,12 +64,32 @@ export function useTimelineBranch({
         return;
       }
 
+      // B13: clamp endAge to ageMax — отказ вместо тихого создания
+      // ветки за пределами холста.
+      const proposedEndAge = selectedNode.age + years;
+      if (proposedEndAge > ageMax) {
+        alert(
+          `Ветка не помещается на холсте. Максимальная длина — ${ageMax - selectedNode.age} лет (до ${ageMax}-летия).`
+        );
+        return;
+      }
+
+      // B12: if the source event already sits on a branch, its x
+      // collides with the existing branch — offset the new branch
+      // to the nearest free x so the two don't visually overlap and
+      // selection-by-x in the UI doesn't get confused.
+      let proposedBranchX = nodeX;
+      const OFFSET_STEP = 100;
+      while (edges.some((e) => e.x === proposedBranchX)) {
+        proposedBranchX += OFFSET_STEP;
+      }
+
       const meta = SPHERE_META[selectedNode.sphere];
       const edge: EdgeT = {
         id: crypto.randomUUID(),
-        x: nodeX,
+        x: proposedBranchX,
         startAge: selectedNode.age,
-        endAge: selectedNode.age + years,
+        endAge: proposedEndAge,
         color: meta.color,
         nodeId: selectedNode.id,
       };
@@ -77,7 +100,7 @@ export function useTimelineBranch({
 
       // Clear form and deselect
       onClearForm?.();
-      setSelectedBranchX(null);
+      setSelectedBranchId(null);
     },
     [branchYears, edges, nodes, setEdges, onHistoryRecord, onClearForm]
   );
@@ -102,6 +125,25 @@ export function useTimelineBranch({
       return;
     }
 
+    // B14: refuse to shorten the branch past events that already live
+    // on it — those events would silently orphan above the new endAge.
+    if (newEndAge < selectedEdge.endAge) {
+      const eventsBeyond = nodes.filter(
+        (n) => n.parentX === selectedEdge.x && n.age > newEndAge
+      );
+      if (eventsBeyond.length > 0) {
+        const sample = eventsBeyond
+          .slice(0, 3)
+          .map((n) => `«${n.label}» (${n.age} лет)`)
+          .join(', ');
+        const more = eventsBeyond.length > 3 ? ` и ещё ${eventsBeyond.length - 3}` : '';
+        alert(
+          `На ветке есть события за пределами новой длины: ${sample}${more}. Сначала перенесите их или удалите.`
+        );
+        return;
+      }
+    }
+
     // Update branch
     const updatedEdges = edges.map((e) =>
       e.id === selectedEdge.id ? { ...e, endAge: newEndAge } : e
@@ -111,7 +153,10 @@ export function useTimelineBranch({
   }, [selectedEdge, branchYears, ageMax, edges, nodes, setEdges, onHistoryRecord]);
 
   /**
-   * Delete branch and move events to parent line
+   * Delete branch and migrate every event on it (with its grand-branches)
+   * to the parent line. The actual topology walk lives in
+   * applyBranchDeletionToFlat — fixes B8 by also moving node.x, not just
+   * parentX, so migrated events end up on the line and not in midair.
    */
   const deleteBranch = useCallback(() => {
     if (!selectedEdge) return;
@@ -121,27 +166,15 @@ export function useTimelineBranch({
     );
     if (!confirmed) return;
 
-    // Find parent line of the branch being deleted
-    const originNode = nodes.find((n) => n.id === selectedEdge.nodeId);
-    const branchParentX = originNode?.parentX ?? LINE_X_POSITION;
-
-    // Update parentX for all events on this branch
-    const updatedNodes = nodes.map((node) => {
-      if (node.parentX === selectedEdge.x) {
-        return {
-          ...node,
-          parentX: branchParentX === LINE_X_POSITION ? undefined : branchParentX,
-        };
-      }
-      return node;
-    });
-
-    // Delete branch
-    const updatedEdges = edges.filter((e) => e.id !== selectedEdge.id);
+    const { nodes: updatedNodes, edges: updatedEdges } = applyBranchDeletionToFlat(
+      nodes,
+      edges,
+      selectedEdge.id
+    );
 
     setNodes(updatedNodes);
     setEdges(updatedEdges);
-    setSelectedBranchX(null); // Deselect
+    setSelectedBranchId(null); // Deselect
     onHistoryRecord?.(updatedNodes, updatedEdges);
   }, [selectedEdge, nodes, edges, setNodes, setEdges, onHistoryRecord]);
 
@@ -162,28 +195,28 @@ export function useTimelineBranch({
   );
 
   /**
-   * Select a branch for editing
+   * Select a branch for editing — by edge.id, the primary key.
    */
-  const handleSelectBranch = useCallback((x: number) => {
-    setSelectedBranchX(x);
+  const handleSelectBranch = useCallback((edgeId: string) => {
+    setSelectedBranchId(edgeId);
   }, []);
 
   /**
    * Deselect branch
    */
   const handleHideBranchEditor = useCallback(() => {
-    setSelectedBranchX(null);
+    setSelectedBranchId(null);
   }, []);
 
   return {
     // State
     branchYears,
-    selectedBranchX,
+    selectedBranchId,
     selectedEdge,
 
     // Setters
     setBranchYears,
-    setSelectedBranchX,
+    setSelectedBranchId,
 
     // Handlers
     extendBranch,

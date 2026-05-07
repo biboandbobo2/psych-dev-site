@@ -8,7 +8,6 @@ interface BulkEventCreatorProps {
   onCreate: (events: Omit<NodeT, 'id'>[]) => void;
   onExtendBranch?: (newEndAge: number) => void;
   ageMax: number;
-  selectedBranchX: number | null;
   selectedEdge?: EdgeT | null;
   branchSphere?: Sphere;
 }
@@ -22,11 +21,12 @@ export function BulkEventCreator({
   onCreate,
   onExtendBranch,
   ageMax,
-  selectedBranchX,
   selectedEdge,
   branchSphere
 }: BulkEventCreatorProps) {
   const [inputText, setInputText] = useState('');
+  // Place new events on the selected branch's x (or main line otherwise).
+  const branchX = selectedEdge?.x ?? null;
 
   const minAge = selectedEdge ? selectedEdge.startAge : 0;
   const maxAge = selectedEdge ? selectedEdge.endAge : ageMax;
@@ -70,8 +70,8 @@ export function BulkEventCreator({
     const events: Omit<NodeT, 'id'>[] = validEvents.map((e) => ({
       age: e.age!,
       label: e.label!,
-      x: selectedBranchX ?? LINE_X_POSITION,
-      parentX: selectedBranchX ?? undefined,
+      x: branchX ?? LINE_X_POSITION,
+      parentX: branchX ?? undefined,
       notes: '',
       sphere: branchSphere, // Автоматически устанавливаем сферу от ветки
       isDecision: false,
@@ -95,8 +95,8 @@ export function BulkEventCreator({
       .map((e) => ({
         age: e.age!,
         label: e.label!,
-        x: selectedBranchX ?? LINE_X_POSITION,
-        parentX: selectedBranchX ?? undefined,
+        x: branchX ?? LINE_X_POSITION,
+        parentX: branchX ?? undefined,
         notes: '',
         sphere: branchSphere,
         isDecision: false,

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { LINE_X_POSITION } from '../constants';
 import { parseAge } from '../utils';
+import { buildTimelineTree, collectDescendantIds } from '../utils/timelineTree';
 import type { NodeT, EdgeT, Sphere, EventIconId } from '../types';
 
 interface UseTimelineCRUDOptions {
@@ -43,7 +44,7 @@ export function useTimelineCRUD({
    * Create or update an event
    */
   const handleFormSubmit = useCallback(
-    (formData: FormEventData, selectedBranchX: number | null) => {
+    (formData: FormEventData, selectedBranchId: string | null) => {
       if (!formData.label.trim()) return;
 
       if (!formData.age.trim()) {
@@ -59,6 +60,28 @@ export function useTimelineCRUD({
 
       if (formData.id) {
         // Edit existing event
+        const original = nodes.find((n) => n.id === formData.id);
+        const oldAge = original?.age;
+
+        // B11: if the edited event lives on a branch, the new age must
+        // stay within that branch's age window — otherwise it would
+        // visually orphan above/below the line that anchors it.
+        if (
+          original &&
+          original.parentX !== undefined &&
+          original.parentX !== LINE_X_POSITION
+        ) {
+          const parentBranch = edges.find((e) => e.x === original.parentX);
+          if (
+            parentBranch &&
+            (parsedAge < parentBranch.startAge || parsedAge > parentBranch.endAge)
+          ) {
+            alert(
+              `Возраст ${parsedAge} вне диапазона ветки (${parentBranch.startAge}–${parentBranch.endAge} лет). Сначала измените длину ветки или перенесите событие на главную линию.`
+            );
+            return;
+          }
+        }
         const updatedNodes = nodes.map((n) =>
           n.id === formData.id
             ? {
@@ -74,47 +97,54 @@ export function useTimelineCRUD({
               }
             : n
         );
+
+        // B10: if the edited event is the origin of one or more branches,
+        // slide each branch's age window by the same delta so the branch
+        // stays attached to its origin event. Length is preserved.
+        const ageChanged = oldAge !== undefined && oldAge !== parsedAge;
+        let updatedEdges = edges;
+        if (ageChanged) {
+          const deltaAge = parsedAge - oldAge!;
+          let mutated = false;
+          const next = edges.map((e) => {
+            if (e.nodeId !== formData.id) return e;
+            mutated = true;
+            const newStart = e.startAge + deltaAge;
+            const newEnd = Math.min(e.endAge + deltaAge, ageMax);
+            return { ...e, startAge: newStart, endAge: newEnd };
+          });
+          if (mutated) {
+            updatedEdges = next;
+            setEdges(updatedEdges);
+          }
+        }
+
         setNodes(updatedNodes);
-        onHistoryRecord?.(updatedNodes, edges);
+        onHistoryRecord?.(updatedNodes, updatedEdges);
       } else {
         // Add new event
         let eventX = LINE_X_POSITION;
+        let eventParentX: number | undefined = undefined;
         let eventSphere = formData.sphere;
 
-        // If branch is selected, check if age falls within its range
-        if (selectedBranchX !== null) {
-          // Find edge with matching X that covers the specified age
-          const selectedEdge = edges.find(
-            (e) => e.x === selectedBranchX && parsedAge >= e.startAge && parsedAge <= e.endAge
-          );
-
+        if (selectedBranchId !== null) {
+          const selectedEdge = edges.find((e) => e.id === selectedBranchId);
           if (selectedEdge) {
-            // Age falls within branch range
-            eventX = selectedBranchX;
-
-            // Take sphere from branch origin node (always, if not manually specified)
+            const inRange = parsedAge >= selectedEdge.startAge && parsedAge <= selectedEdge.endAge;
+            if (inRange) {
+              eventX = selectedEdge.x;
+              eventParentX = selectedEdge.x;
+            } else {
+              alert(
+                `Возраст события (${parsedAge} лет) не попадает в диапазон выбранной ветки (${selectedEdge.startAge}-${selectedEdge.endAge} лет). Событие будет добавлено на основную линию жизни.`
+              );
+            }
+            // Auto-pickup sphere from branch origin even if age out of range.
             if (!eventSphere) {
               const originNode = nodes.find((n) => n.id === selectedEdge.nodeId);
               if (originNode && originNode.sphere) {
                 eventSphere = originNode.sphere;
               }
-            }
-          } else {
-            // If no exact match, try to find any branch with this X
-            // and take sphere from its origin node (for auto-pickup)
-            const anyEdgeAtX = edges.find((e) => e.x === selectedBranchX);
-            if (anyEdgeAtX) {
-              // Auto-pickup sphere even if age not in range
-              if (!eventSphere) {
-                const originNode = nodes.find((n) => n.id === anyEdgeAtX.nodeId);
-                if (originNode && originNode.sphere) {
-                  eventSphere = originNode.sphere;
-                }
-              }
-
-              alert(
-                `Возраст события (${parsedAge} лет) не попадает в диапазон выбранной ветки (${anyEdgeAtX.startAge}-${anyEdgeAtX.endAge} лет). Событие будет добавлено на основную линию жизни.`
-              );
             }
           }
         }
@@ -123,7 +153,7 @@ export function useTimelineCRUD({
           id: crypto.randomUUID(),
           age: parsedAge,
           x: eventX,
-          parentX: selectedBranchX ?? undefined, // Remember parent line
+          parentX: eventParentX, // Branch x (or undefined for main line)
           label: formData.label,
           notes: formData.notes,
           sphere: eventSphere,
@@ -153,13 +183,28 @@ export function useTimelineCRUD({
   );
 
   /**
-   * Delete a node and all its branches
+   * Delete a node and the entire subtree rooted at it: every direct
+   * branch from the event, every event living on those branches, and
+   * (recursively) any branches and events those carry. Walks the
+   * topology tree so nothing is left orphaned in Firestore — fixes
+   * B6 (events on deleted branches) and B7 (cascade past one level).
    */
   const deleteNode = useCallback(
     (id: string) => {
-      setNodes(nodes.filter((n) => n.id !== id));
-      // Also delete all branches connected to this event
-      setEdges(edges.filter((e) => e.nodeId !== id));
+      const tree = buildTimelineTree(nodes, edges);
+      const collected = collectDescendantIds(tree, id);
+
+      if (!collected) {
+        // Event isn't in the tree (orphan with broken parentX, or
+        // already gone). Defensive single-id delete.
+        setNodes(nodes.filter((n) => n.id !== id));
+        setEdges(edges.filter((e) => e.nodeId !== id));
+      } else {
+        const { eventIds, edgeIds } = collected;
+        setNodes(nodes.filter((n) => !eventIds.has(n.id)));
+        setEdges(edges.filter((e) => !edgeIds.has(e.id)));
+      }
+
       onClearForm?.();
       onHistoryRecord?.();
     },

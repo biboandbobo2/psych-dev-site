@@ -1,4 +1,4 @@
-import { DEFAULT_AGE_MAX, DEFAULT_CURRENT_AGE } from './constants';
+import { DEFAULT_AGE_MAX, DEFAULT_CURRENT_AGE, LINE_X_POSITION } from './constants';
 import type { EdgeT, NodeT, TimelineCanvas, TimelineData, TimelineDocument } from './types';
 
 export const DEFAULT_TIMELINE_NAME = 'Таймлайн 1';
@@ -68,13 +68,47 @@ export function normalizeImportedTimelineData(data: unknown): TimelineData {
   }
 
   const candidate = data as Partial<TimelineData>;
-  const nodes = Array.isArray(candidate.nodes) ? candidate.nodes.map(normalizeImportedNode).filter(Boolean) as NodeT[] : [];
-  const nodeIds = new Set(nodes.map((node) => node.id));
-  const edges = Array.isArray(candidate.edges)
+  // Dedupe by id at load — Firestore documents corrupted by the pre-fix
+  // duplication bug can have the same node id repeated thousands of
+  // times. First occurrence wins.
+  const dedupeById = <T extends { id: string }>(items: T[]): T[] => {
+    const seen = new Set<string>();
+    const out: T[] = [];
+    for (const item of items) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      out.push(item);
+    }
+    return out;
+  };
+
+  const rawNodesRaw = Array.isArray(candidate.nodes)
+    ? (candidate.nodes.map(normalizeImportedNode).filter(Boolean) as NodeT[])
+    : [];
+  const rawNodes = dedupeById(rawNodesRaw);
+  const nodeIds = new Set(rawNodes.map((node) => node.id));
+  const rawEdges = Array.isArray(candidate.edges)
     ? candidate.edges
         .map(normalizeImportedEdge)
         .filter((edge): edge is EdgeT => Boolean(edge) && nodeIds.has(edge.nodeId))
     : [];
+  const edges = dedupeById(rawEdges);
+
+  // B5: heal orphan nodes whose parentX points at a now-missing branch.
+  // After previous bugs (B6/B7) these accumulated in Firestore; on read
+  // we re-anchor them to the main line so the canvas doesn't render
+  // events floating on a non-existent branch.
+  const validEdgeXs = new Set(edges.map((e) => e.x));
+  const nodes = rawNodes.map((n) => {
+    if (
+      n.parentX !== undefined &&
+      n.parentX !== LINE_X_POSITION &&
+      !validEdgeXs.has(n.parentX)
+    ) {
+      return { ...n, x: LINE_X_POSITION, parentX: undefined };
+    }
+    return n;
+  });
   const computedMaxAge = Math.max(
     25,
     ...nodes.map((node) => node.age),

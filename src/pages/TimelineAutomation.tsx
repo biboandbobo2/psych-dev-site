@@ -215,7 +215,7 @@ export default function TimelineAutomation() {
               edges={timeline.edges}
               selectedPeriodization={timeline.selectedPeriodization ?? null}
               selectedId={null}
-              selectedBranchX={null}
+              selectedBranchId={null}
               draggingNodeId={null}
               birthSelected={false}
               birthBaseYear={birthBaseYear}

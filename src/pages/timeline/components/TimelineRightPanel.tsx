@@ -45,7 +45,7 @@ interface TimelineRightPanelProps {
     topicId: string | null,
     topicTitle: string | null
   ) => Promise<string>;
-  selectedBranchX: number | null;
+  selectedBranchId: string | null;
   selectedEdge: EdgeT | undefined;
   branchYears: string;
   onBranchYearsChange: (value: string) => void;
@@ -96,7 +96,7 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
     onClearForm,
     onDeleteEvent,
     createNote,
-    selectedBranchX,
+    selectedBranchId,
     selectedEdge,
     branchYears,
     onBranchYearsChange,
@@ -199,7 +199,7 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
           />
         )}
 
-        {(!selectedBranchX || formEventId) && (
+        {(!selectedBranchId || formEventId) && (
           <>
             <TimelineEventForm
               title={formEventId ? 'Редактировать событие' : 'Новое событие'}
@@ -240,7 +240,7 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
         )}
 
 
-        {selectedBranchX && !formEventId && (
+        {selectedBranchId && !formEventId && (
           <>
             {selectedEdge && (
               <TimelineBranchEditor
