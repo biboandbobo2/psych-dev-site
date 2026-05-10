@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { doc, updateDoc } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
+import { auth, db } from '../../lib/firebase';
 import { useAuthStore } from '../../stores/useAuthStore';
 import type { CartItem, BookingFormData, DurationOption } from './types';
-import { formatDisplayDate } from './utils';
+import { formatDisplayDate, parseDisplayName } from './utils';
 import { useBookingContext } from './BookingContext';
+import { debugError } from '../../lib/debug';
 
 interface BookingConfirmationProps {
   cart: CartItem[];
@@ -16,20 +20,28 @@ interface BookingConfirmationProps {
 export function BookingConfirmation({ cart, duration, onSubmit, onBack, submitting }: BookingConfirmationProps) {
   const user = useAuthStore((state) => state.user);
   const { userPhone } = useBookingContext();
-  const [form, setForm] = useState<BookingFormData>({
-    name: '',
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [form, setForm] = useState<Omit<BookingFormData, 'name'>>({
     phone: '',
     email: '',
     comment: '',
   });
-  const [errors, setErrors] = useState<Partial<Record<keyof BookingFormData, string>>>({});
+  const [errors, setErrors] = useState<{
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    email?: string;
+  }>({});
 
   // Pre-fill from Firebase user and shared phone context
   useEffect(() => {
     if (!user) return;
+    const parsed = parseDisplayName(user.displayName);
+    setFirstName((prev) => prev || parsed.firstName);
+    setLastName((prev) => prev || parsed.lastName);
     setForm((prev) => ({
       ...prev,
-      name: prev.name || user.displayName || '',
       email: prev.email || user.email || '',
     }));
   }, [user]);
@@ -42,7 +54,8 @@ export function BookingConfirmation({ cart, duration, onSubmit, onBack, submitti
 
   const validate = (): boolean => {
     const newErrors: typeof errors = {};
-    if (!form.name.trim()) newErrors.name = 'Укажите имя';
+    if (firstName.trim().length < 2) newErrors.firstName = 'Укажите имя';
+    if (lastName.trim().length < 2) newErrors.lastName = 'Укажите фамилию';
     if (!form.phone.trim()) {
       newErrors.phone = 'Укажите телефон';
     } else {
@@ -57,12 +70,25 @@ export function BookingConfirmation({ cart, duration, onSubmit, onBack, submitti
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validate()) onSubmit(form);
+    if (!validate()) return;
+    const fullName = `${firstName.trim()} ${lastName.trim()}`;
+    // Source of truth — Firebase Auth (см. useAuthSync.ts), Firestore-копию обновляем
+    // тут же, чтобы ProfileCompletionBanner и серверные читатели users/{uid}.displayName
+    // сразу увидели фамилию. Падение записи не блокирует букинг.
+    if (user && fullName !== (user.displayName || '').trim()) {
+      try {
+        if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: fullName });
+        await updateDoc(doc(db, 'users', user.uid), { displayName: fullName });
+      } catch (err) {
+        debugError('[BookingConfirmation] displayName update failed', err);
+      }
+    }
+    onSubmit({ ...form, name: fullName });
   };
 
-  const inputClass = (field: keyof BookingFormData) => `
+  const inputClass = (field: keyof typeof errors) => `
     w-full px-4 py-3 rounded-xl border text-base
     transition-colors duration-150
     focus:outline-none focus:ring-2 focus:ring-dom-green/30 focus:border-dom-green
@@ -109,18 +135,35 @@ export function BookingConfirmation({ cart, duration, onSubmit, onBack, submitti
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-dom-gray-700 mb-1.5">
-              Имя <span className="text-dom-red">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Ваше имя"
-              className={inputClass('name')}
-            />
-            {errors.name && <p className="text-dom-red text-sm mt-1">{errors.name}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-dom-gray-700 mb-1.5">
+                Имя <span className="text-dom-red">*</span>
+              </label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Имя"
+                autoComplete="given-name"
+                className={inputClass('firstName')}
+              />
+              {errors.firstName && <p className="text-dom-red text-sm mt-1">{errors.firstName}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-dom-gray-700 mb-1.5">
+                Фамилия <span className="text-dom-red">*</span>
+              </label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Фамилия"
+                autoComplete="family-name"
+                className={inputClass('lastName')}
+              />
+              {errors.lastName && <p className="text-dom-red text-sm mt-1">{errors.lastName}</p>}
+            </div>
           </div>
 
           <div>
@@ -160,7 +203,7 @@ export function BookingConfirmation({ cart, duration, onSubmit, onBack, submitti
               onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))}
               placeholder="Пожелания или дополнительная информация"
               rows={3}
-              className={`${inputClass('comment')} resize-none`}
+              className="w-full px-4 py-3 rounded-xl border border-dom-gray-200 bg-white text-base resize-none transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-dom-green/30 focus:border-dom-green"
             />
           </div>
 
