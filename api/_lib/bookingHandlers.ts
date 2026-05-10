@@ -231,10 +231,9 @@ export async function handleBook(
     comment: body.comment || '',
     appointments,
   };
-  // alteg.io: notify_by_email = часы до начала, за которые отправлять подтверждение.
-  // Пропускаем поле полностью если пользователь отписался — alteg.io не пришлёт email.
-  if (notifyByEmail) {
-    payload.notify_by_email = 24;
-  }
+  // alteg.io: notify_by_email = часы до начала, за которые шлётся email-reminder.
+  // Если поле опустить, alteg.io применяет дефолт локации (у DOM = 24ч), поэтому
+  // для отписавшихся надо явно передать 0 — это документированный способ выключить.
+  payload.notify_by_email = notifyByEmail ? 24 : 0;
   return altegPost(`/book_record/${companyId}`, payload, partnerToken);
 }

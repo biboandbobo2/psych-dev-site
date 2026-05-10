@@ -150,7 +150,7 @@ Vercel serverless function — прокси к alteg.io.
 | `dates` | GET | Доступные даты (staffId, serviceId) |
 | `busy` | GET | Занятые интервалы (staffId, date) — для overlap-фильтрации |
 | `check` | POST | Валидация перед бронированием (book_check) |
-| `book` | POST | Создание бронирования (book_record) + notify_by_email:24 |
+| `book` | POST | Создание бронирования (book_record); `notify_by_email = 24` или `0` по `users/{uid}.prefs.emailBookingConfirmations` |
 | `resolveMyClientIds` | POST | Защищённая self-only связка Firebase user ↔ alteg.io clients по Bearer token |
 | `createClient` | POST | Создание клиента в alteg.io |
 | `clientRecords` | GET | Self-only список записей текущего Firebase user по Bearer token; `clientIds` сервер берёт из Firestore |

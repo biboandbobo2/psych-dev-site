@@ -48,9 +48,9 @@ export interface CourseAccessMap {
  */
 export interface UserPreferences {
   /**
-   * Получать ли email-подтверждения о бронировании кабинетов в DOM.
-   * undefined / true → отправляем (alteg.io notify_by_email).
-   * false → пропускаем рассылку.
+   * Получать ли email-напоминания alteg.io о бронированиях в DOM (за 24ч до записи).
+   * undefined / true → передаём alteg.io notify_by_email = 24.
+   * false → передаём notify_by_email = 0 (выключает reminder).
    */
   emailBookingConfirmations?: boolean;
 }

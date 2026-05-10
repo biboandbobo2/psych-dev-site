@@ -630,7 +630,7 @@ describe('api/booking — check & book', () => {
     expect(sentBody.comment).toBe('');
   });
 
-  it('book НЕ отправляет notify_by_email если у пользователя prefs.emailBookingConfirmations=false', async () => {
+  it('book отправляет notify_by_email=0 если у пользователя prefs.emailBookingConfirmations=false', async () => {
     adminMocks.verifyIdToken.mockResolvedValue({ uid: 'user-optout', email: 'opt@example.com' });
     adminMocks.userGet.mockResolvedValue({
       data: () => ({
@@ -658,7 +658,7 @@ describe('api/booking — check & book', () => {
 
     expect(res.statusCode).toBe(200);
     const sentBody = JSON.parse(adminMocks.fetch.mock.calls[0][1].body);
-    expect(sentBody).not.toHaveProperty('notify_by_email');
+    expect(sentBody.notify_by_email).toBe(0);
   });
 
   it('book отправляет notify_by_email=24 для авторизованного пользователя без opt-out', async () => {
