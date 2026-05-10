@@ -1036,6 +1036,12 @@ service cloud.firestore {
   bookings: Record<string, { bookedAt: Timestamp } | null>;
   createdAt: Timestamp;
   createdBy: string;
+
+  // Служебные поля для уведомлений преподавателю (onExamSlotWrite trigger).
+  // Студенты видят, но эти строки им бесполезны.
+  personalGcalEventId?: string | null;   // GCal event id в личном календаре препода
+  personalGcalSyncedAt?: Timestamp;
+  personalGcalSyncError?: string;        // последняя ошибка экспорта (если была)
 }
 ```
 

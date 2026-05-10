@@ -326,3 +326,4 @@ export { syncGroupCalendars, onGroupEventWrite } from './gcalSync.js';
 export { updateMyEmailPreferences } from './userPreferences.js';
 export { biographyImport } from './biographyImport.js';
 export { bookExamSlot, cancelExamBooking } from './exams.js';
+export { onExamSlotWrite } from './examNotifications.js';

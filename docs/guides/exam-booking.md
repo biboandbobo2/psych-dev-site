@@ -79,23 +79,92 @@ exams/{examId}                                       // конфигурация
 - «Удалить слот» disabled, если есть хоть одна бронь (договорись со студентами вручную).
 - «В архив» — мгновенно скрывает карточку у студентов, сохраняя историю броней.
 
+## Уведомления преподавателю (GCal + Telegram)
+
+Firestore-trigger `onExamSlotWrite` ([functions/src/examNotifications.ts](../../functions/src/examNotifications.ts)) однонаправленно экспортирует слоты с бронями в **личный календарь преподавателя** и шлёт уведомления в Telegram. Это отдельный контур от двусторонней `gcalSync` (та работает с групповыми календарями студентов).
+
+| Переход count | GCal | Telegram |
+|---|---|---|
+| `0 → ≥1` | `insertEvent`, ID кладётся в `slot.personalGcalEventId` | 🟢 «Новая бронь» с именем+email |
+| `≥1 → ≥1` | `patchEvent` (обновляем description со списком студентов) | 🟢 «Доп. бронь» / 🔵 «Отмена брони» |
+| `≥1 → 0` | `patchEvent` → `summary='❌ ОТМЕНЕНО — …'`, `transparency=transparent` (event НЕ удаляется) | 🔴 «Все брони отменены» |
+| `startAt`/`endAt` изменились (count > 0) | `patchEvent` с новым временем | 📅 «Перенос слота» |
+
+**Конфиг:**
+- `personal-gcal-id` (Secret Manager) или env `PERSONAL_GCAL_ID` — calendar ID преподавателя. Если не задан, GCal-часть пропускается, TG продолжает работать.
+- Telegram chat ID — общий `telegram-chat-id` (тот же, что для feedback).
+- Service account `psych-dev-site-prod@appspot.gserviceaccount.com` должен иметь право «Вносить изменения в мероприятия» в нужном календаре.
+
+**Anti-echo:** функция дописывает в slot поля `personalGcalEventId` / `personalGcalSyncedAt`. Повторный onWrite видит одинаковые `bookings` и одинаковые `startAt/endAt` → `detectTransition` возвращает `skip`.
+
+**Self-heal (backfill):** если у слота `count > 0`, но `personalGcalEventId` отсутствует, и при этом bookings/время не менялись — `detectTransition` возвращает `self-heal` → создаётся event без TG-уведомления. Срабатывает при «touch» слота (любое мета-поле дописали). Использовалось для backfill старых броней при первом деплое; продолжает работать как защита от потери eventId.
+
+**Тесты:** `functions/src/examNotifications.test.ts` (31 тест) — `countOccupied`, `detectTransition` для всех веток (включая self-heal), `buildGCalPayload`, `buildTgMessage`, и семь integration-кейсов с моками gcalClient/telegram (0→1, 1→0, time-shift, slot deleted, error path, self-heal, anti-echo).
+
+### Runbook: что делать, если в slot появилось `personalGcalSyncError`
+
+Поле появляется, когда `insertEvent`/`patchEvent` упал. Триггер не падает дальше — TG всё равно уходит, чтобы преподаватель узнал о брони.
+
+| Симптом | Вероятная причина | Действие |
+|---|---|---|
+| `403 Forbidden` / `permission denied` | SA потерял доступ к календарю | Перевыдать в GCal → Настройки календаря → Общий доступ → `psych-dev-site-prod@appspot.gserviceaccount.com` → «Вносить изменения в мероприятия» |
+| `404 Not Found` при patch | event удалён вручную из календаря | Очистить `personalGcalEventId: null` в slot → touch slot → self-heal создаст новый |
+| `5xx` / `Internal error` | временный сбой GCal | Повторить touch (Firestore-update любого мета-поля slot) — trigger перезапустится |
+| `secret manager … access denied` | потеряли IAM на `personal-gcal-id` | `gcloud secrets add-iam-policy-binding personal-gcal-id --member=serviceAccount:psych-dev-site-prod@appspot.gserviceaccount.com --role=roles/secretmanager.secretAccessor --project=psych-dev-site-prod` |
+
+Логи: `firebase functions:log --only onExamSlotWrite --project psych-dev-site-prod`.
+
+«Touch» slot для перезапуска self-heal:
+```bash
+# через MCP firestore_update_document или из админки — любое незначащее поле, например:
+{ "personalGcalBackfillTouched": <ISO timestamp> }
+```
+detectTransition увидит cnt>0 без eventId (после очистки) → self-heal → новый insert без TG.
+
+### Подключение второго преподавателя (полная цепочка)
+
+Когда нужно, чтобы у конкретного экзамена брони уходили в календарь другого преподавателя (не Алексея). Этап 2 архитектуры — на текущий момент НЕ реализован, ниже последовательность, которую нужно выполнить:
+
+1. **Поля в `Exam`** ([src/types/exam.ts](../../src/types/exam.ts)):
+   ```ts
+   notifyCalendarId?: string;   // override personal-gcal-id
+   notifyTelegramChatId?: string;  // override telegram-chat-id
+   ```
+2. **Trigger ([functions/src/examNotifications.ts](../../functions/src/examNotifications.ts)):** в обработчике брать `exam.notifyCalendarId ?? defaultPersonalGcalId` и аналогично для chat. `sendTelegramMessage(text, { chatId })` уже поддерживает per-call override.
+3. **UI ([src/pages/admin/exams/](../../src/pages/admin/exams/)):** два опциональных input'а в форме создания/редактирования экзамена.
+4. **Конфиг для нового преподавателя:**
+   ```bash
+   # 1) если у него отдельный календарь — пусть создаст и расшарит SA
+   #    (если использует свой primary, просто расшарит primary)
+   #    GCal → Настройки нужного календаря → Общий доступ → добавить
+   #    psych-dev-site-prod@appspot.gserviceaccount.com с правом «Make changes»
+
+   # 2) узнать его Telegram chat id (один раз пишем боту, читаем getUpdates)
+   curl "https://api.telegram.org/bot<TOKEN>/getUpdates"
+
+   # 3) внести calendarId/chatId в Exam.notifyCalendarId / notifyTelegramChatId
+   #    через UI админки (или временно через firestore_update_document)
+   ```
+
+**Что НЕ нужно:** отдельный Secret Manager под второго преподавателя. Поля документа экзамена — достаточно. Email-адреса календарей и chat ID — не критичные секреты.
+
 ## Что не сделано (см. audit-backlog)
 
-- Уведомления (email/Telegram) при бронировании/отмене.
 - Перенос слота на другое время в UI (хелпер `rescheduleSlot` есть, но без кнопки).
 - Архивные экзамены в UI (только поле в БД).
 - Поддержка нескольких активных экзаменов одновременно в общем календаре `/home` (сейчас — только первый).
+- Per-exam override (`Exam.notifyCalendarId` / `notifyTelegramChatId`) — отложено до второго преподавателя.
 
 ## Ключевые файлы
 
 | Слой | Файл |
 |---|---|
 | Типы | [src/types/exam.ts](../../src/types/exam.ts) |
-| Cloud Functions | [functions/src/exams.ts](../../functions/src/exams.ts) |
+| Cloud Functions | [functions/src/exams.ts](../../functions/src/exams.ts), [examNotifications.ts](../../functions/src/examNotifications.ts) |
 | Firestore rules | [firestore.rules](../../firestore.rules) (секция `/exams/{examId}`) |
 | Клиентский client | [src/lib/exams/examsClient.ts](../../src/lib/exams/examsClient.ts) |
 | Клиентский CRUD | [src/lib/exams/examsFirestore.ts](../../src/lib/exams/examsFirestore.ts) |
 | Хуки | [src/hooks/useExam.ts](../../src/hooks/useExam.ts), [useMyExamBooking.ts](../../src/hooks/useMyExamBooking.ts), [useActiveExamsForMe.ts](../../src/hooks/useActiveExamsForMe.ts) |
 | Админ-страница | [src/pages/admin/exams/](../../src/pages/admin/exams/) |
 | Студенческие компоненты | [src/pages/home/components/MyExamsSection.tsx](../../src/pages/home/components/MyExamsSection.tsx), [ExamBookingModal.tsx](../../src/pages/home/components/ExamBookingModal.tsx) |
-| Тесты | [functions/src/exams.test.ts](../../functions/src/exams.test.ts), [src/lib/exams/__tests__/](../../src/lib/exams/__tests__/), [src/pages/admin/exams/__tests__/](../../src/pages/admin/exams/__tests__/) |
+| Тесты | [functions/src/exams.test.ts](../../functions/src/exams.test.ts), [examNotifications.test.ts](../../functions/src/examNotifications.test.ts), [src/lib/exams/__tests__/](../../src/lib/exams/__tests__/), [src/pages/admin/exams/__tests__/](../../src/pages/admin/exams/__tests__/) |

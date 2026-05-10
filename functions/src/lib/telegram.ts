@@ -76,8 +76,12 @@ export function resetTelegramConfigCache() {
   telegramConfigPromise = null;
 }
 
-export async function sendTelegramMessage(text: string) {
-  const { token, chatId } = await getTelegramConfig();
+export async function sendTelegramMessage(
+  text: string,
+  opts: { chatId?: string } = {}
+) {
+  const { token, chatId: defaultChatId } = await getTelegramConfig();
+  const chatId = opts.chatId ?? defaultChatId;
   const telegramUrl = `https://api.telegram.org/bot${token}/sendMessage`;
 
   const response = await fetch(telegramUrl, {

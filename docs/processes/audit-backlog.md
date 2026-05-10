@@ -1102,6 +1102,8 @@ export function useClinicalTopics() {
 - **Что нет:** UI-страницы списка архивных, кнопки «Перенести слот» в `SlotDetailsModal`.
 - **Решение:** `/superadmin/exams/archive` + extra кнопка с datetime-local пикером в SlotDetailsModal.
 
-### EX-4. Уведомления о бронировании/отмене (P: M, E: M)
-- **Описание:** Cloud Function trigger на `bookingDetails` write/delete → отправка email или Telegram (как у `sendFeedback`).
-- **Не делалось намеренно** — пользователь сказал «только UI на данном этапе».
+### EX-4. ✅ Уведомления о бронировании/отмене — РЕШЕНО (2026-05-10)
+- **Решение:** Firestore-trigger `onExamSlotWrite` в `functions/src/examNotifications.ts`. На каждый переход числа броней в слоте создаёт/обновляет событие в личном GCal-календаре преподавателя (calendar ID — секрет `personal-gcal-id`) и шлёт сообщение в существующий Telegram chat (`telegram-chat-id`, тот же что для feedback).
+- **Переходы:** 0→≥1 — insertEvent + 🟢 TG, ≥1→≥1 — patchEvent (update description) + 🟢/🔵 TG, ≥1→0 — patchEvent с «❌ ОТМЕНЕНО» и `transparency=transparent` + 🔴 TG.
+- **Self-heal:** если cnt>0 без eventId и bookings/время не менялись — создаётся event без TG. Использовано для backfill 4 старых броней (20.05, 21.05, 22.05, 25.05) при первом деплое; остаётся как защита от потери eventId.
+- **Per-exam override (`Exam.notifyCalendarId` / `notifyTelegramChatId`)** не реализован сознательно — отложен до момента, когда экзамены начнёт проводить второй преподаватель.
