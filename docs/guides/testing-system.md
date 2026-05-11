@@ -473,6 +473,11 @@ npm run test:integration:watch
 - `tests/integration/testsWorkflow.test.ts` — tests CRUD + prerequisite, testResults flows.
 - `tests/integration/topics.test.ts` — topics CRUD в Firestore.
 - `tests/integration/firestoreHelpers.test.ts` — periods canonical/публикация.
+- `tests/integration/firestoreRules.test.ts` — регрессионная матрица прод-`firestore.rules`
+  через `@firebase/rules-unit-testing` (отдельный projectId, в эмулятор загружается
+  настоящий `firestore.rules`). Проверяет, что `tests` доступен на read/list,
+  server-only коллекции отказывают клиенту, per-uid ограничения уважаются,
+  любая новая коллекция падает в default-deny. Ловит регрессии класса MR-8.
 
 **Бесплатность:** все integration-тесты идут только в локальные эмуляторы. Никаких реальных Firebase project-вызовов и AI-API. Эмуляторы — Java-процесс offline, project ID `psych-dev-site-test` фиктивный.
 
