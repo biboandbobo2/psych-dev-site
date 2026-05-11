@@ -85,6 +85,18 @@ npm run test:integration:watch
 
 **Подробности и список тестов:** [../guides/testing-system.md](../guides/testing-system.md#integration-tests).
 
+### При правке `firestore.rules`
+
+Любое изменение `firestore.rules` (даже однострочное) — обязательно прогон
+`npm run test:integration` локально перед `firebase deploy --only firestore:rules`.
+`tests/integration/firestoreRules.test.ts` подгружает прод-rules в эмулятор и
+проверяет матрицу инвариантов (см. `docs/guides/testing-system.md`). Это
+конкретный контрфорс против регрессии класса MR-8: переписи catch-all
+в форму с `document.size()/document[N]` ломают list по всем коллекциям без
+явного `match`-блока — фронт молча перестаёт грузить данные.
+
+После деплоя — короткая smoke-проверка соответствующих страниц.
+
 ## Рекомендуемый workflow
 
 ### 1. Во время разработки

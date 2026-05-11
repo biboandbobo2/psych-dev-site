@@ -1,5 +1,10 @@
 rules_version = '2';
 
+// ВАЖНО: при изменении этого файла прогоняй `npm run test:integration`.
+// Регрессионная матрица: tests/integration/firestoreRules.test.ts — проверяет
+// list/get/write по всем критичным коллекциям. Не уверен в правке catch-all
+// или в новой коллекции — гарантированно красные тесты до деплоя.
+
 service cloud.firestore {
   match /databases/{database}/documents {
     function isAuthenticated() {
@@ -315,8 +320,14 @@ service cloud.firestore {
     // Server-only RAG / транскрипты / job-коллекции.
     // Клиенты к ним не ходят — доступ только через Admin SDK
     // (Cloud Functions, api/* с server-side ключом), который обходит rules.
+    //
+    // Исключение: метаданные videoTranscripts открыты на чтение, потому что
+    // сами payload-файлы публичны в Storage (`video-transcripts/**`) и
+    // клиентский useVideoTranscript читает их напрямую. Write остаётся
+    // server-only.
     match /videoTranscripts/{videoId} {
-      allow read, write: if false;
+      allow read: if true;
+      allow write: if false;
     }
     match /videoTranscriptSearch/{videoId} {
       allow read, write: if false;
