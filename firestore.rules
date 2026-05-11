@@ -240,11 +240,6 @@ service cloud.firestore {
     }
 
     // Biography pipeline jobs (server writes via Admin SDK, user reads own).
-    // NOTE (MR-8): the catch-all `match /{document=**} { allow read: if true }`
-    // at the bottom of this file currently overrides the per-uid restriction
-    // here — Firestore evaluates rules as a union, so any matching `allow read`
-    // grants access. Tightening (or scoping) the catch-all is tracked in
-    // backlog MR-8 and needs its own deploy + smoke pass.
     match /biographyJobs/{jobId} {
       allow read: if isAuthenticated() &&
         resource.data.userId == request.auth.uid;
@@ -295,20 +290,77 @@ service cloud.firestore {
       }
     }
 
-    // Catch-all. По умолчанию любой документ читаем (нужно для legacy
-    // public-страниц), но приватные секции экзамена выводим из-под этого
-    // правила — иначе эссе и имена студентов утекают всем авторизованным
-    // пользователям (см. MR-8 про общий баг catch-all).
-    //
-    // document — это `path`; используем сегменты вместо matches со
-    // строкой (rules-compiler жалуется на mismatch типов).
-    match /{document=**} {
-      allow read: if !(
-        document.size() >= 4 &&
-        document[0] == 'exams' &&
-        (document[2] == 'essays' || document[2] == 'userIndex' || document[2] == 'bookingDetails')
-      );
+    // Тесты курса (динамические тесты в /tests и /tests-lesson).
+    // Чтение публичное — раньше работало через catch-all с `allow read: if true`.
+    // Запись — только админ (создание/редактирование в /admin/content).
+    match /tests/{testId} {
+      allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // Админская служебная коллекция (например, admin/task-board — метрики
+    // производительности в /superadmin). Доступ только админам.
+    match /admin/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Лента «Новости платформы и события» на /home (документ homeFeed/shared).
+    // Хук useHomeFeed сейчас нигде не вызывается, но коллекция поддерживается
+    // на случай реактивации: чтение публичное (как pages), запись — админ.
+    match /homeFeed/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Server-only RAG / транскрипты / job-коллекции.
+    // Клиенты к ним не ходят — доступ только через Admin SDK
+    // (Cloud Functions, api/* с server-side ключом), который обходит rules.
+    match /videoTranscripts/{videoId} {
+      allow read, write: if false;
+    }
+    match /videoTranscriptSearch/{videoId} {
+      allow read, write: if false;
+      match /searchChunks/{chunkId} {
+        allow read, write: if false;
+      }
+    }
+    match /transcriptJobs/{jobName} {
+      allow read, write: if false;
+      match /runs/{runId} {
+        allow read, write: if false;
+      }
+    }
+    match /lecture_sources/{lectureKey} {
+      allow read, write: if false;
+    }
+    match /lecture_chunks/{chunkId} {
+      allow read, write: if false;
+    }
+    match /lecture_ingestion_jobs/{jobId} {
+      allow read, write: if false;
+    }
+    match /books/{bookId} {
+      allow read, write: if false;
+    }
+    match /book_chunks/{chunkId} {
+      allow read, write: if false;
+    }
+    match /ingestion_jobs/{jobId} {
+      allow read, write: if false;
+    }
+    match /studentEmailLists/{docId} {
+      allow read, write: if false;
+    }
+    match /opsRuntime/{docId} {
+      allow read, write: if false;
+    }
+
+    // Default-deny для всех остальных коллекций. Любая новая коллекция
+    // должна получить свой явный `match`-блок выше — иначе read/write
+    // запрещены. Это закрытие MR-8: больше нет catch-all `allow read: if true`,
+    // который пропускал чтение любого приватного документа.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

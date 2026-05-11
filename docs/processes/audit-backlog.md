@@ -277,16 +277,13 @@ CI часть (осталась):
   **BPT-6. Опционально разбить `timelineBiographyFacts/Lint/Heuristics.ts` (P: L, E: S)**
   - По логическим единицам (parsing, normalization, dedup, baseline, salience). Делать только если кто-то начнёт активно править эти файлы.
 
-### MR‑8. Уточнено 2026-05-04: rules-блок задеплоен, но catch-all всё ещё доминирует (P: M, E: S)
-- **Что выяснилось при verify:** `match /biographyJobs/{jobId}` уже в production rules (`mcp__firebase__firebase_get_security_rules` показывает идентичный prod-snapshot с локальным `firestore.rules`). Strict-read как блок написан корректно.
-- **Незакрытая часть:** в самом низу файла остался legacy catch-all `match /{document=**} { allow read: if true; ... }`. Firestore оценивает правила как объединение — любой match с `allow read: if true` отменяет per-uid ограничение биографии. То есть фактически `biographyJobs` всё ещё открыты для любого authenticated пользователя.
-- **Риск:** UUID v4 jobId почти угадать нельзя (122 bits), но это formal principle-of-least-privilege нарушение. В `step1.extract` лежит plain Wikipedia, в `step4.timeline` — собранный таймлайн с meta.
-- **Что нужно (отдельный PR):**
-  1. Перечислить все коллекции, которые сейчас полагаются на catch-all read=true (через grep по приложению + audit). Минимум: `intro/`, `prenatal/`, `early-childhood/`, `preschool/`, `primary-school/`, `adolescence/`, `periods/`, `clinical-topics/`, `general-topics/`, `courses/` уже имеют свои явные `allow read: if true` — они переживут удаление catch-all.
-  2. Решить: либо `match /{document=**} { allow read: if false; allow write: if isAdmin(); }`, либо убрать целиком (если `allow write: if isAdmin()` тоже не нужен в качестве escape hatch).
-  3. Прогнать smoke по всем главным route'ам (особенно guest-чтение `/home`, lesson list, period content) перед деплоем.
-  4. `firebase deploy --only firestore:rules --project psych-dev-site-prod`.
-- **Стояло отметить локально:** в `firestore.rules` рядом с блоком `biographyJobs` оставлен NOTE-комментарий, чтобы будущий читатель сразу видел зависимость от catch-all.
+### MR‑8. ✅ Закрыто 2026-05-11: catch-all заменён на deny-all
+- **Что было:** legacy catch-all `match /{document=**} { allow read: if true }` отменял per-uid ограничения для `biographyJobs` и пускал любого аутентифицированного к любой коллекции без явного match-блока. Дополнительно, после переписи catch-all в коммите `9cd609c` (05.05.2026) на форму с `document.size()/document[N]` Firestore стал отказывать в **list-запросах** для коллекций без своего match-блока — из-за этого `/tests` и админка тестов показывали пустые экраны (`PERMISSION_DENIED` на list).
+- **Что сделано:**
+  1. Audit всех клиентских коллекций через `grep -rohE '(collection|doc|collectionGroup)\(db,'` по `src/` + Cloud Functions + scripts.
+  2. Добавлены явные `match`-блоки: `tests` (read public, write admin), `admin` (admin only), `homeFeed` (read public, write admin), и `false` для server-only коллекций: `videoTranscripts`, `videoTranscriptSearch/searchChunks`, `transcriptJobs/runs`, `lecture_sources`, `lecture_chunks`, `lecture_ingestion_jobs`, `books`, `book_chunks`, `ingestion_jobs`, `studentEmailLists`, `opsRuntime`. Все они идут через Admin SDK (`firebase-admin/firestore` в `api/*` и `functions/*`), который обходит rules.
+  3. Catch-all заменён на `match /{document=**} { allow read, write: if false; }` — любая новая коллекция в будущем требует явного `match`-блока.
+  4. Деплой: `firebase deploy --only firestore:rules --project psych-dev-site-prod` (2026-05-11). Подтверждено: `/tests` и `/tests-lesson` показывают реальные тесты из Firestore.
 
 ### MR‑9. Functions Checks CI red — vitest config mismatch (P: L, E: XS)
 - **Симптом:** GitHub Actions job `Functions Checks` падает: `Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vitest' imported from .../vitest.config.ts.timestamp-...mjs`. Происходит при `npm run test` в директории `functions/` — подхватывается **root** `vitest.config.ts`, а не `functions/`-локальный, и в functions/node_modules нет vitest.
