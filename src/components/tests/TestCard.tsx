@@ -1,16 +1,45 @@
 import { Link } from 'react-router-dom';
 import type { CSSProperties } from 'react';
-import type { Test } from '../../types/tests';
 import { mergeAppearance, createGradient } from '../../utils/testAppearance';
 import { formatLevelLabel, type TestChain } from '../../utils/testChainHelpers';
+import type { TestAttemptSummary } from '../../types/testResults';
 
 interface TestCardProps {
   chain: TestChain;
   testUnlockStatus: Record<string, boolean>;
+  resultsByTestId?: Map<string, TestAttemptSummary>;
   className?: string;
 }
 
-export function TestCard({ chain, testUnlockStatus, className = '' }: TestCardProps) {
+function BestResultBadge({
+  summary,
+  passingThreshold,
+}: {
+  summary: TestAttemptSummary | undefined;
+  passingThreshold: number;
+}) {
+  if (!summary) return null;
+  const passed = summary.bestPercentage >= passingThreshold;
+  const tone = passed
+    ? 'text-emerald-700 bg-emerald-50'
+    : 'text-amber-700 bg-amber-50';
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${tone}`}
+      title={`Лучший результат из ${summary.attempts} попыток`}
+    >
+      <span aria-hidden>{passed ? '✓' : '•'}</span>
+      <span>{Math.round(summary.bestPercentage)}%</span>
+    </span>
+  );
+}
+
+export function TestCard({
+  chain,
+  testUnlockStatus,
+  resultsByTestId,
+  className = '',
+}: TestCardProps) {
   const { root, levels } = chain;
   const appearance = mergeAppearance(root.appearance);
 
@@ -97,6 +126,10 @@ export function TestCard({ chain, testUnlockStatus, className = '' }: TestCardPr
                 <span>{levels.length} уровня</span>
               </span>
             )}
+            <BestResultBadge
+              summary={resultsByTestId?.get(root.id)}
+              passingThreshold={root.requiredPercentage ?? 70}
+            />
           </div>
         </div>
       </div>
@@ -116,7 +149,13 @@ export function TestCard({ chain, testUnlockStatus, className = '' }: TestCardPr
                   className="flex items-center justify-between rounded-lg border-2 border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-700 transition-all hover:border-blue-400 hover:bg-blue-100"
                 >
                   <span>{label}</span>
-                  <span className="text-xs text-blue-500">→</span>
+                  <span className="flex items-center gap-2">
+                    <BestResultBadge
+                      summary={resultsByTestId?.get(level.id)}
+                      passingThreshold={level.requiredPercentage ?? 70}
+                    />
+                    <span className="text-xs text-blue-500">→</span>
+                  </span>
                 </Link>
               );
             }

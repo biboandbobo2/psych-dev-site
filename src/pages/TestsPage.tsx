@@ -3,7 +3,9 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { getPublishedTests } from '../lib/tests';
 import { isTestUnlocked } from '../lib/testAccess';
+import { getAllTestResults, groupResultsByTest } from '../lib/testResults';
 import type { Test as FirestoreTest, TestRubric, CourseType } from '../types/tests';
+import type { TestAttemptSummary } from '../types/testResults';
 import { buildTestChains } from '../utils/testChainHelpers';
 import { TestCard } from '../components/tests/TestCard';
 import { debugLog, debugError } from '../lib/debug';
@@ -116,6 +118,9 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
   const [firestoreTests, setFirestoreTests] = useState<FirestoreTest[]>([]);
   const [loadingTests, setLoadingTests] = useState(true);
   const [testUnlockStatus, setTestUnlockStatus] = useState<Record<string, boolean>>({});
+  const [resultsByTestId, setResultsByTestId] = useState<Map<string, TestAttemptSummary>>(
+    () => new Map()
+  );
 
   const courseParam = searchParams.get('course');
 
@@ -137,7 +142,7 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
         debugLog(`🔵 [TestsPage/${rubricFilter}] Загружено тестов из Firestore:`, tests.length);
         setFirestoreTests(tests);
 
-        // Проверяем доступность тестов для пользователя
+        // Проверяем доступность тестов для пользователя и подгружаем результаты
         if (user) {
           const unlockStatus: Record<string, boolean> = {};
           for (const test of tests) {
@@ -149,6 +154,13 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
           }
           setTestUnlockStatus(unlockStatus);
           debugLog(`🔓 [TestsPage/${rubricFilter}] Статусы разблокировки:`, unlockStatus);
+
+          try {
+            const allResults = await getAllTestResults(user.uid);
+            setResultsByTestId(groupResultsByTest(allResults));
+          } catch (resultsError) {
+            debugError(`❌ [TestsPage/${rubricFilter}] Ошибка загрузки результатов:`, resultsError);
+          }
         }
       } catch (error) {
         debugError(`❌ [TestsPage/${rubricFilter}] Ошибка загрузки тестов:`, error);
@@ -224,7 +236,12 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
             <EmptyState rubricFilter={rubricFilter} />
           ) : (
             testChains.map((chain) => (
-              <TestCard key={chain.root.id} chain={chain} testUnlockStatus={testUnlockStatus} />
+              <TestCard
+                key={chain.root.id}
+                chain={chain}
+                testUnlockStatus={testUnlockStatus}
+                resultsByTestId={resultsByTestId}
+              />
             ))
           )}
 
