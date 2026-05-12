@@ -1,0 +1,366 @@
+{
+  "version": "1.0",
+  "exportedAt": "2026-05-12T10:19:06.602Z",
+  "_firestoreTestId": "oXV9VfgDrKGiM3WNPEB4",
+  "test": {
+    "title": "Узнай автора по цитате",
+    "course": "general",
+    "rubric": "full-course",
+    "requiredPercentage": 70,
+    "defaultRevealPolicy": {
+      "mode": "immediately"
+    },
+    "appearance": {
+      "bulletPoints": [
+        "10 цитат / характерных тезисов",
+        "К каждой — ссылка на источник",
+        "Сразу после ответа — справка и ссылка"
+      ],
+      "introIcon": "💬",
+      "introDescription": "10 цитат и сформулированных тезисов из работ учёных, упомянутых в курсе. Сразу после ответа — пояснение и рабочая ссылка на источник.",
+      "introTitle": "Узнай автора по цитате"
+    },
+    "questions": [
+      {
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "shuffleAnswers": true,
+        "correctAnswerId": "q2-a1",
+        "id": "q2-popper",
+        "questionText": "Кому принадлежит цитата: «Каждая хорошая научная теория есть запрет: она запрещает определённым вещам происходить. Чем больше теория запрещает, тем она лучше»?",
+        "explanation": "Это Карл Поппер, из эссе «Science: Conjectures and Refutations» (в сборнике «Conjectures and Refutations», 1963). Так он формулирует принцип фальсифицируемости: теория сильна не тем, что объясняет всё, а тем, что запрещает невозможное.",
+        "answers": [
+          {
+            "text": "Карл Поппер",
+            "id": "q2-a1"
+          },
+          {
+            "text": "Лев Выготский",
+            "id": "q2-a2"
+          },
+          {
+            "text": "Ульрик Найссер",
+            "id": "q2-a3"
+          },
+          {
+            "text": "Хайнц Хекхаузен",
+            "id": "q2-a4"
+          }
+        ],
+        "resourcesRight": [
+          {
+            "title": "Karl Popper — Wikiquote (EN)",
+            "url": "https://en.wikiquote.org/wiki/Karl_Popper"
+          }
+        ]
+      },
+      {
+        "explanation": "Эта крылатая фраза открывает учебник Германа Эббингауза «Abriss der Psychologie» (1908; англ. «Psychology: An elementary textbook», стр. 3). Эббингауз так подчёркивает, что философские разговоры о душе шли тысячелетиями, а научная экспериментальная психология только начала свой путь.",
+        "answers": [
+          {
+            "text": "Герман Эббингауз",
+            "id": "q5-a1"
+          },
+          {
+            "text": "Вильгельм Вундт",
+            "id": "q5-a2"
+          },
+          {
+            "text": "Ульрик Найссер",
+            "id": "q5-a3"
+          },
+          {
+            "text": "Алексей Леонтьев",
+            "id": "q5-a4"
+          }
+        ],
+        "resourcesRight": [
+          {
+            "url": "https://en.wikiquote.org/wiki/Hermann_Ebbinghaus",
+            "title": "Hermann Ebbinghaus — Wikiquote (EN)"
+          }
+        ],
+        "id": "q5-ebbinghaus",
+        "questionText": "Чьи это слова: «Психология имеет долгое прошлое, но короткую историю»?",
+        "shuffleAnswers": true,
+        "correctAnswerId": "q5-a1",
+        "revealPolicy": {
+          "mode": "immediately"
+        }
+      },
+      {
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "shuffleAnswers": true,
+        "correctAnswerId": "q9-a1",
+        "questionText": "Чья это позиция: «Фундаментальные эмоции (страх, гнев, радость, интерес и др.) нельзя свести к более простым, но их можно комбинировать — подобно тому, как из основных цветов смешивают новые»?",
+        "id": "q9-izard",
+        "resourcesRight": [
+          {
+            "url": "https://en.wikipedia.org/wiki/Carroll_Izard",
+            "title": "Carroll Izard — Wikipedia (EN)"
+          }
+        ],
+        "explanation": "Это позиция Кэрролла Изарда в рамках теории дифференциальных эмоций (Differential Emotions Theory), развёрнутой в книге «Human Emotions» (1977). Базовые эмоции рассматриваются как врождённые и несводимые, а сложные переживания возникают как их сочетания.",
+        "answers": [
+          {
+            "text": "Кэрролл Изард",
+            "id": "q9-a1"
+          },
+          {
+            "text": "Элизабет Лофтус",
+            "id": "q9-a2"
+          },
+          {
+            "text": "Лев Выготский",
+            "id": "q9-a3"
+          },
+          {
+            "text": "Хайнц Хекхаузен",
+            "id": "q9-a4"
+          }
+        ]
+      },
+      {
+        "questionText": "Кому принадлежит эта формулировка предмета психологии: «Психология — это наука о непосредственном опыте» (в отличие от опосредованного опыта естественных наук)?",
+        "id": "q1-wundt",
+        "resourcesRight": [
+          {
+            "url": "https://plato.stanford.edu/entries/wilhelm-wundt/",
+            "title": "Wilhelm Wundt — Stanford Encyclopedia of Philosophy"
+          }
+        ],
+        "explanation": "Это формулировка Вильгельма Вундта из «Grundzüge der physiologischen Psychologie» (1874): психология изучает непосредственный опыт сознания, тогда как естественные науки имеют дело с опосредованным опытом. Это определение легло в основу его экспериментальной программы.",
+        "answers": [
+          {
+            "text": "Вильгельм Вундт",
+            "id": "q1-a1"
+          },
+          {
+            "text": "Лев Выготский",
+            "id": "q1-a2"
+          },
+          {
+            "text": "Герман Эббингауз",
+            "id": "q1-a3"
+          },
+          {
+            "text": "Карл Поппер",
+            "id": "q1-a4"
+          }
+        ],
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "shuffleAnswers": true,
+        "correctAnswerId": "q1-a1"
+      },
+      {
+        "shuffleAnswers": true,
+        "correctAnswerId": "q7-a1",
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "resourcesRight": [
+          {
+            "url": "https://www.marxists.org/archive/vygotsky/works/words/index.htm",
+            "title": "Л. С. Выготский. Мышление и речь — Marxists.org"
+          }
+        ],
+        "explanation": "Тезис из заключительной главы «Мышление и речь» (1934) Льва Выготского. Слово для него не упаковка готовой мысли, а её собственный способ существования: процесс перехода от замысла к развёрнутой формулировке — это и есть само мышление.",
+        "answers": [
+          {
+            "text": "Лев Выготский",
+            "id": "q7-a1"
+          },
+          {
+            "text": "Алексей Леонтьев",
+            "id": "q7-a2"
+          },
+          {
+            "text": "Карл Поппер",
+            "id": "q7-a3"
+          },
+          {
+            "text": "Герман Эббингауз",
+            "id": "q7-a4"
+          }
+        ],
+        "questionText": "Чья это мысль: «Мысль не выражается, но совершается в слове»?",
+        "id": "q7-vygotsky"
+      },
+      {
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "shuffleAnswers": true,
+        "correctAnswerId": "q4-a1",
+        "questionText": "Кому принадлежит это определение: «Термин „познание“ относится ко всем процессам, посредством которых сенсорный вход преобразуется, сокращается, разрабатывается, хранится, восстанавливается и используется»?",
+        "id": "q4-neisser",
+        "resourcesRight": [
+          {
+            "url": "https://en.wikipedia.org/wiki/Ulric_Neisser",
+            "title": "Ulric Neisser — Wikipedia (EN)"
+          }
+        ],
+        "explanation": "Это знаменитое определение когнитивных процессов из книги Ульрика Найссера «Cognitive Psychology» (1967, стр. 4). Именно с этой формулировки берёт начало академическая когнитивная психология как отдельная программа.",
+        "answers": [
+          {
+            "text": "Ульрик Найссер",
+            "id": "q4-a1"
+          },
+          {
+            "text": "Элизабет Лофтус",
+            "id": "q4-a2"
+          },
+          {
+            "text": "Хайнц Хекхаузен",
+            "id": "q4-a3"
+          },
+          {
+            "text": "Кэрролл Изард",
+            "id": "q4-a4"
+          }
+        ]
+      },
+      {
+        "shuffleAnswers": true,
+        "correctAnswerId": "q10-a1",
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "resourcesRight": [
+          {
+            "url": "https://www.cambridge.org/core/books/motivation-and-action/C6FB0E912A1B2D9C7588F0E02BC588BA",
+            "title": "Heinz & Jutta Heckhausen — Motivation and Action (Cambridge)"
+          }
+        ],
+        "explanation": "Эта рабочая формулировка мотивации достижения — из учебника Хайнца Хекхаузена «Motivation und Handeln» (1980; англ. «Motivation and Action»). Она продолжает линию Мюррея–МакКлелланда–Аткинсона, к которой Хекхаузен добавил собственные эмпирические и теоретические разработки.",
+        "answers": [
+          {
+            "text": "Хайнц Хекхаузен",
+            "id": "q10-a1"
+          },
+          {
+            "text": "Даниэль Канеман",
+            "id": "q10-a2"
+          },
+          {
+            "text": "Кэрролл Изард",
+            "id": "q10-a3"
+          },
+          {
+            "text": "Вильгельм Вундт",
+            "id": "q10-a4"
+          }
+        ],
+        "questionText": "Кому принадлежит формулировка: «Поведение можно считать мотивированным достижением, когда оно включает соревнование со „стандартом совершенства“ (standard of excellence)»?",
+        "id": "q10-heckhausen"
+      },
+      {
+        "shuffleAnswers": true,
+        "correctAnswerId": "q3-a1",
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "resourcesRight": [
+          {
+            "title": "Алексей Николаевич Леонтьев — Викицитатник",
+            "url": "https://ru.wikiquote.org/wiki/%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B5%D0%B9_%D0%9D%D0%B8%D0%BA%D0%BE%D0%BB%D0%B0%D0%B5%D0%B2%D0%B8%D1%87_%D0%9B%D0%B5%D0%BE%D0%BD%D1%82%D1%8C%D0%B5%D0%B2"
+          }
+        ],
+        "explanation": "Тезис Алексея Леонтьева из «Деятельность. Сознание. Личность» (1975). В рамках теории деятельности личность не дана от рождения — она формируется через систему предметных деятельностей и их иерархию мотивов.",
+        "answers": [
+          {
+            "text": "Алексей Леонтьев",
+            "id": "q3-a1"
+          },
+          {
+            "text": "Лев Выготский",
+            "id": "q3-a2"
+          },
+          {
+            "text": "Кэрролл Изард",
+            "id": "q3-a3"
+          },
+          {
+            "text": "Герман Эббингауз",
+            "id": "q3-a4"
+          }
+        ],
+        "questionText": "Чьё это утверждение: «Личностью не родятся, личностью становятся»?",
+        "id": "q3-leontiev"
+      },
+      {
+        "shuffleAnswers": true,
+        "correctAnswerId": "q6-a1",
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "explanation": "Эта формулировка принадлежит Элизабет Лофтус, прозвучала в её выступлении «How reliable is your memory?» на TEDGlobal 2013. Она резюмирует её многолетние исследования: память не воспроизводит прошлое, а реконструирует его, и эту реконструкцию можно изменить.",
+        "answers": [
+          {
+            "text": "Элизабет Лофтус",
+            "id": "q6-a1"
+          },
+          {
+            "text": "Даниэль Канеман",
+            "id": "q6-a2"
+          },
+          {
+            "text": "Кэрролл Изард",
+            "id": "q6-a3"
+          },
+          {
+            "text": "Ульрик Найссер",
+            "id": "q6-a4"
+          }
+        ],
+        "resourcesRight": [
+          {
+            "url": "https://www.ted.com/talks/elizabeth_loftus_how_reliable_is_your_memory",
+            "title": "Elizabeth Loftus — TED Talk «How reliable is your memory?»"
+          }
+        ],
+        "id": "q6-loftus",
+        "questionText": "Кому принадлежит метафора: «Память работает скорее как страница Википедии: вы можете её изменить — и другие тоже могут»?"
+      },
+      {
+        "explanation": "Это Даниэль Канеман, центральный тезис книги «Думай медленно… решай быстро» (Thinking, Fast and Slow, 2011). Различение Системы 1 и Системы 2 — рамка, через которую он систематизирует когнитивные искажения и эвристики, изученные им вместе с Амосом Тверски.",
+        "answers": [
+          {
+            "text": "Даниэль Канеман",
+            "id": "q8-a1"
+          },
+          {
+            "text": "Карл Поппер",
+            "id": "q8-a2"
+          },
+          {
+            "text": "Ульрик Найссер",
+            "id": "q8-a3"
+          },
+          {
+            "text": "Элизабет Лофтус",
+            "id": "q8-a4"
+          }
+        ],
+        "resourcesRight": [
+          {
+            "url": "https://en.wikiquote.org/wiki/Daniel_Kahneman",
+            "title": "Daniel Kahneman — Wikiquote (EN)"
+          }
+        ],
+        "id": "q8-kahneman",
+        "questionText": "Кому принадлежит описание двух «систем мышления»: «Система 1 действует быстро и автоматически, без усилий или почти без усилий и без ощущения сознательного контроля; Система 2 направляет внимание на сознательную умственную деятельность, требующую усилий»?",
+        "shuffleAnswers": true,
+        "correctAnswerId": "q8-a1",
+        "revealPolicy": {
+          "mode": "immediately"
+        }
+      }
+    ]
+  }
+}

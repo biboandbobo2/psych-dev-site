@@ -1,0 +1,341 @@
+{
+  "version": "1.0",
+  "exportedAt": "2026-05-12T10:19:06.288Z",
+  "_firestoreTestId": "cUrx3Kdmi55bumXEGwIf",
+  "test": {
+    "title": "Узнай учёного по фото",
+    "course": "general",
+    "rubric": "full-course",
+    "requiredPercentage": 70,
+    "defaultRevealPolicy": {
+      "mode": "immediately"
+    },
+    "appearance": {
+      "introDescription": "10 фотографий — 10 учёных из задания зачёта по общей психологии. После каждого ответа сразу появляется короткая справка и ссылка на статью.",
+      "introIcon": "🖼️",
+      "bulletPoints": [
+        "10 вопросов с фотопортретами",
+        "4 варианта ответа, перемешиваются",
+        "Сразу после ответа — справка и ссылка"
+      ],
+      "introTitle": "Узнай учёного по фото"
+    },
+    "questions": [
+      {
+        "answers": [
+          {
+            "id": "q5-ebbinghaus-a1",
+            "text": "Герман Эббингауз"
+          },
+          {
+            "id": "q5-ebbinghaus-a2",
+            "text": "Вильгельм Вундт"
+          },
+          {
+            "id": "q5-ebbinghaus-a3",
+            "text": "Лев Выготский"
+          },
+          {
+            "id": "q5-ebbinghaus-a4",
+            "text": "Алексей Леонтьев"
+          }
+        ],
+        "id": "q5-ebbinghaus",
+        "shuffleAnswers": true,
+        "questionText": "Кто изображён на фотографии?",
+        "correctAnswerId": "q5-ebbinghaus-a1",
+        "resourcesRight": [
+          {
+            "title": "Эббингауз, Герман — Википедия",
+            "url": "https://ru.wikipedia.org/wiki/%D0%AD%D0%B1%D0%B1%D0%B8%D0%BD%D0%B3%D0%B0%D1%83%D0%B7,_%D0%93%D0%B5%D1%80%D0%BC%D0%B0%D0%BD"
+          }
+        ],
+        "explanation": "Герман Эббингауз (1850–1909) — немецкий психолог, первым применил экспериментальные методы к высшим психическим функциям. Известен исследованиями памяти на бессмысленных слогах и кривой забывания.",
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "_photoFile": "05-ebbinghaus.jpg"
+      },
+      {
+        "shuffleAnswers": true,
+        "questionText": "Кто изображён на фотографии?",
+        "answers": [
+          {
+            "id": "q8-kahneman-a1",
+            "text": "Даниэль Канеман"
+          },
+          {
+            "id": "q8-kahneman-a2",
+            "text": "Кэрролл Изард"
+          },
+          {
+            "id": "q8-kahneman-a3",
+            "text": "Ульрик Найссер"
+          },
+          {
+            "id": "q8-kahneman-a4",
+            "text": "Хайнц Хекхаузен"
+          }
+        ],
+        "id": "q8-kahneman",
+        "explanation": "Даниэль Канеман (1934–2024) — психолог, лауреат Нобелевской премии по экономике (2002, совместно с Вернон Смитом). Автор концепции двух систем мышления и теории перспектив (вместе с А. Тверски).",
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "correctAnswerId": "q8-kahneman-a1",
+        "resourcesRight": [
+          {
+            "url": "https://ru.wikipedia.org/wiki/%D0%9A%D0%B0%D0%BD%D0%B5%D0%BC%D0%B0%D0%BD,_%D0%94%D0%B0%D0%BD%D0%B8%D1%8D%D0%BB%D1%8C",
+            "title": "Канеман, Даниэль — Википедия"
+          }
+        ],
+        "_photoFile": "08-kahneman.jpg"
+      },
+      {
+        "shuffleAnswers": true,
+        "questionText": "Кто изображён на фотографии?",
+        "id": "q3-leontiev",
+        "answers": [
+          {
+            "id": "q3-leontiev-a1",
+            "text": "Алексей Леонтьев"
+          },
+          {
+            "id": "q3-leontiev-a2",
+            "text": "Карл Поппер"
+          },
+          {
+            "id": "q3-leontiev-a3",
+            "text": "Лев Выготский"
+          },
+          {
+            "id": "q3-leontiev-a4",
+            "text": "Хайнц Хекхаузен"
+          }
+        ],
+        "explanation": "Алексей Николаевич Леонтьев (1903–1979) — советский психолог, автор теории деятельности; основатель факультета психологии МГУ.",
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "resourcesRight": [
+          {
+            "url": "https://ru.wikipedia.org/wiki/%D0%9B%D0%B5%D0%BE%D0%BD%D1%82%D1%8C%D0%B5%D0%B2,_%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B5%D0%B9_%D0%9D%D0%B8%D0%BA%D0%BE%D0%BB%D0%B0%D0%B5%D0%B2%D0%B8%D1%87",
+            "title": "Леонтьев, Алексей Николаевич — Википедия"
+          }
+        ],
+        "correctAnswerId": "q3-leontiev-a1",
+        "_photoFile": "03-leontiev.jpg"
+      },
+      {
+        "explanation": "Лев Семёнович Выготский (1896–1934) — советский психолог, основатель культурно-исторической теории; разработал учение о высших психических функциях и понятие зоны ближайшего развития.",
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "resourcesRight": [
+          {
+            "url": "https://ru.wikipedia.org/wiki/%D0%92%D1%8B%D0%B3%D0%BE%D1%82%D1%81%D0%BA%D0%B8%D0%B9,_%D0%9B%D0%B5%D0%B2_%D0%A1%D0%B5%D0%BC%D1%91%D0%BD%D0%BE%D0%B2%D0%B8%D1%87",
+            "title": "Выготский, Лев Семёнович — Википедия"
+          }
+        ],
+        "correctAnswerId": "q7-vygotsky-a1",
+        "shuffleAnswers": true,
+        "questionText": "Кто изображён на фотографии?",
+        "id": "q7-vygotsky",
+        "answers": [
+          {
+            "id": "q7-vygotsky-a1",
+            "text": "Лев Выготский"
+          },
+          {
+            "id": "q7-vygotsky-a2",
+            "text": "Герман Эббингауз"
+          },
+          {
+            "id": "q7-vygotsky-a3",
+            "text": "Вильгельм Вундт"
+          },
+          {
+            "id": "q7-vygotsky-a4",
+            "text": "Алексей Леонтьев"
+          }
+        ],
+        "_photoFile": "07-vygotsky.jpg"
+      },
+      {
+        "id": "q6-loftus",
+        "questionText": "Кто изображён на фотографии?",
+        "answers": [
+          {
+            "id": "q6-a1",
+            "text": "Элизабет Лофтус"
+          },
+          {
+            "id": "q6-a2",
+            "text": "Энн Трейсман"
+          },
+          {
+            "id": "q6-a3",
+            "text": "Мэри Эйнсворт"
+          },
+          {
+            "id": "q6-a4",
+            "text": "Кэрол Двек"
+          }
+        ],
+        "correctAnswerId": "q6-a1",
+        "shuffleAnswers": true,
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "explanation": "Элизабет Лофтус (род. 1944) — американский когнитивный психолог, исследует надёжность памяти и ложные воспоминания. Для сравнения в дистракторах: Энн Трейсман — теория интеграции признаков (внимание); Мэри Эйнсворт — теория привязанности; Кэрол Двек — психология установок (mindset).",
+        "resourcesRight": [
+          {
+            "title": "Лофтус, Элизабет — Википедия",
+            "url": "https://ru.wikipedia.org/wiki/%D0%9B%D0%BE%D1%84%D1%82%D1%83%D1%81,_%D0%AD%D0%BB%D0%B8%D0%B7%D0%B0%D0%B1%D0%B5%D1%82"
+          }
+        ],
+        "_photoFile": "06-loftus.jpg"
+      },
+      {
+        "explanation": "Ульрик Найссер (1928–2012) — американский психолог немецкого происхождения, «отец когнитивной психологии». Автор книги «Cognitive Psychology» (1967) и концепции предвосхищающих когнитивных схем.",
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "correctAnswerId": "q4-neisser-a1",
+        "resourcesRight": [
+          {
+            "url": "https://ru.wikipedia.org/wiki/%D0%9D%D0%B0%D0%B9%D1%81%D1%81%D0%B5%D1%80,_%D0%A3%D0%BB%D1%8C%D1%80%D0%B8%D0%BA",
+            "title": "Найссер, Ульрик — Википедия"
+          }
+        ],
+        "shuffleAnswers": true,
+        "questionText": "Кто изображён на фотографии?",
+        "answers": [
+          {
+            "id": "q4-neisser-a1",
+            "text": "Ульрик Найссер"
+          },
+          {
+            "id": "q4-neisser-a2",
+            "text": "Даниэль Канеман"
+          },
+          {
+            "id": "q4-neisser-a3",
+            "text": "Кэрролл Изард"
+          },
+          {
+            "id": "q4-neisser-a4",
+            "text": "Хайнц Хекхаузен"
+          }
+        ],
+        "id": "q4-neisser",
+        "_photoFile": "04-neisser.jpg"
+      },
+      {
+        "correctAnswerId": "q1-wundt-a1",
+        "resourcesRight": [
+          {
+            "title": "Вундт, Вильгельм — Википедия",
+            "url": "https://ru.wikipedia.org/wiki/%D0%92%D1%83%D0%BD%D0%B4%D1%82,_%D0%92%D0%B8%D0%BB%D1%8C%D0%B3%D0%B5%D0%BB%D1%8C%D0%BC"
+          }
+        ],
+        "explanation": "Вильгельм Вундт (1832–1920) — немецкий физиолог и психолог, основатель экспериментальной психологии. В 1879 г. в Лейпциге открыл первую в мире психологическую лабораторию.",
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "answers": [
+          {
+            "id": "q1-wundt-a1",
+            "text": "Вильгельм Вундт"
+          },
+          {
+            "id": "q1-wundt-a2",
+            "text": "Герман Эббингауз"
+          },
+          {
+            "id": "q1-wundt-a3",
+            "text": "Лев Выготский"
+          },
+          {
+            "id": "q1-wundt-a4",
+            "text": "Алексей Леонтьев"
+          }
+        ],
+        "id": "q1-wundt",
+        "shuffleAnswers": true,
+        "questionText": "Кто изображён на фотографии?",
+        "_photoFile": "01-vundt.jpg"
+      },
+      {
+        "answers": [
+          {
+            "id": "q9-izard-a1",
+            "text": "Кэрролл Изард"
+          },
+          {
+            "id": "q9-izard-a2",
+            "text": "Даниэль Канеман"
+          },
+          {
+            "id": "q9-izard-a3",
+            "text": "Ульрик Найссер"
+          },
+          {
+            "id": "q9-izard-a4",
+            "text": "Хайнц Хекхаузен"
+          }
+        ],
+        "id": "q9-izard",
+        "shuffleAnswers": true,
+        "questionText": "Кто изображён на фотографии?",
+        "correctAnswerId": "q9-izard-a1",
+        "resourcesRight": [
+          {
+            "title": "Carroll Izard — Wikipedia (EN)",
+            "url": "https://en.wikipedia.org/wiki/Carroll_Izard"
+          }
+        ],
+        "explanation": "Кэрролл Изард (1923–2017) — американский психолог, специалист по психологии эмоций. Автор теории дифференциальных эмоций; выделил набор фундаментальных эмоций, считая их врождёнными.",
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "_photoFile": "09-izard.jpg"
+      },
+      {
+        "correctAnswerId": "q2-popper-a1",
+        "resourcesRight": [
+          {
+            "url": "https://ru.wikipedia.org/wiki/%D0%9F%D0%BE%D0%BF%D0%BF%D0%B5%D1%80,_%D0%9A%D0%B0%D1%80%D0%BB",
+            "title": "Поппер, Карл — Википедия"
+          }
+        ],
+        "explanation": "Карл Поппер (1902–1994) — австро-британский философ науки. Ввёл принцип фальсифицируемости как критерий разграничения научного и ненаучного знания.",
+        "revealPolicy": {
+          "mode": "immediately"
+        },
+        "answers": [
+          {
+            "id": "q2-popper-a1",
+            "text": "Карл Поппер"
+          },
+          {
+            "id": "q2-popper-a2",
+            "text": "Алексей Леонтьев"
+          },
+          {
+            "id": "q2-popper-a3",
+            "text": "Лев Выготский"
+          },
+          {
+            "id": "q2-popper-a4",
+            "text": "Хайнц Хекхаузен"
+          }
+        ],
+        "id": "q2-popper",
+        "shuffleAnswers": true,
+        "questionText": "Кто изображён на фотографии?",
+        "_photoFile": "02-popper.jpg"
+      }
+    ]
+  }
+}
