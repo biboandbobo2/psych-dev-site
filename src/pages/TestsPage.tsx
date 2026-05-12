@@ -183,7 +183,10 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
 
   const testChains = useMemo(() => buildTestChains(filteredTests), [filteredTests]);
 
-  const showPlaceholders = rubricFilter === 'full-course' && !loadingTests;
+  // Placeholder-карточки («Скоро») показываем только когда в категории ещё нет
+  // ни одного реального теста. Появился хоть один — заглушки прячутся.
+  const showPlaceholders =
+    rubricFilter === 'full-course' && !loadingTests && testChains.length === 0;
 
   // Страница всегда в контексте курса: если курс не выбран и нет ?course=,
   // отправляем в «Дом», чтобы студент зашёл через intro-страницу курса.
