@@ -120,12 +120,6 @@ export function TestCard({
               <span>📋</span>
               <span>{root.questionCount} вопросов</span>
             </span>
-            {levels.length > 0 && (
-              <span className="flex items-center gap-1">
-                <span>🔥</span>
-                <span>{levels.length} уровня</span>
-              </span>
-            )}
             <BestResultBadge
               summary={resultsByTestId?.get(root.id)}
               passingThreshold={root.requiredPercentage ?? 70}
