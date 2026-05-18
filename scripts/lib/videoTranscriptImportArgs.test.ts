@@ -29,4 +29,22 @@ describe('parseTranscriptImportArgs', () => {
       video: null,
     });
   });
+
+  it('поддерживает синтаксис с пробелом для value-ключей', () => {
+    expect(
+      parseTranscriptImportArgs(['--video', 'lzz0HntrAws', '--force'])
+    ).toMatchObject({
+      video: 'lzz0HntrAws',
+      force: true,
+    });
+  });
+
+  it('не съедает следующий флаг как значение', () => {
+    expect(
+      parseTranscriptImportArgs(['--video', '--force'])
+    ).toMatchObject({
+      video: null,
+      force: true,
+    });
+  });
 });
