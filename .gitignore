@@ -45,3 +45,5 @@ CLAUDE.md
 
 # Playwright/Claude screenshots in repo root (создаются при MCP-тестах)
 /*.png
+# Playwright accessibility snapshots в корне (browser_snapshot dump'ит сюда)
+/*.yml
