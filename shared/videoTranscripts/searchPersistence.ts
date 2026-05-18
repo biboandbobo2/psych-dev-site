@@ -9,7 +9,12 @@ import {
 } from "./schema.js";
 import { commitBatchedWriteOperations } from "../firestore/writeBatches.js";
 
-const TRANSCRIPT_SEARCH_BATCH_SIZE = 400;
+// Firestore: до 500 операций в batch и до 10 MB размера транзакции, плюс
+// 60-сек deadline на gRPC commit. При замене большого YT-индекса (delete 700
+// + set 150 = 850 ops × ~5-15 KB) уперлись в размер, понизили до 100. При
+// плохой сети 100 ops × set с searchTokens могут не уложиться в 60 сек —
+// тогда DEADLINE_EXCEEDED. 50 — двойной запас по обоим параметрам.
+const TRANSCRIPT_SEARCH_BATCH_SIZE = 50;
 
 type SetOperation = {
   type: "set";
