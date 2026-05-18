@@ -63,6 +63,16 @@ export async function upsertTranscript(
       | Partial<VideoTranscriptDocShape<FirebaseFirestore.Timestamp>>
       | undefined;
 
+    // КРИТИЧНО: manual-транскрипты не перезаписываются YT-импортом даже
+    // с --force. Manual — высокое качество, выкатывается через отдельный
+    // путь (scripts/importManualTranscript.ts). Это защищает от случайных
+    // прогонов кнопки «Подтянуть YT-транскрипты» в кабинете и фоновых
+    // багов парсера флагов. Чтобы перезаписать manual — делай это явно
+    // через importManualTranscript.ts.
+    if (existingData?.source === "manual" && existingData?.status === "available") {
+      return { status: "skipped", youtubeVideoId: target.youtubeVideoId };
+    }
+
     if (!options.force && existingData?.status === "available") {
       return { status: "skipped", youtubeVideoId: target.youtubeVideoId };
     }

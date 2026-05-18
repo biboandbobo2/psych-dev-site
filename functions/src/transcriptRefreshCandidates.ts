@@ -32,6 +32,10 @@ export function getTranscriptRefreshReason(
     return "missing";
   }
 
+  if (doc.source === "manual") {
+    return null;
+  }
+
   if (doc.status !== "unavailable" && doc.status !== "failed") {
     return null;
   }

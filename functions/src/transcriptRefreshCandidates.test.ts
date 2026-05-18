@@ -53,6 +53,19 @@ describe("getTranscriptRefreshReason", () => {
       )
     ).toBeNull();
   });
+
+  it("skips manual transcripts regardless of status", () => {
+    expect(
+      getTranscriptRefreshReason(
+        {
+          source: "manual",
+          status: "unavailable",
+          nextRetryAt: Timestamp.fromMillis(now.toMillis() - 1),
+        },
+        now
+      )
+    ).toBeNull();
+  });
 });
 
 describe("collectTranscriptRefreshCandidates", () => {
