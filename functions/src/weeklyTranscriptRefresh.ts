@@ -15,6 +15,13 @@ import { formatTranscriptRefreshTelegramReport } from "./transcriptRefreshReport
 import { upsertTranscript } from "../../shared/videoTranscripts/runner.js";
 import { ingestLectureRagTarget } from "../../shared/lectureRag/index.js";
 
+// Временно отключено: YouTube блокирует запросы youtube-transcript-plus
+// с GCP-IP us-central1, поэтому Cloud Function стабильно получает
+// `TRANSCRIPT_NOT_AVAILABLE` даже для видео, у которых captions реально есть.
+// Локальный импорт через `scripts/importVideoTranscripts.ts` работает.
+// Включить обратно после фикса (см. audit-backlog: LP-14).
+const WEEKLY_TRANSCRIPT_REFRESH_DISABLED = true;
+
 export async function runWeeklyTranscriptRefresh(deps?: {
   logger?: Pick<typeof functions.logger, "info" | "warn" | "error">;
   sendMessage?: (text: string) => Promise<unknown>;
@@ -22,6 +29,16 @@ export async function runWeeklyTranscriptRefresh(deps?: {
   const logger = deps?.logger ?? functions.logger;
   const sendMessage = deps?.sendMessage ?? sendTelegramMessage;
   const config = getTranscriptRefreshConfigFromEnv();
+
+  if (WEEKLY_TRANSCRIPT_REFRESH_DISABLED) {
+    logger.warn(
+      "weeklyTranscriptRefresh: skipped — функция временно отключена " +
+        "(GCP-IP блокировка YouTube). Импорт делается локально через " +
+        "scripts/importVideoTranscripts.ts. См. audit-backlog LP-14.",
+      { jobName: config.jobName }
+    );
+    return null;
+  }
   const app = ensureAdminApp();
   const db = getFirestore(app);
   const storage = getStorage(app);
