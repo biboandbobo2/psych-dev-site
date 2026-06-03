@@ -1,3 +1,4 @@
+import { CtaButton } from '../components/CtaButton';
 import { FadeSection } from '../components/FadeSection';
 import { formatHighlights } from '../data';
 
@@ -18,6 +19,9 @@ export function FormatSection() {
               <p>{item.text}</p>
             </article>
           ))}
+        </div>
+        <div className="ws2-section-cta">
+          <CtaButton />
         </div>
       </div>
     </FadeSection>

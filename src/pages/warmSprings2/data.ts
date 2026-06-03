@@ -34,6 +34,7 @@ export interface PriceCard {
   period: string;
   price: string;
   accent: boolean;
+  expired?: boolean;
 }
 
 export interface FormatHighlight {
@@ -242,8 +243,8 @@ export const instructors: Instructor[] = [
 ];
 
 export const prices: PriceCard[] = [
-  { period: 'До 31 мая', price: '850', accent: true },
-  { period: 'До 30 июня', price: '950', accent: false },
+  { period: 'До 31 мая', price: '850', accent: false, expired: true },
+  { period: 'До 30 июня', price: '950', accent: true },
   { period: 'С 1 июля', price: '1 050', accent: false },
 ];
 

@@ -19,9 +19,7 @@ export function HeroSection() {
           &mdash;&nbsp;пространство, где профессиональный рост неотделим от личного опыта
         </p>
         <button type="button" className="ws2-hero-audience" onClick={confirmInterviewRedirect}>
-          Для психологов, которые боятся вести группы
-          <br />
-          или хотят делать это глубже и увереннее
+          Для психологов, которые хотят вести группы и делать это уверенно
         </button>
       </div>
     </section>

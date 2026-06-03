@@ -66,6 +66,10 @@
   box-shadow: 0 14px 30px rgba(0, 11, 48, 0.25);
   transform: translateY(-2px);
 }
+.ws2-section-cta {
+  margin-top: 3rem;
+  text-align: center;
+}
 
 /* ---- Utility ---- */
 .ws2-nowrap {
@@ -136,16 +140,20 @@
 }
 .ws2-nav-cta {
   padding: 0.45rem 1.25rem;
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff !important;
+  background: #f1d08a;
+  color: #3d2f10 !important;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   border-radius: 20px;
   text-decoration: none !important;
-  transition: background 0.2s;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 .ws2-nav-cta:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: #e7bf6c;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.24);
+  transform: translateY(-1px);
 }
 
 /* ================================================================== */
@@ -948,6 +956,19 @@
 .ws2-price-accent .ws2-price-value small {
   color: rgba(45, 59, 45, 0.62);
 }
+.ws2-price-expired {
+  opacity: 0.55;
+  background: #f4f3f0;
+  border-style: dashed;
+}
+.ws2-price-expired .ws2-price-value {
+  text-decoration: line-through;
+  text-decoration-color: rgba(45, 59, 45, 0.4);
+}
+.ws2-price-expired:hover {
+  transform: none;
+  box-shadow: none;
+}
 .ws2-price-period {
   font-size: 0.9rem;
   font-weight: 600;
@@ -1095,6 +1116,13 @@
 @media (max-width: 768px) {
   .ws2-nav-links {
     display: none;
+  }
+  .ws2-nav-cta {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.78rem;
+  }
+  .ws2-nav-logo {
+    font-size: 1.05rem;
   }
 
   .ws2-hero-content {

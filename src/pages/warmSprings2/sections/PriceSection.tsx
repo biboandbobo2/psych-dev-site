@@ -15,7 +15,9 @@ export function PriceSection() {
           {prices.map((p) => (
             <div
               key={p.period}
-              className={`ws2-price-card ${p.accent ? 'ws2-price-accent' : ''}`}
+              className={`ws2-price-card ${p.accent ? 'ws2-price-accent' : ''} ${
+                p.expired ? 'ws2-price-expired' : ''
+              }`}
             >
               <span className="ws2-price-period">{p.period}</span>
               <span className="ws2-price-value">

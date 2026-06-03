@@ -1,3 +1,4 @@
+import { CtaButton } from '../components/CtaButton';
 import { FadeSection } from '../components/FadeSection';
 import { program } from '../data';
 
@@ -20,6 +21,9 @@ export function ProgramSection() {
               </div>
             </div>
           ))}
+        </div>
+        <div className="ws2-section-cta">
+          <CtaButton />
         </div>
       </div>
     </FadeSection>

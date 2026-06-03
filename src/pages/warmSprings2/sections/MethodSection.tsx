@@ -12,34 +12,9 @@ export function MethodSection() {
               Метод, который учит не техникам, а мышлению группового терапевта
             </h3>
             <p>
-              Интенсив наследует и развивает{' '}
-              <a
-                href="https://dic.academic.ru/dic.nsf/enc_psychotherapeutic/178/%D0%9C%D0%95%D0%A2%D0%9E%D0%94%D0%98%D0%9A%D0%90"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ws2-link"
-              >
-                интегративную методику <strong>«Тёплые ключи»</strong>
-              </a>
-              , созданную{' '}
-              <a
-                href="https://ru.wikipedia.org/wiki/%D0%AD%D0%B9%D0%B4%D0%B5%D0%BC%D0%B8%D0%BB%D0%BB%D0%B5%D1%80,_%D0%AD%D0%B4%D0%BC%D0%BE%D0%BD%D0%B4_%D0%93%D0%B5%D0%BE%D1%80%D0%B3%D0%B8%D0%B5%D0%B2%D0%B8%D1%87"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ws2-link"
-              >
-                Эдмондом Эйдемиллером
-              </a>{' '}
-              и{' '}
-              <a
-                href="https://psy.su/club/forum/profile/130116/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ws2-link"
-              >
-                Алексеем Вовком
-              </a>
-              . Участники делятся на две подгруппы, которые поочерёдно работают в режиме
+              Интенсив наследует и развивает интегративную методику{' '}
+              <strong>«Тёплые ключи»</strong>, созданную Эдмондом Эйдемиллером и Алексеем
+              Вовком. Участники делятся на две подгруппы, которые поочерёдно работают в режиме
               активного участия и наблюдения.
             </p>
             <p>
