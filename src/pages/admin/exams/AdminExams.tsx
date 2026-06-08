@@ -8,6 +8,7 @@ import {
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../auth/AuthProvider';
 import { useAllGroups } from '../../../hooks/useAllGroups';
+import { useAllUsers } from '../../../hooks/useAllUsers';
 import { useExam } from '../../../hooks/useExam';
 import {
   archiveExam,
@@ -17,6 +18,7 @@ import { addMonths, formatMonthYearRu } from '../../../lib/calendarGrid';
 import { debugError } from '../../../lib/debug';
 import type { Exam, ExamSlot } from '../../../types/exam';
 import { ExamMonthGrid } from './ExamMonthGrid';
+import { ExamRosterPanel } from './ExamRosterPanel';
 import { CreateExamModal } from './CreateExamModal';
 import { CreateSlotModal } from './CreateSlotModal';
 import { SlotDetailsModal } from './SlotDetailsModal';
@@ -24,6 +26,7 @@ import { SlotDetailsModal } from './SlotDetailsModal';
 export default function AdminExams() {
   const { user, isSuperAdmin } = useAuth();
   const { groups } = useAllGroups();
+  const { users } = useAllUsers();
   const [activeExams, setActiveExams] = useState<Exam[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
   const [cursorDate, setCursorDate] = useState<Date>(() => new Date());
@@ -184,6 +187,8 @@ export default function AdminExams() {
               onSlotClick={(s) => setOpenSlot(s)}
             />
           </div>
+
+          <ExamRosterPanel exam={exam} slots={slots} groups={groups} users={users} />
         </>
       )}
 
