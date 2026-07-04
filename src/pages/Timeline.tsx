@@ -306,6 +306,7 @@ export default function Timeline() {
     birthDetails,
     selectedPeriodization,
     filenamePrefix: exportFilenamePrefix,
+    posterTitle: activeTimelineName,
     onBeforeDownload: closeDownloadMenu,
   });
 

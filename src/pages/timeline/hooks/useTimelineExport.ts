@@ -7,6 +7,7 @@ import {
   exportTimelineJSON,
   exportTimelinePDF,
   exportTimelinePNG,
+  exportTimelinePoster,
 } from '../utils/exporters';
 import { debugError } from '../../../lib/debug';
 
@@ -19,10 +20,12 @@ interface UseTimelineExportOptions {
   birthDetails: BirthDetails;
   selectedPeriodization: TimelineData['selectedPeriodization'];
   filenamePrefix: string;
+  /** Заголовок постера (обычно имя холста). */
+  posterTitle: string;
   onBeforeDownload?: () => void;
 }
 
-export type DownloadType = 'json' | 'png' | 'pdf';
+export type DownloadType = 'json' | 'png' | 'pdf' | 'poster';
 
 export function useTimelineExport({
   svgRef,
@@ -33,6 +36,7 @@ export function useTimelineExport({
   birthDetails,
   selectedPeriodization,
   filenamePrefix,
+  posterTitle,
   onBeforeDownload,
 }: UseTimelineExportOptions) {
   const handleDownload = useCallback(
@@ -56,6 +60,15 @@ export function useTimelineExport({
           await exportTimelinePNG(svgRef.current, exportPayload, `${filenamePrefix}.png`);
           return;
         }
+        if (type === 'poster') {
+          await exportTimelinePoster(
+            svgRef.current,
+            exportPayload,
+            posterTitle,
+            `${filenamePrefix}-poster.png`
+          );
+          return;
+        }
         const periodization = selectedPeriodization
           ? getPeriodizationById(selectedPeriodization) ?? null
           : null;
@@ -77,6 +90,7 @@ export function useTimelineExport({
       filenamePrefix,
       nodes,
       onBeforeDownload,
+      posterTitle,
       selectedPeriodization,
       svgRef,
     ]

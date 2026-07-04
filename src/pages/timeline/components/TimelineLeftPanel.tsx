@@ -39,7 +39,7 @@ interface TimelineLeftPanelProps {
   onSelectTimeline: (timelineId: string) => void;
   onDeleteTimeline: (timelineId: string) => void;
   onDownloadMenuToggle: () => void;
-  onDownloadSelect: (type: 'json' | 'png' | 'pdf') => void;
+  onDownloadSelect: (type: 'json' | 'png' | 'pdf' | 'poster') => void;
   onClearAll: () => void;
   onOpenBiographyImport: () => void;
   onCloseBiographyImport: () => void;
@@ -180,6 +180,13 @@ export function TimelineLeftPanel({
                     className="w-full px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
                   >
                     PNG (изображение)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDownloadSelect('poster')}
+                    className="w-full px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Постер (PNG)
                   </button>
                   <button
                     type="button"

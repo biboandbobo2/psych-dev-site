@@ -143,7 +143,9 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
           />
 
           {/* Сетка: десятилетия заметные, пятилетки едва видимые —
-              холст перестаёт быть «тетрадкой в клеточку». */}
+              холст перестаёт быть «тетрадкой в клеточку».
+              data-layer="grid" позволяет постер-экспорту убрать сетку. */}
+          <g data-layer="grid">
           {ageLabels.map((age) => {
             const isDecade = age % 10 === 0;
             const rightLabel = birthBaseYear !== null ? `${birthBaseYear + age}` : null;
@@ -184,6 +186,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
               </g>
             );
           })}
+          </g>
 
           <line
             x1={LINE_X_POSITION}
@@ -450,6 +453,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                       прямо с холста, без поиска кнопки в панели. */}
                   {isSelected && !isDragging && onAddBranchFromNode && (
                     <g
+                      data-layer="ui"
                       onClick={(e) => {
                         e.stopPropagation();
                         onAddBranchFromNode(node.id);
