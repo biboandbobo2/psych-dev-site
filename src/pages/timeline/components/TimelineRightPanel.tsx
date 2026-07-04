@@ -119,6 +119,8 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
   } = props;
 
   const [showSaveTooltip, setShowSaveTooltip] = useState(false);
+  // Форма нового события скрыта за кнопкой «+ Событие», пока нет выбора.
+  const [newEventFormOpen, setNewEventFormOpen] = useState(false);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < historyLength - 1;
@@ -200,6 +202,8 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
           )}
         </div>
 
+        <TimelineUndoControls canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
+
         {birthSelected && (
           <TimelineBirthForm
             birthFormDate={birthFormDate}
@@ -215,7 +219,32 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
           />
         )}
 
-        {(!selectedBranchId || formEventId) && (
+        {/* Контекстный режим: без выбора панель не вываливает все формы
+            сразу — подсказка + одна главная кнопка «+ Событие». */}
+        {!selectedBranchId && !formEventId && !birthSelected && !newEventFormOpen && !hasFormChanges && (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setNewEventFormOpen(true)}
+              className="w-full rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-sky-50 px-4 py-3 text-sm font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:from-blue-100 hover:to-sky-100"
+            >
+              + Новое событие
+            </button>
+            <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 text-xs leading-relaxed text-slate-600">
+              <div className="mb-1 font-semibold text-slate-700">Как работать с холстом</div>
+              <ul className="space-y-1">
+                <li>• Клик по кружку — открыть событие</li>
+                <li>• Перетащите событие в сторону — от него сможет вырасти ветка (кнопка «+» у кружка)</li>
+                <li>• Клик по ветке — её настройки</li>
+                <li>• Колесо мыши — масштаб, пустое место — перемещение</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {(!selectedBranchId || formEventId) &&
+          !birthSelected &&
+          (formEventId || newEventFormOpen || hasFormChanges) && (
           <>
             <TimelineEventForm
               title={formEventId ? 'Редактировать событие' : 'Новое событие'}
@@ -233,13 +262,16 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
               formEventNotes={formEventNotes}
               onFormEventNotesChange={onFormEventNotesChange}
               onEventFormSubmit={onEventFormSubmit}
-              onClearForm={onClearForm}
+              onClearForm={() => {
+                onClearForm();
+                setNewEventFormOpen(false);
+              }}
               onDeleteEvent={handleDeleteCurrentEvent}
               createNote={createNote}
               onNoteSuccess={() => {
                 onNotify('Событие сохранено в заметки!');
               }}
-              showCancelButton={!!formEventId}
+              showCancelButton={!!formEventId || newEventFormOpen}
               showBulkCreatorButton={!formEventId}
               onOpenBulkCreator={onOpenBulkCreator}
             />
@@ -295,7 +327,6 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
             />
           </>
         )}
-        <TimelineUndoControls canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
       </div>
     </aside>
   );
