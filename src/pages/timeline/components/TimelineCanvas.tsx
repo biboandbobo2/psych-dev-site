@@ -125,7 +125,8 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
         data-world-height={worldHeight}
       >
         <g data-export-root="true" transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
-          <rect x={0} y={-100} width={worldWidth} height={worldHeight + 200} fill="#ffffff" />
+          {/* Тёплый фон вместо чисто-белого — мягче для глаза. */}
+          <rect x={0} y={-100} width={worldWidth} height={worldHeight + 200} fill="#fffdf8" />
 
           <PeriodizationLayer
             periodization={periodization}
@@ -135,7 +136,10 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
             onBoundaryClick={onPeriodBoundaryClick}
           />
 
+          {/* Сетка: десятилетия заметные, пятилетки едва видимые —
+              холст перестаёт быть «тетрадкой в клеточку». */}
           {ageLabels.map((age) => {
+            const isDecade = age % 10 === 0;
             const rightLabel = birthBaseYear !== null ? `${birthBaseYear + age}` : null;
             return (
               <g key={age}>
@@ -144,15 +148,15 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                   y1={worldHeight - age * YEAR_PX}
                   x2={worldWidth}
                   y2={worldHeight - age * YEAR_PX}
-                  stroke="#e2e8f0"
-                  strokeWidth={age % 10 === 0 ? 2 : 1}
+                  stroke={isDecade ? '#e2e8f0' : '#f1f5f9'}
+                  strokeWidth={isDecade ? 2 : 1}
                 />
                 <text
                   x={LINE_X_POSITION - 35}
                   y={worldHeight - age * YEAR_PX + 5}
-                  fontSize={42}
+                  fontSize={isDecade ? 42 : 30}
                   textAnchor="end"
-                  fill="#475569"
+                  fill={isDecade ? '#475569' : '#a8b3c2'}
                   fontWeight="500"
                   fontFamily="Georgia, serif"
                 >
@@ -162,9 +166,9 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                   <text
                     x={LINE_X_POSITION + 35}
                     y={worldHeight - age * YEAR_PX + 5}
-                    fontSize={42}
+                    fontSize={isDecade ? 42 : 30}
                     textAnchor="start"
-                    fill="#475569"
+                    fill={isDecade ? '#475569' : '#a8b3c2'}
                     fontWeight="500"
                     fontFamily="Georgia, serif"
                   >
@@ -180,8 +184,8 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
             y1={worldHeight}
             x2={LINE_X_POSITION}
             y2={worldHeight - currentAge * YEAR_PX}
-            stroke="#93c5fd"
-            strokeWidth={selectedBranchId === null ? 16 : 11}
+            stroke="#5aa2f7"
+            strokeWidth={selectedBranchId === null ? 18 : 13}
             strokeLinecap="round"
             onClick={(e) => {
               e.stopPropagation();
@@ -191,13 +195,14 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
             style={{ cursor: 'pointer' }}
           />
 
+          {/* Будущее — тоньше и бледнее прожитого: стержень читается сразу. */}
           <line
             x1={LINE_X_POSITION}
             y1={worldHeight - currentAge * YEAR_PX}
             x2={LINE_X_POSITION}
             y2={worldHeight - ageMax * YEAR_PX}
-            stroke="#cbd5e1"
-            strokeWidth={selectedBranchId === null ? 16 : 11}
+            stroke="#dde5ee"
+            strokeWidth={selectedBranchId === null ? 10 : 8}
             strokeLinecap="round"
             strokeDasharray="10 5"
             onClick={(e) => {
@@ -270,52 +275,31 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
               const isSelected = selectedBranchId === edge.id;
               const originNode = validNodes.find((node) => node.id === edge.nodeId);
               const originX = originNode?.x ?? LINE_X_POSITION;
-              const connectorY = worldHeight - edge.startAge * YEAR_PX;
+              const startY = worldHeight - edge.startAge * YEAR_PX;
+              const endY = worldHeight - edge.endAge * YEAR_PX;
               const shouldDrawConnector =
                 typeof originX === 'number' &&
                 typeof edge.x === 'number' &&
                 !isNaN(originX) &&
                 !isNaN(edge.x) &&
                 originX !== edge.x;
+              // Плавная дуга в месте, где ветка отходит от события:
+              // «живое дерево» вместо прямого угла схемы метро.
+              const cornerR = shouldDrawConnector
+                ? Math.min(28, Math.abs(edge.x - originX) / 2, Math.abs(startY - endY) / 2)
+                : 0;
+              const dir = edge.x > originX ? 1 : -1;
+              const branchPath = shouldDrawConnector
+                ? `M ${originX} ${startY} L ${edge.x - dir * cornerR} ${startY} ` +
+                  `Q ${edge.x} ${startY} ${edge.x} ${startY - cornerR} L ${edge.x} ${endY}`
+                : `M ${edge.x} ${startY} L ${edge.x} ${endY}`;
               return (
                 <g key={edge.id}>
-                  {shouldDrawConnector && (
-                    <>
-                      <line
-                        x1={originX}
-                        y1={connectorY}
-                        x2={edge.x}
-                        y2={connectorY}
-                        stroke="transparent"
-                        strokeWidth={isSelected ? 22 : 12}
-                        strokeLinecap="round"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectBranch(edge.id);
-                        }}
-                        className="cursor-pointer"
-                        style={{ cursor: 'pointer' }}
-                      />
-                      <line
-                        x1={originX}
-                        y1={connectorY}
-                        x2={edge.x}
-                        y2={connectorY}
-                        stroke={edge.color}
-                        strokeWidth={isSelected ? 6 : 3}
-                        strokeLinecap="round"
-                        opacity={isSelected ? 1 : 0.75}
-                        pointerEvents="none"
-                      />
-                    </>
-                  )}
-                  <line
-                    x1={edge.x}
-                    y1={worldHeight - edge.startAge * YEAR_PX}
-                    x2={edge.x}
-                    y2={worldHeight - edge.endAge * YEAR_PX}
+                  <path
+                    d={branchPath}
+                    fill="none"
                     stroke="transparent"
-                    strokeWidth={isSelected ? 24 : 12}
+                    strokeWidth={isSelected ? 24 : 14}
                     strokeLinecap="round"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -324,11 +308,9 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                     className="cursor-pointer"
                     style={{ cursor: 'pointer' }}
                   />
-                  <line
-                    x1={edge.x}
-                    y1={worldHeight - edge.startAge * YEAR_PX}
-                    x2={edge.x}
-                    y2={worldHeight - edge.endAge * YEAR_PX}
+                  <path
+                    d={branchPath}
+                    fill="none"
                     stroke={edge.color}
                     strokeWidth={isSelected ? 8 : 4}
                     strokeLinecap="round"
@@ -386,7 +368,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                   <g
                     onPointerDown={(event) => onNodeDragStart(event, node.id)}
                     onClick={() => !isDragging && onNodeClick(node.id)}
-                    className="cursor-move"
+                    className="tl-node cursor-move"
                     style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                   >
                     {iconMeta ? (
@@ -417,27 +399,30 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                         opacity={0.8}
                       />
                     )}
-                    {node.isDecision === true && !iconMeta && (
-                      <g>
-                        <line
-                          x1={x - adaptiveRadius * 0.4}
-                          y1={y - adaptiveRadius * 0.4}
-                          x2={x + adaptiveRadius * 0.4}
-                          y2={y + adaptiveRadius * 0.4}
-                          stroke={meta.color}
-                          strokeWidth={3}
-                          strokeLinecap="round"
-                        />
-                        <line
-                          x1={x - adaptiveRadius * 0.4}
-                          y1={y + adaptiveRadius * 0.4}
-                          x2={x + adaptiveRadius * 0.4}
-                          y2={y - adaptiveRadius * 0.4}
-                          stroke={meta.color}
-                          strokeWidth={3}
-                          strokeLinecap="round"
-                        />
-                      </g>
+                    {/* «Решение» — внешнее кольцо цвета сферы (крупнее обычного события). */}
+                    {node.isDecision === true && (
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r={adaptiveRadius + (isSelected ? 9 : 7)}
+                        fill="none"
+                        stroke={meta.color}
+                        strokeWidth={2.5}
+                        opacity={0.7}
+                        pointerEvents="none"
+                      />
+                    )}
+                    {/* Точка-индикатор: у события есть заметки. */}
+                    {Boolean(node.notes && node.notes.trim()) && (
+                      <circle
+                        cx={x + adaptiveRadius * 0.85}
+                        cy={y + adaptiveRadius * 0.85}
+                        r={Math.max(3, adaptiveRadius * 0.22)}
+                        fill="#64748b"
+                        stroke="#fffdf8"
+                        strokeWidth={1.5}
+                        pointerEvents="none"
+                      />
                     )}
                     <text
                       x={labelX}

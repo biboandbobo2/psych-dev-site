@@ -34,15 +34,33 @@ export function PeriodizationLayer({
         if (height <= 0) return null;
 
         return (
-          <rect
-            key={`period-rect-${index}`}
-            x={0}
-            y={startY}
-            width={canvasWidth}
-            height={height}
-            fill={period.color}
-            className="transition-opacity"
-          />
+          <g key={`period-rect-${index}`}>
+            <rect
+              x={0}
+              y={startY}
+              width={canvasWidth}
+              height={height}
+              fill={period.color}
+              opacity={0.55}
+              className="transition-opacity"
+            />
+            {/* Название периода вдоль левого края полосы — «география»
+                жизни видна без клика по границе. */}
+            {height >= 60 && (
+              <text
+                x={40}
+                y={startY + Math.min(height / 2 + 14, height - 16)}
+                fontSize={34}
+                fontStyle="italic"
+                fill="#64748b"
+                opacity={0.75}
+                fontFamily="Georgia, serif"
+                pointerEvents="none"
+              >
+                {period.name}
+              </text>
+            )}
+          </g>
         );
       })}
 
@@ -60,10 +78,10 @@ export function PeriodizationLayer({
               y1={startY}
               x2={canvasWidth}
               y2={startY}
-              stroke="#64748b"
-              strokeWidth={2}
-              strokeDasharray="8 4"
-              opacity={0.8}
+              stroke="#94a3b8"
+              strokeWidth={1.5}
+              strokeDasharray="8 6"
+              opacity={0.6}
               className="pointer-events-none"
             />
 

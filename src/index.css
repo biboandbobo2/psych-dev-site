@@ -136,3 +136,11 @@ main ::-moz-selection {
   cursor: pointer;
   font-weight: 600;
 }
+
+/* Timeline: мягкая тень события при наведении (SVG-группа .tl-node) */
+.tl-node {
+  transition: filter 0.15s ease;
+}
+.tl-node:hover {
+  filter: drop-shadow(0 2px 5px rgba(15, 23, 42, 0.3));
+}
