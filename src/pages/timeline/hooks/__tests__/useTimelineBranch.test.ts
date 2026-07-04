@@ -249,6 +249,38 @@ describe('useTimelineBranch', () => {
 
   // ===== Аудит инвариантов (docs/plans/timeline-invariant-audit.md) =====
 
+  describe('Д9: B12-walk не должен парковать новую ветку на главной линии', () => {
+    it('пропускает LINE_X_POSITION при поиске свободного x', () => {
+      // Событие на ветке слева от главной линии (x=1900). Walk +100 от
+      // занятого 1900 попадает ровно на 2000 — ветка на x главной линии
+      // сделала бы свои события «root» при следующем build.
+      const origin: NodeT = { id: 'o', age: 10, x: 2000, label: 'O', isDecision: false };
+      const b: NodeT = {
+        id: 'b', age: 15, x: 1900, parentX: 1900, label: 'B', isDecision: false, sphere: 'career',
+      };
+      const e0: EdgeT = { id: 'e0', x: 1900, startAge: 10, endAge: 30, color: '#000', nodeId: 'o' };
+
+      const { result } = renderHook(() =>
+        useTimelineBranch({
+          nodes: [origin, b],
+          edges: [e0],
+          setNodes,
+          setEdges,
+          ageMax: 100,
+          onHistoryRecord,
+          onClearForm,
+        })
+      );
+
+      act(() => result.current.setBranchYears('5'));
+      act(() => result.current.extendBranch(b));
+
+      expect(setEdges).toHaveBeenCalled();
+      const newEdge = setEdges.mock.calls[0]![0].find((e: EdgeT) => e.id !== 'e0')!;
+      expect(newEdge.x).not.toBe(2000);
+    });
+  });
+
   describe('Д4: B14-валидатор должен согласовываться с деревом при shared-x', () => {
     it('не считает события чужой ветки с тем же x событиями укорачиваемой ветки', () => {
       // ev принадлежит (по дереву) ветке A [10,50] от o1; ветка B [30,45]

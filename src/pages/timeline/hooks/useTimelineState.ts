@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../auth/AuthProvider';
@@ -55,7 +55,10 @@ export function useTimelineState() {
   // но если он есть — сохраняем и пустоту: иначе «Очистить всё» на
   // единственном холсте не доедет до базы и данные воскреснут после
   // перезагрузки (Д7, docs/plans/timeline-invariant-audit.md).
-  const [remoteDocExists, setRemoteDocExists] = useState(false);
+  // Ref, не state: смена флага не должна сама перезапускать autosave-эффект
+  // (иначе после первого сохранения нового пользователя тот же payload
+  // уходит вторым setDoc).
+  const remoteDocExistsRef = useRef(false);
 
   const activeCanvas = useMemo(() => {
     if (canvases.length === 0) return null;
@@ -116,7 +119,7 @@ export function useTimelineState() {
           { merge: true }
         );
 
-        setRemoteDocExists(true);
+        remoteDocExistsRef.current = true;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
       } catch (error) {
@@ -130,6 +133,7 @@ export function useTimelineState() {
   useEffect(() => {
     if (!user) return;
 
+    remoteDocExistsRef.current = false; // смена user — новый документ
     const docRef = doc(db, 'timelines', user.uid);
     getDoc(docRef)
       .then((snapshot) => {
@@ -142,7 +146,7 @@ export function useTimelineState() {
           return;
         }
 
-        setRemoteDocExists(true);
+        remoteDocExistsRef.current = true;
         const normalized = normalizeTimelineDocument(snapshot.data() as TimelineDocument);
         const nextActiveCanvas =
           normalized.canvases.find((canvas) => canvas.id === normalized.activeCanvasId) ?? normalized.canvases[0];
@@ -161,7 +165,9 @@ export function useTimelineState() {
     if (!user || !hasLoaded || !activeCanvas) return;
 
     const shouldPersist =
-      remoteDocExists || canvases.length > 1 || canvases.some((canvas) => hasTimelineContent(canvas.data));
+      remoteDocExistsRef.current ||
+      canvases.length > 1 ||
+      canvases.some((canvas) => hasTimelineContent(canvas.data));
     if (!shouldPersist) return;
 
     const timer = window.setTimeout(() => {
@@ -169,7 +175,7 @@ export function useTimelineState() {
     }, SAVE_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [canvases, activeCanvas, hasLoaded, remoteDocExists, saveToFirestore, user]);
+  }, [canvases, activeCanvas, hasLoaded, saveToFirestore, user]);
 
   const selectTimelineCanvas = useCallback(
     (canvasId: string) => {

@@ -33,6 +33,7 @@ export function useTimelineUndoRedo({
 }: UseTimelineUndoRedoOptions) {
   const {
     saveToHistory,
+    seedBaselineIfEmpty,
     undo: fetchUndoSnapshot,
     redo: fetchRedoSnapshot,
     moveBackward,
@@ -44,11 +45,12 @@ export function useTimelineUndoRedo({
     historyLength,
   } = useTimelineHistory();
 
+  // historyLength в deps перезапускает эффект после resetHistory
+  // (переключение холста, импорт биографии) — baseline досеивается
+  // данными нового холста. Сам seed идемпотентен (sync-проверка по ref).
   useEffect(() => {
-    if (historyLength === 0) {
-      saveToHistory(nodes, edges, birthDetails);
-    }
-  }, [historyLength, nodes, edges, birthDetails, saveToHistory]);
+    seedBaselineIfEmpty(nodes, edges, birthDetails);
+  }, [historyLength, nodes, edges, birthDetails, seedBaselineIfEmpty]);
 
   const recordHistory = (customNodes?: NodeT[], customEdges?: EdgeT[], customBirth?: BirthDetails) => {
     saveToHistory(customNodes ?? nodes, customEdges ?? edges, customBirth ?? birthDetails);

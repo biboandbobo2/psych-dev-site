@@ -648,10 +648,79 @@ describe('useTimelineCRUD', () => {
       expect(setEdges).not.toHaveBeenCalled();
     });
 
-    it('отказывает, если кламп endAge к ageMax укорачивает ветку под событием', () => {
-      // Окно [20,30] → [95,105] → кламп [95,100]; событие ev (28) вне окна.
+    it('отказывает при сдвиге вверх, когда событие остаётся ниже нового startAge', () => {
+      // Окно [20,30] → [95,105] → кламп endAge [95,100]; событие ev (28)
+      // ниже нового startAge. Дискриминирующий тест на сам кламп для
+      // валидных данных невозможен: событие ветки всегда ≤ endAge ≤ ageMax,
+      // поэтому кламп не может создать нарушителя сверху.
       submitOriginAge([origin, branchEvent], [branch], '95');
       expect(alert).toHaveBeenCalled();
+      expect(setNodes).not.toHaveBeenCalled();
+      expect(setEdges).not.toHaveBeenCalled();
+    });
+
+    it('Д3/startAge: сдвиг вниз не уводит startAge ветки в минус', () => {
+      // Legacy-состояние после I12-healing: окно ветки начинается раньше
+      // возраста origin. Сдвиг origin 8→2 даёт сырое окно [-1, 9] —
+      // startAge обязан клампиться в 0 (симметрично клампу endAge).
+      const o: NodeT = { id: 'o', age: 8, x: 2000, label: 'O', isDecision: false };
+      const early: NodeT = { id: 'early', age: 5, x: 2100, parentX: 2100, label: 'Early', isDecision: false };
+      const br: EdgeT = { id: 'br', x: 2100, startAge: 5, endAge: 15, color: '#000', nodeId: 'o' };
+
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: [o, early],
+          edges: [br],
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+      act(() => {
+        result.current.handleFormSubmit(
+          { id: 'o', age: '2', label: 'O', notes: '', sphere: undefined, isDecision: false, icon: null },
+          null
+        );
+      });
+
+      expect(setEdges).toHaveBeenCalled();
+      const slid = setEdges.mock.calls[0][0][0];
+      expect(slid.startAge).toBeGreaterThanOrEqual(0);
+      expect(slid.endAge).toBe(9); // сдвиг длины не искажает: 15 + (2-8)
+    });
+
+    it('Д3: сдвиг проверяет события на ВСЕХ ветках origin-события', () => {
+      // У origin две ветки; нарушитель — на второй.
+      const o: NodeT = { id: 'o', age: 20, x: 2000, label: 'O', isDecision: false };
+      const ok: NodeT = { id: 'ok', age: 21, x: 2100, parentX: 2100, label: 'Ok', isDecision: false };
+      const bad: NodeT = { id: 'bad', age: 29, x: 2200, parentX: 2200, label: 'Bad', isDecision: false };
+      const br1: EdgeT = { id: 'br1', x: 2100, startAge: 20, endAge: 30, color: '#000', nodeId: 'o' };
+      const br2: EdgeT = { id: 'br2', x: 2200, startAge: 20, endAge: 30, color: '#000', nodeId: 'o' };
+
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: [o, ok, bad],
+          edges: [br1, br2],
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+      act(() => {
+        // Окна → [15,25]: ok(21) внутри, bad(29) на br2 — снаружи.
+        result.current.handleFormSubmit(
+          { id: 'o', age: '15', label: 'O', notes: '', sphere: undefined, isDecision: false, icon: null },
+          null
+        );
+      });
+
+      expect(alert).toHaveBeenCalledWith(expect.stringContaining('Bad'));
       expect(setNodes).not.toHaveBeenCalled();
       expect(setEdges).not.toHaveBeenCalled();
     });
@@ -700,6 +769,37 @@ describe('useTimelineCRUD', () => {
       // 18 входит в окно A [10,20] — правка должна пройти.
       expect(setNodes).toHaveBeenCalled();
       expect(setNodes.mock.calls[0][0].find((n: NodeT) => n.id === 'ev')!.age).toBe(18);
+    });
+
+    it('документированное поведение: событие на висячей ветке (edge без origin) правится без B11-проверки', () => {
+      // Висячая ветка не входит в топологию (buildTimelineTree её
+      // отбрасывает, normalize удаляет при загрузке), поэтому валидатор
+      // её окна не видит — событие трактуется как осиротевший root.
+      // До Д4-фикса x-матчинг находил такую ветку и отказывал; это
+      // осознанная смена поведения.
+      const ev: NodeT = { id: 'ev', age: 25, x: 2100, parentX: 2100, label: 'Ev', isDecision: false };
+      const dangling: EdgeT = { id: 'D', x: 2100, startAge: 20, endAge: 30, color: '#000', nodeId: 'missing' };
+
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: [ev],
+          edges: [dangling],
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+      act(() => {
+        result.current.handleFormSubmit(
+          { id: 'ev', age: '50', label: 'Ev', notes: '', sphere: undefined, isDecision: false, icon: null },
+          null
+        );
+      });
+
+      expect(setNodes).toHaveBeenCalled();
     });
   });
 });

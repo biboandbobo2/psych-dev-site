@@ -100,7 +100,10 @@ export function useTimelineCRUD({
           for (const e of edges) {
             if (e.nodeId !== formData.id) continue;
             slidWindows.set(e.id, {
-              startAge: e.startAge + deltaAge,
+              // Кламп с обеих сторон: endAge не выше ageMax, startAge не
+              // ниже 0 (legacy-окна после I12-healing могут начинаться
+              // раньше возраста origin — сдвиг вниз ушёл бы в минус).
+              startAge: Math.max(e.startAge + deltaAge, 0),
               endAge: Math.min(e.endAge + deltaAge, ageMax),
             });
           }

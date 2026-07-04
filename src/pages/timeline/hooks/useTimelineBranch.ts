@@ -85,7 +85,12 @@ export function useTimelineBranch({
       // selection-by-x in the UI doesn't get confused.
       let proposedBranchX = nodeX;
       const OFFSET_STEP = 100;
-      while (edges.some((e) => e.x === proposedBranchX)) {
+      // Помимо занятых веток пропускаем LINE_X_POSITION: ветка на x
+      // главной линии сделала бы свои события «root» при build (Д9).
+      while (
+        proposedBranchX === LINE_X_POSITION ||
+        edges.some((e) => e.x === proposedBranchX)
+      ) {
         proposedBranchX += OFFSET_STEP;
       }
 
