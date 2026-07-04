@@ -19,6 +19,8 @@ interface UseTimelineCRUDOptions {
   onClearForm?: () => void;
   onSetSelectedId?: (id: string | null) => void;
   onAfterClearAll?: () => void;
+  /** Неблокирующее уведомление (toast); по умолчанию — alert. */
+  notify?: (message: string) => void;
 }
 
 interface FormEventData {
@@ -44,7 +46,9 @@ export function useTimelineCRUD({
   onClearForm,
   onSetSelectedId,
   onAfterClearAll,
+  notify,
 }: UseTimelineCRUDOptions) {
+  const warn = notify ?? ((message: string) => alert(message));
   /**
    * Create or update an event
    */
@@ -53,13 +57,13 @@ export function useTimelineCRUD({
       if (!formData.label.trim()) return;
 
       if (!formData.age.trim()) {
-        alert('Пожалуйста, укажите возраст события');
+        warn('Пожалуйста, укажите возраст события');
         return;
       }
 
       const parsedAge = parseAge(formData.age);
       if (isNaN(parsedAge) || parsedAge < 0 || parsedAge > ageMax) {
-        alert(`Возраст должен быть от 0 до ${ageMax} лет`);
+        warn(`Возраст должен быть от 0 до ${ageMax} лет`);
         return;
       }
 
@@ -80,7 +84,7 @@ export function useTimelineCRUD({
           parentBranch &&
           (parsedAge < parentBranch.startAge || parsedAge > parentBranch.endAge)
         ) {
-          alert(
+          warn(
             `Возраст ${parsedAge} вне диапазона ветки (${parentBranch.startAge}–${parentBranch.endAge} лет). Сначала измените длину ветки или перенесите событие на главную линию.`
           );
           return;
@@ -126,7 +130,7 @@ export function useTimelineCRUD({
                 .map((ev) => `«${ev.data.label}» (${ev.data.age} лет)`)
                 .join(', ');
               const more = offenders.length > 3 ? ` и ещё ${offenders.length - 3}` : '';
-              alert(
+              warn(
                 `На ветке есть события, которые выпадут из нового диапазона: ${sample}${more}. Сначала перенесите их или удалите.`
               );
               return;
@@ -171,7 +175,7 @@ export function useTimelineCRUD({
               eventX = selectedEdge.x;
               eventParentX = selectedEdge.x;
             } else {
-              alert(
+              warn(
                 `Возраст события (${parsedAge} лет) не попадает в диапазон выбранной ветки (${selectedEdge.startAge}-${selectedEdge.endAge} лет). Событие будет добавлено на основную линию жизни.`
               );
             }
@@ -205,7 +209,7 @@ export function useTimelineCRUD({
       // Clear form
       onClearForm?.();
     },
-    [nodes, edges, ageMax, setNodes, onHistoryRecord, onSetSelectedId, onClearForm]
+    [nodes, edges, ageMax, setNodes, onHistoryRecord, onSetSelectedId, onClearForm, warn]
   );
 
   /**
@@ -226,7 +230,7 @@ export function useTimelineCRUD({
    * B6 (events on deleted branches) and B7 (cascade past one level).
    */
   const deleteNode = useCallback(
-    (id: string) => {
+    (id: string): { removedEvents: number; removedBranches: number } => {
       const tree = buildTimelineTree(nodes, edges);
       const collected = collectDescendantIds(tree, id);
 
@@ -250,6 +254,12 @@ export function useTimelineCRUD({
       // recordHistory в Timeline.tsx записать в историю closure-состояние
       // ДО удаления, и redo удаления стало бы невозможным (I10).
       onHistoryRecord?.(nextNodes, nextEdges);
+
+      // Размер снесённого поддерева — для плашки «Удалено · Отменить».
+      return {
+        removedEvents: nodes.length - nextNodes.length,
+        removedBranches: edges.length - nextEdges.length,
+      };
     },
     [nodes, edges, setNodes, setEdges, onClearForm, onHistoryRecord]
   );

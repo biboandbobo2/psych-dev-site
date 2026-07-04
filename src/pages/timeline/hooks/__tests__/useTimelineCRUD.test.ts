@@ -569,6 +569,63 @@ describe('useTimelineCRUD', () => {
     });
   });
 
+  // ===== UX: notify вместо alert, счётчики удаления =====
+
+  describe('notify / deleteNode counters', () => {
+    it('валидатор зовёт notify вместо alert, когда notify передан', () => {
+      const notify = vi.fn();
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: mockNodes,
+          edges: mockEdges,
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+          notify,
+        })
+      );
+      act(() => {
+        result.current.handleFormSubmit(
+          { id: null, age: '', label: 'X', notes: '', sphere: undefined, isDecision: false, icon: null },
+          null
+        );
+      });
+      expect(notify).toHaveBeenCalledWith(expect.stringContaining('возраст'));
+      expect(alert).not.toHaveBeenCalled();
+    });
+
+    it('deleteNode возвращает размер снесённого поддерева', () => {
+      // origin → ветка → событие на ветке: удаление origin = 2 события + 1 ветка.
+      const nodes: NodeT[] = [
+        { id: 'o', age: 10, x: 2000, label: 'O', isDecision: false },
+        { id: 'child', age: 15, x: 2100, parentX: 2100, label: 'C', isDecision: false },
+      ];
+      const edges: EdgeT[] = [
+        { id: 'e1', x: 2100, startAge: 10, endAge: 20, color: '#000', nodeId: 'o' },
+      ];
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes,
+          edges,
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+      let removed: { removedEvents: number; removedBranches: number } | undefined;
+      act(() => {
+        removed = result.current.deleteNode('o');
+      });
+      expect(removed).toEqual({ removedEvents: 2, removedBranches: 1 });
+    });
+  });
+
   // ===== Аудит инвариантов (docs/plans/timeline-invariant-audit.md) =====
 
   describe('Д2: deleteNode и история', () => {

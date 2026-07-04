@@ -38,6 +38,7 @@ interface TimelineRightPanelProps {
   onEventFormSubmit: () => void;
   onClearForm: () => void;
   onDeleteEvent: (id: string) => void;
+  onNotify: (message: string) => void;
   createNote: (
     title: string,
     content: string,
@@ -95,6 +96,7 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
     onEventFormSubmit,
     onClearForm,
     onDeleteEvent,
+    onNotify,
     createNote,
     selectedBranchId,
     selectedEdge,
@@ -124,11 +126,11 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
     onBirthNotesChange('');
   };
 
+  // Без блокирующего confirm: после удаления показывается плашка
+  // «Удалено · Отменить» (undo работает и для первого действия).
   const handleDeleteCurrentEvent = () => {
     if (!formEventId) return;
-    if (confirm('Удалить это событие?')) {
-      onDeleteEvent(formEventId);
-    }
+    onDeleteEvent(formEventId);
   };
 
   return (
@@ -221,7 +223,7 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
               onDeleteEvent={handleDeleteCurrentEvent}
               createNote={createNote}
               onNoteSuccess={() => {
-                alert('Событие сохранено в заметки!');
+                onNotify('Событие сохранено в заметки!');
               }}
               showCancelButton={!!formEventId}
               showBulkCreatorButton={!formEventId}

@@ -16,6 +16,8 @@ interface UseTimelineBranchOptions {
   ageMax: number;
   onHistoryRecord?: (nodes?: NodeT[], edges?: EdgeT[]) => void;
   onClearForm?: () => void;
+  /** Неблокирующее уведомление (toast); по умолчанию — alert. */
+  notify?: (message: string) => void;
 }
 
 /**
@@ -29,7 +31,9 @@ export function useTimelineBranch({
   ageMax,
   onHistoryRecord,
   onClearForm,
+  notify,
 }: UseTimelineBranchOptions) {
+  const warn = notify ?? ((message: string) => alert(message));
   const [branchYears, setBranchYears] = useState<string>('5');
   // B15: identify the current selection by edge.id, not by x — two
   // branches can legitimately share an x-coord (legacy data) and id
@@ -59,13 +63,13 @@ export function useTimelineBranch({
 
       const nodeX = selectedNode.x ?? LINE_X_POSITION;
       if (nodeX === LINE_X_POSITION) {
-        alert('Событие должно быть не на основной линии жизни');
+        warn('Событие должно быть не на основной линии жизни');
         return;
       }
 
       const years = parseFloat(branchYears);
       if (isNaN(years) || years <= 0) {
-        alert('Введите корректное количество лет');
+        warn('Введите корректное количество лет');
         return;
       }
 
@@ -73,7 +77,7 @@ export function useTimelineBranch({
       // ветки за пределами холста.
       const proposedEndAge = selectedNode.age + years;
       if (proposedEndAge > ageMax) {
-        alert(
+        warn(
           `Ветка не помещается на холсте. Максимальная длина — ${ageMax - selectedNode.age} лет (до ${ageMax}-летия).`
         );
         return;
@@ -112,7 +116,7 @@ export function useTimelineBranch({
       onClearForm?.();
       setSelectedBranchId(null);
     },
-    [branchYears, edges, nodes, setEdges, onHistoryRecord, onClearForm]
+    [branchYears, edges, nodes, setEdges, onHistoryRecord, onClearForm, warn]
   );
 
   /**
@@ -123,7 +127,7 @@ export function useTimelineBranch({
 
     const years = parseFloat(branchYears);
     if (isNaN(years) || years <= 0) {
-      alert('Введите корректное количество лет');
+      warn('Введите корректное количество лет');
       return;
     }
 
@@ -131,7 +135,7 @@ export function useTimelineBranch({
 
     // Check maximum age
     if (newEndAge > ageMax) {
-      alert(`Максимальный возраст: ${ageMax} лет`);
+      warn(`Максимальный возраст: ${ageMax} лет`);
       return;
     }
 
@@ -151,7 +155,7 @@ export function useTimelineBranch({
           .map((ev) => `«${ev.data.label}» (${ev.data.age} лет)`)
           .join(', ');
         const more = eventsBeyond.length > 3 ? ` и ещё ${eventsBeyond.length - 3}` : '';
-        alert(
+        warn(
           `На ветке есть события за пределами новой длины: ${sample}${more}. Сначала перенесите их или удалите.`
         );
         return;
@@ -164,7 +168,7 @@ export function useTimelineBranch({
     );
     setEdges(updatedEdges);
     onHistoryRecord?.(nodes, updatedEdges);
-  }, [selectedEdge, branchYears, ageMax, edges, nodes, setEdges, onHistoryRecord]);
+  }, [selectedEdge, branchYears, ageMax, edges, nodes, setEdges, onHistoryRecord, warn]);
 
   /**
    * Delete branch and migrate every event on it (with its grand-branches)
@@ -193,7 +197,7 @@ export function useTimelineBranch({
           .map((ev) => `«${ev.data.label}» (${ev.data.age} лет)`)
           .join(', ');
         const more = misfits.length > 3 ? ` и ещё ${misfits.length - 3}` : '';
-        alert(
+        warn(
           `События ${sample}${more} не попадают в диапазон родительской ветки (${parentBranch.startAge}–${parentBranch.endAge} лет). Сначала продлите родительскую ветку или перенесите события.`
         );
         return;
@@ -215,7 +219,7 @@ export function useTimelineBranch({
     setEdges(updatedEdges);
     setSelectedBranchId(null); // Deselect
     onHistoryRecord?.(updatedNodes, updatedEdges);
-  }, [selectedEdge, nodes, edges, setNodes, setEdges, onHistoryRecord]);
+  }, [selectedEdge, nodes, edges, setNodes, setEdges, onHistoryRecord, warn]);
 
   /**
    * Extend branch for bulk event creation

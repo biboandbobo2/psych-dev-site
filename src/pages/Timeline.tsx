@@ -19,8 +19,10 @@ import {
   DEFAULT_CURRENT_AGE,
   DEFAULT_AGE_MAX,
 } from './timeline/constants';
-import { clamp } from './timeline/utils';
+import { clamp, pluralizeRu } from './timeline/utils';
 import { useTimelineState } from './timeline/hooks/useTimelineState';
+import { useTimelineToast } from './timeline/hooks/useTimelineToast';
+import { TimelineToast } from './timeline/components/TimelineToast';
 import { useTimelineUndoRedo } from './timeline/hooks/useTimelineUndoRedo';
 import { useDownloadMenu } from './timeline/hooks/useDownloadMenu';
 import { useTimelineShortcuts } from './timeline/hooks/useTimelineShortcuts';
@@ -102,6 +104,10 @@ export default function Timeline() {
     setBirthDetails,
   });
 
+  // Неблокирующие уведомления (вместо alert) и плашка «Удалено · Отменить».
+  const { toast, showToast, hideToast } = useTimelineToast();
+  const notifyValidation = (message: string) => showToast({ message, tone: 'warning' });
+
   // ============ FORM HOOKS ============
 
   // Event form
@@ -153,6 +159,7 @@ export default function Timeline() {
     ageMax,
     onHistoryRecord: recordHistory,
     onClearForm: formHook.clearForm,
+    notify: notifyValidation,
   });
 
   // CRUD operations
@@ -171,7 +178,25 @@ export default function Timeline() {
       setCurrentAge(DEFAULT_CURRENT_AGE);
       setAgeMax(DEFAULT_AGE_MAX);
     },
+    notify: notifyValidation,
   });
+
+  // Удаление события: без блокирующего confirm — вместо него плашка
+  // с точным размером снесённого поддерева и кнопкой «Отменить» (undo).
+  const handleDeleteEvent = (id: string) => {
+    const { removedEvents, removedBranches } = crudHook.deleteNode(id);
+    if (removedEvents === 0 && removedBranches === 0) return;
+    const parts = [`${removedEvents} ${pluralizeRu(removedEvents, ['событие', 'события', 'событий'])}`];
+    if (removedBranches > 0) {
+      parts.push(`${removedBranches} ${pluralizeRu(removedBranches, ['ветка', 'ветки', 'веток'])}`);
+    }
+    showToast({
+      message: `Удалено: ${parts.join(' и ')}.`,
+      tone: 'info',
+      actionLabel: 'Отменить',
+      onAction: undo,
+    });
+  };
 
   // ============ COMPUTED VALUES ============
 
@@ -319,7 +344,7 @@ export default function Timeline() {
     canRedo: () => canRedo,
     onUndo: undo,
     onRedo: redo,
-    onDelete: crudHook.deleteNode,
+    onDelete: handleDeleteEvent,
     onEscape: () => {
       formHook.clearForm();
       setSelectedId(null);
@@ -509,7 +534,8 @@ export default function Timeline() {
           hasFormChanges={formHook.hasFormChanges}
           onEventFormSubmit={handleFormSubmit}
           onClearForm={formHook.clearForm}
-          onDeleteEvent={crudHook.deleteNode}
+          onDeleteEvent={handleDeleteEvent}
+          onNotify={(message) => showToast({ message, tone: 'info' })}
           createNote={createNote}
           selectedBranchId={branchHook.selectedBranchId}
           selectedEdge={branchHook.selectedEdge}
@@ -570,6 +596,7 @@ export default function Timeline() {
         progress={biographyImport.progress}
         onClose={biographyImport.closeModal}
       />
+      <TimelineToast toast={toast} onClose={hideToast} />
     </motion.div>
   );
 }

@@ -281,6 +281,33 @@ describe('useTimelineBranch', () => {
     });
   });
 
+  describe('notify вместо alert', () => {
+    it('extendBranch зовёт notify, когда он передан', () => {
+      const notify = vi.fn();
+      const node: NodeT = {
+        id: 'n1', age: 90, x: 2100, parentX: 2100, label: 'Old', isDecision: false, sphere: 'career',
+      };
+      const { result } = renderHook(() =>
+        useTimelineBranch({
+          nodes: [node],
+          edges: [],
+          setNodes,
+          setEdges,
+          ageMax: 100,
+          onHistoryRecord,
+          onClearForm,
+          notify,
+        })
+      );
+
+      act(() => result.current.setBranchYears('30')); // 90 + 30 > 100
+      act(() => result.current.extendBranch(node));
+
+      expect(notify).toHaveBeenCalledWith(expect.stringContaining('не помещается'));
+      expect(alert).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Д4: B14-валидатор должен согласовываться с деревом при shared-x', () => {
     it('не считает события чужой ветки с тем же x событиями укорачиваемой ветки', () => {
       // ev принадлежит (по дереву) ветке A [10,50] от o1; ветка B [30,45]
