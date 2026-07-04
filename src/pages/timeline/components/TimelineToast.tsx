@@ -21,7 +21,7 @@ export function TimelineToast({ toast, onClose }: TimelineToastProps) {
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-6 left-1/2 z-50 flex max-w-xl -translate-x-1/2 items-center gap-3 rounded-2xl border px-4 py-3 shadow-xl ${toneClasses}`}
+      className={`fixed bottom-20 left-1/2 z-50 flex max-w-xl -translate-x-1/2 items-center gap-3 rounded-2xl border px-4 py-3 shadow-xl ${toneClasses}`}
       style={{ fontFamily: 'Georgia, serif' }}
     >
       <span className="text-sm leading-snug">{toast.message}</span>

@@ -9,6 +9,7 @@ import type { EdgeT, NodeT, Sphere, SaveStatus, EventIconId } from '../types';
 
 interface TimelineRightPanelProps {
   saveStatus: SaveStatus;
+  onRetrySave: () => void;
   selectedPeriodization: string | null;
   onPeriodizationChange: (value: string | null) => void;
   birthSelected: boolean;
@@ -67,6 +68,7 @@ interface TimelineRightPanelProps {
 export function TimelineRightPanel(props: TimelineRightPanelProps) {
   const {
     saveStatus,
+    onRetrySave,
     selectedPeriodization,
     onPeriodizationChange,
     birthSelected,
@@ -184,6 +186,18 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
               </div>
             </div>
           </div>
+          {saveStatus === 'error' && (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              <span>Не удалось сохранить изменения</span>
+              <button
+                type="button"
+                onClick={onRetrySave}
+                className="shrink-0 rounded-lg border border-red-300 bg-white px-2 py-1 font-semibold transition hover:bg-red-100"
+              >
+                Повторить
+              </button>
+            </div>
+          )}
         </div>
 
         {birthSelected && (

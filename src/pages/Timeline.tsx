@@ -9,6 +9,7 @@ import type {
   NodeT,
   BirthDetails,
   EdgeT,
+  Sphere,
 } from './timeline/types';
 import {
   YEAR_PX,
@@ -23,6 +24,7 @@ import { clamp, pluralizeRu } from './timeline/utils';
 import { useTimelineState } from './timeline/hooks/useTimelineState';
 import { useTimelineToast } from './timeline/hooks/useTimelineToast';
 import { TimelineToast } from './timeline/components/TimelineToast';
+import { TimelineSphereLegend } from './timeline/components/TimelineSphereLegend';
 import { useTimelineUndoRedo } from './timeline/hooks/useTimelineUndoRedo';
 import { useDownloadMenu } from './timeline/hooks/useDownloadMenu';
 import { useTimelineShortcuts } from './timeline/hooks/useTimelineShortcuts';
@@ -71,6 +73,7 @@ export default function Timeline() {
     selectedPeriodization,
     setSelectedPeriodization,
     saveStatus,
+    retrySave,
     transform,
     setTransform,
     viewportAge,
@@ -146,6 +149,8 @@ export default function Timeline() {
   // ============ LOCAL UI STATE ============
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Фильтр легенды сфер: подсветить только одну сферу жизни.
+  const [sphereFilter, setSphereFilter] = useState<Sphere | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
   const [showBulkCreator, setShowBulkCreator] = useState(false);
@@ -245,6 +250,7 @@ export default function Timeline() {
   const resetTransientTimelineUi = useCallback(() => {
     formHook.clearForm();
     setSelectedId(null);
+    setSphereFilter(null);
     branchHook.setSelectedBranchId(null);
     birthHook.setBirthSelected(false);
     setPeriodBoundaryModal(null);
@@ -479,6 +485,7 @@ export default function Timeline() {
           selectedPeriodization={selectedPeriodization}
           selectedId={selectedId}
           selectedBranchId={branchHook.selectedBranchId}
+          sphereFilter={sphereFilter}
           draggingNodeId={dragDropHook.draggingNodeId}
           birthSelected={birthHook.birthSelected}
           birthBaseYear={birthHook.birthBaseYear}
@@ -502,6 +509,7 @@ export default function Timeline() {
         <Suspense fallback={<PageLoader label="Загрузка панели деталей..." />}>
           <TimelineRightPanel
           saveStatus={saveStatus}
+          onRetrySave={retrySave}
           selectedPeriodization={selectedPeriodization}
           onPeriodizationChange={setSelectedPeriodization}
           birthSelected={birthHook.birthSelected}
@@ -596,6 +604,9 @@ export default function Timeline() {
         progress={biographyImport.progress}
         onClose={biographyImport.closeModal}
       />
+      {!readOnly && (
+        <TimelineSphereLegend nodes={nodes} activeSphere={sphereFilter} onChange={setSphereFilter} />
+      )}
       <TimelineToast toast={toast} onClose={hideToast} />
     </motion.div>
   );

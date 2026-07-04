@@ -177,6 +177,12 @@ export function useTimelineState() {
     return () => clearTimeout(timer);
   }, [canvases, activeCanvas, hasLoaded, saveToFirestore, user]);
 
+  /** Повторить сохранение вручную (кнопка «Повторить» при ошибке). */
+  const retrySave = useCallback(() => {
+    if (!activeCanvas) return;
+    saveToFirestore(activeCanvas.id, canvases);
+  }, [activeCanvas, canvases, saveToFirestore]);
+
   const selectTimelineCanvas = useCallback(
     (canvasId: string) => {
       const targetCanvas = canvases.find((canvas) => canvas.id === canvasId);
@@ -296,6 +302,7 @@ export function useTimelineState() {
     selectedPeriodization: activeData.selectedPeriodization ?? null,
     setSelectedPeriodization,
     saveStatus,
+    retrySave,
     transform,
     setTransform,
     viewportAge,

@@ -93,6 +93,27 @@ describe('useTimelineState: сохранение в Firestore', () => {
     expect(persisted.canvases![0].data.nodes).toEqual([]);
   });
 
+  it('retrySave повторяет сохранение после ошибки', async () => {
+    getDocMock.mockResolvedValue(snapshotOf(docWithContent));
+    const { result } = renderHook(() => useTimelineState());
+    await act(async () => {});
+    setDocMock.mockClear();
+    setDocMock.mockRejectedValueOnce(new Error('offline'));
+
+    act(() => {
+      result.current.setNodes([]);
+    });
+    await flushSaveDebounce();
+    expect(result.current.saveStatus).toBe('error');
+
+    setDocMock.mockResolvedValue(undefined);
+    await act(async () => {
+      result.current.retrySave();
+    });
+    expect(setDocMock).toHaveBeenCalledTimes(2);
+    expect(result.current.saveStatus).toBe('saved');
+  });
+
   it('не создаёт документ для нового пользователя без контента', async () => {
     getDocMock.mockResolvedValue(snapshotOf(undefined));
 

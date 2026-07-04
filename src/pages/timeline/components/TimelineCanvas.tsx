@@ -1,5 +1,5 @@
 import { memo, useMemo, type PointerEvent, type RefObject, type WheelEvent } from 'react';
-import type { NodeT, EdgeT, Transform } from '../types';
+import type { NodeT, EdgeT, Sphere, Transform } from '../types';
 import { PeriodizationLayer } from './PeriodizationLayer';
 import { getPeriodizationById } from '../data/periodizations';
 import {
@@ -35,6 +35,8 @@ interface TimelineCanvasProps {
   selectedPeriodization: string | null;
   selectedId: string | null;
   selectedBranchId: string | null;
+  /** Активный фильтр легенды сфер: чужие события приглушаются. */
+  sphereFilter: Sphere | null;
   draggingNodeId: string | null;
   birthSelected: boolean;
   birthBaseYear: number | null;
@@ -66,6 +68,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
     selectedPeriodization,
     selectedId,
     selectedBranchId,
+    sphereFilter,
     draggingNodeId,
     birthSelected,
     birthBaseYear,
@@ -293,8 +296,9 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                 ? `M ${originX} ${startY} L ${edge.x - dir * cornerR} ${startY} ` +
                   `Q ${edge.x} ${startY} ${edge.x} ${startY - cornerR} L ${edge.x} ${endY}`
                 : `M ${edge.x} ${startY} L ${edge.x} ${endY}`;
+              const dimmedBySphere = sphereFilter !== null && originNode?.sphere !== sphereFilter;
               return (
-                <g key={edge.id}>
+                <g key={edge.id} opacity={dimmedBySphere ? 0.15 : 1}>
                   <path
                     d={branchPath}
                     fill="none"
@@ -350,8 +354,10 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                 !isNaN(x) &&
                 !isNaN(y);
 
+              const dimmedBySphere = sphereFilter !== null && node.sphere !== sphereFilter;
+
               return (
-                <g key={node.id}>
+                <g key={node.id} opacity={dimmedBySphere ? 0.2 : 1}>
                   {shouldDrawHorizontalLine && (
                     <line
                       x1={parentLineX}
