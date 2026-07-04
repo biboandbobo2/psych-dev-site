@@ -321,6 +321,14 @@ export default function Timeline() {
     });
   };
 
+  // «+ ветка» на холсте у выбранного события: подсказки про главную
+  // линию/сферу приходят тостом из extendBranch.
+  const handleAddBranchFromNode = (nodeId: string) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    branchHook.extendBranch(node);
+  };
+
   const handleNodeClick = (nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return;
@@ -498,6 +506,7 @@ export default function Timeline() {
           onPointerUp={handlePointerUp}
           onNodeClick={readOnly ? () => {} : handleNodeClick}
           onNodeDragStart={readOnly ? () => {} : dragDropHook.handleNodeDragStart}
+          onAddBranchFromNode={readOnly ? undefined : handleAddBranchFromNode}
           onPeriodBoundaryClick={readOnly ? () => {} : handlePeriodBoundaryClick}
           onSelectBranch={readOnly ? () => {} : handleSelectBranch}
           onClearSelection={readOnly ? () => {} : handleClearSelection}

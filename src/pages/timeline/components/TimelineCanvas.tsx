@@ -22,6 +22,8 @@ interface TimelineCanvasProps {
   onPointerUp: (e: PointerEvent<SVGSVGElement>) => void;
   onNodeClick: (nodeId: string) => void;
   onNodeDragStart: (event: PointerEvent, nodeId: string) => void;
+  /** Кнопка «+ ветка» у выбранного события (не рендерится, если не передан). */
+  onAddBranchFromNode?: (nodeId: string) => void;
   onPeriodBoundaryClick: (periodIndex: number) => void;
   onSelectBranch: (edgeId: string) => void;
   onClearSelection: () => void;
@@ -55,6 +57,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
     onPointerUp,
     onNodeClick,
     onNodeDragStart,
+    onAddBranchFromNode,
     onPeriodBoundaryClick,
     onSelectBranch,
     onClearSelection,
@@ -442,6 +445,41 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                       {node.label}
                     </text>
                   </g>
+
+                  {/* «+ ветка» у выбранного события — создание ветки
+                      прямо с холста, без поиска кнопки в панели. */}
+                  {isSelected && !isDragging && onAddBranchFromNode && (
+                    <g
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddBranchFromNode(node.id);
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="cursor-pointer"
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <title>Создать ветку от события</title>
+                      <circle
+                        cx={x + adaptiveRadius + 22}
+                        cy={y + adaptiveRadius + 14}
+                        r={13}
+                        fill="#ffffff"
+                        stroke="#5aa2f7"
+                        strokeWidth={2}
+                      />
+                      <text
+                        x={x + adaptiveRadius + 22}
+                        y={y + adaptiveRadius + 20}
+                        fontSize={20}
+                        fontWeight="600"
+                        fill="#2563eb"
+                        textAnchor="middle"
+                        pointerEvents="none"
+                      >
+                        +
+                      </text>
+                    </g>
+                  )}
                 </g>
               );
             })}

@@ -59,11 +59,16 @@ export function useTimelineBranch({
    */
   const extendBranch = useCallback(
     (selectedNode: NodeT | null) => {
-      if (!selectedNode || !selectedNode.sphere) return;
+      if (!selectedNode) return;
+      if (!selectedNode.sphere) {
+        // Раньше — молчаливый return: пользователь жал кнопку без эффекта.
+        warn('Сначала укажите сферу события — из неё берётся цвет ветки.');
+        return;
+      }
 
       const nodeX = selectedNode.x ?? LINE_X_POSITION;
       if (nodeX === LINE_X_POSITION) {
-        warn('Событие должно быть не на основной линии жизни');
+        warn('Ветка растёт из смещённого события: сначала потяните событие в сторону от главной линии.');
         return;
       }
 
