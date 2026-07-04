@@ -25,6 +25,8 @@ import { useTimelineState } from './timeline/hooks/useTimelineState';
 import { useTimelineToast } from './timeline/hooks/useTimelineToast';
 import { TimelineToast } from './timeline/components/TimelineToast';
 import { TimelineSphereLegend } from './timeline/components/TimelineSphereLegend';
+import { TimelineStartOverlay } from './timeline/components/TimelineStartOverlay';
+import { EXAMPLE_TIMELINE, EXAMPLE_TIMELINE_NAME } from './timeline/data/exampleTimeline';
 import { useTimelineUndoRedo } from './timeline/hooks/useTimelineUndoRedo';
 import { useDownloadMenu } from './timeline/hooks/useDownloadMenu';
 import { useTimelineShortcuts } from './timeline/hooks/useTimelineShortcuts';
@@ -151,6 +153,8 @@ export default function Timeline() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Фильтр легенды сфер: подсветить только одну сферу жизни.
   const [sphereFilter, setSphereFilter] = useState<Sphere | null>(null);
+  // Стартовый экран пустого холста («Начать с чистого листа» скрывает).
+  const [startOverlayDismissed, setStartOverlayDismissed] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
   const [showBulkCreator, setShowBulkCreator] = useState(false);
@@ -251,6 +255,7 @@ export default function Timeline() {
     formHook.clearForm();
     setSelectedId(null);
     setSphereFilter(null);
+    setStartOverlayDismissed(false);
     branchHook.setSelectedBranchId(null);
     birthHook.setBirthSelected(false);
     setPeriodBoundaryModal(null);
@@ -613,6 +618,27 @@ export default function Timeline() {
         progress={biographyImport.progress}
         onClose={biographyImport.closeModal}
       />
+      {!readOnly && !activeTimelineHasContent && !startOverlayDismissed && (
+        <TimelineStartOverlay
+          onStartWithBirth={() => {
+            setStartOverlayDismissed(true);
+            birthHook.handleBirthSelect();
+          }}
+          onOpenBiographyImport={() => {
+            setStartOverlayDismissed(true);
+            handleOpenBiographyImport();
+          }}
+          onLoadExample={() => {
+            setStartOverlayDismissed(true);
+            replaceActiveTimeline(EXAMPLE_TIMELINE, { name: EXAMPLE_TIMELINE_NAME });
+            showToast({
+              message: 'Это пример — события можно двигать, менять и удалять. «Очистить всё» вернёт пустой холст.',
+              tone: 'info',
+            });
+          }}
+          onDismiss={() => setStartOverlayDismissed(true)}
+        />
+      )}
       {!readOnly && (
         <TimelineSphereLegend nodes={nodes} activeSphere={sphereFilter} onChange={setSphereFilter} />
       )}
