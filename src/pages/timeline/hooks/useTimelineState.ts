@@ -50,6 +50,12 @@ export function useTimelineState() {
   const [transform, setTransform] = useState<Transform>({ x: 50, y: 100, k: 1 });
   const [viewportAge, setViewportAge] = useState<number>(DEFAULT_CURRENT_AGE);
   const [hasLoaded, setHasLoaded] = useState(false);
+  // Документ пользователя уже есть в Firestore. Пока его нет, пустое
+  // состояние не сохраняем (не плодим документы у «мимо проходивших»),
+  // но если он есть — сохраняем и пустоту: иначе «Очистить всё» на
+  // единственном холсте не доедет до базы и данные воскреснут после
+  // перезагрузки (Д7, docs/plans/timeline-invariant-audit.md).
+  const [remoteDocExists, setRemoteDocExists] = useState(false);
 
   const activeCanvas = useMemo(() => {
     if (canvases.length === 0) return null;
@@ -110,6 +116,7 @@ export function useTimelineState() {
           { merge: true }
         );
 
+        setRemoteDocExists(true);
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
       } catch (error) {
@@ -135,6 +142,7 @@ export function useTimelineState() {
           return;
         }
 
+        setRemoteDocExists(true);
         const normalized = normalizeTimelineDocument(snapshot.data() as TimelineDocument);
         const nextActiveCanvas =
           normalized.canvases.find((canvas) => canvas.id === normalized.activeCanvasId) ?? normalized.canvases[0];
@@ -152,7 +160,8 @@ export function useTimelineState() {
   useEffect(() => {
     if (!user || !hasLoaded || !activeCanvas) return;
 
-    const shouldPersist = canvases.length > 1 || canvases.some((canvas) => hasTimelineContent(canvas.data));
+    const shouldPersist =
+      remoteDocExists || canvases.length > 1 || canvases.some((canvas) => hasTimelineContent(canvas.data));
     if (!shouldPersist) return;
 
     const timer = window.setTimeout(() => {
@@ -160,7 +169,7 @@ export function useTimelineState() {
     }, SAVE_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [canvases, activeCanvas, hasLoaded, saveToFirestore, user]);
+  }, [canvases, activeCanvas, hasLoaded, remoteDocExists, saveToFirestore, user]);
 
   const selectTimelineCanvas = useCallback(
     (canvasId: string) => {

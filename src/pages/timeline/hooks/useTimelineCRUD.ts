@@ -1,7 +1,12 @@
 import { useCallback } from 'react';
 import { LINE_X_POSITION } from '../constants';
 import { parseAge } from '../utils';
-import { buildTimelineTree, collectDescendantIds } from '../utils/timelineTree';
+import {
+  buildTimelineTree,
+  collectDescendantIds,
+  findEventInTree,
+  findParentBranch,
+} from '../utils/timelineTree';
 import type { NodeT, EdgeT, Sphere, EventIconId } from '../types';
 
 interface UseTimelineCRUDOptions {
@@ -62,26 +67,72 @@ export function useTimelineCRUD({
         // Edit existing event
         const original = nodes.find((n) => n.id === formData.id);
         const oldAge = original?.age;
+        const tree = buildTimelineTree(nodes, edges);
 
         // B11: if the edited event lives on a branch, the new age must
         // stay within that branch's age window — otherwise it would
         // visually orphan above/below the line that anchors it.
+        // Membership comes from the tree (not `edge.x === parentX`):
+        // with shared-x branches the flat lookup can validate against a
+        // different branch than the one operations actually use (Д4).
+        const parentBranch = findParentBranch(tree, formData.id);
         if (
-          original &&
-          original.parentX !== undefined &&
-          original.parentX !== LINE_X_POSITION
+          parentBranch &&
+          (parsedAge < parentBranch.startAge || parsedAge > parentBranch.endAge)
         ) {
-          const parentBranch = edges.find((e) => e.x === original.parentX);
-          if (
-            parentBranch &&
-            (parsedAge < parentBranch.startAge || parsedAge > parentBranch.endAge)
-          ) {
-            alert(
-              `Возраст ${parsedAge} вне диапазона ветки (${parentBranch.startAge}–${parentBranch.endAge} лет). Сначала измените длину ветки или перенесите событие на главную линию.`
-            );
-            return;
+          alert(
+            `Возраст ${parsedAge} вне диапазона ветки (${parentBranch.startAge}–${parentBranch.endAge} лет). Сначала измените длину ветки или перенесите событие на главную линию.`
+          );
+          return;
+        }
+
+        // B10: if the edited event is the origin of one or more branches,
+        // slide each branch's age window by the same delta so the branch
+        // stays attached to its origin event. Length is preserved (except
+        // the ageMax clamp). Д3: refuse when an event already on such a
+        // branch would fall outside the slid window — otherwise it ends
+        // up visually orphaned beyond the branch segment.
+        const ageChanged = oldAge !== undefined && oldAge !== parsedAge;
+        let updatedEdges = edges;
+        if (ageChanged) {
+          const deltaAge = parsedAge - oldAge!;
+          const slidWindows = new Map<string, { startAge: number; endAge: number }>();
+          for (const e of edges) {
+            if (e.nodeId !== formData.id) continue;
+            slidWindows.set(e.id, {
+              startAge: e.startAge + deltaAge,
+              endAge: Math.min(e.endAge + deltaAge, ageMax),
+            });
+          }
+          if (slidWindows.size > 0) {
+            const eventInTree = findEventInTree(tree, formData.id);
+            const offenders =
+              eventInTree?.branches.flatMap((branch) => {
+                const window = slidWindows.get(branch.data.id);
+                if (!window) return [];
+                return branch.events.filter(
+                  (ev) => ev.data.age < window.startAge || ev.data.age > window.endAge
+                );
+              }) ?? [];
+            if (offenders.length > 0) {
+              const sample = offenders
+                .slice(0, 3)
+                .map((ev) => `«${ev.data.label}» (${ev.data.age} лет)`)
+                .join(', ');
+              const more = offenders.length > 3 ? ` и ещё ${offenders.length - 3}` : '';
+              alert(
+                `На ветке есть события, которые выпадут из нового диапазона: ${sample}${more}. Сначала перенесите их или удалите.`
+              );
+              return;
+            }
+            updatedEdges = edges.map((e) => {
+              const window = slidWindows.get(e.id);
+              return window ? { ...e, ...window } : e;
+            });
+            setEdges(updatedEdges);
           }
         }
+
         const updatedNodes = nodes.map((n) =>
           n.id === formData.id
             ? {
@@ -97,27 +148,6 @@ export function useTimelineCRUD({
               }
             : n
         );
-
-        // B10: if the edited event is the origin of one or more branches,
-        // slide each branch's age window by the same delta so the branch
-        // stays attached to its origin event. Length is preserved.
-        const ageChanged = oldAge !== undefined && oldAge !== parsedAge;
-        let updatedEdges = edges;
-        if (ageChanged) {
-          const deltaAge = parsedAge - oldAge!;
-          let mutated = false;
-          const next = edges.map((e) => {
-            if (e.nodeId !== formData.id) return e;
-            mutated = true;
-            const newStart = e.startAge + deltaAge;
-            const newEnd = Math.min(e.endAge + deltaAge, ageMax);
-            return { ...e, startAge: newStart, endAge: newEnd };
-          });
-          if (mutated) {
-            updatedEdges = next;
-            setEdges(updatedEdges);
-          }
-        }
 
         setNodes(updatedNodes);
         onHistoryRecord?.(updatedNodes, updatedEdges);
@@ -194,19 +224,26 @@ export function useTimelineCRUD({
       const tree = buildTimelineTree(nodes, edges);
       const collected = collectDescendantIds(tree, id);
 
+      let nextNodes: NodeT[];
+      let nextEdges: EdgeT[];
       if (!collected) {
         // Event isn't in the tree (orphan with broken parentX, or
         // already gone). Defensive single-id delete.
-        setNodes(nodes.filter((n) => n.id !== id));
-        setEdges(edges.filter((e) => e.nodeId !== id));
+        nextNodes = nodes.filter((n) => n.id !== id);
+        nextEdges = edges.filter((e) => e.nodeId !== id);
       } else {
         const { eventIds, edgeIds } = collected;
-        setNodes(nodes.filter((n) => !eventIds.has(n.id)));
-        setEdges(edges.filter((e) => !edgeIds.has(e.id)));
+        nextNodes = nodes.filter((n) => !eventIds.has(n.id));
+        nextEdges = edges.filter((e) => !edgeIds.has(e.id));
       }
+      setNodes(nextNodes);
+      setEdges(nextEdges);
 
       onClearForm?.();
-      onHistoryRecord?.();
+      // Д2: передаём состояние явно — вызов без аргументов заставил бы
+      // recordHistory в Timeline.tsx записать в историю closure-состояние
+      // ДО удаления, и redo удаления стало бы невозможным (I10).
+      onHistoryRecord?.(nextNodes, nextEdges);
     },
     [nodes, edges, setNodes, setEdges, onClearForm, onHistoryRecord]
   );

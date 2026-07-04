@@ -21,7 +21,7 @@ import {
 } from './timeline/constants';
 import { clamp } from './timeline/utils';
 import { useTimelineState } from './timeline/hooks/useTimelineState';
-import { useTimelineHistory } from './timeline/hooks/useTimelineHistory';
+import { useTimelineUndoRedo } from './timeline/hooks/useTimelineUndoRedo';
 import { useDownloadMenu } from './timeline/hooks/useDownloadMenu';
 import { useTimelineShortcuts } from './timeline/hooks/useTimelineShortcuts';
 import { useTimelineForm } from './timeline/hooks/useTimelineForm';
@@ -82,43 +82,25 @@ export default function Timeline() {
     replaceActiveTimeline,
   } = useTimelineState();
 
-  // History (undo/redo)
+  // History (undo/redo) — связка вынесена в useTimelineUndoRedo,
+  // baseline-состояние досеивается там же (Д1/I10).
   const {
-    saveToHistory: pushHistory,
-    undo: fetchUndoSnapshot,
-    redo: fetchRedoSnapshot,
-    moveBackward,
-    moveForward,
+    recordHistory,
+    undo,
+    redo,
     resetHistory,
     canUndo,
     canRedo,
     historyIndex,
     historyLength,
-  } = useTimelineHistory();
-
-  // ============ HANDLERS (must be declared before hooks that use them) ============
-
-  const recordHistory = (customNodes?: NodeT[], customEdges?: EdgeT[], customBirth?: BirthDetails) => {
-    pushHistory(customNodes ?? nodes, customEdges ?? edges, customBirth ?? birthDetails);
-  };
-
-  function undo() {
-    const prev = fetchUndoSnapshot();
-    if (!prev) return;
-    setNodes(prev.nodes);
-    setEdges(prev.edges);
-    setBirthDetails(prev.birth);
-    moveBackward();
-  }
-
-  function redo() {
-    const next = fetchRedoSnapshot();
-    if (!next) return;
-    setNodes(next.nodes);
-    setEdges(next.edges);
-    setBirthDetails(next.birth);
-    moveForward();
-  }
+  } = useTimelineUndoRedo({
+    nodes,
+    edges,
+    birthDetails,
+    setNodes,
+    setEdges,
+    setBirthDetails,
+  });
 
   // ============ FORM HOOKS ============
 

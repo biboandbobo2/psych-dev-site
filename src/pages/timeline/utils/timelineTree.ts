@@ -149,6 +149,34 @@ function findInSubtree(event: TimelineTreeNode, eventId: string): TimelineTreeNo
 }
 
 /**
+ * Find the branch the event lives on, according to tree membership.
+ * Returns null for root events and events not present in the tree.
+ *
+ * Validators (B11 age window, B14 shorten guard) must use this instead
+ * of `edges.find((e) => e.x === node.parentX)`: when two branches share
+ * an x, the flat lookup can pick a different branch than the tree walk
+ * that drag/delete operations use, so validation and behaviour diverge.
+ */
+export function findParentBranch(tree: TimelineTree, eventId: string): EdgeT | null {
+  for (const root of tree) {
+    const hit = findParentBranchInSubtree(root, eventId);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function findParentBranchInSubtree(event: TimelineTreeNode, eventId: string): EdgeT | null {
+  for (const branch of event.branches) {
+    for (const child of branch.events) {
+      if (child.data.id === eventId) return branch.data;
+      const hit = findParentBranchInSubtree(child, eventId);
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
+
+/**
  * Apply a drag to the tree: change the dragged event's x to newSelfX,
  * and shift all of its descendants (branches + their events) by deltaX.
  *
@@ -246,6 +274,32 @@ export function applyBranchDeletionToFlat(
   const updatedNodes = new Map<string, NodeT>();
   const updatedEdges = new Map<string, EdgeT>();
 
+  // Grand-branches get new x coordinates. A migrated branch must not land
+  // on the x of an unrelated surviving branch (membership is x-encoded —
+  // a collision silently merges two branches, class Д5/Д6a) nor on the
+  // main line itself. Track taken xs: survivors first, migrants as placed.
+  const migratedEdgeIds = new Set<string>();
+  const collectMigratedEdgeIds = (event: TimelineTreeNode) => {
+    for (const branch of event.branches) {
+      migratedEdgeIds.add(branch.data.id);
+      for (const child of branch.events) collectMigratedEdgeIds(child);
+    }
+  };
+  for (const child of branchInTree.events) collectMigratedEdgeIds(child);
+
+  const takenXs = new Set<number>([LINE_X_POSITION]);
+  for (const e of edges) {
+    if (e.id === edgeId || migratedEdgeIds.has(e.id)) continue;
+    takenXs.add(e.x);
+  }
+  const OFFSET_STEP = 100; // same step as extendBranch's B12 walk
+  const claimFreeX = (proposed: number): number => {
+    let x = proposed;
+    while (takenXs.has(x)) x += OFFSET_STEP;
+    takenXs.add(x);
+    return x;
+  };
+
   // Top-level migrant: collapses to the new parent line (no offset).
   function migrateTopLevel(event: TimelineTreeNode) {
     const oldX = event.data.x ?? LINE_X_POSITION;
@@ -275,10 +329,11 @@ export function applyBranchDeletionToFlat(
   }
 
   function shiftBranch(branch: TimelineTreeBranch, deltaX: number) {
-    const newBranchX = branch.data.x + deltaX;
+    const newBranchX = claimFreeX(branch.data.x + deltaX);
+    const actualDelta = newBranchX - branch.data.x;
     updatedEdges.set(branch.data.id, { ...branch.data, x: newBranchX });
     for (const child of branch.events) {
-      migrateDescendant(child, deltaX, newBranchX);
+      migrateDescendant(child, actualDelta, newBranchX);
     }
   }
 
