@@ -692,6 +692,36 @@ describe('useTimelineCRUD', () => {
       expect(slid.endAge).toBe(9); // сдвиг длины не искажает: 15 + (2-8)
     });
 
+    it('Д3/startAge: окно пустой legacy-ветки не инвертируется при сдвиге целиком ниже нуля', () => {
+      // Ветка [5,10] от origin(20) — только ручной JSON; сдвиг 20→2 даёт
+      // сырое окно [-13,-8] → после клампов должно остаться валидным.
+      const o: NodeT = { id: 'o', age: 20, x: 2000, label: 'O', isDecision: false };
+      const br: EdgeT = { id: 'br', x: 2100, startAge: 5, endAge: 10, color: '#000', nodeId: 'o' };
+
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: [o],
+          edges: [br],
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+      act(() => {
+        result.current.handleFormSubmit(
+          { id: 'o', age: '2', label: 'O', notes: '', sphere: undefined, isDecision: false, icon: null },
+          null
+        );
+      });
+
+      const slid = setEdges.mock.calls[0][0][0];
+      expect(slid.startAge).toBeGreaterThanOrEqual(0);
+      expect(slid.endAge).toBeGreaterThanOrEqual(slid.startAge);
+    });
+
     it('Д3: сдвиг проверяет события на ВСЕХ ветках origin-события', () => {
       // У origin две ветки; нарушитель — на второй.
       const o: NodeT = { id: 'o', age: 20, x: 2000, label: 'O', isDecision: false };

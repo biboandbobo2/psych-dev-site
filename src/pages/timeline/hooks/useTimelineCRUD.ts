@@ -99,12 +99,15 @@ export function useTimelineCRUD({
           const slidWindows = new Map<string, { startAge: number; endAge: number }>();
           for (const e of edges) {
             if (e.nodeId !== formData.id) continue;
+            // Кламп с обеих сторон: endAge не выше ageMax, startAge не
+            // ниже 0 (legacy-окна после I12-healing могут начинаться
+            // раньше возраста origin — сдвиг вниз ушёл бы в минус).
+            const startAge = Math.max(e.startAge + deltaAge, 0);
             slidWindows.set(e.id, {
-              // Кламп с обеих сторон: endAge не выше ageMax, startAge не
-              // ниже 0 (legacy-окна после I12-healing могут начинаться
-              // раньше возраста origin — сдвиг вниз ушёл бы в минус).
-              startAge: Math.max(e.startAge + deltaAge, 0),
-              endAge: Math.min(e.endAge + deltaAge, ageMax),
+              startAge,
+              // Не даём окну инвертироваться, когда пустая legacy-ветка
+              // целиком ниже нуля после сдвига (ручной JSON).
+              endAge: Math.max(Math.min(e.endAge + deltaAge, ageMax), startAge),
             });
           }
           if (slidWindows.size > 0) {
