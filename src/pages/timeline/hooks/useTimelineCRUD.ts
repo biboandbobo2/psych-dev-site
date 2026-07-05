@@ -50,21 +50,26 @@ export function useTimelineCRUD({
 }: UseTimelineCRUDOptions) {
   const warn = notify ?? ((message: string) => alert(message));
   /**
-   * Create or update an event
+   * Create or update an event. Возвращает true, если правка применена
+   * (для авто-применения: keepFormOpen не закрывает форму после записи).
    */
   const handleFormSubmit = useCallback(
-    (formData: FormEventData, selectedBranchId: string | null) => {
-      if (!formData.label.trim()) return;
+    (
+      formData: FormEventData,
+      selectedBranchId: string | null,
+      opts?: { keepFormOpen?: boolean }
+    ): boolean => {
+      if (!formData.label.trim()) return false;
 
       if (!formData.age.trim()) {
         warn('Пожалуйста, укажите возраст события');
-        return;
+        return false;
       }
 
       const parsedAge = parseAge(formData.age);
       if (isNaN(parsedAge) || parsedAge < 0 || parsedAge > ageMax) {
         warn(`Возраст должен быть от 0 до ${ageMax} лет`);
-        return;
+        return false;
       }
 
       if (formData.id) {
@@ -87,7 +92,7 @@ export function useTimelineCRUD({
           warn(
             `Возраст ${parsedAge} вне диапазона ветки (${parentBranch.startAge}–${parentBranch.endAge} лет). Сначала измените длину ветки или перенесите событие на главную линию.`
           );
-          return;
+          return false;
         }
 
         // B10: if the edited event is the origin of one or more branches,
@@ -133,7 +138,7 @@ export function useTimelineCRUD({
               warn(
                 `На ветке есть события, которые выпадут из нового диапазона: ${sample}${more}. Сначала перенесите их или удалите.`
               );
-              return;
+              return false;
             }
             updatedEdges = edges.map((e) => {
               const window = slidWindows.get(e.id);
@@ -206,8 +211,11 @@ export function useTimelineCRUD({
         onHistoryRecord?.(newNodes, edges);
       }
 
-      // Clear form
-      onClearForm?.();
+      // Clear form (авто-применение оставляет форму открытой)
+      if (!opts?.keepFormOpen) {
+        onClearForm?.();
+      }
+      return true;
     },
     [nodes, edges, ageMax, setNodes, onHistoryRecord, onSetSelectedId, onClearForm, warn]
   );

@@ -10,7 +10,6 @@ interface TimelineBranchEditorProps {
   /** Количество событий на самой ветке. */
   eventsOnBranch: number;
   onBranchYearsChange: (value: string) => void;
-  onUpdateBranchLength: () => void;
   onDeleteBranch: () => void;
   onClose: () => void;
 }
@@ -22,7 +21,6 @@ export function TimelineBranchEditor({
   originLabel,
   eventsOnBranch,
   onBranchYearsChange,
-  onUpdateBranchLength,
   onDeleteBranch,
   onClose,
 }: TimelineBranchEditorProps) {
@@ -70,10 +68,10 @@ export function TimelineBranchEditor({
         </div>
       </div>
 
-      <div className="mb-3">
+      <div className="mb-1">
         <label className="block mb-2">
           <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-            Длина ветки (лет)
+            Длина ветки (лет) — применяется сама
           </span>
           <div className="flex items-center gap-2">
             <input
@@ -88,19 +86,10 @@ export function TimelineBranchEditor({
             />
             <button
               type="button"
-              onClick={onUpdateBranchLength}
-              className="px-3 py-2 bg-purple-400 hover:bg-purple-500 text-white rounded-xl transition text-xs font-medium"
-              style={{ fontFamily: 'Georgia, serif' }}
-              title="Применить"
-            >
-              ✓
-            </button>
-            <button
-              type="button"
               onClick={onDeleteBranch}
               className="px-3 py-2 bg-red-200 hover:bg-red-300 text-red-800 rounded-xl transition text-xs font-medium"
               style={{ fontFamily: 'Georgia, serif' }}
-              title="Удалить ветку"
+              title="Удалить ветку (события переедут на родительскую линию)"
             >
               🗑️
             </button>

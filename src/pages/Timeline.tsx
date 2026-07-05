@@ -190,6 +190,64 @@ export default function Timeline() {
     notify: notifyValidation,
   });
 
+  // ===== Авто-применение правок (без кнопок «Сохранить»: страховка — undo) =====
+
+  // Существующее событие: поля формы применяются сами после паузы ввода.
+  // Ref держит свежую версию применения, deps эффекта — только значения
+  // полей, чтобы дебаунс не сбрасывался посторонними рендерами.
+  const formAutoApplyRef = useRef<() => void>(() => {});
+  formAutoApplyRef.current = () => {
+    if (!formHook.formEventId || !formHook.hasFormChanges) return;
+    const applied = crudHook.handleFormSubmit(
+      {
+        id: formHook.formEventId,
+        age: formHook.formEventAge,
+        label: formHook.formEventLabel,
+        notes: formHook.formEventNotes,
+        sphere: formHook.formEventSphere,
+        isDecision: formHook.formEventIsDecision,
+        icon: formHook.formEventIcon,
+      },
+      branchHook.selectedBranchId,
+      { keepFormOpen: true }
+    );
+    if (applied) formHook.markSaved();
+  };
+  useEffect(() => {
+    if (formHook.formEventId === null || !formHook.hasFormChanges) return;
+    const timer = window.setTimeout(() => formAutoApplyRef.current(), 800);
+    return () => window.clearTimeout(timer);
+  }, [
+    formHook.formEventId,
+    formHook.hasFormChanges,
+    formHook.formEventAge,
+    formHook.formEventLabel,
+    formHook.formEventNotes,
+    formHook.formEventSphere,
+    formHook.formEventIsDecision,
+    formHook.formEventIcon,
+  ]);
+
+  // Длина выбранной ветки: применяется сама (валидаторы B13/B14 при
+  // отказе объяснят причину тостом).
+  const branchAutoApplyRef = useRef<() => void>(() => {});
+  branchAutoApplyRef.current = () => {
+    const edge = branchHook.selectedEdge;
+    if (!edge) return;
+    const years = parseFloat(branchHook.branchYears);
+    if (isNaN(years) || years <= 0) return;
+    if (edge.endAge - edge.startAge === years) return;
+    branchHook.updateBranchLength();
+  };
+  useEffect(() => {
+    const edge = branchHook.selectedEdge;
+    if (!edge) return;
+    const years = parseFloat(branchHook.branchYears);
+    if (isNaN(years) || years <= 0 || edge.endAge - edge.startAge === years) return;
+    const timer = window.setTimeout(() => branchAutoApplyRef.current(), 800);
+    return () => window.clearTimeout(timer);
+  }, [branchHook.branchYears, branchHook.selectedEdge]);
+
   // Удаление события: без блокирующего confirm — вместо него плашка
   // с точным размером снесённого поддерева и кнопкой «Отменить» (undo).
   const handleDeleteEvent = (id: string) => {
@@ -599,7 +657,6 @@ export default function Timeline() {
           branchInfo={selectedBranchInfo}
           branchYears={branchHook.branchYears}
           onBranchYearsChange={branchHook.setBranchYears}
-          onUpdateBranchLength={branchHook.updateBranchLength}
           onDeleteBranch={branchHook.deleteBranch}
           onHideBranchEditor={branchHook.handleHideBranchEditor}
           onExtendBranch={() => branchHook.extendBranch(selectedNode)}

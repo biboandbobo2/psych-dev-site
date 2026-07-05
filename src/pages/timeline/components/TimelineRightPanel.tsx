@@ -52,7 +52,6 @@ interface TimelineRightPanelProps {
   branchInfo: { originLabel: string | null; eventsCount: number } | null;
   branchYears: string;
   onBranchYearsChange: (value: string) => void;
-  onUpdateBranchLength: () => void;
   onDeleteBranch: () => void;
   onHideBranchEditor: () => void;
   onExtendBranch: () => void;
@@ -106,7 +105,6 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
     branchInfo,
     branchYears,
     onBranchYearsChange,
-    onUpdateBranchLength,
     onDeleteBranch,
     onHideBranchEditor,
     onExtendBranch,
@@ -307,35 +305,23 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
                 originLabel={branchInfo?.originLabel ?? null}
                 eventsOnBranch={branchInfo?.eventsCount ?? 0}
                 onBranchYearsChange={onBranchYearsChange}
-                onUpdateBranchLength={onUpdateBranchLength}
                 onDeleteBranch={onDeleteBranch}
                 onClose={onHideBranchEditor}
               />
             )}
 
-            <TimelineEventForm
-              title="Новое событие на ветке"
-              formEventId={formEventId}
-              formEventAge={formEventAge}
-              onFormEventAgeChange={onFormEventAgeChange}
-              formEventLabel={formEventLabel}
-              onFormEventLabelChange={onFormEventLabelChange}
-              formEventSphere={formEventSphere}
-              onFormEventSphereChange={onFormEventSphereChange}
-              formEventIsDecision={formEventIsDecision}
-              onFormEventIsDecisionChange={onFormEventIsDecisionChange}
-              formEventIcon={formEventIcon}
-              onFormEventIconChange={onFormEventIconChange}
-              formEventNotes={formEventNotes}
-              onFormEventNotesChange={onFormEventNotesChange}
-              onEventFormSubmit={onEventFormSubmit}
-              createNote={createNote}
-              iconTone="sky"
-              showNotesField={false}
-              showBulkCreatorButton
-              onOpenBulkCreator={onOpenBulkCreator}
-              wrapperClassName="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-4 border border-blue-200 shadow-sm"
-            />
+            {/* Одиночное событие на ветку добавляется двойным кликом по
+                ней прямо на холсте — форма здесь не нужна. */}
+            <button
+              type="button"
+              onClick={onOpenBulkCreator}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+            >
+              ⚡ Несколько событий сразу
+            </button>
+            <div className="rounded-2xl border border-slate-200 bg-white/70 p-3 text-xs leading-relaxed text-slate-600">
+              Событие на ветке — двойной клик по ней в нужном возрасте.
+            </div>
           </>
         )}
       </div>
