@@ -27,6 +27,8 @@ interface TimelineCanvasProps {
   onPeriodBoundaryClick: (periodIndex: number) => void;
   /** clickedAge — возраст в точке клика по ветке (для автоподстановки в форму). */
   onSelectBranch: (edgeId: string, clickedAge?: number) => void;
+  /** Двойной клик по линии/ветке: создать событие в точке клика. */
+  onQuickCreateEvent?: (age: number, edgeId: string | null) => void;
   onClearSelection: () => void;
   onSelectBirth: () => void;
   worldWidth: number;
@@ -61,6 +63,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
     onAddBranchFromNode,
     onPeriodBoundaryClick,
     onSelectBranch,
+    onQuickCreateEvent,
     onClearSelection,
     onSelectBirth,
     worldWidth,
@@ -118,6 +121,12 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
     () => nodes.filter((node) => typeof node.age === 'number' && !isNaN(node.age)),
     [nodes]
   );
+
+  // Возраст в точке клика (для создания события «там, где кликнул»).
+  const ageAtPointer = (e: React.MouseEvent) => {
+    const world = screenToWorld(e, svgRef.current, transform);
+    return Math.round(((worldHeight - world.y) / YEAR_PX) * 10) / 10;
+  };
 
   return (
     <div className="absolute inset-0">
@@ -201,6 +210,10 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
               e.stopPropagation();
               onClearSelection();
             }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onQuickCreateEvent?.(ageAtPointer(e), null);
+            }}
             className="cursor-pointer"
             style={{ cursor: 'pointer' }}
           />
@@ -218,6 +231,10 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
             onClick={(e) => {
               e.stopPropagation();
               onClearSelection();
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onQuickCreateEvent?.(ageAtPointer(e), null);
             }}
             className="cursor-pointer"
             style={{ cursor: 'pointer' }}
@@ -314,13 +331,14 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                     strokeLinecap="round"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Возраст из точки клика: событие на ветке создаётся
-                      // «там, где кликнул», без ручного ввода возраста.
-                      const world = screenToWorld(e, svgRef.current, transform);
-                      const rawAge = (worldHeight - world.y) / YEAR_PX;
-                      const clickedAge =
-                        Math.round(clamp(rawAge, edge.startAge, edge.endAge) * 10) / 10;
+                      // Одиночный клик: выбрать ветку + подставить возраст
+                      // из точки клика в форму. Двойной — создать событие.
+                      const clickedAge = clamp(ageAtPointer(e), edge.startAge, edge.endAge);
                       onSelectBranch(edge.id, clickedAge);
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      onQuickCreateEvent?.(ageAtPointer(e), edge.id);
                     }}
                     className="cursor-pointer"
                     style={{ cursor: 'pointer' }}

@@ -242,9 +242,9 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
             <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 text-xs leading-relaxed text-slate-600">
               <div className="mb-1 font-semibold text-slate-700">Как работать с холстом</div>
               <ul className="space-y-1">
+                <li>• Двойной клик по линии или ветке — событие в месте клика</li>
                 <li>• Клик по кружку — открыть событие</li>
                 <li>• Перетащите событие в сторону — от него сможет вырасти ветка (кнопка «+» у кружка)</li>
-                <li>• Клик по ветке — новое событие в месте клика: возраст подставится сам</li>
                 <li>• Колесо мыши — масштаб, пустое место — перемещение</li>
               </ul>
             </div>

@@ -392,6 +392,19 @@ export default function Timeline() {
     setPeriodBoundaryModal({ periodIndex });
   };
 
+  // Двойной клик по линии/ветке: событие появляется сразу в точке клика
+  // и открывается в форме для переименования.
+  const handleQuickCreateEvent = (age: number, edgeId: string | null) => {
+    const edge = edgeId ? edges.find((e) => e.id === edgeId) ?? null : null;
+    const node = crudHook.quickCreateEvent(age, edge);
+    formHook.setFormFromNode(node);
+    birthHook.setBirthSelected(false);
+    showToast({
+      message: `Событие создано (${node.age} лет) — дайте ему название в панели справа.`,
+      tone: 'info',
+    });
+  };
+
   const handleSelectBranch = (edgeId: string, clickedAge?: number) => {
     branchHook.handleSelectBranch(edgeId);
     birthHook.setBirthSelected(false);
@@ -535,6 +548,7 @@ export default function Timeline() {
           onAddBranchFromNode={readOnly ? undefined : handleAddBranchFromNode}
           onPeriodBoundaryClick={readOnly ? () => {} : handlePeriodBoundaryClick}
           onSelectBranch={readOnly ? () => {} : handleSelectBranch}
+          onQuickCreateEvent={readOnly ? undefined : handleQuickCreateEvent}
           onClearSelection={readOnly ? () => {} : handleClearSelection}
           onSelectBirth={readOnly ? () => {} : birthHook.handleBirthSelect}
         />

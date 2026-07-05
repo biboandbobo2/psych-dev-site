@@ -213,6 +213,38 @@ export function useTimelineCRUD({
   );
 
   /**
+   * Быстрое создание события двойным кликом по линии/ветке: появляется
+   * сразу в точке клика с плейсхолдер-названием, выделяется для
+   * переименования. Возраст клампится в окно ветки (или [0, ageMax]).
+   */
+  const quickCreateEvent = useCallback(
+    (age: number, branchEdge: EdgeT | null): NodeT => {
+      const clampedAge = branchEdge
+        ? Math.min(Math.max(age, branchEdge.startAge), branchEdge.endAge)
+        : Math.min(Math.max(age, 0), ageMax);
+      const originSphere = branchEdge
+        ? nodes.find((n) => n.id === branchEdge.nodeId)?.sphere
+        : undefined;
+      const node: NodeT = {
+        id: crypto.randomUUID(),
+        age: clampedAge,
+        x: branchEdge ? branchEdge.x : LINE_X_POSITION,
+        parentX: branchEdge ? branchEdge.x : undefined,
+        label: 'Новое событие',
+        notes: '',
+        sphere: originSphere,
+        isDecision: false,
+      };
+      const newNodes = [...nodes, node];
+      setNodes(newNodes);
+      onSetSelectedId?.(node.id);
+      onHistoryRecord?.(newNodes, edges);
+      return node;
+    },
+    [nodes, edges, ageMax, setNodes, onSetSelectedId, onHistoryRecord]
+  );
+
+  /**
    * Update specific fields of a node
    */
   const updateNode = useCallback(
@@ -296,6 +328,7 @@ export function useTimelineCRUD({
 
   return {
     handleFormSubmit,
+    quickCreateEvent,
     updateNode,
     deleteNode,
     handleBulkCreate,
