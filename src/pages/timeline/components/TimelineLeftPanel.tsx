@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, RefObject } from 'react';
-import type { NodeT, TimelineCanvas } from '../types';
+import type { NodeT, Sphere, TimelineCanvas } from '../types';
 import { MIN_SCALE, MAX_SCALE } from '../constants';
 import { DeleteTimelineConfirmModal } from './DeleteTimelineConfirmModal';
 import { BiographyImportFormModal } from './BiographyImportFormModal';
+import { TimelineSphereLegend } from './TimelineSphereLegend';
 
 interface TimelineLeftPanelProps {
   currentAge: number;
@@ -12,6 +13,8 @@ interface TimelineLeftPanelProps {
   viewportAge: number;
   scale: number;
   nodes: NodeT[];
+  sphereFilter: Sphere | null;
+  onSphereFilterChange: (sphere: Sphere | null) => void;
   timelineCanvases: TimelineCanvas[];
   activeTimelineId: string | null;
   activeTimelineName: string;
@@ -54,6 +57,8 @@ export function TimelineLeftPanel({
   viewportAge,
   scale,
   nodes,
+  sphereFilter,
+  onSphereFilterChange,
   timelineCanvases,
   activeTimelineId,
   activeTimelineName,
@@ -249,8 +254,11 @@ export function TimelineLeftPanel({
               <div className="text-xl font-semibold text-slate-900">{nodes.length}</div>
               <div className="text-[10px] uppercase tracking-[0.3em] text-slate-600">Событий</div>
             </div>
-            {/* Распределение по сферам — в интерактивной легенде внизу
-                холста (TimelineSphereLegend), здесь не дублируем. */}
+            <TimelineSphereLegend
+              nodes={nodes}
+              activeSphere={sphereFilter}
+              onChange={onSphereFilterChange}
+            />
             {showBiographyImportAction ? (
               <div className="mt-3 space-y-2">
                 <button

@@ -13,10 +13,10 @@ const nodes: NodeT[] = [
 describe('TimelineSphereLegend', () => {
   it('показывает только сферы с событиями и их количество', () => {
     render(<TimelineSphereLegend nodes={nodes} activeSphere={null} onChange={() => {}} />);
-    expect(screen.getByText('Семья')).toBeInTheDocument();
-    expect(screen.getByText('Карьера')).toBeInTheDocument();
-    expect(screen.queryByText('Образование')).not.toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument(); // family
+    expect(screen.getByTitle(/Семья/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Карьера/)).toBeInTheDocument();
+    expect(screen.queryByTitle(/Образование/)).not.toBeInTheDocument();
+    expect(screen.getByTitle(/Семья/)).toHaveTextContent('2');
   });
 
   it('клик по сфере включает фильтр, повторный — сбрасывает', () => {
@@ -24,18 +24,18 @@ describe('TimelineSphereLegend', () => {
     const { rerender } = render(
       <TimelineSphereLegend nodes={nodes} activeSphere={null} onChange={onChange} />
     );
-    fireEvent.click(screen.getByText('Семья'));
+    fireEvent.click(screen.getByTitle(/Семья/));
     expect(onChange).toHaveBeenCalledWith('family');
 
     rerender(<TimelineSphereLegend nodes={nodes} activeSphere="family" onChange={onChange} />);
-    fireEvent.click(screen.getByText('Семья'));
+    fireEvent.click(screen.getByTitle(/Семья/));
     expect(onChange).toHaveBeenLastCalledWith(null);
   });
 
-  it('кнопка «Все» сбрасывает фильтр', () => {
+  it('кнопка «Показать все» сбрасывает фильтр', () => {
     const onChange = vi.fn();
     render(<TimelineSphereLegend nodes={nodes} activeSphere="career" onChange={onChange} />);
-    fireEvent.click(screen.getByText('Все'));
+    fireEvent.click(screen.getByText('Показать все'));
     expect(onChange).toHaveBeenCalledWith(null);
   });
 

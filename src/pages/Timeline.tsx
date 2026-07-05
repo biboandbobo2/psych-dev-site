@@ -24,7 +24,6 @@ import { clamp, pluralizeRu } from './timeline/utils';
 import { useTimelineState } from './timeline/hooks/useTimelineState';
 import { useTimelineToast } from './timeline/hooks/useTimelineToast';
 import { TimelineToast } from './timeline/components/TimelineToast';
-import { TimelineSphereLegend } from './timeline/components/TimelineSphereLegend';
 import { TimelineStartOverlay } from './timeline/components/TimelineStartOverlay';
 import { EXAMPLE_TIMELINE, EXAMPLE_TIMELINE_NAME } from './timeline/data/exampleTimeline';
 import { useTimelineUndoRedo } from './timeline/hooks/useTimelineUndoRedo';
@@ -393,9 +392,14 @@ export default function Timeline() {
     setPeriodBoundaryModal({ periodIndex });
   };
 
-  const handleSelectBranch = (edgeId: string) => {
+  const handleSelectBranch = (edgeId: string, clickedAge?: number) => {
     branchHook.handleSelectBranch(edgeId);
     birthHook.setBirthSelected(false);
+    // Возраст из точки клика — сразу в форму «Новое событие на ветке»
+    // (не затирая возраст редактируемого события).
+    if (clickedAge !== undefined && formHook.formEventId === null) {
+      formHook.setFormEventAge(String(clickedAge));
+    }
   };
 
   const handleClearSelection = () => {
@@ -470,6 +474,8 @@ export default function Timeline() {
             viewportAge={viewportAge}
             scale={transform.k}
             nodes={nodes}
+            sphereFilter={sphereFilter}
+            onSphereFilterChange={setSphereFilter}
             timelineCanvases={timelineCanvases}
             activeTimelineId={activeTimelineId}
             activeTimelineName={activeTimelineName}
@@ -654,9 +660,6 @@ export default function Timeline() {
           }}
           onDismiss={() => setStartOverlayDismissed(true)}
         />
-      )}
-      {!readOnly && (
-        <TimelineSphereLegend nodes={nodes} activeSphere={sphereFilter} onChange={setSphereFilter} />
       )}
       <TimelineToast toast={toast} onClose={hideToast} />
     </motion.div>

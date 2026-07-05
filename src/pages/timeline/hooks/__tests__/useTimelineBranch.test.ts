@@ -281,6 +281,32 @@ describe('useTimelineBranch', () => {
     });
   });
 
+  describe('смещение новой ветки наружу (дуга с первой ветки)', () => {
+    function makeNode(x: number): NodeT {
+      return { id: 'n1', age: 20, x, parentX: x, label: 'N', isDecision: false, sphere: 'career' };
+    }
+
+    it('справа от главной линии ветка уходит правее события', () => {
+      const node = makeNode(2100);
+      const { result } = renderHook(() =>
+        useTimelineBranch({ nodes: [node], edges: [], setNodes, setEdges, ageMax: 100, onHistoryRecord, onClearForm })
+      );
+      act(() => result.current.setBranchYears('5'));
+      act(() => result.current.extendBranch(node));
+      expect(setEdges.mock.calls[0]![0][0].x).toBe(2200);
+    });
+
+    it('слева от главной линии ветка уходит левее события (не к центру)', () => {
+      const node = makeNode(1900);
+      const { result } = renderHook(() =>
+        useTimelineBranch({ nodes: [node], edges: [], setNodes, setEdges, ageMax: 100, onHistoryRecord, onClearForm })
+      );
+      act(() => result.current.setBranchYears('5'));
+      act(() => result.current.extendBranch(node));
+      expect(setEdges.mock.calls[0]![0][0].x).toBe(1800);
+    });
+  });
+
   describe('notify вместо alert', () => {
     it('extendBranch зовёт notify, когда он передан', () => {
       const notify = vi.fn();

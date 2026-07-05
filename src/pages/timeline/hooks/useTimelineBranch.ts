@@ -88,19 +88,20 @@ export function useTimelineBranch({
         return;
       }
 
-      // B12: if the source event already sits on a branch, its x
-      // collides with the existing branch — offset the new branch
-      // to the nearest free x so the two don't visually overlap and
-      // selection-by-x in the UI doesn't get confused.
-      let proposedBranchX = nodeX;
+      // Новая ветка всегда смещается от события наружу (от главной
+      // линии): между событием и веткой появляется соединитель с дугой
+      // уже у ПЕРВОЙ ветки, и ветка не накладывается на линию события.
+      // B12: walk по занятым x, чтобы не слипнуться с другими ветками;
+      // LINE_X_POSITION пропускаем — ветка на x главной линии сделала бы
+      // свои события «root» при build (Д9).
       const OFFSET_STEP = 100;
-      // Помимо занятых веток пропускаем LINE_X_POSITION: ветка на x
-      // главной линии сделала бы свои события «root» при build (Д9).
+      const outwardDir = nodeX >= LINE_X_POSITION ? 1 : -1;
+      let proposedBranchX = nodeX + outwardDir * OFFSET_STEP;
       while (
         proposedBranchX === LINE_X_POSITION ||
         edges.some((e) => e.x === proposedBranchX)
       ) {
-        proposedBranchX += OFFSET_STEP;
+        proposedBranchX += outwardDir * OFFSET_STEP;
       }
 
       const meta = SPHERE_META[selectedNode.sphere];

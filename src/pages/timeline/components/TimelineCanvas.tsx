@@ -10,7 +10,7 @@ import {
   MIN_NODE_RADIUS,
   MAX_NODE_RADIUS,
 } from '../constants';
-import { clamp } from '../utils';
+import { clamp, screenToWorld } from '../utils';
 import { EVENT_ICON_MAP } from '../../../data/eventIcons';
 
 interface TimelineCanvasProps {
@@ -25,7 +25,8 @@ interface TimelineCanvasProps {
   /** Кнопка «+ ветка» у выбранного события (не рендерится, если не передан). */
   onAddBranchFromNode?: (nodeId: string) => void;
   onPeriodBoundaryClick: (periodIndex: number) => void;
-  onSelectBranch: (edgeId: string) => void;
+  /** clickedAge — возраст в точке клика по ветке (для автоподстановки в форму). */
+  onSelectBranch: (edgeId: string, clickedAge?: number) => void;
   onClearSelection: () => void;
   onSelectBirth: () => void;
   worldWidth: number;
@@ -313,7 +314,13 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                     strokeLinecap="round"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSelectBranch(edge.id);
+                      // Возраст из точки клика: событие на ветке создаётся
+                      // «там, где кликнул», без ручного ввода возраста.
+                      const world = screenToWorld(e, svgRef.current, transform);
+                      const rawAge = (worldHeight - world.y) / YEAR_PX;
+                      const clickedAge =
+                        Math.round(clamp(rawAge, edge.startAge, edge.endAge) * 10) / 10;
+                      onSelectBranch(edge.id, clickedAge);
                     }}
                     className="cursor-pointer"
                     style={{ cursor: 'pointer' }}

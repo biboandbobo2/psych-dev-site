@@ -9,9 +9,9 @@ interface TimelineSphereLegendProps {
 }
 
 /**
- * Легенда сфер жизни внизу холста. Клик по сфере подсвечивает только её
- * события (остальные приглушаются на холсте), повторный клик или «Все» —
- * сброс. Показываются только сферы, у которых есть события.
+ * Компактный список сфер жизни для левой панели: цвет + эмодзи +
+ * количество. Клик подсвечивает только эту сферу на холсте (остальные
+ * приглушаются), повторный клик или «Показать все» — сброс.
  */
 export function TimelineSphereLegend({ nodes, activeSphere, onChange }: TimelineSphereLegendProps) {
   const counts = useMemo(() => {
@@ -26,21 +26,7 @@ export function TimelineSphereLegend({ nodes, activeSphere, onChange }: Timeline
   if (counts.size === 0) return null;
 
   return (
-    <div
-      className="fixed bottom-4 left-1/2 z-30 flex max-w-[70vw] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 shadow-lg backdrop-blur"
-      style={{ fontFamily: 'Georgia, serif' }}
-      role="group"
-      aria-label="Фильтр по сферам жизни"
-    >
-      {activeSphere !== null && (
-        <button
-          type="button"
-          onClick={() => onChange(null)}
-          className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-        >
-          Все
-        </button>
-      )}
+    <div className="mt-2 space-y-1 border-t border-slate-200 pt-2" role="group" aria-label="Фильтр по сферам жизни">
       {(Object.keys(SPHERE_META) as Sphere[]).map((sphere) => {
         const count = counts.get(sphere);
         if (!count) return null;
@@ -50,26 +36,37 @@ export function TimelineSphereLegend({ nodes, activeSphere, onChange }: Timeline
           <button
             key={sphere}
             type="button"
-            title={`${meta.label}: показать только эту сферу`}
-            onClick={() => onChange(isActive ? null : sphere)}
-            className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs transition ${
+            title={
               isActive
-                ? 'border-slate-400 bg-slate-800 font-semibold text-white'
+                ? `${meta.label}: показать все сферы`
+                : `${meta.label}: показать только эту сферу`
+            }
+            onClick={() => onChange(isActive ? null : sphere)}
+            className={`flex w-full items-center justify-between rounded-lg px-1.5 py-1 text-xs transition ${
+              isActive
+                ? 'bg-slate-800 font-semibold text-white'
                 : activeSphere !== null
-                ? 'border-slate-200 bg-white text-slate-400 hover:text-slate-700'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                ? 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+                : 'text-slate-600 hover:bg-slate-50'
             }`}
           >
-            <span
-              className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: meta.color }}
-            />
-            <span>{meta.emoji}</span>
-            <span className="hidden sm:inline">{meta.label}</span>
-            <span className={isActive ? 'text-slate-300' : 'text-slate-400'}>{count}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: meta.color }} />
+              <span>{meta.emoji}</span>
+            </span>
+            <span className={isActive ? 'text-slate-200' : 'font-semibold text-slate-900'}>{count}</span>
           </button>
         );
       })}
+      {activeSphere !== null && (
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className="w-full rounded-lg bg-slate-50 px-1.5 py-1 text-center text-[11px] font-medium text-slate-600 transition hover:bg-slate-100"
+        >
+          Показать все
+        </button>
+      )}
     </div>
   );
 }

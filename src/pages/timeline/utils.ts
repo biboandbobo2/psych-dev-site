@@ -4,7 +4,7 @@ import type { Transform } from './types';
  * Преобразует экранные координаты в координаты мира (с учётом pan/zoom)
  */
 export function screenToWorld(
-  e: React.PointerEvent | React.WheelEvent,
+  e: React.PointerEvent | React.WheelEvent | React.MouseEvent,
   svg: SVGSVGElement | null,
   transform: Transform
 ) {
