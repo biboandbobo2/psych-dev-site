@@ -25,10 +25,11 @@ interface TimelineCanvasProps {
   /** Кнопка «+ ветка» у выбранного события (не рендерится, если не передан). */
   onAddBranchFromNode?: (nodeId: string) => void;
   onPeriodBoundaryClick: (periodIndex: number) => void;
-  /** clickedAge — возраст в точке клика по ветке (для автоподстановки в форму). */
-  onSelectBranch: (edgeId: string, clickedAge?: number) => void;
+  onSelectBranch: (edgeId: string) => void;
   /** Двойной клик по линии/ветке: создать событие в точке клика. */
   onQuickCreateEvent?: (age: number, edgeId: string | null) => void;
+  /** «Хвостик» сверху ветки: начало изменения её длины перетаскиванием. */
+  onBranchResizeStart?: (event: PointerEvent, edgeId: string) => void;
   onClearSelection: () => void;
   onSelectBirth: () => void;
   worldWidth: number;
@@ -64,6 +65,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
     onPeriodBoundaryClick,
     onSelectBranch,
     onQuickCreateEvent,
+    onBranchResizeStart,
     onClearSelection,
     onSelectBirth,
     worldWidth,
@@ -321,6 +323,8 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                   `Q ${edge.x} ${startY} ${edge.x} ${startY - cornerR} L ${edge.x} ${endY}`
                 : `M ${edge.x} ${startY} L ${edge.x} ${endY}`;
               const dimmedBySphere = sphereFilter !== null && originNode?.sphere !== sphereFilter;
+              // Название ветки: своё, а по умолчанию — имя origin-события.
+              const branchTitle = edge.label ?? originNode?.label ?? null;
               return (
                 <g key={edge.id} opacity={dimmedBySphere ? 0.15 : 1}>
                   <path
@@ -331,10 +335,8 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                     strokeLinecap="round"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Одиночный клик: выбрать ветку + подставить возраст
-                      // из точки клика в форму. Двойной — создать событие.
-                      const clickedAge = clamp(ageAtPointer(e), edge.startAge, edge.endAge);
-                      onSelectBranch(edge.id, clickedAge);
+                      // Одиночный клик — выбрать ветку; двойной — событие.
+                      onSelectBranch(edge.id);
                     }}
                     onDoubleClick={(e) => {
                       e.stopPropagation();
@@ -352,6 +354,41 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                     opacity={isSelected ? 1 : 0.8}
                     pointerEvents="none"
                   />
+                  {/* Название ветки над её вершиной. */}
+                  {branchTitle && (
+                    <text
+                      x={edge.x}
+                      y={endY - 26}
+                      fontSize={24}
+                      fontStyle="italic"
+                      fill="#64748b"
+                      textAnchor="middle"
+                      fontFamily="Georgia, serif"
+                      pointerEvents="none"
+                    >
+                      {branchTitle}
+                    </text>
+                  )}
+                  {/* «Хвостик»: перетаскивание меняет длину ветки. */}
+                  {onBranchResizeStart && (
+                    <g
+                      data-layer="ui"
+                      onPointerDown={(e) => onBranchResizeStart(e, edge.id)}
+                      className="cursor-ns-resize"
+                      style={{ cursor: 'ns-resize' }}
+                    >
+                      <title>Потяните вверх/вниз, чтобы изменить длину ветки</title>
+                      <circle
+                        cx={edge.x}
+                        cy={endY}
+                        r={11}
+                        fill="#ffffff"
+                        stroke={edge.color}
+                        strokeWidth={3}
+                      />
+                      <circle cx={edge.x} cy={endY} r={4} fill={edge.color} pointerEvents="none" />
+                    </g>
+                  )}
                 </g>
               );
             })}
@@ -436,8 +473,10 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                         opacity={0.8}
                       />
                     )}
-                    {/* «Решение» — внешнее кольцо цвета сферы (крупнее обычного события). */}
-                    {node.isDecision === true && (
+                    {/* «Решение» — внешнее кольцо цвета сферы. Только для
+                        событий без пиктограммы: вокруг иконки кольцо
+                        выглядит случайным кружком. */}
+                    {node.isDecision === true && !iconMeta && (
                       <circle
                         cx={x}
                         cy={y}

@@ -307,6 +307,35 @@ describe('useTimelineBranch', () => {
     });
   });
 
+  describe('renameBranch', () => {
+    const origin: NodeT = { id: 'o', age: 10, x: 2100, parentX: 2100, label: 'Origin', isDecision: false };
+    const edge: EdgeT = { id: 'e1', x: 2200, startAge: 10, endAge: 20, color: '#000', nodeId: 'o' };
+
+    function setup() {
+      return renderHook(() =>
+        useTimelineBranch({
+          nodes: [origin], edges: [edge], setNodes, setEdges, ageMax: 100, onHistoryRecord, onClearForm,
+        })
+      );
+    }
+
+    it('задаёт название ветки и пишет историю', () => {
+      const { result } = setup();
+      act(() => result.current.setSelectedBranchId('e1'));
+      act(() => result.current.renameBranch('Если бы остался'));
+      expect(setEdges.mock.calls[0]![0][0]).toMatchObject({ id: 'e1', label: 'Если бы остался' });
+      expect(onHistoryRecord).toHaveBeenCalled();
+    });
+
+    it('пустая строка сбрасывает название (дефолт — имя origin)', () => {
+      const { result } = setup();
+      act(() => result.current.setSelectedBranchId('e1'));
+      act(() => result.current.renameBranch('   '));
+      // label уже undefined → изменений нет
+      expect(setEdges).not.toHaveBeenCalled();
+    });
+  });
+
   describe('notify вместо alert', () => {
     it('extendBranch зовёт notify, когда он передан', () => {
       const notify = vi.fn();

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { EdgeT } from '../types';
 import type { ChangeEvent } from 'react';
 
@@ -10,6 +11,7 @@ interface TimelineBranchEditorProps {
   /** Количество событий на самой ветке. */
   eventsOnBranch: number;
   onBranchYearsChange: (value: string) => void;
+  onRenameBranch: (label: string) => void;
   onDeleteBranch: () => void;
   onClose: () => void;
 }
@@ -21,12 +23,29 @@ export function TimelineBranchEditor({
   originLabel,
   eventsOnBranch,
   onBranchYearsChange,
+  onRenameBranch,
   onDeleteBranch,
   onClose,
 }: TimelineBranchEditorProps) {
   const handleYearsChange = (event: ChangeEvent<HTMLInputElement>) => {
     onBranchYearsChange(event.target.value);
   };
+
+  // Название ветки: локальный ввод + дебаунс-применение (как остальные
+  // правки — без кнопки, страховка undo). Пустое поле = дефолт (origin).
+  const [labelDraft, setLabelDraft] = useState(selectedEdge.label ?? '');
+  const renameRef = useRef(onRenameBranch);
+  renameRef.current = onRenameBranch;
+  useEffect(() => {
+    setLabelDraft(selectedEdge.label ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEdge.id]);
+  useEffect(() => {
+    if (labelDraft === (selectedEdge.label ?? '')) return;
+    const timer = window.setTimeout(() => renameRef.current(labelDraft), 600);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labelDraft]);
 
   return (
     <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-4 border border-purple-200 shadow-sm">
@@ -66,6 +85,22 @@ export function TimelineBranchEditor({
             Событий на ветке: {eventsOnBranch}
           </div>
         </div>
+      </div>
+
+      <div className="mb-3">
+        <label className="block">
+          <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
+            Название ветки
+          </span>
+          <input
+            type="text"
+            value={labelDraft}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => setLabelDraft(event.target.value)}
+            placeholder={originLabel ? `«${originLabel}» (по умолчанию)` : 'Название ветки'}
+            className="w-full px-3 py-2 rounded-xl border border-purple-300 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition text-sm bg-white"
+            style={{ fontFamily: 'Georgia, serif' }}
+          />
+        </label>
       </div>
 
       <div className="mb-1">

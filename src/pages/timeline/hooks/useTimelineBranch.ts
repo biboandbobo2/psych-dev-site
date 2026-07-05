@@ -228,6 +228,24 @@ export function useTimelineBranch({
   }, [selectedEdge, nodes, edges, setNodes, setEdges, onHistoryRecord, warn]);
 
   /**
+   * Переименовать выбранную ветку. Пустая строка сбрасывает название —
+   * тогда на холсте показывается название origin-события (дефолт).
+   */
+  const renameBranch = useCallback(
+    (rawLabel: string) => {
+      if (!selectedEdge) return;
+      const label = rawLabel.trim() || undefined;
+      if ((selectedEdge.label ?? undefined) === label) return;
+      const updatedEdges = edges.map((e) =>
+        e.id === selectedEdge.id ? { ...e, label } : e
+      );
+      setEdges(updatedEdges);
+      onHistoryRecord?.(nodes, updatedEdges);
+    },
+    [selectedEdge, edges, nodes, setEdges, onHistoryRecord]
+  );
+
+  /**
    * Extend branch for bulk event creation
    */
   const handleExtendBranchForBulk = useCallback(
@@ -270,6 +288,7 @@ export function useTimelineBranch({
     // Handlers
     extendBranch,
     updateBranchLength,
+    renameBranch,
     deleteBranch,
     handleExtendBranchForBulk,
     handleSelectBranch,

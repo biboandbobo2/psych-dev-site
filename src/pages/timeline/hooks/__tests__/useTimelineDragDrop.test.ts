@@ -225,4 +225,100 @@ describe('useTimelineDragDrop', () => {
       expect(result.current.draggingNodeId).toBeNull();
     });
   });
+
+  describe('вертикальный drag = смена возраста', () => {
+    function setup() {
+      return renderHook(() =>
+        useTimelineDragDrop({
+          nodes: mockNodes,
+          edges: mockEdges,
+          setNodes,
+          setEdges,
+          transform: mockTransform,
+          svgRef: mockSvgRef,
+          ageMax: 100,
+          onHistoryRecord,
+        })
+      );
+    }
+    const ev = (clientX: number, clientY: number) =>
+      ({ clientX, clientY, stopPropagation: vi.fn() }) as any;
+
+    it('движение вверх увеличивает возраст (кламп в окно ветки), x не меняется', () => {
+      const { result } = setup();
+      act(() => result.current.handleNodeDragStart(ev(600, 400), 'child'));
+      act(() => result.current.handleNodeDragMove(ev(600, 320))); // dy=-80 → +1 год
+      expect(setNodes).toHaveBeenCalled();
+      const child = setNodes.mock.calls.at(-1)![0].find((n: NodeT) => n.id === 'child')!;
+      expect(child.age).toBe(26);
+      expect(child.x).toBe(600);
+      expect(setEdges).not.toHaveBeenCalled();
+    });
+
+    it('возраст не выходит за окно ветки', () => {
+      const { result } = setup();
+      act(() => result.current.handleNodeDragStart(ev(600, 400), 'child'));
+      act(() => result.current.handleNodeDragMove(ev(600, 0))); // +5 лет → кламп 30
+      const child = setNodes.mock.calls.at(-1)![0].find((n: NodeT) => n.id === 'child')!;
+      expect(child.age).toBe(30);
+    });
+
+    it('origin ветки вертикально не двигается: ось принудительно горизонтальная', () => {
+      const { result } = setup();
+      act(() => result.current.handleNodeDragStart(ev(500, 400), 'parent'));
+      act(() => result.current.handleNodeDragMove(ev(500, 300))); // чисто вертикальное движение
+      // Ось зафиксирована как x, deltaX=0 → состояние не меняется вовсе.
+      expect(setNodes).not.toHaveBeenCalled();
+      act(() => result.current.handleNodeDragMove(ev(540, 300)));
+      const parent = setNodes.mock.calls.at(-1)![0].find((n: NodeT) => n.id === 'parent')!;
+      expect(parent.age).toBe(20); // возраст цел
+      expect(parent.x).toBe(540); // сдвиг вбок
+    });
+  });
+
+  describe('хвостик ветки: изменение длины', () => {
+    const WORLD_H = 100 * 80 + 500;
+    const yForAge = (age: number) => WORLD_H - age * 80;
+    const ev = (clientY: number) => ({ clientX: 500, clientY, stopPropagation: vi.fn() }) as any;
+
+    function setup() {
+      return renderHook(() =>
+        useTimelineDragDrop({
+          nodes: mockNodes,
+          edges: mockEdges,
+          setNodes,
+          setEdges,
+          transform: mockTransform,
+          svgRef: mockSvgRef,
+          ageMax: 100,
+          onHistoryRecord,
+        })
+      );
+    }
+
+    it('тянем вверх — ветка удлиняется', () => {
+      const { result } = setup();
+      act(() => result.current.handleBranchResizeStart(ev(yForAge(30)), 'edge1'));
+      expect(result.current.resizingEdgeId).toBe('edge1');
+      act(() => result.current.handleBranchResizeMove(ev(yForAge(35))));
+      const edge = setEdges.mock.calls.at(-1)![0].find((e: EdgeT) => e.id === 'edge1')!;
+      expect(edge.endAge).toBe(35);
+    });
+
+    it('не короче последнего события на ветке', () => {
+      const { result } = setup();
+      act(() => result.current.handleBranchResizeStart(ev(yForAge(30)), 'edge1'));
+      act(() => result.current.handleBranchResizeMove(ev(yForAge(22)))); // child age 25 → кламп
+      const edge = setEdges.mock.calls.at(-1)![0].find((e: EdgeT) => e.id === 'edge1')!;
+      expect(edge.endAge).toBe(25);
+    });
+
+    it('завершение пишет историю', () => {
+      const { result } = setup();
+      act(() => result.current.handleBranchResizeStart(ev(yForAge(30)), 'edge1'));
+      act(() => result.current.handleBranchResizeEnd());
+      expect(onHistoryRecord).toHaveBeenCalled();
+      expect(result.current.resizingEdgeId).toBeNull();
+    });
+  });
 });

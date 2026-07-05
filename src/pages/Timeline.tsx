@@ -145,6 +145,7 @@ export default function Timeline() {
     setEdges,
     transform,
     svgRef,
+    ageMax,
     onHistoryRecord: recordHistory,
   });
 
@@ -267,7 +268,6 @@ export default function Timeline() {
 
   // ============ COMPUTED VALUES ============
 
-  const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedId), [nodes, selectedId]);
   // Контекст выбранной ветки для редактора: origin и события — по дереву
   // топологии (та же принадлежность, что у операций).
   const selectedBranchInfo = useMemo(() => {
@@ -415,6 +415,10 @@ export default function Timeline() {
   };
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (dragDropHook.resizingEdgeId) {
+      dragDropHook.handleBranchResizeMove(e);
+      return;
+    }
     if (dragDropHook.draggingNodeId) {
       dragDropHook.handleNodeDragMove(e);
       return;
@@ -424,6 +428,7 @@ export default function Timeline() {
 
   const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
     dragDropHook.handleNodeDragEnd();
+    dragDropHook.handleBranchResizeEnd();
     panZoomHook.handlePointerUp(e);
   };
 
@@ -463,14 +468,15 @@ export default function Timeline() {
     });
   };
 
-  const handleSelectBranch = (edgeId: string, clickedAge?: number) => {
+  // Панель показывает актуальный выбор: клик по ветке закрывает редактор
+  // события (недописанные правки применяются немедленно — flush).
+  const handleSelectBranch = (edgeId: string) => {
+    if (formHook.formEventId !== null) {
+      formAutoApplyRef.current();
+      formHook.clearForm();
+    }
     branchHook.handleSelectBranch(edgeId);
     birthHook.setBirthSelected(false);
-    // Возраст из точки клика — сразу в форму «Новое событие на ветке»
-    // (не затирая возраст редактируемого события).
-    if (clickedAge !== undefined && formHook.formEventId === null) {
-      formHook.setFormEventAge(String(clickedAge));
-    }
   };
 
   const handleClearSelection = () => {
@@ -607,6 +613,7 @@ export default function Timeline() {
           onPeriodBoundaryClick={readOnly ? () => {} : handlePeriodBoundaryClick}
           onSelectBranch={readOnly ? () => {} : handleSelectBranch}
           onQuickCreateEvent={readOnly ? undefined : handleQuickCreateEvent}
+          onBranchResizeStart={readOnly ? undefined : dragDropHook.handleBranchResizeStart}
           onClearSelection={readOnly ? () => {} : handleClearSelection}
           onSelectBirth={readOnly ? () => {} : birthHook.handleBirthSelect}
         />
@@ -657,11 +664,9 @@ export default function Timeline() {
           branchInfo={selectedBranchInfo}
           branchYears={branchHook.branchYears}
           onBranchYearsChange={branchHook.setBranchYears}
+          onRenameBranch={branchHook.renameBranch}
           onDeleteBranch={branchHook.deleteBranch}
           onHideBranchEditor={branchHook.handleHideBranchEditor}
-          onExtendBranch={() => branchHook.extendBranch(selectedNode)}
-          selectedNode={selectedNode}
-          edges={edges}
           ageMax={ageMax}
           onOpenBulkCreator={handleOpenBulkCreator}
           undo={undo}

@@ -107,7 +107,7 @@ export function TimelineEventForm({
               className="px-2 py-1 text-xs rounded-lg bg-white/80 text-slate-600 hover:bg-white transition"
               style={{ fontFamily: 'Georgia, serif' }}
             >
-              Отменить
+              Закрыть
             </button>
           )}
         </div>

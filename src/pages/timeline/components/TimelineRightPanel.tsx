@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { TimelineBirthForm } from './TimelineBirthForm';
-import { TimelineBranchContinuation } from './TimelineBranchContinuation';
 import { TimelineBranchEditor } from './TimelineBranchEditor';
 import { TimelineEventForm } from './TimelineEventForm';
 import { TimelineUndoControls } from './TimelineUndoControls';
 import { PeriodizationSelector } from './PeriodizationSelector';
-import type { EdgeT, NodeT, Sphere, SaveStatus, EventIconId } from '../types';
+import type { EdgeT, Sphere, SaveStatus, EventIconId } from '../types';
 
 interface TimelineRightPanelProps {
   saveStatus: SaveStatus;
@@ -52,11 +51,9 @@ interface TimelineRightPanelProps {
   branchInfo: { originLabel: string | null; eventsCount: number } | null;
   branchYears: string;
   onBranchYearsChange: (value: string) => void;
+  onRenameBranch: (label: string) => void;
   onDeleteBranch: () => void;
   onHideBranchEditor: () => void;
-  onExtendBranch: () => void;
-  selectedNode?: NodeT;
-  edges: EdgeT[];
   ageMax: number;
   onOpenBulkCreator: () => void;
   undo: () => void;
@@ -105,11 +102,9 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
     branchInfo,
     branchYears,
     onBranchYearsChange,
+    onRenameBranch,
     onDeleteBranch,
     onHideBranchEditor,
-    onExtendBranch,
-    selectedNode,
-    edges,
     ageMax,
     onOpenBulkCreator,
     undo,
@@ -282,15 +277,6 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
               showBulkCreatorButton={!formEventId}
               onOpenBulkCreator={onOpenBulkCreator}
             />
-            <TimelineBranchContinuation
-              formEventId={formEventId}
-              selectedNode={selectedNode}
-              edges={edges}
-              branchYears={branchYears}
-              onBranchYearsChange={onBranchYearsChange}
-              onExtendBranch={onExtendBranch}
-              ageMax={ageMax}
-            />
           </>
         )}
 
@@ -305,6 +291,7 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
                 originLabel={branchInfo?.originLabel ?? null}
                 eventsOnBranch={branchInfo?.eventsCount ?? 0}
                 onBranchYearsChange={onBranchYearsChange}
+                onRenameBranch={onRenameBranch}
                 onDeleteBranch={onDeleteBranch}
                 onClose={onHideBranchEditor}
               />
