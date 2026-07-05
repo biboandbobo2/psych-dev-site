@@ -40,6 +40,7 @@ import { useTimelineExport } from './timeline/hooks/useTimelineExport';
 import { useIsMobile } from './timeline/hooks/useIsMobile';
 import { useBiographyImport } from './timeline/hooks/useBiographyImport';
 import { hasTimelineContent } from './timeline/persistence';
+import { buildTimelineTree, findEventInTree } from './timeline/utils/timelineTree';
 import { BiographyImportModal } from './timeline/components/BiographyImportModal';
 import { MobileReadOnlyBanner } from './timeline/components/MobileReadOnlyBanner';
 import { PeriodBoundaryModalContainer } from './timeline/components/PeriodBoundaryModalContainer';
@@ -210,6 +211,19 @@ export default function Timeline() {
   // ============ COMPUTED VALUES ============
 
   const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedId), [nodes, selectedId]);
+  // Контекст выбранной ветки для редактора: origin и события — по дереву
+  // топологии (та же принадлежность, что у операций).
+  const selectedBranchInfo = useMemo(() => {
+    const edge = branchHook.selectedEdge;
+    if (!edge) return null;
+    const tree = buildTimelineTree(nodes, edges);
+    const origin = findEventInTree(tree, edge.nodeId);
+    const branch = origin?.branches.find((b) => b.data.id === edge.id);
+    return {
+      originLabel: origin?.data.label ?? null,
+      eventsCount: branch?.events.length ?? 0,
+    };
+  }, [branchHook.selectedEdge, nodes, edges]);
   const formattedCurrentAge = useMemo(() => {
     if (Number.isNaN(currentAge)) return '0';
     return Number.isInteger(currentAge) ? `${currentAge}` : currentAge.toFixed(1);
@@ -562,6 +576,7 @@ export default function Timeline() {
           createNote={createNote}
           selectedBranchId={branchHook.selectedBranchId}
           selectedEdge={branchHook.selectedEdge}
+          branchInfo={selectedBranchInfo}
           branchYears={branchHook.branchYears}
           onBranchYearsChange={branchHook.setBranchYears}
           onUpdateBranchLength={branchHook.updateBranchLength}

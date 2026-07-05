@@ -5,6 +5,10 @@ interface TimelineBranchEditorProps {
   selectedEdge: EdgeT;
   branchYears: string;
   ageMax: number;
+  /** Название события-родителя ветки (по дереву топологии). */
+  originLabel: string | null;
+  /** Количество событий на самой ветке. */
+  eventsOnBranch: number;
   onBranchYearsChange: (value: string) => void;
   onUpdateBranchLength: () => void;
   onDeleteBranch: () => void;
@@ -15,6 +19,8 @@ export function TimelineBranchEditor({
   selectedEdge,
   branchYears,
   ageMax,
+  originLabel,
+  eventsOnBranch,
   onBranchYearsChange,
   onUpdateBranchLength,
   onDeleteBranch,
@@ -42,8 +48,25 @@ export function TimelineBranchEditor({
 
       <div className="mb-3 p-3 bg-white/60 rounded-xl border border-purple-200">
         <div className="text-sm text-slate-700" style={{ fontFamily: 'Georgia, serif' }}>
-          <div className="font-semibold mb-1">Диапазон: {selectedEdge.endAge - selectedEdge.startAge} лет</div>
-          <div className="text-xs text-slate-600">({selectedEdge.startAge} - {selectedEdge.endAge} лет)</div>
+          <div className="mb-1.5 flex items-center gap-2">
+            <span
+              className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: selectedEdge.color }}
+            />
+            <span className="text-xs text-slate-600">
+              {originLabel ? (
+                <>Ветка от события <span className="font-semibold text-slate-800">«{originLabel}»</span></>
+              ) : (
+                'Ветка'
+              )}
+            </span>
+          </div>
+          <div className="font-semibold mb-1">
+            {selectedEdge.startAge}–{selectedEdge.endAge} лет · длина {selectedEdge.endAge - selectedEdge.startAge}
+          </div>
+          <div className="text-xs text-slate-600">
+            Событий на ветке: {eventsOnBranch}
+          </div>
         </div>
       </div>
 

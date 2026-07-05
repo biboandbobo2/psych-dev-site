@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, RefObject } from 'react';
 import type { NodeT, TimelineCanvas } from '../types';
-import { MIN_SCALE, MAX_SCALE, SPHERE_META } from '../constants';
+import { MIN_SCALE, MAX_SCALE } from '../constants';
 import { DeleteTimelineConfirmModal } from './DeleteTimelineConfirmModal';
 import { BiographyImportFormModal } from './BiographyImportFormModal';
 
@@ -249,21 +249,8 @@ export function TimelineLeftPanel({
               <div className="text-xl font-semibold text-slate-900">{nodes.length}</div>
               <div className="text-[10px] uppercase tracking-[0.3em] text-slate-600">Событий</div>
             </div>
-            <div className="mt-2 space-y-1.5 border-t border-slate-200 pt-2">
-              {Object.entries(SPHERE_META).map(([key, meta]) => {
-                const count = nodes.filter((n) => n.sphere === key).length;
-                if (count === 0) return null;
-                return (
-                  <div key={key} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <span className="inline-flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
-                      <span className="text-slate-600">{meta.emoji}</span>
-                    </div>
-                    <span className="font-semibold text-slate-900">{count}</span>
-                  </div>
-                );
-              })}
-            </div>
+            {/* Распределение по сферам — в интерактивной легенде внизу
+                холста (TimelineSphereLegend), здесь не дублируем. */}
             {showBiographyImportAction ? (
               <div className="mt-3 space-y-2">
                 <button
@@ -313,7 +300,7 @@ export function TimelineLeftPanel({
                 </span>
 
                 {timelineMenuOpen && hasAdditionalTimelines && (
-                  <div className="absolute left-full top-1/2 z-50 ml-2 w-44 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <div className="absolute bottom-0 left-full z-50 ml-2 max-h-[70vh] w-44 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
                     <div className="px-2 pb-1 text-[9px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                       Выбор таймлайна
                     </div>

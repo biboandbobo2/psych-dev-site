@@ -49,6 +49,7 @@ interface TimelineRightPanelProps {
   ) => Promise<string>;
   selectedBranchId: string | null;
   selectedEdge: EdgeT | undefined;
+  branchInfo: { originLabel: string | null; eventsCount: number } | null;
   branchYears: string;
   onBranchYearsChange: (value: string) => void;
   onUpdateBranchLength: () => void;
@@ -102,6 +103,7 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
     createNote,
     selectedBranchId,
     selectedEdge,
+    branchInfo,
     branchYears,
     onBranchYearsChange,
     onUpdateBranchLength,
@@ -230,6 +232,13 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
             >
               + Новое событие
             </button>
+            <button
+              type="button"
+              onClick={onOpenBulkCreator}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+            >
+              ⚡ Несколько событий сразу
+            </button>
             <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 text-xs leading-relaxed text-slate-600">
               <div className="mb-1 font-semibold text-slate-700">Как работать с холстом</div>
               <ul className="space-y-1">
@@ -295,6 +304,8 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
                 selectedEdge={selectedEdge}
                 branchYears={branchYears}
                 ageMax={ageMax}
+                originLabel={branchInfo?.originLabel ?? null}
+                eventsOnBranch={branchInfo?.eventsCount ?? 0}
                 onBranchYearsChange={onBranchYearsChange}
                 onUpdateBranchLength={onUpdateBranchLength}
                 onDeleteBranch={onDeleteBranch}
