@@ -60,6 +60,10 @@ function normalizeImportedEdge(edge: unknown): EdgeT | null {
     endAge: candidate.endAge,
     color: candidate.color.trim(),
     nodeId: candidate.nodeId,
+    label:
+      typeof candidate.label === 'string' && candidate.label.trim()
+        ? candidate.label.trim()
+        : undefined,
   };
 }
 

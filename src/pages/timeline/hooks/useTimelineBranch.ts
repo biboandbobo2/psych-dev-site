@@ -16,6 +16,8 @@ interface UseTimelineBranchOptions {
   ageMax: number;
   onHistoryRecord?: (nodes?: NodeT[], edges?: EdgeT[]) => void;
   onClearForm?: () => void;
+  /** Неблокирующее уведомление (toast); по умолчанию — alert. */
+  notify?: (message: string) => void;
 }
 
 /**
@@ -29,7 +31,9 @@ export function useTimelineBranch({
   ageMax,
   onHistoryRecord,
   onClearForm,
+  notify,
 }: UseTimelineBranchOptions) {
+  const warn = notify ?? ((message: string) => alert(message));
   const [branchYears, setBranchYears] = useState<string>('5');
   // B15: identify the current selection by edge.id, not by x — two
   // branches can legitimately share an x-coord (legacy data) and id
@@ -55,17 +59,22 @@ export function useTimelineBranch({
    */
   const extendBranch = useCallback(
     (selectedNode: NodeT | null) => {
-      if (!selectedNode || !selectedNode.sphere) return;
+      if (!selectedNode) return;
+      if (!selectedNode.sphere) {
+        // Раньше — молчаливый return: пользователь жал кнопку без эффекта.
+        warn('Сначала укажите сферу события — из неё берётся цвет ветки.');
+        return;
+      }
 
       const nodeX = selectedNode.x ?? LINE_X_POSITION;
       if (nodeX === LINE_X_POSITION) {
-        alert('Событие должно быть не на основной линии жизни');
+        warn('Ветка растёт из смещённого события: сначала потяните событие в сторону от главной линии.');
         return;
       }
 
       const years = parseFloat(branchYears);
       if (isNaN(years) || years <= 0) {
-        alert('Введите корректное количество лет');
+        warn('Введите корректное количество лет');
         return;
       }
 
@@ -73,25 +82,26 @@ export function useTimelineBranch({
       // ветки за пределами холста.
       const proposedEndAge = selectedNode.age + years;
       if (proposedEndAge > ageMax) {
-        alert(
+        warn(
           `Ветка не помещается на холсте. Максимальная длина — ${ageMax - selectedNode.age} лет (до ${ageMax}-летия).`
         );
         return;
       }
 
-      // B12: if the source event already sits on a branch, its x
-      // collides with the existing branch — offset the new branch
-      // to the nearest free x so the two don't visually overlap and
-      // selection-by-x in the UI doesn't get confused.
-      let proposedBranchX = nodeX;
+      // Новая ветка всегда смещается от события наружу (от главной
+      // линии): между событием и веткой появляется соединитель с дугой
+      // уже у ПЕРВОЙ ветки, и ветка не накладывается на линию события.
+      // B12: walk по занятым x, чтобы не слипнуться с другими ветками;
+      // LINE_X_POSITION пропускаем — ветка на x главной линии сделала бы
+      // свои события «root» при build (Д9).
       const OFFSET_STEP = 100;
-      // Помимо занятых веток пропускаем LINE_X_POSITION: ветка на x
-      // главной линии сделала бы свои события «root» при build (Д9).
+      const outwardDir = nodeX >= LINE_X_POSITION ? 1 : -1;
+      let proposedBranchX = nodeX + outwardDir * OFFSET_STEP;
       while (
         proposedBranchX === LINE_X_POSITION ||
         edges.some((e) => e.x === proposedBranchX)
       ) {
-        proposedBranchX += OFFSET_STEP;
+        proposedBranchX += outwardDir * OFFSET_STEP;
       }
 
       const meta = SPHERE_META[selectedNode.sphere];
@@ -112,7 +122,7 @@ export function useTimelineBranch({
       onClearForm?.();
       setSelectedBranchId(null);
     },
-    [branchYears, edges, nodes, setEdges, onHistoryRecord, onClearForm]
+    [branchYears, edges, nodes, setEdges, onHistoryRecord, onClearForm, warn]
   );
 
   /**
@@ -123,7 +133,7 @@ export function useTimelineBranch({
 
     const years = parseFloat(branchYears);
     if (isNaN(years) || years <= 0) {
-      alert('Введите корректное количество лет');
+      warn('Введите корректное количество лет');
       return;
     }
 
@@ -131,7 +141,7 @@ export function useTimelineBranch({
 
     // Check maximum age
     if (newEndAge > ageMax) {
-      alert(`Максимальный возраст: ${ageMax} лет`);
+      warn(`Максимальный возраст: ${ageMax} лет`);
       return;
     }
 
@@ -151,7 +161,7 @@ export function useTimelineBranch({
           .map((ev) => `«${ev.data.label}» (${ev.data.age} лет)`)
           .join(', ');
         const more = eventsBeyond.length > 3 ? ` и ещё ${eventsBeyond.length - 3}` : '';
-        alert(
+        warn(
           `На ветке есть события за пределами новой длины: ${sample}${more}. Сначала перенесите их или удалите.`
         );
         return;
@@ -164,7 +174,7 @@ export function useTimelineBranch({
     );
     setEdges(updatedEdges);
     onHistoryRecord?.(nodes, updatedEdges);
-  }, [selectedEdge, branchYears, ageMax, edges, nodes, setEdges, onHistoryRecord]);
+  }, [selectedEdge, branchYears, ageMax, edges, nodes, setEdges, onHistoryRecord, warn]);
 
   /**
    * Delete branch and migrate every event on it (with its grand-branches)
@@ -193,7 +203,7 @@ export function useTimelineBranch({
           .map((ev) => `«${ev.data.label}» (${ev.data.age} лет)`)
           .join(', ');
         const more = misfits.length > 3 ? ` и ещё ${misfits.length - 3}` : '';
-        alert(
+        warn(
           `События ${sample}${more} не попадают в диапазон родительской ветки (${parentBranch.startAge}–${parentBranch.endAge} лет). Сначала продлите родительскую ветку или перенесите события.`
         );
         return;
@@ -215,7 +225,25 @@ export function useTimelineBranch({
     setEdges(updatedEdges);
     setSelectedBranchId(null); // Deselect
     onHistoryRecord?.(updatedNodes, updatedEdges);
-  }, [selectedEdge, nodes, edges, setNodes, setEdges, onHistoryRecord]);
+  }, [selectedEdge, nodes, edges, setNodes, setEdges, onHistoryRecord, warn]);
+
+  /**
+   * Переименовать выбранную ветку. Пустая строка сбрасывает название —
+   * тогда на холсте показывается название origin-события (дефолт).
+   */
+  const renameBranch = useCallback(
+    (rawLabel: string) => {
+      if (!selectedEdge) return;
+      const label = rawLabel.trim() || undefined;
+      if ((selectedEdge.label ?? undefined) === label) return;
+      const updatedEdges = edges.map((e) =>
+        e.id === selectedEdge.id ? { ...e, label } : e
+      );
+      setEdges(updatedEdges);
+      onHistoryRecord?.(nodes, updatedEdges);
+    },
+    [selectedEdge, edges, nodes, setEdges, onHistoryRecord]
+  );
 
   /**
    * Extend branch for bulk event creation
@@ -260,6 +288,7 @@ export function useTimelineBranch({
     // Handlers
     extendBranch,
     updateBranchLength,
+    renameBranch,
     deleteBranch,
     handleExtendBranchForBulk,
     handleSelectBranch,

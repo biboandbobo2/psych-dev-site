@@ -588,6 +588,7 @@ interface TimelineEdge {
   endAge: number;
   color: string;
   nodeId: string;                 // Событие, от которого идёт ветка
+  label?: string;                 // Название ветки (2026-07); нет — в UI показывается название origin-события
 }
 ```
 

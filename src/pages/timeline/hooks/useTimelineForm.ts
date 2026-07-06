@@ -73,6 +73,22 @@ export function useTimelineForm() {
   }, []);
 
   /**
+   * Зафиксировать текущие значения как «сохранённые» (после
+   * авто-применения правок): hasFormChanges становится false,
+   * поля не трогаются.
+   */
+  const markSaved = useCallback(() => {
+    setOriginalFormValues({
+      age: formEventAge,
+      label: formEventLabel,
+      notes: formEventNotes,
+      sphere: formEventSphere,
+      isDecision: formEventIsDecision,
+      iconId: formEventIcon,
+    });
+  }, [formEventAge, formEventLabel, formEventNotes, formEventSphere, formEventIsDecision, formEventIcon]);
+
+  /**
    * Clear form and reset to initial state
    */
   const clearForm = useCallback(() => {
@@ -108,6 +124,7 @@ export function useTimelineForm() {
 
     // Handlers
     setFormFromNode,
+    markSaved,
     clearForm,
   };
 }

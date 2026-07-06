@@ -91,6 +91,26 @@ describe('I11: импорт повреждённых данных детерми
   });
 });
 
+describe('EdgeT.label: название ветки переживает импорт', () => {
+  it('label сохраняется, пустой/мусорный — отбрасывается', () => {
+    const flat = g()
+      .root('a', 10)
+      .branch('e1', 'a', { x: 2100, startAge: 10, endAge: 20 })
+      .branch('e2', 'a', { x: 2200, startAge: 10, endAge: 20 })
+      .build();
+    const withLabels = {
+      ...asTimelineData(flat),
+      edges: [
+        { ...flat.edges[0], label: '  Если бы остался  ' },
+        { ...flat.edges[1], label: '' },
+      ],
+    };
+    const imported = normalizeImportedTimelineData(withLabels);
+    expect(imported.edges.find((e) => e.id === 'e1')!.label).toBe('Если бы остался');
+    expect(imported.edges.find((e) => e.id === 'e2')!.label).toBeUndefined();
+  });
+});
+
 describe('Д8/I12: импорт лечит события вне возрастного окна своей ветки', () => {
   it('расширяет окно ветки до события за endAge (симметрично B14-отказу в UI)', () => {
     // Ветка [10,20], событие на ней в 25 лет — состояние, которое UI

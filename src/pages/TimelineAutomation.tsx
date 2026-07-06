@@ -197,6 +197,7 @@ export default function TimelineAutomation() {
             <TimelineCanvas
               svgRef={svgRef}
               transform={transform}
+              sphereFilter={null}
               onWheel={noopWheel}
               onPointerDown={noopPointer}
               onPointerMove={noopPointer}

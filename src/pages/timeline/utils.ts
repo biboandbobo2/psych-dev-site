@@ -4,7 +4,7 @@ import type { Transform } from './types';
  * Преобразует экранные координаты в координаты мира (с учётом pan/zoom)
  */
 export function screenToWorld(
-  e: React.PointerEvent | React.WheelEvent,
+  e: React.PointerEvent | React.WheelEvent | React.MouseEvent,
   svg: SVGSVGElement | null,
   transform: Transform
 ) {
@@ -32,6 +32,18 @@ export function parseAge(value: string): number {
   const cleaned = value.replace(',', '.').replace(/^0+(?=\d)/, '');
   const parsed = parseFloat(cleaned);
   return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Русское склонение: pluralizeRu(3, ['событие', 'события', 'событий']) → 'события'
+ */
+export function pluralizeRu(count: number, forms: [string, string, string]): string {
+  const abs = Math.abs(count) % 100;
+  const last = abs % 10;
+  if (abs > 10 && abs < 20) return forms[2];
+  if (last === 1) return forms[0];
+  if (last >= 2 && last <= 4) return forms[1];
+  return forms[2];
 }
 
 export { removeUndefined } from '../../utils/removeUndefined';

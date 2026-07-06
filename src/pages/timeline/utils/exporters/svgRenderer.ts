@@ -6,10 +6,26 @@ import { YEAR_PX } from '../../constants';
 import { debugExport } from './common';
 import { debugWarn } from '../../../../lib/debug';
 
+export type PosterSphere = {
+  color: string;
+  label: string;
+  emoji: string;
+  count: number;
+};
+
+export type PosterOptions = {
+  title: string;
+  subtitle?: string;
+  spheres: PosterSphere[];
+  footer?: string;
+};
+
 export type RenderSvgOptions = {
   // Crop the SVG above this age to avoid exporting empty future slices.
   // Without it the renderer keeps the full canvas.
   topAge?: number;
+  // «Парадный» режим: без сетки, с заголовком, легендой сфер и подписью.
+  poster?: PosterOptions;
 };
 
 type ExportDebugIcon = {
@@ -111,11 +127,19 @@ async function serializeSvg(svg: SVGSVGElement, options: RenderSvgOptions = {}) 
     });
   });
 
+  // UI-элементы холста (кнопка «+ ветка» у выбранного события) не должны
+  // попадать ни в один экспорт.
+  clone.querySelectorAll('[data-layer="ui"]').forEach((el) => el.remove());
+  if (options.poster) {
+    // Постер — без возрастной сетки: чистая линия жизни.
+    clone.querySelectorAll('[data-layer="grid"]').forEach((el) => el.remove());
+  }
+
   const DEFAULT_WIDTH = Number(svg.dataset.worldWidth ?? 4000);
   const DEFAULT_HEIGHT = Number(svg.dataset.worldHeight ?? 100 * 80 + 500);
   const PADDING_X = 160;
-  const PADDING_TOP = 160;
-  const PADDING_BOTTOM = 480;
+  const PADDING_TOP = options.poster ? 460 : 160;
+  const PADDING_BOTTOM = options.poster ? 560 : 480;
 
   // Crop the empty future slice when topAge is provided. Birth sits at world
   // Y=DEFAULT_HEIGHT (bottom); higher ages are higher up. Render only
@@ -138,6 +162,15 @@ async function serializeSvg(svg: SVGSVGElement, options: RenderSvgOptions = {}) 
     exportRoot.setAttribute('transform', `translate(${PADDING_X},${PADDING_TOP}) scale(1)`);
   }
 
+  if (options.poster) {
+    appendPosterDecorations(clone, options.poster, {
+      viewLeft: -PADDING_X,
+      viewTop: usefulTopWorldY,
+      width,
+      height,
+    });
+  }
+
   clone.querySelectorAll('text').forEach((textNode) => {
     textNode.setAttribute('font-family', 'Manrope, sans-serif');
   });
@@ -157,6 +190,96 @@ async function serializeSvg(svg: SVGSVGElement, options: RenderSvgOptions = {}) 
   source = `<?xml version="1.0" standalone="no"?>\n${source}`;
 
   return { serializedSvg: source, width, height };
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function svgText(
+  content: string,
+  attrs: Record<string, string | number>
+): SVGTextElement {
+  const el = document.createElementNS(SVG_NS, 'text');
+  for (const [key, value] of Object.entries(attrs)) {
+    el.setAttribute(key, String(value));
+  }
+  el.textContent = content;
+  return el;
+}
+
+/**
+ * Заголовок, легенда сфер и подпись для постер-экспорта. Координаты — в
+ * системе viewBox клона (верхний отступ и нижнее поле уже расширены).
+ */
+function appendPosterDecorations(
+  clone: SVGSVGElement,
+  poster: PosterOptions,
+  frame: { viewLeft: number; viewTop: number; width: number; height: number }
+) {
+  const centerX = frame.viewLeft + frame.width / 2;
+  const bottomY = frame.viewTop + frame.height;
+
+  clone.appendChild(
+    svgText(poster.title, {
+      x: centerX,
+      y: frame.viewTop + 180,
+      'font-size': 110,
+      'font-weight': 700,
+      fill: '#0f172a',
+      'text-anchor': 'middle',
+    })
+  );
+  if (poster.subtitle) {
+    clone.appendChild(
+      svgText(poster.subtitle, {
+        x: centerX,
+        y: frame.viewTop + 270,
+        'font-size': 52,
+        fill: '#64748b',
+        'text-anchor': 'middle',
+      })
+    );
+  }
+
+  // Легенда сфер одной строкой по центру нижнего поля.
+  if (poster.spheres.length > 0) {
+    const CHIP_GAP = 70;
+    const chipWidths = poster.spheres.map(
+      (s) => 46 + s.label.length * 26 + String(s.count).length * 26 + 30
+    );
+    const totalWidth = chipWidths.reduce((a, b) => a + b, 0) + CHIP_GAP * (poster.spheres.length - 1);
+    let cursorX = centerX - totalWidth / 2;
+    const legendY = bottomY - 260;
+
+    poster.spheres.forEach((sphere, i) => {
+      const dot = document.createElementNS(SVG_NS, 'circle');
+      dot.setAttribute('cx', String(cursorX + 18));
+      dot.setAttribute('cy', String(legendY - 16));
+      dot.setAttribute('r', '18');
+      dot.setAttribute('fill', sphere.color);
+      clone.appendChild(dot);
+      clone.appendChild(
+        svgText(`${sphere.label} · ${sphere.count}`, {
+          x: cursorX + 52,
+          y: legendY,
+          'font-size': 46,
+          fill: '#475569',
+        })
+      );
+      cursorX += chipWidths[i] + CHIP_GAP;
+    });
+  }
+
+  if (poster.footer) {
+    clone.appendChild(
+      svgText(poster.footer, {
+        x: centerX,
+        y: bottomY - 110,
+        'font-size': 40,
+        fill: '#a3aebd',
+        'text-anchor': 'middle',
+      })
+    );
+  }
 }
 
 function loadImage(url: string) {

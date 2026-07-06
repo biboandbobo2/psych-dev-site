@@ -78,6 +78,7 @@ export type EdgeT = {
   endAge: number; // Возраст конца
   color: string; // Цвет (от сферы события)
   nodeId: string; // ID события, от которого идёт ветка
+  label?: string; // Название ветки; по умолчанию показывается название origin-события
 };
 
 /**

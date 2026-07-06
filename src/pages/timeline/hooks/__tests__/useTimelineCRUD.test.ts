@@ -569,6 +569,112 @@ describe('useTimelineCRUD', () => {
     });
   });
 
+  // ===== UX: быстрое создание двойным кликом =====
+
+  describe('quickCreateEvent', () => {
+    it('на главной линии: x=LINE, parentX=undefined, возраст клампится в [0, ageMax]', () => {
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: mockNodes,
+          edges: mockEdges,
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+      let created: NodeT | undefined;
+      act(() => {
+        created = result.current.quickCreateEvent(150, null);
+      });
+      expect(created).toMatchObject({ age: 100, x: 2000, parentX: undefined, label: 'Новое событие' });
+      expect(onSetSelectedId).toHaveBeenCalledWith(created!.id);
+      const newNodes = setNodes.mock.calls[0][0];
+      expect(onHistoryRecord).toHaveBeenCalledWith(newNodes, mockEdges);
+    });
+
+    it('на ветке: x/parentX = x ветки, сфера от origin, возраст в окне ветки', () => {
+      const origin: NodeT = { id: 'o', age: 20, x: 2100, parentX: 2100, label: 'O', isDecision: false, sphere: 'career' };
+      const edge: EdgeT = { id: 'e1', x: 2200, startAge: 20, endAge: 30, color: '#000', nodeId: 'o' };
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: [origin],
+          edges: [edge],
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+      let created: NodeT | undefined;
+      act(() => {
+        created = result.current.quickCreateEvent(35, edge); // выше окна → кламп в 30
+      });
+      expect(created).toMatchObject({ age: 30, x: 2200, parentX: 2200, sphere: 'career' });
+    });
+  });
+
+  // ===== UX: notify вместо alert, счётчики удаления =====
+
+  describe('notify / deleteNode counters', () => {
+    it('валидатор зовёт notify вместо alert, когда notify передан', () => {
+      const notify = vi.fn();
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes: mockNodes,
+          edges: mockEdges,
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+          notify,
+        })
+      );
+      act(() => {
+        result.current.handleFormSubmit(
+          { id: null, age: '', label: 'X', notes: '', sphere: undefined, isDecision: false, icon: null },
+          null
+        );
+      });
+      expect(notify).toHaveBeenCalledWith(expect.stringContaining('возраст'));
+      expect(alert).not.toHaveBeenCalled();
+    });
+
+    it('deleteNode возвращает размер снесённого поддерева', () => {
+      // origin → ветка → событие на ветке: удаление origin = 2 события + 1 ветка.
+      const nodes: NodeT[] = [
+        { id: 'o', age: 10, x: 2000, label: 'O', isDecision: false },
+        { id: 'child', age: 15, x: 2100, parentX: 2100, label: 'C', isDecision: false },
+      ];
+      const edges: EdgeT[] = [
+        { id: 'e1', x: 2100, startAge: 10, endAge: 20, color: '#000', nodeId: 'o' },
+      ];
+      const { result } = renderHook(() =>
+        useTimelineCRUD({
+          nodes,
+          edges,
+          ageMax: 100,
+          setNodes,
+          setEdges,
+          onHistoryRecord,
+          onClearForm,
+          onSetSelectedId,
+        })
+      );
+      let removed: { removedEvents: number; removedBranches: number } | undefined;
+      act(() => {
+        removed = result.current.deleteNode('o');
+      });
+      expect(removed).toEqual({ removedEvents: 2, removedBranches: 1 });
+    });
+  });
+
   // ===== Аудит инвариантов (docs/plans/timeline-invariant-audit.md) =====
 
   describe('Д2: deleteNode и история', () => {

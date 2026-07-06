@@ -281,6 +281,88 @@ describe('useTimelineBranch', () => {
     });
   });
 
+  describe('смещение новой ветки наружу (дуга с первой ветки)', () => {
+    function makeNode(x: number): NodeT {
+      return { id: 'n1', age: 20, x, parentX: x, label: 'N', isDecision: false, sphere: 'career' };
+    }
+
+    it('справа от главной линии ветка уходит правее события', () => {
+      const node = makeNode(2100);
+      const { result } = renderHook(() =>
+        useTimelineBranch({ nodes: [node], edges: [], setNodes, setEdges, ageMax: 100, onHistoryRecord, onClearForm })
+      );
+      act(() => result.current.setBranchYears('5'));
+      act(() => result.current.extendBranch(node));
+      expect(setEdges.mock.calls[0]![0][0].x).toBe(2200);
+    });
+
+    it('слева от главной линии ветка уходит левее события (не к центру)', () => {
+      const node = makeNode(1900);
+      const { result } = renderHook(() =>
+        useTimelineBranch({ nodes: [node], edges: [], setNodes, setEdges, ageMax: 100, onHistoryRecord, onClearForm })
+      );
+      act(() => result.current.setBranchYears('5'));
+      act(() => result.current.extendBranch(node));
+      expect(setEdges.mock.calls[0]![0][0].x).toBe(1800);
+    });
+  });
+
+  describe('renameBranch', () => {
+    const origin: NodeT = { id: 'o', age: 10, x: 2100, parentX: 2100, label: 'Origin', isDecision: false };
+    const edge: EdgeT = { id: 'e1', x: 2200, startAge: 10, endAge: 20, color: '#000', nodeId: 'o' };
+
+    function setup() {
+      return renderHook(() =>
+        useTimelineBranch({
+          nodes: [origin], edges: [edge], setNodes, setEdges, ageMax: 100, onHistoryRecord, onClearForm,
+        })
+      );
+    }
+
+    it('задаёт название ветки и пишет историю', () => {
+      const { result } = setup();
+      act(() => result.current.setSelectedBranchId('e1'));
+      act(() => result.current.renameBranch('Если бы остался'));
+      expect(setEdges.mock.calls[0]![0][0]).toMatchObject({ id: 'e1', label: 'Если бы остался' });
+      expect(onHistoryRecord).toHaveBeenCalled();
+    });
+
+    it('пустая строка сбрасывает название (дефолт — имя origin)', () => {
+      const { result } = setup();
+      act(() => result.current.setSelectedBranchId('e1'));
+      act(() => result.current.renameBranch('   '));
+      // label уже undefined → изменений нет
+      expect(setEdges).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('notify вместо alert', () => {
+    it('extendBranch зовёт notify, когда он передан', () => {
+      const notify = vi.fn();
+      const node: NodeT = {
+        id: 'n1', age: 90, x: 2100, parentX: 2100, label: 'Old', isDecision: false, sphere: 'career',
+      };
+      const { result } = renderHook(() =>
+        useTimelineBranch({
+          nodes: [node],
+          edges: [],
+          setNodes,
+          setEdges,
+          ageMax: 100,
+          onHistoryRecord,
+          onClearForm,
+          notify,
+        })
+      );
+
+      act(() => result.current.setBranchYears('30')); // 90 + 30 > 100
+      act(() => result.current.extendBranch(node));
+
+      expect(notify).toHaveBeenCalledWith(expect.stringContaining('не помещается'));
+      expect(alert).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Д4: B14-валидатор должен согласовываться с деревом при shared-x', () => {
     it('не считает события чужой ветки с тем же x событиями укорачиваемой ветки', () => {
       // ev принадлежит (по дереву) ветке A [10,50] от o1; ветка B [30,45]

@@ -37,8 +37,24 @@ const TONE_STYLES: Record<IconPickerTone, {
 
 export function IconPickerButton({ value, onChange, tone }: IconPickerButtonProps) {
   const [open, setOpen] = useState(false);
+  // Поповер позиционируется fixed по координатам кнопки: панель со
+  // скроллом (overflow-y-auto) обрезала absolute-вариант по своему краю.
+  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  const toggleOpen = () => {
+    if (!open) {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (rect) {
+        setAnchor({
+          top: Math.min(rect.bottom + 8, window.innerHeight - 340),
+          right: window.innerWidth - rect.right,
+        });
+      }
+    }
+    setOpen((prev) => !prev);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -61,7 +77,7 @@ export function IconPickerButton({ value, onChange, tone }: IconPickerButtonProp
       <button
         type="button"
         ref={buttonRef}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={toggleOpen}
         className={`flex h-9 w-9 items-center justify-center rounded-xl border bg-white/85 transition ${styles.button}`}
         title="Выбрать пиктограмму события"
       >
@@ -71,10 +87,11 @@ export function IconPickerButton({ value, onChange, tone }: IconPickerButtonProp
           <img src={TRIGGER_ICON_SRC} alt="Выбрать иконку" className="h-6 w-6" loading="lazy" />
         )}
       </button>
-      {open && (
+      {open && anchor && (
         <div
           ref={popoverRef}
-          className={`absolute right-0 top-full z-50 mt-2 w-56 rounded-2xl border ${styles.popover} bg-white/95 p-3 shadow-2xl backdrop-blur-md`}
+          style={{ position: 'fixed', top: anchor.top, right: anchor.right }}
+          className={`z-50 max-h-[70vh] w-56 overflow-y-auto rounded-2xl border ${styles.popover} bg-white/95 p-3 shadow-2xl backdrop-blur-md`}
         >
           <div className={`mb-2 text-xs font-semibold uppercase tracking-[0.2em] ${styles.header}`}>Пиктограмма</div>
           <div className="grid grid-cols-5 gap-2">

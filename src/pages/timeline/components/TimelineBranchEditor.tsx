@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { EdgeT } from '../types';
 import type { ChangeEvent } from 'react';
 
@@ -5,8 +6,12 @@ interface TimelineBranchEditorProps {
   selectedEdge: EdgeT;
   branchYears: string;
   ageMax: number;
+  /** Название события-родителя ветки (по дереву топологии). */
+  originLabel: string | null;
+  /** Количество событий на самой ветке. */
+  eventsOnBranch: number;
   onBranchYearsChange: (value: string) => void;
-  onUpdateBranchLength: () => void;
+  onRenameBranch: (label: string) => void;
   onDeleteBranch: () => void;
   onClose: () => void;
 }
@@ -15,14 +20,32 @@ export function TimelineBranchEditor({
   selectedEdge,
   branchYears,
   ageMax,
+  originLabel,
+  eventsOnBranch,
   onBranchYearsChange,
-  onUpdateBranchLength,
+  onRenameBranch,
   onDeleteBranch,
   onClose,
 }: TimelineBranchEditorProps) {
   const handleYearsChange = (event: ChangeEvent<HTMLInputElement>) => {
     onBranchYearsChange(event.target.value);
   };
+
+  // Название ветки: локальный ввод + дебаунс-применение (как остальные
+  // правки — без кнопки, страховка undo). Пустое поле = дефолт (origin).
+  const [labelDraft, setLabelDraft] = useState(selectedEdge.label ?? '');
+  const renameRef = useRef(onRenameBranch);
+  renameRef.current = onRenameBranch;
+  useEffect(() => {
+    setLabelDraft(selectedEdge.label ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEdge.id]);
+  useEffect(() => {
+    if (labelDraft === (selectedEdge.label ?? '')) return;
+    const timer = window.setTimeout(() => renameRef.current(labelDraft), 600);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labelDraft]);
 
   return (
     <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-4 border border-purple-200 shadow-sm">
@@ -42,15 +65,48 @@ export function TimelineBranchEditor({
 
       <div className="mb-3 p-3 bg-white/60 rounded-xl border border-purple-200">
         <div className="text-sm text-slate-700" style={{ fontFamily: 'Georgia, serif' }}>
-          <div className="font-semibold mb-1">Диапазон: {selectedEdge.endAge - selectedEdge.startAge} лет</div>
-          <div className="text-xs text-slate-600">({selectedEdge.startAge} - {selectedEdge.endAge} лет)</div>
+          <div className="mb-1.5 flex items-center gap-2">
+            <span
+              className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: selectedEdge.color }}
+            />
+            <span className="text-xs text-slate-600">
+              {originLabel ? (
+                <>Ветка от события <span className="font-semibold text-slate-800">«{originLabel}»</span></>
+              ) : (
+                'Ветка'
+              )}
+            </span>
+          </div>
+          <div className="font-semibold mb-1">
+            {selectedEdge.startAge}–{selectedEdge.endAge} лет · длина {selectedEdge.endAge - selectedEdge.startAge}
+          </div>
+          <div className="text-xs text-slate-600">
+            Событий на ветке: {eventsOnBranch}
+          </div>
         </div>
       </div>
 
       <div className="mb-3">
+        <label className="block">
+          <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
+            Название ветки
+          </span>
+          <input
+            type="text"
+            value={labelDraft}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => setLabelDraft(event.target.value)}
+            placeholder={originLabel ? `«${originLabel}» (по умолчанию)` : 'Название ветки'}
+            className="w-full px-3 py-2 rounded-xl border border-purple-300 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition text-sm bg-white"
+            style={{ fontFamily: 'Georgia, serif' }}
+          />
+        </label>
+      </div>
+
+      <div className="mb-1">
         <label className="block mb-2">
           <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
-            Длина ветки (лет)
+            Длина ветки (лет) — применяется сама
           </span>
           <div className="flex items-center gap-2">
             <input
@@ -65,19 +121,10 @@ export function TimelineBranchEditor({
             />
             <button
               type="button"
-              onClick={onUpdateBranchLength}
-              className="px-3 py-2 bg-purple-400 hover:bg-purple-500 text-white rounded-xl transition text-xs font-medium"
-              style={{ fontFamily: 'Georgia, serif' }}
-              title="Применить"
-            >
-              ✓
-            </button>
-            <button
-              type="button"
               onClick={onDeleteBranch}
               className="px-3 py-2 bg-red-200 hover:bg-red-300 text-red-800 rounded-xl transition text-xs font-medium"
               style={{ fontFamily: 'Georgia, serif' }}
-              title="Удалить ветку"
+              title="Удалить ветку (события переедут на родительскую линию)"
             >
               🗑️
             </button>

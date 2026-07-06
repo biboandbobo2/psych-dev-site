@@ -107,7 +107,7 @@ export function TimelineEventForm({
               className="px-2 py-1 text-xs rounded-lg bg-white/80 text-slate-600 hover:bg-white transition"
               style={{ fontFamily: 'Georgia, serif' }}
             >
-              Отменить
+              Закрыть
             </button>
           )}
         </div>
@@ -176,7 +176,7 @@ export function TimelineEventForm({
               className="w-4 h-4 rounded border-slate-300"
             />
             <span className="text-xs text-slate-700" style={{ fontFamily: 'Georgia, serif' }}>
-              ✕ Это было моё решение
+              ◎ Это было моё решение (кольцо вокруг события)
             </span>
           </label>
           <SaveEventAsNoteButton
@@ -189,21 +189,34 @@ export function TimelineEventForm({
           />
         </div>
 
-        <button
-          type="submit"
-          className="w-full px-4 py-2.5 bg-blue-400 text-white rounded-xl hover:bg-blue-500 transition font-medium text-sm"
-          style={{ fontFamily: 'Georgia, serif' }}
-        >
-          {submitLabel ?? (formEventId ? 'Сохранить' : '+ Добавить событие')}
-        </button>
-        {formEventId && onDeleteEvent && (
+        {formEventId ? (
+          // Правки существующего события применяются сами (страховка — undo).
+          <div className="flex items-stretch gap-2">
+            <div
+              className="flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-center text-xs text-slate-500"
+              style={{ fontFamily: 'Georgia, serif' }}
+            >
+              Изменения сохраняются сами · отмена — Ctrl+Z
+            </div>
+            {onDeleteEvent && (
+              <button
+                type="button"
+                onClick={onDeleteEvent}
+                className="px-4 py-2.5 bg-red-200 hover:bg-red-300 text-red-800 rounded-xl transition font-medium text-sm"
+                style={{ fontFamily: 'Georgia, serif' }}
+                title="Удалить событие"
+              >
+                🗑️
+              </button>
+            )}
+          </div>
+        ) : (
           <button
-            type="button"
-            onClick={onDeleteEvent}
-            className="px-4 py-2.5 bg-red-200 hover:bg-red-300 text-red-800 rounded-xl transition font-medium text-sm"
+            type="submit"
+            className="w-full px-4 py-2.5 bg-blue-400 text-white rounded-xl hover:bg-blue-500 transition font-medium text-sm"
             style={{ fontFamily: 'Georgia, serif' }}
           >
-            🗑️
+            {submitLabel ?? '+ Добавить событие'}
           </button>
         )}
       </form>

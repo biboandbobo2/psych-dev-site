@@ -19,6 +19,8 @@ interface UseTimelineCRUDOptions {
   onClearForm?: () => void;
   onSetSelectedId?: (id: string | null) => void;
   onAfterClearAll?: () => void;
+  /** Неблокирующее уведомление (toast); по умолчанию — alert. */
+  notify?: (message: string) => void;
 }
 
 interface FormEventData {
@@ -44,23 +46,30 @@ export function useTimelineCRUD({
   onClearForm,
   onSetSelectedId,
   onAfterClearAll,
+  notify,
 }: UseTimelineCRUDOptions) {
+  const warn = notify ?? ((message: string) => alert(message));
   /**
-   * Create or update an event
+   * Create or update an event. Возвращает true, если правка применена
+   * (для авто-применения: keepFormOpen не закрывает форму после записи).
    */
   const handleFormSubmit = useCallback(
-    (formData: FormEventData, selectedBranchId: string | null) => {
-      if (!formData.label.trim()) return;
+    (
+      formData: FormEventData,
+      selectedBranchId: string | null,
+      opts?: { keepFormOpen?: boolean }
+    ): boolean => {
+      if (!formData.label.trim()) return false;
 
       if (!formData.age.trim()) {
-        alert('Пожалуйста, укажите возраст события');
-        return;
+        warn('Пожалуйста, укажите возраст события');
+        return false;
       }
 
       const parsedAge = parseAge(formData.age);
       if (isNaN(parsedAge) || parsedAge < 0 || parsedAge > ageMax) {
-        alert(`Возраст должен быть от 0 до ${ageMax} лет`);
-        return;
+        warn(`Возраст должен быть от 0 до ${ageMax} лет`);
+        return false;
       }
 
       if (formData.id) {
@@ -80,10 +89,10 @@ export function useTimelineCRUD({
           parentBranch &&
           (parsedAge < parentBranch.startAge || parsedAge > parentBranch.endAge)
         ) {
-          alert(
+          warn(
             `Возраст ${parsedAge} вне диапазона ветки (${parentBranch.startAge}–${parentBranch.endAge} лет). Сначала измените длину ветки или перенесите событие на главную линию.`
           );
-          return;
+          return false;
         }
 
         // B10: if the edited event is the origin of one or more branches,
@@ -126,10 +135,10 @@ export function useTimelineCRUD({
                 .map((ev) => `«${ev.data.label}» (${ev.data.age} лет)`)
                 .join(', ');
               const more = offenders.length > 3 ? ` и ещё ${offenders.length - 3}` : '';
-              alert(
+              warn(
                 `На ветке есть события, которые выпадут из нового диапазона: ${sample}${more}. Сначала перенесите их или удалите.`
               );
-              return;
+              return false;
             }
             updatedEdges = edges.map((e) => {
               const window = slidWindows.get(e.id);
@@ -171,7 +180,7 @@ export function useTimelineCRUD({
               eventX = selectedEdge.x;
               eventParentX = selectedEdge.x;
             } else {
-              alert(
+              warn(
                 `Возраст события (${parsedAge} лет) не попадает в диапазон выбранной ветки (${selectedEdge.startAge}-${selectedEdge.endAge} лет). Событие будет добавлено на основную линию жизни.`
               );
             }
@@ -202,10 +211,45 @@ export function useTimelineCRUD({
         onHistoryRecord?.(newNodes, edges);
       }
 
-      // Clear form
-      onClearForm?.();
+      // Clear form (авто-применение оставляет форму открытой)
+      if (!opts?.keepFormOpen) {
+        onClearForm?.();
+      }
+      return true;
     },
-    [nodes, edges, ageMax, setNodes, onHistoryRecord, onSetSelectedId, onClearForm]
+    [nodes, edges, ageMax, setNodes, onHistoryRecord, onSetSelectedId, onClearForm, warn]
+  );
+
+  /**
+   * Быстрое создание события двойным кликом по линии/ветке: появляется
+   * сразу в точке клика с плейсхолдер-названием, выделяется для
+   * переименования. Возраст клампится в окно ветки (или [0, ageMax]).
+   */
+  const quickCreateEvent = useCallback(
+    (age: number, branchEdge: EdgeT | null): NodeT => {
+      const clampedAge = branchEdge
+        ? Math.min(Math.max(age, branchEdge.startAge), branchEdge.endAge)
+        : Math.min(Math.max(age, 0), ageMax);
+      const originSphere = branchEdge
+        ? nodes.find((n) => n.id === branchEdge.nodeId)?.sphere
+        : undefined;
+      const node: NodeT = {
+        id: crypto.randomUUID(),
+        age: clampedAge,
+        x: branchEdge ? branchEdge.x : LINE_X_POSITION,
+        parentX: branchEdge ? branchEdge.x : undefined,
+        label: 'Новое событие',
+        notes: '',
+        sphere: originSphere,
+        isDecision: false,
+      };
+      const newNodes = [...nodes, node];
+      setNodes(newNodes);
+      onSetSelectedId?.(node.id);
+      onHistoryRecord?.(newNodes, edges);
+      return node;
+    },
+    [nodes, edges, ageMax, setNodes, onSetSelectedId, onHistoryRecord]
   );
 
   /**
@@ -226,7 +270,7 @@ export function useTimelineCRUD({
    * B6 (events on deleted branches) and B7 (cascade past one level).
    */
   const deleteNode = useCallback(
-    (id: string) => {
+    (id: string): { removedEvents: number; removedBranches: number } => {
       const tree = buildTimelineTree(nodes, edges);
       const collected = collectDescendantIds(tree, id);
 
@@ -250,6 +294,12 @@ export function useTimelineCRUD({
       // recordHistory в Timeline.tsx записать в историю closure-состояние
       // ДО удаления, и redo удаления стало бы невозможным (I10).
       onHistoryRecord?.(nextNodes, nextEdges);
+
+      // Размер снесённого поддерева — для плашки «Удалено · Отменить».
+      return {
+        removedEvents: nodes.length - nextNodes.length,
+        removedBranches: edges.length - nextEdges.length,
+      };
     },
     [nodes, edges, setNodes, setEdges, onClearForm, onHistoryRecord]
   );
@@ -286,6 +336,7 @@ export function useTimelineCRUD({
 
   return {
     handleFormSubmit,
+    quickCreateEvent,
     updateNode,
     deleteNode,
     handleBulkCreate,

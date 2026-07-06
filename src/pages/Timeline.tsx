@@ -9,6 +9,7 @@ import type {
   NodeT,
   BirthDetails,
   EdgeT,
+  Sphere,
 } from './timeline/types';
 import {
   YEAR_PX,
@@ -19,8 +20,12 @@ import {
   DEFAULT_CURRENT_AGE,
   DEFAULT_AGE_MAX,
 } from './timeline/constants';
-import { clamp } from './timeline/utils';
+import { clamp, pluralizeRu } from './timeline/utils';
 import { useTimelineState } from './timeline/hooks/useTimelineState';
+import { useTimelineToast } from './timeline/hooks/useTimelineToast';
+import { TimelineToast } from './timeline/components/TimelineToast';
+import { TimelineStartOverlay } from './timeline/components/TimelineStartOverlay';
+import { EXAMPLE_TIMELINE, EXAMPLE_TIMELINE_NAME } from './timeline/data/exampleTimeline';
 import { useTimelineUndoRedo } from './timeline/hooks/useTimelineUndoRedo';
 import { useDownloadMenu } from './timeline/hooks/useDownloadMenu';
 import { useTimelineShortcuts } from './timeline/hooks/useTimelineShortcuts';
@@ -34,6 +39,7 @@ import { useTimelineExport } from './timeline/hooks/useTimelineExport';
 import { useIsMobile } from './timeline/hooks/useIsMobile';
 import { useBiographyImport } from './timeline/hooks/useBiographyImport';
 import { hasTimelineContent } from './timeline/persistence';
+import { buildTimelineTree, findEventInTree } from './timeline/utils/timelineTree';
 import { BiographyImportModal } from './timeline/components/BiographyImportModal';
 import { MobileReadOnlyBanner } from './timeline/components/MobileReadOnlyBanner';
 import { PeriodBoundaryModalContainer } from './timeline/components/PeriodBoundaryModalContainer';
@@ -69,6 +75,7 @@ export default function Timeline() {
     selectedPeriodization,
     setSelectedPeriodization,
     saveStatus,
+    retrySave,
     transform,
     setTransform,
     viewportAge,
@@ -102,6 +109,10 @@ export default function Timeline() {
     setBirthDetails,
   });
 
+  // Неблокирующие уведомления (вместо alert) и плашка «Удалено · Отменить».
+  const { toast, showToast, hideToast } = useTimelineToast();
+  const notifyValidation = (message: string) => showToast({ message, tone: 'warning' });
+
   // ============ FORM HOOKS ============
 
   // Event form
@@ -134,12 +145,17 @@ export default function Timeline() {
     setEdges,
     transform,
     svgRef,
+    ageMax,
     onHistoryRecord: recordHistory,
   });
 
   // ============ LOCAL UI STATE ============
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Фильтр легенды сфер: подсветить только одну сферу жизни.
+  const [sphereFilter, setSphereFilter] = useState<Sphere | null>(null);
+  // Стартовый экран пустого холста («Начать с чистого листа» скрывает).
+  const [startOverlayDismissed, setStartOverlayDismissed] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [periodBoundaryModal, setPeriodBoundaryModal] = useState<{ periodIndex: number } | null>(null);
   const [showBulkCreator, setShowBulkCreator] = useState(false);
@@ -153,6 +169,7 @@ export default function Timeline() {
     ageMax,
     onHistoryRecord: recordHistory,
     onClearForm: formHook.clearForm,
+    notify: notifyValidation,
   });
 
   // CRUD operations
@@ -171,11 +188,99 @@ export default function Timeline() {
       setCurrentAge(DEFAULT_CURRENT_AGE);
       setAgeMax(DEFAULT_AGE_MAX);
     },
+    notify: notifyValidation,
   });
+
+  // ===== Авто-применение правок (без кнопок «Сохранить»: страховка — undo) =====
+
+  // Существующее событие: поля формы применяются сами после паузы ввода.
+  // Ref держит свежую версию применения, deps эффекта — только значения
+  // полей, чтобы дебаунс не сбрасывался посторонними рендерами.
+  const formAutoApplyRef = useRef<() => void>(() => {});
+  formAutoApplyRef.current = () => {
+    if (!formHook.formEventId || !formHook.hasFormChanges) return;
+    const applied = crudHook.handleFormSubmit(
+      {
+        id: formHook.formEventId,
+        age: formHook.formEventAge,
+        label: formHook.formEventLabel,
+        notes: formHook.formEventNotes,
+        sphere: formHook.formEventSphere,
+        isDecision: formHook.formEventIsDecision,
+        icon: formHook.formEventIcon,
+      },
+      branchHook.selectedBranchId,
+      { keepFormOpen: true }
+    );
+    if (applied) formHook.markSaved();
+  };
+  useEffect(() => {
+    if (formHook.formEventId === null || !formHook.hasFormChanges) return;
+    const timer = window.setTimeout(() => formAutoApplyRef.current(), 800);
+    return () => window.clearTimeout(timer);
+  }, [
+    formHook.formEventId,
+    formHook.hasFormChanges,
+    formHook.formEventAge,
+    formHook.formEventLabel,
+    formHook.formEventNotes,
+    formHook.formEventSphere,
+    formHook.formEventIsDecision,
+    formHook.formEventIcon,
+  ]);
+
+  // Длина выбранной ветки: применяется сама (валидаторы B13/B14 при
+  // отказе объяснят причину тостом).
+  const branchAutoApplyRef = useRef<() => void>(() => {});
+  branchAutoApplyRef.current = () => {
+    const edge = branchHook.selectedEdge;
+    if (!edge) return;
+    const years = parseFloat(branchHook.branchYears);
+    if (isNaN(years) || years <= 0) return;
+    if (edge.endAge - edge.startAge === years) return;
+    branchHook.updateBranchLength();
+  };
+  useEffect(() => {
+    const edge = branchHook.selectedEdge;
+    if (!edge) return;
+    const years = parseFloat(branchHook.branchYears);
+    if (isNaN(years) || years <= 0 || edge.endAge - edge.startAge === years) return;
+    const timer = window.setTimeout(() => branchAutoApplyRef.current(), 800);
+    return () => window.clearTimeout(timer);
+  }, [branchHook.branchYears, branchHook.selectedEdge]);
+
+  // Удаление события: без блокирующего confirm — вместо него плашка
+  // с точным размером снесённого поддерева и кнопкой «Отменить» (undo).
+  const handleDeleteEvent = (id: string) => {
+    const { removedEvents, removedBranches } = crudHook.deleteNode(id);
+    if (removedEvents === 0 && removedBranches === 0) return;
+    const parts = [`${removedEvents} ${pluralizeRu(removedEvents, ['событие', 'события', 'событий'])}`];
+    if (removedBranches > 0) {
+      parts.push(`${removedBranches} ${pluralizeRu(removedBranches, ['ветка', 'ветки', 'веток'])}`);
+    }
+    showToast({
+      message: `Удалено: ${parts.join(' и ')}.`,
+      tone: 'info',
+      actionLabel: 'Отменить',
+      onAction: undo,
+    });
+  };
 
   // ============ COMPUTED VALUES ============
 
-  const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedId), [nodes, selectedId]);
+  // Контекст выбранной ветки для редактора: origin и события — по дереву
+  // топологии (та же принадлежность, что у операций).
+  const selectedBranchInfo = useMemo(() => {
+    const edge = branchHook.selectedEdge;
+    if (!edge) return null;
+    const tree = buildTimelineTree(nodes, edges);
+    const origin = findEventInTree(tree, edge.nodeId);
+    const branch = origin?.branches.find((b) => b.data.id === edge.id);
+    return {
+      originLabel: origin?.data.label ?? null,
+      eventsCount: branch?.events.length ?? 0,
+    };
+  }, [branchHook.selectedEdge, nodes, edges]);
   const formattedCurrentAge = useMemo(() => {
     if (Number.isNaN(currentAge)) return '0';
     return Number.isInteger(currentAge) ? `${currentAge}` : currentAge.toFixed(1);
@@ -220,6 +325,8 @@ export default function Timeline() {
   const resetTransientTimelineUi = useCallback(() => {
     formHook.clearForm();
     setSelectedId(null);
+    setSphereFilter(null);
+    setStartOverlayDismissed(false);
     branchHook.setSelectedBranchId(null);
     birthHook.setBirthSelected(false);
     setPeriodBoundaryModal(null);
@@ -270,6 +377,7 @@ export default function Timeline() {
     birthDetails,
     selectedPeriodization,
     filenamePrefix: exportFilenamePrefix,
+    posterTitle: activeTimelineName,
     onBeforeDownload: closeDownloadMenu,
   });
 
@@ -290,6 +398,14 @@ export default function Timeline() {
     });
   };
 
+  // «+ ветка» на холсте у выбранного события: подсказки про главную
+  // линию/сферу приходят тостом из extendBranch.
+  const handleAddBranchFromNode = (nodeId: string) => {
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    branchHook.extendBranch(node);
+  };
+
   const handleNodeClick = (nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return;
@@ -299,6 +415,10 @@ export default function Timeline() {
   };
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (dragDropHook.resizingEdgeId) {
+      dragDropHook.handleBranchResizeMove(e);
+      return;
+    }
     if (dragDropHook.draggingNodeId) {
       dragDropHook.handleNodeDragMove(e);
       return;
@@ -308,6 +428,7 @@ export default function Timeline() {
 
   const handlePointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
     dragDropHook.handleNodeDragEnd();
+    dragDropHook.handleBranchResizeEnd();
     panZoomHook.handlePointerUp(e);
   };
 
@@ -319,7 +440,7 @@ export default function Timeline() {
     canRedo: () => canRedo,
     onUndo: undo,
     onRedo: redo,
-    onDelete: crudHook.deleteNode,
+    onDelete: handleDeleteEvent,
     onEscape: () => {
       formHook.clearForm();
       setSelectedId(null);
@@ -334,7 +455,26 @@ export default function Timeline() {
     setPeriodBoundaryModal({ periodIndex });
   };
 
+  // Двойной клик по линии/ветке: событие появляется сразу в точке клика
+  // и открывается в форме для переименования.
+  const handleQuickCreateEvent = (age: number, edgeId: string | null) => {
+    const edge = edgeId ? edges.find((e) => e.id === edgeId) ?? null : null;
+    const node = crudHook.quickCreateEvent(age, edge);
+    formHook.setFormFromNode(node);
+    birthHook.setBirthSelected(false);
+    showToast({
+      message: `Событие создано (${node.age} лет) — дайте ему название в панели справа.`,
+      tone: 'info',
+    });
+  };
+
+  // Панель показывает актуальный выбор: клик по ветке закрывает редактор
+  // события (недописанные правки применяются немедленно — flush).
   const handleSelectBranch = (edgeId: string) => {
+    if (formHook.formEventId !== null) {
+      formAutoApplyRef.current();
+      formHook.clearForm();
+    }
     branchHook.handleSelectBranch(edgeId);
     birthHook.setBirthSelected(false);
   };
@@ -411,6 +551,8 @@ export default function Timeline() {
             viewportAge={viewportAge}
             scale={transform.k}
             nodes={nodes}
+            sphereFilter={sphereFilter}
+            onSphereFilterChange={setSphereFilter}
             timelineCanvases={timelineCanvases}
             activeTimelineId={activeTimelineId}
             activeTimelineName={activeTimelineName}
@@ -454,6 +596,7 @@ export default function Timeline() {
           selectedPeriodization={selectedPeriodization}
           selectedId={selectedId}
           selectedBranchId={branchHook.selectedBranchId}
+          sphereFilter={sphereFilter}
           draggingNodeId={dragDropHook.draggingNodeId}
           birthSelected={birthHook.birthSelected}
           birthBaseYear={birthHook.birthBaseYear}
@@ -466,8 +609,11 @@ export default function Timeline() {
           onPointerUp={handlePointerUp}
           onNodeClick={readOnly ? () => {} : handleNodeClick}
           onNodeDragStart={readOnly ? () => {} : dragDropHook.handleNodeDragStart}
+          onAddBranchFromNode={readOnly ? undefined : handleAddBranchFromNode}
           onPeriodBoundaryClick={readOnly ? () => {} : handlePeriodBoundaryClick}
           onSelectBranch={readOnly ? () => {} : handleSelectBranch}
+          onQuickCreateEvent={readOnly ? undefined : handleQuickCreateEvent}
+          onBranchResizeStart={readOnly ? undefined : dragDropHook.handleBranchResizeStart}
           onClearSelection={readOnly ? () => {} : handleClearSelection}
           onSelectBirth={readOnly ? () => {} : birthHook.handleBirthSelect}
         />
@@ -477,6 +623,7 @@ export default function Timeline() {
         <Suspense fallback={<PageLoader label="Загрузка панели деталей..." />}>
           <TimelineRightPanel
           saveStatus={saveStatus}
+          onRetrySave={retrySave}
           selectedPeriodization={selectedPeriodization}
           onPeriodizationChange={setSelectedPeriodization}
           birthSelected={birthHook.birthSelected}
@@ -509,18 +656,17 @@ export default function Timeline() {
           hasFormChanges={formHook.hasFormChanges}
           onEventFormSubmit={handleFormSubmit}
           onClearForm={formHook.clearForm}
-          onDeleteEvent={crudHook.deleteNode}
+          onDeleteEvent={handleDeleteEvent}
+          onNotify={(message) => showToast({ message, tone: 'info' })}
           createNote={createNote}
           selectedBranchId={branchHook.selectedBranchId}
           selectedEdge={branchHook.selectedEdge}
+          branchInfo={selectedBranchInfo}
           branchYears={branchHook.branchYears}
           onBranchYearsChange={branchHook.setBranchYears}
-          onUpdateBranchLength={branchHook.updateBranchLength}
+          onRenameBranch={branchHook.renameBranch}
           onDeleteBranch={branchHook.deleteBranch}
           onHideBranchEditor={branchHook.handleHideBranchEditor}
-          onExtendBranch={() => branchHook.extendBranch(selectedNode)}
-          selectedNode={selectedNode}
-          edges={edges}
           ageMax={ageMax}
           onOpenBulkCreator={handleOpenBulkCreator}
           undo={undo}
@@ -570,6 +716,28 @@ export default function Timeline() {
         progress={biographyImport.progress}
         onClose={biographyImport.closeModal}
       />
+      {!readOnly && !activeTimelineHasContent && !startOverlayDismissed && (
+        <TimelineStartOverlay
+          onStartWithBirth={() => {
+            setStartOverlayDismissed(true);
+            birthHook.handleBirthSelect();
+          }}
+          onOpenBiographyImport={() => {
+            setStartOverlayDismissed(true);
+            handleOpenBiographyImport();
+          }}
+          onLoadExample={() => {
+            setStartOverlayDismissed(true);
+            replaceActiveTimeline(EXAMPLE_TIMELINE, { name: EXAMPLE_TIMELINE_NAME });
+            showToast({
+              message: 'Это пример — события можно двигать, менять и удалять. «Очистить всё» вернёт пустой холст.',
+              tone: 'info',
+            });
+          }}
+          onDismiss={() => setStartOverlayDismissed(true)}
+        />
+      )}
+      <TimelineToast toast={toast} onClose={hideToast} />
     </motion.div>
   );
 }

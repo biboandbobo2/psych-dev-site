@@ -1,5 +1,5 @@
 import { memo, useMemo, type PointerEvent, type RefObject, type WheelEvent } from 'react';
-import type { NodeT, EdgeT, Transform } from '../types';
+import type { NodeT, EdgeT, Sphere, Transform } from '../types';
 import { PeriodizationLayer } from './PeriodizationLayer';
 import { getPeriodizationById } from '../data/periodizations';
 import {
@@ -10,7 +10,7 @@ import {
   MIN_NODE_RADIUS,
   MAX_NODE_RADIUS,
 } from '../constants';
-import { clamp } from '../utils';
+import { clamp, screenToWorld } from '../utils';
 import { EVENT_ICON_MAP } from '../../../data/eventIcons';
 
 interface TimelineCanvasProps {
@@ -22,8 +22,14 @@ interface TimelineCanvasProps {
   onPointerUp: (e: PointerEvent<SVGSVGElement>) => void;
   onNodeClick: (nodeId: string) => void;
   onNodeDragStart: (event: PointerEvent, nodeId: string) => void;
+  /** Кнопка «+ ветка» у выбранного события (не рендерится, если не передан). */
+  onAddBranchFromNode?: (nodeId: string) => void;
   onPeriodBoundaryClick: (periodIndex: number) => void;
   onSelectBranch: (edgeId: string) => void;
+  /** Двойной клик по линии/ветке: создать событие в точке клика. */
+  onQuickCreateEvent?: (age: number, edgeId: string | null) => void;
+  /** «Хвостик» сверху ветки: начало изменения её длины перетаскиванием. */
+  onBranchResizeStart?: (event: PointerEvent, edgeId: string) => void;
   onClearSelection: () => void;
   onSelectBirth: () => void;
   worldWidth: number;
@@ -35,6 +41,8 @@ interface TimelineCanvasProps {
   selectedPeriodization: string | null;
   selectedId: string | null;
   selectedBranchId: string | null;
+  /** Активный фильтр легенды сфер: чужие события приглушаются. */
+  sphereFilter: Sphere | null;
   draggingNodeId: string | null;
   birthSelected: boolean;
   birthBaseYear: number | null;
@@ -53,8 +61,11 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
     onPointerUp,
     onNodeClick,
     onNodeDragStart,
+    onAddBranchFromNode,
     onPeriodBoundaryClick,
     onSelectBranch,
+    onQuickCreateEvent,
+    onBranchResizeStart,
     onClearSelection,
     onSelectBirth,
     worldWidth,
@@ -66,6 +77,7 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
     selectedPeriodization,
     selectedId,
     selectedBranchId,
+    sphereFilter,
     draggingNodeId,
     birthSelected,
     birthBaseYear,
@@ -112,6 +124,12 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
     [nodes]
   );
 
+  // Возраст в точке клика (для создания события «там, где кликнул»).
+  const ageAtPointer = (e: React.MouseEvent) => {
+    const world = screenToWorld(e, svgRef.current, transform);
+    return Math.round(((worldHeight - world.y) / YEAR_PX) * 10) / 10;
+  };
+
   return (
     <div className="absolute inset-0">
       <svg
@@ -125,7 +143,8 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
         data-world-height={worldHeight}
       >
         <g data-export-root="true" transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
-          <rect x={0} y={-100} width={worldWidth} height={worldHeight + 200} fill="#ffffff" />
+          {/* Тёплый фон вместо чисто-белого — мягче для глаза. */}
+          <rect x={0} y={-100} width={worldWidth} height={worldHeight + 200} fill="#fffdf8" />
 
           <PeriodizationLayer
             periodization={periodization}
@@ -135,7 +154,12 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
             onBoundaryClick={onPeriodBoundaryClick}
           />
 
+          {/* Сетка: десятилетия заметные, пятилетки едва видимые —
+              холст перестаёт быть «тетрадкой в клеточку».
+              data-layer="grid" позволяет постер-экспорту убрать сетку. */}
+          <g data-layer="grid">
           {ageLabels.map((age) => {
+            const isDecade = age % 10 === 0;
             const rightLabel = birthBaseYear !== null ? `${birthBaseYear + age}` : null;
             return (
               <g key={age}>
@@ -144,15 +168,15 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                   y1={worldHeight - age * YEAR_PX}
                   x2={worldWidth}
                   y2={worldHeight - age * YEAR_PX}
-                  stroke="#e2e8f0"
-                  strokeWidth={age % 10 === 0 ? 2 : 1}
+                  stroke={isDecade ? '#e2e8f0' : '#f1f5f9'}
+                  strokeWidth={isDecade ? 2 : 1}
                 />
                 <text
                   x={LINE_X_POSITION - 35}
                   y={worldHeight - age * YEAR_PX + 5}
-                  fontSize={42}
+                  fontSize={isDecade ? 42 : 30}
                   textAnchor="end"
-                  fill="#475569"
+                  fill={isDecade ? '#475569' : '#a8b3c2'}
                   fontWeight="500"
                   fontFamily="Georgia, serif"
                 >
@@ -162,9 +186,9 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                   <text
                     x={LINE_X_POSITION + 35}
                     y={worldHeight - age * YEAR_PX + 5}
-                    fontSize={42}
+                    fontSize={isDecade ? 42 : 30}
                     textAnchor="start"
-                    fill="#475569"
+                    fill={isDecade ? '#475569' : '#a8b3c2'}
                     fontWeight="500"
                     fontFamily="Georgia, serif"
                   >
@@ -174,35 +198,45 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
               </g>
             );
           })}
+          </g>
 
           <line
             x1={LINE_X_POSITION}
             y1={worldHeight}
             x2={LINE_X_POSITION}
             y2={worldHeight - currentAge * YEAR_PX}
-            stroke="#93c5fd"
-            strokeWidth={selectedBranchId === null ? 16 : 11}
+            stroke="#5aa2f7"
+            strokeWidth={selectedBranchId === null ? 18 : 13}
             strokeLinecap="round"
             onClick={(e) => {
               e.stopPropagation();
               onClearSelection();
             }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onQuickCreateEvent?.(ageAtPointer(e), null);
+            }}
             className="cursor-pointer"
             style={{ cursor: 'pointer' }}
           />
 
+          {/* Будущее — тоньше и бледнее прожитого: стержень читается сразу. */}
           <line
             x1={LINE_X_POSITION}
             y1={worldHeight - currentAge * YEAR_PX}
             x2={LINE_X_POSITION}
             y2={worldHeight - ageMax * YEAR_PX}
-            stroke="#cbd5e1"
-            strokeWidth={selectedBranchId === null ? 16 : 11}
+            stroke="#dde5ee"
+            strokeWidth={selectedBranchId === null ? 10 : 8}
             strokeLinecap="round"
             strokeDasharray="10 5"
             onClick={(e) => {
               e.stopPropagation();
               onClearSelection();
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onQuickCreateEvent?.(ageAtPointer(e), null);
             }}
             className="cursor-pointer"
             style={{ cursor: 'pointer' }}
@@ -270,71 +304,91 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
               const isSelected = selectedBranchId === edge.id;
               const originNode = validNodes.find((node) => node.id === edge.nodeId);
               const originX = originNode?.x ?? LINE_X_POSITION;
-              const connectorY = worldHeight - edge.startAge * YEAR_PX;
+              const startY = worldHeight - edge.startAge * YEAR_PX;
+              const endY = worldHeight - edge.endAge * YEAR_PX;
               const shouldDrawConnector =
                 typeof originX === 'number' &&
                 typeof edge.x === 'number' &&
                 !isNaN(originX) &&
                 !isNaN(edge.x) &&
                 originX !== edge.x;
+              // Плавная дуга в месте, где ветка отходит от события:
+              // «живое дерево» вместо прямого угла схемы метро.
+              const cornerR = shouldDrawConnector
+                ? Math.min(28, Math.abs(edge.x - originX) / 2, Math.abs(startY - endY) / 2)
+                : 0;
+              const dir = edge.x > originX ? 1 : -1;
+              const branchPath = shouldDrawConnector
+                ? `M ${originX} ${startY} L ${edge.x - dir * cornerR} ${startY} ` +
+                  `Q ${edge.x} ${startY} ${edge.x} ${startY - cornerR} L ${edge.x} ${endY}`
+                : `M ${edge.x} ${startY} L ${edge.x} ${endY}`;
+              const dimmedBySphere = sphereFilter !== null && originNode?.sphere !== sphereFilter;
+              // Название ветки: своё, а по умолчанию — имя origin-события.
+              const branchTitle = edge.label ?? originNode?.label ?? null;
               return (
-                <g key={edge.id}>
-                  {shouldDrawConnector && (
-                    <>
-                      <line
-                        x1={originX}
-                        y1={connectorY}
-                        x2={edge.x}
-                        y2={connectorY}
-                        stroke="transparent"
-                        strokeWidth={isSelected ? 22 : 12}
-                        strokeLinecap="round"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectBranch(edge.id);
-                        }}
-                        className="cursor-pointer"
-                        style={{ cursor: 'pointer' }}
-                      />
-                      <line
-                        x1={originX}
-                        y1={connectorY}
-                        x2={edge.x}
-                        y2={connectorY}
-                        stroke={edge.color}
-                        strokeWidth={isSelected ? 6 : 3}
-                        strokeLinecap="round"
-                        opacity={isSelected ? 1 : 0.75}
-                        pointerEvents="none"
-                      />
-                    </>
-                  )}
-                  <line
-                    x1={edge.x}
-                    y1={worldHeight - edge.startAge * YEAR_PX}
-                    x2={edge.x}
-                    y2={worldHeight - edge.endAge * YEAR_PX}
+                <g key={edge.id} opacity={dimmedBySphere ? 0.15 : 1}>
+                  <path
+                    d={branchPath}
+                    fill="none"
                     stroke="transparent"
-                    strokeWidth={isSelected ? 24 : 12}
+                    strokeWidth={isSelected ? 24 : 14}
                     strokeLinecap="round"
                     onClick={(e) => {
                       e.stopPropagation();
+                      // Одиночный клик — выбрать ветку; двойной — событие.
                       onSelectBranch(edge.id);
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      onQuickCreateEvent?.(ageAtPointer(e), edge.id);
                     }}
                     className="cursor-pointer"
                     style={{ cursor: 'pointer' }}
                   />
-                  <line
-                    x1={edge.x}
-                    y1={worldHeight - edge.startAge * YEAR_PX}
-                    x2={edge.x}
-                    y2={worldHeight - edge.endAge * YEAR_PX}
+                  <path
+                    d={branchPath}
+                    fill="none"
                     stroke={edge.color}
                     strokeWidth={isSelected ? 8 : 4}
                     strokeLinecap="round"
                     opacity={isSelected ? 1 : 0.8}
                     pointerEvents="none"
                   />
+                  {/* Название ветки над её вершиной. */}
+                  {branchTitle && (
+                    <text
+                      x={edge.x}
+                      y={endY - 26}
+                      fontSize={24}
+                      fontStyle="italic"
+                      fill="#64748b"
+                      textAnchor="middle"
+                      fontFamily="Georgia, serif"
+                      pointerEvents="none"
+                    >
+                      {branchTitle}
+                    </text>
+                  )}
+                  {/* «Хвостик»: перетаскивание меняет длину ветки. */}
+                  {onBranchResizeStart && (
+                    <g
+                      data-layer="ui"
+                      onPointerDown={(e) => onBranchResizeStart(e, edge.id)}
+                      className="cursor-ns-resize"
+                      style={{ cursor: 'ns-resize' }}
+                    >
+                      <title>Потяните вверх/вниз, чтобы изменить длину ветки</title>
+                      <circle
+                        cx={edge.x}
+                        cy={endY}
+                        r={11}
+                        fill="#ffffff"
+                        stroke={edge.color}
+                        strokeWidth={3}
+                      />
+                      <circle cx={edge.x} cy={endY} r={4} fill={edge.color} pointerEvents="none" />
+                    </g>
+                  )}
                 </g>
               );
             })}
@@ -368,8 +422,10 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                 !isNaN(x) &&
                 !isNaN(y);
 
+              const dimmedBySphere = sphereFilter !== null && node.sphere !== sphereFilter;
+
               return (
-                <g key={node.id}>
+                <g key={node.id} opacity={dimmedBySphere ? 0.2 : 1}>
                   {shouldDrawHorizontalLine && (
                     <line
                       x1={parentLineX}
@@ -386,9 +442,19 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                   <g
                     onPointerDown={(event) => onNodeDragStart(event, node.id)}
                     onClick={() => !isDragging && onNodeClick(node.id)}
-                    className="cursor-move"
+                    className="tl-node cursor-move"
                     style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                   >
+                    {/* Ховер-подсказка объясняет маркеры (кольцо, точка). */}
+                    <title>
+                      {[
+                        node.label,
+                        node.isDecision ? 'моё решение' : null,
+                        node.notes && node.notes.trim() ? 'есть заметки' : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </title>
                     {iconMeta ? (
                       <>
                         <circle cx={x} cy={y} r={adaptiveRadius} fill="transparent" stroke="transparent" strokeWidth={0} />
@@ -417,27 +483,32 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                         opacity={0.8}
                       />
                     )}
+                    {/* «Решение» — внешнее кольцо цвета сферы. Только для
+                        событий без пиктограммы: вокруг иконки кольцо
+                        выглядит случайным кружком. */}
                     {node.isDecision === true && !iconMeta && (
-                      <g>
-                        <line
-                          x1={x - adaptiveRadius * 0.4}
-                          y1={y - adaptiveRadius * 0.4}
-                          x2={x + adaptiveRadius * 0.4}
-                          y2={y + adaptiveRadius * 0.4}
-                          stroke={meta.color}
-                          strokeWidth={3}
-                          strokeLinecap="round"
-                        />
-                        <line
-                          x1={x - adaptiveRadius * 0.4}
-                          y1={y + adaptiveRadius * 0.4}
-                          x2={x + adaptiveRadius * 0.4}
-                          y2={y - adaptiveRadius * 0.4}
-                          stroke={meta.color}
-                          strokeWidth={3}
-                          strokeLinecap="round"
-                        />
-                      </g>
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r={adaptiveRadius + (isSelected ? 9 : 7)}
+                        fill="none"
+                        stroke={meta.color}
+                        strokeWidth={2.5}
+                        opacity={0.7}
+                        pointerEvents="none"
+                      />
+                    )}
+                    {/* Точка-индикатор: у события есть заметки. */}
+                    {Boolean(node.notes && node.notes.trim()) && (
+                      <circle
+                        cx={x + adaptiveRadius * 0.85}
+                        cy={y + adaptiveRadius * 0.85}
+                        r={Math.max(3, adaptiveRadius * 0.22)}
+                        fill="#64748b"
+                        stroke="#fffdf8"
+                        strokeWidth={1.5}
+                        pointerEvents="none"
+                      />
                     )}
                     <text
                       x={labelX}
@@ -451,6 +522,42 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                       {node.label}
                     </text>
                   </g>
+
+                  {/* «+ ветка» у выбранного события — создание ветки
+                      прямо с холста, без поиска кнопки в панели. */}
+                  {isSelected && !isDragging && onAddBranchFromNode && (
+                    <g
+                      data-layer="ui"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddBranchFromNode(node.id);
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="cursor-pointer"
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <title>Создать ветку от события</title>
+                      <circle
+                        cx={x + adaptiveRadius + 22}
+                        cy={y + adaptiveRadius + 14}
+                        r={13}
+                        fill="#ffffff"
+                        stroke="#5aa2f7"
+                        strokeWidth={2}
+                      />
+                      <text
+                        x={x + adaptiveRadius + 22}
+                        y={y + adaptiveRadius + 20}
+                        fontSize={20}
+                        fontWeight="600"
+                        fill="#2563eb"
+                        textAnchor="middle"
+                        pointerEvents="none"
+                      >
+                        +
+                      </text>
+                    </g>
+                  )}
                 </g>
               );
             })}

@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { TimelineBirthForm } from './TimelineBirthForm';
-import { TimelineBranchContinuation } from './TimelineBranchContinuation';
 import { TimelineBranchEditor } from './TimelineBranchEditor';
 import { TimelineEventForm } from './TimelineEventForm';
 import { TimelineUndoControls } from './TimelineUndoControls';
 import { PeriodizationSelector } from './PeriodizationSelector';
-import type { EdgeT, NodeT, Sphere, SaveStatus, EventIconId } from '../types';
+import type { EdgeT, Sphere, SaveStatus, EventIconId } from '../types';
 
 interface TimelineRightPanelProps {
   saveStatus: SaveStatus;
+  onRetrySave: () => void;
   selectedPeriodization: string | null;
   onPeriodizationChange: (value: string | null) => void;
   birthSelected: boolean;
@@ -38,6 +38,7 @@ interface TimelineRightPanelProps {
   onEventFormSubmit: () => void;
   onClearForm: () => void;
   onDeleteEvent: (id: string) => void;
+  onNotify: (message: string) => void;
   createNote: (
     title: string,
     content: string,
@@ -47,14 +48,12 @@ interface TimelineRightPanelProps {
   ) => Promise<string>;
   selectedBranchId: string | null;
   selectedEdge: EdgeT | undefined;
+  branchInfo: { originLabel: string | null; eventsCount: number } | null;
   branchYears: string;
   onBranchYearsChange: (value: string) => void;
-  onUpdateBranchLength: () => void;
+  onRenameBranch: (label: string) => void;
   onDeleteBranch: () => void;
   onHideBranchEditor: () => void;
-  onExtendBranch: () => void;
-  selectedNode?: NodeT;
-  edges: EdgeT[];
   ageMax: number;
   onOpenBulkCreator: () => void;
   undo: () => void;
@@ -66,6 +65,7 @@ interface TimelineRightPanelProps {
 export function TimelineRightPanel(props: TimelineRightPanelProps) {
   const {
     saveStatus,
+    onRetrySave,
     selectedPeriodization,
     onPeriodizationChange,
     birthSelected,
@@ -95,17 +95,16 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
     onEventFormSubmit,
     onClearForm,
     onDeleteEvent,
+    onNotify,
     createNote,
     selectedBranchId,
     selectedEdge,
+    branchInfo,
     branchYears,
     onBranchYearsChange,
-    onUpdateBranchLength,
+    onRenameBranch,
     onDeleteBranch,
     onHideBranchEditor,
-    onExtendBranch,
-    selectedNode,
-    edges,
     ageMax,
     onOpenBulkCreator,
     undo,
@@ -115,6 +114,8 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
   } = props;
 
   const [showSaveTooltip, setShowSaveTooltip] = useState(false);
+  // Форма нового события скрыта за кнопкой «+ Событие», пока нет выбора.
+  const [newEventFormOpen, setNewEventFormOpen] = useState(false);
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < historyLength - 1;
@@ -124,11 +125,11 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
     onBirthNotesChange('');
   };
 
+  // Без блокирующего confirm: после удаления показывается плашка
+  // «Удалено · Отменить» (undo работает и для первого действия).
   const handleDeleteCurrentEvent = () => {
     if (!formEventId) return;
-    if (confirm('Удалить это событие?')) {
-      onDeleteEvent(formEventId);
-    }
+    onDeleteEvent(formEventId);
   };
 
   return (
@@ -182,7 +183,21 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
               </div>
             </div>
           </div>
+          {saveStatus === 'error' && (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              <span>Не удалось сохранить изменения</span>
+              <button
+                type="button"
+                onClick={onRetrySave}
+                className="shrink-0 rounded-lg border border-red-300 bg-white px-2 py-1 font-semibold transition hover:bg-red-100"
+              >
+                Повторить
+              </button>
+            </div>
+          )}
         </div>
+
+        <TimelineUndoControls canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
 
         {birthSelected && (
           <TimelineBirthForm
@@ -199,7 +214,39 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
           />
         )}
 
-        {(!selectedBranchId || formEventId) && (
+        {/* Контекстный режим: без выбора панель не вываливает все формы
+            сразу — подсказка + одна главная кнопка «+ Событие». */}
+        {!selectedBranchId && !formEventId && !birthSelected && !newEventFormOpen && !hasFormChanges && (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setNewEventFormOpen(true)}
+              className="w-full rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-sky-50 px-4 py-3 text-sm font-semibold text-blue-700 shadow-sm transition hover:border-blue-300 hover:from-blue-100 hover:to-sky-100"
+            >
+              + Новое событие
+            </button>
+            <button
+              type="button"
+              onClick={onOpenBulkCreator}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+            >
+              ⚡ Несколько событий сразу
+            </button>
+            <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 text-xs leading-relaxed text-slate-600">
+              <div className="mb-1 font-semibold text-slate-700">Как работать с холстом</div>
+              <ul className="space-y-1">
+                <li>• Двойной клик по линии или ветке — событие в месте клика</li>
+                <li>• Клик по кружку — открыть событие</li>
+                <li>• Перетащите событие в сторону — от него сможет вырасти ветка (кнопка «+» у кружка)</li>
+                <li>• Колесо мыши — масштаб, пустое место — перемещение</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {(!selectedBranchId || formEventId) &&
+          !birthSelected &&
+          (formEventId || newEventFormOpen || hasFormChanges) && (
           <>
             <TimelineEventForm
               title={formEventId ? 'Редактировать событие' : 'Новое событие'}
@@ -217,24 +264,18 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
               formEventNotes={formEventNotes}
               onFormEventNotesChange={onFormEventNotesChange}
               onEventFormSubmit={onEventFormSubmit}
-              onClearForm={onClearForm}
+              onClearForm={() => {
+                onClearForm();
+                setNewEventFormOpen(false);
+              }}
               onDeleteEvent={handleDeleteCurrentEvent}
               createNote={createNote}
               onNoteSuccess={() => {
-                alert('Событие сохранено в заметки!');
+                onNotify('Событие сохранено в заметки!');
               }}
-              showCancelButton={!!formEventId}
+              showCancelButton={!!formEventId || newEventFormOpen}
               showBulkCreatorButton={!formEventId}
               onOpenBulkCreator={onOpenBulkCreator}
-            />
-            <TimelineBranchContinuation
-              formEventId={formEventId}
-              selectedNode={selectedNode}
-              edges={edges}
-              branchYears={branchYears}
-              onBranchYearsChange={onBranchYearsChange}
-              onExtendBranch={onExtendBranch}
-              ageMax={ageMax}
             />
           </>
         )}
@@ -247,39 +288,29 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
                 selectedEdge={selectedEdge}
                 branchYears={branchYears}
                 ageMax={ageMax}
+                originLabel={branchInfo?.originLabel ?? null}
+                eventsOnBranch={branchInfo?.eventsCount ?? 0}
                 onBranchYearsChange={onBranchYearsChange}
-                onUpdateBranchLength={onUpdateBranchLength}
+                onRenameBranch={onRenameBranch}
                 onDeleteBranch={onDeleteBranch}
                 onClose={onHideBranchEditor}
               />
             )}
 
-            <TimelineEventForm
-              title="Новое событие на ветке"
-              formEventId={formEventId}
-              formEventAge={formEventAge}
-              onFormEventAgeChange={onFormEventAgeChange}
-              formEventLabel={formEventLabel}
-              onFormEventLabelChange={onFormEventLabelChange}
-              formEventSphere={formEventSphere}
-              onFormEventSphereChange={onFormEventSphereChange}
-              formEventIsDecision={formEventIsDecision}
-              onFormEventIsDecisionChange={onFormEventIsDecisionChange}
-              formEventIcon={formEventIcon}
-              onFormEventIconChange={onFormEventIconChange}
-              formEventNotes={formEventNotes}
-              onFormEventNotesChange={onFormEventNotesChange}
-              onEventFormSubmit={onEventFormSubmit}
-              createNote={createNote}
-              iconTone="sky"
-              showNotesField={false}
-              showBulkCreatorButton
-              onOpenBulkCreator={onOpenBulkCreator}
-              wrapperClassName="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-4 border border-blue-200 shadow-sm"
-            />
+            {/* Одиночное событие на ветку добавляется двойным кликом по
+                ней прямо на холсте — форма здесь не нужна. */}
+            <button
+              type="button"
+              onClick={onOpenBulkCreator}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+            >
+              ⚡ Несколько событий сразу
+            </button>
+            <div className="rounded-2xl border border-slate-200 bg-white/70 p-3 text-xs leading-relaxed text-slate-600">
+              Событие на ветке — двойной клик по ней в нужном возрасте.
+            </div>
           </>
         )}
-        <TimelineUndoControls canUndo={canUndo} canRedo={canRedo} onUndo={undo} onRedo={redo} />
       </div>
     </aside>
   );
