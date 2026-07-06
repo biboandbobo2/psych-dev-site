@@ -1,6 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import { LINE_X_POSITION, SPHERE_META } from '../constants';
-import { applyBranchDeletionToFlat } from '../utils/timelineTree';
+import {
+  applyBranchDeletionToFlat,
+  buildTimelineTree,
+  findEventInTree,
+  findParentBranch,
+} from '../utils/timelineTree';
 import type { NodeT, EdgeT } from '../types';
 
 interface UseTimelineBranchOptions {
@@ -80,7 +85,12 @@ export function useTimelineBranch({
       // selection-by-x in the UI doesn't get confused.
       let proposedBranchX = nodeX;
       const OFFSET_STEP = 100;
-      while (edges.some((e) => e.x === proposedBranchX)) {
+      // Помимо занятых веток пропускаем LINE_X_POSITION: ветка на x
+      // главной линии сделала бы свои события «root» при build (Д9).
+      while (
+        proposedBranchX === LINE_X_POSITION ||
+        edges.some((e) => e.x === proposedBranchX)
+      ) {
         proposedBranchX += OFFSET_STEP;
       }
 
@@ -127,14 +137,18 @@ export function useTimelineBranch({
 
     // B14: refuse to shorten the branch past events that already live
     // on it — those events would silently orphan above the new endAge.
+    // Membership comes from the tree, not `parentX === x`: with shared-x
+    // branches the flat filter would also count events of the other
+    // branch and refuse a legitimate shorten (Д4).
     if (newEndAge < selectedEdge.endAge) {
-      const eventsBeyond = nodes.filter(
-        (n) => n.parentX === selectedEdge.x && n.age > newEndAge
-      );
+      const tree = buildTimelineTree(nodes, edges);
+      const origin = findEventInTree(tree, selectedEdge.nodeId);
+      const branchInTree = origin?.branches.find((b) => b.data.id === selectedEdge.id);
+      const eventsBeyond = (branchInTree?.events ?? []).filter((ev) => ev.data.age > newEndAge);
       if (eventsBeyond.length > 0) {
         const sample = eventsBeyond
           .slice(0, 3)
-          .map((n) => `«${n.label}» (${n.age} лет)`)
+          .map((ev) => `«${ev.data.label}» (${ev.data.age} лет)`)
           .join(', ');
         const more = eventsBeyond.length > 3 ? ` и ещё ${eventsBeyond.length - 3}` : '';
         alert(
@@ -160,6 +174,31 @@ export function useTimelineBranch({
    */
   const deleteBranch = useCallback(() => {
     if (!selectedEdge) return;
+
+    // Д6b: события удаляемой ветки мигрируют на линию её origin-события.
+    // Если origin сам живёт на ветке, у той есть возрастное окно —
+    // мигрант с возрастом вне окна «повис бы в воздухе» (I12). Отказ с
+    // подсказкой, как и B11/B14.
+    const tree = buildTimelineTree(nodes, edges);
+    const parentBranch = findParentBranch(tree, selectedEdge.nodeId);
+    if (parentBranch) {
+      const origin = findEventInTree(tree, selectedEdge.nodeId);
+      const branchInTree = origin?.branches.find((b) => b.data.id === selectedEdge.id);
+      const misfits = (branchInTree?.events ?? []).filter(
+        (ev) => ev.data.age < parentBranch.startAge || ev.data.age > parentBranch.endAge
+      );
+      if (misfits.length > 0) {
+        const sample = misfits
+          .slice(0, 3)
+          .map((ev) => `«${ev.data.label}» (${ev.data.age} лет)`)
+          .join(', ');
+        const more = misfits.length > 3 ? ` и ещё ${misfits.length - 3}` : '';
+        alert(
+          `События ${sample}${more} не попадают в диапазон родительской ветки (${parentBranch.startAge}–${parentBranch.endAge} лет). Сначала продлите родительскую ветку или перенесите события.`
+        );
+        return;
+      }
+    }
 
     const confirmed = window.confirm(
       'Удалить эту ветку? Все события на ней будут перенесены на родительскую линию.'

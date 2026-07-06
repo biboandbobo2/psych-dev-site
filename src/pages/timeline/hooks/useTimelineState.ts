@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { useAuth } from '../../../auth/AuthProvider';
@@ -50,6 +50,15 @@ export function useTimelineState() {
   const [transform, setTransform] = useState<Transform>({ x: 50, y: 100, k: 1 });
   const [viewportAge, setViewportAge] = useState<number>(DEFAULT_CURRENT_AGE);
   const [hasLoaded, setHasLoaded] = useState(false);
+  // Документ пользователя уже есть в Firestore. Пока его нет, пустое
+  // состояние не сохраняем (не плодим документы у «мимо проходивших»),
+  // но если он есть — сохраняем и пустоту: иначе «Очистить всё» на
+  // единственном холсте не доедет до базы и данные воскреснут после
+  // перезагрузки (Д7, docs/plans/timeline-invariant-audit.md).
+  // Ref, не state: смена флага не должна сама перезапускать autosave-эффект
+  // (иначе после первого сохранения нового пользователя тот же payload
+  // уходит вторым setDoc).
+  const remoteDocExistsRef = useRef(false);
 
   const activeCanvas = useMemo(() => {
     if (canvases.length === 0) return null;
@@ -110,6 +119,7 @@ export function useTimelineState() {
           { merge: true }
         );
 
+        remoteDocExistsRef.current = true;
         setSaveStatus('saved');
         setTimeout(() => setSaveStatus('idle'), 2000);
       } catch (error) {
@@ -123,6 +133,7 @@ export function useTimelineState() {
   useEffect(() => {
     if (!user) return;
 
+    remoteDocExistsRef.current = false; // смена user — новый документ
     const docRef = doc(db, 'timelines', user.uid);
     getDoc(docRef)
       .then((snapshot) => {
@@ -135,6 +146,7 @@ export function useTimelineState() {
           return;
         }
 
+        remoteDocExistsRef.current = true;
         const normalized = normalizeTimelineDocument(snapshot.data() as TimelineDocument);
         const nextActiveCanvas =
           normalized.canvases.find((canvas) => canvas.id === normalized.activeCanvasId) ?? normalized.canvases[0];
@@ -152,7 +164,10 @@ export function useTimelineState() {
   useEffect(() => {
     if (!user || !hasLoaded || !activeCanvas) return;
 
-    const shouldPersist = canvases.length > 1 || canvases.some((canvas) => hasTimelineContent(canvas.data));
+    const shouldPersist =
+      remoteDocExistsRef.current ||
+      canvases.length > 1 ||
+      canvases.some((canvas) => hasTimelineContent(canvas.data));
     if (!shouldPersist) return;
 
     const timer = window.setTimeout(() => {

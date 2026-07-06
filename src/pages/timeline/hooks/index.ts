@@ -5,6 +5,7 @@
 
 export { useTimelineState } from './useTimelineState';
 export { useTimelineHistory } from './useTimelineHistory';
+export { useTimelineUndoRedo } from './useTimelineUndoRedo';
 export { useTimelineForm } from './useTimelineForm';
 export { useTimelineBirth } from './useTimelineBirth';
 export { useTimelinePanZoom } from './useTimelinePanZoom';

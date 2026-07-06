@@ -43,6 +43,19 @@ export function useTimelineHistory() {
   }, []);
 
   /**
+   * Сеет baseline-снимок, только если история пуста. Проверка идёт по
+   * синхронному ref, поэтому повторный вызов в том же тике (двойной
+   * mount-эффект под React.StrictMode) не создаёт второй baseline.
+   */
+  const seedBaselineIfEmpty = useCallback(
+    (nodes: NodeT[], edges: EdgeT[], birthDetails: BirthDetails) => {
+      if (historyRef.current.length > 0) return;
+      saveToHistory(nodes, edges, birthDetails);
+    },
+    [saveToHistory]
+  );
+
+  /**
    * Отменяет последнее действие
    */
   const undo = useCallback(() => {
@@ -110,6 +123,7 @@ export function useTimelineHistory() {
 
   return {
     saveToHistory,
+    seedBaselineIfEmpty,
     undo,
     redo,
     moveBackward,

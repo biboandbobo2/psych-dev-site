@@ -1,4 +1,5 @@
 import { DEFAULT_AGE_MAX, DEFAULT_CURRENT_AGE, LINE_X_POSITION } from './constants';
+import { buildTimelineTree } from './utils/timelineTree';
 import type { EdgeT, NodeT, TimelineCanvas, TimelineData, TimelineDocument } from './types';
 
 export const DEFAULT_TIMELINE_NAME = 'Таймлайн 1';
@@ -109,10 +110,38 @@ export function normalizeImportedTimelineData(data: unknown): TimelineData {
     }
     return n;
   });
+
+  // I12-healing: ветка обязана покрывать возрасты своих событий — UI
+  // такое состояние создать не даёт (B11/B13/B14), но legacy-документы
+  // могут его содержать. Расширяем окно ветки (данные не двигаем);
+  // принадлежность берём из дерева, как и все операции.
+  const windowFixes = new Map<string, { startAge: number; endAge: number }>();
+  for (const root of buildTimelineTree(nodes, edges)) {
+    const stack = [root];
+    while (stack.length > 0) {
+      const event = stack.pop()!;
+      for (const branch of event.branches) {
+        let { startAge, endAge } = branch.data;
+        for (const child of branch.events) {
+          startAge = Math.min(startAge, child.data.age);
+          endAge = Math.max(endAge, child.data.age);
+          stack.push(child);
+        }
+        if (startAge !== branch.data.startAge || endAge !== branch.data.endAge) {
+          windowFixes.set(branch.data.id, { startAge, endAge });
+        }
+      }
+    }
+  }
+  const healedEdges = edges.map((e) => {
+    const fix = windowFixes.get(e.id);
+    return fix ? { ...e, ...fix } : e;
+  });
+
   const computedMaxAge = Math.max(
     25,
     ...nodes.map((node) => node.age),
-    ...edges.map((edge) => edge.endAge),
+    ...healedEdges.map((edge) => edge.endAge),
     Number.isFinite(candidate.currentAge) ? Number(candidate.currentAge) : DEFAULT_CURRENT_AGE
   );
 
@@ -120,7 +149,7 @@ export function normalizeImportedTimelineData(data: unknown): TimelineData {
     currentAge: Number.isFinite(candidate.currentAge) ? Number(candidate.currentAge) : DEFAULT_CURRENT_AGE,
     ageMax: Number.isFinite(candidate.ageMax) ? Math.max(Number(candidate.ageMax), computedMaxAge) : computedMaxAge,
     nodes,
-    edges,
+    edges: healedEdges,
     birthDetails:
       candidate.birthDetails && typeof candidate.birthDetails === 'object'
         ? {
