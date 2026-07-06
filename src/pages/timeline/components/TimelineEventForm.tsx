@@ -176,7 +176,7 @@ export function TimelineEventForm({
               className="w-4 h-4 rounded border-slate-300"
             />
             <span className="text-xs text-slate-700" style={{ fontFamily: 'Georgia, serif' }}>
-              ✕ Это было моё решение
+              ◎ Это было моё решение (кольцо вокруг события)
             </span>
           </label>
           <SaveEventAsNoteButton

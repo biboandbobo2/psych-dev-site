@@ -445,6 +445,16 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                     className="tl-node cursor-move"
                     style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                   >
+                    {/* Ховер-подсказка объясняет маркеры (кольцо, точка). */}
+                    <title>
+                      {[
+                        node.label,
+                        node.isDecision ? 'моё решение' : null,
+                        node.notes && node.notes.trim() ? 'есть заметки' : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </title>
                     {iconMeta ? (
                       <>
                         <circle cx={x} cy={y} r={adaptiveRadius} fill="transparent" stroke="transparent" strokeWidth={0} />
