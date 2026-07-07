@@ -55,6 +55,14 @@ export function russianDateToISO(dateStr: string | undefined): string | undefine
 
   const match = normalizedStr.match(/(\d{1,2})\s+([A-Za-zА-Яа-яЁё]+)\s+(\d{4})/);
   if (!match) {
+    // «M/YYYY» — формат buildBirthDetails при известном месяце (Д-B3)
+    const monthYear = normalizedStr.match(/^(\d{1,2})\/(\d{4})$/);
+    if (monthYear) {
+      const monthNum = Number(monthYear[1]);
+      if (monthNum >= 1 && monthNum <= 12) {
+        return `${monthYear[2]}-${String(monthNum).padStart(2, '0')}-01`;
+      }
+    }
     const yearOnly = normalizedStr.match(/(\d{4})/);
     if (yearOnly) return `${yearOnly[1]}-01-01`;
     return dateStr;
