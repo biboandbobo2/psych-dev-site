@@ -2,7 +2,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { fetchWikipediaPlainExtract } from '../server/api/timelineBiography.js';
-import { biographyBenchmarks, type BiographyBenchmarkFact, type BiographyBenchmarkMatcher } from './lib/biographyBenchmarks';
+import { biographyBenchmarks, type BiographyBenchmarkFact } from './lib/biographyBenchmarks';
+import { matchesBenchmarkText } from './lib/biographyBenchmarkMatchers';
 
 type CliOptions = {
   benchmarkId: string;
@@ -69,34 +70,7 @@ function parseArgs(argv: string[]): CliOptions {
   };
 }
 
-function normalizeText(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/ё/g, 'е')
-    .replace(/[«»"“”„‟'`]/g, ' ')
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function includesNormalized(haystack: string, needle: string) {
-  return haystack.includes(normalizeText(needle));
-}
-
-function matchesText(text: string, matcher: BiographyBenchmarkMatcher | undefined) {
-  if (!matcher) return false;
-  const normalizedText = normalizeText(text);
-
-  if (matcher.any?.some((needle) => includesNormalized(normalizedText, needle))) {
-    return true;
-  }
-
-  if (matcher.all?.some((group) => group.every((needle) => includesNormalized(normalizedText, needle)))) {
-    return true;
-  }
-
-  return false;
-}
+const matchesText = matchesBenchmarkText;
 
 function printLine(value = '') {
   process.stdout.write(`${value}\n`);
