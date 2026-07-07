@@ -130,6 +130,9 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
         while (takenXs.has(subX)) {
           subX += 40;
         }
+        // Д-B4: регистрируем lane спура, чтобы pickBranchX следующих веток
+        // не выбрал этот же x при пересекающемся окне.
+        occupiedLanes.push({ x: subX, startAge: age, endAge: age });
 
         edges.push({
           id: crypto.randomUUID(),

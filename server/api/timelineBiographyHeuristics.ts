@@ -77,18 +77,31 @@ export function russianDateToISO(dateStr: string | undefined): string | undefine
 
 export function pickBranchX(sphere: TimelineSphere, startAge: number, endAge: number, occupied: OccupiedBranchLane[]) {
   const slotOrder = BRANCH_SLOT_ORDER[sphere] || BRANCH_SLOT_ORDER.other;
+  const collidesAt = (x: number) =>
+    occupied.some((lane) => lane.x === x && !(lane.endAge + 1 < startAge || endAge + 1 < lane.startAge));
+
   for (const slotIndex of slotOrder) {
     const x = LINE_X_POSITION + BRANCH_X_OFFSETS[slotIndex];
-    const collides = occupied.some((lane) => lane.x === x && !(lane.endAge + 1 < startAge || endAge + 1 < lane.startAge));
-    if (!collides) {
+    if (!collidesAt(x)) {
       occupied.push({ x, startAge, endAge });
       return x;
     }
   }
 
-  const x = LINE_X_POSITION + BRANCH_X_OFFSETS[slotOrder[0] ?? 0];
-  occupied.push({ x, startAge, endAge });
-  return x;
+  // Д-B4: все слоты заняты пересекающимися окнами. Раньше здесь ветка
+  // парковалась на занятый slotOrder[0] — shared-x с пересекающимся окном
+  // делает принадлежность событий произвольной (класс Д5). Уходим дальше
+  // от центра с тем же шагом сетки, пока не найдём свободный x.
+  let offset = Math.max(...BRANCH_X_OFFSETS) + 400;
+  for (;;) {
+    for (const x of [LINE_X_POSITION - offset, LINE_X_POSITION + offset]) {
+      if (!collidesAt(x)) {
+        occupied.push({ x, startAge, endAge });
+        return x;
+      }
+    }
+    offset += 400;
+  }
 }
 
 export function normalizeWhitespace(value: string) {

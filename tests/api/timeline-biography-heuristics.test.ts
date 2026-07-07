@@ -46,3 +46,19 @@ describe('russianDateToISO', () => {
     expect(russianDateToISO(undefined)).toBeUndefined();
   });
 });
+
+// Д-B4: при исчерпании слотов сферы pickBranchX паркует ветку на занятый x
+// с пересекающимся окном — две ветки с одним x = произвольная принадлежность
+// событий (класс Д5 из аудита инвариантов).
+describe('pickBranchX', () => {
+  it('не переиспользует занятый x с пересекающимся окном при исчерпании слотов', async () => {
+    const { pickBranchX } = await import('../../server/api/timelineBiographyHeuristics.js');
+    const occupied: Array<{ x: number; startAge: number; endAge: number }> = [];
+    const xs: number[] = [];
+    // 21 ветка одной сферы, все окна пересекаются
+    for (let i = 0; i < 21; i++) {
+      xs.push(pickBranchX('career', 10, 90, occupied));
+    }
+    expect(new Set(xs).size).toBe(xs.length);
+  });
+});

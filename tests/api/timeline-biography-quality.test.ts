@@ -78,3 +78,46 @@ describe('buildTimelineDataFromBiographyPlan — структурные инва
     }
   });
 });
+
+// Д-B4 (интеграционно): spur-ветка (второе событие того же возраста) занимает
+// x, о котором pickBranchX не знает — следующая ветка той же сферы может
+// сесть на x спура с пересекающимся окном.
+describe('buildTimelineDataFromBiographyPlan — уникальность x веток', () => {
+  it('spur-ветка и обычная ветка не делят один x при пересекающихся окнах', () => {
+    const plan = makePlan({
+      branches: [
+        {
+          label: 'Карьера А',
+          sphere: 'career',
+          sourceMainEventIndex: 0,
+          events: [
+            { age: 30, label: 'Событие 1', notes: 'а', sphere: 'career', isDecision: false },
+            { age: 30, label: 'Событие 2 (spur)', notes: 'б', sphere: 'career', isDecision: false },
+          ],
+        },
+        {
+          label: 'Карьера Б',
+          sphere: 'career',
+          sourceMainEventIndex: 0,
+          events: [
+            { age: 25, label: 'Событие 3', notes: 'в', sphere: 'career', isDecision: false },
+            { age: 35, label: 'Событие 4', notes: 'г', sphere: 'career', isDecision: false },
+          ],
+        },
+        {
+          label: 'Карьера В',
+          sphere: 'career',
+          sourceMainEventIndex: 0,
+          events: [
+            { age: 26, label: 'Событие 5', notes: 'д', sphere: 'career', isDecision: false },
+            { age: 34, label: 'Событие 6', notes: 'е', sphere: 'career', isDecision: false },
+          ],
+        },
+      ],
+    });
+
+    const timeline = buildTimelineDataFromBiographyPlan(plan);
+    const xs = timeline.edges.map((e) => e.x);
+    expect(new Set(xs).size, `edge x: ${xs.join(', ')}`).toBe(xs.length);
+  });
+});
