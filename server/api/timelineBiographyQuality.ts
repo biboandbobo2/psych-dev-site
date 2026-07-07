@@ -103,8 +103,9 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
     for (const [age, eventsAtAge] of eventsByAge) {
       // First event goes on the main branch line
       const first = eventsAtAge[0];
+      const anchorNodeId = crypto.randomUUID();
       nodes.push({
-        id: crypto.randomUUID(),
+        id: anchorNodeId,
         age: first.age,
         x,
         parentX: x,
@@ -116,26 +117,34 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
       });
 
       // Additional events at the same age become sub-branches (spurs)
+      // growing out of the anchor node. Referential integrity (I13):
+      // spur edge originates from an existing node, spur event belongs
+      // to the spur edge (parentX === spur x).
       for (let i = 1; i < eventsAtAge.length; i++) {
         const event = eventsAtAge[i];
         const subOffset = SUB_BRANCH_OFFSETS[i - 1] ?? ((i % 2 === 0 ? -1 : 1) * Math.ceil(i / 2) * 400);
-        const subX = x + subOffset;
+        let subX = x + subOffset;
+        // x кодирует принадлежность (node.parentX === edge.x) — spur не должен
+        // припарковаться на занятую линию/ветку, иначе события «переезжают».
+        const takenXs = new Set<number>([LINE_X_POSITION, ...edges.map((e) => e.x)]);
+        while (takenXs.has(subX)) {
+          subX += 40;
+        }
 
-        // Add a mini edge for the sub-branch
         edges.push({
           id: crypto.randomUUID(),
           x: subX,
           startAge: age,
           endAge: age,
           color: SPHERE_META[sphere].color,
-          nodeId: crypto.randomUUID(), // standalone spur
+          nodeId: anchorNodeId,
         });
 
         nodes.push({
           id: crypto.randomUUID(),
           age: event.age,
           x: subX,
-          parentX: x,
+          parentX: subX,
           label: event.label,
           notes: event.notes,
           sphere: event.sphere ?? sphere,
