@@ -35,7 +35,11 @@ import {
   buildBiographyRedakturaPrompt,
   buildBiographyCompositionPrompt,
 } from '../../server/api/timelineBiographyPrompts.js';
-import { buildPlanFromCompositionResult, findDeathFact } from '../../server/api/timelineBiographyComposer.js';
+import {
+  buildPlanFromCompositionResult,
+  findDeathFact,
+  resolveCompositionLifespan,
+} from '../../server/api/timelineBiographyComposer.js';
 import { buildTimelineDataFromBiographyPlan } from '../../server/api/timelineBiographyQuality.js';
 import { buildBiographyEvaluationMetrics } from '../../server/api/timelineBiographyMetrics.js';
 import { cleanGenericEventLabels } from '../../server/api/timelineBiographyLint.js';
@@ -415,12 +419,9 @@ async function runFullBiographyPipeline(params: {
     logger.info('[biographyImport] annotation+redaktura done', { facts: finalFacts.length });
 
     // --- Step 6: Composition + render ---
-    const birthFact = finalFacts.find(f => f.eventType === 'birth' || f.category === 'birth');
-    const birthYear = birthFact?.year ?? finalFacts[0]?.year ?? 0;
-    const deathFact = finalFacts.find(f => f.category === 'death')
-      ?? finalFacts.find(f => f.themes?.includes('losses') && (f.details?.includes('скончал') || f.details?.includes('Умер') || f.details?.includes('умер')));
-    const allYears = finalFacts.map(f => f.year ?? 0).filter(y => y > 0 && y < 2100);
-    const deathYear = deathFact?.year ?? (allYears.length > 0 ? Math.max(...allYears) : null);
+    // Д-B2: та же логика lifespan, что и в buildPlanFromCompositionResult —
+    // наивный find(category === 'death') брал первым смерть родственника.
+    const { birthYear, deathYear } = resolveCompositionLifespan(finalFacts);
 
     const importanceToScore = (imp: string | undefined): number => {
       if (imp === 'high') return 4;

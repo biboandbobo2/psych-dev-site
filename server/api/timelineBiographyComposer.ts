@@ -145,6 +145,24 @@ export function findDeathFact(facts: BiographyFactCandidate[], birthYear: number
 }
 
 // ---------------------------------------------------------------------------
+// Lifespan resolution (единая логика для composition-промпта и рендера).
+// Д-B2: наивный facts.find(category === 'death') брал первый death-факт
+// (часто смерть родственника) — используем findDeathFact с возрастным окном.
+// ---------------------------------------------------------------------------
+
+export function resolveCompositionLifespan(facts: BiographyFactCandidate[]): {
+  birthYear: number;
+  deathYear: number | null;
+} {
+  const birthFact = findBirthFact(facts);
+  const birthYear = birthFact?.year ?? facts[0]?.year ?? 0;
+  const deathFact = findDeathFact(facts, birthYear);
+  const allYears = facts.map(f => f.year ?? 0).filter(y => y > 0 && y < 2100);
+  const deathYear = deathFact?.year ?? (allYears.length > 0 ? Math.max(...allYears) : null);
+  return { birthYear, deathYear };
+}
+
+// ---------------------------------------------------------------------------
 // Build birth details from fact
 // ---------------------------------------------------------------------------
 
@@ -234,10 +252,10 @@ export function buildPlanFromCompositionResult(params: {
   const { facts, composition, subjectName } = params;
 
   const birthFact = findBirthFact(facts);
-  const birthYear = birthFact?.year ?? facts[0]?.year ?? 0;
-  const deathFact = findDeathFact(facts, birthYear);
-  const allYears = facts.map(f => f.year ?? 0).filter(y => y > 0 && y < 2100);
-  const deathYear = deathFact?.year ?? (allYears.length > 0 ? Math.max(...allYears) : birthYear + 80);
+  const deathFact = findDeathFact(facts, birthFact?.year ?? facts[0]?.year ?? 0);
+  const resolved = resolveCompositionLifespan(facts);
+  const birthYear = resolved.birthYear;
+  const deathYear = resolved.deathYear ?? birthYear + 80;
   const lifespan = deathYear - birthYear;
   const currentAge = Math.max(0, Math.min(120, lifespan));
   const legacyThreshold = deathYear + 15;

@@ -296,3 +296,34 @@ describe('findDeathFact (BPT-5a regression)', () => {
     expect(findDeathFact(facts, undefined)?.year).toBe(1900);
   });
 });
+
+// Д-B2: composition-промпт (CF + Runtime) вычислял deathYear наивным
+// facts.find(category === 'death') — первым в массиве часто идёт смерть
+// родственника (отца/матери), и промпт получал неверный lifespan, хотя
+// рендер-путь (buildPlanFromCompositionResult) уже использовал findDeathFact.
+describe('resolveCompositionLifespan', () => {
+  it('не принимает смерть отца за смерть subject’а', async () => {
+    const { resolveCompositionLifespan } = await import('../../server/api/timelineBiographyComposer.js');
+    const facts = [
+      makeFact({ year: 1849, details: 'Родился в Рязани', category: 'birth' }),
+      // Смерть отца идёт ПЕРВОЙ среди death-фактов (subject'у 21 год... но <15+? нет: 1870-1849=21)
+      makeFact({ year: 1856, details: 'Умер отец', category: 'death' }),
+      makeFact({ year: 1904, details: 'Нобелевская премия', category: 'award', importance: 'high' }),
+      makeFact({ year: 1936, details: 'Скончался в Ленинграде', category: 'death', importance: 'high' }),
+    ];
+
+    const { birthYear, deathYear } = resolveCompositionLifespan(facts);
+    expect(birthYear).toBe(1849);
+    expect(deathYear).toBe(1936);
+  });
+
+  it('без death-фактов берёт максимальный год', async () => {
+    const { resolveCompositionLifespan } = await import('../../server/api/timelineBiographyComposer.js');
+    const facts = [
+      makeFact({ year: 1900, details: 'Родился', category: 'birth' }),
+      makeFact({ year: 1950, details: 'Книга', category: 'publication' }),
+    ];
+    const { deathYear } = resolveCompositionLifespan(facts);
+    expect(deathYear).toBe(1950);
+  });
+});

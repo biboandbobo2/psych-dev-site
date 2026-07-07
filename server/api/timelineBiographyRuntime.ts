@@ -9,6 +9,7 @@ import {
   buildSimpleBiographyFactExtractionPrompt,
   buildPlanFromCompositionResult,
   fetchWikipediaPlainExtract,
+  resolveCompositionLifespan,
   type BiographyEventTheme,
   type BiographyExtractionMode,
   type BiographyFactCandidate,
@@ -396,16 +397,9 @@ async function composeBiographyFactsIntoTimeline(params: {
   subjectName: string;
   facts: BiographyFactCandidate[];
 }): Promise<BiographyCompositionResult> {
-  const birthFact = params.facts.find(f => f.eventType === 'birth' || f.category === 'birth');
-  const birthYear = birthFact?.year ?? params.facts[0]?.year ?? 0;
-
-  // Find death: prefer category/theme signals, fall back to keyword search
-  const deathFact = params.facts.find(f => f.category === 'death')
-    ?? params.facts.find(f => f.themes?.includes('losses') && (
-      f.details?.includes('скончал') || f.details?.includes('Умер') || f.details?.includes('умер')
-    ));
-  const allYears = params.facts.map(f => f.year ?? 0).filter(y => y > 0 && y < 2100);
-  const deathYear = deathFact?.year ?? (allYears.length > 0 ? Math.max(...allYears) : null);
+  // Д-B2: та же логика lifespan, что и в buildPlanFromCompositionResult —
+  // наивный find(category === 'death') брал первым смерть родственника.
+  const { birthYear, deathYear } = resolveCompositionLifespan(params.facts);
 
   // Convert importance string to numeric score for composition prompt
   const importanceToScore = (imp: string | undefined): number => {
