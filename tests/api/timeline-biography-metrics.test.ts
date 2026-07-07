@@ -41,3 +41,44 @@ describe('timelineBiographyMetrics', () => {
     expect(metrics.plan.birthAnchoredBranches).toBe(0);
   });
 });
+
+// Д-B5: JSON-парсер pipeline (parseSimpleJsonFacts) всегда даёт age=undefined,
+// поэтому earlyLifeFacts считался по мёртвому полю и был всегда 0. Возраст
+// должен выводиться из year относительно birth-факта.
+describe('buildBiographyEvaluationMetrics — факты без age (JSON-парсер)', () => {
+  it('earlyLifeFacts выводится из year - birthYear', () => {
+    const makeJsonFact = (year: number, category = 'other') => ({
+      year,
+      age: undefined,
+      sphere: 'other' as const,
+      category,
+      eventType: category as never,
+      labelHint: 'x',
+      details: 'x',
+      evidence: 'x',
+      importance: 'medium' as const,
+      confidence: 'medium' as const,
+      source: 'model' as const,
+    });
+    const facts = [
+      makeJsonFact(1900, 'birth'),
+      makeJsonFact(1905),
+      makeJsonFact(1917),
+      makeJsonFact(1930),
+    ];
+    const metrics = buildBiographyEvaluationMetrics({
+      facts,
+      plan: {
+        subjectName: 'Тест',
+        canvasName: 'Тест',
+        currentAge: 70,
+        selectedPeriodization: 'erikson',
+        birthDetails: {},
+        mainEvents: [],
+        branches: [],
+      },
+    });
+    // рождение (0), 1905 (5) и 1917 (17) — ранняя жизнь; 1930 (30) — нет
+    expect(metrics.facts.earlyLifeFacts).toBe(3);
+  });
+});
