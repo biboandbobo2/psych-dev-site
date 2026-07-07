@@ -532,3 +532,43 @@ export function mergeFactCandidates(params: {
 
   return merged;
 }
+
+// ---------------------------------------------------------------------------
+// Д-B6: общие решения pipeline, ранее жившие только в CF
+// (functions/src/biographyImport.ts) — Runtime automation-путь их не имел
+// и вёл себя иначе, чем прод.
+// ---------------------------------------------------------------------------
+
+/** Грейс-период после смерти: факты позже отбрасываются до composition. */
+export const POST_DEATH_GRACE_YEARS = 10;
+
+/** Убирает факты позже deathYear + грейс (посмертные памятники, издания и т.п.).
+ *  Недатированные факты сохраняются. */
+export function filterFactsBeyondDeath(
+  facts: BiographyFactCandidate[],
+  deathYear: number | null | undefined
+): BiographyFactCandidate[] {
+  if (deathYear == null) return facts;
+  const cutoffYear = deathYear + POST_DEATH_GRACE_YEARS;
+  return facts.filter((fact) => fact.year == null || fact.year <= cutoffYear);
+}
+
+/** Режим gap-filling по плотности датированных фактов на год жизни:
+ *  density < 3 → 'full' (искать пропущенные факты), иначе 'dating-only'.
+ *  birthYear/deathYear защищают lifespan от фактов о предках/наследии. */
+export function resolveGapFillingMode(
+  facts: BiographyFactCandidate[],
+  birthYear: number | null | undefined,
+  deathYear: number | null | undefined
+): { factDensity: number; mode: 'full' | 'dating-only'; lifespanYears: number } {
+  const factYears = facts.filter((fact) => fact.year != null).map((fact) => fact.year!);
+  const lifespanStart = birthYear ?? (factYears.length > 0 ? Math.min(...factYears) : 0);
+  const lifespanEnd = deathYear ?? (factYears.length > 0 ? Math.max(...factYears) : 0);
+  const lifespanYears = Math.max(1, lifespanEnd - lifespanStart);
+  const factDensity = factYears.length / lifespanYears;
+  return {
+    factDensity,
+    lifespanYears,
+    mode: factDensity < 3 ? 'full' : 'dating-only',
+  };
+}

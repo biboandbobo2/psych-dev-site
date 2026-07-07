@@ -9,15 +9,47 @@ import {
   buildSimpleBiographyFactExtractionPrompt,
   buildPlanFromCompositionResult,
   fetchWikipediaPlainExtract,
+  filterFactsBeyondDeath,
+  findDeathFact,
   resolveCompositionLifespan,
+  resolveGapFillingMode,
   type BiographyEventTheme,
   type BiographyExtractionMode,
   type BiographyFactCandidate,
   type BiographyImportRequest,
   type BiographyTimelineData,
+  type WikipediaPageExtract,
 } from './timelineBiography.js';
 import { buildTimelineDataFromBiographyPlan } from './timelineBiographyQuality.js';
 import { cleanGenericEventLabels } from './timelineBiographyLint.js';
+
+// ---------------------------------------------------------------------------
+// Gemini client injection: бенчмарки и тесты подменяют фабрику клиента
+// (кэширование ответов / фейковый клиент), прод-путь использует
+// getLectureGenAiClient как раньше.
+// ---------------------------------------------------------------------------
+
+export type BiographyGenAiClient = {
+  models: {
+    generateContent(request: {
+      model: string;
+      contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+      config?: Record<string, unknown>;
+    }): Promise<unknown>;
+  };
+};
+
+let genAiClientFactoryOverride: ((apiKey: string) => BiographyGenAiClient) | null = null;
+
+export function setBiographyGenAiClientFactory(
+  factory: ((apiKey: string) => BiographyGenAiClient) | null
+) {
+  genAiClientFactoryOverride = factory;
+}
+
+function resolveGenAiClient(apiKey: string): BiographyGenAiClient {
+  return genAiClientFactoryOverride ? genAiClientFactoryOverride(apiKey) : getLectureGenAiClient(apiKey);
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -250,7 +282,7 @@ async function annotateBiographyFacts(params: {
   subjectName: string;
   facts: BiographyFactCandidate[];
 }): Promise<{ annotatedFacts: BiographyFactCandidate[]; annotations: Map<number, AnnotationEntry> }> {
-  const client = getLectureGenAiClient(params.apiKey);
+  const client = resolveGenAiClient(params.apiKey);
 
   const indexedFacts = params.facts.map((fact, index) => ({
     index,
@@ -336,7 +368,7 @@ async function redaktBiographyFacts(params: {
   facts: BiographyFactCandidate[];
   annotations: Map<number, AnnotationEntry>;
 }): Promise<BiographyFactCandidate[]> {
-  const client = getLectureGenAiClient(params.apiKey);
+  const client = resolveGenAiClient(params.apiKey);
 
   const indexedFacts = params.facts.map((fact, index) => ({
     index,
@@ -424,7 +456,7 @@ async function composeBiographyFactsIntoTimeline(params: {
     facts: indexedFacts,
   });
 
-  const client = getLectureGenAiClient(params.apiKey);
+  const client = resolveGenAiClient(params.apiKey);
 
   const result = await client.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -529,7 +561,7 @@ async function generateSimpleBiographyFacts(params: {
     factLimit: params.factLimit,
   });
 
-  const client = getLectureGenAiClient(params.apiKey);
+  const client = resolveGenAiClient(params.apiKey);
   const flashOnlyModels = ['gemini-2.5-flash'] as const;
   let lastError: unknown = null;
 
@@ -658,45 +690,45 @@ async function runBiographyTwoPassExtraction(params: {
   sourceUrl: string;
   apiKey: string;
   onProgress?: BiographyProgressCallback;
+  /** Pre-fetched страница (fixtures в бенчмарках/тестах) — сеть не трогается. */
+  page?: WikipediaPageExtract;
 }): Promise<BiographyExtractorSuccessPayload> {
   const progress = params.onProgress ?? (() => {});
   const TOTAL_STEPS = 6;
 
   progress(1, TOTAL_STEPS, 'Загрузка статьи из Wikipedia');
-  const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
+  const wikiPage = params.page ?? (await fetchWikipediaPlainExtract(params.sourceUrl));
   const fullExtract = wikiPage.biographyExtract || wikiPage.extract;
   const len = fullExtract.length;
 
-  // Adaptive slice count: target ≤45K chars per slice
-  const sliceCount = len <= 30000 ? 1 : len <= 70000 ? 2 : len <= 130000 ? 3 : 4;
-  const slices = splitTextIntoSlices(fullExtract, sliceCount);
+  // Д-B6: те же слайсы, что и в прод-CF (28K + overlap + lead-контекст),
+  // вместо собственного слайсера.
+  const slices = wikiPage.factExtractSlices?.length ? wikiPage.factExtractSlices : [fullExtract];
 
   const subjectName = wikiPage.title;
   progress(1, TOTAL_STEPS, 'Загрузка статьи из Wikipedia', `${subjectName} — ${Math.round(len / 1000)}K символов`);
 
-  progress(2, TOTAL_STEPS, 'Извлечение биографических фактов', `${sliceCount} ${sliceCount === 1 ? 'часть' : sliceCount <= 4 ? 'части' : 'частей'}`);
-  const settled = await Promise.allSettled(
-    slices.map((slice, index) => {
-      const focusHint = slices.length > 1
-        ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
-        : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
+  progress(2, TOTAL_STEPS, 'Извлечение биографических фактов', `${slices.length} ${slices.length === 1 ? 'часть' : 'части'}`);
 
-      return generateSimpleBiographyFacts({
-        apiKey: params.apiKey,
-        articleTitle: subjectName,
-        extract: slice,
-        focusHint,
-      });
-    })
-  );
-
+  // Последовательно, как CF — параллельные вызовы ловят 429 на free tier
   let allFacts: BiographyFactCandidate[] = [];
   let factsModel = 'gemini-2.5-flash';
+  for (let index = 0; index < slices.length; index++) {
+    const focusHint = slices.length > 1
+      ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
+      : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
 
-  for (const result of settled) {
-    if (result.status === 'fulfilled') {
-      allFacts.push(...result.value.facts);
-      factsModel = result.value.model;
+    try {
+      const result = await generateSimpleBiographyFacts({
+        apiKey: params.apiKey,
+        articleTitle: subjectName,
+        extract: slices[index],
+        focusHint,
+      });
+      allFacts.push(...result.facts);
+      factsModel = result.model;
+    } catch {
+      // Падение отдельного слайса терпимо (раньше — Promise.allSettled)
     }
   }
 
@@ -705,6 +737,16 @@ async function runBiographyTwoPassExtraction(params: {
   }
 
   allFacts = deduplicateFacts(allFacts);
+
+  // Д-B6: post-death фильтр, как в CF — посмертные факты (памятники,
+  // издания) не должны доезжать до composition.
+  const extractedBirthFact = allFacts.find(f => f.category === 'birth' || f.eventType === 'birth');
+  const extractedBirthYear = extractedBirthFact?.year ?? null;
+  const extractedDeathYear = findDeathFact(allFacts, extractedBirthYear ?? undefined)?.year ?? null;
+  allFacts = filterFactsBeyondDeath(allFacts, extractedDeathYear);
+
+  const { mode: gapFillingMode } = resolveGapFillingMode(allFacts, extractedBirthYear, extractedDeathYear);
+
   progress(2, TOTAL_STEPS, 'Извлечение биографических фактов', `${allFacts.length} фактов извлечено`);
 
   progress(3, TOTAL_STEPS, 'Добивочный проход (gap-filling)');
@@ -713,44 +755,38 @@ async function runBiographyTwoPassExtraction(params: {
     const datedFacts = allFacts.filter(f => f.year != null);
     const undatedFacts = allFacts.filter(f => f.year == null);
 
-    const existingFactTexts = datedFacts.map(f => `[${f.year}] ${f.details}`);
-    const undatedFactTexts = undatedFacts.map(f => f.details);
+    if (gapFillingMode === 'dating-only' && undatedFacts.length === 0) {
+      // Плотность фактов высокая и датировать нечего — пропускаем, как CF
+    } else {
+      const gapPrompt = buildBiographyGapFillingPrompt({
+        articleTitle: subjectName,
+        extract: fullExtract,
+        existingFacts: datedFacts.map(f => `[${f.year}] ${f.details}`),
+        undatedFacts: undatedFacts.length > 0 ? undatedFacts.map(f => f.details) : undefined,
+        mode: gapFillingMode,
+        deathYear: extractedDeathYear,
+      });
+      const gapClient = resolveGenAiClient(params.apiKey);
+      const gapResult = await gapClient.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
+        config: {
+          temperature: 0.1,
+          maxOutputTokens: 65536,
+          responseMimeType: 'text/plain',
+        },
+      });
 
-    const gapClient = getLectureGenAiClient(params.apiKey);
-    const gapSlices = len > 100000 ? slices : [fullExtract];
-
-    const gapSettled = await Promise.allSettled(
-      gapSlices.map(sliceText => {
-        const gapPrompt = buildBiographyGapFillingPrompt({
-          articleTitle: subjectName,
-          extract: sliceText,
-          existingFacts: existingFactTexts,
-          undatedFacts: undatedFactTexts.length > 0 ? undatedFactTexts : undefined,
-        });
-        return gapClient.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
-          config: {
-            temperature: 0.1,
-            maxOutputTokens: 65536,
-            responseMimeType: 'text/plain',
-          },
-        });
-      })
-    );
-
-    // Start from dated facts only; gap-filling returns both new facts and re-dated old ones
-    allFacts = [...datedFacts];
-    for (const gapResult of gapSettled) {
-      if (gapResult.status === 'fulfilled') {
-        const gapRawText = collectGeminiResultText(gapResult.value);
-        const gapFacts = parseSimpleJsonFacts(gapRawText);
-        if (gapFacts.length > 0) {
-          allFacts.push(...gapFacts);
-        }
+      // Start from dated facts only; gap-filling returns both new facts and re-dated old ones
+      allFacts = [...datedFacts];
+      const gapFacts = parseSimpleJsonFacts(collectGeminiResultText(gapResult));
+      if (gapFacts.length > 0) {
+        allFacts.push(...gapFacts);
       }
+      allFacts = deduplicateFacts(allFacts);
+      // Д-B6: gap-filling может добавить посмертный мусор — фильтр повторно
+      allFacts = filterFactsBeyondDeath(allFacts, extractedDeathYear);
     }
-    allFacts = deduplicateFacts(allFacts);
   } catch {
     // Gap-filling is best-effort
   }
@@ -951,7 +987,7 @@ export async function runBiographyStep2(params: {
     const undatedFacts = allFacts.filter(f => f.year == null);
     const existingFactTexts = datedFacts.map(f => `[${f.year}] ${f.details}`);
     const undatedFactTexts = undatedFacts.map(f => f.details);
-    const gapClient = getLectureGenAiClient(params.apiKey);
+    const gapClient = resolveGenAiClient(params.apiKey);
     const sliceCount = len <= 30000 ? 1 : len <= 70000 ? 2 : len <= 130000 ? 3 : 4;
     const slices = splitTextIntoSlices(params.extract, sliceCount);
     const gapSlices = len > 100000 ? slices : [params.extract];
@@ -1082,6 +1118,8 @@ export async function runBiographyImport(params: {
   sourceUrl: string;
   apiKey: string;
   onProgress?: BiographyProgressCallback;
+  /** Pre-fetched страница (fixtures в бенчмарках/тестах) — сеть не трогается. */
+  page?: WikipediaPageExtract;
 }): Promise<BiographyExtractorSuccessPayload> {
   return runBiographyTwoPassExtraction(params);
 }
@@ -1090,6 +1128,7 @@ export async function runBiographyFactExtraction(params: {
   sourceUrl: string;
   apiKey: string;
   extractionMode?: BiographyExtractionMode;
+  page?: WikipediaPageExtract;
 }): Promise<BiographyExtractorSuccessPayload> {
   return runBiographyTwoPassExtraction(params);
 }

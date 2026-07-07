@@ -40,6 +40,11 @@ import {
   findDeathFact,
   resolveCompositionLifespan,
 } from '../../server/api/timelineBiographyComposer.js';
+import {
+  POST_DEATH_GRACE_YEARS,
+  filterFactsBeyondDeath,
+  resolveGapFillingMode,
+} from '../../server/api/timelineBiographyFacts.js';
 import { buildTimelineDataFromBiographyPlan } from '../../server/api/timelineBiographyQuality.js';
 import { buildBiographyEvaluationMetrics } from '../../server/api/timelineBiographyMetrics.js';
 import { cleanGenericEventLabels } from '../../server/api/timelineBiographyLint.js';
@@ -260,27 +265,23 @@ async function runFullBiographyPipeline(params: {
     const extractedBirthYear = extractedBirthFact?.year ?? null;
     const extractedDeathFact = findDeathFact(allFacts, extractedBirthYear ?? undefined);
     const extractedDeathYear = extractedDeathFact?.year;
-    if (extractedDeathYear != null) {
-      const cutoffYear = extractedDeathYear + 10;
+    {
       const beforeFilter = allFacts.length;
-      allFacts = allFacts.filter(f => f.year == null || f.year <= cutoffYear);
+      allFacts = filterFactsBeyondDeath(allFacts, extractedDeathYear ?? null);
       const filtered = beforeFilter - allFacts.length;
       if (filtered > 0) {
-        logger.info(`[biographyImport] post-death filter: removed ${filtered} facts after ${cutoffYear}`);
+        logger.info(`[biographyImport] post-death filter: removed ${filtered} facts after ${(extractedDeathYear ?? 0) + POST_DEATH_GRACE_YEARS}`);
       }
     }
 
     // --- Density calculation for gap-filling control ---
-    const datedForDensity = allFacts.filter(f => f.year != null);
-    const factYears = datedForDensity.map(f => f.year!);
-    // Use birth/death years for lifespan, not min/max of all facts (ancestors skew min)
-    const lifespanStart = extractedBirthYear ?? (factYears.length > 0 ? Math.min(...factYears) : 0);
-    const lifespanEnd = extractedDeathYear ?? (factYears.length > 0 ? Math.max(...factYears) : 0);
-    const lifespanYears = Math.max(1, lifespanEnd - lifespanStart);
-    const factDensity = datedForDensity.length / lifespanYears;
     // density < 3: full gap-filling (short articles, few facts)
     // density >= 3: dating only (enough facts, skip searching for missed ones)
-    const gapFillingMode: 'full' | 'dating-only' = factDensity < 3 ? 'full' : 'dating-only';
+    const { factDensity, lifespanYears, mode: gapFillingMode } = resolveGapFillingMode(
+      allFacts,
+      extractedBirthYear,
+      extractedDeathYear ?? null,
+    );
     logger.info('[biographyImport] density analysis', {
       facts: allFacts.length, lifespanYears, density: factDensity.toFixed(2), gapFillingMode,
     });
@@ -334,13 +335,12 @@ async function runFullBiographyPipeline(params: {
     }
 
     // --- Post-gap-filling: re-apply death year filter (gap-filling may add posthumous junk) ---
-    if (extractedDeathYear != null) {
-      const cutoffYear = extractedDeathYear + 10;
+    {
       const beforeGapFilter = allFacts.length;
-      allFacts = allFacts.filter(f => f.year == null || f.year <= cutoffYear);
+      allFacts = filterFactsBeyondDeath(allFacts, extractedDeathYear ?? null);
       const gapFiltered = beforeGapFilter - allFacts.length;
       if (gapFiltered > 0) {
-        logger.info(`[biographyImport] post-gap-filling death filter: removed ${gapFiltered} facts after ${cutoffYear}`);
+        logger.info(`[biographyImport] post-gap-filling death filter: removed ${gapFiltered} facts after ${(extractedDeathYear ?? 0) + POST_DEATH_GRACE_YEARS}`);
       }
     }
 

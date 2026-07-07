@@ -1,0 +1,105 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import type { WikipediaPageExtract } from '../../server/api/timelineBiographyTypes.js';
+
+// Д-B6: automation-путь (Runtime) разошёлся с прод-CF: не фильтровал
+// посмертные факты, не передавал mode/deathYear в gap-filling и резал
+// статью собственным слайсером вместо готовых factExtractSlices.
+// Тест прогоняет runBiographyImport с фейковым Gemini-клиентом и
+// проверяет выравнивание с CF-поведением.
+
+type GenerateRequest = {
+  model: string;
+  contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+  config?: Record<string, unknown>;
+};
+
+function jsonFacts(facts: Array<{ year: number | null; text: string; category?: string; sphere?: string }>) {
+  return JSON.stringify(facts.map((f) => ({ category: 'other', sphere: 'other', ...f })));
+}
+
+function buildFakeClient(calls: GenerateRequest[]) {
+  return {
+    models: {
+      generateContent: async (request: GenerateRequest) => {
+        calls.push(request);
+        const prompt = request.contents[0]?.parts[0]?.text ?? '';
+
+        if (prompt.startsWith('Извлеки ВСЕ биографические факты')) {
+          return {
+            text: jsonFacts([
+              { year: 1849, text: 'Родился в Рязани в семье священника', category: 'birth', sphere: 'family' },
+              { year: 1870, text: 'Поступил в Петербургский университет', category: 'education', sphere: 'education' },
+              { year: 1904, text: 'Получил Нобелевскую премию по физиологии', category: 'award', sphere: 'career' },
+              { year: 1936, text: 'Скончался в Ленинграде от пневмонии', category: 'death', sphere: 'health' },
+              { year: 1960, text: 'Открыт памятник учёному в Рязани', category: 'other', sphere: 'other' },
+            ]),
+          };
+        }
+        if (prompt.startsWith('Ты — второй проход')) {
+          return { text: jsonFacts([{ year: 1890, text: 'Возглавил отдел физиологии в ИЭМ', category: 'career', sphere: 'career' }]) };
+        }
+        if (prompt.startsWith('Ты — разметчик')) {
+          return { text: '0\tfamily_household\t\t\t\n1\teducation\t\t\t\n2\tservice_career\t\t\t\n3\tlosses\t\t\t\n4\tservice_career\t\t\t' };
+        }
+        if (prompt.startsWith('Ты — редактор')) {
+          return { text: '0\t5\tРождение\n1\t4\tУниверситет\n2\t5\tНобелевская премия\n3\t5\tСмерть\n4\t3\tОтдел физиологии' };
+        }
+        if (prompt.startsWith('Ты — нарратолог')) {
+          return { text: JSON.stringify({ mainLine: [0, 1, 2, 3], branches: [{ name: 'Наука', sphere: 'career', facts: [4] }] }) };
+        }
+        throw new Error(`Неожиданный промпт: ${prompt.slice(0, 60)}`);
+      },
+    },
+  };
+}
+
+function makePage(): WikipediaPageExtract {
+  const extract = 'Иван Петрович Павлов (1849–1936) — русский физиолог.';
+  return {
+    title: 'Павлов, Иван Петрович',
+    extract,
+    biographyExtract: extract,
+    promptExtract: extract,
+    factExtractSlices: ['Фрагмент биографии 1', 'Фрагмент биографии 2'],
+    canonicalUrl: 'https://ru.wikipedia.org/wiki/Павлов,_Иван_Петрович',
+  };
+}
+
+describe('runBiographyImport — выравнивание с CF-pipeline (Д-B6)', () => {
+  afterEach(async () => {
+    const { setBiographyGenAiClientFactory } = await import('../../server/api/timelineBiographyRuntime.js');
+    setBiographyGenAiClientFactory(null);
+  });
+
+  it('фильтрует посмертные факты, передаёт deathYear в gap-filling и использует factExtractSlices', async () => {
+    const { runBiographyImport, setBiographyGenAiClientFactory } = await import(
+      '../../server/api/timelineBiographyRuntime.js'
+    );
+    const calls: GenerateRequest[] = [];
+    setBiographyGenAiClientFactory(() => buildFakeClient(calls));
+
+    const payload = await runBiographyImport({
+      sourceUrl: 'https://ru.wikipedia.org/wiki/Павлов,_Иван_Петрович',
+      apiKey: 'fake-key',
+      page: makePage(),
+    });
+
+    // Слайсинг: по одному extraction-вызову на каждый factExtractSlices
+    const extractionCalls = calls.filter((c) =>
+      (c.contents[0]?.parts[0]?.text ?? '').startsWith('Извлеки ВСЕ биографические факты')
+    );
+    expect(extractionCalls.length).toBe(2);
+
+    // Post-death фильтр: факт 1960 года (память) не должен пройти
+    expect(payload.facts.every((f) => f.year == null || f.year <= 1946)).toBe(true);
+
+    // Gap-filling знает год смерти
+    const gapCalls = calls.filter((c) => (c.contents[0]?.parts[0]?.text ?? '').startsWith('Ты — второй проход'));
+    expect(gapCalls.length).toBe(1);
+    expect(gapCalls[0].contents[0].parts[0].text).toContain('Персона умерла в 1936');
+
+    // Итоговый timeline построен
+    expect(payload.timeline).toBeDefined();
+    expect(payload.timeline!.nodes.length).toBeGreaterThan(0);
+  });
+});
