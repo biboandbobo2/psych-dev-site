@@ -40,28 +40,28 @@ export const biographyBenchmarkSet: BiographyBenchmarkEntry[] = [
     subject: 'Лев Выготский',
     sourceUrl: 'https://ru.wikipedia.org/wiki/Выготский,_Лев_Семёнович',
     set: 'worker',
-    categories: ['ru', 'psychologist'],
+    categories: ['ru', 'psychologist', 'long-article'],
   },
   {
     id: 'pavlov',
     subject: 'Иван Павлов',
     sourceUrl: 'https://ru.wikipedia.org/wiki/Павлов,_Иван_Петрович',
     set: 'worker',
-    categories: ['ru', 'scientist', 'long-article'],
+    categories: ['ru', 'scientist'],
   },
   {
     id: 'bekhterev',
     subject: 'Владимир Бехтерев',
     sourceUrl: 'https://ru.wikipedia.org/wiki/Бехтерев,_Владимир_Михайлович',
     set: 'worker',
-    categories: ['ru', 'psychologist', 'multi-profession', 'contradictory'],
+    categories: ['ru', 'psychologist', 'multi-profession', 'contradictory', 'short-article'],
   },
   {
     id: 'james',
     subject: 'William James',
     sourceUrl: 'https://en.wikipedia.org/wiki/William_James',
     set: 'worker',
-    categories: ['en', 'psychologist', 'multi-profession'],
+    categories: ['en', 'psychologist', 'multi-profession', 'long-article'],
   },
   {
     id: 'rogers',
@@ -82,7 +82,7 @@ export const biographyBenchmarkSet: BiographyBenchmarkEntry[] = [
     subject: 'Erik Erikson',
     sourceUrl: 'https://en.wikipedia.org/wiki/Erik_Erikson',
     set: 'worker',
-    categories: ['en', 'psychologist', 'migration', 'contradictory'],
+    categories: ['en', 'psychologist', 'migration', 'contradictory', 'short-article'],
   },
   {
     id: 'lomonosov',
@@ -103,14 +103,14 @@ export const biographyBenchmarkSet: BiographyBenchmarkEntry[] = [
     subject: 'Антон Чехов',
     sourceUrl: 'https://ru.wikipedia.org/wiki/Чехов,_Антон_Павлович',
     set: 'worker',
-    categories: ['ru', 'parallel-projects', 'long-article'],
+    categories: ['ru', 'parallel-projects'],
   },
   {
     id: 'schweitzer',
     subject: 'Альберт Швейцер',
     sourceUrl: 'https://ru.wikipedia.org/wiki/Швейцер,_Альберт',
     set: 'worker',
-    categories: ['ru', 'multi-profession', 'migration'],
+    categories: ['ru', 'multi-profession', 'migration', 'short-article'],
   },
   {
     id: 'lazursky',
@@ -131,14 +131,14 @@ export const biographyBenchmarkSet: BiographyBenchmarkEntry[] = [
     subject: 'Виктор Франкл',
     sourceUrl: 'https://ru.wikipedia.org/wiki/Франкл,_Виктор',
     set: 'worker',
-    categories: ['ru', 'psychologist', 'migration'],
+    categories: ['ru', 'psychologist', 'migration', 'short-article'],
   },
   {
     id: 'kovalevskaya',
     subject: 'Софья Ковалевская',
     sourceUrl: 'https://ru.wikipedia.org/wiki/Ковалевская,_Софья_Васильевна',
     set: 'worker',
-    categories: ['ru', 'scientist', 'migration', 'parallel-projects', 'incomplete-dates'],
+    categories: ['ru', 'scientist', 'migration', 'parallel-projects', 'incomplete-dates', 'short-article'],
   },
 
   // ===== holdout (5) — не подгонять под них промпты/код =====
@@ -147,7 +147,7 @@ export const biographyBenchmarkSet: BiographyBenchmarkEntry[] = [
     subject: 'Александр Лурия',
     sourceUrl: 'https://ru.wikipedia.org/wiki/Лурия,_Александр_Романович',
     set: 'holdout',
-    categories: ['ru', 'psychologist'],
+    categories: ['ru', 'psychologist', 'short-article'],
   },
   {
     id: 'skinner',
@@ -161,7 +161,7 @@ export const biographyBenchmarkSet: BiographyBenchmarkEntry[] = [
     subject: 'Мария Склодовская-Кюри',
     sourceUrl: 'https://ru.wikipedia.org/wiki/Склодовская-Кюри,_Мария',
     set: 'holdout',
-    categories: ['ru', 'scientist', 'migration', 'long-article'],
+    categories: ['ru', 'scientist', 'migration'],
   },
   {
     id: 'blonsky',

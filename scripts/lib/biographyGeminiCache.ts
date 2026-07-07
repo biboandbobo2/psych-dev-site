@@ -176,6 +176,9 @@ export function createCachingBiographyClient(params: {
 
         stats.misses += 1;
         if (!params.live) {
+          // Runtime глотает падения отдельных extraction-слайсов — пишем
+          // причину в stderr, иначе miss маскируется под «0 facts».
+          process.stderr.write(`  [cache-miss] ${params.articleId}/${step} — live-вызовы выключены\n`);
           throw new BiographyGeminiCacheMissError(params.articleId, step);
         }
 

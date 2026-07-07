@@ -306,7 +306,8 @@ describe('resolveCompositionLifespan', () => {
     const { resolveCompositionLifespan } = await import('../../server/api/timelineBiographyComposer.js');
     const facts = [
       makeFact({ year: 1849, details: 'Родился в Рязани', category: 'birth' }),
-      // Смерть отца идёт ПЕРВОЙ среди death-фактов (subject'у 21 год... но <15+? нет: 1870-1849=21)
+      // Смерть отца идёт ПЕРВОЙ среди death-фактов; subject'у 7 лет (1856−1849) —
+      // findDeathFact отсекает её возрастным окном 15–120
       makeFact({ year: 1856, details: 'Умер отец', category: 'death' }),
       makeFact({ year: 1904, details: 'Нобелевская премия', category: 'award', importance: 'high' }),
       makeFact({ year: 1936, details: 'Скончался в Ленинграде', category: 'death', importance: 'high' }),
