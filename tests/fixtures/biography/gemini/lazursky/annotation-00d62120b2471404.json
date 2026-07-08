@@ -1,0 +1,17 @@
+{
+  "step": "annotation",
+  "model": "gemini-2.5-flash",
+  "variant": "a",
+  "promptSha256": "00d62120b2471404b41a99771ba4d38cc559d7e2a7fd4d6bcd0c5be281f638de",
+  "promptChars": 6279,
+  "promptPreview": "Ты — разметчик биографических фактов о **Лазурский, Александр Фёдорович**.\n\nЗАДАЧА\nДля каждого факта определи:\n1. **themes** — одну или две темы из списка ниже (основная первой)\n2. **people** — имена ",
+  "responseText": "0\tfamily_household\t\t\n1\tfamily_household\tВладимир\t\n2\tfamily_household,service_career\tВладимир\t\n3\teducation\t\t\n4\teducation\t\t\n5\tservice_career\tБехтерев\t\n6\teducation\t\t\n7\tservice_career,education\tБехтерев\t\n8\tservice_career\t\t\n9\tservice_career\tБехтерев\t\n10\tupbringing_mentors\tБехтерев\t\n11\tservice_career\t\t\n12\tcreative_work\t\t\n13\tcreative_work\t\t\n14\teducation\t\t\n15\tcreative_work\t\t\n16\teducation\tДобротворский\t\n17\tcreative_work,legacy\tПавлов\t\n18\tcreative_work,legacy\tБехтерев\t\n19\ttravel_moves_exile\t\t\n20\ttravel_moves_exile,service_career\tКрепелин\t\n21\ttravel_moves_exile\t\t\n22\tservice_career\t\t\n23\tservice_career\t\t\n24\tfriends_network,service_career\tНечаев\t\n25\tservice_career,creative_work\tНечаев\t\n26\tcreative_work\tНечаев\t\n27\tcreative_work\t\t\n28\tcreative_work\t\t\n29\tcreative_work\t\t\n30\tcreative_work\t\t\n31\tcreative_work\t\t\n32\tservice_career\t\t\n33\tservice_career\t\t\n34\tcreative_work\t\t\n35\tcreative_work\tНечаев\t\n36\tservice_career,conflict_duels\t\t\n37\tservice_career\t\t\n38\tcreative_work\t\t\n39\tcreative_work\t\t\n40\tcreative_work\t\t\n41\tlegacy,creative_work\tБасов,Мясищев\t\n42\tlegacy,creative_work\tВыготский\t\n43\tfamily_household\t4\t12\n44\teducation\t11\t30\n45\teducation,travel_moves_exile\tВундт\t\n46\teducation,travel_moves_exile\tШтумпф\t\n47\tcreative_work\t\t\n48\tcreative_work\t\t\n49\tcreative_work\t2\t\n50\tconflict_duels\t\t\n51\tlosses,health\t3\t12\n52\tlegacy,upbringing_mentors\tБасов,Мясищев",
+  "usage": {
+    "promptTokenCount": 2148,
+    "candidatesTokenCount": 564,
+    "thoughtsTokenCount": 3977,
+    "totalTokenCount": 6689
+  },
+  "durationMs": 17491,
+  "recordedAt": "2026-07-07T21:51:58.244Z"
+}

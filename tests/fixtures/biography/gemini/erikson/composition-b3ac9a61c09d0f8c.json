@@ -1,0 +1,17 @@
+{
+  "step": "composition",
+  "model": "gemini-2.5-flash",
+  "variant": "a",
+  "promptSha256": "b3ac9a61c09d0f8cf20a4919a2f8b073f57fa95c1122c43fc32fe20cf3029bd3",
+  "promptChars": 7782,
+  "promptPreview": "Ты — нарратолог и биограф. Тебе дан список из 93 фактов о **Erik Erikson** (1902–1994).\n\nЗАДАЧА\nРаспредели ВСЕ факты по структуре визуального таймлайна:\n1. **Главная линия** — 18 (±2) ключевых точек н",
+  "responseText": "{\n  \"mainLine\": [\n    0,\n    2,\n    47,\n    53,\n    6,\n    7,\n    9,\n    11,\n    14,\n    16,\n    77,\n    18,\n    20,\n    21,\n    22,\n    23,\n    30,\n    31,\n    32,\n    37\n  ],\n  \"branches\": [\n    {\n      \"name\": \"Ранняя семейная жизнь и формирование идентичности\",\n      \"sphere\": \"family\",\n      \"facts\": [\n        1,\n        42,\n        43,\n        44,\n        3,\n        45,\n        46,\n        4,\n        48\n      ]\n    },\n    {\n      \"name\": \"Художественные поиски и выбор призвания\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        49,\n        50,\n        51,\n        52,\n        54,\n        55\n      ]\n    },\n    {\n      \"name\": \"Психоаналитическое обучение в Вене\",\n      \"sphere\": \"education\",\n      \"facts\": [\n        56,\n        57,\n        58,\n        5,\n        59,\n        60,\n        61,\n        62,\n        63,\n        64,\n        66,\n        10\n      ]\n    },\n    {\n      \"name\": \"Семейная жизнь и личная идентичность\",\n      \"sphere\": \"family\",\n      \"facts\": [\n        65,\n        67,\n        8,\n        81\n      ]\n    },\n    {\n      \"name\": \"Дети Эрика Эриксона\",\n      \"sphere\": \"family\",\n      \"facts\": [\n        89,\n        90,\n        91,\n        92\n      ]\n    },\n    {\n      \"name\": \"Эмиграция и начало карьеры в США\",\n      \"sphere\": \"career\",\n      \"facts\": [\n        12,\n        13,\n        69,\n        70,\n        71,\n        72,\n        73\n      ]\n    },\n    {\n      \"name\": \"Академические должности и частная практика\",\n      \"sphere\": \"career\",\n      \"facts\": [\n        15,\n        75,\n        76,\n        17,\n        19,\n        84\n      ]\n    },\n    {\n      \"name\": \"Этнографические исследования и антропологические связи\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        78,\n        79,\n        80,\n        82,\n        83,\n        85\n      ]\n    },\n    {\n      \"name\": \"Теоретические вклады и основные публикации\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        86,\n        87,\n        88,\n        24,\n        25,\n        26,\n        27,\n        28,\n        29\n      ]\n    },\n    {\n      \"name\": \"Поздние работы и лекции\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        33,\n        34,\n        35,\n        36\n      ]\n    },\n    {\n      \"name\": \"Посмертное признание и наследие\",\n      \"sphere\": \"legacy\",\n      \"facts\": [\n        38,\n        39,\n        40,\n        41\n      ]\n    }\n  ]\n}",
+  "usage": {
+    "promptTokenCount": 3221,
+    "candidatesTokenCount": 890,
+    "thoughtsTokenCount": 19705,
+    "totalTokenCount": 23816
+  },
+  "durationMs": 82718,
+  "recordedAt": "2026-07-08T07:34:15.911Z"
+}

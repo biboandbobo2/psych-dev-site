@@ -62,6 +62,7 @@ export type ArticleMetrics = {
     fatal: boolean;
     errors: number;
     warnings: number;
+    errorCodes: Record<string, number>;
   };
   coverage: {
     totalFacts: number;
@@ -200,22 +201,32 @@ function evaluateCoverage(
   const dateErrors: Array<{ id: string; expectedAge: number; actualAge: number }> = [];
 
   for (const fact of groundTruth) {
-    const matchedNode = nodes.find((node) => matchesBenchmarkText(nodeText(node), fact.timeline));
-    const matchedBirth = !matchedNode && birthText && matchesBenchmarkText(birthText, fact.timeline);
-    const matched = Boolean(matchedNode || matchedBirth);
+    // Рождение канонически живёт в birthDetails — проверяем его первым,
+    // иначе «рождение» ложно матчится на узлы с упоминанием места рождения.
+    const matchedBirth = Boolean(birthText && matchesBenchmarkText(birthText, fact.timeline));
+    const matchingNodes = nodes.filter((node) => matchesBenchmarkText(nodeText(node), fact.timeline));
+    const matched = matchedBirth || matchingNodes.length > 0;
 
     if (matched) {
       timelineMatched += 1;
       if (fact.critical) criticalMatched += 1;
-      // Точность даты: возраст узла должен соответствовать year - birthYear (±1)
-      if (matchedNode && fact.year != null && birthYear != null) {
-        dateChecked += 1;
+      // Точность даты: факт представлен на правильном возрасте, если ХОТЬ ОДИН
+      // совпавший узел лежит в ±1 от year - birthYear (первый-попавшийся узел
+      // давал ложные ошибки: «смерть» матчилась на смерть отца и т.п.).
+      if (matchingNodes.length > 0 && fact.year != null && birthYear != null) {
         const expectedAge = fact.year - birthYear;
-        if (Math.abs(matchedNode.age - expectedAge) <= 1) {
+        const closest = matchingNodes.reduce((best, node) =>
+          Math.abs(node.age - expectedAge) < Math.abs(best.age - expectedAge) ? node : best
+        );
+        if (Math.abs(closest.age - expectedAge) <= 1) {
+          dateChecked += 1;
           dateAccurate += 1;
-        } else {
-          dateErrors.push({ id: fact.id, expectedAge, actualAge: matchedNode.age });
+        } else if (!matchedBirth) {
+          dateChecked += 1;
+          dateErrors.push({ id: fact.id, expectedAge, actualAge: closest.age });
         }
+        // matchedBirth && узлы мимо возраста — дата подтверждена birthDetails,
+        // возрастную проверку узлов не засчитываем ни в плюс, ни в минус
       }
     } else {
       missing.push({ id: fact.id, label: fact.label, critical: Boolean(fact.critical) });
@@ -315,6 +326,12 @@ export function buildArticleMetrics(params: {
       fatal: hasFatalBiographyIssues(lintIssues),
       errors: lintIssues.filter((i) => i.severity === 'error').length,
       warnings: lintIssues.filter((i) => i.severity === 'warning').length,
+      errorCodes: lintIssues
+        .filter((i) => i.severity === 'error')
+        .reduce<Record<string, number>>((acc, i) => {
+          acc[i.code] = (acc[i.code] ?? 0) + 1;
+          return acc;
+        }, {}),
     },
     coverage,
     facts: {

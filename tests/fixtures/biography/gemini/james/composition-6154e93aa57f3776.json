@@ -1,0 +1,17 @@
+{
+  "step": "composition",
+  "model": "gemini-2.5-flash",
+  "variant": "a",
+  "promptSha256": "6154e93aa57f3776ee6519e210be2a8cd68d8e48d5e503cc82ea81d2c2151a5e",
+  "promptChars": 7502,
+  "promptPreview": "Ты — нарратолог и биограф. Тебе дан список из 100 фактов о **William James** (1842–1910).\n\nЗАДАЧА\nРаспредели ВСЕ факты по структуре визуального таймлайна:\n1. **Главная линия** — 14 (±2) ключевых точек",
+  "responseText": "{\n  \"mainLine\": [\n    0,\n    1,\n    3,\n    6,\n    11,\n    12,\n    13,\n    15,\n    16,\n    48,\n    27,\n    33,\n    35,\n    36,\n    43\n  ],\n  \"branches\": [\n    {\n      \"name\": \"Семейное происхождение и ранние годы\",\n      \"sphere\": \"family\",\n      \"facts\": [\n        88,\n        89,\n        90,\n        91,\n        92,\n        93\n      ]\n    },\n    {\n      \"name\": \"Образование и ранние научные интересы\",\n      \"sphere\": \"education\",\n      \"facts\": [\n        2,\n        5,\n        8,\n        9,\n        10,\n        46\n      ]\n    },\n    {\n      \"name\": \"Академическая карьера в Гарварде\",\n      \"sphere\": \"career\",\n      \"facts\": [\n        17,\n        19,\n        24,\n        26,\n        30,\n        99\n      ]\n    },\n    {\n      \"name\": \"Развитие психологических теорий\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        7,\n        18,\n        52,\n        58,\n        25,\n        28\n      ]\n    },\n    {\n      \"name\": \"Философские работы и прагматизм\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        22,\n        23,\n        63,\n        29,\n        65,\n        66,\n        67,\n        32,\n        68,\n        34,\n        69,\n        37,\n        38,\n        70,\n        71,\n        72\n      ]\n    },\n    {\n      \"name\": \"Здоровье и эксперименты с сознанием\",\n      \"sphere\": \"health\",\n      \"facts\": [\n        4,\n        45,\n        47,\n        53,\n        54,\n        64\n      ]\n    },\n    {\n      \"name\": \"Семейная жизнь и дети\",\n      \"sphere\": \"family\",\n      \"facts\": [\n        49,\n        55,\n        56,\n        57,\n        61,\n        62\n      ]\n    },\n    {\n      \"name\": \"Интеллектуальные круги и парапсихология\",\n      \"sphere\": \"friends\",\n      \"facts\": [\n        14,\n        20,\n        21,\n        59,\n        60,\n        98\n      ]\n    },\n    {\n      \"name\": \"Общественная деятельность и политические взгляды\",\n      \"sphere\": \"politics\",\n      \"facts\": [\n        50,\n        51,\n        96,\n        31\n      ]\n    },\n    {\n      \"name\": \"Последние годы и наследие\",\n      \"sphere\": \"legacy\",\n      \"facts\": [\n        39,\n        40,\n        41,\n        42,\n        44,\n        85,\n        73,\n        74,\n        75\n      ]\n    }\n  ]\n}",
+  "usage": {
+    "promptTokenCount": 3195,
+    "candidatesTokenCount": 821,
+    "thoughtsTokenCount": 14056,
+    "totalTokenCount": 18072
+  },
+  "durationMs": 111274,
+  "recordedAt": "2026-07-08T07:29:09.379Z"
+}

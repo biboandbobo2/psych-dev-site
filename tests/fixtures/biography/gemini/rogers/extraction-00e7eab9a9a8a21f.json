@@ -1,0 +1,17 @@
+{
+  "step": "extraction",
+  "model": "gemini-2.5-flash",
+  "variant": "a",
+  "promptSha256": "00e7eab9a9a8a21f6e7d5257de42fc7c8c5365a787d31743c065677700f9ece7",
+  "promptChars": 7218,
+  "promptPreview": "Извлеки ВСЕ биографические факты из статьи о Carl Rogers.\n\nФОКУС ЭТОГО ПРОХОДА\nПерсона: Carl Rogers. Это часть 2 из 2. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретны",
+  "responseText": "```json\n[\n  {\n    \"year\": 1902,\n    \"month\": 1,\n    \"text\": \"Родился Карл Рэнсом Роджерс.\",\n    \"category\": \"birth\",\n    \"sphere\": \"family\"\n  },\n  {\n    \"year\": 1956,\n    \"text\": \"Получил награду за выдающийся научный вклад от Американской психологической ассоциации (APA).\",\n    \"category\": \"award\",\n    \"sphere\": \"career\"\n  },\n  {\n    \"year\": 1972,\n    \"text\": \"Получил награду за выдающийся профессиональный вклад в психологию от Американской психологической ассоциации (APA).\",\n    \"category\": \"award\",\n    \"sphere\": \"career\"\n  },\n  {\n    \"year\": null,\n    \"text\": \"Совместно с Альберто Цуккони и Чарльзом Девонширом соосновал Институт личностно-ориентированного подхода в Риме.\",\n    \"category\": \"project\",\n    \"sphere\": \"career\"\n  },\n  {\n    \"year\": 1985,\n    \"month\": 11,\n    \"text\": \"Участвовал в Мирном семинаре в Русте (Rust Peace Workshop) в Русте, Австрия.\",\n    \"category\": \"project\",\n    \"sphere\": \"career\"\n  },\n  {\n    \"year\": 1977,\n    \"text\": \"Пришел к пониманию политической составляющей своего подхода к психотерапии (к концу жизни).\",\n    \"category\": \"other\",\n    \"sphere\": \"career\"\n  },\n  {\n    \"year\": 1977,\n    \"text\": \"Фасилитировал или участвовал в диалогических мероприятиях среди политиков и активистов (в последнее десятилетие).\",\n    \"category\": \"project\",\n    \"sphere\": \"career\"\n  },\n  {\n    \"year\": 1977,\n    \"text\": \"Поддержал инициативу «12-часовая политическая партия» Ассоциации гуманистической психологии (в последнее десятилетие).\",\n    \"category\": \"project\",\n    \"sphere\": \"career\"\n  },\n  {\n    \"year\": 1977,\n    \"text\": \"Поддержал основание политической организации «Новый мировой альянс» (в последнее десятилетие).\",\n    \"category\": \"project\",\n    \"sphere\": \"career\"\n  },\n  {\n    \"year\": 1979,\n    \"text\": \"Опубликована первая подробная книга о его жизни Говардом Киршенбаумом: «On Becoming Carl Rogers».\",\n    \"category\": \"publication\",\n    \"sphere\": \"career\"\n  },\n  {\n    \"year\": 2007,\n    \"text\": \"Опубликована биография Говарда Киршенбаума: «The Life and Work of Carl Rogers».\",\n    \"category\": \"publication\",\n    \"sphere\": \"career\"\n  },\n  {\n    \"year\": 2013,\n    \"text\": \"Опубликовал (в соавторстве) книгу «On Becoming an Effective Teacher—Person-centered Teaching».\",\n    \"category\": \"publication\",\n    \"sphere\": \"creativity\"\n  },\n  {\n    \"year\": 1987,\n    \"month\": 2,\n    \"text\": \"Умер Карл Рэнсом Роджерс.\",\n    \"category\": \"death\",\n    \"sphere\": \"family\"\n  },\n  {\n    \"year\": null,\n    \"text\": \"Был признан шестым самым выдающимся психологом 20-го века в исследовании Хаггблума и коллег.\",\n    \"category\": \"award\",\n    \"sphere\": \"career\"\n  }\n]\n```",
+  "usage": {
+    "promptTokenCount": 1784,
+    "candidatesTokenCount": 914,
+    "thoughtsTokenCount": 6897,
+    "totalTokenCount": 9595
+  },
+  "durationMs": 35044,
+  "recordedAt": "2026-07-08T07:05:25.532Z"
+}
