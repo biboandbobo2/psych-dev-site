@@ -328,3 +328,63 @@ describe('resolveCompositionLifespan', () => {
     expect(deathYear).toBe(1950);
   });
 });
+
+// B3: composition-by-indices — самое хрупкое звено. Раньше: дубли индексов
+// не проверялись (факт мог оказаться и на главной линии, и в ветке),
+// выдуманные индексы тихо пропадали, потерянные сваливались в ПОСЛЕДНЮЮ
+// ветку (комментарий врал про «ближайшую по теме»).
+describe('sanitizeCompositionResult (B3)', () => {
+  const fact = (themes: string[]) =>
+    makeFact({ year: 1900, details: `факт ${themes.join(',')}`, themes: themes as never });
+
+  it('дубль индекса остаётся только в первом месте (mainLine приоритетнее)', async () => {
+    const { sanitizeCompositionResult } = await import('../../server/api/timelineBiographyComposer.js');
+    const facts = [fact(['education']), fact(['service_career']), fact(['creative_work'])];
+    const result = sanitizeCompositionResult(
+      { mainLine: [0, 1], branches: [{ name: 'А', sphere: 'career', facts: [1, 2] }] },
+      facts
+    );
+    expect(result.mainLine).toEqual([0, 1]);
+    expect(result.branches[0].facts).toEqual([2]);
+  });
+
+  it('выдуманные индексы отбрасываются', async () => {
+    const { sanitizeCompositionResult } = await import('../../server/api/timelineBiographyComposer.js');
+    const facts = [fact(['education']), fact(['service_career'])];
+    const result = sanitizeCompositionResult(
+      { mainLine: [0, 99], branches: [{ name: 'А', sphere: 'career', facts: [1, -3] }] },
+      facts
+    );
+    expect(result.mainLine).toEqual([0]);
+    expect(result.branches[0].facts).toEqual([1]);
+  });
+
+  it('потерянный факт уходит в ветку с совпадающей темой, а не в последнюю', async () => {
+    const { sanitizeCompositionResult } = await import('../../server/api/timelineBiographyComposer.js');
+    const facts = [
+      fact(['education']),
+      fact(['creative_work']),
+      fact(['service_career']),
+      fact(['education']), // потерянный — темой совпадает с веткой «Учёба»
+    ];
+    const result = sanitizeCompositionResult(
+      {
+        mainLine: [2],
+        branches: [
+          { name: 'Учёба', sphere: 'education', facts: [0] },
+          { name: 'Творчество', sphere: 'creativity', facts: [1] },
+        ],
+      },
+      facts
+    );
+    expect(result.branches[0].facts).toContain(3);
+    expect(result.branches[1].facts).not.toContain(3);
+  });
+
+  it('без веток потерянные факты добавляются на главную линию', async () => {
+    const { sanitizeCompositionResult } = await import('../../server/api/timelineBiographyComposer.js');
+    const facts = [fact(['education']), fact(['service_career'])];
+    const result = sanitizeCompositionResult({ mainLine: [0], branches: [] }, facts);
+    expect(result.mainLine).toEqual([0, 1]);
+  });
+});

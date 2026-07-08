@@ -163,6 +163,71 @@ export function resolveCompositionLifespan(facts: BiographyFactCandidate[]): {
 }
 
 // ---------------------------------------------------------------------------
+// B3: строгая валидация composition-результата. Модель возвращает индексы —
+// защищаемся от дублей (факт и на главной линии, и в ветке), выдуманных
+// индексов и потерянных фактов (распределяем по совпадению тем, а не
+// сваливаем в последнюю ветку).
+// ---------------------------------------------------------------------------
+
+export function sanitizeCompositionResult(
+  composition: BiographyCompositionResult,
+  facts: BiographyFactCandidate[]
+): BiographyCompositionResult {
+  const isValidIndex = (idx: unknown): idx is number =>
+    typeof idx === 'number' && Number.isInteger(idx) && idx >= 0 && idx < facts.length;
+
+  // Дубль остаётся в первом месте: главная линия приоритетнее веток,
+  // ранняя ветка приоритетнее поздней.
+  const assigned = new Set<number>();
+  const mainLine: number[] = [];
+  for (const idx of composition.mainLine ?? []) {
+    if (!isValidIndex(idx) || assigned.has(idx)) continue;
+    assigned.add(idx);
+    mainLine.push(idx);
+  }
+
+  const branches = (composition.branches ?? []).map((branch) => {
+    const branchFacts: number[] = [];
+    for (const idx of branch.facts ?? []) {
+      if (!isValidIndex(idx) || assigned.has(idx)) continue;
+      assigned.add(idx);
+      branchFacts.push(idx);
+    }
+    return { ...branch, facts: branchFacts };
+  });
+
+  // Потерянные факты: в ветку с максимальным пересечением тем;
+  // без совпадений — в последнюю ветку; без веток — на главную линию.
+  const missing = facts.map((_, i) => i).filter((i) => !assigned.has(i));
+  for (const idx of missing) {
+    if (branches.length === 0) {
+      mainLine.push(idx);
+      continue;
+    }
+    const factThemes = new Set(facts[idx].themes ?? []);
+    let bestBranch = branches[branches.length - 1];
+    let bestScore = 0;
+    if (factThemes.size > 0) {
+      for (const branch of branches) {
+        let score = 0;
+        for (const branchFactIdx of branch.facts) {
+          for (const theme of facts[branchFactIdx].themes ?? []) {
+            if (factThemes.has(theme)) score += 1;
+          }
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestBranch = branch;
+        }
+      }
+    }
+    bestBranch.facts.push(idx);
+  }
+
+  return { ...composition, mainLine, branches };
+}
+
+// ---------------------------------------------------------------------------
 // Build birth details from fact
 // ---------------------------------------------------------------------------
 

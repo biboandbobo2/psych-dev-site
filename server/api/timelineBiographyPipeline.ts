@@ -30,6 +30,7 @@ import {
   buildPlanFromCompositionResult,
   findDeathFact,
   resolveCompositionLifespan,
+  sanitizeCompositionResult,
 } from './timelineBiographyComposer.js';
 import { cleanGenericEventLabels } from './timelineBiographyLint.js';
 import { buildTimelineDataFromBiographyPlan } from './timelineBiographyQuality.js';
@@ -399,29 +400,21 @@ async function composeBiographyFactsIntoTimeline(params: {
     };
   }
 
-  // Validate: check all indices present
-  const assigned = new Set<number>();
-  for (const idx of composition.mainLine) assigned.add(idx);
-  for (const branch of composition.branches) {
-    for (const idx of branch.facts) assigned.add(idx);
-  }
-
-  const missing = params.facts.map((_, i) => i).filter(i => !assigned.has(i));
+  // B3: строгая валидация — дубли/выдуманные индексы, потерянные по темам
+  const sanitized = sanitizeCompositionResult(composition, params.facts);
+  const rawAssigned = new Set<number>([
+    ...composition.mainLine ?? [],
+    ...(composition.branches ?? []).flatMap(b => b.facts ?? []),
+  ]);
   params.deps.log?.('composition result', {
-    mainLine: composition.mainLine.length,
-    branches: composition.branches.length,
-    branchNames: composition.branches.map(b => b.name),
-    assigned: assigned.size,
-    missing: missing.length,
+    mainLine: sanitized.mainLine.length,
+    branches: sanitized.branches.length,
+    branchNames: sanitized.branches.map(b => b.name),
+    assigned: rawAssigned.size,
+    missing: params.facts.length - rawAssigned.size,
   });
 
-  // If facts were missed, add them to the closest branch by theme
-  if (missing.length > 0 && composition.branches.length > 0) {
-    const lastBranch = composition.branches[composition.branches.length - 1];
-    lastBranch.facts.push(...missing);
-  }
-
-  return composition;
+  return sanitized;
 }
 
 // ---------------------------------------------------------------------------
