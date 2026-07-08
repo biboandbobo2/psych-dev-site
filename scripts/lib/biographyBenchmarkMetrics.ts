@@ -303,6 +303,9 @@ export function buildArticleMetrics(params: {
     );
   }
   if (hasFatalBiographyIssues(lintIssues)) manualFixReasons.push('fatalLint');
+  // BPT-12: composition-fallback (все факты на главной линии, 0 веток) —
+  // деградация, невидимая через fail-счётчик
+  if (data.edges.length === 0 && data.nodes.length > 20) manualFixReasons.push('compositionFallback');
 
   return {
     articleId: entry.id,

@@ -153,6 +153,11 @@ async function runSuite(options: CliOptions) {
         apiKey,
         page,
       });
+      if (stats.dailyQuotaHit) {
+        // 429 мог быть проглочен best-effort шагами pipeline (redaktura,
+        // composition-fallback) — такие метрики это мусор, а не замер.
+        throw new Error('дневная квота выбита посреди статьи — метрики отброшены');
+      }
       const metrics = buildArticleMetrics({ entry, payload, stats, wallClockMs: Date.now() - startedAt });
       results.push(metrics);
       printLine(
