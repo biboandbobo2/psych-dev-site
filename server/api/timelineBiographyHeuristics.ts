@@ -77,8 +77,11 @@ export function russianDateToISO(dateStr: string | undefined): string | undefine
 
 export function pickBranchX(sphere: TimelineSphere, startAge: number, endAge: number, occupied: OccupiedBranchLane[]) {
   const slotOrder = BRANCH_SLOT_ORDER[sphere] || BRANCH_SLOT_ORDER.other;
-  const collidesAt = (x: number) =>
-    occupied.some((lane) => lane.x === x && !(lane.endAge + 1 < startAge || endAge + 1 < lane.startAge));
+  // Д-B7: x — идентичность ветки в wire-формате (node.parentX === edge.x,
+  // buildTimelineTree и normalize различают ветки только по x). Лейн-шеринг
+  // «с непересекающимися окнами» отдавал события обеих веток одной из них
+  // при первой же загрузке. Никакого переиспользования x.
+  const collidesAt = (x: number) => occupied.some((lane) => lane.x === x);
 
   for (const slotIndex of slotOrder) {
     const x = LINE_X_POSITION + BRANCH_X_OFFSETS[slotIndex];
