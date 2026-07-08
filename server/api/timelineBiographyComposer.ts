@@ -84,8 +84,13 @@ function truncateLabel(text: string, maxLen = 35): string {
 // Year → age conversion
 // ---------------------------------------------------------------------------
 
-function yearToAge(year: number, birthYear: number, lifespan: number): number {
-  const raw = year - birthYear;
+// A2: известный месяц даёт дробную часть возраста — события одного года
+// перестают коллидировать «одним возрастом» и упорядочиваются хронологически.
+// Годовая часть не меняется (семантика «календарный год жизни» как раньше).
+function yearToAge(year: number, birthYear: number, lifespan: number, month?: number): number {
+  const monthFraction =
+    typeof month === 'number' && month >= 1 && month <= 12 ? (month - 0.5) / 12 : 0;
+  const raw = Math.round((year - birthYear + monthFraction) * 100) / 100;
   return Math.max(0.5, Math.min(raw, lifespan + 3));
 }
 
@@ -99,7 +104,7 @@ function factToEventPlan(
   lifespan: number,
 ): BiographyTimelineEventPlan | null {
   if (fact.year == null) return null;
-  const age = yearToAge(fact.year, birthYear, lifespan);
+  const age = yearToAge(fact.year, birthYear, lifespan, fact.month);
   const label = truncateLabel(fact.shortLabel ?? fact.details ?? 'Событие');
   const sphere = mapSphere(fact.sphere ?? fact.category ?? 'other');
 

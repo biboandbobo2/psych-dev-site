@@ -388,3 +388,34 @@ describe('sanitizeCompositionResult (B3)', () => {
     expect(result.mainLine).toEqual([0, 1]);
   });
 });
+
+// A2: целочисленный возраст выбрасывал известный месяц — события одного года
+// коллидировали (весь механизм спуров и merge существует из-за этого),
+// а порядок внутри года был произвольным. Дробная часть = (месяц−0.5)/12;
+// годовая семантика не меняется.
+describe('factToEventPlan — дробный возраст из месяца (A2)', () => {
+  it('месяц события даёт дробную часть возраста, без месяца — целый', () => {
+    const facts: BiographyFactCandidate[] = [
+      makeFact({ year: 1828, details: 'Родился', category: 'birth' }),
+      makeFact({ year: 1850, details: 'Событие в марте', month: 3 }),
+      makeFact({ year: 1850, details: 'Событие в сентябре', month: 9 }),
+      makeFact({ year: 1850, details: 'Событие без месяца' }),
+      makeFact({ year: 1900, details: 'Смерть', category: 'death', importance: 'high' }),
+    ];
+    const plan = buildPlanFromCompositionResult({
+      subjectName: 'Тест',
+      facts,
+      composition: { mainLine: [0, 1, 2, 3, 4], branches: [] },
+    });
+
+    const march = plan.mainEvents.find((e) => e.notes?.includes('марте'))!;
+    const september = plan.mainEvents.find((e) => e.notes?.includes('сентябре'))!;
+    const noMonth = plan.mainEvents.find((e) => e.notes?.includes('без месяца'))!;
+
+    expect(march.age).toBeCloseTo(22 + 2.5 / 12, 2);
+    expect(september.age).toBeCloseTo(22 + 8.5 / 12, 2);
+    expect(noMonth.age).toBe(22);
+    // порядок внутри года — хронологический
+    expect(march.age).toBeLessThan(september.age);
+  });
+});
