@@ -460,21 +460,18 @@ export async function runBiographyPipelineCore(params: {
       ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
       : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
 
-    try {
-      const result = await generateSimpleBiographyFacts({
-        deps,
-        articleTitle: subjectName,
-        extract: slices[index],
-        focusHint,
-        label: `extraction slice ${index + 1}/${slices.length}`,
-      });
-      allFacts.push(...result.facts);
-      factsModel = result.model;
-      deps.log?.(`slice ${index + 1}/${slices.length} done`, { facts: result.facts.length });
-    } catch (error) {
-      // Падение отдельного слайса терпимо — остальные слайсы дают факты
-      deps.logError?.(`slice ${index + 1}/${slices.length} failed`, { error: String(error) });
-    }
+    // F1 (verifier): падение слайса после ретраев — ошибка импорта, а не
+    // молча обрезанная биография (прод-семантика старого CF).
+    const result = await generateSimpleBiographyFacts({
+      deps,
+      articleTitle: subjectName,
+      extract: slices[index],
+      focusHint,
+      label: `extraction slice ${index + 1}/${slices.length}`,
+    });
+    allFacts.push(...result.facts);
+    factsModel = result.model;
+    deps.log?.(`slice ${index + 1}/${slices.length} done`, { facts: result.facts.length });
   }
 
   if (allFacts.length === 0) {

@@ -155,6 +155,16 @@ async function runFullBiographyPipeline(params: {
     await jobRef.update({ ...data, updatedAt: FieldValue.serverTimestamp() });
   };
 
+  // F3 (verifier): прогресс-записи не блокируют шаги pipeline, но идут строго
+  // по порядку и дожидаются до финального updateJob — иначе stale progress
+  // может записаться после status='done'.
+  let progressWrites: Promise<void> = Promise.resolve();
+  const queueProgressWrite = (data: Record<string, unknown>) => {
+    progressWrites = progressWrites
+      .then(() => updateJob(data))
+      .catch((err) => logger.warn('[biographyImport] progress update failed', err));
+  };
+
   try {
     const result = await runBiographyPipelineCore({
       sourceUrl: params.sourceUrl,
@@ -164,10 +174,7 @@ async function runFullBiographyPipeline(params: {
           totalTokens += tokens;
         },
         onProgress: (step, total, label, detail) => {
-          // Fire-and-forget: прогресс — best-effort, шаги не должны ждать Firestore
-          updateJob({ progress: { step, total, label, ...(detail ? { detail } : {}) } }).catch((err) =>
-            logger.warn('[biographyImport] progress update failed', err)
-          );
+          queueProgressWrite({ progress: { step, total, label, ...(detail ? { detail } : {}) } });
         },
         onStage: async (stage, data) => {
           if (stage === 'extraction') {
@@ -218,6 +225,7 @@ async function runFullBiographyPipeline(params: {
       qualityMetrics,
     };
 
+    await progressWrites;
     await updateJob({
       status: 'done',
       step4: { timeline: result.timeline, composition: result.composition, canvasName: result.subjectName, meta },
@@ -245,6 +253,7 @@ async function runFullBiographyPipeline(params: {
       meta,
     };
   } catch (error) {
+    await progressWrites;
     await updateJob({ status: 'error', error: error instanceof Error ? error.message : String(error) });
     throw error;
   }

@@ -103,3 +103,40 @@ describe('runBiographyImport — выравнивание с CF-pipeline (Д-B6)
     expect(payload.timeline!.nodes.length).toBeGreaterThan(0);
   });
 });
+
+// Verifier F1: унификация BPT-2 незаметно перенесла в прод-CF толерантность
+// Runtime к падению отдельного слайса — биография молча теряла кусок статьи
+// (нет ретраев хватило → «успех» без ~25% фактов). Прод-семантика старого CF:
+// невосстановимое падение слайса = ошибка импорта, пользователь видит сбой.
+describe('runBiographyImport — падение слайса не глотается (F1)', () => {
+  afterEach(async () => {
+    const { setBiographyGenAiClientFactory } = await import('../../server/api/timelineBiographyRuntime.js');
+    setBiographyGenAiClientFactory(null);
+  });
+
+  it('ошибка extraction-слайса роняет импорт, а не обрезает биографию', async () => {
+    const { runBiographyImport, setBiographyGenAiClientFactory } = await import(
+      '../../server/api/timelineBiographyRuntime.js'
+    );
+    let extractionCalls = 0;
+    setBiographyGenAiClientFactory(() => ({
+      models: {
+        generateContent: async (request: GenerateRequest) => {
+          const prompt = request.contents[0]?.parts[0]?.text ?? '';
+          if (prompt.startsWith('Извлеки ВСЕ биографические факты')) {
+            extractionCalls += 1;
+            if (extractionCalls === 2) {
+              throw new Error('503 UNAVAILABLE: high demand');
+            }
+            return { text: jsonFacts([{ year: 1849, text: 'Родился в Рязани', category: 'birth', sphere: 'family' }]) };
+          }
+          throw new Error(`не должен дойти до шага: ${prompt.slice(0, 40)}`);
+        },
+      },
+    }));
+
+    await expect(
+      runBiographyImport({ sourceUrl: 'https://ru.wikipedia.org/wiki/X', apiKey: 'fake', page: makePage() })
+    ).rejects.toThrow(/503|two-pass-flash-failed/);
+  });
+});

@@ -20,6 +20,16 @@ import {
 
 const SAME_AGE_MAIN_EVENT_OFFSETS = [0, -260, 260, -460, 460, -680, 680] as const;
 
+// F7 (verifier): обрезка по границе слова, а не посреди («…в Пет»)
+function truncateBranchLabel(value: string | undefined): string | undefined {
+  const label = normalizeText(value, 200);
+  if (!label) return undefined;
+  if (label.length <= 40) return label;
+  const cut = label.slice(0, 40);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${(lastSpace > 20 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+}
+
 export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan): BiographyTimelineData {
   const mainEvents = (plan.mainEvents || [])
     .map((event) => sanitizeTimelineEventPlan(event))
@@ -82,7 +92,7 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
 
     // Д-B10: имя ветки из composition (branch.label плана) — иначе UI
     // показывает имя origin-события вместо осмысленного названия арки.
-    const branchLabel = normalizeText(branch.label, 40);
+    const branchLabel = truncateBranchLabel(branch.label);
     edges.push({
       id: crypto.randomUUID(),
       x,

@@ -48,13 +48,6 @@ export async function callGeminiWithRetry(
   throw new Error(`${label}: max retries exceeded`);
 }
 
-/** Извлекает totalTokenCount из usageMetadata Gemini response (для BYOK accounting). */
-export function extractGeminiTokens(result: unknown): number {
-  if (!result || typeof result !== 'object' || !('usageMetadata' in result)) return 0;
-  const meta = (result as { usageMetadata?: { totalTokenCount?: number } }).usageMetadata;
-  return typeof meta?.totalTokenCount === 'number' ? meta.totalTokenCount : 0;
-}
-
 /**
  * Дублирует логику recordByokUsage из src/lib/api-server/sharedApiRuntime.ts.
  * Cross-folder import из functions/ в src/ нежелателен (разные tsconfig moduleResolution),
@@ -82,49 +75,4 @@ export async function recordBiographyByokUsage(uid: string, tokens: number): Pro
   } catch (err) {
     logger.error('[biographyImport] recordByokUsage failed', err);
   }
-}
-
-export function collectGeminiResultText(result: unknown) {
-  if (result && typeof result === 'object') {
-    const directText = 'text' in result && typeof result.text === 'string' ? result.text : '';
-    if (directText.trim()) return directText;
-
-    const outputsText =
-      'outputs' in result && Array.isArray(result.outputs)
-        ? result.outputs
-            .map((output: Record<string, unknown>) => {
-              if (!output || typeof output !== 'object') return '';
-              const type = 'type' in output && typeof output.type === 'string' ? output.type : '';
-              if (type !== 'text') return '';
-              return 'text' in output && typeof output.text === 'string' ? output.text : '';
-            })
-            .filter(Boolean)
-            .join('\n')
-        : '';
-    if (outputsText.trim()) return outputsText;
-
-    const candidateText =
-      'candidates' in result && Array.isArray(result.candidates)
-        ? result.candidates
-            .flatMap((candidate: Record<string, unknown>) => {
-              if (!candidate || typeof candidate !== 'object') return [];
-              const content = 'content' in candidate ? candidate.content : null;
-              if (!content || typeof content !== 'object') return [];
-              const parts =
-                'parts' in (content as Record<string, unknown>) &&
-                Array.isArray((content as Record<string, unknown>).parts)
-                  ? ((content as Record<string, unknown>).parts as Array<Record<string, unknown>>)
-                  : [];
-              return parts
-                .map((part) => {
-                  if (!part || typeof part !== 'object') return '';
-                  return 'text' in part && typeof part.text === 'string' ? part.text : '';
-                })
-                .filter(Boolean);
-            })
-            .join('\n')
-        : '';
-    if (candidateText.trim()) return candidateText;
-  }
-  return '';
 }

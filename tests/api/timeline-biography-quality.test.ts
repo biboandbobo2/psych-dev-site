@@ -182,4 +182,26 @@ describe('buildTimelineDataFromBiographyPlan — названия веток (Д
     const timeline = buildTimelineDataFromBiographyPlan(plan);
     expect(timeline.edges[0].label).toBe('Научная работа');
   });
+
+  it('длинное имя ветки обрезается по границе слова с многоточием', () => {
+    const plan = makePlan({
+      branches: [
+        {
+          label: 'Научная и общественная деятельность в Петербургском университете',
+          sphere: 'career',
+          sourceMainEventIndex: 0,
+          events: [
+            { age: 25, label: 'Событие', notes: 'а', sphere: 'career', isDecision: false },
+          ],
+        },
+      ],
+    });
+
+    const timeline = buildTimelineDataFromBiographyPlan(plan);
+    const label = timeline.edges[0].label!;
+    expect(label.length).toBeLessThanOrEqual(41);
+    expect(label.endsWith('…')).toBe(true);
+    // не рвём слово посередине: до многоточия — целое слово
+    expect(label).toBe('Научная и общественная деятельность в…');
+  });
 });
