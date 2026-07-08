@@ -122,6 +122,8 @@ export type BiographyTimelineData = {
     endAge: number;
     color: string;
     nodeId: string;
+    /** Название ветки (Д-B10); без него UI показывает имя origin-события. */
+    label?: string;
   }>;
   birthDetails?: {
     date?: string;

@@ -154,3 +154,98 @@ describe('cleanGenericEventLabels (MP-8)', () => {
     expect(cleaned.mainEvents[0]?.label).toBe('Защита диссертации');
   });
 });
+
+// Д-B8: repairEventPlan безусловно заменял notes события на evidence
+// fuzzy-подобранного факта. Для JSON-фактов pipeline (age=undefined)
+// возрастной индекс пуст, кандидаты подбираются по токенам ≥5 символов —
+// фамилия субъекта есть почти в каждом факте, и notes события затирались
+// evidence чужого факта (у Фрейда 6 событий получили notes о браке).
+describe('cleanGenericEventLabels — свой факт важнее fuzzy-подбора (Д-B8)', () => {
+  const jsonFact = (details: string, overrides: Record<string, unknown> = {}) => ({
+    year: 1880,
+    age: undefined,
+    sphere: 'other' as const,
+    category: 'other',
+    eventType: 'other' as never,
+    labelHint: details,
+    details,
+    evidence: details,
+    importance: 'medium' as const,
+    confidence: 'medium' as const,
+    source: 'model' as const,
+    ...overrides,
+  });
+
+  it('не подменяет notes события evidence чужого факта', () => {
+    const ownDetails = 'Фрейд получил степень доктора медицины в Венском университете.';
+    const foreignDetails = 'Фрейд женился на своей возлюбленной Марте Бернайс.';
+    const facts = [
+      jsonFact(foreignDetails, { importance: 'high', labelHint: 'Брак с Мартой Бернайс', category: 'family' }),
+      jsonFact(ownDetails, { importance: 'low' }),
+    ];
+
+    const cleaned = cleanGenericEventLabels({
+      facts,
+      plan: {
+        subjectName: 'Зигмунд Фрейд',
+        canvasName: 'Фрейд',
+        currentAge: 83,
+        selectedPeriodization: 'erikson',
+        birthDetails: {},
+        mainEvents: [
+          {
+            age: 25,
+            label: 'Доктор медицины',
+            notes: ownDetails,
+            sphere: 'education',
+            isDecision: false,
+          },
+        ],
+        branches: [],
+      },
+    });
+
+    expect(cleaned.mainEvents[0].notes).toContain('доктора медицины');
+    expect(cleaned.mainEvents[0].notes).not.toContain('Марте Бернайс');
+  });
+});
+
+// Д-B9: too-few-early-life-events смотрел только на главную линию, но
+// composition сознательно кладёт на неё лишь поворотные точки — события
+// ранней жизни живут в ветках и должны засчитываться.
+describe('lintBiographyPlan — ранняя жизнь в ветках засчитывается (Д-B9)', () => {
+  it('не ругается, когда события до 18 лет лежат в ветках', () => {
+    const event = (age: number, label: string) => ({
+      age,
+      label,
+      notes: `${label} — подробности`,
+      sphere: 'education' as const,
+      isDecision: false,
+    });
+    const issues = lintBiographyPlan({
+      subjectName: 'Тест',
+      canvasName: 'Тест',
+      currentAge: 80,
+      selectedPeriodization: 'erikson',
+      birthDetails: {},
+      mainEvents: [
+        event(20, 'Университет'),
+        event(30, 'Кафедра'),
+        event(40, 'Признание'),
+        event(50, 'Премия'),
+        event(60, 'Институт'),
+        event(79, 'Смерть'),
+      ],
+      branches: [
+        {
+          label: 'Детство и учёба',
+          sphere: 'education',
+          sourceMainEventIndex: 0,
+          events: [event(7, 'Гимназия'), event(12, 'Первые опыты'), event(16, 'Окончание гимназии')],
+        },
+      ],
+    });
+
+    expect(issues.filter((i) => i.code === 'too-few-early-life-events')).toEqual([]);
+  });
+});

@@ -80,6 +80,9 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
     const endAge = highestAge;
     const x = pickBranchX(sphere, startAge, endAge, occupiedLanes);
 
+    // Д-B10: имя ветки из composition (branch.label плана) — иначе UI
+    // показывает имя origin-события вместо осмысленного названия арки.
+    const branchLabel = normalizeText(branch.label, 40);
     edges.push({
       id: crypto.randomUUID(),
       x,
@@ -87,6 +90,7 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
       endAge,
       color: SPHERE_META[sphere].color,
       nodeId: sourceNode.id,
+      label: branchLabel,
     });
 
     // Group events by age to detect same-age collisions
