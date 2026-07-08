@@ -12,7 +12,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import type { BiographyGenAiClient } from '../../server/api/timelineBiographyRuntime.js';
+import type { BiographyGenAiClient } from '../../server/api/timelineBiographyPipeline.js';
 
 export const BIOGRAPHY_GEMINI_CACHE_DIR = path.resolve(
   process.cwd(),
