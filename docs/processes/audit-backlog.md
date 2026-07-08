@@ -241,7 +241,16 @@ CI часть (осталась):
   - [x] Сохранить `api/timeline-biography-automation.ts` и `extractor-automation.ts` — используются CLI-бенчмарками.
   - **`server/api/timelineBiographyRuntime.ts` (1098 строк) НЕ deprecated:** оба automation endpoint'а импортируют из него `runBiographyImport`, `runBiographyFactExtraction`, `validateBiographyImportRequest` через barrel `server/api/timelineBiography.ts`. Если нужна декомпозиция runtime — отдельной задачей (BPT-1b), но она не «удалить целиком», а «разделить по ответственностям» вроде BPT-2.
 
-  **BPT-2. Декомпозиция `functions/src/biographyImport.ts` (P: M, E: M)**
+  **BPT-2. ✅ Выполнено иначе (2026-07-08, audit/biography-import-bench)**
+  - Вместо декомпозиции на step-файлы оркестрация вынесена в ЕДИНЫЙ shared-модуль
+    `server/api/timelineBiographyPipeline.ts` (транспорт-агностичный: callModel/
+    onProgress/onStage/onTokens callbacks). CF 630→313 строк (auth + Firestore +
+    BYOK), Runtime 1101→226 (инжекция клиента + payload). Парсеры канонизированы
+    в `timelineBiographyParsers.ts`. Мёртвый step-API `runBiographyStep1..4`
+    удалён (~300 строк, 0 вызовов). Эквивалентность доказана реплеем бенчмарка
+    из кэша (0 cache-miss) + построчной сверкой CF независимым verifier'ом.
+
+  **BPT-2-старое. Декомпозиция `functions/src/biographyImport.ts` (P: M, E: M) — неактуально, см. выше**
   - Cel: 843 → ~150 строк handler + 6 шагов по ~100 строк
   - Структура `functions/src/biography/`:
     - `index.ts` — Cloud Function handler + verifyAuth (~50 строк)
@@ -264,8 +273,10 @@ CI часть (осталась):
   - Удалить остатки `recordBiographyUiSignal`/`appendBiographyDiagnostic` после BPT-3
   - Цель: 771 → ~400 строк
 
-  **BPT-5. Test coverage gap (P: M, E: M)**
-  - **Cloud Function `functions/src/biographyImport.ts` — 0 unit тестов** (главный entry pipeline не покрыт). Желательно после BPT-2:
+  **BPT-5. Test coverage gap (P: M, E: M) — частично закрыто 2026-07-08**
+  - ✅ Ядро pipeline тестируемо через инжекцию клиента: `tests/api/timeline-biography-runtime.test.ts` (фейковый Gemini: слайсинг, post-death фильтр, gap-параметры, строгость к падению слайса), `functions/src/biography/parsers.test.ts` (канонические парсеры), + CI quality gates на кэше реальных ответов.
+  - Осталось: тонкая CF-обёртка (Firestore-прогресс, BYOK-учёт) и hook `useBiographyImport` — без unit-тестов.
+  - **Cloud Function `functions/src/biographyImport.ts`** (исходный план, частично неактуален):
     - [ ] `pipeline.test.ts` — orchestration с замоканными Gemini calls
     - [ ] `step2-extraction.test.ts` — slice loop, post-death filter (использует findDeathFact)
     - [ ] `step3-gap-filling.test.ts` — density mode, post-gap filter
@@ -280,6 +291,26 @@ CI часть (осталась):
 
   **BPT-6. Опционально разбить `timelineBiographyFacts/Lint/Heuristics.ts` (P: L, E: S)**
   - По логическим единицам (parsing, normalization, dedup, baseline, salience). Делать только если кто-то начнёт активно править эти файлы.
+
+  **BPT-7. Redaktura обрезается на больших статьях (P: H, E: XS) — первое измеряемое изменение live-сессии бенчмарка**
+  - Замер B6 (2026-07-08): redaktura покрывает 22% фактов у lomonosov/nabokov, 73% у freud — `maxOutputTokens: 16384` съедается thinking-токенами (~12K/вызов), большинство фактов уходит в composition с importance=low без shortLabel.
+  - Фикс: поднять лимит до 65536 (как у остальных шагов). Меняет кэш-ключ → перемер 10 статей (~20 вызовов: redaktura+composition) с holdout-гейтом.
+
+  **BPT-8. Thinking-токены = 57% стоимости pipeline (P: M, E: S, только с live-перемером)**
+  - Замер по кэшу 10 статей: 1.07M из 1.88M токенов — thinking (annotation 59%, redaktura 63%, composition 78%, extraction 52%). BYOK-пользователь платит за thinking половину импорта (~85K из ~170K/статья).
+  - Кандидаты по одному, каждый с полным benchmark+holdout: (1) `thinkingConfig.thinkingBudget: 0` для механических annotation/redaktura (−20–25% стоимости pipeline); (2) умеренный колпак на composition (4–8K вместо безлимита); (3) BPT-9.
+
+  **BPT-9. Слияние annotation+redaktura в один вызов (P: M, E: M, только с live-перемером)**
+  - Оба шага прогоняют один список фактов (темы/люди/месяц + importance/shortLabel). Слияние: −1 вызов на импорт (важно при квоте 20/день) и −15–20% токенов. Рискованно для качества разметки — принимать только по benchmark-дельте без просадки категорий.
+
+  **BPT-10. RFC: `branchId` вместо координатной идентичности веток (P: H, E: L)**
+  - Первопричина всего класса структурных багов (Д-B1/Д-B4/Д-B7 этого аудита + Д5 аудита инвариантов): связь `node.parentX === edge.x` кодирует принадлежность пикселем. План из timeline-invariant-audit «предложение 1»: опциональный `branchId` в NodeT, запись параллельно с parentX, чтение с fallback, `buildTimelineTree` → group-by. Отдельный RFC, вне scope бенчмарк-аудита.
+
+  **BPT-11. UI: понятная ошибка при квоте Gemini 20/день (P: M, E: S)**
+  - Free tier (2026-07) даёт 20 запросов/день/проект; импорт = 5–7 вызовов → ~3 импорта в день. При 429 пользователь видит невнятную ошибку. Нужно: человеческое сообщение о дневной квоте BYOK-ключа (и, возможно, предупреждение до старта).
+
+  **BPT-12. Бенчмарк не видит composition-fallback как fail (P: L, E: XS)**
+  - После унификации Runtime перенял прод-семантику CF: падение composition → fallback «все факты на главной линии» вместо 500. Деградация видна только через метрики (branches=0, coverage), не через fail-счётчик — при разборе прогонов помнить.
 
 ### MR‑8. ✅ Закрыто 2026-05-11: catch-all заменён на deny-all
 - **Что было:** legacy catch-all `match /{document=**} { allow read: if true }` отменял per-uid ограничения для `biographyJobs` и пускал любого аутентифицированного к любой коллекции без явного match-блока. Дополнительно, после переписи catch-all в коммите `9cd609c` (05.05.2026) на форму с `document.size()/document[N]` Firestore стал отказывать в **list-запросах** для коллекций без своего match-блока — из-за этого `/tests` и админка тестов показывали пустые экраны (`PERMISSION_DENIED` на list).
