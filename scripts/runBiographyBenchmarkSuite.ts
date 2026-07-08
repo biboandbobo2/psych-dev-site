@@ -175,6 +175,11 @@ async function runSuite(options: CliOptions) {
     } finally {
       setBiographyGenAiClientFactory(null);
     }
+
+    if (stats.dailyQuotaHit) {
+      printLine('\n!! Дневная квота free tier выбита — прогон остановлен, продолжение завтра/другим ключом (кэш сохранён).');
+      break;
+    }
   }
 
   const aggregate = aggregateMetrics(results, { variant: options.variant });

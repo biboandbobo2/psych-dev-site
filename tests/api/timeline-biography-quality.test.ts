@@ -121,3 +121,44 @@ describe('buildTimelineDataFromBiographyPlan — уникальность x ве
     expect(new Set(xs).size, `edge x: ${xs.join(', ')}`).toBe(xs.length);
   });
 });
+
+// Д-B7 (найден baseline-бенчмарком, lazursky): pickBranchX переиспользует
+// один x для веток с непересекающимися окнами («лейн-шеринг»), но
+// buildTimelineTree и normalizeImportedTimelineData определяют принадлежность
+// события ТОЛЬКО по x — при первой же загрузке все события обеих веток
+// достаются одной из них, а её окно «лечится» расширением (normalizeEdits>0).
+// Wire-формат не позволяет двум веткам делить x — даже с разными окнами.
+describe('buildTimelineDataFromBiographyPlan — лейн-шеринг запрещён (Д-B7)', () => {
+  // TODO(Д-B7): перевести в обычный it() при применении фикса pickBranchX —
+  // фикс отложен до завершения baseline-прогона (код замера заморожен).
+  it.fails('две ветки одной сферы с непересекающимися окнами получают разные x', () => {
+    const plan = makePlan({
+      branches: [
+        {
+          label: 'Ранний период',
+          sphere: 'career',
+          sourceMainEventIndex: 0,
+          events: [
+            { age: 22, label: 'Событие А', notes: 'а', sphere: 'career', isDecision: false },
+            { age: 25, label: 'Событие Б', notes: 'б', sphere: 'career', isDecision: false },
+          ],
+        },
+        {
+          label: 'Поздний период',
+          sphere: 'career',
+          sourceMainEventIndex: 1,
+          events: [
+            { age: 45, label: 'Событие В', notes: 'в', sphere: 'career', isDecision: false },
+            { age: 50, label: 'Событие Г', notes: 'г', sphere: 'career', isDecision: false },
+          ],
+        },
+      ],
+    });
+
+    const timeline = buildTimelineDataFromBiographyPlan(plan);
+    const xs = timeline.edges.map((e) => e.x);
+    expect(new Set(xs).size, `edge x: ${xs.join(', ')}`).toBe(xs.length);
+    // и normalize не должна вносить ни одной правки
+    expect(referentialViolations(timeline as never)).toEqual([]);
+  });
+});

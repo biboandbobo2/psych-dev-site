@@ -71,10 +71,12 @@ export type CachingClientStats = {
   totalTokens: number;
   totalDurationMs: number;
   byStep: Record<string, { calls: number; tokens: number }>;
+  /** Дневная квота free tier выбита — продолжать прогон бессмысленно. */
+  dailyQuotaHit: boolean;
 };
 
 export function createEmptyStats(): CachingClientStats {
-  return { hits: 0, misses: 0, liveCalls: 0, totalTokens: 0, totalDurationMs: 0, byStep: {} };
+  return { hits: 0, misses: 0, liveCalls: 0, totalTokens: 0, totalDurationMs: 0, byStep: {}, dailyQuotaHit: false };
 }
 
 function sleep(ms: number) {
@@ -92,9 +94,19 @@ async function callRealGemini(apiKey: string, request: GenerateRequest) {
     } catch (error) {
       lastError = error;
       const message = error instanceof Error ? error.message : String(error);
+      // Дневная квота (RequestsPerDay) не лечится ретраем — фейлим сразу
+      if (/PerDay/i.test(message)) {
+        throw error;
+      }
       if (/429|RESOURCE_EXHAUSTED|quota/i.test(message) && attempt < maxAttempts) {
         process.stderr.write(`  [gemini] 429, retry ${attempt}/${maxAttempts - 1} через 60с\n`);
         await sleep(60_000);
+        continue;
+      }
+      // 503 high demand / транзиентные сетевые сбои — короткий ретрай
+      if (/503|UNAVAILABLE|high demand|fetch failed|ECONNRESET|ETIMEDOUT/i.test(message) && attempt < maxAttempts) {
+        process.stderr.write(`  [gemini] transient (${message.slice(0, 60)}), retry ${attempt}/${maxAttempts - 1} через 20с\n`);
+        await sleep(20_000);
         continue;
       }
       throw error;
@@ -184,7 +196,17 @@ export function createCachingBiographyClient(params: {
 
         await sleep(liveDelayMs);
         const startedAt = Date.now();
-        const result = await callRealGemini(params.apiKey, request);
+        let result: unknown;
+        try {
+          result = await callRealGemini(params.apiKey, request);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (/PerDay/i.test(message)) {
+            stats.dailyQuotaHit = true;
+            process.stderr.write(`  [quota] дневной лимит free tier выбит (${params.articleId}/${step})\n`);
+          }
+          throw error;
+        }
         const durationMs = Date.now() - startedAt;
 
         const responseText = extractText(result);
