@@ -78,6 +78,9 @@ export type ArticleMetrics = {
     extracted: number;
     undated: number;
     beforeBirth: number;
+    /** B6: доля фактов, получивших разметку (TSV-строки могли потеряться). */
+    annotatedShare: number | null;
+    redactedShare: number | null;
   };
   cost: {
     totalTokens: number;
@@ -338,6 +341,12 @@ export function buildArticleMetrics(params: {
       extracted: payload.facts.length,
       undated: payload.facts.filter((f) => f.year == null).length,
       beforeBirth: birthYear != null ? payload.facts.filter((f) => f.year != null && f.year < birthYear).length : 0,
+      annotatedShare: payload.meta.stepCoverage
+        ? Math.round((payload.meta.stepCoverage.annotated / Math.max(1, payload.meta.stepCoverage.factsTotal)) * 1000) / 10
+        : null,
+      redactedShare: payload.meta.stepCoverage
+        ? Math.round((payload.meta.stepCoverage.redacted / Math.max(1, payload.meta.stepCoverage.factsTotal)) * 1000) / 10
+        : null,
     },
     cost: {
       totalTokens: stats.totalTokens,

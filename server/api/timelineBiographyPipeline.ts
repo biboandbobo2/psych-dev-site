@@ -96,6 +96,13 @@ export type BiographyPipelineResult = {
   subjectName: string;
   rawTextChars: number;
   factsModel: string;
+  /** B6: покрытие TSV-разметки — annotation/redaktura деградируют молча
+   *  (пропущенная строка = факт без тем/importance), это должно быть видно. */
+  stepCoverage: {
+    factsTotal: number;
+    annotated: number;
+    redacted: number;
+  };
   facts: BiographyFactCandidate[];
   composition: BiographyCompositionResult;
   timeline?: BiographyTimelineData;
@@ -288,7 +295,7 @@ async function redaktBiographyFacts(params: {
   subjectName: string;
   facts: BiographyFactCandidate[];
   annotations: Map<number, AnnotationEntry>;
-}): Promise<BiographyFactCandidate[]> {
+}): Promise<{ facts: BiographyFactCandidate[]; redactedCount: number }> {
   const indexedFacts = params.facts.map((fact, index) => ({
     index,
     year: fact.year ?? null,
@@ -329,7 +336,7 @@ async function redaktBiographyFacts(params: {
     missing: params.facts.length - redaktura.size,
   });
 
-  return params.facts.map((fact, index) => {
+  const facts = params.facts.map((fact, index) => {
     const red = redaktura.get(index);
     const rankScore = red?.importance ?? 2;
     const importance: 'high' | 'medium' | 'low' =
@@ -341,6 +348,7 @@ async function redaktBiographyFacts(params: {
       importance,
     };
   });
+  return { facts, redactedCount: redaktura.size };
 }
 
 async function composeBiographyFactsIntoTimeline(params: {
@@ -566,12 +574,17 @@ export async function runBiographyPipelineCore(params: {
   });
 
   progress(5, TOTAL_STEPS, 'Редактура и ранжирование', `${annotatedFacts.length} фактов`);
-  const finalFacts = await redaktBiographyFacts({
+  const { facts: finalFacts, redactedCount } = await redaktBiographyFacts({
     deps,
     subjectName,
     facts: annotatedFacts,
     annotations,
   });
+  const stepCoverage = {
+    factsTotal: finalFacts.length,
+    annotated: annotations.size,
+    redacted: redactedCount,
+  };
   allFacts = finalFacts;
   await deps.onStage?.('redaktura', stageData());
 
@@ -629,6 +642,7 @@ export async function runBiographyPipelineCore(params: {
     subjectName,
     rawTextChars: len,
     factsModel,
+    stepCoverage,
     facts: finalFacts,
     composition,
     timeline,

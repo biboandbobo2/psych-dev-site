@@ -155,6 +155,12 @@ export type BiographyExtractorSuccessPayload = {
       hasBirthDate: boolean;
       hasBirthPlace: boolean;
     };
+    /** B6: покрытие TSV-разметки (annotation/redaktura деградируют молча). */
+    stepCoverage?: {
+      factsTotal: number;
+      annotated: number;
+      redacted: number;
+    };
   };
   subjectName: string | null;
   composition?: BiographyCompositionResult;
@@ -202,6 +208,7 @@ async function runBiographyTwoPass(params: {
       urlContextMetadata: [],
       planDiagnostics: result.planDiagnostics,
       timelineStats: result.timelineStats,
+      stepCoverage: result.stepCoverage,
     },
   };
 }
