@@ -1,0 +1,17 @@
+{
+  "step": "composition",
+  "model": "gemini-2.5-flash",
+  "variant": "a",
+  "promptSha256": "73f44443d5d9af827407df875763c12936b037afad7740c7788d7a10f5d394a4",
+  "promptChars": 7957,
+  "promptPreview": "Ты — нарратолог и биограф. Тебе дан список из 93 фактов о **Erik Erikson** (1902–1994).\n\nЗАДАЧА\nРаспредели ВСЕ факты по структуре визуального таймлайна:\n1. **Главная линия** — 18 (±2) ключевых точек н",
+  "responseText": "{\n  \"mainLine\": [\n    0,\n    47,\n    53,\n    5,\n    6,\n    7,\n    9,\n    11,\n    14,\n    77,\n    18,\n    21,\n    22,\n    23,\n    88,\n    30,\n    37,\n    41\n  ],\n  \"branches\": [\n    {\n      \"name\": \"Раннее детство и семейные тайны\",\n      \"sphere\": \"family\",\n      \"facts\": [\n        1,\n        42,\n        43,\n        44,\n        2,\n        3,\n        4,\n        45,\n        46,\n        48\n      ]\n    },\n    {\n      \"name\": \"Образование и поиск призвания\",\n      \"sphere\": \"education\",\n      \"facts\": [\n        49,\n        50,\n        51,\n        52,\n        54,\n        55,\n        56,\n        57\n      ]\n    },\n    {\n      \"name\": \"Становление психоаналитика в Вене\",\n      \"sphere\": \"education\",\n      \"facts\": [\n        58,\n        59,\n        60,\n        61,\n        62,\n        63,\n        64,\n        66,\n        10\n      ]\n    },\n    {\n      \"name\": \"Эмиграция и первые шаги в США\",\n      \"sphere\": \"place\",\n      \"facts\": [\n        12,\n        68,\n        13,\n        69,\n        70,\n        71,\n        72,\n        73,\n        15,\n        74,\n        16,\n        75,\n        76,\n        17,\n        19,\n        20,\n        84\n      ]\n    },\n    {\n      \"name\": \"Развитие теории и этнографические исследования\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        78,\n        79,\n        80,\n        82,\n        83,\n        85,\n        86,\n        87\n      ]\n    },\n    {\n      \"name\": \"Карьера после Беркли и Гарвард\",\n      \"sphere\": \"career\",\n      \"facts\": [\n        24,\n        25,\n        26,\n        27,\n        29,\n        32\n      ]\n    },\n    {\n      \"name\": \"Поздние работы, признание и наследие\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        28,\n        31,\n        33,\n        34,\n        35,\n        36,\n        40,\n        38,\n        39\n      ]\n    },\n    {\n      \"name\": \"Личная жизнь и семья\",\n      \"sphere\": \"family\",\n      \"facts\": [\n        65,\n        67,\n        8,\n        81,\n        89,\n        90,\n        91,\n        92\n      ]\n    }\n  ]\n}",
+  "usage": {
+    "promptTokenCount": 3274,
+    "candidatesTokenCount": 778,
+    "thoughtsTokenCount": 10625,
+    "totalTokenCount": 14677
+  },
+  "durationMs": 45901,
+  "recordedAt": "2026-07-09T07:20:51.697Z"
+}

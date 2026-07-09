@@ -1,0 +1,17 @@
+{
+  "step": "composition",
+  "model": "gemini-2.5-flash",
+  "variant": "a",
+  "promptSha256": "fcfdd0a68c2104b77dc8c0400773d0543d1f555daa0533d0abc8780a749f2277",
+  "promptChars": 5347,
+  "promptPreview": "Ты — нарратолог и биограф. Тебе дан список из 53 фактов о **Лазурский, Александр Фёдорович** (1874–1917).\n\nЗАДАЧА\nРаспредели ВСЕ факты по структуре визуального таймлайна:\n1. **Главная линия** — 10 (±2",
+  "responseText": "{\n  \"mainLine\": [\n    43,\n    4,\n    6,\n    7,\n    44,\n    45,\n    22,\n    47,\n    29,\n    32,\n    36,\n    51\n  ],\n  \"branches\": [\n    {\n      \"name\": \"Ранние годы и гимназическое образование\",\n      \"sphere\": \"education\",\n      \"facts\": [\n        0,\n        1,\n        2,\n        3\n      ]\n    },\n    {\n      \"name\": \"Становление под руководством Бехтерева\",\n      \"sphere\": \"career\",\n      \"facts\": [\n        5,\n        10,\n        9\n      ]\n    },\n    {\n      \"name\": \"Участие в профессиональных обществах\",\n      \"sphere\": \"career\",\n      \"facts\": [\n        8,\n        11,\n        23\n      ]\n    },\n    {\n      \"name\": \"Докторская диссертация и ее признание\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        12,\n        13,\n        14,\n        15,\n        16,\n        17,\n        18\n      ]\n    },\n    {\n      \"name\": \"Международный опыт и обучение\",\n      \"sphere\": \"place\",\n      \"facts\": [\n        19,\n        20,\n        46,\n        21\n      ]\n    },\n    {\n      \"name\": \"Развитие идей характерологии\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        28,\n        30,\n        31,\n        48,\n        27,\n        34\n      ]\n    },\n    {\n      \"name\": \"Сотрудничество с А.П. Нечаевым\",\n      \"sphere\": \"friends\",\n      \"facts\": [\n        24,\n        25,\n        26,\n        35\n      ]\n    },\n    {\n      \"name\": \"Работа в Психоневрологическом институте и конфликты\",\n      \"sphere\": \"career\",\n      \"facts\": [\n        33,\n        37,\n        50\n      ]\n    },\n    {\n      \"name\": \"Поздние теоретические концепции и классификация\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        49,\n        38,\n        39,\n        40\n      ]\n    },\n    {\n      \"name\": \"Посмертное наследие и влияние\",\n      \"sphere\": \"legacy\",\n      \"facts\": [\n        41,\n        42,\n        52\n      ]\n    }\n  ]\n}",
+  "usage": {
+    "promptTokenCount": 2164,
+    "candidatesTokenCount": 665,
+    "thoughtsTokenCount": 10293,
+    "totalTokenCount": 13122
+  },
+  "durationMs": 46073,
+  "recordedAt": "2026-07-08T11:51:21.375Z"
+}

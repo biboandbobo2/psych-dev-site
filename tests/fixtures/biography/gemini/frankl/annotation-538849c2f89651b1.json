@@ -1,0 +1,17 @@
+{
+  "step": "annotation",
+  "model": "gemini-2.5-flash",
+  "variant": "a",
+  "promptSha256": "538849c2f89651b1a53a5085abc9a5c2ae3b154678d648c5579ad353189418e8",
+  "promptChars": 7541,
+  "promptPreview": "Ты — разметчик биографических фактов о **Франкл, Виктор**.\n\nЗАДАЧА\nДля каждого факта определи:\n1. **themes** — одну или две темы из списка ниже (основная первой)\n2. **people** — имена людей, упомянуты",
+  "responseText": "0\tfamily_household\t\t\n1\tfamily_household\t\t\n2\tfamily_household\t\t\n3\tfamily_household,upbringing_mentors\tВинер\t\n4\tupbringing_mentors\t\t\n5\teducation,creative_work\t\t\n6\teducation\t\t\n7\teducation\t\t\n8\tpolitics_public_pressure\t\t\n9\tpolitics_public_pressure,service_career\t\t\n10\tservice_career,creative_work\t\t\n11\teducation,service_career\t\t\n12\tservice_career,health\t\t\n13\tfriends_network,travel_moves_exile\tРайх\t\n14\teducation,creative_work\t\t\n15\teducation\t\t\n16\tservice_career,health\t\t\n17\tservice_career\t\t\n18\tconflict_duels,politics_public_pressure\t\t\n19\tservice_career\t\t\n20\tservice_career\t\t\n21\tservice_career\t\t\n22\tconflict_duels,service_career\t\t\n23\tromance,family_household\tГроссер\t\n24\tconflict_duels,travel_moves_exile\tГроссер\t\n25\tfriends_network,travel_moves_exile\tФлейшман\t\n26\tservice_career,friends_network\tФлейшман\t\n27\tservice_career,conflict_duels\t\t\n28\tservice_career,health\t\t\n29\tfriends_network,service_career\tБек,Йонас\t\n30\tservice_career,creative_work\t\t\n31\tcreative_work,friends_network\t\t\n32\tlosses,family_household\t\t\n33\ttravel_moves_exile,conflict_duels\t\t\n34\ttravel_moves_exile,conflict_duels\t\t\n35\tlosses,conflict_duels\t\t\n36\ttravel_moves_exile,conflict_duels\t\t\n37\tservice_career,conflict_duels\t\t\n38\tconflict_duels,travel_moves_exile\tГроссер\t\n39\tconflict_duels\t\t\n40\ttravel_moves_exile,conflict_duels\t\t\n41\tcreative_work\t\t\n42\tpolitics_public_pressure,creative_work\t\t\n43\tservice_career\t\t\n44\tcreative_work\t\t\n45\tromance,family_household\tШвиндт\t\n46\teducation\t\t\n47\teducation,creative_work\t\t\n48\tchildren,family_household\t\t\n49\tservice_career,education\t\t\n50\ttravel_moves_exile,service_career\t\t\n51\tcreative_work\t\t\n52\tservice_career\t\t\n53\tlosses,health\t\t\n54\tfamily_household,legacy\tЭлеонора,Франкл-Весели,Катарина,Александр,Анна Виктория\t\n55\teducation\t\t\n56\tupbringing_mentors,creative_work\tФрейд,Адлер\t\n57\tcreative_work,upbringing_mentors\tФрейд,Адлер\t\n58\tservice_career,friends_network\t\t\n59\tcreative_work,service_career\t\t\n60\thealth,creative_work\t\t\n61\tcreative_work,service_career\t\t\n62\tfamily_household,travel_moves_exile\t\t\n63\tcreative_work\t\t\n64\tcreative_work,legacy\t\t\n65\ttravel_moves_exile,service_career\t\t\n66\tlegacy,education\t\t\n67\tlegacy,creative_work\t\t\n68\tlegacy,creative_work\t\t\n69\tlegacy,creative_work\t\t\n70\tlegacy,creative_work\t\t\n71\tcreative_work\t\t\n72\tcreative_work\t\t\n73\tcreative_work\t\t\n74\tcreative_work\t\t\n75\tromance,family_household\tШвиндт\t\n76\tfamily_household,romance\t\t\n77\tfamily_household,romance\t\t\n78\tfamily_household,romance\t\t\n79\tchildren,legacy\tГабриэль\t",
+  "usage": {
+    "promptTokenCount": 2692,
+    "candidatesTokenCount": 933,
+    "thoughtsTokenCount": 5315,
+    "totalTokenCount": 8940
+  },
+  "durationMs": 26334,
+  "recordedAt": "2026-07-09T07:57:21.720Z"
+}

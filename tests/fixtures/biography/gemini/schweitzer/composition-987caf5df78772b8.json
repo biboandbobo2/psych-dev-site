@@ -1,0 +1,17 @@
+{
+  "step": "composition",
+  "model": "gemini-2.5-flash",
+  "variant": "a",
+  "promptSha256": "987caf5df78772b863edd4ffec44902605f6fcdfa5874cef34eedd183695d732",
+  "promptChars": 6811,
+  "promptPreview": "Ты — нарратолог и биограф. Тебе дан список из 89 фактов о **Швейцер, Альберт** (1875–1965).\n\nЗАДАЧА\nРаспредели ВСЕ факты по структуре визуального таймлайна:\n1. **Главная линия** — 18 (±2) ключевых точ",
+  "responseText": "{\n  \"mainLine\": [\n    0,\n    4,\n    15,\n    16,\n    18,\n    31,\n    32,\n    33,\n    80,\n    36,\n    41,\n    42,\n    43,\n    51,\n    54,\n    56,\n    58,\n    59,\n    62\n  ],\n  \"branches\": [\n    {\n      \"name\": \"Ранние годы и образование (до университета)\",\n      \"sphere\": \"education\",\n      \"facts\": [\n        1,\n        2,\n        3,\n        64\n      ]\n    },\n    {\n      \"name\": \"Теологические и философские исследования\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        6,\n        7,\n        8,\n        9,\n        11,\n        12,\n        13,\n        29,\n        69,\n        70,\n        71,\n        72,\n        75,\n        76,\n        82\n      ]\n    },\n    {\n      \"name\": \"Музыкальная карьера и исследования Баха\",\n      \"sphere\": \"hobby\",\n      \"facts\": [\n        10,\n        17,\n        19,\n        20,\n        22,\n        23,\n        24,\n        25,\n        26,\n        27,\n        30,\n        38,\n        45,\n        49,\n        66,\n        68,\n        74,\n        77,\n        78,\n        79\n      ]\n    },\n    {\n      \"name\": \"Отношения с Хелен Бресслау\",\n      \"sphere\": \"family\",\n      \"facts\": [\n        14,\n        21,\n        65,\n        73\n      ]\n    },\n    {\n      \"name\": \"Медицинское образование и ранняя практика\",\n      \"sphere\": \"education\",\n      \"facts\": [\n        5,\n        28,\n        37\n      ]\n    },\n    {\n      \"name\": \"Больница в Ламбарене и миссионерская деятельность\",\n      \"sphere\": \"career\",\n      \"facts\": [\n        34,\n        35,\n        39,\n        44,\n        48,\n        52,\n        53,\n        60,\n        63,\n        81,\n        83,\n        87,\n        88\n      ]\n    },\n    {\n      \"name\": \"Признание и наследие\",\n      \"sphere\": \"legacy\",\n      \"facts\": [\n        40,\n        46,\n        47,\n        50,\n        55,\n        57,\n        61,\n        86\n      ]\n    }\n  ]\n}",
+  "usage": {
+    "promptTokenCount": 2922,
+    "candidatesTokenCount": 710,
+    "thoughtsTokenCount": 8589,
+    "totalTokenCount": 12221
+  },
+  "durationMs": 39531,
+  "recordedAt": "2026-07-09T07:42:05.386Z"
+}
