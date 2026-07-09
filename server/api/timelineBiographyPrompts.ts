@@ -54,6 +54,8 @@ export function buildBiographyGapFillingPrompt(params: {
   mode?: 'full' | 'dating-only';
   /** If known, the year of death — gap-filling should not add posthumous legacy facts */
   deathYear?: number | null;
+  /** Процедурная добавка для не-thinking моделей (lite-профиль). */
+  emphasis?: string;
 }) {
   const existingBlock = params.existingFacts.map((f, i) => `${i + 1}. ${f}`).join('\n');
 
@@ -83,7 +85,8 @@ export function buildBiographyGapFillingPrompt(params: {
 - Увлечения и хобби
 ` : '';
 
-  return `Ты — второй проход извлечения фактов из статьи о ${params.articleTitle}.
+  const emphasisBlock = params.emphasis ? `\n${params.emphasis}\n` : '';
+  return `Ты — второй проход извлечения фактов из статьи о ${params.articleTitle}.${emphasisBlock}
 
 Первый проход уже нашёл следующие ДАТИРОВАННЫЕ факты:
 ${existingBlock}

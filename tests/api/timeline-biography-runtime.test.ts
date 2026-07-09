@@ -241,7 +241,7 @@ describe('runBiographyImport — tuningProfile lite', () => {
 
     const extraction = calls.find((c) => (c.contents[0]?.parts[0]?.text ?? '').startsWith('Извлеки'))!;
     // few-shot и дробление в focusHint
-    expect(extraction.contents[0].parts[0].text).toContain('метод дробления');
+    expect(extraction.contents[0].parts[0].text).toContain('АБЗАЦ ЗА АБЗАЦЕМ');
     expect(extraction.contents[0].parts[0].text).toContain('"year": null');
     // structured output
     expect(extraction.config?.responseMimeType).toBe('application/json');

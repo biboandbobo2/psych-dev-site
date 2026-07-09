@@ -215,9 +215,19 @@ const FACT_EXTRACTION_RESPONSE_SCHEMA = {
   items: {
     type: 'object',
     properties: {
-      year: { type: 'integer', nullable: true },
-      month: { type: 'integer', nullable: true, minimum: 1, maximum: 12 },
-      text: { type: 'string' },
+      year: {
+        type: 'integer',
+        nullable: true,
+        description: 'Год события, буквально указанный в тексте. null, если год в тексте не написан. НЕ выводить год из соседних событий.',
+      },
+      month: {
+        type: 'integer',
+        nullable: true,
+        minimum: 1,
+        maximum: 12,
+        description: 'Месяц, только если буквально указан в тексте. Иначе null.',
+      },
+      text: { type: 'string', description: 'Конкретное событие, 5-15 слов.' },
       category: {
         type: 'string',
         enum: ['birth', 'education', 'move', 'publication', 'career', 'family', 'friends', 'health', 'conflict', 'award', 'project', 'death', 'other'],
@@ -231,10 +241,7 @@ const FACT_EXTRACTION_RESPONSE_SCHEMA = {
   },
 } as const;
 
-/** Замерено на rogers (2026-07): дробление подняло извлечение 33→55+,
- *  вернуло birth-якорь; few-shot с year=null убил фабрикацию дат (34→0). */
-export const LITE_EXTRACTION_EMPHASIS = [
-  'ВАЖНО — метод дробления: каждое предложение статьи, содержащее дату, имя, произведение, место или перемену статуса — это ОТДЕЛЬНЫЙ факт. Составное предложение с несколькими событиями дели на несколько фактов. Не обобщай и не сжимай. Верни не менее 60 фактов.',
+const LITE_DATING_EXAMPLES = [
   'ПРИМЕРЫ ПРАВИЛЬНОЙ ДАТИРОВКИ:',
   'Текст: «В 1927 году переехал в Париж.» → {"year": 1927, "text": "Переехал в Париж", "category": "move", "sphere": "place"}',
   'Текст: «Позднее активно выступал против войны.» (год из текста НЕ следует) → {"year": null, "text": "Активно выступал против войны", "category": "other", "sphere": "other"}',
@@ -242,13 +249,24 @@ export const LITE_EXTRACTION_EMPHASIS = [
   'НИКОГДА не приписывай факту год соседнего события или начала десятилетия. Нет года в тексте — ставь null.',
 ].join('\n');
 
+/** Замерено на rogers/vygotsky (2026-07): не-thinking модели требуют
+ *  процедуры вместо декларации. Поабзацный проход + минимум, растущий с
+ *  размером слайса (~1 факт на 400 символов), + few-shot year=null. */
+export function buildLiteExtractionEmphasis(sliceChars: number): string {
+  const minFacts = Math.max(60, Math.round(sliceChars / 400));
+  return [
+    `МЕТОД РАБОТЫ — строго по процедуре: пройди фрагмент АБЗАЦ ЗА АБЗАЦЕМ. Из каждого абзаца выпиши ВСЕ события: каждое предложение с датой, именем, произведением, местом, организацией или переменой статуса — ОТДЕЛЬНЫЙ факт. Составное предложение с несколькими событиями дели на несколько фактов. Не обобщай и не сжимай. Пропустить абзац нельзя. Верни не менее ${minFacts} фактов.`,
+    LITE_DATING_EXAMPLES,
+  ].join('\n');
+}
+
 function isLiteProfile(deps: BiographyPipelineDeps) {
   return deps.tuningProfile === 'lite';
 }
 
-function resolvedExtractionEmphasis(deps: BiographyPipelineDeps): string | undefined {
+function resolvedExtractionEmphasis(deps: BiographyPipelineDeps, sliceChars: number): string | undefined {
   if (deps.extractionEmphasis) return deps.extractionEmphasis;
-  return isLiteProfile(deps) ? LITE_EXTRACTION_EMPHASIS : undefined;
+  return isLiteProfile(deps) ? buildLiteExtractionEmphasis(sliceChars) : undefined;
 }
 
 /** Схема JSON-ответа объединённой разметки (lite-профиль): TSV с пустыми
@@ -645,7 +663,7 @@ export async function runBiographyPipelineCore(params: {
     const baseFocusHint = slices.length > 1
       ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
       : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
-    const emphasis = resolvedExtractionEmphasis(deps);
+    const emphasis = resolvedExtractionEmphasis(deps, slices[index].length);
     const focusHint = emphasis ? `${baseFocusHint}\n${emphasis}` : baseFocusHint;
 
     // F1 (verifier): падение слайса после ретраев — ошибка импорта, а не
@@ -720,6 +738,9 @@ export async function runBiographyPipelineCore(params: {
         undatedFacts: undatedFacts.length > 0 ? undatedFacts.map(f => f.details) : undefined,
         mode: gapFillingMode,
         deathYear: extractedDeathYear,
+        emphasis: isLiteProfile(deps)
+          ? `МЕТОД РАБОТЫ: перечитай статью РАЗДЕЛ ЗА РАЗДЕЛОМ и сверь каждый раздел со списком выше — всё недостающее выпиши.\n${LITE_DATING_EXAMPLES}`
+          : undefined,
       });
       const gapResult = await deps.callModel(
         {
