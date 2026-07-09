@@ -1,0 +1,155 @@
+{
+  "aggregate": {
+    "variant": "a",
+    "generatedAt": "2026-07-09T20:59:35.841Z",
+    "rows": [
+      {
+        "group": "ALL",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 32488
+      },
+      {
+        "group": "set:worker",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 32488
+      },
+      {
+        "group": "cat:en",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 32488
+      },
+      {
+        "group": "cat:psychologist",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 32488
+      }
+    ]
+  },
+  "results": [
+    {
+      "articleId": "rogers",
+      "set": "worker",
+      "categories": [
+        "en",
+        "psychologist"
+      ],
+      "structure": {
+        "nodes": 68,
+        "edges": 16,
+        "mainLineNodes": 13,
+        "branchNodes": 55,
+        "referentialViolations": 0,
+        "duplicateIds": 0,
+        "eventsOutsideBranchWindow": 0,
+        "sharedXOverlappingLanes": 0,
+        "normalizeEdits": {
+          "droppedEdges": 0,
+          "reanchoredNodes": 0,
+          "expandedWindows": 0,
+          "droppedNodes": 0,
+          "total": 0
+        }
+      },
+      "labels": {
+        "genericNodeLabels": 0,
+        "branchLabelsFilled": 6,
+        "branchLabelsTotal": 16,
+        "genericBranchLabels": 0
+      },
+      "lint": {
+        "fatal": false,
+        "errors": 0,
+        "warnings": 0,
+        "errorCodes": {}
+      },
+      "coverage": {
+        "totalFacts": 6,
+        "criticalFacts": 4,
+        "timelineMatched": 6,
+        "criticalMatched": 4,
+        "dateAccurate": 5,
+        "dateChecked": 5,
+        "missing": [],
+        "dateErrors": []
+      },
+      "facts": {
+        "extracted": 104,
+        "undated": 34,
+        "beforeBirth": 0,
+        "annotatedShare": 100,
+        "redactedShare": 100,
+        "monthsStripped": 104,
+        "yearsStripped": 34
+      },
+      "cost": {
+        "totalTokens": 32488,
+        "liveCalls": 2,
+        "cachedCalls": 3,
+        "modelDurationMs": 29058,
+        "wallClockMs": 23071,
+        "byStep": {
+          "extraction": {
+            "calls": 2,
+            "tokens": 13477
+          },
+          "gap": {
+            "calls": 1,
+            "tokens": 10145
+          },
+          "annotation": {
+            "calls": 1,
+            "tokens": 5222
+          },
+          "composition": {
+            "calls": 1,
+            "tokens": 3644
+          }
+        }
+      },
+      "manualFixNeeded": true,
+      "manualFixReasons": [
+        "yearsFabricated=34"
+      ]
+    }
+  ]
+}
