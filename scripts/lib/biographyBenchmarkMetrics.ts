@@ -190,7 +190,15 @@ function computeYearSentenceCoverage(
   const sentences = extract
     .split(/(?<=[.!?])\s+|\n+/)
     .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence.length >= 25 && /\b(1[5-9]\d{2}|20[0-2]\d)\b/.test(sentence));
+    .filter((sentence) => {
+      if (sentence.length < 25) return false;
+      // заголовки разделов («Орша и Гомель (1896—1924)») — не события
+      if (sentence.length < 70 && !/[.!?]$/.test(sentence)) return false;
+      // год должен жить и вне скобок: годы жизни чужих людей в скобках —
+      // не биографические события субъекта
+      const outsideParens = sentence.replace(/\([^)]*\)/g, ' ');
+      return /\b(1[5-9]\d{2}|20[0-2]\d)\b/.test(outsideParens);
+    });
   if (sentences.length === 0) return null;
 
   const tokenize = (text: string) =>
