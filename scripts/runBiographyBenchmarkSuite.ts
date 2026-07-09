@@ -50,6 +50,7 @@ type CliOptions = {
   variant: 'a' | 'b';
   tag: string | null;
   compare: [string, string] | null;
+  maxLiveCalls: number | null;
 };
 
 function parseArgs(argv: string[]): CliOptions {
@@ -61,6 +62,7 @@ function parseArgs(argv: string[]): CliOptions {
     variant: 'a',
     tag: null,
     compare: null,
+    maxLiveCalls: null,
   };
   for (const arg of argv) {
     if (arg === '--fetch-fixtures') options.fetchFixtures = true;
@@ -72,6 +74,10 @@ function parseArgs(argv: string[]): CliOptions {
     else if (arg.startsWith('--compare=')) {
       const [a, b] = arg.slice(10).split(',').map((s) => s.trim());
       if (a && b) options.compare = [a, b];
+    }
+    else if (arg.startsWith('--max-live-calls=')) {
+      const n = parseInt(arg.slice(17), 10);
+      if (Number.isFinite(n) && n > 0) options.maxLiveCalls = n;
     }
   }
   return options;
@@ -142,6 +148,7 @@ async function runSuite(options: CliOptions) {
         live: options.live,
         apiKey,
         stats,
+        maxLiveCalls: options.maxLiveCalls ?? undefined,
       })
     );
 

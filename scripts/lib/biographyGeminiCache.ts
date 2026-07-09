@@ -152,6 +152,8 @@ export function createCachingBiographyClient(params: {
   liveDelayMs?: number;
   cacheDir?: string;
   stats?: CachingClientStats;
+  /** Жёсткий потолок живых вызовов (защита бюджета) — при превышении throw. */
+  maxLiveCalls?: number;
 }): BiographyGenAiClient {
   const variant = params.variant ?? 'a';
   const cacheDir = params.cacheDir ?? BIOGRAPHY_GEMINI_CACHE_DIR;
@@ -187,6 +189,11 @@ export function createCachingBiographyClient(params: {
         }
 
         stats.misses += 1;
+        if (params.live && params.maxLiveCalls != null && stats.liveCalls >= params.maxLiveCalls) {
+          throw new Error(
+            `Достигнут потолок live-вызовов (${params.maxLiveCalls}) для ${params.articleId} — прогон остановлен для защиты бюджета.`
+          );
+        }
         if (!params.live) {
           // Runtime глотает падения отдельных extraction-слайсов — пишем
           // причину в stderr, иначе miss маскируется под «0 facts».
