@@ -49,7 +49,7 @@ async function replayArticle(articleId: string): Promise<ArticleMetrics | 'cache
   try {
     const payload = await runBiographyImport({ sourceUrl: entry.sourceUrl, apiKey: 'cache-only', page });
     if (stats.misses > 0) return 'cache-incomplete';
-    return buildArticleMetrics({ entry, payload, stats, wallClockMs: 0 });
+    return buildArticleMetrics({ entry, payload, stats, wallClockMs: 0, articleExtract: page.biographyExtract });
   } catch (error) {
     if (error instanceof BiographyGeminiCacheMissError || stats.misses > 0) return 'cache-incomplete';
     throw error;

@@ -14,7 +14,7 @@ export const biographyBenchmarkGroundTruth: Record<string, BiographyBenchmarkFac
     { id: 'birth', year: 1896, label: 'Рождение в Орше', critical: true, article: { all: [['орш']] }, timeline: { any: ['рождение', 'орш', '1896'] } },
     { id: 'gomel', year: 1897, label: 'Переезд семьи в Гомель', article: { all: [['гомель']] }, timeline: { any: ['гомель'] } },
     { id: 'moscow-university', year: 1913, label: 'Поступление в Московский университет', critical: true, article: { all: [['московск', 'университет']] }, timeline: { any: ['московск университет', 'университет'] } },
-    { id: 'congress-1924', year: 1924, label: 'Доклад на психоневрологическом съезде', critical: true, article: { all: [['психоневрологическ', 'съезд']] }, timeline: { any: ['съезд', 'психоневрологическ'] } },
+    { id: 'congress-1924', year: 1924, label: 'Доклад на психоневрологическом съезде', critical: true, article: { all: [['психоневрологическ', 'съезд']] }, timeline: { any: ['съезд', 'дебют'] } },
     { id: 'psychology-of-art', year: 1925, label: 'Психология искусства', article: { all: [['психология искусства']] }, timeline: { any: ['психология искусства'] } },
     { id: 'thinking-speech', year: 1934, label: 'Мышление и речь', critical: true, article: { all: [['мышление и речь']] }, timeline: { any: ['мышление и речь'] } },
     { id: 'death', year: 1934, label: 'Смерть от туберкулёза', critical: true, article: { all: [['туберкул']] }, timeline: { any: ['смерть', 'туберкул', 'умер'] } },

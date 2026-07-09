@@ -78,6 +78,9 @@ export type ArticleMetrics = {
     extracted: number;
     undated: number;
     beforeBirth: number;
+    /** Полнота извлечения: доля «годовых» предложений статьи (содержат
+     *  4-значный год), отражённых хотя бы одним фактом (≥2 общих слова). */
+    yearSentenceCoverage: number | null;
     /** B6: доля фактов, получивших разметку (TSV-строки могли потеряться). */
     annotatedShare: number | null;
     redactedShare: number | null;
@@ -179,6 +182,40 @@ function countSharedXOverlaps(data: TimelineData): number {
   return overlaps;
 }
 
+/** Доля предложений статьи с годами, отражённых в извлечённых фактах. */
+function computeYearSentenceCoverage(
+  extract: string,
+  facts: Array<{ details?: string; evidence?: string }>
+): number | null {
+  const sentences = extract
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length >= 25 && /\b(1[5-9]\d{2}|20[0-2]\d)\b/.test(sentence));
+  if (sentences.length === 0) return null;
+
+  const tokenize = (text: string) =>
+    new Set(
+      text
+        .toLowerCase()
+        .replace(/[^a-zа-яё0-9\s-]/gi, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length >= 5)
+    );
+  const factTokenSets = facts.map((fact) => tokenize(fact.details ?? fact.evidence ?? ''));
+
+  let covered = 0;
+  for (const sentence of sentences) {
+    const st = tokenize(sentence);
+    const hit = factTokenSets.some((ft) => {
+      let shared = 0;
+      for (const w of ft) if (st.has(w) && ++shared >= 2) return true;
+      return false;
+    });
+    if (hit) covered += 1;
+  }
+  return Math.round((covered / sentences.length) * 1000) / 10;
+}
+
 function nodeText(node: NodeT) {
   return [node.label, node.notes ?? '', node.sphere ?? ''].filter(Boolean).join(' ');
 }
@@ -256,6 +293,8 @@ export function buildArticleMetrics(params: {
   payload: BiographyExtractorSuccessPayload;
   stats: CachingClientStats;
   wallClockMs: number;
+  /** biographyExtract статьи — для метрики yearSentenceCoverage. */
+  articleExtract?: string;
 }): ArticleMetrics {
   const { entry, payload, stats } = params;
   if (!payload.timeline) {
@@ -361,6 +400,9 @@ export function buildArticleMetrics(params: {
         : null,
       monthsStripped: payload.meta.dateSanity?.monthsStripped ?? 0,
       yearsStripped: payload.meta.dateSanity?.yearsStripped ?? 0,
+      yearSentenceCoverage: params.articleExtract
+        ? computeYearSentenceCoverage(params.articleExtract, payload.facts)
+        : null,
     },
     cost: {
       totalTokens: stats.totalTokens,

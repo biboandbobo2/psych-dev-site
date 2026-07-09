@@ -216,7 +216,7 @@ async function runSuite(options: CliOptions) {
         // composition-fallback) — такие метрики это мусор, а не замер.
         throw new Error('дневная квота выбита посреди статьи — метрики отброшены');
       }
-      const metrics = buildArticleMetrics({ entry, payload, stats, wallClockMs: Date.now() - startedAt });
+      const metrics = buildArticleMetrics({ entry, payload, stats, wallClockMs: Date.now() - startedAt, articleExtract: page.biographyExtract });
       results.push(metrics);
       printLine(
         `  nodes=${metrics.structure.nodes} edges=${metrics.structure.edges} ` +
