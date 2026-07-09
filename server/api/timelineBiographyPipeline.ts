@@ -100,6 +100,10 @@ export type BiographyPipelineDeps = {
   /** BPT-9 (за флагом): annotation+redaktura одним вызовом — минус один
    *  запрос на импорт. false/undefined → легаси-путь, кэш стабилен. */
   mergedMarkup?: boolean;
+  /** Structured output для extraction/gap (за флагом): responseSchema с
+   *  nullable year — легальный «года нет» вместо фабрикации дат
+   *  не-thinking моделями. false/undefined → конфиг байт-в-байт как прод. */
+  structuredExtraction?: boolean;
   onProgress?: BiographyProgressCallback;
   /** Суммарные токены каждого вызова (BYOK accounting в CF). */
   onTokens?: (tokens: number) => void;
@@ -199,6 +203,45 @@ export function collectGeminiResultText(result: unknown) {
   return '';
 }
 
+/** JSON-схема extraction/gap-ответа: nullable year/month узаконивают
+ *  «дата неизвестна» (документированный приём Google против галлюцинаций). */
+const FACT_EXTRACTION_RESPONSE_SCHEMA = {
+  type: 'array',
+  items: {
+    type: 'object',
+    properties: {
+      year: { type: 'integer', nullable: true },
+      month: { type: 'integer', nullable: true, minimum: 1, maximum: 12 },
+      text: { type: 'string' },
+      category: {
+        type: 'string',
+        enum: ['birth', 'education', 'move', 'publication', 'career', 'family', 'friends', 'health', 'conflict', 'award', 'project', 'death', 'other'],
+      },
+      sphere: {
+        type: 'string',
+        enum: ['education', 'career', 'creativity', 'family', 'health', 'friends', 'place', 'finance', 'hobby', 'other'],
+      },
+    },
+    required: ['year', 'text', 'category', 'sphere'],
+  },
+} as const;
+
+function extractionCallConfig(deps: BiographyPipelineDeps): Record<string, unknown> {
+  if (!deps.structuredExtraction) {
+    return {
+      temperature: 0.1,
+      maxOutputTokens: 65536,
+      responseMimeType: 'text/plain',
+    };
+  }
+  return {
+    temperature: 0.1,
+    maxOutputTokens: 65536,
+    responseMimeType: 'application/json',
+    responseSchema: FACT_EXTRACTION_RESPONSE_SCHEMA,
+  };
+}
+
 function extractTotalTokens(result: unknown): number {
   if (!result || typeof result !== 'object' || !('usageMetadata' in result)) return 0;
   const meta = (result as { usageMetadata?: { totalTokenCount?: number } }).usageMetadata;
@@ -231,11 +274,7 @@ async function generateSimpleBiographyFacts(params: {
         {
           model,
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: {
-            temperature: 0.1,
-            maxOutputTokens: 65536,
-            responseMimeType: 'text/plain',
-          },
+          config: extractionCallConfig(params.deps),
         },
         params.label
       );
@@ -634,11 +673,7 @@ export async function runBiographyPipelineCore(params: {
         {
           model: params.deps.model ?? DEFAULT_BIOGRAPHY_MODEL,
           contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
-          config: {
-            temperature: 0.1,
-            maxOutputTokens: 65536,
-            responseMimeType: 'text/plain',
-          },
+          config: extractionCallConfig(deps),
         },
         'gap-filling'
       );

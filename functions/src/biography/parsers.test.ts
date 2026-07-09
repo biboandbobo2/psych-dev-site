@@ -158,3 +158,18 @@ describe('parseMergedMarkupResponse', () => {
     expect(parsed.get(0)!.importance).toBe(3);
   });
 });
+
+// parseSimpleJsonFacts выбрасывал month, который extraction-промпт просит
+describe('parseSimpleJsonFacts — month', () => {
+  it('читает валидный month и игнорирует мусорный', async () => {
+    const { parseSimpleJsonFacts } = await import('./parsers.js');
+    const facts = parseSimpleJsonFacts(JSON.stringify([
+      { year: 1900, month: 6, text: 'Событие с месяцем', category: 'other', sphere: 'other' },
+      { year: 1901, month: 13, text: 'Мусорный месяц', category: 'other', sphere: 'other' },
+      { year: null, text: 'Недатированное событие', category: 'other', sphere: 'other' },
+    ]));
+    expect(facts[0].month).toBe(6);
+    expect(facts[1].month).toBeUndefined();
+    expect(facts[2].year).toBeUndefined();
+  });
+});

@@ -183,6 +183,7 @@ async function runBiographyTwoPass(params: {
   model?: string;
   extractionEmphasis?: string;
   mergedMarkup?: boolean;
+  structuredExtraction?: boolean;
 }): Promise<BiographyExtractorSuccessPayload> {
   const client = resolveGenAiClient(params.apiKey);
 
@@ -194,6 +195,7 @@ async function runBiographyTwoPass(params: {
       model: params.model,
       extractionEmphasis: params.extractionEmphasis,
       mergedMarkup: params.mergedMarkup,
+      structuredExtraction: params.structuredExtraction,
       onProgress: params.onProgress,
       log: (message, data) => debugLog(`[timeline-biography] ${message}`, data),
       logError: (message, data) => debugError(`[timeline-biography] ${message}`, data),
@@ -237,6 +239,8 @@ export async function runBiographyImport(params: {
   extractionEmphasis?: string;
   /** BPT-9 (за флагом): объединённая разметка одним вызовом. */
   mergedMarkup?: boolean;
+  /** Structured output extraction/gap (за флагом). */
+  structuredExtraction?: boolean;
 }): Promise<BiographyExtractorSuccessPayload> {
   return runBiographyTwoPass(params);
 }

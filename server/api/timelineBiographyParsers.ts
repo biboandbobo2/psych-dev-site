@@ -52,6 +52,7 @@ export function parseSimpleJsonFacts(rawText: string): BiographyFactCandidate[] 
   try {
     const parsed = JSON.parse(jsonText) as Array<{
       year?: number | null;
+      month?: number | null;
       text?: string;
       category?: string;
       sphere?: string;
@@ -61,6 +62,11 @@ export function parseSimpleJsonFacts(rawText: string): BiographyFactCandidate[] 
       .filter((item) => item && typeof item.text === 'string' && item.text.trim().length > 3)
       .map((item) => ({
         year: typeof item.year === 'number' ? item.year : undefined,
+        // month просился extraction-промптом, но выбрасывался парсером
+        month:
+          typeof item.month === 'number' && item.month >= 1 && item.month <= 12
+            ? item.month
+            : undefined,
         age: undefined,
         sphere: (item.sphere ?? 'other') as BiographyFactCandidate['sphere'],
         category: item.category ?? 'other',

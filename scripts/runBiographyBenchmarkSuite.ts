@@ -54,6 +54,8 @@ type CliOptions = {
   model: string | null;
   minFacts: number | null;
   mergedMarkup: boolean;
+  structured: boolean;
+  fewShot: boolean;
 };
 
 function parseArgs(argv: string[]): CliOptions {
@@ -69,6 +71,8 @@ function parseArgs(argv: string[]): CliOptions {
     model: null,
     minFacts: null,
     mergedMarkup: false,
+    structured: false,
+    fewShot: false,
   };
   for (const arg of argv) {
     if (arg === '--fetch-fixtures') options.fetchFixtures = true;
@@ -89,12 +93,37 @@ function parseArgs(argv: string[]): CliOptions {
       options.model = arg.slice(8).trim() || null;
     }
     else if (arg === '--merged-markup') options.mergedMarkup = true;
+    else if (arg === '--structured') options.structured = true;
+    else if (arg === '--few-shot') options.fewShot = true;
     else if (arg.startsWith('--min-facts=')) {
       const n = parseInt(arg.slice(12), 10);
       if (Number.isFinite(n) && n > 0) options.minFacts = n;
     }
   }
   return options;
+}
+
+/** Собирает экспериментальную добавку к focusHint: процедурное дробление
+ *  (--min-facts) и few-shot про честное year=null (--few-shot). */
+function buildEmphasis(options: CliOptions): string | undefined {
+  const parts: string[] = [];
+  if (options.minFacts) {
+    parts.push(
+      `ВАЖНО — метод дробления: каждое предложение статьи, содержащее дату, имя, произведение, место или перемену статуса — это ОТДЕЛЬНЫЙ факт. Составное предложение с несколькими событиями дели на несколько фактов. Не обобщай и не сжимай. Верни не менее ${options.minFacts} фактов.`
+    );
+  }
+  if (options.fewShot) {
+    parts.push(
+      [
+        'ПРИМЕРЫ ПРАВИЛЬНОЙ ДАТИРОВКИ:',
+        'Текст: «В 1927 году переехал в Париж.» → {"year": 1927, "text": "Переехал в Париж", "category": "move", "sphere": "place"}',
+        'Текст: «Позднее активно выступал против войны.» (год из текста НЕ следует) → {"year": null, "text": "Активно выступал против войны", "category": "other", "sphere": "other"}',
+        'Текст: «В эти годы много путешествовал по Европе.» (точного года нет) → {"year": null, "text": "Много путешествовал по Европе", "category": "move", "sphere": "place"}',
+        'НИКОГДА не приписывай факту год соседнего события или начала десятилетия. Нет года в тексте — ставь null.',
+      ].join('\n')
+    );
+  }
+  return parts.length > 0 ? parts.join('\n') : undefined;
 }
 
 function printLine(value = '') {
@@ -175,9 +204,8 @@ async function runSuite(options: CliOptions) {
         page,
         model: options.model ?? undefined,
         mergedMarkup: options.mergedMarkup || undefined,
-        extractionEmphasis: options.minFacts
-          ? `ВАЖНО — метод дробления: каждое предложение статьи, содержащее дату, имя, произведение, место или перемену статуса — это ОТДЕЛЬНЫЙ факт. Составное предложение с несколькими событиями дели на несколько фактов. Не обобщай и не сжимай. Верни не менее ${options.minFacts} фактов.`
-          : undefined,
+        structuredExtraction: options.structured || undefined,
+        extractionEmphasis: buildEmphasis(options),
       });
       if (stats.dailyQuotaHit) {
         // 429 мог быть проглочен best-effort шагами pipeline (redaktura,
