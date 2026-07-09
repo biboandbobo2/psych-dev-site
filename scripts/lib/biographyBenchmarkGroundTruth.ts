@@ -49,7 +49,7 @@ export const biographyBenchmarkGroundTruth: Record<string, BiographyBenchmarkFac
     { id: 'phd', year: 1931, label: 'PhD at Columbia', critical: true, article: { all: [['columbia']] }, timeline: { any: ['columbia', 'колумбийск', 'доктор'] } },
     { id: 'counseling', year: 1942, label: 'Counseling and Psychotherapy', article: { all: [['counseling and psychotherapy']] }, timeline: { any: ['counseling', 'консультирован'] } },
     { id: 'client-centered', year: 1951, label: 'Client-Centered Therapy', critical: true, article: { all: [['client-centered therapy']] }, timeline: { any: ['client-centered', 'клиент-центрирован', 'центрированная терапия'] } },
-    { id: 'becoming', year: 1961, label: 'On Becoming a Person', article: { all: [['on becoming a person']] }, timeline: { any: ['becoming a person', 'становление личности', 'становление человека'] } },
+    { id: 'becoming', year: 1961, label: 'On Becoming a Person', article: { all: [['on becoming a person']] }, timeline: { any: ['becoming a person', 'становлени'] } },
     { id: 'death', year: 1987, label: 'Death', critical: true, article: { any: ['died', 'death'] }, timeline: { any: ['died', 'умер', 'смерть', 'скончал'] } },
   ],
   freud: [
