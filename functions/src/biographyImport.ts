@@ -23,6 +23,7 @@ import {
   getGenAiClient,
   recordBiographyByokUsage,
 } from './biography/helpers.js';
+import { normalizeError } from './biography/errors.js';
 
 // ============================================================================
 // INIT
@@ -57,17 +58,6 @@ function validateSourceUrl(body: Record<string, unknown>): string {
     throw Object.assign(new Error('Некорректный URL.'), { statusCode: 400 });
   }
   return sourceUrl;
-}
-
-function normalizeError(error: unknown) {
-  const rawMessage = error instanceof Error ? error.message : String(error);
-  const statusCode = (error as { statusCode?: number }).statusCode;
-  if (statusCode) return { statusCode, message: rawMessage };
-
-  if (/quota|RESOURCE_EXHAUSTED|429/i.test(rawMessage)) return { statusCode: 429, message: 'Gemini временно недоступен из-за лимита запросов. Попробуйте позже.' };
-  if (/PERMISSION_DENIED|API key not valid|invalid api key|forbidden/i.test(rawMessage)) return { statusCode: 403, message: 'Gemini API key недействителен.' };
-  if (/JSON|Unexpected token|parse/i.test(rawMessage)) return { statusCode: 502, message: 'Gemini вернул некорректный ответ. Попробуйте ещё раз.' };
-  return { statusCode: 500, message: `Не удалось собрать таймлайн: ${rawMessage}` };
 }
 
 // ============================================================================
