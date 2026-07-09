@@ -1,0 +1,16 @@
+{
+  "step": "annotation",
+  "model": "gemini-3.1-flash-lite",
+  "variant": "a",
+  "promptSha256": "bf7d505e091e8cad7bcfafb6762c19db3bde89107434056cad2074684b66cf3a",
+  "promptChars": 4104,
+  "promptPreview": "Ты — разметчик биографических фактов о **Франкл, Виктор**.\n\nЗАДАЧА\nДля каждого факта определи:\n1. **themes** — одну или две темы из списка ниже (основная первой)\n2. **people** — имена людей, упомянуты",
+  "responseText": "0\teducation\t \t\t\n1\tservice_career,politics_public_pressure\t\t \t\n2\tcreative_work,service_career\t\t \t\n3\teducation\t \t\t\n4\tservice_career\t \t\t\n5\tconflict_duels,politics_public_pressure\t\t \t\n6\tservice_career\t \t\t\n7\tromance\tГроссер\t\t\n8\tconflict_duels,travel_moves_exile\t\t \t\n9\tcreative_work,conflict_duels\t\t \t\n10\tconflict_duels,travel_moves_exile\t\t \t\n11\tconflict_duels,travel_moves_exile\t\t \t\n12\tconflict_duels,travel_moves_exile\t\t \t\n13\tcreative_work\t \t\t\n14\tservice_career\t \t\t\n15\tcreative_work\t \t\t\n16\tromance\tШвиндт\t\t\n17\teducation\t \t\t\n18\tservice_career,education\t\t \t\n19\ttravel_moves_exile,education\t\t \t\n20\tcreative_work\t \t\t\n21\tservice_career\t \t\t\n22\tlosses\t \t\t\n23\tfamily_household\t \t\t\n24\teducation,creative_work\t\t \t\n25\tpolitics_public_pressure,friends_network\t\t \t\n26\tservice_career,conflict_duels\t\t \t\n27\tservice_career\t \t\t\n28\tlosses,family_household\t\t \t\n29\tlosses,family_household\t\t \t\n30\tlosses,romance\tГроссер\t\t\n31\tcreative_work\t \t\t\n32\tcreative_work\t \t\t",
+  "usage": {
+    "promptTokenCount": 1396,
+    "candidatesTokenCount": 395,
+    "totalTokenCount": 1791
+  },
+  "durationMs": 1593,
+  "recordedAt": "2026-07-09T20:18:02.748Z"
+}
