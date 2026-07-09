@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildTimelineDataFromBiographyPlan } from '../../server/api/timelineBiographyQuality.js';
 import type { BiographyTimelinePlan } from '../../server/api/timelineBiographyTypes.js';
 import { referentialViolations, duplicateIds } from '../../src/pages/timeline/utils/__tests__/graphGen';
+import { normalizeImportedTimelineData } from '../../src/pages/timeline/persistence';
 
 function makePlan(overrides: Partial<BiographyTimelinePlan> = {}): BiographyTimelinePlan {
   return {
@@ -203,5 +204,55 @@ describe('buildTimelineDataFromBiographyPlan — названия веток (Д
     expect(label.endsWith('…')).toBe(true);
     // не рвём слово посередине: до многоточия — целое слово
     expect(label).toBe('Научная и общественная деятельность в…');
+  });
+});
+
+// Фаза 1 branchId (docs/plans/timeline-branch-id-rfc.md): рендер проставляет
+// node.branchId = id ветки-родителя параллельно с parentX (anchor + spur);
+// события главной линии branchId не несут. Досев normalize при этом — no-op
+// (branchId рендера уже совпадает с деревом), иначе появился бы «тихий» edit.
+describe('buildTimelineDataFromBiographyPlan — branchId (фаза 1)', () => {
+  const branchedPlan = () =>
+    makePlan({
+      branches: [
+        {
+          label: 'Научная работа',
+          sphere: 'career',
+          sourceMainEventIndex: 0,
+          events: [
+            { age: 25, label: 'Первая статья', notes: 'а', sphere: 'career', isDecision: false },
+            { age: 30, label: 'Доклад', notes: 'б', sphere: 'career', isDecision: false },
+            { age: 30, label: 'Монография (spur)', notes: 'в', sphere: 'career', isDecision: false },
+          ],
+        },
+      ],
+    });
+
+  it('branchId события ветки равен id ветки-родителя и консистентен с parentX', () => {
+    const timeline = buildTimelineDataFromBiographyPlan(branchedPlan());
+    const edgeByX = new Map(timeline.edges.map((e) => [e.x, e]));
+
+    let branchNodes = 0;
+    for (const node of timeline.nodes) {
+      if (node.parentX === undefined || node.parentX === 2000) {
+        // Событие главной линии — без branchId.
+        expect(node.branchId, `main "${node.label}"`).toBeUndefined();
+        continue;
+      }
+      branchNodes += 1;
+      const edge = edgeByX.get(node.parentX)!;
+      expect(node.branchId, `node "${node.label}"`).toBe(edge.id);
+    }
+    // Должны присутствовать и anchor, и spur события ветки.
+    expect(branchNodes).toBeGreaterThanOrEqual(2);
+  });
+
+  it('досев branchId при загрузке — no-op (branchId рендера уже совпадает с деревом)', () => {
+    const timeline = buildTimelineDataFromBiographyPlan(branchedPlan());
+    const normalized = normalizeImportedTimelineData(JSON.parse(JSON.stringify(timeline)));
+    const before = new Map(timeline.nodes.map((n) => [n.id, n.branchId]));
+    for (const node of normalized.nodes) {
+      expect(node.branchId, `node ${node.id}`).toBe(before.get(node.id));
+    }
   });
 });

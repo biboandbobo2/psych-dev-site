@@ -93,8 +93,9 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
     // Д-B10: имя ветки из composition (branch.label плана) — иначе UI
     // показывает имя origin-события вместо осмысленного названия арки.
     const branchLabel = truncateBranchLabel(branch.label);
+    const branchEdgeId = crypto.randomUUID();
     edges.push({
-      id: crypto.randomUUID(),
+      id: branchEdgeId,
       x,
       startAge,
       endAge,
@@ -123,6 +124,7 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
         age: first.age,
         x,
         parentX: x,
+        branchId: branchEdgeId, // ссылочная принадлежность параллельно с parentX
         label: first.label,
         notes: first.notes,
         sphere: first.sphere ?? sphere,
@@ -148,8 +150,9 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
         // не выбрал этот же x при пересекающемся окне.
         occupiedLanes.push({ x: subX, startAge: age, endAge: age });
 
+        const spurEdgeId = crypto.randomUUID();
         edges.push({
-          id: crypto.randomUUID(),
+          id: spurEdgeId,
           x: subX,
           startAge: age,
           endAge: age,
@@ -162,6 +165,7 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
           age: event.age,
           x: subX,
           parentX: subX,
+          branchId: spurEdgeId, // спур-событие принадлежит спур-ветке по ссылке
           label: event.label,
           notes: event.notes,
           sphere: event.sphere ?? sphere,

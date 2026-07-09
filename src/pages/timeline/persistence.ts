@@ -28,6 +28,12 @@ function normalizeImportedNode(node: unknown): NodeT | null {
     age: candidate.age,
     x: Number.isFinite(candidate.x) ? candidate.x : undefined,
     parentX: Number.isFinite(candidate.parentX) ? candidate.parentX : undefined,
+    // branchId — ссылочная принадлежность (фаза 1). Сохраняем, если документ
+    // её несёт; отсутствие досеивается ниже из дерева.
+    branchId:
+      typeof candidate.branchId === 'string' && candidate.branchId.trim()
+        ? candidate.branchId.trim()
+        : undefined,
     label: candidate.label.trim(),
     notes: typeof candidate.notes === 'string' && candidate.notes.trim() ? candidate.notes.trim() : undefined,
     sphere: candidate.sphere,
@@ -119,7 +125,11 @@ export function normalizeImportedTimelineData(data: unknown): TimelineData {
   // такое состояние создать не даёт (B11/B13/B14), но legacy-документы
   // могут его содержать. Расширяем окно ветки (данные не двигаем);
   // принадлежность берём из дерева, как и все операции.
+  // branchId-досев (фаза 1): членство берём из того же детерминированного
+  // дерева. Событие на ветке → branchId = id ветки; корневые события в
+  // branches не попадают → остаются без branchId (главная линия).
   const windowFixes = new Map<string, { startAge: number; endAge: number }>();
+  const branchIdByNode = new Map<string, string>();
   for (const root of buildTimelineTree(nodes, edges)) {
     const stack = [root];
     while (stack.length > 0) {
@@ -129,6 +139,7 @@ export function normalizeImportedTimelineData(data: unknown): TimelineData {
         for (const child of branch.events) {
           startAge = Math.min(startAge, child.data.age);
           endAge = Math.max(endAge, child.data.age);
+          branchIdByNode.set(child.data.id, branch.data.id);
           stack.push(child);
         }
         if (startAge !== branch.data.startAge || endAge !== branch.data.endAge) {
@@ -137,6 +148,13 @@ export function normalizeImportedTimelineData(data: unknown): TimelineData {
       }
     }
   }
+  // Досеиваем только отсутствующий branchId — заданный (новый/пересохранённый
+  // документ) читаем по ссылке, не переписываем по координате.
+  const nodesWithBranchId = nodes.map((n) =>
+    n.branchId === undefined && branchIdByNode.has(n.id)
+      ? { ...n, branchId: branchIdByNode.get(n.id) }
+      : n
+  );
   const healedEdges = edges.map((e) => {
     const fix = windowFixes.get(e.id);
     return fix ? { ...e, ...fix } : e;
@@ -152,7 +170,7 @@ export function normalizeImportedTimelineData(data: unknown): TimelineData {
   return {
     currentAge: Number.isFinite(candidate.currentAge) ? Number(candidate.currentAge) : DEFAULT_CURRENT_AGE,
     ageMax: Number.isFinite(candidate.ageMax) ? Math.max(Number(candidate.ageMax), computedMaxAge) : computedMaxAge,
-    nodes,
+    nodes: nodesWithBranchId,
     edges: healedEdges,
     birthDetails:
       candidate.birthDetails && typeof candidate.birthDetails === 'object'
