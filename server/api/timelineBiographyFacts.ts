@@ -572,3 +572,65 @@ export function resolveGapFillingMode(
     mode: factDensity < 3 ? 'full' : 'dating-only',
   };
 }
+
+// ---------------------------------------------------------------------------
+// Гарды датировочной фабрикации. Найдено на gemini-3.1-flash-lite (rogers):
+// не-thinking модель штампует month=1 «по умолчанию» (90/104 фактов) и
+// сваливает недатированные нарративные факты в один год (33 × year=1980),
+// после чего merge同возрастных схлопывает треть таймлайна на лжедате.
+// Пороги выбраны по замерам worker-15 на 2.5-flash (макс. кластер года 16%,
+// модальный месяц ≤22% при выборках ≤45) — на честных данных гарды no-op.
+// ---------------------------------------------------------------------------
+
+/** Если месяцев много и подавляющая доля — один и тот же, месяц фиктивен. */
+export function stripUnreliableMonths(
+  facts: BiographyFactCandidate[],
+  opts: { minSample?: number; modalShare?: number } = {}
+): { facts: BiographyFactCandidate[]; monthsStripped: number } {
+  const { minSample = 20, modalShare = 0.6 } = opts;
+  const withMonth = facts.filter((fact) => fact.month != null);
+  if (withMonth.length < minSample) return { facts, monthsStripped: 0 };
+
+  const byMonth = new Map<number, number>();
+  for (const fact of withMonth) {
+    byMonth.set(fact.month!, (byMonth.get(fact.month!) ?? 0) + 1);
+  }
+  const modal = Math.max(...byMonth.values());
+  if (modal / withMonth.length <= modalShare) return { facts, monthsStripped: 0 };
+
+  return {
+    facts: facts.map((fact) => (fact.month != null ? { ...fact, month: undefined } : fact)),
+    monthsStripped: withMonth.length,
+  };
+}
+
+/** Аномальный кластер фактов одного года → год снимается (факты остаются
+ *  недатированными и не рендерятся на лжедате). */
+export function stripFabricatedYearClusters(
+  facts: BiographyFactCandidate[],
+  opts: { minCluster?: number; clusterShare?: number } = {}
+): { facts: BiographyFactCandidate[]; yearsStripped: number } {
+  const { minCluster = 10, clusterShare = 0.2 } = opts;
+  const dated = facts.filter((fact) => fact.year != null);
+  if (dated.length === 0) return { facts, yearsStripped: 0 };
+
+  const byYear = new Map<number, number>();
+  for (const fact of dated) {
+    byYear.set(fact.year!, (byYear.get(fact.year!) ?? 0) + 1);
+  }
+  const fabricated = new Set<number>();
+  for (const [year, count] of byYear) {
+    if (count >= minCluster && count / dated.length > clusterShare) fabricated.add(year);
+  }
+  if (fabricated.size === 0) return { facts, yearsStripped: 0 };
+
+  let stripped = 0;
+  const out = facts.map((fact) => {
+    if (fact.year != null && fabricated.has(fact.year)) {
+      stripped += 1;
+      return { ...fact, year: undefined, month: undefined };
+    }
+    return fact;
+  });
+  return { facts: out, yearsStripped: stripped };
+}

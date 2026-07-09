@@ -132,3 +132,29 @@ describe('deduplicateFacts', () => {
     expect(result[0].year).toBe(1820);
   });
 });
+
+// BPT-9: объединённая разметка (annotation+redaktura одним вызовом)
+describe('parseMergedMarkupResponse', () => {
+  it('разбирает строку INDEX/THEMES/PEOPLE/MONTH/DAY/IMPORTANCE/SHORTLABEL', async () => {
+    const { parseMergedMarkupResponse } = await import('./parsers.js');
+    const raw = [
+      'INDEX\tTHEMES\tPEOPLE\tMONTH\tDAY\tIMPORTANCE\tSHORTLABEL',
+      '0\tfamily_household\t\t6\t\t5\tРождение',
+      '1\teducation,upbringing_mentors\tПетров\t\t\t4\tУниверситет',
+      '2\tcreative_work\t-\t9\t14\t3\tПервая книга',
+      'мусорная строка',
+      '3\tнесуществующая_тема\t\t\t\t2\tЧто-то',
+    ].join('\n');
+    const parsed = parseMergedMarkupResponse(raw);
+    expect(parsed.size).toBe(3); // строка 3 без валидных тем отброшена
+    expect(parsed.get(0)).toMatchObject({ themes: ['family_household'], month: 6, importance: 5, shortLabel: 'Рождение' });
+    expect(parsed.get(1)).toMatchObject({ themes: ['education', 'upbringing_mentors'], people: ['Петров'], importance: 4 });
+    expect(parsed.get(2)).toMatchObject({ month: 9, day: 14, importance: 3, shortLabel: 'Первая книга' });
+  });
+
+  it('невалидная importance приводится к 3', async () => {
+    const { parseMergedMarkupResponse } = await import('./parsers.js');
+    const parsed = parseMergedMarkupResponse('0\thealth\t\t\t\t99\tЛейбл');
+    expect(parsed.get(0)!.importance).toBe(3);
+  });
+});

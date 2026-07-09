@@ -53,6 +53,7 @@ type CliOptions = {
   maxLiveCalls: number | null;
   model: string | null;
   minFacts: number | null;
+  mergedMarkup: boolean;
 };
 
 function parseArgs(argv: string[]): CliOptions {
@@ -67,6 +68,7 @@ function parseArgs(argv: string[]): CliOptions {
     maxLiveCalls: null,
     model: null,
     minFacts: null,
+    mergedMarkup: false,
   };
   for (const arg of argv) {
     if (arg === '--fetch-fixtures') options.fetchFixtures = true;
@@ -86,6 +88,7 @@ function parseArgs(argv: string[]): CliOptions {
     else if (arg.startsWith('--model=')) {
       options.model = arg.slice(8).trim() || null;
     }
+    else if (arg === '--merged-markup') options.mergedMarkup = true;
     else if (arg.startsWith('--min-facts=')) {
       const n = parseInt(arg.slice(12), 10);
       if (Number.isFinite(n) && n > 0) options.minFacts = n;
@@ -171,6 +174,7 @@ async function runSuite(options: CliOptions) {
         apiKey,
         page,
         model: options.model ?? undefined,
+        mergedMarkup: options.mergedMarkup || undefined,
         extractionEmphasis: options.minFacts
           ? `ВАЖНО — метод дробления: каждое предложение статьи, содержащее дату, имя, произведение, место или перемену статуса — это ОТДЕЛЬНЫЙ факт. Составное предложение с несколькими событиями дели на несколько фактов. Не обобщай и не сжимай. Верни не менее ${options.minFacts} фактов.`
           : undefined,

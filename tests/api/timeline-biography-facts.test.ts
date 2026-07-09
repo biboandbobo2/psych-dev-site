@@ -103,3 +103,54 @@ describe('resolveGapFillingMode', () => {
     expect(resolveGapFillingMode(facts, 1900, 1910).mode).toBe('dating-only');
   });
 });
+
+// Гарды датировочной фабрикации (найдена на lite/rogers: month=1 у 90/104
+// фактов и 33 факта с year=1980 на нарративной секции без дат).
+describe('stripUnreliableMonths / stripFabricatedYearClusters', () => {
+  const f = (year: number | undefined, month?: number) => ({
+    year, month,
+    age: undefined, sphere: 'other' as const, category: 'other',
+    eventType: 'other' as never, labelHint: 'x', details: `факт ${year}/${month}`,
+    evidence: 'x', importance: 'medium' as const, confidence: 'medium' as const,
+    source: 'model' as const,
+  });
+
+  it('обнуляет месяцы, когда один месяц покрывает подавляющую долю (фиктивный январь)', async () => {
+    const { stripUnreliableMonths } = await import('../../server/api/timelineBiographyFacts.js');
+    const facts = [...Array.from({ length: 25 }, (_, i) => f(1900 + i, 1)), f(1950, 6)];
+    const { facts: out, monthsStripped } = stripUnreliableMonths(facts);
+    expect(monthsStripped).toBe(26);
+    expect(out.every((x) => x.month == null)).toBe(true);
+  });
+
+  it('не трогает честные месяцы (мало и разнообразно, как у 2.5-flash)', async () => {
+    const { stripUnreliableMonths } = await import('../../server/api/timelineBiographyFacts.js');
+    const facts = [f(1900, 1), f(1910, 6), f(1920, 9), ...Array.from({ length: 40 }, (_, i) => f(1930 + i))];
+    const { facts: out, monthsStripped } = stripUnreliableMonths(facts);
+    expect(monthsStripped).toBe(0);
+    expect(out.filter((x) => x.month != null)).toHaveLength(3);
+  });
+
+  it('снимает год с аномального кластера (33 факта одного года)', async () => {
+    const { stripFabricatedYearClusters } = await import('../../server/api/timelineBiographyFacts.js');
+    const facts = [
+      ...Array.from({ length: 33 }, () => f(1980, 1)),
+      ...Array.from({ length: 70 }, (_, i) => f(1900 + i)),
+    ];
+    const { facts: out, yearsStripped } = stripFabricatedYearClusters(facts);
+    expect(yearsStripped).toBe(33);
+    expect(out.filter((x) => x.year === 1980)).toHaveLength(0);
+    // факты не удалены — стали недатированными
+    expect(out).toHaveLength(103);
+  });
+
+  it('не трогает крупный, но нормальный год (21 из 257, как у lomonosov)', async () => {
+    const { stripFabricatedYearClusters } = await import('../../server/api/timelineBiographyFacts.js');
+    const facts = [
+      ...Array.from({ length: 21 }, () => f(1741)),
+      ...Array.from({ length: 236 }, (_, i) => f(1711 + (i % 50))),
+    ];
+    const { yearsStripped } = stripFabricatedYearClusters(facts);
+    expect(yearsStripped).toBe(0);
+  });
+});

@@ -161,6 +161,11 @@ export type BiographyExtractorSuccessPayload = {
       annotated: number;
       redacted: number;
     };
+    /** Сработки гардов датировочной фабрикации. */
+    dateSanity?: {
+      monthsStripped: number;
+      yearsStripped: number;
+    };
   };
   subjectName: string | null;
   composition?: BiographyCompositionResult;
@@ -177,6 +182,7 @@ async function runBiographyTwoPass(params: {
   page?: WikipediaPageExtract;
   model?: string;
   extractionEmphasis?: string;
+  mergedMarkup?: boolean;
 }): Promise<BiographyExtractorSuccessPayload> {
   const client = resolveGenAiClient(params.apiKey);
 
@@ -187,6 +193,7 @@ async function runBiographyTwoPass(params: {
       callModel: (request) => client.models.generateContent(request),
       model: params.model,
       extractionEmphasis: params.extractionEmphasis,
+      mergedMarkup: params.mergedMarkup,
       onProgress: params.onProgress,
       log: (message, data) => debugLog(`[timeline-biography] ${message}`, data),
       logError: (message, data) => debugError(`[timeline-biography] ${message}`, data),
@@ -213,6 +220,7 @@ async function runBiographyTwoPass(params: {
       planDiagnostics: result.planDiagnostics,
       timelineStats: result.timelineStats,
       stepCoverage: result.stepCoverage,
+      dateSanity: result.dateSanity,
     },
   };
 }
@@ -227,6 +235,8 @@ export async function runBiographyImport(params: {
   model?: string;
   /** Тюнинг полноты извлечения (бенчмарк-эксперименты). */
   extractionEmphasis?: string;
+  /** BPT-9 (за флагом): объединённая разметка одним вызовом. */
+  mergedMarkup?: boolean;
 }): Promise<BiographyExtractorSuccessPayload> {
   return runBiographyTwoPass(params);
 }

@@ -181,3 +181,50 @@ export function parseRedakturaResponse(
   }
   return results;
 }
+
+// ---------------------------------------------------------------------------
+// BPT-9: объединённая разметка — annotation+redaktura одним вызовом.
+// Формат строки: INDEX\tTHEMES\tPEOPLE\tMONTH\tDAY\tIMPORTANCE\tSHORTLABEL
+// ---------------------------------------------------------------------------
+
+export type MergedMarkupEntry = AnnotationEntry & {
+  importance: number;
+  shortLabel: string;
+};
+
+export function parseMergedMarkupResponse(rawText: string): Map<number, MergedMarkupEntry> {
+  const entries = new Map<number, MergedMarkupEntry>();
+  for (const line of rawText.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('INDEX')) continue;
+    const parts = trimmed.split(/\t/);
+    if (parts.length < 6) continue;
+    const index = parseInt(parts[0], 10);
+    if (isNaN(index)) continue;
+
+    const themes = (parts[1] ?? '')
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => VALID_BIOGRAPHY_THEMES.has(t as BiographyEventTheme)) as BiographyEventTheme[];
+    if (themes.length === 0) continue;
+
+    const people = (parts[2] ?? '')
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v) => v && v !== '-' && v !== 'пусто');
+    const month = parts[3] ? parseInt(parts[3], 10) : null;
+    const day = parts[4] ? parseInt(parts[4], 10) : null;
+    const importance = parseInt(parts[5], 10);
+    const shortLabel = parts[6]?.trim() ?? '';
+
+    entries.set(index, {
+      themes,
+      people,
+      month: month && !isNaN(month) && month >= 1 && month <= 12 ? month : null,
+      day: day && !isNaN(day) && day >= 1 && day <= 31 ? day : null,
+      importance: importance >= 1 && importance <= 5 ? importance : 3,
+      shortLabel,
+    });
+  }
+  return entries;
+}

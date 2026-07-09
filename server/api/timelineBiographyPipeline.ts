@@ -11,6 +11,7 @@ import {
   buildBiographyAnnotationPrompt,
   buildBiographyCompositionPrompt,
   buildBiographyGapFillingPrompt,
+  buildBiographyMergedMarkupPrompt,
   buildBiographyRedakturaPrompt,
   buildSimpleBiographyFactExtractionPrompt,
 } from './timelineBiographyPrompts.js';
@@ -18,10 +19,13 @@ import { fetchWikipediaPlainExtract } from './timelineBiographyWikipedia.js';
 import {
   filterFactsBeyondDeath,
   resolveGapFillingMode,
+  stripFabricatedYearClusters,
+  stripUnreliableMonths,
 } from './timelineBiographyFacts.js';
 import {
   deduplicateFacts,
   parseAnnotationResponse,
+  parseMergedMarkupResponse,
   parseRedakturaResponse,
   parseSimpleJsonFacts,
   type AnnotationEntry,
@@ -93,6 +97,9 @@ export type BiographyPipelineDeps = {
    *  модели недобирают факты на декларативном «извлеки всё»). undefined →
    *  промпт байт-в-байт как прод (кэш-ключи стабильны). */
   extractionEmphasis?: string;
+  /** BPT-9 (за флагом): annotation+redaktura одним вызовом — минус один
+   *  запрос на импорт. false/undefined → легаси-путь, кэш стабилен. */
+  mergedMarkup?: boolean;
   onProgress?: BiographyProgressCallback;
   /** Суммарные токены каждого вызова (BYOK accounting в CF). */
   onTokens?: (tokens: number) => void;
@@ -113,6 +120,11 @@ export type BiographyPipelineResult = {
     factsTotal: number;
     annotated: number;
     redacted: number;
+  };
+  /** Гарды датировочной фабрикации (сработки — сигнал ненадёжных дат модели). */
+  dateSanity: {
+    monthsStripped: number;
+    yearsStripped: number;
   };
   facts: BiographyFactCandidate[];
   composition: BiographyCompositionResult;
@@ -362,6 +374,76 @@ async function redaktBiographyFacts(params: {
   return { facts, redactedCount: redaktura.size };
 }
 
+/** BPT-9: объединённая разметка одним вызовом (за флагом deps.mergedMarkup). */
+async function markupBiographyFactsMerged(params: {
+  deps: BiographyPipelineDeps;
+  subjectName: string;
+  facts: BiographyFactCandidate[];
+}): Promise<{ facts: BiographyFactCandidate[]; annotations: Map<number, AnnotationEntry>; redactedCount: number }> {
+  const indexedFacts = params.facts.map((fact, index) => ({
+    index,
+    year: fact.year ?? null,
+    details: fact.details ?? fact.evidence ?? '',
+  }));
+
+  const prompt = buildBiographyMergedMarkupPrompt({
+    subjectName: params.subjectName,
+    facts: indexedFacts,
+  });
+
+  let rawText = '';
+  try {
+    const result = await params.deps.callModel(
+      {
+        model: params.deps.model ?? DEFAULT_BIOGRAPHY_MODEL,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.05,
+          maxOutputTokens: 65536,
+          responseMimeType: 'text/plain',
+        },
+      },
+      'merged-markup'
+    );
+    params.deps.onTokens?.(extractTotalTokens(result));
+    rawText = collectGeminiResultText(result);
+  } catch (error) {
+    params.deps.logError?.('merged markup failed', { error: String(error) });
+  }
+
+  const merged = parseMergedMarkupResponse(rawText);
+  params.deps.log?.('merged markup parsed', {
+    total: params.facts.length,
+    parsed: merged.size,
+    missing: params.facts.length - merged.size,
+  });
+
+  const annotations = new Map<number, AnnotationEntry>();
+  const facts = params.facts.map((fact, index) => {
+    const entry = merged.get(index);
+    if (entry) {
+      annotations.set(index, {
+        themes: entry.themes,
+        people: entry.people,
+        month: entry.month,
+        day: entry.day,
+      });
+    }
+    const importance: 'high' | 'medium' | 'low' =
+      (entry?.importance ?? 2) >= 4 ? 'high' : entry?.importance === 3 ? 'medium' : 'low';
+    return {
+      ...fact,
+      themes: entry?.themes ?? fact.themes,
+      people: entry?.people?.length ? entry.people : fact.people,
+      month: entry?.month ?? fact.month,
+      shortLabel: entry?.shortLabel || fact.shortLabel,
+      importance,
+    };
+  });
+
+  return { facts, annotations, redactedCount: merged.size };
+}
+
 async function composeBiographyFactsIntoTimeline(params: {
   deps: BiographyPipelineDeps;
   subjectName: string;
@@ -577,36 +659,71 @@ export async function runBiographyPipelineCore(params: {
     deps.logError?.('gap-filling failed', { error: String(error) });
   }
 
+  // Гард фабрикации годов: аномальный кластер одного года (не-thinking
+  // модели сваливают нарративные факты в один год) → год снимается.
+  // Размещение ПОСЛЕ gap-filling: промпты не меняются, кэш реплеится.
+  const yearGuard = stripFabricatedYearClusters(allFacts);
+  allFacts = yearGuard.facts;
+  if (yearGuard.yearsStripped > 0) {
+    deps.log?.('date guard: год снят с аномального кластера', { yearsStripped: yearGuard.yearsStripped });
+  }
+
   await deps.onStage?.('gap-filling', stageData());
   progress(3, TOTAL_STEPS, 'Добивочный проход (gap-filling)', `${allFacts.length} фактов после добивки`);
 
   progress(4, TOTAL_STEPS, 'Аннотация и тематизация', `${allFacts.length} фактов`);
-  const { annotatedFacts, annotations } = await annotateBiographyFacts({
-    deps,
-    subjectName,
-    facts: allFacts,
-  });
+  let finalFacts: BiographyFactCandidate[];
+  let annotations: Map<number, AnnotationEntry>;
+  let redactedCount: number;
+  if (deps.mergedMarkup) {
+    // BPT-9: один вызов вместо двух
+    const merged = await markupBiographyFactsMerged({ deps, subjectName, facts: allFacts });
+    finalFacts = merged.facts;
+    annotations = merged.annotations;
+    redactedCount = merged.redactedCount;
+    progress(5, TOTAL_STEPS, 'Редактура и ранжирование', `${finalFacts.length} фактов`);
+  } else {
+    const annotated = await annotateBiographyFacts({
+      deps,
+      subjectName,
+      facts: allFacts,
+    });
+    annotations = annotated.annotations;
 
-  progress(5, TOTAL_STEPS, 'Редактура и ранжирование', `${annotatedFacts.length} фактов`);
-  const { facts: finalFacts, redactedCount } = await redaktBiographyFacts({
-    deps,
-    subjectName,
-    facts: annotatedFacts,
-    annotations,
-  });
+    progress(5, TOTAL_STEPS, 'Редактура и ранжирование', `${annotated.annotatedFacts.length} фактов`);
+    const redacted = await redaktBiographyFacts({
+      deps,
+      subjectName,
+      facts: annotated.annotatedFacts,
+      annotations,
+    });
+    finalFacts = redacted.facts;
+    redactedCount = redacted.redactedCount;
+  }
   const stepCoverage = {
     factsTotal: finalFacts.length,
     annotated: annotations.size,
     redacted: redactedCount,
   };
-  allFacts = finalFacts;
+  // Гард фиктивных месяцев (после annotation/redaktura — месяцы финальны;
+  // в downstream-промптах месяцев нет, кэш реплеится).
+  const monthGuard = stripUnreliableMonths(finalFacts);
+  const guardedFacts = monthGuard.facts;
+  if (monthGuard.monthsStripped > 0) {
+    deps.log?.('date guard: месяцы фиктивны (модальный месяц)', { monthsStripped: monthGuard.monthsStripped });
+  }
+  const dateSanity = {
+    monthsStripped: monthGuard.monthsStripped,
+    yearsStripped: yearGuard.yearsStripped,
+  };
+  allFacts = guardedFacts;
   await deps.onStage?.('redaktura', stageData());
 
   progress(6, TOTAL_STEPS, 'Композиция и визуализация');
   const composition = await composeBiographyFactsIntoTimeline({
     deps,
     subjectName,
-    facts: finalFacts,
+    facts: guardedFacts,
   });
 
   // Convert composition → plan → timeline data
@@ -618,10 +735,10 @@ export async function runBiographyPipelineCore(params: {
   try {
     const rawPlan = buildPlanFromCompositionResult({
       subjectName,
-      facts: finalFacts,
+      facts: guardedFacts,
       composition,
     });
-    plan = cleanGenericEventLabels({ plan: rawPlan, facts: finalFacts });
+    plan = cleanGenericEventLabels({ plan: rawPlan, facts: guardedFacts });
 
     timeline = buildTimelineDataFromBiographyPlan(plan);
 
@@ -657,7 +774,8 @@ export async function runBiographyPipelineCore(params: {
     rawTextChars: len,
     factsModel,
     stepCoverage,
-    facts: finalFacts,
+    dateSanity,
+    facts: guardedFacts,
     composition,
     timeline,
     plan,

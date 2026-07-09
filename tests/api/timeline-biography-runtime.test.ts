@@ -140,3 +140,58 @@ describe('runBiographyImport — падение слайса не глотает
     ).rejects.toThrow(/503|two-pass-flash-failed/);
   });
 });
+
+// BPT-9: объединённая разметка за флагом — один вызов вместо annotation+redaktura
+describe('runBiographyImport — mergedMarkup (BPT-9)', () => {
+  afterEach(async () => {
+    const { setBiographyGenAiClientFactory } = await import('../../server/api/timelineBiographyRuntime.js');
+    setBiographyGenAiClientFactory(null);
+  });
+
+  it('с флагом делает один разметочный вызов и заполняет темы/важность/shortLabel', async () => {
+    const { runBiographyImport, setBiographyGenAiClientFactory } = await import(
+      '../../server/api/timelineBiographyRuntime.js'
+    );
+    const calls: GenerateRequest[] = [];
+    setBiographyGenAiClientFactory(() => ({
+      models: {
+        generateContent: async (request: GenerateRequest) => {
+          calls.push(request);
+          const prompt = request.contents[0]?.parts[0]?.text ?? '';
+          if (prompt.startsWith('Извлеки ВСЕ биографические факты')) {
+            return { text: jsonFacts([
+              { year: 1849, text: 'Родился в Рязани', category: 'birth', sphere: 'family' },
+              { year: 1904, text: 'Нобелевская премия', category: 'award', sphere: 'career' },
+              { year: 1936, text: 'Скончался в Ленинграде', category: 'death', sphere: 'health' },
+            ]) };
+          }
+          if (prompt.startsWith('Ты — второй проход')) return { text: '[]' };
+          if (prompt.startsWith('Ты — разметчик и редактор')) {
+            return { text: '0\tfamily_household\t\t9\t\t5\tРождение\n1\tservice_career\t\t\t\t5\tНобелевская премия\n2\tlosses\t\t\t\t5\tСмерть' };
+          }
+          if (prompt.startsWith('Ты — нарратолог')) {
+            return { text: JSON.stringify({ mainLine: [0, 1, 2], branches: [] }) };
+          }
+          throw new Error(`неожиданный промпт: ${prompt.slice(0, 40)}`);
+        },
+      },
+    }));
+
+    // одно-слайсовая страница: у makePage 2 слайса и факты задваиваются
+    const page = { ...makePage(), factExtractSlices: ['Фрагмент биографии'] };
+    const payload = await runBiographyImport({
+      sourceUrl: 'https://ru.wikipedia.org/wiki/X', apiKey: 'fake', page, mergedMarkup: true,
+    });
+
+    const markupCalls = calls.filter((c) => {
+      const t = c.contents[0]?.parts[0]?.text ?? '';
+      return t.startsWith('Ты — разметчик') || t.startsWith('Ты — редактор');
+    });
+    expect(markupCalls).toHaveLength(1);
+    const nobel = payload.facts.find((f) => f.details.includes('Нобелевская'))!;
+    expect(nobel.themes).toEqual(['service_career']);
+    expect(nobel.importance).toBe('high');
+    expect(nobel.shortLabel).toBe('Нобелевская премия');
+    expect(payload.meta.stepCoverage).toMatchObject({ factsTotal: 3, annotated: 3, redacted: 3 });
+  });
+});

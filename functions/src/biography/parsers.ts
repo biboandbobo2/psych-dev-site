@@ -8,5 +8,7 @@ export {
   deduplicateFacts,
   parseAnnotationResponse,
   parseRedakturaResponse,
+  parseMergedMarkupResponse,
   type AnnotationEntry,
+  type MergedMarkupEntry,
 } from '../../../server/api/timelineBiographyParsers.js';

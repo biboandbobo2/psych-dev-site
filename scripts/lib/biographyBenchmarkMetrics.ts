@@ -81,6 +81,9 @@ export type ArticleMetrics = {
     /** B6: доля фактов, получивших разметку (TSV-строки могли потеряться). */
     annotatedShare: number | null;
     redactedShare: number | null;
+    /** Сработки гардов фабрикации дат (0 = модель датирует честно). */
+    monthsStripped: number;
+    yearsStripped: number;
   };
   cost: {
     totalTokens: number;
@@ -307,6 +310,8 @@ export function buildArticleMetrics(params: {
   // из первого попавшегося факта и ВСЯ возрастная шкала сдвигается, а проверка
   // дат вырождается в пустую (0 из 0). Отсутствие рождения = ручная правка.
   if (birthYear == null) manualFixReasons.push('noBirthFact');
+  // Сработавшие гарды = модель фабрикует даты — сигнал ручной проверки
+  if ((payload.meta.dateSanity?.yearsStripped ?? 0) > 0) manualFixReasons.push(`yearsFabricated=${payload.meta.dateSanity!.yearsStripped}`);
   // BPT-12: composition-fallback (все факты на главной линии, 0 веток) —
   // деградация, невидимая через fail-счётчик
   if (data.edges.length === 0 && data.nodes.length > 20) manualFixReasons.push('compositionFallback');
@@ -354,6 +359,8 @@ export function buildArticleMetrics(params: {
       redactedShare: payload.meta.stepCoverage
         ? Math.round((payload.meta.stepCoverage.redacted / Math.max(1, payload.meta.stepCoverage.factsTotal)) * 1000) / 10
         : null,
+      monthsStripped: payload.meta.dateSanity?.monthsStripped ?? 0,
+      yearsStripped: payload.meta.dateSanity?.yearsStripped ?? 0,
     },
     cost: {
       totalTokens: stats.totalTokens,
