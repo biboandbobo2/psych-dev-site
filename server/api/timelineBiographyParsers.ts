@@ -234,3 +234,40 @@ export function parseMergedMarkupResponse(rawText: string): Map<number, MergedMa
   }
   return entries;
 }
+
+/** JSON-вариант объединённой разметки (structured output — lite-профиль):
+ *  TSV с пустыми колонками не-thinking модели схлопывают, теряя позиционность. */
+export function parseMergedMarkupJsonResponse(rawText: string): Map<number, MergedMarkupEntry> {
+  const entries = new Map<number, MergedMarkupEntry>();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawText.replace(/^```(?:json)?\s*\n?/gm, '').replace(/\n?```\s*$/gm, '').trim());
+  } catch {
+    return entries;
+  }
+  if (!Array.isArray(parsed)) return entries;
+  for (const item of parsed as Array<Record<string, unknown>>) {
+    if (!item || typeof item !== 'object') continue;
+    const index = typeof item.index === 'number' ? item.index : NaN;
+    if (isNaN(index)) continue;
+    const themes = (Array.isArray(item.themes) ? item.themes : [])
+      .map((t) => String(t).trim())
+      .filter((t) => VALID_BIOGRAPHY_THEMES.has(t as BiographyEventTheme)) as BiographyEventTheme[];
+    if (themes.length === 0) continue;
+    const people = (Array.isArray(item.people) ? item.people : [])
+      .map((v) => String(v).trim())
+      .filter((v) => v && v !== '-' && v !== 'пусто');
+    const month = typeof item.month === 'number' && item.month >= 1 && item.month <= 12 ? item.month : null;
+    const day = typeof item.day === 'number' && item.day >= 1 && item.day <= 31 ? item.day : null;
+    const importanceRaw = typeof item.importance === 'number' ? item.importance : NaN;
+    entries.set(index, {
+      themes,
+      people,
+      month,
+      day,
+      importance: importanceRaw >= 1 && importanceRaw <= 5 ? importanceRaw : 3,
+      shortLabel: typeof item.shortLabel === 'string' ? item.shortLabel.trim() : '',
+    });
+  }
+  return entries;
+}

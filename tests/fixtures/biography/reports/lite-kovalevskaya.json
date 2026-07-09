@@ -1,0 +1,217 @@
+{
+  "aggregate": {
+    "variant": "a",
+    "generatedAt": "2026-07-09T21:21:05.708Z",
+    "rows": [
+      {
+        "group": "ALL",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20908
+      },
+      {
+        "group": "set:worker",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20908
+      },
+      {
+        "group": "cat:incomplete-dates",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20908
+      },
+      {
+        "group": "cat:migration",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20908
+      },
+      {
+        "group": "cat:parallel-projects",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20908
+      },
+      {
+        "group": "cat:ru",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20908
+      },
+      {
+        "group": "cat:scientist",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20908
+      },
+      {
+        "group": "cat:short-article",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20908
+      }
+    ]
+  },
+  "results": [
+    {
+      "articleId": "kovalevskaya",
+      "set": "worker",
+      "categories": [
+        "ru",
+        "scientist",
+        "migration",
+        "parallel-projects",
+        "incomplete-dates",
+        "short-article"
+      ],
+      "structure": {
+        "nodes": 40,
+        "edges": 13,
+        "mainLineNodes": 8,
+        "branchNodes": 32,
+        "referentialViolations": 0,
+        "duplicateIds": 0,
+        "eventsOutsideBranchWindow": 0,
+        "sharedXOverlappingLanes": 0,
+        "normalizeEdits": {
+          "droppedEdges": 0,
+          "reanchoredNodes": 0,
+          "expandedWindows": 0,
+          "droppedNodes": 0,
+          "total": 0
+        }
+      },
+      "labels": {
+        "genericNodeLabels": 0,
+        "branchLabelsFilled": 6,
+        "branchLabelsTotal": 13,
+        "genericBranchLabels": 0
+      },
+      "lint": {
+        "fatal": false,
+        "errors": 0,
+        "warnings": 0,
+        "errorCodes": {}
+      },
+      "coverage": {
+        "totalFacts": 6,
+        "criticalFacts": 6,
+        "timelineMatched": 6,
+        "criticalMatched": 6,
+        "dateAccurate": 5,
+        "dateChecked": 5,
+        "missing": [],
+        "dateErrors": []
+      },
+      "facts": {
+        "extracted": 43,
+        "undated": 0,
+        "beforeBirth": 0,
+        "annotatedShare": 34.9,
+        "redactedShare": 34.9,
+        "monthsStripped": 0,
+        "yearsStripped": 0
+      },
+      "cost": {
+        "totalTokens": 20908,
+        "liveCalls": 4,
+        "cachedCalls": 0,
+        "modelDurationMs": 12282,
+        "wallClockMs": 40319,
+        "byStep": {
+          "extraction": {
+            "calls": 1,
+            "tokens": 8280
+          },
+          "gap": {
+            "calls": 1,
+            "tokens": 7721
+          },
+          "annotation": {
+            "calls": 1,
+            "tokens": 2640
+          },
+          "composition": {
+            "calls": 1,
+            "tokens": 2267
+          }
+        }
+      },
+      "manualFixNeeded": false,
+      "manualFixReasons": []
+    }
+  ]
+}

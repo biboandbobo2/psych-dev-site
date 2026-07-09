@@ -184,6 +184,7 @@ async function runBiographyTwoPass(params: {
   extractionEmphasis?: string;
   mergedMarkup?: boolean;
   structuredExtraction?: boolean;
+  tuningProfile?: 'lite';
 }): Promise<BiographyExtractorSuccessPayload> {
   const client = resolveGenAiClient(params.apiKey);
 
@@ -196,6 +197,7 @@ async function runBiographyTwoPass(params: {
       extractionEmphasis: params.extractionEmphasis,
       mergedMarkup: params.mergedMarkup,
       structuredExtraction: params.structuredExtraction,
+      tuningProfile: params.tuningProfile,
       onProgress: params.onProgress,
       log: (message, data) => debugLog(`[timeline-biography] ${message}`, data),
       logError: (message, data) => debugError(`[timeline-biography] ${message}`, data),
@@ -241,6 +243,8 @@ export async function runBiographyImport(params: {
   mergedMarkup?: boolean;
   /** Structured output extraction/gap (за флагом). */
   structuredExtraction?: boolean;
+  /** Прод-профиль тюнинга не-thinking моделей (весь стек одним флагом). */
+  tuningProfile?: 'lite';
 }): Promise<BiographyExtractorSuccessPayload> {
   return runBiographyTwoPass(params);
 }

@@ -25,6 +25,7 @@ import {
 import {
   deduplicateFacts,
   parseAnnotationResponse,
+  parseMergedMarkupJsonResponse,
   parseMergedMarkupResponse,
   parseRedakturaResponse,
   parseSimpleJsonFacts,
@@ -104,6 +105,10 @@ export type BiographyPipelineDeps = {
    *  nullable year — легальный «года нет» вместо фабрикации дат
    *  не-thinking моделями. false/undefined → конфиг байт-в-байт как прод. */
   structuredExtraction?: boolean;
+  /** Прод-профиль тюнинга для не-thinking моделей (3.1-flash-lite):
+   *  включает разом дробление+few-shot extraction, structured output и
+   *  объединённую разметку. undefined → дефолтный путь байт-в-байт. */
+  tuningProfile?: 'lite';
   onProgress?: BiographyProgressCallback;
   /** Суммарные токены каждого вызова (BYOK accounting в CF). */
   onTokens?: (tokens: number) => void;
@@ -226,8 +231,47 @@ const FACT_EXTRACTION_RESPONSE_SCHEMA = {
   },
 } as const;
 
+/** Замерено на rogers (2026-07): дробление подняло извлечение 33→55+,
+ *  вернуло birth-якорь; few-shot с year=null убил фабрикацию дат (34→0). */
+export const LITE_EXTRACTION_EMPHASIS = [
+  'ВАЖНО — метод дробления: каждое предложение статьи, содержащее дату, имя, произведение, место или перемену статуса — это ОТДЕЛЬНЫЙ факт. Составное предложение с несколькими событиями дели на несколько фактов. Не обобщай и не сжимай. Верни не менее 60 фактов.',
+  'ПРИМЕРЫ ПРАВИЛЬНОЙ ДАТИРОВКИ:',
+  'Текст: «В 1927 году переехал в Париж.» → {"year": 1927, "text": "Переехал в Париж", "category": "move", "sphere": "place"}',
+  'Текст: «Позднее активно выступал против войны.» (год из текста НЕ следует) → {"year": null, "text": "Активно выступал против войны", "category": "other", "sphere": "other"}',
+  'Текст: «В эти годы много путешествовал по Европе.» (точного года нет) → {"year": null, "text": "Много путешествовал по Европе", "category": "move", "sphere": "place"}',
+  'НИКОГДА не приписывай факту год соседнего события или начала десятилетия. Нет года в тексте — ставь null.',
+].join('\n');
+
+function isLiteProfile(deps: BiographyPipelineDeps) {
+  return deps.tuningProfile === 'lite';
+}
+
+function resolvedExtractionEmphasis(deps: BiographyPipelineDeps): string | undefined {
+  if (deps.extractionEmphasis) return deps.extractionEmphasis;
+  return isLiteProfile(deps) ? LITE_EXTRACTION_EMPHASIS : undefined;
+}
+
+/** Схема JSON-ответа объединённой разметки (lite-профиль): TSV с пустыми
+ *  колонками не-thinking модели схлопывают, теряя позиционность строк. */
+const MERGED_MARKUP_RESPONSE_SCHEMA = {
+  type: 'array',
+  items: {
+    type: 'object',
+    properties: {
+      index: { type: 'integer' },
+      themes: { type: 'array', items: { type: 'string' } },
+      people: { type: 'array', items: { type: 'string' } },
+      month: { type: 'integer', nullable: true, minimum: 1, maximum: 12 },
+      day: { type: 'integer', nullable: true, minimum: 1, maximum: 31 },
+      importance: { type: 'integer', minimum: 1, maximum: 5 },
+      shortLabel: { type: 'string' },
+    },
+    required: ['index', 'themes', 'month', 'importance', 'shortLabel'],
+  },
+} as const;
+
 function extractionCallConfig(deps: BiographyPipelineDeps): Record<string, unknown> {
-  if (!deps.structuredExtraction) {
+  if (!deps.structuredExtraction && !isLiteProfile(deps)) {
     return {
       temperature: 0.1,
       maxOutputTokens: 65536,
@@ -425,9 +469,11 @@ async function markupBiographyFactsMerged(params: {
     details: fact.details ?? fact.evidence ?? '',
   }));
 
+  const useJson = isLiteProfile(params.deps) || params.deps.structuredExtraction === true;
   const prompt = buildBiographyMergedMarkupPrompt({
     subjectName: params.subjectName,
     facts: indexedFacts,
+    json: useJson,
   });
 
   let rawText = '';
@@ -436,11 +482,18 @@ async function markupBiographyFactsMerged(params: {
       {
         model: params.deps.model ?? DEFAULT_BIOGRAPHY_MODEL,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          temperature: 0.05,
-          maxOutputTokens: 65536,
-          responseMimeType: 'text/plain',
-        },
+        config: useJson
+          ? {
+              temperature: 0.05,
+              maxOutputTokens: 65536,
+              responseMimeType: 'application/json',
+              responseSchema: MERGED_MARKUP_RESPONSE_SCHEMA,
+            }
+          : {
+              temperature: 0.05,
+              maxOutputTokens: 65536,
+              responseMimeType: 'text/plain',
+            },
       },
       'merged-markup'
     );
@@ -450,7 +503,7 @@ async function markupBiographyFactsMerged(params: {
     params.deps.logError?.('merged markup failed', { error: String(error) });
   }
 
-  const merged = parseMergedMarkupResponse(rawText);
+  const merged = useJson ? parseMergedMarkupJsonResponse(rawText) : parseMergedMarkupResponse(rawText);
   params.deps.log?.('merged markup parsed', {
     total: params.facts.length,
     parsed: merged.size,
@@ -592,9 +645,8 @@ export async function runBiographyPipelineCore(params: {
     const baseFocusHint = slices.length > 1
       ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
       : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
-    const focusHint = deps.extractionEmphasis
-      ? `${baseFocusHint}\n${deps.extractionEmphasis}`
-      : baseFocusHint;
+    const emphasis = resolvedExtractionEmphasis(deps);
+    const focusHint = emphasis ? `${baseFocusHint}\n${emphasis}` : baseFocusHint;
 
     // F1 (verifier): падение слайса после ретраев — ошибка импорта, а не
     // молча обрезанная биография (прод-семантика старого CF).
@@ -710,7 +762,7 @@ export async function runBiographyPipelineCore(params: {
   let finalFacts: BiographyFactCandidate[];
   let annotations: Map<number, AnnotationEntry>;
   let redactedCount: number;
-  if (deps.mergedMarkup) {
+  if (deps.mergedMarkup || isLiteProfile(deps)) {
     // BPT-9: один вызов вместо двух
     const merged = await markupBiographyFactsMerged({ deps, subjectName, facts: allFacts });
     finalFacts = merged.facts;

@@ -1,0 +1,16 @@
+{
+  "step": "composition",
+  "model": "gemini-3.1-flash-lite",
+  "variant": "a",
+  "promptSha256": "d8774342226dae84f5cce4cc2e7c88c786bf24322ba9523e777e735a8d246537",
+  "promptChars": 4325,
+  "promptPreview": "Ты — нарратолог и биограф. Тебе дан список из 43 фактов о **Ковалевская, Софья Васильевна** (1850–1891).\n\nЗАДАЧА\nРаспредели ВСЕ факты по структуре визуального таймлайна:\n1. **Главная линия** — 10 (±2)",
+  "responseText": "{\n  \"mainLine\": [37, 3, 5, 6, 12, 41, 16, 42, 24, 27, 25, 33],\n  \"branches\": [\n    {\n      \"name\": \"Детство и юность в России\",\n      \"sphere\": \"family\",\n      \"facts\": [0, 38, 1, 2]\n    },\n    {\n      \"name\": \"Революционная деятельность и Париж\",\n      \"sphere\": \"other\",\n      \"facts\": [4, 7, 8, 9]\n    },\n    {\n      \"name\": \"Научные публикации и исследования\",\n      \"sphere\": \"creativity\",\n      \"facts\": [13, 39, 40, 14, 17, 20, 21, 32]\n    },\n    {\n      \"name\": \"Литературное творчество\",\n      \"sphere\": \"creativity\",\n      \"facts\": [19, 22, 23, 26, 29, 30]\n    },\n    {\n      \"name\": \"Отношения с Максимом Ковалевским\",\n      \"sphere\": \"family\",\n      \"facts\": [11, 18, 31]\n    },\n    {\n      \"name\": \"Институциональная карьера\",\n      \"sphere\": \"career\",\n      \"facts\": [10, 15, 28]\n    },\n    {\n      \"name\": \"Наследие и память\",\n      \"sphere\": \"other\",\n      \"facts\": [34, 35, 36]\n    }\n  ]\n}",
+  "usage": {
+    "promptTokenCount": 1735,
+    "candidatesTokenCount": 411,
+    "totalTokenCount": 2146
+  },
+  "durationMs": 1753,
+  "recordedAt": "2026-07-09T21:25:12.644Z"
+}

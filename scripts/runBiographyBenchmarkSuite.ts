@@ -56,6 +56,7 @@ type CliOptions = {
   mergedMarkup: boolean;
   structured: boolean;
   fewShot: boolean;
+  liteProfile: boolean;
 };
 
 function parseArgs(argv: string[]): CliOptions {
@@ -73,6 +74,7 @@ function parseArgs(argv: string[]): CliOptions {
     mergedMarkup: false,
     structured: false,
     fewShot: false,
+    liteProfile: false,
   };
   for (const arg of argv) {
     if (arg === '--fetch-fixtures') options.fetchFixtures = true;
@@ -95,6 +97,7 @@ function parseArgs(argv: string[]): CliOptions {
     else if (arg === '--merged-markup') options.mergedMarkup = true;
     else if (arg === '--structured') options.structured = true;
     else if (arg === '--few-shot') options.fewShot = true;
+    else if (arg === '--lite-profile') options.liteProfile = true;
     else if (arg.startsWith('--min-facts=')) {
       const n = parseInt(arg.slice(12), 10);
       if (Number.isFinite(n) && n > 0) options.minFacts = n;
@@ -205,6 +208,7 @@ async function runSuite(options: CliOptions) {
         model: options.model ?? undefined,
         mergedMarkup: options.mergedMarkup || undefined,
         structuredExtraction: options.structured || undefined,
+        tuningProfile: options.liteProfile ? 'lite' : undefined,
         extractionEmphasis: buildEmphasis(options),
       });
       if (stats.dailyQuotaHit) {

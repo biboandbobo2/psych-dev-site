@@ -195,3 +195,63 @@ describe('runBiographyImport — mergedMarkup (BPT-9)', () => {
     expect(payload.meta.stepCoverage).toMatchObject({ factsTotal: 3, annotated: 3, redacted: 3 });
   });
 });
+
+// Прод-профиль lite: весь тюнинг-стек одним флагом
+describe('runBiographyImport — tuningProfile lite', () => {
+  afterEach(async () => {
+    const { setBiographyGenAiClientFactory } = await import('../../server/api/timelineBiographyRuntime.js');
+    setBiographyGenAiClientFactory(null);
+  });
+
+  it('включает дробление+few-shot, responseSchema и объединённую разметку', async () => {
+    const { runBiographyImport, setBiographyGenAiClientFactory } = await import(
+      '../../server/api/timelineBiographyRuntime.js'
+    );
+    const calls: GenerateRequest[] = [];
+    setBiographyGenAiClientFactory(() => ({
+      models: {
+        generateContent: async (request: GenerateRequest) => {
+          calls.push(request);
+          const prompt = request.contents[0]?.parts[0]?.text ?? '';
+          if (prompt.startsWith('Извлеки ВСЕ биографические факты')) {
+            return { text: jsonFacts([
+              { year: 1849, text: 'Родился в Рязани', category: 'birth', sphere: 'family' },
+              { year: 1936, text: 'Скончался в Ленинграде', category: 'death', sphere: 'health' },
+            ]) };
+          }
+          if (prompt.startsWith('Ты — второй проход')) return { text: '[]' };
+          if (prompt.startsWith('Ты — разметчик и редактор')) {
+            return { text: JSON.stringify([
+              { index: 0, themes: ['family_household'], people: [], month: null, day: null, importance: 5, shortLabel: 'Рождение' },
+              { index: 1, themes: ['losses'], people: [], month: null, day: null, importance: 5, shortLabel: 'Смерть' },
+            ]) };
+          }
+          if (prompt.startsWith('Ты — нарратолог')) {
+            return { text: JSON.stringify({ mainLine: [0, 1], branches: [] }) };
+          }
+          throw new Error(`неожиданный промпт: ${prompt.slice(0, 40)}`);
+        },
+      },
+    }));
+
+    const page = { ...makePage(), factExtractSlices: ['Фрагмент биографии'] };
+    const payload = await runBiographyImport({
+      sourceUrl: 'https://ru.wikipedia.org/wiki/X', apiKey: 'fake', page, tuningProfile: 'lite',
+    });
+
+    const extraction = calls.find((c) => (c.contents[0]?.parts[0]?.text ?? '').startsWith('Извлеки'))!;
+    // few-shot и дробление в focusHint
+    expect(extraction.contents[0].parts[0].text).toContain('метод дробления');
+    expect(extraction.contents[0].parts[0].text).toContain('"year": null');
+    // structured output
+    expect(extraction.config?.responseMimeType).toBe('application/json');
+    expect(extraction.config?.responseSchema).toBeDefined();
+    // объединённая разметка (один вызов) с месячными примерами
+    const markup = calls.filter((c) => (c.contents[0]?.parts[0]?.text ?? '').startsWith('Ты — разметчик'));
+    expect(markup).toHaveLength(1);
+    // JSON-разметка со схемой (TSV с пустыми колонками lite схлопывает)
+    expect(markup[0].contents[0].parts[0].text).toContain('ПРИМЕРЫ ЭЛЕМЕНТОВ ОТВЕТА');
+    expect(markup[0].config?.responseSchema).toBeDefined();
+    expect(payload.meta.stepCoverage).toMatchObject({ annotated: 2, redacted: 2 });
+  });
+});

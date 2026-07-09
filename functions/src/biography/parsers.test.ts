@@ -173,3 +173,17 @@ describe('parseSimpleJsonFacts — month', () => {
     expect(facts[2].year).toBeUndefined();
   });
 });
+
+describe('parseMergedMarkupJsonResponse', () => {
+  it('разбирает JSON-массив разметки и фильтрует мусор', async () => {
+    const { parseMergedMarkupJsonResponse } = await import('./parsers.js');
+    const parsed = parseMergedMarkupJsonResponse(JSON.stringify([
+      { index: 0, themes: ['family_household'], people: [], month: 6, day: null, importance: 5, shortLabel: 'Рождение' },
+      { index: 1, themes: ['левая_тема'], month: null, importance: 4, shortLabel: 'Мимо' },
+      { index: 2, themes: ['education'], people: ['Вейерштрасс'], month: 13, day: null, importance: 9, shortLabel: 'Учёба' },
+    ]));
+    expect(parsed.size).toBe(2);
+    expect(parsed.get(0)).toMatchObject({ month: 6, importance: 5 });
+    expect(parsed.get(2)).toMatchObject({ month: null, importance: 3, people: ['Вейерштрасс'] });
+  });
+});
