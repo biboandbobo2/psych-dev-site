@@ -52,6 +52,7 @@ type CliOptions = {
   compare: [string, string] | null;
   maxLiveCalls: number | null;
   model: string | null;
+  minFacts: number | null;
 };
 
 function parseArgs(argv: string[]): CliOptions {
@@ -65,6 +66,7 @@ function parseArgs(argv: string[]): CliOptions {
     compare: null,
     maxLiveCalls: null,
     model: null,
+    minFacts: null,
   };
   for (const arg of argv) {
     if (arg === '--fetch-fixtures') options.fetchFixtures = true;
@@ -83,6 +85,10 @@ function parseArgs(argv: string[]): CliOptions {
     }
     else if (arg.startsWith('--model=')) {
       options.model = arg.slice(8).trim() || null;
+    }
+    else if (arg.startsWith('--min-facts=')) {
+      const n = parseInt(arg.slice(12), 10);
+      if (Number.isFinite(n) && n > 0) options.minFacts = n;
     }
   }
   return options;
@@ -165,6 +171,9 @@ async function runSuite(options: CliOptions) {
         apiKey,
         page,
         model: options.model ?? undefined,
+        extractionEmphasis: options.minFacts
+          ? `ВАЖНО — метод дробления: каждое предложение статьи, содержащее дату, имя, произведение, место или перемену статуса — это ОТДЕЛЬНЫЙ факт. Составное предложение с несколькими событиями дели на несколько фактов. Не обобщай и не сжимай. Верни не менее ${options.minFacts} фактов.`
+          : undefined,
       });
       if (stats.dailyQuotaHit) {
         // 429 мог быть проглочен best-effort шагами pipeline (redaktura,

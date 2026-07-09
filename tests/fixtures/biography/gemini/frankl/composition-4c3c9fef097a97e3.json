@@ -1,0 +1,16 @@
+{
+  "step": "composition",
+  "model": "gemini-3.1-flash-lite",
+  "variant": "a",
+  "promptSha256": "4c3c9fef097a97e35a17cdcad37c9caa9b13a773f52da2760244d0fc9a4fd0a2",
+  "promptChars": 5260,
+  "promptPreview": "Ты — нарратолог и биограф. Тебе дан список из 55 фактов о **Франкл, Виктор** (1905–1997).\n\nЗАДАЧА\nРаспредели ВСЕ факты по структуре визуального таймлайна:\n1. **Главная линия** — 18 (±2) ключевых точек",
+  "responseText": "{\n  \"mainLine\": [47, 3, 4, 33, 9, 50, 51, 52, 20, 21, 22, 53, 11, 12, 15, 16, 18, 54],\n  \"branches\": [\n    {\n      \"name\": \"Образовательный путь\",\n      \"sphere\": \"education\",\n      \"facts\": [0, 1, 48, 49, 17, 40]\n    },\n    {\n      \"name\": \"Политическая и общественная активность\",\n      \"sphere\": \"other\",\n      \"facts\": [2, 32, 36]\n    },\n    {\n      \"name\": \"Медицинская карьера в Вене\",\n      \"sphere\": \"career\",\n      \"facts\": [5, 7, 25, 46, 13, 19]\n    },\n    {\n      \"name\": \"Брак с Тилли Гроссер\",\n      \"sphere\": \"family\",\n      \"facts\": [8, 24]\n    },\n    {\n      \"name\": \"Лагерный опыт и интеллектуальная жизнь\",\n      \"sphere\": \"creativity\",\n      \"facts\": [10, 27, 34, 35, 43, 44]\n    },\n    {\n      \"name\": \"Возвращение и послевоенная жизнь\",\n      \"sphere\": \"place\",\n      \"facts\": [29, 45]\n    },\n    {\n      \"name\": \"Брак с Элеонорой Швиндт и семья\",\n      \"sphere\": \"family\",\n      \"facts\": [14, 23, 37, 38, 41, 42]\n    },\n    {\n      \"name\": \"Научное наследие и публикации\",\n      \"sphere\": \"creativity\",\n      \"facts\": [30, 39, 6, 26, 28]\n    },\n    {\n      \"name\": \"Ранние годы\",\n      \"sphere\": \"family\",\n      \"facts\": [31]\n    }\n  ]\n}",
+  "usage": {
+    "promptTokenCount": 2114,
+    "candidatesTokenCount": 531,
+    "totalTokenCount": 2645
+  },
+  "durationMs": 2096,
+  "recordedAt": "2026-07-09T20:26:45.142Z"
+}

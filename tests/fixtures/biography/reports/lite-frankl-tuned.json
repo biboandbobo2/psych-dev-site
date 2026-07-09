@@ -1,0 +1,187 @@
+{
+  "aggregate": {
+    "variant": "a",
+    "generatedAt": "2026-07-09T20:26:45.176Z",
+    "rows": [
+      {
+        "group": "ALL",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20625
+      },
+      {
+        "group": "set:worker",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20625
+      },
+      {
+        "group": "cat:migration",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20625
+      },
+      {
+        "group": "cat:psychologist",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20625
+      },
+      {
+        "group": "cat:ru",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20625
+      },
+      {
+        "group": "cat:short-article",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 20625
+      }
+    ]
+  },
+  "results": [
+    {
+      "articleId": "frankl",
+      "set": "worker",
+      "categories": [
+        "ru",
+        "psychologist",
+        "migration",
+        "short-article"
+      ],
+      "structure": {
+        "nodes": 51,
+        "edges": 18,
+        "mainLineNodes": 17,
+        "branchNodes": 34,
+        "referentialViolations": 0,
+        "duplicateIds": 0,
+        "eventsOutsideBranchWindow": 0,
+        "sharedXOverlappingLanes": 0,
+        "normalizeEdits": {
+          "droppedEdges": 0,
+          "reanchoredNodes": 0,
+          "expandedWindows": 0,
+          "droppedNodes": 0,
+          "total": 0
+        }
+      },
+      "labels": {
+        "genericNodeLabels": 0,
+        "branchLabelsFilled": 8,
+        "branchLabelsTotal": 18,
+        "genericBranchLabels": 0
+      },
+      "lint": {
+        "fatal": false,
+        "errors": 0,
+        "warnings": 0,
+        "errorCodes": {}
+      },
+      "coverage": {
+        "totalFacts": 4,
+        "criticalFacts": 4,
+        "timelineMatched": 4,
+        "criticalMatched": 4,
+        "dateAccurate": 3,
+        "dateChecked": 3,
+        "missing": [],
+        "dateErrors": []
+      },
+      "facts": {
+        "extracted": 55,
+        "undated": 0,
+        "beforeBirth": 0,
+        "annotatedShare": 100,
+        "redactedShare": 100
+      },
+      "cost": {
+        "totalTokens": 20625,
+        "liveCalls": 5,
+        "cachedCalls": 0,
+        "modelDurationMs": 19367,
+        "wallClockMs": 54416,
+        "byStep": {
+          "extraction": {
+            "calls": 1,
+            "tokens": 6266
+          },
+          "gap": {
+            "calls": 1,
+            "tokens": 6676
+          },
+          "annotation": {
+            "calls": 1,
+            "tokens": 2386
+          },
+          "redaktura": {
+            "calls": 1,
+            "tokens": 2652
+          },
+          "composition": {
+            "calls": 1,
+            "tokens": 2645
+          }
+        }
+      },
+      "manualFixNeeded": false,
+      "manualFixReasons": []
+    }
+  ]
+}

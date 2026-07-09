@@ -89,6 +89,10 @@ export type BiographyPipelineDeps = {
   callModel: CallBiographyModel;
   /** Переопределение модели (только для бенчмарк-миграции); по умолчанию 2.5-flash. */
   model?: string;
+  /** Тюнинг полноты извлечения: процедурная добавка к focusHint (не-thinking
+   *  модели недобирают факты на декларативном «извлеки всё»). undefined →
+   *  промпт байт-в-байт как прод (кэш-ключи стабильны). */
+  extractionEmphasis?: string;
   onProgress?: BiographyProgressCallback;
   /** Суммарные токены каждого вызова (BYOK accounting в CF). */
   onTokens?: (tokens: number) => void;
@@ -464,9 +468,12 @@ export async function runBiographyPipelineCore(params: {
   let allFacts: BiographyFactCandidate[] = [];
   let factsModel = deps.model ?? DEFAULT_BIOGRAPHY_MODEL;
   for (let index = 0; index < slices.length; index++) {
-    const focusHint = slices.length > 1
+    const baseFocusHint = slices.length > 1
       ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
       : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
+    const focusHint = deps.extractionEmphasis
+      ? `${baseFocusHint}\n${deps.extractionEmphasis}`
+      : baseFocusHint;
 
     // F1 (verifier): падение слайса после ретраев — ошибка импорта, а не
     // молча обрезанная биография (прод-семантика старого CF).
