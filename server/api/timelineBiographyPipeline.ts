@@ -80,8 +80,15 @@ export type BiographyPipelineStageData = {
   factDensity?: number;
 };
 
+/** Прод-дефолт (инвариант). Бенчмарк-миграция может переопределить на
+ *  другую Flash-модель (3.5-flash / 3.1-flash-lite) через deps.model — но
+ *  только Flash-тир, не Pro. */
+export const DEFAULT_BIOGRAPHY_MODEL = 'gemini-2.5-flash';
+
 export type BiographyPipelineDeps = {
   callModel: CallBiographyModel;
+  /** Переопределение модели (только для бенчмарк-миграции); по умолчанию 2.5-flash. */
+  model?: string;
   onProgress?: BiographyProgressCallback;
   /** Суммарные токены каждого вызова (BYOK accounting в CF). */
   onTokens?: (tokens: number) => void;
@@ -199,7 +206,7 @@ async function generateSimpleBiographyFacts(params: {
     focusHint: params.focusHint,
   });
 
-  const flashOnlyModels = ['gemini-2.5-flash'] as const;
+  const flashOnlyModels = [params.deps.model ?? DEFAULT_BIOGRAPHY_MODEL] as const;
   let lastError: unknown = null;
 
   for (const model of flashOnlyModels) {
@@ -253,7 +260,7 @@ async function annotateBiographyFacts(params: {
   try {
     const result = await params.deps.callModel(
       {
-        model: 'gemini-2.5-flash',
+        model: params.deps.model ?? DEFAULT_BIOGRAPHY_MODEL,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: {
           temperature: 0.05,
@@ -312,7 +319,7 @@ async function redaktBiographyFacts(params: {
   try {
     const result = await params.deps.callModel(
       {
-        model: 'gemini-2.5-flash',
+        model: params.deps.model ?? DEFAULT_BIOGRAPHY_MODEL,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: {
           temperature: 0.05,
@@ -386,7 +393,7 @@ async function composeBiographyFactsIntoTimeline(params: {
   try {
     const result = await params.deps.callModel(
       {
-        model: 'gemini-2.5-flash',
+        model: params.deps.model ?? DEFAULT_BIOGRAPHY_MODEL,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: {
           temperature: 0.1,
@@ -455,7 +462,7 @@ export async function runBiographyPipelineCore(params: {
 
   // Последовательно — параллельные вызовы ловят 429 на free tier
   let allFacts: BiographyFactCandidate[] = [];
-  let factsModel = 'gemini-2.5-flash';
+  let factsModel = deps.model ?? DEFAULT_BIOGRAPHY_MODEL;
   for (let index = 0; index < slices.length; index++) {
     const focusHint = slices.length > 1
       ? `Персона: ${subjectName}. Это часть ${index + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
@@ -536,7 +543,7 @@ export async function runBiographyPipelineCore(params: {
       });
       const gapResult = await deps.callModel(
         {
-          model: 'gemini-2.5-flash',
+          model: params.deps.model ?? DEFAULT_BIOGRAPHY_MODEL,
           contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
           config: {
             temperature: 0.1,

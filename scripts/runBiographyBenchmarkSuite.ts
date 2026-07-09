@@ -51,6 +51,7 @@ type CliOptions = {
   tag: string | null;
   compare: [string, string] | null;
   maxLiveCalls: number | null;
+  model: string | null;
 };
 
 function parseArgs(argv: string[]): CliOptions {
@@ -63,6 +64,7 @@ function parseArgs(argv: string[]): CliOptions {
     tag: null,
     compare: null,
     maxLiveCalls: null,
+    model: null,
   };
   for (const arg of argv) {
     if (arg === '--fetch-fixtures') options.fetchFixtures = true;
@@ -78,6 +80,9 @@ function parseArgs(argv: string[]): CliOptions {
     else if (arg.startsWith('--max-live-calls=')) {
       const n = parseInt(arg.slice(17), 10);
       if (Number.isFinite(n) && n > 0) options.maxLiveCalls = n;
+    }
+    else if (arg.startsWith('--model=')) {
+      options.model = arg.slice(8).trim() || null;
     }
   }
   return options;
@@ -159,6 +164,7 @@ async function runSuite(options: CliOptions) {
         sourceUrl: entry.sourceUrl,
         apiKey,
         page,
+        model: options.model ?? undefined,
       });
       if (stats.dailyQuotaHit) {
         // 429 мог быть проглочен best-effort шагами pipeline (redaktura,

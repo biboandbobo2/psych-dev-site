@@ -175,6 +175,7 @@ async function runBiographyTwoPass(params: {
   apiKey: string;
   onProgress?: BiographyProgressCallback;
   page?: WikipediaPageExtract;
+  model?: string;
 }): Promise<BiographyExtractorSuccessPayload> {
   const client = resolveGenAiClient(params.apiKey);
 
@@ -183,6 +184,7 @@ async function runBiographyTwoPass(params: {
     page: params.page,
     deps: {
       callModel: (request) => client.models.generateContent(request),
+      model: params.model,
       onProgress: params.onProgress,
       log: (message, data) => debugLog(`[timeline-biography] ${message}`, data),
       logError: (message, data) => debugError(`[timeline-biography] ${message}`, data),
@@ -219,6 +221,8 @@ export async function runBiographyImport(params: {
   onProgress?: BiographyProgressCallback;
   /** Pre-fetched страница (fixtures в бенчмарках/тестах) — сеть не трогается. */
   page?: WikipediaPageExtract;
+  /** Переопределение модели (бенчмарк-миграция); по умолчанию 2.5-flash. */
+  model?: string;
 }): Promise<BiographyExtractorSuccessPayload> {
   return runBiographyTwoPass(params);
 }
