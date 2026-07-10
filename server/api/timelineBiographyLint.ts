@@ -312,7 +312,11 @@ function repairEventPlan(
 ) {
   const sphere = normalizeSphere(event.sphere) ?? fallbackSphere;
   const matchingFact = findExactSourceFact(event, factsIndex) ?? selectMatchingFact(event, factsIndex);
-  const sourceText = buildNotesFromFact(event, matchingFact);
+  // Д-B11: склеенные заметки merge («…Также: …») — составной текст, у него
+  // нет одного факта-источника; замена стирала содержимое склеенных событий.
+  const sourceText = event.notes?.includes('. Также: ')
+    ? event.notes
+    : buildNotesFromFact(event, matchingFact);
   const needsLabelRepair = isGenericLabel(event.label) || isTruncatedLabel(event.label) || isRawSentenceLabel(event.label);
   const factLabel = buildLabelFromFact(event, matchingFact, sphere);
   const repairedLabel = needsLabelRepair ? factLabel : event.label;

@@ -419,3 +419,28 @@ describe('factToEventPlan — дробный возраст из месяца (A
     expect(march.age).toBeLessThan(september.age);
   });
 });
+
+// Д-B11 (найден на wundt/lite): mergeSameAgeEvents при 4+ событиях одного
+// возраста оставлял первый/средний/последний ПОЗИЦИОННО — важные события
+// (importance high → isDecision) растворялись в склеенных заметках,
+// которые затем затирал Д-B8-репейр.
+describe('mergeSameAgeEvents — важные события переживают склейку (Д-B11)', () => {
+  it('isDecision-событие остаётся узлом при склейке 4+ одного возраста', () => {
+    const facts: BiographyFactCandidate[] = [
+      makeFact({ year: 1832, details: 'Родился', category: 'birth' }),
+      makeFact({ year: 1879, details: 'Выделили помещение для хранения' }),
+      makeFact({ year: 1879, details: 'Прочитал курс лекций' }),
+      makeFact({ year: 1879, details: 'Основал первую лабораторию психологии', importance: 'high' }),
+      makeFact({ year: 1879, details: 'Нанял ассистента' }),
+      makeFact({ year: 1879, details: 'Заказал оборудование' }),
+      makeFact({ year: 1920, details: 'Умер', category: 'death', importance: 'high' }),
+    ];
+    const plan = buildPlanFromCompositionResult({
+      subjectName: 'Вундт',
+      facts,
+      composition: { mainLine: [0, 6], branches: [{ name: 'Лаборатория', sphere: 'career', facts: [1, 2, 3, 4, 5] }] },
+    });
+    const branchLabels = plan.branches.flatMap((b) => b.events.map((e) => e.label));
+    expect(branchLabels.join(' | ')).toContain('лаборатори');
+  });
+});

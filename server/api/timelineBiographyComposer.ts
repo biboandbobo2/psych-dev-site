@@ -284,25 +284,20 @@ function mergeSameAgeEvents(events: BiographyTimelineEventPlan[]): BiographyTime
     }
 
     const targetCount = group.length === 4 ? 2 : 3;
-    // Keep first and last, merge middle into combined events
-    const kept = [group[0]];
+    // Д-B11: оставляем по ВАЖНОСТИ (isDecision), позиция — вторичный ключ;
+    // раньше first/mid/last позиционно — важные события растворялись.
+    const ranked = group
+      .map((event, position) => ({ event, position }))
+      .sort((a, b) => Number(b.event.isDecision) - Number(a.event.isDecision) || a.position - b.position);
+    const keptSet = new Set(ranked.slice(0, targetCount).map((r) => r.event));
+    const kept = group.filter((e) => keptSet.has(e));
 
-    if (targetCount === 3 && group.length > 4) {
-      // Keep middle representative
-      const midIdx = Math.floor(group.length / 2);
-      kept.push(group[midIdx]);
-    }
-
-    // Last event — combine remaining labels into its notes
-    const last = group[group.length - 1];
-    const skippedLabels = group
-      .filter(e => !kept.includes(e) && e !== last)
-      .map(e => e.label);
+    const skippedLabels = group.filter((e) => !keptSet.has(e)).map((e) => e.label);
+    const lastKept = kept[kept.length - 1];
     const combinedNotes = skippedLabels.length > 0
-      ? `${last.notes ?? last.label}. Также: ${skippedLabels.join('; ')}.`
-      : last.notes;
-
-    kept.push({ ...last, notes: combinedNotes });
+      ? `${lastKept.notes ?? lastKept.label}. Также: ${skippedLabels.join('; ')}.`
+      : lastKept.notes;
+    kept[kept.length - 1] = { ...lastKept, notes: combinedNotes };
 
     result.push(...kept);
   }
