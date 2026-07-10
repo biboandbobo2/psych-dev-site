@@ -429,8 +429,10 @@ describe('mergeSameAgeEvents — важные события переживаю�
     const facts: BiographyFactCandidate[] = [
       makeFact({ year: 1832, details: 'Родился', category: 'birth' }),
       makeFact({ year: 1879, details: 'Выделили помещение для хранения' }),
-      makeFact({ year: 1879, details: 'Прочитал курс лекций' }),
+      // important на позиции 1 из 5: позиционный merge (first/mid/last) её
+      // терял — дискриминирует старое поведение (finding F1 verifier'а)
       makeFact({ year: 1879, details: 'Основал первую лабораторию психологии', importance: 'high' }),
+      makeFact({ year: 1879, details: 'Прочитал курс лекций' }),
       makeFact({ year: 1879, details: 'Нанял ассистента' }),
       makeFact({ year: 1879, details: 'Заказал оборудование' }),
       makeFact({ year: 1920, details: 'Умер', category: 'death', importance: 'high' }),

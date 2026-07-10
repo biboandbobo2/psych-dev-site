@@ -249,3 +249,27 @@ describe('lintBiographyPlan — ранняя жизнь в ветках засч
     expect(issues.filter((i) => i.code === 'too-few-early-life-events')).toEqual([]);
   });
 });
+
+// Д-B11 (lint-половина, finding F1b verifier'а): составные «…Также: …»
+// заметки от mergeSameAgeEvents не имеют одного факта-источника — репейр
+// затирал их текстом одного факта, стирая содержимое склеенных событий.
+describe('cleanGenericEventLabels — склеенные заметки не затираются', () => {
+  it('notes с «. Также: » сохраняются как есть', () => {
+    const details = 'Основал первую лабораторию психологических исследований.';
+    const merged = `${details}. Также: Нанял ассистента; Заказал оборудование.`;
+    const cleaned = cleanGenericEventLabels({
+      facts: [{
+        year: 1879, age: undefined, sphere: 'career' as const, category: 'career',
+        eventType: 'career' as never, labelHint: details, details, evidence: details,
+        importance: 'high' as const, confidence: 'medium' as const, source: 'model' as const,
+      }],
+      plan: {
+        subjectName: 'Вундт', canvasName: 'Вундт', currentAge: 88,
+        selectedPeriodization: 'erikson', birthDetails: {},
+        mainEvents: [{ age: 47, label: 'Основание лаборатории', notes: merged, sphere: 'career', isDecision: true }],
+        branches: [],
+      },
+    });
+    expect(cleaned.mainEvents[0].notes).toBe(merged);
+  });
+});
