@@ -110,7 +110,7 @@ export const biographyBenchmarkGroundTruth: Record<string, BiographyBenchmarkFac
     { id: 'death', year: 1917, label: 'Смерть', critical: true, article: { any: ['скончался', 'умер'] }, timeline: { any: ['смерть', 'умер', 'скончал'] } },
   ],
   wundt: [
-    { id: 'birth', year: 1832, label: 'Born in Neckarau', critical: true, article: { any: ['neckarau'] }, timeline: { any: ['neckarau', 'неккарау', 'родился вильгельм'] } },
+    { id: 'birth', year: 1832, label: 'Born in Neckarau', critical: true, article: { any: ['neckarau'] }, timeline: { any: ['neckarau', 'неккарау', 'wundt родился', '1832'] } },
     { id: 'helmholtz', year: 1858, label: 'Assistant to Helmholtz', critical: true, article: { all: [['helmholtz']] }, timeline: { any: ['helmholtz', 'гельмгольц', 'гейдельберг'] } },
     { id: 'principles', year: 1874, label: 'Principles of Physiological Psychology', critical: true, article: { all: [['physiological psychology']] }, timeline: { any: ['physiological psychology', 'физиологической психологии', 'физиологическая психология'] } },
     { id: 'leipzig', year: 1875, label: 'Professor at Leipzig', critical: true, article: { all: [['leipzig']] }, timeline: { any: ['leipzig', 'лейпциг'] } },
