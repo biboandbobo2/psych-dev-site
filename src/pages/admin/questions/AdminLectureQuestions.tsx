@@ -10,6 +10,7 @@ import {
   useCourseSharedNotes,
   useSharedLectureNoteActions,
 } from '../../../hooks/useSharedLectureNotes';
+import { GroupWatchStats } from './GroupWatchStats';
 import type { SharedLectureNote } from '../../../types/sharedLectureNotes';
 import { canEditCourse } from '../../../types/user';
 import { debugError } from '../../../lib/debug';
@@ -141,6 +142,12 @@ export default function AdminLectureQuestions() {
           </select>
         ) : null}
       </header>
+
+      {canViewSelected && selectedCourseId ? (
+        <div className="mb-8">
+          <GroupWatchStats courseId={selectedCourseId} />
+        </div>
+      ) : null}
 
       {!canViewSelected ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

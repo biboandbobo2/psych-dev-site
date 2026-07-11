@@ -416,6 +416,47 @@ describe('sharedLectureNotes: расшаренные фрагменты конс
   });
 });
 
+describe('courseProgress: прогресс просмотров для лекторов курса', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'users', 'alice', 'courseProgress', 'development'), {
+        watchedLessonIds: ['prenatal'],
+      });
+      await setDoc(doc(db, 'users', 'alice', 'courseProgress', 'clinical'), {
+        watchedLessonIds: [],
+      });
+    });
+  });
+
+  it('владелец читает свой прогресс', async () => {
+    const alice = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(getDoc(doc(alice, 'users', 'alice', 'courseProgress', 'development')));
+  });
+
+  it('лектор курса читает прогресс студента по своему курсу, по чужому — нет', async () => {
+    const lecturer = testEnv
+      .authenticatedContext('lecturer-uid', { role: 'admin', editableCourses: ['development'] })
+      .firestore();
+    await assertSucceeds(getDoc(doc(lecturer, 'users', 'alice', 'courseProgress', 'development')));
+    await assertFails(getDoc(doc(lecturer, 'users', 'alice', 'courseProgress', 'clinical')));
+  });
+
+  it('обычный пользователь не читает чужой прогресс и не пишет его', async () => {
+    const mallory = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(getDoc(doc(mallory, 'users', 'alice', 'courseProgress', 'development')));
+
+    const lecturer = testEnv
+      .authenticatedContext('lecturer-uid', { role: 'admin', editableCourses: ['development'] })
+      .firestore();
+    await assertFails(
+      setDoc(doc(lecturer, 'users', 'alice', 'courseProgress', 'development'), {
+        watchedLessonIds: ['prenatal', 'infancy'],
+      })
+    );
+  });
+});
+
 describe('default-deny для новых неизвестных коллекций', () => {
   it('обычный авторизованный: write в произвольную новую коллекцию → denied', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();

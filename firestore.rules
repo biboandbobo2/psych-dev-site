@@ -68,8 +68,11 @@ service cloud.firestore {
       // Прогресс просмотра курсов (resume point, last-lesson, watched).
       // Один документ на курс. Multi-device: clients пишут гибридно
       // (localStorage + cloud throttle); читают cloud-first.
+      // Лекторы курса (canEditCourse) читают прогресс студентов по СВОЕМУ
+      // курсу — для статистики просмотров к семинару.
       match /courseProgress/{courseId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId) || canEditCourse(courseId);
+        allow write: if isOwner(userId);
       }
     }
 
