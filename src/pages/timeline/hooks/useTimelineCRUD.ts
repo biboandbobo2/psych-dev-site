@@ -170,6 +170,7 @@ export function useTimelineCRUD({
         // Add new event
         let eventX = LINE_X_POSITION;
         let eventParentX: number | undefined = undefined;
+        let eventBranchId: string | undefined = undefined;
         let eventSphere = formData.sphere;
 
         if (selectedBranchId !== null) {
@@ -179,6 +180,7 @@ export function useTimelineCRUD({
             if (inRange) {
               eventX = selectedEdge.x;
               eventParentX = selectedEdge.x;
+              eventBranchId = selectedEdge.id;
             } else {
               warn(
                 `Возраст события (${parsedAge} лет) не попадает в диапазон выбранной ветки (${selectedEdge.startAge}-${selectedEdge.endAge} лет). Событие будет добавлено на основную линию жизни.`
@@ -199,6 +201,7 @@ export function useTimelineCRUD({
           age: parsedAge,
           x: eventX,
           parentX: eventParentX, // Branch x (or undefined for main line)
+          branchId: eventBranchId, // ссылочная принадлежность (RFC branchId, фаза 2)
           label: formData.label,
           notes: formData.notes,
           sphere: eventSphere,
@@ -238,6 +241,7 @@ export function useTimelineCRUD({
         age: clampedAge,
         x: branchEdge ? branchEdge.x : LINE_X_POSITION,
         parentX: branchEdge ? branchEdge.x : undefined,
+        branchId: branchEdge ? branchEdge.id : undefined,
         label: 'Новое событие',
         notes: '',
         sphere: originSphere,

@@ -72,6 +72,7 @@ export function BulkEventCreator({
       label: e.label!,
       x: branchX ?? LINE_X_POSITION,
       parentX: branchX ?? undefined,
+      branchId: selectedEdge?.id,
       notes: '',
       sphere: branchSphere, // Автоматически устанавливаем сферу от ветки
       isDecision: false,
@@ -97,6 +98,7 @@ export function BulkEventCreator({
         label: e.label!,
         x: branchX ?? LINE_X_POSITION,
         parentX: branchX ?? undefined,
+        branchId: selectedEdge?.id,
         notes: '',
         sphere: branchSphere,
         isDecision: false,

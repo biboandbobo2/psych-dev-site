@@ -15,14 +15,21 @@
  *   every branch holds its own events (nodes where node.parentX
  *     equals branch.x), and those events can spawn deeper branches.
  *
- * Convention:
- *   - `node.parentX === LINE_X_POSITION` (or `undefined`) = root.
- *   - `node.parentX === edge.x` = node lives on `edge`.
+ * Convention (phase 2, RFC timeline-branch-id):
+ *   - `node.branchId === edge.id` = node lives on `edge` — the REFERENCE
+ *     is the source of truth about membership.
+ *   - legacy nodes without `branchId` fall back to the coordinate rule:
+ *     `node.parentX === edge.x`; `parentX === LINE_X_POSITION`
+ *     (or `undefined`) = root.
  *   - `edge.nodeId === event.id` = branch originates from `event`.
+ *   `x`/`parentX` remain presentation-only for referenced nodes: two
+ *   branches may share an x without membership ambiguity (Д5).
  *
  * Orphan tolerance: a node whose `parentX` matches no existing edge is
- * treated as a root (we don't drop user data). An edge whose `nodeId`
- * matches no event is dropped — there's nothing to anchor it to.
+ * treated as a root (we don't drop user data); a node whose `branchId`
+ * matches no edge falls back to the coordinate rule. An edge whose
+ * `nodeId` matches no event is dropped — there's nothing to anchor it
+ * to; events referencing such an edge surface as roots.
  */
 import { LINE_X_POSITION } from '../constants';
 import type { EdgeT, NodeT } from '../types';
@@ -46,16 +53,27 @@ function isRootNode(node: NodeT): boolean {
 
 export function buildTimelineTree(nodes: NodeT[], edges: EdgeT[]): TimelineTree {
   const edgesByOrigin = new Map<string, EdgeT[]>();
+  const edgeIds = new Set<string>();
   for (const edge of edges) {
     const list = edgesByOrigin.get(edge.nodeId) ?? [];
     list.push(edge);
     edgesByOrigin.set(edge.nodeId, list);
+    edgeIds.add(edge.id);
   }
 
+  // Membership resolution: reference first (phase 2), coordinate as the
+  // legacy fallback. A dangling branchId (no such edge) is ignored here —
+  // normalizeImportedTimelineData strips it on load, the tree just stays
+  // robust to raw data.
+  const nodesByBranchId = new Map<string, NodeT[]>();
   const nodesByParentX = new Map<number, NodeT[]>();
   const rootNodes: NodeT[] = [];
   for (const node of nodes) {
-    if (isRootNode(node)) {
+    if (node.branchId !== undefined && edgeIds.has(node.branchId)) {
+      const list = nodesByBranchId.get(node.branchId) ?? [];
+      list.push(node);
+      nodesByBranchId.set(node.branchId, list);
+    } else if (isRootNode(node)) {
       rootNodes.push(node);
     } else {
       const px = node.parentX as number;
@@ -79,9 +97,14 @@ export function buildTimelineTree(nodes: NodeT[], edges: EdgeT[]): TimelineTree 
     claimedNodeIds.add(node.id);
     const branches = (edgesByOrigin.get(node.id) ?? []).map((edge): TimelineTreeBranch => {
       claimedEdgeXs.add(edge.x);
-      const candidates = nodesByParentX.get(edge.x) ?? [];
       const eventsOnBranch: TimelineTreeNode[] = [];
-      for (const candidate of candidates) {
+      // Referenced members first (unambiguous), then legacy coordinate
+      // matches that no other branch has claimed yet.
+      for (const candidate of nodesByBranchId.get(edge.id) ?? []) {
+        if (claimedNodeIds.has(candidate.id)) continue;
+        eventsOnBranch.push(buildEvent(candidate));
+      }
+      for (const candidate of nodesByParentX.get(edge.x) ?? []) {
         if (claimedNodeIds.has(candidate.id)) continue;
         eventsOnBranch.push(buildEvent(candidate));
       }
@@ -103,6 +126,16 @@ export function buildTimelineTree(nodes: NodeT[], edges: EdgeT[]): TimelineTree 
     for (const orphan of orphans) {
       if (claimedNodeIds.has(orphan.id)) continue;
       tree.push(buildEvent(orphan));
+    }
+  }
+
+  // Referenced nodes whose edge never entered the tree (its origin event
+  // is missing, so the edge was dropped) — surface as roots, same
+  // no-data-loss guarantee as coordinate orphans above.
+  for (const [, members] of nodesByBranchId) {
+    for (const member of members) {
+      if (claimedNodeIds.has(member.id)) continue;
+      tree.push(buildEvent(member));
     }
   }
 
@@ -274,10 +307,11 @@ export function applyBranchDeletionToFlat(
   const updatedNodes = new Map<string, NodeT>();
   const updatedEdges = new Map<string, EdgeT>();
 
-  // Grand-branches get new x coordinates. A migrated branch must not land
-  // on the x of an unrelated surviving branch (membership is x-encoded —
-  // a collision silently merges two branches, class Д5/Д6a) nor on the
-  // main line itself. Track taken xs: survivors first, migrants as placed.
+  // Grand-branches get new x coordinates. Фаза 3: членство несёт branchId,
+  // коллизия x больше НЕ сливает ветки (класс Д5/Д6a закрыт ссылкой) — но
+  // walk сохранён как ПРЕЗЕНТАЦИЯ: две ветки на одном x рисуются друг на
+  // друге, и для legacy-узлов без ссылки координата остаётся fallback'ом.
+  // Track taken xs: survivors first, migrants as placed.
   const migratedEdgeIds = new Set<string>();
   const collectMigratedEdgeIds = (event: TimelineTreeNode) => {
     for (const branch of event.branches) {
@@ -300,7 +334,9 @@ export function applyBranchDeletionToFlat(
     return x;
   };
 
-  // Top-level migrant: collapses to the new parent line (no offset).
+  // Top-level migrant: collapses to the new parent line (no offset) and
+  // re-references the origin's own branch (undefined = main line) — the
+  // old reference points at the edge being deleted.
   function migrateTopLevel(event: TimelineTreeNode) {
     const oldX = event.data.x ?? LINE_X_POSITION;
     const deltaX = newParentLineX - oldX;
@@ -308,6 +344,7 @@ export function applyBranchDeletionToFlat(
       ...event.data,
       x: newParentLineX,
       parentX: newAnchorParentX,
+      branchId: originInTree.data.branchId,
     });
     for (const branch of event.branches) {
       shiftBranch(branch, deltaX);
@@ -315,13 +352,21 @@ export function applyBranchDeletionToFlat(
   }
 
   // Descendant migrant: preserves its per-event offset relative to its
-  // own branch — only the absolute coordinates slide by deltaX.
-  function migrateDescendant(event: TimelineTreeNode, deltaX: number, newOwnParentX: number) {
+  // own branch — only the absolute coordinates slide by deltaX. Its own
+  // branch survives, so the reference is simply restated (heals stale
+  // legacy values along the way).
+  function migrateDescendant(
+    event: TimelineTreeNode,
+    deltaX: number,
+    newOwnParentX: number,
+    ownBranchId: string
+  ) {
     const oldX = event.data.x ?? LINE_X_POSITION;
     updatedNodes.set(event.data.id, {
       ...event.data,
       x: oldX + deltaX,
       parentX: newOwnParentX,
+      branchId: ownBranchId,
     });
     for (const branch of event.branches) {
       shiftBranch(branch, deltaX);
@@ -333,7 +378,7 @@ export function applyBranchDeletionToFlat(
     const actualDelta = newBranchX - branch.data.x;
     updatedEdges.set(branch.data.id, { ...branch.data, x: newBranchX });
     for (const child of branch.events) {
-      migrateDescendant(child, actualDelta, newBranchX);
+      migrateDescendant(child, actualDelta, newBranchX, branch.data.id);
     }
   }
 

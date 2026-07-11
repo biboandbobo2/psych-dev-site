@@ -939,3 +939,94 @@ describe('useTimelineCRUD', () => {
     });
   });
 });
+
+describe('фаза 2 branchId: создание событий пишет ссылку', () => {
+  const branchEdge: EdgeT = {
+    id: 'edge-1',
+    x: 2100,
+    startAge: 10,
+    endAge: 40,
+    color: '#000',
+    nodeId: 'origin',
+  };
+  const originNode: NodeT = {
+    id: 'origin',
+    age: 10,
+    x: 2000,
+    label: 'Origin',
+    isDecision: false,
+    sphere: 'career',
+  };
+
+  function setup() {
+    const setNodes = vi.fn<(nodes: NodeT[]) => void>();
+    const setEdges = vi.fn<(edges: EdgeT[]) => void>();
+    const { result } = renderHook(() =>
+      useTimelineCRUD({
+        nodes: [originNode],
+        edges: [branchEdge],
+        ageMax: 100,
+        setNodes,
+        setEdges,
+      })
+    );
+    return { result, setNodes };
+  }
+
+  it('handleFormSubmit: событие на ветке получает branchId ветки', () => {
+    const { result, setNodes } = setup();
+    act(() => {
+      result.current.handleFormSubmit(
+        { id: null, age: '20', label: 'На ветке', notes: '', sphere: 'career', isDecision: false, icon: null },
+        'edge-1'
+      );
+    });
+    const created = (setNodes.mock.calls[0][0] as NodeT[]).find((n) => n.label === 'На ветке')!;
+    expect(created.branchId).toBe('edge-1');
+    expect(created.parentX).toBe(2100);
+  });
+
+  it('handleFormSubmit: событие на главной линии остаётся без branchId', () => {
+    const { result, setNodes } = setup();
+    act(() => {
+      result.current.handleFormSubmit(
+        { id: null, age: '20', label: 'Главная', notes: '', sphere: 'career', isDecision: false, icon: null },
+        null
+      );
+    });
+    const created = (setNodes.mock.calls[0][0] as NodeT[]).find((n) => n.label === 'Главная')!;
+    expect(created.branchId).toBeUndefined();
+    expect(created.parentX).toBeUndefined();
+  });
+
+  it('handleFormSubmit: возраст вне окна ветки → событие уходит на главную линию БЕЗ branchId', () => {
+    const { result, setNodes } = setup();
+    act(() => {
+      result.current.handleFormSubmit(
+        { id: null, age: '90', label: 'Вне окна', notes: '', sphere: 'career', isDecision: false, icon: null },
+        'edge-1'
+      );
+    });
+    const created = (setNodes.mock.calls[0][0] as NodeT[]).find((n) => n.label === 'Вне окна')!;
+    expect(created.branchId).toBeUndefined();
+    expect(created.parentX).toBeUndefined();
+  });
+
+  it('quickCreateEvent: двойной клик по ветке пишет branchId', () => {
+    const { result, setNodes } = setup();
+    act(() => {
+      result.current.quickCreateEvent(20, branchEdge);
+    });
+    const created = (setNodes.mock.calls[0][0] as NodeT[]).find((n) => n.label === 'Новое событие')!;
+    expect(created.branchId).toBe('edge-1');
+  });
+
+  it('quickCreateEvent: двойной клик по главной линии — без branchId', () => {
+    const { result, setNodes } = setup();
+    act(() => {
+      result.current.quickCreateEvent(20, null);
+    });
+    const created = (setNodes.mock.calls[0][0] as NodeT[]).find((n) => n.label === 'Новое событие')!;
+    expect(created.branchId).toBeUndefined();
+  });
+});

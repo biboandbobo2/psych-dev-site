@@ -105,12 +105,32 @@ export function normalizeImportedTimelineData(data: unknown): TimelineData {
     : [];
   const edges = dedupeById(rawEdges);
 
+  // Фаза 2 (RFC timeline-branch-id): лечение ссылки ДО координатного
+  // healing. Висячий branchId (ветки с таким id нет) снимается — дальше
+  // узел лечится координатными правилами как legacy. Валидный branchId —
+  // источник истины о принадлежности: разъехавшийся parentX подтягивается
+  // к x ветки, per-node смещение (node.x − parentX) сохраняется.
+  const edgeById = new Map(edges.map((e) => [e.id, e]));
+  const referencedNodes = rawNodes.map((n) => {
+    if (n.branchId === undefined) return n;
+    const edge = edgeById.get(n.branchId);
+    if (!edge) return { ...n, branchId: undefined };
+    if (n.parentX === edge.x) return n;
+    const offset =
+      Number.isFinite(n.x) && Number.isFinite(n.parentX)
+        ? (n.x as number) - (n.parentX as number)
+        : 0;
+    return { ...n, parentX: edge.x, x: edge.x + offset };
+  });
+
   // B5: heal orphan nodes whose parentX points at a now-missing branch.
   // After previous bugs (B6/B7) these accumulated in Firestore; on read
   // we re-anchor them to the main line so the canvas doesn't render
-  // events floating on a non-existent branch.
+  // events floating on a non-existent branch. Узлы с валидной ссылкой
+  // выше уже согласованы и в координатном лечении не нуждаются.
   const validEdgeXs = new Set(edges.map((e) => e.x));
-  const nodes = rawNodes.map((n) => {
+  const nodes = referencedNodes.map((n) => {
+    if (n.branchId !== undefined) return n;
     if (
       n.parentX !== undefined &&
       n.parentX !== LINE_X_POSITION &&
