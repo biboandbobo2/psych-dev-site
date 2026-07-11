@@ -1,0 +1,274 @@
+{
+  "aggregate": {
+    "variant": "a",
+    "generatedAt": "2026-07-11T05:35:27.873Z",
+    "rows": [
+      {
+        "group": "ALL",
+        "articles": 2,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 50,
+        "avgTokens": 47246
+      },
+      {
+        "group": "set:worker",
+        "articles": 2,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 50,
+        "avgTokens": 47246
+      },
+      {
+        "group": "cat:en",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 31834
+      },
+      {
+        "group": "cat:long-article",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 62657
+      },
+      {
+        "group": "cat:psychologist",
+        "articles": 2,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 50,
+        "avgTokens": 47246
+      },
+      {
+        "group": "cat:ru",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 62657
+      }
+    ]
+  },
+  "results": [
+    {
+      "articleId": "vygotsky",
+      "set": "worker",
+      "categories": [
+        "ru",
+        "psychologist",
+        "long-article"
+      ],
+      "structure": {
+        "nodes": 85,
+        "edges": 36,
+        "mainLineNodes": 10,
+        "branchNodes": 75,
+        "referentialViolations": 0,
+        "duplicateIds": 0,
+        "eventsOutsideBranchWindow": 0,
+        "sharedXOverlappingLanes": 0,
+        "normalizeEdits": {
+          "droppedEdges": 0,
+          "reanchoredNodes": 0,
+          "expandedWindows": 0,
+          "droppedNodes": 0,
+          "total": 0
+        }
+      },
+      "labels": {
+        "genericNodeLabels": 0,
+        "branchLabelsFilled": 11,
+        "branchLabelsTotal": 36,
+        "genericBranchLabels": 0
+      },
+      "lint": {
+        "fatal": false,
+        "errors": 0,
+        "warnings": 0,
+        "errorCodes": {}
+      },
+      "coverage": {
+        "totalFacts": 7,
+        "criticalFacts": 5,
+        "timelineMatched": 7,
+        "criticalMatched": 5,
+        "dateAccurate": 7,
+        "dateChecked": 7,
+        "missing": [],
+        "dateErrors": []
+      },
+      "facts": {
+        "extracted": 105,
+        "undated": 0,
+        "beforeBirth": 0,
+        "annotatedShare": 100,
+        "redactedShare": 100,
+        "monthsStripped": 0,
+        "yearsStripped": 0,
+        "yearSentenceCoverage": 52.3
+      },
+      "cost": {
+        "totalTokens": 62657,
+        "liveCalls": 6,
+        "cachedCalls": 0,
+        "modelDurationMs": 33436,
+        "wallClockMs": 75501,
+        "byStep": {
+          "extraction": {
+            "calls": 3,
+            "tokens": 29588
+          },
+          "gap": {
+            "calls": 1,
+            "tokens": 21645
+          },
+          "annotation": {
+            "calls": 1,
+            "tokens": 7549
+          },
+          "composition": {
+            "calls": 1,
+            "tokens": 3875
+          }
+        }
+      },
+      "manualFixNeeded": false,
+      "manualFixReasons": []
+    },
+    {
+      "articleId": "rogers",
+      "set": "worker",
+      "categories": [
+        "en",
+        "psychologist"
+      ],
+      "structure": {
+        "nodes": 59,
+        "edges": 19,
+        "mainLineNodes": 15,
+        "branchNodes": 44,
+        "referentialViolations": 0,
+        "duplicateIds": 0,
+        "eventsOutsideBranchWindow": 0,
+        "sharedXOverlappingLanes": 0,
+        "normalizeEdits": {
+          "droppedEdges": 0,
+          "reanchoredNodes": 0,
+          "expandedWindows": 0,
+          "droppedNodes": 0,
+          "total": 0
+        }
+      },
+      "labels": {
+        "genericNodeLabels": 0,
+        "branchLabelsFilled": 10,
+        "branchLabelsTotal": 19,
+        "genericBranchLabels": 0
+      },
+      "lint": {
+        "fatal": true,
+        "errors": 1,
+        "warnings": 0,
+        "errorCodes": {
+          "duplicate-main-event": 1
+        }
+      },
+      "coverage": {
+        "totalFacts": 6,
+        "criticalFacts": 4,
+        "timelineMatched": 6,
+        "criticalMatched": 4,
+        "dateAccurate": 5,
+        "dateChecked": 5,
+        "missing": [],
+        "dateErrors": []
+      },
+      "facts": {
+        "extracted": 79,
+        "undated": 16,
+        "beforeBirth": 0,
+        "annotatedShare": 100,
+        "redactedShare": 100,
+        "monthsStripped": 0,
+        "yearsStripped": 16,
+        "yearSentenceCoverage": 26.9
+      },
+      "cost": {
+        "totalTokens": 31834,
+        "liveCalls": 5,
+        "cachedCalls": 0,
+        "modelDurationMs": 24627,
+        "wallClockMs": 59663,
+        "byStep": {
+          "extraction": {
+            "calls": 2,
+            "tokens": 12806
+          },
+          "gap": {
+            "calls": 1,
+            "tokens": 10297
+          },
+          "annotation": {
+            "calls": 1,
+            "tokens": 5693
+          },
+          "composition": {
+            "calls": 1,
+            "tokens": 3038
+          }
+        }
+      },
+      "manualFixNeeded": true,
+      "manualFixReasons": [
+        "fatalLint",
+        "yearsFabricated=16"
+      ]
+    }
+  ]
+}
