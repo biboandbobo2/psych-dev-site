@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getYouTubeVideoId } from '../../../lib/videoTranscripts';
-import type { LectureNoteSegment } from '../../../types/notes';
+import type { LectureNoteDraft } from '../../../types/notes';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
 import { VideoResourceLinks } from './VideoResourceLinks';
 import { StudyVideoPlayer, type StudyVideoPlayerHandle } from './StudyVideoPlayer';
@@ -12,14 +12,14 @@ interface VideoStudyOverlayProps {
   audioUrl: string;
   courseId: string;
   deckUrl: string;
-  draftSegments: LectureNoteSegment[];
+  draft: LectureNoteDraft;
   embedUrl: string;
   isOpen: boolean;
   isYoutube: boolean;
   onClose: () => void;
-  onDraftSegmentsChange: (segments: LectureNoteSegment[]) => void;
+  onDraftChange: (draft: LectureNoteDraft) => void;
   originalUrl: string;
-  periodId?: string;
+  periodId: string;
   periodTitle: string;
   videoTitle: string;
   initialPanel?: SidebarMode;
@@ -34,12 +34,12 @@ export function VideoStudyOverlay({
   audioUrl,
   courseId,
   deckUrl,
-  draftSegments,
+  draft,
   embedUrl,
   isOpen,
   isYoutube,
   onClose,
-  onDraftSegmentsChange,
+  onDraftChange,
   originalUrl,
   periodId,
   periodTitle,
@@ -205,7 +205,7 @@ export function VideoStudyOverlay({
           ) : (
             <VideoStudyNotesPanel
               courseId={courseId}
-              draftSegments={draftSegments}
+              draft={draft}
               getPlaybackSnapshot={() =>
                 playerRef.current?.getPlaybackSnapshot() ?? {
                   currentTimeMs: null,
@@ -213,7 +213,7 @@ export function VideoStudyOverlay({
                 }
               }
               lectureResourceId={lectureResourceId}
-              onDraftSegmentsChange={onDraftSegmentsChange}
+              onDraftChange={onDraftChange}
               onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
               periodId={periodId}
               periodTitle={periodTitle}

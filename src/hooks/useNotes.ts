@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   collection,
   query,
@@ -186,6 +186,10 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
       }
     };
 
+  // Id лекционных заметок, для которых уже известно, что документ существует:
+  // позволяет не читать документ перед каждым debounce-автосейвом.
+  const knownLectureDocIdsRef = useRef<Set<string>>(new Set());
+
   const upsertLectureNote = useCallback(async (
     content: string,
     context: LectureNoteContext,
@@ -200,8 +204,7 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
       const normalizedAgeRange = normalizeAgeRange(context.periodId);
       const lectureDocId = buildLectureNoteDocumentId(user.uid, context);
       const noteRef = doc(db, 'notes', lectureDocId);
-      const existingNote = await getDoc(noteRef);
-      const payload = {
+      const payload: Record<string, unknown> = {
         userId: user.uid,
         title: context.lectureTitle || 'Без названия',
         content: content || '',
@@ -213,21 +216,24 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
         noteScope: 'lecture' as const,
         lectureVideoId: context.lectureVideoId,
         lectureKey: buildLectureNoteKey(context),
-        lectureSegments: options?.lectureSegments ?? [],
         topicId: null,
         topicTitle: null,
         updatedAt: serverTimestamp(),
       };
 
-      if (existingNote.exists()) {
-        await updateDoc(noteRef, payload);
-        return lectureDocId;
+      if (options?.lectureSegments) {
+        payload.lectureSegments = options.lectureSegments;
       }
 
-      await setDoc(noteRef, {
-        ...payload,
-        createdAt: serverTimestamp(),
-      });
+      if (!knownLectureDocIdsRef.current.has(lectureDocId)) {
+        const existingNote = await getDoc(noteRef);
+        if (!existingNote.exists()) {
+          payload.createdAt = serverTimestamp();
+        }
+        knownLectureDocIdsRef.current.add(lectureDocId);
+      }
+
+      await setDoc(noteRef, payload, { merge: true });
       return lectureDocId;
     } catch (error) {
       reportAppError({ message: 'Не удалось сохранить заметку по лекции', error, context: 'useNotes.upsertLectureNote' });

@@ -5,6 +5,7 @@ import { debugError } from '../../../lib/debug';
 import {
   buildLectureContentFromSegments,
   normalizeLectureNoteSegments,
+  type LectureNoteDraft,
   type LectureNoteSegment,
 } from '../../../types/notes';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -14,12 +15,12 @@ import { useTimestampedLectureDraft } from '../hooks/useTimestampedLectureDraft'
 
 interface VideoStudyNotesPanelProps {
   courseId: string;
-  draftSegments: LectureNoteSegment[];
+  draft: LectureNoteDraft;
   getPlaybackSnapshot?: () => StudyVideoPlaybackSnapshot;
   lectureResourceId: string;
-  onDraftSegmentsChange: (segments: LectureNoteSegment[]) => void;
+  onDraftChange: (draft: LectureNoteDraft) => void;
   onTimestampClick: (startMs: number) => void;
-  periodId?: string;
+  periodId: string;
   periodTitle: string;
   videoTitle: string;
 }
@@ -29,10 +30,10 @@ type NoteViewMode = 'plain' | 'timestamped';
 
 export function VideoStudyNotesPanel({
   courseId,
-  draftSegments,
+  draft,
   getPlaybackSnapshot,
   lectureResourceId,
-  onDraftSegmentsChange,
+  onDraftChange,
   onTimestampClick,
   periodId,
   periodTitle,
@@ -43,7 +44,7 @@ export function VideoStudyNotesPanel({
   const lectureContext = useMemo(
     () => ({
       courseId,
-      periodId: periodId ?? lectureResourceId,
+      periodId,
       periodTitle: periodTitle.trim() || videoTitle,
       lectureTitle: videoTitle,
       lectureVideoId: lectureResourceId,
@@ -51,15 +52,10 @@ export function VideoStudyNotesPanel({
     [courseId, lectureResourceId, periodId, periodTitle, videoTitle]
   );
 
-  const draftSignature = useMemo(() => JSON.stringify(draftSegments), [draftSegments]);
-  const hasInitialDraftRef = useRef(draftSegments.length > 0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isHydrating, setIsHydrating] = useState(false);
   const [viewMode, setViewMode] = useState<NoteViewMode>('plain');
-  const hasUserEditedRef = useRef(false);
-  const lastPublishedDraftSignatureRef = useRef(draftSignature);
-  const lastSavedSignatureRef = useRef(draftSignature);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const {
     composer,
@@ -72,28 +68,28 @@ export function VideoStudyNotesPanel({
     removeEmptySegment,
   } = useTimestampedLectureDraft({
     getPlaybackSnapshot,
-    initialSegments: draftSegments,
+    initialSegments: draft.segments,
   });
   const persistedSignature = useMemo(
     () => JSON.stringify(persistedSegments),
     [persistedSegments]
   );
   const hasContent = persistedSegments.length > 0;
+  const lastSavedSignatureRef = useRef(persistedSignature);
   const isDirty = persistedSignature !== lastSavedSignatureRef.current;
-  const persistedSegmentsRef = useRef(persistedSegments);
+  // Последняя версия черновика, известная панели (локальные правки либо прокинутый prop).
+  const latestDraftRef = useRef<LectureNoteDraft>(draft);
+  const lastPublishedSignatureRef = useRef(persistedSignature);
 
   useEffect(() => {
-    persistedSegmentsRef.current = persistedSegments;
-  }, [persistedSegments]);
-
-  useEffect(() => {
-    if (lastPublishedDraftSignatureRef.current === persistedSignature) {
+    if (lastPublishedSignatureRef.current === persistedSignature) {
       return;
     }
 
-    lastPublishedDraftSignatureRef.current = persistedSignature;
-    onDraftSegmentsChange(persistedSegments);
-  }, [onDraftSegmentsChange, persistedSegments, persistedSignature]);
+    lastPublishedSignatureRef.current = persistedSignature;
+    latestDraftRef.current = { segments: persistedSegments, updatedAtMs: Date.now() };
+    onDraftChange(latestDraftRef.current);
+  }, [onDraftChange, persistedSegments, persistedSignature]);
 
   const saveLectureNote = useCallback(
     async (
@@ -138,10 +134,7 @@ export function VideoStudyNotesPanel({
   useEffect(() => {
     let cancelled = false;
 
-    hasUserEditedRef.current = false;
-
     if (!user) {
-      lastSavedSignatureRef.current = draftSignature;
       setIsHydrating(false);
       setSaveState('idle');
       return undefined;
@@ -151,6 +144,10 @@ export function VideoStudyNotesPanel({
       setIsHydrating(true);
       try {
         const note = await getLectureNote(lectureContext);
+        if (cancelled) {
+          return;
+        }
+
         const savedSegments = normalizeLectureNoteSegments(
           note?.lectureSegments,
           note?.content ?? ''
@@ -158,14 +155,21 @@ export function VideoStudyNotesPanel({
         const savedSignature = JSON.stringify(savedSegments);
         lastSavedSignatureRef.current = savedSignature;
 
-        if (!cancelled && !hasUserEditedRef.current && !hasInitialDraftRef.current) {
+        // Локальный черновик побеждает, только если он правился позже
+        // сохранённой версии и реально от неё отличается; иначе источник
+        // истины — сервер. Более свежий локальный черновик станет dirty
+        // и уедет на сервер обычным автосейвом.
+        const localDraft = latestDraftRef.current;
+        const draftIsNewer =
+          localDraft.updatedAtMs !== null &&
+          localDraft.updatedAtMs > (note?.updatedAt?.getTime?.() ?? 0) &&
+          JSON.stringify(localDraft.segments) !== savedSignature;
+
+        if (!draftIsNewer) {
           resetDraft(savedSegments);
-          onDraftSegmentsChange(savedSegments);
         }
 
-        if (!cancelled) {
-          setSaveState(savedSegments.length > 0 ? 'saved' : 'idle');
-        }
+        setSaveState(savedSegments.length > 0 ? 'saved' : 'idle');
       } catch (error) {
         debugError('[VideoStudyNotesPanel] Failed to load note', error);
         if (!cancelled) {
@@ -183,7 +187,7 @@ export function VideoStudyNotesPanel({
     return () => {
       cancelled = true;
     };
-  }, [getLectureNote, lectureContext, onDraftSegmentsChange, resetDraft, user]);
+  }, [getLectureNote, lectureContext, resetDraft, user]);
 
   useEffect(() => {
     if (!user || isHydrating) {
@@ -236,26 +240,31 @@ export function VideoStudyNotesPanel({
     };
   }, [composer.text, segments.length, viewMode]);
 
+  // Актуальные значения для финального сохранения: cleanup ниже намеренно
+  // зарегистрирован с пустыми deps, чтобы срабатывать строго при размонтировании,
+  // а не при каждой смене user/lectureContext.
+  const unmountStateRef = useRef({ isHydrating, persistedSegments, saveLectureNote, user });
+  useEffect(() => {
+    unmountStateRef.current = { isHydrating, persistedSegments, saveLectureNote, user };
+  });
+
   useEffect(() => {
     return () => {
-      onDraftSegmentsChange(persistedSegmentsRef.current);
+      const { isHydrating: hydrating, persistedSegments: segments, saveLectureNote: save, user: currentUser } =
+        unmountStateRef.current;
 
       if (
-        !user ||
-        isHydrating ||
-        JSON.stringify(persistedSegmentsRef.current) === lastSavedSignatureRef.current ||
-        (!persistedSegmentsRef.current.length && lastSavedSignatureRef.current === '[]')
+        !currentUser ||
+        hydrating ||
+        JSON.stringify(segments) === lastSavedSignatureRef.current ||
+        (!segments.length && lastSavedSignatureRef.current === '[]')
       ) {
         return;
       }
 
-      void saveLectureNote(
-        buildLectureContentFromSegments(persistedSegmentsRef.current),
-        persistedSegmentsRef.current,
-        { silent: true }
-      );
+      void save(buildLectureContentFromSegments(segments), segments, { silent: true });
     };
-  }, [isHydrating, onDraftSegmentsChange, saveLectureNote, user]);
+  }, []);
 
   const statusLabel = !user
     ? 'Войдите, чтобы сохранять конспект'
@@ -278,10 +287,6 @@ export function VideoStudyNotesPanel({
     : !isDirty && hasContent
     ? 'bg-emerald-400 shadow-[0_0_0_4px_rgba(52,211,153,0.15)]'
     : 'bg-white/35 shadow-[0_0_0_4px_rgba(255,255,255,0.08)]';
-
-  const markUserEdited = useCallback(() => {
-    hasUserEditedRef.current = true;
-  }, []);
 
   return (
     <>
@@ -342,15 +347,9 @@ export function VideoStudyNotesPanel({
             <div ref={scrollContainerRef} className="h-full overflow-y-auto pr-2 pt-1">
               <LectureNoteSegmentsEditor
                 composer={composer}
-                onComposerChange={(value) => {
-                  markUserEdited();
-                  updateComposerText(value);
-                }}
+                onComposerChange={updateComposerText}
                 onSegmentBlur={removeEmptySegment}
-                onSegmentChange={(segmentId, value) => {
-                  markUserEdited();
-                  updateSegmentText(segmentId, value);
-                }}
+                onSegmentChange={updateSegmentText}
                 onTimestampClick={onTimestampClick}
                 segments={segments}
                 showTimestamps={viewMode === 'timestamped'}

@@ -38,6 +38,21 @@ export interface LectureNoteSegment {
   text: string;
 }
 
+/**
+ * In-memory черновик конспекта лекции, живущий между открытиями оверлея.
+ * `updatedAtMs` — момент последней локальной правки; сравнивается с
+ * `updatedAt` сохранённой заметки, чтобы при гидрации выбрать более свежую версию.
+ */
+export interface LectureNoteDraft {
+  segments: LectureNoteSegment[];
+  updatedAtMs: number | null;
+}
+
+export const EMPTY_LECTURE_NOTE_DRAFT: LectureNoteDraft = {
+  segments: [],
+  updatedAtMs: null,
+};
+
 export interface Note {
   id: string;
   userId: string;
