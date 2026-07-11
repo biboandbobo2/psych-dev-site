@@ -1,4 +1,5 @@
-import * as functions from "firebase-functions";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import * as fnLogger from "firebase-functions/logger";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { ensureAdminApp, resolveAdminStorageBucket } from "./lib/adminApp.js";
@@ -23,10 +24,10 @@ import { ingestLectureRagTarget } from "../../shared/lectureRag/index.js";
 const WEEKLY_TRANSCRIPT_REFRESH_DISABLED = true;
 
 export async function runWeeklyTranscriptRefresh(deps?: {
-  logger?: Pick<typeof functions.logger, "info" | "warn" | "error">;
+  logger?: Pick<typeof fnLogger, "info" | "warn" | "error">;
   sendMessage?: (text: string) => Promise<unknown>;
 }) {
-  const logger = deps?.logger ?? functions.logger;
+  const logger = deps?.logger ?? fnLogger;
   const sendMessage = deps?.sendMessage ?? sendTelegramMessage;
   const config = getTranscriptRefreshConfigFromEnv();
 
@@ -183,7 +184,17 @@ export async function runWeeklyTranscriptRefresh(deps?: {
 
 const refreshConfig = getTranscriptRefreshConfigFromEnv();
 
-export const weeklyTranscriptRefresh = functions.pubsub
-  .schedule(refreshConfig.schedule)
-  .timeZone(refreshConfig.timeZone)
-  .onRun(async () => runWeeklyTranscriptRefresh());
+// 2nd gen (LP-16 канарейка). Параметры паритетны 1st gen: тот же регион,
+// память/cpu заданы явно — в gen2 дефолты другие (ловушка из бэклога).
+export const weeklyTranscriptRefresh = onSchedule(
+  {
+    schedule: refreshConfig.schedule,
+    timeZone: refreshConfig.timeZone,
+    region: "us-central1",
+    memory: "256MiB",
+    cpu: 1,
+  },
+  async () => {
+    await runWeeklyTranscriptRefresh();
+  }
+);
