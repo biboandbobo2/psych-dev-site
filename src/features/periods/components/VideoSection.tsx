@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Section } from '../../../components/ui/Section';
 import { cn } from '../../../lib/cn';
 import { getYouTubeVideoId } from '../../../lib/videoTranscripts';
-import type { LectureNoteSegment } from '../../../types/notes';
+import { EMPTY_LECTURE_NOTE_DRAFT, type LectureNoteDraft } from '../../../types/notes';
 import { isUrlString, normalizeVideoEntry } from '../utils/media';
 import { VideoResourceLinks } from './VideoResourceLinks';
 import { VideoStudyOverlay } from './VideoStudyOverlay';
@@ -121,7 +121,7 @@ function VideoSectionCard({
   studyLaunch,
 }: VideoSectionCardProps) {
   const [mode, setMode] = useState<VideoLayoutMode>('embed');
-  const [studyDraftSegments, setStudyDraftSegments] = useState<LectureNoteSegment[]>([]);
+  const [studyDraft, setStudyDraft] = useState<LectureNoteDraft>(EMPTY_LECTURE_NOTE_DRAFT);
   const consumedStudyLaunchRef = useRef<string | null>(null);
   const lastSavedPlaybackMsRef = useRef<number | null>(null);
   const effectiveVideoTitle = videoTitle?.trim() || defaultVideoTitle;
@@ -135,7 +135,12 @@ function VideoSectionCard({
   const studyLaunchKey = isStudyLaunchTarget
     ? `${studyLaunch?.requestedVideoId ?? ''}::${studyLaunch?.initialPanel ?? 'notes'}::${studyLaunch?.initialSeekMs ?? 'none'}`
     : null;
+  // Режим конспекта требует periodId: без него заметка не привязывается
+  // к занятию (см. buildLectureNoteDocumentId). На всех реальных маршрутах
+  // periodId присутствует.
+  const canUseStudyMode = Boolean(courseId && periodId);
   const shouldAutoOpenStudy =
+    canUseStudyMode &&
     mode !== 'study' &&
     Boolean(studyLaunchKey) &&
     consumedStudyLaunchRef.current !== studyLaunchKey;
@@ -246,12 +251,14 @@ function VideoSectionCard({
               ✓
             </span>
           ) : null}
-          <VideoModeButton
-            label={mode === 'study' ? 'Скрыть конспект' : 'Открыть конспект'}
-            isActive={mode === 'study'}
-            onClick={() => setMode((current) => (current === 'study' ? 'embed' : 'study'))}
-            controlsId={`${effectiveVideoTitle}-study-panel`}
-          />
+          {canUseStudyMode ? (
+            <VideoModeButton
+              label={mode === 'study' ? 'Скрыть конспект' : 'Открыть конспект'}
+              isActive={mode === 'study'}
+              onClick={() => setMode((current) => (current === 'study' ? 'embed' : 'study'))}
+              controlsId={`${effectiveVideoTitle}-study-panel`}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -278,25 +285,27 @@ function VideoSectionCard({
         />
       </div>
 
-      <VideoStudyOverlay
-        audioUrl={audioUrl}
-        deckUrl={deckUrl}
-        draftSegments={studyDraftSegments}
-        embedUrl={embedUrl}
-        isOpen={mode === 'study'}
-        isYoutube={isYoutube}
-        onClose={() => setMode('embed')}
-        onDraftSegmentsChange={setStudyDraftSegments}
-        originalUrl={originalUrl}
-        courseId={courseId}
-        periodId={periodId}
-        periodTitle={periodTitle}
-        videoTitle={effectiveVideoTitle}
-        initialPanel={isStudyLaunchTarget ? studyLaunch?.initialPanel ?? 'notes' : 'notes'}
-        initialQuery={isStudyLaunchTarget ? studyLaunch?.initialQuery ?? null : null}
-        initialSeekMs={isStudyLaunchTarget ? studyLaunch?.initialSeekMs ?? null : null}
-        highlightedStartMs={isStudyLaunchTarget ? studyLaunch?.initialSeekMs ?? null : null}
-      />
+      {canUseStudyMode && periodId ? (
+        <VideoStudyOverlay
+          audioUrl={audioUrl}
+          deckUrl={deckUrl}
+          draft={studyDraft}
+          embedUrl={embedUrl}
+          isOpen={mode === 'study'}
+          isYoutube={isYoutube}
+          onClose={() => setMode('embed')}
+          onDraftChange={setStudyDraft}
+          originalUrl={originalUrl}
+          courseId={courseId}
+          periodId={periodId}
+          periodTitle={periodTitle}
+          videoTitle={effectiveVideoTitle}
+          initialPanel={isStudyLaunchTarget ? studyLaunch?.initialPanel ?? 'notes' : 'notes'}
+          initialQuery={isStudyLaunchTarget ? studyLaunch?.initialQuery ?? null : null}
+          initialSeekMs={isStudyLaunchTarget ? studyLaunch?.initialSeekMs ?? null : null}
+          highlightedStartMs={isStudyLaunchTarget ? studyLaunch?.initialSeekMs ?? null : null}
+        />
+      ) : null}
     </div>
   );
 }

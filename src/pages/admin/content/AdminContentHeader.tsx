@@ -22,6 +22,16 @@ export function AdminContentHeader({
       <div className="flex items-center gap-2">
         {canEditActiveCourse ? (
           <Link
+            to={`/admin/questions?course=${activeCourse}`}
+            className={`${PERMITTED_LINK_CLASSES} bg-emerald-50 text-emerald-900 hover:bg-emerald-100`}
+            title="Вопросы студентов по занятиям курса"
+          >
+            <span className="text-lg" aria-hidden>❓</span>
+            <span className="text-sm font-medium">Вопросы студентов</span>
+          </Link>
+        ) : null}
+        {canEditActiveCourse ? (
+          <Link
             to={`/admin/content/course-intro/${activeCourse}`}
             className={`${PERMITTED_LINK_CLASSES} bg-[#E8F0FA] text-[#1F4F86] hover:bg-[#D5E4F5]`}
             title="«О курсе»: Идея, Авторы, Программа"

@@ -68,8 +68,11 @@ service cloud.firestore {
       // Прогресс просмотра курсов (resume point, last-lesson, watched).
       // Один документ на курс. Multi-device: clients пишут гибридно
       // (localStorage + cloud throttle); читают cloud-first.
+      // Лекторы курса (canEditCourse) читают прогресс студентов по СВОЕМУ
+      // курсу — для статистики просмотров к семинару.
       match /courseProgress/{courseId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId) || canEditCourse(courseId);
+        allow write: if isOwner(userId);
       }
     }
 
@@ -119,6 +122,84 @@ service cloud.firestore {
         allow read: if isGroupMemberOrAdmin();
         allow create, update, delete: if canWriteGroupFeed();
       }
+    }
+
+    // Вопросы студентов по занятиям курса (из режима конспекта или со
+    // страницы занятия). Читают: автор, лекторы курса (canEditCourse) и —
+    // при visibility='group' — участники группы автора. Запросы клиента
+    // используют только equality-фильтры (composite-индексы не нужны).
+    match /lectureQuestions/{questionId} {
+      function isQuestionAuthor() {
+        return isAuthenticated() && resource.data.authorUid == request.auth.uid;
+      }
+      function isQuestionGroupMember() {
+        return isAuthenticated() &&
+          resource.data.visibility == 'group' &&
+          resource.data.groupId is string &&
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.memberIds;
+      }
+
+      allow get, list: if isQuestionAuthor()
+        || canEditCourse(resource.data.courseId)
+        || isQuestionGroupMember();
+
+      allow create: if isAuthenticated()
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.courseId is string
+        && request.resource.data.periodId is string
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000
+        && request.resource.data.visibility in ['group', 'lecturers']
+        && (
+          request.resource.data.visibility == 'lecturers' ||
+          (
+            request.resource.data.groupId is string &&
+            request.auth.uid in get(/databases/$(database)/documents/groups/$(request.resource.data.groupId)).data.memberIds
+          )
+        );
+
+      // Вопрос — снапшот к семинару: правок нет, только удаление
+      // автором или лектором курса.
+      allow update: if false;
+      allow delete: if isQuestionAuthor() || canEditCourse(resource.data.courseId);
+    }
+
+    // Расшаренные фрагменты конспекта — снапшот выбранных сегментов.
+    // Модель доступа идентична lectureQuestions.
+    match /sharedLectureNotes/{shareId} {
+      function isShareAuthor() {
+        return isAuthenticated() && resource.data.authorUid == request.auth.uid;
+      }
+      function isShareGroupMember() {
+        return isAuthenticated() &&
+          resource.data.visibility == 'group' &&
+          resource.data.groupId is string &&
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.memberIds;
+      }
+
+      allow get, list: if isShareAuthor()
+        || canEditCourse(resource.data.courseId)
+        || isShareGroupMember();
+
+      allow create: if isAuthenticated()
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.courseId is string
+        && request.resource.data.periodId is string
+        && request.resource.data.segments is list
+        && request.resource.data.segments.size() > 0
+        && request.resource.data.segments.size() <= 100
+        && request.resource.data.visibility in ['group', 'lecturers']
+        && (
+          request.resource.data.visibility == 'lecturers' ||
+          (
+            request.resource.data.groupId is string &&
+            request.auth.uid in get(/databases/$(database)/documents/groups/$(request.resource.data.groupId)).data.memberIds
+          )
+        );
+
+      allow update: if false;
+      allow delete: if isShareAuthor() || canEditCourse(resource.data.courseId);
     }
 
     // Legacy коллекции курса "Психология развития" (возрастные периоды + intro)

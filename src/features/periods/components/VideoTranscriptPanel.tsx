@@ -129,6 +129,7 @@ export function VideoTranscriptPanel({
                 <button
                   type="button"
                   onClick={() => onTimestampClick(segment.startMs)}
+                  aria-label={`Перейти к ${formatTimestampMs(segment.startMs)}`}
                   className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/40 transition hover:text-white focus:outline-none focus:text-white"
                 >
                   {formatTimestampMs(segment.startMs)}

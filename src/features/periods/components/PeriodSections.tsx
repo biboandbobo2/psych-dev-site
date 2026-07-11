@@ -4,6 +4,7 @@ import { ListSection } from './ListSection';
 import { SelfQuestionsSection } from './SelfQuestionsSection';
 import { GenericSection } from './GenericSection';
 import { VideoSection } from './VideoSection';
+import { LessonQuestionsSection } from './LessonQuestionsSection';
 import { PaywallGuard } from '../../../components/PaywallGuard';
 import type { PeriodSectionData } from './types';
 
@@ -83,6 +84,11 @@ export function PeriodSections({
           studyLaunch={studyLaunch}
         />
       ))}
+      <LessonQuestionsSection
+        courseId={courseType}
+        periodId={periodId}
+        periodTitle={periodTitle}
+      />
     </div>
   );
 }

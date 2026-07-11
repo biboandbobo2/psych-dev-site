@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getYouTubeVideoId } from '../../../lib/videoTranscripts';
-import type { LectureNoteSegment } from '../../../types/notes';
+import type { LectureNoteDraft } from '../../../types/notes';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
+import { AskLectureQuestionModal } from './AskLectureQuestionModal';
 import { VideoResourceLinks } from './VideoResourceLinks';
 import { StudyVideoPlayer, type StudyVideoPlayerHandle } from './StudyVideoPlayer';
 import { VideoTranscriptPanel } from './VideoTranscriptPanel';
@@ -12,14 +13,14 @@ interface VideoStudyOverlayProps {
   audioUrl: string;
   courseId: string;
   deckUrl: string;
-  draftSegments: LectureNoteSegment[];
+  draft: LectureNoteDraft;
   embedUrl: string;
   isOpen: boolean;
   isYoutube: boolean;
   onClose: () => void;
-  onDraftSegmentsChange: (segments: LectureNoteSegment[]) => void;
+  onDraftChange: (draft: LectureNoteDraft) => void;
   originalUrl: string;
-  periodId?: string;
+  periodId: string;
   periodTitle: string;
   videoTitle: string;
   initialPanel?: SidebarMode;
@@ -34,12 +35,12 @@ export function VideoStudyOverlay({
   audioUrl,
   courseId,
   deckUrl,
-  draftSegments,
+  draft,
   embedUrl,
   isOpen,
   isYoutube,
   onClose,
-  onDraftSegmentsChange,
+  onDraftChange,
   originalUrl,
   periodId,
   periodTitle,
@@ -50,10 +51,16 @@ export function VideoStudyOverlay({
   highlightedStartMs = null,
 }: VideoStudyOverlayProps) {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(initialPanel);
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
+  const [questionState, setQuestionState] = useState<{ isOpen: boolean; startMs: number | null }>({
+    isOpen: false,
+    startMs: null,
+  });
   const [transcriptFocusMs, setTranscriptFocusMs] = useState<number | null>(
     initialSeekMs ?? highlightedStartMs
   );
   const playerRef = useRef<StudyVideoPlayerHandle | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const youtubeVideoId = useMemo(
     () => getYouTubeVideoId(originalUrl) ?? getYouTubeVideoId(embedUrl),
     [embedUrl, originalUrl]
@@ -86,7 +93,23 @@ export function VideoStudyOverlay({
   useEffect(() => {
     if (!isOpen) {
       setSidebarMode('notes');
+      setIsPanelExpanded(false);
     }
+  }, [isOpen]);
+
+  // Перенос фокуса в диалог при открытии и возврат туда, откуда пришли.
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus();
+
+    return () => {
+      previouslyFocused?.focus();
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -130,26 +153,42 @@ export function VideoStudyOverlay({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[120] bg-[#05070a] text-white"
+      ref={dialogRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-[120] bg-[#05070a] text-white outline-none"
       role="dialog"
       aria-modal="true"
       aria-label={`Режим конспекта: ${videoTitle}`}
     >
       <div className="flex h-full flex-col lg:flex-row">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-3 md:px-5">
-            <div className="min-w-0">
+          {/* flex-wrap: на узких экранах кнопки переносятся на вторую строку,
+              иначе «Скрыть конспект» вытесняется за край вьюпорта. */}
+          <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-white/10 px-4 py-3 md:px-5">
+            <div className="min-w-0 flex-1 basis-40">
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/45">
                 Режим конспекта
               </p>
               <h3 className="truncate pt-1 text-lg font-semibold text-white md:text-xl">{videoTitle}</h3>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setQuestionState({
+                    isOpen: true,
+                    startMs: playerRef.current?.getPlaybackSnapshot().currentTimeMs ?? null,
+                  })
+                }
+                className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10 md:px-4 md:py-2 md:text-sm"
+              >
+                Задать вопрос
+              </button>
               {transcriptState.hasTranscript ? (
                 <button
                   type="button"
                   onClick={() => setSidebarMode((current) => (current === 'transcript' ? 'notes' : 'transcript'))}
-                  className="shrink-0 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                  className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10 md:px-4 md:py-2 md:text-sm"
                 >
                   {isTranscriptMode ? 'Показать конспект' : 'Показать транскрипт'}
                 </button>
@@ -157,7 +196,7 @@ export function VideoStudyOverlay({
               <button
                 type="button"
                 onClick={onClose}
-                className="shrink-0 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10 md:px-4 md:py-2 md:text-sm"
               >
                 Скрыть конспект
               </button>
@@ -190,7 +229,20 @@ export function VideoStudyOverlay({
           </div>
         </div>
 
-        <aside className="flex h-[42vh] min-h-[20rem] shrink-0 flex-col border-t border-white/10 bg-white/[0.03] backdrop-blur lg:h-full lg:w-[24rem] lg:border-l lg:border-t-0 xl:w-[26rem]">
+        <aside
+          className={`flex min-h-[20rem] shrink-0 flex-col border-t border-white/10 bg-white/[0.03] backdrop-blur lg:h-full lg:w-[24rem] lg:border-l lg:border-t-0 xl:w-[26rem] ${
+            isPanelExpanded ? 'h-[72vh]' : 'h-[42vh]'
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setIsPanelExpanded((current) => !current)}
+            aria-expanded={isPanelExpanded}
+            aria-label={isPanelExpanded ? 'Свернуть панель конспекта' : 'Растянуть панель конспекта'}
+            className="flex shrink-0 items-center justify-center py-2 lg:hidden"
+          >
+            <span className="h-1 w-10 rounded-full bg-white/25 transition hover:bg-white/40" />
+          </button>
           {isTranscriptMode ? (
             <VideoTranscriptPanel
               error={transcriptState.error}
@@ -205,7 +257,7 @@ export function VideoStudyOverlay({
           ) : (
             <VideoStudyNotesPanel
               courseId={courseId}
-              draftSegments={draftSegments}
+              draft={draft}
               getPlaybackSnapshot={() =>
                 playerRef.current?.getPlaybackSnapshot() ?? {
                   currentTimeMs: null,
@@ -213,7 +265,7 @@ export function VideoStudyOverlay({
                 }
               }
               lectureResourceId={lectureResourceId}
-              onDraftSegmentsChange={onDraftSegmentsChange}
+              onDraftChange={onDraftChange}
               onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
               periodId={periodId}
               periodTitle={periodTitle}
@@ -222,6 +274,17 @@ export function VideoStudyOverlay({
           )}
         </aside>
       </div>
+
+      <AskLectureQuestionModal
+        isOpen={questionState.isOpen}
+        onClose={() => setQuestionState({ isOpen: false, startMs: null })}
+        courseId={courseId}
+        periodId={periodId}
+        periodTitle={periodTitle.trim() || videoTitle}
+        lectureTitle={videoTitle}
+        videoId={youtubeVideoId}
+        startMs={questionState.startMs}
+      />
     </div>,
     document.body
   );

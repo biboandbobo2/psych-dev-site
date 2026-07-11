@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
-import type { LectureNoteSegment } from '../../../types/notes';
+import type { LectureNoteDraft, LectureNoteSegment } from '../../../types/notes';
 
 const mocks = vi.hoisted(() => ({
   getLectureNote: vi.fn(),
@@ -30,24 +30,28 @@ function renderPanel(props: {
   courseId: string;
   getPlaybackSnapshot?: () => { currentTimeMs: number | null; paused: boolean };
   initialDraftSegments?: LectureNoteSegment[];
+  initialDraftUpdatedAtMs?: number | null;
   lectureResourceId: string;
   onTimestampClick?: (startMs: number) => void;
-  periodId?: string;
+  periodId: string;
   periodTitle: string;
   videoTitle: string;
 }) {
+  const { initialDraftSegments, initialDraftUpdatedAtMs, ...panelProps } = props;
+
   function TestPanel() {
-    const [draftSegments, setDraftSegments] = useState<LectureNoteSegment[]>(
-      () => props.initialDraftSegments ?? []
-    );
+    const [draft, setDraft] = useState<LectureNoteDraft>(() => ({
+      segments: initialDraftSegments ?? [],
+      updatedAtMs: initialDraftUpdatedAtMs ?? null,
+    }));
 
     return (
       <VideoStudyNotesPanel
-        draftSegments={draftSegments}
-        onDraftSegmentsChange={setDraftSegments}
+        draft={draft}
+        onDraftChange={setDraft}
         getPlaybackSnapshot={props.getPlaybackSnapshot}
         onTimestampClick={props.onTimestampClick ?? vi.fn()}
-        {...props}
+        {...panelProps}
       />
     );
   }
@@ -154,9 +158,101 @@ describe('VideoStudyNotesPanel', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Таймкоды' }));
-    fireEvent.click(screen.getByRole('button', { name: '02:00' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Перейти к 02:00' }));
     expect(handleTimestampClick).toHaveBeenCalledWith(120000);
     expect(screen.getByRole('button', { name: 'Конспект сохранён' })).toBeInTheDocument();
+  });
+
+  it('при гидрации берёт серверную версию, если она свежее in-memory черновика', async () => {
+    mocks.getLectureNote.mockResolvedValue({
+      id: 'note-server',
+      content: 'Серверная версия',
+      updatedAt: new Date(),
+      lectureSegments: [{ id: 'segment-server', startMs: 5000, text: 'Серверная версия' }],
+    });
+
+    renderPanel({
+      courseId: 'development',
+      initialDraftSegments: [{ id: 'segment-local', startMs: null, text: 'Устаревший черновик' }],
+      initialDraftUpdatedAtMs: Date.now() - 60_000,
+      lectureResourceId: 'video-5',
+      periodId: 'school',
+      periodTitle: 'Младший школьный возраст',
+      videoTitle: 'Лекция 5',
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByDisplayValue('Серверная версия')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Устаревший черновик')).not.toBeInTheDocument();
+  });
+
+  it('при гидрации сохраняет in-memory черновик, если он свежее серверной версии, и досохраняет его', async () => {
+    mocks.getLectureNote.mockResolvedValue({
+      id: 'note-server',
+      content: 'Серверная версия',
+      updatedAt: new Date(Date.now() - 60_000),
+      lectureSegments: [{ id: 'segment-server', startMs: 5000, text: 'Серверная версия' }],
+    });
+
+    renderPanel({
+      courseId: 'development',
+      initialDraftSegments: [{ id: 'segment-local', startMs: null, text: 'Свежий черновик' }],
+      initialDraftUpdatedAtMs: Date.now(),
+      lectureResourceId: 'video-6',
+      periodId: 'school',
+      periodTitle: 'Младший школьный возраст',
+      videoTitle: 'Лекция 6',
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByDisplayValue('Свежий черновик')).toBeInTheDocument();
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 950));
+    });
+
+    await waitFor(() =>
+      expect(mocks.upsertLectureNote).toHaveBeenCalledWith(
+        'Свежий черновик',
+        expect.any(Object),
+        {
+          lectureSegments: [
+            expect.objectContaining({ text: 'Свежий черновик' }),
+          ],
+        }
+      )
+    );
+  });
+
+  it('Enter в композере закрывает сегмент, Shift+Enter — нет', async () => {
+    renderPanel({
+      courseId: 'development',
+      getPlaybackSnapshot: () => ({ currentTimeMs: 15000, paused: false }),
+      lectureResourceId: 'video-7',
+      periodId: 'school',
+      periodTitle: 'Младший школьный возраст',
+      videoTitle: 'Лекция 7',
+    });
+
+    const textarea = screen.getByLabelText('Заметки по лекции');
+
+    fireEvent.change(textarea, { target: { value: 'Первый тезис' } });
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
+    // Shift+Enter не финализирует: текст всё ещё в композере
+    expect(screen.getAllByLabelText('Заметки по лекции')).toHaveLength(1);
+    expect(screen.queryByLabelText('Сегмент конспекта')).not.toBeInTheDocument();
+
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+
+    // После Enter текст стал отдельным сегментом, композер очистился
+    expect(screen.getByLabelText('Сегмент конспекта')).toHaveValue('Первый тезис');
+    expect(screen.getByLabelText('Заметки по лекции')).toHaveValue('');
   });
 
   it('не разбивает непрерывный ввод на отдельные сегменты по символам', async () => {

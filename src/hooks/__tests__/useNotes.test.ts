@@ -111,7 +111,9 @@ describe('useNotes', () => {
           },
         ],
         noteScope: 'lecture',
-      })
+        createdAt: 'ts',
+      }),
+      { merge: true }
     );
     expect(updateDocMock).not.toHaveBeenCalled();
   });
@@ -187,7 +189,7 @@ describe('useNotes', () => {
     );
   });
 
-  it('обновляет существующую lecture note вместо создания новой', async () => {
+  it('обновляет существующую lecture note через merge, не перезаписывая createdAt', async () => {
     authMock.mockReturnValue({ user: { uid: 'user-123' } } as ReturnType<typeof useAuth>);
     getDocMock.mockResolvedValue({ exists: () => true } as never);
 
@@ -215,7 +217,7 @@ describe('useNotes', () => {
       lectureVideoId: 'eGCP_Fk7AeU',
     });
 
-    expect(updateDocMock).toHaveBeenCalledWith(
+    expect(setDocMock).toHaveBeenCalledWith(
       { collectionName: 'notes', id: expectedId },
       expect.objectContaining({
         content: 'Обновлённый конспект',
@@ -229,8 +231,56 @@ describe('useNotes', () => {
         ],
         periodId: 'seminary',
         noteScope: 'lecture',
-      })
+      }),
+      { merge: true }
     );
-    expect(setDocMock).not.toHaveBeenCalled();
+    expect(setDocMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.not.objectContaining({ createdAt: expect.anything() }),
+      { merge: true }
+    );
+    expect(updateDocMock).not.toHaveBeenCalled();
+  });
+
+  it('не перечитывает документ перед повторными сохранениями той же лекции', async () => {
+    authMock.mockReturnValue({ user: { uid: 'user-123' } } as ReturnType<typeof useAuth>);
+    getDocMock.mockResolvedValue({ exists: () => true } as never);
+
+    const { result } = renderHook(() => useNotes(null, { subscribe: false }));
+
+    const context = {
+      courseId: 'development',
+      periodId: 'seminary',
+      periodTitle: 'Семинары',
+      lectureTitle: 'Семинары',
+      lectureVideoId: 'eGCP_Fk7AeU',
+    };
+
+    await result.current.upsertLectureNote('Первый автосейв', context, { lectureSegments: [] });
+    await result.current.upsertLectureNote('Второй автосейв', context, { lectureSegments: [] });
+
+    expect(getDocMock).toHaveBeenCalledTimes(1);
+    expect(setDocMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('не пишет lectureSegments, если сегменты не переданы', async () => {
+    authMock.mockReturnValue({ user: { uid: 'user-123' } } as ReturnType<typeof useAuth>);
+    getDocMock.mockResolvedValue({ exists: () => true } as never);
+
+    const { result } = renderHook(() => useNotes(null, { subscribe: false }));
+
+    await result.current.upsertLectureNote('Только текст', {
+      courseId: 'development',
+      periodId: 'seminary',
+      periodTitle: 'Семинары',
+      lectureTitle: 'Семинары',
+      lectureVideoId: 'eGCP_Fk7AeU',
+    });
+
+    expect(setDocMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.not.objectContaining({ lectureSegments: expect.anything() }),
+      { merge: true }
+    );
   });
 });
