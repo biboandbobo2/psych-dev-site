@@ -255,7 +255,14 @@ async function runFullBiographyPipeline(params: {
     };
   } catch (error) {
     await progressWrites;
-    await updateJob({ status: 'error', error: error instanceof Error ? error.message : String(error) });
+    // В job.error — нормализованное сообщение (его показывает UI через onSnapshot,
+    // BPT-11: raw 429/quota-текст Gemini пользователю нечитаем); сырой текст — в rawError.
+    const { message } = normalizeError(error);
+    await updateJob({
+      status: 'error',
+      error: message,
+      rawError: error instanceof Error ? error.message : String(error),
+    });
     throw error;
   }
 }

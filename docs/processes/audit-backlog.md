@@ -329,7 +329,8 @@ CI часть (осталась):
   **BPT-11. UI: понятная ошибка при дневной квоте Gemini (P: M→L, E: S)**
   - Free tier (2026-07) даёт 20 запросов/день/проект на 2.5-flash; импорт = 5–7 вызовов → ~3 импорта в день. При 429 пользователь видит невнятную ошибку. Нужно: человеческое сообщение о дневной квоте BYOK-ключа (и, возможно, предупреждение до старта).
   - С переходом прода на flash-lite (2026-07-11) квота заметно щедрее и приоритет ниже, но 429-кейс остаётся (исчерпанный ключ, ключ без доступа к модели — ср. 404 «model not available» на одном из платных ключей).
-  - Уточнение по коду (сверка 2026-07-11): Vercel-путь уже нормализует 429 в человеческое сообщение (`timelineBiographyRuntime.ts:91-95`), но прод-UI идёт через CF, а `functions/src/biographyImport.ts` пишет в job **raw** `error.message` (нормализация применяется только к HTTP-ответу, который клиент игнорирует). Фикс — применить `normalizeError` к тексту, попадающему в Firestore job.
+  - Уточнение по коду (сверка 2026-07-11): Vercel-путь уже нормализует 429 в человеческое сообщение (`timelineBiographyRuntime.ts:91-95`), но прод-UI идёт через CF, а `functions/src/biographyImport.ts` писал в job **raw** `error.message`.
+  - **Код готов (2026-07-12):** catch-блок CF пишет в `job.error` нормализованное сообщение (`normalizeError`), сырой текст сохраняется в `job.rawError` для диагностики. 251/251 functions-тестов, build ✅. **Осталось: деплой CF `biographyImport`** — поедет с ближайшей пачкой деплоев (LP-16).
 
   **BPT-12. ✅ Закрыт (подтверждено сверкой 2026-07-11)**
   - Бенчмарк теперь видит composition-fallback: `scripts/lib/biographyBenchmarkMetrics.ts` помечает `manualFixReasons: compositionFallback` (edges=0 при nodes>20), `runBiographyBenchmarkSuite.ts` считает такой замер мусорным.
@@ -345,12 +346,9 @@ CI часть (осталась):
 ### MR‑9. ✅ Functions Checks CI — РЕШЕНО (подтверждено сверкой 2026-07-11)
 - Job `Functions Checks` в `.github/workflows/ci.yml` работает с `working-directory: functions` + `npm ci --include=dev`; `vitest ^1.0.0` добавлен в `functions/package.json` devDependencies. Причина падения (подхват root-конфига без локального vitest) устранена.
 
-### MR‑7. Починить AdminFeedFilters.test.tsx — pre-existing typecheck regression (P: L, E: XS)
-- **Симптом:** 3 теста в `src/pages/admin/announcements/__tests__/AdminFeedFilters.test.tsx` падают: `Type '"event"' is not assignable to type 'FeedFilterKind'`. Проявляется в `typecheck:tests` и в `vitest run` (отображается через jsdom assertion).
-- **Когда появилось:** уже было до merge `feature/biography-timeline-merge` (PR #65) — тесты были красные на main.
-- **Гипотеза:** тип `FeedFilterKind` в `src/pages/admin/announcements/...` был сужен (например, `'event'` стало `'events'` или `'group-event'`), а тест не обновили.
-- **Эффект сейчас:** локально 7 fail в vitest вместо ожидаемых 4 integration. CI red.
-- **Эффорт:** XS — поправить literal в тесте.
+### MR‑7. ✅ Починить AdminFeedFilters.test.tsx — РЕШЕНО (2026-07-12)
+- **Причина:** фильтр «📅 События» сознательно убран из ленты в `89604ff` (события живут в календаре выше), `FeedFilterKind` сужен до `'all' | 'announcement' | 'assignment'`, тест не обновили.
+- **Решение:** тест переписан под актуальные 3 фильтра + регрессионная проверка, что кнопка «📅 События» ОТСУТСТВУЕТ. 4/4 зелёных, typecheck чистый. `validate:full` больше не тащит «те же 3 pre-existing падения».
 
 ### MR‑6. Удалить orphan Cloud Function setStudentStream(us-central1) (P: L, E: XS)
 - **Контекст:** обнаружена при попытке `npm run firebase:deploy:functions` 2026-05-03. Firebase abort'ит full deploy потому что функция в проде, но её нет в локальном коде.
