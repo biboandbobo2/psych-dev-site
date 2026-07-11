@@ -140,8 +140,8 @@ export function buildTimelineDataFromBiographyPlan(plan: BiographyTimelinePlan):
         const event = eventsAtAge[i];
         const subOffset = SUB_BRANCH_OFFSETS[i - 1] ?? ((i % 2 === 0 ? -1 : 1) * Math.ceil(i / 2) * 400);
         let subX = x + subOffset;
-        // x кодирует принадлежность (node.parentX === edge.x) — spur не должен
-        // припарковаться на занятую линию/ветку, иначе события «переезжают».
+        // С фазы 2 branchId коллизия x не «переезжает» события (членство —
+        // ссылка), walk сохранён визуально: spur на занятой линии нечитаем.
         const takenXs = new Set<number>([LINE_X_POSITION, ...edges.map((e) => e.x)]);
         while (takenXs.has(subX)) {
           subX += 40;

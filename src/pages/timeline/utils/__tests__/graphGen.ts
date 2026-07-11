@@ -42,6 +42,13 @@ export class GraphBuilder {
   private nodes: NodeT[] = [];
   private edges: EdgeT[] = [];
   private nextBranchX = 2100;
+  /** true → .event() проставляет node.branchId (моделирует документы
+   *  после фазы 2); по умолчанию legacy-граф без ссылок. */
+  private withBranchIds: boolean;
+
+  constructor(opts: { branchIds?: boolean } = {}) {
+    this.withBranchIds = opts.branchIds ?? false;
+  }
 
   root(id: string, age: number, overrides: Partial<NodeT> = {}): this {
     this.nodes.push({
@@ -93,6 +100,7 @@ export class GraphBuilder {
       isDecision: false,
       x: branch.x + offsetX,
       parentX: branch.x,
+      ...(this.withBranchIds ? { branchId: branch.id } : {}),
       ...rest,
     });
     return this;
@@ -120,8 +128,8 @@ export class GraphBuilder {
   }
 }
 
-export function g(): GraphBuilder {
-  return new GraphBuilder();
+export function g(opts: { branchIds?: boolean } = {}): GraphBuilder {
+  return new GraphBuilder(opts);
 }
 
 export interface GenOptions {
@@ -131,6 +139,9 @@ export interface GenOptions {
   emptyBranchChance?: number;
   /** Кол-во узлов с parentX, не указывающим ни на одну ветку. */
   brokenParentXCount?: number;
+  /** Доля событий веток, несущих branchId (моделирует смешанные документы:
+   *  часть узлов после фазы 2, часть legacy). 0 = чистый legacy-граф. */
+  branchIdChance?: number;
   maxRoots?: number;
   maxDepth?: number;
 }
@@ -145,6 +156,7 @@ export function genTimeline(seed: number, opts: GenOptions = {}): FlatGraph {
     sharedXChance = 0,
     emptyBranchChance = 0.25,
     brokenParentXCount = 0,
+    branchIdChance = 0,
     maxRoots = 3,
     maxDepth = 3,
   } = opts;
@@ -178,7 +190,8 @@ export function genTimeline(seed: number, opts: GenOptions = {}): FlatGraph {
           const eventId = nextId('n');
           const age = randInt(rng, startAge, endAge);
           const offsetX = rng() < 0.3 ? randInt(rng, -30, 30) : 0;
-          b.event(eventId, branchId, age, { offsetX });
+          const withRef = rng() < branchIdChance;
+          b.event(eventId, branchId, age, withRef ? { offsetX, branchId } : { offsetX });
           addBranches(eventId, age, depth + 1);
         }
       }
