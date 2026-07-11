@@ -132,3 +132,58 @@ describe('deduplicateFacts', () => {
     expect(result[0].year).toBe(1820);
   });
 });
+
+// BPT-9: объединённая разметка (annotation+redaktura одним вызовом)
+describe('parseMergedMarkupResponse', () => {
+  it('разбирает строку INDEX/THEMES/PEOPLE/MONTH/DAY/IMPORTANCE/SHORTLABEL', async () => {
+    const { parseMergedMarkupResponse } = await import('./parsers.js');
+    const raw = [
+      'INDEX\tTHEMES\tPEOPLE\tMONTH\tDAY\tIMPORTANCE\tSHORTLABEL',
+      '0\tfamily_household\t\t6\t\t5\tРождение',
+      '1\teducation,upbringing_mentors\tПетров\t\t\t4\tУниверситет',
+      '2\tcreative_work\t-\t9\t14\t3\tПервая книга',
+      'мусорная строка',
+      '3\tнесуществующая_тема\t\t\t\t2\tЧто-то',
+    ].join('\n');
+    const parsed = parseMergedMarkupResponse(raw);
+    expect(parsed.size).toBe(3); // строка 3 без валидных тем отброшена
+    expect(parsed.get(0)).toMatchObject({ themes: ['family_household'], month: 6, importance: 5, shortLabel: 'Рождение' });
+    expect(parsed.get(1)).toMatchObject({ themes: ['education', 'upbringing_mentors'], people: ['Петров'], importance: 4 });
+    expect(parsed.get(2)).toMatchObject({ month: 9, day: 14, importance: 3, shortLabel: 'Первая книга' });
+  });
+
+  it('невалидная importance приводится к 3', async () => {
+    const { parseMergedMarkupResponse } = await import('./parsers.js');
+    const parsed = parseMergedMarkupResponse('0\thealth\t\t\t\t99\tЛейбл');
+    expect(parsed.get(0)!.importance).toBe(3);
+  });
+});
+
+// parseSimpleJsonFacts выбрасывал month, который extraction-промпт просит
+describe('parseSimpleJsonFacts — month', () => {
+  it('читает валидный month и игнорирует мусорный', async () => {
+    const { parseSimpleJsonFacts } = await import('./parsers.js');
+    const facts = parseSimpleJsonFacts(JSON.stringify([
+      { year: 1900, month: 6, text: 'Событие с месяцем', category: 'other', sphere: 'other' },
+      { year: 1901, month: 13, text: 'Мусорный месяц', category: 'other', sphere: 'other' },
+      { year: null, text: 'Недатированное событие', category: 'other', sphere: 'other' },
+    ]));
+    expect(facts[0].month).toBe(6);
+    expect(facts[1].month).toBeUndefined();
+    expect(facts[2].year).toBeUndefined();
+  });
+});
+
+describe('parseMergedMarkupJsonResponse', () => {
+  it('разбирает JSON-массив разметки и фильтрует мусор', async () => {
+    const { parseMergedMarkupJsonResponse } = await import('./parsers.js');
+    const parsed = parseMergedMarkupJsonResponse(JSON.stringify([
+      { index: 0, themes: ['family_household'], people: [], month: 6, day: null, importance: 5, shortLabel: 'Рождение' },
+      { index: 1, themes: ['левая_тема'], month: null, importance: 4, shortLabel: 'Мимо' },
+      { index: 2, themes: ['education'], people: ['Вейерштрасс'], month: 13, day: null, importance: 9, shortLabel: 'Учёба' },
+    ]));
+    expect(parsed.size).toBe(2);
+    expect(parsed.get(0)).toMatchObject({ month: 6, importance: 5 });
+    expect(parsed.get(2)).toMatchObject({ month: null, importance: 3, people: ['Вейерштрасс'] });
+  });
+});

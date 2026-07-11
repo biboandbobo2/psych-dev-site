@@ -1,0 +1,16 @@
+{
+  "step": "gap",
+  "model": "gemini-3.1-flash-lite",
+  "variant": "a",
+  "promptSha256": "d12c20eaee9dd1db79e7425dee96581b4684f749284c01587f7c899055f078a3",
+  "promptChars": 36149,
+  "promptPreview": "Ты — второй проход извлечения фактов из статьи о Carl Rogers.\n\nПервый проход уже нашёл следующие ДАТИРОВАННЫЕ факты:\n1. [1902] Carl Ransom Rogers was born on January 8 in Oak Park, Illinois\n2. [1922] ",
+  "responseText": "[\n  {\"year\": 1902, \"text\": \"Carl Rogers was the fourth of six children in his family\", \"category\": \"family\", \"sphere\": \"family\"},\n  {\"year\": 1902, \"text\": \"His father Walter A. Rogers was a civil engineer and Congregationalist\", \"category\": \"family\", \"sphere\": \"family\"},\n  {\"year\": 1902, \"text\": \"His mother Julia M. Cushing was a homemaker and devout Baptist\", \"category\": \"family\", \"sphere\": \"family\"},\n  {\"year\": 1922, \"text\": \"Rogers attended a seminar Why Am I Entering the Ministry\", \"category\": \"education\", \"sphere\": \"education\"},\n  {\"year\": 1924, \"text\": \"Rogers enrolled at Union Theological Seminary in New York City\", \"category\": \"education\", \"sphere\": \"education\"},\n  {\"year\": 1927, \"text\": \"Rogers studied with psychologist Alfred Adler at the Institute for Child Guidance\", \"category\": \"education\", \"sphere\": \"education\"},\n  {\"year\": 1946, \"text\": \"Rogers co-authored Counseling with Returned Servicemen with John L. Wallen\", \"category\": \"publication\", \"sphere\": \"creativity\"},\n  {\"year\": 1950, \"text\": \"Rogers questioned the rise of McCarthyism in the 1950s\", \"category\": \"conflict\", \"sphere\": \"other\"},\n  {\"year\": 1950, \"text\": \"Rogers served on the board of the CIA-funded Human Ecology Fund\", \"category\": \"career\", \"sphere\": \"career\"},\n  {\"year\": 1970, \"text\": \"Young, Becker and Pike published Rhetoric Discovery and Change using Rogerian approach\", \"category\": \"publication\", \"sphere\": \"creativity\"},\n  {\"year\": 1985, \"text\": \"Rogers facilitated the Rust Peace Workshop in Rust Austria\", \"category\": \"project\", \"sphere\": \"other\"},\n  {\"year\": 1987, \"text\": \"Rogers suffered a fall that resulted in a fractured pelvis\", \"category\": \"health\", \"sphere\": \"health\"}\n]",
+  "usage": {
+    "promptTokenCount": 7944,
+    "candidatesTokenCount": 490,
+    "totalTokenCount": 8434
+  },
+  "durationMs": 2194,
+  "recordedAt": "2026-07-09T21:10:23.096Z"
+}

@@ -1,0 +1,178 @@
+{
+  "aggregate": {
+    "variant": "a",
+    "generatedAt": "2026-07-09T21:32:20.965Z",
+    "rows": [
+      {
+        "group": "ALL",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 85.7,
+        "criticalPct": 80,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 63759
+      },
+      {
+        "group": "set:worker",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 85.7,
+        "criticalPct": 80,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 63759
+      },
+      {
+        "group": "cat:long-article",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 85.7,
+        "criticalPct": 80,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 63759
+      },
+      {
+        "group": "cat:psychologist",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 85.7,
+        "criticalPct": 80,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 63759
+      },
+      {
+        "group": "cat:ru",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 85.7,
+        "criticalPct": 80,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 63759
+      }
+    ]
+  },
+  "results": [
+    {
+      "articleId": "vygotsky",
+      "set": "worker",
+      "categories": [
+        "ru",
+        "psychologist",
+        "long-article"
+      ],
+      "structure": {
+        "nodes": 65,
+        "edges": 21,
+        "mainLineNodes": 8,
+        "branchNodes": 57,
+        "referentialViolations": 0,
+        "duplicateIds": 0,
+        "eventsOutsideBranchWindow": 0,
+        "sharedXOverlappingLanes": 0,
+        "normalizeEdits": {
+          "droppedEdges": 0,
+          "reanchoredNodes": 0,
+          "expandedWindows": 0,
+          "droppedNodes": 0,
+          "total": 0
+        }
+      },
+      "labels": {
+        "genericNodeLabels": 0,
+        "branchLabelsFilled": 7,
+        "branchLabelsTotal": 21,
+        "genericBranchLabels": 0
+      },
+      "lint": {
+        "fatal": false,
+        "errors": 0,
+        "warnings": 0,
+        "errorCodes": {}
+      },
+      "coverage": {
+        "totalFacts": 7,
+        "criticalFacts": 5,
+        "timelineMatched": 6,
+        "criticalMatched": 4,
+        "dateAccurate": 6,
+        "dateChecked": 6,
+        "missing": [
+          {
+            "id": "congress-1924",
+            "label": "Доклад на психоневрологическом съезде",
+            "critical": true
+          }
+        ],
+        "dateErrors": []
+      },
+      "facts": {
+        "extracted": 101,
+        "undated": 25,
+        "beforeBirth": 0,
+        "annotatedShare": 100,
+        "redactedShare": 100,
+        "monthsStripped": 0,
+        "yearsStripped": 25
+      },
+      "cost": {
+        "totalTokens": 63759,
+        "liveCalls": 6,
+        "cachedCalls": 0,
+        "modelDurationMs": 42800,
+        "wallClockMs": 84878,
+        "byStep": {
+          "extraction": {
+            "calls": 3,
+            "tokens": 29585
+          },
+          "gap": {
+            "calls": 1,
+            "tokens": 22306
+          },
+          "annotation": {
+            "calls": 1,
+            "tokens": 8238
+          },
+          "composition": {
+            "calls": 1,
+            "tokens": 3630
+          }
+        }
+      },
+      "manualFixNeeded": true,
+      "manualFixReasons": [
+        "missingCritical=1",
+        "yearsFabricated=25"
+      ]
+    }
+  ]
+}

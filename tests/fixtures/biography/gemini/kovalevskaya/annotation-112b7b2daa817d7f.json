@@ -1,0 +1,16 @@
+{
+  "step": "annotation",
+  "model": "gemini-3.1-flash-lite",
+  "variant": "a",
+  "promptSha256": "112b7b2daa817d7f66277d78a17dd44db136567c1c471429358bd660bb969af6",
+  "promptChars": 5095,
+  "promptPreview": "Ты — разметчик и редактор биографических фактов о **Ковалевская, Софья Васильевна**.\n\nЗАДАЧА\nДля каждого факта определи СРАЗУ ВСЁ:\n1. **themes** — одна-две темы из списка ниже (основная первой)\n2. **p",
+  "responseText": "37\tfamily_household\tВасилий Корвин-Круковский, Елизавета Шуберт\t\t\t5\tРождение\n38\tfamily_household\tФёдор Корвин-Круковский\t\t\t2\tРождение брата\n0\tfamily_household\t\t4\tПереезд в Полибино\n1\ttravel_moves_exile\t\t4\tПервая поездка за границу\n2\teducation\t\t4\tУроки в Петербурге\n3\tromance\tВладимир Ковалевский\t\t\t5\tФиктивный брак\n4\ttravel_moves_exile\tВладимир Ковалевский\t\t\t4\tОтъезд за границу\n5\teducation\tЛео Кёнигсбергер\t\t\t4\tУчёба в Гейдельберге\n6\teducation\tКарл Вейерштрасс\t\t\t4\tОбучение у Вейерштрасса\n7\ttravel_moves_exile,conflict_duels\tВладимир Ковалевский\t\t\t4\tПоездка в Париж\n8\tconflict_duels\t\t3\tПомощь коммунарам\n9\tconflict_duels\tВиктор Жаклар\t\t\t3\tСпасение Жаклара\n39\tcreative_work\t\t3\tРабота об интегралах\n40\tcreative_work\t\t3\tРабота о кольцах Сатурна\n10\teducation\tКарл Вейерштрасс\t\t\t4\tЗавершение обучения\n11\tromance\tВладимир Ковалевский\t\t\t3\tСовместная жизнь\n12\teducation\t\t5\tДокторская степень\n13\tcreative_work\t\t4\tПубликация диссертации\n41\tchildren\tСофья Ковалевская\t\t\t5\tРождение дочери\n14\tcreative_work\t\t3\tСъезд естествоиспытателей\n15\tservice_career\t\t3\tЧленство в ММО\n16\tlosses\tВладимир Ковалевский\t\t\t5\tСмерть мужа\n17\tcreative_work\t\t3\tСъезд в Одессе\n18\ttravel_moves_exile,friends_network\tКарл Вейерштрасс\t\t\t3\tПоездка в Берлин\n42\tservice_career\t\t4\tЛекции в Стокгольме\n19\tcreative_work\t\t3\tПовесть Нигилистка\n20\tcreative_work\t\t3\tСтатья в Acta mathematica\n21\tcreative_work\t\t3\tРабота о кольцах Сатурна\n22\tcreative_work\tДжордж Эллиот\t\t\t3\tВоспоминания об Эллиот\n23\tcreative_work\t\t3\tДрама Борьба за счастье\n24\tcreative_work\t\t4\tПремия Бордена\n25\tservice_career\t\t4\tЧленство в АН\n26\tcreative_work\t\t3\tВоспоминания детства\n27\tcreative_work\t\t4\tПремия Шведской АН\n28\tcreative_work\t\t4\tРабота о вращении тела\n29\tcreative_work\t\t3\tВоспоминания детства\n30\tcreative_work\t\t3\tКнига о Швеции\n31\tromance\tМаксим Ковалевский\t\t\t3\tРазрыв с Ковалевским\n32\tcreative_work\t\t3\tРабота об уравнениях\n33\thealth,losses\t\t5\tСмерть\n34\tlegacy\t\t3\tПохороны в Стокгольме\n35\tlegacy\t\t2\tСборник сочинений\n36\tlegacy\t\t2\tПамятник на могиле",
+  "usage": {
+    "promptTokenCount": 1846,
+    "candidatesTokenCount": 794,
+    "totalTokenCount": 2640
+  },
+  "durationMs": 2897,
+  "recordedAt": "2026-07-09T21:20:56.992Z"
+}

@@ -84,8 +84,13 @@ function truncateLabel(text: string, maxLen = 35): string {
 // Year → age conversion
 // ---------------------------------------------------------------------------
 
-function yearToAge(year: number, birthYear: number, lifespan: number): number {
-  const raw = year - birthYear;
+// A2: известный месяц даёт дробную часть возраста — события одного года
+// перестают коллидировать «одним возрастом» и упорядочиваются хронологически.
+// Годовая часть не меняется (семантика «календарный год жизни» как раньше).
+function yearToAge(year: number, birthYear: number, lifespan: number, month?: number): number {
+  const monthFraction =
+    typeof month === 'number' && month >= 1 && month <= 12 ? (month - 0.5) / 12 : 0;
+  const raw = Math.round((year - birthYear + monthFraction) * 100) / 100;
   return Math.max(0.5, Math.min(raw, lifespan + 3));
 }
 
@@ -99,7 +104,7 @@ function factToEventPlan(
   lifespan: number,
 ): BiographyTimelineEventPlan | null {
   if (fact.year == null) return null;
-  const age = yearToAge(fact.year, birthYear, lifespan);
+  const age = yearToAge(fact.year, birthYear, lifespan, fact.month);
   const label = truncateLabel(fact.shortLabel ?? fact.details ?? 'Событие');
   const sphere = mapSphere(fact.sphere ?? fact.category ?? 'other');
 
@@ -142,6 +147,89 @@ export function findDeathFact(facts: BiographyFactCandidate[], birthYear: number
   return pool.reduce((latest, f) =>
     (f.year ?? 0) > (latest.year ?? 0) ? f : latest
   );
+}
+
+// ---------------------------------------------------------------------------
+// Lifespan resolution (единая логика для composition-промпта и рендера).
+// Д-B2: наивный facts.find(category === 'death') брал первый death-факт
+// (часто смерть родственника) — используем findDeathFact с возрастным окном.
+// ---------------------------------------------------------------------------
+
+export function resolveCompositionLifespan(facts: BiographyFactCandidate[]): {
+  birthYear: number;
+  deathYear: number | null;
+} {
+  const birthFact = findBirthFact(facts);
+  const birthYear = birthFact?.year ?? facts[0]?.year ?? 0;
+  const deathFact = findDeathFact(facts, birthYear);
+  const allYears = facts.map(f => f.year ?? 0).filter(y => y > 0 && y < 2100);
+  const deathYear = deathFact?.year ?? (allYears.length > 0 ? Math.max(...allYears) : null);
+  return { birthYear, deathYear };
+}
+
+// ---------------------------------------------------------------------------
+// B3: строгая валидация composition-результата. Модель возвращает индексы —
+// защищаемся от дублей (факт и на главной линии, и в ветке), выдуманных
+// индексов и потерянных фактов (распределяем по совпадению тем, а не
+// сваливаем в последнюю ветку).
+// ---------------------------------------------------------------------------
+
+export function sanitizeCompositionResult(
+  composition: BiographyCompositionResult,
+  facts: BiographyFactCandidate[]
+): BiographyCompositionResult {
+  const isValidIndex = (idx: unknown): idx is number =>
+    typeof idx === 'number' && Number.isInteger(idx) && idx >= 0 && idx < facts.length;
+
+  // Дубль остаётся в первом месте: главная линия приоритетнее веток,
+  // ранняя ветка приоритетнее поздней.
+  const assigned = new Set<number>();
+  const mainLine: number[] = [];
+  for (const idx of composition.mainLine ?? []) {
+    if (!isValidIndex(idx) || assigned.has(idx)) continue;
+    assigned.add(idx);
+    mainLine.push(idx);
+  }
+
+  const branches = (composition.branches ?? []).map((branch) => {
+    const branchFacts: number[] = [];
+    for (const idx of branch.facts ?? []) {
+      if (!isValidIndex(idx) || assigned.has(idx)) continue;
+      assigned.add(idx);
+      branchFacts.push(idx);
+    }
+    return { ...branch, facts: branchFacts };
+  });
+
+  // Потерянные факты: в ветку с максимальным пересечением тем;
+  // без совпадений — в последнюю ветку; без веток — на главную линию.
+  const missing = facts.map((_, i) => i).filter((i) => !assigned.has(i));
+  for (const idx of missing) {
+    if (branches.length === 0) {
+      mainLine.push(idx);
+      continue;
+    }
+    const factThemes = new Set(facts[idx].themes ?? []);
+    let bestBranch = branches[branches.length - 1];
+    let bestScore = 0;
+    if (factThemes.size > 0) {
+      for (const branch of branches) {
+        let score = 0;
+        for (const branchFactIdx of branch.facts) {
+          for (const theme of facts[branchFactIdx].themes ?? []) {
+            if (factThemes.has(theme)) score += 1;
+          }
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestBranch = branch;
+        }
+      }
+    }
+    bestBranch.facts.push(idx);
+  }
+
+  return { ...composition, mainLine, branches };
 }
 
 // ---------------------------------------------------------------------------
@@ -196,25 +284,20 @@ function mergeSameAgeEvents(events: BiographyTimelineEventPlan[]): BiographyTime
     }
 
     const targetCount = group.length === 4 ? 2 : 3;
-    // Keep first and last, merge middle into combined events
-    const kept = [group[0]];
+    // Д-B11: оставляем по ВАЖНОСТИ (isDecision), позиция — вторичный ключ;
+    // раньше first/mid/last позиционно — важные события растворялись.
+    const ranked = group
+      .map((event, position) => ({ event, position }))
+      .sort((a, b) => Number(b.event.isDecision) - Number(a.event.isDecision) || a.position - b.position);
+    const keptSet = new Set(ranked.slice(0, targetCount).map((r) => r.event));
+    const kept = group.filter((e) => keptSet.has(e));
 
-    if (targetCount === 3 && group.length > 4) {
-      // Keep middle representative
-      const midIdx = Math.floor(group.length / 2);
-      kept.push(group[midIdx]);
-    }
-
-    // Last event — combine remaining labels into its notes
-    const last = group[group.length - 1];
-    const skippedLabels = group
-      .filter(e => !kept.includes(e) && e !== last)
-      .map(e => e.label);
+    const skippedLabels = group.filter((e) => !keptSet.has(e)).map((e) => e.label);
+    const lastKept = kept[kept.length - 1];
     const combinedNotes = skippedLabels.length > 0
-      ? `${last.notes ?? last.label}. Также: ${skippedLabels.join('; ')}.`
-      : last.notes;
-
-    kept.push({ ...last, notes: combinedNotes });
+      ? `${lastKept.notes ?? lastKept.label}. Также: ${skippedLabels.join('; ')}.`
+      : lastKept.notes;
+    kept[kept.length - 1] = { ...lastKept, notes: combinedNotes };
 
     result.push(...kept);
   }
@@ -234,10 +317,10 @@ export function buildPlanFromCompositionResult(params: {
   const { facts, composition, subjectName } = params;
 
   const birthFact = findBirthFact(facts);
-  const birthYear = birthFact?.year ?? facts[0]?.year ?? 0;
-  const deathFact = findDeathFact(facts, birthYear);
-  const allYears = facts.map(f => f.year ?? 0).filter(y => y > 0 && y < 2100);
-  const deathYear = deathFact?.year ?? (allYears.length > 0 ? Math.max(...allYears) : birthYear + 80);
+  const deathFact = findDeathFact(facts, birthFact?.year ?? facts[0]?.year ?? 0);
+  const resolved = resolveCompositionLifespan(facts);
+  const birthYear = resolved.birthYear;
+  const deathYear = resolved.deathYear ?? birthYear + 80;
   const lifespan = deathYear - birthYear;
   const currentAge = Math.max(0, Math.min(120, lifespan));
   const legacyThreshold = deathYear + 15;

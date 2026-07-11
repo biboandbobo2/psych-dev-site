@@ -52,6 +52,14 @@ export type NodeT = {
   age: number;
   x?: number; // X-координата для перемещения влево/вправо от линии жизни
   parentX?: number; // X-координата родительской линии (от которой была создана горизонталь)
+  /**
+   * ID ветки-родителя (EdgeT.id); undefined → событие на главной линии.
+   * Ссылочная принадлежность (branchId), в отличие от координатной
+   * (parentX === edge.x). Фаза 1 (docs/plans/timeline-branch-id-rfc.md):
+   * поле аддитивно, досеивается normalize из дерева для legacy-документов;
+   * x/parentX остаются источником отрисовки.
+   */
+  branchId?: string;
   label: string;
   notes?: string;
   sphere?: Sphere;

@@ -1,0 +1,16 @@
+{
+  "step": "gap",
+  "model": "gemini-3.1-flash-lite",
+  "variant": "a",
+  "promptSha256": "434e919f1d62ddf87810742f221c46d875757a47ebe55756c7c872a882654f1a",
+  "promptChars": 99008,
+  "promptPreview": "Ты — второй проход извлечения фактов из статьи о Фрейд, Зигмунд.\nМЕТОД РАБОТЫ: перечитай статью РАЗДЕЛ ЗА РАЗДЕЛОМ и сверь каждый раздел со списком выше — всё недостающее выпиши.\nПРИМЕРЫ ПРАВИЛЬНОЙ ДА",
+  "responseText": "[\n  {\"year\": 1859, \"text\": \"Семья Фрейдов переехала в Лейпциг на один год\", \"category\": \"move\", \"sphere\": \"place\"},\n  {\"year\": 1860, \"text\": \"Семья Фрейдов переехала из Лейпцига в Вену\", \"category\": \"move\", \"sphere\": \"place\"},\n  {\"year\": 1860, \"text\": \"Семья Фрейдов поселилась в районе Леопольдштадт в Вене\", \"category\": \"move\", \"sphere\": \"place\"},\n  {\"year\": 1882, \"text\": \"Фрейд начал работать в Венской городской больнице\", \"category\": \"career\", \"sphere\": \"career\"},\n  {\"year\": 1884, \"text\": \"Фрейд опубликовал статью Случай кровоизлияния в мозг\", \"category\": \"publication\", \"sphere\": \"creativity\"},\n  {\"year\": 1885, \"text\": \"Фрейд опубликовал статью Случай атрофии мускулов\", \"category\": \"publication\", \"sphere\": \"creativity\"},\n  {\"year\": 1886, \"text\": \"Фрейд опубликовал статью Наблюдение сильной потери чувствительности\", \"category\": \"publication\", \"sphere\": \"creativity\"},\n  {\"year\": 1887, \"text\": \"Родилась дочь Матильда Фрейд\", \"category\": \"birth\", \"sphere\": \"family\"},\n  {\"year\": 1889, \"text\": \"Родился сын Мартин Фрейд\", \"category\": \"birth\", \"sphere\": \"family\"},\n  {\"year\": 1891, \"text\": \"Родился сын Оливер Фрейд\", \"category\": \"birth\", \"sphere\": \"family\"},\n  {\"year\": 1892, \"text\": \"Родился сын Эрнст Фрейд\", \"category\": \"birth\", \"sphere\": \"family\"},\n  {\"year\": 1893, \"text\": \"Родилась дочь Софи Фрейд\", \"category\": \"birth\", \"sphere\": \"family\"},\n  {\"year\": 1895, \"text\": \"Родилась дочь Анна Фрейд\", \"category\": \"birth\", \"sphere\": \"family\"},\n  {\"year\": 1908, \"text\": \"Общество реорганизовано в Венское психоаналитическое общество\", \"category\": \"project\", \"sphere\": \"career\"},\n  {\"year\": 1913, \"text\": \"Создана секретная организация Комитет\", \"category\": \"project\", \"sphere\": \"career\"},\n  {\"year\": 1923, \"text\": \"Умер внук Гейнеле сын Софи Фрейд\", \"category\": \"death\", \"sphere\": \"family\"},\n  {\"year\": 1925, \"text\": \"Умер близкий друг Карл Абрахам\", \"category\": \"death\", \"sphere\": \"friends\"},\n  {\"year\": 1936, \"text\": \"Анна Фрейд опубликовала работу Я и защитные механизмы\", \"category\": \"publication\", \"sphere\": \"creativity\"},\n  {\"year\": 1938, \"text\": \"Фрейд с семьей уехал из Вены на Восточном Экспрессе\", \"category\": \"move\", \"sphere\": \"place\"}\n]",
+  "usage": {
+    "promptTokenCount": 27096,
+    "candidatesTokenCount": 775,
+    "totalTokenCount": 27871
+  },
+  "durationMs": 3025,
+  "recordedAt": "2026-07-09T21:48:40.600Z"
+}

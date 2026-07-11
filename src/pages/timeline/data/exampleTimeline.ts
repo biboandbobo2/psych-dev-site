@@ -27,8 +27,8 @@ export const EXAMPLE_TIMELINE: TimelineData = {
       sphere: 'education',
       notes: 'Решение, от которого выросла отдельная ветка',
     },
-    { id: 'ex-study', age: 18, x: 2400, parentX: 2400, label: 'Учёба в другом городе', isDecision: false, sphere: 'education' },
-    { id: 'ex-diploma', age: 22, x: 2400, parentX: 2400, label: 'Диплом', isDecision: false, sphere: 'education' },
+    { id: 'ex-study', age: 18, x: 2400, parentX: 2400, branchId: 'ex-branch-uni', label: 'Учёба в другом городе', isDecision: false, sphere: 'education' },
+    { id: 'ex-diploma', age: 22, x: 2400, parentX: 2400, branchId: 'ex-branch-uni', label: 'Диплом', isDecision: false, sphere: 'education' },
     {
       id: 'ex-move',
       age: 24,
@@ -37,7 +37,7 @@ export const EXAMPLE_TIMELINE: TimelineData = {
       isDecision: true,
       sphere: 'place',
     },
-    { id: 'ex-city', age: 25, x: 1600, parentX: 1600, label: 'Новый город', isDecision: false, sphere: 'place' },
+    { id: 'ex-city', age: 25, x: 1600, parentX: 1600, branchId: 'ex-branch-move', label: 'Новый город', isDecision: false, sphere: 'place' },
     { id: 'ex-job', age: 26, x: LINE_X_POSITION, label: 'Первая серьёзная работа', isDecision: false, sphere: 'career' },
   ],
   edges: [

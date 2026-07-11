@@ -109,6 +109,10 @@ export type BiographyTimelineData = {
     age: number;
     x?: number;
     parentX?: number;
+    /** ID ветки-родителя (edges[].id); undefined → главная линия. Фаза 1
+     *  branchId (docs/plans/timeline-branch-id-rfc.md): проставляется рендером
+     *  параллельно с parentX. */
+    branchId?: string;
     label: string;
     notes?: string;
     sphere?: TimelineSphere;
@@ -122,6 +126,8 @@ export type BiographyTimelineData = {
     endAge: number;
     color: string;
     nodeId: string;
+    /** Название ветки (Д-B10); без него UI показывает имя origin-события. */
+    label?: string;
   }>;
   birthDetails?: {
     date?: string;

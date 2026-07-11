@@ -1,0 +1,17 @@
+{
+  "step": "composition",
+  "model": "gemini-2.5-flash",
+  "variant": "a",
+  "promptSha256": "b3362e3cbe0db8c198f6b70deed36dfa34f59b6ac5dcfcbf99ebc417181ef398",
+  "promptChars": 7607,
+  "promptPreview": "Ты — нарратолог и биограф. Тебе дан список из 100 фактов о **William James** (1842–1910).\n\nЗАДАЧА\nРаспредели ВСЕ факты по структуре визуального таймлайна:\n1. **Главная линия** — 14 (±2) ключевых точек",
+  "responseText": "{\n  \"mainLine\": [\n    0,\n    1,\n    3,\n    6,\n    10,\n    11,\n    14,\n    15,\n    16,\n    48,\n    52,\n    27,\n    33,\n    35,\n    36,\n    43\n  ],\n  \"branches\": [\n    {\n      \"name\": \"Ранние годы и семейное окружение\",\n      \"sphere\": \"family\",\n      \"facts\": [\n        88,\n        89,\n        90,\n        91,\n        92,\n        93\n      ]\n    },\n    {\n      \"name\": \"Образование и ранние путешествия\",\n      \"sphere\": \"education\",\n      \"facts\": [\n        2,\n        4,\n        5,\n        8,\n        9\n      ]\n    },\n    {\n      \"name\": \"Личный кризис и эксперименты\",\n      \"sphere\": \"health\",\n      \"facts\": [\n        12,\n        13,\n        45,\n        47,\n        53,\n        54,\n        64\n      ]\n    },\n    {\n      \"name\": \"Карьера в Гарварде\",\n      \"sphere\": \"career\",\n      \"facts\": [\n        17,\n        19,\n        24,\n        26,\n        30,\n        32,\n        99\n      ]\n    },\n    {\n      \"name\": \"Развитие идей о воле и детерминизме\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        22,\n        23,\n        29,\n        65,\n        66\n      ]\n    },\n    {\n      \"name\": \"Семья с Элис и дети\",\n      \"sphere\": \"family\",\n      \"facts\": [\n        49,\n        55,\n        56,\n        57,\n        61,\n        62\n      ]\n    },\n    {\n      \"name\": \"Общественная деятельность и сети\",\n      \"sphere\": \"friends\",\n      \"facts\": [\n        20,\n        21,\n        31,\n        50,\n        59,\n        60,\n        96,\n        98\n      ]\n    },\n    {\n      \"name\": \"Поздние философские работы\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        34,\n        37,\n        38,\n        68,\n        69,\n        71,\n        72\n      ]\n    },\n    {\n      \"name\": \"Наследие и посмертные публикации\",\n      \"sphere\": \"legacy\",\n      \"facts\": [\n        73,\n        74,\n        75,\n        85\n      ]\n    },\n    {\n      \"name\": \"Здоровье и последние годы\",\n      \"sphere\": \"health\",\n      \"facts\": [\n        39,\n        40,\n        41,\n        42,\n        44\n      ]\n    },\n    {\n      \"name\": \"Ранние публикации и эссе\",\n      \"sphere\": \"creativity\",\n      \"facts\": [\n        7,\n        18,\n        25,\n        46,\n        51,\n        58,\n        63,\n        67,\n        28\n      ]\n    }\n  ]\n}",
+  "usage": {
+    "promptTokenCount": 3211,
+    "candidatesTokenCount": 842,
+    "thoughtsTokenCount": 10922,
+    "totalTokenCount": 14975
+  },
+  "durationMs": 47549,
+  "recordedAt": "2026-07-09T07:13:19.158Z"
+}

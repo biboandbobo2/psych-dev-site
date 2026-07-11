@@ -1,0 +1,16 @@
+{
+  "step": "annotation",
+  "model": "gemini-3.1-flash-lite",
+  "variant": "a",
+  "promptSha256": "a1715306d7df515121d9232a6d69f9827709b6db334c8a3d8fbbd0c2b3a60037",
+  "promptChars": 4950,
+  "promptPreview": "Ты — разметчик биографических фактов о **Франкл, Виктор**.\n\nЗАДАЧА\nДля каждого факта определи:\n1. **themes** — одну или две темы из списка ниже (основная первой)\n2. **people** — имена людей, упомянуты",
+  "responseText": "0\teducation,upbringing_mentors\t\t\n1\teducation\t\n2\tservice_career,politics_public_pressure\t\t\n3\teducation\t\n4\tservice_career\t\n5\tservice_career\t\n6\tconflict_duels,politics_public_pressure\t\t\n7\tservice_career\t\n8\tromance\tГроссер\t\n9\tconflict_duels,travel_moves_exile\t\t\n10\tcreative_work,conflict_duels\t\t\n11\tcreative_work\t\n12\tcreative_work,conflict_duels\t\t\n13\tservice_career\t\n14\tromance\tШвиндт\t\n15\teducation\t\n16\tservice_career,education\t\t\n17\ttravel_moves_exile,education\t\t\n18\tcreative_work\t\n19\tservice_career\t\n20\tlosses\t\n21\tlosses\t\n22\tlosses\tГроссер\t\n23\tchildren\tГабриэль\t\n24\tservice_career\t\n25\tservice_career\t\n26\tfriends_network,conflict_duels\tФлейшман\t\n27\tcreative_work,conflict_duels\t\t\n28\tconflict_duels\t\n29\ttravel_moves_exile\t\n30\tcreative_work,education\t\t\n31\tfamily_household\t\n32\tpolitics_public_pressure,friends_network\t\t\n33\tconflict_duels,service_career\t\t\n34\tcreative_work\t\n35\tcreative_work\t\n36\tpolitics_public_pressure\t\n37\tromance\tШвиндт\t\n38\tromance\tШвиндт\t\n39\tcreative_work\t\n40\teducation,legacy\t\t\n41\tlegacy,family_household\tКатарина,Александр\t\n42\tlegacy,family_household\tАнна Виктория\t\n43\tfriends_network,conflict_duels\tБек\t\n44\tfriends_network,conflict_duels\tЙонас\t\n45\tfamily_household\t\n46\tservice_career\t\n47\tfamily_household\t3\t26\n48\teducation\t\n49\teducation\t\n50\tconflict_duels,travel_moves_exile\t\t9\t25\n51\tconflict_duels,travel_moves_exile\t\t10\t19\n52\tconflict_duels,travel_moves_exile\t\t10\t25\n53\tconflict_duels,travel_moves_exile\t\t4\t27\n54\tlosses\t9\t2",
+  "usage": {
+    "promptTokenCount": 1788,
+    "candidatesTokenCount": 598,
+    "totalTokenCount": 2386
+  },
+  "durationMs": 2422,
+  "recordedAt": "2026-07-09T20:26:26.334Z"
+}

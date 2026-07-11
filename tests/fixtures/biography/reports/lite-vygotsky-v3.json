@@ -1,0 +1,170 @@
+{
+  "aggregate": {
+    "variant": "a",
+    "generatedAt": "2026-07-09T21:47:53.244Z",
+    "rows": [
+      {
+        "group": "ALL",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 67017
+      },
+      {
+        "group": "set:worker",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 67017
+      },
+      {
+        "group": "cat:long-article",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 67017
+      },
+      {
+        "group": "cat:psychologist",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 67017
+      },
+      {
+        "group": "cat:ru",
+        "articles": 1,
+        "failed": 0,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": 100,
+        "criticalPct": 100,
+        "dateAccuracyPct": 100,
+        "genericLabels": 0,
+        "manualFixShare": 0,
+        "avgTokens": 67017
+      }
+    ]
+  },
+  "results": [
+    {
+      "articleId": "vygotsky",
+      "set": "worker",
+      "categories": [
+        "ru",
+        "psychologist",
+        "long-article"
+      ],
+      "structure": {
+        "nodes": 88,
+        "edges": 28,
+        "mainLineNodes": 9,
+        "branchNodes": 79,
+        "referentialViolations": 0,
+        "duplicateIds": 0,
+        "eventsOutsideBranchWindow": 0,
+        "sharedXOverlappingLanes": 0,
+        "normalizeEdits": {
+          "droppedEdges": 0,
+          "reanchoredNodes": 0,
+          "expandedWindows": 0,
+          "droppedNodes": 0,
+          "total": 0
+        }
+      },
+      "labels": {
+        "genericNodeLabels": 0,
+        "branchLabelsFilled": 10,
+        "branchLabelsTotal": 28,
+        "genericBranchLabels": 0
+      },
+      "lint": {
+        "fatal": false,
+        "errors": 0,
+        "warnings": 0,
+        "errorCodes": {}
+      },
+      "coverage": {
+        "totalFacts": 7,
+        "criticalFacts": 5,
+        "timelineMatched": 7,
+        "criticalMatched": 5,
+        "dateAccurate": 6,
+        "dateChecked": 6,
+        "missing": [],
+        "dateErrors": []
+      },
+      "facts": {
+        "extracted": 134,
+        "undated": 35,
+        "beforeBirth": 3,
+        "annotatedShare": 100,
+        "redactedShare": 100,
+        "monthsStripped": 0,
+        "yearsStripped": 0,
+        "yearSentenceCoverage": 57.1
+      },
+      "cost": {
+        "totalTokens": 67017,
+        "liveCalls": 6,
+        "cachedCalls": 0,
+        "modelDurationMs": 42198,
+        "wallClockMs": 84292,
+        "byStep": {
+          "extraction": {
+            "calls": 3,
+            "tokens": 30699
+          },
+          "gap": {
+            "calls": 1,
+            "tokens": 22647
+          },
+          "annotation": {
+            "calls": 1,
+            "tokens": 9195
+          },
+          "composition": {
+            "calls": 1,
+            "tokens": 4476
+          }
+        }
+      },
+      "manualFixNeeded": false,
+      "manualFixReasons": []
+    }
+  ]
+}

@@ -54,6 +54,8 @@ export function buildBiographyGapFillingPrompt(params: {
   mode?: 'full' | 'dating-only';
   /** If known, the year of death — gap-filling should not add posthumous legacy facts */
   deathYear?: number | null;
+  /** Процедурная добавка для не-thinking моделей (lite-профиль). */
+  emphasis?: string;
 }) {
   const existingBlock = params.existingFacts.map((f, i) => `${i + 1}. ${f}`).join('\n');
 
@@ -83,7 +85,8 @@ export function buildBiographyGapFillingPrompt(params: {
 - Увлечения и хобби
 ` : '';
 
-  return `Ты — второй проход извлечения фактов из статьи о ${params.articleTitle}.
+  const emphasisBlock = params.emphasis ? `\n${params.emphasis}\n` : '';
+  return `Ты — второй проход извлечения фактов из статьи о ${params.articleTitle}.${emphasisBlock}
 
 Первый проход уже нашёл следующие ДАТИРОВАННЫЕ факты:
 ${existingBlock}
@@ -287,3 +290,80 @@ ${factsBlock}
 }`;
 }
 
+
+/** BPT-9: объединённая разметка — темы/люди/дата + важность/shortLabel одним
+ *  вызовом (вместо annotation + redaktura). Используется за флагом. */
+export function buildBiographyMergedMarkupPrompt(params: {
+  subjectName: string;
+  facts: Array<{ index: number; year: number | null; details: string }>;
+  /** JSON-формат ответа (structured output) вместо TSV. */
+  json?: boolean;
+}) {
+  const factsBlock = params.facts
+    .map((f) => `${f.index}\t${f.year ?? '?'}\t${f.details}`)
+    .join('\n');
+
+  return `Ты — разметчик и редактор биографических фактов о **${params.subjectName}**.
+
+ЗАДАЧА
+Для каждого факта определи СРАЗУ ВСЁ:
+1. **themes** — одна-две темы из списка ниже (основная первой)
+2. **people** — имена людей из текста факта (кроме самого ${params.subjectName}); нет — пусто
+3. **month** — месяц (1-12) ТОЛЬКО если явно указан в тексте факта. НЕ угадывай — пусто.
+4. **day** — день (1-31) только если явно указан; иначе пусто
+5. **importance** — оценка 1–5 по шкале ниже
+6. **shortLabel** — назывной заголовок ≤25 символов
+
+ДОПУСТИМЫЕ ТЕМЫ (ровно эти значения):
+- upbringing_mentors — воспитание, наставники, ранние влияния
+- education — образование, учёба, школы, университеты
+- friends_network — друзья, соратники, круг общения
+- romance — любовь, брак, романтические отношения
+- family_household — семья, родители, быт, происхождение
+- children — дети, потомство
+- travel_moves_exile — переезды, путешествия, ссылки, эмиграция
+- service_career — карьера, должности, назначения, служба
+- creative_work — публикации, книги, статьи, журналистика, творчество
+- conflict_duels — конфликты, аресты, суды, дуэли, покушения, войны
+- losses — потери близких, смерти соратников
+- politics_public_pressure — политическая деятельность, идеология
+- health — здоровье, болезни
+- legacy — наследие, посмертное влияние
+
+ШКАЛА ВАЖНОСТИ
+5 — переломный момент (рождение, смерть, главные достижения, ключевые отношения)
+4 — важное событие нарратива (образование, переезды, карьерные повороты)
+3 — заметное событие (публикации, награды, дружбы)
+2 — второстепенный факт
+1 — тривиальный или дублирующий
+Оценку 5 — не более чем 15 фактам; оценки 4-5 должны покрывать всю жизнь.
+
+ПРАВИЛА shortLabel
+- Максимум 25 символов (кириллица), назывной стиль без глаголов.
+- Конкретно: «Брак с Карчевской», а не «Свадьба»; «Кафедра в ВМА», а не «Карьера».
+
+${params.json ? `ПРИМЕРЫ ЭЛЕМЕНТОВ ОТВЕТА (месяц указывается ТОЛЬКО когда он буквально
+написан в тексте факта; иначе null):
+Факт: «В марте 1921 года эмигрировал в Берлин» → {"index": 4, "themes": ["travel_moves_exile"], "people": [], "month": 3, "day": null, "importance": 4, "shortLabel": "Эмиграция в Берлин"}
+Факт: «В 1930 году вышла монография о рефлексах» → {"index": 7, "themes": ["creative_work"], "people": [], "month": null, "day": null, "importance": 3, "shortLabel": "Монография о рефлексах"}
+Факт: «Женился на Анне Петровой» → {"index": 9, "themes": ["romance"], "people": ["Анна Петрова"], "month": null, "day": null, "importance": 4, "shortLabel": "Брак с Петровой"}
+
+ФАКТЫ
+INDEX\tYEAR\tDETAILS
+${factsBlock}
+
+ФОРМАТ ОТВЕТА
+Верни ТОЛЬКО JSON-массив объектов {index, themes, people, month, day, importance, shortLabel} — по одному объекту на КАЖДЫЙ факт.` : `ПРИМЕРЫ СТРОК ОТВЕТА (обрати внимание: месяц указывается ТОЛЬКО когда он
+буквально написан в тексте факта; в остальных случаях поле ПУСТОЕ):
+Факт: «В марте 1921 года эмигрировал в Берлин» → 4\ttravel_moves_exile\t\t3\t\t4\tЭмиграция в Берлин
+Факт: «В 1930 году вышла монография о рефлексах» → 7\tcreative_work\t\t\t\t3\tМонография о рефлексах
+Факт: «Женился на Анне Петровой» → 9\tromance\tАнна Петрова\t\t\t4\tБрак с Петровой
+
+ФАКТЫ
+INDEX\tYEAR\tDETAILS
+${factsBlock}
+
+ФОРМАТ ОТВЕТА
+INDEX<TAB>THEME1[,THEME2]<TAB>PERSON1,PERSON2 (или пусто)<TAB>MONTH (или пусто)<TAB>DAY (или пусто)<TAB>IMPORTANCE<TAB>SHORTLABEL
+Одна строка на факт. Без заголовков, пояснений и markdown.`}`;
+}

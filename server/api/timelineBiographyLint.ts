@@ -290,14 +290,33 @@ function supplementMainEventsFromFacts(mainEvents: BiographyTimelineEventPlan[],
   return supplemented.sort((a, b) => a.age - b.age);
 }
 
+/** Д-B8: notes события pipeline — это дословно details его собственного
+ *  факта (factToEventPlan). Обратный поиск находит СВОЙ факт детерминированно;
+ *  fuzzy-подбор остаётся только для legacy-путей без такого соответствия —
+ *  для JSON-фактов (age=undefined) он вырождался в лотерею по токену-фамилии
+ *  и затирал notes evidence чужого факта. */
+function findExactSourceFact(event: BiographyTimelineEventPlan, factsIndex: FactsIndex) {
+  const notes = event.notes?.trim();
+  if (!notes) return undefined;
+  return factsIndex.all.find((fact) => {
+    const details = fact.details?.trim().slice(0, 700);
+    const evidence = fact.evidence?.trim().slice(0, 700);
+    return details === notes || evidence === notes;
+  });
+}
+
 function repairEventPlan(
   event: BiographyTimelineEventPlan,
   factsIndex: FactsIndex,
   fallbackSphere?: BiographyTimelineEventPlan['sphere']
 ) {
   const sphere = normalizeSphere(event.sphere) ?? fallbackSphere;
-  const matchingFact = selectMatchingFact(event, factsIndex);
-  const sourceText = buildNotesFromFact(event, matchingFact);
+  const matchingFact = findExactSourceFact(event, factsIndex) ?? selectMatchingFact(event, factsIndex);
+  // Д-B11: склеенные заметки merge («…Также: …») — составной текст, у него
+  // нет одного факта-источника; замена стирала содержимое склеенных событий.
+  const sourceText = event.notes?.includes('. Также: ')
+    ? event.notes
+    : buildNotesFromFact(event, matchingFact);
   const needsLabelRepair = isGenericLabel(event.label) || isTruncatedLabel(event.label) || isRawSentenceLabel(event.label);
   const factLabel = buildLabelFromFact(event, matchingFact, sphere);
   const repairedLabel = needsLabelRepair ? factLabel : event.label;
@@ -466,7 +485,10 @@ export function lintBiographyPlan(plan: BiographyTimelinePlan) {
     mainKeys.add(key);
   }
 
-  const earlyLifeEvents = plan.mainEvents.filter((event) => event.age >= 0 && event.age <= 18).length;
+  // Д-B9: composition сознательно кладёт на главную линию только поворотные
+  // точки — события ранней жизни в ветках тоже покрывают детство.
+  const allPlanEvents = [...plan.mainEvents, ...plan.branches.flatMap((branch) => branch.events)];
+  const earlyLifeEvents = allPlanEvents.filter((event) => event.age >= 0 && event.age <= 18).length;
   if (plan.currentAge >= 20 && earlyLifeEvents < 3) {
     issues.push({
       code: 'too-few-early-life-events',

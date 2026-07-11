@@ -1,0 +1,16 @@
+{
+  "step": "composition",
+  "model": "gemini-3.1-flash-lite",
+  "variant": "a",
+  "promptSha256": "5ae586bb8aecf9ca9c0ecfedc827786167928519f0840755376b4943b1ebe278",
+  "promptChars": 4748,
+  "promptPreview": "Ты — нарратолог и биограф. Тебе дан список из 43 фактов о **Ковалевская, Софья Васильевна** (1850–1891).\n\nЗАДАЧА\nРаспредели ВСЕ факты по структуре визуального таймлайна:\n1. **Главная линия** — 10 (±2)",
+  "responseText": "{\n  \"mainLine\": [37, 3, 4, 5, 6, 10, 41, 16, 24, 33],\n  \"branches\": [\n    {\n      \"name\": \"Детство и юность в России\",\n      \"sphere\": \"family\",\n      \"facts\": [0, 38, 1, 2]\n    },\n    {\n      \"name\": \"Отношения с Владимиром Ковалевским\",\n      \"sphere\": \"family\",\n      \"facts\": [7, 8, 9, 11]\n    },\n    {\n      \"name\": \"Научная карьера и академическое признание\",\n      \"sphere\": \"education\",\n      \"facts\": [12, 13, 14, 15, 17, 20, 21, 25, 27, 28, 32, 42]\n    },\n    {\n      \"name\": \"Литературное творчество и мемуары\",\n      \"sphere\": \"creativity\",\n      \"facts\": [19, 22, 23, 26, 29, 30, 35]\n    },\n    {\n      \"name\": \"Отношения с Максимом Ковалевским\",\n      \"sphere\": \"family\",\n      \"facts\": [18, 31]\n    },\n    {\n      \"name\": \"Наследие и память\",\n      \"sphere\": \"other\",\n      \"facts\": [34, 36, 39, 40]\n    }\n  ]\n}",
+  "usage": {
+    "promptTokenCount": 1876,
+    "candidatesTokenCount": 391,
+    "totalTokenCount": 2267
+  },
+  "durationMs": 1681,
+  "recordedAt": "2026-07-09T21:21:05.679Z"
+}

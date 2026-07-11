@@ -1,0 +1,17 @@
+{
+  "step": "annotation",
+  "model": "gemini-2.5-flash",
+  "variant": "a",
+  "promptSha256": "a57fe1891f0c69186e8d7d682af43df3f11cf44acc4f39d0d3cf127a625923f8",
+  "promptChars": 8507,
+  "promptPreview": "Ты — разметчик биографических фактов о **Швейцер, Альберт**.\n\nЗАДАЧА\nДля каждого факта определи:\n1. **themes** — одну или две темы из списка ниже (основная первой)\n2. **people** — имена людей, упомяну",
+  "responseText": "0\tfamily_household\t\t\n1\tfamily_household\tШвейцер,Шиллингер\t\n2\teducation\t\t\n3\teducation\t\t\n4\teducation\t\t\n5\tservice_career,education\t\t\n6\ttravel_moves_exile,education\t\t\n7\teducation\t\t\n8\teducation,creative_work\tКант\t\n9\teducation\t\t\n10\tupbringing_mentors,creative_work\tВидор,Бах\t\n11\teducation\t\t\n12\tcreative_work\t\t\n13\tservice_career\t\t\n14\tromance\tБресслау\t\n15\tservice_career\t\t\n16\teducation\t\t\n17\tcreative_work\tБах\t\n18\tcreative_work\tРеймарус,Вреде\t\n19\tcreative_work\t\t\n20\ttravel_moves_exile,service_career\t\t\n21\tromance\t\t\n22\tcreative_work\t\t\n23\tcreative_work\tБах\t\n24\tservice_career\t\t\n25\tcreative_work\tБах\t\n26\tfriends_network,creative_work\tВагнер,Бах\t\n27\tcreative_work,friends_network\tВидор,Бах\t\n28\teducation\t\t\n29\tcreative_work\tПавел\t\n30\tcreative_work\tБах,Ньюман\t\n31\tromance\tБресслау\t\n32\teducation,creative_work\tИисус\t\n33\ttravel_moves_exile,romance\t\t\n34\tconflict_duels,travel_moves_exile\t\t\n35\tconflict_duels\t\t\n36\tchildren,family_household\t\t\n37\tservice_career\t\t\n38\tservice_career,creative_work\t\t\n39\tservice_career,travel_moves_exile\t\t\n40\teducation,legacy\t\t\n41\tcreative_work\t\t\n42\ttravel_moves_exile,service_career\t\t\n43\tservice_career\t\t\n44\ttravel_moves_exile\t\t\n45\tservice_career,creative_work\t\t\n46\tlegacy\tГёте\t\n47\tlegacy,service_career\tГёте\t\n48\tservice_career,travel_moves_exile\t\t\n49\ttravel_moves_exile,service_career\t\t\n50\teducation,legacy\t\t\n51\tconflict_duels,travel_moves_exile\t\t\n52\ttravel_moves_exile\t\t\n53\ttravel_moves_exile,service_career\t\t\n54\tlegacy\t\t\n55\tcreative_work,legacy\t\t\n56\tlegacy,service_career\t\t\n57\tlegacy\t\t\n58\tpolitics_public_pressure,creative_work\t\t\n59\tlosses\tБресслау\t\n60\ttravel_moves_exile\t\t\n61\tpolitics_public_pressure,creative_work\t\t\n62\tlosses\t\t\n63\tlosses\t\t\n64\tfamily_household\tСартр\t\n65\tromance,family_household\tБресслау\t\n66\teducation\t\t\n67\tcreative_work,education\tКант\t\n68\tcreative_work\tБах\t\n69\tcreative_work\t\t\n70\tcreative_work\tХристос\t\n71\tcreative_work\tХристос\t\n72\tcreative_work\t\t\n73\tromance,family_household\tБресслау\t\n74\tcreative_work,friends_network\tВагнер\t\n75\tcreative_work\t\t\n76\tcreative_work\tИисус\t\n77\tcreative_work,legacy\t\t\n78\tcreative_work\tБах\t\n79\tfriends_network,legacy\t\t\n80\tservice_career\t\t\n81\tservice_career,creative_work\t\t\n82\tcreative_work\t\t\n83\tservice_career,friends_network\t\t\n84\ttravel_moves_exile\t\t\n85\tlegacy\t\t\n86\tlegacy\t\t\n87\tservice_career\t\t\n88\tlosses",
+  "usage": {
+    "promptTokenCount": 3122,
+    "candidatesTokenCount": 941,
+    "thoughtsTokenCount": 6987,
+    "totalTokenCount": 11050
+  },
+  "durationMs": 30642,
+  "recordedAt": "2026-07-09T07:40:27.832Z"
+}

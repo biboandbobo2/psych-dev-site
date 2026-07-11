@@ -55,6 +55,14 @@ export function russianDateToISO(dateStr: string | undefined): string | undefine
 
   const match = normalizedStr.match(/(\d{1,2})\s+([A-Za-zА-Яа-яЁё]+)\s+(\d{4})/);
   if (!match) {
+    // «M/YYYY» — формат buildBirthDetails при известном месяце (Д-B3)
+    const monthYear = normalizedStr.match(/^(\d{1,2})\/(\d{4})$/);
+    if (monthYear) {
+      const monthNum = Number(monthYear[1]);
+      if (monthNum >= 1 && monthNum <= 12) {
+        return `${monthYear[2]}-${String(monthNum).padStart(2, '0')}-01`;
+      }
+    }
     const yearOnly = normalizedStr.match(/(\d{4})/);
     if (yearOnly) return `${yearOnly[1]}-01-01`;
     return dateStr;
@@ -69,18 +77,34 @@ export function russianDateToISO(dateStr: string | undefined): string | undefine
 
 export function pickBranchX(sphere: TimelineSphere, startAge: number, endAge: number, occupied: OccupiedBranchLane[]) {
   const slotOrder = BRANCH_SLOT_ORDER[sphere] || BRANCH_SLOT_ORDER.other;
+  // Д-B7: x — идентичность ветки в wire-формате (node.parentX === edge.x,
+  // buildTimelineTree и normalize различают ветки только по x). Лейн-шеринг
+  // «с непересекающимися окнами» отдавал события обеих веток одной из них
+  // при первой же загрузке. Никакого переиспользования x.
+  const collidesAt = (x: number) => occupied.some((lane) => lane.x === x);
+
   for (const slotIndex of slotOrder) {
     const x = LINE_X_POSITION + BRANCH_X_OFFSETS[slotIndex];
-    const collides = occupied.some((lane) => lane.x === x && !(lane.endAge + 1 < startAge || endAge + 1 < lane.startAge));
-    if (!collides) {
+    if (!collidesAt(x)) {
       occupied.push({ x, startAge, endAge });
       return x;
     }
   }
 
-  const x = LINE_X_POSITION + BRANCH_X_OFFSETS[slotOrder[0] ?? 0];
-  occupied.push({ x, startAge, endAge });
-  return x;
+  // Д-B4: все слоты заняты пересекающимися окнами. Раньше здесь ветка
+  // парковалась на занятый slotOrder[0] — shared-x с пересекающимся окном
+  // делает принадлежность событий произвольной (класс Д5). Уходим дальше
+  // от центра с тем же шагом сетки, пока не найдём свободный x.
+  let offset = Math.max(...BRANCH_X_OFFSETS) + 400;
+  for (;;) {
+    for (const x of [LINE_X_POSITION - offset, LINE_X_POSITION + offset]) {
+      if (!collidesAt(x)) {
+        occupied.push({ x, startAge, endAge });
+        return x;
+      }
+    }
+    offset += 400;
+  }
 }
 
 export function normalizeWhitespace(value: string) {

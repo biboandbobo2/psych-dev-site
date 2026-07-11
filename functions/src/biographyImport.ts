@@ -1,14 +1,8 @@
 /**
  * Cloud Function: biographyImport
- * Full biography pipeline in a single call with parallel slice extraction.
- * Replaces the multi-step Vercel endpoint that couldn't fit within 60s timeout.
- *
- * Steps:
- * 1. Fetch Wikipedia article
- * 2. Extract facts (slices in parallel via Promise.allSettled)
- * 3. Gap-filling
- * 4. Annotation + redaktura
- * 5. Composition + render → final timeline
+ * Тонкая обёртка над общим pipeline (server/api/timelineBiographyPipeline.ts):
+ * auth, Firestore-прогресс (biographyJobs/{jobId}), BYOK-учёт токенов.
+ * Сама оркестрация шагов живёт в shared-модуле — единая с automation runtime.
  */
 
 import { onRequest } from 'firebase-functions/v2/https';
@@ -18,41 +12,19 @@ import { initializeApp, getApps } from 'firebase-admin/app';
 
 import { logger } from 'firebase-functions/v2';
 
-// Import biography submodules (included via tsconfig)
+import { WIKIPEDIA_HOST_PATTERN } from '../../server/api/timelineBiographyTypes.js';
 import {
-  WIKIPEDIA_HOST_PATTERN,
-  type BiographyFactCandidate,
-  type BiographyExtractionMode,
-  type BiographyTimelineData,
-  type BiographyCompositionResult,
-  type BiographyEventTheme,
-} from '../../server/api/timelineBiographyTypes.js';
-import { fetchWikipediaPlainExtract } from '../../server/api/timelineBiographyWikipedia.js';
-import {
-  buildSimpleBiographyFactExtractionPrompt,
-  buildBiographyGapFillingPrompt,
-  buildBiographyAnnotationPrompt,
-  buildBiographyRedakturaPrompt,
-  buildBiographyCompositionPrompt,
-} from '../../server/api/timelineBiographyPrompts.js';
-import { buildPlanFromCompositionResult, findDeathFact } from '../../server/api/timelineBiographyComposer.js';
-import { buildTimelineDataFromBiographyPlan } from '../../server/api/timelineBiographyQuality.js';
+  runBiographyPipelineCore,
+  BIOGRAPHY_PROD_MODEL,
+  type BiographyPipelineResult,
+} from '../../server/api/timelineBiographyPipeline.js';
 import { buildBiographyEvaluationMetrics } from '../../server/api/timelineBiographyMetrics.js';
-import { cleanGenericEventLabels } from '../../server/api/timelineBiographyLint.js';
 import {
   callGeminiWithRetry,
-  collectGeminiResultText,
-  extractGeminiTokens,
   getGenAiClient,
   recordBiographyByokUsage,
 } from './biography/helpers.js';
-import {
-  deduplicateFacts,
-  parseAnnotationResponse,
-  parseRedakturaResponse,
-  parseSimpleJsonFacts,
-  type AnnotationEntry,
-} from './biography/parsers.js';
+import { normalizeError } from './biography/errors.js';
 
 // ============================================================================
 // INIT
@@ -67,6 +39,15 @@ if (getApps().length === 0) {
 getFirestore().settings({ ignoreUndefinedProperties: true });
 
 const JOBS_COLLECTION = 'biographyJobs';
+
+/** Прод-конфигурация модели импорта: lite-профиль (non-thinking модель,
+ *  дробление+few-shot extraction, structured output, объединённая разметка).
+ *  Пин в biographyImport.test.ts; поведение гейтится реплеем в
+ *  tests/benchmark/biographyPipelineQuality.test.ts. */
+export const BIOGRAPHY_IMPORT_TUNING = {
+  model: BIOGRAPHY_PROD_MODEL,
+  tuningProfile: 'lite',
+} as const;
 
 // ============================================================================
 // Validation
@@ -87,17 +68,6 @@ function validateSourceUrl(body: Record<string, unknown>): string {
     throw Object.assign(new Error('Некорректный URL.'), { statusCode: 400 });
   }
   return sourceUrl;
-}
-
-function normalizeError(error: unknown) {
-  const rawMessage = error instanceof Error ? error.message : String(error);
-  const statusCode = (error as { statusCode?: number }).statusCode;
-  if (statusCode) return { statusCode, message: rawMessage };
-
-  if (/quota|RESOURCE_EXHAUSTED|429/i.test(rawMessage)) return { statusCode: 429, message: 'Gemini временно недоступен из-за лимита запросов. Попробуйте позже.' };
-  if (/PERMISSION_DENIED|API key not valid|invalid api key|forbidden/i.test(rawMessage)) return { statusCode: 403, message: 'Gemini API key недействителен.' };
-  if (/JSON|Unexpected token|parse/i.test(rawMessage)) return { statusCode: 502, message: 'Gemini вернул некорректный ответ. Попробуйте ещё раз.' };
-  return { statusCode: 500, message: `Не удалось собрать таймлайн: ${rawMessage}` };
 }
 
 // ============================================================================
@@ -122,7 +92,7 @@ async function verifyAuth(req: { headers: Record<string, string | string[] | und
 }
 
 // ============================================================================
-// MAIN PIPELINE
+// MAIN PIPELINE (обёртка: Firestore job + BYOK учёт вокруг shared pipeline)
 // ============================================================================
 
 async function runFullBiographyPipeline(params: {
@@ -138,26 +108,14 @@ async function runFullBiographyPipeline(params: {
   jobId: string;
   subjectName: string;
   canvasName: string;
-  timeline?: BiographyTimelineData;
-  composition?: BiographyCompositionResult;
+  timeline?: BiographyPipelineResult['timeline'];
+  composition?: BiographyPipelineResult['composition'];
   meta: {
     factCount: number;
     model: string;
     rawTextChars: number;
-    planDiagnostics?: {
-      source: string;
-      mainEvents: number;
-      branches: number;
-      branchEvents: number;
-      hasBirthDate: boolean;
-      hasBirthPlace: boolean;
-    };
-    timelineStats?: {
-      nodes: number;
-      edges: number;
-      hasBirthDate: boolean;
-      hasBirthPlace: boolean;
-    };
+    planDiagnostics?: BiographyPipelineResult['planDiagnostics'];
+    timelineStats?: BiographyPipelineResult['timelineStats'];
     /** Lightweight quality summary for fast UI/log diagnostics without running timeline:eval CLI. */
     qualityMetrics?: {
       factsTotal: number;
@@ -175,7 +133,6 @@ async function runFullBiographyPipeline(params: {
   const client = getGenAiClient(params.apiKey);
 
   // Накопление total Gemini tokens для BYOK usage tracking (отображается в /profile).
-  // Все Gemini calls ниже инкрементируют этот счётчик через extractGeminiTokens(result).
   let totalTokens = 0;
 
   // Create job document (use client-provided jobId for onSnapshot tracking)
@@ -198,320 +155,56 @@ async function runFullBiographyPipeline(params: {
     await jobRef.update({ ...data, updatedAt: FieldValue.serverTimestamp() });
   };
 
+  // F3 (verifier): прогресс-записи не блокируют шаги pipeline, но идут строго
+  // по порядку и дожидаются до финального updateJob — иначе stale progress
+  // может записаться после status='done'.
+  let progressWrites: Promise<void> = Promise.resolve();
+  const queueProgressWrite = (data: Record<string, unknown>) => {
+    progressWrites = progressWrites
+      .then(() => updateJob(data))
+      .catch((err) => logger.warn('[biographyImport] progress update failed', err));
+  };
+
   try {
-    // --- Step 1: Wikipedia fetch ---
-    logger.info('[biographyImport] fetching Wikipedia', { sourceUrl: params.sourceUrl });
-    const wikiPage = await fetchWikipediaPlainExtract(params.sourceUrl);
-    const fullExtract = wikiPage.biographyExtract || wikiPage.extract;
-    const subjectName = wikiPage.title;
-    const len = fullExtract.length;
-
-    // --- Step 2: Slice extraction (pre-built by Wikipedia module with overlap + context) ---
-    const slices = wikiPage.factExtractSlices;
-
-    await updateJob({
-      subjectName,
-      status: 'step1_extracting',
-      progress: { step: 2, total: 6, label: 'Извлечение фактов', detail: `${slices.length} ${slices.length === 1 ? 'часть' : 'части'}` },
+    const result = await runBiographyPipelineCore({
+      sourceUrl: params.sourceUrl,
+      deps: {
+        ...BIOGRAPHY_IMPORT_TUNING,
+        callModel: (request, label) => callGeminiWithRetry(client, request as never, label),
+        onTokens: (tokens) => {
+          totalTokens += tokens;
+        },
+        onProgress: (step, total, label, detail) => {
+          queueProgressWrite({ progress: { step, total, label, ...(detail ? { detail } : {}) } });
+        },
+        onStage: async (stage, data) => {
+          if (stage === 'extraction') {
+            await updateJob({
+              subjectName: data.subjectName,
+              status: 'step1_done',
+              'step1.facts': data.facts,
+              'step1.model': BIOGRAPHY_IMPORT_TUNING.model,
+              'step1.rawTextChars': data.rawTextChars,
+              'step1.extract': data.extract,
+            });
+          } else if (stage === 'gap-filling') {
+            await updateJob({ status: 'step2_done', 'step2.facts': data.facts });
+          } else if (stage === 'redaktura') {
+            await updateJob({ status: 'step3_done', 'step3.facts': data.facts });
+          }
+        },
+        log: (message, data) => logger.info(`[biographyImport] ${message}`, data),
+        logError: (message, data) => logger.error(`[biographyImport] ${message}`, data),
+      },
     });
-    logger.info('[biographyImport] extraction start', { subjectName, chars: len, slices: slices.length });
 
-    // Extract slices sequentially to avoid Gemini rate limits (429)
-    let allFacts: BiographyFactCandidate[] = [];
-    const factsModel = 'gemini-2.5-flash';
-    for (let i = 0; i < slices.length; i++) {
-      const focusHint = slices.length > 1
-        ? `Персона: ${subjectName}. Это часть ${i + 1} из ${slices.length}. Извлекай ВСЕ факты из этого фрагмента — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`
-        : `Персона: ${subjectName}. Извлекай максимум фактов — включая мелкие семейные детали, конкретные произведения, второстепенные эпизоды, аресты, организации.`;
-
-      const prompt = buildSimpleBiographyFactExtractionPrompt({
-        articleTitle: subjectName,
-        extract: slices[i],
-        focusHint,
+    let qualityMetrics;
+    if (result.plan && result.timeline) {
+      const evalMetrics = buildBiographyEvaluationMetrics({
+        facts: result.facts,
+        plan: result.plan,
+        timeline: result.timeline,
       });
-
-      const result = await callGeminiWithRetry(client, {
-        model: 'gemini-2.5-flash',
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'text/plain' },
-      }, `extraction slice ${i + 1}/${slices.length}`);
-      totalTokens += extractGeminiTokens(result);
-
-      const rawText = collectGeminiResultText(result);
-      const facts = parseSimpleJsonFacts(rawText);
-      allFacts.push(...facts);
-      logger.info(`[biographyImport] slice ${i + 1}/${slices.length} done`, { facts: facts.length });
-    }
-    if (allFacts.length === 0) {
-      throw new Error('two-pass-flash-failed: all slices returned 0 facts');
-    }
-    allFacts = deduplicateFacts(allFacts);
-
-    // --- Post-extraction: filter facts beyond death + grace period ---
-    // Используем findDeathFact из composer'а: он фильтрует кандидатов по age 15-120
-    // и предпочитает high-importance, чтобы не спутать смерть родственника со смертью subject'а.
-    // Без этого первый встреченный death-fact (часто это смерть отца/матери) обрезает
-    // всю взрослую жизнь subject'а.
-    const extractedBirthFact = allFacts.find(f => f.category === 'birth' || f.eventType === 'birth');
-    const extractedBirthYear = extractedBirthFact?.year ?? null;
-    const extractedDeathFact = findDeathFact(allFacts, extractedBirthYear ?? undefined);
-    const extractedDeathYear = extractedDeathFact?.year;
-    if (extractedDeathYear != null) {
-      const cutoffYear = extractedDeathYear + 10;
-      const beforeFilter = allFacts.length;
-      allFacts = allFacts.filter(f => f.year == null || f.year <= cutoffYear);
-      const filtered = beforeFilter - allFacts.length;
-      if (filtered > 0) {
-        logger.info(`[biographyImport] post-death filter: removed ${filtered} facts after ${cutoffYear}`);
-      }
-    }
-
-    // --- Density calculation for gap-filling control ---
-    const datedForDensity = allFacts.filter(f => f.year != null);
-    const factYears = datedForDensity.map(f => f.year!);
-    // Use birth/death years for lifespan, not min/max of all facts (ancestors skew min)
-    const lifespanStart = extractedBirthYear ?? (factYears.length > 0 ? Math.min(...factYears) : 0);
-    const lifespanEnd = extractedDeathYear ?? (factYears.length > 0 ? Math.max(...factYears) : 0);
-    const lifespanYears = Math.max(1, lifespanEnd - lifespanStart);
-    const factDensity = datedForDensity.length / lifespanYears;
-    // density < 3: full gap-filling (short articles, few facts)
-    // density >= 3: dating only (enough facts, skip searching for missed ones)
-    const gapFillingMode: 'full' | 'dating-only' = factDensity < 3 ? 'full' : 'dating-only';
-    logger.info('[biographyImport] density analysis', {
-      facts: allFacts.length, lifespanYears, density: factDensity.toFixed(2), gapFillingMode,
-    });
-
-    await updateJob({
-      status: 'step1_done',
-      progress: { step: 3, total: 6, label: 'Gap-filling', detail: `${allFacts.length} фактов извлечено` },
-      'step1.facts': allFacts,
-      'step1.model': factsModel,
-      'step1.rawTextChars': len,
-      'step1.extract': fullExtract,
-    });
-    logger.info('[biographyImport] extraction done', { facts: allFacts.length });
-
-    // --- Step 3: Gap-filling ---
-    try {
-      const datedFacts = allFacts.filter(f => f.year != null);
-      const undatedFacts = allFacts.filter(f => f.year == null);
-      const existingFactTexts = datedFacts.map(f => `[${f.year}] ${f.details}`);
-      const undatedFactTexts = undatedFacts.map(f => f.details);
-
-      // Skip gap-filling entirely if density is high and no undated facts
-      if (gapFillingMode === 'dating-only' && undatedFactTexts.length === 0) {
-        logger.info('[biographyImport] skipping gap-filling: density high, no undated facts');
-      } else {
-        allFacts = [...datedFacts];
-        try {
-          const gapPrompt = buildBiographyGapFillingPrompt({
-            articleTitle: subjectName,
-            extract: fullExtract,
-            existingFacts: existingFactTexts,
-            undatedFacts: undatedFactTexts.length > 0 ? undatedFactTexts : undefined,
-            mode: gapFillingMode,
-            deathYear: extractedDeathYear,
-          });
-          const gapResult = await callGeminiWithRetry(client, {
-            model: 'gemini-2.5-flash',
-            contents: [{ role: 'user', parts: [{ text: gapPrompt }] }],
-            config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'text/plain' },
-          }, 'gap-filling');
-          totalTokens += extractGeminiTokens(gapResult);
-          const gapFacts = parseSimpleJsonFacts(collectGeminiResultText(gapResult));
-          if (gapFacts.length > 0) allFacts.push(...gapFacts);
-        } catch {
-          // Gap-fill failure is ok
-        }
-        allFacts = deduplicateFacts(allFacts);
-      }
-    } catch {
-      // Gap-filling is best-effort
-    }
-
-    // --- Post-gap-filling: re-apply death year filter (gap-filling may add posthumous junk) ---
-    if (extractedDeathYear != null) {
-      const cutoffYear = extractedDeathYear + 10;
-      const beforeGapFilter = allFacts.length;
-      allFacts = allFacts.filter(f => f.year == null || f.year <= cutoffYear);
-      const gapFiltered = beforeGapFilter - allFacts.length;
-      if (gapFiltered > 0) {
-        logger.info(`[biographyImport] post-gap-filling death filter: removed ${gapFiltered} facts after ${cutoffYear}`);
-      }
-    }
-
-    await updateJob({
-      status: 'step2_done',
-      progress: { step: 4, total: 6, label: 'Аннотация и ранжирование', detail: `${allFacts.length} фактов после добивки` },
-      'step2.facts': allFacts,
-    });
-    logger.info('[biographyImport] gap-filling done', { facts: allFacts.length });
-
-    // --- Step 4: Annotation ---
-    const indexedForAnnotation = allFacts.map((fact, index) => ({
-      index,
-      year: fact.year ?? null,
-      details: fact.details ?? fact.evidence ?? '',
-    }));
-    const annotationPrompt = buildBiographyAnnotationPrompt({
-      subjectName,
-      facts: indexedForAnnotation,
-    });
-
-    let annotations = new Map<number, AnnotationEntry>();
-    try {
-      const annotResult = await callGeminiWithRetry(client, {
-        model: 'gemini-2.5-flash',
-        contents: [{ role: 'user', parts: [{ text: annotationPrompt }] }],
-        config: { temperature: 0.05, maxOutputTokens: 65536, responseMimeType: 'text/plain' },
-      }, 'annotation');
-      totalTokens += extractGeminiTokens(annotResult);
-      annotations = parseAnnotationResponse(collectGeminiResultText(annotResult));
-    } catch (error) {
-      logger.error('[biographyImport] annotation failed', { error });
-    }
-
-    const annotatedFacts = allFacts.map((fact, index) => {
-      const ann = annotations.get(index);
-      return { ...fact, themes: ann?.themes ?? fact.themes, people: ann?.people?.length ? ann.people : fact.people, month: ann?.month ?? fact.month };
-    });
-
-    // --- Step 5: Redaktura ---
-    const indexedForRedaktura = annotatedFacts.map((fact, index) => ({
-      index,
-      year: fact.year ?? null,
-      details: fact.details ?? fact.evidence ?? '',
-      themes: annotations.get(index)?.themes ?? fact.themes ?? [],
-    }));
-    const redakturaPrompt = buildBiographyRedakturaPrompt({
-      subjectName,
-      facts: indexedForRedaktura,
-    });
-
-    let finalFacts = annotatedFacts;
-    try {
-      const redResult = await callGeminiWithRetry(client, {
-        model: 'gemini-2.5-flash',
-        contents: [{ role: 'user', parts: [{ text: redakturaPrompt }] }],
-        config: { temperature: 0.05, maxOutputTokens: 16384, responseMimeType: 'text/plain' },
-      }, 'redaktura');
-      totalTokens += extractGeminiTokens(redResult);
-      const redaktura = parseRedakturaResponse(collectGeminiResultText(redResult));
-      finalFacts = annotatedFacts.map((fact, index) => {
-        const red = redaktura.get(index);
-        const rankScore = red?.importance ?? 2;
-        const importance: 'high' | 'medium' | 'low' = rankScore >= 4 ? 'high' : rankScore === 3 ? 'medium' : 'low';
-        return { ...fact, shortLabel: red?.shortLabel ?? fact.shortLabel, importance };
-      });
-    } catch (error) {
-      logger.error('[biographyImport] redaktura failed', { error });
-    }
-
-    await updateJob({
-      status: 'step3_done',
-      progress: { step: 5, total: 6, label: 'Композиция таймлайна', detail: `${finalFacts.length} фактов обработано` },
-      'step3.facts': finalFacts,
-    });
-    logger.info('[biographyImport] annotation+redaktura done', { facts: finalFacts.length });
-
-    // --- Step 6: Composition + render ---
-    const birthFact = finalFacts.find(f => f.eventType === 'birth' || f.category === 'birth');
-    const birthYear = birthFact?.year ?? finalFacts[0]?.year ?? 0;
-    const deathFact = finalFacts.find(f => f.category === 'death')
-      ?? finalFacts.find(f => f.themes?.includes('losses') && (f.details?.includes('скончал') || f.details?.includes('Умер') || f.details?.includes('умер')));
-    const allYears = finalFacts.map(f => f.year ?? 0).filter(y => y > 0 && y < 2100);
-    const deathYear = deathFact?.year ?? (allYears.length > 0 ? Math.max(...allYears) : null);
-
-    const importanceToScore = (imp: string | undefined): number => {
-      if (imp === 'high') return 4;
-      if (imp === 'medium') return 3;
-      return 2;
-    };
-
-    const compositionPrompt = buildBiographyCompositionPrompt({
-      subjectName,
-      birthYear,
-      deathYear,
-      facts: finalFacts.map((fact, index) => ({
-        index,
-        year: fact.year ?? 0,
-        shortLabel: fact.shortLabel ?? (fact.details ?? fact.evidence ?? '').slice(0, 40),
-        themes: (fact.themes ?? []).join(','),
-        people: (fact.people ?? []).join(','),
-        importance: importanceToScore(fact.importance),
-      })),
-    });
-
-    let composition: BiographyCompositionResult;
-    try {
-      const compResult = await callGeminiWithRetry(client, {
-        model: 'gemini-2.5-flash',
-        contents: [{ role: 'user', parts: [{ text: compositionPrompt }] }],
-        config: { temperature: 0.1, maxOutputTokens: 65536, responseMimeType: 'application/json' },
-      }, 'composition');
-      totalTokens += extractGeminiTokens(compResult);
-      composition = JSON.parse(collectGeminiResultText(compResult)) as BiographyCompositionResult;
-    } catch (error) {
-      logger.error('[biographyImport] composition failed, using fallback single-branch layout', { error });
-      // Fallback: all facts on mainLine, no branches
-      composition = {
-        mainLine: finalFacts.map((_, i) => i),
-        branches: [],
-      };
-    }
-
-    // Fill in missing facts
-    const assigned = new Set<number>();
-    for (const idx of composition.mainLine) assigned.add(idx);
-    for (const branch of composition.branches) {
-      for (const idx of branch.facts) assigned.add(idx);
-    }
-    const missing = finalFacts.map((_, i) => i).filter(i => !assigned.has(i));
-    if (missing.length > 0 && composition.branches.length > 0) {
-      composition.branches[composition.branches.length - 1].facts.push(...missing);
-    }
-
-    // Convert composition → plan → timeline
-    let timeline: BiographyTimelineData | undefined;
-    let planDiagnostics: {
-      source: string; mainEvents: number; branches: number; branchEvents: number;
-      hasBirthDate: boolean; hasBirthPlace: boolean;
-    } | undefined;
-    let timelineStats: {
-      nodes: number; edges: number; hasBirthDate: boolean; hasBirthPlace: boolean;
-    } | undefined;
-
-    let qualityMetrics: {
-      factsTotal: number;
-      factsWithThemes: number;
-      themesCovered: number;
-      mainEvents: number;
-      branches: number;
-      branchEvents: number;
-      genericLabels: number;
-      emptyNotes: number;
-    } | undefined;
-
-    try {
-      const rawPlan = buildPlanFromCompositionResult({ subjectName, facts: finalFacts, composition });
-      const plan = cleanGenericEventLabels({ plan: rawPlan, facts: finalFacts });
-      timeline = buildTimelineDataFromBiographyPlan(plan);
-      planDiagnostics = {
-        source: 'facts-first',
-        mainEvents: plan.mainEvents.length,
-        branches: plan.branches.length,
-        branchEvents: plan.branches.reduce((sum: number, b: { events: unknown[] }) => sum + b.events.length, 0),
-        hasBirthDate: Boolean(plan.birthDetails?.date),
-        hasBirthPlace: Boolean(plan.birthDetails?.place),
-      };
-      timelineStats = {
-        nodes: timeline.nodes.length,
-        edges: timeline.edges.length,
-        hasBirthDate: Boolean(timeline.birthDetails?.date),
-        hasBirthPlace: Boolean(timeline.birthDetails?.place),
-      };
-
-      const evalMetrics = buildBiographyEvaluationMetrics({ facts: finalFacts, plan, timeline });
       qualityMetrics = {
         factsTotal: evalMetrics.facts.total,
         factsWithThemes: evalMetrics.facts.withThemes,
@@ -522,22 +215,21 @@ async function runFullBiographyPipeline(params: {
         genericLabels: evalMetrics.plan.genericLabels,
         emptyNotes: evalMetrics.plan.emptyNotes,
       };
-    } catch (error) {
-      logger.error('[biographyImport] plan/timeline conversion failed', { error });
     }
 
     const meta = {
-      factCount: finalFacts.length,
-      model: `${factsModel} -> annotation -> redaktura -> composition -> render`,
-      rawTextChars: len,
-      planDiagnostics,
-      timelineStats,
+      factCount: result.facts.length,
+      model: `${result.factsModel} -> annotation -> redaktura -> composition -> render`,
+      rawTextChars: result.rawTextChars,
+      planDiagnostics: result.planDiagnostics,
+      timelineStats: result.timelineStats,
       qualityMetrics,
     };
 
+    await progressWrites;
     await updateJob({
       status: 'done',
-      step4: { timeline, composition, canvasName: subjectName, meta },
+      step4: { timeline: result.timeline, composition: result.composition, canvasName: result.subjectName, meta },
     });
 
     // BYOK usage tracking — учитываем потраченные tokens в /profile под action `biography:import`.
@@ -548,20 +240,21 @@ async function runFullBiographyPipeline(params: {
 
     logger.info('[biographyImport] complete', {
       jobId: jobRef.id,
-      nodes: timelineStats?.nodes,
+      nodes: result.timelineStats?.nodes,
       totalTokens,
       byokTracked: params.isBYOK,
     });
 
     return {
       jobId: jobRef.id,
-      subjectName,
-      canvasName: subjectName,
-      timeline,
-      composition,
+      subjectName: result.subjectName,
+      canvasName: result.subjectName,
+      timeline: result.timeline,
+      composition: result.composition,
       meta,
     };
   } catch (error) {
+    await progressWrites;
     await updateJob({ status: 'error', error: error instanceof Error ? error.message : String(error) });
     throw error;
   }

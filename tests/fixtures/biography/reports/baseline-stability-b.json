@@ -1,0 +1,246 @@
+{
+  "aggregate": {
+    "variant": "b",
+    "generatedAt": "2026-07-07T23:52:55.460Z",
+    "rows": [
+      {
+        "group": "ALL",
+        "articles": 5,
+        "failed": 5,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": null,
+        "criticalPct": null,
+        "dateAccuracyPct": null,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 0
+      },
+      {
+        "group": "set:worker",
+        "articles": 5,
+        "failed": 5,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": null,
+        "criticalPct": null,
+        "dateAccuracyPct": null,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 0
+      },
+      {
+        "group": "cat:en",
+        "articles": 1,
+        "failed": 1,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": null,
+        "criticalPct": null,
+        "dateAccuracyPct": null,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 0
+      },
+      {
+        "group": "cat:incomplete-dates",
+        "articles": 1,
+        "failed": 1,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": null,
+        "criticalPct": null,
+        "dateAccuracyPct": null,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 0
+      },
+      {
+        "group": "cat:long-article",
+        "articles": 2,
+        "failed": 2,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": null,
+        "criticalPct": null,
+        "dateAccuracyPct": null,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 0
+      },
+      {
+        "group": "cat:migration",
+        "articles": 1,
+        "failed": 1,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": null,
+        "criticalPct": null,
+        "dateAccuracyPct": null,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 0
+      },
+      {
+        "group": "cat:multi-profession",
+        "articles": 1,
+        "failed": 1,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": null,
+        "criticalPct": null,
+        "dateAccuracyPct": null,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 0
+      },
+      {
+        "group": "cat:parallel-projects",
+        "articles": 1,
+        "failed": 1,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": null,
+        "criticalPct": null,
+        "dateAccuracyPct": null,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 0
+      },
+      {
+        "group": "cat:psychologist",
+        "articles": 3,
+        "failed": 3,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": null,
+        "criticalPct": null,
+        "dateAccuracyPct": null,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 0
+      },
+      {
+        "group": "cat:ru",
+        "articles": 4,
+        "failed": 4,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": null,
+        "criticalPct": null,
+        "dateAccuracyPct": null,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 0
+      },
+      {
+        "group": "cat:scientist",
+        "articles": 1,
+        "failed": 1,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": null,
+        "criticalPct": null,
+        "dateAccuracyPct": null,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 0
+      },
+      {
+        "group": "cat:short-article",
+        "articles": 1,
+        "failed": 1,
+        "refViolations": 0,
+        "normalizeEdits": 0,
+        "outsideWindow": 0,
+        "sharedX": 0,
+        "coveragePct": null,
+        "criticalPct": null,
+        "dateAccuracyPct": null,
+        "genericLabels": 0,
+        "manualFixShare": 100,
+        "avgTokens": 0
+      }
+    ]
+  },
+  "results": [
+    {
+      "articleId": "vygotsky",
+      "set": "worker",
+      "categories": [
+        "ru",
+        "psychologist",
+        "long-article"
+      ],
+      "failed": true,
+      "failureMessage": "two-pass-flash-failed: all slices returned 0 facts"
+    },
+    {
+      "articleId": "pavlov",
+      "set": "worker",
+      "categories": [
+        "ru",
+        "scientist"
+      ],
+      "failed": true,
+      "failureMessage": "two-pass-flash-failed: all slices returned 0 facts"
+    },
+    {
+      "articleId": "james",
+      "set": "worker",
+      "categories": [
+        "en",
+        "psychologist",
+        "multi-profession",
+        "long-article"
+      ],
+      "failed": true,
+      "failureMessage": "two-pass-flash-failed: all slices returned 0 facts"
+    },
+    {
+      "articleId": "lazursky",
+      "set": "worker",
+      "categories": [
+        "ru",
+        "psychologist",
+        "short-article",
+        "incomplete-dates"
+      ],
+      "failed": true,
+      "failureMessage": "two-pass-flash-failed: all slices returned 0 facts"
+    },
+    {
+      "articleId": "nabokov",
+      "set": "worker",
+      "categories": [
+        "ru",
+        "migration",
+        "parallel-projects"
+      ],
+      "failed": true,
+      "failureMessage": "two-pass-flash-failed: all slices returned 0 facts"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "step": "composition",
+  "model": "gemini-2.5-flash",
+  "variant": "a",
+  "promptSha256": "9d0dd61b233581b24dc727b4f275ca78db01122a34620eb3d5f2d7bfa84abb83",
+  "promptChars": 5285,
+  "promptPreview": "Ты — нарратолог и биограф. Тебе дан список из 53 фактов о **Лазурский, Александр Фёдорович** (1874–1917).\n\nЗАДАЧА\nРаспредели ВСЕ факты по структуре визуального таймлайна:\n1. **Главная линия** — 10 (±2",
+  "responseText": "{\n  \"mainLine\": [\n    43,\n    4,\n    6,\n    7,\n    44,\n    20,\n    22,\n    47,\n    32,\n    36,\n    38,\n    51\n  ],\n  \"branches\": [\n    {\n      \"name\": \"Детство и гимназические годы\",\n      \"sphere\": \"family_household\",\n      \"facts\": [\n        0,\n        1,\n        2,\n        3\n      ]\n    },\n    {\n      \"name\": \"Становление в клинике Бехтерева и Обществе психиатров\",\n      \"sphere\": \"career\",\n      \"facts\": [\n        5,\n        8,\n        9,\n        10,\n        11,\n        23\n      ]\n    },\n    {\n      \"name\": \"Диссертация и первые научные признания\",\n      \"sphere\": \"creative_work\",\n      \"facts\": [\n        12,\n        13,\n        15,\n        14,\n        16,\n        17,\n        18\n      ]\n    },\n    {\n      \"name\": \"Зарубежные командировки и обучение\",\n      \"sphere\": \"travel_moves_exile\",\n      \"facts\": [\n        19,\n        45,\n        46,\n        21\n      ]\n    },\n    {\n      \"name\": \"Формирование характерологии и метод естественного эксперимента\",\n      \"sphere\": \"creative_work\",\n      \"facts\": [\n        24,\n        25,\n        26,\n        27,\n        28,\n        29,\n        30,\n        31,\n        48\n      ]\n    },\n    {\n      \"name\": \"Работа в Психоневрологическом институте, поздние исследования и конфликты\",\n      \"sphere\": \"career\",\n      \"facts\": [\n        33,\n        34,\n        35,\n        50,\n        37,\n        49,\n        39,\n        40\n      ]\n    },\n    {\n      \"name\": \"Посмертное наследие и влияние\",\n      \"sphere\": \"legacy\",\n      \"facts\": [\n        41,\n        42,\n        52\n      ]\n    }\n  ]\n}",
+  "usage": {
+    "promptTokenCount": 2141,
+    "candidatesTokenCount": 568,
+    "thoughtsTokenCount": 8614,
+    "totalTokenCount": 11323
+  },
+  "durationMs": 37572,
+  "recordedAt": "2026-07-07T21:53:18.504Z"
+}

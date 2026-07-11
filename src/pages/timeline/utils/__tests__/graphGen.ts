@@ -252,12 +252,16 @@ export function ageById(flat: FlatGraph): Map<string, number> {
  * Каноническое сравнение семантики: сортировка по id, координаты
  * включаются опционально (для проверок «данные не изменились» vs
  * «данные не изменились с точностью до презентации»).
+ *
+ * branchId исключается всегда: это производный указатель принадлежности
+ * (RFC timeline-branch-id, фаза 1), дублирующий связь parentX→edge.x.
+ * Досев производного поля не считается изменением пользовательских данных.
  */
 export function canonical(flat: FlatGraph, { withCoords = true } = {}): string {
   const nodes = [...flat.nodes]
     .sort((a, b) => a.id.localeCompare(b.id))
     .map((n) => {
-      const { x, parentX, ...semantic } = n;
+      const { x, parentX, branchId: _branchId, ...semantic } = n;
       return withCoords ? { ...semantic, x, parentX } : semantic;
     });
   const edges = [...flat.edges]

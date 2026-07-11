@@ -37,6 +37,14 @@ function collectAllPlanEvents(plan: BiographyTimelinePlan) {
   return [...plan.mainEvents, ...plan.branches.flatMap((branch) => branch.events)];
 }
 
+// Д-B5: JSON-парсер pipeline не заполняет fact.age — выводим возраст из
+// year относительно birth-факта, иначе earlyLifeFacts всегда 0.
+function resolveFactAge(fact: BiographyFactCandidate, birthYear: number | null): number | null {
+  if (Number.isFinite(fact.age)) return Number(fact.age);
+  if (birthYear != null && fact.year != null) return fact.year - birthYear;
+  return null;
+}
+
 export function buildBiographyEvaluationMetrics(params: {
   facts: BiographyFactCandidate[];
   plan: BiographyTimelinePlan;
@@ -44,6 +52,8 @@ export function buildBiographyEvaluationMetrics(params: {
 }): BiographyEvaluationMetrics {
   const allEvents = collectAllPlanEvents(params.plan);
   const branchEvents = params.plan.branches.reduce((total, branch) => total + branch.events.length, 0);
+  const birthYear =
+    params.facts.find((fact) => fact.eventType === 'birth' || fact.category === 'birth')?.year ?? null;
 
   return {
     facts: {
@@ -51,7 +61,10 @@ export function buildBiographyEvaluationMetrics(params: {
       approximate: params.facts.filter(isApproximateFact).length,
       withPeople: params.facts.filter((fact) => (fact.people?.length || 0) > 0).length,
       withThemes: params.facts.filter((fact) => (fact.themes?.length || 0) > 0).length,
-      earlyLifeFacts: params.facts.filter((fact) => Number.isFinite(fact.age) && Number(fact.age) <= 18).length,
+      earlyLifeFacts: params.facts.filter((fact) => {
+        const age = resolveFactAge(fact, birthYear);
+        return age != null && age >= 0 && age <= 18;
+      }).length,
       themeCoverage: countThemeCoverage(params.facts),
     },
     plan: {

@@ -55,44 +55,99 @@ Browser
 
 Все шаги логируются в Cloud Functions logs с префиксом `[biographyImport]`.
 
+**Модели (с 2026-07-11):** прод (CF `biographyImport`) работает на
+`BIOGRAPHY_PROD_MODEL = gemini-3.1-flash-lite` с `tuningProfile: 'lite'` —
+non-thinking модель, 12–25× дешевле 2.5-flash по токенам, переживает
+retirement 2.5-flash (2026-10-16). Конфиг — `BIOGRAPHY_IMPORT_TUNING` в CF,
+запинен тестом `functions/src/biographyImport.test.ts`.
+`DEFAULT_BIOGRAPHY_MODEL` pipeline остаётся `gemini-2.5-flash` — это
+baseline бенчмарка (кэш и quality gate дефолтного пути стабильны).
+
 | # | Stage | Что делает | Gemini call | Время |
 |---|-------|-----------|-------------|-------|
 | 1 | Wikipedia fetch | Скачивает plain extract через MediaWiki API, валидирует URL (только `*.wikipedia.org`) | нет | ~1-2 сек |
-| 2 | Extraction | По slice'ам извлекает hard facts (год, текст, category, eventType). После — post-death filter (см. edge cases). | gemini-2.5-flash, до 65536 tokens, может retry до 3 раз с 60s delay на 429 | 30-90 сек |
-| 3 | Gap-filling | Дозаполняет дыры между фактами (для биографий с density < 3 facts/year). Условно skip если density высокая. | gemini-2.5-flash | 60-120 сек |
-| 4 | Annotation + Redaktura | Аннотирует (themes, people, month, day) и редактирует (importance 1-5, shortLabel ≤ 25 chars). | 2 sequential calls | 30-60 сек |
-| 5 | Composition | Строит mainLine + branches из facts через Gemini. После — `buildPlanFromCompositionResult` локально. | gemini-2.5-flash | 20-90 сек |
+| 2 | Extraction | По slice'ам извлекает hard facts (год, текст, category, eventType). После — post-death filter (см. edge cases). | Flash-модель, до 65536 tokens, может retry до 3 раз с 60s delay на 429 | 30-90 сек |
+| 3 | Gap-filling | Дозаполняет дыры между фактами (для биографий с density < 3 facts/year). Условно skip если density высокая. | Flash-модель | 60-120 сек |
+| 4 | Annotation + Redaktura | Аннотирует (themes, people, month, day) и редактирует (importance 1-5, shortLabel ≤ 25 chars). | 2 sequential calls (lite-профиль: 1 объединённый JSON-вызов, BPT-9) | 30-60 сек |
+| 5 | Composition | Строит mainLine + branches из facts через Gemini. После — `buildPlanFromCompositionResult` локально. | Flash-модель | 20-90 сек |
 | 6 | Render | Локальная сборка `TimelineData` из composition: разводит x-координаты веток, фильтрует posthumous, добавляет terminal death event. | нет | <100 мс |
 
-### Файлы и их роли
+### Lite-профиль (`tuningProfile: 'lite'`, прод с 2026-07-11)
+
+Non-thinking модели (3.1-flash-lite) недобирают факты на декларативном
+«извлеки всё» и фабрикуют даты. Профиль компенсирует (всё в
+`timelineBiographyPipeline.ts`):
+
+- **Процедурное дробление** — `buildLiteExtractionEmphasis`: per-paragraph
+  процедура + минимум фактов (`sliceChars/400`, не меньше 60).
+- **Few-shot датировки** — `LITE_DATING_EXAMPLES`: честный `year: null`
+  когда года нет в тексте, дюративные обороты («С 1902 года…»).
+- **Structured output** — `responseSchema` c nullable `year`/`month` и enum
+  category/sphere (документированный Google-приём против фабрикации дат).
+- **Объединённая разметка (BPT-9)** — annotation+redaktura одним JSON-вызовом
+  (`markupBiographyFactsMerged`); −1 запрос на импорт.
+
+Гарды фабрикации дат работают на ЛЮБОМ пути (и дефолтном):
+`stripFabricatedYearClusters` (кластер ≥10 фактов и >20% на один год →
+year обнуляется) и `stripUnreliableMonths` (модальный месяц >60% при
+выборке ≥20 → месяцы обнуляются). Срезанное видно в бенчмарке через
+`manualFixReasons: yearsFabricated=N` / `dateSanity`.
+
+Известные слабости lite (бэклог): плотность вторичных фактов на длинных
+RU-статьях (BPT-13), кросс-языковые дубли на EN-статьях (BPT-14).
+
+### Файлы и их роли (после BPT-2, 2026-07)
+
+Оркестрация шагов живёт в ОДНОМ модуле — `server/api/timelineBiographyPipeline.ts`.
+CF и Vercel automation runtime — тонкие обёртки над ним.
 
 ```
-functions/src/biographyImport.ts    ← Cloud Function entry, оркестрирует все 6 шагов
-                                      Пишет в biographyJobs/{jobId}, использует helpers ниже
+server/api/timelineBiographyPipeline.ts ← ЕДИНОЕ ядро pipeline (BPT-2):
+                                          extraction → post-death фильтр → gap-filling →
+                                          annotation → redaktura → composition → render.
+                                          Транспорт-агностично: модель через callModel,
+                                          прогресс/стадии/логи/токены через callbacks.
 
-server/api/timelineBiography*.ts    ← shared helpers (импортируются и из CF, и из Vercel API)
-  ├─ Types.ts                       ← BiographyFactCandidate, model lists
+functions/src/biographyImport.ts    ← Cloud Function: auth + Firestore-прогресс
+                                      (onStage → biographyJobs step1..3) + BYOK-учёт
+                                      (onTokens) + retry (callGeminiWithRetry в callModel)
+server/api/timelineBiographyRuntime.ts ← automation-обёртка: инжекция Gemini-клиента
+                                      (setBiographyGenAiClientFactory — бенчмарк/тесты),
+                                      validate/error-mapping, сборка payload
+
+server/api/timelineBiography*.ts    ← shared helpers
+  ├─ Types.ts                       ← BiographyFactCandidate, wire-типы, model lists
   ├─ Wikipedia.ts                   ← URL validation, fetchWikipediaPlainExtract,
-  │                                   biographyExtract (без библиографий) и promptExtract (срез)
+  │                                   biographyExtract и factExtractSlices (28K+overlap)
   ├─ Prompts.ts                     ← все Gemini prompt builders (5 штук)
-  ├─ Composer.ts                    ← findDeathFact(), buildPlanFromCompositionResult,
-  │                                   разводка x-координат веток, posthumous pruning
-  ├─ Quality.ts                     ← buildTimelineDataFromBiographyPlan, conservative normalize
-  ├─ Heuristics.ts                  ← line-based facts parsing, baseline facts, deduplication
-  ├─ Lint.ts                        ← post-compose checks: empty notes, generic labels, dups
-  ├─ Metrics.ts                     ← локальная оценка для CLI-итераций (не в CF)
-  └─ LabelQuality.ts                ← shortLabel длина, обрезка по словам
+  ├─ Parsers.ts                     ← parseSimpleJsonFacts, deduplicateFacts, TSV-парсеры
+  │                                   (канонические; functions/biography/parsers — re-export)
+  ├─ Composer.ts                    ← findDeathFact, resolveCompositionLifespan,
+  │                                   sanitizeCompositionResult (B3), buildPlanFromCompositionResult
+  ├─ Quality.ts                     ← buildTimelineDataFromBiographyPlan (render:
+  │                                   лейны веток, спуры, edge.label из имени ветки)
+  ├─ Facts.ts                       ← дедуп кандидатов, filterFactsBeyondDeath,
+  │                                   resolveGapFillingMode
+  ├─ Heuristics.ts                  ← pickBranchX (x уникален всегда — Д-B7),
+  │                                   russianDateToISO, label-эвристики
+  ├─ Lint.ts                        ← post-compose checks + cleanGenericEventLabels
+  │                                   (свой факт по notes===details, fuzzy — legacy fallback)
+  ├─ Metrics.ts                     ← buildBiographyEvaluationMetrics (qualityMetrics в CF)
+  └─ LabelQuality.ts                ← generic/truncated label detection
 
-api/timeline-biography-automation.ts  ← Vercel API: полный pipeline за один вызов <60 сек
-                                        (для коротких биографий + CLI бенчмарков)
-api/timeline-biography-extractor-automation.ts ← extraction-only endpoint (для бенчмарков)
-api/timeline-biography.ts            ← legacy 3-step jobs flow (можно удалить — не используется UI)
+api/timeline-biography-automation.ts  ← Vercel API: полный pipeline за один вызов
+                                        (⚠ 60s лимит Vercel — только короткие статьи)
+api/timeline-biography-extractor-automation.ts ← extraction-only endpoint
 
 src/pages/timeline/hooks/useBiographyImport.ts ← клиентский hook:
                                                  fetch к CF + onSnapshot Firestore + state
 src/pages/timeline/components/BiographyImportModal.tsx ← модалка прогресса
 src/pages/Timeline.tsx               ← интеграция: useBiographyImport + applyTimeline
 ```
+
+Возраст события дробный (A2): `age = (год − годРождения) + (месяц − 0.5)/12` —
+события одного года упорядочены хронологически и не коллидируют «одним
+возрастом», если месяц известен.
 
 ### Firestore схема `biographyJobs/{jobId}`
 
@@ -124,7 +179,7 @@ src/pages/Timeline.tsx               ← интеграция: useBiographyImpor
   - фильтрует кандидатов по age 15-120 от birthYear
   - предпочитает high-importance
   - среди оставшихся — самый поздний
-- **Где применяется**: и в composer (для финального terminal event), и в CF post-extraction filter (`functions/src/biographyImport.ts:445`).
+- **Где применяется**: `resolveCompositionLifespan` (единая точка для composition-промпта и рендера) + post-death фильтр в pipeline (после extraction и после gap-filling, грейс +10 лет). Наивный `find(category==='death')` удалён отовсюду (Д-B2).
 - **Симптом регрессии**: в логах `post-death filter: removed N facts after <year>` — год сильно меньше реального death year. Например для Плеханова (умер 1918) детектор взял 1883 (смерть отца).
 
 #### Pro модели запрещены
@@ -148,6 +203,56 @@ src/pages/Timeline.tsx               ← интеграция: useBiographyImpor
 - Action label: `biography:import` (видно в `byAction.biography:import.{tokens,requests}` в Firestore document).
 - Tokens учитываются **только если использован BYOK ключ** (header `X-Gemini-Api-Key`). Server fallback (`process.env.GEMINI_API_KEY`) не пишется — это admin/server-side path.
 - Сумма tokens по всему pipeline (5 Gemini calls) суммируется через `extractGeminiTokens(result.usageMetadata?.totalTokenCount)` после каждого call.
+
+### Benchmark и quality gates (2026-07)
+
+Импорт биографий измеряется воспроизводимым benchmark'ом (ветка
+`audit/biography-import-bench`): 20 биографий (15 worker / 5 holdout,
+категории ru/en/длина/миграции/мультипрофессии/противоречивость).
+
+```bash
+npm run timeline:benchmark-suite -- --fetch-fixtures      # статьи Wikipedia → fixtures (0 токенов)
+npm run timeline:benchmark-suite -- --set=all --live --tag=baseline   # live-прогон (ТРЕБУЕТ одобрения бюджета)
+npm run timeline:benchmark-suite -- --articles=vygotsky --tag=x       # реплей из кэша (0 токенов)
+npm run timeline:benchmark-suite -- --compare=tagA,tagB               # сравнение отчётов
+```
+
+Ключевые принципы:
+- **Кэш всего**: статьи Wikipedia в `tests/fixtures/biography/wiki/`, сырые
+  ответы Gemini по (статья, шаг, sha256 промпта+конфига, variant) в
+  `tests/fixtures/biography/gemini/`. Повторный расчёт метрик и регрессия
+  незатронутых шагов не тратят ни одного токена. Изменение промпта/конфига
+  меняет ключ → осознанная пересъёмка live.
+- **Ground truth**: `scripts/lib/biographyBenchmarkGroundTruth.ts` (~120
+  фактов с годами и матчерами); каждый article-матчер валидируется против
+  текста fixture тестом `tests/benchmark/biographyGroundTruth.test.ts`.
+  Timeline-матчеры включают русские стемы и для EN-статей — pipeline
+  по дизайну выдаёт русскоязычные факты.
+- **CI quality gates**: `tests/benchmark/biographyPipelineQuality.test.ts`
+  реплеит pipeline из кэша (~2 сек) и требует: referentialViolations=0,
+  duplicateIds=0, событий вне окон веток 0, shared-x 0,
+  правок normalizeImportedTimelineData 0, 100% critical-фактов,
+  coverage ≥90%, generic-лейблов ≤2. Два прохода: дефолтный путь
+  (2.5-flash, baseline) и **прод-конфиг lite** (`BIOGRAPHY_PROD_MODEL` +
+  `tuningProfile: 'lite'`) — смена lite-промпта без пере-снятия
+  lite-бенчмарка роняет гейт «прод-конфиг не покрыт реплеем».
+- **Holdout (luria, skinner, curie, blonsky, piaget)** — никогда не
+  подгонять под него промпты/код; только финальная проверка изменений.
+  Ухудшение на holdout = откат.
+- **Стабильность**: два независимых прогона (`--variant=b`) на 5 статьях
+  (STABILITY_SUBSET_IDS), не на всех 20.
+
+Квоты free tier (2026-07): **20 запросов/день/проект** на gemini-2.5-flash,
+сброс в полночь PT. Один импорт = 5–7 вызовов (lite-профиль: 4–6, разметка
+объединена). У flash-lite free tier заметно щедрее — BYOK-пользователь
+получает минимум несколько импортов в день бесплатно. Дневная квота
+детектится и останавливает прогон (fail-fast), кэш позволяет продолжить
+другим ключом/днём без повторной траты.
+
+Стоимость: на 2.5-flash ~170K токенов/статья, из них ~57% — thinking
+(composition 78%, redaktura 63%). Прод-lite: thinking = 0, суммарно
+30–90K токенов/статья по цене $0.25/$1.50 за 1M (vs $0.30/$2.50) —
+итого 12–25× дешевле за импорт.
 
 ### Debugging — где что искать
 

@@ -1,0 +1,16 @@
+{
+  "step": "gap",
+  "model": "gemini-3.1-flash-lite",
+  "variant": "a",
+  "promptSha256": "c78c9e0a794323ec35b383edb8352b5b92066e1488cf52326388bce4f83e1caa",
+  "promptChars": 22030,
+  "promptPreview": "Ты — второй проход извлечения фактов из статьи о Ковалевская, Софья Васильевна.\n\nПервый проход уже нашёл следующие ДАТИРОВАННЫЕ факты:\n1. [1850] Родилась в Москве в семье Василия Корвин-Круковского\n2.",
+  "responseText": "[\n  {\"year\": 1850, \"text\": \"Родилась в семье генерала Василия Корвин-Круковского и Елизаветы Шуберт\", \"category\": \"birth\", \"sphere\": \"family\"},\n  {\"year\": 1855, \"text\": \"Родился брат Фёдор Васильевич Корвин-Круковский\", \"category\": \"birth\", \"sphere\": \"family\"},\n  {\"year\": 1866, \"text\": \"Брала уроки математического анализа у А. Н. Страннолюбского\", \"category\": \"education\", \"sphere\": \"education\"},\n  {\"year\": 1871, \"text\": \"Написала работу о приведении абелевых интегралов к эллиптическим\", \"category\": \"project\", \"sphere\": \"creativity\"},\n  {\"year\": 1871, \"text\": \"Написала работу о форме кольца Сатурна\", \"category\": \"project\", \"sphere\": \"creativity\"},\n  {\"year\": 1878, \"text\": \"Родилась дочь Софья Владимировна Ковалевская\", \"category\": \"birth\", \"sphere\": \"family\"},\n  {\"year\": 1884, \"text\": \"Начала читать курсы лекций в Стокгольмской высшей школе\", \"category\": \"career\", \"sphere\": \"career\"},\n  {\"year\": 1884, \"text\": \"Опубликовала работу об абелевых интегралах в Acta mathematica\", \"category\": \"publication\", \"sphere\": \"creativity\"},\n  {\"year\": 1885, \"text\": \"Опубликовала работу о кольцах Сатурна в Astronomische Nachrichten\", \"category\": \"publication\", \"sphere\": \"creativity\"},\n  {\"year\": 1887, \"text\": \"Опубликовала драму Борьба за счастье в Стокгольме\", \"category\": \"publication\", \"sphere\": \"creativity\"},\n  {\"year\": 1889, \"text\": \"Опубликовала работу о вращении твердого тела в Acta mathematica\", \"category\": \"publication\", \"sphere\": \"creativity\"},\n  {\"year\": 1890, \"text\": \"Опубликовала работу о системе дифференциальных уравнений\", \"category\": \"publication\", \"sphere\": \"creativity\"},\n  {\"year\": 1890, \"text\": \"Опубликовала Три дня в крестьянском университете в Швеции\", \"category\": \"publication\", \"sphere\": \"creativity\"}\n]",
+  "usage": {
+    "promptTokenCount": 7138,
+    "candidatesTokenCount": 583,
+    "totalTokenCount": 7721
+  },
+  "durationMs": 2298,
+  "recordedAt": "2026-07-09T21:20:47.091Z"
+}

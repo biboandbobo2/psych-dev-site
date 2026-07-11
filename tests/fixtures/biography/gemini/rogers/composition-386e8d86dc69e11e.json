@@ -1,0 +1,16 @@
+{
+  "step": "composition",
+  "model": "gemini-3.1-flash-lite",
+  "variant": "a",
+  "promptSha256": "386e8d86dc69e11e74ea2b6c5c1ffec01d03529803e6ecd72a05a134668f108e",
+  "promptChars": 4884,
+  "promptPreview": "Ты — нарратолог и биограф. Тебе дан список из 54 фактов о **Carl Rogers** (1902–1987).\n\nЗАДАЧА\nРаспредели ВСЕ факты по структуре визуального таймлайна:\n1. **Главная линия** — 17 (±2) ключевых точек не",
+  "responseText": "{\n  \"mainLine\": [42, 1, 8, 10, 11, 13, 14, 16, 17, 22, 25, 36],\n  \"branches\": [\n    {\n      \"name\": \"Ранние годы и образование\",\n      \"sphere\": \"education\",\n      \"facts\": [43, 44, 0, 2, 3, 4]\n    },\n    {\n      \"name\": \"Профессиональный путь в психологии\",\n      \"sphere\": \"career\",\n      \"facts\": [5, 6, 7, 9, 19, 20, 21, 23, 24, 46, 27]\n    },\n    {\n      \"name\": \"Научные исследования и публикации\",\n      \"sphere\": \"creativity\",\n      \"facts\": [12, 15, 18, 26, 29, 31]\n    },\n    {\n      \"name\": \"Политическая и социальная активность\",\n      \"sphere\": \"other\",\n      \"facts\": [45, 48, 49, 50, 51, 52, 33, 37, 53]\n    },\n    {\n      \"name\": \"Наследие и биография\",\n      \"sphere\": \"other\",\n      \"facts\": [40, 39, 30, 41]\n    },\n    {\n      \"name\": \"Сотрудничество и семинары\",\n      \"sphere\": \"career\",\n      \"facts\": [28, 32, 47]\n    },\n    {\n      \"name\": \"Последние годы жизни\",\n      \"sphere\": \"health\",\n      \"facts\": [34, 35, 38]\n    }\n  ]\n}",
+  "usage": {
+    "promptTokenCount": 1946,
+    "candidatesTokenCount": 450,
+    "totalTokenCount": 2396
+  },
+  "durationMs": 1980,
+  "recordedAt": "2026-07-09T21:21:25.650Z"
+}

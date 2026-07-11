@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { buildPlanFromCompositionResult, findDeathFact } from '../../server/api/timelineBiographyComposer.js';
-import type { BiographyFactCandidate, BiographyCompositionResult } from '../../server/api/timelineBiographyTypes.js';
+import type {
+  BiographyFactCandidate,
+  BiographyCompositionResult,
+  TimelineSphere,
+} from '../../server/api/timelineBiographyTypes.js';
 
 function makeFact(overrides: Partial<BiographyFactCandidate> & { year: number; details: string }): BiographyFactCandidate {
   return {
@@ -106,7 +110,7 @@ describe('buildPlanFromCompositionResult', () => {
 describe('buildPlanFromCompositionResult — sparse theme branches', () => {
   const themeBranchCases: Array<{
     label: string;
-    sphere: string;
+    sphere: TimelineSphere;
     expectedSphere: string;
     branchDetails: string;
     branchYear: number;
@@ -176,7 +180,8 @@ describe('buildPlanFromCompositionResult — sparse theme branches', () => {
         year: 1820,
         details: 'Странное обстоятельство',
         category: 'other',
-        sphere: 'no_such_theme',
+        // Модель может вернуть sphere вне enum'а — тест именно про это
+        sphere: 'no_such_theme' as TimelineSphere,
       }),
     ];
     const composition: BiographyCompositionResult = {
@@ -251,7 +256,7 @@ describe('findDeathFact (BPT-5a regression)', () => {
     // truncating the whole adult life.
     const facts = [
       fact(1860, 'Умер отец', { importance: 'low' }),
-      fact(1880, 'Высылка', { category: 'exile', eventType: 'exile' }),
+      fact(1880, 'Высылка', { category: 'exile', eventType: 'move' }),
       fact(1918, 'Умер от туберкулёза', { importance: 'high' }),
     ];
     const death = findDeathFact(facts, 1856);
@@ -294,5 +299,155 @@ describe('findDeathFact (BPT-5a regression)', () => {
   it('without birthYear falls back to all death facts (latest wins)', () => {
     const facts = [fact(1860, 'X'), fact(1900, 'Y')];
     expect(findDeathFact(facts, undefined)?.year).toBe(1900);
+  });
+});
+
+// Д-B2: composition-промпт (CF + Runtime) вычислял deathYear наивным
+// facts.find(category === 'death') — первым в массиве часто идёт смерть
+// родственника (отца/матери), и промпт получал неверный lifespan, хотя
+// рендер-путь (buildPlanFromCompositionResult) уже использовал findDeathFact.
+describe('resolveCompositionLifespan', () => {
+  it('не принимает смерть отца за смерть subject’а', async () => {
+    const { resolveCompositionLifespan } = await import('../../server/api/timelineBiographyComposer.js');
+    const facts = [
+      makeFact({ year: 1849, details: 'Родился в Рязани', category: 'birth' }),
+      // Смерть отца идёт ПЕРВОЙ среди death-фактов; subject'у 7 лет (1856−1849) —
+      // findDeathFact отсекает её возрастным окном 15–120
+      makeFact({ year: 1856, details: 'Умер отец', category: 'death' }),
+      makeFact({ year: 1904, details: 'Нобелевская премия', category: 'award', importance: 'high' }),
+      makeFact({ year: 1936, details: 'Скончался в Ленинграде', category: 'death', importance: 'high' }),
+    ];
+
+    const { birthYear, deathYear } = resolveCompositionLifespan(facts);
+    expect(birthYear).toBe(1849);
+    expect(deathYear).toBe(1936);
+  });
+
+  it('без death-фактов берёт максимальный год', async () => {
+    const { resolveCompositionLifespan } = await import('../../server/api/timelineBiographyComposer.js');
+    const facts = [
+      makeFact({ year: 1900, details: 'Родился', category: 'birth' }),
+      makeFact({ year: 1950, details: 'Книга', category: 'publication' }),
+    ];
+    const { deathYear } = resolveCompositionLifespan(facts);
+    expect(deathYear).toBe(1950);
+  });
+});
+
+// B3: composition-by-indices — самое хрупкое звено. Раньше: дубли индексов
+// не проверялись (факт мог оказаться и на главной линии, и в ветке),
+// выдуманные индексы тихо пропадали, потерянные сваливались в ПОСЛЕДНЮЮ
+// ветку (комментарий врал про «ближайшую по теме»).
+describe('sanitizeCompositionResult (B3)', () => {
+  const fact = (themes: string[]) =>
+    makeFact({ year: 1900, details: `факт ${themes.join(',')}`, themes: themes as never });
+
+  it('дубль индекса остаётся только в первом месте (mainLine приоритетнее)', async () => {
+    const { sanitizeCompositionResult } = await import('../../server/api/timelineBiographyComposer.js');
+    const facts = [fact(['education']), fact(['service_career']), fact(['creative_work'])];
+    const result = sanitizeCompositionResult(
+      { mainLine: [0, 1], branches: [{ name: 'А', sphere: 'career', facts: [1, 2] }] },
+      facts
+    );
+    expect(result.mainLine).toEqual([0, 1]);
+    expect(result.branches[0].facts).toEqual([2]);
+  });
+
+  it('выдуманные индексы отбрасываются', async () => {
+    const { sanitizeCompositionResult } = await import('../../server/api/timelineBiographyComposer.js');
+    const facts = [fact(['education']), fact(['service_career'])];
+    const result = sanitizeCompositionResult(
+      { mainLine: [0, 99], branches: [{ name: 'А', sphere: 'career', facts: [1, -3] }] },
+      facts
+    );
+    expect(result.mainLine).toEqual([0]);
+    expect(result.branches[0].facts).toEqual([1]);
+  });
+
+  it('потерянный факт уходит в ветку с совпадающей темой, а не в последнюю', async () => {
+    const { sanitizeCompositionResult } = await import('../../server/api/timelineBiographyComposer.js');
+    const facts = [
+      fact(['education']),
+      fact(['creative_work']),
+      fact(['service_career']),
+      fact(['education']), // потерянный — темой совпадает с веткой «Учёба»
+    ];
+    const result = sanitizeCompositionResult(
+      {
+        mainLine: [2],
+        branches: [
+          { name: 'Учёба', sphere: 'education', facts: [0] },
+          { name: 'Творчество', sphere: 'creativity', facts: [1] },
+        ],
+      },
+      facts
+    );
+    expect(result.branches[0].facts).toContain(3);
+    expect(result.branches[1].facts).not.toContain(3);
+  });
+
+  it('без веток потерянные факты добавляются на главную линию', async () => {
+    const { sanitizeCompositionResult } = await import('../../server/api/timelineBiographyComposer.js');
+    const facts = [fact(['education']), fact(['service_career'])];
+    const result = sanitizeCompositionResult({ mainLine: [0], branches: [] }, facts);
+    expect(result.mainLine).toEqual([0, 1]);
+  });
+});
+
+// A2: целочисленный возраст выбрасывал известный месяц — события одного года
+// коллидировали (весь механизм спуров и merge существует из-за этого),
+// а порядок внутри года был произвольным. Дробная часть = (месяц−0.5)/12;
+// годовая семантика не меняется.
+describe('factToEventPlan — дробный возраст из месяца (A2)', () => {
+  it('месяц события даёт дробную часть возраста, без месяца — целый', () => {
+    const facts: BiographyFactCandidate[] = [
+      makeFact({ year: 1828, details: 'Родился', category: 'birth' }),
+      makeFact({ year: 1850, details: 'Событие в марте', month: 3 }),
+      makeFact({ year: 1850, details: 'Событие в сентябре', month: 9 }),
+      makeFact({ year: 1850, details: 'Событие без месяца' }),
+      makeFact({ year: 1900, details: 'Смерть', category: 'death', importance: 'high' }),
+    ];
+    const plan = buildPlanFromCompositionResult({
+      subjectName: 'Тест',
+      facts,
+      composition: { mainLine: [0, 1, 2, 3, 4], branches: [] },
+    });
+
+    const march = plan.mainEvents.find((e) => e.notes?.includes('марте'))!;
+    const september = plan.mainEvents.find((e) => e.notes?.includes('сентябре'))!;
+    const noMonth = plan.mainEvents.find((e) => e.notes?.includes('без месяца'))!;
+
+    expect(march.age).toBeCloseTo(22 + 2.5 / 12, 2);
+    expect(september.age).toBeCloseTo(22 + 8.5 / 12, 2);
+    expect(noMonth.age).toBe(22);
+    // порядок внутри года — хронологический
+    expect(march.age).toBeLessThan(september.age);
+  });
+});
+
+// Д-B11 (найден на wundt/lite): mergeSameAgeEvents при 4+ событиях одного
+// возраста оставлял первый/средний/последний ПОЗИЦИОННО — важные события
+// (importance high → isDecision) растворялись в склеенных заметках,
+// которые затем затирал Д-B8-репейр.
+describe('mergeSameAgeEvents — важные события переживают склейку (Д-B11)', () => {
+  it('isDecision-событие остаётся узлом при склейке 4+ одного возраста', () => {
+    const facts: BiographyFactCandidate[] = [
+      makeFact({ year: 1832, details: 'Родился', category: 'birth' }),
+      makeFact({ year: 1879, details: 'Выделили помещение для хранения' }),
+      // important на позиции 1 из 5: позиционный merge (first/mid/last) её
+      // терял — дискриминирует старое поведение (finding F1 verifier'а)
+      makeFact({ year: 1879, details: 'Основал первую лабораторию психологии', importance: 'high' }),
+      makeFact({ year: 1879, details: 'Прочитал курс лекций' }),
+      makeFact({ year: 1879, details: 'Нанял ассистента' }),
+      makeFact({ year: 1879, details: 'Заказал оборудование' }),
+      makeFact({ year: 1920, details: 'Умер', category: 'death', importance: 'high' }),
+    ];
+    const plan = buildPlanFromCompositionResult({
+      subjectName: 'Вундт',
+      facts,
+      composition: { mainLine: [0, 6], branches: [{ name: 'Лаборатория', sphere: 'career', facts: [1, 2, 3, 4, 5] }] },
+    });
+    const branchLabels = plan.branches.flatMap((b) => b.events.map((e) => e.label));
+    expect(branchLabels.join(' | ')).toContain('лаборатори');
   });
 });
