@@ -158,7 +158,7 @@ describe('VideoStudyNotesPanel', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Таймкоды' }));
-    fireEvent.click(screen.getByRole('button', { name: '02:00' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Перейти к 02:00' }));
     expect(handleTimestampClick).toHaveBeenCalledWith(120000);
     expect(screen.getByRole('button', { name: 'Конспект сохранён' })).toBeInTheDocument();
   });
@@ -228,6 +228,31 @@ describe('VideoStudyNotesPanel', () => {
         }
       )
     );
+  });
+
+  it('Enter в композере закрывает сегмент, Shift+Enter — нет', async () => {
+    renderPanel({
+      courseId: 'development',
+      getPlaybackSnapshot: () => ({ currentTimeMs: 15000, paused: false }),
+      lectureResourceId: 'video-7',
+      periodId: 'school',
+      periodTitle: 'Младший школьный возраст',
+      videoTitle: 'Лекция 7',
+    });
+
+    const textarea = screen.getByLabelText('Заметки по лекции');
+
+    fireEvent.change(textarea, { target: { value: 'Первый тезис' } });
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
+    // Shift+Enter не финализирует: текст всё ещё в композере
+    expect(screen.getAllByLabelText('Заметки по лекции')).toHaveLength(1);
+    expect(screen.queryByLabelText('Сегмент конспекта')).not.toBeInTheDocument();
+
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+
+    // После Enter текст стал отдельным сегментом, композер очистился
+    expect(screen.getByLabelText('Сегмент конспекта')).toHaveValue('Первый тезис');
+    expect(screen.getByLabelText('Заметки по лекции')).toHaveValue('');
   });
 
   it('не разбивает непрерывный ввод на отдельные сегменты по символам', async () => {

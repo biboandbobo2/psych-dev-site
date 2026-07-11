@@ -50,10 +50,12 @@ export function VideoStudyOverlay({
   highlightedStartMs = null,
 }: VideoStudyOverlayProps) {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(initialPanel);
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
   const [transcriptFocusMs, setTranscriptFocusMs] = useState<number | null>(
     initialSeekMs ?? highlightedStartMs
   );
   const playerRef = useRef<StudyVideoPlayerHandle | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const youtubeVideoId = useMemo(
     () => getYouTubeVideoId(originalUrl) ?? getYouTubeVideoId(embedUrl),
     [embedUrl, originalUrl]
@@ -86,7 +88,23 @@ export function VideoStudyOverlay({
   useEffect(() => {
     if (!isOpen) {
       setSidebarMode('notes');
+      setIsPanelExpanded(false);
     }
+  }, [isOpen]);
+
+  // Перенос фокуса в диалог при открытии и возврат туда, откуда пришли.
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus();
+
+    return () => {
+      previouslyFocused?.focus();
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -130,7 +148,9 @@ export function VideoStudyOverlay({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[120] bg-[#05070a] text-white"
+      ref={dialogRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-[120] bg-[#05070a] text-white outline-none"
       role="dialog"
       aria-modal="true"
       aria-label={`Режим конспекта: ${videoTitle}`}
@@ -190,7 +210,20 @@ export function VideoStudyOverlay({
           </div>
         </div>
 
-        <aside className="flex h-[42vh] min-h-[20rem] shrink-0 flex-col border-t border-white/10 bg-white/[0.03] backdrop-blur lg:h-full lg:w-[24rem] lg:border-l lg:border-t-0 xl:w-[26rem]">
+        <aside
+          className={`flex min-h-[20rem] shrink-0 flex-col border-t border-white/10 bg-white/[0.03] backdrop-blur lg:h-full lg:w-[24rem] lg:border-l lg:border-t-0 xl:w-[26rem] ${
+            isPanelExpanded ? 'h-[72vh]' : 'h-[42vh]'
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setIsPanelExpanded((current) => !current)}
+            aria-expanded={isPanelExpanded}
+            aria-label={isPanelExpanded ? 'Свернуть панель конспекта' : 'Растянуть панель конспекта'}
+            className="flex shrink-0 items-center justify-center py-2 lg:hidden"
+          >
+            <span className="h-1 w-10 rounded-full bg-white/25 transition hover:bg-white/40" />
+          </button>
           {isTranscriptMode ? (
             <VideoTranscriptPanel
               error={transcriptState.error}

@@ -59,6 +59,7 @@ export function VideoStudyNotesPanel({
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const {
     composer,
+    finalizeComposer,
     persistedSegments,
     plainText,
     resetDraft,
@@ -221,24 +222,49 @@ export function VideoStudyNotesPanel({
     user,
   ]);
 
+  // При открытии/после гидрации показываем конец конспекта (там идёт запись).
   useEffect(() => {
-    if (!scrollContainerRef.current) {
+    if (isHydrating || !scrollContainerRef.current) {
       return undefined;
     }
 
     const frameId = window.requestAnimationFrame(() => {
       const container = scrollContainerRef.current;
-      if (!container) {
-        return;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
       }
-
-      container.scrollTop = container.scrollHeight;
     });
 
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [composer.text, segments.length, viewMode]);
+  }, [isHydrating]);
+
+  // Во время набора подскролливаем вниз только если пользователь и так у низа:
+  // если он отмотал вверх перечитать конспект, ввод не должен выдёргивать его вниз.
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !composer.text) {
+      return undefined;
+    }
+
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    if (distanceFromBottom > 120) {
+      return undefined;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      const current = scrollContainerRef.current;
+      if (current) {
+        current.scrollTop = current.scrollHeight;
+      }
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [composer.text]);
 
   // Актуальные значения для финального сохранения: cleanup ниже намеренно
   // зарегистрирован с пустыми deps, чтобы срабатывать строго при размонтировании,
@@ -348,6 +374,7 @@ export function VideoStudyNotesPanel({
               <LectureNoteSegmentsEditor
                 composer={composer}
                 onComposerChange={updateComposerText}
+                onComposerSubmit={finalizeComposer}
                 onSegmentBlur={removeEmptySegment}
                 onSegmentChange={updateSegmentText}
                 onTimestampClick={onTimestampClick}
@@ -357,6 +384,23 @@ export function VideoStudyNotesPanel({
             </div>
           </div>
         </div>
+
+        {/* Видимый статус: цветной точки недостаточно — на таче и с клавиатуры
+            hover-тултип недоступен, а потеря автосейва должна быть заметна. */}
+        <p
+          aria-live="polite"
+          className={`mt-2 min-h-[1.25rem] text-xs leading-5 ${
+            saveState === 'error' ? 'text-rose-300' : 'text-white/45'
+          }`}
+        >
+          {!user
+            ? 'Войдите, чтобы сохранять конспект'
+            : saveState === 'error'
+            ? 'Ошибка сохранения — последние правки не сохранены'
+            : saveState === 'saving'
+            ? 'Сохранение…'
+            : ''}
+        </p>
       </aside>
 
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />

@@ -7,6 +7,7 @@ import {
 interface LectureNoteSegmentsEditorProps {
   composer: LectureNoteSegment;
   onComposerChange: (value: string) => void;
+  onComposerSubmit: () => void;
   onSegmentBlur: (segmentId: string) => void;
   onSegmentChange: (segmentId: string, value: string) => void;
   onTimestampClick: (startMs: number) => void;
@@ -25,13 +26,16 @@ function TimestampButton({
     return null;
   }
 
+  const label = formatLectureTimestamp(startMs);
+
   return (
     <button
       type="button"
       onClick={() => onClick(startMs)}
+      aria-label={`Перейти к ${label}`}
       className="inline-flex items-center rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-white/60 ring-1 ring-white/10 transition hover:bg-white/10"
     >
-      {formatLectureTimestamp(startMs)}
+      {label}
     </button>
   );
 }
@@ -63,6 +67,7 @@ function AutoSizeTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
 export function LectureNoteSegmentsEditor({
   composer,
   onComposerChange,
+  onComposerSubmit,
   onSegmentBlur,
   onSegmentChange,
   onTimestampClick,
@@ -97,8 +102,16 @@ export function LectureNoteSegmentsEditor({
         <AutoSizeTextarea
           value={composer.text}
           onChange={(event) => onComposerChange(event.target.value)}
-          placeholder="Пишите короткий конспект по ходу лекции..."
-          className="min-h-[12rem] w-full resize-none bg-transparent text-sm leading-7 text-white outline-none placeholder:text-white/30"
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              onComposerSubmit();
+            }
+          }}
+          placeholder={
+            'Пишите конспект по ходу лекции...\nEnter — закрыть абзац, Shift+Enter — перенос строки'
+          }
+          className="min-h-[6rem] w-full resize-none bg-transparent text-sm leading-7 text-white outline-none placeholder:text-white/30 lg:min-h-[12rem]"
           aria-label="Заметки по лекции"
         />
       </section>

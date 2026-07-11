@@ -35,7 +35,7 @@ describe('VideoTranscriptPanel', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '00:32' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Перейти к 00:32' }));
 
     expect(handleTimestampClick).toHaveBeenCalledWith(32000);
   });
