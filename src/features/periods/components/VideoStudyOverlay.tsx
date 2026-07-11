@@ -162,14 +162,16 @@ export function VideoStudyOverlay({
     >
       <div className="flex h-full flex-col lg:flex-row">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-3 md:px-5">
-            <div className="min-w-0">
+          {/* flex-wrap: на узких экранах кнопки переносятся на вторую строку,
+              иначе «Скрыть конспект» вытесняется за край вьюпорта. */}
+          <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-white/10 px-4 py-3 md:px-5">
+            <div className="min-w-0 flex-1 basis-40">
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/45">
                 Режим конспекта
               </p>
               <h3 className="truncate pt-1 text-lg font-semibold text-white md:text-xl">{videoTitle}</h3>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
               <button
                 type="button"
                 onClick={() =>
@@ -178,7 +180,7 @@ export function VideoStudyOverlay({
                     startMs: playerRef.current?.getPlaybackSnapshot().currentTimeMs ?? null,
                   })
                 }
-                className="shrink-0 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10 md:px-4 md:py-2 md:text-sm"
               >
                 Задать вопрос
               </button>
@@ -186,7 +188,7 @@ export function VideoStudyOverlay({
                 <button
                   type="button"
                   onClick={() => setSidebarMode((current) => (current === 'transcript' ? 'notes' : 'transcript'))}
-                  className="shrink-0 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                  className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10 md:px-4 md:py-2 md:text-sm"
                 >
                   {isTranscriptMode ? 'Показать конспект' : 'Показать транскрипт'}
                 </button>
@@ -194,7 +196,7 @@ export function VideoStudyOverlay({
               <button
                 type="button"
                 onClick={onClose}
-                className="shrink-0 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10 md:px-4 md:py-2 md:text-sm"
               >
                 Скрыть конспект
               </button>
