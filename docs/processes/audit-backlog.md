@@ -3,6 +3,8 @@
 > 🔔 **Легенда:** P — приоритет (H/M/L), E — оценка трудоёмкости (S/M/L).  
 > ✅ Завершённые пункты перенесены в `docs/archive/REFRACTORING_ARCHIVE.md` (раздел *Audit backlog (январь 2025)*).  
 > Ниже остаются только активные задачи, сгруппированные по приоритету.
+>
+> 🔄 **Актуализация 2026-07-11:** полная сверка активных пунктов с кодом (main, после мёржа benchmark + branchId). Помечены ✅ фактически выполненные (MR-9, HM-4, BPT-3, BPT-7, BPT-12, BTP-3, operator-steps MR-1, части CQ-7), исправлены устаревшие цифры и пути к файлам.
 
 ## 📊 Priority board
 | ID | Priority | Фокус | Ключевые deliverables |
@@ -13,7 +15,7 @@
 | HR-1 | ✅ | Защита `/api/books` | Закрыта волной 6 (2026-04-26): strict BYOK без env fallback, auth Bearer на search/answer, public только list/snippet с rate-limit, CORS allowlist через appOrigins. Плюс счётчик BYOK-usage в профиле через aiUsageDaily/{uid}_{day}. |
 | HR-2 | ✅ | Закрыть booking email-login auth bypass | Закрыта 2026-04-28 (wave-9, C1 + часть C2): `api/auth.ts` удалён целиком, AuthModal использует только `sendSignInLinkToEmail`. Освобождена 1 Vercel function (9/12 → 8/12). |
 | CQ-6 | ✅ | Починить TS lint + console guardrails | Закрыта волной 7 (2026-04-27): ESLint покрывает ts/tsx через typescript-eslint v8, `no-console: error` + overrides, `check-console --all` для validate / `:staged` для pre-commit, api/ под покрытием. 50 runtime `console.*` → `debugLog/debugError/debugWarn` (или whitelist для prod-error reporting). |
-| CQ-7 | M (L) | Рефакторинг новых монолитов и дублей | `DisorderTable`, API handlers, course-nav/API-runtime helpers |
+| CQ-7 | M (M) | Рефакторинг новых монолитов и дублей | Большая часть закрыта (сверка 2026-07-11). Осталось: state-хуки `DisorderTable` (766 строк, 30 useState) + `sharedApiRuntime` для booking/papers/automation |
 | MP-1 | ✅ | Изоляция бизнес-логики Timeline (lazy-hooks) | Хуки вынесены в `src/pages/timeline/hooks/`, чанк `timeline-hooks` в vite.config.js (2026-04) |
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
@@ -22,7 +24,7 @@
 | MR-2 | ✅ | Починить `npm run test:ci` | Закрыта 2026-04-27: `--runInBand` → `--no-file-parallelism` (Vitest 4 эквивалент) в `test:ci` и `test:integration`. |
 | MR-3 | M (S) | Убрать `lessonRef as never` | типизированный payload dynamic course lessons |
 | MR-4 | ✅ | Починить stale `authStore.test.ts` | Закрыта 2026-04-27: переписан под `UserRole = 'admin' \| 'super-admin' \| null`, убраны проверки удалённого `isStudent`, добавлен кейс role=null. 2/2 зелёных. |
-| MR-5 | M (S-M) | Синхронизировать `firestore.indexes.json` с БД и починить vector-deploy | `firebase deploy --only firestore:indexes` падает на vector index `book_chunks/embedding` (CLI bug 14.22.0 с `__name__`); 4 prod-индекса есть в БД, но отсутствуют в файле. Workaround сейчас: создавать новые индексы через gcloud/REST. |
+| MR-5 | M (S-M) | Синхронизировать `firestore.indexes.json` с БД и починить vector-deploy | 2026-07-11: vector-индексы `book_chunks`/`lecture_chunks` уже в файле. Осталось: прод-сверка (4 missing composite) + проверить, что deploy проходит (CLI bug с `__name__`). |
 | UX-1 | L (L) | Profile v2 — унификация с акварельной палитрой | ожидаем брендбук от дизайнера, после — полный редизайн Profile + вложенных секций |
 | LP-1 | L (M) | Observability / telemetry | Базовый logger (Sentry/PostHog), описание процессов |
 | LP-5 | L (S-M) | Firebase/GCP follow-ups | dependency review, cleanup policy, индексы, Telegram formatting |
@@ -36,7 +38,7 @@
 | LP-13 | L (S-M) | API proxy для `videoTranscripts` metadata вместо public read | Сейчас `videoTranscripts/{videoId}` открыт на чтение (`allow read: if true`), потому что клиентский `useVideoTranscript` ходит напрямую. Альтернатива: `/api/transcript-metadata?videoId=...` через Admin SDK, тогда rules можно вернуть в `read: if false`. Стоит делать только если упрёмся в реальный сценарий злоупотребления или захотим rate-limit. Цена: +1 Vercel function (сейчас 11/12, лимит впритык) + правка хука. |
 | LP-15 | L (S) | Закрепить версию Node для проекта | `.nvmrc` и `engines.node` требуют Node 22, но глобально стоит Node 25.2.0 (зафиксировано 2026-05-14). Поставить fnm/nvm + auto-switch по `.nvmrc`. До этого — потенциальный источник тонких багов в Vite/Firebase/Functions, которые не воспроизводятся в CI. |
 | LP-14 | M (M-L) | `weeklyTranscriptRefresh` не работает из-за блокировки GCP-IP на YouTube | Cloud Function (us-central1) стабильно получает `TRANSCRIPT_NOT_AVAILABLE` от `youtube-transcript-plus` даже для видео, у которых captions реально есть — YouTube блокирует автоматические запросы с IP датацентров. Тот же код, запущенный локально (residential IP), получает captions нормально. **Временно отключено** через `WEEKLY_TRANSCRIPT_REFRESH_DISABLED = true` в `functions/src/weeklyTranscriptRefresh.ts` (2026-05-11) — функция остаётся задеплоенной, но при срабатывании cron'а делает early return с WARN-логом, не пытаясь дергать YouTube. Импорт делается локально через `scripts/importVideoTranscripts.ts` или `scripts/importManualTranscript.ts`. Варианты долгосрочного фикса: (а) добавить residential HTTP-proxy внутрь fetcher'а; (б) перенести задачу с GCP на не-GCP runner; (в) переключиться на YouTube Data API v3 с OAuth (там captions доступны через каноничный endpoint). Включить обратно — убрать константу и редеплоить функцию. |
-| LP-16 | M (L) | Миграция `firebase-functions` v1 → v2 (1st gen → 2nd gen) | **Состояние 2026-05-18:** проект на `firebase-functions ^5.0.0`, последняя 7.2.5. ~20 файлов на v1 API (`functions.https.onCall`, `functions.pubsub.schedule`, `functions.https.HttpsError`); ~5 файлов уже на v2 (`biographyImport`, `ingestBook`, `ingestLectureRag`, `biography/helpers`). При деплое функций Firebase CLI выдаёт warning `package.json indicates an outdated version of firebase-functions`. **Дедлайны на 2026-05-18:** жёсткого EOL для 1st gen Google не объявлял. Единственный связанный hard-дедлайн — `functions.config()` API → март 2027, но мы его не используем (`grep functions.config functions/src` = 0). GCR shutdown март 2025 уже прошёл, Firebase автоматически перевёл проект на Artifact Registry (иначе свежий деплой `weeklyTranscriptRefresh` не уехал бы). **Объём:** ~16 v1-функций × правка обёртки `(data, context)` → `(request)`, `functions.pubsub.schedule()` → `onSchedule()`, `functions.https.HttpsError` → импорт из `firebase-functions/v2/https`. **Покрытие тестами:** есть unit-тесты бизнес-логики у 10 из 16 (`coAdmin`, `courseAccess`, `examNotifications`, `exams`, `groups`, `makeAdmin`, `onUserCreate`, `userPreferences`, `users`, `billingBudgetAlert`). Без тестов и риск выше: `gcalSync` (самый сложный — двусторонний синк, anti-echo), `sendFeedback`, `verify`, `billingSummary`, `bulkEnrollment`, `weeklyTranscriptRefresh` (безопаснее всего — выключен флагом). **Что тесты НЕ ловят:** правильный endpoint в проде (2nd gen — Cloud Run URL вместо cloudfunctions.net), IAM/permissions Cloud Run, корректное переключение Cloud Scheduler job на новый pubsub-trigger. Обязателен smoke в проде после каждой пачки. **Биллинг:** Cloud Run free tier (~2M req/мес) **отдельный** от Functions 1st gen free tier — если сейчас бесплатно, должно остаться бесплатным. Появятся 1-2 копеечные строки за Artifact Registry (хранение Docker-образов, ~$0.10/GB/мес) и возможно Eventarc. Cloud Scheduler одинаково тарифицируется для v1/v2 (free 3 jobs/мес). **Ловушка:** в 2nd gen `cpu` по умолчанию 1 vCPU (1st gen умел 0.2). Явно ставить `{ cpu: 1, memory: "256MiB" }` при миграции callable, не выкручивать ресурсы вверх. **Рекомендованный порядок:** (1) `weeklyTranscriptRefresh` как канарейка — нулевой риск, отрабатываем паттерн `onSchedule`. (2) Callable с тестами (coAdmin, courseAccess, makeAdmin, users, userPreferences). (3) Callable без тестов (billingSummary, bulkEnrollment, verify) — пока ходим, подкручиваем тесты. (4) `sendFeedback`, `examNotifications`. (5) `gcalSync` — последним, с обязательным локальным прогоном anti-echo перед deploy. Один targeted deploy на пачку + smoke в админке после каждого. Альтернатива «по одной за раз при касании» — растягивать на месяцы; стратегия одного дня — 1-2 дня сплошной работы. |
+| LP-16 | M (L) | Миграция `firebase-functions` v1 → v2 (1st gen → 2nd gen) | **Состояние 2026-05-18:** проект на `firebase-functions ^5.0.0`, последняя 7.2.5. 19 файлов на v1 API (`functions.https.onCall`, `functions.pubsub.schedule`, `functions.https.HttpsError`) — пересчитано 2026-07-11; 4 файла уже на v2 (`biographyImport`, `ingestBook`, `ingestLectureRag`, `biography/helpers`). При деплое функций Firebase CLI выдаёт warning `package.json indicates an outdated version of firebase-functions`. **Дедлайны на 2026-05-18:** жёсткого EOL для 1st gen Google не объявлял. Единственный связанный hard-дедлайн — `functions.config()` API → март 2027, но мы его не используем (`grep functions.config functions/src` = 0). GCR shutdown март 2025 уже прошёл, Firebase автоматически перевёл проект на Artifact Registry (иначе свежий деплой `weeklyTranscriptRefresh` не уехал бы). **Объём:** ~16 v1-функций × правка обёртки `(data, context)` → `(request)`, `functions.pubsub.schedule()` → `onSchedule()`, `functions.https.HttpsError` → импорт из `firebase-functions/v2/https`. **Покрытие тестами:** есть unit-тесты бизнес-логики у 10 из 16 (`coAdmin`, `courseAccess`, `examNotifications`, `exams`, `groups`, `makeAdmin`, `onUserCreate`, `userPreferences`, `users`, `billingBudgetAlert`). Без тестов и риск выше: `gcalSync` (самый сложный — двусторонний синк, anti-echo), `sendFeedback`, `verify`, `billingSummary`, `bulkEnrollment`, `weeklyTranscriptRefresh` (безопаснее всего — выключен флагом). **Что тесты НЕ ловят:** правильный endpoint в проде (2nd gen — Cloud Run URL вместо cloudfunctions.net), IAM/permissions Cloud Run, корректное переключение Cloud Scheduler job на новый pubsub-trigger. Обязателен smoke в проде после каждой пачки. **Биллинг:** Cloud Run free tier (~2M req/мес) **отдельный** от Functions 1st gen free tier — если сейчас бесплатно, должно остаться бесплатным. Появятся 1-2 копеечные строки за Artifact Registry (хранение Docker-образов, ~$0.10/GB/мес) и возможно Eventarc. Cloud Scheduler одинаково тарифицируется для v1/v2 (free 3 jobs/мес). **Ловушка:** в 2nd gen `cpu` по умолчанию 1 vCPU (1st gen умел 0.2). Явно ставить `{ cpu: 1, memory: "256MiB" }` при миграции callable, не выкручивать ресурсы вверх. **Рекомендованный порядок:** (1) `weeklyTranscriptRefresh` как канарейка — нулевой риск, отрабатываем паттерн `onSchedule`. (2) Callable с тестами (coAdmin, courseAccess, makeAdmin, users, userPreferences). (3) Callable без тестов (billingSummary, bulkEnrollment, verify) — пока ходим, подкручиваем тесты. (4) `sendFeedback`, `examNotifications`. (5) `gcalSync` — последним, с обязательным локальным прогоном anti-echo перед deploy. Один targeted deploy на пачку + smoke в админке после каждого. Альтернатива «по одной за раз при касании» — растягивать на месяцы; стратегия одного дня — 1-2 дня сплошной работы. |
 | RS-1 | M (M) | Глубокий поиск через Wikidata | Кнопка + API параметр `deep=true`, расширение запроса через Wikidata |
 | RS-2 | M (S) | Расширение словаря терминов | 500+ терминов RU→EN, словари для DE/FR/ES, JSON файлы |
 | RS-3 | M (L) | Мультиязычный поиск (не фильтр) | Переключатель режима, перевод запроса на выбранные языки |
@@ -59,7 +61,7 @@
 | HM-1 | ✅ | Continue-cards: настройка «актуальных» курсов | Поля `featuredCourseIds` у `groups/{id}` и `users/{id}` (max 3), волна 3 |
 | HM-2 | ✅ | `/about` → вкладочная структура + страницы проектов | 6 вкладок, шаблон `<ProjectPage>` (волна 3) |
 | HM-3 | ✅ | Супер-админский редактор статических страниц | `/superadmin/pages` + редакторы `/about` и `projectPages/{slug}` через client SDK + rules (2026-04-26) |
-| HM-4 | L (S) | Чекбокс «не присылать email о бронях кабинетов» | Профиль студента → флаг → Cloud Function рассылки уважает флаг при подтверждении броней |
+| HM-4 | ✅ | Чекбокс «не присылать email о бронях кабинетов» | Выполнено (подтверждено сверкой 2026-07-11): `EmailPreferencesSection` в профиле → `prefs.emailBookingConfirmations`, гейт `shouldSendBookingEmail` в `api/_lib/bookingAuth.ts` → `api/booking.ts` |
 | HM-5 | L (S) | Vite dev overlay на `/booking`: «Cannot find module bookingCancellation.js» | Пред-существующая проблема (импорт в `api/booking.ts` появился в `8c53242`); прод-сборка работает, ломается только dev ESM-резолвер. Поправить vite/api dev-конфиг или alias |
 
 ---
@@ -152,7 +154,7 @@ CI часть (осталась):
 - [x] Обновить зависимости — выполнено
 - [x] Пересобрать и задеплоить — 17 функций задеплоены
 - [x] Задокументировать итог — обновлено
-- [ ] Перепроверить сканы через ~30 мин после деплоя
+- [x] ~~Перепроверить сканы через ~30 мин после деплоя~~ — окно давно истекло, неактуально (2026-07-11)
 - [ ] Добавить процесс: ежемесячный security-review образов  
 
 ---
@@ -175,8 +177,8 @@ CI часть (осталась):
 - [ ] В CI проверять размеры чанков (`npm run build` + fail, если timeline chunk > 1 MB или любой другой > 500 KB).
 
 ### MP‑4. Документация и tooling (P: M, E: S)
-- [ ] Добавить npm-скрипт `ts:prune` + инструкцию в README, как читать отчёт (`npx ts-prune`).
-- [ ] Явно закрепить в README требование прочитать `docs/architecture/guidelines.md` и `docs/guides/testing-system.md` перед началом задач.
+- [ ] Добавить npm-скрипт `ts:prune` + инструкцию в README, как читать отчёт (`ts-prune` уже в devDependencies — осталась только обёртка-скрипт; сверка 2026-07-11).
+- [x] README уже требует прочитать `docs/architecture/guidelines.md` перед изменениями (README:56).
 - [ ] Обновить ленивую документацию: описать политику добавления новых lazy-страниц и итоговые метрики в `docs/archive/legacy/lazy-loading-migration.md` / README, синхронизировать `docs/reference/perf-metrics.md` после завершения работ.
 
 ### MP‑7. Timeline UX follow-ups (P: M, E: S-M)
@@ -186,6 +188,7 @@ CI часть (осталась):
 
 ### MP‑8. Biography import richness follow-up (P: M, E: M)
 - **Контекст:** facts-first каскад уже умеет approximate ages, high-salience facts и theme-ветки, но legacy fallback и часть heuristic labels всё ещё периодически выдают generic события вроде `Учёба`/`Ссылка` и недобирают theme branches на sparse inputs.
+- **Сверка 2026-07-11:** generic labels живы (`timelineBiographyHeuristics.ts:400` `'Ссылка'`, `:405` `'Учёба в ...'`). Fixtures теперь 16 subjects (не только Пушкин), но выделенных sparse-coverage тестов на theme-ветки по-прежнему нет — пункт актуален.
 - **Задачи:**
   - [ ] Дожать generic-label cleanup в legacy path, чтобы при деградации quality не откатывалась к старым заглушкам.
   - [ ] Расширить sparse-biography coverage tests для theme branches (`friends`, `romance`, `travel`, `losses`) на нескольких не-пушкинских fixture’ах.
@@ -203,36 +206,35 @@ CI часть (осталась):
   - [x] `tests/api/transcript-search.test.ts`: 6 тестов (empty query, query construction, 30-cap, stop-words, AND-filter, scoring).
   - [x] `npm run validate` зелёный, integration 6/6.
 - **Ожидаемый эффект:** ~20 700 reads/запрос → ≤200 reads (зависит от популярности слов). Замер до/после после prod-запуска backfill.
-- **Что осталось — ручной operator-step:**
-  - [ ] Запустить `npx tsx scripts/backfillTranscriptSearchTokens.ts` без флага (dry-run) → проверить отчёт.
-  - [ ] Запустить `npx tsx scripts/backfillTranscriptSearchTokens.ts --apply` → backfill ~20 700 chunks.
-  - [ ] `firebase deploy --only firestore:indexes` (создание composite index).
-  - [ ] Дождаться status=READY у индекса в Firebase Console.
-  - [ ] Smoke-проверить `https://academydom.com/api/transcript-search?q=психология` через UI.
+- **Operator-steps — ✅ выполнены (отмечено при сверке 2026-07-11):**
+  - [x] Backfill 20 693 chunks на prod выполнен до merge (см. closure-note выше).
+  - [x] Index `searchChunks.searchTokens` (arrayConfig CONTAINS) в `firestore.indexes.json` и в БД.
+  - [x] Smoke H7 в `qa-smoke-log.md` (2026-04-28): latency 355–873мс через UI, full-scan убран.
 
-### CQ‑7. Рефакторинг новых монолитов и дублей (P: M, E: L)
+### CQ‑7. Рефакторинг новых монолитов и дублей (P: M, E: M — сужен сверкой 2026-07-11)
 - **Источник:** code review `2026-04-27`, см. `docs/archive/reports/CODE_REVIEW_MAIN_2026-04-27.md`.
-- **Проблема:** после закрытых ранних CQ-задач в проекте снова появились крупные runtime-файлы и дубли helper-логики. На момент ревью: 57 runtime-файлов >300 строк, 13 >500, 2 >800. Крупнейшие: `src/pages/DisorderTable.tsx` (1315), `api/papers.ts` (1206), `src/pages/home/HomeDashboard.tsx` (797), `api/assistant.ts` / `api/lectures.ts` / `api/books.ts`.
-- **Риск:** сложность ревью, высокая связность, локальные изменения чаще цепляют соседнее поведение.
-- **Задачи:**
-  - [ ] Разбить `src/pages/DisorderTable.tsx` на components/hooks: фильтры, модалки, comments, entry form, matrix view.
-  - [ ] Свести course navigation helpers к одному canonical path (`AppShell.tsx`, `useCourseNavItems.ts`, `courseLessons.ts` сейчас частично дублируются).
-  - [ ] Свести API runtime helpers: Firebase init, CORS, auth/BYOK/rate-limit без нарушения Vercel function limit.
-  - [ ] Проверить и удалить устаревший дубль `api/lectureTranscriptFallback.ts`, если он действительно не используется.
-  - [ ] Вернуть route-level lazy discipline для `PeriodPage` и `DynamicCoursePeriodPage` через `src/pages/lazy.ts`.
+- **Актуализация 2026-07-11:** цифры ревью устарели, большая часть уже сделана. Текущие размеры: `DisorderTable.tsx` 766 (было 1315, компоненты вынесены в `src/pages/disorderTable/`), `api/papers.ts` 229 (было 1206, контур в `api/_lib/papers*.ts`), `HomeDashboard.tsx` 381 (было 797), `api/assistant.ts` 250 / `api/lectures.ts` 271 / `api/books.ts` 171.
+- **Выполнено (подтверждено по коду):**
+  - [x] Course navigation helpers централизованы: `useCourseNavItems.ts` → `src/lib/courseNavItems.ts` + `courseLessons.ts`, дублей нет.
+  - [x] `api/lectureTranscriptFallback.ts` не существует, 0 вызовов.
+  - [x] ~~Вернуть lazy для `PeriodPage`/`DynamicCoursePeriodPage`~~ — снято: eager зафиксирован как сознательное решение в CLAUDE.md (быстрый отклик), пункт противоречил ему.
+- **Осталось:**
+  - [ ] `DisorderTable.tsx`: вынести state-логику контейнера в хуки (30 useState: фильтры, выбор ячеек, модалки, поиск) — компоненты уже вынесены, осталась state-каша.
+  - [ ] Свести на `sharedApiRuntime.ts` оставшиеся API: `api/booking.ts` (свои CORS+init ×3), `api/papers.ts`-контур, оба `api/timeline-biography-*-automation.ts`. Без нарушения Vercel function limit.
   - [ ] Синхронизировать `docs/reference/routes.md`, `docs/guides/booking-system.md`, `docs/reference/firestore-schema.md` после исправлений.
 
 ### BPT. Biography Pipeline tech debt (P: M, E: L)
 - **Источник:** ревью после squash-merge `feature/video-study-notes` (PR #65, 2026-05-03). Pipeline функционально работает, но 4 файла стали монолитами, есть дубли legacy-кода и пробелы в test coverage.
-- **Размеры файлов** (CLAUDE.md лимит < 400 строк):
+- **Размеры файлов** (CLAUDE.md лимит < 400 строк; актуализировано 2026-07-11):
 
   | Файл | Строк | Статус |
   |---|---|---|
-  | `server/api/timelineBiographyRuntime.ts` | 1098 | 🟡 живой — питает automation endpoints, см. BPT-1 |
-  | `src/pages/timeline/components/TimelineLeftPanel.tsx` | 856 | 🔴 раздут iPad/Safari debug |
-  | `functions/src/biographyImport.ts` | 843 | 🔴 главный CF, `runFullBiographyPipeline` 380 строк |
-  | `src/pages/Timeline.tsx` | 771 | 🟡 был 1125, нужно ещё |
-  | `timelineBiographyFacts.ts` / `Lint.ts` / `Heuristics.ts` | ~500 | 🟡 |
+  | `server/api/timelineBiographyPipeline.ts` | 789 | 🟡 единый shared-модуль оркестрации (итог BPT-2), большой но живой |
+  | `src/pages/Timeline.tsx` | 743 | 🟡 был 1125 → 771 → 743, остаток по желанию (BPT-4) |
+  | `timelineBiographyFacts.ts` / `Lint.ts` / `Heuristics.ts` | 636 / 548 / 515 | 🟡 см. BPT-6 (опционально) |
+  | `src/pages/timeline/components/TimelineLeftPanel.tsx` | 412 | ✅ было 856, BPT-3 закрыт |
+  | `functions/src/biographyImport.ts` | 313 | ✅ было 843, ужат BPT-2 |
+  | `server/api/timelineBiographyRuntime.ts` | 226 | ✅ было 1098, ужат BPT-2 |
 
 - **Задачи (рекомендованный порядок):**
 
@@ -260,41 +262,28 @@ CI часть (осталась):
     - `parsers.ts` — `parseSimpleJsonFacts`, `parseAnnotationResponse`, `parseRedakturaResponse`, `normalizeError`
   - Бонус: каждый шаг легче покрыть unit-тестом (см. BPT-5)
 
-  **BPT-3. Чистка `TimelineLeftPanel.tsx` (P: M, E: M)**
-  - Удалить iPad/Safari debug counters/popover (баг исправлен `884b951`, диагностика мёртвая):
-    - state `leftPanelSignalCounts`, `leftPanelDiagnostics`, `showDebugPopover`
-    - props `biographyDiagnostics`, `biographyUiSignals`, `biographyLastUiSignal`, `onBiographyDiagnostic`, `onBiographyUiSignal`
-    - native addEventListener в useEffect (строки 240-285) — дублирует React onClickCapture
-  - Вынести `BiographyImportSection`, `DownloadMenu`, `CanvasManager` в отдельные компоненты
-  - Цель: 856 → ~400 строк
+  **BPT-3. ✅ Закрыт (подтверждено сверкой 2026-07-11)**
+  - Файл 412 строк (было 856, цель ~400 достигнута). Debug-инструментация удалена (`fa28832`): grep `leftPanelSignalCounts|showDebugPopover|biographyDiagnostics|onBiographyUiSignal` по `src/pages/timeline/` пуст. Импорт биографии вынесен в модалки `BiographyImportFormModal` / `BiographyImportModal` (`e515d39`).
 
-  **BPT-4. Дофинишировать `Timeline.tsx` (P: L, E: M)**
-  - Вынести `useTimelineExport` hook (handleDownload + status + diagnostics)
-  - Удалить остатки `recordBiographyUiSignal`/`appendBiographyDiagnostic` после BPT-3
-  - Цель: 771 → ~400 строк
+  **BPT-4. Дофинишировать `Timeline.tsx` (P: L, E: S — сужен сверкой 2026-07-11)**
+  - [x] `useTimelineExport` вынесен (`src/pages/timeline/hooks/useTimelineExport.ts`).
+  - [x] Остатки `recordBiographyUiSignal`/`appendBiographyDiagnostic` удалены (grep по `src/` пуст).
+  - [ ] Файл всё ещё 743 строки (в основном оркестрация/прокидка props, 6 useState) — дальнейшее дробление по желанию, форсировать цифру ~400 не обязательно.
 
   **BPT-5. Test coverage gap (P: M, E: M) — частично закрыто 2026-07-08**
   - ✅ Ядро pipeline тестируемо через инжекцию клиента: `tests/api/timeline-biography-runtime.test.ts` (фейковый Gemini: слайсинг, post-death фильтр, gap-параметры, строгость к падению слайса), `functions/src/biography/parsers.test.ts` (канонические парсеры), + CI quality gates на кэше реальных ответов.
-  - Осталось: тонкая CF-обёртка (Firestore-прогресс, BYOK-учёт) и hook `useBiographyImport` — без unit-тестов.
-  - **Cloud Function `functions/src/biographyImport.ts`** (исходный план, частично неактуален):
-    - [ ] `pipeline.test.ts` — orchestration с замоканными Gemini calls
-    - [ ] `step2-extraction.test.ts` — slice loop, post-death filter (использует findDeathFact)
-    - [ ] `step3-gap-filling.test.ts` — density mode, post-gap filter
-    - [ ] `helpers.test.ts` — `extractGeminiTokens`, `recordBiographyByokUsage` с mocked Firestore
-  - **Hook `src/pages/timeline/hooks/useBiographyImport.ts`** — 0 тестов:
-    - [ ] open/close/handleSourceUrlChange — простые state transitions
-    - [ ] submit success path — mock fetch + onSnapshot status='done'
-    - [ ] submit error path — onSnapshot status='error'
-    - [ ] submit network error path — fetch rejects, polling всё равно работает
-  - **Death detection regression test:**
-    - [ ] Тест с фактом-родственником (смерть отца) на середине жизни subject'а — pipeline должен продолжить до реальной смерти
+  - ✅ Сверка 2026-07-11 — закрыто больше, чем помечено:
+    - [x] Hook `useBiographyImport` — тесты есть: `src/pages/timeline/hooks/__tests__/useBiographyImport.test.ts`.
+    - [x] Death detection regression — есть: `tests/api/timeline-biography-composer.test.ts` (кейс BPT-5a «relative death before subject is 15»).
+    - [x] Пин прод-тюнинга CF: `functions/src/biographyImport.test.ts` (`BIOGRAPHY_IMPORT_TUNING`).
+  - Осталось (единственный реальный gap):
+    - [ ] Тонкая CF-обёртка `functions/src/biographyImport.ts`: Firestore-прогресс и BYOK-учёт (`recordBiographyByokUsage` с mocked Firestore) — без unit-тестов. Step-файлы из исходного плана неактуальны (шаги живут в едином pipeline, см. BPT-2).
 
   **BPT-6. Опционально разбить `timelineBiographyFacts/Lint/Heuristics.ts` (P: L, E: S)**
   - По логическим единицам (parsing, normalization, dedup, baseline, salience). Делать только если кто-то начнёт активно править эти файлы.
 
-  **BPT-7. Redaktura обрезается на больших статьях (P: H, E: XS) — первое измеряемое изменение live-сессии бенчмарка**
-  - Замер B6 (2026-07-08): redaktura покрывает 22% фактов у lomonosov/nabokov, 73% у freud — `maxOutputTokens: 16384` съедается thinking-токенами (~12K/вызов), большинство фактов уходит в composition с importance=low без shortLabel.
-  - Фикс: поднять лимит до 65536 (как у остальных шагов). Меняет кэш-ключ → перемер 10 статей (~20 вызовов: redaktura+composition) с holdout-гейтом.
+  **BPT-7. ✅ Закрыт (подтверждено сверкой 2026-07-11)**
+  - Замер B6 (2026-07-08): redaktura покрывала 22–73% фактов — `maxOutputTokens: 16384` съедался thinking-токенами. Фикс применён: `maxOutputTokens: 65536` во всех вызовах `timelineBiographyPipeline.ts`, включая redaktura и merged-markup; значения 16384 в коде больше нет.
 
   **BPT-8. ✅ Решено иначе через lite-профиль (2026-07-10, в проде с 2026-07-11)**
   - Исходный замер: 1.07M из 1.88M токенов pipeline — thinking. Вместо тюнинга
@@ -340,9 +329,10 @@ CI часть (осталась):
   **BPT-11. UI: понятная ошибка при дневной квоте Gemini (P: M→L, E: S)**
   - Free tier (2026-07) даёт 20 запросов/день/проект на 2.5-flash; импорт = 5–7 вызовов → ~3 импорта в день. При 429 пользователь видит невнятную ошибку. Нужно: человеческое сообщение о дневной квоте BYOK-ключа (и, возможно, предупреждение до старта).
   - С переходом прода на flash-lite (2026-07-11) квота заметно щедрее и приоритет ниже, но 429-кейс остаётся (исчерпанный ключ, ключ без доступа к модели — ср. 404 «model not available» на одном из платных ключей).
+  - Уточнение по коду (сверка 2026-07-11): Vercel-путь уже нормализует 429 в человеческое сообщение (`timelineBiographyRuntime.ts:91-95`), но прод-UI идёт через CF, а `functions/src/biographyImport.ts` пишет в job **raw** `error.message` (нормализация применяется только к HTTP-ответу, который клиент игнорирует). Фикс — применить `normalizeError` к тексту, попадающему в Firestore job.
 
-  **BPT-12. Бенчмарк не видит composition-fallback как fail (P: L, E: XS)**
-  - После унификации Runtime перенял прод-семантику CF: падение composition → fallback «все факты на главной линии» вместо 500. Деградация видна только через метрики (branches=0, coverage), не через fail-счётчик — при разборе прогонов помнить.
+  **BPT-12. ✅ Закрыт (подтверждено сверкой 2026-07-11)**
+  - Бенчмарк теперь видит composition-fallback: `scripts/lib/biographyBenchmarkMetrics.ts` помечает `manualFixReasons: compositionFallback` (edges=0 при nodes>20), `runBiographyBenchmarkSuite.ts` считает такой замер мусорным.
 
 ### MR‑8. ✅ Закрыто 2026-05-11: catch-all заменён на deny-all
 - **Что было:** legacy catch-all `match /{document=**} { allow read: if true }` отменял per-uid ограничения для `biographyJobs` и пускал любого аутентифицированного к любой коллекции без явного match-блока. Дополнительно, после переписи catch-all в коммите `9cd609c` (05.05.2026) на форму с `document.size()/document[N]` Firestore стал отказывать в **list-запросах** для коллекций без своего match-блока — из-за этого `/tests` и админка тестов показывали пустые экраны (`PERMISSION_DENIED` на list).
@@ -352,10 +342,8 @@ CI часть (осталась):
   3. Catch-all заменён на `match /{document=**} { allow read, write: if false; }` — любая новая коллекция в будущем требует явного `match`-блока.
   4. Деплой: `firebase deploy --only firestore:rules --project psych-dev-site-prod` (2026-05-11). Подтверждено: `/tests` и `/tests-lesson` показывают реальные тесты из Firestore.
 
-### MR‑9. Functions Checks CI red — vitest config mismatch (P: L, E: XS)
-- **Симптом:** GitHub Actions job `Functions Checks` падает: `Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vitest' imported from .../vitest.config.ts.timestamp-...mjs`. Происходит при `npm run test` в директории `functions/` — подхватывается **root** `vitest.config.ts`, а не `functions/`-локальный, и в functions/node_modules нет vitest.
-- **Pre-existing на main** (не из PR #65).
-- **Решение:** либо в CI workflow вызывать `cd functions && vitest run` с указанием явного config (если есть локальный), либо использовать root vitest с явным `--root functions`, либо добавить `vitest` в `functions/package.json` devDependencies.
+### MR‑9. ✅ Functions Checks CI — РЕШЕНО (подтверждено сверкой 2026-07-11)
+- Job `Functions Checks` в `.github/workflows/ci.yml` работает с `working-directory: functions` + `npm ci --include=dev`; `vitest ^1.0.0` добавлен в `functions/package.json` devDependencies. Причина падения (подхват root-конфига без локального vitest) устранена.
 
 ### MR‑7. Починить AdminFeedFilters.test.tsx — pre-existing typecheck regression (P: L, E: XS)
 - **Симптом:** 3 теста в `src/pages/admin/announcements/__tests__/AdminFeedFilters.test.tsx` падают: `Type '"event"' is not assignable to type 'FeedFilterKind'`. Проявляется в `typecheck:tests` и в `vitest run` (отображается через jsdom assertion).
@@ -510,10 +498,9 @@ CI часть (осталась):
   - В rollout — fallback на хардкод-контент пока документ не создан в Firestore.
   - Firestore rules: write — только super-admin, read — публичный.
 
-### HM‑4. Чекбокс «не присылать email-подтверждения броней» (P: L, E: S)
-- **Проблема:** На каждое бронирование кабинета центра «Dom» прилетает отдельный email подтверждения. Постоянным клиентам это превращается в спам.
-- **Идея:** Чекбокс в профиле студента «Не присылать email-подтверждения броней». Cloud Function, рассылающая подтверждения, читает флаг и пропускает рассылку для пользователей с включённым флагом.
-- **Что не делать:** Не отключать другие email-уведомления (события групп, объявления) — только бронь.
+### HM‑4. ✅ Чекбокс «не присылать email-подтверждения броней» — ВЫПОЛНЕНО (подтверждено сверкой 2026-07-11)
+- Чекбокс: `src/components/profile/EmailPreferencesSection.tsx` → `prefs.emailBookingConfirmations` через `updateMyEmailPreferences` (`functions/src/userPreferences.ts`).
+- Гейт рассылки: `shouldSendBookingEmail()` в `api/_lib/bookingAuth.ts` читает флаг (default true) → `api/booking.ts` передаёт `notifyByEmail` в `handleBook`. Другие email-уведомления не затронуты.
 
 ### HM‑5. Vite dev overlay на `/booking`: «Cannot find module bookingCancellation.js» (P: L, E: S)
 - **Симптом:** При открытии `/booking` на dev-сервере (`npm run dev`) поверх контента появляется красный overlay Vite с текстом «Cannot find module '/Users/.../src/lib/bookingCancellation.js' imported from .../api/booking.ts». Реальный контент за overlay рендерится корректно. На прод-сборке ошибки нет.
@@ -732,17 +719,17 @@ CI часть (осталась):
   1. Пользователь вводит запрос (напр. "депрессия")
   2. Wikidata находит концепт (Q42844) и извлекает переводы/синонимы на все языки
   3. Поиск выполняется по всем вариантам параллельно
-- **Задачи:**
-  - [ ] Активировать существующий код Wikidata в `api/papers.ts` (wdSearch, wdGetEntities, buildQueryVariants)
+- **Задачи (пути актуализированы 2026-07-11 — контур отрефакторен в `api/_lib/papers*.ts`):**
+  - [ ] Подключить существующий Wikidata-код: `api/_lib/papersWikidata.ts` (`searchEntities`/`getEntities`) + `buildQueryVariants` из `api/_lib/papersTranslation.ts` — сейчас `api/papers.ts` их не вызывает.
   - [ ] Добавить параметр `deep=true` в API для включения Wikidata-расширения
-  - [ ] Обновить UI кнопки "Глубокий поиск" для вызова API с `deep=true`
+  - [ ] Обновить UI кнопки "Глубокий поиск" — сейчас это `alert('…в разработке')` в `src/pages/ResearchPage.tsx`
   - [ ] Показывать пользователю найденные варианты запроса (из meta.queryVariantsUsed)
-- **Файлы:** `api/papers.ts`, `src/pages/ResearchPage.tsx`
-- **Статус:** 🟡 Кнопка добавлена как заглушка
+- **Файлы:** `api/papers.ts`, `api/_lib/papersWikidata.ts`, `api/_lib/papersTranslation.ts`, `src/pages/ResearchPage.tsx`
+- **Статус:** 🟡 Кнопка добавлена как заглушка (alert)
 
 ### RS‑2. Расширение словаря RU→EN терминов (P: M, E: S)
 - **Описание:** Подгрузить качественные словари психологических терминов для перевода
-- **Текущее состояние:** ~50 терминов в `RU_TO_EN_TERMS` (api/papers.ts:127-167)
+- **Текущее состояние (2026-07-11):** ~83 термина в `RU_TO_EN_TERMS` (`api/_lib/papersTranslation.ts:15`); словарей DE/FR/ES и лемматизации нет
 - **Задачи:**
   - [ ] Найти/создать словарь психологических терминов RU→EN (500+ терминов)
   - [ ] Добавить словари для других языков (DE→EN, FR→EN, ES→EN)
@@ -752,7 +739,7 @@ CI часть (осталась):
   - Психологический словарь Мещерякова-Зинченко
   - APA Dictionary of Psychology
   - Wikidata labels/aliases для психологических концептов
-- **Файлы:** `api/papers.ts`
+- **Файлы:** `api/_lib/papersTranslation.ts`
 
 ---
 
@@ -880,7 +867,7 @@ CI часть (осталась):
   - [ ] Добавить переключатель режима: "Фильтр" vs "Поиск на языках"
   - [ ] В режиме "Поиск": переводить запрос на выбранные языки и искать без языкового фильтра
   - [ ] Показывать из какого языкового варианта пришёл каждый результат
-- **Файлы:** `api/papers.ts`, `src/pages/ResearchPage.tsx`, `src/features/researchSearch/hooks/useResearchSearch.ts`
+- **Файлы (актуализировано 2026-07-11):** `api/papers.ts`, `api/_lib/papersSources.ts` (языковой фильтр `language:` здесь), `api/_lib/papersTranslation.ts`, `src/pages/ResearchPage.tsx`, `src/features/researchSearch/hooks/useResearchSearch.ts`
 
 ---
 
@@ -905,9 +892,11 @@ CI часть (осталась):
 
 ---
 
-### CQ‑2. Устранение дублирования кода (P: H, E: M)
+### CQ‑2. ✅ Устранение дублирования кода — закрыто по board (2026-01-08)
 
-> **~1,150+ строк** можно консолидировать
+> Примечание сверки 2026-07-11: board помечает CQ-2 выполненным (BaseModal, useClickOutside, shuffleArray созданы). Секция ниже — исходный январский план; оставшиеся в нём кандидаты (CRUD-фабрики, functions-validators) с кодом не сверялись — при желании открывать отдельным пунктом.
+
+> **~1,150+ строк** можно консолидировать (оценка января 2026)
 
 #### A. Wrapper-хуки (22 строки)
 **Проблема:** `useClinicalTopics`/`useGeneralTopics` дублируют вызов `useCourseTopics`
@@ -947,9 +936,11 @@ export function useClinicalTopics() {
 
 ---
 
-### CQ‑3. Оптимизация Timeline ре-рендеров (P: H, E: S)
+### CQ‑3. ✅ Оптимизация Timeline ре-рендеров — закрыто по board (2026-01-08)
 
-#### Критические проблемы:
+> Примечание сверки 2026-07-11: board помечает CQ-3 выполненным (React.memo + useMemo в TimelineCanvas). Секция ниже — исходный январский список; его «средний приоритет» с кодом не сверялся. Timeline с тех пор дважды крупно рефакторился (MP-1 хуки, branchId BPT-10) — при возврате к теме исходить из свежего кода, не из этого списка.
+
+#### Критические проблемы (январь 2026):
 
 1. **JSON.parse/stringify в undo/redo** (`useTimelineHistory.ts`)
    - Блокирует UI при больших объёмах данных
@@ -1006,10 +997,10 @@ export function useClinicalTopics() {
 | `courseAccess.ts` (functions) | 🔴 HIGH | Granular access control |
 | `verify.ts` (functions) | 🟡 MED | Reconcile операции |
 
-**Задачи:**
-- [ ] Написать тесты для `useAuthStore` (auth flow, роли, инициализация)
+**Задачи (сверка 2026-07-11):**
+- [x] Тесты для `useAuthStore` — есть: `src/stores/useAuthStore.test.ts` (переписан в MR-4).
+- [x] Тесты для `firestoreHelpers` — есть: 32 теста (см. сводку TQ ниже).
 - [ ] Написать тесты для `useTestStore` (состояния ответов, reveal policy, подсчёт)
-- [ ] Написать тесты для `firestoreHelpers` (canonicalizePeriodId, getPeriodDocWithAliases)
 - [ ] Написать тесты для `testAccess` (isTestUnlocked, percentage checks)
 - [ ] Написать тесты для Cloud Functions (courseAccess CRUD, валидация)
 
@@ -1116,29 +1107,18 @@ export function useClinicalTopics() {
 
 ---
 
-## 🕰️ Biography Timeline Pipeline (BTP)
+## 🕰️ Biography Timeline Pipeline (BTP) — секция времён two-pass-v5, в основном устарела
 
-> **Pipeline:** extraction → gap-filling → annotation → redaktura → composition → render
-> **Ключевые файлы:** `server/api/timelineBiographyPrompts.ts`, `server/api/timelineBiographyRuntime.ts`
-> **Текущая версия:** two-pass-v5
+> ⚠️ **Актуализация 2026-07-11:** секция написана до унификации pipeline (BPT-2) и бенчмарк-контура (BPT-7..15). Оркестрация теперь в `server/api/timelineBiographyPipeline.ts`; упоминаний `two-pass-v5` в server-коде нет.
 
-### BTP-1. Батчевание annotation/redaktura для длинных биографий (P: M, E: S)
-- **Проблема:** При >250 фактах (Вертинский — 257) один вызов с maxOutputTokens=65536 может упираться в входной контекст или порождать неполный ответ. Сейчас работает, но для статей с 400+ фактами может потребоваться батчевание.
-- **Триггер:** Если появится биография с >300 фактами и annotation/redaktura вернут <90% покрытия.
-- **Решение:** Батчевание по ~120 фактов с `Promise.allSettled` (проверено в тесте Вертинского). Для importance — адаптивный лимит `Math.ceil(15 * batchSize / totalSize)` + пост-процессинг overflow.
+### BTP-1. Батчевание annotation/redaktura для длинных биографий (P: L, E: S — trigger-based)
+- **Статус 2026-07-11:** батчевания в едином pipeline нет (`Promise.allSettled` не используется). Триггер прежний: биография с >300 фактами и покрытием <90%. До срабатывания триггера не делать; для lite-профиля разметка идёт merged-вызовом (BPT-9), картина может отличаться.
 
-### BTP-2. Улучшение composition — баланс mainLine/branches (P: M, E: M)
-- **Проблема:** На Павлове mainLine слишком жирный (35 фактов вместо ~15-20), слишком мало веток (3 вместо 6-8).
-- **Задачи:**
-  - [ ] Ужесточить промпт composition: явнее ограничить mainLine, увеличить минимум веток
-  - [ ] Тестировать на Павлове и Вертинском
-  - [ ] Возможно передавать importance из редактуры как дополнительный сигнал
+### BTP-2. ⚠️ Поглощён бенчмарк-контуром
+- Баланс mainLine/branches теперь измеряется бенчмарком (метрики branches/coverage в `scripts/lib/biographyBenchmarkMetrics.ts`), качественные зазоры lite-профиля трекаются в BPT-13/BPT-14. Отдельно не вести.
 
-### BTP-3. Рендер timeline на canvas (P: H, E: M)
-- **Описание:** Интегрировать конвертер из `tmp/render-composition.ts` в production — преобразование composition result в визуальный таймлайн.
-- **Задачи:**
-  - [ ] Перенести логику из tmp в production код
-  - [ ] Связать с существующим TimelineCanvas компонентом
+### BTP-3. ✅ Рендер timeline на canvas — давно в проде
+- `tmp/render-composition.ts` не существует; composition-результат рендерится в `TimelineCanvas` штатным путём импорта биографий.
 
 ### BTP-4. shortLabel длина >25 символов (P: L, E: S)
 - **Проблема:** ~12% лейблов превышают 25 символов. Не критично — UI обрезает через CSS.
