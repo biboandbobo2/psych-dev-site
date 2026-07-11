@@ -7,6 +7,10 @@ import {
   useLessonQuestions,
   useLectureQuestionActions,
 } from '../../../hooks/useLectureQuestions';
+import {
+  useLessonSharedNotes,
+  useSharedLectureNoteActions,
+} from '../../../hooks/useSharedLectureNotes';
 import { AskLectureQuestionModal } from './AskLectureQuestionModal';
 import { debugError } from '../../../lib/debug';
 import { formatTimestampMs } from '../../../lib/formatTimestamp';
@@ -18,13 +22,16 @@ interface LessonQuestionsSectionProps {
   periodTitle: string;
 }
 
-function buildStudyLink(pathname: string, question: LectureQuestion) {
-  if (!question.videoId || question.startMs === null) {
+function buildStudyLink(
+  pathname: string,
+  target: { videoId: string | null; startMs: number | null }
+) {
+  if (!target.videoId || target.startMs === null) {
     return null;
   }
 
-  const seconds = Math.floor(question.startMs / 1000);
-  return `${pathname}?study=1&video=${encodeURIComponent(question.videoId)}&panel=notes&t=${seconds}`;
+  const seconds = Math.floor(target.startMs / 1000);
+  return `${pathname}?study=1&video=${encodeURIComponent(target.videoId)}&panel=notes&t=${seconds}`;
 }
 
 export function LessonQuestionsSection({
@@ -47,7 +54,13 @@ export function LessonQuestionsSection({
     periodId ?? null,
     groupIds
   );
+  const { sharedNotes } = useLessonSharedNotes(
+    user && periodId ? courseId : null,
+    periodId ?? null,
+    groupIds
+  );
   const { deleteQuestion } = useLectureQuestionActions();
+  const { deleteSharedNote } = useSharedLectureNoteActions();
   const [isAskOpen, setIsAskOpen] = useState(false);
 
   // Секция видна только авторизованным: вопросы — фича живых потоков.
@@ -62,6 +75,16 @@ export function LessonQuestionsSection({
     } catch (err) {
       debugError('[LessonQuestionsSection] failed to delete question', err);
       alert('Не удалось удалить вопрос');
+    }
+  };
+
+  const handleDeleteShared = async (shareId: string) => {
+    if (!confirm('Удалить расшаренный конспект?')) return;
+    try {
+      await deleteSharedNote(shareId);
+    } catch (err) {
+      debugError('[LessonQuestionsSection] failed to delete shared note', err);
+      alert('Не удалось удалить конспект');
     }
   };
 
@@ -127,6 +150,64 @@ export function LessonQuestionsSection({
             })}
           </ul>
         )}
+
+        {sharedNotes.length > 0 ? (
+          <div className="space-y-3 pt-2">
+            <h3 className="text-base font-semibold text-fg">Конспекты группы</h3>
+            <ul className="space-y-3">
+              {sharedNotes.map((note) => {
+                const isOwn = note.authorUid === user.uid;
+
+                return (
+                  <li
+                    key={note.id}
+                    className="rounded-2xl border border-border bg-white/50 px-4 py-3"
+                  >
+                    <div className="space-y-2">
+                      {note.segments.map((segment) => {
+                        const studyLink = buildStudyLink(location.pathname, {
+                          videoId: note.videoId,
+                          startMs: segment.startMs,
+                        });
+
+                        return (
+                          <p key={segment.id} className="text-sm leading-6 text-fg">
+                            {studyLink ? (
+                              <Link
+                                to={studyLink}
+                                className="mr-2 text-xs font-medium text-accent no-underline hover:no-underline"
+                              >
+                                {formatTimestampMs(segment.startMs)}
+                              </Link>
+                            ) : null}
+                            {segment.text}
+                          </p>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted">
+                      <span>{isOwn ? 'Вы' : note.authorName ?? 'Участник группы'}</span>
+                      {note.visibility === 'lecturers' ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">
+                          только лекторам
+                        </span>
+                      ) : null}
+                      {isOwn ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteShared(note.id)}
+                          className="text-muted transition hover:text-rose-600"
+                        >
+                          Удалить
+                        </button>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
       </div>
 
       <AskLectureQuestionModal

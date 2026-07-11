@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   addDoc,
   collection,
@@ -8,11 +8,11 @@ import {
   query,
   serverTimestamp,
   where,
-  type QueryConstraint,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../stores/useAuthStore';
 import { debugError } from '../lib/debug';
+import { useLessonScopedDocs } from './useLessonScopedDocs';
 import {
   mapLectureQuestionRecord,
   type LectureQuestion,
@@ -63,94 +63,22 @@ export function useLectureQuestionActions() {
 
 /**
  * Вопросы занятия для студента: вопросы его групп (visibility='group')
- * плюс его собственные (включая «только лектору»). Только equality-фильтры —
- * composite-индексы не нужны, сортировка на клиенте.
+ * плюс его собственные (включая «только лектору»).
  */
 export function useLessonQuestions(
   courseId: string | null,
   periodId: string | null,
   groupIds: string[]
 ) {
-  const user = useAuthStore((s) => s.user);
-  const [bySource, setBySource] = useState<Record<string, LectureQuestion[]>>({});
-  const [loading, setLoading] = useState(true);
-  const groupKey = groupIds.join(',');
+  const { docs, loading } = useLessonScopedDocs(
+    'lectureQuestions',
+    mapLectureQuestionRecord,
+    courseId,
+    periodId,
+    groupIds
+  );
 
-  useEffect(() => {
-    setBySource({});
-
-    if (!courseId || !periodId || !user) {
-      setLoading(false);
-      return undefined;
-    }
-
-    const sources: Array<{ key: string; constraints: QueryConstraint[] }> = groupIds.map(
-      (groupId) => ({
-        key: `group:${groupId}`,
-        constraints: [
-          where('courseId', '==', courseId),
-          where('periodId', '==', periodId),
-          where('groupId', '==', groupId),
-          where('visibility', '==', 'group'),
-        ],
-      })
-    );
-    sources.push({
-      key: 'own',
-      constraints: [
-        where('courseId', '==', courseId),
-        where('periodId', '==', periodId),
-        where('authorUid', '==', user.uid),
-      ],
-    });
-
-    setLoading(true);
-    let pending = sources.length;
-
-    const unsubscribes = sources.map(({ key, constraints }) =>
-      onSnapshot(
-        query(collection(db, 'lectureQuestions'), ...constraints),
-        (snap) => {
-          setBySource((current) => ({
-            ...current,
-            [key]: snap.docs.map((d) => mapLectureQuestionRecord(d.id, d.data())),
-          }));
-          pending = Math.max(0, pending - 1);
-          if (pending === 0) {
-            setLoading(false);
-          }
-        },
-        (err) => {
-          debugError('[useLessonQuestions] snapshot error', key, err);
-          pending = Math.max(0, pending - 1);
-          if (pending === 0) {
-            setLoading(false);
-          }
-        }
-      )
-    );
-
-    return () => {
-      unsubscribes.forEach((unsubscribe) => unsubscribe());
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseId, periodId, groupKey, user]);
-
-  const questions = useMemo(() => {
-    const seen = new Set<string>();
-    const merged: LectureQuestion[] = [];
-    for (const list of Object.values(bySource)) {
-      for (const question of list) {
-        if (!seen.has(question.id)) {
-          seen.add(question.id);
-          merged.push(question);
-        }
-      }
-    }
-    return sortByCreatedAtDesc(merged);
-  }, [bySource]);
-
-  return { questions, loading };
+  return { questions: docs, loading };
 }
 
 /** Все вопросы курса — для лектора (правила требуют canEditCourse). */

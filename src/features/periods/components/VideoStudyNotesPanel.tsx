@@ -11,6 +11,7 @@ import {
 import { useAuthStore } from '../../../stores/useAuthStore';
 import type { StudyVideoPlaybackSnapshot } from './StudyVideoPlayer';
 import { LectureNoteSegmentsEditor } from './LectureNoteSegmentsEditor';
+import { ShareLectureNoteModal } from './ShareLectureNoteModal';
 import { useTimestampedLectureDraft } from '../hooks/useTimestampedLectureDraft';
 
 interface VideoStudyNotesPanelProps {
@@ -54,6 +55,7 @@ export function VideoStudyNotesPanel({
 
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [isHydrating, setIsHydrating] = useState(false);
   const [viewMode, setViewMode] = useState<NoteViewMode>('plain');
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -351,7 +353,17 @@ export function VideoStudyNotesPanel({
             >
               Войти
             </button>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsShareOpen(true)}
+              disabled={!hasContent}
+              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              title={hasContent ? 'Отправить фрагменты конспекта группе или лектору' : 'Сначала напишите конспект'}
+            >
+              Поделиться
+            </button>
+          )}
         </div>
 
         <div className="flex-1 min-h-0">
@@ -404,6 +416,17 @@ export function VideoStudyNotesPanel({
       </aside>
 
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
+
+      <ShareLectureNoteModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        segments={persistedSegments}
+        courseId={courseId}
+        periodId={periodId}
+        periodTitle={lectureContext.periodTitle}
+        lectureTitle={videoTitle}
+        videoId={lectureResourceId}
+      />
     </>
   );
 }

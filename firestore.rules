@@ -162,6 +162,43 @@ service cloud.firestore {
       allow delete: if isQuestionAuthor() || canEditCourse(resource.data.courseId);
     }
 
+    // Расшаренные фрагменты конспекта — снапшот выбранных сегментов.
+    // Модель доступа идентична lectureQuestions.
+    match /sharedLectureNotes/{shareId} {
+      function isShareAuthor() {
+        return isAuthenticated() && resource.data.authorUid == request.auth.uid;
+      }
+      function isShareGroupMember() {
+        return isAuthenticated() &&
+          resource.data.visibility == 'group' &&
+          resource.data.groupId is string &&
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.memberIds;
+      }
+
+      allow get, list: if isShareAuthor()
+        || canEditCourse(resource.data.courseId)
+        || isShareGroupMember();
+
+      allow create: if isAuthenticated()
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.courseId is string
+        && request.resource.data.periodId is string
+        && request.resource.data.segments is list
+        && request.resource.data.segments.size() > 0
+        && request.resource.data.segments.size() <= 100
+        && request.resource.data.visibility in ['group', 'lecturers']
+        && (
+          request.resource.data.visibility == 'lecturers' ||
+          (
+            request.resource.data.groupId is string &&
+            request.auth.uid in get(/databases/$(database)/documents/groups/$(request.resource.data.groupId)).data.memberIds
+          )
+        );
+
+      allow update: if false;
+      allow delete: if isShareAuthor() || canEditCourse(resource.data.courseId);
+    }
+
     // Legacy коллекции курса "Психология развития" (возрастные периоды + intro)
     match /intro/{document=**} {
       allow read: if true;

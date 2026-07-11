@@ -6,6 +6,11 @@ import {
   useCourseQuestions,
   useLectureQuestionActions,
 } from '../../../hooks/useLectureQuestions';
+import {
+  useCourseSharedNotes,
+  useSharedLectureNoteActions,
+} from '../../../hooks/useSharedLectureNotes';
+import type { SharedLectureNote } from '../../../types/sharedLectureNotes';
 import { canEditCourse } from '../../../types/user';
 import { debugError } from '../../../lib/debug';
 import { formatTimestampMs } from '../../../lib/formatTimestamp';
@@ -64,20 +69,33 @@ export default function AdminLectureQuestions() {
   const canViewSelected =
     selectedCourseId !== null && canEditCourse(userRole, adminEditableCourses, selectedCourseId);
   const { questions, loading, error } = useCourseQuestions(canViewSelected ? selectedCourseId : null);
+  const { sharedNotes } = useCourseSharedNotes(canViewSelected ? selectedCourseId : null);
   const { deleteQuestion } = useLectureQuestionActions();
+  const { deleteSharedNote } = useSharedLectureNoteActions();
 
   const byPeriod = useMemo(() => {
-    const map = new Map<string, { title: string; items: LectureQuestion[] }>();
-    for (const question of questions) {
-      const entry = map.get(question.periodId) ?? {
-        title: question.periodTitle ?? question.periodId,
+    const map = new Map<
+      string,
+      { title: string; items: LectureQuestion[]; notes: SharedLectureNote[] }
+    >();
+    const entryFor = (periodId: string, periodTitle: string | null) => {
+      const entry = map.get(periodId) ?? {
+        title: periodTitle ?? periodId,
         items: [],
+        notes: [],
       };
-      entry.items.push(question);
-      map.set(question.periodId, entry);
+      map.set(periodId, entry);
+      return entry;
+    };
+
+    for (const question of questions) {
+      entryFor(question.periodId, question.periodTitle).items.push(question);
+    }
+    for (const note of sharedNotes) {
+      entryFor(note.periodId, note.periodTitle).notes.push(note);
     }
     return [...map.entries()];
-  }, [questions]);
+  }, [questions, sharedNotes]);
 
   const handleCourseChange = (courseId: string) => {
     setSelectedCourseId(courseId);
@@ -91,6 +109,16 @@ export default function AdminLectureQuestions() {
     } catch (err) {
       debugError('[AdminLectureQuestions] failed to delete question', err);
       alert('Не удалось удалить вопрос');
+    }
+  };
+
+  const handleDeleteShared = async (shareId: string) => {
+    if (!confirm('Удалить конспект?')) return;
+    try {
+      await deleteSharedNote(shareId);
+    } catch (err) {
+      debugError('[AdminLectureQuestions] failed to delete shared note', err);
+      alert('Не удалось удалить конспект');
     }
   };
 
@@ -128,11 +156,15 @@ export default function AdminLectureQuestions() {
         <p className="text-muted">По этому курсу пока нет вопросов.</p>
       ) : (
         <div className="space-y-8">
-          {byPeriod.map(([periodId, { title, items }]) => (
+          {byPeriod.map(([periodId, { title, items, notes }]) => (
             <section key={periodId}>
               <h2 className="mb-3 text-lg font-semibold">
                 {title}
-                <span className="ml-2 text-sm font-normal text-gray-400">{items.length}</span>
+                <span className="ml-2 text-sm font-normal text-gray-400">
+                  {items.length > 0 ? `${items.length} вопр.` : ''}
+                  {items.length > 0 && notes.length > 0 ? ' · ' : ''}
+                  {notes.length > 0 ? `${notes.length} консп.` : ''}
+                </span>
               </h2>
               <ul className="space-y-3">
                 {items.map((question) => (
@@ -168,6 +200,54 @@ export default function AdminLectureQuestions() {
                   </li>
                 ))}
               </ul>
+              {notes.length > 0 ? (
+                <div className="mt-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-600">Конспекты студентов</h3>
+                  <ul className="space-y-3">
+                    {notes.map((note) => (
+                      <li
+                        key={note.id}
+                        className="rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm"
+                      >
+                        <div className="space-y-1">
+                          {note.segments.map((segment) => (
+                            <p key={segment.id} className="text-sm leading-6 text-gray-900">
+                              {segment.startMs !== null ? (
+                                <span className="mr-2 text-xs font-medium text-gray-400">
+                                  {formatTimestampMs(segment.startMs)}
+                                </span>
+                              ) : null}
+                              {segment.text}
+                            </p>
+                          ))}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                          <span>{note.authorName ?? 'Без имени'}</span>
+                          <span>{note.createdAt.toLocaleDateString('ru-RU')}</span>
+                          {note.visibility === 'lecturers' ? (
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">
+                              только лекторам
+                            </span>
+                          ) : null}
+                          <Link
+                            to={buildLessonPath(note.courseId, note.periodId)}
+                            className="text-blue-600 no-underline hover:underline"
+                          >
+                            Открыть занятие
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteShared(note.id)}
+                            className="text-gray-400 transition hover:text-rose-600"
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </section>
           ))}
         </div>
