@@ -46,6 +46,7 @@ export const AdminCourseIntro = lazy(() => lazyWithReload(() => import('./admin/
 export const AdminAnnouncements = lazy(() => lazyWithReload(() => import('./admin/AdminAnnouncements'), 'AdminAnnouncements'));
 export const AdminExams = lazy(() => lazyWithReload(() => import('./admin/exams/AdminExams'), 'AdminExams'));
 export const AdminGroups = lazy(() => lazyWithReload(() => import('./admin/groups/AdminGroups'), 'AdminGroups'));
+export const AdminLectureQuestions = lazy(() => lazyWithReload(() => import('./admin/questions/AdminLectureQuestions'), 'AdminLectureQuestions'));
 export const AdminPagesList = lazy(() => lazyWithReload(() => import('./admin/pages/AdminPagesList'), 'AdminPagesList'));
 export const AdminAboutPageEditor = lazy(() => lazyWithReload(() => import('./admin/pages/about/AboutPageEditor'), 'AdminAboutPageEditor'));
 export const AdminProjectPageEditor = lazy(() => lazyWithReload(() => import('./admin/pages/project/ProjectPageEditor'), 'AdminProjectPageEditor'));

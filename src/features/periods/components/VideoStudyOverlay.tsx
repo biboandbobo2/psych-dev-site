@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getYouTubeVideoId } from '../../../lib/videoTranscripts';
 import type { LectureNoteDraft } from '../../../types/notes';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
+import { AskLectureQuestionModal } from './AskLectureQuestionModal';
 import { VideoResourceLinks } from './VideoResourceLinks';
 import { StudyVideoPlayer, type StudyVideoPlayerHandle } from './StudyVideoPlayer';
 import { VideoTranscriptPanel } from './VideoTranscriptPanel';
@@ -51,6 +52,10 @@ export function VideoStudyOverlay({
 }: VideoStudyOverlayProps) {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(initialPanel);
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
+  const [questionState, setQuestionState] = useState<{ isOpen: boolean; startMs: number | null }>({
+    isOpen: false,
+    startMs: null,
+  });
   const [transcriptFocusMs, setTranscriptFocusMs] = useState<number | null>(
     initialSeekMs ?? highlightedStartMs
   );
@@ -165,6 +170,18 @@ export function VideoStudyOverlay({
               <h3 className="truncate pt-1 text-lg font-semibold text-white md:text-xl">{videoTitle}</h3>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setQuestionState({
+                    isOpen: true,
+                    startMs: playerRef.current?.getPlaybackSnapshot().currentTimeMs ?? null,
+                  })
+                }
+                className="shrink-0 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+              >
+                Задать вопрос
+              </button>
               {transcriptState.hasTranscript ? (
                 <button
                   type="button"
@@ -255,6 +272,17 @@ export function VideoStudyOverlay({
           )}
         </aside>
       </div>
+
+      <AskLectureQuestionModal
+        isOpen={questionState.isOpen}
+        onClose={() => setQuestionState({ isOpen: false, startMs: null })}
+        courseId={courseId}
+        periodId={periodId}
+        periodTitle={periodTitle.trim() || videoTitle}
+        lectureTitle={videoTitle}
+        videoId={youtubeVideoId}
+        startMs={questionState.startMs}
+      />
     </div>,
     document.body
   );

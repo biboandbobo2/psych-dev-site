@@ -121,6 +121,47 @@ service cloud.firestore {
       }
     }
 
+    // Вопросы студентов по занятиям курса (из режима конспекта или со
+    // страницы занятия). Читают: автор, лекторы курса (canEditCourse) и —
+    // при visibility='group' — участники группы автора. Запросы клиента
+    // используют только equality-фильтры (composite-индексы не нужны).
+    match /lectureQuestions/{questionId} {
+      function isQuestionAuthor() {
+        return isAuthenticated() && resource.data.authorUid == request.auth.uid;
+      }
+      function isQuestionGroupMember() {
+        return isAuthenticated() &&
+          resource.data.visibility == 'group' &&
+          resource.data.groupId is string &&
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.memberIds;
+      }
+
+      allow get, list: if isQuestionAuthor()
+        || canEditCourse(resource.data.courseId)
+        || isQuestionGroupMember();
+
+      allow create: if isAuthenticated()
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.courseId is string
+        && request.resource.data.periodId is string
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000
+        && request.resource.data.visibility in ['group', 'lecturers']
+        && (
+          request.resource.data.visibility == 'lecturers' ||
+          (
+            request.resource.data.groupId is string &&
+            request.auth.uid in get(/databases/$(database)/documents/groups/$(request.resource.data.groupId)).data.memberIds
+          )
+        );
+
+      // Вопрос — снапшот к семинару: правок нет, только удаление
+      // автором или лектором курса.
+      allow update: if false;
+      allow delete: if isQuestionAuthor() || canEditCourse(resource.data.courseId);
+    }
+
     // Legacy коллекции курса "Психология развития" (возрастные периоды + intro)
     match /intro/{document=**} {
       allow read: if true;
