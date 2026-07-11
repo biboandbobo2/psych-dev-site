@@ -21,6 +21,7 @@ import {
   setBiographyGenAiClientFactory,
 } from '../../server/api/timelineBiographyRuntime.js';
 import type { WikipediaPageExtract } from '../../server/api/timelineBiographyTypes.js';
+import { BIOGRAPHY_PROD_MODEL } from '../../server/api/timelineBiographyPipeline.js';
 import { buildArticleMetrics, type ArticleMetrics } from '../../scripts/lib/biographyBenchmarkMetrics';
 import {
   BiographyGeminiCacheMissError,
@@ -37,7 +38,10 @@ function hasCache(articleId: string) {
   return existsSync(dir) && readdirSync(dir).length >= 4;
 }
 
-async function replayArticle(articleId: string): Promise<ArticleMetrics | 'cache-incomplete'> {
+async function replayArticle(
+  articleId: string,
+  tuning?: { model: string; tuningProfile: 'lite' }
+): Promise<ArticleMetrics | 'cache-incomplete'> {
   const entry = biographyBenchmarkSet.find((e) => e.id === articleId)!;
   const page = JSON.parse(
     readFileSync(path.join(WIKI_DIR, `${articleId}.json`), 'utf8')
@@ -47,7 +51,12 @@ async function replayArticle(articleId: string): Promise<ArticleMetrics | 'cache
     createCachingBiographyClient({ articleId, live: false, apiKey: 'cache-only', stats })
   );
   try {
-    const payload = await runBiographyImport({ sourceUrl: entry.sourceUrl, apiKey: 'cache-only', page });
+    const payload = await runBiographyImport({
+      sourceUrl: entry.sourceUrl,
+      apiKey: 'cache-only',
+      page,
+      ...tuning,
+    });
     if (stats.misses > 0) return 'cache-incomplete';
     return buildArticleMetrics({ entry, payload, stats, wallClockMs: 0, articleExtract: page.biographyExtract });
   } catch (error) {
@@ -100,5 +109,47 @@ describe('biography pipeline quality gates (кэш, 0 токенов)', () => {
   afterAll(() => {
     // Изменение промптов инвалидирует кэш — гейт обязан проверять хоть что-то
     expect(verified.length, 'ни одна статья не прошла реплей — пере-сними benchmark').toBeGreaterThan(0);
+  });
+});
+
+describe('biography pipeline quality gates — прод-конфиг lite (кэш, 0 токенов)', () => {
+  // Тот же конфиг, что CF biographyImport передаёт в pipeline
+  // (пин: functions/src/biographyImport.test.ts).
+  const PROD_TUNING = { model: BIOGRAPHY_PROD_MODEL, tuningProfile: 'lite' } as const;
+  const cachedArticles = biographyBenchmarkSet.filter((e) => hasCache(e.id)).map((e) => e.id);
+  const verified: string[] = [];
+
+  for (const articleId of cachedArticles) {
+    it(`${articleId} (lite): структурные гейты и critical-факты`, async () => {
+      const metrics = await replayArticle(articleId, PROD_TUNING);
+      if (metrics === 'cache-incomplete') {
+        // lite-кэш есть не для всех статей (и инвалидируется при смене промпта)
+        return;
+      }
+
+      expect(metrics.structure.referentialViolations, 'referentialViolations').toBe(0);
+      expect(metrics.structure.duplicateIds, 'duplicateIds').toBe(0);
+      expect(metrics.structure.eventsOutsideBranchWindow, 'eventsOutsideBranchWindow').toBe(0);
+      expect(metrics.structure.sharedXOverlappingLanes, 'sharedXOverlappingLanes').toBe(0);
+      expect(metrics.structure.normalizeEdits.total, 'normalizeEdits').toBe(0);
+
+      if (metrics.coverage) {
+        expect(metrics.coverage.criticalMatched, 'criticalMatched').toBe(metrics.coverage.criticalFacts);
+        expect(
+          metrics.coverage.timelineMatched / metrics.coverage.totalFacts,
+          `coverage ${metrics.coverage.timelineMatched}/${metrics.coverage.totalFacts}`
+        ).toBeGreaterThanOrEqual(0.9);
+      }
+
+      expect(metrics.labels.genericNodeLabels, 'genericNodeLabels').toBeLessThanOrEqual(2);
+
+      verified.push(articleId);
+    }, 30_000);
+  }
+
+  afterAll(() => {
+    // Прод-путь обязан быть покрыт кэшем актуального lite-промпта: смена
+    // промпта без пере-снятия lite-бенчмарка должна ронять гейт.
+    expect(verified.length, 'прод-конфиг lite не покрыт реплеем — пере-сними lite-benchmark').toBeGreaterThan(0);
   });
 });

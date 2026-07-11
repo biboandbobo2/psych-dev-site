@@ -55,14 +55,46 @@ Browser
 
 Все шаги логируются в Cloud Functions logs с префиксом `[biographyImport]`.
 
+**Модели (с 2026-07-11):** прод (CF `biographyImport`) работает на
+`BIOGRAPHY_PROD_MODEL = gemini-3.1-flash-lite` с `tuningProfile: 'lite'` —
+non-thinking модель, 12–25× дешевле 2.5-flash по токенам, переживает
+retirement 2.5-flash (2026-10-16). Конфиг — `BIOGRAPHY_IMPORT_TUNING` в CF,
+запинен тестом `functions/src/biographyImport.test.ts`.
+`DEFAULT_BIOGRAPHY_MODEL` pipeline остаётся `gemini-2.5-flash` — это
+baseline бенчмарка (кэш и quality gate дефолтного пути стабильны).
+
 | # | Stage | Что делает | Gemini call | Время |
 |---|-------|-----------|-------------|-------|
 | 1 | Wikipedia fetch | Скачивает plain extract через MediaWiki API, валидирует URL (только `*.wikipedia.org`) | нет | ~1-2 сек |
-| 2 | Extraction | По slice'ам извлекает hard facts (год, текст, category, eventType). После — post-death filter (см. edge cases). | gemini-2.5-flash, до 65536 tokens, может retry до 3 раз с 60s delay на 429 | 30-90 сек |
-| 3 | Gap-filling | Дозаполняет дыры между фактами (для биографий с density < 3 facts/year). Условно skip если density высокая. | gemini-2.5-flash | 60-120 сек |
-| 4 | Annotation + Redaktura | Аннотирует (themes, people, month, day) и редактирует (importance 1-5, shortLabel ≤ 25 chars). | 2 sequential calls | 30-60 сек |
-| 5 | Composition | Строит mainLine + branches из facts через Gemini. После — `buildPlanFromCompositionResult` локально. | gemini-2.5-flash | 20-90 сек |
+| 2 | Extraction | По slice'ам извлекает hard facts (год, текст, category, eventType). После — post-death filter (см. edge cases). | Flash-модель, до 65536 tokens, может retry до 3 раз с 60s delay на 429 | 30-90 сек |
+| 3 | Gap-filling | Дозаполняет дыры между фактами (для биографий с density < 3 facts/year). Условно skip если density высокая. | Flash-модель | 60-120 сек |
+| 4 | Annotation + Redaktura | Аннотирует (themes, people, month, day) и редактирует (importance 1-5, shortLabel ≤ 25 chars). | 2 sequential calls (lite-профиль: 1 объединённый JSON-вызов, BPT-9) | 30-60 сек |
+| 5 | Composition | Строит mainLine + branches из facts через Gemini. После — `buildPlanFromCompositionResult` локально. | Flash-модель | 20-90 сек |
 | 6 | Render | Локальная сборка `TimelineData` из composition: разводит x-координаты веток, фильтрует posthumous, добавляет terminal death event. | нет | <100 мс |
+
+### Lite-профиль (`tuningProfile: 'lite'`, прод с 2026-07-11)
+
+Non-thinking модели (3.1-flash-lite) недобирают факты на декларативном
+«извлеки всё» и фабрикуют даты. Профиль компенсирует (всё в
+`timelineBiographyPipeline.ts`):
+
+- **Процедурное дробление** — `buildLiteExtractionEmphasis`: per-paragraph
+  процедура + минимум фактов (`sliceChars/400`, не меньше 60).
+- **Few-shot датировки** — `LITE_DATING_EXAMPLES`: честный `year: null`
+  когда года нет в тексте, дюративные обороты («С 1902 года…»).
+- **Structured output** — `responseSchema` c nullable `year`/`month` и enum
+  category/sphere (документированный Google-приём против фабрикации дат).
+- **Объединённая разметка (BPT-9)** — annotation+redaktura одним JSON-вызовом
+  (`markupBiographyFactsMerged`); −1 запрос на импорт.
+
+Гарды фабрикации дат работают на ЛЮБОМ пути (и дефолтном):
+`stripFabricatedYearClusters` (кластер ≥10 фактов и >20% на один год →
+year обнуляется) и `stripUnreliableMonths` (модальный месяц >60% при
+выборке ≥20 → месяцы обнуляются). Срезанное видно в бенчмарке через
+`manualFixReasons: yearsFabricated=N` / `dateSanity`.
+
+Известные слабости lite (бэклог): плотность вторичных фактов на длинных
+RU-статьях (BPT-13), кросс-языковые дубли на EN-статьях (BPT-14).
 
 ### Файлы и их роли (после BPT-2, 2026-07)
 
@@ -200,7 +232,10 @@ npm run timeline:benchmark-suite -- --compare=tagA,tagB               # срав
   реплеит pipeline из кэша (~2 сек) и требует: referentialViolations=0,
   duplicateIds=0, событий вне окон веток 0, shared-x 0,
   правок normalizeImportedTimelineData 0, 100% critical-фактов,
-  coverage ≥90%, generic-лейблов ≤2.
+  coverage ≥90%, generic-лейблов ≤2. Два прохода: дефолтный путь
+  (2.5-flash, baseline) и **прод-конфиг lite** (`BIOGRAPHY_PROD_MODEL` +
+  `tuningProfile: 'lite'`) — смена lite-промпта без пере-снятия
+  lite-бенчмарка роняет гейт «прод-конфиг не покрыт реплеем».
 - **Holdout (luria, skinner, curie, blonsky, piaget)** — никогда не
   подгонять под него промпты/код; только финальная проверка изменений.
   Ухудшение на holdout = откат.
@@ -208,13 +243,16 @@ npm run timeline:benchmark-suite -- --compare=tagA,tagB               # срав
   (STABILITY_SUBSET_IDS), не на всех 20.
 
 Квоты free tier (2026-07): **20 запросов/день/проект** на gemini-2.5-flash,
-сброс в полночь PT. Один импорт = 5–7 вызовов. Дневная квота детектится
-и останавливает прогон (fail-fast), кэш позволяет продолжить другим
-ключом/днём без повторной траты.
+сброс в полночь PT. Один импорт = 5–7 вызовов (lite-профиль: 4–6, разметка
+объединена). У flash-lite free tier заметно щедрее — BYOK-пользователь
+получает минимум несколько импортов в день бесплатно. Дневная квота
+детектится и останавливает прогон (fail-fast), кэш позволяет продолжить
+другим ключом/днём без повторной траты.
 
-Стоимость (замер на 10 статьях): ~170K токенов/статья, из них ~57% —
-thinking-токены Flash (composition 78%, redaktura 63%). Бэклог-кандидаты
-по экономии — см. audit-backlog (BPT-7/BPT-8).
+Стоимость: на 2.5-flash ~170K токенов/статья, из них ~57% — thinking
+(composition 78%, redaktura 63%). Прод-lite: thinking = 0, суммарно
+30–90K токенов/статья по цене $0.25/$1.50 за 1M (vs $0.30/$2.50) —
+итого 12–25× дешевле за импорт.
 
 ### Debugging — где что искать
 

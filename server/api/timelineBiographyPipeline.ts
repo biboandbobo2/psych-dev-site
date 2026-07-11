@@ -85,10 +85,16 @@ export type BiographyPipelineStageData = {
   factDensity?: number;
 };
 
-/** Прод-дефолт (инвариант). Бенчмарк-миграция может переопределить на
- *  другую Flash-модель (3.5-flash / 3.1-flash-lite) через deps.model — но
- *  только Flash-тир, не Pro. */
+/** Дефолт pipeline без явных deps (бенчмарк-baseline, automation runtime).
+ *  Переопределяется через deps.model — только Flash-тир, не Pro. */
 export const DEFAULT_BIOGRAPHY_MODEL = 'gemini-2.5-flash';
+
+/** Прод-модель user-facing импорта (CF biographyImport): non-thinking lite
+ *  + tuningProfile 'lite'. Выбрана по бенчмарку 2026-07 (7 статей чистые,
+ *  12–25× дешевле 2.5-flash, переживает retirement 2.5-flash 2026-10-16).
+ *  DEFAULT_BIOGRAPHY_MODEL остаётся 2.5-flash, чтобы кэш baseline-бенчмарка
+ *  и quality gate дефолтного пути не инвалидировались. */
+export const BIOGRAPHY_PROD_MODEL = 'gemini-3.1-flash-lite';
 
 export type BiographyPipelineDeps = {
   callModel: CallBiographyModel;

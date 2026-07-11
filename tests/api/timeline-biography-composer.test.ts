@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { buildPlanFromCompositionResult, findDeathFact } from '../../server/api/timelineBiographyComposer.js';
-import type { BiographyFactCandidate, BiographyCompositionResult } from '../../server/api/timelineBiographyTypes.js';
+import type {
+  BiographyFactCandidate,
+  BiographyCompositionResult,
+  TimelineSphere,
+} from '../../server/api/timelineBiographyTypes.js';
 
 function makeFact(overrides: Partial<BiographyFactCandidate> & { year: number; details: string }): BiographyFactCandidate {
   return {
@@ -106,7 +110,7 @@ describe('buildPlanFromCompositionResult', () => {
 describe('buildPlanFromCompositionResult — sparse theme branches', () => {
   const themeBranchCases: Array<{
     label: string;
-    sphere: string;
+    sphere: TimelineSphere;
     expectedSphere: string;
     branchDetails: string;
     branchYear: number;
@@ -176,7 +180,8 @@ describe('buildPlanFromCompositionResult — sparse theme branches', () => {
         year: 1820,
         details: 'Странное обстоятельство',
         category: 'other',
-        sphere: 'no_such_theme',
+        // Модель может вернуть sphere вне enum'а — тест именно про это
+        sphere: 'no_such_theme' as TimelineSphere,
       }),
     ];
     const composition: BiographyCompositionResult = {
@@ -251,7 +256,7 @@ describe('findDeathFact (BPT-5a regression)', () => {
     // truncating the whole adult life.
     const facts = [
       fact(1860, 'Умер отец', { importance: 'low' }),
-      fact(1880, 'Высылка', { category: 'exile', eventType: 'exile' }),
+      fact(1880, 'Высылка', { category: 'exile', eventType: 'move' }),
       fact(1918, 'Умер от туберкулёза', { importance: 'high' }),
     ];
     const death = findDeathFact(facts, 1856);

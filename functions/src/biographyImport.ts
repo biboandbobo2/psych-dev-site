@@ -15,6 +15,7 @@ import { logger } from 'firebase-functions/v2';
 import { WIKIPEDIA_HOST_PATTERN } from '../../server/api/timelineBiographyTypes.js';
 import {
   runBiographyPipelineCore,
+  BIOGRAPHY_PROD_MODEL,
   type BiographyPipelineResult,
 } from '../../server/api/timelineBiographyPipeline.js';
 import { buildBiographyEvaluationMetrics } from '../../server/api/timelineBiographyMetrics.js';
@@ -38,6 +39,15 @@ if (getApps().length === 0) {
 getFirestore().settings({ ignoreUndefinedProperties: true });
 
 const JOBS_COLLECTION = 'biographyJobs';
+
+/** Прод-конфигурация модели импорта: lite-профиль (non-thinking модель,
+ *  дробление+few-shot extraction, structured output, объединённая разметка).
+ *  Пин в biographyImport.test.ts; поведение гейтится реплеем в
+ *  tests/benchmark/biographyPipelineQuality.test.ts. */
+export const BIOGRAPHY_IMPORT_TUNING = {
+  model: BIOGRAPHY_PROD_MODEL,
+  tuningProfile: 'lite',
+} as const;
 
 // ============================================================================
 // Validation
@@ -159,6 +169,7 @@ async function runFullBiographyPipeline(params: {
     const result = await runBiographyPipelineCore({
       sourceUrl: params.sourceUrl,
       deps: {
+        ...BIOGRAPHY_IMPORT_TUNING,
         callModel: (request, label) => callGeminiWithRetry(client, request as never, label),
         onTokens: (tokens) => {
           totalTokens += tokens;
@@ -172,7 +183,7 @@ async function runFullBiographyPipeline(params: {
               subjectName: data.subjectName,
               status: 'step1_done',
               'step1.facts': data.facts,
-              'step1.model': 'gemini-2.5-flash',
+              'step1.model': BIOGRAPHY_IMPORT_TUNING.model,
               'step1.rawTextChars': data.rawTextChars,
               'step1.extract': data.extract,
             });
