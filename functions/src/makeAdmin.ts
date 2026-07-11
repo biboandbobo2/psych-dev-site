@@ -1,8 +1,13 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import * as fnLogger from "firebase-functions/logger";
 import { getApps, initializeApp, applicationDefault } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { SUPER_ADMIN_EMAIL } from "./lib/shared.js";
+
+// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
+// cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы.
+const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 if (!getApps().length) {
   initializeApp({ credential: applicationDefault() });
@@ -11,18 +16,18 @@ if (!getApps().length) {
 const db = getFirestore();
 const adminAuth = getAuth();
 
-function assertSuperAdmin(context: functions.https.CallableContext): string {
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Требуется авторизация");
+function assertSuperAdmin(request: Pick<CallableRequest, "auth">): string {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Требуется авторизация");
   }
-  const callerEmail = context.auth.token.email as string | undefined;
+  const callerEmail = request.auth.token.email as string | undefined;
   if (callerEmail !== SUPER_ADMIN_EMAIL) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "permission-denied",
       "Только super-admin может управлять администраторами"
     );
   }
-  return context.auth.uid;
+  return request.auth.uid;
 }
 
 function normalizeEditableCourses(raw: unknown): string[] {
@@ -38,16 +43,16 @@ function normalizeEditableCourses(raw: unknown): string[] {
  * Назначение пользователя администратором с явным списком редактируемых курсов.
  * Только super-admin. Список курсов обязателен и должен быть непустым.
  */
-export const makeUserAdmin = functions.https.onCall(async (data, context) => {
-  const callerUid = assertSuperAdmin(context);
-  const { targetUid, targetEmail } = data as {
+export const makeUserAdmin = onCall(CALLABLE_OPTS, async (request) => {
+  const callerUid = assertSuperAdmin(request);
+  const { targetUid, targetEmail } = request.data as {
     targetUid?: string;
     targetEmail?: string;
   };
-  const editableCourses = normalizeEditableCourses((data as Record<string, unknown>).editableCourses);
+  const editableCourses = normalizeEditableCourses((request.data as Record<string, unknown>).editableCourses);
 
   if (editableCourses.length === 0) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "Укажите хотя бы один курс, который админ сможет редактировать"
     );
@@ -59,7 +64,7 @@ export const makeUserAdmin = functions.https.onCall(async (data, context) => {
       const userRecord = await adminAuth.getUserByEmail(targetEmail);
       userUid = userRecord.uid;
     } catch {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "not-found",
         `Пользователь с email ${targetEmail} не найден. Он должен хотя бы раз войти на сайт.`
       );
@@ -67,12 +72,12 @@ export const makeUserAdmin = functions.https.onCall(async (data, context) => {
   }
 
   if (!userUid) {
-    throw new functions.https.HttpsError("invalid-argument", "Не указан UID или email пользователя");
+    throw new HttpsError("invalid-argument", "Не указан UID или email пользователя");
   }
 
   const userDoc = await db.collection("users").doc(userUid).get();
   if (!userDoc.exists) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "not-found",
       "Пользователь должен хотя бы раз войти на сайт через Google"
     );
@@ -94,7 +99,7 @@ export const makeUserAdmin = functions.https.onCall(async (data, context) => {
     editableCourses,
   });
 
-  functions.logger.info(`✅ User ${userUid} promoted to admin`, {
+  fnLogger.info(`✅ User ${userUid} promoted to admin`, {
     editableCourses,
     by: callerUid,
   });
@@ -111,15 +116,15 @@ export const makeUserAdmin = functions.https.onCall(async (data, context) => {
  * Снятие роли администратора. Удаляет поля role и adminEditableCourses,
  * очищает custom claims.
  */
-export const removeAdmin = functions.https.onCall(async (data, context) => {
-  const callerUid = assertSuperAdmin(context);
-  const { targetUid } = data as { targetUid?: string };
+export const removeAdmin = onCall(CALLABLE_OPTS, async (request) => {
+  const callerUid = assertSuperAdmin(request);
+  const { targetUid } = request.data as { targetUid?: string };
 
   if (!targetUid) {
-    throw new functions.https.HttpsError("invalid-argument", "Не указан UID пользователя");
+    throw new HttpsError("invalid-argument", "Не указан UID пользователя");
   }
   if (callerUid === targetUid) {
-    throw new functions.https.HttpsError("invalid-argument", "Нельзя снять права у самого себя");
+    throw new HttpsError("invalid-argument", "Нельзя снять права у самого себя");
   }
 
   await db.collection("users").doc(targetUid).update({
@@ -140,7 +145,7 @@ export const removeAdmin = functions.https.onCall(async (data, context) => {
   void _ec;
   await adminAuth.setCustomUserClaims(targetUid, rest);
 
-  functions.logger.info(`✅ User ${targetUid} demoted from admin`, { by: callerUid });
+  fnLogger.info(`✅ User ${targetUid} demoted from admin`, { by: callerUid });
   return { success: true, message: "Права администратора сняты" };
 });
 
@@ -148,16 +153,16 @@ export const removeAdmin = functions.https.onCall(async (data, context) => {
  * Обновление списка курсов, которые админ может редактировать.
  * Только super-admin, только для существующих админов, массив не пустой.
  */
-export const setAdminEditableCourses = functions.https.onCall(async (data, context) => {
-  const callerUid = assertSuperAdmin(context);
-  const { targetUid } = data as { targetUid?: string };
-  const editableCourses = normalizeEditableCourses((data as Record<string, unknown>).editableCourses);
+export const setAdminEditableCourses = onCall(CALLABLE_OPTS, async (request) => {
+  const callerUid = assertSuperAdmin(request);
+  const { targetUid } = request.data as { targetUid?: string };
+  const editableCourses = normalizeEditableCourses((request.data as Record<string, unknown>).editableCourses);
 
   if (!targetUid) {
-    throw new functions.https.HttpsError("invalid-argument", "Не указан UID пользователя");
+    throw new HttpsError("invalid-argument", "Не указан UID пользователя");
   }
   if (editableCourses.length === 0) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "Укажите хотя бы один курс, который админ сможет редактировать"
     );
@@ -166,12 +171,12 @@ export const setAdminEditableCourses = functions.https.onCall(async (data, conte
   const userRef = db.collection("users").doc(targetUid);
   const userDoc = await userRef.get();
   if (!userDoc.exists) {
-    throw new functions.https.HttpsError("not-found", "Пользователь не найден");
+    throw new HttpsError("not-found", "Пользователь не найден");
   }
 
   const role = userDoc.data()?.role;
   if (role !== "admin") {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "failed-precondition",
       "Editable courses можно задать только пользователю с ролью admin"
     );
@@ -187,7 +192,7 @@ export const setAdminEditableCourses = functions.https.onCall(async (data, conte
     editableCourses,
   });
 
-  functions.logger.info(`✅ Admin ${targetUid} editable courses updated`, {
+  fnLogger.info(`✅ Admin ${targetUid} editable courses updated`, {
     editableCourses,
     by: callerUid,
   });

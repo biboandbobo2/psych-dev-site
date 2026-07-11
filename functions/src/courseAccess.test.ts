@@ -31,7 +31,7 @@ vi.mock('firebase-admin/app', () => ({
   applicationDefault: vi.fn(),
 }));
 
-vi.mock('firebase-functions', () => {
+vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     constructor(public code: string, message: string) {
       super(message);
@@ -39,14 +39,12 @@ vi.mock('firebase-functions', () => {
     }
   }
   return {
-    default: {
-      https: { onCall: (fn: Function) => fn, HttpsError },
-      logger: { info: vi.fn(), error: vi.fn() },
-    },
-    https: { onCall: (fn: Function) => fn, HttpsError },
-    logger: { info: vi.fn(), error: vi.fn() },
+    onCall: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    HttpsError,
   };
 });
+
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 
 // ── Import after mocks ─────────────────────────────────────────
 
@@ -80,45 +78,39 @@ beforeEach(() => {
 
 describe('updateCourseAccess', () => {
   it('throws unauthenticated when no auth', async () => {
-    await expect((updateCourseAccess as Function)({}, noAuthCtx)).rejects.toThrow(
+    await expect((updateCourseAccess as Function)({ data: {}, ...noAuthCtx })).rejects.toThrow(
       'Authentication required',
     );
   });
 
   it('throws permission-denied for non-super-admin', async () => {
     await expect(
-      (updateCourseAccess as Function)({ targetUid: 'u1', courseAccess: {} }, regularCtx()),
+      (updateCourseAccess as Function)({ data: { targetUid: 'u1', courseAccess: {} }, ...regularCtx() }),
     ).rejects.toThrow('Only super-admin');
   });
 
   it('throws when targetUid missing', async () => {
     await expect(
-      (updateCourseAccess as Function)({ courseAccess: { dev: true } }, superAdminCtx()),
+      (updateCourseAccess as Function)({ data: { courseAccess: { dev: true } }, ...superAdminCtx() }),
     ).rejects.toThrow('targetUid is required');
   });
 
   it('throws when courseAccess missing', async () => {
     await expect(
-      (updateCourseAccess as Function)({ targetUid: 'u1' }, superAdminCtx()),
+      (updateCourseAccess as Function)({ data: { targetUid: 'u1' }, ...superAdminCtx() }),
     ).rejects.toThrow('courseAccess is required');
   });
 
   it('throws when courseAccess contains non-boolean value', async () => {
     await expect(
-      (updateCourseAccess as Function)(
-        { targetUid: 'u1', courseAccess: { dev: 'yes' } },
-        superAdminCtx(),
-      ),
+      (updateCourseAccess as Function)({ data: { targetUid: 'u1', courseAccess: { dev: 'yes' } }, ...superAdminCtx() }),
     ).rejects.toThrow('Course access value must be boolean');
   });
 
   it('throws not-found when user does not exist', async () => {
     mockGet.mockResolvedValue({ exists: false });
     await expect(
-      (updateCourseAccess as Function)(
-        { targetUid: 'u1', courseAccess: { dev: true } },
-        superAdminCtx(),
-      ),
+      (updateCourseAccess as Function)({ data: { targetUid: 'u1', courseAccess: { dev: true } }, ...superAdminCtx() }),
     ).rejects.toThrow('not found');
   });
 
@@ -126,10 +118,7 @@ describe('updateCourseAccess', () => {
     mockGet.mockResolvedValue({ exists: true, data: () => ({ role: 'guest', email: 'u@t.com' }) });
     mockUpdate.mockResolvedValue(undefined);
 
-    const result = await (updateCourseAccess as Function)(
-      { targetUid: 'u1', courseAccess: { development: true, clinical: false } },
-      superAdminCtx(),
-    );
+    const result = await (updateCourseAccess as Function)({ data: { targetUid: 'u1', courseAccess: { development: true, clinical: false } }, ...superAdminCtx() });
 
     expect(result.success).toBe(true);
     expect(result.courseAccess).toEqual({ development: true, clinical: false });
@@ -143,34 +132,34 @@ describe('updateCourseAccess', () => {
 
 describe('setUserRole', () => {
   it('throws unauthenticated when no auth', async () => {
-    await expect((setUserRole as Function)({}, noAuthCtx)).rejects.toThrow(
+    await expect((setUserRole as Function)({ data: {}, ...noAuthCtx })).rejects.toThrow(
       'Authentication required',
     );
   });
 
   it('throws permission-denied for non-super-admin', async () => {
     await expect(
-      (setUserRole as Function)({ targetUid: 'u1', role: 'student' }, regularCtx()),
+      (setUserRole as Function)({ data: { targetUid: 'u1', role: 'student' }, ...regularCtx() }),
     ).rejects.toThrow('Only super-admin');
   });
 
   it('throws for invalid role', async () => {
     await expect(
-      (setUserRole as Function)({ targetUid: 'u1', role: 'admin' }, superAdminCtx()),
+      (setUserRole as Function)({ data: { targetUid: 'u1', role: 'admin' }, ...superAdminCtx() }),
     ).rejects.toThrow('role must be one of');
   });
 
   it('throws when trying to change admin role', async () => {
     mockGet.mockResolvedValue({ exists: true, data: () => ({ role: 'admin' }) });
     await expect(
-      (setUserRole as Function)({ targetUid: 'u1', role: 'guest' }, superAdminCtx()),
+      (setUserRole as Function)({ data: { targetUid: 'u1', role: 'guest' }, ...superAdminCtx() }),
     ).rejects.toThrow('Cannot change admin roles');
   });
 
   it('throws when trying to change super-admin role', async () => {
     mockGet.mockResolvedValue({ exists: true, data: () => ({ role: 'super-admin' }) });
     await expect(
-      (setUserRole as Function)({ targetUid: 'u1', role: 'guest' }, superAdminCtx()),
+      (setUserRole as Function)({ data: { targetUid: 'u1', role: 'guest' }, ...superAdminCtx() }),
     ).rejects.toThrow('Cannot change admin roles');
   });
 
@@ -179,10 +168,7 @@ describe('setUserRole', () => {
     mockUpdate.mockResolvedValue(undefined);
     mockSetCustomUserClaims.mockResolvedValue(undefined);
 
-    const result = await (setUserRole as Function)(
-      { targetUid: 'u1', role: 'student' },
-      superAdminCtx(),
-    );
+    const result = await (setUserRole as Function)({ data: { targetUid: 'u1', role: 'student' }, ...superAdminCtx() });
 
     expect(result.success).toBe(true);
     expect(result.newRole).toBe('student');
@@ -198,7 +184,7 @@ describe('setUserRole', () => {
     mockUpdate.mockResolvedValue(undefined);
     mockSetCustomUserClaims.mockResolvedValue(undefined);
 
-    await (setUserRole as Function)({ targetUid: 'u1', role: 'guest' }, superAdminCtx());
+    await (setUserRole as Function)({ data: { targetUid: 'u1', role: 'guest' }, ...superAdminCtx() });
 
     const updatePayload = mockUpdate.mock.calls[0][0];
     expect(updatePayload.courseAccess).toEqual({

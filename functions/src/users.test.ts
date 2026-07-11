@@ -25,7 +25,7 @@ vi.mock('firebase-admin/app', () => ({
   applicationDefault: vi.fn(),
 }));
 
-vi.mock('firebase-functions', () => {
+vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     constructor(public code: string, message: string) {
       super(message);
@@ -33,14 +33,12 @@ vi.mock('firebase-functions', () => {
     }
   }
   return {
-    default: {
-      https: { onCall: (fn: Function) => fn, HttpsError },
-      logger: { info: vi.fn(), error: vi.fn() },
-    },
-    https: { onCall: (fn: Function) => fn, HttpsError },
-    logger: { info: vi.fn(), error: vi.fn() },
+    onCall: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    HttpsError,
   };
 });
+
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 
 import { setMyFeaturedCourses } from './users';
 
@@ -52,7 +50,7 @@ beforeEach(() => {
 
 describe('setMyFeaturedCourses', () => {
   it('throws unauthenticated when no auth', async () => {
-    await expect((setMyFeaturedCourses as Function)({ courseIds: [] }, {})).rejects.toThrow(
+    await expect((setMyFeaturedCourses as Function)({ data: { courseIds: [] } })).rejects.toThrow(
       'Требуется авторизация',
     );
   });
@@ -61,10 +59,7 @@ describe('setMyFeaturedCourses', () => {
     mockGetAll.mockResolvedValue([{ exists: true }, { exists: true }]);
     mockSet.mockResolvedValue(undefined);
     const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
-    const result = await (setMyFeaturedCourses as Function)(
-      { courseIds: ['A', 'B'] },
-      ctx,
-    );
+    const result = await (setMyFeaturedCourses as Function)({ data: { courseIds: ['A', 'B'] }, ...ctx });
     expect(result).toEqual({ success: true, courseIds: ['A', 'B'] });
     expect(mockDoc).toHaveBeenCalledWith('u1');
     const setCall = mockSet.mock.calls[0][0];
@@ -74,10 +69,7 @@ describe('setMyFeaturedCourses', () => {
   it('rejects writing for someone else when caller is regular user', async () => {
     const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
     await expect(
-      (setMyFeaturedCourses as Function)(
-        { targetUid: 'other-uid', courseIds: ['A'] },
-        ctx,
-      ),
+      (setMyFeaturedCourses as Function)({ data: { targetUid: 'other-uid', courseIds: ['A'] }, ...ctx }),
     ).rejects.toThrow('Только сам пользователь или super-admin');
   });
 
@@ -85,10 +77,7 @@ describe('setMyFeaturedCourses', () => {
     mockGetAll.mockResolvedValue([{ exists: true }]);
     mockSet.mockResolvedValue(undefined);
     const ctx = { auth: { uid: 'sa', token: { email: SUPER_ADMIN_EMAIL } } };
-    const result = await (setMyFeaturedCourses as Function)(
-      { targetUid: 'other-uid', courseIds: ['A'] },
-      ctx,
-    );
+    const result = await (setMyFeaturedCourses as Function)({ data: { targetUid: 'other-uid', courseIds: ['A'] }, ...ctx });
     expect(result.courseIds).toEqual(['A']);
     expect(mockDoc).toHaveBeenCalledWith('other-uid');
   });
@@ -96,17 +85,14 @@ describe('setMyFeaturedCourses', () => {
   it('throws when more than 3 courseIds', async () => {
     const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
     await expect(
-      (setMyFeaturedCourses as Function)(
-        { courseIds: ['A', 'B', 'C', 'D'] },
-        ctx,
-      ),
+      (setMyFeaturedCourses as Function)({ data: { courseIds: ['A', 'B', 'C', 'D'] }, ...ctx }),
     ).rejects.toThrow('не более 3');
   });
 
   it('throws when courseIds not an array', async () => {
     const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
     await expect(
-      (setMyFeaturedCourses as Function)({ courseIds: 'oops' }, ctx),
+      (setMyFeaturedCourses as Function)({ data: { courseIds: 'oops' }, ...ctx }),
     ).rejects.toThrow('courseIds must be an array');
   });
 
@@ -114,14 +100,14 @@ describe('setMyFeaturedCourses', () => {
     mockGetAll.mockResolvedValue([{ exists: false }]);
     const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
     await expect(
-      (setMyFeaturedCourses as Function)({ courseIds: ['ghost'] }, ctx),
+      (setMyFeaturedCourses as Function)({ data: { courseIds: ['ghost'] }, ...ctx }),
     ).rejects.toThrow('Курсы не найдены: ghost');
   });
 
   it('uses FieldValue.delete() for empty list', async () => {
     mockSet.mockResolvedValue(undefined);
     const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
-    await (setMyFeaturedCourses as Function)({ courseIds: [] }, ctx);
+    await (setMyFeaturedCourses as Function)({ data: { courseIds: [] }, ...ctx });
     const setCall = mockSet.mock.calls[0][0];
     expect(setCall.featuredCourseIds).toBe('__DELETE__');
   });
@@ -130,10 +116,7 @@ describe('setMyFeaturedCourses', () => {
     mockGetAll.mockResolvedValue([{ exists: true }, { exists: true }]);
     mockSet.mockResolvedValue(undefined);
     const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
-    const result = await (setMyFeaturedCourses as Function)(
-      { courseIds: ['A', 'B', 'A', 'B'] },
-      ctx,
-    );
+    const result = await (setMyFeaturedCourses as Function)({ data: { courseIds: ['A', 'B', 'A', 'B'] }, ...ctx });
     expect(result.courseIds).toEqual(['A', 'B']);
   });
 });
