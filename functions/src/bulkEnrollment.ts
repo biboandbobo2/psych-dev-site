@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import {
@@ -10,6 +10,10 @@ import {
   CORE_COURSE_IDS,
   type CourseAccessMap,
 } from "./lib/shared.js";
+
+// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
+// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
+const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 const EMAIL_LISTS_COLLECTION = "studentEmailLists";
 
@@ -35,8 +39,8 @@ async function getValidCourseIds() {
   return validCourseIds;
 }
 
-export const getStudentEmailLists = functions.https.onCall(async (_data, context) => {
-  ensureSuperAdmin(context);
+export const getStudentEmailLists = onCall(CALLABLE_OPTS, async (request) => {
+  ensureSuperAdmin(request);
 
   const firestore = getFirestore();
   const snapshot = await firestore
@@ -63,17 +67,18 @@ export const getStudentEmailLists = functions.https.onCall(async (_data, context
   };
 });
 
-export const saveStudentEmailList = functions.https.onCall(async (data: StudentEmailListData, context) => {
-  ensureSuperAdmin(context);
+export const saveStudentEmailList = onCall(CALLABLE_OPTS, async (request) => {
+  ensureSuperAdmin(request);
+  const data = request.data as StudentEmailListData;
 
   const name = typeof data?.name === "string" ? data.name.trim() : "";
   const emails = normalizeEmailList(data?.emails);
 
   if (!name) {
-    throw new functions.https.HttpsError("invalid-argument", "List name is required");
+    throw new HttpsError("invalid-argument", "List name is required");
   }
   if (!emails.length) {
-    throw new functions.https.HttpsError("invalid-argument", "At least one valid email is required");
+    throw new HttpsError("invalid-argument", "At least one valid email is required");
   }
 
   const firestore = getFirestore();
@@ -84,33 +89,34 @@ export const saveStudentEmailList = functions.https.onCall(async (data: StudentE
     emailCount: emails.length,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
-    createdBy: context.auth?.uid ?? null,
-    createdByEmail: context.auth?.token?.email ?? null,
+    createdBy: request.auth?.uid ?? null,
+    createdByEmail: request.auth?.token?.email ?? null,
   });
 
   return { success: true, listId: docRef.id };
 });
 
-export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnrollData, context) => {
-  ensureSuperAdmin(context);
+export const bulkEnrollStudents = onCall(CALLABLE_OPTS, async (request) => {
+  ensureSuperAdmin(request);
+  const data = request.data as BulkEnrollData;
 
   const emails = normalizeEmailList(data?.emails);
   const courseIds = normalizeCourseIds(data?.courseIds);
 
   if (!emails.length) {
-    throw new functions.https.HttpsError("invalid-argument", "Provide at least one valid email");
+    throw new HttpsError("invalid-argument", "Provide at least one valid email");
   }
   if (!courseIds.length) {
-    throw new functions.https.HttpsError("invalid-argument", "Select at least one course");
+    throw new HttpsError("invalid-argument", "Select at least one course");
   }
   if (emails.length > 1000) {
-    throw new functions.https.HttpsError("invalid-argument", "Too many emails in one request (max 1000)");
+    throw new HttpsError("invalid-argument", "Too many emails in one request (max 1000)");
   }
 
   const validCourseIds = await getValidCourseIds();
   const invalidCourseIds = courseIds.filter((courseId) => !validCourseIds.has(courseId));
   if (invalidCourseIds.length) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       `Invalid course ids: ${invalidCourseIds.join(", ")}`
     );
@@ -153,7 +159,7 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
           },
           updatedAt: FieldValue.serverTimestamp(),
           roleUpdatedAt: FieldValue.serverTimestamp(),
-          roleUpdatedBy: context.auth?.uid ?? null,
+          roleUpdatedBy: request.auth?.uid ?? null,
           email,
         },
         { merge: true }
@@ -190,7 +196,7 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
           lastLoginAt: existingData.lastLoginAt ?? FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
           roleUpdatedAt: FieldValue.serverTimestamp(),
-          roleUpdatedBy: context.auth?.uid ?? null,
+          roleUpdatedBy: request.auth?.uid ?? null,
         },
         { merge: true }
       );
@@ -200,7 +206,7 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
       const code = error instanceof Error && "code" in error ? (error as { code: string }).code : undefined;
       if (code !== "auth/user-not-found") {
         const message = error instanceof Error ? error.message : String(error);
-        throw new functions.https.HttpsError("internal", `Failed to resolve user ${email}: ${message}`);
+        throw new HttpsError("internal", `Failed to resolve user ${email}: ${message}`);
       }
     }
 
@@ -218,8 +224,8 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
         role: "student",
         pendingRegistration: true,
         invitedAt: pendingData.invitedAt ?? FieldValue.serverTimestamp(),
-        invitedBy: context.auth?.uid ?? null,
-        invitedByEmail: context.auth?.token?.email ?? null,
+        invitedBy: request.auth?.uid ?? null,
+        invitedByEmail: request.auth?.token?.email ?? null,
         courseAccess: {
           ...extractCourseAccess(pendingData.courseAccess),
           ...courseAccessPatch,
@@ -250,7 +256,7 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
   if (shouldSaveList) {
     const listName = typeof data.saveList?.name === "string" ? data.saveList.name.trim() : "";
     if (!listName) {
-      throw new functions.https.HttpsError("invalid-argument", "List name is required when saveList is enabled");
+      throw new HttpsError("invalid-argument", "List name is required when saveList is enabled");
     }
     const listRef = firestore.collection(EMAIL_LISTS_COLLECTION).doc();
     await listRef.set({
@@ -259,8 +265,8 @@ export const bulkEnrollStudents = functions.https.onCall(async (data: BulkEnroll
       emailCount: emails.length,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-      createdBy: context.auth?.uid ?? null,
-      createdByEmail: context.auth?.token?.email ?? null,
+      createdBy: request.auth?.uid ?? null,
+      createdByEmail: request.auth?.token?.email ?? null,
     });
     savedListId = listRef.id;
   }

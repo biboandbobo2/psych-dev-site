@@ -2,7 +2,7 @@
  * Cloud Functions для верификации и примирения данных
  */
 
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import {
   buildVerifyResult,
@@ -11,7 +11,7 @@ import {
   type ExpectedBundle,
   type PeriodDoc,
 } from "../../shared/verifyCore.js";
-import { ensureAdmin } from "./index.js";
+import { ensureAdmin } from "./lib/shared.js";
 import {
   ARRAY_FIELDS,
   normalizeSpaces,
@@ -31,9 +31,13 @@ import {
   type Link,
 } from "./lib/reconcileUtils.js";
 
+// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
+// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
+const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
+
 function coerceExpected(input: any): ExpectedBundle {
   if (!input) {
-    throw new functions.https.HttpsError('invalid-argument', 'expected payload required');
+    throw new HttpsError('invalid-argument', 'expected payload required');
   }
   if (Array.isArray(input)) {
     return expectedFromTransformedJson(input as PeriodDoc[]);
@@ -41,11 +45,12 @@ function coerceExpected(input: any): ExpectedBundle {
   if (Array.isArray(input.periods)) {
     return input as ExpectedBundle;
   }
-  throw new functions.https.HttpsError('invalid-argument', 'expected must contain periods array');
+  throw new HttpsError('invalid-argument', 'expected must contain periods array');
 }
 
-export const runVerify = functions.https.onCall(async (data, context) => {
-  ensureAdmin(context);
+export const runVerify = onCall(CALLABLE_OPTS, async (request) => {
+  ensureAdmin(request);
+  const data = request.data;
   const db = getFirestore();
 
   let expected: ExpectedBundle | null = null;
@@ -54,7 +59,7 @@ export const runVerify = functions.https.onCall(async (data, context) => {
   } else {
     const snap = await db.collection('admin').doc('expectedData').collection('snapshots').doc('latest').get();
     if (!snap.exists) {
-      throw new functions.https.HttpsError('failed-precondition', 'Upload expected snapshot first (admin/expectedData/snapshots/latest)');
+      throw new HttpsError('failed-precondition', 'Upload expected snapshot first (admin/expectedData/snapshots/latest)');
     }
     expected = coerceExpected(snap.data());
   }
@@ -80,8 +85,9 @@ export const runVerify = functions.https.onCall(async (data, context) => {
   };
 });
 
-export const runReconcile = functions.https.onCall(async (data, context) => {
-  ensureAdmin(context);
+export const runReconcile = onCall(CALLABLE_OPTS, async (request) => {
+  ensureAdmin(request);
+  const data = request.data;
   const apply = !!data?.apply;
   const expected = coerceExpected(data?.expected);
   const db = getFirestore();

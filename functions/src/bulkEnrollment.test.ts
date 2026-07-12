@@ -57,20 +57,20 @@ vi.mock('firebase-admin/auth', () => ({
   getAuth: () => ({ getUserByEmail: mockGetUserByEmail }),
 }));
 
-vi.mock('firebase-functions', () => {
+vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     constructor(public code: string, message: string) {
       super(message);
       this.name = 'HttpsError';
     }
   }
-  const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   return {
-    default: { https: { onCall: (fn: Function) => fn, HttpsError }, logger },
-    https: { onCall: (fn: Function) => fn, HttpsError },
-    logger,
+    onCall: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    HttpsError,
   };
 });
+
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 
 // ── Import after mocks ─────────────────────────────────────────
 
@@ -100,16 +100,16 @@ beforeEach(() => {
 
 describe('bulkEnrollment auth checks', () => {
   it('all three callables reject unauthenticated calls', async () => {
-    await expect((getStudentEmailLists as Function)({}, {})).rejects.toThrow('Authentication required');
-    await expect((saveStudentEmailList as Function)({}, {})).rejects.toThrow('Authentication required');
-    await expect((bulkEnrollStudents as Function)({}, {})).rejects.toThrow('Authentication required');
+    await expect((getStudentEmailLists as Function)({ data: {} })).rejects.toThrow('Authentication required');
+    await expect((saveStudentEmailList as Function)({ data: {} })).rejects.toThrow('Authentication required');
+    await expect((bulkEnrollStudents as Function)({ data: {} })).rejects.toThrow('Authentication required');
   });
 
   it('all three callables reject non-super-admin', async () => {
     const ctx = { auth: { uid: 'u1', token: { email: 'user@example.com' } } };
-    await expect((getStudentEmailLists as Function)({}, ctx)).rejects.toThrow('Only super-admin');
-    await expect((saveStudentEmailList as Function)({}, ctx)).rejects.toThrow('Only super-admin');
-    await expect((bulkEnrollStudents as Function)({}, ctx)).rejects.toThrow('Only super-admin');
+    await expect((getStudentEmailLists as Function)({ data: {}, ...ctx })).rejects.toThrow('Only super-admin');
+    await expect((saveStudentEmailList as Function)({ data: {}, ...ctx })).rejects.toThrow('Only super-admin');
+    await expect((bulkEnrollStudents as Function)({ data: {}, ...ctx })).rejects.toThrow('Only super-admin');
   });
 });
 
@@ -130,7 +130,7 @@ describe('getStudentEmailLists', () => {
       { id: 'l2', data: () => ({ emails: 'not-an-array' }) },
     ];
 
-    const result = await (getStudentEmailLists as Function)({}, superAdminCtx());
+    const result = await (getStudentEmailLists as Function)({ data: {}, ...superAdminCtx() });
 
     expect(result.lists).toEqual([
       { id: 'l1', name: 'Поток 1', emails: ['a@test.com', 'b@test.com'], emailCount: 5, updatedAtMs: 1234 },
@@ -144,20 +144,19 @@ describe('getStudentEmailLists', () => {
 describe('saveStudentEmailList', () => {
   it('requires a non-empty name', async () => {
     await expect(
-      (saveStudentEmailList as Function)({ name: '  ', emails: ['a@test.com'] }, superAdminCtx()),
+      (saveStudentEmailList as Function)({ data: { name: '  ', emails: ['a@test.com'] }, ...superAdminCtx() }),
     ).rejects.toThrow('List name is required');
   });
 
   it('requires at least one valid email', async () => {
     await expect(
-      (saveStudentEmailList as Function)({ name: 'X', emails: ['not-an-email'] }, superAdminCtx()),
+      (saveStudentEmailList as Function)({ data: { name: 'X', emails: ['not-an-email'] }, ...superAdminCtx() }),
     ).rejects.toThrow('At least one valid email is required');
   });
 
   it('saves normalized deduped emails and author metadata', async () => {
     const result = await (saveStudentEmailList as Function)(
-      { name: ' Мой список ', emails: [' A@Test.com ', 'a@test.com', 'b@test.com'] },
-      superAdminCtx(),
+      { data: { name: ' Мой список ', emails: [' A@Test.com ', 'a@test.com', 'b@test.com'] }, ...superAdminCtx() },
     );
 
     expect(result).toEqual({ success: true, listId: 'list-1' });
@@ -175,35 +174,34 @@ describe('saveStudentEmailList', () => {
 describe('bulkEnrollStudents input validation', () => {
   it('rejects when no valid emails', async () => {
     await expect(
-      (bulkEnrollStudents as Function)({ emails: ['bogus'], courseIds: ['development'] }, superAdminCtx()),
+      (bulkEnrollStudents as Function)({ data: { emails: ['bogus'], courseIds: ['development'] }, ...superAdminCtx() }),
     ).rejects.toThrow('Provide at least one valid email');
   });
 
   it('rejects when no courses selected', async () => {
     await expect(
-      (bulkEnrollStudents as Function)({ emails: ['a@test.com'], courseIds: [] }, superAdminCtx()),
+      (bulkEnrollStudents as Function)({ data: { emails: ['a@test.com'], courseIds: [] }, ...superAdminCtx() }),
     ).rejects.toThrow('Select at least one course');
   });
 
   it('rejects more than 1000 emails', async () => {
     const emails = Array.from({ length: 1001 }, (_, i) => `u${i}@test.com`);
     await expect(
-      (bulkEnrollStudents as Function)({ emails, courseIds: ['development'] }, superAdminCtx()),
+      (bulkEnrollStudents as Function)({ data: { emails, courseIds: ['development'] }, ...superAdminCtx() }),
     ).rejects.toThrow('Too many emails');
   });
 
   it('rejects course ids unknown to core list and courses collection', async () => {
     state.courses = ['custom-course'];
     await expect(
-      (bulkEnrollStudents as Function)({ emails: ['a@test.com'], courseIds: ['bogus'] }, superAdminCtx()),
+      (bulkEnrollStudents as Function)({ data: { emails: ['a@test.com'], courseIds: ['bogus'] }, ...superAdminCtx() }),
     ).rejects.toThrow('Invalid course ids: bogus');
   });
 
   it('accepts core courses and dynamic courses from Firestore', async () => {
     state.courses = ['custom-course'];
     const result = await (bulkEnrollStudents as Function)(
-      { emails: ['a@test.com'], courseIds: ['development', 'custom-course'] },
-      superAdminCtx(),
+      { data: { emails: ['a@test.com'], courseIds: ['development', 'custom-course'] }, ...superAdminCtx() },
     );
     expect(result.success).toBe(true);
   });
@@ -219,8 +217,7 @@ describe('bulkEnrollStudents enrollment paths', () => {
     });
 
     const result = await (bulkEnrollStudents as Function)(
-      { emails: [email], courseIds: ['development'] },
-      superAdminCtx(),
+      { data: { emails: [email], courseIds: ['development'] }, ...superAdminCtx() },
     );
 
     expect(result).toMatchObject({ success: true, updatedExisting: 1, createdPending: 0, totalProcessed: 1 });
@@ -241,7 +238,7 @@ describe('bulkEnrollStudents enrollment paths', () => {
       docs: [{ ref: existingRef, data: () => ({ role: 'admin' }) }],
     });
 
-    await (bulkEnrollStudents as Function)({ emails: [email], courseIds: ['development'] }, superAdminCtx());
+    await (bulkEnrollStudents as Function)({ data: { emails: [email], courseIds: ['development'] }, ...superAdminCtx() });
 
     expect(existingRef.set.mock.calls[0][0].role).toBe('admin');
   });
@@ -251,8 +248,7 @@ describe('bulkEnrollStudents enrollment paths', () => {
     mockGetUserByEmail.mockResolvedValue({ uid: 'auth-1', displayName: 'Auth User', photoURL: 'http://p' });
 
     const result = await (bulkEnrollStudents as Function)(
-      { emails: [email], courseIds: ['development'] },
-      superAdminCtx(),
+      { data: { emails: [email], courseIds: ['development'] }, ...superAdminCtx() },
     );
 
     expect(result).toMatchObject({ updatedExisting: 1, createdPending: 0 });
@@ -271,8 +267,7 @@ describe('bulkEnrollStudents enrollment paths', () => {
     const email = 'newbie@test.com';
 
     const result = await (bulkEnrollStudents as Function)(
-      { emails: [email], courseIds: ['development'] },
-      superAdminCtx(),
+      { data: { emails: [email], courseIds: ['development'] }, ...superAdminCtx() },
     );
 
     expect(result).toMatchObject({ updatedExisting: 0, createdPending: 1 });
@@ -293,23 +288,21 @@ describe('bulkEnrollStudents enrollment paths', () => {
     mockGetUserByEmail.mockRejectedValue(Object.assign(new Error('quota'), { code: 'auth/too-many-requests' }));
 
     await expect(
-      (bulkEnrollStudents as Function)({ emails: ['x@test.com'], courseIds: ['development'] }, superAdminCtx()),
+      (bulkEnrollStudents as Function)({ data: { emails: ['x@test.com'], courseIds: ['development'] }, ...superAdminCtx() }),
     ).rejects.toThrow('Failed to resolve user x@test.com');
   });
 
   it('requires list name when saveList enabled', async () => {
     await expect(
       (bulkEnrollStudents as Function)(
-        { emails: ['a@test.com'], courseIds: ['development'], saveList: { enabled: true, name: ' ' } },
-        superAdminCtx(),
+        { data: { emails: ['a@test.com'], courseIds: ['development'], saveList: { enabled: true, name: ' ' } }, ...superAdminCtx() },
       ),
     ).rejects.toThrow('List name is required when saveList is enabled');
   });
 
   it('saves email list when saveList enabled with name', async () => {
     const result = await (bulkEnrollStudents as Function)(
-      { emails: ['a@test.com'], courseIds: ['development'], saveList: { enabled: true, name: 'Поток 2' } },
-      superAdminCtx(),
+      { data: { emails: ['a@test.com'], courseIds: ['development'], saveList: { enabled: true, name: 'Поток 2' } }, ...superAdminCtx() },
     );
 
     expect(result.savedListId).toBe('list-1');

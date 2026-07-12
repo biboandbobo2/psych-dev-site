@@ -24,16 +24,6 @@ if (!getApps().length) {
 }
 
 /**
- * Проверяет, что вызывающий имеет роль admin или super-admin
- */
-export function ensureAdmin(context: functions.https.CallableContext) {
-  const role = (context.auth?.token as any)?.role;
-  if (role !== "admin" && role !== "super-admin") {
-    throw new functions.https.HttpsError('permission-denied', 'Admin only');
-  }
-}
-
-/**
  * Callable: seedAdmin
  * По одноразовому коду добавляет пользователя в коллекцию admins/{uid}
  * и выставляет custom claim role: "admin".

@@ -6,6 +6,8 @@ import {
   isValidEmail,
   normalizeEmailList,
   normalizeCourseIds,
+  ensureAdmin,
+  ensureSuperAdmin,
   SUPER_ADMIN_EMAIL,
 } from './shared';
 
@@ -13,6 +15,40 @@ describe('SUPER_ADMIN_EMAIL', () => {
   it('is defined and non-empty', () => {
     expect(SUPER_ADMIN_EMAIL).toBeTruthy();
     expect(typeof SUPER_ADMIN_EMAIL).toBe('string');
+  });
+});
+
+const makeRequest = (token: Record<string, unknown> | null) =>
+  (token ? { auth: { token } } : {}) as Parameters<typeof ensureAdmin>[0];
+
+describe('ensureAdmin', () => {
+  it('allows admin users', () => {
+    expect(() => ensureAdmin(makeRequest({ role: 'admin' }))).not.toThrow();
+  });
+
+  it('allows super-admin users', () => {
+    expect(() => ensureAdmin(makeRequest({ role: 'super-admin' }))).not.toThrow();
+  });
+
+  it('rejects non-admin users', () => {
+    expect(() => ensureAdmin(makeRequest({ role: 'student' }))).toThrowError('Admin only');
+    expect(() => ensureAdmin(makeRequest(null))).toThrowError('Admin only');
+  });
+});
+
+describe('ensureSuperAdmin', () => {
+  it('rejects unauthenticated request', () => {
+    expect(() => ensureSuperAdmin(makeRequest(null))).toThrowError('Authentication required');
+  });
+
+  it('rejects non-super-admin email', () => {
+    expect(() => ensureSuperAdmin(makeRequest({ email: 'user@example.com' }))).toThrowError(
+      'Only super-admin',
+    );
+  });
+
+  it('allows the super-admin email', () => {
+    expect(() => ensureSuperAdmin(makeRequest({ email: SUPER_ADMIN_EMAIL }))).not.toThrow();
   });
 });
 

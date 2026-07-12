@@ -10,20 +10,20 @@ vi.mock('./billingExport.js', () => ({
   getBillingSummaryData: mockGetBillingSummaryData,
 }));
 
-vi.mock('firebase-functions', () => {
+vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     constructor(public code: string, message: string) {
       super(message);
       this.name = 'HttpsError';
     }
   }
-  const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   return {
-    default: { https: { onCall: (fn: Function) => fn, HttpsError }, logger },
-    https: { onCall: (fn: Function) => fn, HttpsError },
-    logger,
+    onCall: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    HttpsError,
   };
 });
+
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 
 // ── Import after mocks ─────────────────────────────────────────
 
@@ -43,12 +43,12 @@ beforeEach(() => {
 
 describe('getBillingSummary auth checks', () => {
   it('throws unauthenticated when no auth', async () => {
-    await expect((getBillingSummary as Function)({}, {})).rejects.toThrow('Authentication required');
+    await expect((getBillingSummary as Function)({ data: {} })).rejects.toThrow('Authentication required');
   });
 
   it('throws permission-denied for non-super-admin', async () => {
     await expect(
-      (getBillingSummary as Function)({}, { auth: { uid: 'u1', token: { email: 'user@example.com' } } }),
+      (getBillingSummary as Function)({ data: {}, auth: { uid: 'u1', token: { email: 'user@example.com' } } }),
     ).rejects.toThrow('Only super-admin');
   });
 });
@@ -60,7 +60,7 @@ describe('getBillingSummary', () => {
     const summary = { ok: true, configured: true, services: [] };
     mockGetBillingSummaryData.mockResolvedValue(summary);
 
-    const result = await (getBillingSummary as Function)({ invoiceMonth: '202607' }, superAdminCtx());
+    const result = await (getBillingSummary as Function)({ data: { invoiceMonth: '202607' }, ...superAdminCtx() });
 
     expect(mockGetBillingSummaryData).toHaveBeenCalledWith({ invoiceMonth: '202607' });
     expect(result).toBe(summary);
@@ -69,17 +69,17 @@ describe('getBillingSummary', () => {
   it('passes invoiceMonth=undefined when data is absent or not a string', async () => {
     mockGetBillingSummaryData.mockResolvedValue({ ok: true });
 
-    await (getBillingSummary as Function)(null, superAdminCtx());
+    await (getBillingSummary as Function)({ data: null, ...superAdminCtx() });
     expect(mockGetBillingSummaryData).toHaveBeenLastCalledWith({ invoiceMonth: undefined });
 
-    await (getBillingSummary as Function)({ invoiceMonth: 202607 }, superAdminCtx());
+    await (getBillingSummary as Function)({ data: { invoiceMonth: 202607 }, ...superAdminCtx() });
     expect(mockGetBillingSummaryData).toHaveBeenLastCalledWith({ invoiceMonth: undefined });
   });
 
   it('returns ok:false payload (does not throw) when billing export fails', async () => {
     mockGetBillingSummaryData.mockRejectedValue(new Error('BigQuery quota exceeded'));
 
-    const result = await (getBillingSummary as Function)({}, superAdminCtx());
+    const result = await (getBillingSummary as Function)({ data: {}, ...superAdminCtx() });
 
     expect(result.ok).toBe(false);
     expect(result.configured).toBe(false);
@@ -88,7 +88,7 @@ describe('getBillingSummary', () => {
   });
 
   it('auth check fires before billing export is touched', async () => {
-    await expect((getBillingSummary as Function)({}, {})).rejects.toThrow();
+    await expect((getBillingSummary as Function)({ data: {} })).rejects.toThrow();
     expect(mockGetBillingSummaryData).not.toHaveBeenCalled();
   });
 });

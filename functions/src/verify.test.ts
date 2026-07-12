@@ -50,30 +50,20 @@ vi.mock('../../shared/verifyCore.js', () => ({
   expectedFromTransformedJson: mockExpectedFromTransformedJson,
 }));
 
-// ensureAdmin реплицирует реальное поведение (role admin|super-admin), сам helper покрыт index.test.ts
-vi.mock('./index.js', () => ({
-  ensureAdmin: (context: { auth?: { token?: { role?: string } } }) => {
-    const role = context.auth?.token?.role;
-    if (role !== 'admin' && role !== 'super-admin') {
-      throw new Error('Admin only');
-    }
-  },
-}));
-
-vi.mock('firebase-functions', () => {
+vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     constructor(public code: string, message: string) {
       super(message);
       this.name = 'HttpsError';
     }
   }
-  const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   return {
-    default: { https: { onCall: (fn: Function) => fn, HttpsError }, logger },
-    https: { onCall: (fn: Function) => fn, HttpsError },
-    logger,
+    onCall: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    HttpsError,
   };
 });
+
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 
 // ── Import after mocks ─────────────────────────────────────────
 
@@ -101,11 +91,11 @@ beforeEach(() => {
 
 describe('verify auth checks', () => {
   it('runVerify rejects non-admin', async () => {
-    await expect((runVerify as Function)({}, { auth: { token: { role: 'student' } } })).rejects.toThrow('Admin only');
+    await expect((runVerify as Function)({ data: {}, auth: { token: { role: 'student' } } })).rejects.toThrow('Admin only');
   });
 
   it('runReconcile rejects non-admin', async () => {
-    await expect((runReconcile as Function)({}, {})).rejects.toThrow('Admin only');
+    await expect((runReconcile as Function)({ data: {} })).rejects.toThrow('Admin only');
   });
 });
 
@@ -114,39 +104,39 @@ describe('verify auth checks', () => {
 describe('runVerify', () => {
   it('coerces array payload via expectedFromTransformedJson', async () => {
     const arr = [{ period: 'p1' }];
-    await (runVerify as Function)({ expected: arr }, adminCtx());
+    await (runVerify as Function)({ data: { expected: arr }, ...adminCtx() });
     expect(mockExpectedFromTransformedJson).toHaveBeenCalledWith(arr);
   });
 
   it('uses expected bundle with periods as-is', async () => {
     const bundle = { periods: [{ period: 'p1' }] };
-    await (runVerify as Function)({ expected: bundle }, adminCtx());
+    await (runVerify as Function)({ data: { expected: bundle }, ...adminCtx() });
     expect(mockExpectedFromTransformedJson).not.toHaveBeenCalled();
     expect(mockBuildVerifyResult).toHaveBeenCalledWith(bundle, { periods: {}, intro: null });
   });
 
   it('rejects payload without periods array', async () => {
-    await expect((runVerify as Function)({ expected: { foo: 1 } }, adminCtx())).rejects.toThrow(
+    await expect((runVerify as Function)({ data: { expected: { foo: 1 } }, ...adminCtx() })).rejects.toThrow(
       'expected must contain periods array',
     );
   });
 
   it('falls back to latest snapshot and fails without one', async () => {
-    await expect((runVerify as Function)({}, adminCtx())).rejects.toThrow('Upload expected snapshot first');
+    await expect((runVerify as Function)({ data: {}, ...adminCtx() })).rejects.toThrow('Upload expected snapshot first');
   });
 
   it('reads expected from snapshot when present', async () => {
     const bundle = { periods: [{ period: 'p1' }] };
     state.snapshot = { exists: true, data: () => bundle };
 
-    const result = await (runVerify as Function)({}, adminCtx());
+    const result = await (runVerify as Function)({ data: {}, ...adminCtx() });
 
     expect(mockBuildVerifyResult).toHaveBeenCalledWith(bundle, { periods: {}, intro: null });
     expect(result.ok).toBe(true);
   });
 
   it('persists summary to admin/verification and returns full verify result', async () => {
-    const result = await (runVerify as Function)({ expected: { periods: [] } }, adminCtx());
+    const result = await (runVerify as Function)({ data: { expected: { periods: [] } }, ...adminCtx() });
 
     expect(verificationSet).toHaveBeenCalledWith(
       { latest: { createdAt: '__SERVER_TS__', summaryPerPeriod: EMPTY_VERIFY.summaryPerPeriod } },
@@ -165,7 +155,7 @@ describe('runVerify', () => {
 
 describe('runReconcile', () => {
   it('requires expected payload (no snapshot fallback)', async () => {
-    await expect((runReconcile as Function)({}, adminCtx())).rejects.toThrow('expected payload required');
+    await expect((runReconcile as Function)({ data: {}, ...adminCtx() })).rejects.toThrow('expected payload required');
   });
 
   it('plan-only mode returns plan without writing documents', async () => {
@@ -180,8 +170,7 @@ describe('runReconcile', () => {
     });
 
     const result = await (runReconcile as Function)(
-      { expected: { periods: [{ period: 'p1', title: 'T' }] } },
-      adminCtx(),
+      { data: { expected: { periods: [{ period: 'p1', title: 'T' }] } }, ...adminCtx() },
     );
 
     expect(result).toEqual({
@@ -200,7 +189,7 @@ describe('runReconcile', () => {
       diffJson: { perPeriod: { ghost: { missingDocument: true, scalars: {}, arrays: {} } } },
     });
 
-    const result = await (runReconcile as Function)({ expected: { periods: [] } }, adminCtx());
+    const result = await (runReconcile as Function)({ data: { expected: { periods: [] } }, ...adminCtx() });
     expect(result.plan).toEqual([]);
   });
 
@@ -212,7 +201,7 @@ describe('runReconcile', () => {
       diffJson: { perPeriod: { p1: { missingDocument: true, scalars: {}, arrays: {} } } },
     });
 
-    await (runReconcile as Function)({ apply: true, expected: { periods: [expectedDoc] } }, adminCtx());
+    await (runReconcile as Function)({ data: { apply: true, expected: { periods: [expectedDoc] } }, ...adminCtx() });
 
     expect(periodRef('p1').set).toHaveBeenCalledWith(
       { ...expectedDoc, updatedAt: '__SERVER_TS__' },
@@ -234,8 +223,7 @@ describe('runReconcile', () => {
     });
 
     await (runReconcile as Function)(
-      { apply: true, expected: { periods: [{ period: 'p1', title: 'T2' }] } },
-      adminCtx(),
+      { data: { apply: true, expected: { periods: [{ period: 'p1', title: 'T2' }] } }, ...adminCtx() },
     );
 
     expect(periodRef('p1').set).toHaveBeenCalledWith(
@@ -253,8 +241,7 @@ describe('runReconcile', () => {
     });
 
     await (runReconcile as Function)(
-      { apply: true, expected: { periods: [], intro: introDoc } },
-      adminCtx(),
+      { data: { apply: true, expected: { periods: [], intro: introDoc } }, ...adminCtx() },
     );
 
     expect(introRef.set).toHaveBeenCalledWith({ ...introDoc, updatedAt: '__SERVER_TS__' }, { merge: false });
