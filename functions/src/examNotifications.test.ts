@@ -45,13 +45,8 @@ vi.mock("firebase-admin/app", () => ({
   applicationDefault: vi.fn(),
 }));
 
-vi.mock("firebase-functions", () => ({
-  default: {
-    firestore: { document: () => ({ onWrite: (fn: Function) => fn }) },
-    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-  },
-  firestore: { document: () => ({ onWrite: (fn: Function) => fn }) },
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+vi.mock("firebase-functions/v2/firestore", () => ({
+  onDocumentWritten: (_opts: unknown, fn: Function) => fn,
 }));
 
 const { insertEventMock, patchEventMock } = vi.hoisted(() => ({
@@ -300,9 +295,12 @@ describe("onExamSlotWrite (integration с моками)", () => {
     };
   }
   function change(beforeData: Record<string, unknown> | null, afterData: Record<string, unknown> | null) {
-    return { before: snap(beforeData), after: snap(afterData) };
+    // v2-event: params + data.before/after
+    return {
+      params: { examId: "exam-1", slotId: "slot-1" },
+      data: { before: snap(beforeData), after: snap(afterData) },
+    };
   }
-  const ctx = { params: { examId: "exam-1", slotId: "slot-1" } };
 
   function seedExam() {
     docMap.set("exams/exam-1", { exists: true, data: { title: "Зачёт", status: "active" } });
@@ -321,8 +319,7 @@ describe("onExamSlotWrite (integration с моками)", () => {
       change(
         { bookings: { g1: null, g2: null }, startAt: t1, endAt: t2 },
         { bookings: { g1: { bookedAt: ts(1) }, g2: null }, startAt: t1, endAt: t2 }
-      ),
-      ctx
+      )
     );
 
     expect(insertEventMock).toHaveBeenCalledTimes(1);
@@ -358,8 +355,7 @@ describe("onExamSlotWrite (integration с моками)", () => {
           endAt: t2,
           personalGcalEventId: "gcal-evt-1",
         }
-      ),
-      ctx
+      )
     );
     expect(patchEventMock).toHaveBeenCalledTimes(1);
     const payload = patchEventMock.mock.calls[0][2] as Record<string, unknown>;
@@ -377,7 +373,7 @@ describe("onExamSlotWrite (integration с моками)", () => {
     });
     const occupied = { bookings: { g1: { bookedAt: ts(1) }, g2: null }, startAt: t1, endAt: t2 };
     // touch — добавили marker, before и after одинаковы по bookings/time, eventId == null
-    await (onExamSlotWrite as Function)(change(occupied, { ...occupied, personalGcalBackfillTouched: 1 }), ctx);
+    await (onExamSlotWrite as Function)(change(occupied, { ...occupied, personalGcalBackfillTouched: 1 }));
 
     expect(insertEventMock).toHaveBeenCalledTimes(1);
     expect(sendTelegramMock).not.toHaveBeenCalled();
@@ -404,7 +400,7 @@ describe("onExamSlotWrite (integration с моками)", () => {
       startAt: ts(t1.toMillis() + 60 * 60 * 1000),
       endAt: ts(t2.toMillis() + 60 * 60 * 1000),
     };
-    await (onExamSlotWrite as Function)(change(before, after), ctx);
+    await (onExamSlotWrite as Function)(change(before, after));
 
     expect(patchEventMock).toHaveBeenCalledTimes(1);
     expect(patchEventMock.mock.calls[0][1]).toBe("gcal-evt-1");
@@ -424,7 +420,7 @@ describe("onExamSlotWrite (integration с моками)", () => {
       endAt: t2,
       personalGcalEventId: "gcal-evt-1",
     };
-    await (onExamSlotWrite as Function)(change(before, null), ctx);
+    await (onExamSlotWrite as Function)(change(before, null));
 
     expect(patchEventMock).toHaveBeenCalledTimes(1);
     const payload = patchEventMock.mock.calls[0][2] as Record<string, unknown>;
@@ -445,8 +441,7 @@ describe("onExamSlotWrite (integration с моками)", () => {
       change(
         { bookings: { g1: null, g2: null }, startAt: t1, endAt: t2 },
         { bookings: { g1: { bookedAt: ts(1) }, g2: null }, startAt: t1, endAt: t2 }
-      ),
-      ctx
+      )
     );
 
     expect(insertEventMock).toHaveBeenCalledTimes(1);
@@ -474,7 +469,7 @@ describe("onExamSlotWrite (integration с моками)", () => {
       endAt: t2,
       personalGcalEventId: "gcal-evt-1",
     };
-    await (onExamSlotWrite as Function)(change(same, same), ctx);
+    await (onExamSlotWrite as Function)(change(same, same));
     expect(insertEventMock).not.toHaveBeenCalled();
     expect(patchEventMock).not.toHaveBeenCalled();
     expect(sendTelegramMock).not.toHaveBeenCalled();

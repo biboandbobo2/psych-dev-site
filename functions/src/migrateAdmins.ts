@@ -1,4 +1,5 @@
-import * as functions from "firebase-functions";
+import { onRequest } from "firebase-functions/v2/https";
+import * as fnLogger from "firebase-functions/logger";
 import { getApps, initializeApp, applicationDefault } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth, type UserRecord } from "firebase-admin/auth";
@@ -22,16 +23,19 @@ async function listAllUsers(nextPageToken?: string, acc: UserRecord[] = []): Pro
   return combined;
 }
 
-export const migrateAdmins = functions.https.onRequest(async (_req, res) => {
+// cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы.
+export const migrateAdmins = onRequest(
+  { region: "us-central1", cpu: 1, memory: "256MiB" },
+  async (_req, res) => {
   try {
-    functions.logger.info("🚀 Starting admin migration...");
+    fnLogger.info("🚀 Starting admin migration...");
 
     const allUsers = await listAllUsers();
     const adminsSnapshot = await db.collection("admins").get();
     const adminUids = new Set(adminsSnapshot.docs.map((doc) => doc.id));
 
-    functions.logger.info(`Found ${adminUids.size} admins in old collection`);
-    functions.logger.info(`Found ${allUsers.length} users in Authentication`);
+    fnLogger.info(`Found ${adminUids.size} admins in old collection`);
+    fnLogger.info(`Found ${allUsers.length} users in Authentication`);
 
     let migrated = 0;
     let created = 0;
@@ -55,7 +59,7 @@ export const migrateAdmins = functions.https.onRequest(async (_req, res) => {
           migratedAt: FieldValue.serverTimestamp(),
         });
         migrated += 1;
-        functions.logger.info(`✅ Updated: ${email ?? uid} → ${role}`);
+        fnLogger.info(`✅ Updated: ${email ?? uid} → ${role}`);
       } else {
         await userRef.set({
           uid,
@@ -68,7 +72,7 @@ export const migrateAdmins = functions.https.onRequest(async (_req, res) => {
           migratedAt: FieldValue.serverTimestamp(),
         });
         created += 1;
-        functions.logger.info(`✨ Created: ${email ?? uid} → ${role}`);
+        fnLogger.info(`✨ Created: ${email ?? uid} → ${role}`);
       }
 
       await adminAuth.setCustomUserClaims(uid, { role });
@@ -86,10 +90,11 @@ export const migrateAdmins = functions.https.onRequest(async (_req, res) => {
       },
     };
 
-    functions.logger.info("🎉 Migration summary:", summary);
+    fnLogger.info("🎉 Migration summary:", summary);
     res.json(summary);
   } catch (error) {
-    functions.logger.error("❌ Migration error:", error);
+    fnLogger.error("❌ Migration error:", error);
     res.status(500).json({ success: false, error: String(error) });
   }
-});
+}
+);

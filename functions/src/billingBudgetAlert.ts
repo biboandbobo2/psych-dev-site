@@ -1,4 +1,5 @@
-import * as functions from "firebase-functions";
+import { onMessagePublished } from "firebase-functions/v2/pubsub";
+import * as fnLogger from "firebase-functions/logger";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { GoogleAuth } from "google-auth-library";
 
@@ -11,7 +12,7 @@ import {
 import { sendTelegramMessage } from "./lib/telegram.js";
 import { ensureAdminApp } from "./lib/adminApp.js";
 
-type Logger = Pick<typeof functions.logger, "info" | "warn" | "error">;
+type Logger = Pick<typeof fnLogger, "info" | "warn" | "error">;
 
 export type BudgetPayload = Record<string, unknown>;
 
@@ -348,13 +349,15 @@ export async function handleBudgetAlert(
   }
 }
 
-export const billingBudgetAlert = functions.pubsub
-  .topic("billing-budget-alerts")
-  .onPublish(async (message) => {
-    const payload = parseBudgetMessage(message);
+// cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы.
+export const billingBudgetAlert = onMessagePublished(
+  { topic: "billing-budget-alerts", region: "us-central1", cpu: 1, memory: "256MiB" },
+  async (event) => {
+    const payload = parseBudgetMessage(event.data.message);
     return handleBudgetAlert(payload, {
-      logger: functions.logger,
+      logger: fnLogger,
       sendMessage: sendTelegramMessage,
       disableBilling,
     });
-  });
+  }
+);

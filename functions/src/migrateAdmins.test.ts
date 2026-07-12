@@ -61,14 +61,11 @@ vi.mock('firebase-admin/auth', () => ({
   getAuth: () => ({ listUsers: mockListUsers, setCustomUserClaims: mockSetCustomUserClaims }),
 }));
 
-vi.mock('firebase-functions', () => {
-  const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-  return {
-    default: { https: { onRequest: (fn: Function) => fn }, logger },
-    https: { onRequest: (fn: Function) => fn },
-    logger,
-  };
-});
+vi.mock('firebase-functions/v2/https', () => ({
+  onRequest: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+}));
+
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 
 // ── Import after mocks ─────────────────────────────────────────
 

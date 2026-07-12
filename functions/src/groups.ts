@@ -1,24 +1,29 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import * as fnLogger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { CORE_COURSE_IDS, SUPER_ADMIN_EMAIL, toPendingUid } from "./lib/shared.js";
 import { isEveryoneGroup } from "../../shared/groups/everyoneGroup.js";
 
+// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
+// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
+const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
+
 const db = getFirestore();
 
 const MAX_FEATURED_COURSES = 3;
 
-function assertSuperAdmin(context: functions.https.CallableContext): string {
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Требуется авторизация");
+function assertSuperAdmin(request: Pick<CallableRequest, "auth">): string {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Требуется авторизация");
   }
-  if (context.auth.token.email !== SUPER_ADMIN_EMAIL) {
-    throw new functions.https.HttpsError(
+  if (request.auth.token.email !== SUPER_ADMIN_EMAIL) {
+    throw new HttpsError(
       "permission-denied",
       "Только super-admin может управлять группами"
     );
   }
-  return context.auth.uid;
+  return request.auth.uid;
 }
 
 /**
@@ -26,22 +31,22 @@ function assertSuperAdmin(context: functions.https.CallableContext): string {
  * указанной группы. Используется в setGroupFeaturedCourses.
  */
 async function assertCanManageGroup(
-  context: functions.https.CallableContext,
+  request: Pick<CallableRequest, "auth">,
   groupId: string
 ): Promise<string> {
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Требуется авторизация");
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Требуется авторизация");
   }
-  const callerUid = context.auth.uid;
-  const callerEmail = context.auth.token.email;
+  const callerUid = request.auth.uid;
+  const callerEmail = request.auth.token.email;
   if (callerEmail === SUPER_ADMIN_EMAIL) return callerUid;
 
-  const role = (context.auth.token as { role?: string } | undefined)?.role;
+  const role = (request.auth.token as { role?: string } | undefined)?.role;
   if (role === "super-admin") return callerUid;
 
   const groupSnap = await db.collection("groups").doc(groupId).get();
   if (!groupSnap.exists) {
-    throw new functions.https.HttpsError("not-found", "Group not found");
+    throw new HttpsError("not-found", "Group not found");
   }
   const data = groupSnap.data() as Record<string, unknown> | undefined;
   const announcementAdminIds = Array.isArray(data?.announcementAdminIds)
@@ -50,7 +55,7 @@ async function assertCanManageGroup(
   if (role === "admin" && announcementAdminIds.includes(callerUid)) {
     return callerUid;
   }
-  throw new functions.https.HttpsError(
+  throw new HttpsError(
     "permission-denied",
     "Только super-admin или админ этой группы может менять актуальные курсы"
   );
@@ -73,7 +78,7 @@ async function assertCoursesExist(courseIds: string[]): Promise<void> {
     .map((snap, idx) => (snap.exists ? null : dynamicIds[idx]))
     .filter((id): id is string => id !== null);
   if (missing.length > 0) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       `Курсы не найдены: ${missing.join(", ")}`
     );
@@ -82,7 +87,7 @@ async function assertCoursesExist(courseIds: string[]): Promise<void> {
 
 function normalizeFeaturedCourseIds(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "courseIds must be an array"
     );
@@ -98,7 +103,7 @@ function normalizeFeaturedCourseIds(raw: unknown): string[] {
     result.push(trimmed);
   }
   if (result.length > MAX_FEATURED_COURSES) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       `Можно выбрать не более ${MAX_FEATURED_COURSES} актуальных курсов`
     );
@@ -115,13 +120,14 @@ function normalizeStringArray(raw: unknown): string[] {
 
 function requireNonEmptyString(value: unknown, field: string): string {
   if (typeof value !== "string" || !value.trim()) {
-    throw new functions.https.HttpsError("invalid-argument", `${field} is required and must be a non-empty string`);
+    throw new HttpsError("invalid-argument", `${field} is required and must be a non-empty string`);
   }
   return value.trim();
 }
 
-export const createGroup = functions.https.onCall(async (data, context) => {
-  const uid = assertSuperAdmin(context);
+export const createGroup = onCall(CALLABLE_OPTS, async (request) => {
+  const data = request.data;
+  const uid = assertSuperAdmin(request);
   const d = (data ?? {}) as Record<string, unknown>;
   const name = requireNonEmptyString(d.name, "name");
   const description = typeof d.description === "string" ? d.description.trim() : "";
@@ -139,12 +145,13 @@ export const createGroup = functions.https.onCall(async (data, context) => {
   if (description) payload.description = description;
 
   const ref = await db.collection("groups").add(payload);
-  functions.logger.info("✅ Group created", { groupId: ref.id, name, by: uid });
+  fnLogger.info("✅ Group created", { groupId: ref.id, name, by: uid });
   return { success: true, groupId: ref.id };
 });
 
-export const updateGroup = functions.https.onCall(async (data, context) => {
-  const uid = assertSuperAdmin(context);
+export const updateGroup = onCall(CALLABLE_OPTS, async (request) => {
+  const data = request.data;
+  const uid = assertSuperAdmin(request);
   const d = (data ?? {}) as Record<string, unknown>;
   const groupId = requireNonEmptyString(d.groupId, "groupId");
 
@@ -155,10 +162,10 @@ export const updateGroup = functions.https.onCall(async (data, context) => {
   if (typeof d.name === "string") {
     const name = d.name.trim();
     if (!name) {
-      throw new functions.https.HttpsError("invalid-argument", "name cannot be empty");
+      throw new HttpsError("invalid-argument", "name cannot be empty");
     }
     if (isEveryoneGroup(groupId)) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "failed-precondition",
         "Системную группу нельзя переименовывать"
       );
@@ -178,18 +185,19 @@ export const updateGroup = functions.https.onCall(async (data, context) => {
   }
 
   await db.collection("groups").doc(groupId).update(updates);
-  functions.logger.info("✅ Group updated", { groupId, by: uid });
+  fnLogger.info("✅ Group updated", { groupId, by: uid });
   return { success: true };
 });
 
-export const setGroupMembers = functions.https.onCall(async (data, context) => {
-  const uid = assertSuperAdmin(context);
+export const setGroupMembers = onCall(CALLABLE_OPTS, async (request) => {
+  const data = request.data;
+  const uid = assertSuperAdmin(request);
   const d = (data ?? {}) as Record<string, unknown>;
   const groupId = requireNonEmptyString(d.groupId, "groupId");
   const memberIds = normalizeStringArray(d.memberIds);
 
   if (isEveryoneGroup(groupId)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "failed-precondition",
       "Состав системной группы управляется автоматически"
     );
@@ -200,7 +208,7 @@ export const setGroupMembers = functions.https.onCall(async (data, context) => {
     updatedAt: FieldValue.serverTimestamp(),
     updatedBy: uid,
   });
-  functions.logger.info("✅ Group members updated", { groupId, count: memberIds.length, by: uid });
+  fnLogger.info("✅ Group members updated", { groupId, count: memberIds.length, by: uid });
   return { success: true, count: memberIds.length };
 });
 
@@ -210,8 +218,9 @@ export const setGroupMembers = functions.https.onCall(async (data, context) => {
  * pendingUid (тот же формат, что и у bulkEnrollStudents/onUserCreate).
  * Реальный uid заменит pendingUid автоматически при регистрации (см. onUserCreate).
  */
-export const addGroupMembersByEmail = functions.https.onCall(async (data, context) => {
-  const callerUid = assertSuperAdmin(context);
+export const addGroupMembersByEmail = onCall(CALLABLE_OPTS, async (request) => {
+  const data = request.data;
+  const callerUid = assertSuperAdmin(request);
   const d = (data ?? {}) as Record<string, unknown>;
   const groupId = requireNonEmptyString(d.groupId, "groupId");
   const emails = Array.isArray(d.emails)
@@ -226,7 +235,7 @@ export const addGroupMembersByEmail = functions.https.onCall(async (data, contex
     : [];
 
   if (emails.length === 0) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "emails must be a non-empty list"
     );
@@ -258,7 +267,7 @@ export const addGroupMembersByEmail = functions.https.onCall(async (data, contex
       const code = (err as { code?: string })?.code;
       if (code !== "auth/user-not-found") {
         const message = err instanceof Error ? err.message : String(err);
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "internal",
           `Failed to resolve ${email}: ${message}`
         );
@@ -291,7 +300,7 @@ export const addGroupMembersByEmail = functions.https.onCall(async (data, contex
     updatedBy: callerUid,
   });
 
-  functions.logger.info("✅ Group members added by email", {
+  fnLogger.info("✅ Group members added by email", {
     groupId,
     resolvedExisting,
     createdPending,
@@ -301,20 +310,21 @@ export const addGroupMembersByEmail = functions.https.onCall(async (data, contex
   return { success: true, resolvedExisting, createdPending, uids };
 });
 
-export const deleteGroup = functions.https.onCall(async (data, context) => {
-  const uid = assertSuperAdmin(context);
+export const deleteGroup = onCall(CALLABLE_OPTS, async (request) => {
+  const data = request.data;
+  const uid = assertSuperAdmin(request);
   const d = (data ?? {}) as Record<string, unknown>;
   const groupId = requireNonEmptyString(d.groupId, "groupId");
 
   if (isEveryoneGroup(groupId)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "failed-precondition",
       "Системную группу нельзя удалить"
     );
   }
 
   await db.collection("groups").doc(groupId).delete();
-  functions.logger.info("✅ Group deleted", { groupId, by: uid });
+  fnLogger.info("✅ Group deleted", { groupId, by: uid });
   return { success: true };
 });
 
@@ -324,10 +334,11 @@ export const deleteGroup = functions.https.onCall(async (data, context) => {
  * Валидация: max 3 элемента, все courseIds существуют в коллекции courses/.
  * Пустой массив очищает поле (FieldValue.delete()).
  */
-export const setGroupFeaturedCourses = functions.https.onCall(async (data, context) => {
+export const setGroupFeaturedCourses = onCall(CALLABLE_OPTS, async (request) => {
+  const data = request.data;
   const d = (data ?? {}) as Record<string, unknown>;
   const groupId = requireNonEmptyString(d.groupId, "groupId");
-  const callerUid = await assertCanManageGroup(context, groupId);
+  const callerUid = await assertCanManageGroup(request, groupId);
   const courseIds = normalizeFeaturedCourseIds(d.courseIds);
   await assertCoursesExist(courseIds);
 
@@ -342,7 +353,7 @@ export const setGroupFeaturedCourses = functions.https.onCall(async (data, conte
   }
 
   await db.collection("groups").doc(groupId).update(updates);
-  functions.logger.info("✅ Group featuredCourseIds updated", {
+  fnLogger.info("✅ Group featuredCourseIds updated", {
     groupId,
     count: courseIds.length,
     by: callerUid,

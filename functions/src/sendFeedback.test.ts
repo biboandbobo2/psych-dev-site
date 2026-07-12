@@ -10,20 +10,21 @@ vi.mock('./lib/telegram.js', () => ({
   sendTelegramMessage: mockSendTelegramMessage,
 }));
 
-vi.mock('firebase-functions', () => {
+vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     constructor(public code: string, message: string) {
       super(message);
       this.name = 'HttpsError';
     }
   }
-  const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   return {
-    default: { https: { onCall: (fn: Function) => fn, HttpsError }, logger },
-    https: { onCall: (fn: Function) => fn, HttpsError },
-    logger,
+    onCall: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    onRequest: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    HttpsError,
   };
 });
+
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 
 // ── Import after mocks ─────────────────────────────────────────
 
@@ -41,31 +42,31 @@ beforeEach(() => {
 describe('sendFeedback validation', () => {
   it('rejects unknown feedback type', async () => {
     await expect(
-      (sendFeedback as Function)({ type: 'rant', message: 'hello there' }, ctx),
+      (sendFeedback as Function)({ data: { type: 'rant', message: 'hello there' }, ...ctx }),
     ).rejects.toThrow('Invalid feedback type');
   });
 
   it('rejects missing type', async () => {
     await expect(
-      (sendFeedback as Function)({ message: 'hello there' }, ctx),
+      (sendFeedback as Function)({ data: { message: 'hello there' }, ...ctx }),
     ).rejects.toThrow('Invalid feedback type');
   });
 
   it('rejects missing or too short message', async () => {
-    await expect((sendFeedback as Function)({ type: 'bug' }, ctx)).rejects.toThrow('at least 3 characters');
-    await expect((sendFeedback as Function)({ type: 'bug', message: ' a ' }, ctx)).rejects.toThrow(
+    await expect((sendFeedback as Function)({ data: { type: 'bug' }, ...ctx })).rejects.toThrow('at least 3 characters');
+    await expect((sendFeedback as Function)({ data: { type: 'bug', message: ' a ' }, ...ctx })).rejects.toThrow(
       'at least 3 characters',
     );
   });
 
   it('rejects message longer than 2000 chars', async () => {
     await expect(
-      (sendFeedback as Function)({ type: 'bug', message: 'x'.repeat(2001) }, ctx),
+      (sendFeedback as Function)({ data: { type: 'bug', message: 'x'.repeat(2001) }, ...ctx }),
     ).rejects.toThrow('too long');
   });
 
   it('does not require authentication (guest feedback allowed)', async () => {
-    const result = await (sendFeedback as Function)({ type: 'idea', message: 'от гостя' }, {});
+    const result = await (sendFeedback as Function)({ data: { type: 'idea', message: 'от гостя' } });
     expect(result.success).toBe(true);
   });
 });
@@ -75,15 +76,14 @@ describe('sendFeedback validation', () => {
 describe('sendFeedback delivery', () => {
   it('sends telegram message with emoji, label, text and user metadata', async () => {
     const result = await (sendFeedback as Function)(
-      {
+      { data: {
         type: 'bug',
         message: 'Кнопка не работает',
         userName: 'Иван',
         userEmail: 'ivan@test.com',
         userRole: 'student',
         pageUrl: 'https://academydom.com/tests',
-      },
-      ctx,
+      }, ...ctx },
     );
 
     expect(result).toEqual({ success: true, message: 'Спасибо за обратную связь!' });
@@ -98,7 +98,7 @@ describe('sendFeedback delivery', () => {
   });
 
   it('omits metadata lines when fields are absent', async () => {
-    await (sendFeedback as Function)({ type: 'thanks', message: 'Спасибо большое!' }, ctx);
+    await (sendFeedback as Function)({ data: { type: 'thanks', message: 'Спасибо большое!' }, ...ctx });
 
     const sent = mockSendTelegramMessage.mock.calls[0][0] as string;
     expect(sent).toContain('🙏 *Благодарность*');
@@ -111,7 +111,7 @@ describe('sendFeedback delivery', () => {
   it('wraps telegram failure into internal error', async () => {
     mockSendTelegramMessage.mockRejectedValue(new Error('chat not found'));
     await expect(
-      (sendFeedback as Function)({ type: 'idea', message: 'валидная идея' }, ctx),
+      (sendFeedback as Function)({ data: { type: 'idea', message: 'валидная идея' }, ...ctx }),
     ).rejects.toThrow('Failed to send feedback: chat not found');
   });
 });

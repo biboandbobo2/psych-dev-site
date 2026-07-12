@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Импорт './index' тянет весь граф функций, поэтому мок firebase-functions
-// покрывает все v1-обёртки (callable, onRequest, firestore/auth/pubsub triggers).
+// Импорт './index' тянет весь граф функций: v2-моки для мигрированных модулей,
+// v1-мок остаётся для gcalSync (пачка 5) и firebase-functions/v1 (onUserCreate).
 
 // ── Mocks ───────────────────────────────────────────────────────
 
@@ -88,6 +88,48 @@ vi.mock('firebase-functions', () => {
   return { default: api, ...api };
 });
 
+vi.mock('firebase-functions/v1', () => {
+  class HttpsError extends Error {
+    constructor(public code: string, message: string) {
+      super(message);
+      this.name = 'HttpsError';
+    }
+  }
+  const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+  const scheduleChain = () => ({
+    timeZone: () => ({ onRun: (fn: Function) => fn }),
+    onRun: (fn: Function) => fn,
+  });
+  const api = {
+    https: { onCall: (fn: Function) => fn, onRequest: (fn: Function) => fn, HttpsError },
+    logger,
+    firestore: { document: () => ({ onWrite: (fn: Function) => fn }) },
+    auth: { user: () => ({ onCreate: (fn: Function) => fn }) },
+    pubsub: {
+      schedule: scheduleChain,
+      topic: () => ({ onPublish: (fn: Function) => fn }),
+    },
+    runWith: () => ({ pubsub: { schedule: scheduleChain } }),
+  };
+  return { default: api, ...api };
+});
+
+vi.mock('firebase-functions/v2/https', () => {
+  class HttpsError extends Error {
+    constructor(public code: string, message: string) {
+      super(message);
+      this.name = 'HttpsError';
+    }
+  }
+  return {
+    onCall: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    onRequest: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    HttpsError,
+  };
+});
+
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+
 vi.mock('./lib/adminSeedCode.js', () => ({
   getAdminSeedCode: vi.fn(async () => 'valid-seed-code'),
 }));
@@ -120,26 +162,26 @@ beforeEach(() => {
 
 describe('seedAdmin', () => {
   it('requires authentication (uid + email)', async () => {
-    await expect((seedAdmin as Function)({ seedCode: 'x' }, {})).rejects.toThrow('Login required');
+    await expect((seedAdmin as Function)({ data: { seedCode: 'x' } })).rejects.toThrow('Login required');
   });
 
   it('rejects wrong seed code', async () => {
     await expect(
-      (seedAdmin as Function)({ seedCode: 'wrong' }, authedCtx()),
+      (seedAdmin as Function)({ data: { seedCode: 'wrong' }, ...authedCtx() }),
     ).rejects.toThrow('Invalid code');
   });
 
   it('rejects when seed code is not configured', async () => {
     vi.mocked(getAdminSeedCode).mockResolvedValue(null as never);
     await expect(
-      (seedAdmin as Function)({ seedCode: 'valid-seed-code' }, authedCtx()),
+      (seedAdmin as Function)({ data: { seedCode: 'valid-seed-code' }, ...authedCtx() }),
     ).rejects.toThrow('Invalid code');
   });
 
   it('grants admin role: writes admins/{uid} and sets claims', async () => {
     mockGetUser.mockResolvedValue({ customClaims: { role: 'admin' } });
 
-    const result = await (seedAdmin as Function)({ seedCode: 'valid-seed-code' }, authedCtx('new-admin'));
+    const result = await (seedAdmin as Function)({ data: { seedCode: 'valid-seed-code' }, ...authedCtx('new-admin') });
 
     expect(refFor('admins/new-admin').set).toHaveBeenCalledWith(
       { email: 'caller@test.com', createdAt: '__SERVER_TS__' },
@@ -156,28 +198,28 @@ describe('setRole', () => {
   const adminCtx = (uid = 'admin-1') => authedCtx(uid, { email: 'admin@test.com', role: 'admin' });
 
   it('requires authentication', async () => {
-    await expect((setRole as Function)({ targetUid: 'u1', role: 'admin' }, {})).rejects.toThrow(
+    await expect((setRole as Function)({ data: { targetUid: 'u1', role: 'admin' } })).rejects.toThrow(
       'Authentication required',
     );
   });
 
   it('rejects non-admin caller', async () => {
     await expect(
-      (setRole as Function)({ targetUid: 'u1', role: 'admin' }, authedCtx()),
+      (setRole as Function)({ data: { targetUid: 'u1', role: 'admin' }, ...authedCtx() }),
     ).rejects.toThrow('Only admins can manage roles');
   });
 
   it('validates targetUid and role values', async () => {
-    await expect((setRole as Function)({ role: 'admin' }, adminCtx())).rejects.toThrow(
+    await expect((setRole as Function)({ data: { role: 'admin' }, ...adminCtx() })).rejects.toThrow(
       'targetUid is required',
     );
     await expect(
-      (setRole as Function)({ targetUid: 'u1', role: 'owner' }, adminCtx()),
+      (setRole as Function)({ data: { targetUid: 'u1', role: 'owner' }, ...adminCtx() }),
     ).rejects.toThrow("role must be 'admin', 'student', or null");
   });
 
   it('grants admin: claims {role:admin} + admins doc with grantedBy', async () => {
-    const result = await (setRole as Function)({ targetUid: 'u1', role: 'admin' }, adminCtx());
+    const result = await (setRole as Function)({ data: { targetUid: 'u1', role: 'admin' }, ...adminCtx() });
 
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('u1', { role: 'admin' });
     expect(refFor('admins/u1').set).toHaveBeenCalledWith(
@@ -189,7 +231,7 @@ describe('setRole', () => {
   });
 
   it('revokes to student: claims {role:student} + admins doc marked revoked', async () => {
-    await (setRole as Function)({ targetUid: 'u1', role: 'student' }, adminCtx());
+    await (setRole as Function)({ data: { targetUid: 'u1', role: 'student' }, ...adminCtx() });
 
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('u1', { role: 'student' });
     expect(refFor('admins/u1').set).toHaveBeenCalledWith(
@@ -199,7 +241,7 @@ describe('setRole', () => {
   });
 
   it('role null: clears claims and deletes admins doc, newRole falls back to student', async () => {
-    const result = await (setRole as Function)({ targetUid: 'u1', role: null }, adminCtx());
+    const result = await (setRole as Function)({ data: { targetUid: 'u1', role: null }, ...adminCtx() });
 
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('u1', {});
     expect(refFor('admins/u1').delete).toHaveBeenCalled();
@@ -209,7 +251,7 @@ describe('setRole', () => {
   it('maps auth/user-not-found to not-found error', async () => {
     mockGetUser.mockRejectedValue(Object.assign(new Error('nope'), { code: 'auth/user-not-found' }));
     await expect(
-      (setRole as Function)({ targetUid: 'ghost', role: 'admin' }, adminCtx()),
+      (setRole as Function)({ data: { targetUid: 'ghost', role: 'admin' }, ...adminCtx() }),
     ).rejects.toThrow('User with UID ghost not found');
   });
 });
@@ -221,35 +263,34 @@ describe('toggleUserDisabled', () => {
 
   it('requires authentication', async () => {
     await expect(
-      (toggleUserDisabled as Function)({ targetUid: 'u1', disabled: true }, {}),
+      (toggleUserDisabled as Function)({ data: { targetUid: 'u1', disabled: true } }),
     ).rejects.toThrow('Authentication required');
   });
 
   it('rejects non-super-admin', async () => {
     await expect(
-      (toggleUserDisabled as Function)({ targetUid: 'u1', disabled: true }, authedCtx()),
+      (toggleUserDisabled as Function)({ data: { targetUid: 'u1', disabled: true }, ...authedCtx() }),
     ).rejects.toThrow('Только super-admin');
   });
 
   it('validates targetUid and disabled flag', async () => {
-    await expect((toggleUserDisabled as Function)({ disabled: true }, saCtx())).rejects.toThrow(
+    await expect((toggleUserDisabled as Function)({ data: { disabled: true }, ...saCtx() })).rejects.toThrow(
       'targetUid is required',
     );
     await expect(
-      (toggleUserDisabled as Function)({ targetUid: 'u1', disabled: 'yes' }, saCtx()),
+      (toggleUserDisabled as Function)({ data: { targetUid: 'u1', disabled: 'yes' }, ...saCtx() }),
     ).rejects.toThrow('disabled must be boolean');
   });
 
   it('cannot disable yourself', async () => {
     await expect(
-      (toggleUserDisabled as Function)({ targetUid: 'sa-uid', disabled: true }, saCtx('sa-uid')),
+      (toggleUserDisabled as Function)({ data: { targetUid: 'sa-uid', disabled: true }, ...saCtx('sa-uid') }),
     ).rejects.toThrow('Нельзя отключить самого себя');
   });
 
   it('disables user: updateUser + users doc with audit fields', async () => {
     const result = await (toggleUserDisabled as Function)(
-      { targetUid: 'u1', disabled: true },
-      saCtx(),
+      { data: { targetUid: 'u1', disabled: true }, ...saCtx() },
     );
 
     expect(mockUpdateUser).toHaveBeenCalledWith('u1', { disabled: true });
@@ -262,7 +303,7 @@ describe('toggleUserDisabled', () => {
   });
 
   it('re-enables user: disabled=false with enabledAt audit fields', async () => {
-    await (toggleUserDisabled as Function)({ targetUid: 'u1', disabled: false }, saCtx());
+    await (toggleUserDisabled as Function)({ data: { targetUid: 'u1', disabled: false }, ...saCtx() });
 
     expect(mockUpdateUser).toHaveBeenCalledWith('u1', { disabled: false });
     expect(refFor('users/u1').set).toHaveBeenCalledWith(
@@ -274,7 +315,7 @@ describe('toggleUserDisabled', () => {
   it('maps auth/user-not-found to not-found error', async () => {
     mockGetUser.mockRejectedValue(Object.assign(new Error('nope'), { code: 'auth/user-not-found' }));
     await expect(
-      (toggleUserDisabled as Function)({ targetUid: 'ghost', disabled: true }, saCtx()),
+      (toggleUserDisabled as Function)({ data: { targetUid: 'ghost', disabled: true }, ...saCtx() }),
     ).rejects.toThrow('Пользователь не найден');
   });
 });

@@ -42,7 +42,7 @@ vi.mock('firebase-admin/app', () => ({
   applicationDefault: vi.fn(),
 }));
 
-vi.mock('firebase-functions', () => {
+vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     constructor(public code: string, message: string) {
       super(message);
@@ -50,14 +50,13 @@ vi.mock('firebase-functions', () => {
     }
   }
   return {
-    default: {
-      https: { onCall: (fn: Function) => fn, HttpsError },
-      logger: { info: vi.fn(), error: vi.fn() },
-    },
-    https: { onCall: (fn: Function) => fn, HttpsError },
-    logger: { info: vi.fn(), error: vi.fn() },
+    onCall: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    onRequest: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    HttpsError,
   };
 });
+
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 
 // ── Import after mocks ─────────────────────────────────────────
 
@@ -92,11 +91,11 @@ beforeEach(() => {
 
 describe('auth checks (assertSuperAdmin)', () => {
   it('throws unauthenticated when no auth', async () => {
-    await expect(createGroup({}, {} as any)).rejects.toThrow('Требуется авторизация');
+    await expect((createGroup as Function)({ data: {} })).rejects.toThrow('Требуется авторизация');
   });
 
   it('throws permission-denied for non-super-admin', async () => {
-    await expect(createGroup({ name: 'g' }, regularCtx() as any)).rejects.toThrow(
+    await expect((createGroup as Function)({ data: { name: 'g' }, ...regularCtx() })).rejects.toThrow(
       'Только super-admin',
     );
   });
@@ -106,11 +105,11 @@ describe('auth checks (assertSuperAdmin)', () => {
 
 describe('createGroup', () => {
   it('throws when name is missing', async () => {
-    await expect(createGroup({}, superAdminCtx() as any)).rejects.toThrow('name is required');
+    await expect((createGroup as Function)({ data: {}, ...superAdminCtx() })).rejects.toThrow('name is required');
   });
 
   it('throws when name is empty string', async () => {
-    await expect(createGroup({ name: '  ' }, superAdminCtx() as any)).rejects.toThrow(
+    await expect((createGroup as Function)({ data: { name: '  ' }, ...superAdminCtx() })).rejects.toThrow(
       'name is required',
     );
   });
@@ -119,8 +118,7 @@ describe('createGroup', () => {
     mockAdd.mockResolvedValue({ id: 'new-group-id' });
 
     const result = await (createGroup as Function)(
-      { name: '  My Group  ', memberIds: ['a', '', 'b', 'a'] },
-      superAdminCtx(),
+      { data: { name: '  My Group  ', memberIds: ['a', '', 'b', 'a'] }, ...superAdminCtx() },
     );
 
     expect(result).toEqual({ success: true, groupId: 'new-group-id' });
@@ -133,19 +131,19 @@ describe('createGroup', () => {
 
   it('normalizeStringArray handles non-array input', async () => {
     mockAdd.mockResolvedValue({ id: 'g1' });
-    await (createGroup as Function)({ name: 'G', memberIds: 'not-array' }, superAdminCtx());
+    await (createGroup as Function)({ data: { name: 'G', memberIds: 'not-array' }, ...superAdminCtx() });
     const payload = mockAdd.mock.calls[0][0];
     expect(payload.memberIds).toEqual([]);
   });
 
   it('includes description only when non-empty', async () => {
     mockAdd.mockResolvedValue({ id: 'g1' });
-    await (createGroup as Function)({ name: 'G', description: '  ' }, superAdminCtx());
+    await (createGroup as Function)({ data: { name: 'G', description: '  ' }, ...superAdminCtx() });
     const payload = mockAdd.mock.calls[0][0];
     expect(payload.description).toBeUndefined();
 
     mockAdd.mockResolvedValue({ id: 'g2' });
-    await (createGroup as Function)({ name: 'G', description: ' Desc ' }, superAdminCtx());
+    await (createGroup as Function)({ data: { name: 'G', description: ' Desc ' }, ...superAdminCtx() });
     const payload2 = mockAdd.mock.calls[1][0];
     expect(payload2.description).toBe('Desc');
   });
@@ -155,20 +153,20 @@ describe('createGroup', () => {
 
 describe('updateGroup', () => {
   it('throws when groupId missing', async () => {
-    await expect((updateGroup as Function)({}, superAdminCtx())).rejects.toThrow(
+    await expect((updateGroup as Function)({ data: {}, ...superAdminCtx() })).rejects.toThrow(
       'groupId is required',
     );
   });
 
   it('throws when name set to empty string', async () => {
     await expect(
-      (updateGroup as Function)({ groupId: 'g1', name: '  ' }, superAdminCtx()),
+      (updateGroup as Function)({ data: { groupId: 'g1', name: '  ' }, ...superAdminCtx() }),
     ).rejects.toThrow('name cannot be empty');
   });
 
   it('updates only provided fields', async () => {
     mockUpdate.mockResolvedValue(undefined);
-    await (updateGroup as Function)({ groupId: 'g1', name: 'New' }, superAdminCtx());
+    await (updateGroup as Function)({ data: { groupId: 'g1', name: 'New' }, ...superAdminCtx() });
     expect(mockCollection).toHaveBeenCalledWith('groups');
     expect(mockDoc).toHaveBeenCalledWith('g1');
     const updates = mockUpdate.mock.calls[0][0];
@@ -178,7 +176,7 @@ describe('updateGroup', () => {
 
   it('sets description to FieldValue.delete() when empty', async () => {
     mockUpdate.mockResolvedValue(undefined);
-    await (updateGroup as Function)({ groupId: 'g1', description: '' }, superAdminCtx());
+    await (updateGroup as Function)({ data: { groupId: 'g1', description: '' }, ...superAdminCtx() });
     const updates = mockUpdate.mock.calls[0][0];
     expect(updates.description).toBe('__DELETE__');
   });
@@ -190,8 +188,7 @@ describe('setGroupMembers', () => {
   it('updates memberIds with normalized array', async () => {
     mockUpdate.mockResolvedValue(undefined);
     const result = await (setGroupMembers as Function)(
-      { groupId: 'g1', memberIds: ['a', 'b', 'a', ''] },
-      superAdminCtx(),
+      { data: { groupId: 'g1', memberIds: ['a', 'b', 'a', ''] }, ...superAdminCtx() },
     );
     expect(result).toEqual({ success: true, count: 2 });
     const updates = mockUpdate.mock.calls[0][0];
@@ -204,13 +201,13 @@ describe('setGroupMembers', () => {
 describe('addGroupMembersByEmail', () => {
   it('throws when emails list is empty', async () => {
     await expect(
-      (addGroupMembersByEmail as Function)({ groupId: 'g1', emails: [] }, superAdminCtx()),
+      (addGroupMembersByEmail as Function)({ data: { groupId: 'g1', emails: [] }, ...superAdminCtx() }),
     ).rejects.toThrow('emails must be a non-empty list');
   });
 
   it('throws when emails is not an array', async () => {
     await expect(
-      (addGroupMembersByEmail as Function)({ groupId: 'g1', emails: 'bad' }, superAdminCtx()),
+      (addGroupMembersByEmail as Function)({ data: { groupId: 'g1', emails: 'bad' }, ...superAdminCtx() }),
     ).rejects.toThrow('emails must be a non-empty list');
   });
 
@@ -220,8 +217,7 @@ describe('addGroupMembersByEmail', () => {
     mockUpdate.mockResolvedValue(undefined);
 
     const result = await (addGroupMembersByEmail as Function)(
-      { groupId: 'g1', emails: ['test@example.com'] },
-      superAdminCtx(),
+      { data: { groupId: 'g1', emails: ['test@example.com'] }, ...superAdminCtx() },
     );
 
     expect(result.resolvedExisting).toBe(1);
@@ -240,8 +236,7 @@ describe('addGroupMembersByEmail', () => {
     mockUpdate.mockResolvedValue(undefined);
 
     const result = await (addGroupMembersByEmail as Function)(
-      { groupId: 'g1', emails: ['new@example.com'] },
-      superAdminCtx(),
+      { data: { groupId: 'g1', emails: ['new@example.com'] }, ...superAdminCtx() },
     );
 
     expect(result.createdPending).toBe(1);
@@ -257,8 +252,7 @@ describe('addGroupMembersByEmail', () => {
     mockUpdate.mockResolvedValue(undefined);
 
     const result = await (addGroupMembersByEmail as Function)(
-      { groupId: 'g1', emails: ['Test@Example.COM', '  test@example.com  '] },
-      superAdminCtx(),
+      { data: { groupId: 'g1', emails: ['Test@Example.COM', '  test@example.com  '] }, ...superAdminCtx() },
     );
 
     // Should resolve only once due to deduplication
@@ -272,8 +266,7 @@ describe('addGroupMembersByEmail', () => {
 
     await expect(
       (addGroupMembersByEmail as Function)(
-        { groupId: 'g1', emails: ['fail@example.com'] },
-        superAdminCtx(),
+        { data: { groupId: 'g1', emails: ['fail@example.com'] }, ...superAdminCtx() },
       ),
     ).rejects.toThrow('Failed to resolve');
   });
@@ -284,14 +277,14 @@ describe('addGroupMembersByEmail', () => {
 describe('deleteGroup', () => {
   it('deletes group by id', async () => {
     mockDelete.mockResolvedValue(undefined);
-    const result = await (deleteGroup as Function)({ groupId: 'g1' }, superAdminCtx());
+    const result = await (deleteGroup as Function)({ data: { groupId: 'g1' }, ...superAdminCtx() });
     expect(result).toEqual({ success: true });
     expect(mockDoc).toHaveBeenCalledWith('g1');
     expect(mockDelete).toHaveBeenCalledOnce();
   });
 
   it('throws when groupId missing', async () => {
-    await expect((deleteGroup as Function)({}, superAdminCtx())).rejects.toThrow(
+    await expect((deleteGroup as Function)({ data: {}, ...superAdminCtx() })).rejects.toThrow(
       'groupId is required',
     );
   });
@@ -302,14 +295,14 @@ describe('deleteGroup', () => {
 describe('system group (everyone) guards', () => {
   it('deleteGroup refuses to delete everyone', async () => {
     await expect(
-      (deleteGroup as Function)({ groupId: 'everyone' }, superAdminCtx()),
+      (deleteGroup as Function)({ data: { groupId: 'everyone' }, ...superAdminCtx() }),
     ).rejects.toThrow('нельзя удалить');
     expect(mockDelete).not.toHaveBeenCalled();
   });
 
   it('updateGroup refuses to rename everyone', async () => {
     await expect(
-      (updateGroup as Function)({ groupId: 'everyone', name: 'Rename' }, superAdminCtx()),
+      (updateGroup as Function)({ data: { groupId: 'everyone', name: 'Rename' }, ...superAdminCtx() }),
     ).rejects.toThrow('нельзя переименовывать');
     expect(mockUpdate).not.toHaveBeenCalled();
   });
@@ -317,8 +310,7 @@ describe('system group (everyone) guards', () => {
   it('updateGroup allows changing description / grantedCourses for everyone', async () => {
     mockUpdate.mockResolvedValue(undefined);
     await (updateGroup as Function)(
-      { groupId: 'everyone', description: 'Broadcast', grantedCourses: ['development'] },
-      superAdminCtx(),
+      { data: { groupId: 'everyone', description: 'Broadcast', grantedCourses: ['development'] }, ...superAdminCtx() },
     );
     expect(mockUpdate).toHaveBeenCalledOnce();
     const payload = mockUpdate.mock.calls[0][0];
@@ -329,7 +321,7 @@ describe('system group (everyone) guards', () => {
 
   it('setGroupMembers refuses to overwrite everyone membership', async () => {
     await expect(
-      (setGroupMembers as Function)({ groupId: 'everyone', memberIds: ['a'] }, superAdminCtx()),
+      (setGroupMembers as Function)({ data: { groupId: 'everyone', memberIds: ['a'] }, ...superAdminCtx() }),
     ).rejects.toThrow('автоматически');
     expect(mockUpdate).not.toHaveBeenCalled();
   });
@@ -340,15 +332,14 @@ describe('system group (everyone) guards', () => {
 describe('setGroupFeaturedCourses', () => {
   it('throws when groupId missing', async () => {
     await expect(
-      (setGroupFeaturedCourses as Function)({ courseIds: [] }, superAdminCtx()),
+      (setGroupFeaturedCourses as Function)({ data: { courseIds: [] }, ...superAdminCtx() }),
     ).rejects.toThrow('groupId is required');
   });
 
   it('throws when courseIds is not an array', async () => {
     await expect(
       (setGroupFeaturedCourses as Function)(
-        { groupId: 'g1', courseIds: 'oops' },
-        superAdminCtx(),
+        { data: { groupId: 'g1', courseIds: 'oops' }, ...superAdminCtx() },
       ),
     ).rejects.toThrow('courseIds must be an array');
   });
@@ -356,8 +347,7 @@ describe('setGroupFeaturedCourses', () => {
   it('throws when more than 3 ids', async () => {
     await expect(
       (setGroupFeaturedCourses as Function)(
-        { groupId: 'g1', courseIds: ['a', 'b', 'c', 'd'] },
-        superAdminCtx(),
+        { data: { groupId: 'g1', courseIds: ['a', 'b', 'c', 'd'] }, ...superAdminCtx() },
       ),
     ).rejects.toThrow('не более 3');
   });
@@ -369,8 +359,7 @@ describe('setGroupFeaturedCourses', () => {
     });
     await expect(
       (setGroupFeaturedCourses as Function)(
-        { groupId: 'g1', courseIds: [] },
-        regularCtx('regular-uid', 'r@example.com'),
+        { data: { groupId: 'g1', courseIds: [] }, ...regularCtx('regular-uid', 'r@example.com') },
       ),
     ).rejects.toThrow('Только super-admin или админ этой группы');
   });
@@ -382,8 +371,7 @@ describe('setGroupFeaturedCourses', () => {
     ]);
     await expect(
       (setGroupFeaturedCourses as Function)(
-        { groupId: 'g1', courseIds: ['present', 'missing'] },
-        superAdminCtx(),
+        { data: { groupId: 'g1', courseIds: ['present', 'missing'] }, ...superAdminCtx() },
       ),
     ).rejects.toThrow('Курсы не найдены: missing');
   });
@@ -392,8 +380,7 @@ describe('setGroupFeaturedCourses', () => {
     mockGetAll.mockResolvedValue([{ exists: true }, { exists: true }]);
     mockUpdate.mockResolvedValue(undefined);
     const result = await (setGroupFeaturedCourses as Function)(
-      { groupId: 'g1', courseIds: ['A', 'B', 'A'] }, // dedup → [A,B]
-      superAdminCtx(),
+      { data: { groupId: 'g1', courseIds: ['A', 'B', 'A'] }, ...superAdminCtx() }, // dedup → [A,B]
     );
     expect(result).toEqual({ success: true, courseIds: ['A', 'B'] });
     const updates = mockUpdate.mock.calls[0][0];
@@ -403,8 +390,7 @@ describe('setGroupFeaturedCourses', () => {
   it('uses FieldValue.delete() for empty list', async () => {
     mockUpdate.mockResolvedValue(undefined);
     await (setGroupFeaturedCourses as Function)(
-      { groupId: 'g1', courseIds: [] },
-      superAdminCtx(),
+      { data: { groupId: 'g1', courseIds: [] }, ...superAdminCtx() },
     );
     const updates = mockUpdate.mock.calls[0][0];
     expect(updates.featuredCourseIds).toBe('__DELETE__');
@@ -421,8 +407,7 @@ describe('setGroupFeaturedCourses', () => {
       auth: { uid: 'regular-uid', token: { email: 'r@example.com', role: 'admin' } },
     };
     const result = await (setGroupFeaturedCourses as Function)(
-      { groupId: 'g1', courseIds: ['X'] },
-      ctx,
+      { data: { groupId: 'g1', courseIds: ['X'] }, ...ctx },
     );
     expect(result.courseIds).toEqual(['X']);
   });
