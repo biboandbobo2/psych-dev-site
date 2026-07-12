@@ -63,6 +63,7 @@
 | HM-3 | ✅ | Супер-админский редактор статических страниц | `/superadmin/pages` + редакторы `/about` и `projectPages/{slug}` через client SDK + rules (2026-04-26) |
 | HM-4 | ✅ | Чекбокс «не присылать email о бронях кабинетов» | Выполнено (подтверждено сверкой 2026-07-11): `EmailPreferencesSection` в профиле → `prefs.emailBookingConfirmations`, гейт `shouldSendBookingEmail` в `api/_lib/bookingAuth.ts` → `api/booking.ts` |
 | HM-5 | L (S) | Vite dev overlay на `/booking`: «Cannot find module bookingCancellation.js» | Пред-существующая проблема (импорт в `api/booking.ts` появился в `8c53242`); прод-сборка работает, ломается только dev ESM-резолвер. Поправить vite/api dev-конфиг или alias |
+| LP-17 | L (S-M) | Fan-out подписок `useLessonScopedDocs` → `in`-запросы | 2×(G+1) листенеров на страницу занятия → 4. Только с rules-тестом на эмуляторе (per-doc get()-membership vs `in`-query) |
 
 ---
 
@@ -655,6 +656,13 @@ CI часть (осталась):
   - [ ] Отдельный виджет в админке «Топ-10 фич по reads».
 - **Альтернатива (Фаза 0, ~30 мин): просто открыть [Cloud Monitoring Firestore dashboard](https://console.cloud.google.com/monitoring/dashboards)** прямо в Cloud Console — Google уже всё посчитал, отдельный код не нужен. Минус: нет интеграции в нашу админку, надо помнить ходить туда.
 - **Связь:** общий вектор с LP-1 (Observability/Telemetry).
+
+### LP‑17. Свести fan-out подписок `useLessonScopedDocs` к `in`-запросам (P: L, E: S-M)
+- **Источник:** code review семинарского контура 2026-07-12 (efficiency-finding).
+- **Проблема:** хук открывает по одному `onSnapshot` на каждую группу студента + один «свой» → страница занятия держит `2×(G+1)` живых листенеров (вопросы + конспекты). Студент в 8 группах = 18 листенеров и 18 initial-запросов на каждое открытие занятия; каждый initial-запрос биллится отдельно даже при 0 документов.
+- **Решение:** `where('groupId', 'in', groupIds)` (лимит Firestore — 30 значений, хватает с запасом) + один `authorUid`-запрос → 4 листенера на страницу вместо `2×(G+1)`.
+- **⚠️ Обязательная проверка:** rules используют per-doc `get(groups/{groupId}).memberIds` — перед переходом на `in`-запрос доказать на эмуляторе (rules-тест в `tests/integration/firestoreRules.test.ts`), что list-запрос с `in` проходит проверку членства для всех веток. Если rules-движок не докажет — не делать, оставить fan-out.
+- **Файлы:** `src/hooks/useLessonScopedDocs.ts`, `tests/integration/firestoreRules.test.ts`.
 
 ### LP‑5. Firebase/GCP follow-ups (P: L, E: S-M)
 - **Контекст:** миграция с `functions.config()` уже закрыта 2026-03-09 (`seedAdmin` переведён на Secret Manager, runtime guard блокирует новые legacy-конфиги). Ниже оставлены только активные follow-up задачи.

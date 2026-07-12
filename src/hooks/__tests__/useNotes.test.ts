@@ -263,6 +263,36 @@ describe('useNotes', () => {
     expect(setDocMock).toHaveBeenCalledTimes(2);
   });
 
+  it('упавший создающий setDoc не отравляет кэш: повторный сейв перечитывает документ и ставит createdAt', async () => {
+    authMock.mockReturnValue({ user: { uid: 'user-123' } } as ReturnType<typeof useAuth>);
+    getDocMock.mockResolvedValue({ exists: () => false } as never);
+    setDocMock.mockRejectedValueOnce(new Error('resource-exhausted') as never);
+    setDocMock.mockResolvedValue(undefined as never);
+
+    const { result } = renderHook(() => useNotes(null, { subscribe: false }));
+
+    const context = {
+      courseId: 'development',
+      periodId: 'seminary',
+      periodTitle: 'Семинары',
+      lectureTitle: 'Семинары',
+      lectureVideoId: 'eGCP_Fk7AeU',
+    };
+
+    await expect(
+      result.current.upsertLectureNote('Первый (упавший) сейв', context, { lectureSegments: [] })
+    ).rejects.toThrow('resource-exhausted');
+
+    await result.current.upsertLectureNote('Повторный сейв', context, { lectureSegments: [] });
+
+    // Документ так и не был создан → второй сейв обязан снова проверить
+    // существование и записать createdAt (регрессия BPT-ревью 2026-07-12).
+    expect(getDocMock).toHaveBeenCalledTimes(2);
+    expect(setDocMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({ createdAt: 'ts' })
+    );
+  });
+
   it('не пишет lectureSegments, если сегменты не переданы', async () => {
     authMock.mockReturnValue({ user: { uid: 'user-123' } } as ReturnType<typeof useAuth>);
     getDocMock.mockResolvedValue({ exists: () => true } as never);

@@ -158,14 +158,17 @@ export function VideoStudyNotesPanel({
         const savedSignature = JSON.stringify(savedSegments);
         lastSavedSignatureRef.current = savedSignature;
 
-        // Локальный черновик побеждает, только если он правился позже
-        // сохранённой версии и реально от неё отличается; иначе источник
-        // истины — сервер. Более свежий локальный черновик станет dirty
-        // и уедет на сервер обычным автосейвом.
+        // Локальный черновик побеждает, если он публиковался в этой сессии
+        // (updatedAtMs выставлен) и реально отличается от сохранённой версии;
+        // он станет dirty и уедет на сервер обычным автосейвом. Сознательно
+        // НЕ сравниваем клиентские часы с серверным updatedAt: skew в пару
+        // минут давал ложное «сервер новее» и тихо стирал свеженабранный
+        // текст. Черновик живёт только в памяти вкладки, так что проиграть
+        // он может лишь параллельной правке из другой вкладки — в этом
+        // конфликте выбираем сохранность набранного ввода.
         const localDraft = latestDraftRef.current;
         const draftIsNewer =
           localDraft.updatedAtMs !== null &&
-          localDraft.updatedAtMs > (note?.updatedAt?.getTime?.() ?? 0) &&
           JSON.stringify(localDraft.segments) !== savedSignature;
 
         if (!draftIsNewer) {

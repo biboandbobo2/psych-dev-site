@@ -129,7 +129,7 @@ interface User {
 
 Прогресс просмотра курса (multi-device sync поверх localStorage): `watchedLessonIds[]`, resume point видео, last-lesson. Источник истины по типам — `src/lib/courseProgress/types.ts`.
 
-**Правила доступа:** владелец — read/write; лекторы курса (`canEditCourse(courseId)`) — read по своему курсу (статистика просмотров группы на `/admin/questions`).
+**Правила доступа:** владелец — read/write; лекторы курса (`canEditCourse(courseId)`) — read по своему курсу (статистика просмотров группы на `/admin/questions`). Осознанный выбор scope (ревью 2026-07-12): грант курс-широкий — лектор может прочитать прогресс любого студента по своему курсу, не только участников своих групп; group-scope в rules невыразим без отдельной связки лектор↔группа в данных.
 
 ### `groups/{groupId}`
 

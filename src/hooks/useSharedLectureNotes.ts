@@ -81,6 +81,7 @@ export function useLessonSharedNotes(
 export function useCourseSharedNotes(courseId: string | null) {
   const [sharedNotes, setSharedNotes] = useState<SharedLectureNote[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!courseId) {
@@ -99,9 +100,11 @@ export function useCourseSharedNotes(courseId: string | null) {
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         );
         setLoading(false);
+        setError(null);
       },
       (err) => {
         debugError('[useCourseSharedNotes] snapshot error', err);
+        setError(err.message);
         setLoading(false);
       }
     );
@@ -109,5 +112,5 @@ export function useCourseSharedNotes(courseId: string | null) {
     return () => unsubscribe();
   }, [courseId]);
 
-  return { sharedNotes, loading };
+  return { sharedNotes, loading, error };
 }
