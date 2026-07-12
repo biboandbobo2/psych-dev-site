@@ -9,6 +9,11 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 
 export const SUPER_ADMIN_EMAIL = "biboandbobo2@gmail.com";
 
+// gen2 по умолчанию работает под compute default SA, у которого нет доступа к
+// Secret Manager / Google Calendar / BigQuery. gen1 работал под appspot SA —
+// функции, которым нужны эти ресурсы, явно указывают его в опциях.
+export const FUNCTIONS_SERVICE_ACCOUNT = "psych-dev-site-prod@appspot.gserviceaccount.com";
+
 export const CORE_COURSE_IDS = ["development", "clinical", "general"];
 
 // ── Auth helpers ──────────────────────────────────────────────

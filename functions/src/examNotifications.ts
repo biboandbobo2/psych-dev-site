@@ -25,6 +25,7 @@ import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { insertEvent, patchEvent } from "./lib/gcalClient.js";
 import { sendTelegramMessage } from "./lib/telegram.js";
 import { tryReadLatestSecretValue } from "./lib/secrets.js";
+import { FUNCTIONS_SERVICE_ACCOUNT } from "./lib/shared.js";
 import {
   debugError as functionsDebugError,
   debugLog as functionsDebugLog,
@@ -368,7 +369,14 @@ async function syncGCal(args: {
 
 // cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы.
 export const onExamSlotWrite = onDocumentWritten(
-  { document: "exams/{examId}/slots/{slotId}", region: "us-central1", cpu: 1, memory: "256MiB" },
+  {
+    document: "exams/{examId}/slots/{slotId}",
+    region: "us-central1",
+    cpu: 1,
+    memory: "256MiB",
+    // секреты (personal-gcal-id, telegram) и календарь расшарены на appspot SA
+    serviceAccount: FUNCTIONS_SERVICE_ACCOUNT,
+  },
   async (event) => {
     const examId = event.params.examId;
     const slotId = event.params.slotId;

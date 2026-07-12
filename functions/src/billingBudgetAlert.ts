@@ -11,6 +11,7 @@ import {
 } from "./billingAlertState.js";
 import { sendTelegramMessage } from "./lib/telegram.js";
 import { ensureAdminApp } from "./lib/adminApp.js";
+import { FUNCTIONS_SERVICE_ACCOUNT } from "./lib/shared.js";
 
 type Logger = Pick<typeof fnLogger, "info" | "warn" | "error">;
 
@@ -351,7 +352,14 @@ export async function handleBudgetAlert(
 
 // cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы.
 export const billingBudgetAlert = onMessagePublished(
-  { topic: "billing-budget-alerts", region: "us-central1", cpu: 1, memory: "256MiB" },
+  {
+    topic: "billing-budget-alerts",
+    region: "us-central1",
+    cpu: 1,
+    memory: "256MiB",
+    // telegram-секреты и billing API доступны только appspot SA
+    serviceAccount: FUNCTIONS_SERVICE_ACCOUNT,
+  },
   async (event) => {
     const payload = parseBudgetMessage(event.data.message);
     return handleBudgetAlert(payload, {

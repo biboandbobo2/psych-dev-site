@@ -10,6 +10,7 @@ import {
   resolveAdminStorageBucket,
 } from "./lib/adminApp.js";
 import { getAdminSeedCode } from "./lib/adminSeedCode.js";
+import { FUNCTIONS_SERVICE_ACCOUNT } from "./lib/shared.js";
 import {
   debugError as functionsDebugError,
   debugLog as functionsDebugLog,
@@ -35,7 +36,10 @@ if (!getApps().length) {
  *
  * Требует аутентификации (Google Sign-In). Код берётся из Secret Manager.
  */
-export const seedAdmin = onCall(CALLABLE_OPTS, async (request) => {
+// serviceAccount: admin-seed-code в Secret Manager доступен только appspot SA.
+export const seedAdmin = onCall(
+  { ...CALLABLE_OPTS, serviceAccount: FUNCTIONS_SERVICE_ACCOUNT },
+  async (request) => {
   const data = request.data;
   const uid = request.auth?.uid;
   const email = request.auth?.token?.email;
