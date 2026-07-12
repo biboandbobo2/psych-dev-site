@@ -130,93 +130,70 @@ export const bulkEnrollStudents = onCall(CALLABLE_OPTS, async (request) => {
   let updatedExisting = 0;
   let createdPending = 0;
 
-  // Process a single email: resolve user, update or create pending doc.
-  const processEmail = async (email: string): Promise<"existing" | "pending"> => {
-    const pendingUid = toPendingUid(email);
-    const pendingRef = firestore.collection("users").doc(pendingUid);
-    const userQuery = await firestore
-      .collection("users")
-      .where("email", "==", email)
-      .limit(1)
-      .get();
+  // Роль сохраняется для admin/super-admin, все остальные становятся student.
+  const nextEnrolledRole = (raw: unknown): string => {
+    const currentRole = typeof raw === "string" ? raw : "guest";
+    return currentRole === "admin" || currentRole === "super-admin" ? currentRole : "student";
+  };
 
-    if (!userQuery.empty) {
-      const userDoc = userQuery.docs[0];
-      const userData = userDoc.data() as Record<string, unknown>;
-      const currentRole = typeof userData.role === "string" ? userData.role : "guest";
-      const nextRole =
-        currentRole === "admin" || currentRole === "super-admin" ? currentRole : "student";
+  // Общая часть патча зачисления: роль + слитый courseAccess + audit-метки.
+  const enrollmentPatch = (existingData: Record<string, unknown>) => ({
+    role: nextEnrolledRole(existingData.role),
+    courseAccess: {
+      ...extractCourseAccess(existingData.courseAccess),
+      ...courseAccessPatch,
+    },
+    updatedAt: FieldValue.serverTimestamp(),
+    roleUpdatedAt: FieldValue.serverTimestamp(),
+    roleUpdatedBy: request.auth?.uid ?? null,
+  });
 
-      await userDoc.ref.set(
-        {
-          role: nextRole,
-          courseAccess: {
-            ...extractCourseAccess(userData.courseAccess),
-            ...courseAccessPatch,
-          },
-          updatedAt: FieldValue.serverTimestamp(),
-          roleUpdatedAt: FieldValue.serverTimestamp(),
-          roleUpdatedBy: request.auth?.uid ?? null,
-          email,
-        },
-        { merge: true }
-      );
-      await pendingRef.delete().catch(() => {});
-      return "existing";
-    }
+  const enrollFirestoreUser = async (
+    email: string,
+    userDoc: FirebaseFirestore.QueryDocumentSnapshot
+  ): Promise<void> => {
+    const userData = userDoc.data() as Record<string, unknown>;
+    await userDoc.ref.set({ ...enrollmentPatch(userData), email }, { merge: true });
+  };
 
-    try {
-      const authUser = await adminAuth.getUserByEmail(email);
-      const userRef = firestore.collection("users").doc(authUser.uid);
-      const userSnap = await userRef.get();
-      const existingData = userSnap.exists ? (userSnap.data() as Record<string, unknown>) : {};
-      const currentRole = typeof existingData.role === "string" ? existingData.role : "guest";
-      const nextRole =
-        currentRole === "admin" || currentRole === "super-admin" ? currentRole : "student";
+  const enrollAuthUser = async (
+    email: string,
+    authUser: { uid: string; displayName?: string | null; photoURL?: string | null }
+  ): Promise<void> => {
+    const userRef = firestore.collection("users").doc(authUser.uid);
+    const userSnap = await userRef.get();
+    const existingData = userSnap.exists ? (userSnap.data() as Record<string, unknown>) : {};
 
-      await userRef.set(
-        {
-          uid: authUser.uid,
-          email,
-          displayName:
-            authUser.displayName ??
-            (typeof existingData.displayName === "string" ? existingData.displayName : null),
-          photoURL:
-            authUser.photoURL ??
-            (typeof existingData.photoURL === "string" ? existingData.photoURL : null),
-          role: nextRole,
-          courseAccess: {
-            ...extractCourseAccess(existingData.courseAccess),
-            ...courseAccessPatch,
-          },
-          createdAt: userSnap.exists ? existingData.createdAt ?? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
-          lastLoginAt: existingData.lastLoginAt ?? FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-          roleUpdatedAt: FieldValue.serverTimestamp(),
-          roleUpdatedBy: request.auth?.uid ?? null,
-        },
-        { merge: true }
-      );
-      await pendingRef.delete().catch(() => {});
-      return "existing";
-    } catch (error: unknown) {
-      const code = error instanceof Error && "code" in error ? (error as { code: string }).code : undefined;
-      if (code !== "auth/user-not-found") {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new HttpsError("internal", `Failed to resolve user ${email}: ${message}`);
-      }
-    }
+    await userRef.set(
+      {
+        uid: authUser.uid,
+        email,
+        displayName:
+          authUser.displayName ??
+          (typeof existingData.displayName === "string" ? existingData.displayName : null),
+        photoURL:
+          authUser.photoURL ??
+          (typeof existingData.photoURL === "string" ? existingData.photoURL : null),
+        ...enrollmentPatch(existingData),
+        createdAt: userSnap.exists ? existingData.createdAt ?? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
+        lastLoginAt: existingData.lastLoginAt ?? FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  };
 
+  const createPendingEnrollment = async (
+    email: string,
+    pendingRef: FirebaseFirestore.DocumentReference
+  ): Promise<void> => {
     const pendingSnap = await pendingRef.get();
     const pendingData = pendingSnap.exists ? (pendingSnap.data() as Record<string, unknown>) : {};
 
     await pendingRef.set(
       {
-        uid: pendingUid,
+        uid: toPendingUid(email),
         email,
-        displayName:
-          pendingData.displayName ??
-          email.split("@")[0],
+        displayName: pendingData.displayName ?? email.split("@")[0],
         photoURL: pendingData.photoURL ?? null,
         role: "student",
         pendingRegistration: true,
@@ -233,7 +210,37 @@ export const bulkEnrollStudents = onCall(CALLABLE_OPTS, async (request) => {
       },
       { merge: true }
     );
+  };
 
+  // Диспетчер по одному email: Firestore-юзер → Auth-юзер → pending-док.
+  const processEmail = async (email: string): Promise<"existing" | "pending"> => {
+    const pendingRef = firestore.collection("users").doc(toPendingUid(email));
+    const userQuery = await firestore
+      .collection("users")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+
+    if (!userQuery.empty) {
+      await enrollFirestoreUser(email, userQuery.docs[0]);
+      await pendingRef.delete().catch(() => {});
+      return "existing";
+    }
+
+    try {
+      const authUser = await adminAuth.getUserByEmail(email);
+      await enrollAuthUser(email, authUser);
+      await pendingRef.delete().catch(() => {});
+      return "existing";
+    } catch (error: unknown) {
+      const code = error instanceof Error && "code" in error ? (error as { code: string }).code : undefined;
+      if (code !== "auth/user-not-found") {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new HttpsError("internal", `Failed to resolve user ${email}: ${message}`);
+      }
+    }
+
+    await createPendingEnrollment(email, pendingRef);
     return "pending";
   };
 
