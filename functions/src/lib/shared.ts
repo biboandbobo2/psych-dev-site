@@ -16,6 +16,10 @@ export const FUNCTIONS_SERVICE_ACCOUNT = "psych-dev-site-prod@appspot.gserviceac
 
 export const CORE_COURSE_IDS = ["development", "clinical", "general"];
 
+// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
+// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
+export const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
+
 // ── Auth helpers ──────────────────────────────────────────────
 
 export function ensureSuperAdmin(request: Pick<CallableRequest, "auth">) {

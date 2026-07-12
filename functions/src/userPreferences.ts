@@ -4,12 +4,9 @@
  */
 
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import { CALLABLE_OPTS } from "./lib/shared.js";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { debugLog, debugError } from "./lib/debug.js";
-
-// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
-// cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы.
-const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 interface UpdateMyEmailPreferencesData {
   emailBookingConfirmations?: boolean;

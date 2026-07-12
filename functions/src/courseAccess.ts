@@ -6,11 +6,7 @@ import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/
 import * as fnLogger from "firebase-functions/logger";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { SUPER_ADMIN_EMAIL } from "./lib/shared.js";
-
-// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
-// cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы.
-const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
+import { SUPER_ADMIN_EMAIL, CALLABLE_OPTS } from "./lib/shared.js";
 
 /**
  * Интерфейс для карты доступа к курсам

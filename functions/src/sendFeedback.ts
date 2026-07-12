@@ -5,7 +5,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as fnLogger from "firebase-functions/logger";
 import { sendTelegramMessage } from "./lib/telegram.js";
-import { FUNCTIONS_SERVICE_ACCOUNT } from "./lib/shared.js";
+import { FUNCTIONS_SERVICE_ACCOUNT, CALLABLE_OPTS as SHARED_CALLABLE_OPTS } from "./lib/shared.js";
 
 type FeedbackType = "bug" | "idea" | "thanks";
 
@@ -18,15 +18,8 @@ interface FeedbackData {
   pageUrl?: string;
 }
 
-// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
-// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
 // serviceAccount: telegram-секреты в Secret Manager доступны только appspot SA.
-const CALLABLE_OPTS = {
-  region: "us-central1",
-  cpu: 1,
-  memory: "256MiB",
-  serviceAccount: FUNCTIONS_SERVICE_ACCOUNT,
-} as const;
+const CALLABLE_OPTS = { ...SHARED_CALLABLE_OPTS, serviceAccount: FUNCTIONS_SERVICE_ACCOUNT } as const;
 
 const FEEDBACK_EMOJI: Record<FeedbackType, string> = {
   bug: "🐛",

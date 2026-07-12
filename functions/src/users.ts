@@ -1,11 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as fnLogger from "firebase-functions/logger";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
-import { CORE_COURSE_IDS, SUPER_ADMIN_EMAIL } from "./lib/shared.js";
-
-// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
-// cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы.
-const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
+import { CORE_COURSE_IDS, SUPER_ADMIN_EMAIL, CALLABLE_OPTS } from "./lib/shared.js";
 
 const db = getFirestore();
 

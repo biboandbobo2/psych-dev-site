@@ -9,11 +9,8 @@ import {
   normalizeCourseIds,
   CORE_COURSE_IDS,
   type CourseAccessMap,
+  CALLABLE_OPTS,
 } from "./lib/shared.js";
-
-// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
-// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
-const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 const EMAIL_LISTS_COLLECTION = "studentEmailLists";
 

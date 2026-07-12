@@ -6,15 +6,12 @@
 // Стоимость: ~60 invocations за весь экзамен (15 слотов × 2 потока × 2 операции).
 
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import { CALLABLE_OPTS } from "./lib/shared.js";
 import {
   getFirestore,
   Timestamp,
   type Transaction,
 } from "firebase-admin/firestore";
-
-// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
-// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
-const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 const db = getFirestore();
 

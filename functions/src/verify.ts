@@ -11,7 +11,10 @@ import {
   type ExpectedBundle,
   type PeriodDoc,
 } from "../../shared/verifyCore.js";
-import { ensureAdmin } from "./lib/shared.js";
+import {
+ ensureAdmin,
+  CALLABLE_OPTS,
+} from "./lib/shared.js";
 import {
   ARRAY_FIELDS,
   normalizeSpaces,
@@ -30,10 +33,6 @@ import {
   type Author,
   type Link,
 } from "./lib/reconcileUtils.js";
-
-// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
-// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
-const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 function coerceExpected(input: any): ExpectedBundle {
   if (!input) {
