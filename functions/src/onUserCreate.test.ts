@@ -39,7 +39,7 @@ vi.mock('firebase-admin/app', () => ({
   applicationDefault: vi.fn(),
 }));
 
-vi.mock('firebase-functions', () => {
+vi.mock('firebase-functions/v1', () => {
   class HttpsError extends Error {
     constructor(public code: string, message: string) {
       super(message);

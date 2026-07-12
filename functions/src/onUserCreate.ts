@@ -1,4 +1,8 @@
-import * as functions from "firebase-functions";
+// ВАЖНО: auth.user().onCreate существует только в 1st gen — у gen2 нет
+// non-blocking auth-триггера (только blocking identity-функции с другой
+// семантикой). Остаётся на v1 через явный импорт; это же готовит файл к
+// бампу firebase-functions 6+/7+, где корневой импорт станет v2-only.
+import * as functions from "firebase-functions/v1";
 import { getApps, initializeApp, applicationDefault } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";

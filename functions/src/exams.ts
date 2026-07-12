@@ -5,12 +5,16 @@
 //
 // Стоимость: ~60 invocations за весь экзамен (15 слотов × 2 потока × 2 операции).
 
-import * as functions from "firebase-functions";
+import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import {
   getFirestore,
   Timestamp,
   type Transaction,
 } from "firebase-admin/firestore";
+
+// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
+// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
+const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 const db = getFirestore();
 
@@ -36,27 +40,27 @@ const detailsId = (slotId: string, groupId: string): string =>
   `${slotId}__${groupId}`;
 
 function requireAuth(
-  context: functions.https.CallableContext
+  request: Pick<CallableRequest, "auth">
 ): { uid: string; email: string } {
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
+  if (!request.auth) {
+    throw new HttpsError(
       "unauthenticated",
       "Требуется авторизация"
     );
   }
-  const uid = context.auth.uid;
-  const email = context.auth.token.email ?? "";
+  const uid = request.auth.uid;
+  const email = request.auth.token.email ?? "";
   return { uid, email };
 }
 
 async function loadExam(examId: string): Promise<ExamDocData> {
   const snap = await db.doc(`exams/${examId}`).get();
   if (!snap.exists) {
-    throw new functions.https.HttpsError("not-found", "Экзамен не найден");
+    throw new HttpsError("not-found", "Экзамен не найден");
   }
   const data = snap.data() as Partial<ExamDocData> | undefined;
   if (!data || !Array.isArray(data.groupIds)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "failed-precondition",
       "Документ экзамена повреждён"
     );
@@ -93,13 +97,13 @@ async function resolveStudentGroup(
     })
   );
   if (matches.length === 0) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "permission-denied",
       "Вы не состоите ни в одной группе этого экзамена"
     );
   }
   if (matches.length > 1) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "failed-precondition",
       "Вы состоите в нескольких группах одновременно — обратитесь к администратору"
     );
@@ -113,16 +117,16 @@ interface BookExamSlotPayload {
   essay?: unknown;
 }
 
-export const bookExamSlot = functions.https.onCall(
-  async (data: BookExamSlotPayload, context) => {
-    const { uid, email } = requireAuth(context);
+export const bookExamSlot = onCall(CALLABLE_OPTS, async (request) => {
+    const data = request.data as BookExamSlotPayload;
+    const { uid, email } = requireAuth(request);
 
     const examId = typeof data.examId === "string" ? data.examId.trim() : "";
     const slotId = typeof data.slotId === "string" ? data.slotId.trim() : "";
     const essay = typeof data.essay === "string" ? data.essay.trim() : "";
 
     if (!examId || !slotId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "examId и slotId обязательны"
       );
@@ -130,19 +134,19 @@ export const bookExamSlot = functions.https.onCall(
 
     const exam = await loadExam(examId);
     if (exam.status !== "active") {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "failed-precondition",
         "Экзамен в архиве, запись закрыта"
       );
     }
     if (essay.length < exam.essayMinChars) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         `Эссе должно быть не короче ${exam.essayMinChars} символов`
       );
     }
     if (essay.length > exam.essayMaxChars) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         `Эссе должно быть не длиннее ${exam.essayMaxChars} символов`
       );
@@ -168,10 +172,10 @@ export const bookExamSlot = functions.https.onCall(
       ]);
 
       if (!slotSnap.exists) {
-        throw new functions.https.HttpsError("not-found", "Слот не найден");
+        throw new HttpsError("not-found", "Слот не найден");
       }
       if (userIndexSnap.exists) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "already-exists",
           "У вас уже есть запись на экзамен. Сначала отмените текущую."
         );
@@ -180,13 +184,13 @@ export const bookExamSlot = functions.https.onCall(
       const slot = slotSnap.data() as SlotDocData;
       const bookings = slot.bookings ?? {};
       if (!(myGroupId in bookings)) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Этот слот не настроен на вашу группу"
         );
       }
       if (bookings[myGroupId] != null) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "already-exists",
           "Это место в слоте уже занято — обновите страницу"
         );
@@ -225,13 +229,13 @@ interface CancelExamBookingPayload {
   examId?: unknown;
 }
 
-export const cancelExamBooking = functions.https.onCall(
-  async (data: CancelExamBookingPayload, context) => {
-    const { uid } = requireAuth(context);
+export const cancelExamBooking = onCall(CALLABLE_OPTS, async (request) => {
+    const data = request.data as CancelExamBookingPayload;
+    const { uid } = requireAuth(request);
 
     const examId = typeof data.examId === "string" ? data.examId.trim() : "";
     if (!examId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "examId обязателен"
       );
@@ -244,7 +248,7 @@ export const cancelExamBooking = functions.https.onCall(
     await db.runTransaction(async (tx: Transaction) => {
       const userIndexSnap = await tx.get(userIndexRef);
       if (!userIndexSnap.exists) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "У вас нет активной записи на этот экзамен"
         );
@@ -255,7 +259,7 @@ export const cancelExamBooking = functions.https.onCall(
       const slotRef = db.doc(`exams/${examId}/slots/${slotId}`);
       const slotSnap = await tx.get(slotRef);
       if (!slotSnap.exists) {
-        throw new functions.https.HttpsError("not-found", "Слот не найден");
+        throw new HttpsError("not-found", "Слот не найден");
       }
       const slot = slotSnap.data() as SlotDocData;
 
@@ -263,7 +267,7 @@ export const cancelExamBooking = functions.https.onCall(
       const startMs = slot.startAt.toMillis();
       const deadlineMs = startMs - exam.cancelLeadTimeHours * 3600 * 1000;
       if (nowMs > deadlineMs) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           `Отмена возможна не позднее чем за ${exam.cancelLeadTimeHours} часов до экзамена`
         );

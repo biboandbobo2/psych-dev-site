@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import * as fnLogger from "firebase-functions/logger";
 import { GoogleAuth } from "google-auth-library";
 import { resolveAdminProjectId } from "./adminApp.js";
 
@@ -26,7 +26,7 @@ export async function tryReadLatestSecretValue(secretName: string, projectId = r
   try {
     return await readLatestSecretValue(secretName, projectId);
   } catch (error: any) {
-    functions.logger.warn("Secret is unavailable", {
+    fnLogger.warn("Secret is unavailable", {
       error: error?.message || String(error),
       projectId,
       secretName,

@@ -1,6 +1,7 @@
 // Cloud Functions (Node 22, ESM), firebase-admin v12+.
 
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as fnLogger from "firebase-functions/logger";
 import { initializeApp, applicationDefault, getApps } from "firebase-admin/app";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
@@ -9,10 +10,15 @@ import {
   resolveAdminStorageBucket,
 } from "./lib/adminApp.js";
 import { getAdminSeedCode } from "./lib/adminSeedCode.js";
+import { FUNCTIONS_SERVICE_ACCOUNT } from "./lib/shared.js";
 import {
   debugError as functionsDebugError,
   debugLog as functionsDebugLog,
 } from "./lib/debug.js";
+
+// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
+// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
+const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 // Инициализация Firebase Admin
 if (!getApps().length) {
@@ -24,29 +30,23 @@ if (!getApps().length) {
 }
 
 /**
- * Проверяет, что вызывающий имеет роль admin или super-admin
- */
-export function ensureAdmin(context: functions.https.CallableContext) {
-  const role = (context.auth?.token as any)?.role;
-  if (role !== "admin" && role !== "super-admin") {
-    throw new functions.https.HttpsError('permission-denied', 'Admin only');
-  }
-}
-
-/**
  * Callable: seedAdmin
  * По одноразовому коду добавляет пользователя в коллекцию admins/{uid}
  * и выставляет custom claim role: "admin".
  *
  * Требует аутентификации (Google Sign-In). Код берётся из Secret Manager.
  */
-export const seedAdmin = functions.https.onCall(async (data, context) => {
-  const uid = context.auth?.uid;
-  const email = context.auth?.token?.email;
+// serviceAccount: admin-seed-code в Secret Manager доступен только appspot SA.
+export const seedAdmin = onCall(
+  { ...CALLABLE_OPTS, serviceAccount: FUNCTIONS_SERVICE_ACCOUNT },
+  async (request) => {
+  const data = request.data;
+  const uid = request.auth?.uid;
+  const email = request.auth?.token?.email;
   const seedCode = (data?.seedCode ?? "").trim();
 
   functionsDebugLog("🔵 seedAdmin called", {
-    hasAuth: !!context.auth,
+    hasAuth: !!request.auth,
     hasUid: Boolean(uid),
     hasEmail: Boolean(email),
     hasSeedCode: Boolean(seedCode),
@@ -54,7 +54,7 @@ export const seedAdmin = functions.https.onCall(async (data, context) => {
 
   if (!uid || !email) {
     functionsDebugError("❌ No UID or email");
-    throw new functions.https.HttpsError("unauthenticated", "Login required");
+    throw new HttpsError("unauthenticated", "Login required");
   }
 
   const expected = await getAdminSeedCode();
@@ -62,7 +62,7 @@ export const seedAdmin = functions.https.onCall(async (data, context) => {
 
   if (!expected || seedCode !== expected) {
     functionsDebugError("❌ Invalid seed code");
-    throw new functions.https.HttpsError("permission-denied", "Invalid code");
+    throw new HttpsError("permission-denied", "Invalid code");
   }
 
   try {
@@ -85,7 +85,7 @@ export const seedAdmin = functions.https.onCall(async (data, context) => {
     functionsDebugError("❌ Error in seedAdmin:", err);
     functionsDebugError("❌ Error code:", err?.code);
     functionsDebugError("❌ Error message:", err?.message);
-    throw new functions.https.HttpsError("internal", "Failed to set admin role: " + err?.message);
+    throw new HttpsError("internal", "Failed to set admin role: " + err?.message);
   }
 });
 
@@ -95,38 +95,39 @@ export const seedAdmin = functions.https.onCall(async (data, context) => {
  * @param data.targetUid - UID пользователя, которому меняем роль
  * @param data.role - 'admin' | 'student' | null (null удаляет роль)
  */
-export const setRole = functions.https.onCall(async (data, context) => {
-  functions.logger.info("🔵 setRole called", {
-    caller: context.auth?.uid,
+export const setRole = onCall(CALLABLE_OPTS, async (request) => {
+  const data = request.data;
+  fnLogger.info("🔵 setRole called", {
+    caller: request.auth?.uid,
     target: data?.targetUid,
     role: data?.role,
   });
 
-  if (!context.auth) {
-    functions.logger.error("❌ Unauthenticated call");
-    throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+  if (!request.auth) {
+    fnLogger.error("❌ Unauthenticated call");
+    throw new HttpsError("unauthenticated", "Authentication required");
   }
 
-  const callerRole = context.auth.token?.role;
+  const callerRole = request.auth.token?.role;
   if (callerRole !== "admin") {
-    functions.logger.error("❌ Caller is not admin", {
-      caller: context.auth.uid,
+    fnLogger.error("❌ Caller is not admin", {
+      caller: request.auth.uid,
       callerRole,
     });
-    throw new functions.https.HttpsError("permission-denied", "Only admins can manage roles");
+    throw new HttpsError("permission-denied", "Only admins can manage roles");
   }
 
   const targetUid = data?.targetUid;
   const role = data?.role as "admin" | "student" | null | undefined;
 
   if (!targetUid || typeof targetUid !== "string") {
-    functions.logger.error("❌ Invalid targetUid");
-    throw new functions.https.HttpsError("invalid-argument", "targetUid is required and must be a string");
+    fnLogger.error("❌ Invalid targetUid");
+    throw new HttpsError("invalid-argument", "targetUid is required and must be a string");
   }
 
   if (role !== "admin" && role !== "student" && role !== null) {
-    functions.logger.error("❌ Invalid role", { role });
-    throw new functions.https.HttpsError(
+    fnLogger.error("❌ Invalid role", { role });
+    throw new HttpsError(
       "invalid-argument",
       "role must be 'admin', 'student', or null"
     );
@@ -137,11 +138,11 @@ export const setRole = functions.https.onCall(async (data, context) => {
     const firestore = getFirestore();
 
     const targetUser = await authAdmin.getUser(targetUid);
-    functions.logger.info("✅ Target user found", { email: targetUser.email });
+    fnLogger.info("✅ Target user found", { email: targetUser.email });
 
     const claims = role ? { role } : {};
     await authAdmin.setCustomUserClaims(targetUid, claims);
-    functions.logger.info("✅ Custom claims updated", { targetUid, newClaims: claims });
+    fnLogger.info("✅ Custom claims updated", { targetUid, newClaims: claims });
 
     const adminDocRef = firestore.collection("admins").doc(targetUid);
 
@@ -150,36 +151,36 @@ export const setRole = functions.https.onCall(async (data, context) => {
         {
           email: targetUser.email,
           role: "admin",
-          grantedBy: context.auth.uid,
-          grantedByEmail: context.auth.token.email,
+          grantedBy: request.auth.uid,
+          grantedByEmail: request.auth.token.email,
           grantedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         },
         { merge: true }
       );
-      functions.logger.info("✅ Admin document created/updated");
+      fnLogger.info("✅ Admin document created/updated");
     } else {
       if (role === null) {
         await adminDocRef.delete();
-        functions.logger.info("✅ Admin document deleted");
+        fnLogger.info("✅ Admin document deleted");
       } else {
         await adminDocRef.set(
           {
             email: targetUser.email,
             role: "student",
-            revokedBy: context.auth.uid,
-            revokedByEmail: context.auth.token.email,
+            revokedBy: request.auth.uid,
+            revokedByEmail: request.auth.token.email,
             revokedAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
           },
           { merge: true }
         );
-        functions.logger.info("✅ Admin role revoked");
+        fnLogger.info("✅ Admin role revoked");
       }
     }
 
     const updatedUser = await authAdmin.getUser(targetUid);
-    functions.logger.info("✅ Final custom claims", { claims: updatedUser.customClaims });
+    fnLogger.info("✅ Final custom claims", { claims: updatedUser.customClaims });
 
     return {
       success: true,
@@ -190,20 +191,20 @@ export const setRole = functions.https.onCall(async (data, context) => {
       message: `Role successfully changed to ${role || "student"}. User must sign out and sign in again.`,
     };
   } catch (error: any) {
-    functions.logger.error("❌ Error in setRole", {
+    fnLogger.error("❌ Error in setRole", {
       error: error?.message,
       code: error?.code,
       targetUid,
     });
 
     if (error?.code === "auth/user-not-found") {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "not-found",
         `User with UID ${targetUid} not found`
       );
     }
 
-    throw new functions.https.HttpsError("internal", `Failed to set role: ${error?.message}`);
+    throw new HttpsError("internal", `Failed to set role: ${error?.message}`);
   }
 });
 
@@ -215,22 +216,23 @@ export const setRole = functions.https.onCall(async (data, context) => {
  * @param data.targetUid - UID пользователя
  * @param data.disabled - true = отключить, false = включить
  */
-export const toggleUserDisabled = functions.https.onCall(async (data, context) => {
-  functions.logger.info("🔵 toggleUserDisabled called", {
-    caller: context.auth?.uid,
+export const toggleUserDisabled = onCall(CALLABLE_OPTS, async (request) => {
+  const data = request.data;
+  fnLogger.info("🔵 toggleUserDisabled called", {
+    caller: request.auth?.uid,
     target: data?.targetUid,
     disabled: data?.disabled,
   });
 
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required");
   }
 
   // Только super-admin может отключать пользователей
-  const callerEmail = context.auth.token?.email;
+  const callerEmail = request.auth.token?.email;
   if (callerEmail !== "biboandbobo2@gmail.com") {
-    functions.logger.error("❌ Caller is not super-admin", { callerEmail });
-    throw new functions.https.HttpsError(
+    fnLogger.error("❌ Caller is not super-admin", { callerEmail });
+    throw new HttpsError(
       "permission-denied",
       "Только super-admin может отключать/включать пользователей"
     );
@@ -240,16 +242,16 @@ export const toggleUserDisabled = functions.https.onCall(async (data, context) =
   const disabled = data?.disabled;
 
   if (!targetUid || typeof targetUid !== "string") {
-    throw new functions.https.HttpsError("invalid-argument", "targetUid is required");
+    throw new HttpsError("invalid-argument", "targetUid is required");
   }
 
   if (typeof disabled !== "boolean") {
-    throw new functions.https.HttpsError("invalid-argument", "disabled must be boolean");
+    throw new HttpsError("invalid-argument", "disabled must be boolean");
   }
 
   // Нельзя отключить самого себя
-  if (context.auth.uid === targetUid) {
-    throw new functions.https.HttpsError("invalid-argument", "Нельзя отключить самого себя");
+  if (request.auth.uid === targetUid) {
+    throw new HttpsError("invalid-argument", "Нельзя отключить самого себя");
   }
 
   try {
@@ -258,20 +260,20 @@ export const toggleUserDisabled = functions.https.onCall(async (data, context) =
 
     // Проверяем что пользователь существует
     const targetUser = await authAdmin.getUser(targetUid);
-    functions.logger.info("✅ Target user found", { email: targetUser.email });
+    fnLogger.info("✅ Target user found", { email: targetUser.email });
 
     // Обновляем статус disabled
     await authAdmin.updateUser(targetUid, { disabled });
-    functions.logger.info("✅ User disabled status updated", { targetUid, disabled });
+    fnLogger.info("✅ User disabled status updated", { targetUid, disabled });
 
     // Записываем в Firestore для отображения в UI
     await firestore.collection("users").doc(targetUid).set(
       {
         disabled,
         disabledAt: disabled ? FieldValue.serverTimestamp() : null,
-        disabledBy: disabled ? context.auth.uid : null,
+        disabledBy: disabled ? request.auth.uid : null,
         enabledAt: disabled ? null : FieldValue.serverTimestamp(),
-        enabledBy: disabled ? null : context.auth.uid,
+        enabledBy: disabled ? null : request.auth.uid,
       },
       { merge: true }
     );
@@ -286,16 +288,16 @@ export const toggleUserDisabled = functions.https.onCall(async (data, context) =
         : "Пользователь включён. Он может войти и все его данные на месте.",
     };
   } catch (error: any) {
-    functions.logger.error("❌ Error in toggleUserDisabled", {
+    fnLogger.error("❌ Error in toggleUserDisabled", {
       error: error?.message,
       code: error?.code,
     });
 
     if (error?.code === "auth/user-not-found") {
-      throw new functions.https.HttpsError("not-found", `Пользователь не найден`);
+      throw new HttpsError("not-found", `Пользователь не найден`);
     }
 
-    throw new functions.https.HttpsError("internal", `Ошибка: ${error?.message}`);
+    throw new HttpsError("internal", `Ошибка: ${error?.message}`);
   }
 });
 

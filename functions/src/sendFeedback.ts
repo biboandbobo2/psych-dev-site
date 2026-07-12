@@ -2,8 +2,10 @@
  * Cloud Function для отправки обратной связи в Telegram
  */
 
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as fnLogger from "firebase-functions/logger";
 import { sendTelegramMessage } from "./lib/telegram.js";
+import { FUNCTIONS_SERVICE_ACCOUNT } from "./lib/shared.js";
 
 type FeedbackType = "bug" | "idea" | "thanks";
 
@@ -15,6 +17,16 @@ interface FeedbackData {
   userRole?: string;
   pageUrl?: string;
 }
+
+// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
+// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
+// serviceAccount: telegram-секреты в Secret Manager доступны только appspot SA.
+const CALLABLE_OPTS = {
+  region: "us-central1",
+  cpu: 1,
+  memory: "256MiB",
+  serviceAccount: FUNCTIONS_SERVICE_ACCOUNT,
+} as const;
 
 const FEEDBACK_EMOJI: Record<FeedbackType, string> = {
   bug: "🐛",
@@ -38,9 +50,10 @@ const FEEDBACK_LABELS: Record<FeedbackType, string> = {
  * @param data.userRole - роль пользователя (опционально)
  * @param data.pageUrl - URL страницы откуда отправлено (опционально)
  */
-export const sendFeedback = functions.https.onCall(async (data, context) => {
-  functions.logger.info("🔵 sendFeedback called", {
-    caller: context.auth?.uid,
+export const sendFeedback = onCall(CALLABLE_OPTS, async (request) => {
+  const data = request.data;
+  fnLogger.info("🔵 sendFeedback called", {
+    caller: request.auth?.uid,
     type: data?.type,
     hasMessage: Boolean(data?.message),
   });
@@ -49,21 +62,21 @@ export const sendFeedback = functions.https.onCall(async (data, context) => {
   const feedbackData = data as FeedbackData;
 
   if (!feedbackData.type || !["bug", "idea", "thanks"].includes(feedbackData.type)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "Invalid feedback type. Must be 'bug', 'idea', or 'thanks'"
     );
   }
 
   if (!feedbackData.message || feedbackData.message.trim().length < 3) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "Message is required and must be at least 3 characters"
     );
   }
 
   if (feedbackData.message.length > 2000) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "Message is too long. Maximum 2000 characters"
     );
@@ -98,7 +111,7 @@ export const sendFeedback = functions.https.onCall(async (data, context) => {
   try {
     await sendTelegramMessage(telegramMessage);
 
-    functions.logger.info("✅ Feedback sent successfully", {
+    fnLogger.info("✅ Feedback sent successfully", {
       hasMessage: true,
     });
 
@@ -107,10 +120,10 @@ export const sendFeedback = functions.https.onCall(async (data, context) => {
       message: "Спасибо за обратную связь!",
     };
   } catch (error: any) {
-    functions.logger.error("❌ Error sending feedback", {
+    fnLogger.error("❌ Error sending feedback", {
       error: error?.message,
     });
 
-    throw new functions.https.HttpsError("internal", "Failed to send feedback: " + error?.message);
+    throw new HttpsError("internal", "Failed to send feedback: " + error?.message);
   }
 });

@@ -62,18 +62,21 @@ vi.mock('firebase-admin/app', () => ({
   applicationDefault: vi.fn(),
 }));
 
-vi.mock('firebase-functions', () => {
+vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     constructor(public code: string, message: string) {
       super(message);
+      this.name = 'HttpsError';
     }
   }
   return {
-    default: { https: { onCall: (fn: Function) => fn, HttpsError } },
-    https: { onCall: (fn: Function) => fn, HttpsError },
-    logger: { info: vi.fn(), error: vi.fn() },
+    onCall: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    onRequest: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    HttpsError,
   };
 });
+
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 
 import { bookExamSlot, cancelExamBooking } from './exams';
 
@@ -119,18 +122,18 @@ beforeEach(() => {
 
 describe('bookExamSlot', () => {
   it('требует авторизации', async () => {
-    await expect((bookExamSlot as Function)({}, {})).rejects.toThrow('Требуется авторизация');
+    await expect((bookExamSlot as Function)({ data: {} })).rejects.toThrow('Требуется авторизация');
   });
 
   it('отказ если examId/slotId пустые', async () => {
     await expect(
-      (bookExamSlot as Function)({ examId: '', slotId: '', essay: longEssay }, ctx())
+      (bookExamSlot as Function)({ data: { examId: '', slotId: '', essay: longEssay }, ...ctx() })
     ).rejects.toThrow('обязательны');
   });
 
   it('отказ если экзамен не найден', async () => {
     await expect(
-      (bookExamSlot as Function)({ examId: 'missing', slotId: SLOT_ID, essay: longEssay }, ctx())
+      (bookExamSlot as Function)({ data: { examId: 'missing', slotId: SLOT_ID, essay: longEssay }, ...ctx() })
     ).rejects.toThrow('Экзамен не найден');
   });
 
@@ -141,21 +144,21 @@ describe('bookExamSlot', () => {
       data: { ...docMap.get(`exams/${EXAM_ID}`)!.data, status: 'archived' },
     });
     await expect(
-      (bookExamSlot as Function)({ examId: EXAM_ID, slotId: SLOT_ID, essay: longEssay }, ctx())
+      (bookExamSlot as Function)({ data: { examId: EXAM_ID, slotId: SLOT_ID, essay: longEssay }, ...ctx() })
     ).rejects.toThrow('архиве');
   });
 
   it('отказ если эссе короче min', async () => {
     seedActiveExam();
     await expect(
-      (bookExamSlot as Function)({ examId: EXAM_ID, slotId: SLOT_ID, essay: 'short' }, ctx())
+      (bookExamSlot as Function)({ data: { examId: EXAM_ID, slotId: SLOT_ID, essay: 'short' }, ...ctx() })
     ).rejects.toThrow(/короче 100/);
   });
 
   it('отказ если эссе длиннее max', async () => {
     seedActiveExam();
     await expect(
-      (bookExamSlot as Function)({ examId: EXAM_ID, slotId: SLOT_ID, essay: 'x'.repeat(600) }, ctx())
+      (bookExamSlot as Function)({ data: { examId: EXAM_ID, slotId: SLOT_ID, essay: 'x'.repeat(600) }, ...ctx() })
     ).rejects.toThrow(/длиннее 500/);
   });
 
@@ -164,7 +167,7 @@ describe('bookExamSlot', () => {
     docMap.set(`groups/${GROUP_A}`, { exists: true, data: { memberIds: [] } });
     docMap.set(`groups/${GROUP_B}`, { exists: true, data: { memberIds: [] } });
     await expect(
-      (bookExamSlot as Function)({ examId: EXAM_ID, slotId: SLOT_ID, essay: longEssay }, ctx())
+      (bookExamSlot as Function)({ data: { examId: EXAM_ID, slotId: SLOT_ID, essay: longEssay }, ...ctx() })
     ).rejects.toThrow('не состоите');
   });
 
@@ -172,7 +175,7 @@ describe('bookExamSlot', () => {
     seedActiveExam();
     docMap.set(`groups/${GROUP_B}`, { exists: true, data: { memberIds: [UID] } });
     await expect(
-      (bookExamSlot as Function)({ examId: EXAM_ID, slotId: SLOT_ID, essay: longEssay }, ctx())
+      (bookExamSlot as Function)({ data: { examId: EXAM_ID, slotId: SLOT_ID, essay: longEssay }, ...ctx() })
     ).rejects.toThrow('нескольких группах');
   });
 
@@ -181,7 +184,7 @@ describe('bookExamSlot', () => {
     seedSlot();
     docMap.set(`exams/${EXAM_ID}/userIndex/${UID}`, { exists: true, data: { slotId: 'other' } });
     await expect(
-      (bookExamSlot as Function)({ examId: EXAM_ID, slotId: SLOT_ID, essay: longEssay }, ctx())
+      (bookExamSlot as Function)({ data: { examId: EXAM_ID, slotId: SLOT_ID, essay: longEssay }, ...ctx() })
     ).rejects.toThrow('уже есть запись');
   });
 
@@ -189,7 +192,7 @@ describe('bookExamSlot', () => {
     seedActiveExam();
     seedSlot({ [GROUP_A]: { bookedAt: 'x' }, [GROUP_B]: null });
     await expect(
-      (bookExamSlot as Function)({ examId: EXAM_ID, slotId: SLOT_ID, essay: longEssay }, ctx())
+      (bookExamSlot as Function)({ data: { examId: EXAM_ID, slotId: SLOT_ID, essay: longEssay }, ...ctx() })
     ).rejects.toThrow('уже занято');
   });
 
@@ -197,8 +200,7 @@ describe('bookExamSlot', () => {
     seedActiveExam();
     seedSlot();
     const result = await (bookExamSlot as Function)(
-      { examId: EXAM_ID, slotId: SLOT_ID, essay: longEssay },
-      ctx()
+      { data: { examId: EXAM_ID, slotId: SLOT_ID, essay: longEssay }, ...ctx() },
     );
     expect(result).toEqual({ ok: true, slotId: SLOT_ID, groupId: GROUP_A });
     const ops = txCalls.map((c) => `${c.op}:${c.path}`);
@@ -211,19 +213,19 @@ describe('bookExamSlot', () => {
 
 describe('cancelExamBooking', () => {
   it('требует авторизации', async () => {
-    await expect((cancelExamBooking as Function)({}, {})).rejects.toThrow('Требуется авторизация');
+    await expect((cancelExamBooking as Function)({ data: {} })).rejects.toThrow('Требуется авторизация');
   });
 
   it('отказ если examId пустой', async () => {
     await expect(
-      (cancelExamBooking as Function)({ examId: '' }, ctx())
+      (cancelExamBooking as Function)({ data: { examId: '' }, ...ctx() })
     ).rejects.toThrow('examId обязателен');
   });
 
   it('отказ если у юзера нет брони', async () => {
     seedActiveExam();
     await expect(
-      (cancelExamBooking as Function)({ examId: EXAM_ID }, ctx())
+      (cancelExamBooking as Function)({ data: { examId: EXAM_ID }, ...ctx() })
     ).rejects.toThrow('нет активной записи');
   });
 
@@ -238,7 +240,7 @@ describe('cancelExamBooking', () => {
       data: { startAt: { toMillis: () => Date.now() + 1000 * 60 * 60 } }, // 1 час
     });
     await expect(
-      (cancelExamBooking as Function)({ examId: EXAM_ID }, ctx())
+      (cancelExamBooking as Function)({ data: { examId: EXAM_ID }, ...ctx() })
     ).rejects.toThrow(/Отмена возможна не позднее/);
   });
 
@@ -252,7 +254,7 @@ describe('cancelExamBooking', () => {
       exists: true,
       data: { startAt: { toMillis: () => Date.now() + 1000 * 60 * 60 * 72 } },
     });
-    const result = await (cancelExamBooking as Function)({ examId: EXAM_ID }, ctx());
+    const result = await (cancelExamBooking as Function)({ data: { examId: EXAM_ID }, ...ctx() });
     expect(result).toEqual({ ok: true });
     const ops = txCalls.map((c) => `${c.op}:${c.path}`);
     expect(ops).toContain(`update:exams/${EXAM_ID}/slots/${SLOT_ID}`);

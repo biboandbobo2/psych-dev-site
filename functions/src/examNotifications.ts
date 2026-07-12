@@ -20,11 +20,12 @@
  *   - Telegram chat ID берётся из существующего telegram-chat-id (sendTelegramMessage).
  */
 
-import * as functions from "firebase-functions";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { insertEvent, patchEvent } from "./lib/gcalClient.js";
 import { sendTelegramMessage } from "./lib/telegram.js";
 import { tryReadLatestSecretValue } from "./lib/secrets.js";
+import { FUNCTIONS_SERVICE_ACCOUNT } from "./lib/shared.js";
 import {
   debugError as functionsDebugError,
   debugLog as functionsDebugLog,
@@ -366,15 +367,25 @@ async function syncGCal(args: {
   }
 }
 
-export const onExamSlotWrite = functions.firestore
-  .document("exams/{examId}/slots/{slotId}")
-  .onWrite(async (change, context) => {
-    const examId = context.params.examId as string;
-    const slotId = context.params.slotId as string;
-    const before = change.before.exists
-      ? (change.before.data() as SlotDocData)
+// cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы.
+export const onExamSlotWrite = onDocumentWritten(
+  {
+    document: "exams/{examId}/slots/{slotId}",
+    region: "us-central1",
+    cpu: 1,
+    memory: "256MiB",
+    // секреты (personal-gcal-id, telegram) и календарь расшарены на appspot SA
+    serviceAccount: FUNCTIONS_SERVICE_ACCOUNT,
+  },
+  async (event) => {
+    const examId = event.params.examId;
+    const slotId = event.params.slotId;
+    const beforeSnap = event.data?.before;
+    const afterSnap = event.data?.after;
+    const before = beforeSnap?.exists
+      ? (beforeSnap.data() as SlotDocData)
       : null;
-    const after = change.after.exists ? (change.after.data() as SlotDocData) : null;
+    const after = afterSnap?.exists ? (afterSnap.data() as SlotDocData) : null;
 
     const transition = detectTransition(before, after);
     // detectTransition возвращает 'skip' для нашего собственного after-write

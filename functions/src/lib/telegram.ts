@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import * as fnLogger from "firebase-functions/logger";
 import { resolveAdminProjectId } from "./adminApp.js";
 import { readLatestSecretValue } from "./secrets.js";
 
@@ -39,7 +39,7 @@ async function getTelegramSecretConfig(): Promise<TelegramConfig | null> {
 
     return { token, chatId };
   } catch (error: any) {
-    functions.logger.warn("Telegram secrets are unavailable, falling back to env", {
+    fnLogger.warn("Telegram secrets are unavailable, falling back to env", {
       error: error?.message || String(error),
       projectId,
     });
@@ -99,7 +99,7 @@ export async function sendTelegramMessage(
   const result = await response.json();
 
   if (!result.ok) {
-    functions.logger.error("❌ Telegram API error", result);
+    fnLogger.error("❌ Telegram API error", result);
     throw new Error("Failed to send message to Telegram");
   }
 

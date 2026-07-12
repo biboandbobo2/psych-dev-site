@@ -5,24 +5,39 @@
  * bulkEnrollment.ts, onUserCreate.ts, courseAccess.ts, etc.
  */
 
-import * as functions from "firebase-functions";
+import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 
 export const SUPER_ADMIN_EMAIL = "biboandbobo2@gmail.com";
+
+// gen2 по умолчанию работает под compute default SA, у которого нет доступа к
+// Secret Manager / Google Calendar / BigQuery. gen1 работал под appspot SA —
+// функции, которым нужны эти ресурсы, явно указывают его в опциях.
+export const FUNCTIONS_SERVICE_ACCOUNT = "psych-dev-site-prod@appspot.gserviceaccount.com";
 
 export const CORE_COURSE_IDS = ["development", "clinical", "general"];
 
 // ── Auth helpers ──────────────────────────────────────────────
 
-export function ensureSuperAdmin(context: functions.https.CallableContext) {
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+export function ensureSuperAdmin(request: Pick<CallableRequest, "auth">) {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required");
   }
 
-  if (context.auth.token?.email !== SUPER_ADMIN_EMAIL) {
-    throw new functions.https.HttpsError(
+  if (request.auth.token?.email !== SUPER_ADMIN_EMAIL) {
+    throw new HttpsError(
       "permission-denied",
       "Only super-admin can perform this action"
     );
+  }
+}
+
+/**
+ * Проверяет, что вызывающий имеет роль admin или super-admin.
+ */
+export function ensureAdmin(request: Pick<CallableRequest, "auth">) {
+  const role = (request.auth?.token as { role?: unknown } | undefined)?.role;
+  if (role !== "admin" && role !== "super-admin") {
+    throw new HttpsError("permission-denied", "Admin only");
   }
 }
 
