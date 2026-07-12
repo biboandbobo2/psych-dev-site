@@ -48,6 +48,27 @@ async function loadMemberProgress(uid: string, courseId: string): Promise<Member
 }
 
 /**
+ * Загрузка прогресса всех участников с мягкой деградацией:
+ * упавший участник не валит батч, а получает fallback-строку.
+ */
+export async function loadGroupProgress(
+  memberIds: string[],
+  courseId: string
+): Promise<{ members: MemberProgress[]; failedCount: number }> {
+  let failedCount = 0;
+  const members = await Promise.all(
+    memberIds.map((uid) =>
+      loadMemberProgress(uid, courseId).catch((err): MemberProgress => {
+        debugError('[GroupWatchStats] failed to load member progress', uid, err);
+        failedCount += 1;
+        return { uid, name: `${uid} (не загрузился)`, watchedLessonIds: new Set() };
+      })
+    )
+  );
+  return { members, failedCount };
+}
+
+/**
  * Статистика просмотров лекций по группе — для лектора курса.
  * Точечные чтения courseProgress участников (десятки чтений на открытие),
  * без серверной агрегации.
@@ -58,6 +79,7 @@ export function GroupWatchStats({ courseId }: GroupWatchStatsProps) {
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [members, setMembers] = useState<MemberProgress[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const targetGroups = useMemo(
     () => groups.filter((group) => group.id !== 'everyone' && !group.isSystem),
@@ -68,6 +90,7 @@ export function GroupWatchStats({ courseId }: GroupWatchStatsProps) {
 
   useEffect(() => {
     setMembers([]);
+    setLoadError(false);
 
     if (!selectedGroup || selectedGroup.memberIds.length === 0) {
       return undefined;
@@ -76,14 +99,16 @@ export function GroupWatchStats({ courseId }: GroupWatchStatsProps) {
     let cancelled = false;
     setLoading(true);
 
-    Promise.all(selectedGroup.memberIds.map((uid) => loadMemberProgress(uid, courseId)))
-      .then((loaded) => {
-        if (!cancelled) {
+    loadGroupProgress(selectedGroup.memberIds, courseId)
+      .then(({ members: loaded, failedCount }) => {
+        if (cancelled) {
+          return;
+        }
+        if (failedCount === loaded.length) {
+          setLoadError(true);
+        } else {
           setMembers(loaded.sort((a, b) => a.name.localeCompare(b.name, 'ru')));
         }
-      })
-      .catch((err) => {
-        debugError('[GroupWatchStats] failed to load progress', err);
       })
       .finally(() => {
         if (!cancelled) {
@@ -121,6 +146,10 @@ export function GroupWatchStats({ courseId }: GroupWatchStatsProps) {
         </p>
       ) : loading ? (
         <p className="mt-3 text-sm text-gray-500">Загружаем прогресс участников…</p>
+      ) : loadError ? (
+        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Не удалось загрузить прогресс участников. Попробуйте обновить страницу.
+        </p>
       ) : lessons.length === 0 ? (
         <p className="mt-3 text-sm text-gray-500">У курса нет опубликованных занятий.</p>
       ) : (

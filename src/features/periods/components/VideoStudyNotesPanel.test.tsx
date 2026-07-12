@@ -163,7 +163,11 @@ describe('VideoStudyNotesPanel', () => {
     expect(screen.getByRole('button', { name: 'Конспект сохранён' })).toBeInTheDocument();
   });
 
-  it('при гидрации берёт серверную версию, если она свежее in-memory черновика', async () => {
+  it('clock-skew: локальный отличающийся черновик побеждает, даже если серверный updatedAt «свежее» по часам', async () => {
+    // Регрессия ревью 2026-07-12: сравнение клиентских часов с серверным
+    // updatedAt при отстающих часах тихо стирало свеженабранный текст.
+    // Инвариант: опубликованный в сессии черновик, отличающийся по
+    // содержимому, не сбрасывается серверной версией никогда.
     mocks.getLectureNote.mockResolvedValue({
       id: 'note-server',
       content: 'Серверная версия',
@@ -173,7 +177,7 @@ describe('VideoStudyNotesPanel', () => {
 
     renderPanel({
       courseId: 'development',
-      initialDraftSegments: [{ id: 'segment-local', startMs: null, text: 'Устаревший черновик' }],
+      initialDraftSegments: [{ id: 'segment-local', startMs: null, text: 'Свеженабранный текст' }],
       initialDraftUpdatedAtMs: Date.now() - 60_000,
       lectureResourceId: 'video-5',
       periodId: 'school',
@@ -185,8 +189,8 @@ describe('VideoStudyNotesPanel', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByDisplayValue('Серверная версия')).toBeInTheDocument();
-    expect(screen.queryByDisplayValue('Устаревший черновик')).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue('Свеженабранный текст')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Серверная версия')).not.toBeInTheDocument();
   });
 
   it('при гидрации сохраняет in-memory черновик, если он свежее серверной версии, и досохраняет его', async () => {

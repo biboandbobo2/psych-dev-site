@@ -58,19 +58,31 @@ export default function AdminLectureQuestions() {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(courseParam);
 
   useEffect(() => {
-    if (selectedCourseId || editableCourses.length === 0) {
+    if (editableCourses.length === 0) {
+      return;
+    }
+    if (selectedCourseId && editableCourses.some((course) => course.id === selectedCourseId)) {
       return;
     }
 
+    // Пустой или чужой (не из editable) курс: падаем на редактируемый.
+    // Fallback ∈ editableCourses, поэтому на следующем прогоне сработает
+    // ранний выход — цикла нет.
     const fallback =
       editableCourses.find((course) => course.id === courseParam)?.id ?? editableCourses[0].id;
+    if (selectedCourseId) {
+      // Чужой ?course= в URL — синхронизируем, как в handleCourseChange.
+      setSearchParams({ course: fallback }, { replace: true });
+    }
     setSelectedCourseId(fallback);
-  }, [courseParam, editableCourses, selectedCourseId]);
+  }, [courseParam, editableCourses, selectedCourseId, setSearchParams]);
 
   const canViewSelected =
     selectedCourseId !== null && canEditCourse(userRole, adminEditableCourses, selectedCourseId);
   const { questions, loading, error } = useCourseQuestions(canViewSelected ? selectedCourseId : null);
-  const { sharedNotes } = useCourseSharedNotes(canViewSelected ? selectedCourseId : null);
+  const { sharedNotes, error: sharedNotesError } = useCourseSharedNotes(
+    canViewSelected ? selectedCourseId : null
+  );
   const { deleteQuestion } = useLectureQuestionActions();
   const { deleteSharedNote } = useSharedLectureNoteActions();
 
@@ -147,6 +159,12 @@ export default function AdminLectureQuestions() {
         <div className="mb-8">
           <GroupWatchStats courseId={selectedCourseId} />
         </div>
+      ) : null}
+
+      {canViewSelected && sharedNotesError ? (
+        <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Ошибка загрузки конспектов: {sharedNotesError}
+        </p>
       ) : null}
 
       {!canViewSelected ? (

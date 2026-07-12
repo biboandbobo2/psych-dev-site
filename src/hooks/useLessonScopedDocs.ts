@@ -57,7 +57,18 @@ export function useLessonScopedDocs<T extends { id: string; createdAt: Date }>(
     });
 
     setLoading(true);
-    let pending = sources.length;
+    // loading=false только когда каждый источник отдал первый snapshot или
+    // первую ошибку; повторные эмиссии одного источника не декрементируют.
+    const settledKeys = new Set<string>();
+    const markSettled = (key: string) => {
+      if (settledKeys.has(key)) {
+        return;
+      }
+      settledKeys.add(key);
+      if (settledKeys.size === sources.length) {
+        setLoading(false);
+      }
+    };
 
     const unsubscribes = sources.map(({ key, constraints }) =>
       onSnapshot(
@@ -67,17 +78,11 @@ export function useLessonScopedDocs<T extends { id: string; createdAt: Date }>(
             ...current,
             [key]: snap.docs.map((d) => mapRecord(d.id, d.data())),
           }));
-          pending = Math.max(0, pending - 1);
-          if (pending === 0) {
-            setLoading(false);
-          }
+          markSettled(key);
         },
         (err) => {
           debugError(`[useLessonScopedDocs] ${collectionName} snapshot error`, key, err);
-          pending = Math.max(0, pending - 1);
-          if (pending === 0) {
-            setLoading(false);
-          }
+          markSettled(key);
         }
       )
     );

@@ -230,10 +230,13 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
         if (!existingNote.exists()) {
           payload.createdAt = serverTimestamp();
         }
-        knownLectureDocIdsRef.current.add(lectureDocId);
       }
 
       await setDoc(noteRef, payload, { merge: true });
+      // В кэш — только после успешной записи: упавший создающий setDoc не
+      // должен «отравить» кэш, иначе следующий автосейв пропустит getDoc и
+      // создаст документ без createdAt.
+      knownLectureDocIdsRef.current.add(lectureDocId);
       return lectureDocId;
     } catch (error) {
       reportAppError({ message: 'Не удалось сохранить заметку по лекции', error, context: 'useNotes.upsertLectureNote' });
@@ -357,6 +360,9 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
     try {
       debugLog('[useNotes] Deleting note:', noteId);
       await deleteDoc(doc(db, 'notes', noteId));
+      // Удалённый док больше не «известен» — иначе автосейв пересоздал бы
+      // его merge-записью без createdAt.
+      knownLectureDocIdsRef.current.delete(noteId);
       debugLog('[useNotes] ✅ Note deleted successfully');
     } catch (error) {
       reportAppError({ message: 'Не удалось удалить заметку', error, context: 'useNotes.deleteNote' });

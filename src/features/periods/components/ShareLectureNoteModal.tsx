@@ -5,6 +5,7 @@ import { useSharedLectureNoteActions } from '../../../hooks/useSharedLectureNote
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { debugError } from '../../../lib/debug';
 import { formatLectureTimestamp, type LectureNoteSegment } from '../../../types/notes';
+import { MAX_SHARED_NOTE_SEGMENTS } from '../../../types/sharedLectureNotes';
 import type { LectureQuestionVisibility } from '../../../types/lectureQuestions';
 
 interface ShareLectureNoteModalProps {
@@ -54,14 +55,25 @@ export function ShareLectureNoteModal({
 
     // По умолчанию выбраны все сегменты — типовой сценарий «отправить конспект целиком».
     setSelectedIds(new Set(segments.map((segment) => segment.id)));
-    setGroupId((current) => current ?? targetGroups[0]?.id ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // Как в AskLectureQuestionModal: перезапуск при дорезолве групп,
+  // уже выбранная группа не перетирается.
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setGroupId((current) => current ?? targetGroups[0]?.id ?? null);
+  }, [isOpen, targetGroups]);
+
   const selectedSegments = segments.filter((segment) => selectedIds.has(segment.id));
+  const tooManySegments = selectedSegments.length > MAX_SHARED_NOTE_SEGMENTS;
   const canSubmit =
     Boolean(user) &&
     selectedSegments.length > 0 &&
+    !tooManySegments &&
     (effectiveVisibility === 'lecturers' || Boolean(groupId));
 
   const toggleSegment = (segmentId: string) => {
@@ -155,6 +167,13 @@ export function ShareLectureNoteModal({
             })}
           </ul>
         )}
+
+        {tooManySegments ? (
+          <p className="text-sm text-rose-600">
+            Выбрано {selectedSegments.length} сегментов — максимум {MAX_SHARED_NOTE_SEGMENTS}.
+            Снимите лишние.
+          </p>
+        ) : null}
 
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium text-gray-700">Кому отправить</legend>

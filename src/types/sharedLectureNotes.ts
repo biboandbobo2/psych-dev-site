@@ -2,6 +2,13 @@ import { normalizeLectureNoteSegments, type LectureNoteSegment } from './notes';
 import type { LectureQuestionVisibility } from './lectureQuestions';
 
 /**
+ * Максимум сегментов в одном расшаренном конспекте — зеркало лимита
+ * `segments.size() <= 100` из firestore.rules (create sharedLectureNotes).
+ * Менять только синхронно с правилами.
+ */
+export const MAX_SHARED_NOTE_SEGMENTS = 100;
+
+/**
  * Расшаренный фрагмент конспекта — снапшот выбранных сегментов на момент
  * отправки (не ссылка на живую заметку: правки задним числом не протекают,
  * личная заметка целиком не открывается).
