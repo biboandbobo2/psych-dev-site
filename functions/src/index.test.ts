@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Импорт './index' тянет весь граф функций: v2-моки для мигрированных модулей,
-// v1-мок остаётся для gcalSync (пачка 5) и firebase-functions/v1 (onUserCreate).
+// мок firebase-functions/v1 — для gcalSync (пачка 5) и onUserCreate.
 
 // ── Mocks ───────────────────────────────────────────────────────
 
@@ -61,32 +61,6 @@ vi.mock('firebase-admin/auth', () => ({
     listUsers: vi.fn(async () => ({ users: [], pageToken: undefined })),
   }),
 }));
-
-vi.mock('firebase-functions', () => {
-  class HttpsError extends Error {
-    constructor(public code: string, message: string) {
-      super(message);
-      this.name = 'HttpsError';
-    }
-  }
-  const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-  const scheduleChain = () => ({
-    timeZone: () => ({ onRun: (fn: Function) => fn }),
-    onRun: (fn: Function) => fn,
-  });
-  const api = {
-    https: { onCall: (fn: Function) => fn, onRequest: (fn: Function) => fn, HttpsError },
-    logger,
-    firestore: { document: () => ({ onWrite: (fn: Function) => fn }) },
-    auth: { user: () => ({ onCreate: (fn: Function) => fn }) },
-    pubsub: {
-      schedule: scheduleChain,
-      topic: () => ({ onPublish: (fn: Function) => fn }),
-    },
-    runWith: () => ({ pubsub: { schedule: scheduleChain } }),
-  };
-  return { default: api, ...api };
-});
 
 vi.mock('firebase-functions/v1', () => {
   class HttpsError extends Error {

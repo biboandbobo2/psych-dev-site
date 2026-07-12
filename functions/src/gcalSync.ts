@@ -13,7 +13,8 @@
  * Assignments (kind='assignment') в GCal не экспортируются.
  */
 
-import * as functions from "firebase-functions";
+// v1 до пачки 5; с firebase-functions 6+ корневой импорт стал v2-only.
+import * as functions from "firebase-functions/v1";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import {
   debugError as functionsDebugError,
