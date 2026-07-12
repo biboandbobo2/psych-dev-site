@@ -13,8 +13,8 @@
  * Assignments (kind='assignment') в GCal не экспортируются.
  */
 
-// v1 до пачки 5; с firebase-functions 6+ корневой импорт стал v2-only.
-import * as functions from "firebase-functions/v1";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import {
   debugError as functionsDebugError,
@@ -32,6 +32,7 @@ import {
   firestoreEventToGCal,
   type FirestoreEventForExport,
 } from "../../shared/gcalMapping.js";
+import { FUNCTIONS_SERVICE_ACCOUNT } from "./lib/shared.js";
 
 const TIME_ZONE = "Asia/Tbilisi";
 
@@ -76,11 +77,19 @@ interface EventDocData {
  * Scheduled function: каждые 10 минут импортирует изменения из GCal в Firestore
  * для всех групп, у которых проставлен gcalId.
  */
-export const syncGroupCalendars = functions
-  .runWith({ timeoutSeconds: 540, memory: "512MB" })
-  .pubsub.schedule("every 10 minutes")
-  .timeZone(TIME_ZONE)
-  .onRun(async () => {
+// cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы (512MiB — как
+// было в gen1 runWith). serviceAccount: оба календаря расшарены на appspot SA.
+export const syncGroupCalendars = onSchedule(
+  {
+    schedule: "every 10 minutes",
+    timeZone: TIME_ZONE,
+    region: "us-central1",
+    timeoutSeconds: 540,
+    cpu: 1,
+    memory: "512MiB",
+    serviceAccount: FUNCTIONS_SERVICE_ACCOUNT,
+  },
+  async () => {
     const db = getFirestore();
     const groupsSnap = await db.collection("groups").get();
     const groups = groupsSnap.docs
@@ -100,7 +109,8 @@ export const syncGroupCalendars = functions
         });
       }
     }
-  });
+  }
+);
 
 async function syncSingleGroup(groupId: string, group: GroupDocData): Promise<void> {
   const calendarId = group.gcalId!;
@@ -187,13 +197,22 @@ async function syncSingleGroup(groupId: string, group: GroupDocData): Promise<vo
  * Firestore trigger: при создании/изменении/удалении события в админке
  * экспортирует изменения в GCal. Не трогает assignments.
  */
-export const onGroupEventWrite = functions.firestore
-  .document("groups/{groupId}/events/{eventId}")
-  .onWrite(async (change, context) => {
-    const groupId = context.params.groupId as string;
-    const eventId = context.params.eventId as string;
-    const before = change.before.exists ? (change.before.data() as EventDocData) : null;
-    const after = change.after.exists ? (change.after.data() as EventDocData) : null;
+// serviceAccount: экспорт пишет в календарь, расшаренный на appspot SA.
+export const onGroupEventWrite = onDocumentWritten(
+  {
+    document: "groups/{groupId}/events/{eventId}",
+    region: "us-central1",
+    cpu: 1,
+    memory: "256MiB",
+    serviceAccount: FUNCTIONS_SERVICE_ACCOUNT,
+  },
+  async (event) => {
+    const groupId = event.params.groupId;
+    const eventId = event.params.eventId;
+    const beforeSnap = event.data?.before;
+    const afterSnap = event.data?.after;
+    const before = beforeSnap?.exists ? (beforeSnap.data() as EventDocData) : null;
+    const after = afterSnap?.exists ? (afterSnap.data() as EventDocData) : null;
 
     // Удаление документа → delete в GCal (если был привязан).
     if (!after) {
@@ -261,7 +280,8 @@ export const onGroupEventWrite = functions.firestore
         "lastSyncedAt": FieldValue.serverTimestamp(),
       }).catch(() => undefined);
     }
-  });
+  }
+);
 
 async function loadGroupForSync(groupId: string): Promise<GroupDocData | null> {
   const snap = await getFirestore().collection("groups").doc(groupId).get();

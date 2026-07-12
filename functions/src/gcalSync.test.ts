@@ -98,18 +98,13 @@ vi.mock('./lib/debug.js', () => ({
   debugError: vi.fn(),
 }));
 
-vi.mock('firebase-functions/v1', () => {
-  const scheduleChain = () => ({
-    timeZone: () => ({ onRun: (fn: Function) => fn }),
-    onRun: (fn: Function) => fn,
-  });
-  const api = {
-    firestore: { document: () => ({ onWrite: (fn: Function) => fn }) },
-    pubsub: { schedule: scheduleChain },
-    runWith: () => ({ pubsub: { schedule: scheduleChain } }),
-  };
-  return { default: api, ...api };
-});
+vi.mock('firebase-functions/v2/scheduler', () => ({
+  onSchedule: (_opts: unknown, fn: Function) => fn,
+}));
+
+vi.mock('firebase-functions/v2/firestore', () => ({
+  onDocumentWritten: (_opts: unknown, fn: Function) => fn,
+}));
 
 // ── Import after mocks ─────────────────────────────────────────
 
@@ -124,9 +119,12 @@ function snap(data: Record<string, unknown> | null) {
   return { exists: data !== null, data: () => data ?? undefined };
 }
 function change(before: Record<string, unknown> | null, after: Record<string, unknown> | null) {
-  return { before: snap(before), after: snap(after) };
+  // v2-event: params + data.before/after
+  return {
+    params: { groupId: GID, eventId: 'ev-1' },
+    data: { before: snap(before), after: snap(after) },
+  };
 }
-const ctx = { params: { groupId: GID, eventId: 'ev-1' } };
 
 const t1 = FakeTimestamp.fromMillis(1_700_000_000_000);
 const t2 = FakeTimestamp.fromMillis(1_700_000_600_000);
@@ -162,7 +160,6 @@ describe('onGroupEventWrite anti-echo', () => {
   it('skips write that came from GCal import (lastWriteSource=gcal)', async () => {
     await (onGroupEventWrite as Function)(
       change(baseEvent(), baseEvent({ text: 'Изменено в GCal', lastWriteSource: 'gcal' })),
-      ctx,
     );
     expect(mockPatchEvent).not.toHaveBeenCalled();
     expect(mockInsertEvent).not.toHaveBeenCalled();
@@ -174,7 +171,6 @@ describe('onGroupEventWrite anti-echo', () => {
         baseEvent({ gcalEventId: null, lastSyncedAt: null }),
         baseEvent({ gcalEventId: 'gcal-new-1', lastSyncedAt: t2 }),
       ),
-      ctx,
     );
     expect(mockPatchEvent).not.toHaveBeenCalled();
     expect(mockInsertEvent).not.toHaveBeenCalled();
@@ -183,7 +179,6 @@ describe('onGroupEventWrite anti-echo', () => {
   it('skips own error-marker update touching only gcalSyncError/lastSyncedAt', async () => {
     await (onGroupEventWrite as Function)(
       change(baseEvent(), baseEvent({ gcalSyncError: 'boom', lastSyncedAt: t2 })),
-      ctx,
     );
     expect(mockPatchEvent).not.toHaveBeenCalled();
   });
@@ -191,7 +186,6 @@ describe('onGroupEventWrite anti-echo', () => {
   it('does NOT skip when a user field changed alongside meta fields', async () => {
     await (onGroupEventWrite as Function)(
       change(baseEvent(), baseEvent({ text: 'Новый текст', lastSyncedAt: t2 })),
-      ctx,
     );
     expect(mockPatchEvent).toHaveBeenCalledTimes(1);
   });
@@ -201,39 +195,37 @@ describe('onGroupEventWrite anti-echo', () => {
 
 describe('onGroupEventWrite export', () => {
   it('deletes GCal event when doc with gcalEventId is removed', async () => {
-    await (onGroupEventWrite as Function)(change(baseEvent(), null), ctx);
+    await (onGroupEventWrite as Function)(change(baseEvent(), null));
     expect(mockDeleteEvent).toHaveBeenCalledWith(CAL, 'gcal-old-1');
   });
 
   it('does nothing on delete when doc had no gcalEventId', async () => {
-    await (onGroupEventWrite as Function)(change(baseEvent({ gcalEventId: null }), null), ctx);
+    await (onGroupEventWrite as Function)(change(baseEvent({ gcalEventId: null }), null));
     expect(mockDeleteEvent).not.toHaveBeenCalled();
   });
 
   it('skips assignments', async () => {
     await (onGroupEventWrite as Function)(
       change(null, baseEvent({ kind: 'assignment', gcalEventId: null })),
-      ctx,
     );
     expect(mockInsertEvent).not.toHaveBeenCalled();
   });
 
   it('skips when group has no gcalId', async () => {
     state.groups.set(GID, { name: 'Без календаря' });
-    await (onGroupEventWrite as Function)(change(null, baseEvent({ gcalEventId: null })), ctx);
+    await (onGroupEventWrite as Function)(change(null, baseEvent({ gcalEventId: null })));
     expect(mockInsertEvent).not.toHaveBeenCalled();
   });
 
   it('skips when startAt/endAt missing', async () => {
     await (onGroupEventWrite as Function)(
       change(null, baseEvent({ gcalEventId: null, startAt: null, endAt: null })),
-      ctx,
     );
     expect(mockInsertEvent).not.toHaveBeenCalled();
   });
 
   it('inserts new event and writes back gcalEventId + lastSyncedAt', async () => {
-    await (onGroupEventWrite as Function)(change(null, baseEvent({ gcalEventId: null })), ctx);
+    await (onGroupEventWrite as Function)(change(null, baseEvent({ gcalEventId: null })));
 
     expect(mockInsertEvent).toHaveBeenCalledTimes(1);
     expect(mockInsertEvent.mock.calls[0][0]).toBe(CAL);
@@ -246,7 +238,6 @@ describe('onGroupEventWrite export', () => {
   it('patches existing event and refreshes lastSyncedAt only', async () => {
     await (onGroupEventWrite as Function)(
       change(baseEvent(), baseEvent({ text: 'Перенос' })),
-      ctx,
     );
 
     expect(mockPatchEvent).toHaveBeenCalledTimes(1);
@@ -259,7 +250,6 @@ describe('onGroupEventWrite export', () => {
     mockPatchEvent.mockRejectedValue(new Error('quota'));
     await (onGroupEventWrite as Function)(
       change(baseEvent(), baseEvent({ text: 'Упадёт' })),
-      ctx,
     );
     expect(eventDocRef('ev-1').update).toHaveBeenCalledWith({
       gcalSyncError: 'quota',
