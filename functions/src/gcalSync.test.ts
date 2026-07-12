@@ -352,3 +352,24 @@ describe('syncGroupCalendars import', () => {
     });
   });
 });
+
+// ── deepEqual: порядок ключей не должен давать ложный diff ──
+
+describe('onGroupEventWrite deepEqual key order', () => {
+  it('treats objects with same content but different key order as equal (anti-echo holds)', async () => {
+    // gcalSyncState-подобное вложенное поле с переставленными ключами +
+    // изменение только lastSyncedAt → должно остаться skip'ом
+    const before = baseEvent({ extra: { a: 1, b: 'x' } });
+    const after = baseEvent({ extra: { b: 'x', a: 1 }, lastSyncedAt: t2 });
+    await (onGroupEventWrite as Function)(change(before, after));
+    expect(mockPatchEvent).not.toHaveBeenCalled();
+    expect(mockInsertEvent).not.toHaveBeenCalled();
+  });
+
+  it('still detects real changes inside nested objects', async () => {
+    const before = baseEvent({ extra: { a: 1 } });
+    const after = baseEvent({ extra: { a: 2 }, text: 'Новый' });
+    await (onGroupEventWrite as Function)(change(before, after));
+    expect(mockPatchEvent).toHaveBeenCalledTimes(1);
+  });
+});
