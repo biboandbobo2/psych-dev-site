@@ -2,12 +2,8 @@ import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/
 import * as fnLogger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
-import { CORE_COURSE_IDS, SUPER_ADMIN_EMAIL, toPendingUid } from "./lib/shared.js";
+import { CORE_COURSE_IDS, SUPER_ADMIN_EMAIL, toPendingUid, CALLABLE_OPTS } from "./lib/shared.js";
 import { isEveryoneGroup } from "../../shared/groups/everyoneGroup.js";
-
-// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
-// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
-const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 const db = getFirestore();
 

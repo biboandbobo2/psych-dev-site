@@ -11,7 +11,10 @@ import {
   type ExpectedBundle,
   type PeriodDoc,
 } from "../../shared/verifyCore.js";
-import { ensureAdmin } from "./lib/shared.js";
+import {
+ ensureAdmin,
+  CALLABLE_OPTS,
+} from "./lib/shared.js";
 import {
   ARRAY_FIELDS,
   normalizeSpaces,
@@ -31,18 +34,14 @@ import {
   type Link,
 } from "./lib/reconcileUtils.js";
 
-// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
-// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
-const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
-
-function coerceExpected(input: any): ExpectedBundle {
+function coerceExpected(input: unknown): ExpectedBundle {
   if (!input) {
     throw new HttpsError('invalid-argument', 'expected payload required');
   }
   if (Array.isArray(input)) {
     return expectedFromTransformedJson(input as PeriodDoc[]);
   }
-  if (Array.isArray(input.periods)) {
+  if (typeof input === 'object' && Array.isArray((input as { periods?: unknown }).periods)) {
     return input as ExpectedBundle;
   }
   throw new HttpsError('invalid-argument', 'expected must contain periods array');
@@ -141,7 +140,7 @@ export const runReconcile = onCall(CALLABLE_OPTS, async (request) => {
     const updates: Record<string, unknown> = {};
 
     Object.keys(diff.scalars).forEach((field) => {
-      updates[field] = (expectedDoc as any)[field];
+      updates[field] = (expectedDoc as Record<string, unknown>)[field];
     });
 
     ARRAY_FIELDS.forEach((field) => {
@@ -158,15 +157,15 @@ export const runReconcile = onCall(CALLABLE_OPTS, async (request) => {
           .filter((item): item is Author => Boolean(item));
         updates[field] = mergeUniqueAuthors(current, additions);
       } else if (field === 'video_playlist') {
-        const current = normalizeVideoPlaylist((currentData as any)?.video_playlist);
+        const current = normalizeVideoPlaylist((currentData as Record<string, unknown> | undefined)?.video_playlist);
         const additions = normalizeVideoPlaylist(entry.missing);
         updates[field] = mergeUniqueVideos(current, additions);
       } else if (field === 'leisure') {
-        const current = normalizeLeisure((currentData as any)?.leisure);
+        const current = normalizeLeisure((currentData as Record<string, unknown> | undefined)?.leisure);
         const additions = normalizeLeisure(entry.missing);
         updates[field] = mergeUniqueLeisure(current, additions);
       } else {
-        const current = normalizeLinks((currentData as any)?.[field]);
+        const current = normalizeLinks((currentData as Record<string, unknown> | undefined)?.[field]);
         const additions = entry.missing
           .map((item) => normalizeLink(item))
           .filter((item): item is Link => Boolean(item));

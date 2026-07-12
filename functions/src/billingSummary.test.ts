@@ -76,15 +76,26 @@ describe('getBillingSummary', () => {
     expect(mockGetBillingSummaryData).toHaveBeenLastCalledWith({ invoiceMonth: undefined });
   });
 
-  it('returns ok:false payload (does not throw) when billing export fails', async () => {
+  it('returns ok:false + configured:true when billing export crashes at runtime', async () => {
     mockGetBillingSummaryData.mockRejectedValue(new Error('BigQuery quota exceeded'));
 
     const result = await (getBillingSummary as Function)({ data: {}, ...superAdminCtx() });
 
     expect(result.ok).toBe(false);
-    expect(result.configured).toBe(false);
+    expect(result.configured).toBe(true);
     expect(result.error).toContain('BigQuery quota exceeded');
     expect(result.diagnostics[0]).toContain('Cloud Function getBillingSummary упала');
+  });
+
+  it('returns configured:false only for missing export config', async () => {
+    mockGetBillingSummaryData.mockRejectedValue(
+      new Error('Billing export config missing: BILLING_PROJECT_ID/GCLOUD_PROJECT'),
+    );
+
+    const result = await (getBillingSummary as Function)({ data: {}, ...superAdminCtx() });
+
+    expect(result.ok).toBe(false);
+    expect(result.configured).toBe(false);
   });
 
   it('auth check fires before billing export is touched', async () => {

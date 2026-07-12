@@ -356,7 +356,7 @@ export type BillingSummaryResponse =
       summary: BillingSummaryData;
       availableMonths: string[];
     }
-  | { ok: false; configured: false; error: string; diagnostics?: string[] };
+  | { ok: false; configured: boolean; error: string; diagnostics?: string[] };
 
 export interface BillingSummaryRequest {
   invoiceMonth?: string;

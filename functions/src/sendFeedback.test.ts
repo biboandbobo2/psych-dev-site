@@ -28,12 +28,13 @@ vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), erro
 
 // ── Import after mocks ─────────────────────────────────────────
 
-import { sendFeedback } from './sendFeedback';
+import { sendFeedback, resetFeedbackRateLimiter } from './sendFeedback';
 
 const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetFeedbackRateLimiter();
   mockSendTelegramMessage.mockResolvedValue(undefined);
 });
 
@@ -106,6 +107,44 @@ describe('sendFeedback delivery', () => {
     expect(sent).not.toContain('✉️');
     expect(sent).not.toContain('🎭');
     expect(sent).not.toContain('🔗');
+  });
+
+  it('rate-limits 6th message in window per uid, other callers unaffected', async () => {
+    for (let i = 0; i < 5; i++) {
+      const ok = await (sendFeedback as Function)({
+        data: { type: 'idea', message: `идея №${i}` },
+        auth: { uid: 'spammer', token: {} },
+      });
+      expect(ok.success).toBe(true);
+    }
+    await expect(
+      (sendFeedback as Function)({
+        data: { type: 'idea', message: 'шестая идея' },
+        auth: { uid: 'spammer', token: {} },
+      }),
+    ).rejects.toThrow('Слишком много сообщений');
+
+    // другой пользователь проходит
+    const other = await (sendFeedback as Function)({
+      data: { type: 'idea', message: 'от другого' },
+      auth: { uid: 'other-user', token: {} },
+    });
+    expect(other.success).toBe(true);
+  });
+
+  it('rate-limits anonymous callers by IP from rawRequest', async () => {
+    for (let i = 0; i < 5; i++) {
+      await (sendFeedback as Function)({
+        data: { type: 'thanks', message: `спасибо №${i}` },
+        rawRequest: { ip: '203.0.113.7' },
+      });
+    }
+    await expect(
+      (sendFeedback as Function)({
+        data: { type: 'thanks', message: 'шестое спасибо' },
+        rawRequest: { ip: '203.0.113.7' },
+      }),
+    ).rejects.toThrow('Слишком много сообщений');
   });
 
   it('wraps telegram failure into internal error', async () => {

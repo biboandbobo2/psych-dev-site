@@ -10,15 +10,15 @@ import {
   resolveAdminStorageBucket,
 } from "./lib/adminApp.js";
 import { getAdminSeedCode } from "./lib/adminSeedCode.js";
-import { FUNCTIONS_SERVICE_ACCOUNT } from "./lib/shared.js";
+import {
+  FUNCTIONS_SERVICE_ACCOUNT,
+  SUPER_ADMIN_EMAIL,
+  CALLABLE_OPTS,
+} from "./lib/shared.js";
 import {
   debugError as functionsDebugError,
   debugLog as functionsDebugLog,
 } from "./lib/debug.js";
-
-// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
-// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
-const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 // Инициализация Firebase Admin
 if (!getApps().length) {
@@ -108,8 +108,9 @@ export const setRole = onCall(CALLABLE_OPTS, async (request) => {
     throw new HttpsError("unauthenticated", "Authentication required");
   }
 
+  // super-admin имеет claim role='super-admin' и раньше блокировался здесь же.
   const callerRole = request.auth.token?.role;
-  if (callerRole !== "admin") {
+  if (callerRole !== "admin" && callerRole !== "super-admin") {
     fnLogger.error("❌ Caller is not admin", {
       caller: request.auth.uid,
       callerRole,
@@ -230,7 +231,7 @@ export const toggleUserDisabled = onCall(CALLABLE_OPTS, async (request) => {
 
   // Только super-admin может отключать пользователей
   const callerEmail = request.auth.token?.email;
-  if (callerEmail !== "biboandbobo2@gmail.com") {
+  if (callerEmail !== SUPER_ADMIN_EMAIL) {
     fnLogger.error("❌ Caller is not super-admin", { callerEmail });
     throw new HttpsError(
       "permission-denied",
