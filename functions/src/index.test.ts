@@ -183,6 +183,14 @@ describe('setRole', () => {
     ).rejects.toThrow('Only admins can manage roles');
   });
 
+  it('allows caller with super-admin claim (регресс: раньше блокировался)', async () => {
+    const result = await (setRole as Function)({
+      data: { targetUid: 'u1', role: 'admin' },
+      ...authedCtx('sa-uid', { email: 'sa@test.com', role: 'super-admin' }),
+    });
+    expect(result.success).toBe(true);
+  });
+
   it('validates targetUid and role values', async () => {
     await expect((setRole as Function)({ data: { role: 'admin' }, ...adminCtx() })).rejects.toThrow(
       'targetUid is required',

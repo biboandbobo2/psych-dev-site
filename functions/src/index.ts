@@ -11,7 +11,8 @@ import {
 } from "./lib/adminApp.js";
 import { getAdminSeedCode } from "./lib/adminSeedCode.js";
 import {
- FUNCTIONS_SERVICE_ACCOUNT,
+  FUNCTIONS_SERVICE_ACCOUNT,
+  SUPER_ADMIN_EMAIL,
   CALLABLE_OPTS,
 } from "./lib/shared.js";
 import {
@@ -107,8 +108,9 @@ export const setRole = onCall(CALLABLE_OPTS, async (request) => {
     throw new HttpsError("unauthenticated", "Authentication required");
   }
 
+  // super-admin имеет claim role='super-admin' и раньше блокировался здесь же.
   const callerRole = request.auth.token?.role;
-  if (callerRole !== "admin") {
+  if (callerRole !== "admin" && callerRole !== "super-admin") {
     fnLogger.error("❌ Caller is not admin", {
       caller: request.auth.uid,
       callerRole,
@@ -229,7 +231,7 @@ export const toggleUserDisabled = onCall(CALLABLE_OPTS, async (request) => {
 
   // Только super-admin может отключать пользователей
   const callerEmail = request.auth.token?.email;
-  if (callerEmail !== "biboandbobo2@gmail.com") {
+  if (callerEmail !== SUPER_ADMIN_EMAIL) {
     fnLogger.error("❌ Caller is not super-admin", { callerEmail });
     throw new HttpsError(
       "permission-denied",
