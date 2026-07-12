@@ -3,9 +3,13 @@
  * Пользователь может менять только свои собственные prefs.
  */
 
-import * as functions from "firebase-functions";
+import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { debugLog, debugError } from "./lib/debug.js";
+
+// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
+// cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы.
+const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 interface UpdateMyEmailPreferencesData {
   emailBookingConfirmations?: boolean;
@@ -24,17 +28,18 @@ interface UpdateMyEmailPreferencesResponse {
  *
  * Auth: любой залогиненный пользователь может менять свои собственные prefs.
  */
-export const updateMyEmailPreferences = functions.https.onCall(
-  async (data: UpdateMyEmailPreferencesData, context): Promise<UpdateMyEmailPreferencesResponse> => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+export const updateMyEmailPreferences = onCall(
+  CALLABLE_OPTS,
+  async (request: CallableRequest<UpdateMyEmailPreferencesData>): Promise<UpdateMyEmailPreferencesResponse> => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required");
     }
 
-    const uid = context.auth.uid;
-    const value = data?.emailBookingConfirmations;
+    const uid = request.auth.uid;
+    const value = request.data?.emailBookingConfirmations;
 
     if (typeof value !== "boolean") {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "emailBookingConfirmations must be boolean",
       );
@@ -63,7 +68,7 @@ export const updateMyEmailPreferences = functions.https.onCall(
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       debugError("❌ updateMyEmailPreferences error", { uid, message });
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to update preferences: ${message}`,
       );

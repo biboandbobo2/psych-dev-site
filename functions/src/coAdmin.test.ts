@@ -38,7 +38,7 @@ vi.mock('firebase-admin/app', () => ({
   applicationDefault: vi.fn(),
 }));
 
-vi.mock('firebase-functions', () => {
+vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     constructor(public code: string, message: string) {
       super(message);
@@ -46,14 +46,12 @@ vi.mock('firebase-functions', () => {
     }
   }
   return {
-    default: {
-      https: { onCall: (fn: Function) => fn, HttpsError },
-      logger: { info: vi.fn(), error: vi.fn() },
-    },
-    https: { onCall: (fn: Function) => fn, HttpsError },
-    logger: { info: vi.fn(), error: vi.fn() },
+    onCall: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    HttpsError,
   };
 });
+
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 
 // ── Import after mocks ─────────────────────────────────────────
 
@@ -81,12 +79,12 @@ beforeEach(() => {
 
 describe('coAdmin auth checks', () => {
   it('throws unauthenticated when no auth', async () => {
-    await expect((makeUserCoAdmin as Function)({}, {} as any)).rejects.toThrow('Требуется авторизация');
+    await expect((makeUserCoAdmin as Function)({ data: {} })).rejects.toThrow('Требуется авторизация');
   });
 
   it('throws permission-denied for non-super-admin', async () => {
     await expect(
-      (makeUserCoAdmin as Function)({ targetUid: 'u1' }, regularCtx()),
+      (makeUserCoAdmin as Function)({ data: { targetUid: 'u1' }, ...regularCtx() }),
     ).rejects.toThrow('Только super-admin');
   });
 });
@@ -100,10 +98,7 @@ describe('makeUserCoAdmin', () => {
     mockUpdate.mockResolvedValue(undefined);
     mockSetCustomUserClaims.mockResolvedValue(undefined);
 
-    const result = await (makeUserCoAdmin as Function)(
-      { targetEmail: 'target@test.com' },
-      superAdminCtx(),
-    );
+    const result = await (makeUserCoAdmin as Function)({ data: { targetEmail: 'target@test.com' }, ...superAdminCtx() });
 
     expect(result.success).toBe(true);
     expect(result.uid).toBe('resolved-uid');
@@ -113,20 +108,20 @@ describe('makeUserCoAdmin', () => {
   it('throws not-found when email lookup fails', async () => {
     mockGetUserByEmail.mockRejectedValue(new Error('not found'));
     await expect(
-      (makeUserCoAdmin as Function)({ targetEmail: 'missing@test.com' }, superAdminCtx()),
+      (makeUserCoAdmin as Function)({ data: { targetEmail: 'missing@test.com' }, ...superAdminCtx() }),
     ).rejects.toThrow('не найден');
   });
 
   it('throws when neither targetUid nor targetEmail provided', async () => {
     await expect(
-      (makeUserCoAdmin as Function)({}, superAdminCtx()),
+      (makeUserCoAdmin as Function)({ data: {}, ...superAdminCtx() }),
     ).rejects.toThrow('Не указан UID или email');
   });
 
   it('throws when user doc does not exist', async () => {
     mockGet.mockResolvedValue({ exists: false });
     await expect(
-      (makeUserCoAdmin as Function)({ targetUid: 'u1' }, superAdminCtx()),
+      (makeUserCoAdmin as Function)({ data: { targetUid: 'u1' }, ...superAdminCtx() }),
     ).rejects.toThrow('хотя бы раз войти');
   });
 
@@ -135,7 +130,7 @@ describe('makeUserCoAdmin', () => {
     mockUpdate.mockResolvedValue(undefined);
     mockSetCustomUserClaims.mockResolvedValue(undefined);
 
-    await (makeUserCoAdmin as Function)({ targetUid: 'u1' }, superAdminCtx());
+    await (makeUserCoAdmin as Function)({ data: { targetUid: 'u1' }, ...superAdminCtx() });
 
     const updatePayload = mockUpdate.mock.calls[0][0];
     expect(updatePayload.coAdmin).toBe(true);
@@ -153,7 +148,7 @@ describe('makeUserCoAdmin', () => {
     });
     mockSetCustomUserClaims.mockResolvedValue(undefined);
 
-    await (makeUserCoAdmin as Function)({ targetUid: 'admin-1' }, superAdminCtx());
+    await (makeUserCoAdmin as Function)({ data: { targetUid: 'admin-1' }, ...superAdminCtx() });
 
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('admin-1', {
       role: 'admin',
@@ -167,19 +162,19 @@ describe('makeUserCoAdmin', () => {
 
 describe('removeCoAdmin', () => {
   it('throws when targetUid missing', async () => {
-    await expect((removeCoAdmin as Function)({}, superAdminCtx())).rejects.toThrow('Не указан UID');
+    await expect((removeCoAdmin as Function)({ data: {}, ...superAdminCtx() })).rejects.toThrow('Не указан UID');
   });
 
   it('throws when removing self', async () => {
     await expect(
-      (removeCoAdmin as Function)({ targetUid: 'sa-uid' }, superAdminCtx('sa-uid')),
+      (removeCoAdmin as Function)({ data: { targetUid: 'sa-uid' }, ...superAdminCtx('sa-uid') }),
     ).rejects.toThrow('у самого себя');
   });
 
   it('throws when user not found', async () => {
     mockGet.mockResolvedValue({ exists: false });
     await expect(
-      (removeCoAdmin as Function)({ targetUid: 'u1' }, superAdminCtx()),
+      (removeCoAdmin as Function)({ data: { targetUid: 'u1' }, ...superAdminCtx() }),
     ).rejects.toThrow('не найден');
   });
 
@@ -191,7 +186,7 @@ describe('removeCoAdmin', () => {
     });
     mockSetCustomUserClaims.mockResolvedValue(undefined);
 
-    const result = await (removeCoAdmin as Function)({ targetUid: 'admin-1' }, superAdminCtx());
+    const result = await (removeCoAdmin as Function)({ data: { targetUid: 'admin-1' }, ...superAdminCtx() });
     expect(result.success).toBe(true);
 
     const updatePayload = mockUpdate.mock.calls[0][0];
@@ -210,7 +205,7 @@ describe('removeCoAdmin', () => {
     mockGetUser.mockResolvedValue({ customClaims: { coAdmin: true } });
     mockSetCustomUserClaims.mockResolvedValue(undefined);
 
-    await (removeCoAdmin as Function)({ targetUid: 'co-1' }, superAdminCtx());
+    await (removeCoAdmin as Function)({ data: { targetUid: 'co-1' }, ...superAdminCtx() });
 
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('co-1', {});
   });

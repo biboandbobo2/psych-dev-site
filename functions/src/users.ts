@@ -1,6 +1,11 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as fnLogger from "firebase-functions/logger";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { CORE_COURSE_IDS, SUPER_ADMIN_EMAIL } from "./lib/shared.js";
+
+// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
+// cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы.
+const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 const db = getFirestore();
 
@@ -8,7 +13,7 @@ const MAX_FEATURED_COURSES = 3;
 
 function normalizeFeaturedCourseIds(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "courseIds must be an array"
     );
@@ -24,7 +29,7 @@ function normalizeFeaturedCourseIds(raw: unknown): string[] {
     result.push(trimmed);
   }
   if (result.length > MAX_FEATURED_COURSES) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       `Можно выбрать не более ${MAX_FEATURED_COURSES} актуальных курсов`
     );
@@ -47,7 +52,7 @@ async function assertCoursesExist(courseIds: string[]): Promise<void> {
     .map((snap, idx) => (snap.exists ? null : dynamicIds[idx]))
     .filter((id): id is string => id !== null);
   if (missing.length > 0) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       `Курсы не найдены: ${missing.join(", ")}`
     );
@@ -60,20 +65,20 @@ async function assertCoursesExist(courseIds: string[]): Promise<void> {
  * (на свой документ), либо super-admin (на любой). Валидация: max 3,
  * все courseIds существуют. Пустой массив — очищает поле.
  */
-export const setMyFeaturedCourses = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Требуется авторизация");
+export const setMyFeaturedCourses = onCall(CALLABLE_OPTS, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Требуется авторизация");
   }
-  const callerUid = context.auth.uid;
-  const callerEmail = context.auth.token.email;
+  const callerUid = request.auth.uid;
+  const callerEmail = request.auth.token.email;
   const isSuperAdmin = callerEmail === SUPER_ADMIN_EMAIL;
 
-  const d = (data ?? {}) as Record<string, unknown>;
+  const d = (request.data ?? {}) as Record<string, unknown>;
   const targetUidRaw = typeof d.targetUid === "string" ? d.targetUid.trim() : "";
   const targetUid = targetUidRaw || callerUid;
 
   if (targetUid !== callerUid && !isSuperAdmin) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "permission-denied",
       "Только сам пользователь или super-admin может менять актуальные курсы"
     );
@@ -93,7 +98,7 @@ export const setMyFeaturedCourses = functions.https.onCall(async (data, context)
   }
 
   await db.collection("users").doc(targetUid).set(updates, { merge: true });
-  functions.logger.info("✅ User featuredCourseIds updated", {
+  fnLogger.info("✅ User featuredCourseIds updated", {
     targetUid,
     count: courseIds.length,
     by: callerUid,

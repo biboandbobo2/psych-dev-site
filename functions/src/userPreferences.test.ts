@@ -19,7 +19,7 @@ vi.mock('firebase-admin/app', () => ({
   applicationDefault: vi.fn(),
 }));
 
-vi.mock('firebase-functions', () => {
+vi.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
     constructor(public code: string, message: string) {
       super(message);
@@ -27,14 +27,12 @@ vi.mock('firebase-functions', () => {
     }
   }
   return {
-    default: {
-      https: { onCall: (fn: Function) => fn, HttpsError },
-      logger: { info: vi.fn(), error: vi.fn() },
-    },
-    https: { onCall: (fn: Function) => fn, HttpsError },
-    logger: { info: vi.fn(), error: vi.fn() },
+    onCall: (optsOrFn: unknown, fn?: Function) => (typeof optsOrFn === 'function' ? optsOrFn : fn),
+    HttpsError,
   };
 });
+
+vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 
 import { updateMyEmailPreferences } from './userPreferences';
 
@@ -49,32 +47,26 @@ beforeEach(() => {
 describe('updateMyEmailPreferences', () => {
   it('throws unauthenticated when no auth', async () => {
     await expect(
-      (updateMyEmailPreferences as Function)({ emailBookingConfirmations: false }, {}),
+      (updateMyEmailPreferences as Function)({ data: { emailBookingConfirmations: false } }),
     ).rejects.toThrow('Authentication required');
   });
 
   it('throws invalid-argument when emailBookingConfirmations missing', async () => {
     await expect(
-      (updateMyEmailPreferences as Function)({}, authedCtx()),
+      (updateMyEmailPreferences as Function)({ data: {}, ...authedCtx() }),
     ).rejects.toThrow('emailBookingConfirmations must be boolean');
   });
 
   it('throws invalid-argument when value is not boolean', async () => {
     await expect(
-      (updateMyEmailPreferences as Function)(
-        { emailBookingConfirmations: 'no' },
-        authedCtx(),
-      ),
+      (updateMyEmailPreferences as Function)({ data: { emailBookingConfirmations: 'no' }, ...authedCtx() }),
     ).rejects.toThrow('must be boolean');
   });
 
   it('saves opt-out (false) for current user', async () => {
     mockSet.mockResolvedValue(undefined);
 
-    const result = await (updateMyEmailPreferences as Function)(
-      { emailBookingConfirmations: false },
-      authedCtx('user-42'),
-    );
+    const result = await (updateMyEmailPreferences as Function)({ data: { emailBookingConfirmations: false }, ...authedCtx('user-42') });
 
     expect(result).toEqual({
       success: true,
@@ -92,10 +84,7 @@ describe('updateMyEmailPreferences', () => {
   it('saves opt-in (true) for current user', async () => {
     mockSet.mockResolvedValue(undefined);
 
-    const result = await (updateMyEmailPreferences as Function)(
-      { emailBookingConfirmations: true },
-      authedCtx('user-7'),
-    );
+    const result = await (updateMyEmailPreferences as Function)({ data: { emailBookingConfirmations: true }, ...authedCtx('user-7') });
 
     expect(result.prefs.emailBookingConfirmations).toBe(true);
     expect(mockSet.mock.calls[0][0].prefs.emailBookingConfirmations).toBe(true);

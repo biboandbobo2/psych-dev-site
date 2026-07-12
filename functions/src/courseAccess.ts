@@ -2,10 +2,15 @@
  * Cloud Functions для управления доступом к курсам и ролями пользователей
  */
 
-import * as functions from "firebase-functions";
+import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import * as fnLogger from "firebase-functions/logger";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { SUPER_ADMIN_EMAIL } from "./lib/shared.js";
+
+// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
+// cpu/memory явно: у gen2 другие дефолты, не выкручиваем ресурсы.
+const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 /**
  * Интерфейс для карты доступа к курсам
@@ -17,9 +22,9 @@ interface CourseAccessMap {
   general?: boolean;
 }
 
-function isAdminOrSuperAdmin(context: functions.https.CallableContext): boolean {
-  const role = context.auth?.token?.role;
-  const callerEmail = context.auth?.token?.email;
+function isAdminOrSuperAdmin(request: Pick<CallableRequest, "auth">): boolean {
+  const role = request.auth?.token?.role;
+  const callerEmail = request.auth?.token?.email;
   return role === "admin" || role === "super-admin" || callerEmail === SUPER_ADMIN_EMAIL;
 }
 
@@ -32,49 +37,49 @@ function isAdminOrSuperAdmin(context: functions.https.CallableContext): boolean 
  * @param data.targetUid - UID пользователя
  * @param data.courseAccess - карта доступа { [courseId]: boolean }
  */
-export const updateCourseAccess = functions.https.onCall(async (data, context) => {
-  functions.logger.info("🔵 updateCourseAccess called", {
-    caller: context.auth?.uid,
-    callerEmail: context.auth?.token?.email,
-    target: data?.targetUid,
-    courseAccess: data?.courseAccess,
+export const updateCourseAccess = onCall(CALLABLE_OPTS, async (request) => {
+  fnLogger.info("🔵 updateCourseAccess called", {
+    caller: request.auth?.uid,
+    callerEmail: request.auth?.token?.email,
+    target: request.data?.targetUid,
+    courseAccess: request.data?.courseAccess,
   });
 
   // Проверка аутентификации
-  if (!context.auth) {
-    functions.logger.error("❌ Unauthenticated call");
-    throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+  if (!request.auth) {
+    fnLogger.error("❌ Unauthenticated call");
+    throw new HttpsError("unauthenticated", "Authentication required");
   }
 
   // Только super-admin может управлять доступом к курсам
-  const callerEmail = context.auth.token?.email;
+  const callerEmail = request.auth.token?.email;
 
   if (callerEmail !== SUPER_ADMIN_EMAIL) {
-    functions.logger.error("❌ Caller is not super-admin", {
-      caller: context.auth.uid,
+    fnLogger.error("❌ Caller is not super-admin", {
+      caller: request.auth.uid,
       callerEmail,
     });
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "permission-denied",
       "Only super-admin can manage course access"
     );
   }
 
-  const targetUid = data?.targetUid;
-  const courseAccess = data?.courseAccess as CourseAccessMap | undefined;
+  const targetUid = request.data?.targetUid;
+  const courseAccess = request.data?.courseAccess as CourseAccessMap | undefined;
 
   // Валидация параметров
   if (!targetUid || typeof targetUid !== "string") {
-    functions.logger.error("❌ Invalid targetUid");
-    throw new functions.https.HttpsError(
+    fnLogger.error("❌ Invalid targetUid");
+    throw new HttpsError(
       "invalid-argument",
       "targetUid is required and must be a string"
     );
   }
 
   if (!courseAccess || typeof courseAccess !== "object") {
-    functions.logger.error("❌ Invalid courseAccess");
-    throw new functions.https.HttpsError(
+    fnLogger.error("❌ Invalid courseAccess");
+    throw new HttpsError(
       "invalid-argument",
       "courseAccess is required and must be an object"
     );
@@ -84,12 +89,12 @@ export const updateCourseAccess = functions.https.onCall(async (data, context) =
   const normalizedCourseAccess: CourseAccessMap = {};
   for (const [key, value] of Object.entries(courseAccess)) {
     if (!key || !key.trim()) {
-      functions.logger.error("❌ Invalid course key", { key });
-      throw new functions.https.HttpsError("invalid-argument", "Course key cannot be empty");
+      fnLogger.error("❌ Invalid course key", { key });
+      throw new HttpsError("invalid-argument", "Course key cannot be empty");
     }
     if (typeof value !== "boolean") {
-      functions.logger.error("❌ Invalid course value", { key, value });
-      throw new functions.https.HttpsError(
+      fnLogger.error("❌ Invalid course value", { key, value });
+      throw new HttpsError(
         "invalid-argument",
         `Course access value must be boolean, got ${typeof value} for ${key}`
       );
@@ -104,8 +109,8 @@ export const updateCourseAccess = functions.https.onCall(async (data, context) =
     // Проверяем, что пользователь существует
     const userDoc = await userDocRef.get();
     if (!userDoc.exists) {
-      functions.logger.error("❌ User not found", { targetUid });
-      throw new functions.https.HttpsError(
+      fnLogger.error("❌ User not found", { targetUid });
+      throw new HttpsError(
         "not-found",
         `User with UID ${targetUid} not found`
       );
@@ -118,10 +123,10 @@ export const updateCourseAccess = functions.https.onCall(async (data, context) =
     await userDocRef.update({
       courseAccess: normalizedCourseAccess,
       courseAccessUpdatedAt: FieldValue.serverTimestamp(),
-      courseAccessUpdatedBy: context.auth.uid,
+      courseAccessUpdatedBy: request.auth.uid,
     });
 
-    functions.logger.info("✅ Course access updated", {
+    fnLogger.info("✅ Course access updated", {
       targetUid,
       targetEmail: userData?.email,
       courseAccess,
@@ -137,17 +142,17 @@ export const updateCourseAccess = functions.https.onCall(async (data, context) =
     };
   } catch (error: unknown) {
     // Пробрасываем HttpsError как есть
-    if (error instanceof functions.https.HttpsError) {
+    if (error instanceof HttpsError) {
       throw error;
     }
 
     const message = error instanceof Error ? error.message : String(error);
-    functions.logger.error("❌ Error in updateCourseAccess", {
+    fnLogger.error("❌ Error in updateCourseAccess", {
       error: message,
       targetUid,
     });
 
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "internal",
       `Failed to update course access: ${message}`
     );
@@ -163,41 +168,41 @@ export const updateCourseAccess = functions.https.onCall(async (data, context) =
  * @param data.targetUid - UID пользователя
  * @param data.role - новая роль ('guest' | 'student')
  */
-export const setUserRole = functions.https.onCall(async (data, context) => {
-  functions.logger.info("🔵 setUserRole called", {
-    caller: context.auth?.uid,
-    callerEmail: context.auth?.token?.email,
-    target: data?.targetUid,
-    newRole: data?.role,
+export const setUserRole = onCall(CALLABLE_OPTS, async (request) => {
+  fnLogger.info("🔵 setUserRole called", {
+    caller: request.auth?.uid,
+    callerEmail: request.auth?.token?.email,
+    target: request.data?.targetUid,
+    newRole: request.data?.role,
   });
 
   // Проверка аутентификации
-  if (!context.auth) {
-    functions.logger.error("❌ Unauthenticated call");
-    throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+  if (!request.auth) {
+    fnLogger.error("❌ Unauthenticated call");
+    throw new HttpsError("unauthenticated", "Authentication required");
   }
 
   // Только super-admin может управлять ролями
-  const callerEmail = context.auth.token?.email;
+  const callerEmail = request.auth.token?.email;
 
   if (callerEmail !== SUPER_ADMIN_EMAIL) {
-    functions.logger.error("❌ Caller is not super-admin", {
-      caller: context.auth.uid,
+    fnLogger.error("❌ Caller is not super-admin", {
+      caller: request.auth.uid,
       callerEmail,
     });
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "permission-denied",
       "Only super-admin can change user roles"
     );
   }
 
-  const targetUid = data?.targetUid;
-  const newRole = data?.role as string | undefined;
+  const targetUid = request.data?.targetUid;
+  const newRole = request.data?.role as string | undefined;
 
   // Валидация параметров
   if (!targetUid || typeof targetUid !== "string") {
-    functions.logger.error("❌ Invalid targetUid");
-    throw new functions.https.HttpsError(
+    fnLogger.error("❌ Invalid targetUid");
+    throw new HttpsError(
       "invalid-argument",
       "targetUid is required and must be a string"
     );
@@ -206,8 +211,8 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
   // Разрешённые роли для изменения (admin меняется через makeUserAdmin/removeAdmin)
   const allowedRoles = ["guest", "student"];
   if (!newRole || !allowedRoles.includes(newRole)) {
-    functions.logger.error("❌ Invalid role", { newRole });
-    throw new functions.https.HttpsError(
+    fnLogger.error("❌ Invalid role", { newRole });
+    throw new HttpsError(
       "invalid-argument",
       `role must be one of: ${allowedRoles.join(", ")}`
     );
@@ -221,8 +226,8 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
     // Проверяем, что пользователь существует
     const userDoc = await userDocRef.get();
     if (!userDoc.exists) {
-      functions.logger.error("❌ User not found", { targetUid });
-      throw new functions.https.HttpsError(
+      fnLogger.error("❌ User not found", { targetUid });
+      throw new HttpsError(
         "not-found",
         `User with UID ${targetUid} not found`
       );
@@ -233,11 +238,11 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
 
     // Нельзя менять роль super-admin или admin через эту функцию
     if (currentRole === "super-admin" || currentRole === "admin") {
-      functions.logger.error("❌ Cannot change admin roles via setUserRole", {
+      fnLogger.error("❌ Cannot change admin roles via setUserRole", {
         targetUid,
         currentRole,
       });
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "Cannot change admin roles via this function. Use removeAdmin first."
       );
@@ -247,7 +252,7 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
     const updateData: Record<string, unknown> = {
       role: newRole,
       roleUpdatedAt: FieldValue.serverTimestamp(),
-      roleUpdatedBy: context.auth.uid,
+      roleUpdatedBy: request.auth.uid,
     };
 
     // Если переводим в guest и нет courseAccess, инициализируем его
@@ -264,7 +269,7 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
     // Обновляем custom claims в Firebase Auth
     await authAdmin.setCustomUserClaims(targetUid, { role: newRole });
 
-    functions.logger.info("✅ User role updated", {
+    fnLogger.info("✅ User role updated", {
       targetUid,
       targetEmail: userData?.email,
       previousRole: currentRole,
@@ -281,17 +286,17 @@ export const setUserRole = functions.https.onCall(async (data, context) => {
     };
   } catch (error: unknown) {
     // Пробрасываем HttpsError как есть
-    if (error instanceof functions.https.HttpsError) {
+    if (error instanceof HttpsError) {
       throw error;
     }
 
     const message = error instanceof Error ? error.message : String(error);
-    functions.logger.error("❌ Error in setUserRole", {
+    fnLogger.error("❌ Error in setUserRole", {
       error: message,
       targetUid,
     });
 
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "internal",
       `Failed to change user role: ${message}`
     );

@@ -1,8 +1,13 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import * as fnLogger from "firebase-functions/logger";
 import { getApps, initializeApp, applicationDefault } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { SUPER_ADMIN_EMAIL } from "./lib/shared.js";
+
+// Клиент вызывает getFunctions(app) без региона → us-central1 обязателен.
+// cpu/memory явно: у gen2 другие дефолты (cpu до 1 vCPU и т.п.), не выкручиваем ресурсы.
+const CALLABLE_OPTS = { region: "us-central1", cpu: 1, memory: "256MiB" } as const;
 
 if (!getApps().length) {
   initializeApp({ credential: applicationDefault() });
@@ -11,18 +16,18 @@ if (!getApps().length) {
 const db = getFirestore();
 const adminAuth = getAuth();
 
-function assertSuperAdmin(context: functions.https.CallableContext): string {
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Требуется авторизация");
+function assertSuperAdmin(request: Pick<CallableRequest, "auth">): string {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Требуется авторизация");
   }
-  const callerEmail = context.auth.token.email as string | undefined;
+  const callerEmail = request.auth.token.email as string | undefined;
   if (callerEmail !== SUPER_ADMIN_EMAIL) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "permission-denied",
       "Только super-admin может управлять со-админами"
     );
   }
-  return context.auth.uid;
+  return request.auth.uid;
 }
 
 /**
@@ -31,9 +36,9 @@ function assertSuperAdmin(context: functions.https.CallableContext): string {
  * Не пересекается с admin/super-admin: можно дать поверх admin'а.
  * Только super-admin.
  */
-export const makeUserCoAdmin = functions.https.onCall(async (data, context) => {
-  const callerUid = assertSuperAdmin(context);
-  const { targetUid, targetEmail } = data as {
+export const makeUserCoAdmin = onCall(CALLABLE_OPTS, async (request) => {
+  const callerUid = assertSuperAdmin(request);
+  const { targetUid, targetEmail } = request.data as {
     targetUid?: string;
     targetEmail?: string;
   };
@@ -44,7 +49,7 @@ export const makeUserCoAdmin = functions.https.onCall(async (data, context) => {
       const userRecord = await adminAuth.getUserByEmail(targetEmail);
       userUid = userRecord.uid;
     } catch {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "not-found",
         `Пользователь с email ${targetEmail} не найден. Он должен хотя бы раз войти на сайт.`
       );
@@ -52,12 +57,12 @@ export const makeUserCoAdmin = functions.https.onCall(async (data, context) => {
   }
 
   if (!userUid) {
-    throw new functions.https.HttpsError("invalid-argument", "Не указан UID или email пользователя");
+    throw new HttpsError("invalid-argument", "Не указан UID или email пользователя");
   }
 
   const userDoc = await db.collection("users").doc(userUid).get();
   if (!userDoc.exists) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "not-found",
       "Пользователь должен хотя бы раз войти на сайт через Google"
     );
@@ -74,7 +79,7 @@ export const makeUserCoAdmin = functions.https.onCall(async (data, context) => {
   const existingClaims = userRecord.customClaims ?? {};
   await adminAuth.setCustomUserClaims(userUid, { ...existingClaims, coAdmin: true });
 
-  functions.logger.info(`✅ User ${userUid} promoted to co-admin`, { by: callerUid });
+  fnLogger.info(`✅ User ${userUid} promoted to co-admin`, { by: callerUid });
 
   return {
     success: true,
@@ -88,21 +93,21 @@ export const makeUserCoAdmin = functions.https.onCall(async (data, context) => {
  * остальные claims (например role: 'admin') остаются нетронутыми.
  * Только super-admin.
  */
-export const removeCoAdmin = functions.https.onCall(async (data, context) => {
-  const callerUid = assertSuperAdmin(context);
-  const { targetUid } = data as { targetUid?: string };
+export const removeCoAdmin = onCall(CALLABLE_OPTS, async (request) => {
+  const callerUid = assertSuperAdmin(request);
+  const { targetUid } = request.data as { targetUid?: string };
 
   if (!targetUid) {
-    throw new functions.https.HttpsError("invalid-argument", "Не указан UID пользователя");
+    throw new HttpsError("invalid-argument", "Не указан UID пользователя");
   }
   if (callerUid === targetUid) {
-    throw new functions.https.HttpsError("invalid-argument", "Нельзя снять права у самого себя");
+    throw new HttpsError("invalid-argument", "Нельзя снять права у самого себя");
   }
 
   const userRef = db.collection("users").doc(targetUid);
   const userDoc = await userRef.get();
   if (!userDoc.exists) {
-    throw new functions.https.HttpsError("not-found", "Пользователь не найден");
+    throw new HttpsError("not-found", "Пользователь не найден");
   }
 
   await userRef.update({
@@ -120,6 +125,6 @@ export const removeCoAdmin = functions.https.onCall(async (data, context) => {
   void _removed;
   await adminAuth.setCustomUserClaims(targetUid, rest);
 
-  functions.logger.info(`✅ User ${targetUid} demoted from co-admin`, { by: callerUid });
+  fnLogger.info(`✅ User ${targetUid} demoted from co-admin`, { by: callerUid });
   return { success: true, message: "Права со-админа сняты" };
 });
