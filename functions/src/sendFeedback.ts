@@ -21,6 +21,37 @@ interface FeedbackData {
 // serviceAccount: telegram-секреты в Secret Manager доступны только appspot SA.
 const CALLABLE_OPTS = { ...SHARED_CALLABLE_OPTS, serviceAccount: FUNCTIONS_SERVICE_ACCOUNT } as const;
 
+// Анонимный callable без гейта — простейший rate-limit против спама в TG.
+// Лимитер per-instance (in-memory): один инстанс держит до 80 конкурентных
+// запросов, так что окно режет основную массу абьюза; распределённый лимит
+// (Firestore) — только если появится реальный спам.
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const RATE_LIMIT_MAX = 5;
+const rateBuckets = new Map<string, number[]>();
+
+/** Для тестов — сбрасывает окна лимитера (ср. resetPersonalCalendarIdCache). */
+export function resetFeedbackRateLimiter(): void {
+  rateBuckets.clear();
+}
+
+export function isFeedbackRateLimited(key: string, nowMs: number): boolean {
+  if (rateBuckets.size > 1000) {
+    const cutoffAll = nowMs - RATE_LIMIT_WINDOW_MS;
+    for (const [k, times] of rateBuckets) {
+      if (!times.some((t) => t > cutoffAll)) rateBuckets.delete(k);
+    }
+  }
+  const cutoff = nowMs - RATE_LIMIT_WINDOW_MS;
+  const bucket = (rateBuckets.get(key) ?? []).filter((t) => t > cutoff);
+  if (bucket.length >= RATE_LIMIT_MAX) {
+    rateBuckets.set(key, bucket);
+    return true;
+  }
+  bucket.push(nowMs);
+  rateBuckets.set(key, bucket);
+  return false;
+}
+
 const FEEDBACK_EMOJI: Record<FeedbackType, string> = {
   bug: "🐛",
   idea: "💡",
@@ -50,6 +81,14 @@ export const sendFeedback = onCall(CALLABLE_OPTS, async (request) => {
     type: data?.type,
     hasMessage: Boolean(data?.message),
   });
+
+  const rateKey = request.auth?.uid ?? request.rawRequest?.ip ?? "anon";
+  if (isFeedbackRateLimited(rateKey, Date.now())) {
+    throw new HttpsError(
+      "resource-exhausted",
+      "Слишком много сообщений подряд — попробуйте через несколько минут"
+    );
+  }
 
   // Валидация данных
   const feedbackData = data as FeedbackData;
