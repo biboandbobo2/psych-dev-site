@@ -20,9 +20,12 @@ export const getBillingSummary = onCall(CALLABLE_OPTS, async (request) => {
     const message = error instanceof Error ? error.message : String(error);
     const stack = error instanceof Error && error.stack ? error.stack.split("\n").slice(0, 4) : [];
     fnLogger.error("[getBillingSummary] failed", { message, stack });
+    // configured=false только для реально ненастроенного экспорта; рантайм-падение
+    // (BigQuery/token/сеть) — это configured=true + error, клиент не должен путать.
+    const isConfigIssue = message.includes("config missing");
     return {
       ok: false as const,
-      configured: false as const,
+      configured: !isConfigIssue,
       error: `Billing summary unavailable: ${message}`,
       diagnostics: [
         "Cloud Function getBillingSummary упала с исключением — детали в Cloud Logging.",
