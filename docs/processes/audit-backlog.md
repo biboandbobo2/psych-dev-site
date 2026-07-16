@@ -58,6 +58,7 @@
 | BR-6 | M (M) | Семантический поиск по контенту | RAG для курсов (расширение Book RAG) |
 | BR-7 | M (L) | Персональные книги пользователей | Свои PDF у студента (как заметки/таймлайн), privacy/quota, upload+ingestion, UI в Profile |
 | AD-1 | ✅ | Admin events UX v2: edit modals + calendar grid + week view + search | Закрыт волной 5 (2026-04-26): /admin/announcements целиком переписан под Google-Calendar-style UX. Edit modals с GCal lastWriteSource fix (5.1), монт-grid + filtered list (5.2), week view + search + multi-group color-coding (5.3). 55 unit-тестов в 8 файлах. |
+| MKT-1 | M (S) | Ревью маркетинг-контекста `.agents/product-marketing.md` | Пройти опросник `.agents/product-marketing-review.md` (цели, verbatim-язык студентов, конкуренты, прайс/оффер переподготовки), вписать ответы в док (бамп v2 + changelog), закоммитить оба файла. Черновик v1 автосгенерирован из кодовой базы 2026-07-17; поля «уточнить» без ответов Алексея не закрыть. Контекст читают все 10 маркетинг-скиллов (~/.claude/skills). |
 | AD-2 | ✅ | Admin-редактор страницы `/about` | Закрыт волной HM-3: контент `/about` в `pages/about`, редактор `/superadmin/pages/about` (2026-04-26) |
 | HM-1 | ✅ | Continue-cards: настройка «актуальных» курсов | Поля `featuredCourseIds` у `groups/{id}` и `users/{id}` (max 3), волна 3 |
 | HM-2 | ✅ | `/about` → вкладочная структура + страницы проектов | 6 вкладок, шаблон `<ProjectPage>` (волна 3) |
