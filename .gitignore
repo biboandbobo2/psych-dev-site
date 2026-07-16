@@ -47,3 +47,6 @@ CLAUDE.md
 /*.png
 # Playwright accessibility snapshots в корне (browser_snapshot dump'ит сюда)
 /*.yml
+
+# Временные рабочие файлы сессий (логи прогонов, рендеры docx и т.п.)
+/tmp/
