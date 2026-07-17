@@ -28,6 +28,8 @@ interface VideoSectionProps {
     initialSeekMs: number | null;
     initialQuery: string | null;
   } | null;
+  /** Понятия урока для поисковых чипов при выделении в транскрипте */
+  concepts?: string[];
 }
 
 type VideoLayoutMode = 'embed' | 'study';
@@ -42,6 +44,7 @@ export function VideoSection({
   periodId,
   periodTitle,
   studyLaunch,
+  concepts,
 }: VideoSectionProps) {
   const videos = content.map((entry, index) => {
     const normalized = normalizeVideoEntry(entry);
@@ -84,6 +87,7 @@ export function VideoSection({
             periodTitle={periodTitle}
             defaultVideoTitle={defaultVideoTitle}
             studyLaunch={studyLaunch}
+            concepts={concepts}
           />
         ))}
       </div>
@@ -104,6 +108,7 @@ interface VideoSectionCardProps {
   periodTitle: string;
   defaultVideoTitle: string;
   studyLaunch?: VideoSectionProps['studyLaunch'];
+  concepts?: string[];
 }
 
 function VideoSectionCard({
@@ -119,6 +124,7 @@ function VideoSectionCard({
   periodTitle,
   defaultVideoTitle,
   studyLaunch,
+  concepts,
 }: VideoSectionCardProps) {
   const [mode, setMode] = useState<VideoLayoutMode>('embed');
   const [studyDraft, setStudyDraft] = useState<LectureNoteDraft>(EMPTY_LECTURE_NOTE_DRAFT);
@@ -304,6 +310,7 @@ function VideoSectionCard({
           initialQuery={isStudyLaunchTarget ? studyLaunch?.initialQuery ?? null : null}
           initialSeekMs={isStudyLaunchTarget ? studyLaunch?.initialSeekMs ?? null : null}
           highlightedStartMs={isStudyLaunchTarget ? studyLaunch?.initialSeekMs ?? null : null}
+          concepts={concepts}
         />
       ) : null}
     </div>

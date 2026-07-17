@@ -50,6 +50,11 @@ export function PeriodSections({
 }: PeriodSectionsProps) {
   if (!sections) return null;
 
+  // Понятия урока — для поисковых чипов при выделении текста в транскрипте
+  const lessonConcepts = (sections['concepts']?.content ?? []).filter(
+    (item): item is string => typeof item === 'string'
+  );
+
   // Сортируем секции по заданному порядку
   let sortedEntries = Object.entries(sections).sort(([slugA], [slugB]) => {
     const indexA = SECTION_ORDER.indexOf(slugA);
@@ -82,6 +87,7 @@ export function PeriodSections({
           periodTitle={periodTitle}
           courseType={courseType}
           studyLaunch={studyLaunch}
+          lessonConcepts={lessonConcepts}
         />
       ))}
       <LessonQuestionsSection
@@ -104,6 +110,7 @@ interface SectionRendererProps {
   /** Тип курса для проверки доступа к видео */
   courseType: CourseType;
   studyLaunch?: PeriodSectionsProps['studyLaunch'];
+  lessonConcepts?: string[];
 }
 
 function SectionRenderer({
@@ -116,6 +123,7 @@ function SectionRenderer({
   periodTitle,
   courseType,
   studyLaunch,
+  lessonConcepts,
 }: SectionRendererProps) {
   // Для self_questions делаем исключение: показываем если есть контент ИЛИ есть тесты
   const isSelfQuestions = slug === 'self_questions';
@@ -141,6 +149,7 @@ function SectionRenderer({
         periodTitle={periodTitle}
         courseId={courseType}
         studyLaunch={studyLaunch}
+        concepts={lessonConcepts}
       />
     ) : undefined;
 
@@ -157,6 +166,7 @@ function SectionRenderer({
           periodTitle={periodTitle}
           courseId={courseType}
           studyLaunch={studyLaunch}
+          concepts={lessonConcepts}
         />
       </PaywallGuard>
     );

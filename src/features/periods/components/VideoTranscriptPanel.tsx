@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { VideoTranscriptStoragePayload } from '../../../types/videoTranscripts';
 import { formatTimestampMs } from '../../../lib/formatTimestamp';
+import { useTextSelection } from '../hooks/useTextSelection';
+import { TranscriptSelectionMenu } from './TranscriptSelectionMenu';
 
 interface VideoTranscriptPanelProps {
   error: string | null;
@@ -11,6 +13,10 @@ interface VideoTranscriptPanelProps {
   onTimestampClick: (startMs: number) => void;
   query?: string | null;
   transcript: VideoTranscriptStoragePayload | null;
+  /** Понятия урока для поисковых чипов при длинном выделении */
+  concepts?: string[];
+  /** «Объяснить» выделенный фрагмент лекционным AI; без хендлера кнопка скрыта */
+  onExplainSelection?: (text: string) => void;
 }
 
 function getFocusedSegmentStartMs(
@@ -58,13 +64,28 @@ export function VideoTranscriptPanel({
   onTimestampClick,
   query = null,
   transcript,
+  concepts = [],
+  onExplainSelection,
 }: VideoTranscriptPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const { selection, clear: clearSelection } = useTextSelection(containerRef);
   const focusedSegmentStartMs = getFocusedSegmentStartMs(
     transcript,
     highlightedStartMs,
     focusTimeMs
   );
+
+  const handleSearchSelection = (searchQuery: string) => {
+    window.open(`/research?q=${encodeURIComponent(searchQuery)}`, '_blank', 'noopener');
+    clearSelection();
+  };
+
+  const handleExplainSelection = onExplainSelection
+    ? (text: string) => {
+        onExplainSelection(text);
+        clearSelection();
+      }
+    : undefined;
 
   useEffect(() => {
     if (focusedSegmentStartMs === null || !containerRef.current) {
@@ -146,6 +167,16 @@ export function VideoTranscriptPanel({
           </p>
         ) : null}
       </div>
+
+      {selection ? (
+        <TranscriptSelectionMenu
+          selection={selection}
+          concepts={concepts}
+          onSearch={handleSearchSelection}
+          onExplain={handleExplainSelection}
+          onDismiss={clearSelection}
+        />
+      ) : null}
     </aside>
   );
 }

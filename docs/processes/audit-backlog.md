@@ -732,6 +732,20 @@ CI часть (осталась):
 - Кнопка-заглушка «Глубокий поиск» (`alert`) удалена из `ResearchPage.tsx`; варианты запроса показываются из `meta.queryVariantsUsed`, в т.ч. при пустой выдаче.
 - **Файлы:** `api/papers.ts`, `api/_lib/papersWikidata.ts`, `api/_lib/papersTranslation.ts`
 
+### RS‑3. ⏳ Ждём API-ключ Semantic Scholar (P: M, E: XS)
+- **Состояние (2026-07-17):** без ключа SS отвечает 429 почти на каждый запрос — источник фактически выключен. Код готов: `fetchSemanticScholar` шлёт `x-api-key` из env `SEMANTIC_SCHOLAR_API_KEY` + один retry на 429 (`api/_lib/papersSources.ts`).
+- **Заявка:** форма https://www.semanticscholar.org/product/api#api-key-form заполнена 2026-07-17 с адреса `aleksey@academydom.com` (Cloudflare Email Routing → пересылка на gmail; заведён именно под это — форма не принимает gmail). Сроки ответа SS не публикует, по опыту 1–3 недели; коммерческим заявкам дольше, могут и не ответить.
+- **Когда придёт ключ:**
+  - [ ] Добавить `SEMANTIC_SCHOLAR_API_KEY` в Vercel env (Production) — код подхватит сам, деплой не нужен (env-изменение потребует redeploy кнопкой)
+  - [ ] Смоук: `sourcesUsed` в meta ответа `/api/papers` должен стабильно содержать `semanticscholar`
+- **Если через месяц тишина:** перезаполнить форму или оставить SS выключенным (OpenAlex+OpenAIRE покрывают выдачу)
+
+### RS‑4. Dev-middleware /api/* падает на NodeNext-импортах (P: L, E: S)
+- **Симптом (2026-07-17):** на `npm run dev` запрос `/api/papers` → 500 + Vite error overlay: `Cannot find module '.../api/_lib/papersAllowList.js'`. `wrapApiMiddleware` в `vite.config.js` грузит `api/*.ts` плоским `import()`, который не резолвит NodeNext-импорты `./_lib/*.js` → `.ts`. Сломано со времён переименования `api/lib → api/_lib` (2026-04-27), на прод не влияет (Vercel собирает сам).
+- **Затронуто:** все обёрнутые роуты — `/api/papers`, `/api/booking`, `/api/assistant`.
+- **Фикс-кандидат:** в middleware использовать `server.ssrLoadModule()` вместо `import()` — Vite сам резолвит `.js`→`.ts`.
+- **Файл:** `vite.config.js` (`wrapApiMiddleware`)
+
 ### RS‑2. Пополнение словаря RU→EN как кэша (P: L, E: S)
 - **Описание:** После RS-1 большой словарь (500+) не нужен — термины вне словаря покрывает Wikidata. Словарь остаётся быстрым кэшем частотных терминов (без сетевого запроса).
 - **Осталось (опционально):**
