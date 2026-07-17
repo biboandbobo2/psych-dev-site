@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { TextSelectionSnapshot } from '../hooks/useTextSelection';
 import { extractConceptChips, isShortSelection, truncatedQuery } from '../lib/selectionChips';
 
@@ -54,7 +55,9 @@ export function TranscriptSelectionMenu({
     (typeof window !== 'undefined' ? window.innerWidth : 1280) - 120,
   );
 
-  return (
+  // Портал в body: у панели транскрипта есть backdrop-filter, который делает её
+  // containing block для fixed-потомков — без портала меню уезжает за экран
+  return createPortal(
     <div
       ref={menuRef}
       role="toolbar"
@@ -99,6 +102,7 @@ export function TranscriptSelectionMenu({
           </button>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

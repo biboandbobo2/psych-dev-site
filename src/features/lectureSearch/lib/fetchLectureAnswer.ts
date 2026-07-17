@@ -34,9 +34,9 @@ export async function fetchLectureAnswer(params: {
     }),
   });
 
-  const data = await res.json();
-  if (!data.ok) {
-    throw new Error(data.error || 'Не удалось получить ответ по лекциям');
+  const data = await res.json().catch(() => null);
+  if (!data || !data.ok) {
+    throw new Error(data?.error || 'Сервис ответов по лекциям временно недоступен');
   }
 
   return {
