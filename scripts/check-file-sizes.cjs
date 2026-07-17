@@ -15,7 +15,6 @@ const ROOTS = ['src', 'api', 'functions/src', 'server'];
 
 const LEGACY = new Set([
   'server/api/timelineBiographyPipeline.ts',
-  'functions/src/billingExport.ts',
   'src/pages/DisorderTable.tsx',
   'src/pages/Timeline.tsx',
   'server/api/timelineBiographyFacts.ts',
