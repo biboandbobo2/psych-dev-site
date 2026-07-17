@@ -75,7 +75,10 @@ export async function fetchSemanticScholar(
   const url = new URL('https://api.semanticscholar.org/graph/v1/paper/search');
   url.searchParams.set('query', q);
   url.searchParams.set('limit', String(Math.min(limit, 100))); // SS max is 100
-  url.searchParams.set('fields', 'paperId,title,year,authors,abstract,externalIds,openAccessPdf,venue');
+  url.searchParams.set(
+    'fields',
+    'paperId,title,year,authors,abstract,externalIds,openAccessPdf,venue,citationCount',
+  );
 
   // Без ключа SS почти всегда отвечает 429 (общий пул); ключ выдаётся по форме
   const apiKey = process.env.SEMANTIC_SCHOLAR_API_KEY;

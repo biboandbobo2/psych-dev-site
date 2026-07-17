@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useResearchSearch, useFilteredResults } from '../features/researchSearch/hooks/useResearchSearch';
 import { ResearchResultsList } from '../features/researchSearch/components/ResearchResultsList';
@@ -18,10 +18,11 @@ const ALL_LANGUAGES = [
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = 1990;
 
-type SortOption = 'relevance' | 'year-desc' | 'year-asc';
+type SortOption = 'relevance' | 'citations' | 'year-desc' | 'year-asc';
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'relevance', label: 'По релевантности' },
+  { value: 'citations', label: 'По цитируемости' },
   { value: 'year-desc', label: 'Сначала новые' },
   { value: 'year-asc', label: 'Сначала старые' },
 ];
@@ -30,52 +31,35 @@ export default function ResearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const initialQuery = searchParams.get('q') ?? '';
-  const initialLang = searchParams.get('lang') ?? 'all';
-  const [languageFilter, setLanguageFilter] = useState(initialLang);
   const [minYear, setMinYear] = useState<number>(MIN_YEAR);
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
 
   const { query, setQuery, langs, setLangs, state, runSearch } = useResearchSearch({
     mode: 'page',
     initialQuery,
-    initialLangs: initialLang === 'all' ? DEFAULT_LANGS : [initialLang],
+    initialLangs: DEFAULT_LANGS,
     initialPsychologyOnly: true, // Always filter by psychology
     trigger: 'manual',
     autoTriggerInitial: Boolean(initialQuery.trim().length >= 3),
   });
 
   const toggleLang = (code: string) => {
-    if (langs.includes(code)) {
-      if (langs.length > 1) {
-        setLangs(langs.filter((l) => l !== code));
-      }
-    } else {
-      setLangs([...langs, code]);
+    const next = langs.includes(code) ? langs.filter((l) => l !== code) : [...langs, code];
+    if (next.length === 0) return;
+    setLangs(next);
+    // Перезапускаем активный поиск с новым набором языков
+    if (state.status !== 'idle' && query.trim().length >= 3) {
+      runSearch();
     }
   };
 
-  // Search is auto-triggered by the hook when autoTriggerInitial is true
-  // No need for manual useEffect trigger here
+  const filteredResults = useFilteredResults(state.results, minYear > MIN_YEAR ? minYear : undefined);
 
-  const languagesFromResults = useMemo(() => {
-    const langsSet = new Set<string>();
-    state.results.forEach((item) => {
-      if (item.language && item.language !== 'unknown') {
-        langsSet.add(item.language);
-      }
-    });
-    return Array.from(langsSet);
-  }, [state.results]);
-
-  const filteredResults = useFilteredResults(
-    state.results,
-    languageFilter === 'all' ? 'all' : languageFilter,
-    minYear > MIN_YEAR ? minYear : undefined
-  );
-
-  // Apply sorting
   const sortedResults = useMemo(() => {
     if (sortBy === 'relevance') return filteredResults;
+    if (sortBy === 'citations') {
+      return [...filteredResults].sort((a, b) => (b.citedByCount ?? -1) - (a.citedByCount ?? -1));
+    }
     return [...filteredResults].sort((a, b) => {
       const yearA = a.year ?? 0;
       const yearB = b.year ?? 0;
@@ -85,15 +69,7 @@ export default function ResearchPage() {
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    const nextParams: Record<string, string> = {};
-    if (query.trim()) nextParams.q = query.trim();
-    if (languageFilter !== 'all') nextParams.lang = languageFilter;
-    setSearchParams(nextParams);
-    if (languageFilter === 'all') {
-      setLangs(DEFAULT_LANGS);
-    } else {
-      setLangs([languageFilter]);
-    }
+    setSearchParams(query.trim() ? { q: query.trim() } : {});
     runSearch();
   };
 
@@ -114,7 +90,7 @@ export default function ResearchPage() {
       <p className="text-muted mb-6">Open Access выдача по психологии и смежным областям.</p>
 
       <form onSubmit={handleSubmit} className="mb-6 space-y-4">
-        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
           <input
             type="text"
             value={query}
@@ -129,19 +105,10 @@ export default function ResearchPage() {
           >
             Искать
           </button>
-          <button
-            type="button"
-            onClick={() => alert('Глубокий поиск (Wikidata + мультиязычный) — в разработке')}
-            className="rounded-lg border-2 border-purple-500 bg-purple-50 px-4 py-3 text-sm font-semibold text-purple-700 shadow-sm transition hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={query.trim().length < 3}
-            title="Поиск через Wikidata с автоматическим переводом на все языки"
-          >
-            Глубокий поиск
-          </button>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <span className="text-sm text-muted self-center mr-1">Фильтр по языкам статей:</span>
+          <span className="text-sm text-muted self-center mr-1">Языки поиска:</span>
           {ALL_LANGUAGES.map(({ code, label }) => (
             <button
               key={code}
@@ -159,25 +126,6 @@ export default function ResearchPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted" htmlFor="lang-filter">
-              Фильтр по языку:
-            </label>
-            <select
-              id="lang-filter"
-              value={languageFilter}
-              onChange={(event) => setLanguageFilter(event.target.value)}
-              className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-fg shadow-sm focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30"
-            >
-              <option value="all">Все</option>
-              {languagesFromResults.map((lang) => (
-                <option key={lang} value={lang}>
-                  {lang.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </div>
-
           <div className="flex items-center gap-3">
             <label className="text-sm text-muted" htmlFor="year-slider">
               Год с: <span className="font-semibold text-fg">{minYear === MIN_YEAR ? 'любого' : minYear}</span>
@@ -259,7 +207,11 @@ export default function ResearchPage() {
               </span>
             ) : null}
           </div>
-          <ResearchResultsList results={sortedResults} query={query} />
+          <ResearchResultsList
+            results={sortedResults}
+            query={query}
+            searchedQueries={state.meta?.queryVariantsUsed}
+          />
         </div>
       ) : null}
     </div>

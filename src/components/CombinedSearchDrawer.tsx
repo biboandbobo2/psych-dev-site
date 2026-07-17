@@ -353,6 +353,7 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
                   <ResearchResultsList
                     results={researchState.results.slice(0, 15)}
                     query={researchQuery}
+                    searchedQueries={researchState.meta?.queryVariantsUsed}
                     onOpenAll={() => {
                       if (!researchQuery.trim()) return;
                       navigate(`/research?q=${encodeURIComponent(researchQuery.trim())}`);

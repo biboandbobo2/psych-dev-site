@@ -25,6 +25,7 @@ export type OpenAlexWork = {
   doi?: string | null;
   abstract_inverted_index?: Record<string, number[]> | null;
   language?: string | null;
+  cited_by_count?: number | null;
 };
 
 export type ResearchWork = {
@@ -42,6 +43,7 @@ export type ResearchWork = {
   score?: number;
   host?: string | null;
   isOa?: boolean; // OpenAlex open_access.is_oa flag
+  citedByCount?: number | null;
 };
 
 export type PapersApiResponse = {

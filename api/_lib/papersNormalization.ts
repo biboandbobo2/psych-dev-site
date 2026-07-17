@@ -50,6 +50,7 @@ export type SemanticScholarPaper = {
   externalIds?: { DOI?: string };
   openAccessPdf?: { url?: string };
   venue?: string;
+  citationCount?: number;
 };
 
 /**
@@ -137,6 +138,7 @@ export function normalizeOpenAlexWork(item: OpenAlexWork): ResearchWork | null {
     source: 'openalex',
     host,
     isOa: item.open_access?.is_oa ?? false,
+    citedByCount: item.cited_by_count ?? null,
   };
 }
 
@@ -241,6 +243,7 @@ export function normalizeSemanticScholarWork(paper: SemanticScholarPaper): Resea
     source: 'semanticscholar' as ResearchSource,
     host: cleanHost(oaPdfUrl || (doi ? `https://doi.org/${doi}` : null)),
     isOa: Boolean(oaPdfUrl),
+    citedByCount: paper.citationCount ?? null,
   };
 }
 

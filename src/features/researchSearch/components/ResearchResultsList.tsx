@@ -11,6 +11,8 @@ interface ResearchResultsListProps {
   results: ResearchWork[];
   query?: string;
   onOpenAll?: () => void;
+  /** Реально отправленные в источники варианты запроса (для пустой выдачи) */
+  searchedQueries?: string[];
 }
 
 // Highlight search terms in text
@@ -72,6 +74,11 @@ function ResultCard({ work, query }: { work: ResearchWork; query?: string }) {
                 {work.year}
               </span>
             ) : null}
+            {typeof work.citedByCount === 'number' && work.citedByCount > 0 ? (
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                цит.: {work.citedByCount}
+              </span>
+            ) : null}
           </div>
           <h3 className="text-lg font-semibold text-fg leading-tight">
             {query ? highlightText(work.title, query) : work.title}
@@ -123,11 +130,14 @@ function ResultCard({ work, query }: { work: ResearchWork; query?: string }) {
   );
 }
 
-export function ResearchResultsList({ results, query, onOpenAll }: ResearchResultsListProps) {
+export function ResearchResultsList({ results, query, onOpenAll, searchedQueries }: ResearchResultsListProps) {
   if (results.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted">
-        Ничего не найдено. Попробуйте уточнить запрос или изменить язык.
+      <div className="space-y-1 rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted">
+        <p>Ничего не найдено. Попробуйте другую формулировку или английские термины.</p>
+        {searchedQueries && searchedQueries.length > 0 ? (
+          <p className="text-xs">Искали: {searchedQueries.join(' • ')}</p>
+        ) : null}
       </div>
     );
   }

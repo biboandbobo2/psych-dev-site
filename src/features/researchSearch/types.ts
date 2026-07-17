@@ -15,6 +15,7 @@ export interface ResearchWork {
   source: ResearchSource;
   score?: number;
   host?: string | null;
+  citedByCount?: number | null;
 }
 
 export interface PapersApiMeta {
