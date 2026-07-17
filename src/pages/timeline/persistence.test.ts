@@ -50,14 +50,14 @@ describe('timeline persistence', () => {
   });
 
   it('builds persisted document payload', () => {
-    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValueOnce('canvas-id');
+    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValueOnce('00000000-0000-4000-8000-000000000000');
 
     const canvas = createTimelineCanvas(DEFAULT_TIMELINE_NAME);
     const doc = buildTimelineDocument('user-3', canvas.id, [canvas]);
 
     expect(doc).toEqual({
       userId: 'user-3',
-      activeCanvasId: 'canvas-id',
+      activeCanvasId: '00000000-0000-4000-8000-000000000000',
       canvases: [canvas],
     });
   });
