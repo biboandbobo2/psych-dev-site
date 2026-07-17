@@ -25,6 +25,7 @@ export type OpenAlexWork = {
   doi?: string | null;
   abstract_inverted_index?: Record<string, number[]> | null;
   language?: string | null;
+  cited_by_count?: number | null;
 };
 
 export type ResearchWork = {
@@ -42,6 +43,7 @@ export type ResearchWork = {
   score?: number;
   host?: string | null;
   isOa?: boolean; // OpenAlex open_access.is_oa flag
+  citedByCount?: number | null;
 };
 
 export type PapersApiResponse = {
@@ -53,6 +55,8 @@ export type PapersApiResponse = {
     sourcesUsed: ResearchSource[];
     allowListApplied: boolean;
     psychologyFilterApplied?: boolean;
+    /** true, если фильтр психологии дал 0 и выдача показана без него */
+    psychologyFilterRelaxed?: boolean;
     queryVariantsUsed?: string[];
   };
 };

@@ -309,7 +309,7 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
                     placeholder="Например: attachment theory, executive functions..."
                     className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-fg shadow-sm focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
                   />
-                  <p className="text-xs text-muted">Минимум 3 символа. Источники: OpenAlex, Semantic Scholar.</p>
+                  <p className="text-xs text-muted">Минимум 3 символа. Источники: OpenAlex, OpenAIRE, Semantic Scholar.</p>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -345,9 +345,15 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
 
               {researchState.status === 'success' && (
                 <div className="max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
+                  {researchState.meta?.psychologyFilterRelaxed && (
+                    <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      Точных совпадений по психологии нет — показаны результаты без фильтра.
+                    </p>
+                  )}
                   <ResearchResultsList
                     results={researchState.results.slice(0, 15)}
                     query={researchQuery}
+                    searchedQueries={researchState.meta?.queryVariantsUsed}
                     onOpenAll={() => {
                       if (!researchQuery.trim()) return;
                       navigate(`/research?q=${encodeURIComponent(researchQuery.trim())}`);

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   detectLang,
-  isStopword,
   translateRuToEn,
 } from '../../api/_lib/papersTranslation.js';
 import {
@@ -63,21 +62,6 @@ describe('translateRuToEn', () => {
     const result = translateRuToEn('тревога Васильевич');
     expect(result).toContain('anxiety');
     expect(result).toContain('васильевич');
-  });
-});
-
-describe('isStopword', () => {
-  it('generic стоп-слова отлавливаются для любого языка', () => {
-    expect(isStopword('study', 'en')).toBe(true);
-    expect(isStopword('study', 'ru')).toBe(true);
-  });
-  it('en стоп-слова работают только для en', () => {
-    expect(isStopword('the', 'en')).toBe(true);
-    expect(isStopword('the', 'ru')).toBe(false);
-  });
-  it('ru стоп-слова работают только для ru', () => {
-    expect(isStopword('и', 'ru')).toBe(true);
-    expect(isStopword('и', 'en')).toBe(false);
   });
 });
 

@@ -1,12 +1,9 @@
-// Перевод RU→EN и расширение запроса вариантами для /api/papers.
+// Перевод RU→EN и определение языка запроса для /api/papers.
 // Pure helpers, без I/O.
 
-import type { QueryVariantSource } from './papersWikidata.js';
-
-const GENERIC_STOPWORDS = new Set(['study', 'research', 'theory', 'analysis', 'review', 'science']);
-const EN_STOPWORDS = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'for', 'in']);
 export const RU_STOPWORDS = new Set([
   'и', 'в', 'на', 'по', 'о', 'об', 'от', 'для', 'как', 'снижения', 'коррекции', 'средство',
+  'у', 'с', 'со', 'к', 'из', 'за', 'под', 'над', 'при', 'про', 'без', 'до', 'после', 'а', 'но',
 ]);
 
 // Dictionary for translating Russian psychology terms to English
@@ -94,74 +91,6 @@ export function translateRuToEn(query: string): string | null {
 
   if (!hasTranslation || translated.length === 0) return null;
   return translated.join(' ');
-}
-
-export function isStopword(value: string, lang: string): boolean {
-  const lower = value.toLowerCase();
-  if (GENERIC_STOPWORDS.has(lower)) return true;
-  if (lang === 'en' && EN_STOPWORDS.has(lower)) return true;
-  if (lang === 'ru' && RU_STOPWORDS.has(lower)) return true;
-  return false;
-}
-
-function normalizeVariant(value: string): string {
-  return value.trim();
-}
-
-export function buildQueryVariants({
-  q,
-  detectedLang,
-  wikidataVariants,
-  langsRequested,
-  mode,
-}: {
-  q: string;
-  detectedLang: string;
-  wikidataVariants: QueryVariantSource[];
-  langsRequested: string[];
-  mode: 'drawer' | 'page';
-}): string[] {
-  const maxVariants = mode === 'page' ? 8 : 6;
-  const variants: string[] = [q];
-  const seen = new Set([q.toLowerCase()]);
-
-  const tryAdd = (v: QueryVariantSource): boolean => {
-    const variant = normalizeVariant(v.variant);
-    const lower = variant.toLowerCase();
-    if (seen.has(lower)) return false;
-    if (isStopword(variant, v.lang || detectedLang)) return false;
-    seen.add(lower);
-    variants.push(variant);
-    return true;
-  };
-
-  // STEP 1: Add one label per language (prioritize diversity)
-  const targetLangs = langsRequested.filter((lang) => lang !== detectedLang);
-  for (const lang of targetLangs) {
-    if (variants.length >= maxVariants) break;
-    const labelForLang = wikidataVariants.find(
-      (v) => v.lang === lang && !seen.has(normalizeVariant(v.variant).toLowerCase()),
-    );
-    if (labelForLang) {
-      tryAdd(labelForLang);
-    }
-  }
-
-  // STEP 2: Add one synonym in the original language (for synonym expansion)
-  const sameLangVariant = wikidataVariants.find(
-    (v) => v.lang === detectedLang && !seen.has(normalizeVariant(v.variant).toLowerCase()),
-  );
-  if (sameLangVariant && variants.length < maxVariants) {
-    tryAdd(sameLangVariant);
-  }
-
-  // STEP 3: Fill remaining slots with any other variants
-  for (const v of wikidataVariants) {
-    if (variants.length >= maxVariants) break;
-    tryAdd(v);
-  }
-
-  return variants;
 }
 
 /**

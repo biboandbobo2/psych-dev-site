@@ -1,10 +1,18 @@
 import { useState } from 'react';
-import type { ResearchWork } from '../types';
+import type { ResearchSource, ResearchWork } from '../types';
+
+const SOURCE_LABELS: Record<ResearchSource, string> = {
+  openalex: 'OpenAlex',
+  openaire: 'OpenAIRE',
+  semanticscholar: 'Semantic Scholar',
+};
 
 interface ResearchResultsListProps {
   results: ResearchWork[];
   query?: string;
   onOpenAll?: () => void;
+  /** Реально отправленные в источники варианты запроса (для пустой выдачи) */
+  searchedQueries?: string[];
 }
 
 // Highlight search terms in text
@@ -50,7 +58,7 @@ function ResultCard({ work, query }: { work: ResearchWork; query?: string }) {
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1 flex-1 min-w-0">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted flex-wrap">
-            {work.source === 'openalex' ? 'OpenAlex' : 'Semantic Scholar'}
+            {SOURCE_LABELS[work.source] ?? work.source}
             {work.host ? (
               <span className="rounded-full bg-accent-50 px-2 py-0.5 text-accent text-[11px] font-semibold">
                 {work.host}
@@ -64,6 +72,11 @@ function ResultCard({ work, query }: { work: ResearchWork; query?: string }) {
             {work.year ? (
               <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
                 {work.year}
+              </span>
+            ) : null}
+            {typeof work.citedByCount === 'number' && work.citedByCount > 0 ? (
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                цит.: {work.citedByCount}
               </span>
             ) : null}
           </div>
@@ -117,11 +130,14 @@ function ResultCard({ work, query }: { work: ResearchWork; query?: string }) {
   );
 }
 
-export function ResearchResultsList({ results, query, onOpenAll }: ResearchResultsListProps) {
+export function ResearchResultsList({ results, query, onOpenAll, searchedQueries }: ResearchResultsListProps) {
   if (results.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted">
-        Ничего не найдено. Попробуйте уточнить запрос или изменить язык.
+      <div className="space-y-1 rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted">
+        <p>Ничего не найдено. Попробуйте другую формулировку или английские термины.</p>
+        {searchedQueries && searchedQueries.length > 0 ? (
+          <p className="text-xs">Искали: {searchedQueries.join(' • ')}</p>
+        ) : null}
       </div>
     );
   }

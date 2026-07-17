@@ -172,10 +172,6 @@ export function useResearchSearch({
   };
 }
 
-export function useFilteredResults(results: ResearchWork[], languageFilter: string, minYear?: number) {
-  return results.filter((item) => {
-    const langOk = languageFilter === 'all' || item.language === languageFilter;
-    const yearOk = !minYear || !item.year || item.year >= minYear;
-    return langOk && yearOk;
-  });
+export function useFilteredResults(results: ResearchWork[], minYear?: number) {
+  return results.filter((item) => !minYear || !item.year || item.year >= minYear);
 }

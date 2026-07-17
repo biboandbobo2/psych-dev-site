@@ -16,6 +16,7 @@ import {
   getPsychologyScore,
 } from './_lib/papersScoring.js';
 import { detectLang, translateRuToEn } from './_lib/papersTranslation.js';
+import { wdGetEntities, wdSearch } from './_lib/papersWikidata.js';
 import type { PapersApiResponse, ResearchSource, ResearchWork } from './_lib/papersTypes.js';
 
 const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
@@ -75,6 +76,55 @@ function parseQueryParams(req: any): {
   return { qRaw, limit, langs, mode, psychologyOnly };
 }
 
+const CYRILLIC_RE = /[а-яё]/i;
+
+/**
+ * Строит чистый английский вариант русского запроса: сначала словарь,
+ * при неполном переводе — Wikidata (английский лейбл найденного концепта).
+ * Гибридные RU/EN строки не возвращает: источники выдают на них мусор.
+ */
+async function buildEnglishQuery(qRaw: string): Promise<string | null> {
+  const dict = translateRuToEn(qRaw);
+  if (dict && !CYRILLIC_RE.test(dict)) return dict;
+
+  try {
+    const found = await wdSearch(qRaw, 'ru', 3, 1200);
+    if (found.length === 0) return null;
+    const entities = await wdGetEntities(
+      found.map((f) => f.id),
+      ['en'],
+      1200,
+    );
+    for (const f of found) {
+      const label = entities[f.id]?.labels?.en?.value?.trim();
+      if (label && !CYRILLIC_RE.test(label)) return label.toLowerCase();
+    }
+  } catch {
+    // Wikidata недоступна — ищем только по русскому оригиналу
+  }
+  return null;
+}
+
+function dedupeWorks(works: ResearchWork[]): ResearchWork[] {
+  const dedupedMap = new Map<string, ResearchWork>();
+
+  works.forEach((work) => {
+    const doiKey = work.doi?.toLowerCase().replace('https://doi.org/', '');
+    const titleKey = work.title.toLowerCase().replace(/[^a-zа-яё0-9]/g, '').slice(0, 50);
+    const key = doiKey || titleKey;
+
+    const existing = dedupedMap.get(key);
+    const incomingScore = work.score ?? Number.MAX_SAFE_INTEGER;
+    const existingScore = existing?.score ?? Number.MAX_SAFE_INTEGER;
+
+    if (!existing || incomingScore < existingScore) {
+      dedupedMap.set(key, work);
+    }
+  });
+
+  return Array.from(dedupedMap.values()).sort((a, b) => (a.score ?? 0) - (b.score ?? 0));
+}
+
 function getClientIp(req: IncomingMessage): string {
   const forwarded = (req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '') as string;
   if (forwarded) {
@@ -110,89 +160,90 @@ export default async function handler(req: any, res: any) {
     const candidateLimit = mode === 'page' ? 50 : 30;
     const baseLang = detectLang(qRaw);
 
-    // Для русских запросов — перевод в английский для лучших результатов
-    const translatedQuery = baseLang === 'ru' ? translateRuToEn(qRaw) : null;
-
-    // Используем переведённый запрос для всех источников
-    const openAlexQuery = translatedQuery || qRaw;
-    const queryVariantsUsed: string[] = translatedQuery ? [translatedQuery, qRaw] : [qRaw];
+    // Для русских запросов строим чистый английский вариант (словарь → Wikidata)
+    // и ищем параллельно по нему и по оригиналу. Гибриды не отправляем.
+    const enQuery = baseLang === 'ru' ? await buildEnglishQuery(qRaw) : null;
+    const queries = enQuery ? [enQuery, qRaw] : [qRaw];
+    const queryVariantsUsed: string[] = queries;
 
     // =========================================================================
-    // PARALLEL SEARCH: OpenAlex + OpenAIRE + Semantic Scholar
+    // PARALLEL SEARCH: OpenAlex (по каждому варианту) + OpenAIRE + Semantic Scholar
+    // Score offset: ниже = приоритетнее (EN-вариант OpenAlex → RU-оригинал → OpenAIRE → SS)
     // =========================================================================
+    const tasks: Array<{ source: ResearchSource; offset: number; run: () => Promise<ResearchWork[]> }> = [
+      ...queries.map((q, idx) => ({
+        source: 'openalex' as const,
+        offset: idx * 500,
+        run: () =>
+          fetchOpenAlex(q, langs, candidateLimit, psychologyOnly, false).then(filterByOpenAccess),
+      })),
+      {
+        source: 'openaire' as const,
+        offset: 1000,
+        run: () => fetchOpenAIRE(enQuery ?? qRaw, candidateLimit),
+      },
+      {
+        source: 'semanticscholar' as const,
+        offset: 2000,
+        run: () => fetchSemanticScholar(enQuery ?? qRaw, candidateLimit),
+      },
+    ];
+
+    const settled = await Promise.allSettled(tasks.map((task) => task.run()));
     const sourcesUsed: ResearchSource[] = [];
-
-    const [openAlexResult, openAIREResult, semanticScholarResult] = await Promise.allSettled([
-      fetchOpenAlex(openAlexQuery, langs, candidateLimit, psychologyOnly, false).then((works) => {
-        sourcesUsed.push('openalex');
-        return filterByOpenAccess(works);
-      }),
-      fetchOpenAIRE(openAlexQuery, candidateLimit)
-        .then((works) => {
-          sourcesUsed.push('openaire');
-          return works;
-        })
-        .catch(() => [] as ResearchWork[]),
-      fetchSemanticScholar(openAlexQuery, candidateLimit)
-        .then((works) => {
-          sourcesUsed.push('semanticscholar');
-          return works;
-        })
-        .catch(() => [] as ResearchWork[]),
-    ]);
-
-    // Source-based scoring: lower score = higher priority
-    // (OpenAlex first, then OpenAIRE, then SS)
     const allWorks: ResearchWork[] = [];
 
-    if (openAlexResult.status === 'fulfilled') {
-      openAlexResult.value.forEach((work, idx) => {
-        allWorks.push({ ...work, score: idx });
+    settled.forEach((result, i) => {
+      if (result.status !== 'fulfilled') return;
+      sourcesUsed.push(tasks[i].source);
+      result.value.forEach((work, idx) => {
+        allWorks.push({ ...work, score: tasks[i].offset + idx });
       });
-    }
-    if (openAIREResult.status === 'fulfilled') {
-      openAIREResult.value.forEach((work, idx) => {
-        allWorks.push({ ...work, score: 1000 + idx });
-      });
-    }
-    if (semanticScholarResult.status === 'fulfilled') {
-      semanticScholarResult.value.forEach((work, idx) => {
-        allWorks.push({ ...work, score: 2000 + idx });
-      });
-    }
-
-    // =========================================================================
-    // DEDUPLICATION by DOI (case-insensitive), сохраняем приоритетный источник
-    // =========================================================================
-    const dedupedMap = new Map<string, ResearchWork>();
-
-    allWorks.forEach((work) => {
-      const doiKey = work.doi?.toLowerCase().replace('https://doi.org/', '');
-      const titleKey = work.title.toLowerCase().replace(/[^a-zа-яё0-9]/g, '').slice(0, 50);
-      const key = doiKey || titleKey;
-
-      const existing = dedupedMap.get(key);
-      const incomingScore = work.score ?? Number.MAX_SAFE_INTEGER;
-      const existingScore = existing?.score ?? Number.MAX_SAFE_INTEGER;
-
-      if (!existing || incomingScore < existingScore) {
-        dedupedMap.set(key, work);
-      }
     });
 
-    const deduped = Array.from(dedupedMap.values()).sort(
-      (a, b) => (a.score ?? 0) - (b.score ?? 0),
-    );
+    // Дедупликация по DOI (case-insensitive), сохраняем приоритетный источник
+    const deduped = dedupeWorks(allWorks);
 
     // =========================================================================
-    // PSYCHOLOGY FILTER (if enabled)
+    // PSYCHOLOGY FILTER (if enabled) + авто-ослабление при пустой выдаче
     // =========================================================================
-    const psychologyFiltered = psychologyOnly
+    let psychologyFilterRelaxed = false;
+    let psychologyFiltered = psychologyOnly
       ? deduped.filter((work) => {
+          // OpenAlex уже отфильтрован ML-концептами психологии — лексический
+          // словарь применяем только к источникам без классификации
+          if (work.source === 'openalex') return true;
           const score = getPsychologyScore(work.title, work.paragraph, work.language, work.venue);
           return score >= PSYCHOLOGY_SCORE_THRESHOLD;
         })
       : deduped;
+
+    if (psychologyOnly && psychologyFiltered.length === 0) {
+      if (deduped.length > 0) {
+        // Лексический фильтр срезал всё — показываем результаты без него
+        psychologyFiltered = deduped;
+        psychologyFilterRelaxed = true;
+      } else {
+        // Источники с концепт-фильтром не дали ничего — повтор OpenAlex без него
+        const retrySettled = await Promise.allSettled(
+          queries.map((q) =>
+            fetchOpenAlex(q, langs, candidateLimit, false, false).then(filterByOpenAccess),
+          ),
+        );
+        const retryWorks: ResearchWork[] = [];
+        retrySettled.forEach((result, i) => {
+          if (result.status !== 'fulfilled') return;
+          result.value.forEach((work, idx) => {
+            retryWorks.push({ ...work, score: i * 500 + idx });
+          });
+        });
+        const retryDeduped = dedupeWorks(retryWorks);
+        if (retryDeduped.length > 0) {
+          psychologyFiltered = retryDeduped;
+          psychologyFilterRelaxed = true;
+        }
+      }
+    }
 
     // =========================================================================
     // FINAL PROCESSING
@@ -211,6 +262,7 @@ export default async function handler(req: any, res: any) {
         sourcesUsed: Array.from(new Set(sourcesUsed)),
         allowListApplied: true,
         psychologyFilterApplied: psychologyOnly,
+        psychologyFilterRelaxed: psychologyFilterRelaxed || undefined,
         queryVariantsUsed,
       },
     };

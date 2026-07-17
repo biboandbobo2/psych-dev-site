@@ -59,6 +59,81 @@ describe('api/papers', () => {
     expect(calledUrl.searchParams.get('per-page')).toBe('30');
   });
 
+  it('русский запрос вне словаря: гибрид не отправляется, Wikidata даёт EN-вариант', async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('wikidata.org')) {
+        if (url.includes('wbsearchentities')) {
+          return Promise.resolve({ ok: true, json: async () => ({ search: [{ id: 'Q1' }] }) });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            entities: { Q1: { labels: { en: { value: 'Separation anxiety' } } } },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ results: [] }) });
+    });
+    // @ts-ignore
+    global.fetch = fetchMock;
+
+    const req = mockReq({ q: 'сепарационная тревога' });
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    const urls = fetchMock.mock.calls.map((call) =>
+      decodeURIComponent(String(call[0]).replace(/\+/g, ' ')),
+    );
+    const openAlexUrls = urls.filter((u) => u.startsWith('https://api.openalex.org'));
+    // Оба чистых варианта ушли в OpenAlex, гибрида нет нигде
+    expect(openAlexUrls.some((u) => u.includes('separation anxiety'))).toBe(true);
+    expect(openAlexUrls.some((u) => u.includes('сепарационная тревога'))).toBe(true);
+    expect(urls.some((u) => u.includes('сепарационная anxiety'))).toBe(false);
+    expect((res.body as any).meta.queryVariantsUsed).toEqual([
+      'separation anxiety',
+      'сепарационная тревога',
+    ]);
+  });
+
+  it('OpenAlex-результаты не режутся лексическим психофильтром', async () => {
+    // Заголовок без словарных психология-терминов: до фикса срезался бы порогом
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.startsWith('https://api.openalex.org')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            results: [
+              {
+                id: 'W1',
+                display_name: 'Theory of mind in preschoolers',
+                publication_year: 2022,
+                authorships: [],
+                primary_location: {},
+                open_access: { is_oa: true, oa_url: 'https://example.org/pdf' },
+                doi: '10.1234/tom',
+                abstract_inverted_index: null,
+                language: 'en',
+              },
+            ],
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+    // @ts-ignore
+    global.fetch = fetchMock;
+
+    const req = mockReq({ q: 'theory of mind' });
+    const res = mockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    const titles = (res.body as any).results.map((r: any) => r.title);
+    expect(titles).toContain('Theory of mind in preschoolers');
+    expect((res.body as any).meta.psychologyFilterRelaxed).toBeUndefined();
+  });
+
   it('ограничивает fallback S2 до 5 запросов', async () => {
     const openAlexPayload = {
       results: Array.from({ length: 10 }).map((_, idx) => ({

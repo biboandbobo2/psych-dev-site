@@ -15,6 +15,7 @@ export interface ResearchWork {
   source: ResearchSource;
   score?: number;
   host?: string | null;
+  citedByCount?: number | null;
 }
 
 export interface PapersApiMeta {
@@ -23,6 +24,8 @@ export interface PapersApiMeta {
   sourcesUsed: ResearchSource[];
   allowListApplied: boolean;
   psychologyFilterApplied?: boolean;
+  /** true, если фильтр психологии дал 0 и выдача показана без него */
+  psychologyFilterRelaxed?: boolean;
   queryVariantsUsed?: string[];
 }
 

@@ -27,6 +27,20 @@ export type OpenAIREResult = {
   };
 };
 
+// OpenAIRE отдаёт язык словом («German»); slice(0,2) давал несуществующие коды («ge»)
+const OPENAIRE_LANG_MAP: Record<string, string> = {
+  english: 'en',
+  russian: 'ru',
+  german: 'de',
+  french: 'fr',
+  spanish: 'es',
+  'spanish; castilian': 'es',
+  portuguese: 'pt',
+  italian: 'it',
+  ukrainian: 'uk',
+  undetermined: 'unknown',
+};
+
 export type SemanticScholarPaper = {
   paperId?: string;
   title?: string;
@@ -36,6 +50,7 @@ export type SemanticScholarPaper = {
   externalIds?: { DOI?: string };
   openAccessPdf?: { url?: string };
   venue?: string;
+  citationCount?: number;
 };
 
 /**
@@ -123,6 +138,7 @@ export function normalizeOpenAlexWork(item: OpenAlexWork): ResearchWork | null {
     source: 'openalex',
     host,
     isOa: item.open_access?.is_oa ?? false,
+    citedByCount: item.cited_by_count ?? null,
   };
 }
 
@@ -182,13 +198,9 @@ export function normalizeOpenAIREWork(result: OpenAIREResult): ResearchWork | nu
     }
   }
 
-  const langClass = meta.language?.['@classname'] ?? 'unknown';
+  const langClass = (meta.language?.['@classname'] ?? 'unknown').toLowerCase();
   const language =
-    langClass === 'English'
-      ? 'en'
-      : langClass === 'Russian'
-        ? 'ru'
-        : langClass.toLowerCase().slice(0, 2);
+    OPENAIRE_LANG_MAP[langClass] ?? (langClass.length === 2 ? langClass : 'unknown');
 
   const paragraph = meta.description?.['$'] ?? null;
 
@@ -231,6 +243,7 @@ export function normalizeSemanticScholarWork(paper: SemanticScholarPaper): Resea
     source: 'semanticscholar' as ResearchSource,
     host: cleanHost(oaPdfUrl || (doi ? `https://doi.org/${doi}` : null)),
     isOa: Boolean(oaPdfUrl),
+    citedByCount: paper.citationCount ?? null,
   };
 }
 
