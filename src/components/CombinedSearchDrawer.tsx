@@ -345,6 +345,11 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
 
               {researchState.status === 'success' && (
                 <div className="max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
+                  {researchState.meta?.psychologyFilterRelaxed && (
+                    <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      Точных совпадений по психологии нет — показаны результаты без фильтра.
+                    </p>
+                  )}
                   <ResearchResultsList
                     results={researchState.results.slice(0, 15)}
                     query={researchQuery}

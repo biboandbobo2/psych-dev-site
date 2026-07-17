@@ -245,7 +245,14 @@ export default function ResearchPage() {
         <div className="mt-4">
           <div className="mb-3 text-sm text-muted">
             Нашли {sortedResults.length} работ
-            {state.meta?.psychologyFilterApplied ? ' (только психология)' : ''}.
+            {state.meta?.psychologyFilterApplied && !state.meta?.psychologyFilterRelaxed
+              ? ' (только психология)'
+              : ''}.
+            {state.meta?.psychologyFilterRelaxed ? (
+              <span className="ml-2 text-amber-700">
+                Точных совпадений по психологии нет — показаны результаты без фильтра.
+              </span>
+            ) : null}
             {state.meta?.queryVariantsUsed && state.meta.queryVariantsUsed.length > 1 ? (
               <span className="ml-2 text-xs text-accent">
                 Запросы: {state.meta.queryVariantsUsed.join(', ')}

@@ -7,6 +7,7 @@ const GENERIC_STOPWORDS = new Set(['study', 'research', 'theory', 'analysis', 'r
 const EN_STOPWORDS = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'for', 'in']);
 export const RU_STOPWORDS = new Set([
   'и', 'в', 'на', 'по', 'о', 'об', 'от', 'для', 'как', 'снижения', 'коррекции', 'средство',
+  'у', 'с', 'со', 'к', 'из', 'за', 'под', 'над', 'при', 'про', 'без', 'до', 'после', 'а', 'но',
 ]);
 
 // Dictionary for translating Russian psychology terms to English
