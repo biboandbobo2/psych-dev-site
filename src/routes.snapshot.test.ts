@@ -10,7 +10,7 @@ const {
   CLINICAL_ROUTE_BY_PERIOD,
   GENERAL_ROUTE_CONFIG,
   GENERAL_ROUTE_BY_PERIOD,
-} = routesModule as {
+} = routesModule as unknown as {
   SITE_NAME: string;
   NOT_FOUND_REDIRECT: boolean;
   ROUTE_CONFIG: Array<Record<string, unknown>>;

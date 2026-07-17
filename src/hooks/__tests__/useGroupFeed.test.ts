@@ -63,7 +63,7 @@ describe('updateGroupEvent — wave 5.1', () => {
     });
 
     expect(updateDocMock).toHaveBeenCalledTimes(1);
-    const [, payload] = updateDocMock.mock.calls[0] as [unknown, Record<string, unknown>];
+    const [, payload] = updateDocMock.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
     expect(payload).toHaveProperty('startAt');
     expect(payload).toHaveProperty('endAt');
     expect(payload.isAllDay).toBe(false);
@@ -91,7 +91,7 @@ describe('updateGroupEvent — wave 5.1', () => {
     });
 
     expect(updateDocMock).toHaveBeenCalledTimes(1);
-    const [, payload] = updateDocMock.mock.calls[0] as [unknown, Record<string, unknown>];
+    const [, payload] = updateDocMock.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
     expect(payload.zoomLink).toBeNull();
     expect(payload.siteLink).toBeNull();
     expect(payload.longText).toBeNull();
@@ -132,7 +132,7 @@ describe('updateGroupAnnouncement — wave 5.1', () => {
   it('обновляет text как строкой (legacy сигнатура)', async () => {
     await updateGroupAnnouncement('g1', 'ann-1', 'Новый текст объявления');
     expect(updateDocMock).toHaveBeenCalledTimes(1);
-    const [, payload] = updateDocMock.mock.calls[0] as [unknown, Record<string, unknown>];
+    const [, payload] = updateDocMock.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
     expect(payload).toEqual({ text: 'Новый текст объявления' });
   });
 
@@ -141,13 +141,13 @@ describe('updateGroupAnnouncement — wave 5.1', () => {
       text: 'Новый текст',
       newsType: 'content',
     });
-    const [, payload] = updateDocMock.mock.calls[0] as [unknown, Record<string, unknown>];
+    const [, payload] = updateDocMock.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
     expect(payload).toEqual({ text: 'Новый текст', newsType: 'content' });
   });
 
   it('сбрасывает newsType когда передан null', async () => {
     await updateGroupAnnouncement('g1', 'ann-1', { text: 'X X X', newsType: null });
-    const [, payload] = updateDocMock.mock.calls[0] as [unknown, Record<string, unknown>];
+    const [, payload] = updateDocMock.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
     expect(payload.newsType).toBeNull();
   });
 

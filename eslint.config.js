@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'functions/lib', 'docs/']),
+  // .claude/ — worktrees фоновых агентов (полные копии репо): без ignore
+  // eslint проваливается в них и ложно краснеет
+  globalIgnores(['dist', 'functions/lib', 'docs/', '.claude/']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

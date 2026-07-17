@@ -10,4 +10,7 @@ npm run check-console:staged
 echo "🔍 Проверка инициализации модулей…"
 npm run check:init
 
+echo "📏 Светофор размеров файлов…"
+npm run -s check:file-sizes
+
 echo "✅ pre-commit OK"
