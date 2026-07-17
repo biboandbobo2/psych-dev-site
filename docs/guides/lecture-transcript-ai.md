@@ -49,6 +49,7 @@
 - Пользователь выбирает курс целиком или отдельные лекции.
 - `useLectureAnswer` отправляет `POST /api/lectures` с `action: "answer"`, вопросом, `courseId` и опциональным списком `lectureKeys`.
 - Сервер поднимает релевантные lecture chunks, вызывает Gemini и возвращает чистый ответ плюс citations с deep links обратно в transcript panel.
+- Второй потребитель того же контракта — конспект-режим: выделение текста в транскрипте → «Объяснить» (`useLectureExplain` в `src/features/periods/hooks/`) шлёт тот же `POST /api/lectures` с `lectureKeys = [текущая лекция]`; ключ строится на клиенте как `courseId::periodId::youtubeVideoId` (формат `buildLectureKey` из `shared/lectureRag/chunker.ts`). Выделение также даёт поиск статей: короткое — как есть, длинное — чипы из понятий урока (`selectionChips.ts`).
 
 Ключевые файлы:
 

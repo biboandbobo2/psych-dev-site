@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { debugError, debugLog } from '../../../lib/debug';
-import { buildAuthorizedHeaders } from '../../../lib/apiAuth';
-import { buildGeminiApiKeyHeader, sanitizeGeminiApiKey } from '../../../lib/geminiKey';
+import { fetchLectureAnswer } from '../lib/fetchLectureAnswer';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import {
   LECTURE_AI_MAX_QUESTION_LENGTH,
@@ -138,36 +137,22 @@ export function useLectureAnswer(): UseLectureAnswerReturn {
     });
 
     try {
-      const geminiApiKeyOverride = sanitizeGeminiApiKey(geminiApiKey);
-      const headers = await buildAuthorizedHeaders({
-        'Content-Type': 'application/json',
-        ...buildGeminiApiKeyHeader(geminiApiKeyOverride),
+      const result = await fetchLectureAnswer({
+        query: trimmedQuery,
+        courseId: selectedCourseId,
+        lectureKeys: useWholeCourse ? [] : selectedLectureKeys,
+        geminiApiKey,
       });
-      const res = await fetch('/api/lectures', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          action: 'answer',
-          query: trimmedQuery,
-          courseId: selectedCourseId,
-          lectureKeys: useWholeCourse ? [] : selectedLectureKeys,
-        }),
-      });
-
-      const data = await res.json();
-      if (!data.ok) {
-        throw new Error(data.error || 'Не удалось получить ответ по лекциям');
-      }
 
       setState({
         status: 'success',
-        answer: data.answer || '',
-        citations: data.citations || [],
+        answer: result.answer,
+        citations: result.citations,
         error: null,
-        tookMs: data.tookMs ?? null,
+        tookMs: result.tookMs,
       });
 
-      debugLog('[useLectureAnswer] Answer received, citations:', data.citations?.length ?? 0);
+      debugLog('[useLectureAnswer] Answer received, citations:', result.citations.length);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось получить ответ по лекциям';
       setState({

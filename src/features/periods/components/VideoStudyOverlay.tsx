@@ -7,6 +7,8 @@ import { AskLectureQuestionModal } from './AskLectureQuestionModal';
 import { VideoResourceLinks } from './VideoResourceLinks';
 import { StudyVideoPlayer, type StudyVideoPlayerHandle } from './StudyVideoPlayer';
 import { VideoTranscriptPanel } from './VideoTranscriptPanel';
+import { TranscriptExplainCard } from './TranscriptExplainCard';
+import { useLectureExplain } from '../hooks/useLectureExplain';
 import { useVideoTranscript } from '../../../hooks';
 
 interface VideoStudyOverlayProps {
@@ -27,6 +29,8 @@ interface VideoStudyOverlayProps {
   initialSeekMs?: number | null;
   initialQuery?: string | null;
   highlightedStartMs?: number | null;
+  /** Понятия урока для поисковых чипов при выделении в транскрипте */
+  concepts?: string[];
 }
 
 type SidebarMode = 'notes' | 'transcript';
@@ -49,6 +53,7 @@ export function VideoStudyOverlay({
   initialSeekMs = null,
   initialQuery = null,
   highlightedStartMs = null,
+  concepts = [],
 }: VideoStudyOverlayProps) {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(initialPanel);
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
@@ -68,6 +73,18 @@ export function VideoStudyOverlay({
   const lectureResourceId = (youtubeVideoId ?? originalUrl) || embedUrl;
   const isTranscriptMode = sidebarMode === 'transcript';
   const transcriptState = useVideoTranscript(youtubeVideoId, isOpen, isTranscriptMode);
+  // Формат ключа — как в shared/lectureRag/chunker.ts (buildLectureKey);
+  // если lecture sources под этим ключом нет, /api/lectures деградирует до fallback
+  const lectureKey =
+    periodId && youtubeVideoId ? `${courseId}::${periodId}::${youtubeVideoId}` : null;
+  const lectureExplain = useLectureExplain(courseId, lectureKey);
+  const clearExplain = lectureExplain.clear;
+
+  useEffect(() => {
+    if (!isOpen) {
+      clearExplain();
+    }
+  }, [isOpen, clearExplain]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -244,16 +261,25 @@ export function VideoStudyOverlay({
             <span className="h-1 w-10 rounded-full bg-white/25 transition hover:bg-white/40" />
           </button>
           {isTranscriptMode ? (
-            <VideoTranscriptPanel
-              error={transcriptState.error}
-              focusTimeMs={transcriptFocusMs}
-              highlightedStartMs={highlightedStartMs}
-              isChecking={transcriptState.isChecking}
-              isLoading={transcriptState.isLoading}
-              onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
-              query={initialQuery}
-              transcript={transcriptState.transcript}
-            />
+            <>
+              <VideoTranscriptPanel
+                error={transcriptState.error}
+                focusTimeMs={transcriptFocusMs}
+                highlightedStartMs={highlightedStartMs}
+                isChecking={transcriptState.isChecking}
+                isLoading={transcriptState.isLoading}
+                onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
+                query={initialQuery}
+                transcript={transcriptState.transcript}
+                concepts={concepts}
+                onExplainSelection={lectureExplain.explain}
+              />
+              <TranscriptExplainCard
+                state={lectureExplain.state}
+                onClose={clearExplain}
+                onCitationClick={(startMs) => playerRef.current?.seekToMs(startMs)}
+              />
+            </>
           ) : (
             <VideoStudyNotesPanel
               courseId={courseId}
