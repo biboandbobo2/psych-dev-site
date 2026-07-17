@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import type { ResearchWork } from '../types';
+import type { ResearchSource, ResearchWork } from '../types';
+
+const SOURCE_LABELS: Record<ResearchSource, string> = {
+  openalex: 'OpenAlex',
+  openaire: 'OpenAIRE',
+  semanticscholar: 'Semantic Scholar',
+};
 
 interface ResearchResultsListProps {
   results: ResearchWork[];
@@ -50,7 +56,7 @@ function ResultCard({ work, query }: { work: ResearchWork; query?: string }) {
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1 flex-1 min-w-0">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted flex-wrap">
-            {work.source === 'openalex' ? 'OpenAlex' : 'Semantic Scholar'}
+            {SOURCE_LABELS[work.source] ?? work.source}
             {work.host ? (
               <span className="rounded-full bg-accent-50 px-2 py-0.5 text-accent text-[11px] font-semibold">
                 {work.host}

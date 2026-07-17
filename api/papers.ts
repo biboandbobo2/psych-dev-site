@@ -210,6 +210,9 @@ export default async function handler(req: any, res: any) {
     let psychologyFilterRelaxed = false;
     let psychologyFiltered = psychologyOnly
       ? deduped.filter((work) => {
+          // OpenAlex уже отфильтрован ML-концептами психологии — лексический
+          // словарь применяем только к источникам без классификации
+          if (work.source === 'openalex') return true;
           const score = getPsychologyScore(work.title, work.paragraph, work.language, work.venue);
           return score >= PSYCHOLOGY_SCORE_THRESHOLD;
         })

@@ -77,7 +77,15 @@ export async function fetchSemanticScholar(
   url.searchParams.set('limit', String(Math.min(limit, 100))); // SS max is 100
   url.searchParams.set('fields', 'paperId,title,year,authors,abstract,externalIds,openAccessPdf,venue');
 
-  const response = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) });
+  // Без ключа SS почти всегда отвечает 429 (общий пул); ключ выдаётся по форме
+  const apiKey = process.env.SEMANTIC_SCHOLAR_API_KEY;
+  const headers: Record<string, string> | undefined = apiKey ? { 'x-api-key': apiKey } : undefined;
+
+  let response = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(10000) });
+  if (response.status === 429) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    response = await fetch(url.toString(), { headers, signal: AbortSignal.timeout(5000) });
+  }
   if (!response.ok) throw new Error(`Semantic Scholar ${response.status}`);
 
   const payload = await response.json();

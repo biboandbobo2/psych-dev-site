@@ -27,6 +27,20 @@ export type OpenAIREResult = {
   };
 };
 
+// OpenAIRE отдаёт язык словом («German»); slice(0,2) давал несуществующие коды («ge»)
+const OPENAIRE_LANG_MAP: Record<string, string> = {
+  english: 'en',
+  russian: 'ru',
+  german: 'de',
+  french: 'fr',
+  spanish: 'es',
+  'spanish; castilian': 'es',
+  portuguese: 'pt',
+  italian: 'it',
+  ukrainian: 'uk',
+  undetermined: 'unknown',
+};
+
 export type SemanticScholarPaper = {
   paperId?: string;
   title?: string;
@@ -182,13 +196,9 @@ export function normalizeOpenAIREWork(result: OpenAIREResult): ResearchWork | nu
     }
   }
 
-  const langClass = meta.language?.['@classname'] ?? 'unknown';
+  const langClass = (meta.language?.['@classname'] ?? 'unknown').toLowerCase();
   const language =
-    langClass === 'English'
-      ? 'en'
-      : langClass === 'Russian'
-        ? 'ru'
-        : langClass.toLowerCase().slice(0, 2);
+    OPENAIRE_LANG_MAP[langClass] ?? (langClass.length === 2 ? langClass : 'unknown');
 
   const paragraph = meta.description?.['$'] ?? null;
 
