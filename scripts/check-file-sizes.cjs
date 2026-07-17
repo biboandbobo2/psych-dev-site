@@ -14,7 +14,6 @@ const LIMIT = 500;
 const ROOTS = ['src', 'api', 'functions/src', 'server'];
 
 const LEGACY = new Set([
-  'src/pages/DisorderTable.tsx',
   'src/pages/Timeline.tsx',
   'server/api/timelineBiographyFacts.ts',
   'src/pages/timeline/components/TimelineCanvas.tsx',
