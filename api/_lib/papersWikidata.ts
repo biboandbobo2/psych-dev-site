@@ -13,12 +13,6 @@ export type WikidataEntity = {
   aliases?: Record<string, Array<{ value: string }>>;
 };
 
-export type QueryVariantSource = {
-  variant: string;
-  lang: string;
-  source: 'wikidata' | 'original';
-};
-
 class TtlCache<T> {
   private store = new Map<string, { value: T; expiresAt: number }>();
   constructor(private readonly ttlMs: number) {}
@@ -104,19 +98,4 @@ export async function wdGetEntities(
   }
   ENTITY_CACHE.set(cacheKey, entities);
   return entities;
-}
-
-export function extractLabelsAndAliases(entity: WikidataEntity): QueryVariantSource[] {
-  const variants: QueryVariantSource[] = [];
-  for (const [langCode, labelObj] of Object.entries(entity.labels ?? {})) {
-    const val = (labelObj as any).value?.trim();
-    if (val) variants.push({ variant: val, lang: langCode, source: 'wikidata' });
-  }
-  for (const [langCode, aliasArr] of Object.entries(entity.aliases ?? {})) {
-    for (const aliasObj of aliasArr as any[]) {
-      const val = aliasObj.value?.trim();
-      if (val) variants.push({ variant: val, lang: langCode, source: 'wikidata' });
-    }
-  }
-  return variants;
 }

@@ -309,7 +309,7 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
                     placeholder="Например: attachment theory, executive functions..."
                     className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-fg shadow-sm focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/30"
                   />
-                  <p className="text-xs text-muted">Минимум 3 символа. Источники: OpenAlex, Semantic Scholar.</p>
+                  <p className="text-xs text-muted">Минимум 3 символа. Источники: OpenAlex, OpenAIRE, Semantic Scholar.</p>
                 </div>
 
                 <div className="flex items-center justify-between">
