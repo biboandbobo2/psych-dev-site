@@ -172,11 +172,35 @@ export function validateYouTubeUrl(url: string): { valid: boolean; error?: strin
 }
 
 /**
- * Преобразование YouTube URL в embed URL
+ * Извлечение стартовой секунды из YouTube URL (?t=95, ?t=1m35s, ?start=95)
+ */
+export function extractYouTubeStartSeconds(url: string): number | null {
+  const match = url.match(/[?&](?:t|start)=([0-9hms]+)/i);
+  if (!match) return null;
+
+  const value = match[1];
+  if (/^\d+$/.test(value)) {
+    const seconds = parseInt(value, 10);
+    return seconds > 0 ? seconds : null;
+  }
+
+  const parts = value.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/i);
+  if (!parts) return null;
+  const seconds =
+    parseInt(parts[1] || '0', 10) * 3600 +
+    parseInt(parts[2] || '0', 10) * 60 +
+    parseInt(parts[3] || '0', 10);
+  return seconds > 0 ? seconds : null;
+}
+
+/**
+ * Преобразование YouTube URL в embed URL (с сохранением стартовой секунды)
  */
 export function getYouTubeEmbedUrl(url: string): string | null {
   const videoId = extractYouTubeVideoId(url);
   if (!videoId) return null;
 
-  return `https://www.youtube-nocookie.com/embed/${videoId}`;
+  const start = extractYouTubeStartSeconds(url);
+  const startParam = start ? `?start=${start}` : '';
+  return `https://www.youtube-nocookie.com/embed/${videoId}${startParam}`;
 }
