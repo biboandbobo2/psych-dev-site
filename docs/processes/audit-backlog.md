@@ -15,7 +15,9 @@
 | HR-1 | ✅ | Защита `/api/books` | Закрыта волной 6 (2026-04-26): strict BYOK без env fallback, auth Bearer на search/answer, public только list/snippet с rate-limit, CORS allowlist через appOrigins. Плюс счётчик BYOK-usage в профиле через aiUsageDaily/{uid}_{day}. |
 | HR-2 | ✅ | Закрыть booking email-login auth bypass | Закрыта 2026-04-28 (wave-9, C1 + часть C2): `api/auth.ts` удалён целиком, AuthModal использует только `sendSignInLinkToEmail`. Освобождена 1 Vercel function (9/12 → 8/12). |
 | CQ-6 | ✅ | Починить TS lint + console guardrails | Закрыта волной 7 (2026-04-27): ESLint покрывает ts/tsx через typescript-eslint v8, `no-console: error` + overrides, `check-console --all` для validate / `:staged` для pre-commit, api/ под покрытием. 50 runtime `console.*` → `debugLog/debugError/debugWarn` (или whitelist для prod-error reporting). |
-| CQ-7 | M (M) | Рефакторинг новых монолитов и дублей | Большая часть закрыта (сверка 2026-07-11). Осталось: state-хуки `DisorderTable` (766 строк, 30 useState) + `sharedApiRuntime` для booking/papers/automation |
+| CQ-7 | M (M) | Рефакторинг новых монолитов и дублей | State-хуки DisorderTable закрыты 2026-07-17 (766→397, 7 хуков). Осталось: `sharedApiRuntime` для booking/papers/automation |
+| CQ-8 | L (—) | Легаси-список светофора размеров (6 файлов) | Рефакторинг по мере касания зоны; список в `scripts/check-file-sizes.cjs`, гейт подсказывает удаление |
+| PT-1 | M (M) | Продуктовая телеметрия (события использования) | `feature_events` + разметка ~8 точек + админ-сводка; ответ на «что реально используют студенты» и долю mobile |
 | MP-1 | ✅ | Изоляция бизнес-логики Timeline (lazy-hooks) | Хуки вынесены в `src/pages/timeline/hooks/`, чанк `timeline-hooks` в vite.config.js (2026-04) |
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
@@ -222,9 +224,16 @@ CI часть (осталась):
   - [x] `api/lectureTranscriptFallback.ts` не существует, 0 вызовов.
   - [x] ~~Вернуть lazy для `PeriodPage`/`DynamicCoursePeriodPage`~~ — снято: eager зафиксирован как сознательное решение в CLAUDE.md (быстрый отклик), пункт противоречил ему.
 - **Осталось:**
-  - [ ] `DisorderTable.tsx`: вынести state-логику контейнера в хуки (30 useState: фильтры, выбор ячеек, модалки, поиск) — компоненты уже вынесены, осталась state-каша.
+  - [x] `DisorderTable.tsx`: state-логика вынесена в 7 хуков (`src/pages/disorderTable/hooks/`) + PageHeader — 766→397 строк (2026-07-17, ветка `chore/architecture-gates`).
   - [ ] Свести на `sharedApiRuntime.ts` оставшиеся API: `api/booking.ts` (свои CORS+init ×3), `api/papers.ts`-контур, оба `api/timeline-biography-*-automation.ts`. Без нарушения Vercel function limit.
   - [ ] Синхронизировать `docs/reference/routes.md`, `docs/guides/booking-system.md`, `docs/reference/firestore-schema.md` после исправлений.
+
+### CQ‑8. Легаси-список светофора размеров (P: L, E: по мере касания)
+- **Контекст:** гейт `scripts/check-file-sizes.cjs` (2026-07-17) блокирует новые файлы >500 строк в pre-commit и validate; легаси-список заморожен. Из стартовых 9 файлов три разобраны в тот же день (billingExport 810→388, timelineBiographyPipeline 900→341, DisorderTable 766→397), осталось 6.
+- **Политика:** это НЕ кампания. Файл рефакторится при следующем содержательном касании его зоны; после — удалить запись из `LEGACY` в скрипте (гейт сам подсказывает, когда файл похудел).
+- **Осталось (6):**
+  - [ ] Timeline-зона — трогать при следующей работе над Timeline, не под ногами у живого редизайна: `src/pages/Timeline.tsx` (743), `src/pages/timeline/components/TimelineCanvas.tsx` (568), `src/pages/timeline/utils/exporters/svgRenderer.ts` (548)
+  - [ ] Biography-зона — при следующем заходе в контур: `server/api/timelineBiographyFacts.ts` (636), `server/api/timelineBiographyLint.ts` (548), `server/api/timelineBiographyHeuristics.ts` (515)
 
 ### BPT. Biography Pipeline tech debt (P: M, E: L)
 - **Источник:** ревью после squash-merge `feature/video-study-notes` (PR #65, 2026-05-03). Pipeline функционально работает, но 4 файла стали монолитами, есть дубли legacy-кода и пробелы в test coverage.
@@ -719,6 +728,25 @@ CI часть (осталась):
 - **Приоритет:** 🔴 Высокий (блокирует функцию "раскрыть цитату")
 - **Оценка:** 5 минут (клик в консоли, индексация 2-10 минут)
 - **Статус:** ⏳ В процессе (индексы создаются)
+
+---
+
+## 📈 Продуктовая телеметрия
+
+### PT‑1. События использования фич + админ-сводка (P: M, E: M)
+- **Мотивация:** фич на платформе больше, чем понимания их использования (поиск статей, book RAG, лекционный AI, конспект-режим, selection-меню, timeline, тесты) — данных о том, что из этого студенты реально трогают, нет. Гипотеза «студенты идут в глубину» проверяется только данными; заодно узнаем долю мобильных сессий (конспект и selection-меню сейчас desktop-only). Дополняет LP-1: там ошибки/observability, здесь продуктовые события.
+- **Принципы:**
+  - Агрегаты, не слежка: uid хешировать, тексты запросов/заметок не сохранять.
+  - Никакого нового файла в `api/` (инвариант Vercel = 12 функций): запись напрямую в Firestore с клиента.
+  - Fire-and-forget: сбой телеметрии никогда не влияет на UX.
+- **Задачи:**
+  - [ ] Схема `feature_events` в Firestore (`hashedUid`, `event`, `courseId`/`periodId?`, `platform: mobile|desktop`, `createdAt`) + rules (create — авторизованным, read — только админ) + обновить `docs/reference/firestore-schema.md`.
+  - [ ] Клиентский helper `src/lib/telemetry.ts`: `trackFeatureEvent(event, meta?)` — fire-and-forget, дедуп повторов внутри сессии.
+  - [ ] Разметить ~8 точек: конспект-режим открыт; транскрипт включён; selection «Объяснить»; selection «Статьи»; research-поиск выполнен; book-RAG вопрос; лекционный AI вопрос; тест начат/завершён.
+  - [ ] Админ-сводка в существующей админке (через `src/pages/lazy.ts`): счётчики по событиям и неделям, split mobile/desktop; чтение Firestore напрямую, без нового API.
+  - [ ] Ретеншн (можно отложить до первых данных): месячная агрегация `feature_events_monthly` + чистка сырых событий шагом существующего weekly scheduled job, без новой функции.
+  - [ ] QA-лог + короткая заметка в docs: куда смотреть и как читать цифры.
+- **Критерий успеха:** через 2–4 недели данных можно ответить — какие 3 фичи используются чаще всего, какие не используются вовсе, и какая доля учебных сессий мобильная.
 
 ---
 
