@@ -127,36 +127,28 @@ async function processBatchWithRetry(texts: string[]): Promise<number[][]> {
  */
 async function processBatch(texts: string[]): Promise<number[][]> {
   const client = await getClient();
-  const results: number[][] = [];
 
-  // Gemini API обрабатывает тексты по одному, но мы можем делать параллельные запросы
-  // Ограничиваем параллелизм чтобы не превысить rate limit
-  const PARALLEL_LIMIT = 5;
+  // Один запрос на весь батч: contents принимает массив, ответ содержит
+  // embeddings[] в том же порядке. Дневная квота считает запросы, поэтому
+  // батч в BATCH_SIZE текстов тратит 1 единицу квоты вместо BATCH_SIZE.
+  const result = await client.models.embedContent({
+    model: EMBEDDING_MODEL,
+    contents: texts.map((text) => ({ role: 'user', parts: [{ text: truncateText(text) }] })),
+    config: {
+      outputDimensionality: EMBEDDING_DIMS,
+    },
+  });
 
-  for (let i = 0; i < texts.length; i += PARALLEL_LIMIT) {
-    const chunk = texts.slice(i, i + PARALLEL_LIMIT);
-    const embeddings = await Promise.all(
-      chunk.map(async (text) => {
-        const result = await client.models.embedContent({
-          model: EMBEDDING_MODEL,
-          contents: [{ role: 'user', parts: [{ text: truncateText(text) }] }],
-          config: {
-            outputDimensionality: EMBEDDING_DIMS,
-          },
-        });
-
-        const embedding = result.embeddings?.[0]?.values;
-        if (!embedding) {
-          throw new Error('No embedding in response');
-        }
-        return embedding;
-      })
-    );
-
-    results.push(...embeddings);
+  const embeddings = result.embeddings?.map((e) => e.values);
+  if (
+    !embeddings ||
+    embeddings.length !== texts.length ||
+    embeddings.some((v) => !v || v.length !== EMBEDDING_DIMS)
+  ) {
+    throw new Error('Invalid batch embedding response');
   }
 
-  return results;
+  return embeddings as number[][];
 }
 
 /**
