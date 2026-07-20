@@ -1,5 +1,5 @@
 import { createRef } from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StudyVideoPlayer, type StudyVideoPlayerHandle } from './StudyVideoPlayer';
 
@@ -110,5 +110,30 @@ describe('StudyVideoPlayer', () => {
       currentTimeMs: null,
       paused: true,
     });
+  });
+
+  it('показывает сообщение о недоступном YouTube, если iframe api не загрузился', async () => {
+    // Свежий модуль: кэш промиса загрузки api живёт на уровне модуля
+    // и после предыдущих тестов уже resolved.
+    vi.resetModules();
+    const { StudyVideoPlayer: FreshStudyVideoPlayer } = await import('./StudyVideoPlayer');
+
+    render(
+      <FreshStudyVideoPlayer
+        embedUrl="https://www.youtube.com/embed/video-1?si=test"
+        title="Тестовое видео"
+      />
+    );
+
+    const script = document.getElementById('youtube-iframe-api');
+    expect(script).not.toBeNull();
+    script?.dispatchEvent(new Event('error'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/YouTube не отвечает/)).toBeInTheDocument();
+    });
+
+    const link = screen.getByRole('link', { name: 'Открыть видео на YouTube' });
+    expect(link).toHaveAttribute('href', 'https://www.youtube.com/watch?v=video-1');
   });
 });

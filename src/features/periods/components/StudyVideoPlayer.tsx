@@ -4,6 +4,7 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import { parseYouTubeEmbedConfig, isYouTubePausedState } from '../utils/youtubePlayer';
 
@@ -36,6 +37,10 @@ type YouTubeWindow = Window & typeof globalThis & {
 
 let youtubeIframeApiPromise: Promise<YouTubePlayerApi> | null = null;
 
+// Замедленный (не заблокированный) YouTube в РФ грузит скрипт бесконечно:
+// без таймаута промис никогда не отклонится и fallback не покажется.
+const YOUTUBE_IFRAME_API_TIMEOUT_MS = 10_000;
+
 function hasReadyPlayerMethods(
   player: InstanceType<YouTubePlayerApi['Player']> | null
 ): player is InstanceType<YouTubePlayerApi['Player']> {
@@ -60,16 +65,23 @@ function loadYouTubeIframeApi() {
   }
 
   youtubeIframeApiPromise = new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      youtubeIframeApiPromise = null;
+      reject(new Error('YouTube IFrame API load timed out'));
+    }, YOUTUBE_IFRAME_API_TIMEOUT_MS);
+
     const resolveIfReady = () => {
       if (!youtubeWindow.YT?.Player) {
         return false;
       }
 
+      window.clearTimeout(timeoutId);
       resolve(youtubeWindow.YT);
       return true;
     };
 
     const handleLoadError = () => {
+      window.clearTimeout(timeoutId);
       youtubeIframeApiPromise = null;
       reject(new Error('Failed to load YouTube IFrame API'));
     };
@@ -135,6 +147,7 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
     ref
   ) {
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const [playerLoadFailed, setPlayerLoadFailed] = useState(false);
     const playerRef = useRef<InstanceType<YouTubePlayerApi['Player']> | null>(null);
     const pendingSeekMsRef = useRef<number | null>(null);
     const watchReachedRef = useRef(false);
@@ -219,6 +232,7 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
 
     useEffect(() => {
       watchReachedRef.current = false;
+      setPlayerLoadFailed(false);
       clearProgressInterval();
     }, [embedUrl]);
 
@@ -278,6 +292,9 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
         })
         .catch(() => {
           playerRef.current = null;
+          if (!destroyed) {
+            setPlayerLoadFailed(true);
+          }
         });
 
       return () => {
@@ -288,6 +305,26 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
         playerRef.current = null;
       };
     }, [playerConfig, watchThreshold]);
+
+    if (playerLoadFailed && playerConfig) {
+      return (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-card2 px-6 text-center">
+          <p className="text-sm leading-6 text-muted">
+            Не удалось загрузить плеер: YouTube не отвечает. Если вы в России,
+            YouTube может быть замедлен провайдером — включите VPN и обновите
+            страницу.
+          </p>
+          <a
+            className="text-sm font-semibold text-accent no-underline hover:no-underline focus-visible:no-underline"
+            href={`https://www.youtube.com/watch?v=${playerConfig.videoId}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Открыть видео на YouTube
+          </a>
+        </div>
+      );
+    }
 
     if (!playerConfig) {
       return (
