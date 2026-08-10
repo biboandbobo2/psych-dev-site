@@ -1,5 +1,49 @@
 # Performance metrics (2025-11-12)
 
+## Замер 2026-07-20 — цепочка первой загрузки (prod, baseline для LS-задач)
+
+Среда: десктоп (Mac, быстрый канал), Chrome через Playwright, `https://academydom.com`, профиль с сохранённой auth-сессией.
+
+| Этап | Время от старта | Комментарий |
+|---|---|---|
+| TTFB (HTML, Cloudflare → Vercel) | 0,32 с | сам хостинг не узкое место |
+| JS входа + vendor скачан и запущен | ~0,9–1,0 с | vendor 266 КБ gzip (587 мс) |
+| `identitytoolkit …accounts:lookup` | 1,10 → 2,18 с | 1,08 с; Firestore ждёт auth-токен и не стартует раньше |
+| Первый Firestore `Listen/channel` | 2,20 с | чтения periods + clinicalTopics + generalTopics (полные документы) |
+| Данные дочитаны, сплеш исчезает | ~3,4–3,5 с | первый контент |
+
+Отдельно: `index.html` содержит 11 `modulepreload` — на старте качаются чанки **всех** lazy-разделов, суммарно ~540 КБ gzip (admin 105, tests 40, booking 30, research 14, timeline-* ~30, vendor 266, index 48 и пр.) для любого посетителя, включая анонимного.
+
+Нюанс: замер с сохранённой сессией; у нового посетителя `accounts:lookup` может быть короче или отсутствовать, но порядок цепочки (JS → auth init → Firestore → рендер) тот же. На слабых сетях каждый этап растягивается в 2–4 раза.
+
+### Как перемерять (после каждой LS-задачи)
+
+DevTools Console на проде, cache disabled, hard reload, после полной загрузки:
+
+```js
+// 1) Цепочка запросов: старт +длительность, КБ
+performance.getEntriesByType('resource')
+  .filter(r => /firestore|identitytoolkit|\.js($|\?)/.test(r.name))
+  .map(r => `${Math.round(r.startTime)}ms +${Math.round(r.duration)}ms ${Math.round((r.transferSize||0)/1024)}KB ${r.name.split('/').pop().slice(0,60)}`);
+
+// 2) LCP — главная метрика «дало ли результат»
+new PerformanceObserver(l => console.log('LCP', Math.round(l.getEntries().pop().startTime), 'ms'))
+  .observe({ type: 'largest-contentful-paint', buffered: true });
+
+// 3) Суммарный JS на старте
+Math.round(performance.getEntriesByType('resource')
+  .filter(r => /\.js($|\?)/.test(r.name))
+  .reduce((s, r) => s + (r.transferSize||0), 0) / 1024) + ' KB gzip';
+```
+
+Для «слабой сети»: DevTools → Network throttling «Fast 4G» + CPU 4× slowdown, тот же LCP. Мерить два сценария: первый визит (инкогнито) и повторный (обычное окно). Результаты дописывать в журнал ниже.
+
+### Журнал перезамеров LS
+
+| Дата | После задачи | LCP первый визит (десктоп) | LCP повторный | JS на старте | Примечание |
+|---|---|---|---|---|---|
+| 2026-07-20 | — (baseline) | ~3,5 с | ~3,5 с (кэша нет) | 540 КБ gzip | до LS-задач; 4G не мерили |
+
 ## 1.1 Build snapshot
 - `npm run build` (UTC 2025-11-12 11:09)
   - `dist/assets/index-BogIFvUc.js`: 5,959,563 B (~5.96 MB) │ gzip 3,866,831 B (~3.87 MB)

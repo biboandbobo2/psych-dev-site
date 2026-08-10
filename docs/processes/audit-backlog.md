@@ -18,6 +18,13 @@
 | CQ-7 | M (M) | Рефакторинг новых монолитов и дублей | State-хуки DisorderTable закрыты 2026-07-17 (766→397, 7 хуков). Осталось: `sharedApiRuntime` для booking/papers/automation |
 | CQ-8 | L (—) | Легаси-список светофора размеров (6 файлов) | Рефакторинг по мере касания зоны; список в `scripts/check-file-sizes.cjs`, гейт подсказывает удаление |
 | PT-1 | M (M) | Продуктовая телеметрия (события использования) | `feature_events` + разметка ~8 точек + админ-сводка; ответ на «что реально используют студенты» и долю mobile |
+| LS-1 | H (S-M) | SWR-кэш курс-данных в localStorage | Повторный визит: контент 3,5 с → ≤1,2 с |
+| LS-2 | H (S) | Убрать глобальный сплеш-гейт AppShell | /home и не-курсовые страницы не ждут Firestore |
+| LS-3 | M (M) | Nav-индекс: 1 маленький док вместо 3 полных коллекций | Payload навигации ≤10 КБ; первый визит −0,5–1 с |
+| LS-4 | M (M-L) | Публичный контент как static JSON за Cloudflare | Первый визит: LCP ≤1,5 с desktop / ≤3 с 4G; без auth/Firestore в критическом пути |
+| LS-5 | M (S-M) | Лишние modulepreload (admin/tests/booking качаются всем) | JS на старте 540 → ≤250 КБ gzip |
+| LS-6 | L (S) | Мгновенный статический сплеш + редизайн экрана загрузки | Первый видимый отклик ~1,0 с → ~0,4 с |
+| LS-7 | L (S) | preconnect googleapis + self-host шрифтов | −100–300 мс; внешних хостов в критическом пути 3 → 0 |
 | MP-1 | ✅ | Изоляция бизнес-логики Timeline (lazy-hooks) | Хуки вынесены в `src/pages/timeline/hooks/`, чанк `timeline-hooks` в vite.config.js (2026-04) |
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
@@ -72,6 +79,21 @@
 ---
 
 ## 🔴 High Priority
+
+### LS. Скорость загрузки сайта (группа задач, baseline 2026-07-20)
+
+> **Проблема:** любая страница (включая `/home`) не рендерится, пока не завершатся три полных чтения коллекций Firestore (`periods` + `clinicalTopics` + `generalTopics`), которые стартуют только после инициализации Firebase Auth (гейт: `src/app/AppShell.tsx:284`). Плюс `index.html` предзагружает чанки всех lazy-разделов (~540 КБ gzip). Итог: ~3,5 с до контента на быстром десктопе, 8–15 с на слабых сетях, кэша нет — повторный визит платит полную цену.
+> **Baseline-цепочка и методика перезамера:** `docs/reference/perf-metrics.md`, раздел «Замер 2026-07-20» + журнал перезамеров там же. После каждой задачи — перезамер и строка в журнал: это ответ на «дало ли результат».
+
+- **LS-1 (P: H, E: S-M). SWR-кэш курс-данных в localStorage.** `usePeriods` / `useClinicalTopics` / `useGeneralTopics` рендерят сразу из localStorage-кэша, обновляются из Firestore в фоне (контент меняется редко). Файлы: `src/hooks/usePeriods.ts`, `useClinicalTopics.ts`, `useGeneralTopics.ts`. **Метрика:** повторный визит, LCP 3,5 с → ≤1,2 с (десктоп).
+- **LS-2 (P: H, E: S). Убрать глобальный сплеш-гейт.** `/home`, `/booking`, `/about`, `/profile` не должны ждать periods — гейт перенести на уровень курсовых страниц/сайдбара. Файл: `src/app/AppShell.tsx` (строки ~284–288). **Метрика:** `/home` для нового посетителя рендерится без LoadingSplash и без ожидания Firestore (LCP ≈ времени JS, ~1,2 с десктоп).
+- **LS-3 (P: M, E: M). Лёгкий nav-индекс вместо трёх полных коллекций.** Для навигации нужны только id/title/order/published, а качаются полные документы со всем контентом уроков. Сводный док `courseNavIndex` (обновлять при сохранении в админке или onWrite-функцией) → 1 маленький read. **Метрика:** payload данных до первого рендера ≤10 КБ; холодный заход: 3 collection-read → 1 doc-read; первый визит −0,5–1 с.
+- **LS-4 (P: M, E: M-L). Публичный контент как static JSON за Cloudflare — первая загрузка без Firestore и auth.** Публичные course-данные не требуют прав: генерить JSON при деплое (или CF onWrite → файл в public/Storage) и отдавать с того же домена; клиент качает его параллельно с JS (`<link rel="preload">`), Firebase подключается после первого рендера для приватных фич. Главный рычаг для новых посетителей. **Метрика:** первый визит: LCP ≤1,5 с десктоп / ≤3 с throttled 4G; в критическом пути нет запросов к `identitytoolkit` / `firestore.googleapis.com`. Радикальное продолжение (отдельное решение, сюда не входит) — prerender/SSR публичных страниц.
+- **LS-5 (P: M, E: S-M). Убрать лишние modulepreload.** `dist/index.html` предзагружает 11 чанков, включая admin (105 КБ gzip), tests (40), booking (30), timeline-* — любому анонимному посетителю. Найти статические импорты, затягивающие lazy-чанки в граф входа (madge / rollup-plugin-visualizer), и разорвать. **Метрика:** JS на старте 540 КБ gzip → ≤250; modulepreload 11 → ≤4 (vendor, index, shared-constants).
+- **LS-6 (P: L, E: S). Мгновенный статический сплеш/скелетон + редизайн экрана загрузки.** До запуска React — белый экран ~1 с. Статический сплеш прямо в `index.html` (визуально совпадающий с `LoadingSplash`, чтобы React перехватывал бесшовно), дальше — скелетон layout вместо центрированного текста; опционально ротация коротких фактов по психологии развития. **Метрика:** первый видимый отклик ~1,0 с → ~0,4 с (TTFB+ε).
+- **LS-7 (P: L, E: S). preconnect + self-host шрифтов.** `<link rel="preconnect">` к `firestore.googleapis.com` и `identitytoolkit.googleapis.com`; шрифты с cdn.jsdelivr.net и fonts.googleapis.com перенести в бандл (@fontsource уже в стеке). **Метрика:** −100–300 мс на DNS/TLS-хендшейках; внешних хостов в критическом пути 3 → 0.
+
+**Рекомендуемый порядок:** LS-2 → LS-1 (дешёвые, сразу видный эффект) → LS-5 → LS-7 → LS-3 или сразу LS-4 (LS-4 покрывает LS-3 для анонимов) → LS-6.
 
 ### HR‑2. ✅ Закрыть booking email-login auth bypass — РЕШЕНО (wave-9, 2026-04-28)
 - **Решение:** Вариант 3 «email-link для всех» (после консультации с хозяином помещения, см. [BOOKING_AUTH_C1_DECISION_2026-04-28.md](../archive/reports/BOOKING_AUTH_C1_DECISION_2026-04-28.md)). Endpoint `POST /api/auth?action=loginByEmail` удалён вместе с файлом — выдача custom token по verified email больше невозможна.
