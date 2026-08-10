@@ -167,6 +167,10 @@ export function useBiographyImport({
         } else if (data?.status === 'error') {
           reject(new Error((data.error as string) || 'Cloud Function вернула ошибку'));
         }
+      }, (listenError) => {
+        // Без error-callback отказ подписки (permission-denied, обрыв сети)
+        // проглатывается молча и модалка виснет навечно.
+        reject(new Error(`Подписка на прогресс оборвалась: ${listenError.message}`));
       });
     });
 

@@ -15,6 +15,7 @@
 import { buildBiographyGapFillingPrompt } from './timelineBiographyPrompts.js';
 import { fetchWikipediaPlainExtract } from './timelineBiographyWikipedia.js';
 import {
+  confirmDeathYearAgainstLead,
   filterFactsBeyondDeath,
   resolveGapFillingMode,
   stripFabricatedYearClusters,
@@ -138,7 +139,10 @@ export async function runBiographyPipelineCore(params: {
   // доезжать до composition.
   const extractedBirthFact = allFacts.find(f => f.category === 'birth' || f.eventType === 'birth');
   const extractedBirthYear = extractedBirthFact?.year ?? null;
-  const extractedDeathYear = findDeathFact(allFacts, extractedBirthYear ?? undefined)?.year ?? null;
+  const extractedDeathYear = confirmDeathYearAgainstLead(
+    findDeathFact(allFacts, extractedBirthYear ?? undefined)?.year ?? null,
+    fullExtract
+  );
   {
     const beforeFilter = allFacts.length;
     allFacts = filterFactsBeyondDeath(allFacts, extractedDeathYear);

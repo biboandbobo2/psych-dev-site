@@ -271,3 +271,41 @@ export function parseMergedMarkupJsonResponse(rawText: string): Map<number, Merg
   }
   return entries;
 }
+
+/** Парсер composition-ответа. Lite-модель изредка возвращает валидный объект
+ *  с хвостом (повтор объекта или текст) — прямой JSON.parse падает с
+ *  «Unexpected non-whitespace character after JSON», и composition уходит
+ *  в fallback без веток. Берём первый сбалансированный top-level объект.
+ *  Бросает, если объекта нет или он оборван — caller делает fallback. */
+export function parseCompositionJsonResponse(rawText: string): unknown {
+  const cleaned = rawText.replace(/^```(?:json)?\s*\n?/gm, '').replace(/\n?```\s*$/gm, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // trailing junk — вырезаем первый сбалансированный объект ниже
+  }
+  const start = cleaned.indexOf('{');
+  if (start < 0) throw new Error('composition response has no JSON object');
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < cleaned.length; i++) {
+    const ch = cleaned[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (inString) {
+      if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return JSON.parse(cleaned.slice(start, i + 1));
+    }
+  }
+  throw new Error('composition response JSON object is not balanced');
+}

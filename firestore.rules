@@ -326,9 +326,15 @@ service cloud.firestore {
     }
 
     // Biography pipeline jobs (server writes via Admin SDK, user reads own).
+    // resource == null обязателен: клиент подписывается (onSnapshot) на
+    // biographyJobs/{jobId} ДО того, как CF создаст документ. Без этого
+    // listen на несуществующий документ падает permission-denied и навсегда
+    // закрывается — модалка импорта виснет (регрессия MR-8 deny-all).
+    // jobId — UUID; при создании документа с чужим userId правило
+    // пересчитается и подписка отвалится.
     match /biographyJobs/{jobId} {
       allow read: if isAuthenticated() &&
-        resource.data.userId == request.auth.uid;
+        (resource == null || resource.data.userId == request.auth.uid);
       allow write: if false;
     }
 

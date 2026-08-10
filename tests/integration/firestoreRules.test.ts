@@ -153,9 +153,13 @@ describe('server-only коллекции не утекают клиенту', ()
     await assertFails(getDocs(collection(db, 'books')));
   });
 
-  it('обычный авторизованный: get videoTranscripts/<id> → denied', async () => {
+  // videoTranscripts — метаданные намеренно публичны (payload-файлы публичны
+  // в Storage, клиентский useVideoTranscript читает их напрямую, см. rules);
+  // server-only остаётся только write.
+  it('videoTranscripts: get → success (метаданные публичны), write → denied', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();
-    await assertFails(getDoc(doc(db, 'videoTranscripts', 'v1')));
+    await assertSucceeds(getDoc(doc(db, 'videoTranscripts', 'v1')));
+    await assertFails(setDoc(doc(db, 'videoTranscripts', 'v1'), { videoId: 'hacked' }));
   });
 
   it('обычный авторизованный: list lecture_chunks → denied', async () => {
@@ -180,6 +184,20 @@ describe('per-uid ограничения уважаются (без catch-all ov
   it('не-owner: get чужой biographyJobs/<job> → denied', async () => {
     const db = testEnv.authenticatedContext('mallory').firestore();
     await assertFails(getDoc(doc(db, 'biographyJobs', 'job-alice')));
+  });
+
+  // Реальный flow импорта биографии: клиент подписывается на
+  // biographyJobs/{jobId} ДО того, как CF создаст документ. Чтение
+  // несуществующего документа должно быть разрешено, иначе listener
+  // получает permission-denied и навсегда закрывается (модалка виснет).
+  it('authenticated: get несуществующей biographyJobs/<job> (подписка до создания) → success', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(getDoc(doc(db, 'biographyJobs', 'job-not-created-yet')));
+  });
+
+  it('unauthenticated: get несуществующей biographyJobs/<job> → denied', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(db, 'biographyJobs', 'job-not-created-yet')));
   });
 
   it('обычный пользователь: get свой aiUsageDaily → success', async () => {

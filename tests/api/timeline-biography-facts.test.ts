@@ -65,6 +65,30 @@ describe('filterFactsBeyondDeath', () => {
   });
 });
 
+// Модель изредка помечает category='death' смерть родственника/коллеги —
+// для живой персоны post-death фильтр тогда вырезал реальные поздние факты
+// (Iggy Pop: смерть Скотта Эштона 2014 → срезаны события 2025+). Год смерти
+// подтверждается по lead статьи: у умершей персоны он в первом предложении.
+describe('confirmDeathYearAgainstLead', () => {
+  it('подтверждает год смерти, стоящий в lead статьи', async () => {
+    const { confirmDeathYearAgainstLead } = await import('../../server/api/timelineBiographyFacts.js');
+    const lead = 'Зи́гмунд Фрейд (6 мая 1856, Пршибор — 23 сентября 1939, Лондон) — австрийский психолог.';
+    expect(confirmDeathYearAgainstLead(1939, lead)).toBe(1939);
+  });
+
+  it('отклоняет год смерти, которого нет в начале статьи (живая персона)', async () => {
+    const { confirmDeathYearAgainstLead } = await import('../../server/api/timelineBiographyFacts.js');
+    const lead = 'Iggy Pop (born James Newell Osterberg Jr., April 21, 1947) is an American singer. ';
+    const article = lead + 'x'.repeat(700) + ' Scott Asheton died in 2014.';
+    expect(confirmDeathYearAgainstLead(2014, article)).toBeNull();
+  });
+
+  it('null проходит насквозь', async () => {
+    const { confirmDeathYearAgainstLead } = await import('../../server/api/timelineBiographyFacts.js');
+    expect(confirmDeathYearAgainstLead(null, 'любой текст')).toBeNull();
+  });
+});
+
 describe('resolveGapFillingMode', () => {
   const makeFact = (year: number | undefined) => ({
     year,

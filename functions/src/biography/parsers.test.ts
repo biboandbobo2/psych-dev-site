@@ -187,3 +187,28 @@ describe('parseMergedMarkupJsonResponse', () => {
     expect(parsed.get(2)).toMatchObject({ month: null, importance: 3, people: ['Вейерштрасс'] });
   });
 });
+
+// Lite-модель изредка возвращает валидный composition-объект с хвостом
+// (повтор объекта/текст) — прямой JSON.parse падал и composition уходила
+// в fallback без веток (Iggy Pop, 2026-08-10).
+describe('parseCompositionJsonResponse', () => {
+  it('парсит чистый JSON-объект и объект в markdown-фенсах', async () => {
+    const { parseCompositionJsonResponse } = await import('./parsers.js');
+    const obj = { mainLine: [0, 1], branches: [{ name: 'Ветка', facts: [2] }] };
+    expect(parseCompositionJsonResponse(JSON.stringify(obj))).toEqual(obj);
+    expect(parseCompositionJsonResponse('```json\n' + JSON.stringify(obj) + '\n```')).toEqual(obj);
+  });
+
+  it('берёт первый сбалансированный объект при хвосте после JSON', async () => {
+    const { parseCompositionJsonResponse } = await import('./parsers.js');
+    const obj = { mainLine: [0, 1], branches: [{ name: 'Скобки } в { имени', facts: [2] }] };
+    const raw = `${JSON.stringify(obj, null, 2)}\n{"mainLine": [9], "branches": []}`;
+    expect(parseCompositionJsonResponse(raw)).toEqual(obj);
+  });
+
+  it('бросает на оборванном объекте (caller делает fallback)', async () => {
+    const { parseCompositionJsonResponse } = await import('./parsers.js');
+    expect(() => parseCompositionJsonResponse('{"mainLine": [1, 2')).toThrow();
+    expect(() => parseCompositionJsonResponse('никакого JSON тут нет')).toThrow();
+  });
+});

@@ -542,6 +542,26 @@ export function mergeFactCandidates(params: {
 /** Грейс-период после смерти: факты позже отбрасываются до composition. */
 export const POST_DEATH_GRACE_YEARS = 10;
 
+/** Окно lead-абзаца: у умершей персоны год смерти всегда стоит в первом
+ *  предложении статьи («(1856 — 1939)»); 600 символов покрывают длинные
+ *  имена с транскрипциями (проверено на всех benchmark-фикстурах). */
+const DEATH_YEAR_LEAD_WINDOW_CHARS = 600;
+
+/** Подтверждает извлечённый год смерти по lead статьи. Модель изредка
+ *  помечает category='death' смерть родственника/коллеги — для живой персоны
+ *  post-death фильтр тогда вырезал реальные поздние факты (Iggy Pop:
+ *  смерть Скотта Эштона 2014 → срезаны события 2025+). Для умершей персоны
+ *  год смерти обязан встречаться в начале статьи; иначе считаем смерть
+ *  неподтверждённой и фильтр не применяем. */
+export function confirmDeathYearAgainstLead(
+  deathYear: number | null,
+  articleExtract: string
+): number | null {
+  if (deathYear == null) return null;
+  const lead = articleExtract.slice(0, DEATH_YEAR_LEAD_WINDOW_CHARS);
+  return new RegExp(`\\b${deathYear}\\b`).test(lead) ? deathYear : null;
+}
+
 /** Убирает факты позже deathYear + грейс (посмертные памятники, издания и т.п.).
  *  Недатированные факты сохраняются. */
 export function filterFactsBeyondDeath(

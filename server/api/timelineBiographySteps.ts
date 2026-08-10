@@ -13,6 +13,7 @@ import {
 } from './timelineBiographyPrompts.js';
 import {
   parseAnnotationResponse,
+  parseCompositionJsonResponse,
   parseMergedMarkupJsonResponse,
   parseMergedMarkupResponse,
   parseRedakturaResponse,
@@ -325,7 +326,7 @@ export async function composeBiographyFactsIntoTimeline(params: {
       'composition'
     );
     params.deps.onTokens?.(extractTotalTokens(result));
-    composition = JSON.parse(collectGeminiResultText(result)) as BiographyCompositionResult;
+    composition = parseCompositionJsonResponse(collectGeminiResultText(result)) as BiographyCompositionResult;
   } catch (error) {
     // Прод-семантика CF: падение composition не роняет импорт —
     // fallback: все факты на главной линии, без веток.

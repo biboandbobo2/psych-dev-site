@@ -10,6 +10,7 @@ export {
   parseRedakturaResponse,
   parseMergedMarkupResponse,
   parseMergedMarkupJsonResponse,
+  parseCompositionJsonResponse,
   type AnnotationEntry,
   type MergedMarkupEntry,
 } from '../../../server/api/timelineBiographyParsers.js';
