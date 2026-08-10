@@ -247,6 +247,60 @@ export function useTimelineBranch({
   );
 
   /**
+   * Сдвинуть выбранную ветку по горизонтали вместе с её событиями и
+   * под-ветками, НЕ трогая origin-событие на родительской линии (раньше
+   * подвинуть ветку можно было только перетащив origin). Состав ветки
+   * собирается по branchId-ссылкам — источнику истины о принадлежности.
+   */
+  const moveBranch = useCallback(
+    (deltaX: number) => {
+      if (!selectedEdge || deltaX === 0) return;
+      // Левый край мира фиксирован (x=0), правый растягивается динамически
+      // (worldWidth в Timeline.tsx) — влево дальше ~края не пускаем.
+      const newX = Math.max(selectedEdge.x + deltaX, 120);
+      const appliedDelta = newX - selectedEdge.x;
+      if (appliedDelta === 0) return;
+
+      const edgeIdsToMove = new Set<string>([selectedEdge.id]);
+      const nodeIdsToMove = new Set<string>();
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const node of nodes) {
+          if (node.branchId && edgeIdsToMove.has(node.branchId) && !nodeIdsToMove.has(node.id)) {
+            nodeIdsToMove.add(node.id);
+            grew = true;
+          }
+        }
+        for (const edge of edges) {
+          if (!edgeIdsToMove.has(edge.id) && nodeIdsToMove.has(edge.nodeId)) {
+            edgeIdsToMove.add(edge.id);
+            grew = true;
+          }
+        }
+      }
+
+      const edgeXById = new Map(edges.map((e) => [e.id, e.x]));
+      const updatedEdges = edges.map((e) =>
+        edgeIdsToMove.has(e.id) ? { ...e, x: e.x + appliedDelta } : e
+      );
+      const updatedNodes = nodes.map((n) => {
+        if (!n.branchId || !edgeIdsToMove.has(n.branchId)) return n;
+        const base = edgeXById.get(n.branchId) ?? LINE_X_POSITION;
+        return {
+          ...n,
+          x: (n.x ?? base) + appliedDelta,
+          parentX: (n.parentX ?? base) + appliedDelta,
+        };
+      });
+      setNodes(updatedNodes);
+      setEdges(updatedEdges);
+      onHistoryRecord?.(updatedNodes, updatedEdges);
+    },
+    [selectedEdge, nodes, edges, setNodes, setEdges, onHistoryRecord]
+  );
+
+  /**
    * Extend branch for bulk event creation
    */
   const handleExtendBranchForBulk = useCallback(
@@ -290,6 +344,7 @@ export function useTimelineBranch({
     extendBranch,
     updateBranchLength,
     renameBranch,
+    moveBranch,
     deleteBranch,
     handleExtendBranchForBulk,
     handleSelectBranch,

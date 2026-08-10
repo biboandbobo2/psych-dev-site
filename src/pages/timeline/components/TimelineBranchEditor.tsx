@@ -12,6 +12,8 @@ interface TimelineBranchEditorProps {
   eventsOnBranch: number;
   onBranchYearsChange: (value: string) => void;
   onRenameBranch: (label: string) => void;
+  /** Сдвиг ветки по горизонтали вместе с событиями (origin остаётся на месте). */
+  onMoveBranch: (deltaX: number) => void;
   onDeleteBranch: () => void;
   onClose: () => void;
 }
@@ -24,6 +26,7 @@ export function TimelineBranchEditor({
   eventsOnBranch,
   onBranchYearsChange,
   onRenameBranch,
+  onMoveBranch,
   onDeleteBranch,
   onClose,
 }: TimelineBranchEditorProps) {
@@ -101,6 +104,32 @@ export function TimelineBranchEditor({
             style={{ fontFamily: 'Georgia, serif' }}
           />
         </label>
+      </div>
+
+      <div className="mb-3">
+        <span className="text-xs font-medium text-slate-700 mb-1 block" style={{ fontFamily: 'Georgia, serif' }}>
+          Позиция — ветка сдвигается вместе с событиями
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onMoveBranch(-200)}
+            className="flex-1 px-3 py-2 rounded-xl border border-purple-300 bg-white hover:bg-purple-50 transition text-sm text-slate-700"
+            style={{ fontFamily: 'Georgia, serif' }}
+            title="Сдвинуть ветку влево (событие-источник остаётся на месте)"
+          >
+            ◀ Влево
+          </button>
+          <button
+            type="button"
+            onClick={() => onMoveBranch(200)}
+            className="flex-1 px-3 py-2 rounded-xl border border-purple-300 bg-white hover:bg-purple-50 transition text-sm text-slate-700"
+            style={{ fontFamily: 'Georgia, serif' }}
+            title="Сдвинуть ветку вправо (событие-источник остаётся на месте)"
+          >
+            Вправо ▶
+          </button>
+        </div>
       </div>
 
       <div className="mb-1">

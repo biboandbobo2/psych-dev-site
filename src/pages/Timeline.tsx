@@ -665,6 +665,7 @@ export default function Timeline() {
           branchYears={branchHook.branchYears}
           onBranchYearsChange={branchHook.setBranchYears}
           onRenameBranch={branchHook.renameBranch}
+          onMoveBranch={branchHook.moveBranch}
           onDeleteBranch={branchHook.deleteBranch}
           onHideBranchEditor={branchHook.handleHideBranchEditor}
           ageMax={ageMax}

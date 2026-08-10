@@ -24,6 +24,9 @@ export type RenderSvgOptions = {
   // Crop the SVG above this age to avoid exporting empty future slices.
   // Without it the renderer keeps the full canvas.
   topAge?: number;
+  // Горизонтальные границы контента (computeExportXRange): viewBox
+  // расширяется, если ветки вышли за пределы мира 0..worldWidth.
+  xRange?: { minX: number; maxX: number };
   // «Парадный» режим: без сетки, с заголовком, легендой сфер и подписью.
   poster?: PosterOptions;
 };
@@ -150,12 +153,17 @@ async function serializeSvg(svg: SVGSVGElement, options: RenderSvgOptions = {}) 
       : DEFAULT_HEIGHT;
   const usefulTopWorldY = DEFAULT_HEIGHT - usefulWorldHeight;
 
-  const width = DEFAULT_WIDTH + PADDING_X * 2;
+  // По умолчанию мир 0..DEFAULT_WIDTH; xRange только расширяет его, если
+  // контент (ветки биографии) вышел за края — иначе он обрезался в экспорте.
+  const worldLeft = Math.min(options.xRange?.minX ?? 0, 0);
+  const worldRight = Math.max(options.xRange?.maxX ?? DEFAULT_WIDTH, DEFAULT_WIDTH);
+
+  const width = worldRight - worldLeft + PADDING_X * 2;
   const height = usefulWorldHeight + PADDING_TOP + PADDING_BOTTOM;
 
   clone.setAttribute('width', String(width));
   clone.setAttribute('height', String(height));
-  clone.setAttribute('viewBox', `-${PADDING_X} ${usefulTopWorldY} ${width} ${height}`);
+  clone.setAttribute('viewBox', `${worldLeft - PADDING_X} ${usefulTopWorldY} ${width} ${height}`);
 
   const exportRoot = clone.querySelector<SVGGElement>('[data-export-root="true"]');
   if (exportRoot) {
@@ -164,7 +172,7 @@ async function serializeSvg(svg: SVGSVGElement, options: RenderSvgOptions = {}) 
 
   if (options.poster) {
     appendPosterDecorations(clone, options.poster, {
-      viewLeft: -PADDING_X,
+      viewLeft: worldLeft - PADDING_X,
       viewTop: usefulTopWorldY,
       width,
       height,

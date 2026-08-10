@@ -45,6 +45,37 @@ export function computeExportTopAge(data: TimelineExportPayload): number {
   return Math.min(Math.ceil(used) + EXPORT_TOP_AGE_BUFFER, data.ageMax);
 }
 
+/** Запас по X вокруг крайних событий/веток — под подписи и иконки. */
+const EXPORT_X_BUFFER = 240;
+
+/**
+ * Горизонтальные границы контента для экспорта — зеркало computeExportTopAge
+ * по оси X. Раскладка биографических веток может уводить x за пределы мира
+ * (0..worldWidth); без этого такие ветки обрезаются в PNG/PDF. Рендерер
+ * расширяет viewBox до min(minX, 0)..max(maxX, worldWidth), так что для
+ * обычных таймлайнов результат не меняется.
+ */
+export function computeExportXRange(data: TimelineExportPayload): { minX: number; maxX: number } {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  for (const node of data.nodes) {
+    if (typeof node.x === 'number') {
+      minX = Math.min(minX, node.x - EXPORT_X_BUFFER);
+      maxX = Math.max(maxX, node.x + EXPORT_X_BUFFER);
+    }
+  }
+  for (const edge of data.edges) {
+    if (typeof edge.x === 'number') {
+      minX = Math.min(minX, edge.x - EXPORT_X_BUFFER);
+      maxX = Math.max(maxX, edge.x + EXPORT_X_BUFFER);
+    }
+  }
+  if (minX === Infinity) {
+    return { minX: 0, maxX: 0 };
+  }
+  return { minX, maxX };
+}
+
 /**
  * Generates a unique filename with timestamp
  * Format: timeline_2024-01-15_14-30-45.ext

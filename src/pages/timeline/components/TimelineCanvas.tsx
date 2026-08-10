@@ -369,6 +369,45 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                       {branchTitle}
                     </text>
                   )}
+                  {/* Якорь основания: origin-событие лежит на стволе, и когда
+                      ветка отведена в сторону, связь теряется — дублируем
+                      подпись origin у основания; клик открывает его карточку. */}
+                  {originNode && shouldDrawConnector && (
+                    <g
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNodeClick(originNode.id);
+                      }}
+                      className="cursor-pointer"
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <title>{`От события: ${originNode.label}`}</title>
+                      <circle
+                        cx={edge.x}
+                        cy={startY}
+                        r={isSelected ? 9 : 7}
+                        fill={edge.color}
+                        stroke="#ffffff"
+                        strokeWidth={2}
+                      />
+                      <text
+                        x={edge.x}
+                        y={startY + 26}
+                        fontSize={16}
+                        fontStyle="italic"
+                        fill="#94a3b8"
+                        textAnchor="middle"
+                        fontFamily="Georgia, serif"
+                        pointerEvents="none"
+                      >
+                        {`от: ${
+                          originNode.label.length > 36
+                            ? `${originNode.label.slice(0, 35)}…`
+                            : originNode.label
+                        }`}
+                      </text>
+                    </g>
+                  )}
                   {/* «Хвостик»: перетаскивание меняет длину ветки. */}
                   {onBranchResizeStart && (
                     <g

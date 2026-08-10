@@ -1,6 +1,7 @@
 import {
   canvasToBlob,
   computeExportTopAge,
+  computeExportXRange,
   debugExport,
   downloadBlob,
   generateFilename,
@@ -45,8 +46,10 @@ export async function exportTimelinePoster(
 ) {
   debugExport('Starting poster export');
   const topAge = computeExportTopAge(data);
+  const xRange = computeExportXRange(data);
   const { canvas } = await renderSvgToCanvas(svg, {
     topAge,
+    xRange,
     poster: {
       title: title.trim() || 'Линия жизни',
       subtitle: buildPosterSubtitle(data),

@@ -3,6 +3,7 @@ import type { TimelineExportPayload } from './common';
 import {
   buildPdfWithImage,
   computeExportTopAge,
+  computeExportXRange,
   dataUriToUint8Array,
   debugExport,
   downloadBlob,
@@ -18,7 +19,8 @@ export async function exportTimelinePDF(
 ) {
   debugExport('Starting PDF export');
   const topAge = computeExportTopAge(data);
-  const { canvas, width, height } = await renderSvgToCanvas(svg, { topAge });
+  const xRange = computeExportXRange(data);
+  const { canvas, width, height } = await renderSvgToCanvas(svg, { topAge, xRange });
   const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.92);
   const jpegBytes = dataUriToUint8Array(jpegDataUrl);
   const pdfBytes = buildPdfWithImage(jpegBytes, width, height, periodization, data);

@@ -75,6 +75,12 @@ export function russianDateToISO(dateStr: string | undefined): string | undefine
   return `${year}-${month}-${day}`;
 }
 
+/** Дорожки веток обязаны помещаться в мир холста (0..4000, линия на 2000):
+ *  |offset| ≤ 1800 оставляет ~200px под подписи у краёв. Раньше при
+ *  исчерпании слотов fallback уходил от центра без ограничения — ветки
+ *  оказывались за холстом и резались в PNG/PDF-экспорте. */
+export const MAX_BRANCH_X_OFFSET = 1800;
+
 export function pickBranchX(sphere: TimelineSphere, startAge: number, endAge: number, occupied: OccupiedBranchLane[]) {
   const slotOrder = BRANCH_SLOT_ORDER[sphere] || BRANCH_SLOT_ORDER.other;
   // Д-B7 (история): x был идентичностью ветки в wire-формате, лейн-шеринг
@@ -82,29 +88,33 @@ export function pickBranchX(sphere: TimelineSphere, startAge: number, endAge: nu
   // ссылка node.branchId — коллизия x данных не портит. Уникальность x
   // сохранена как ПРЕЗЕНТАЦИЯ: ветки на одном x рисуются друг на друге.
   const collidesAt = (x: number) => occupied.some((lane) => lane.x === x);
+  const claim = (x: number) => {
+    occupied.push({ x, startAge, endAge });
+    return x;
+  };
 
   for (const slotIndex of slotOrder) {
-    const x = LINE_X_POSITION + BRANCH_X_OFFSETS[slotIndex];
-    if (!collidesAt(x)) {
-      occupied.push({ x, startAge, endAge });
-      return x;
+    const slotOffset = BRANCH_X_OFFSETS[slotIndex];
+    if (Math.abs(slotOffset) > MAX_BRANCH_X_OFFSET) continue;
+    const x = LINE_X_POSITION + slotOffset;
+    if (!collidesAt(x)) return claim(x);
+  }
+
+  // Д-B4: канонические дорожки заняты пересекающимися окнами. Уникальность x
+  // обязательна (Д-B7: wire-формат не даёт веткам делить x), но вместо ухода
+  // за холст уплотняем сетку внутри мира: полушаг 200px между каноническими
+  // дорожками, затем шаг 1px как гарантированный предохранитель.
+  for (const step of [200, 1]) {
+    for (let offset = step; offset <= MAX_BRANCH_X_OFFSET; offset += step) {
+      for (const x of [LINE_X_POSITION - offset, LINE_X_POSITION + offset]) {
+        if (!collidesAt(x)) return claim(x);
+      }
     }
   }
 
-  // Д-B4: все слоты заняты пересекающимися окнами. Раньше здесь ветка
-  // парковалась на занятый slotOrder[0] — shared-x с пересекающимся окном
-  // делает принадлежность событий произвольной (класс Д5). Уходим дальше
-  // от центра с тем же шагом сетки, пока не найдём свободный x.
-  let offset = Math.max(...BRANCH_X_OFFSETS) + 400;
-  for (;;) {
-    for (const x of [LINE_X_POSITION - offset, LINE_X_POSITION + offset]) {
-      if (!collidesAt(x)) {
-        occupied.push({ x, startAge, endAge });
-        return x;
-      }
-    }
-    offset += 400;
-  }
+  // 3600+ веток — недостижимо (композиция отдаёт ≤ ~15); держим прежнюю
+  // семантику «всегда вернуть x», паркуясь на границе мира.
+  return claim(LINE_X_POSITION + MAX_BRANCH_X_OFFSET);
 }
 
 export function normalizeWhitespace(value: string) {

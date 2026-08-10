@@ -61,4 +61,22 @@ describe('pickBranchX', () => {
     }
     expect(new Set(xs).size).toBe(xs.length);
   });
+
+  // Раньше fallback уходил от центра без ограничения — ветки 9+ оказывались
+  // за холстом (мир 0..4000) и резались в PNG/PDF-экспорте.
+  it('все дорожки остаются в пределах мира холста даже при 30 пересекающихся ветках', async () => {
+    const { pickBranchX, MAX_BRANCH_X_OFFSET } = await import(
+      '../../server/api/timelineBiographyHeuristics.js'
+    );
+    const { LINE_X_POSITION } = await import('../../server/api/timelineBiographyTypes.js');
+    const occupied: Array<{ x: number; startAge: number; endAge: number }> = [];
+    const xs: number[] = [];
+    for (let i = 0; i < 30; i++) {
+      xs.push(pickBranchX('career', 10, 90, occupied));
+    }
+    expect(new Set(xs).size).toBe(xs.length);
+    for (const x of xs) {
+      expect(Math.abs(x - LINE_X_POSITION)).toBeLessThanOrEqual(MAX_BRANCH_X_OFFSET);
+    }
+  });
 });

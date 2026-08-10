@@ -52,6 +52,7 @@ interface TimelineRightPanelProps {
   branchYears: string;
   onBranchYearsChange: (value: string) => void;
   onRenameBranch: (label: string) => void;
+  onMoveBranch: (deltaX: number) => void;
   onDeleteBranch: () => void;
   onHideBranchEditor: () => void;
   ageMax: number;
@@ -103,6 +104,7 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
     branchYears,
     onBranchYearsChange,
     onRenameBranch,
+    onMoveBranch,
     onDeleteBranch,
     onHideBranchEditor,
     ageMax,
@@ -292,6 +294,7 @@ export function TimelineRightPanel(props: TimelineRightPanelProps) {
                 eventsOnBranch={branchInfo?.eventsCount ?? 0}
                 onBranchYearsChange={onBranchYearsChange}
                 onRenameBranch={onRenameBranch}
+                onMoveBranch={onMoveBranch}
                 onDeleteBranch={onDeleteBranch}
                 onClose={onHideBranchEditor}
               />

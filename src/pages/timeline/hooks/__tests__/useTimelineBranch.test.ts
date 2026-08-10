@@ -336,6 +336,51 @@ describe('useTimelineBranch', () => {
     });
   });
 
+  describe('moveBranch', () => {
+    // Ветка e1 от origin o (на стволе) с событием b1 и под-веткой e2 от b1
+    // с событием b2. Сдвиг двигает ветку, её события и под-ветки; origin
+    // остаётся на месте.
+    const origin: NodeT = { id: 'o', age: 10, label: 'Origin', isDecision: false };
+    const b1: NodeT = { id: 'b1', age: 12, x: 2400, parentX: 2400, branchId: 'e1', label: 'B1', isDecision: false };
+    const b2: NodeT = { id: 'b2', age: 14, x: 2800, parentX: 2800, branchId: 'e2', label: 'B2', isDecision: false };
+    const e1: EdgeT = { id: 'e1', x: 2400, startAge: 10, endAge: 20, color: '#000', nodeId: 'o' };
+    const e2: EdgeT = { id: 'e2', x: 2800, startAge: 12, endAge: 18, color: '#000', nodeId: 'b1' };
+
+    function setup() {
+      return renderHook(() =>
+        useTimelineBranch({
+          nodes: [origin, b1, b2], edges: [e1, e2], setNodes, setEdges, ageMax: 100, onHistoryRecord, onClearForm,
+        })
+      );
+    }
+
+    it('двигает ветку с событиями и под-ветками, origin остаётся на стволе', () => {
+      const { result } = setup();
+      act(() => result.current.setSelectedBranchId('e1'));
+      act(() => result.current.moveBranch(-200));
+
+      const updatedEdges = setEdges.mock.calls[0]![0] as EdgeT[];
+      expect(updatedEdges.find((e) => e.id === 'e1')).toMatchObject({ x: 2200 });
+      expect(updatedEdges.find((e) => e.id === 'e2')).toMatchObject({ x: 2600 });
+
+      const updatedNodes = setNodes.mock.calls[0]![0] as NodeT[];
+      // origin не тронут — тот же объект по ссылке
+      expect(updatedNodes.find((n) => n.id === 'o')).toBe(origin);
+      expect(updatedNodes.find((n) => n.id === 'b1')).toMatchObject({ x: 2200, parentX: 2200 });
+      expect(updatedNodes.find((n) => n.id === 'b2')).toMatchObject({ x: 2600, parentX: 2600 });
+      expect(onHistoryRecord).toHaveBeenCalled();
+    });
+
+    it('не уводит основание за левый край мира', () => {
+      const { result } = setup();
+      act(() => result.current.setSelectedBranchId('e1'));
+      act(() => result.current.moveBranch(-5000));
+
+      const updatedEdges = setEdges.mock.calls[0]![0] as EdgeT[];
+      expect(updatedEdges.find((e) => e.id === 'e1')).toMatchObject({ x: 120 });
+    });
+  });
+
   describe('notify вместо alert', () => {
     it('extendBranch зовёт notify, когда он передан', () => {
       const notify = vi.fn();

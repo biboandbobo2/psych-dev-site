@@ -1,6 +1,7 @@
 import {
   canvasToBlob,
   computeExportTopAge,
+  computeExportXRange,
   debugExport,
   downloadBlob,
   generateFilename,
@@ -15,7 +16,8 @@ export async function exportTimelinePNG(
 ) {
   debugExport('Starting PNG export');
   const topAge = data ? computeExportTopAge(data) : undefined;
-  const { canvas } = await renderSvgToCanvas(svg, { topAge });
+  const xRange = data ? computeExportXRange(data) : undefined;
+  const { canvas } = await renderSvgToCanvas(svg, { topAge, xRange });
   const blob = await canvasToBlob(canvas, 'image/png', 1);
   downloadBlob(blob, filename || generateFilename('png'));
   debugExport('PNG export complete');
