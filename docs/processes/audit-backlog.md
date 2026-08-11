@@ -212,6 +212,16 @@ CI часть (осталась):
 - [x] ✅ Удаление дополнительных холстов в multi-canvas timeline (2026-05-04, коммит `157f664`). «×» в выпадающем списке + confirm-модалка; последний холст удалить нельзя.
 - [x] ✅ Адаптивный экспорт `PDF`/`PNG` (2026-05-04). `computeExportTopAge` берёт `max(currentAge, latest node, latest edge.endAge) + 5`-летний буфер, clamp к `ageMax`. `renderSvgToCanvas({ topAge })` обрезает viewBox сверху, поэтому пустые декады в будущее в файл не попадают.
 - [x] ✅ `Очистить всё` приводит холст к empty-canvas state (purpose-fixed PR #65 через `onAfterClearAll` в Timeline.tsx — сбрасывает `birthDetails`/`selectedPeriodization`/`currentAge`/`ageMax`). Регрессионный тест на инвариант `hasTimelineContent` зафиксирован 2026-05-04.
+- [ ] **Возможное (2026-08-11, по итогам импорта Iggy Pop/Bowie; без нового повода не делать):**
+  - **C2.** Перетаскивание линии ветки мышью (горизонтальный drag). Кнопки
+    «Влево/Вправо» в Редакторе ветки (`moveBranch`) уже закрывают задачу;
+    drag — полировка с риском конфликтов жестов (drag событий, resize ветки,
+    панорамирование). Делать, только если кнопки будут раздражать на практике.
+  - **A3.** Динамическая ширина мира холста от контента (сейчас 4000px,
+    рост только вправо в `worldWidth` Timeline.tsx). После ограничения
+    раскладки веток (`MAX_BRANCH_X_OFFSET`) и динамических X-bounds экспорта
+    (`computeExportXRange`) сценария-оправдания нет; вернуться, если реальные
+    импорты упрутся в тесноту 15+ веток.
 
 ### MP‑8. Biography import richness follow-up (P: M, E: M)
 - **Контекст:** facts-first каскад уже умеет approximate ages, high-salience facts и theme-ветки, но legacy fallback и часть heuristic labels всё ещё периодически выдают generic события вроде `Учёба`/`Ссылка` и недобирают theme branches на sparse inputs.

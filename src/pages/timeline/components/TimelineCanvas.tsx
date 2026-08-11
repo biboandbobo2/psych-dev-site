@@ -442,13 +442,18 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
               const iconSize = adaptiveRadius * 2;
               // Highlight events sitting on the currently selected branch.
               // selectedBranchId resolves to an edge.x via the edges list.
-              const selectedBranchEdgeX = selectedBranchId
-                ? validEdges.find((e) => e.id === selectedBranchId)?.x ?? null
-                : null;
+              const selectedBranchEdge = selectedBranchId
+                ? validEdges.find((e) => e.id === selectedBranchId)
+                : undefined;
+              const selectedBranchEdgeX = selectedBranchEdge?.x ?? null;
               const isBranchSelected =
                 selectedBranchEdgeX !== null &&
                 x === selectedBranchEdgeX &&
                 x !== LINE_X_POSITION;
+              // B2: origin выделенной ветки подсвечивается кольцом цвета
+              // ветки — иначе при 100+ событиях место, откуда растёт
+              // выделенная ветка, приходится искать глазами.
+              const isOriginOfSelectedBranch = selectedBranchEdge?.nodeId === node.id;
               const parentLineX = node.parentX ?? LINE_X_POSITION;
               const labelOnLeft = x < LINE_X_POSITION;
               const labelX = labelOnLeft ? x - adaptiveRadius - 10 : x + adaptiveRadius + 10;
@@ -520,6 +525,19 @@ export const TimelineCanvas = memo(function TimelineCanvas(props: TimelineCanvas
                         stroke="#0f172a"
                         strokeWidth={3}
                         opacity={0.8}
+                      />
+                    )}
+                    {isOriginOfSelectedBranch && selectedBranchEdge && (
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r={adaptiveRadius + 12}
+                        fill="none"
+                        stroke={selectedBranchEdge.color}
+                        strokeWidth={4}
+                        strokeDasharray="10 6"
+                        opacity={0.9}
+                        pointerEvents="none"
                       />
                     )}
                     {/* «Решение» — внешнее кольцо цвета сферы. Только для
