@@ -486,7 +486,7 @@ npm run test:integration
 
 **Требования:**
 - `firebase-tools` в `node_modules` (есть через `npm install`).
-- **Java 11+** (для эмуляторов Firestore/Auth). На macOS: `brew install openjdk@21`, затем добавить в PATH/`JAVA_HOME` (см. инструкции `brew info openjdk@21`).
+- **Java 11+** (для эмуляторов Firestore/Auth). На macOS: `brew install openjdk`, затем `export PATH="/opt/homebrew/opt/openjdk/bin:$PATH"` в `~/.zshrc`. Установлено на машине Алексея 2026-08-17 (OpenJDK 26), строка PATH добавлена.
 - Свободные порты `8080`, `9099`, `9199`.
 
 **Watch-режим (для разработки):**
