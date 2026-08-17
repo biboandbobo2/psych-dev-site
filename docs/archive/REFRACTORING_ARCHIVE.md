@@ -142,3 +142,54 @@
 > ℹ️ Полные версии планов доступны в истории git (перед архивацией). Если нужен оригинальный текст — используйте `git show` по предыдущим коммитам.
 
 > Документ актуален по состоянию на `git commit refactor(core): phase 6 qa and coverage`. Обновляйте этот файл после каждой следующей фазы или аудита.
+
+### Audit backlog — закрытые пункты (архивировано 2026-08-18)
+
+> Перенесено из `docs/processes/audit-backlog.md` при чистке 2026-08-18: бэклог сократился 1253 → ~830 строк.
+> Полные исходные формулировки — в истории git (`git show 4eb4eb0:docs/processes/audit-backlog.md`).
+
+**Безопасность и доступ**
+- **HR‑1. Защита `/api/books`** (волна 6, 2026-04-26, коммиты `0012100`, `2505b25`). `search`/`answer` — Firebase Bearer + strict BYOK (`X-Gemini-Api-Key` без env fallback, иначе `402 BYOK_REQUIRED`) + rate-limit 20/мин + CORS allowlist через `appOrigins.ts`; `list`/`snippet` публичны с лимитом 60/мин. Счётчик BYOK-usage — `aiUsageDaily/{uid}_{day}`, виден в профиле. Общий рантайм — `src/lib/api-server/sharedApiRuntime.ts`.
+- **HR‑2. Booking email-login auth bypass** (волна 9, 2026-04-28). `api/auth.ts` удалён целиком (вместе с выдачей custom token по verified email и CORS-wildcard), оба пути входа — через `sendSignInLinkToEmail`. Освобождена 1 Vercel-функция (9/12 → 8/12). Решение — [BOOKING_AUTH_C1_DECISION_2026-04-28.md](reports/BOOKING_AUTH_C1_DECISION_2026-04-28.md). 28 существующих booking-пользователей не затронуты.
+- **MR‑8. Catch-all в firestore.rules → deny-all** (2026-05-11). Legacy `match /{document=**} { allow read: if true }` отменял per-uid ограничения и ломал list-запросы (`/tests` показывал пустой экран). Добавлены явные match-блоки (`tests`, `admin`, `homeFeed`) и `false` для server-only коллекций (`videoTranscripts`, `lecture_*`, `books`, `book_chunks`, `studentEmailLists`, `opsRuntime` и др. — все ходят через Admin SDK). Теперь любая новая коллекция требует явного блока.
+- **HP‑3. CVE в контейнерных образах функций** (2026-02-06). `npm audit fix` в `functions/` + редеплой 17 функций: `qs`, `node-forge`, `jws`, `fast-xml-parser`, `@google-cloud/storage`, `express`. Остаток — Go stdlib на уровне buildpack (ждём Google). Детали: `docs/security/container-scanning-2026-02-01.md`. Не сделано: ежемесячный security-review как процесс.
+
+**Производительность и данные**
+- **MR‑1. Масштабирование `/api/transcript-search`** (волна 8 / H7, 2026-04-28, мердж `b33bdc1`). Keyword prefix-индекс `searchTokens: string[]` + `array-contains-any` вместо full scan: ~20 700 reads/запрос → ≤200. Backfill 20 693 chunks на prod выполнен до мержа, single-field index в `firestore.indexes.json`, latency по UI 355–873 мс.
+- **MP‑6. Миграция «Психологии развития» на формат sections** (2025-11-19, `6ca0e14`, `bba4e1d`). 14 периодов + intro, backup `backups/periods-backup-2025-11-19*.json`, `convertLegacyToSections` удалена. Все 3 курса на едином формате.
+- **MP‑5. Заглушка clinical/general** (2025-11-19, `f3ba86b`). Явный `placeholder_enabled === false` теперь показывает контент даже при пустых sections.
+
+**Качество кода и тесты**
+- **CQ‑6 / CQ‑5. TS lint + console guardrails** (волна 7, 2026-04-27, `9dac357..b4a47fc`; доделано 2026-08-17). ESLint покрывает ts/tsx через typescript-eslint v8, `no-console: error` + overrides, `check-console --all` в validate и `:staged` в pre-commit, 50 runtime `console.*` → debug-хелперы, whitelist для prod-error reporting (`api/assistant.ts`, `src/lib/errorHandler.ts`). 2026-08-17 добиты все 99 оставшихся warnings в ноль; `react-hooks/exhaustive-deps` осознанно оставлен warn.
+- **CQ‑1/2/3. Январский аудит качества** (2026-01-08). Разбиты `common.ts` (605→96), `ThemePicker.tsx` (580→403), `tests.ts` (560→262); созданы `BaseModal`, `useClickOutside`, `shuffleArray`; `TimelineCanvas` обёрнут в `React.memo` + `useMemo`. Январские остаточные списки (CRUD-фабрики, functions-validators, мемоизация) с кодом не сверялись и устарели — Timeline и AdminContent с тех пор дважды крупно рефакторились (волна 1, MP‑1, BPT‑10).
+- **MR‑2. `npm run test:ci`** (2026-04-27). `--runInBand` (снят в Vitest 4) → `--no-file-parallelism`, в `test:ci` и `test:integration`.
+- **MR‑4. `authStore.test.ts`** (2026-04-27). Переписан под `UserRole = 'admin' | 'super-admin' | null`, убран удалённый `isStudent`, добавлен кейс role=null.
+- **MR‑7. `AdminFeedFilters.test.tsx`** (2026-07-12). Фильтр «📅 События» сознательно убран из ленты в `89604ff` (события живут в календаре) — тест переписан под 3 фильтра + регрессия на отсутствие кнопки.
+- **MR‑9. Functions Checks CI** (сверка 2026-07-11). `working-directory: functions` + `npm ci --include=dev` + локальный `vitest` в `functions/package.json`.
+- **MP‑1. Изоляция хук-логики Timeline** (2026-04). 8 хуков в `src/pages/timeline/hooks/`, отдельный чанк `timeline-hooks`.
+
+**Cloud Functions**
+- **LP‑16. Миграция firebase-functions v1 → v2 (1st gen → 2nd gen)** — ЗАКРЫТА 2026-07-12 за 5 пачек. Все функции на 2nd gen + firebase-functions 7.2.5; 1st gen осознанно остался только у `onUserCreate` (в gen2 нет non-blocking `auth.onCreate`, нужен явный импорт `firebase-functions/v1`). Ключевые грабли: gen1→gen2 под тем же именем **не апгрейдится** — только `functions:delete` → deploy (окно недоступности ~3-4 мин на пачку); gen2 по умолчанию берёт compute default SA **без доступа к Secret Manager** — функциям с секретами/BigQuery/календарями нужен явный `serviceAccount: appspot SA` (`FUNCTIONS_SERVICE_ACCOUNT` в `lib/shared.ts`); в gen2 `cpu` по умолчанию 1 vCPU. Тактика tests-first (38 + 18 тестов на v1-поведение до миграции, зелёные после без правки ассертов) себя оправдала. Ручной триггер синка теперь: `gcloud scheduler jobs run firebase-schedule-syncGroupCalendars-us-central1 --location us-central1`. Подробности также в memory `project-firebase-functions-v1-migration`.
+- **MR‑6. Orphan-функция `setStudentStream`** (2026-07-12). Удалена из прода (`firebase functions:delete`) при деплое канарейки LP‑16 — full `firebase:deploy:functions` разблокирован.
+
+**Продукт и админка**
+- **AD‑1. Admin events UX v2** (волна 5, 2026-04-26). `/admin/announcements` переписан под Google-Calendar-style: edit-модалки с фиксом `lastWriteSource` для GCal-экспорта, месячный grid + фильтруемый список, недельный вид, поиск, цветовая кодировка групп. 55 unit-тестов в 8 файлах.
+- **AD‑2 / HM‑3. Редактор статических страниц** (2026-04-26). Контент `/about` переехал в `pages/about`, добавлены `/superadmin/pages`, `/superadmin/pages/about`, `/superadmin/pages/projects/:slug` (client SDK + rules, write — super-admin, read — публичный).
+- **HM‑1. Continue-cards «актуальные курсы»** (волна 3). Поле `featuredCourseIds` (max 3) у `groups/{id}` и `users/{id}`, приоритет: личные → групповые → последний просмотренный → CTA-заглушка.
+- **HM‑2. `/about` → вкладки + страницы проектов** (волна 3). 6 вкладок, шаблон `ProjectPage` / `DynamicProjectPage` в общей watercolor-палитре.
+- **HM‑4. Чекбокс «не присылать email о бронях»** (сверка 2026-07-11). `EmailPreferencesSection` → `prefs.emailBookingConfirmations` через `updateMyEmailPreferences`; гейт `shouldSendBookingEmail()` в `api/_lib/bookingAuth.ts`. Другие уведомления не затронуты.
+- **EX‑4. Уведомления о бронировании экзамена** (2026-05-10). Триггер `onExamSlotWrite`: переходы 0→≥1 / ≥1→≥1 / ≥1→0 создают, патчат и помечают «❌ ОТМЕНЕНО» событие в личном GCal преподавателя + шлют TG. Self-heal при потере `eventId` (использован для backfill 4 старых броней). Per-exam override отложен до появления второго преподавателя.
+
+**AI / поиск**
+- **RS‑1. Wikidata-перевод в обычном поиске** (2026-07-17). Реализовано не отдельной кнопкой «Глубокий поиск» (заглушка удалена), а fallback-переводом в `buildEnglishQuery`: словарь `RU_TO_EN_TERMS` → при остатке кириллицы Wikidata отдаёт английский лейбл концепта. Гибридные RU/EN строки в источники не уходят (давали мусор); EN и RU ищутся параллельно. Файлы: `api/papers.ts`, `api/_lib/papersWikidata.ts`, `api/_lib/papersTranslation.ts`.
+- **BR‑1. Sentence-based chunking** (2025-12-25). Чанки по границам предложений (5-15 предложений / 1500-2500 символов), overlap в 2 предложения, fallback на character-based. Конфиг — `functions/src/lib/chunker.ts`.
+- **LP‑3. Rate limiting для AI Assistant** — снято как неактуальное (2026-05-04, `d350a70`). После перехода на BYOK общая per-IP квота потеряла смысл: `enforceDailyQuota`/`enforceRateLimit` и `api/_lib/assistantQuota.ts` удалены. Distributed rate-limit (Vercel KV) не понадобился.
+- **LP‑4. Fallback env vars в AI Assistant** — решено пропустить: `MY_GEMINI_KEY`/`GOOGLE_API_KEY`/`VITE_GEMINI_KEY` не мешают, работает `GEMINI_API_KEY`.
+
+**Biography pipeline (BPT)**
+- **BPT‑2 / BPT‑3 / BPT‑7 / BPT‑12.** Оркестрация сведена в единый `server/api/timelineBiographyPipeline.ts`; `biographyImport.ts` 843 → 313, `timelineBiographyRuntime.ts` 1098 → 226, `TimelineLeftPanel.tsx` 856 → 412. Упоминаний `two-pass-v5` в server-коде не осталось.
+- **BPT‑8 / BPT‑9.** Решено через lite-профиль (3.1-flash-lite, в проде с 2026-07-11) с merged-вызовом разметки.
+- **BPT‑10.** `branchId` — источник истины о принадлежности ветке (фазы 1–3, 2026-07-11).
+- **BPT‑11.** Нормализованная ошибка в `biographyJobs` (2026-07-12, задеплоено).
+- **BPT‑1.** Deprecated jobs endpoint удалён частично (2026-05-04).
+- **BTP‑2 / BTP‑3** (старая секция two-pass-v5): баланс mainLine/branches поглощён бенчмарк-контуром (метрики в `scripts/lib/biographyBenchmarkMetrics.ts`), рендер timeline на canvas давно в проде.
