@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { Routes, Route, Navigate, Location, useParams } from 'react-router-dom';
 import RequireAuth from '../auth/RequireAuth';
 import RequireAdmin from '../auth/RequireAdmin';
@@ -48,19 +48,45 @@ import {
   BookingDirectionsPage,
 } from '../pages/lazy';
 import { PageLoader } from '../components/ui';
+import { ErrorState, EmptyState } from '../shared/ui/states';
 import { ROUTE_CONFIG, CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, NOT_FOUND_REDIRECT } from '../routes';
 import { PeriodPage } from '../pages/PeriodPage';
 import NotFound from './NotFound';
 import DynamicCoursePeriodPage from '../pages/DynamicCoursePeriodPage';
 import type { Period, ClinicalTopic, GeneralTopic } from '../types/content';
 
+export interface CourseDataStatus {
+  loading: boolean;
+  error: string | null;
+}
+
 interface AppRoutesProps {
   location: Location;
   periodMap: Map<string, Period>;
   clinicalTopicsMap: Map<string, ClinicalTopic>;
   generalTopicsMap: Map<string, GeneralTopic>;
+  periodsStatus: CourseDataStatus;
+  clinicalStatus: CourseDataStatus;
+  generalStatus: CourseDataStatus;
   isSuperAdmin: boolean;
   isCoAdmin: boolean;
+}
+
+// LS-2: загрузка/ошибки/пустота курс-данных скоупятся курсовыми страницами,
+// а не всем приложением — /home, /booking и админка их не ждут.
+function CourseDataBoundary({
+  status,
+  empty = false,
+  children,
+}: {
+  status: CourseDataStatus;
+  empty?: boolean;
+  children: ReactNode;
+}) {
+  if (status.loading) return <PageLoader />;
+  if (status.error) return <ErrorState message={status.error} />;
+  if (empty) return <EmptyState />;
+  return <>{children}</>;
 }
 
 function AdminLanding() {
@@ -74,7 +100,7 @@ function DynamicCourseIntroRoute() {
   return <CourseIntroPage courseId={courseId} />;
 }
 
-export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopicsMap, isSuperAdmin, isCoAdmin }: AppRoutesProps) {
+export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopicsMap, periodsStatus, clinicalStatus, generalStatus, isSuperAdmin, isCoAdmin }: AppRoutesProps) {
   const canEditPages = isSuperAdmin || isCoAdmin;
   return (
     <Suspense fallback={<PageLoader />}>
@@ -310,10 +336,12 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             key={config.path}
             path={config.path}
             element={
-              <PeriodPage
-                config={config}
-                period={config.periodId ? periodMap.get(config.periodId) : null}
-              />
+              <CourseDataBoundary status={periodsStatus} empty={periodMap.size === 0}>
+                <PeriodPage
+                  config={config}
+                  period={config.periodId ? periodMap.get(config.periodId) : null}
+                />
+              </CourseDataBoundary>
             }
           />
         ))}
@@ -322,10 +350,12 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             key={config.path}
             path={config.path}
             element={
-              <PeriodPage
-                config={config}
-                period={config.periodId ? clinicalTopicsMap.get(config.periodId) : null}
-              />
+              <CourseDataBoundary status={clinicalStatus}>
+                <PeriodPage
+                  config={config}
+                  period={config.periodId ? clinicalTopicsMap.get(config.periodId) : null}
+                />
+              </CourseDataBoundary>
             }
           />
         ))}
@@ -334,21 +364,31 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             key={config.path}
             path={config.path}
             element={
-              <PeriodPage
-                config={config}
-                period={config.periodId ? generalTopicsMap.get(config.periodId) : null}
-              />
+              <CourseDataBoundary status={generalStatus}>
+                <PeriodPage
+                  config={config}
+                  period={config.periodId ? generalTopicsMap.get(config.periodId) : null}
+                />
+              </CourseDataBoundary>
             }
           />
         ))}
         {/* Динамические роуты для занятий, созданных через админку */}
         <Route
           path="/clinical/:periodId"
-          element={<DynamicPeriodPage course="clinical" topicsMap={clinicalTopicsMap} />}
+          element={
+            <CourseDataBoundary status={clinicalStatus}>
+              <DynamicPeriodPage course="clinical" topicsMap={clinicalTopicsMap} />
+            </CourseDataBoundary>
+          }
         />
         <Route
           path="/general/:periodId"
-          element={<DynamicPeriodPage course="general" topicsMap={generalTopicsMap} />}
+          element={
+            <CourseDataBoundary status={generalStatus}>
+              <DynamicPeriodPage course="general" topicsMap={generalTopicsMap} />
+            </CourseDataBoundary>
+          }
         />
         <Route path="/course/:courseId/intro" element={<DynamicCourseIntroRoute />} />
         <Route
@@ -357,7 +397,11 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         />
         <Route
           path="/:periodId"
-          element={<DynamicPeriodPage course="development" topicsMap={periodMap} />}
+          element={
+            <CourseDataBoundary status={periodsStatus} empty={periodMap.size === 0}>
+              <DynamicPeriodPage course="development" topicsMap={periodMap} />
+            </CourseDataBoundary>
+          }
         />
         <Route
           path="*"

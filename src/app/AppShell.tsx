@@ -20,9 +20,8 @@ import LoginModal from '../components/LoginModal';
 import TelegramOpenInBrowser from '../components/TelegramOpenInBrowser';
 import { useAuthSync } from '../hooks/useAuthSync';
 import { AppLayout } from '../layouts/AppLayout';
-import { LoadingSplash, ErrorState, EmptyState } from '../shared/ui/states';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
-import { AppRoutes } from './AppRoutes';
+import { AppRoutes, type CourseDataStatus } from './AppRoutes';
 import SuperAdminTaskPanel from '../components/SuperAdminTaskPanel';
 import AdminCourseSidebar from '../components/AdminCourseSidebar';
 import StudentCourseSidebar from '../components/StudentCourseSidebar';
@@ -38,6 +37,7 @@ function normalizePath(path: string | undefined | null): string | undefined | nu
   return path && path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
 }
 const EMPTY_ROUTE_DATA: Map<string, Period> = new Map();
+const READY_COURSE_DATA_STATUS: CourseDataStatus = { loading: false, error: null };
 
 function getCourseNavTopicsMap(
   courseId: string | null,
@@ -110,6 +110,9 @@ function StandaloneLandingShell({ location, isSuperAdmin, isCoAdmin }: Standalon
       periodMap={EMPTY_ROUTE_DATA}
       clinicalTopicsMap={EMPTY_ROUTE_DATA}
       generalTopicsMap={EMPTY_ROUTE_DATA}
+      periodsStatus={READY_COURSE_DATA_STATUS}
+      clinicalStatus={READY_COURSE_DATA_STATUS}
+      generalStatus={READY_COURSE_DATA_STATUS}
       isSuperAdmin={isSuperAdmin}
       isCoAdmin={isCoAdmin}
     />
@@ -247,9 +250,20 @@ function MainAppShell({ location, normalizedPath, isSuperAdmin, isCoAdmin }: Mai
     ),
     [sidebarCourseId, periodMap, clinicalTopicsMap, generalTopicsMap, sidebarDynamicLessonsMap]
   );
-  const dynamicNavigationLoading = Boolean(pageDynamicCourseId) && pageDynamicLoading;
+  // Индикация загрузки навигации для core-курсов (LS-2: контент-данные больше
+  // не гейтят всё приложение, поэтому nav/sidebar показывают собственный лоадер).
+  const coreCourseLoadingById: Record<string, boolean> = {
+    development: loading,
+    clinical: clinicalLoading,
+    general: generalLoading,
+  };
+  const dynamicNavigationLoading =
+    (Boolean(pageDynamicCourseId) && pageDynamicLoading) ||
+    (pageNavigationCourseId ? coreCourseLoadingById[pageNavigationCourseId] ?? false : false);
   const dynamicNavigationErrorMessage = pageDynamicError ? 'Не удалось загрузить навигацию курса.' : null;
-  const sidebarNavigationLoading = Boolean(sidebarDynamicCourseId) && sidebarDynamicLoading;
+  const sidebarNavigationLoading =
+    (Boolean(sidebarDynamicCourseId) && sidebarDynamicLoading) ||
+    (sidebarCourseId ? coreCourseLoadingById[sidebarCourseId] ?? false : false);
   const sidebarNavigationErrorMessage = sidebarDynamicError ? 'Не удалось загрузить навигацию курса.' : null;
 
   useEffect(() => {
@@ -281,12 +295,6 @@ function MainAppShell({ location, normalizedPath, isSuperAdmin, isCoAdmin }: Mai
       ? "lg:w-64 xl:w-72"
       : undefined;
 
-  if (loading || clinicalLoading || generalLoading) return <LoadingSplash />;
-  if (error) return <ErrorState message={(error as unknown as { message: string }).message} />;
-  if (clinicalError) return <ErrorState message={clinicalError.message} />;
-  if (generalError) return <ErrorState message={generalError.message} />;
-  if (!periods.length && !pageDynamicCourseId) return <EmptyState />;
-
   return (
     <>
       <Helmet>
@@ -311,7 +319,17 @@ function MainAppShell({ location, normalizedPath, isSuperAdmin, isCoAdmin }: Mai
         navigationErrorMessage={dynamicNavigationErrorMessage}
       >
         <AnimatePresence mode="wait" initial={false}>
-          <AppRoutes location={location} periodMap={periodMap} clinicalTopicsMap={clinicalTopicsMap} generalTopicsMap={generalTopicsMap} isSuperAdmin={isSuperAdmin} isCoAdmin={isCoAdmin} />
+          <AppRoutes
+            location={location}
+            periodMap={periodMap}
+            clinicalTopicsMap={clinicalTopicsMap}
+            generalTopicsMap={generalTopicsMap}
+            periodsStatus={{ loading, error: error ?? null }}
+            clinicalStatus={{ loading: clinicalLoading, error: clinicalError?.message ?? null }}
+            generalStatus={{ loading: generalLoading, error: generalError?.message ?? null }}
+            isSuperAdmin={isSuperAdmin}
+            isCoAdmin={isCoAdmin}
+          />
         </AnimatePresence>
         <RoutePager currentPath={location.pathname} navItems={navItems} />
       </AppLayout>

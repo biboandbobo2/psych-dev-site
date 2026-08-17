@@ -131,7 +131,7 @@ describe('AppShell', () => {
     expect(mocks.usePeriods).not.toHaveBeenCalled();
   });
 
-  it('renders LoadingSplash while content hooks load on main path', () => {
+  it('renders AppRoutes immediately while content hooks load (LS-2: без глобального гейта)', () => {
     setHappyPathDefaults();
     mocks.usePeriods.mockReturnValue({ periods: [], loading: true, error: null, refresh: () => {} });
 
@@ -143,12 +143,16 @@ describe('AppShell', () => {
       </HelmetProvider>
     );
 
-    expect(mocks.appRoutes).not.toHaveBeenCalled();
+    expect(screen.getByText('app routes')).toBeInTheDocument();
+    const props = mocks.appRoutes.mock.calls[0][0] as {
+      periodsStatus: { loading: boolean; error: string | null };
+    };
+    expect(props.periodsStatus).toEqual({ loading: true, error: null });
   });
 
-  it('renders ErrorState when usePeriods returns an error', () => {
+  it('passes usePeriods error into periodsStatus instead of blocking the app', () => {
     setHappyPathDefaults();
-    mocks.usePeriods.mockReturnValue({ periods: [], loading: false, error: new Error('boom'), refresh: () => {} });
+    mocks.usePeriods.mockReturnValue({ periods: [], loading: false, error: 'boom', refresh: () => {} });
 
     render(
       <HelmetProvider>
@@ -158,8 +162,13 @@ describe('AppShell', () => {
       </HelmetProvider>
     );
 
-    expect(screen.getByText(/boom/i)).toBeInTheDocument();
-    expect(mocks.appRoutes).not.toHaveBeenCalled();
+    expect(screen.getByText('app routes')).toBeInTheDocument();
+    const props = mocks.appRoutes.mock.calls[0][0] as {
+      periodsStatus: { loading: boolean; error: string | null };
+      clinicalStatus: { loading: boolean; error: string | null };
+    };
+    expect(props.periodsStatus).toEqual({ loading: false, error: 'boom' });
+    expect(props.clinicalStatus).toEqual({ loading: false, error: null });
   });
 
   it('renders AppRoutes with built period maps on main path', () => {
