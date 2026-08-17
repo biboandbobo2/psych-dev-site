@@ -31,7 +31,7 @@ function buildCourseLessons(
 }
 
 export function usePublishedLessonOptions() {
-  const { periods, loading: periodsLoading } = usePeriods(true);
+  const { periods, loading: periodsLoading } = usePeriods();
   const { topics: clinicalTopics, loading: clinicalLoading } = useClinicalTopics();
   const { topics: generalTopics, loading: generalLoading } = useGeneralTopics();
   const { courses, loading: coursesLoading } = useCourses();

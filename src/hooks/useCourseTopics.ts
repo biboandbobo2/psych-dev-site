@@ -4,6 +4,11 @@ import { db } from '../lib/firebase';
 import type { Period } from '../types/content';
 import { debugLog, debugError } from '../lib/debug';
 import { mapCanonicalCourseLessons } from '../lib/courseLessons';
+import {
+  readCourseContentCache,
+  writeCourseContentCache,
+  subscribeCourseContentInvalidation,
+} from '../lib/courseContentCache';
 
 type CourseCollection = 'periods' | 'clinical-topics' | 'general-topics';
 
@@ -21,17 +26,33 @@ const COURSE_BY_COLLECTION: Record<CourseCollection, string> = {
  * @param collectionName - Название коллекции в Firestore
  * @param debugLabel - Метка для debug-логирования
  */
+function buildTopicsMap<T extends Period>(topicsList: T[]): Map<string, T> {
+  return new Map(topicsList.map((topic) => [topic.period, topic]));
+}
+
+interface TopicsState<T> {
+  topics: Map<string, T>;
+  loading: boolean;
+  error: Error | null;
+}
+
 export function useCourseTopics<T extends Period>(
   collectionName: CourseCollection,
   debugLabel: string
 ) {
-  const [topics, setTopics] = useState<Map<string, T>>(new Map());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  // SWR: первый рендер — из localStorage-кэша (если он валиден), затем фоновое
+  // обновление из Firestore. Кэш хранит массив тем, Map собирается при чтении.
+  const [state, setState] = useState<TopicsState<T>>(() => {
+    const cached = readCourseContentCache<T[]>(collectionName);
+    return {
+      topics: cached ? buildTopicsMap(cached) : new Map<string, T>(),
+      loading: !cached,
+      error: null,
+    };
+  });
 
   const loadTopics = useCallback(async () => {
     try {
-      setLoading(true);
       const q = query(
         collection(db, collectionName),
         where('published', '==', true),
@@ -42,27 +63,30 @@ export function useCourseTopics<T extends Period>(
       const courseId = COURSE_BY_COLLECTION[collectionName];
       const normalizedLessons = mapCanonicalCourseLessons(courseId, snapshot.docs);
 
-      const normalizedTopics = new Map<string, T>();
-      normalizedLessons.forEach((lesson) => {
+      const topicsList = normalizedLessons.map((lesson) => {
         const topic = { ...lesson } as T & { sourceDocId?: string };
         delete topic.sourceDocId;
-        const lessonId = topic.period;
-        normalizedTopics.set(lessonId, topic);
+        return topic as T;
       });
 
-      debugLog(`${debugLabel} loaded`, normalizedTopics.size);
-      setTopics(normalizedTopics);
+      writeCourseContentCache(collectionName, topicsList);
+      debugLog(`${debugLabel} loaded`, topicsList.length);
+      setState({ topics: buildTopicsMap(topicsList), loading: false, error: null });
     } catch (err) {
       debugError(`Error loading ${debugLabel}`, err);
-      setError(err as Error);
-    } finally {
-      setLoading(false);
+      // Ошибка фоновой ревалидации не перекрывает уже показанные данные
+      setState((prev) => ({
+        topics: prev.topics,
+        loading: false,
+        error: prev.topics.size ? null : (err as Error),
+      }));
     }
   }, [collectionName, debugLabel]);
 
   useEffect(() => {
     loadTopics();
-  }, [loadTopics]);
+    return subscribeCourseContentInvalidation(collectionName, loadTopics);
+  }, [collectionName, loadTopics]);
 
-  return { topics, loading, error, reload: loadTopics };
+  return { topics: state.topics, loading: state.loading, error: state.error, reload: loadTopics };
 }

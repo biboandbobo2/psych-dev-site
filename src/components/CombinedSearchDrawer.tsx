@@ -32,7 +32,7 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
   const [contentInputValue, setContentInputValue] = useState('');
 
   // Content search data
-  const { periods, loading: periodsLoading } = usePeriods(true);
+  const { periods, loading: periodsLoading } = usePeriods();
   const { topics: clinicalTopics, loading: clinicalLoading } = useClinicalTopics();
   const { topics: generalTopics, loading: generalLoading } = useGeneralTopics();
   const [tests, setTests] = useState<Test[]>([]);

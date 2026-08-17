@@ -23,7 +23,7 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
   const [inputValue, setInputValue] = useState('');
 
   // Загружаем контент всех курсов
-  const { periods, loading: periodsLoading } = usePeriods(true);
+  const { periods, loading: periodsLoading } = usePeriods();
   const { topics: clinicalTopics, loading: clinicalLoading } = useClinicalTopics();
   const { topics: generalTopics, loading: generalLoading } = useGeneralTopics();
   const { chunks: transcriptSearchChunks, loading: transcriptSearchLoading } = useTranscriptSearchChunks(

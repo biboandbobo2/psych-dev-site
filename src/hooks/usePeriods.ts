@@ -1,7 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { Period } from "../types/content";
-import { getAllPeriods, getPublishedPeriods, getIntro } from "../lib/firestoreHelpers";
+import { getPublishedPeriods, getIntro } from "../lib/firestoreHelpers";
 import { debugError } from "../lib/debug";
+import {
+  COURSE_CONTENT_CACHE_KEYS,
+  readCourseContentCache,
+  writeCourseContentCache,
+  subscribeCourseContentInvalidation,
+} from "../lib/courseContentCache";
 
 type PeriodSection = {
   title: string;
@@ -138,44 +144,58 @@ function mapFirestorePeriod(period: Period): Period {
   };
 }
 
-export function usePeriods(publishedOnly: boolean = false) {
-  const [periods, setPeriods] = useState<Period[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const CACHE_KEY = COURSE_CONTENT_CACHE_KEYS.development;
+
+interface PeriodsState {
+  periods: Period[];
+  loading: boolean;
+  error: string | null;
+}
+
+// SWR: первый рендер — из localStorage-кэша (если он валиден), затем фоновое
+// обновление из Firestore. Только опубликованные периоды — анониму незачем
+// тянуть черновики, админка грузит контент своим загрузчиком.
+export function usePeriods() {
+  const [state, setState] = useState<PeriodsState>(() => {
+    const cached = readCourseContentCache<Period[]>(CACHE_KEY);
+    return { periods: cached ?? [], loading: !cached, error: null };
+  });
+
+  const refresh = useCallback(async () => {
+    try {
+      const data = await getPublishedPeriods();
+      const mapped = data.map(mapFirestorePeriod);
+
+      if (!mapped.some((item) => item.period === 'intro')) {
+        const introData = await getIntro();
+        if (introData) {
+          mapped.unshift(
+            mapFirestorePeriod({
+              ...(introData as Period),
+              period: 'intro',
+              order: Number.MIN_SAFE_INTEGER,
+            })
+          );
+        }
+      }
+
+      writeCourseContentCache(CACHE_KEY, mapped);
+      setState({ periods: mapped, loading: false, error: null });
+    } catch (err: any) {
+      debugError("Error loading periods:", err);
+      // Ошибка фоновой ревалидации не перекрывает уже показанные данные
+      setState((prev) => ({
+        periods: prev.periods,
+        loading: false,
+        error: prev.periods.length ? null : err.message,
+      }));
+    }
+  }, []);
 
   useEffect(() => {
-    const loadPeriods = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    refresh();
+    return subscribeCourseContentInvalidation(CACHE_KEY, refresh);
+  }, [refresh]);
 
-        const data = publishedOnly ? await getPublishedPeriods() : await getAllPeriods();
-        const mapped = data.map(mapFirestorePeriod);
-
-        if (!mapped.some((item) => item.period === 'intro')) {
-          const introData = await getIntro();
-          if (introData) {
-            mapped.unshift(
-              mapFirestorePeriod({
-                ...(introData as Period),
-                period: 'intro',
-                order: Number.MIN_SAFE_INTEGER,
-              })
-            );
-          }
-        }
-
-        setPeriods(mapped);
-      } catch (err: any) {
-        debugError("Error loading periods:", err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadPeriods();
-  }, [publishedOnly]);
-
-  return { periods, loading, error, refresh: () => {} };
+  return { periods: state.periods, loading: state.loading, error: state.error, refresh };
 }
