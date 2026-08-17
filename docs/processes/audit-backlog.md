@@ -35,6 +35,7 @@
 | MR-4 | ✅ | Починить stale `authStore.test.ts` | Закрыта 2026-04-27: переписан под `UserRole = 'admin' \| 'super-admin' \| null`, убраны проверки удалённого `isStudent`, добавлен кейс role=null. 2/2 зелёных. |
 | MR-5 | M (S-M) | Синхронизировать `firestore.indexes.json` с БД и починить vector-deploy | 2026-07-11: vector-индексы `book_chunks`/`lecture_chunks` уже в файле. Осталось: прод-сверка (4 missing composite) + проверить, что deploy проходит (CLI bug с `__name__`). |
 | UX-1 | L (L) | Profile v2 — унификация с акварельной палитрой | ожидаем брендбук от дизайнера, после — полный редизайн Profile + вложенных секций |
+| AG-1 | M (M) | Роль «agent» — вход Claude на сайт под своим аккаунтом | Firebase-аккаунт агента + custom claim, вход через `signInWithCustomToken` (без Google OAuth), матрица прав, фиксированный uid для аудита. Разблокирует e2e smoke админ/студент-сценариев агентом |
 | LP-1 | L (M) | Observability / telemetry | Базовый logger (Sentry/PostHog), описание процессов |
 | LP-5 | L (S-M) | Firebase/GCP follow-ups | dependency review, cleanup policy, индексы, Telegram formatting |
 | LP-6 | L (M) | Разбить `functions/src/billingExport.ts` на модули | 810 строк → queries / runner / discovery / archive / aggregator / index |
@@ -589,6 +590,17 @@ CI часть (осталась):
 - **Коммиты:** `6ca0e14`, `bba4e1d`
 
 ---
+
+### AG‑1. Роль «agent» — вход Claude на сайт под своим аккаунтом (P: M, E: M)
+- **Идея (2026-08-18, Алексей):** завести на сайте отдельную роль/аккаунт «агент», под которым заходит Claude, и явно определить его права.
+- **Зачем:** сейчас агент не может выполнить ни один UI-сценарий под реальной сессией (вход только Google OAuth + сессия в IndexedDB — Playwright `storageState` её не переносит). Из-за этого smoke создания курса, прав админов и студенческих сценариев остаются ручными.
+- **Предлагаемый механизм входа:** НЕ OAuth, а `signInWithCustomToken`: агент локально генерит custom token через service account (Admin SDK) для фиксированного uid `agent`, инжектит в страницу через `page.evaluate`. Токен короткоживущий, на сайте ничего не хранится. Альтернатива — session-vault с refresh-токеном Алексея через tsm (задизайнен 2026-07-17, не реализован) — хуже: даёт полный супер-админ-доступ.
+- **Права (обсудить перед реализацией):**
+  - [ ] База: студенческие (read published) + доступ к выделенному тест-курсу (`courseAccess`), чтобы CRUD-смоуки не трогали реальные курсы.
+  - [ ] Опционально: `role: 'admin'` + `editableCourses: ['agent-test-course']` — админ-смоуки строго в песочнице.
+  - [ ] Явно исключить: чтение PII других пользователей (полный admin-read `users` нежелателен), запись в чужие курсы, супер-админские операции.
+- **Аудит:** фиксированный uid агента виден в `promotedBy`/`updatedBy`-полях; при желании — отдельный лог действий.
+- **Rules:** новые кейсы в `tests/integration/firestoreRules.test.ts` на границы роли agent — до деплоя.
 
 ## 💤 Low Priority
 
