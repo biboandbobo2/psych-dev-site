@@ -53,7 +53,7 @@ function analyzeFile(filePath: string): FileInfo | null {
       type,
       purpose,
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 }

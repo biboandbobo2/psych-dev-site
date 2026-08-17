@@ -5,7 +5,7 @@ export function parseTopicsText(text: string): string[] {
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
-    .map((line) => line.replace(/^\d+[\.\)]\s*/, '').trim())
+    .map((line) => line.replace(/^\d+[.)]\s*/, '').trim())
     .filter((line) => line.length > 0);
 }
 

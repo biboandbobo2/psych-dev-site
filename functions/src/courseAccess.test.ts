@@ -58,10 +58,6 @@ function superAdminCtx(uid = 'sa-uid') {
   return { auth: { uid, token: { email: SUPER_ADMIN_EMAIL, role: 'super-admin' } } };
 }
 
-function adminCtx(uid = 'admin-uid') {
-  return { auth: { uid, token: { email: 'admin@test.com', role: 'admin' } } };
-}
-
 function regularCtx(uid = 'regular-uid') {
   return { auth: { uid, token: { email: 'user@example.com', role: 'guest' } } };
 }

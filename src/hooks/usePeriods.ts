@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Period } from "../types/content";
-import { getAllPeriods, getPublishedPeriods, getPeriod, getIntro } from "../lib/firestoreHelpers";
+import { getAllPeriods, getPublishedPeriods, getIntro } from "../lib/firestoreHelpers";
 import { debugError } from "../lib/debug";
 
 type PeriodSection = {

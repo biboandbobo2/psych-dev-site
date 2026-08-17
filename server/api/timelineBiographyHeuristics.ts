@@ -198,10 +198,6 @@ function extractInstitutionLabel(sentence: string) {
   return sentence.match(/(?:лицей|гимназ|школ|универс|академ|институт|ВМА|МГУ|семинари|училищ)[а-яёА-ЯЁ\s-]{0,40}/ui)?.[0]?.trim() ?? '';
 }
 
-function isPosthumousContextSentence(sentence: string) {
-  return /посмертн|после смерти|наследи|увековеч|мемориал|памятник|музей(?:-квартир)?|назван(?:\s+)?(?:в честь|его имен)/i.test(sentence);
-}
-
 function extractLossRelationFromSentence(sentence: string) {
   return sentence.match(/(?:смерть|гибель|потеря|умер(?:ла)?|скончал(?:ся|ась)?|погиб(?:ла)?)\s+([а-яёА-ЯЁ]+(?:\s+[а-яёА-ЯЁ]+){0,2})/iu)?.[1]?.trim();
 }

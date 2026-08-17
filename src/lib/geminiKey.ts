@@ -5,6 +5,7 @@ export function sanitizeGeminiApiKey(key: string | null | undefined): string | u
 
   const normalized = key
     .normalize('NFKC')
+    // eslint-disable-next-line no-control-regex -- намеренная зачистка control-символов из вставленного ключа
     .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\u2060\uFEFF]/g, '')
     .replace(/[\s"'`]/g, '')
     .replace(/[^A-Za-z0-9._-]/g, '')

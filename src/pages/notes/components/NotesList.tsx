@@ -110,7 +110,6 @@ function formatDate(date: Date | string): string {
   const now = new Date();
   const diffMs = now.getTime() - value.getTime();
   const minutes = Math.floor(diffMs / (1000 * 60));
-  const hours = Math.floor(diffMs / (1000 * 60 * 60));
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
   if (minutes < 1) return 'Только что';
@@ -146,13 +145,4 @@ function getWeeksWord(weeks: number): string {
 
 function getNoteDate(date: Date | string): Date {
   return date instanceof Date ? date : new Date(date);
-}
-
-function isSameDay(dateA: Date | string, dateB: Date): boolean {
-  const a = getNoteDate(dateA);
-  return (
-    a.getFullYear() === dateB.getFullYear() &&
-    a.getMonth() === dateB.getMonth() &&
-    a.getDate() === dateB.getDate()
-  );
 }

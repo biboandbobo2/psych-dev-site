@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { beforeEach, describe, expect, it, beforeAll } from 'vitest';
 import { db } from '../../src/lib/firebase';
 import { initializeIntegrationApp, resetIntegrationData } from './helper';

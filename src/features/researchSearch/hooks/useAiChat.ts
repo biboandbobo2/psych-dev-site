@@ -86,7 +86,7 @@ export function useAiChat() {
         error: null,
         tookMs: successData.meta?.tookMs ?? null,
       });
-    } catch (err) {
+    } catch {
       setState({
         status: 'error',
         answer: null,

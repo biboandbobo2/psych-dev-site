@@ -75,7 +75,7 @@ function splitIntoSentences(text: string, pageNumber: number): Sentence[] {
   // Regex для разбиения на предложения
   // Учитывает: . ! ? и их комбинации с кавычками, скобками
   // Не разбивает: сокращения (г., т.д., т.п., Dr., Mr., etc.), инициалы (Л.С.)
-  const sentencePattern = /[^.!?]*(?:[.!?](?:\s|$|["»"\)\]]))/g;
+  const sentencePattern = /[^.!?]*(?:[.!?](?:\s|$|["»")\]]))/g;
 
   let match;
   let lastEnd = 0;

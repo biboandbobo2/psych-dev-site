@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useMemo } from 'react';
+import { useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { Test } from '../../../types/tests';
 import { Field } from '../../Field';
@@ -47,7 +47,7 @@ export function TestPrerequisiteConfig({
   previousTestIdInput,
   onPreviousTestIdInputChange,
   previousTestError,
-  testOptions,
+  testOptions: _testOptions,
   filteredTestOptions,
   selectedTest,
   prerequisiteTestId,

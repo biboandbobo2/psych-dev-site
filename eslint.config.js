@@ -51,15 +51,16 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': ['warn', {
+      // Вычищено в ноль 2026-08-17 (wave-7 этап 2, отложенный) — держим error, чтобы не копились снова
+      '@typescript-eslint/no-unused-vars': ['error', {
         varsIgnorePattern: '^[A-Z_]',
         argsIgnorePattern: '^_',
       }],
       'no-console': 'error',
-      'no-useless-escape': 'warn',
-      'no-empty': 'warn',
-      'no-control-regex': 'warn',
-      'react-refresh/only-export-components': 'warn',
+      'no-useless-escape': 'error',
+      'no-empty': 'error',
+      'no-control-regex': 'error',
+      'react-refresh/only-export-components': 'error',
       'no-undef': 'off',
       'no-redeclare': 'off',
     },

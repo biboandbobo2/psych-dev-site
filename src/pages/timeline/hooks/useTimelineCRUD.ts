@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { LINE_X_POSITION } from '../constants';
 import { parseAge } from '../utils';
 import {
@@ -48,7 +48,7 @@ export function useTimelineCRUD({
   onAfterClearAll,
   notify,
 }: UseTimelineCRUDOptions) {
-  const warn = notify ?? ((message: string) => alert(message));
+  const warn = useMemo(() => notify ?? ((message: string) => alert(message)), [notify]);
   /**
    * Create or update an event. Возвращает true, если правка применена
    * (для авто-применения: keepFormOpen не закрывает форму после записи).
@@ -220,7 +220,7 @@ export function useTimelineCRUD({
       }
       return true;
     },
-    [nodes, edges, ageMax, setNodes, onHistoryRecord, onSetSelectedId, onClearForm, warn]
+    [nodes, edges, ageMax, setNodes, setEdges, onHistoryRecord, onSetSelectedId, onClearForm, warn]
   );
 
   /**

@@ -118,6 +118,7 @@
   - [x] Whitelist для production-error reporting: `api/assistant.ts` (catch Gemini), `src/lib/errorHandler.ts` (центральный app-error reporter) — eslint-disable + ALLOWED + комментарий.
   - [x] `docs/architecture/guidelines.md`, `CLAUDE.md` синхронизированы с реальной конфигурацией.
 - **Финал:** `npm run validate` зелёный (0 errors, ~79 pre-existing warnings unused-vars/react-hooks).
+- **Доделано 2026-08-17:** все оставшиеся warnings (к тому моменту 99) вычищены в ноль; `no-unused-vars`, `no-useless-escape`, `no-empty`, `no-control-regex`, `react-refresh/only-export-components` подняты до error (изначальный план этапа 2–3). `react-hooks/exhaustive-deps` остаётся warn — намеренно неполные deps задокументированы точечными eslint-disable с пояснениями.
 
 ### HR‑1. ✅ Защита `/api/books` — РЕШЕНО (волна 6, 2026-04-26)
 - **Решение:** `list` / `snippet` остались публичными (read-only из Firestore), но получили rate-limit 60 req/min на IP. `search` / `answer` теперь требуют:

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Period } from '../types/content';
@@ -29,11 +29,7 @@ export function useCourseTopics<T extends Period>(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    loadTopics();
-  }, [collectionName]);
-
-  async function loadTopics() {
+  const loadTopics = useCallback(async () => {
     try {
       setLoading(true);
       const q = query(
@@ -62,7 +58,11 @@ export function useCourseTopics<T extends Period>(
     } finally {
       setLoading(false);
     }
-  }
+  }, [collectionName, debugLabel]);
+
+  useEffect(() => {
+    loadTopics();
+  }, [loadTopics]);
 
   return { topics, loading, error, reload: loadTopics };
 }

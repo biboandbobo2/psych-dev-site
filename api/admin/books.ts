@@ -220,7 +220,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const bucket = process.env.FIREBASE_STORAGE_BUCKET || `${sa.project_id}.firebasestorage.app`;
           await storage.bucket(bucket).file(BOOK_STORAGE_PATHS.raw(bookId)).delete();
           fileDeleted = true;
-        } catch {}
+        } catch {
+          /* ignore: файла в Storage может уже не быть — удаление книги должно завершиться в любом случае */
+        }
 
         await bookRef.delete();
         res.status(200).json({ ok: true, deleted: { book: true, chunks: chunksSnap.size, jobs: jobsSnap.size, file: fileDeleted } });
@@ -358,7 +360,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
 
           clearTimeout(timeoutId);
-        } catch {}
+        } catch {
+          /* ignore: fire-and-forget вызов ingest-функции; таймаут/сбой не должен ломать ответ клиенту */
+        }
       } else {
         await jobRef.update({
           logs: ['Job created', 'Warning: INGEST_BOOK_FUNCTION_URL not configured'],

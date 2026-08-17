@@ -218,7 +218,7 @@ export function useBooking() {
         headers,
         body: JSON.stringify({
           action: 'book',
-          appointments: appointments.map(({ id, ...rest }) => rest),
+          appointments: appointments.map(({ id: _id, ...rest }) => rest),
           name: contact.name,
           phone: contact.phone,
           email: contact.email || '',

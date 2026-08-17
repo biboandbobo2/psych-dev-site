@@ -251,7 +251,7 @@ function buildBirthDetails(birthFact: BiographyFactCandidate | undefined) {
         details.date = String(birthFact.year);
       }
     }
-    const placeMatch = text.match(/(?:в\s+|город[ае]?\s+)([А-ЯЁ][а-яё\-]+(?:\s+[А-ЯЁа-яё\-]+){0,3})/u);
+    const placeMatch = text.match(/(?:в\s+|город[ае]?\s+)([А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁа-яё-]+){0,3})/u);
     if (placeMatch) {
       details.place = placeMatch[1].trim();
     }
@@ -277,7 +277,7 @@ function mergeSameAgeEvents(events: BiographyTimelineEventPlan[]): BiographyTime
   }
 
   const result: BiographyTimelineEventPlan[] = [];
-  for (const [age, group] of [...byAge.entries()].sort((a, b) => a[0] - b[0])) {
+  for (const [_age, group] of [...byAge.entries()].sort((a, b) => a[0] - b[0])) {
     if (group.length <= 3) {
       result.push(...group);
       continue;

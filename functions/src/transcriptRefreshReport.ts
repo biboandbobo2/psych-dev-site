@@ -1,7 +1,7 @@
 import type { TranscriptRefreshSummary } from "./transcriptRefreshJob.js";
 
 function escapeMarkdown(value: string) {
-  return value.replace(/([_*`\[\]])/g, "\\$1");
+  return value.replace(/([_*`[\]])/g, "\\$1");
 }
 
 export function formatTranscriptRefreshTelegramReport(

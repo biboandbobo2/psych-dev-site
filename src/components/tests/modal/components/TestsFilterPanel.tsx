@@ -97,7 +97,7 @@ export function TestsFilterPanel({
                         <input
                           type="checkbox"
                           checked={filterDraft.statuses.includes(status)}
-                          onChange={(event) => {
+                          onChange={(_event) => {
                             const nextStatuses = filterDraft.statuses.includes(
                               status
                             )

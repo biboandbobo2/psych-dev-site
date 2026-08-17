@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import type { GroupAnnouncement, PlatformNewsType } from '../../../../types/groupFeed';
+import type { PlatformNewsType } from '../../../../types/groupFeed';
+import { EMPTY_ANNOUNCEMENT_FORM } from './formHelpers';
 
 export interface AnnouncementFormValue {
   text: string;
@@ -9,18 +10,6 @@ export interface AnnouncementFormValue {
 export interface AnnouncementFormSubmitPayload {
   text: string;
   newsType: PlatformNewsType | null;
-}
-
-export const EMPTY_ANNOUNCEMENT_FORM: AnnouncementFormValue = {
-  text: '',
-  newsType: 'tech',
-};
-
-export function announcementToFormValue(item: GroupAnnouncement): AnnouncementFormValue {
-  return {
-    text: item.text ?? '',
-    newsType: item.newsType ?? null,
-  };
 }
 
 interface AnnouncementFormProps {

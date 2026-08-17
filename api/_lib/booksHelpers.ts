@@ -155,7 +155,7 @@ export const SYSTEM_PROMPT = `Ты — эксперт-психолог и пре
 export function cleanupAnswerText(raw: string): string {
   return raw
     .replace(/\[chunkId[=:][^\]]+\]/gi, '')
-    .replace(/\(chunkId[=:][^\)]+\)/gi, '')
+    .replace(/\(chunkId[=:][^)]+\)/gi, '')
     .replace(/\[SOURCE[^\]]*\]/gi, '')
     .replace(/\[\/SOURCE\]/gi, '')
     .replace(/\[\d+\]/g, '')

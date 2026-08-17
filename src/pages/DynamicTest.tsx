@@ -103,7 +103,7 @@ export default function DynamicTest() {
   const backUrl = useMemo(() => {
     if (!test) return '/tests';
     return test.rubric === 'full-course' ? '/tests' : '/tests-lesson';
-  }, [test?.rubric]);
+  }, [test]);
 
   // Перемешивание вариантов ответов
   const displayedAnswers = useMemo(() => {
@@ -111,6 +111,9 @@ export default function DynamicTest() {
     if (!currentQuestion) return [];
     if (!currentQuestion.shuffleAnswers) return currentQuestion.answers;
     return shuffleArray(currentQuestion.answers);
+    // намеренно гранулярные deps: перемешивать варианты только при смене вопроса,
+    // а не при каждом апдейте прогресса
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     testProgress.currentQuestion?.id,
     testProgress.currentQuestion?.shuffleAnswers,

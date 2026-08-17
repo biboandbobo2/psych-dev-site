@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useContentSearch } from '../features/contentSearch/hooks/useContentSearch';
 import { useTranscriptSearchChunks } from '../features/contentSearch/hooks/useTranscriptSearchChunks';
@@ -91,12 +91,12 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
   }, [open, initialQuery, contentSearch, clearInitialQuery]);
 
   // Save content search with debounce
-  const doSaveContentSearch = (query: string, resultsCount: number) => {
+  const doSaveContentSearch = useCallback((query: string, resultsCount: number) => {
     if (query.trim().length >= 2 && query !== savedContentQueryRef.current) {
       savedContentQueryRef.current = query;
       saveSearch({ type: 'content', query: query.trim(), resultsCount });
     }
-  };
+  }, [saveSearch]);
 
   useEffect(() => {
     if (contentState.status === 'success' && contentState.query.trim().length >= 2) {
@@ -108,7 +108,7 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
     return () => {
       if (saveContentTimeoutRef.current) window.clearTimeout(saveContentTimeoutRef.current);
     };
-  }, [contentState.status, contentState.query, contentState.results.length]);
+  }, [contentState.status, contentState.query, contentState.results.length, doSaveContentSearch]);
 
   // Save research search
   useEffect(() => {
@@ -133,7 +133,7 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
       }
       doSaveContentSearch(contentState.query, contentState.results.length);
     }
-  }, [open]);
+  }, [open, contentState.query, contentState.results.length, doSaveContentSearch]);
 
   // Escape key and focus
   useEffect(() => {

@@ -30,7 +30,7 @@ describe('useTimelineDragDrop', () => {
         createSVGPoint: () => ({
           x: 0,
           y: 0,
-          matrixTransform: (matrix: any) => ({ x: 500, y: 100 }),
+          matrixTransform: (_matrix: any) => ({ x: 500, y: 100 }),
         }),
         getScreenCTM: () => ({
           inverse: () => ({}),
@@ -71,7 +71,7 @@ describe('useTimelineDragDrop', () => {
 
   describe('handleNodeDragMove - recursive update', () => {
     it('обновляет позицию ноды и её веток', () => {
-      const { result, rerender } = renderHook(
+      const { result } = renderHook(
         ({ nodes, edges }) =>
           useTimelineDragDrop({
             nodes,

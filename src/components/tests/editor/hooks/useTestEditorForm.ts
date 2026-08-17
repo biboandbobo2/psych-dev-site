@@ -155,7 +155,7 @@ export function useTestEditorForm({ testId, importedData, defaultCourse = 'devel
         setQuestionCountInput(String(totalQuestions));
         alert(`Добавлено ${result.questions.length} вопросов`);
       }
-    } catch (error) {
+    } catch {
       alert('Не удалось прочитать файл');
     }
   }, [questions]);

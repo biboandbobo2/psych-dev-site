@@ -6,7 +6,6 @@ import type { VercelRequest } from '@vercel/node';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initFirebaseAdmin } from '../../src/lib/api-server/sharedApiRuntime.js';
-import { altegPost } from './altegClient.js';
 
 export interface BookingAuthFailure {
   valid: false;

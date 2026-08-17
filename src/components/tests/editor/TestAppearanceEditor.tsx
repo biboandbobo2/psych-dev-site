@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { TestAppearance } from '../../../types/tests';
 import type { ThemeOverrides, DerivedTheme, ThemePreset } from '../../../types/themes';
 import { ThemePicker } from '../../theme/ThemePicker';

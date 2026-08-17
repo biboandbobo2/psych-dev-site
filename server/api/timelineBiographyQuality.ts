@@ -6,7 +6,6 @@ import {
   russianDateToISO,
   sanitizeTimelineEventPlan,
   LINE_X_POSITION,
-  buildEventFactKey,
 } from './timelineBiographyHeuristics.js';
 import {
   SPHERE_META,

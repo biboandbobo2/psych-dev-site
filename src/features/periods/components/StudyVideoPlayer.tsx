@@ -178,17 +178,6 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
       onPlaybackProgressMsRef.current(currentTimeMs);
     };
 
-    const maybeNotifyByProgress = () => {
-      if (!hasReadyPlayerMethods(playerRef.current)) return;
-      const duration = playerRef.current.getDuration();
-      if (!duration || duration <= 0) return;
-      const current = playerRef.current.getCurrentTime();
-      emitPlaybackProgress();
-      if (current / duration >= watchThreshold) {
-        notifyWatchThresholdReached();
-      }
-    };
-
     useImperativeHandle(
       ref,
       () => ({
@@ -242,6 +231,17 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
       }
 
       let destroyed = false;
+
+      const maybeNotifyByProgress = () => {
+        if (!hasReadyPlayerMethods(playerRef.current)) return;
+        const duration = playerRef.current.getDuration();
+        if (!duration || duration <= 0) return;
+        const current = playerRef.current.getCurrentTime();
+        emitPlaybackProgress();
+        if (current / duration >= watchThreshold) {
+          notifyWatchThresholdReached();
+        }
+      };
 
       void loadYouTubeIframeApi()
         .then((youtubeApi) => {

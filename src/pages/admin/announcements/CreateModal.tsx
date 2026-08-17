@@ -12,12 +12,14 @@ import {
 } from '../announcementsMultiPublish';
 import type { Group } from '../../../types/groups';
 import { isEveryoneGroup } from '../../../../shared/groups/everyoneGroup';
+import { AnnouncementForm } from './forms/AnnouncementForm';
+import { EventForm } from './forms/EventForm';
+import { AssignmentForm } from './forms/AssignmentForm';
 import {
-  AnnouncementForm,
   EMPTY_ANNOUNCEMENT_FORM,
-} from './forms/AnnouncementForm';
-import { EventForm, EMPTY_EVENT_FORM } from './forms/EventForm';
-import { AssignmentForm, EMPTY_ASSIGNMENT_FORM } from './forms/AssignmentForm';
+  EMPTY_ASSIGNMENT_FORM,
+  EMPTY_EVENT_FORM,
+} from './forms/formHelpers';
 
 export type CreateKind = 'event' | 'announcement' | 'assignment';
 

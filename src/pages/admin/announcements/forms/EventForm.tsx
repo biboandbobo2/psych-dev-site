@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { GroupEvent } from '../../../../types/groupFeed';
+import { EMPTY_EVENT_FORM } from './formHelpers';
 
 export interface EventFormValue {
   text: string;
@@ -35,26 +35,6 @@ function msToInput(ms: number | null, allDay: boolean): string {
   if (ms === null) return '';
   return localInputValue(new Date(ms), allDay);
 }
-
-export function eventToFormValue(event: GroupEvent): EventFormValue {
-  return {
-    text: event.text ?? '',
-    startAtMs: event.startAt?.toMillis?.() ?? null,
-    endAtMs: event.endAt?.toMillis?.() ?? null,
-    isAllDay: Boolean(event.isAllDay),
-    zoomLink: event.zoomLink ?? '',
-    siteLink: event.siteLink ?? '',
-  };
-}
-
-export const EMPTY_EVENT_FORM: EventFormValue = {
-  text: '',
-  startAtMs: null,
-  endAtMs: null,
-  isAllDay: false,
-  zoomLink: '',
-  siteLink: '',
-};
 
 interface EventFormProps {
   initialValue?: EventFormValue;

@@ -110,7 +110,7 @@ export function BookingConfirmation({ cart, duration, onSubmit, onBack, submitti
         <div className="bg-dom-cream rounded-2xl p-6 mb-8">
           <h3 className="font-semibold text-dom-gray-900 mb-4">Ваши бронирования</h3>
           <div className="space-y-3">
-            {cart.map((item, index) => (
+            {cart.map((item, _index) => (
               <div
                 key={`${item.room.id}-${item.date}-${item.slot.time}`}
                 className="flex items-center gap-3 bg-white rounded-xl p-3"

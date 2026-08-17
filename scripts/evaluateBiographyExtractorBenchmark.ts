@@ -216,13 +216,13 @@ async function run() {
     },
     missingFromArticle: evaluatedFacts
       .filter((fact) => !fact.articleMatched)
-      .map(({ article, extractor, matchedAge, matchedText, matchedYear, ...rest }) => rest),
+      .map(({ article: _article, extractor: _extractor, matchedAge: _matchedAge, matchedText: _matchedText, matchedYear: _matchedYear, ...rest }) => rest),
     missingFromExtractor: evaluatedFacts
       .filter((fact) => !fact.extractorMatched)
-      .map(({ article, extractor, matchedAge, matchedText, matchedYear, ...rest }) => rest),
+      .map(({ article: _article, extractor: _extractor, matchedAge: _matchedAge, matchedText: _matchedText, matchedYear: _matchedYear, ...rest }) => rest),
     coveredByExtractor: evaluatedFacts
       .filter((fact) => fact.extractorMatched)
-      .map(({ article, extractor, matchedText, ...rest }) => ({
+      .map(({ article: _article, extractor: _extractor, matchedText, ...rest }) => ({
         ...rest,
         matchedText,
       })),

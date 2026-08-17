@@ -14,7 +14,7 @@ import {
   mapCanonicalCourseLessons,
   sortCourseLessonItems,
 } from '../lib/courseLessons';
-import { getCourseBasePath, isCoreCourse } from '../constants/courses';
+import { getCourseBasePath } from '../constants/courses';
 
 interface LessonNavItem {
   id: string;
@@ -132,7 +132,7 @@ export default function AdminCourseSidebar() {
               title: item.label,
               ...item,
             }))
-          ).map(({ period, title, ...item }) => item);
+          ).map(({ period: _period, title: _title, ...item }) => item);
           setLessonItems(sortedItems);
         }
       } catch (error) {

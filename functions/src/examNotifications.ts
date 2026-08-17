@@ -244,7 +244,7 @@ export function buildGCalPayload(args: {
 
 function tgEscape(text: string): string {
   // Markdown v1: экранируем '*', '_', '`', '['
-  return text.replace(/([*_`\[])/g, "\\$1");
+  return text.replace(/([*_`[])/g, "\\$1");
 }
 
 export function buildTgMessage(args: {

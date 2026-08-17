@@ -244,17 +244,6 @@ export function QuestionEditor({
     // Note: Alt+ArrowDown/Up handlers removed, now handled by QuestionAnswersManager
   };
 
-  const revealControlsDisabled =
-    !!testRevealPolicy && question.revealPolicySource === 'inherit';
-
-  const revealPolicyMode = question.revealPolicy.mode;
-  const revealAttempts =
-    question.revealPolicy.mode === 'after_attempts'
-      ? question.revealPolicy.attempts
-      : 1;
-
-  const answersErrorText = [answersError, correctAnswerError].filter(Boolean).join(' · ');
-
   return (
     <div
       className="rounded-xl border border-gray-200 bg-white shadow-sm"

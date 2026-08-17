@@ -13,7 +13,7 @@ function isEnabled(): boolean {
         env = (import.meta as any).env;
         isDev = env.DEV === true;
       }
-    } catch (e) {
+    } catch {
       // Fallback to Node.js process.env (import.meta not available)
     }
 
@@ -29,12 +29,6 @@ function isEnabled(): boolean {
 export function isDebug() {
   return isEnabled();
 }
-
-const safeLogger = (fn: (...args: unknown[]) => void) => (...args: unknown[]) => {
-  if (isEnabled()) {
-    fn(...args);
-  }
-};
 
 // Export as direct functions instead of const to avoid top-level function calls
 export function debugLog(...args: unknown[]) {

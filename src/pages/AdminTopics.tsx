@@ -9,7 +9,7 @@ import { debugError } from '../lib/debug';
 export default function AdminTopics() {
   const { user, isAdmin } = useAuth();
   const [selectedAgeRange, setSelectedAgeRange] = useState<AgeRange>('primary-school');
-  const { topics, loading, createTopicsBulk, updateTopic, deleteTopic } = useTopics(selectedAgeRange);
+  const { topics, loading, createTopicsBulk, deleteTopic } = useTopics(selectedAgeRange);
   const [bulkText, setBulkText] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);

@@ -35,7 +35,7 @@ export function sanitizeLectureAnswer(answer: string): string {
     .replace(/\[SOURCE[^\]]*\]/gi, '')
     .replace(/\[\/SOURCE\]/gi, '')
     .replace(/\[chunkId[=:][^\]]+\]/gi, '')
-    .replace(/\(chunkId[=:][^\)]+\)/gi, '')
+    .replace(/\(chunkId[=:][^)]+\)/gi, '')
     .replace(/\*\*/g, '')
     .replace(/\*/g, '')
     .replace(/`/g, '')

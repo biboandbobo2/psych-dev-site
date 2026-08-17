@@ -333,6 +333,9 @@ export default function Timeline() {
     setShowBulkCreator(false);
     biographyImportResetRef.current();
     resetHistory();
+    // объекты *Hook пересоздаются каждый рендер: полные deps перезапускали бы
+    // useEffect[activeTimelineId] на каждом рендере (см. комментарий выше)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [birthHook.setBirthSelected, branchHook.setSelectedBranchId, formHook.clearForm, resetHistory]);
 
   // Auto-pickup sphere when selecting branch
@@ -347,6 +350,9 @@ export default function Timeline() {
         }
       }
     }
+    // formHook пересоздаётся каждый рендер; эффект должен срабатывать только
+    // на смену выделенной ветки, а не на каждый рендер
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchHook.selectedBranchId, edges, nodes, formHook.formEventId]);
 
   useEffect(() => {
@@ -364,7 +370,7 @@ export default function Timeline() {
     return Math.max(4000, Math.ceil(needed / 500) * 500);
   }, [nodes, edges]);
   const worldHeight = ageMax * YEAR_PX + 500;
-  const adaptiveRadius = clamp(BASE_NODE_RADIUS / transform.k, MIN_NODE_RADIUS, MAX_NODE_RADIUS);
+  const _adaptiveRadius = clamp(BASE_NODE_RADIUS / transform.k, MIN_NODE_RADIUS, MAX_NODE_RADIUS);
 
   // ============ ADDITIONAL HANDLERS ============
 

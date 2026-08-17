@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useContentSearch } from '../hooks/useContentSearch';
 import { useTranscriptSearchChunks } from '../hooks/useTranscriptSearchChunks';
@@ -79,7 +79,7 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
   const saveTimeoutRef = useRef<number | null>(null);
 
   // Функция сохранения поиска
-  const doSaveSearch = (query: string, resultsCount: number) => {
+  const doSaveSearch = useCallback((query: string, resultsCount: number) => {
     if (query.trim().length >= 2 && query !== savedQueryRef.current) {
       savedQueryRef.current = query;
       saveSearch({
@@ -88,7 +88,7 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
         resultsCount,
       });
     }
-  };
+  }, [saveSearch]);
 
   // Сохранение через 10 секунд после последнего изменения запроса
   useEffect(() => {
@@ -108,7 +108,7 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
         window.clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [state.status, state.query, state.results.length]);
+  }, [state.status, state.query, state.results.length, doSaveSearch]);
 
   // Сохранение при закрытии drawer
   useEffect(() => {
@@ -121,7 +121,7 @@ export function ContentSearchDrawer({ open, onClose }: ContentSearchDrawerProps)
       // Сохраняем поиск при закрытии
       doSaveSearch(state.query, state.results.length);
     }
-  }, [open]);
+  }, [open, state.query, state.results.length, doSaveSearch]);
 
   // Обработка Escape и фокус на input при открытии
   useEffect(() => {

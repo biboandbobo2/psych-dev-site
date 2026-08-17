@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const {
-  mockSet, mockGetAll, mockDocRef, mockDoc, mockCollection,
+  mockSet, mockGetAll, mockDoc, mockCollection,
 } = vi.hoisted(() => {
   const mockSet = vi.fn();
   const mockGetAll = vi.fn();

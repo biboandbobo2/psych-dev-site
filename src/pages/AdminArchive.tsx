@@ -4,7 +4,8 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { auth } from "../lib/firebase";
 import { debugError, debugLog } from "../lib/debug";
-import UploadAsset, { diagnoseToken } from "./UploadAsset";
+import UploadAsset from "./UploadAsset";
+import { diagnoseToken } from "./uploadAssetHelpers";
 
 const hasAdminRole = (role?: string) => role === "admin" || role === "super-admin";
 

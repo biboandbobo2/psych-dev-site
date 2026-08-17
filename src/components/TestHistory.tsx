@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { getTestResults, groupResultsByTest } from '../lib/testResults';
+import { getTestResults } from '../lib/testResults';
 import { debugLog, debugError } from '../lib/debug';
 import type { TestResult } from '../types/testResults';
 

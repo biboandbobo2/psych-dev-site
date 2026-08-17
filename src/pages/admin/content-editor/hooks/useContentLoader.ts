@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../../lib/firebase';
+import { getDoc } from 'firebase/firestore';
 import { getPeriod as fetchPeriod, getIntro as fetchIntro } from '../../../../lib/firestoreHelpers';
 import { DEFAULT_THEME } from '../../../../theme/periods';
 import type { Period } from '../types';
@@ -315,7 +314,28 @@ export function useContentLoader(params: UseContentLoaderParams) {
     }
 
     loadPeriod();
-  }, [periodId, course, placeholderDefaultEnabled, placeholderDisplayText, fallbackTitle]);
+  }, [
+    periodId,
+    course,
+    placeholderDefaultEnabled,
+    placeholderDisplayText,
+    fallbackTitle,
+    setTitle,
+    setSubtitle,
+    setPublished,
+    setOrder,
+    setAccent,
+    setAccent100,
+    setPlaceholderEnabled,
+    setVideos,
+    setConcepts,
+    setAuthors,
+    setCoreLiterature,
+    setExtraLiterature,
+    setExtraVideos,
+    setLeisure,
+    setSelfQuestionsUrl,
+  ]);
 
   return { period, loading };
 }

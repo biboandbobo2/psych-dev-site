@@ -102,6 +102,9 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
     };
 
     loadTestAppearance();
+    // setters/handlers — нестабильные объекты из хуков: полные deps перезапускали бы загрузку
+    // каждый рендер и затирали правки пользователя
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testId]);
 
   // Load theme and prerequisite from imported data
@@ -124,6 +127,8 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
         prerequisiteHook.setters.setThresholdInput(String(data.requiredPercentage));
       }
     }
+    // setters/handlers — нестабильные объекты из хуков: полные deps перезапускали бы импорт каждый рендер
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testId, importedData]);
 
   if (formHook.loading) {

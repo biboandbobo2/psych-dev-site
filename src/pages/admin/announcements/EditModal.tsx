@@ -8,9 +8,14 @@ import {
 } from '../../../hooks/useGroupFeed';
 import { debugError } from '../../../lib/debug';
 import type { GroupAnnouncement, GroupEvent } from '../../../types/groupFeed';
-import { AnnouncementForm, announcementToFormValue } from './forms/AnnouncementForm';
-import { EventForm, eventToFormValue } from './forms/EventForm';
-import { AssignmentForm, assignmentToFormValue } from './forms/AssignmentForm';
+import { AnnouncementForm } from './forms/AnnouncementForm';
+import { EventForm } from './forms/EventForm';
+import { AssignmentForm } from './forms/AssignmentForm';
+import {
+  announcementToFormValue,
+  assignmentToFormValue,
+  eventToFormValue,
+} from './forms/formHelpers';
 import { isEveryoneGroup } from '../../../../shared/groups/everyoneGroup';
 
 export type EditTarget =

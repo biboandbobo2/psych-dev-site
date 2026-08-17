@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { LINE_X_POSITION, SPHERE_META } from '../constants';
 import {
   applyBranchDeletionToFlat,
@@ -33,7 +33,7 @@ export function useTimelineBranch({
   onClearForm,
   notify,
 }: UseTimelineBranchOptions) {
-  const warn = notify ?? ((message: string) => alert(message));
+  const warn = useMemo(() => notify ?? ((message: string) => alert(message)), [notify]);
   const [branchYears, setBranchYears] = useState<string>('5');
   // B15: identify the current selection by edge.id, not by x — two
   // branches can legitimately share an x-coord (legacy data) and id
@@ -123,7 +123,7 @@ export function useTimelineBranch({
       onClearForm?.();
       setSelectedBranchId(null);
     },
-    [branchYears, edges, nodes, setEdges, onHistoryRecord, onClearForm, warn]
+    [branchYears, edges, nodes, ageMax, setEdges, onHistoryRecord, onClearForm, warn]
   );
 
   /**

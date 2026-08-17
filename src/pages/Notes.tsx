@@ -36,7 +36,7 @@ export default function Notes() {
   const { courseOptions, lessonsByCourse, loading: lessonsLoading } = usePublishedLessonOptions();
   const activeCourse = useActiveCourse(courseOptions, lessonsLoading);
   const courseParam = searchParams.get('course');
-  const activeLessons = lessonsByCourse[activeCourse] ?? [];
+  const activeLessons = useMemo(() => lessonsByCourse[activeCourse] ?? [], [lessonsByCourse, activeCourse]);
   const selectedLesson =
     selectedPeriod === 'all'
       ? null

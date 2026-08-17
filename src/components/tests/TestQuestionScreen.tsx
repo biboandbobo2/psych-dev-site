@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from 'react';
+import { type CSSProperties } from 'react';
 import type { TestQuestion, QuestionAnswer, TestAppearance, RevealPolicy } from '../../types/tests';
 import { getYouTubeEmbedUrl } from '../../utils/mediaUpload';
 import { hexToRgba } from '../../utils/testAppearance';

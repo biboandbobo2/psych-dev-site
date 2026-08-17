@@ -18,12 +18,6 @@ interface CourseAccessMap {
   general?: boolean;
 }
 
-function isAdminOrSuperAdmin(request: Pick<CallableRequest, "auth">): boolean {
-  const role = request.auth?.token?.role;
-  const callerEmail = request.auth?.token?.email;
-  return role === "admin" || role === "super-admin" || callerEmail === SUPER_ADMIN_EMAIL;
-}
-
 /**
  * updateCourseAccess - обновление доступа пользователя к курсам
  *

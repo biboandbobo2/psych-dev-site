@@ -137,7 +137,7 @@ export function useTestTheme() {
     if (value) {
       setThemeOverrides((prev) => {
         if (!prev || !prev.badge) return prev;
-        const { badge, ...rest } = prev;
+        const { badge: _badge, ...rest } = prev;
         return Object.keys(rest).length ? rest : undefined;
       });
     }

@@ -47,7 +47,7 @@ export function useTestImportExport() {
 
         setImportedTest({ data: result.data, questions: result.questions });
         onSuccess();
-      } catch (error) {
+      } catch {
         onFeedback({
           type: 'error',
           message: 'Не удалось прочитать файл',

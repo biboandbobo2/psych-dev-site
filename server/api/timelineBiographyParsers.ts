@@ -93,7 +93,7 @@ export function deduplicateFacts(facts: BiographyFactCandidate[]): BiographyFact
     return new Set(
       text
         .toLowerCase()
-        .replace(/[«»"".,;:!?()—–\-]/g, ' ')
+        .replace(/[«»"".,;:!?()—–-]/g, ' ')
         .split(/\s+/)
         .filter((w) => w.length > 2 && !STOP_WORDS_FOR_DEDUP.has(w))
     );

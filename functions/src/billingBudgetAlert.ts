@@ -87,7 +87,7 @@ export function parseBudgetMessage(message: { json?: unknown; data?: string | Bu
       : message.data;
     const decoded = Buffer.from(encoded, "base64").toString("utf8");
     return JSON.parse(decoded) as BudgetPayload;
-  } catch (error) {
+  } catch {
     return {};
   }
 }

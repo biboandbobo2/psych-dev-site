@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { GroupEvent } from '../../../../types/groupFeed';
+import { EMPTY_ASSIGNMENT_FORM } from './formHelpers';
 
 export interface AssignmentFormValue {
   text: string;
@@ -11,20 +11,6 @@ export interface AssignmentFormSubmitPayload {
   text: string;
   dueDate: string;
   longText: string;
-}
-
-export const EMPTY_ASSIGNMENT_FORM: AssignmentFormValue = {
-  text: '',
-  dueDate: '',
-  longText: '',
-};
-
-export function assignmentToFormValue(event: GroupEvent): AssignmentFormValue {
-  return {
-    text: event.text ?? '',
-    dueDate: event.dueDate ?? '',
-    longText: event.longText ?? '',
-  };
 }
 
 interface AssignmentFormProps {

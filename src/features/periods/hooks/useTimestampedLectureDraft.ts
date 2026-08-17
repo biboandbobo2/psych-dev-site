@@ -34,6 +34,9 @@ export function useTimestampedLectureDraft({
   const initialSignature = useMemo(() => JSON.stringify(initialSegments), [initialSegments]);
   const normalizedInitialSegments = useMemo(
     () => sanitizeSegments(initialSegments),
+    // намеренно: пересчёт по содержимому (signature), а не по identity массива —
+    // иначе черновик сбрасывался бы на каждом рендере родителя
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [initialSignature]
   );
   const [segments, setSegments] = useState<LectureNoteSegment[]>(() => normalizedInitialSegments);
