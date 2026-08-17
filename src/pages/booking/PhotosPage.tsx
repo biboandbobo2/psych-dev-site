@@ -13,16 +13,20 @@ const ROOM_PHOTOS: Record<string, { description: string; photos: string[] }> = {
   '3012126': {
     description: 'Кабинет для индивидуальных консультаций — терапевт и клиент. Есть выход на балкон.',
     photos: [
+      '/images/rooms/izumrudny/armchairs.jpg',
       '/images/rooms/izumrudny/6n55tg9djb.jpg',
       '/images/rooms/izumrudny/hfsofebks0.jpg',
+      '/images/rooms/izumrudny/bookshelf.jpg',
     ],
   },
   '3012185': {
     description:
       'Для индивидуальных консультаций, пар, семей, детей и групп до 12 человек. По договорённости можно хранить в кабинете реквизит для групповой работы.',
     photos: [
-      '/images/rooms/lazurny/1dh0mgoumt.jpg',
+      '/images/rooms/lazurny/chairs-lamp.jpg',
+      '/images/rooms/lazurny/red-armchair.jpg',
       '/images/rooms/lazurny/3tibsptqrg.jpg',
+      '/images/rooms/lazurny/1dh0mgoumt.jpg',
     ],
   },
   '2769648': {
