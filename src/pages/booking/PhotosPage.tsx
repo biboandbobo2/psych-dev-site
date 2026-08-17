@@ -11,21 +11,23 @@ interface PhotosPageProps {
 
 const ROOM_PHOTOS: Record<string, { description: string; photos: string[] }> = {
   '3012126': {
-    description: 'Кабинет для индивидуальных консультаций',
+    description: 'Кабинет для индивидуальных консультаций — терапевт и клиент. Есть выход на балкон.',
     photos: [
       '/images/rooms/izumrudny/6n55tg9djb.jpg',
       '/images/rooms/izumrudny/hfsofebks0.jpg',
     ],
   },
   '3012185': {
-    description: 'Кабинет для индивидуальных и семейных консультаций',
+    description:
+      'Для индивидуальных консультаций, пар, семей, детей и групп до 12 человек. По договорённости можно хранить в кабинете реквизит для групповой работы.',
     photos: [
       '/images/rooms/lazurny/1dh0mgoumt.jpg',
       '/images/rooms/lazurny/3tibsptqrg.jpg',
     ],
   },
   '2769648': {
-    description: 'Кабинет для индивидуальных консультаций и работы с детьми',
+    description:
+      'Для индивидуальных консультаций, пар, семей, детей и групп до 12 человек. Есть детский уголок и диван.',
     photos: [
       '/images/rooms/bordovy/11kukj54bu.jpg',
       '/images/rooms/bordovy/17kq335t2u.jpg',
@@ -92,20 +94,24 @@ export function PhotosPage({ embedded = false }: PhotosPageProps) {
         ))}
 
         {/* Зал для мероприятий */}
-        <div className="mt-8 mb-4 text-center">
-          <p className="text-xl md:text-2xl text-dom-gray-700 leading-relaxed max-w-[700px] mx-auto">
-            Также у нас есть просторный зал для мероприятий и мастер-классов.
-            Для его аренды свяжитесь с нашим{' '}
+        <section className="mt-8 mb-4">
+          <h2 className="text-2xl font-bold text-dom-gray-900 mb-3 text-center">Зал для мероприятий</h2>
+          <p className="text-dom-gray-700 leading-relaxed max-w-[700px] mx-auto text-center">
+            Просторный зал для лекций, групп, практикумов и мастер-классов — вмещает до 30 человек.
+            Аренда — от 45 gel за час, при бронировании от 3 часов — дешевле. Проектор, микрофон
+            и колонки — +30 gel. Зал бронируется через администратора.
+          </p>
+          <div className="text-center mt-6">
             <a
               href="https://t.me/PsyDom_Tbilisi_administrator"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-dom-green hover:text-dom-green-hover font-medium underline underline-offset-4 transition-colors"
+              className="inline-block px-6 py-3 bg-dom-green hover:bg-dom-green-hover text-white rounded-xl font-medium transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
-              администратором
-            </a>.
-          </p>
-        </div>
+              Написать администратору
+            </a>
+          </div>
+        </section>
       </div>
 
       {/* Lightbox */}

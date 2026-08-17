@@ -18,7 +18,11 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
       </Helmet>
 
       <div className="max-w-[900px] mx-auto px-4 md:px-8 py-12">
-        <h1 className="text-3xl font-bold text-dom-gray-900 mb-10">Стоимость аренды</h1>
+        <h1 className="text-3xl font-bold text-dom-gray-900 mb-3">Стоимость аренды</h1>
+        <p className="text-dom-gray-500 mb-10 max-w-[600px]">
+          Бронируете время от времени — подойдёт разовая аренда. Работаете регулярно —
+          абонемент снижает цену часа с 25 до 17,5 gel.
+        </p>
 
         {/* Кабинеты */}
         <section className="mb-12">
@@ -85,11 +89,13 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
         {/* Счастливые часы */}
         <section className="mb-12">
           <h2 className="text-xl font-semibold text-dom-gray-900 mb-2">Счастливые часы</h2>
-          <p className="text-sm text-dom-gray-500 mb-4">Будни 9:00–14:00, выходные 18:00–22:00</p>
-          <div className="rounded-xl border border-dom-gray-200 bg-dom-cream/50 p-5">
-            <p className="text-dom-gray-700">
+          <p className="text-sm text-dom-gray-500 mb-4">
+            Самая низкая цена в DOM — абонемент на 10 часов в месяц: будни 9:00–14:00, выходные 18:00–22:00.
+          </p>
+          <div className="rounded-xl border-2 border-dom-green/40 bg-dom-green/5 p-5">
+            <p className="text-2xl font-bold text-dom-green">15 gel/ч</p>
+            <p className="text-dom-gray-700 mt-1">
               <span className="font-semibold">10 часов в месяц</span> — 150 gel
-              <span className="text-dom-gray-500 ml-2">(15 gel/ч)</span>
             </p>
           </div>
         </section>
@@ -122,7 +128,7 @@ export function PricingPage({ embedded = false }: PricingPageProps) {
             </table>
           </div>
           <p className="text-sm text-dom-gray-500 mt-3">
-            Оборудование (проектор, микрофон, колонки) — +30 gel
+            Оборудование (проектор, микрофон, колонки) — +30 gel. Зал бронируется через администратора.
           </p>
         </section>
 

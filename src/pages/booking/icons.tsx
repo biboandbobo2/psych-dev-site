@@ -35,6 +35,14 @@ export function ChevronRightIcon({ className = 'w-4 h-4', strokeWidth = 2 }: Ico
   );
 }
 
+export function MenuIcon({ className = 'w-6 h-6', strokeWidth = 2 }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={strokeWidth}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
 export function ChevronDownIcon({ className = 'w-4 h-4', strokeWidth = 2 }: IconProps) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={strokeWidth}>

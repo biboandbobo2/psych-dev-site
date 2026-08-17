@@ -216,8 +216,8 @@ email (из Firebase user), phone (из Firestore).
 src/pages/
 ├── BookingPage.tsx              # Главная страница бронирования
 ├── booking/
-│   ├── BookingLayout.tsx        # Layout (header с auth + footer)
-│   ├── StartStep.tsx            # 2 входа: кабинет / дата
+│   ├── BookingLayout.tsx        # Layout (header с auth + footer, бургер-меню на мобильных)
+│   ├── StartStep.tsx            # Оффер + 2 входа (кабинет / дата) + блоки «Кому подойдёт» и «Что входит»
 │   ├── RoomSelector.tsx         # Карточки кабинетов (с availability)
 │   ├── DatePicker.tsx           # Выбор даты (28 дней)
 │   ├── TimeSlotGrid.tsx         # Слоты времени + переключатель длительности

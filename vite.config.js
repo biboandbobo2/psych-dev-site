@@ -1,11 +1,6 @@
 /* eslint-env node */
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const chunkMapper = (id) => {
   if (!id) return null;
@@ -93,7 +88,8 @@ export default defineConfig(({ mode }) => {
     configureServer(server) {
       server.middlewares.use(apiPath, async (req, res, next) => {
         try {
-          const handler = (await import(path.resolve(__dirname, filePath))).default;
+          // ssrLoadModule (а не голый import): резолвит NodeNext-импорты вида './x.js' → './x.ts'
+          const handler = (await server.ssrLoadModule(`/${filePath}`)).default;
           const parsedUrl = new URL(req.url || '', 'http://localhost');
           req.query = Object.fromEntries(parsedUrl.searchParams.entries());
           // Parse JSON body for POST requests

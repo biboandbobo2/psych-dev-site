@@ -161,7 +161,7 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
 
   if (loading) {
     return (
-      <section className="py-12 md:py-16 bg-white">
+      <section id="week-schedule" className="py-12 md:py-16 bg-white">
         <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
           <div className="flex items-center justify-between mb-6">
             <div className="w-[160px]" />
@@ -178,7 +178,7 @@ export function WeekSchedule({ rooms, weekDates, busy, loading, weekOffset, onWe
   }
 
   return (
-    <section className="py-12 md:py-16 bg-white">
+    <section id="week-schedule" className="py-12 md:py-16 bg-white">
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-1.5 w-[160px]">

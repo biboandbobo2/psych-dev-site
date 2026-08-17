@@ -1,9 +1,19 @@
 import { motion } from 'framer-motion';
 import type { BookingFlow } from './types';
+import { CheckIcon } from './icons';
 
 interface StartStepProps {
   onSelect: (flow: BookingFlow) => void;
 }
+
+const INCLUDED = [
+  'Меблированные кабинеты',
+  'Зона ожидания',
+  'Чай, кофе и печенье',
+  'Wi-Fi и кондиционер',
+  'Онлайн-бронирование',
+  'Поддержка администратора',
+];
 
 const ENTRIES: { flow: BookingFlow; title: string; desc: string; icon: string; accent: string }[] = [
   {
@@ -23,16 +33,29 @@ const ENTRIES: { flow: BookingFlow; title: string; desc: string; icon: string; a
 ];
 
 export function StartStep({ onSelect }: StartStepProps) {
+  const scrollToSchedule = () => {
+    document.getElementById('week-schedule')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="py-12 md:py-16">
-      <div className="text-center mb-10">
-        <h2 className="text-3xl md:text-4xl font-bold text-dom-gray-900 leading-tight">
-          Забронировать кабинет
-        </h2>
-        <p className="mt-3 text-dom-gray-500 text-lg">
-          Как вам удобнее начать?
+      <div className="text-center mb-12 max-w-2xl mx-auto">
+        <h1 className="text-3xl md:text-4xl font-bold text-dom-gray-900 leading-tight">
+          Аренда кабинетов для психологов в центре Тбилиси
+        </h1>
+        <p className="mt-4 text-dom-gray-500 text-lg">
+          Три кабинета для консультаций и зал для мероприятий на Орбелиани 38.
+          Выберите время в календаре — бронь занимает пару минут.
         </p>
+        <button
+          onClick={scrollToSchedule}
+          className="mt-6 px-8 py-3.5 rounded-xl bg-dom-green hover:bg-dom-green-hover text-white text-base font-medium transition-all hover:-translate-y-0.5 hover:shadow-md"
+        >
+          Забронировать
+        </button>
       </div>
+
+      <p className="text-center text-dom-gray-500 text-lg mb-6">Как вам удобнее начать?</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
         {ENTRIES.map((e) => (
           <motion.button
@@ -51,6 +74,28 @@ export function StartStep({ onSelect }: StartStepProps) {
             <p className="text-dom-gray-500 text-sm leading-relaxed">{e.desc}</p>
           </motion.button>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mt-14">
+        <div className="rounded-2xl border border-dom-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-dom-gray-900 mb-3">Кому подойдёт</h2>
+          <p className="text-dom-gray-600 leading-relaxed">
+            Психологам и психотерапевтам с частной практикой, семейным и детским специалистам,
+            ведущим групп, лекций и мастер-классов. Кабинет можно арендовать на час — для разовой
+            встречи или регулярного расписания.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-dom-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-dom-gray-900 mb-3">Что входит в аренду</h2>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+            {INCLUDED.map((item) => (
+              <li key={item} className="flex items-center gap-2 text-dom-gray-600">
+                <CheckIcon className="w-4 h-4 text-dom-green flex-shrink-0" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </div>
   );

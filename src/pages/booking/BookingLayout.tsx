@@ -9,12 +9,19 @@ import { useUserPhone } from './useUserPhone';
 import { BookingContext } from './BookingContext';
 import type { BookingStep } from './types';
 import { debugError } from '../../lib/debug';
-import { ChevronDownIcon } from './icons';
+import { ChevronDownIcon, CloseIcon, MenuIcon } from './icons';
 
 interface BookingLayoutProps {
   children: ReactNode;
   bookingStep?: BookingStep;
 }
+
+const NAV_LINKS = [
+  { to: '/booking/photos', label: 'Фотографии кабинетов' },
+  { to: '/booking/pricing', label: 'Стоимость аренды' },
+  { to: '/booking/directions', label: 'Как добраться' },
+  { to: '/home', label: 'DOM Academy' },
+];
 
 export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
   const user = useAuthStore((state) => state.user);
@@ -22,6 +29,7 @@ export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
   const isStartScreen = location.pathname === '/booking' && (!bookingStep || bookingStep === 'start');
   const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const { phone: userPhone, loading: phoneLoading, refresh: refreshPhone } = useUserPhone();
   const needsPhone = !!user && !phoneLoading && !userPhone;
 
@@ -60,34 +68,20 @@ export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
             </Link>
             {isStartScreen && (
               <nav className="hidden sm:flex items-center gap-3">
-                <Link
-                  to="/booking/photos"
-                  className="px-5 py-2.5 rounded-xl text-base font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
-                >
-                  Фотографии кабинетов
-                </Link>
-                <Link
-                  to="/booking/pricing"
-                  className="px-5 py-2.5 rounded-xl text-base font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
-                >
-                  Стоимость аренды
-                </Link>
-                <Link
-                  to="/booking/directions"
-                  className="px-5 py-2.5 rounded-xl text-base font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
-                >
-                  Как добраться
-                </Link>
-                <Link
-                  to="/home"
-                  className="px-5 py-2.5 rounded-xl text-base font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
-                >
-                  DOM Academy
-                </Link>
+                {NAV_LINKS.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className="px-5 py-2.5 rounded-xl text-base font-medium text-dom-gray-700 hover:bg-dom-green/10 hover:text-dom-green transition-all"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
               </nav>
             )}
           </div>
 
+          <div className="flex items-center gap-1">
           {/* Auth section */}
           <div className="relative">
             {user ? (
@@ -138,6 +132,36 @@ export function BookingLayout({ children, bookingStep }: BookingLayoutProps) {
                 Войти
               </button>
             )}
+          </div>
+
+          {/* Mobile nav burger */}
+          <div className="relative sm:hidden">
+            <button
+              onClick={() => setNavOpen(!navOpen)}
+              aria-label={navOpen ? 'Закрыть меню' : 'Открыть меню'}
+              className="p-2.5 rounded-xl text-dom-gray-700 hover:bg-dom-green/10 transition-colors"
+            >
+              {navOpen ? <CloseIcon className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
+            </button>
+
+            {navOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setNavOpen(false)} />
+                <nav className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-dom-gray-200 py-1 z-50">
+                  {NAV_LINKS.map((link) => (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      className="block px-4 py-3 text-base font-medium text-dom-gray-700 hover:bg-dom-cream transition-colors"
+                      onClick={() => setNavOpen(false)}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </nav>
+              </>
+            )}
+          </div>
           </div>
         </div>
       </header>
