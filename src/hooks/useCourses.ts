@@ -22,6 +22,17 @@ interface CourseDocInput {
   data: Record<string, unknown>;
 }
 
+// Все живые экземпляры useCourses подписаны сюда: invalidateCourses()
+// заставляет каждый перечитать список. Нужно, потому что у сайдбара и
+// страниц — независимые экземпляры хука, и reload() только одного из них
+// оставлял остальным устаревший список (например, без только что
+// созданного курса).
+const reloadListeners = new Set<() => Promise<void>>();
+
+export function invalidateCourses(): Promise<void> {
+  return Promise.all([...reloadListeners].map((listener) => listener())).then(() => undefined);
+}
+
 const resolveCourseName = (courseId: string, data: Record<string, unknown>, fallback: string) => {
   if (typeof data.name === 'string' && data.name.trim()) return data.name.trim();
   if (typeof data.title === 'string' && data.title.trim()) return data.title.trim();
@@ -115,6 +126,10 @@ export function useCourses(options: UseCoursesOptions = {}) {
 
   useEffect(() => {
     loadCourses();
+    reloadListeners.add(loadCourses);
+    return () => {
+      reloadListeners.delete(loadCourses);
+    };
   }, [loadCourses]);
 
   const courseMap = useMemo(() => {
@@ -123,5 +138,5 @@ export function useCourses(options: UseCoursesOptions = {}) {
     return map;
   }, [courses]);
 
-  return { courses, courseMap, loading, error, reload: loadCourses };
+  return { courses, courseMap, loading, error, reload: invalidateCourses };
 }

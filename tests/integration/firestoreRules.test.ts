@@ -475,6 +475,96 @@ describe('courseProgress: прогресс просмотров для лект�
   });
 });
 
+describe('courses: canEditCourse для динамических курсов', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await Promise.all([
+        setDoc(doc(db, 'courses', 'demo-course'), {
+          name: 'Демо-курс',
+          published: true,
+          order: 10,
+        }),
+        setDoc(doc(db, 'courses', 'demo-course', 'lessons', 'lesson-1'), {
+          period: 'lesson-1',
+          title: 'Первое занятие',
+          published: true,
+          order: 0,
+        }),
+        setDoc(doc(db, 'courses', 'other-course'), {
+          name: 'Чужой курс',
+          published: true,
+          order: 11,
+        }),
+      ]);
+    });
+  });
+
+  it('аноним: list курсов и get занятия → success (публичное чтение)', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(getDocs(collection(db, 'courses')));
+    await assertSucceeds(getDoc(doc(db, 'courses', 'demo-course', 'lessons', 'lesson-1')));
+  });
+
+  it('студент без admin-роли: write в курс и занятие → denied', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(setDoc(doc(db, 'courses', 'demo-course'), { name: 'x' }, { merge: true }));
+    await assertFails(
+      setDoc(doc(db, 'courses', 'demo-course', 'lessons', 'lesson-1'), { title: 'x' }, { merge: true })
+    );
+  });
+
+  it('админ своего курса: update курса (published), create/delete занятий → success', async () => {
+    const db = testEnv
+      .authenticatedContext('lecturer-uid', { role: 'admin', editableCourses: ['demo-course'] })
+      .firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'courses', 'demo-course'), { published: false }, { merge: true })
+    );
+    await assertSucceeds(
+      setDoc(doc(db, 'courses', 'demo-course', 'lessons', 'lesson-2'), {
+        period: 'lesson-2',
+        title: 'Новое занятие',
+        published: false,
+        order: 1,
+      })
+    );
+    await assertSucceeds(deleteDoc(doc(db, 'courses', 'demo-course', 'lessons', 'lesson-1')));
+  });
+
+  it('админ чужого курса: write в demo-course и его занятия → denied', async () => {
+    const db = testEnv
+      .authenticatedContext('other-lecturer', { role: 'admin', editableCourses: ['other-course'] })
+      .firestore();
+    await assertFails(
+      setDoc(doc(db, 'courses', 'demo-course'), { published: false }, { merge: true })
+    );
+    await assertFails(
+      setDoc(doc(db, 'courses', 'demo-course', 'lessons', 'lesson-1'), { title: 'x' }, { merge: true })
+    );
+  });
+
+  it('обычный админ: создание НОВОГО курса → denied (id ещё не в editableCourses)', async () => {
+    const db = testEnv
+      .authenticatedContext('lecturer-uid', { role: 'admin', editableCourses: ['demo-course'] })
+      .firestore();
+    await assertFails(
+      setDoc(doc(db, 'courses', 'brand-new-course'), { name: 'Новый', published: true, order: 12 })
+    );
+  });
+
+  it('super-admin: создание нового курса и удаление курса с занятием → success', async () => {
+    const db = testEnv
+      .authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL })
+      .firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'courses', 'brand-new-course'), { name: 'Новый', published: true, order: 12 })
+    );
+    await assertSucceeds(deleteDoc(doc(db, 'courses', 'demo-course', 'lessons', 'lesson-1')));
+    await assertSucceeds(deleteDoc(doc(db, 'courses', 'demo-course')));
+  });
+});
+
 describe('default-deny для новых неизвестных коллекций', () => {
   it('обычный авторизованный: write в произвольную новую коллекцию → denied', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();

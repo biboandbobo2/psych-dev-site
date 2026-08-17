@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { doc, getDocs, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, orderBy, query, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import type { CourseType } from '../types/tests';
 import { useCourseStore } from '../stores/useCourseStore';
 import { cn } from '../lib/cn';
@@ -77,7 +77,9 @@ export default function AdminCourseSidebar() {
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [editingCourseName, setEditingCourseName] = useState('');
   const [editingCourseIcon, setEditingCourseIcon] = useState('');
+  const [editingCoursePublished, setEditingCoursePublished] = useState(true);
   const [renamingCourseId, setRenamingCourseId] = useState<string | null>(null);
+  const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null);
   const [renameError, setRenameError] = useState<string | null>(null);
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [lessonItems, setLessonItems] = useState<LessonNavItem[]>([]);
@@ -165,10 +167,11 @@ export default function AdminCourseSidebar() {
     navigate(`${getCourseBasePath(activeCourse)}${lessonId}`);
   };
 
-  const startRename = (courseId: string, currentName: string, currentIcon: string) => {
+  const startRename = (courseId: string, currentName: string, currentIcon: string, currentPublished: boolean) => {
     setEditingCourseId(courseId);
     setEditingCourseName(currentName);
     setEditingCourseIcon(currentIcon);
+    setEditingCoursePublished(currentPublished);
     setRenameError(null);
   };
 
@@ -176,6 +179,7 @@ export default function AdminCourseSidebar() {
     setEditingCourseId(null);
     setEditingCourseName('');
     setEditingCourseIcon('');
+    setEditingCoursePublished(true);
     setRenameError(null);
     setShowIconPicker(false);
   };
@@ -203,6 +207,8 @@ export default function AdminCourseSidebar() {
         // Keep core docs queryable as explicit overrides in Firestore.
         updatePayload.order = activeEditingCourse.order;
         updatePayload.published = true;
+      } else {
+        updatePayload.published = editingCoursePublished;
       }
 
       await setDoc(
@@ -217,6 +223,39 @@ export default function AdminCourseSidebar() {
       setRenameError('Не удалось сохранить название курса');
     } finally {
       setRenamingCourseId(null);
+    }
+  };
+
+  const deleteCourse = async () => {
+    if (!activeEditingCourse || activeEditingCourse.isCore) return;
+
+    const confirmed = window.confirm(
+      `Удалить курс «${activeEditingCourse.name}» и все его занятия? Это действие необратимо.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingCourseId(activeEditingCourse.id);
+      setRenameError(null);
+
+      const lessonsSnapshot = await getDocs(
+        collection(db, 'courses', activeEditingCourse.id, 'lessons')
+      );
+      const batch = writeBatch(db);
+      lessonsSnapshot.docs.forEach((lessonDoc) => batch.delete(lessonDoc.ref));
+      batch.delete(doc(db, 'courses', activeEditingCourse.id));
+      await batch.commit();
+
+      cancelRename();
+      await reload();
+      // Сбрасываем ?course= удалённого курса; useActiveCourse сам переключит
+      // store на первый доступный курс.
+      navigate('/admin/content');
+    } catch (error) {
+      debugError('Failed to delete course', error);
+      setRenameError('Не удалось удалить курс');
+    } finally {
+      setDeletingCourseId(null);
     }
   };
 
@@ -245,6 +284,7 @@ export default function AdminCourseSidebar() {
             const isActive = activeCourse === course.id;
             const isEditing = editingCourseId === course.id;
             const isRenaming = renamingCourseId === course.id;
+            const isDeleting = deletingCourseId === course.id;
 
             if (isEditing) {
               return (
@@ -287,24 +327,49 @@ export default function AdminCourseSidebar() {
                         placeholder="Название курса"
                         autoFocus
                       />
+                      {!course.isCore && (
+                        <label className="flex items-center gap-2 text-xs text-fg">
+                          <input
+                            type="checkbox"
+                            checked={editingCoursePublished}
+                            onChange={(event) => setEditingCoursePublished(event.target.checked)}
+                            className="h-4 w-4 rounded border-zinc-400 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span>Курс виден студентам</span>
+                        </label>
+                      )}
                       {renameError && <p className="text-xs text-red-600">{renameError}</p>}
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={cancelRename}
-                          disabled={isRenaming}
-                          className="rounded-lg border border-border/70 px-3 py-1.5 text-xs text-muted transition hover:bg-card2 disabled:opacity-50"
-                        >
-                          Отмена
-                        </button>
-                        <button
-                          type="button"
-                          onClick={saveCourseName}
-                          disabled={isRenaming}
-                          className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-                        >
-                          {isRenaming ? 'Сохранение...' : 'Сохранить'}
-                        </button>
+                      <div className="flex items-center justify-between gap-2">
+                        {!course.isCore ? (
+                          <button
+                            type="button"
+                            onClick={deleteCourse}
+                            disabled={isRenaming || isDeleting}
+                            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                          >
+                            {isDeleting ? 'Удаление...' : 'Удалить курс'}
+                          </button>
+                        ) : (
+                          <span />
+                        )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={cancelRename}
+                            disabled={isRenaming || isDeleting}
+                            className="rounded-lg border border-border/70 px-3 py-1.5 text-xs text-muted transition hover:bg-card2 disabled:opacity-50"
+                          >
+                            Отмена
+                          </button>
+                          <button
+                            type="button"
+                            onClick={saveCourseName}
+                            disabled={isRenaming || isDeleting}
+                            className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                          >
+                            {isRenaming ? 'Сохранение...' : 'Сохранить'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -329,7 +394,7 @@ export default function AdminCourseSidebar() {
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    startRename(course.id, course.name, course.icon);
+                    startRename(course.id, course.name, course.icon, course.published !== false);
                   }}
                   className={cn(
                     'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sm transition',
@@ -352,6 +417,11 @@ export default function AdminCourseSidebar() {
                   )}
                 >
                   <span className="block whitespace-normal break-words">{course.name}</span>
+                  {!course.isCore && course.published === false && (
+                    <span className="mt-0.5 inline-block text-[10px] uppercase tracking-[0.16em] text-amber-700">
+                      Скрыт
+                    </span>
+                  )}
                 </button>
               </div>
             );

@@ -32,12 +32,14 @@ export function CreateLessonModal({ onClose, defaultCourse = 'development' }: Cr
   }, [title, idManuallyEdited]);
 
   useEffect(() => {
-    if (!courses.length) return;
+    // До загрузки полного списка courses содержит только core-курсы —
+    // не сбрасываем выбор, пока динамические курсы не подгрузились.
+    if (coursesLoading || !courses.length) return;
     const hasSelected = courses.some((course) => course.id === selectedCourse);
     if (!hasSelected && courses[0]?.id) {
       setSelectedCourse(courses[0].id as CourseType);
     }
-  }, [courses, selectedCourse]);
+  }, [courses, coursesLoading, selectedCourse]);
 
   // Проверка уникальности ID с debounce
   useEffect(() => {
