@@ -90,126 +90,6 @@ export const seedAdmin = onCall(
 });
 
 /**
- * setRole - управление ролями пользователей (только для админов)
- *
- * @param data.targetUid - UID пользователя, которому меняем роль
- * @param data.role - 'admin' | 'student' | null (null удаляет роль)
- */
-export const setRole = onCall(CALLABLE_OPTS, async (request) => {
-  const data = request.data;
-  fnLogger.info("🔵 setRole called", {
-    caller: request.auth?.uid,
-    target: data?.targetUid,
-    role: data?.role,
-  });
-
-  if (!request.auth) {
-    fnLogger.error("❌ Unauthenticated call");
-    throw new HttpsError("unauthenticated", "Authentication required");
-  }
-
-  // super-admin имеет claim role='super-admin' и раньше блокировался здесь же.
-  const callerRole = request.auth.token?.role;
-  if (callerRole !== "admin" && callerRole !== "super-admin") {
-    fnLogger.error("❌ Caller is not admin", {
-      caller: request.auth.uid,
-      callerRole,
-    });
-    throw new HttpsError("permission-denied", "Only admins can manage roles");
-  }
-
-  const targetUid = data?.targetUid;
-  const role = data?.role as "admin" | "student" | null | undefined;
-
-  if (!targetUid || typeof targetUid !== "string") {
-    fnLogger.error("❌ Invalid targetUid");
-    throw new HttpsError("invalid-argument", "targetUid is required and must be a string");
-  }
-
-  if (role !== "admin" && role !== "student" && role !== null) {
-    fnLogger.error("❌ Invalid role", { role });
-    throw new HttpsError(
-      "invalid-argument",
-      "role must be 'admin', 'student', or null"
-    );
-  }
-
-  try {
-    const authAdmin = getAdminAuth();
-    const firestore = getFirestore();
-
-    const targetUser = await authAdmin.getUser(targetUid);
-    fnLogger.info("✅ Target user found", { email: targetUser.email });
-
-    const claims = role ? { role } : {};
-    await authAdmin.setCustomUserClaims(targetUid, claims);
-    fnLogger.info("✅ Custom claims updated", { targetUid, newClaims: claims });
-
-    const adminDocRef = firestore.collection("admins").doc(targetUid);
-
-    if (role === "admin") {
-      await adminDocRef.set(
-        {
-          email: targetUser.email,
-          role: "admin",
-          grantedBy: request.auth.uid,
-          grantedByEmail: request.auth.token.email,
-          grantedAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-      fnLogger.info("✅ Admin document created/updated");
-    } else {
-      if (role === null) {
-        await adminDocRef.delete();
-        fnLogger.info("✅ Admin document deleted");
-      } else {
-        await adminDocRef.set(
-          {
-            email: targetUser.email,
-            role: "student",
-            revokedBy: request.auth.uid,
-            revokedByEmail: request.auth.token.email,
-            revokedAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-        fnLogger.info("✅ Admin role revoked");
-      }
-    }
-
-    const updatedUser = await authAdmin.getUser(targetUid);
-    fnLogger.info("✅ Final custom claims", { claims: updatedUser.customClaims });
-
-    return {
-      success: true,
-      targetUid,
-      targetEmail: targetUser.email,
-      newRole: role || "student",
-      customClaims: updatedUser.customClaims,
-      message: `Role successfully changed to ${role || "student"}. User must sign out and sign in again.`,
-    };
-  } catch (error: any) {
-    fnLogger.error("❌ Error in setRole", {
-      error: error?.message,
-      code: error?.code,
-      targetUid,
-    });
-
-    if (error?.code === "auth/user-not-found") {
-      throw new HttpsError(
-        "not-found",
-        `User with UID ${targetUid} not found`
-      );
-    }
-
-    throw new HttpsError("internal", `Failed to set role: ${error?.message}`);
-  }
-});
-
-/**
  * toggleUserDisabled - отключает/включает пользователя (только для super-admin)
  * Отключённый пользователь не может войти, но все его данные сохраняются.
  * При повторном включении — пользователь входит с тем же uid и данными.
@@ -304,7 +184,6 @@ export const toggleUserDisabled = onCall(CALLABLE_OPTS, async (request) => {
 
 // Re-export functions from separate modules
 export { onUserCreate } from './onUserCreate.js';
-export { migrateAdmins } from './migrateAdmins.js';
 export { makeUserAdmin, removeAdmin, setAdminEditableCourses } from './makeAdmin.js';
 export { makeUserCoAdmin, removeCoAdmin } from './coAdmin.js';
 export {

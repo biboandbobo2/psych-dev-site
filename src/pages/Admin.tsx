@@ -149,8 +149,8 @@ export default function Admin() {
           <h2 className="text-xl font-semibold">Доступ администратора</h2>
           <p className="text-sm text-muted">
             Админские права больше не выдаются из клиента. Чтобы получить доступ, обратитесь к
-            супер-админу или владельцу проекта — они обновляют `functions.config().admin.seed_code`
-            и вызывают Cloud Function `seedAdmin` на сервере.
+            супер-админу или владельцу проекта — они вызывают Cloud Function `seedAdmin`
+            с одноразовым кодом из Secret Manager.
           </p>
           <p className="text-sm text-muted">
             Подробный процесс описан в <code>docs/architecture/guidelines.md</code>, раздел

@@ -116,7 +116,7 @@ vi.mock('./lib/debug.js', () => ({
 
 // ── Import after mocks ─────────────────────────────────────────
 
-import { seedAdmin, setRole, toggleUserDisabled } from './index';
+import { seedAdmin, toggleUserDisabled } from './index';
 import { getAdminSeedCode } from './lib/adminSeedCode.js';
 
 const SUPER_ADMIN_EMAIL = 'biboandbobo2@gmail.com';
@@ -163,78 +163,6 @@ describe('seedAdmin', () => {
     );
     expect(mockSetCustomUserClaims).toHaveBeenCalledWith('new-admin', { role: 'admin' });
     expect(result).toEqual({ ok: true, claims: { role: 'admin' } });
-  });
-});
-
-// ── setRole ─────────────────────────────────────────────────
-
-describe('setRole', () => {
-  const adminCtx = (uid = 'admin-1') => authedCtx(uid, { email: 'admin@test.com', role: 'admin' });
-
-  it('requires authentication', async () => {
-    await expect((setRole as Function)({ data: { targetUid: 'u1', role: 'admin' } })).rejects.toThrow(
-      'Authentication required',
-    );
-  });
-
-  it('rejects non-admin caller', async () => {
-    await expect(
-      (setRole as Function)({ data: { targetUid: 'u1', role: 'admin' }, ...authedCtx() }),
-    ).rejects.toThrow('Only admins can manage roles');
-  });
-
-  it('allows caller with super-admin claim (регресс: раньше блокировался)', async () => {
-    const result = await (setRole as Function)({
-      data: { targetUid: 'u1', role: 'admin' },
-      ...authedCtx('sa-uid', { email: 'sa@test.com', role: 'super-admin' }),
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('validates targetUid and role values', async () => {
-    await expect((setRole as Function)({ data: { role: 'admin' }, ...adminCtx() })).rejects.toThrow(
-      'targetUid is required',
-    );
-    await expect(
-      (setRole as Function)({ data: { targetUid: 'u1', role: 'owner' }, ...adminCtx() }),
-    ).rejects.toThrow("role must be 'admin', 'student', or null");
-  });
-
-  it('grants admin: claims {role:admin} + admins doc with grantedBy', async () => {
-    const result = await (setRole as Function)({ data: { targetUid: 'u1', role: 'admin' }, ...adminCtx() });
-
-    expect(mockSetCustomUserClaims).toHaveBeenCalledWith('u1', { role: 'admin' });
-    expect(refFor('admins/u1').set).toHaveBeenCalledWith(
-      expect.objectContaining({ role: 'admin', grantedBy: 'admin-1', grantedByEmail: 'admin@test.com' }),
-      { merge: true },
-    );
-    expect(result.success).toBe(true);
-    expect(result.newRole).toBe('admin');
-  });
-
-  it('revokes to student: claims {role:student} + admins doc marked revoked', async () => {
-    await (setRole as Function)({ data: { targetUid: 'u1', role: 'student' }, ...adminCtx() });
-
-    expect(mockSetCustomUserClaims).toHaveBeenCalledWith('u1', { role: 'student' });
-    expect(refFor('admins/u1').set).toHaveBeenCalledWith(
-      expect.objectContaining({ role: 'student', revokedBy: 'admin-1' }),
-      { merge: true },
-    );
-  });
-
-  it('role null: clears claims and deletes admins doc, newRole falls back to student', async () => {
-    const result = await (setRole as Function)({ data: { targetUid: 'u1', role: null }, ...adminCtx() });
-
-    expect(mockSetCustomUserClaims).toHaveBeenCalledWith('u1', {});
-    expect(refFor('admins/u1').delete).toHaveBeenCalled();
-    expect(result.newRole).toBe('student');
-  });
-
-  it('maps auth/user-not-found to not-found error', async () => {
-    mockGetUser.mockRejectedValue(Object.assign(new Error('nope'), { code: 'auth/user-not-found' }));
-    await expect(
-      (setRole as Function)({ data: { targetUid: 'ghost', role: 'admin' }, ...adminCtx() }),
-    ).rejects.toThrow('User with UID ghost not found');
   });
 });
 
