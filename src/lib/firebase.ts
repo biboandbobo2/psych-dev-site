@@ -1,9 +1,9 @@
 import type { FirebaseOptions } from "firebase/app";
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getAuth, connectAuthEmulator, GoogleAuthProvider } from "firebase/auth";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
-import { getStorage } from "firebase/storage";
+import { getStorage, connectStorageEmulator } from "firebase/storage";
 import { debugLog } from "./debug";
 import { resolveFirebaseAuthDomain } from "./firebaseAuthDomain";
 
@@ -49,3 +49,13 @@ export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
+
+// HP-2: режим эмуляторов для e2e-прогонов (docs/guides/testing-system.md).
+// Флаг вшивается на этапе сборки; в Vercel-окружении его нет, поэтому в прод
+// он не попадает. Порты — как в tests/integration/firebase.test.json.
+if (env.VITE_USE_FIREBASE_EMULATORS === "true") {
+  debugLog("🧪 Connecting to Firebase emulators (VITE_USE_FIREBASE_EMULATORS=true)");
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectFirestoreEmulator(db, "127.0.0.1", 8080);
+  connectStorageEmulator(storage, "127.0.0.1", 9199);
+}
