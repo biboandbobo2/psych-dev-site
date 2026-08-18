@@ -12,7 +12,7 @@ import type { Test } from '../../types/tests';
 import type { TestAttemptSummary } from '../../types/testResults';
 import { PageLoader } from '../../components/ui';
 import { useCourseIntro } from '../../hooks/useCourseIntro';
-import { CourseAboutSection } from './CourseAboutSection';
+import { CourseAboutSection, CourseCtaLink } from './CourseAboutSection';
 
 interface CourseIntroPageProps {
   courseId: string;
@@ -309,6 +309,12 @@ export default function CourseIntroPage({ courseId }: CourseIntroPageProps) {
           {courseIcon}
         </span>
         <h1 className="text-3xl font-black leading-tight text-[#1F2F46] sm:text-4xl">{courseName}</h1>
+        {intro?.cta ? (
+          <CourseCtaLink
+            cta={intro.cta}
+            className="ml-auto inline-flex flex-shrink-0 items-center rounded-xl bg-[#2F6DB5] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1F4F86]"
+          />
+        ) : null}
       </header>
 
       {specialCta ? (

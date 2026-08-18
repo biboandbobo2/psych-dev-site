@@ -322,6 +322,34 @@ interface Partner {
 
 При отсутствии документа клиент показывает fallback-константы из `aboutContent.ts` + `partnersContent.ts`.
 
+### `courses/{courseId}` — поле `intro` («О курсе»)
+
+Контент страницы «О курсе» (`/{courseId}/intro` для core-курсов, `/course/{courseId}/intro` для динамических). Read public, write `canEditCourse(courseId)`. Редактируется через `/admin/content/course-intro/{courseId}`. Рендер — `CourseAboutSection`, markdown через `renderMiniMarkdown` (абзацы, **жирный**, *курсив*, ссылки, списки `- `, заголовки `##`/`###`).
+
+```typescript
+interface CourseIntro {
+  idea?: string;                   // markdown, блок «Идея курса»
+  program?: string;                // markdown, блок «Программа»
+  authors?: CourseIntroAuthor[];   // карточки ведущих/авторов
+  authorsTitle?: string;           // заголовок секции авторов, по умолчанию «Авторы»
+  facts?: { label: string; value: string }[];  // карточки ключевых фактов (сроки, формат, стоимость)
+  cta?: { label: string; url: string; note?: string };  // кнопка записи (шапка + низ секции)
+  updatedAt?: number;              // Date.now() при сохранении
+  updatedBy?: string;              // uid редактора
+}
+
+interface CourseIntroAuthor {
+  id: string;                      // обязателен, иначе автор отбрасывается при нормализации
+  name: string;                    // обязателен
+  role?: string;
+  bio?: string;                    // markdown
+  photoUrl?: string;               // Storage: courses/{courseId}/authors/{authorId}.{ext}
+  links?: { label: string; url: string }[];
+}
+```
+
+Порядок блоков на странице: факты → идея → программа → авторы → CTA. Полные типы: `src/types/courseIntro.ts`, нормализация — `normalizeCourseIntro` в `src/hooks/useCourseIntro.ts`.
+
 ### `projectPages/{slug}`
 
 Страницы проектов академии (`/projects/{slug}`). Read public, write **`isSuperAdmin`** (волна 4). Создаются и редактируются через `/superadmin/pages/projects/:slug`.

@@ -3,7 +3,12 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { debugError } from '../../../lib/debug';
 import { normalizeCourseIntro } from '../../../hooks/useCourseIntro';
-import type { CourseIntro, CourseIntroAuthor, CourseIntroAuthorLink } from '../../../types/courseIntro';
+import type {
+  CourseIntro,
+  CourseIntroAuthor,
+  CourseIntroAuthorLink,
+  CourseIntroFact,
+} from '../../../types/courseIntro';
 
 export interface AuthorFormState {
   id: string;
@@ -18,12 +23,22 @@ export interface CourseIntroFormState {
   idea: string;
   program: string;
   authors: AuthorFormState[];
+  authorsTitle: string;
+  facts: CourseIntroFact[];
+  ctaLabel: string;
+  ctaUrl: string;
+  ctaNote: string;
 }
 
 const EMPTY_FORM: CourseIntroFormState = {
   idea: '',
   program: '',
   authors: [],
+  authorsTitle: '',
+  facts: [],
+  ctaLabel: '',
+  ctaUrl: '',
+  ctaNote: '',
 };
 
 function createAuthorId(): string {
@@ -50,6 +65,11 @@ function introToForm(intro: CourseIntro | null): CourseIntroFormState {
     idea: intro.idea ?? '',
     program: intro.program ?? '',
     authors: (intro.authors ?? []).map(authorFromIntro),
+    authorsTitle: intro.authorsTitle ?? '',
+    facts: (intro.facts ?? []).map((fact) => ({ ...fact })),
+    ctaLabel: intro.cta?.label ?? '',
+    ctaUrl: intro.cta?.url ?? '',
+    ctaNote: intro.cta?.note ?? '',
   };
 }
 
@@ -81,6 +101,19 @@ export function buildIntroPayload(form: CourseIntroFormState, userId: string | n
   if (idea) payload.idea = form.idea;
   if (program) payload.program = form.program;
   if (authors.length > 0) payload.authors = authors;
+  const authorsTitle = form.authorsTitle.trim();
+  if (authorsTitle) payload.authorsTitle = authorsTitle;
+  const facts = form.facts
+    .map((fact) => ({ label: fact.label.trim(), value: fact.value.trim() }))
+    .filter((fact) => fact.label && fact.value);
+  if (facts.length > 0) payload.facts = facts;
+  const ctaLabel = form.ctaLabel.trim();
+  const ctaUrl = form.ctaUrl.trim();
+  if (ctaLabel && ctaUrl) {
+    const cta: Record<string, string> = { label: ctaLabel, url: ctaUrl };
+    if (form.ctaNote.trim()) cta.note = form.ctaNote;
+    payload.cta = cta;
+  }
   payload.updatedAt = Date.now();
   if (userId) payload.updatedBy = userId;
   return payload;
@@ -169,6 +202,21 @@ export function useCourseIntroEditor(courseId: string) {
     }));
   }, []);
 
+  const addFact = useCallback(() => {
+    setForm((prev) => ({ ...prev, facts: [...prev.facts, { label: '', value: '' }] }));
+  }, []);
+
+  const removeFact = useCallback((index: number) => {
+    setForm((prev) => ({ ...prev, facts: prev.facts.filter((_, idx) => idx !== index) }));
+  }, []);
+
+  const updateFact = useCallback((index: number, patch: Partial<CourseIntroFact>) => {
+    setForm((prev) => ({
+      ...prev,
+      facts: prev.facts.map((fact, idx) => (idx === index ? { ...fact, ...patch } : fact)),
+    }));
+  }, []);
+
   const moveAuthor = useCallback((id: string, direction: 'up' | 'down') => {
     setForm((prev) => {
       const idx = prev.authors.findIndex((a) => a.id === id);
@@ -194,5 +242,8 @@ export function useCourseIntroEditor(courseId: string) {
     removeAuthor,
     updateAuthor,
     moveAuthor,
+    addFact,
+    removeFact,
+    updateFact,
   };
 }

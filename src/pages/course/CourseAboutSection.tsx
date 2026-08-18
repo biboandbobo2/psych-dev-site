@@ -1,6 +1,19 @@
 import { MarkdownView } from '../../lib/MarkdownView';
-import type { CourseIntro, CourseIntroAuthor } from '../../types/courseIntro';
+import type { CourseIntro, CourseIntroAuthor, CourseIntroCta } from '../../types/courseIntro';
 import { isCourseIntroEmpty } from '../../types/courseIntro';
+
+export function CourseCtaLink({ cta, className }: { cta: CourseIntroCta; className: string }) {
+  const external = /^https?:\/\//i.test(cta.url);
+  return (
+    <a
+      href={cta.url}
+      className={className}
+      {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+    >
+      {cta.label}
+    </a>
+  );
+}
 
 interface CourseAboutSectionProps {
   intro: CourseIntro | null;
@@ -107,6 +120,17 @@ export function CourseAboutSection({ intro, loading, courseName }: CourseAboutSe
     <section className="space-y-5 rounded-2xl border border-[#DDE5EE] bg-white p-5">
       <h2 className="text-lg font-semibold text-[#2C3E50]">О курсе</h2>
 
+      {intro?.facts && intro.facts.length > 0 ? (
+        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {intro.facts.map((fact, idx) => (
+            <div key={`${fact.label}-${idx}`} className="rounded-2xl border border-[#E5ECF3] bg-[#F9FBFF] p-3">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-[#8A97AB]">{fact.label}</dt>
+              <dd className="mt-1 text-sm font-semibold text-[#2C3E50]">{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+
       {intro?.idea ? (
         <div>
           <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[#8A97AB]">Идея курса</h3>
@@ -117,9 +141,21 @@ export function CourseAboutSection({ intro, loading, courseName }: CourseAboutSe
         </div>
       ) : null}
 
+      {intro?.program ? (
+        <div>
+          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[#8A97AB]">Программа</h3>
+          <MarkdownView
+            source={intro.program}
+            className="text-sm text-[#556476] space-y-3 [&_p]:leading-relaxed"
+          />
+        </div>
+      ) : null}
+
       {intro?.authors && intro.authors.length > 0 ? (
         <div>
-          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[#8A97AB]">Авторы</h3>
+          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[#8A97AB]">
+            {intro.authorsTitle ?? 'Авторы'}
+          </h3>
           <ul className="space-y-3">
             {intro.authors.map((author) => (
               <AuthorCard key={author.id} author={author} />
@@ -128,13 +164,15 @@ export function CourseAboutSection({ intro, loading, courseName }: CourseAboutSe
         </div>
       ) : null}
 
-      {intro?.program ? (
-        <div>
-          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[#8A97AB]">Программа</h3>
-          <MarkdownView
-            source={intro.program}
-            className="text-sm text-[#556476] space-y-3 [&_p]:leading-relaxed"
+      {intro?.cta ? (
+        <div className="space-y-2 border-t border-[#EEF2F7] pt-5 text-center">
+          <CourseCtaLink
+            cta={intro.cta}
+            className="inline-flex items-center justify-center rounded-2xl bg-[#2F6DB5] px-8 py-3 text-base font-semibold text-white transition hover:bg-[#1F4F86]"
           />
+          {intro.cta.note ? (
+            <MarkdownView source={intro.cta.note} className="text-xs text-[#8A97AB]" />
+          ) : null}
         </div>
       ) : null}
     </section>

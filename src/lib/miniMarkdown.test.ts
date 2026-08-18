@@ -63,4 +63,37 @@ describe('renderMiniMarkdown', () => {
   it('trims empty paragraphs', () => {
     expect(renderMiniMarkdown('\n\n\ntext\n\n\n')).toBe('<p>text</p>');
   });
+
+  it('renders "- " lines as bullet lists', () => {
+    const html = renderMiniMarkdown('- один\n- два');
+    expect(html).toBe('<ul class="list-disc space-y-1 pl-5"><li>один</li><li>два</li></ul>');
+  });
+
+  it('splits lead text and list inside one paragraph block', () => {
+    const html = renderMiniMarkdown('Вводная строка:\n- пункт');
+    expect(html).toBe(
+      '<p>Вводная строка:</p>\n<ul class="list-disc space-y-1 pl-5"><li>пункт</li></ul>'
+    );
+  });
+
+  it('renders inline markdown inside list items', () => {
+    const html = renderMiniMarkdown('- **жирный** и [ссылка](/home)');
+    expect(html).toContain('<li><strong>жирный</strong>');
+    expect(html).toContain('<a href="/home"');
+  });
+
+  it('renders ## as h3 and ### as h4', () => {
+    expect(renderMiniMarkdown('## Большой')).toContain('<h3');
+    expect(renderMiniMarkdown('## Большой')).toContain('Большой</h3>');
+    expect(renderMiniMarkdown('### Меньший')).toContain('<h4');
+  });
+
+  it('keeps heading on its own line inside a paragraph block', () => {
+    const html = renderMiniMarkdown('### Заголовок\nтекст после');
+    expect(html).toContain('</h4>\n<p>текст после</p>');
+  });
+
+  it('does not treat #-less dashes mid-line as lists', () => {
+    expect(renderMiniMarkdown('тире - внутри строки')).toBe('<p>тире - внутри строки</p>');
+  });
 });

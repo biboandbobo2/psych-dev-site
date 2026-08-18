@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { debugError } from '../lib/debug';
-import type { CourseIntro, CourseIntroAuthor, CourseIntroAuthorLink } from '../types/courseIntro';
+import type {
+  CourseIntro,
+  CourseIntroAuthor,
+  CourseIntroAuthorLink,
+  CourseIntroCta,
+  CourseIntroFact,
+} from '../types/courseIntro';
 
 function normalizeLink(raw: unknown): CourseIntroAuthorLink | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -31,6 +37,27 @@ function normalizeAuthor(raw: unknown): CourseIntroAuthor | null {
   return author;
 }
 
+function normalizeFact(raw: unknown): CourseIntroFact | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const { label, value } = raw as Record<string, unknown>;
+  if (typeof label !== 'string' || typeof value !== 'string') return null;
+  const trimmedLabel = label.trim();
+  const trimmedValue = value.trim();
+  if (!trimmedLabel || !trimmedValue) return null;
+  return { label: trimmedLabel, value: trimmedValue };
+}
+
+function normalizeCta(raw: unknown): CourseIntroCta | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const data = raw as Record<string, unknown>;
+  const label = typeof data.label === 'string' ? data.label.trim() : '';
+  const url = typeof data.url === 'string' ? data.url.trim() : '';
+  if (!label || !url) return null;
+  const cta: CourseIntroCta = { label, url };
+  if (typeof data.note === 'string' && data.note.trim()) cta.note = data.note;
+  return cta;
+}
+
 export function normalizeCourseIntro(raw: unknown): CourseIntro | null {
   if (!raw || typeof raw !== 'object') return null;
   const data = raw as Record<string, unknown>;
@@ -41,9 +68,18 @@ export function normalizeCourseIntro(raw: unknown): CourseIntro | null {
     const authors = data.authors.map(normalizeAuthor).filter((author): author is CourseIntroAuthor => author !== null);
     if (authors.length > 0) intro.authors = authors;
   }
+  if (typeof data.authorsTitle === 'string' && data.authorsTitle.trim()) {
+    intro.authorsTitle = data.authorsTitle.trim();
+  }
+  if (Array.isArray(data.facts)) {
+    const facts = data.facts.map(normalizeFact).filter((fact): fact is CourseIntroFact => fact !== null);
+    if (facts.length > 0) intro.facts = facts;
+  }
+  const cta = normalizeCta(data.cta);
+  if (cta) intro.cta = cta;
   if (typeof data.updatedAt === 'number') intro.updatedAt = data.updatedAt;
   if (typeof data.updatedBy === 'string' && data.updatedBy.trim()) intro.updatedBy = data.updatedBy.trim();
-  if (!intro.idea && !intro.program && !intro.authors) return null;
+  if (!intro.idea && !intro.program && !intro.authors && !intro.facts && !intro.cta) return null;
   return intro;
 }
 
