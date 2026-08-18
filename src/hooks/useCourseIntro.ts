@@ -47,12 +47,14 @@ function normalizeFact(raw: unknown): CourseIntroFact | null {
   return { label: trimmedLabel, value: trimmedValue };
 }
 
+const SAFE_CTA_URL = /^(https?:\/\/|mailto:|\/)/i;
+
 function normalizeCta(raw: unknown): CourseIntroCta | null {
   if (!raw || typeof raw !== 'object') return null;
   const data = raw as Record<string, unknown>;
   const label = typeof data.label === 'string' ? data.label.trim() : '';
   const url = typeof data.url === 'string' ? data.url.trim() : '';
-  if (!label || !url) return null;
+  if (!label || !url || !SAFE_CTA_URL.test(url)) return null;
   const cta: CourseIntroCta = { label, url };
   if (typeof data.note === 'string' && data.note.trim()) cta.note = data.note;
   return cta;
