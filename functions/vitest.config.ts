@@ -4,6 +4,9 @@ import { defineConfig } from 'vitest/config';
 // корневой vitest.config.ts, который в CI (npm ci только внутри functions/)
 // падает с ERR_MODULE_NOT_FOUND — корневые node_modules не установлены.
 export default defineConfig({
+  // Пустой postcss обязателен: иначе Vite ищет конфиг вверх по дереву и находит
+  // корневой postcss.config.js с tailwindcss, которого в functions-окружении нет.
+  css: { postcss: {} },
   test: {
     globals: true,
     environment: 'node',
