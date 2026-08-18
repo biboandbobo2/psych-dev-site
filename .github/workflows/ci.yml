@@ -38,7 +38,7 @@ jobs:
 
       - name: Run tests
         if: steps.scripts.outputs.has_test == 'true'
-        run: npm run test
+        run: npm run test:ci
 
       - name: Build
         if: steps.scripts.outputs.has_build == 'true'
