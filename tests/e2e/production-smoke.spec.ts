@@ -34,7 +34,10 @@ test.describe('Production Build Smoke Tests', () => {
     await page.goto('/');
 
     // Wait for hydration
-    await page.waitForLoadState('networkidle');
+    // networkidle недостижим: Firestore держит Listen-каналы открытыми (см. perf-metrics.md).
+    // 'load' + пауза достаточно, чтобы лениво догрузились чанки и всплыли ошибки инициализации.
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(1500);
 
     // Check for initialization errors
     expect(errors).toEqual([]);
@@ -56,7 +59,10 @@ test.describe('Production Build Smoke Tests', () => {
 
     // Navigate to notes page (lazy loaded chunk)
     await page.goto('/notes');
-    await page.waitForLoadState('networkidle');
+    // networkidle недостижим: Firestore держит Listen-каналы открытыми (см. perf-metrics.md).
+    // 'load' + пауза достаточно, чтобы лениво догрузились чанки и всплыли ошибки инициализации.
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(1500);
 
     // Should not have initialization errors
     expect(errors).toEqual([]);
@@ -77,7 +83,10 @@ test.describe('Production Build Smoke Tests', () => {
     });
 
     await page.goto('/tests');
-    await page.waitForLoadState('networkidle');
+    // networkidle недостижим: Firestore держит Listen-каналы открытыми (см. perf-metrics.md).
+    // 'load' + пауза достаточно, чтобы лениво догрузились чанки и всплыли ошибки инициализации.
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(1500);
 
     expect(errors).toEqual([]);
 
@@ -95,7 +104,10 @@ test.describe('Production Build Smoke Tests', () => {
 
     // TODO: Add authentication setup
     await page.goto('/admin');
-    await page.waitForLoadState('networkidle');
+    // networkidle недостижим: Firestore держит Listen-каналы открытыми (см. perf-metrics.md).
+    // 'load' + пауза достаточно, чтобы лениво догрузились чанки и всплыли ошибки инициализации.
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(1500);
 
     // Should not have module errors even if redirected to login
     const hasInitErrors = errors.some(e =>
@@ -123,7 +135,10 @@ test.describe('Production Build Smoke Tests', () => {
     });
 
     await page.goto('/timeline');
-    await page.waitForLoadState('networkidle');
+    // networkidle недостижим: Firestore держит Listen-каналы открытыми (см. perf-metrics.md).
+    // 'load' + пауза достаточно, чтобы лениво догрузились чанки и всплыли ошибки инициализации.
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(1500);
 
     // No initialization errors
     expect(errors).toEqual([]);
@@ -145,16 +160,28 @@ test.describe('Production Build Smoke Tests', () => {
 
     // Navigate through multiple lazy-loaded pages
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    // networkidle недостижим: Firestore держит Listen-каналы открытыми (см. perf-metrics.md).
+    // 'load' + пауза достаточно, чтобы лениво догрузились чанки и всплыли ошибки инициализации.
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(1500);
 
     await page.goto('/notes');
-    await page.waitForLoadState('networkidle');
+    // networkidle недостижим: Firestore держит Listen-каналы открытыми (см. perf-metrics.md).
+    // 'load' + пауза достаточно, чтобы лениво догрузились чанки и всплыли ошибки инициализации.
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(1500);
 
     await page.goto('/tests');
-    await page.waitForLoadState('networkidle');
+    // networkidle недостижим: Firestore держит Listen-каналы открытыми (см. perf-metrics.md).
+    // 'load' + пауза достаточно, чтобы лениво догрузились чанки и всплыли ошибки инициализации.
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(1500);
 
     await page.goto('/timeline');
-    await page.waitForLoadState('networkidle');
+    // networkidle недостижим: Firestore держит Listen-каналы открытыми (см. perf-metrics.md).
+    // 'load' + пауза достаточно, чтобы лениво догрузились чанки и всплыли ошибки инициализации.
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(1500);
 
     // Should not accumulate errors
     expect(errors).toEqual([]);
@@ -171,7 +198,10 @@ test.describe('Production Build Smoke Tests', () => {
     // are accessible from all lazy chunks
 
     await page.goto('/notes');
-    await page.waitForLoadState('networkidle');
+    // networkidle недостижим: Firestore держит Listen-каналы открытыми (см. perf-metrics.md).
+    // 'load' + пауза достаточно, чтобы лениво догрузились чанки и всплыли ошибки инициализации.
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(1500);
 
     // Should not have errors when loading shared constants
     expect(errors).toEqual([]);
@@ -194,7 +224,10 @@ test.describe('Production Build Smoke Tests', () => {
     });
 
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    // networkidle недостижим: Firestore держит Listen-каналы открытыми (см. perf-metrics.md).
+    // 'load' + пауза достаточно, чтобы лениво догрузились чанки и всплыли ошибки инициализации.
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(1500);
 
     // Main chunk should be reasonable size (not > 500KB)
     const indexChunk = Object.keys(chunkSizes).find(k => k.startsWith('index-'));
