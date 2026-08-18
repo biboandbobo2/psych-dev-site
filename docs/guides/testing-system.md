@@ -511,13 +511,36 @@ npm run test:integration:watch
 
 **Бесплатность:** все integration-тесты идут только в локальные эмуляторы. Никаких реальных Firebase project-вызовов и AI-API. Эмуляторы — Java-процесс offline, project ID `psych-dev-site-test` фиктивный.
 
+### Nightly integration в CI (HP-1)
+
+**Workflow:** `.github/workflows/nightly-integration.yml` — ежедневно в 02:30 UTC (05:30 Тбилиси), плюс ручной запуск: Actions → Nightly Integration → «Run workflow» или `gh workflow run nightly-integration.yml`.
+
+**Что делает:** setup-java (temurin 21 — LTS; эмуляторы Firestore/Auth — java-программы, локальную версию разработчика в CI не копируем), `npm ci`, `npm run test:integration` — ровно тот же скрипт, что и локально. Сервис-аккаунт не нужен: тесты идут на эмуляторах с фиктивным project ID.
+
+**Как читать прогоны:**
+- Зелёный = весь integration-набор прошёл (на 2026-08-18: 5 файлов / 54 теста).
+- Красный: открыть прогон → лог шага «Run integration tests against emulators». Если падение на стороне эмулятора — артефакт `emulator-debug-logs` (`firestore-debug.log` и др., хранится 14 дней).
+- При падении в Telegram прилетает 🔴 со ссылкой на прогон (секреты `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` в GitHub repo secrets, скопированы из GCP Secret Manager 2026-08-18).
+- Обычный CI (`ci.yml`) integration-тесты **не** гоняет: дефолтный vitest-прогон исключает `tests/integration` (условный include в `vitest.config.ts` по `VITEST_INTEGRATION=1`). Смешение юнитов и integration в одном прогоне держало CI красным с 2026-04-28.
+
 ### E2E Tests (Playwright)
 
 ```bash
-npm run test:e2e:prod
+npm run test:e2e        # против preview (localhost:4175, поднимается сам)
+npm run test:e2e:prod   # против прод-сборки
 ```
 
-**Тестовый URL:** https://psych-dev-site-git-red-background-alexey-zykovs-projects.vercel.app
+Сейчас e2e — один смоук-спек `tests/e2e/production-smoke.spec.ts` (8 тестов «страница открылась без console-ошибок»), в CI не запускается. Реальных пользовательских сценариев и авторизации нет.
+
+**HP-2: решение по авторизации e2e (принято 2026-08-18).** Сайт логинится только через Google OAuth, сессия живёт в IndexedDB — классический Playwright `storageState` не работает (это же ограничение блокирует AG-1). Выбранный путь — **прогон против эмуляторов**:
+
+- В `src/lib/firebase.ts` есть режим за build-time флагом `VITE_USE_FIREBASE_EMULATORS=true`: auth/firestore/storage подключаются к локальным эмуляторам (порты — как в `tests/integration/firebase.test.json`). По умолчанию выключен; в Vercel-окружении переменной нет, в прод этот код-путь не попадает. Проверен вживую 2026-08-18 (dev-сервер + эмуляторы, auth-запросы уходят на `127.0.0.1:9099`).
+- Auth-эмулятор позволяет создавать пользователей и логиниться без Google OAuth — e2e-сценарии получают полноценную авторизацию и любые роли.
+- Осталось сделать (отдельная задача, E: L): сид-данные (курсы/периоды/тесты в эмулятор перед прогоном), пользовательские сценарии, e2e-job в CI.
+
+Альтернатива (отклонена как основной путь): ждать AG-1 — служебный аккаунт агента с `signInWithCustomToken` против прода. Даёт прогон на реальных данных, но требует секрет в CI, мутирует прод и не изолирует тестовые данные. Эмуляторный путь развязывает HP-2 с AG-1; AG-1 остаётся полезным для ручных агентских смоуков на проде.
+
+**Тестовый URL** (ручной смоук): https://psych-dev-site-git-red-background-alexey-zykovs-projects.vercel.app
 
 **См. детали:** [../development/testing-workflow.md](../development/testing-workflow.md)
 
