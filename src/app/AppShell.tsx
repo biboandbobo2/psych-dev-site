@@ -346,7 +346,10 @@ export function AppShell() {
   const isCoAdmin = useAuthStore((state) => state.isCoAdmin);
 
   // Standalone routes should not pay the cost of unrelated content hooks or generic loaders.
-  const isStandaloneLanding = normalizedPath === '/warm_springs2' || normalizedPath.startsWith('/booking');
+  const isStandaloneLanding =
+    normalizedPath === '/warm_springs2' ||
+    normalizedPath === '/vozrast' ||
+    normalizedPath.startsWith('/booking');
   if (isStandaloneLanding) {
     return (
       <StandaloneLandingShell

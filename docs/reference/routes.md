@@ -33,6 +33,7 @@
 | `/about` | `AboutPage` | О проекте DOM Academy (Development Of Mind): 6 вкладок (проект/команды/история/офлайн-центр/партнёры). Контент в `pages/about`, fallback на хардкод. |
 | `/projects/:slug` | `DynamicProjectPage` | Страница проекта академии. Контент в `projectPages/{slug}`, fallback на хардкод-словарь (`dom-academy-overview`). |
 | `/warm_springs2` | `WarmSprings2Page` | Лендинг интенсива по групповой психотерапии «Тёплые ключи» (Тбилиси, июль 2026). Статическая, не редактируется через `/superadmin/pages`. |
+| `/vozrast` | `VozrastLandingPage` | Лендинг программы повышения квалификации «Понимание и помощь человеку в контексте возраста» (осень 2026). Standalone (без AppShell-сайдбара), статический контент в `src/pages/vozrastLanding/data.ts`. |
 | `/login` | `Login` | Страница входа (eager load, не через lazy.ts). |
 
 **Вводные страницы курсов:**
@@ -302,7 +303,7 @@
 
 | Display-роль | Доступ | Маршруты |
 |---|---|---|
-| **Guest** | Публичный контент | `/home`, `/homepage`, `/features`, `/about`, `/projects/:slug`, `/booking/*`, `/login`, `/warm_springs2`, intro-страницы курсов |
+| **Guest** | Публичный контент | `/home`, `/homepage`, `/features`, `/about`, `/projects/:slug`, `/booking/*`, `/login`, `/warm_springs2`, `/vozrast`, intro-страницы курсов |
 | **Student** | Базовый доступ (есть хотя бы один courseAccess) | + `/profile`, `/notes`, `/tests`, `/tests-lesson`, `/timeline`, `/research` |
 | **Student + courseAccess.clinical** | Клиническая психология | + `/clinical/*`, `/disorder-table` |
 | **Student + courseAccess.general** | Общая психология | + `/general/*` |
