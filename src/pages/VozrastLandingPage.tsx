@@ -10,6 +10,7 @@ import { PlatformSection } from './vozrastLanding/sections/PlatformSection';
 import { PracticeSection } from './vozrastLanding/sections/PracticeSection';
 import { ProgramSection } from './vozrastLanding/sections/ProgramSection';
 import { QuotesSection } from './vozrastLanding/sections/QuotesSection';
+import { ReviewsSection } from './vozrastLanding/sections/ReviewsSection';
 import { TeamSection } from './vozrastLanding/sections/TeamSection';
 import { PriceSection } from './vozrastLanding/sections/PriceSection';
 import { FaqSection } from './vozrastLanding/sections/FaqSection';
@@ -29,6 +30,10 @@ export default function VozrastLandingPage() {
           name="description"
           content="Программа повышения квалификации по психологии развития: весь жизненный путь человека за 14 недель. Онлайн, 17 сентября — 17 декабря 2026. Удостоверение о повышении квалификации."
         />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"
+          rel="stylesheet"
+        />
       </Helmet>
 
       <Nav />
@@ -40,6 +45,7 @@ export default function VozrastLandingPage() {
       <PracticeSection />
       <ProgramSection />
       <QuotesSection />
+      <ReviewsSection />
       <TeamSection />
       <PriceSection />
       <FaqSection />

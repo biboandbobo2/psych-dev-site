@@ -2,6 +2,8 @@ import { FadeSection } from '../components/FadeSection';
 import { instructors } from '../data';
 
 export function TeamSection() {
+  const [lead, ...rest] = instructors;
+
   return (
     <FadeSection id="team" className="vz-section vz-team">
       <div className="vz-container">
@@ -10,11 +12,21 @@ export function TeamSection() {
           Лекции и семинары ведёт автор курса, практику — три ведущие. Каждая малая
           группа работает со своим ведущим.
         </p>
+        <div className="vz-team-lead-card">
+          <div className="vz-instructor-photo">
+            <img src={lead.photo} alt={lead.name} width={640} height={640} loading="lazy" decoding="async" />
+          </div>
+          <div>
+            <h3>{lead.name}</h3>
+            <div className="vz-instructor-role">{lead.role}</div>
+            <p>{lead.text}</p>
+          </div>
+        </div>
         <div className="vz-team-grid">
-          {instructors.map((person) => (
+          {rest.map((person) => (
             <div key={person.name} className="vz-instructor">
               <div className="vz-instructor-photo">
-                <img src={person.photo} alt={person.name} loading="lazy" />
+                <img src={person.photo} alt={person.name} width={640} height={640} loading="lazy" decoding="async" />
               </div>
               <h3>{person.name}</h3>
               <div className="vz-instructor-role">{person.role}</div>

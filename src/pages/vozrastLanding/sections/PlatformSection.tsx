@@ -23,13 +23,27 @@ export function PlatformSection() {
                 <p key={paragraph.slice(0, 24)}>{paragraph}</p>
               ))}
             </div>
-            <div>
+            <div className="vz-feature-media-col">
               <div className="vz-feature-media">
-                <img src={feature.image} alt={feature.imageAlt} loading="lazy" />
+                <img
+                  src={feature.image}
+                  alt={feature.imageAlt}
+                  width={1400}
+                  height={feature.id === 'tests' ? 1194 : 875}
+                  loading="lazy"
+                  decoding="async"
+                />
               </div>
               {feature.id === 'konspekt' ? (
                 <div className="vz-feature-extra">
-                  <img src={askImage.image} alt={askImage.imageAlt} loading="lazy" />
+                  <img
+                    src={askImage.image}
+                    alt={askImage.imageAlt}
+                    width={1400}
+                    height={875}
+                    loading="lazy"
+                    decoding="async"
+                  />
                 </div>
               ) : null}
             </div>

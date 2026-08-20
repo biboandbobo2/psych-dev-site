@@ -1,6 +1,6 @@
 import { CtaButton } from '../components/CtaButton';
 import { FadeSection } from '../components/FadeSection';
-import { priceIncludes } from '../data';
+import { discounts, priceIncludes } from '../data';
 
 export function PriceSection() {
   return (
@@ -29,6 +29,14 @@ export function PriceSection() {
           Столько же обычно стоит одна книга по психологии — здесь это час живого
           обучения.
         </p>
+        <div className="vz-discounts">
+          <h3>Скидки</h3>
+          <ul>
+            {discounts.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
         <div className="vz-price-includes">
           <h3>Что входит</h3>
           <ul>
