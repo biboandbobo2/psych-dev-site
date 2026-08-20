@@ -11,9 +11,10 @@ function ScrollRestorationHarness() {
   return (
     <>
       <Link to="/second">Next</Link>
+      <Link to="/#anchor">Anchor</Link>
       <button onClick={() => navigate(-1)}>Back</button>
       <Routes>
-        <Route path="/" element={<div>First</div>} />
+        <Route path="/" element={<div id="anchor">First</div>} />
         <Route path="/second" element={<div>Second</div>} />
       </Routes>
     </>
@@ -73,5 +74,24 @@ describe('useScrollRestoration', () => {
     fireEvent.click(screen.getByText('Back'));
 
     expect(scrollToMock).toHaveBeenLastCalledWith(0, 240);
+  });
+
+  it('scrolls to the anchor element instead of the top on hash navigation', () => {
+    const scrollIntoViewMock = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <ScrollRestorationHarness />
+      </MemoryRouter>
+    );
+
+    const scrollToMock = vi.mocked(window.scrollTo);
+    scrollToMock.mockClear();
+
+    fireEvent.click(screen.getByText('Anchor'));
+
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    expect(scrollToMock).not.toHaveBeenCalled();
   });
 });

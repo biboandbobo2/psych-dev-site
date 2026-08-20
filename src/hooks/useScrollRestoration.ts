@@ -31,8 +31,16 @@ export function useScrollRestoration() {
     const stored = positionsRef.current.get(key);
     if (navigationType === 'POP' && typeof stored === 'number') {
       window.scrollTo(0, stored);
-    } else {
-      window.scrollTo({ top: 0, behavior: 'auto' });
+      return;
     }
+    // Якорная навигация: ведём к элементу, а не к верху страницы.
+    if (location.hash) {
+      const target = document.getElementById(location.hash.slice(1));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }, [location, navigationType]);
 }
