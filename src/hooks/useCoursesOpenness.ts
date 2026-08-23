@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { isCourseOpen } from '../lib/courseOpenness';
 import {
+  COURSE_NAV_INDEX_VERSION,
   fetchCourseNavIndexDoc,
   loadPublishedCourseLessons,
   withTimeout,
 } from '../lib/courseNavIndex';
+import { isPublicRestAvailable, restGetPublicDoc } from '../lib/firestorePublicRest';
 import { debugError } from '../lib/debug';
 
 const LOAD_TIMEOUT_MS = 8000;
@@ -40,6 +42,19 @@ export function useCoursesOpenness(courseIds: string[]): {
 
     Promise.all(
       ids.map(async (courseId) => {
+        // LS-4: индекс REST-запросом без ожидания Firebase Auth (см.
+        // firestorePublicRest) — бейджи «Открытый курс» на гостевом /home
+        // не ждут auth-инициализацию. Ошибка — молча в SDK-путь ниже.
+        if (isPublicRestAvailable()) {
+          try {
+            const restDoc = await restGetPublicDoc(`courseNavIndex/${courseId}`);
+            if (restDoc?.v === COURSE_NAV_INDEX_VERSION && typeof restDoc.courseOpen === 'boolean') {
+              return { courseId, isOpen: restDoc.courseOpen };
+            }
+          } catch {
+            // SDK-путь ниже
+          }
+        }
         try {
           const indexDoc = await withTimeout(
             fetchCourseNavIndexDoc(courseId),
