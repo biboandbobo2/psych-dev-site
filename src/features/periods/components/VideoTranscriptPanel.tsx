@@ -3,6 +3,7 @@ import type { VideoTranscriptStoragePayload } from '../../../types/videoTranscri
 import { formatTimestampMs } from '../../../lib/formatTimestamp';
 import { useTextSelection } from '../hooks/useTextSelection';
 import { TranscriptSelectionMenu } from './TranscriptSelectionMenu';
+import { trackFeatureEvent } from '../../../lib/telemetry';
 
 interface VideoTranscriptPanelProps {
   error: string | null;
@@ -76,6 +77,7 @@ export function VideoTranscriptPanel({
   );
 
   const handleSearchSelection = (searchQuery: string) => {
+    trackFeatureEvent('selection_search');
     window.open(`/research?q=${encodeURIComponent(searchQuery)}`, '_blank', 'noopener');
     clearSelection();
   };

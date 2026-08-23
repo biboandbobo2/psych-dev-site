@@ -130,6 +130,18 @@ export default function Admin() {
               📅 Экзамены
             </Link>
           )}
+          {isSuperAdmin && (
+            <Link
+              to="/superadmin/telemetry"
+              className={`px-4 py-2 rounded font-medium transition-colors ${
+                location.pathname.startsWith('/superadmin/telemetry')
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-sky-100 text-sky-900 hover:bg-sky-200'
+              }`}
+            >
+              📊 Телеметрия
+            </Link>
+          )}
         </nav>
       )}
 

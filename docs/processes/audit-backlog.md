@@ -14,7 +14,7 @@
 | HP-2 | H (L) | Расширенное Playwright покрытие | Фундамент готов 2026-08-18: решение по авторизации принято (эмуляторный режим за флагом `VITE_USE_FIREBASE_EMULATORS` в `src/lib/firebase.ts`, см. testing-system.md «HP-2: решение»), e2e развязан с AG-1. Осталось: seed-данные в эмулятор, пользовательские сценарии, e2e-job в CI, stress-тесты, отчётность |
 | CQ-7 | M (M) | Рефакторинг новых монолитов и дублей | State-хуки DisorderTable закрыты 2026-07-17 (766→397, 7 хуков). Осталось: `sharedApiRuntime` для booking/papers/automation |
 | CQ-8 | L (—) | Легаси-список светофора размеров (6 файлов) | Рефакторинг по мере касания зоны; список в `scripts/check-file-sizes.cjs`, гейт подсказывает удаление |
-| PT-1 | M (M) | Продуктовая телеметрия (события использования) | `feature_events` + разметка ~8 точек + админ-сводка; ответ на «что реально используют студенты» и долю mobile |
+| PT-1 | L (S) | Ретеншн телеметрии `feature_events` | Основная часть закрыта 2026-08-23 (события + rules + сводка `/superadmin/telemetry`). Остался ретеншн — ждёт первых данных |
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
 | MP-4 | M (S) | Документация и tooling вокруг тестов | Скрипт `ts:prune`, README policy, обновление lazy-docов и perf метрик |
@@ -472,13 +472,14 @@ CI часть (осталась):
   - Агрегаты, не слежка: uid хешировать, тексты запросов/заметок не сохранять.
   - Никакого нового файла в `api/` (инвариант Vercel = 12 функций): запись напрямую в Firestore с клиента.
   - Fire-and-forget: сбой телеметрии никогда не влияет на UX.
+- **Статус: ✅ основная часть закрыта 2026-08-23** — события + rules + сводка. Гайд: `docs/guides/product-telemetry.md`.
 - **Задачи:**
-  - [ ] Схема `feature_events` в Firestore (`hashedUid`, `event`, `courseId`/`periodId?`, `platform: mobile|desktop`, `createdAt`) + rules (create — авторизованным, read — только админ) + обновить `docs/reference/firestore-schema.md`.
-  - [ ] Клиентский helper `src/lib/telemetry.ts`: `trackFeatureEvent(event, meta?)` — fire-and-forget, дедуп повторов внутри сессии.
-  - [ ] Разметить ~8 точек: конспект-режим открыт; транскрипт включён; selection «Объяснить»; selection «Статьи»; research-поиск выполнен; book-RAG вопрос; лекционный AI вопрос; тест начат/завершён.
-  - [ ] Админ-сводка в существующей админке (через `src/pages/lazy.ts`): счётчики по событиям и неделям, split mobile/desktop; чтение Firestore напрямую, без нового API.
-  - [ ] Ретеншн (можно отложить до первых данных): месячная агрегация `feature_events_monthly` + чистка сырых событий шагом существующего weekly scheduled job, без новой функции.
-  - [ ] QA-лог + короткая заметка в docs: куда смотреть и как читать цифры.
+  - [x] ✅ Схема `feature_events` (`hashedUid` = усечённый SHA-256, `event`, `courseId?`/`periodId?`, `platform`, `createdAt` = serverTimestamp) + rules (create — авторизованным с валидацией ключей/длин, read — только админ, update/delete — никому) + регрессионные rules-тесты (блок в `tests/integration/firestoreRules.test.ts`) + `docs/reference/firestore-schema.md` (2026-08-23).
+  - [x] ✅ `src/lib/telemetry.ts`: `trackFeatureEvent(event, meta?)` — fire-and-forget, дедуп `event+meta` в рамках сессии, запись только с прода и только авторизованным; юнит-тесты `src/lib/telemetry.test.ts` (2026-08-23).
+  - [x] ✅ Размечено 8 точек / 9 событий: конспект-режим, транскрипт, selection «Объяснить»/«Статьи», research-поиск, book-RAG, лекционный AI, тест начат («Начать» на интро) / завершён (2026-08-23).
+  - [x] ✅ Админ-сводка `/superadmin/telemetry` (lazy, чтение Firestore напрямую): события × недели, split mobile/desktop, уникальные hashedUid (2026-08-23).
+  - [ ] Ретеншн (ждёт первых данных): месячная агрегация `feature_events_monthly` + чистка сырых событий шагом существующего weekly job (`functions/src/weeklyTranscriptRefresh.ts` — functions deploy, отдельное одобрение) **или** Firestore TTL-политика на `createdAt` (консоль/gcloud, без кода).
+  - [x] ✅ QA-лог + заметка «куда смотреть и как читать цифры»: `docs/guides/product-telemetry.md` (2026-08-23).
 - **Критерий успеха:** через 2–4 недели данных можно ответить — какие 3 фичи используются чаще всего, какие не используются вовсе, и какая доля учебных сессий мобильная.
 
 ---

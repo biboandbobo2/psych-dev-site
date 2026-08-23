@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { debugError, debugLog } from '../../../lib/debug';
 import { fetchLectureAnswer } from '../lib/fetchLectureAnswer';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { trackFeatureEvent } from '../../../lib/telemetry';
 import {
   LECTURE_AI_MAX_QUESTION_LENGTH,
   LECTURE_AI_MIN_QUESTION_LENGTH,
@@ -131,6 +132,7 @@ export function useLectureAnswer(): UseLectureAnswerReturn {
       return;
     }
 
+    trackFeatureEvent('lecture_ai_question', { courseId: selectedCourseId });
     setState({
       ...INITIAL_STATE,
       status: 'loading',

@@ -241,6 +241,7 @@
 | `/superadmin/pages/about` | `AdminAboutPageEditor` | флаг `coAdmin` | Редактор `pages/about` — 6 фиксированных вкладок | ✅ |
 | `/superadmin/pages/projects/:slug` | `AdminProjectPageEditor` | флаг `coAdmin` | Редактор `projectPages/{slug}` (создание/редактирование/удаление) | ✅ |
 | `/superadmin/exams` | `AdminExams` | Super Admin | Управление экзаменами и слотами бронирования (см. [docs/guides/exam-booking.md](../guides/exam-booking.md)) | ✅ |
+| `/superadmin/telemetry` | `AdminTelemetry` | Super Admin | Сводка продуктовой телеметрии `feature_events` (см. [docs/guides/product-telemetry.md](../guides/product-telemetry.md)) | ✅ |
 
 ---
 

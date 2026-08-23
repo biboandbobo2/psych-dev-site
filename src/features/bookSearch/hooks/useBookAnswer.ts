@@ -6,6 +6,7 @@ import { debugLog, debugError } from '../../../lib/debug';
 import { BOOK_SEARCH_CONFIG } from '../../../constants/books';
 import { auth } from '../../../lib/firebase';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { trackFeatureEvent } from '../../../lib/telemetry';
 
 export interface Citation {
   chunkId: string;
@@ -87,6 +88,7 @@ export function useBookAnswer(): UseBookAnswerReturn {
       return;
     }
 
+    trackFeatureEvent('book_rag_question');
     setState({
       status: 'loading',
       answer: null,

@@ -3,6 +3,7 @@ import { debugError } from '../../../lib/debug';
 import { fetchLectureAnswer } from '../../lectureSearch/lib/fetchLectureAnswer';
 import type { LectureCitation } from '../../lectureSearch/hooks/useLectureAnswer';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { trackFeatureEvent } from '../../../lib/telemetry';
 
 // Вопрос уходит в /api/lectures с лимитом 500 символов — режем фрагмент с запасом под шаблон
 const EXPLAIN_FRAGMENT_MAX_CHARS = 400;
@@ -47,6 +48,7 @@ export function useLectureExplain(courseId: string, lectureKey: string | null) {
         return;
       }
 
+      trackFeatureEvent('selection_explain', { courseId });
       setState({ ...INITIAL_STATE, fragment, status: 'loading' });
       try {
         const result = await fetchLectureAnswer({

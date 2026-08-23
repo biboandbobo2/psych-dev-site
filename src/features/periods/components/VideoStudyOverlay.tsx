@@ -10,6 +10,7 @@ import { VideoTranscriptPanel } from './VideoTranscriptPanel';
 import { TranscriptExplainCard } from './TranscriptExplainCard';
 import { useLectureExplain } from '../hooks/useLectureExplain';
 import { useVideoTranscript } from '../../../hooks';
+import { trackFeatureEvent } from '../../../lib/telemetry';
 
 interface VideoStudyOverlayProps {
   audioUrl: string;
@@ -136,6 +137,12 @@ export function VideoStudyOverlay({
 
     setSidebarMode(initialPanel);
   }, [initialPanel, isOpen]);
+
+  useEffect(() => {
+    if (isOpen && sidebarMode === 'transcript') {
+      trackFeatureEvent('transcript_opened', { courseId, periodId });
+    }
+  }, [isOpen, sidebarMode, courseId, periodId]);
 
   useEffect(() => {
     if (

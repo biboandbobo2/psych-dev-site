@@ -17,7 +17,8 @@
 6. [Таблица по расстройствам](#таблица-по-расстройствам)
 7. [Книги (RAG)](#книги-rag)
 8. [Видео-транскрипты](#видео-транскрипты) — включая search chunks с индексом
-9. [Правила доступа](#правила-доступа)
+9. [Продуктовая телеметрия](#продуктовая-телеметрия)
+10. [Правила доступа](#правила-доступа)
 
 ---
 
@@ -988,6 +989,34 @@ interface VideoTranscriptSearchChunkDoc {
 ### `transcriptJobs/{jobId}` + `runs/{runId}`
 
 Очередь refresh-операций для transcripts (cron-fetch новых transcripts через Cloud Functions). Подробно в `shared/videoTranscripts/schema.ts`.
+
+---
+
+## Продуктовая телеметрия
+
+### `feature_events/{eventId}` (PT-1)
+
+Сырые события использования фич — по одному документу на событие. Принципы: агрегаты, не слежка (усечённый SHA-256 от uid, никаких текстов запросов/заметок); fire-and-forget (`src/lib/telemetry.ts`); запись только с прода, гостей не трекаем.
+
+```typescript
+interface FeatureEventDoc {
+  hashedUid: string;             // SHA-256(uid) hex, усечённый до 16 символов
+  event: string;                 // словарь FeatureEventName в src/lib/telemetry.ts:
+                                 // study_mode_opened | transcript_opened | selection_explain |
+                                 // selection_search | research_search | book_rag_question |
+                                 // lecture_ai_question | test_started | test_completed
+  courseId?: string;             // где применимо (для test_* — test.course)
+  periodId?: string;             // где применимо
+  platform: 'mobile' | 'desktop'; // matchMedia('(pointer: coarse)')
+  createdAt: Timestamp;          // serverTimestamp (rules требуют request.time)
+}
+```
+
+**Кто пишет:** клиент, `trackFeatureEvent(event, meta?)` из `src/lib/telemetry.ts` — только авторизованные (rules: `create` с валидацией ключей/длин, `update/delete` — никому). Дедуп повторов `event+meta` в рамках сессии — счётчики означают «фича использована в сессии», а не число кликов.
+
+**Кто читает:** только админ (rules: `read: if isAdmin()`) — сводка `/superadmin/telemetry` (`src/pages/admin/telemetry/AdminTelemetry.tsx`), агрегация на клиенте. Как читать цифры: [docs/guides/product-telemetry.md](../guides/product-telemetry.md).
+
+**Ретеншн:** пока не настроен (отложен до первых данных, см. PT-1 в audit-backlog). Кандидаты: чистка шагом weekly job `weeklyTranscriptRefresh` либо Firestore TTL-политика на `createdAt`.
 
 ---
 

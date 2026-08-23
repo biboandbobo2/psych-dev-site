@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { saveTestResult } from '../lib/testResults';
 import type { Test } from '../types/tests';
 import { debugError } from '../lib/debug';
+import { trackFeatureEvent } from '../lib/telemetry';
 
 interface UseTestProgressParams {
   test: Test | null;
@@ -23,7 +24,8 @@ export function useTestProgress({ test, user }: UseTestProgressParams) {
   const handleStart = useCallback(() => {
     setStarted(true);
     setStartTime(new Date());
-  }, []);
+    if (test) trackFeatureEvent('test_started', { courseId: test.course });
+  }, [test]);
 
   const incrementScore = useCallback(() => {
     setScore((prev) => prev + 1);
@@ -53,6 +55,7 @@ export function useTestProgress({ test, user }: UseTestProgressParams) {
   // Сохранение результата после завершения теста
   useEffect(() => {
     if (finished && !resultSaved && user && startTime && test) {
+      trackFeatureEvent('test_completed', { courseId: test.course });
       const saveResult = async () => {
         try {
           const endTime = new Date();
