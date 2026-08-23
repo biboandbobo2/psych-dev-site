@@ -1,14 +1,31 @@
 import { Link, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { signOut } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useAuthStore, useContentSearchStore } from "../stores";
 import { useCourseStore } from "../stores/useCourseStore";
-import { CombinedSearchDrawer } from "./CombinedSearchDrawer";
-import { AiAssistantDrawer } from "../features/researchSearch/components/AiAssistantDrawer";
+import { lazyWithReload } from "../lib/lazyWithReload";
 import { FeedbackButton, FeedbackModal } from "./FeedbackModal";
 import type { CourseType } from "../types/tests";
+
+// LS-5: дроверы поиска и AI-ассистента тянут researchSearch/bookSearch/
+// lectureSearch — грузим их чанки только при первом открытии, не на старте.
+const CombinedSearchDrawer = lazy(() =>
+  lazyWithReload(
+    () => import("./CombinedSearchDrawer").then((module) => ({ default: module.CombinedSearchDrawer })),
+    "CombinedSearchDrawer"
+  )
+);
+const AiAssistantDrawer = lazy(() =>
+  lazyWithReload(
+    () =>
+      import("../features/researchSearch/components/AiAssistantDrawer").then((module) => ({
+        default: module.AiAssistantDrawer,
+      })),
+    "AiAssistantDrawer"
+  )
+);
 
 interface UserMenuProps {
   user: User;
@@ -18,6 +35,10 @@ export default function UserMenu({ user }: UserMenuProps) {
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  // После первого открытия дровер остаётся смонтированным, чтобы сохранять
+  // введённый запрос и результаты между открытиями (как до lazy-загрузки).
+  const [searchEverOpened, setSearchEverOpened] = useState(false);
+  const [aiEverOpened, setAiEverOpened] = useState(false);
   const location = useLocation();
   const displayName = user.displayName || user.email?.split('@')[0] || "Пользователь";
   const photoURL = user.photoURL;
@@ -28,6 +49,13 @@ export default function UserMenu({ user }: UserMenuProps) {
   const isCoAdminOnly = isCoAdmin && !isSuperAdmin;
   const { isOpen: isSearchOpen, openSearch, closeSearch } = useContentSearchStore();
   const currentCourse = useCourseStore((state) => state.currentCourse);
+
+  useEffect(() => {
+    if (isSearchOpen) setSearchEverOpened(true);
+  }, [isSearchOpen]);
+  useEffect(() => {
+    if (isAiOpen) setAiEverOpened(true);
+  }, [isAiOpen]);
 
   // Определяем курс на основе текущего пути
   const isClinicalPage = location.pathname.startsWith('/clinical');
@@ -304,8 +332,16 @@ export default function UserMenu({ user }: UserMenuProps) {
         </div>
       )}
 
-      <CombinedSearchDrawer open={isSearchOpen} onClose={closeSearch} />
-      <AiAssistantDrawer open={isAiOpen} onClose={() => setIsAiOpen(false)} />
+      {searchEverOpened && (
+        <Suspense fallback={null}>
+          <CombinedSearchDrawer open={isSearchOpen} onClose={closeSearch} />
+        </Suspense>
+      )}
+      {aiEverOpened && (
+        <Suspense fallback={null}>
+          <AiAssistantDrawer open={isAiOpen} onClose={() => setIsAiOpen(false)} />
+        </Suspense>
+      )}
       <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
     </>
   );

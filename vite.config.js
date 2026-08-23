@@ -2,6 +2,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// LS-5: страничные правила удалены намеренно. Они засасывали общие модули
+// (hooks/lib/stores) в page-чанки — entry статически импортировал admin/tests/
+// timeline/profile/research, и весь их код качался на старте (~515 КБ gzip).
+// Страницы режутся самим Rollup'ом по dynamic imports из src/pages/lazy.ts.
+// Не добавляй сюда новые правила для /src/-модулей без замера стартового графа
+// (grep 'from"./' dist/assets/index-*.js после npm run build).
 const chunkMapper = (id) => {
   if (!id) return null;
 
@@ -20,62 +26,8 @@ const chunkMapper = (id) => {
     return 'shared-constants';
   }
 
-  // Timeline chunks - order matters! More specific rules first
-  // Separate exporters into their own chunk (loaded only on download)
-  if (id.includes('/src/pages/timeline/utils/exporters/')) {
-    return 'timeline-export';
-  }
-  // Separate hooks into their own chunk (heavy state management)
-  if (id.includes('/src/pages/timeline/hooks/')) {
-    return 'timeline-hooks';
-  }
-  // Timeline data and periodizations
-  if (id.includes('/src/pages/timeline/data/')) {
-    return 'timeline-data';
-  }
-  // Main Timeline component
-  if (id.includes('/src/pages/Timeline.tsx')) {
-    return 'timeline';
-  }
-  if (id.includes('/src/pages/timeline/components/TimelineCanvas')) {
-    return 'timeline-canvas';
-  }
-  if (id.includes('/src/pages/timeline/components/TimelineLeftPanel')) {
-    return 'timeline-left-panel';
-  }
-  if (id.includes('/src/pages/timeline/components/TimelineRightPanel')) {
-    return 'timeline-right-panel';
-  }
-  if (id.includes('/src/pages/timeline/components/BulkEventCreator')) {
-    return 'timeline-bulk';
-  }
-  if (id.includes('/src/pages/timeline/components/TimelineHelpModal')) {
-    return 'timeline-help';
-  }
-  if (
-    id.includes('/src/pages/TestsPage') ||
-    id.includes('/src/pages/DynamicTest') ||
-    id.includes('/src/components/tests')
-  ) {
-    return 'tests';
-  }
-  if (id.includes('/src/features/researchSearch') || id.includes('/src/pages/ResearchPage')) {
-    return 'research';
-  }
   if (id.includes('/src/data/eventIconDataUrls')) {
     return 'event-icons';
-  }
-  if (id.includes('/src/pages/Admin') || id.includes('/src/pages/admin/')) {
-    return 'admin';
-  }
-  if (id.includes('/src/pages/Notes') || id.includes('/src/pages/notes/')) {
-    return 'notes';
-  }
-  if (id.includes('/src/pages/Profile')) {
-    return 'profile';
-  }
-  if (id.includes('/src/pages/BookingPage') || id.includes('/src/pages/booking/')) {
-    return 'booking';
   }
   return undefined;
 };
