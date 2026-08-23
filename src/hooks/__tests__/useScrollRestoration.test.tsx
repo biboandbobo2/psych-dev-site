@@ -94,4 +94,30 @@ describe('useScrollRestoration', () => {
     expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
     expect(scrollToMock).not.toHaveBeenCalled();
   });
+
+  // Прод-сценарий: нативный клик по <a href="#..."> роутер видит как POP,
+  // и до фикса сохранённая позиция перехватывала переход к якорю.
+  it('prefers the anchor over a stored position on POP hash navigation', () => {
+    const scrollIntoViewMock = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <ScrollRestorationHarness />
+      </MemoryRouter>
+    );
+
+    const scrollToMock = vi.mocked(window.scrollTo);
+
+    fireEvent.click(screen.getByText('Anchor'));
+    scrollYValue = 500;
+    fireEvent.click(screen.getByText('Next'));
+
+    scrollIntoViewMock.mockClear();
+    scrollToMock.mockClear();
+    fireEvent.click(screen.getByText('Back'));
+
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    expect(scrollToMock).not.toHaveBeenCalled();
+  });
 });

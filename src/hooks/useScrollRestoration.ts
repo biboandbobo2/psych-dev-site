@@ -27,19 +27,22 @@ export function useScrollRestoration() {
   }, [location]);
 
   useLayoutEffect(() => {
-    const key = location.key || location.pathname;
-    const stored = positionsRef.current.get(key);
-    if (navigationType === 'POP' && typeof stored === 'number') {
-      window.scrollTo(0, stored);
-      return;
-    }
-    // Якорная навигация: ведём к элементу, а не к верху страницы.
+    // Якорная навигация приоритетнее восстановления позиции: нативный клик по
+    // <a href="#..."> роутер видит как POP с общим key "default" (history.state
+    // у таких записей null), поэтому сохранённая позиция перехватывала бы
+    // каждый клик по якорному меню, кроме первого.
     if (location.hash) {
       const target = document.getElementById(location.hash.slice(1));
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
       }
+    }
+    const key = location.key || location.pathname;
+    const stored = positionsRef.current.get(key);
+    if (navigationType === 'POP' && typeof stored === 'number') {
+      window.scrollTo(0, stored);
+      return;
     }
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [location, navigationType]);

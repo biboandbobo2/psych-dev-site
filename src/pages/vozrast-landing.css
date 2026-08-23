@@ -24,6 +24,8 @@
   --vz-green-dark: #256641;
   --vz-shadow: 0 18px 50px rgba(55, 45, 34, 0.08);
   --vz-focus: #2457c5;
+  /* Плавный скролл и для нативного перехода по #якорю, и для scrollIntoView */
+  scroll-behavior: smooth;
 }
 
 /* ---- Reset body for this page ---- */
@@ -42,6 +44,12 @@
   opacity: 0;
   transform: translateY(28px);
 }
+/* Пока секция сдвинута на 28px вниз, якорь целится в сдвинутую позицию;
+   после появления контент поднимается — компенсируем, чтобы остановка
+   была там же, где у уже видимой секции (64px). */
+.vz-section.vz-fade-init {
+  scroll-margin-top: 92px; /* 64px + 28px translateY */
+}
 .vz-fade {
   transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
     transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
@@ -51,12 +59,18 @@
   transform: translateY(0);
 }
 @media (prefers-reduced-motion: reduce) {
+  .vz-page {
+    scroll-behavior: auto;
+  }
   .vz-fade {
     transition: none;
   }
   .vz-fade-init {
     opacity: 1;
     transform: none;
+  }
+  .vz-section.vz-fade-init {
+    scroll-margin-top: 64px;
   }
 }
 
