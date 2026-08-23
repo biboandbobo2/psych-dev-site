@@ -4,7 +4,7 @@ import { debugError } from '../lib/debug';
 import { buildCourseNavItems, type CourseNavItem } from '../lib/courseNavItems';
 import {
   courseNavCacheKey,
-  fetchCourseNavIndex,
+  fetchCourseNavIndexDoc,
   loadCourseNavIndexItems,
   withTimeout,
   type CourseNavIndexItem,
@@ -32,7 +32,12 @@ async function loadNavItems(courseId: string): Promise<CourseNavIndexItem[]> {
   const request = (async () => {
     let indexed: CourseNavIndexItem[] | null = null;
     try {
-      indexed = await withTimeout(fetchCourseNavIndex(courseId), LOAD_TIMEOUT_MS, `navIndex:${courseId}`);
+      const indexDoc = await withTimeout(
+        fetchCourseNavIndexDoc(courseId),
+        LOAD_TIMEOUT_MS,
+        `navIndex:${courseId}`
+      );
+      indexed = indexDoc?.items ?? null;
     } catch (error) {
       debugError('[useCourseNavItems] Nav index read failed, falling back to lessons', {
         courseId,

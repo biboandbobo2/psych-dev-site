@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getDocs, orderBy, query } from 'firebase/firestore';
-import { getCourseLessonsCollectionRef, mapCanonicalCourseLessons } from '../lib/courseLessons';
 import { isCourseOpen } from '../lib/courseOpenness';
+import {
+  fetchCourseNavIndexDoc,
+  loadPublishedCourseLessons,
+  withTimeout,
+} from '../lib/courseNavIndex';
 import { debugError } from '../lib/debug';
 
+const LOAD_TIMEOUT_MS = 8000;
+
 /**
- * Для заданного набора курсов параллельно подгружает все их занятия из
- * Firestore и возвращает множество id «открытых» курсов (в смысле
- * isCourseOpen — все видео во всех опубликованных уроках публичные).
+ * Множество id «открытых» курсов (в смысле isCourseOpen — все видео во всех
+ * опубликованных уроках публичные) для заданного набора курсов.
+ *
+ * LS-3: флаг courseOpen лежит в nav-индексе (1 маленький doc-read на курс);
+ * fallback — как раньше, полная коллекция занятий курса.
  *
  * Используется гостевым и guest-registered-лендингом: индикатор
  * 🔓 «Открытый курс» и фильтрация списка «вам уже открыто».
@@ -34,9 +41,26 @@ export function useCoursesOpenness(courseIds: string[]): {
     Promise.all(
       ids.map(async (courseId) => {
         try {
-          const lessonsRef = getCourseLessonsCollectionRef(courseId);
-          const snapshot = await getDocs(query(lessonsRef, orderBy('order', 'asc')));
-          const lessons = mapCanonicalCourseLessons(courseId, snapshot.docs);
+          const indexDoc = await withTimeout(
+            fetchCourseNavIndexDoc(courseId),
+            LOAD_TIMEOUT_MS,
+            `navIndex:${courseId}`
+          );
+          if (typeof indexDoc?.courseOpen === 'boolean') {
+            return { courseId, isOpen: indexDoc.courseOpen };
+          }
+        } catch (error) {
+          debugError('[useCoursesOpenness] nav index read failed, falling back', {
+            courseId,
+            error,
+          });
+        }
+        try {
+          const lessons = await withTimeout(
+            loadPublishedCourseLessons(courseId),
+            LOAD_TIMEOUT_MS,
+            `lessons:${courseId}`
+          );
           return { courseId, isOpen: isCourseOpen(lessons) };
         } catch (error) {
           debugError('[useCoursesOpenness] failed to load lessons', { courseId, error });

@@ -278,12 +278,13 @@ interface CourseNavIndexDoc {
     title: string;               // label || title урока
     order?: number;
   }>;
+  courseOpen?: boolean;          // isCourseOpen: все published-уроки с публичными видео
 }
 ```
 
 **Кто пишет:** админ-хуки после мутаций контента — `useContentSaver` (save/delete), `useReorderLessons` — через `rebuildCourseNavIndex` (`src/lib/courseNavIndex.ts`). Разовый бэкфилл: `npx tsx scripts/backfillCourseNavIndex.ts`.
 
-**Кто читает:** `useCourseNavItems` (SWR-кэш в localStorage, ключ `nav-index:{courseId}`); при отсутствии/невалидности дока — fallback на полную коллекцию уроков.
+**Кто читает:** `useCourseNavItems` (SWR-кэш в localStorage, ключ `nav-index:{courseId}`) и `useCoursesOpenness` (готовый флаг `courseOpen` вместо чтения всех занятий всех курсов на /home); при отсутствии/невалидности дока — fallback на полную коллекцию уроков.
 
 ---
 

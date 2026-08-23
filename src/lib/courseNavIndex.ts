@@ -5,8 +5,10 @@
 
 import { doc, getDoc, getDocs, orderBy, query, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import type { Period } from '../types/content';
 import { debugError } from './debug';
 import { getCourseLessonsCollectionRef, mapCanonicalCourseLessons } from './courseLessons';
+import { isCourseOpen } from './courseOpenness';
 import { invalidateCourseContent } from './courseContentCache';
 
 export interface CourseNavIndexItem {
@@ -19,6 +21,8 @@ export interface CourseNavIndexDoc {
   v: number;
   updatedAt: string;
   items: CourseNavIndexItem[];
+  /** «Открытость» курса (isCourseOpen): все published-уроки с публичными видео. */
+  courseOpen?: boolean;
 }
 
 export const COURSE_NAV_INDEX_VERSION = 1;
@@ -66,27 +70,37 @@ function toNavIndexItem(lesson: {
 }
 
 /** null — индекса нет или он невалиден: вызывающий уходит в fallback на полную коллекцию. */
-export async function fetchCourseNavIndex(courseId: string): Promise<CourseNavIndexItem[] | null> {
+export async function fetchCourseNavIndexDoc(
+  courseId: string
+): Promise<Pick<CourseNavIndexDoc, 'items' | 'courseOpen'> | null> {
   const snapshot = await getDoc(courseNavIndexDocRef(courseId));
   if (!snapshot.exists()) return null;
 
   const data = snapshot.data() as Partial<CourseNavIndexDoc> | undefined;
   if (!data || data.v !== COURSE_NAV_INDEX_VERSION || !Array.isArray(data.items)) return null;
 
-  return data.items.filter(
-    (item): item is CourseNavIndexItem =>
-      Boolean(item) && typeof item.id === 'string' && typeof item.title === 'string'
+  return {
+    items: data.items.filter(
+      (item): item is CourseNavIndexItem =>
+        Boolean(item) && typeof item.id === 'string' && typeof item.title === 'string'
+    ),
+    ...(typeof data.courseOpen === 'boolean' ? { courseOpen: data.courseOpen } : {}),
+  };
+}
+
+/** Опубликованные уроки курса из полной коллекции (fallback-путь и пересборка индекса). */
+export async function loadPublishedCourseLessons(courseId: string): Promise<Period[]> {
+  const snapshot = await getDocs(
+    query(getCourseLessonsCollectionRef(courseId), orderBy('order', 'asc'))
   );
+  return mapCanonicalCourseLessons(courseId, snapshot.docs).filter(
+    (lesson) => lesson.published !== false
+  ) as Period[];
 }
 
 /** Строит элементы индекса из полной коллекции уроков курса (только опубликованные). */
 export async function loadCourseNavIndexItems(courseId: string): Promise<CourseNavIndexItem[]> {
-  const snapshot = await getDocs(
-    query(getCourseLessonsCollectionRef(courseId), orderBy('order', 'asc'))
-  );
-  return mapCanonicalCourseLessons(courseId, snapshot.docs)
-    .filter((lesson) => lesson.published !== false)
-    .map(toNavIndexItem);
+  return (await loadPublishedCourseLessons(courseId)).map(toNavIndexItem);
 }
 
 /**
@@ -96,11 +110,12 @@ export async function loadCourseNavIndexItems(courseId: string): Promise<CourseN
  */
 export async function rebuildCourseNavIndex(courseId: string): Promise<void> {
   try {
-    const items = await loadCourseNavIndexItems(courseId);
+    const lessons = await loadPublishedCourseLessons(courseId);
     const payload: CourseNavIndexDoc = {
       v: COURSE_NAV_INDEX_VERSION,
       updatedAt: new Date().toISOString(),
-      items,
+      items: lessons.map(toNavIndexItem),
+      courseOpen: isCourseOpen(lessons),
     };
     await setDoc(courseNavIndexDocRef(courseId), payload);
     await invalidateCourseContent(courseNavCacheKey(courseId));

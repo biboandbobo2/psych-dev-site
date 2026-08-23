@@ -7,6 +7,9 @@
  * Креды: GOOGLE_APPLICATION_CREDENTIALS или ADC (см. scripts/_adminInit.ts).
  */
 import { initAdmin } from './_adminInit';
+// Чистый модуль (только типы) — безопасно импортировать из src
+import { isCourseOpen } from '../src/lib/courseOpenness';
+import type { Period } from '../src/types/content';
 
 const COURSE_NAV_INDEX_VERSION = 1;
 
@@ -38,8 +41,14 @@ function canonicalLessonId(courseId: string, docId: string, data: Record<string,
 }
 
 // Логика mapCanonicalCourseLessons: при дублях предпочитаем док с каноничным id
-function buildItems(courseId: string, docs: LessonDoc[]): NavIndexItem[] {
-  const byId = new Map<string, { sourceDocId: string; item: NavIndexItem; published: boolean }>();
+function buildNavPayload(
+  courseId: string,
+  docs: LessonDoc[]
+): { items: NavIndexItem[]; courseOpen: boolean } {
+  const byId = new Map<
+    string,
+    { sourceDocId: string; item: NavIndexItem; published: boolean; raw: Record<string, unknown> }
+  >();
 
   for (const docSnap of docs) {
     const data = docSnap.data();
@@ -54,6 +63,7 @@ function buildItems(courseId: string, docs: LessonDoc[]): NavIndexItem[] {
     byId.set(id, {
       sourceDocId: docSnap.id,
       published: data.published !== false,
+      raw: data,
       item: {
         id,
         title,
@@ -62,7 +72,11 @@ function buildItems(courseId: string, docs: LessonDoc[]): NavIndexItem[] {
     });
   }
 
-  return [...byId.values()].filter((entry) => entry.published).map((entry) => entry.item);
+  const published = [...byId.values()].filter((entry) => entry.published);
+  return {
+    items: published.map((entry) => entry.item),
+    courseOpen: isCourseOpen(published.map((entry) => entry.raw as unknown as Period)),
+  };
 }
 
 async function main() {
@@ -84,15 +98,16 @@ async function main() {
 
   for (const { courseId, collectionPath } of targets) {
     const snap = await db.collection(collectionPath).get();
-    const items = buildItems(courseId, snap.docs as unknown as LessonDoc[]);
+    const { items, courseOpen } = buildNavPayload(courseId, snap.docs as unknown as LessonDoc[]);
     const payload = {
       v: COURSE_NAV_INDEX_VERSION,
       updatedAt: new Date().toISOString(),
       items,
+      courseOpen,
     };
     const bytes = Buffer.byteLength(JSON.stringify(payload), 'utf8');
     console.log(
-      `${courseId}: ${snap.size} доков → ${items.length} опубликованных, ~${(bytes / 1024).toFixed(1)} КБ`
+      `${courseId}: ${snap.size} доков → ${items.length} опубликованных, open=${courseOpen}, ~${(bytes / 1024).toFixed(1)} КБ`
     );
     if (!dryRun) {
       await db.collection('courseNavIndex').doc(courseId).set(payload);
