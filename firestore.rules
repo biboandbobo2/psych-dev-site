@@ -241,6 +241,12 @@ service cloud.firestore {
       allow read: if true;
       allow write: if canEditCourse('general');
     }
+    // LS-3: лёгкий nav-индекс курса (id/title/order опубликованных занятий).
+    // Пишется админ-хуками после мутаций контента, читается шторкой занятий.
+    match /courseNavIndex/{courseId} {
+      allow read: if true;
+      allow write: if canEditCourse(courseId);
+    }
     // Dynamic-курсы: документ курса и его занятия
     match /courses/{courseId} {
       allow read: if true;

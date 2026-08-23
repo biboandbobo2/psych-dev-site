@@ -1,84 +1,128 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getDocs, orderBy, query } from 'firebase/firestore';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Period } from '../types/content';
 import { debugError } from '../lib/debug';
-import { getCourseLessonsCollectionRef, mapCanonicalCourseLessons } from '../lib/courseLessons';
 import { buildCourseNavItems, type CourseNavItem } from '../lib/courseNavItems';
+import {
+  courseNavCacheKey,
+  fetchCourseNavIndex,
+  loadCourseNavIndexItems,
+  withTimeout,
+  type CourseNavIndexItem,
+} from '../lib/courseNavIndex';
+import {
+  readCourseContentCache,
+  writeCourseContentCache,
+  subscribeCourseContentInvalidation,
+} from '../lib/courseContentCache';
 
 export { buildCourseNavItems };
 
-const LESSON_CACHE = new Map<string, Map<string, Period>>();
-const LESSON_REQUESTS = new Map<string, Promise<Map<string, Period>>>();
+// LS-3: сначала лёгкий nav-индекс (1 маленький doc-read), fallback — полная
+// коллекция уроков (как до LS-3). Всё под таймаутом: зависший getDocs раньше
+// застревал в in-flight кэше навсегда — «вечная Загрузка занятий…» до
+// перезагрузки страницы. SWR-кэш в localStorage даёт мгновенный рендер шторки.
+const LOAD_TIMEOUT_MS = 8000;
 
-function cloneLessonMap(topics: Map<string, Period>): Map<string, Period> {
-  return new Map(topics);
+const NAV_REQUESTS = new Map<string, Promise<CourseNavIndexItem[]>>();
+
+async function loadNavItems(courseId: string): Promise<CourseNavIndexItem[]> {
+  const inFlight = NAV_REQUESTS.get(courseId);
+  if (inFlight) return inFlight;
+
+  const request = (async () => {
+    let indexed: CourseNavIndexItem[] | null = null;
+    try {
+      indexed = await withTimeout(fetchCourseNavIndex(courseId), LOAD_TIMEOUT_MS, `navIndex:${courseId}`);
+    } catch (error) {
+      debugError('[useCourseNavItems] Nav index read failed, falling back to lessons', {
+        courseId,
+        error,
+      });
+    }
+    if (indexed) return indexed;
+
+    return withTimeout(loadCourseNavIndexItems(courseId), LOAD_TIMEOUT_MS, `lessons:${courseId}`);
+  })().finally(() => {
+    NAV_REQUESTS.delete(courseId);
+  });
+
+  NAV_REQUESTS.set(courseId, request);
+  return request;
 }
 
-async function loadCourseLessonMap(courseId: string): Promise<Map<string, Period>> {
-  const cached = LESSON_CACHE.get(courseId);
-  if (cached) return cloneLessonMap(cached);
-
-  const inFlight = LESSON_REQUESTS.get(courseId);
-  if (inFlight) return inFlight.then(cloneLessonMap);
-
-  const request = getDocs(query(getCourseLessonsCollectionRef(courseId), orderBy('order', 'asc')))
-    .then((snapshot) => {
-      const lessons = mapCanonicalCourseLessons(courseId, snapshot.docs)
-        .filter((lesson) => lesson.published !== false);
-      const next = new Map<string, Period>();
-      lessons.forEach((lesson) => {
-        next.set(lesson.period, lesson as Period);
-      });
-      LESSON_CACHE.set(courseId, cloneLessonMap(next));
-      return next;
-    })
-    .finally(() => {
-      LESSON_REQUESTS.delete(courseId);
-    });
-
-  LESSON_REQUESTS.set(courseId, request);
-  return request.then(cloneLessonMap);
+function toTopicsMap(items: CourseNavIndexItem[]): Map<string, Period> {
+  const topics = new Map<string, Period>();
+  items.forEach((item) => {
+    topics.set(item.id, {
+      period: item.id,
+      title: item.title,
+      order: item.order,
+      published: true,
+    } as Period);
+  });
+  return topics;
 }
 
 export function resetCourseNavItemsCacheForTests() {
-  LESSON_CACHE.clear();
-  LESSON_REQUESTS.clear();
+  NAV_REQUESTS.clear();
+}
+
+interface NavItemsState {
+  items: CourseNavIndexItem[];
+  loading: boolean;
+  error: Error | null;
 }
 
 export function useCourseNavItems(courseId: string | null) {
-  const [topics, setTopics] = useState<Map<string, Period>>(new Map());
-  const [loading, setLoading] = useState(Boolean(courseId));
-  const [error, setError] = useState<Error | null>(null);
+  const [state, setState] = useState<NavItemsState>(() => {
+    const cached = courseId
+      ? readCourseContentCache<CourseNavIndexItem[]>(courseNavCacheKey(courseId))
+      : null;
+    return { items: cached ?? [], loading: Boolean(courseId) && !cached, error: null };
+  });
+  const activeCourseIdRef = useRef(courseId);
+  activeCourseIdRef.current = courseId;
 
   const loadLessons = useCallback(async () => {
     if (!courseId) {
-      setTopics(new Map());
-      setLoading(false);
-      setError(null);
+      setState({ items: [], loading: false, error: null });
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    const cached = readCourseContentCache<CourseNavIndexItem[]>(courseNavCacheKey(courseId));
+    setState((prev) => ({
+      items: cached ?? (activeCourseIdRef.current === courseId ? prev.items : []),
+      loading: !cached,
+      error: null,
+    }));
+
     try {
-      setTopics(await loadCourseLessonMap(courseId));
+      const items = await loadNavItems(courseId);
+      if (activeCourseIdRef.current !== courseId) return;
+      writeCourseContentCache(courseNavCacheKey(courseId), items);
+      setState({ items, loading: false, error: null });
     } catch (err) {
       debugError('[useCourseNavItems] Failed to load course lessons', { courseId, error: err });
-      setTopics(new Map());
-      setError(err as Error);
-    } finally {
-      setLoading(false);
+      if (activeCourseIdRef.current !== courseId) return;
+      // Ошибка ревалидации не перекрывает уже показанный кэш
+      setState((prev) => ({
+        items: prev.items,
+        loading: false,
+        error: prev.items.length ? null : (err as Error),
+      }));
     }
   }, [courseId]);
 
   useEffect(() => {
     void loadLessons();
-  }, [loadLessons]);
+    if (!courseId) return;
+    return subscribeCourseContentInvalidation(courseNavCacheKey(courseId), loadLessons);
+  }, [loadLessons, courseId]);
 
   const items = useMemo<CourseNavItem[]>(
-    () => buildCourseNavItems(courseId, topics),
-    [courseId, topics]
+    () => buildCourseNavItems(courseId, toTopicsMap(state.items)),
+    [courseId, state.items]
   );
 
-  return { items, loading, error, reload: loadLessons };
+  return { items, loading: state.loading, error: state.error, reload: loadLessons };
 }

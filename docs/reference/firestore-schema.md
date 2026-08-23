@@ -265,6 +265,28 @@ interface Literature {
 
 ---
 
+### `courseNavIndex/{courseId}` (LS-3)
+
+Лёгкий nav-индекс курса: только id/title/order **опубликованных** занятий — для списков навигации (шторка «Список занятий» на `/home`) без чтения полной коллекции уроков. Read public, write `canEditCourse(courseId)`.
+
+```typescript
+interface CourseNavIndexDoc {
+  v: number;                     // версия схемы, сейчас 1
+  updatedAt: string;             // ISO timestamp последней пересборки
+  items: Array<{
+    id: string;                  // канонический lesson id (period)
+    title: string;               // label || title урока
+    order?: number;
+  }>;
+}
+```
+
+**Кто пишет:** админ-хуки после мутаций контента — `useContentSaver` (save/delete), `useReorderLessons` — через `rebuildCourseNavIndex` (`src/lib/courseNavIndex.ts`). Разовый бэкфилл: `npx tsx scripts/backfillCourseNavIndex.ts`.
+
+**Кто читает:** `useCourseNavItems` (SWR-кэш в localStorage, ключ `nav-index:{courseId}`); при отсутствии/невалидности дока — fallback на полную коллекцию уроков.
+
+---
+
 ### `pages/home`
 
 Контент главной страницы (hero-секция, CTA, описание курсов).

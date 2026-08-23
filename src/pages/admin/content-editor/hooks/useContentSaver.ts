@@ -30,6 +30,7 @@ import {
 } from '../../../../lib/courseLessons';
 import { isCoreCourse } from '../../../../constants/courses';
 import { invalidateCourseContentByCourseId } from '../../../../lib/courseContentCache';
+import { rebuildCourseNavIndex } from '../../../../lib/courseNavIndex';
 import { getCourseCollectionName } from '../utils/courseCollectionRef';
 import type { CourseType } from '../../../../types/tests';
 
@@ -246,6 +247,7 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
       }
 
       void invalidateCourseContentByCourseId(course);
+      void rebuildCourseNavIndex(course);
       alert('✅ Изменения сохранены!');
       onNavigate();
     } catch (error: unknown) {
@@ -291,6 +293,7 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
 
       await normalizeLessonOrder();
       void invalidateCourseContentByCourseId(course);
+      void rebuildCourseNavIndex(course);
 
       alert(`🗑️ ${course === 'clinical' ? 'Тема удалена' : isCoreCourse(course) ? 'Период удалён' : 'Занятие удалено'}`);
       onNavigate();
