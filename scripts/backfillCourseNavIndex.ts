@@ -76,6 +76,9 @@ async function main() {
 
   const coursesSnap = await db.collection('courses').get();
   for (const courseDoc of coursesSnap.docs) {
+    // В `courses` лежат и доки-дубли core-курсов (карточки /home) без lessons —
+    // не дать им перезаписать core-индексы пустым списком
+    if (CORE_COLLECTIONS[courseDoc.id]) continue;
     targets.push({ courseId: courseDoc.id, collectionPath: `courses/${courseDoc.id}/lessons` });
   }
 
