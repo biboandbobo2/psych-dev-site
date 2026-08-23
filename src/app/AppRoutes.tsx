@@ -31,6 +31,7 @@ import {
   AdminCourseIntro,
   AdminAnnouncements,
   AdminExams,
+  AdminTelemetry,
   AdminGroups,
   AdminLectureQuestions,
   AdminPagesList,
@@ -183,6 +184,14 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           element={
             <RequireAdmin>
               <AdminExams />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/superadmin/telemetry"
+          element={
+            <RequireAdmin>
+              {isSuperAdmin ? <AdminTelemetry /> : <Navigate to="/admin/content" replace />}
             </RequireAdmin>
           }
         />

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { debugError, debugLog, debugWarn } from '../../../lib/debug';
+import { trackFeatureEvent } from '../../../lib/telemetry';
 import type { PapersApiResponse, ResearchWork } from '../types';
 
 type Status = 'idle' | 'loading' | 'error' | 'success';
@@ -157,6 +158,7 @@ export function useResearchSearch({
       }));
       return;
     }
+    trackFeatureEvent('research_search');
     setRequestId((prev) => prev + 1);
   };
 

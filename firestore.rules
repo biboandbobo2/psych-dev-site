@@ -459,6 +459,37 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Продуктовая телеметрия (PT-1): сырые события использования фич.
+    // Агрегаты, не слежка: клиент пишет усечённый SHA-256 от uid, тексты
+    // запросов/заметок не сохраняются. Пишут авторизованные (fire-and-forget
+    // из src/lib/telemetry.ts), читает только админ-сводка /superadmin/telemetry.
+    match /feature_events/{eventId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated()
+        && request.resource.data.keys().hasOnly(
+          ['hashedUid', 'event', 'courseId', 'periodId', 'platform', 'createdAt']
+        )
+        && request.resource.data.hashedUid is string
+        && request.resource.data.hashedUid.size() >= 8
+        && request.resource.data.hashedUid.size() <= 64
+        && request.resource.data.event is string
+        && request.resource.data.event.size() > 0
+        && request.resource.data.event.size() <= 64
+        && request.resource.data.platform in ['mobile', 'desktop']
+        && request.resource.data.createdAt == request.time
+        && (
+          !('courseId' in request.resource.data) ||
+          (request.resource.data.courseId is string &&
+            request.resource.data.courseId.size() <= 100)
+        )
+        && (
+          !('periodId' in request.resource.data) ||
+          (request.resource.data.periodId is string &&
+            request.resource.data.periodId.size() <= 100)
+        );
+      allow update, delete: if false;
+    }
+
     // Default-deny для всех остальных коллекций. Любая новая коллекция
     // должна получить свой явный `match`-блок выше — иначе read/write
     // запрещены. Это закрытие MR-8: больше нет catch-all `allow read: if true`,

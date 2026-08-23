@@ -607,6 +607,110 @@ describe('courseNavIndex: nav-индекс курса (LS-3)', () => {
   });
 });
 
+describe('feature_events: продуктовая телеметрия (PT-1)', () => {
+  const validEvent = () => ({
+    hashedUid: 'a1b2c3d4e5f60718',
+    event: 'research_search',
+    platform: 'desktop',
+    createdAt: serverTimestamp(),
+  });
+
+  it('аноним: create события → denied', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(db, 'feature_events', 'e1'), validEvent()));
+  });
+
+  it('авторизованный: create валидного события → success', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(setDoc(doc(db, 'feature_events', 'e1'), validEvent()));
+  });
+
+  it('авторизованный: create с courseId/periodId → success', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'feature_events', 'e2'), {
+        ...validEvent(),
+        event: 'study_mode_opened',
+        courseId: 'development',
+        periodId: 'infancy',
+      })
+    );
+  });
+
+  it('авторизованный: create с лишним полем (текст запроса) → denied', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'feature_events', 'e3'), { ...validEvent(), query: 'секретный текст' })
+    );
+  });
+
+  it('авторизованный: create с клиентским createdAt (не serverTimestamp) → denied', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'feature_events', 'e4'), { ...validEvent(), createdAt: 'x' })
+    );
+  });
+
+  it('авторизованный: create с platform вне словаря → denied', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'feature_events', 'e5'), { ...validEvent(), platform: 'tablet' })
+    );
+  });
+
+  it('авторизованный: create с event длиннее 64 символов → denied', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'feature_events', 'e6'), { ...validEvent(), event: 'x'.repeat(65) })
+    );
+  });
+
+  it('авторизованный (не админ): get/list событий → denied', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'feature_events', 'seeded'), {
+        hashedUid: 'a1b2c3d4e5f60718',
+        event: 'research_search',
+        platform: 'desktop',
+        createdAt: serverTimestamp(),
+      });
+    });
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(getDoc(doc(db, 'feature_events', 'seeded')));
+    await assertFails(getDocs(collection(db, 'feature_events')));
+  });
+
+  it('авторизованный: update/delete события → denied', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'feature_events', 'seeded'), {
+        hashedUid: 'a1b2c3d4e5f60718',
+        event: 'research_search',
+        platform: 'desktop',
+        createdAt: serverTimestamp(),
+      });
+    });
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'feature_events', 'seeded'), { ...validEvent(), event: 'other' })
+    );
+    await assertFails(deleteDoc(doc(db, 'feature_events', 'seeded')));
+  });
+
+  it('супер-админ: list событий → success', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'feature_events', 'seeded'), {
+        hashedUid: 'a1b2c3d4e5f60718',
+        event: 'research_search',
+        platform: 'desktop',
+        createdAt: serverTimestamp(),
+      });
+    });
+    const db = testEnv
+      .authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL })
+      .firestore();
+    await assertSucceeds(getDocs(collection(db, 'feature_events')));
+  });
+});
+
 describe('default-deny для новых неизвестных коллекций', () => {
   it('обычный авторизованный: write в произвольную новую коллекцию → denied', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();

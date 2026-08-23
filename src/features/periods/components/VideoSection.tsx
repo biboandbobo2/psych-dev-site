@@ -12,6 +12,7 @@ import {
 } from '../../../lib/courseWatchedLessons';
 import { StudyVideoPlayer } from './StudyVideoPlayer';
 import { saveCourseVideoResumePoint } from '../../../lib/courseVideoResume';
+import { trackFeatureEvent } from '../../../lib/telemetry';
 
 interface VideoSectionProps {
   slug: string;
@@ -161,6 +162,12 @@ function VideoSectionCard({
       setMode('study');
     }
   }, [shouldAutoOpenStudy, studyLaunchKey]);
+
+  useEffect(() => {
+    if (mode === 'study') {
+      trackFeatureEvent('study_mode_opened', { courseId, periodId });
+    }
+  }, [mode, courseId, periodId]);
 
   useEffect(() => {
     if (!canTrackWatched) {
