@@ -565,6 +565,48 @@ describe('courses: canEditCourse для динамических курсов', 
   });
 });
 
+describe('courseNavIndex: nav-индекс курса (LS-3)', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'courseNavIndex', 'demo-course'), {
+        v: 1,
+        updatedAt: '2026-08-23T00:00:00.000Z',
+        items: [{ id: 'lesson-1', title: 'Первое занятие', order: 0 }],
+      });
+    });
+  });
+
+  it('аноним: get courseNavIndex/<courseId> → success (публичное чтение)', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(db, 'courseNavIndex', 'demo-course')));
+  });
+
+  it('студент без admin-роли: write индекса → denied', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'courseNavIndex', 'demo-course'), { v: 1, updatedAt: 'x', items: [] })
+    );
+  });
+
+  it('лектор своего курса: rewrite индекса → success', async () => {
+    const db = testEnv
+      .authenticatedContext('lecturer-uid', { role: 'admin', editableCourses: ['demo-course'] })
+      .firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'courseNavIndex', 'demo-course'), { v: 1, updatedAt: 'x', items: [] })
+    );
+  });
+
+  it('лектор чужого курса: write индекса demo-course → denied', async () => {
+    const db = testEnv
+      .authenticatedContext('other-lecturer', { role: 'admin', editableCourses: ['other-course'] })
+      .firestore();
+    await assertFails(
+      setDoc(doc(db, 'courseNavIndex', 'demo-course'), { v: 1, updatedAt: 'x', items: [] })
+    );
+  });
+});
+
 describe('default-deny для новых неизвестных коллекций', () => {
   it('обычный авторизованный: write в произвольную новую коллекцию → denied', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();

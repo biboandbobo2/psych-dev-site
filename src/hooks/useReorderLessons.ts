@@ -4,6 +4,7 @@ import { db } from '../lib/firebase';
 import { debugLog, debugError, debugWarn } from '../lib/debug';
 import type { CourseType } from '../types/tests';
 import { findCourseLessonDoc } from '../lib/courseLessons';
+import { rebuildCourseNavIndex } from '../lib/courseNavIndex';
 
 interface LessonOrder {
   periodId: string;
@@ -62,6 +63,7 @@ export function useReorderLessons() {
       });
 
       await batch.commit();
+      void rebuildCourseNavIndex(course);
 
       debugLog('Lessons reordered:', { course, count: existingPeriods.length });
       return { success: true };
