@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { CORE_COURSE_LIST, isCoreCourse } from '../constants/courses';
+import { isPublicRestAvailable, restListPublicCollection } from '../lib/firestorePublicRest';
 import { debugError } from '../lib/debug';
 
 export interface CourseOption {
@@ -103,6 +104,9 @@ export function useCourses(options: UseCoursesOptions = {}) {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  // LS-4: SDK — источник истины; REST-префетч применяется, только пока SDK
+  // ещё не отдал список
+  const sdkDeliveredRef = useRef(false);
 
   const loadCourses = useCallback(async () => {
     try {
@@ -115,6 +119,7 @@ export function useCourses(options: UseCoursesOptions = {}) {
         data: docSnap.data() as Record<string, unknown>,
       }));
 
+      sdkDeliveredRef.current = true;
       setCourses(buildCourseOptions(docs, includeUnpublished));
     } catch (err) {
       debugError('Error loading courses', err);
@@ -131,6 +136,28 @@ export function useCourses(options: UseCoursesOptions = {}) {
       reloadListeners.delete(loadCourses);
     };
   }, [loadCourses]);
+
+  // LS-4: публичный список курсов REST-запросом сразу, не дожидаясь
+  // инициализации Firebase Auth (SDK не шлёт запросы до неё — на первом
+  // визите это ~0,5–2 с). Гостевой /home целиком ждёт useCourses, поэтому
+  // это его LCP. Ошибка REST-пути молча оставляет прежнее поведение.
+  useEffect(() => {
+    if (!isPublicRestAvailable()) return;
+    let cancelled = false;
+    restListPublicCollection('courses')
+      .then((docs) => {
+        if (cancelled || sdkDeliveredRef.current || docs.length === 0) return;
+        setCourses(buildCourseOptions(docs, includeUnpublished));
+        setError(null);
+        setLoading(false);
+      })
+      .catch(() => {
+        // SDK-путь остаётся источником истины
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [includeUnpublished]);
 
   const courseMap = useMemo(() => {
     const map = new Map<string, CourseOption>();

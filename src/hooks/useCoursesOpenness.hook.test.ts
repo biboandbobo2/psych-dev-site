@@ -25,15 +25,26 @@ vi.mock('../lib/courseLessons', async () => {
   };
 });
 
+vi.mock('../lib/firestorePublicRest', () => ({
+  isPublicRestAvailable: vi.fn(() => false),
+  restGetPublicDoc: vi.fn(),
+}));
+
+import { isPublicRestAvailable, restGetPublicDoc } from '../lib/firestorePublicRest';
 import { useCoursesOpenness } from './useCoursesOpenness';
 
 describe('useCoursesOpenness', () => {
   const getDocMock = vi.mocked(getDoc);
   const getDocsMock = vi.mocked(getDocs);
+  const restAvailableMock = vi.mocked(isPublicRestAvailable);
+  const restGetMock = vi.mocked(restGetPublicDoc);
 
   beforeEach(() => {
     getDocMock.mockReset();
     getDocsMock.mockReset();
+    restAvailableMock.mockReset();
+    restAvailableMock.mockReturnValue(false);
+    restGetMock.mockReset();
   });
 
   it('берёт courseOpen из nav-индекса без чтения коллекций занятий (LS-3)', async () => {
@@ -55,6 +66,47 @@ describe('useCoursesOpenness', () => {
 
     expect(result.current.openCourseIds.has('my-course')).toBe(true);
     expect(getDocsMock).not.toHaveBeenCalled();
+  });
+
+  it('LS-4: courseOpen из REST-индекса без единого SDK-запроса (не ждём auth)', async () => {
+    restAvailableMock.mockReturnValue(true);
+    restGetMock.mockResolvedValue({
+      v: 1,
+      updatedAt: '2026-08-23T00:00:00.000Z',
+      items: [],
+      courseOpen: true,
+    });
+
+    const { result } = renderHook(() => useCoursesOpenness(['my-course']));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.openCourseIds.has('my-course')).toBe(true);
+    expect(getDocMock).not.toHaveBeenCalled();
+    expect(getDocsMock).not.toHaveBeenCalled();
+  });
+
+  it('LS-4: REST упал → SDK-индекс работает как раньше', async () => {
+    restAvailableMock.mockReturnValue(true);
+    restGetMock.mockRejectedValue(new Error('network'));
+    getDocMock.mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        v: 1,
+        updatedAt: '2026-08-23T00:00:00.000Z',
+        items: [],
+        courseOpen: true,
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useCoursesOpenness(['my-course']));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    expect(result.current.openCourseIds.has('my-course')).toBe(true);
   });
 
   it('индекс без courseOpen (старый док) → fallback на полную коллекцию', async () => {
