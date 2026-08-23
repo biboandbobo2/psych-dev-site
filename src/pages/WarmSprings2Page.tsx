@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
+import '@fontsource-variable/playfair-display';
 import './warm-springs-2.css';
 import { Nav } from './warmSprings2/components/Nav';
 import { HeroSection } from './warmSprings2/sections/HeroSection';

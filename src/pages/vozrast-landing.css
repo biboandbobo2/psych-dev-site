@@ -32,7 +32,7 @@
 .vz-page body {
   background: var(--vz-cream);
   color: var(--vz-graphite);
-  font-family: 'Manrope', 'Inter', system-ui, sans-serif;
+  font-family: 'Manrope Variable', 'Inter', system-ui, sans-serif;
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
 }
@@ -76,7 +76,7 @@
 
 /* ---- Typography ---- */
 .vz-h2 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-weight: 500;
   font-size: clamp(2.1rem, 4.2vw, 3.4rem);
   line-height: 1.05;
@@ -159,7 +159,7 @@
   padding: 0.7rem 1.5rem;
 }
 .vz-nav-logo {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.2rem;
   font-weight: 600;
   color: var(--vz-graphite);
@@ -219,7 +219,7 @@
   margin-bottom: 1.4rem;
 }
 .vz-hero-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-weight: 500;
   font-size: clamp(2.3rem, 4vw, 3.9rem);
   line-height: 1.04;
@@ -281,7 +281,7 @@
   margin-bottom: 2.5rem;
 }
 .vz-about-lead {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: clamp(1.6rem, 3vw, 2.4rem);
   font-weight: 500;
   line-height: 1.15;
@@ -304,7 +304,7 @@
   background: transparent;
   border: 0;
   padding: 0;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.3rem;
   line-height: 1.45;
   color: var(--vz-graphite);
@@ -338,7 +338,7 @@
 }
 .vz-fact strong {
   display: block;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.7rem;
   line-height: 1.1;
   color: var(--vz-graphite);
@@ -372,7 +372,7 @@
   border-radius: 28px;
 }
 .vz-journey h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.45rem;
   font-weight: 500;
   color: var(--vz-graphite);
@@ -412,7 +412,7 @@
   box-shadow: var(--vz-shadow);
 }
 .vz-audience-card h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.15rem;
   font-weight: 500;
   color: var(--vz-graphite);
@@ -486,7 +486,7 @@
   justify-content: center;
   background: var(--vz-green);
   color: #fff;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.2rem;
   font-weight: 600;
   border-radius: 50%;
@@ -499,7 +499,7 @@
   flex: 1;
 }
 .vz-timeline-body h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.3rem;
   font-weight: 500;
   color: var(--vz-graphite);
@@ -565,7 +565,7 @@
   order: 1;
 }
 .vz-feature-text h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: clamp(1.35rem, 2.6vw, 1.8rem);
   font-weight: 500;
   line-height: 1.2;
@@ -623,7 +623,7 @@
   border: 1.5px dashed transparent;
 }
 .vz-practice-card h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.2rem;
   font-weight: 500;
   color: var(--vz-graphite);
@@ -669,7 +669,7 @@
   padding: 1.8rem;
 }
 .vz-module h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.25rem;
   font-weight: 500;
   color: var(--vz-graphite);
@@ -733,7 +733,7 @@
   background: transparent;
   border: 0;
   padding: 0;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.12rem;
   line-height: 1.45;
   color: var(--vz-graphite);
@@ -832,7 +832,7 @@
   margin: 0;
 }
 .vz-team-lead-card h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 500;
   color: var(--vz-graphite);
@@ -874,7 +874,7 @@
   box-shadow: none;
 }
 .vz-instructor h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.15rem;
   font-weight: 500;
   color: var(--vz-graphite);
@@ -947,7 +947,7 @@
   color: var(--vz-cobalt);
 }
 .vz-price-value {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 2.5rem;
   font-weight: 600;
   color: var(--vz-graphite);
@@ -984,7 +984,7 @@
   border-radius: 24px;
 }
 .vz-discounts h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.25rem;
   font-weight: 500;
   color: var(--vz-graphite);
@@ -1021,7 +1021,7 @@
   text-align: left;
 }
 .vz-price-includes h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.25rem;
   font-weight: 500;
   color: var(--vz-graphite);
@@ -1083,7 +1083,7 @@
   border: 0;
   cursor: pointer;
   text-align: left;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: 1.15rem;
   font-weight: 500;
   color: var(--vz-graphite);
@@ -1127,7 +1127,7 @@
   border-radius: 32px;
 }
 .vz-final h2 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Playfair Display Variable', Georgia, serif;
   font-size: clamp(1.9rem, 4vw, 3rem);
   font-weight: 500;
   line-height: 1.1;

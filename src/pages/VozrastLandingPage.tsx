@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
+import '@fontsource-variable/playfair-display';
 import './vozrast-landing.css';
 import { Nav } from './vozrastLanding/components/Nav';
 import { HeroSection } from './vozrastLanding/sections/HeroSection';
@@ -29,10 +30,6 @@ export default function VozrastLandingPage() {
         <meta
           name="description"
           content="Программа повышения квалификации по психологии развития: весь жизненный путь человека за 14 недель. Онлайн, 17 сентября — 17 декабря 2026. Удостоверение о повышении квалификации."
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"
-          rel="stylesheet"
         />
       </Helmet>
 
