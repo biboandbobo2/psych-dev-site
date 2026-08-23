@@ -2,7 +2,7 @@ import { FadeSection } from '../components/FadeSection';
 import { instructors } from '../data';
 
 export function TeamSection() {
-  const [lead, ...rest] = instructors;
+  const [lead, coAuthor, ...rest] = instructors;
 
   return (
     <FadeSection id="team" className="vz-section vz-team">
@@ -20,6 +20,16 @@ export function TeamSection() {
             <h3>{lead.name}</h3>
             <div className="vz-instructor-role">{lead.role}</div>
             <p>{lead.text}</p>
+          </div>
+        </div>
+        <div className="vz-team-lead-card">
+          <div className="vz-instructor-photo">
+            <img src={coAuthor.photo} alt={coAuthor.name} width={640} height={640} loading="lazy" decoding="async" />
+          </div>
+          <div>
+            <h3>{coAuthor.name}</h3>
+            <div className="vz-instructor-role">{coAuthor.role}</div>
+            <p>{coAuthor.text}</p>
           </div>
         </div>
         <div className="vz-team-grid">
