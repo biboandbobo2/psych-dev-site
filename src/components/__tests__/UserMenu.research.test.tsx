@@ -22,7 +22,7 @@ describe('UserMenu research search entry', () => {
     });
   });
 
-  it('открывает и закрывает Drawer по кнопке и Esc', () => {
+  it('открывает и закрывает Drawer по кнопке и Esc', async () => {
     render(
       <MemoryRouter>
         <UserMenu user={mockUser} />
@@ -33,7 +33,8 @@ describe('UserMenu research search entry', () => {
     expect(buttons.length).toBeGreaterThan(0);
 
     fireEvent.click(buttons[0]);
-    expect(screen.getByRole('heading', { name: /по сайту и статьям/i })).toBeInTheDocument();
+    // Дровер грузится лениво (LS-5) — ждём появления
+    expect(await screen.findByRole('heading', { name: /по сайту и статьям/i })).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('heading', { name: /по сайту и статьям/i })).not.toBeInTheDocument();

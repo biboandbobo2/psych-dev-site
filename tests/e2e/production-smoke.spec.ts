@@ -129,12 +129,17 @@ test.describe('Production Build Smoke Tests', () => {
 
     page.on('response', (response) => {
       const url = response.url();
-      if (url.includes('timeline-') && url.endsWith('.js')) {
+      // LS-5: чанки именует Rollup по lazy-импортам (Timeline-*.js, TimelineRightPanel-*.js)
+      if (/timeline[\w-]*\.js$/i.test(url)) {
         loadedChunks.push(url);
       }
     });
 
-    await page.goto('/timeline');
+    // /timeline за RequireAuth — без логина Timeline-чанк не грузится. Публичный
+    // /_timeline/automation статически тянет TimelineCanvas/data/exporters — те же
+    // timeline-чанки. (До LS-5 тест на /timeline был зелёным лишь потому, что
+    // timeline-чанки качались на любой странице.)
+    await page.goto('/_timeline/automation');
     // networkidle недостижим: Firestore держит Listen-каналы открытыми (см. perf-metrics.md).
     // 'load' + пауза достаточно, чтобы лениво догрузились чанки и всплыли ошибки инициализации.
     await page.waitForLoadState('load');
