@@ -178,6 +178,24 @@ export function VideoStudyOverlay({
     );
   }, [highlightedStartMs, initialSeekMs, isOpen, sidebarMode]);
 
+  // Подсветка транскрипта следует за воспроизведением, пока вкладка открыта.
+  useEffect(() => {
+    if (!isOpen || sidebarMode !== 'transcript') {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      const snapshot = playerRef.current?.getPlaybackSnapshot();
+      if (snapshot && snapshot.currentTimeMs !== null && !snapshot.paused) {
+        setTranscriptFocusMs(snapshot.currentTimeMs);
+      }
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isOpen, sidebarMode]);
+
   if (typeof document === 'undefined' || !isOpen) {
     return null;
   }
