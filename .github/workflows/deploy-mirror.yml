@@ -1,0 +1,29 @@
+# РФ-зеркало на Firebase Hosting (psych-dev-site-prod.web.app / ru.academydom.com).
+# Vercel деплоит основной домен сам по пушу; этот workflow параллельно обновляет зеркало.
+name: Deploy RU mirror
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Write build env
+        run: printf '%s\n' "$MIRROR_ENV" > .env.production.local
+        env:
+          MIRROR_ENV: ${{ secrets.MIRROR_ENV }}
+      - run: npm run build
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PSYCH_DEV_SITE_PROD }}
+          channelId: live
+          projectId: psych-dev-site-prod

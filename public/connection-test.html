@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Проверка связи — DOM Academy</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #faf7f0;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        color: #111827;
+      }
+      .card {
+        max-width: 560px;
+        padding: 40px 32px;
+        text-align: center;
+      }
+      .logo {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 16px;
+        background: #2e7d32;
+        color: #fff;
+        font-size: 30px;
+      }
+      h1 { font-size: 22px; margin: 0 0 8px; }
+      .hint { color: #68645f; font-size: 15px; line-height: 1.55; }
+      #status {
+        margin: 28px 0 12px;
+        padding: 22px 20px;
+        border-radius: 16px;
+        font-size: 19px;
+        font-weight: 600;
+        line-height: 1.45;
+        background: #eef1e9;
+      }
+      #status.ok { background: #e0f0e3; color: #1d5b31; }
+      #status.fail { background: #fbe3de; color: #a03022; }
+      .copy { font-size: 15px; color: #68645f; }
+      .copy b { color: #111827; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="logo">&Psi;</div>
+      <h1>Проверка связи DOM Academy</h1>
+      <p class="hint">
+        Раз вы видите этот текст — страница открылась, и это уже хороший знак.
+        Сейчас проверим загрузку большого файла, подождите несколько секунд…
+      </p>
+      <div id="status">⏳ Проверяем…</div>
+      <p class="copy" id="copy"></p>
+    </div>
+    <script>
+      (async () => {
+        const status = document.getElementById('status');
+        const copy = document.getElementById('copy');
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 30000);
+        const started = performance.now();
+        try {
+          const res = await fetch('/test-1mb.bin?t=' + Date.now(), {
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          const data = await res.arrayBuffer();
+          clearTimeout(timer);
+          const secs = ((performance.now() - started) / 1000).toFixed(1);
+          if (res.ok && data.byteLength > 900000) {
+            status.className = 'ok';
+            status.textContent = '✅ Всё работает! Большой файл (1 МБ) загрузился за ' + secs + ' сек.';
+            copy.innerHTML = 'Напишите Алексею: <b>«тест зелёный, ' + secs + ' секунд»</b>';
+          } else {
+            status.className = 'fail';
+            status.textContent = '❌ Файл загрузился не полностью (' + data.byteLength + ' байт).';
+            copy.innerHTML = 'Напишите Алексею: <b>«тест жёлтый, ' + data.byteLength + ' байт»</b>';
+          }
+        } catch (e) {
+          clearTimeout(timer);
+          const secs = ((performance.now() - started) / 1000).toFixed(0);
+          status.className = 'fail';
+          status.textContent = '❌ Большой файл не загрузился (ожидание ' + secs + ' сек).';
+          copy.innerHTML = 'Напишите Алексею: <b>«тест красный»</b>';
+        }
+      })();
+    </script>
+  </body>
+</html>

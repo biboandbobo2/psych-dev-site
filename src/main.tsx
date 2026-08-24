@@ -34,6 +34,9 @@ function attachGlobalErrorHandlers() {
 
 attachGlobalErrorHandlers();
 
+// Сигнал детектору блокировки в index.html: JS-бандл загрузился и исполнился.
+(window as Window & { __domAcademyBooted?: boolean }).__domAcademyBooted = true;
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>
