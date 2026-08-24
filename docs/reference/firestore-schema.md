@@ -1004,7 +1004,8 @@ interface FeatureEventDoc {
   event: string;                 // словарь FeatureEventName в src/lib/telemetry.ts:
                                  // study_mode_opened | transcript_opened | selection_explain |
                                  // selection_search | research_search | book_rag_question |
-                                 // lecture_ai_question | test_started | test_completed
+                                 // lecture_ai_question | lecture_question_asked | note_shared |
+                                 // test_started | test_completed
   courseId?: string;             // где применимо (для test_* — test.course)
   periodId?: string;             // где применимо
   platform: 'mobile' | 'desktop'; // matchMedia('(pointer: coarse)')

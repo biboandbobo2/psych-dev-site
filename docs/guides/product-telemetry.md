@@ -51,6 +51,8 @@
 | `research_search` | `useResearchSearch.ts` — запуск поиска статей |
 | `book_rag_question` | `useBookAnswer.ts` — вопрос по книгам (RAG) |
 | `lecture_ai_question` | `useLectureAnswer.ts` — вопрос лекционному AI |
+| `lecture_question_asked` | `AskLectureQuestionModal.tsx` — вопрос лектору отправлен |
+| `note_shared` | `ShareLectureNoteModal.tsx` — конспект отправлен группе/лекторам |
 | `test_started` | `useTestProgress.ts` — клик «Начать» на интро-экране теста |
 | `test_completed` | `useTestProgress.ts` — тест дошёл до финального экрана |
 
