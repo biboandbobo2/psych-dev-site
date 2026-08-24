@@ -62,6 +62,27 @@ describe('TranscriptSelectionMenu', () => {
     expect(onSearch).toHaveBeenCalledWith('один два три четыре пять шесть семь восемь');
   });
 
+  it('Escape закрывает только меню и не долетает до нижних слоёв', () => {
+    const onDismiss = vi.fn();
+    const outerListener = vi.fn();
+    window.addEventListener('keydown', outerListener);
+
+    render(
+      <TranscriptSelectionMenu
+        selection={makeSelection('термин')}
+        concepts={[]}
+        onSearch={vi.fn()}
+        onDismiss={onDismiss}
+      />
+    );
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(outerListener).not.toHaveBeenCalled();
+    window.removeEventListener('keydown', outerListener);
+  });
+
   it('без onExplain кнопка «Объяснить» скрыта, mousedown снаружи закрывает меню', () => {
     const onDismiss = vi.fn();
     render(

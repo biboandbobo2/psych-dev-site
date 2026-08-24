@@ -45,6 +45,25 @@ function installMemoryStorage(property: 'localStorage' | 'sessionStorage') {
 const localStorageStore = installMemoryStorage('localStorage');
 const sessionStorageStore = installMemoryStorage('sessionStorage');
 
+// jsdom отдаёт matches:false для любого media query — компоненты с
+// useIsDesktop уходили бы в мобильную ветку. Юнит-тесты считаем десктопными:
+// min-width матчится, остальные запросы (pointer: coarse, max-width) — нет,
+// как и раньше в jsdom.
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true,
+  value: (query: string): MediaQueryList =>
+    ({
+      matches: query.includes('min-width'),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList,
+});
+
 beforeEach(() => {
   localStorageStore.clear();
   sessionStorageStore.clear();

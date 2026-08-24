@@ -10,7 +10,11 @@ import {
   isLessonWatched,
   markLessonWatched,
 } from '../../../lib/courseWatchedLessons';
-import { StudyVideoPlayer } from './StudyVideoPlayer';
+import {
+  StudyVideoPlayer,
+  type StudyVideoPlaybackSnapshot,
+  type StudyVideoPlayerHandle,
+} from './StudyVideoPlayer';
 import { saveCourseVideoResumePoint } from '../../../lib/courseVideoResume';
 import { trackFeatureEvent } from '../../../lib/telemetry';
 
@@ -129,6 +133,9 @@ function VideoSectionCard({
 }: VideoSectionCardProps) {
   const [mode, setMode] = useState<VideoLayoutMode>('embed');
   const [studyDraft, setStudyDraft] = useState<LectureNoteDraft>(EMPTY_LECTURE_NOTE_DRAFT);
+  // Позиция inline-плеера в момент входа в конспект: оверлей продолжает с неё.
+  const [studyEntry, setStudyEntry] = useState<StudyVideoPlaybackSnapshot | null>(null);
+  const inlinePlayerRef = useRef<StudyVideoPlayerHandle | null>(null);
   const consumedStudyLaunchRef = useRef<string | null>(null);
   const lastSavedPlaybackMsRef = useRef<number | null>(null);
   const effectiveVideoTitle = videoTitle?.trim() || defaultVideoTitle;
@@ -159,9 +166,35 @@ function VideoSectionCard({
   useEffect(() => {
     if (shouldAutoOpenStudy) {
       consumedStudyLaunchRef.current = studyLaunchKey;
+      inlinePlayerRef.current?.pause();
+      setStudyEntry(null);
       setMode('study');
     }
   }, [shouldAutoOpenStudy, studyLaunchKey]);
+
+  // null-entry — открытие пришло из deep-link'а (studyLaunch), а не вручную:
+  // только тогда оверлей получает seek/panel/query из URL.
+  const openedFromLaunch = studyEntry === null && isStudyLaunchTarget;
+
+  const openStudyMode = () => {
+    const snapshot = inlinePlayerRef.current?.getPlaybackSnapshot() ?? {
+      currentTimeMs: null,
+      paused: true,
+    };
+    inlinePlayerRef.current?.pause();
+    setStudyEntry(snapshot);
+    setMode('study');
+  };
+
+  const closeStudyMode = (snapshot?: StudyVideoPlaybackSnapshot) => {
+    // Inline-плеер возвращается на позицию оверлея и остаётся на паузе:
+    // авто-воспроизведение под страницей после выхода не нужно.
+    if (snapshot && snapshot.currentTimeMs !== null) {
+      inlinePlayerRef.current?.seekToMs(snapshot.currentTimeMs);
+      inlinePlayerRef.current?.pause();
+    }
+    setMode('embed');
+  };
 
   useEffect(() => {
     if (mode === 'study') {
@@ -268,7 +301,7 @@ function VideoSectionCard({
             <VideoModeButton
               label={mode === 'study' ? 'Скрыть конспект' : 'Открыть конспект'}
               isActive={mode === 'study'}
-              onClick={() => setMode((current) => (current === 'study' ? 'embed' : 'study'))}
+              onClick={() => (mode === 'study' ? closeStudyMode() : openStudyMode())}
               controlsId={`${effectiveVideoTitle}-study-panel`}
             />
           ) : null}
@@ -278,6 +311,7 @@ function VideoSectionCard({
       <div className="space-y-4">
         <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border shadow-brand">
           <StudyVideoPlayer
+            ref={inlinePlayerRef}
             title={effectiveVideoTitle}
             embedUrl={embedUrl}
             onWatchThresholdReached={handleWatchThresholdReached}
@@ -300,24 +334,29 @@ function VideoSectionCard({
 
       {canUseStudyMode && periodId ? (
         <VideoStudyOverlay
-          audioUrl={audioUrl}
-          deckUrl={deckUrl}
           draft={studyDraft}
           embedUrl={embedUrl}
           isOpen={mode === 'study'}
-          isYoutube={isYoutube}
-          onClose={() => setMode('embed')}
+          onClose={closeStudyMode}
           onDraftChange={setStudyDraft}
           originalUrl={originalUrl}
           courseId={courseId}
           periodId={periodId}
           periodTitle={periodTitle}
           videoTitle={effectiveVideoTitle}
-          initialPanel={isStudyLaunchTarget ? studyLaunch?.initialPanel ?? 'notes' : 'notes'}
-          initialQuery={isStudyLaunchTarget ? studyLaunch?.initialQuery ?? null : null}
-          initialSeekMs={isStudyLaunchTarget ? studyLaunch?.initialSeekMs ?? null : null}
-          highlightedStartMs={isStudyLaunchTarget ? studyLaunch?.initialSeekMs ?? null : null}
+          initialPanel={openedFromLaunch ? studyLaunch?.initialPanel ?? 'notes' : 'notes'}
+          initialQuery={openedFromLaunch ? studyLaunch?.initialQuery ?? null : null}
+          initialSeekMs={
+            openedFromLaunch
+              ? studyLaunch?.initialSeekMs ?? null
+              : studyEntry?.currentTimeMs ?? null
+          }
+          initialPaused={openedFromLaunch ? false : studyEntry?.paused ?? false}
+          highlightedStartMs={openedFromLaunch ? studyLaunch?.initialSeekMs ?? null : null}
           concepts={concepts}
+          watchThreshold={0.8}
+          onWatchThresholdReached={handleWatchThresholdReached}
+          onPlaybackProgressMs={handlePlaybackProgress}
         />
       ) : null}
     </div>

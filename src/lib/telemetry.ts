@@ -15,6 +15,8 @@ export type FeatureEventName =
   | 'research_search'
   | 'book_rag_question'
   | 'lecture_ai_question'
+  | 'lecture_question_asked'
+  | 'note_shared'
   | 'test_started'
   | 'test_completed';
 

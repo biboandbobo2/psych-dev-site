@@ -5,6 +5,8 @@ import { useLectureQuestionActions } from '../../../hooks/useLectureQuestions';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { debugError } from '../../../lib/debug';
 import { formatTimestampMs } from '../../../lib/formatTimestamp';
+import { trackFeatureEvent } from '../../../lib/telemetry';
+import { formatLessonLectureTitle } from '../utils/titles';
 import {
   LECTURE_QUESTION_MAX_LENGTH,
   type LectureQuestionVisibility,
@@ -88,6 +90,7 @@ export function AskLectureQuestionModal({
         visibility: effectiveVisibility,
         groupId: effectiveVisibility === 'group' ? groupId : null,
       });
+      trackFeatureEvent('lecture_question_asked', { courseId, periodId });
       onClose();
     } catch (err) {
       debugError('[AskLectureQuestionModal] failed to create question', err);
@@ -114,10 +117,7 @@ export function AskLectureQuestionModal({
       }
     >
       <div className="space-y-4">
-        <p className="text-sm text-gray-500">
-          {periodTitle}
-          {lectureTitle && lectureTitle !== periodTitle ? ` — ${lectureTitle}` : ''}
-        </p>
+        <p className="text-sm text-gray-500">{formatLessonLectureTitle(periodTitle, lectureTitle)}</p>
 
         {!user ? (
           <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">

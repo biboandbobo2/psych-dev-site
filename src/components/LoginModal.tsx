@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { debugError } from "../lib/debug";
@@ -75,6 +75,24 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     setError(null);
     handleGoogleSignIn();
   };
+
+  // Escape закрывает модалку; capture + stopPropagation, чтобы Esc не долетал
+  // до слоёв под ней (например, до fullscreen-режима конспекта).
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      event.preventDefault();
+      if (!loading) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [isOpen, loading, onClose]);
 
   if (!isOpen) return null;
 

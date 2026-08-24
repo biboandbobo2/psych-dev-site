@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { getBytes, ref } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
+import { decodeHtmlEntities } from '../lib/decodeHtmlEntities';
 import {
   VIDEO_TRANSCRIPTS_COLLECTION,
   type VideoTranscriptDoc,
@@ -10,7 +11,14 @@ import {
 
 function parseTranscriptPayload(raw: ArrayBuffer | Uint8Array) {
   const text = new TextDecoder().decode(raw);
-  return JSON.parse(text) as VideoTranscriptStoragePayload;
+  const payload = JSON.parse(text) as VideoTranscriptStoragePayload;
+  return {
+    ...payload,
+    segments: payload.segments.map((segment) => ({
+      ...segment,
+      text: decodeHtmlEntities(segment.text),
+    })),
+  };
 }
 
 export function useVideoTranscript(

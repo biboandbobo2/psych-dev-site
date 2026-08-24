@@ -50,6 +50,42 @@ describe('BaseModal', () => {
     expect(closeButton).toBeDisabled();
   });
 
+  it('закрывается по Escape и не пропускает событие к нижним слоям', () => {
+    const onClose = vi.fn();
+    const outerListener = vi.fn();
+    window.addEventListener('keydown', outerListener);
+
+    render(
+      <BaseModal isOpen={true} onClose={onClose} title="Test Modal">
+        <div>Content</div>
+      </BaseModal>
+    );
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(outerListener).not.toHaveBeenCalled();
+    window.removeEventListener('keydown', outerListener);
+  });
+
+  it('не закрывается по Escape когда disabled=true, но событие всё равно гасит', () => {
+    const onClose = vi.fn();
+    const outerListener = vi.fn();
+    window.addEventListener('keydown', outerListener);
+
+    render(
+      <BaseModal isOpen={true} onClose={onClose} title="Test Modal" disabled={true}>
+        <div>Content</div>
+      </BaseModal>
+    );
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(outerListener).not.toHaveBeenCalled();
+    window.removeEventListener('keydown', outerListener);
+  });
+
   it('рендерит footer когда передан', () => {
     render(
       <BaseModal

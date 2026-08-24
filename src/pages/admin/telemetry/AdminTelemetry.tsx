@@ -24,6 +24,8 @@ const EVENT_LABELS: Record<string, string> = {
   research_search: 'Research-поиск',
   book_rag_question: 'Вопрос по книгам (RAG)',
   lecture_ai_question: 'Вопрос лекционному AI',
+  lecture_question_asked: 'Вопрос лектору задан',
+  note_shared: 'Конспект отправлен группе',
   test_started: 'Тест начат',
   test_completed: 'Тест завершён',
 };

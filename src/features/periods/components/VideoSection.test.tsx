@@ -107,7 +107,9 @@ describe('VideoSection', () => {
       target: { value: 'Черновик заметки' },
     });
 
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Скрыть конспект' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Выйти из режима конспекта' })
+    );
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
@@ -137,13 +139,13 @@ describe('VideoSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Открыть конспект' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Показать транскрипт' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Транскрипт' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Показать транскрипт' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Транскрипт' }));
 
     expect(screen.getByText('Transcript panel')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Показать конспект' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Конспект' })).toBeInTheDocument();
   });
 
   it('автоматически открывает нужную лекцию из transcript search deep-link', async () => {
@@ -172,6 +174,76 @@ describe('VideoSection', () => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
       expect(screen.getByText('Transcript panel')).toBeInTheDocument();
     });
+  });
+
+  it('передаёт позицию между inline-плеером и оверлеем в обе стороны', async () => {
+    const instances: Array<{
+      destroy: ReturnType<typeof vi.fn>;
+      getCurrentTime: ReturnType<typeof vi.fn>;
+      getDuration: ReturnType<typeof vi.fn>;
+      getPlayerState: ReturnType<typeof vi.fn>;
+      pauseVideo: ReturnType<typeof vi.fn>;
+      seekTo: ReturnType<typeof vi.fn>;
+    }> = [];
+    const playerMock = vi.fn(function Player(
+      _element: HTMLElement,
+      options: { events?: { onReady?: () => void } }
+    ) {
+      const instance = {
+        destroy: vi.fn(),
+        getCurrentTime: vi.fn(() => 90),
+        getDuration: vi.fn(() => 3600),
+        getPlayerState: vi.fn(() => 1),
+        pauseVideo: vi.fn(),
+        seekTo: vi.fn(),
+      };
+      instances.push(instance);
+      queueMicrotask(() => options.events?.onReady?.());
+      return instance;
+    });
+    (window as typeof window & { YT?: unknown }).YT = { Player: playerMock };
+
+    try {
+      render(
+        <VideoSection
+          slug="video"
+          title="Видео"
+          content={[{ title: 'Лекция 1', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }]}
+          deckUrl=""
+          defaultVideoTitle="Видео-лекция"
+          courseId="development"
+          periodId="preschool"
+          periodTitle="Дошкольный возраст"
+        />
+      );
+
+      // inline-плеер готов
+      await waitFor(() => {
+        expect(playerMock).toHaveBeenCalledTimes(1);
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Открыть конспект' }));
+
+      // при входе inline ставится на паузу, оверлей продолжает с его позиции
+      expect(instances[0].pauseVideo).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(playerMock).toHaveBeenCalledTimes(2);
+        expect(instances[1].seekTo).toHaveBeenCalledWith(90, true);
+      });
+
+      // при выходе inline получает позицию оверлея и остаётся на паузе
+      instances[1].getCurrentTime.mockReturnValue(150);
+      fireEvent.click(
+        within(screen.getByRole('dialog')).getByRole('button', {
+          name: 'Выйти из режима конспекта',
+        })
+      );
+
+      expect(instances[0].seekTo).toHaveBeenCalledWith(150, true);
+      expect(instances[0].pauseVideo).toHaveBeenCalledTimes(2);
+    } finally {
+      delete (window as typeof window & { YT?: unknown }).YT;
+    }
   });
 
   it('не откатывает transcript panel в notes, пока транскрипт ещё проверяется', async () => {

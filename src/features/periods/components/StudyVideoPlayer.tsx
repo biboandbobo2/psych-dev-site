@@ -26,6 +26,7 @@ interface YouTubePlayerApi {
     getCurrentTime: () => number;
     getDuration: () => number;
     getPlayerState: () => number;
+    pauseVideo: () => void;
     seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
   };
 }
@@ -49,6 +50,7 @@ function hasReadyPlayerMethods(
       typeof player.getCurrentTime === 'function' &&
       typeof player.getDuration === 'function' &&
       typeof player.getPlayerState === 'function' &&
+      typeof player.pauseVideo === 'function' &&
       typeof player.seekTo === 'function'
   );
 }
@@ -122,12 +124,15 @@ export interface StudyVideoPlaybackSnapshot {
 
 export interface StudyVideoPlayerHandle {
   getPlaybackSnapshot: () => StudyVideoPlaybackSnapshot;
+  pause: () => void;
   seekToMs: (ms: number) => void;
 }
 
 interface StudyVideoPlayerProps {
   embedUrl: string;
   initialSeekMs?: number | null;
+  /** seekTo у YouTube запускает воспроизведение; true — вернуть паузу после initial seek */
+  initialPaused?: boolean;
   title: string;
   watchThreshold?: number;
   onWatchThresholdReached?: () => void;
@@ -139,6 +144,7 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
     {
       embedUrl,
       initialSeekMs = null,
+      initialPaused = false,
       title,
       watchThreshold = 0.95,
       onWatchThresholdReached,
@@ -154,10 +160,12 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
     const progressIntervalRef = useRef<number | null>(null);
     const onWatchThresholdReachedRef = useRef(onWatchThresholdReached);
     const onPlaybackProgressMsRef = useRef(onPlaybackProgressMs);
+    const initialPausedRef = useRef(initialPaused);
     const playerConfig = useMemo(() => parseYouTubeEmbedConfig(embedUrl), [embedUrl]);
 
     onWatchThresholdReachedRef.current = onWatchThresholdReached;
     onPlaybackProgressMsRef.current = onPlaybackProgressMs;
+    initialPausedRef.current = initialPaused;
 
     const notifyWatchThresholdReached = () => {
       if (watchReachedRef.current) return;
@@ -193,6 +201,11 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
             currentTimeMs: Math.max(0, Math.floor(playerRef.current.getCurrentTime() * 1000)),
             paused: isYouTubePausedState(playerRef.current.getPlayerState()),
           };
+        },
+        pause: () => {
+          if (hasReadyPlayerMethods(playerRef.current)) {
+            playerRef.current.pauseVideo();
+          }
         },
         seekToMs: (ms: number) => {
           if (!hasReadyPlayerMethods(playerRef.current)) {
@@ -263,6 +276,10 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
                   const pendingSeekMs = pendingSeekMsRef.current;
                   pendingSeekMsRef.current = null;
                   playerRef.current.seekTo(Math.max(0, pendingSeekMs / 1000), true);
+
+                  if (initialPausedRef.current) {
+                    playerRef.current.pauseVideo();
+                  }
                 }
 
                 maybeNotifyByProgress();
