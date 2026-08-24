@@ -21,6 +21,7 @@
 | MR-3 | M (S) | Убрать `lessonRef as never` | типизированный payload dynamic course lessons |
 | MR-5 | M (S-M) | Синхронизировать `firestore.indexes.json` с БД и починить vector-deploy | 2026-07-11: vector-индексы `book_chunks`/`lecture_chunks` уже в файле. Осталось: прод-сверка (4 missing composite) + проверить, что deploy проходит (CLI bug с `__name__`). |
 | UX-1 | L (L) | Profile v2 — унификация с акварельной палитрой | ожидаем брендбук от дизайнера, после — полный редизайн Profile + вложенных секций |
+| UX-2 | L (S) | Тёмная тема модалок режима конспекта | «Спросить лектора» / «Поделиться конспектом» / Login — светлый `BaseModal` поверх тёмного fullscreen-оверлея; нужен variant='dark' или токены |
 | AG-1 | M (M) | Роль «agent» — вход Claude на сайт под своим аккаунтом | Firebase-аккаунт агента + custom claim, вход через `signInWithCustomToken` (без Google OAuth), матрица прав, фиксированный uid для аудита. Разблокирует e2e smoke админ/студент-сценариев агентом |
 | LP-1 | L (M) | Observability / telemetry | Базовый logger (Sentry/PostHog), описание процессов |
 | LP-5 | L (S-M) | Firebase/GCP follow-ups | dependency review, cleanup policy, индексы, Telegram formatting |
@@ -266,6 +267,10 @@ CI часть (осталась):
   - [ ] `SearchHistorySection` (445 строк, крупнейший): табы, «Показать все», карточки истории — перевести на `bg-card` / `bg-accent-100` / `text-fg` / `text-muted`.
   - [ ] `GeminiKeySection`: пройтись точечно по `bg-blue-*` / `text-gray-*`.
   - [ ] По возможности — обернуть каждую вложенную секцию в общую `bg-card rounded-2xl border border-border shadow-brand p-5` (как на /home).
+
+### UX‑2. Тёмная тема модалок режима конспекта (P: L, E: S)
+- **Контекст (2026-08-24, редизайн study-mode):** режим конспекта полностью тёмный, но модалки внутри него — «Спросить лектора» (`AskLectureQuestionModal`), «Поделиться конспектом» (`ShareLectureNoteModal`), `LoginModal` — рендерятся светлым `BaseModal` (белый фон, серые тексты, нативные синие контролы). Стилевой разрыв заметен, но не блокирует функциональность; отложено при редизайне, чтобы не раздувать диф.
+- **Как делать:** `variant?: 'light' | 'dark'` в `BaseModal` (фон/тексты/бордеры контейнера, header, footer) + условные классы внутри двух модалок (они используются и со светлой страницы занятия — variant прокидывать от вызывающего). Кнопкам `ModalCancelButton`/`ModalSaveButton` хватит нейтральных токенов.
 
 ### HM‑5. Vite dev overlay на `/booking`: «Cannot find module bookingCancellation.js» (P: L, E: S)
 - **Симптом:** При открытии `/booking` на dev-сервере (`npm run dev`) поверх контента появляется красный overlay Vite с текстом «Cannot find module '/Users/.../src/lib/bookingCancellation.js' imported from .../api/booking.ts». Реальный контент за overlay рендерится корректно. На прод-сборке ошибки нет.

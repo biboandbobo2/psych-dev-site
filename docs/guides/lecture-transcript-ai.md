@@ -17,16 +17,37 @@
 
 ### 1. Студент открывает лекцию внутри занятия
 
-- Страница занятия рендерит `VideoSection` / `VideoStudyOverlay`.
+- Страница занятия рендерит `VideoSection` / `VideoStudyOverlay` (fullscreen «режим конспекта»).
+- Оверлей: видео на весь экран с плавающей кнопкой «←», справа сайдбар с вкладками
+  **Конспект | Транскрипт | Вопросы** (вкладка «Транскрипт» видна только при
+  `hasTranscript`). «Спросить лектора» и «Поделиться конспектом» живут во вкладке
+  «Вопросы» — там же лента вопросов группы и расшаренных фрагментов конспектов,
+  отсортированная по моментам лекции (`VideoStudyQuestionsPanel`).
+- Непрерывность: при входе inline-плеер ставится на паузу, оверлей продолжает с его
+  позиции; при выходе inline-плеер получает позицию оверлея. Оверлейный плеер пишет
+  resume-точку и отметку «просмотрено» так же, как inline.
+- Esc закрывает слои по одному: модалка / selection-меню гасят Escape в capture-фазе
+  (`stopPropagation`), сам оверлей закрывается только «чистым» Esc.
 - Из URL можно открыть transcript сразу через `?study=1&panel=transcript&t=...&video=...`.
-- Хук `useVideoTranscript` сначала читает metadata из `videoTranscripts/{youtubeVideoId}`, затем при необходимости подтягивает полный JSON из Storage.
-- `VideoTranscriptPanel` показывает transcript с таймкодами и умеет фокусироваться на нужном сегменте.
+- Хук `useVideoTranscript` сначала читает metadata из `videoTranscripts/{youtubeVideoId}`, затем при необходимости подтягивает полный JSON из Storage; HTML-сущности youtube-каптий (`&gt;` и т.п.) декодируются при загрузке (`decodeHtmlEntities`).
+- `VideoTranscriptPanel`: сегменты youtube-каптий склеиваются в абзацы по паузам речи
+  и целевой длине (`groupTranscriptSegments` из `transcriptDisplay.ts`; ручные
+  транскрипты с длинными сегментами проходят без изменений), есть поиск по тексту с
+  подсветкой совпадений, подсветка текущего абзаца следует за воспроизведением
+  (poll позиции раз в секунду в оверлее); ручной скролл выключает следование, кнопка
+  «К текущему месту» возвращает.
+- Мобильная версия (`useIsDesktop`, < 1024px): просмотр видео, чтение конспекта и
+  транскрипта, вопросы; набор конспекта и «Поделиться» скрыты — осознанное
+  продуктовое решение, не техдолг.
 
 Ключевые файлы:
 
 - `src/features/periods/components/VideoSection.tsx`
 - `src/features/periods/components/VideoStudyOverlay.tsx`
+- `src/features/periods/components/VideoStudyQuestionsPanel.tsx`
 - `src/features/periods/components/VideoTranscriptPanel.tsx`
+- `src/features/periods/lib/transcriptDisplay.ts`
+- `src/lib/decodeHtmlEntities.ts`
 - `src/hooks/useVideoTranscript.ts`
 
 ### 2. Студент ищет фразу по всем транскриптам

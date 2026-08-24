@@ -11,7 +11,7 @@ import {
 import { useAuthStore } from '../../../stores/useAuthStore';
 import type { StudyVideoPlaybackSnapshot } from './StudyVideoPlayer';
 import { LectureNoteSegmentsEditor } from './LectureNoteSegmentsEditor';
-import { ShareLectureNoteModal } from './ShareLectureNoteModal';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 import { useTimestampedLectureDraft } from '../hooks/useTimestampedLectureDraft';
 
 interface VideoStudyNotesPanelProps {
@@ -27,7 +27,6 @@ interface VideoStudyNotesPanelProps {
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
-type NoteViewMode = 'plain' | 'timestamped';
 
 export function VideoStudyNotesPanel({
   courseId,
@@ -55,9 +54,9 @@ export function VideoStudyNotesPanel({
 
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [isShareOpen, setIsShareOpen] = useState(false);
   const [isHydrating, setIsHydrating] = useState(false);
-  const [viewMode, setViewMode] = useState<NoteViewMode>('plain');
+  const [showTimestamps, setShowTimestamps] = useState(false);
+  const isDesktop = useIsDesktop();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const {
     composer,
@@ -323,30 +322,19 @@ export function VideoStudyNotesPanel({
     <>
       <aside className="flex h-full min-h-0 flex-col px-4 py-4 text-white lg:px-5 lg:py-5">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode('plain')}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                viewMode === 'plain'
-                  ? 'bg-white/14 text-white'
-                  : 'text-white/55 hover:text-white'
-              }`}
-            >
-              Обычный
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('timestamped')}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                viewMode === 'timestamped'
-                  ? 'bg-white/14 text-white'
-                  : 'text-white/55 hover:text-white'
-              }`}
-            >
-              Таймкоды
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowTimestamps((current) => !current)}
+            aria-pressed={showTimestamps}
+            title="Показывать привязку абзацев к моментам видео"
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+              showTimestamps
+                ? 'border-[color:var(--accent)] bg-[color:var(--accent)]/25 text-white'
+                : 'border-white/10 bg-white/5 text-white/55 hover:text-white'
+            }`}
+          >
+            Таймкоды
+          </button>
 
           {!user ? (
             <button
@@ -356,17 +344,7 @@ export function VideoStudyNotesPanel({
             >
               Войти
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsShareOpen(true)}
-              disabled={!hasContent}
-              className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-              title={hasContent ? 'Отправить фрагменты конспекта группе или лектору' : 'Сначала напишите конспект'}
-            >
-              Поделиться
-            </button>
-          )}
+          ) : null}
         </div>
 
         <div className="flex-1 min-h-0">
@@ -386,6 +364,21 @@ export function VideoStudyNotesPanel({
             </div>
 
             <div ref={scrollContainerRef} className="h-full overflow-y-auto pr-2 pt-1">
+              {/* mr-8 — не наезжать на индикатор автосохранения в углу */}
+              {!hasContent && !composer.text ? (
+                isDesktop ? (
+                  <div className="mb-4 mr-8 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs leading-5 text-white/50">
+                    <p>Пишите тезисы по ходу лекции. Enter закрывает абзац, Shift+Enter — перенос строки.</p>
+                    <p className="mt-1">
+                      Каждый абзац привязывается к моменту видео — включите «Таймкоды» и кликните по метке, чтобы перемотать.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mb-4 mr-8 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs leading-5 text-white/50">
+                    Конспект пока пуст. Набор конспекта доступен на компьютере.
+                  </p>
+                )
+              ) : null}
               <LectureNoteSegmentsEditor
                 composer={composer}
                 onComposerChange={updateComposerText}
@@ -394,7 +387,8 @@ export function VideoStudyNotesPanel({
                 onSegmentChange={updateSegmentText}
                 onTimestampClick={onTimestampClick}
                 segments={segments}
-                showTimestamps={viewMode === 'timestamped'}
+                showTimestamps={showTimestamps}
+                showComposer={isDesktop}
               />
             </div>
           </div>
@@ -419,17 +413,6 @@ export function VideoStudyNotesPanel({
       </aside>
 
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
-
-      <ShareLectureNoteModal
-        isOpen={isShareOpen}
-        onClose={() => setIsShareOpen(false)}
-        segments={persistedSegments}
-        courseId={courseId}
-        periodId={periodId}
-        periodTitle={lectureContext.periodTitle}
-        lectureTitle={videoTitle}
-        videoId={lectureResourceId}
-      />
     </>
   );
 }

@@ -13,6 +13,8 @@ interface LectureNoteSegmentsEditorProps {
   onTimestampClick: (startMs: number) => void;
   segments: LectureNoteSegment[];
   showTimestamps: boolean;
+  /** false — мобильный просмотр: композер скрыт, конспект только читается */
+  showComposer?: boolean;
 }
 
 function TimestampButton({
@@ -73,6 +75,7 @@ export function LectureNoteSegmentsEditor({
   onTimestampClick,
   segments,
   showTimestamps,
+  showComposer = true,
 }: LectureNoteSegmentsEditorProps) {
   return (
     <div className="space-y-4">
@@ -93,28 +96,28 @@ export function LectureNoteSegmentsEditor({
         </section>
       ))}
 
-      <section>
-        {showTimestamps && composer.startMs !== null ? (
-          <div className="mb-3">
-            <TimestampButton startMs={composer.startMs} onClick={onTimestampClick} />
-          </div>
-        ) : null}
-        <AutoSizeTextarea
-          value={composer.text}
-          onChange={(event) => onComposerChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              onComposerSubmit();
-            }
-          }}
-          placeholder={
-            'Пишите конспект по ходу лекции...\nEnter — закрыть абзац, Shift+Enter — перенос строки'
-          }
-          className="min-h-[6rem] w-full resize-none bg-transparent text-sm leading-7 text-white outline-none placeholder:text-white/30 lg:min-h-[12rem]"
-          aria-label="Заметки по лекции"
-        />
-      </section>
+      {showComposer ? (
+        <section>
+          {showTimestamps && composer.startMs !== null ? (
+            <div className="mb-3">
+              <TimestampButton startMs={composer.startMs} onClick={onTimestampClick} />
+            </div>
+          ) : null}
+          <AutoSizeTextarea
+            value={composer.text}
+            onChange={(event) => onComposerChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                onComposerSubmit();
+              }
+            }}
+            placeholder={'Пишите конспект по ходу лекции...'}
+            className="min-h-[6rem] w-full resize-none bg-transparent text-sm leading-7 text-white outline-none placeholder:text-white/30 lg:min-h-[12rem]"
+            aria-label="Заметки по лекции"
+          />
+        </section>
+      ) : null}
     </div>
   );
 }

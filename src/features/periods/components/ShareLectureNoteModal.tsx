@@ -4,6 +4,8 @@ import { useMyGroups } from '../../../hooks/useMyGroups';
 import { useSharedLectureNoteActions } from '../../../hooks/useSharedLectureNotes';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { debugError } from '../../../lib/debug';
+import { trackFeatureEvent } from '../../../lib/telemetry';
+import { formatLessonLectureTitle } from '../utils/titles';
 import { formatLectureTimestamp, type LectureNoteSegment } from '../../../types/notes';
 import { MAX_SHARED_NOTE_SEGMENTS } from '../../../types/sharedLectureNotes';
 import type { LectureQuestionVisibility } from '../../../types/lectureQuestions';
@@ -106,6 +108,7 @@ export function ShareLectureNoteModal({
         visibility: effectiveVisibility,
         groupId: effectiveVisibility === 'group' ? groupId : null,
       });
+      trackFeatureEvent('note_shared', { courseId, periodId });
       onClose();
     } catch (err) {
       debugError('[ShareLectureNoteModal] failed to share note', err);
@@ -133,8 +136,7 @@ export function ShareLectureNoteModal({
     >
       <div className="space-y-4">
         <p className="text-sm text-gray-500">
-          {periodTitle}
-          {lectureTitle && lectureTitle !== periodTitle ? ` — ${lectureTitle}` : ''}.
+          {formatLessonLectureTitle(periodTitle, lectureTitle)}.
           Отправляется копия выбранных фрагментов — дальнейшие правки конспекта в неё не попадут.
         </p>
 

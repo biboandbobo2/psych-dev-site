@@ -34,16 +34,19 @@ export function TranscriptSelectionMenu({
         onDismiss();
       }
     };
+    // capture + stopPropagation: Esc гасит только меню, а не весь режим конспекта
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.stopPropagation();
+        event.preventDefault();
         onDismiss();
       }
     };
     document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, true);
     return () => {
       document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, true);
     };
   }, [onDismiss]);
 

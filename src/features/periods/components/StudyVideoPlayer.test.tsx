@@ -22,6 +22,7 @@ describe('StudyVideoPlayer', () => {
         getCurrentTime: vi.fn(() => 0),
         getDuration: vi.fn(() => 120),
         getPlayerState: vi.fn(() => 2),
+        pauseVideo: vi.fn(),
         seekTo: vi.fn(),
       };
     });
@@ -56,6 +57,7 @@ describe('StudyVideoPlayer', () => {
         getCurrentTime: vi.fn(() => 0),
         getDuration: vi.fn(() => 120),
         getPlayerState: vi.fn(() => 2),
+        pauseVideo: vi.fn(),
         seekTo: seekToMock,
       };
     });
@@ -75,6 +77,82 @@ describe('StudyVideoPlayer', () => {
     await waitFor(() => {
       expect(seekToMock).toHaveBeenCalledWith(65, true);
     });
+  });
+
+  it('initialPaused: после initial seek ставит видео на паузу (seekTo у YouTube запускает воспроизведение)', async () => {
+    const seekToMock = vi.fn();
+    const pauseVideoMock = vi.fn();
+    const playerMock = vi.fn(function Player(
+      _element: HTMLElement,
+      options: { events?: { onReady?: () => void } }
+    ) {
+      queueMicrotask(() => options.events?.onReady?.());
+      return {
+        destroy: vi.fn(),
+        getCurrentTime: vi.fn(() => 0),
+        getDuration: vi.fn(() => 120),
+        getPlayerState: vi.fn(() => 2),
+        pauseVideo: pauseVideoMock,
+        seekTo: seekToMock,
+      };
+    });
+
+    (window as typeof window & { YT?: unknown }).YT = {
+      Player: playerMock,
+    };
+
+    render(
+      <StudyVideoPlayer
+        embedUrl="https://www.youtube.com/embed/video-1?si=test"
+        initialSeekMs={65_000}
+        initialPaused
+        title="Тестовое видео"
+      />
+    );
+
+    await waitFor(() => {
+      expect(seekToMock).toHaveBeenCalledWith(65, true);
+      expect(pauseVideoMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('pause() из handle ставит видео на паузу', async () => {
+    const pauseVideoMock = vi.fn();
+    const playerMock = vi.fn(function Player(
+      _element: HTMLElement,
+      options: { events?: { onReady?: () => void } }
+    ) {
+      queueMicrotask(() => options.events?.onReady?.());
+      return {
+        destroy: vi.fn(),
+        getCurrentTime: vi.fn(() => 42),
+        getDuration: vi.fn(() => 120),
+        getPlayerState: vi.fn(() => 1),
+        pauseVideo: pauseVideoMock,
+        seekTo: vi.fn(),
+      };
+    });
+
+    (window as typeof window & { YT?: unknown }).YT = {
+      Player: playerMock,
+    };
+
+    const ref = createRef<StudyVideoPlayerHandle>();
+
+    render(
+      <StudyVideoPlayer
+        ref={ref}
+        embedUrl="https://www.youtube.com/embed/video-1?si=test"
+        title="Тестовое видео"
+      />
+    );
+
+    await waitFor(() => {
+      expect(playerMock).toHaveBeenCalledTimes(1);
+    });
+
+    ref.current?.pause();
+    expect(pauseVideoMock).toHaveBeenCalledTimes(1);
   });
 
   it('безопасно отдаёт playback snapshot, если player ещё не предоставляет youtube методы', async () => {

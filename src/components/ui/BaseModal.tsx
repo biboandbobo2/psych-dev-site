@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 interface BaseModalProps {
@@ -54,6 +54,24 @@ export function BaseModal({
   className = '',
   maxWidth = '3xl',
 }: BaseModalProps) {
+  // Escape закрывает модалку; capture + stopPropagation, чтобы Esc не долетал
+  // до слоёв под ней (например, до fullscreen-режима конспекта).
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      event.preventDefault();
+      if (!disabled) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [isOpen, disabled, onClose]);
+
   if (!isOpen) return null;
 
   const maxWidthClass = MAX_WIDTH_CLASSES[maxWidth] || MAX_WIDTH_CLASSES['3xl'];

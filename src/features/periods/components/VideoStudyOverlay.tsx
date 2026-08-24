@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getYouTubeVideoId } from '../../../lib/videoTranscripts';
 import type { LectureNoteDraft } from '../../../types/notes';
 import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
-import { AskLectureQuestionModal } from './AskLectureQuestionModal';
-import { VideoResourceLinks } from './VideoResourceLinks';
-import { StudyVideoPlayer, type StudyVideoPlayerHandle } from './StudyVideoPlayer';
+import { VideoStudyQuestionsPanel } from './VideoStudyQuestionsPanel';
+import {
+  StudyVideoPlayer,
+  type StudyVideoPlaybackSnapshot,
+  type StudyVideoPlayerHandle,
+} from './StudyVideoPlayer';
 import { VideoTranscriptPanel } from './VideoTranscriptPanel';
 import { TranscriptExplainCard } from './TranscriptExplainCard';
 import { useLectureExplain } from '../hooks/useLectureExplain';
@@ -13,14 +16,12 @@ import { useVideoTranscript } from '../../../hooks';
 import { trackFeatureEvent } from '../../../lib/telemetry';
 
 interface VideoStudyOverlayProps {
-  audioUrl: string;
   courseId: string;
-  deckUrl: string;
   draft: LectureNoteDraft;
   embedUrl: string;
   isOpen: boolean;
-  isYoutube: boolean;
-  onClose: () => void;
+  /** Снапшот позиции передаётся, чтобы вернуть inline-плеер на место остановки. */
+  onClose: (snapshot?: StudyVideoPlaybackSnapshot) => void;
   onDraftChange: (draft: LectureNoteDraft) => void;
   originalUrl: string;
   periodId: string;
@@ -28,22 +29,23 @@ interface VideoStudyOverlayProps {
   videoTitle: string;
   initialPanel?: SidebarMode;
   initialSeekMs?: number | null;
+  initialPaused?: boolean;
   initialQuery?: string | null;
   highlightedStartMs?: number | null;
   /** Понятия урока для поисковых чипов при выделении в транскрипте */
   concepts?: string[];
+  watchThreshold?: number;
+  onWatchThresholdReached?: () => void;
+  onPlaybackProgressMs?: (currentTimeMs: number) => void;
 }
 
-type SidebarMode = 'notes' | 'transcript';
+type SidebarMode = 'notes' | 'transcript' | 'questions';
 
 export function VideoStudyOverlay({
-  audioUrl,
   courseId,
-  deckUrl,
   draft,
   embedUrl,
   isOpen,
-  isYoutube,
   onClose,
   onDraftChange,
   originalUrl,
@@ -52,16 +54,16 @@ export function VideoStudyOverlay({
   videoTitle,
   initialPanel = 'notes',
   initialSeekMs = null,
+  initialPaused = false,
   initialQuery = null,
   highlightedStartMs = null,
   concepts = [],
+  watchThreshold,
+  onWatchThresholdReached,
+  onPlaybackProgressMs,
 }: VideoStudyOverlayProps) {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(initialPanel);
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
-  const [questionState, setQuestionState] = useState<{ isOpen: boolean; startMs: number | null }>({
-    isOpen: false,
-    startMs: null,
-  });
   const [transcriptFocusMs, setTranscriptFocusMs] = useState<number | null>(
     initialSeekMs ?? highlightedStartMs
   );
@@ -80,6 +82,9 @@ export function VideoStudyOverlay({
     periodId && youtubeVideoId ? `${courseId}::${periodId}::${youtubeVideoId}` : null;
   const lectureExplain = useLectureExplain(courseId, lectureKey);
   const clearExplain = lectureExplain.clear;
+  const handleClose = useCallback(() => {
+    onClose(playerRef.current?.getPlaybackSnapshot());
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -93,9 +98,11 @@ export function VideoStudyOverlay({
     }
 
     const previousOverflow = document.body.style.overflow;
+    // Вложенные слои (модалки, selection-меню) гасят Escape в capture-фазе;
+    // defaultPrevented — страховка от bubble-обработчиков.
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
+      if (event.key === 'Escape' && !event.defaultPrevented) {
+        handleClose();
       }
     };
 
@@ -106,7 +113,7 @@ export function VideoStudyOverlay({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, handleClose]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -171,6 +178,24 @@ export function VideoStudyOverlay({
     );
   }, [highlightedStartMs, initialSeekMs, isOpen, sidebarMode]);
 
+  // Подсветка транскрипта следует за воспроизведением, пока вкладка открыта.
+  useEffect(() => {
+    if (!isOpen || sidebarMode !== 'transcript') {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      const snapshot = playerRef.current?.getPlaybackSnapshot();
+      if (snapshot && snapshot.currentTimeMs !== null && !snapshot.paused) {
+        setTranscriptFocusMs(snapshot.currentTimeMs);
+      }
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isOpen, sidebarMode]);
+
   if (typeof document === 'undefined' || !isOpen) {
     return null;
   }
@@ -185,71 +210,30 @@ export function VideoStudyOverlay({
       aria-label={`Режим конспекта: ${videoTitle}`}
     >
       <div className="flex h-full flex-col lg:flex-row">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {/* flex-wrap: на узких экранах кнопки переносятся на вторую строку,
-              иначе «Скрыть конспект» вытесняется за край вьюпорта. */}
-          <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-white/10 px-4 py-3 md:px-5">
-            <div className="min-w-0 flex-1 basis-40">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/45">
-                Режим конспекта
-              </p>
-              <h3 className="truncate pt-1 text-lg font-semibold text-white md:text-xl">{videoTitle}</h3>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 md:gap-3">
-              <button
-                type="button"
-                onClick={() =>
-                  setQuestionState({
-                    isOpen: true,
-                    startMs: playerRef.current?.getPlaybackSnapshot().currentTimeMs ?? null,
-                  })
-                }
-                className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10 md:px-4 md:py-2 md:text-sm"
-              >
-                Задать вопрос
-              </button>
-              {transcriptState.hasTranscript ? (
-                <button
-                  type="button"
-                  onClick={() => setSidebarMode((current) => (current === 'transcript' ? 'notes' : 'transcript'))}
-                  className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10 md:px-4 md:py-2 md:text-sm"
-                >
-                  {isTranscriptMode ? 'Показать конспект' : 'Показать транскрипт'}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={onClose}
-                className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10 md:px-4 md:py-2 md:text-sm"
-              >
-                Скрыть конспект
-              </button>
-            </div>
-          </header>
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Выйти из режима конспекта"
+            title="Выйти из режима конспекта (Esc)"
+            className="absolute left-6 top-6 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-lg text-white ring-1 ring-white/20 backdrop-blur transition hover:bg-black/80"
+          >
+            ←
+          </button>
 
-          <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex-1 p-3 md:p-5">
-              <div className="h-full min-h-[16rem] overflow-hidden rounded-[1.6rem] bg-black ring-1 ring-white/10">
-                <StudyVideoPlayer
-                  ref={playerRef}
-                  title={`${videoTitle} fullscreen`}
-                  embedUrl={embedUrl}
-                  initialSeekMs={initialSeekMs}
-                />
-              </div>
+          <div className="flex-1 p-3 md:p-5">
+            <div className="h-full min-h-[16rem] overflow-hidden rounded-[1.6rem] bg-black ring-1 ring-white/10">
+              <StudyVideoPlayer
+                ref={playerRef}
+                title={`${videoTitle} fullscreen`}
+                embedUrl={embedUrl}
+                initialSeekMs={initialSeekMs}
+                initialPaused={initialPaused}
+                watchThreshold={watchThreshold}
+                onWatchThresholdReached={onWatchThresholdReached}
+                onPlaybackProgressMs={onPlaybackProgressMs}
+              />
             </div>
-
-            <VideoResourceLinks
-              audioUrl={audioUrl}
-              deckUrl={deckUrl}
-              originalUrl={originalUrl}
-              isYoutube={isYoutube}
-              className="flex flex-wrap items-center gap-3 border-t border-white/10 px-4 py-3 text-white/75 md:px-5"
-              deckLinkClassName="inline-block text-sm font-semibold italic text-white/85 no-underline hover:text-white hover:no-underline focus-visible:no-underline"
-              audioLinkClassName="inline-block text-sm font-semibold italic text-white/85 no-underline hover:text-white hover:no-underline focus-visible:no-underline lg:ml-auto"
-              sourceTextClassName="w-full text-sm leading-6 text-white/60"
-              sourceLinkClassName="text-white no-underline hover:no-underline focus-visible:no-underline"
-            />
           </div>
         </div>
 
@@ -267,7 +251,28 @@ export function VideoStudyOverlay({
           >
             <span className="h-1 w-10 rounded-full bg-white/25 transition hover:bg-white/40" />
           </button>
-          {isTranscriptMode ? (
+
+          <div className="flex shrink-0 items-center gap-1 border-b border-white/10 px-3 py-2 lg:px-4">
+            <SidebarTab
+              label="Конспект"
+              isActive={sidebarMode === 'notes'}
+              onClick={() => setSidebarMode('notes')}
+            />
+            {transcriptState.hasTranscript ? (
+              <SidebarTab
+                label="Транскрипт"
+                isActive={sidebarMode === 'transcript'}
+                onClick={() => setSidebarMode('transcript')}
+              />
+            ) : null}
+            <SidebarTab
+              label="Вопросы"
+              isActive={sidebarMode === 'questions'}
+              onClick={() => setSidebarMode('questions')}
+            />
+          </div>
+
+          {sidebarMode === 'transcript' ? (
             <>
               <VideoTranscriptPanel
                 error={transcriptState.error}
@@ -287,6 +292,22 @@ export function VideoStudyOverlay({
                 onCitationClick={(startMs) => playerRef.current?.seekToMs(startMs)}
               />
             </>
+          ) : sidebarMode === 'questions' ? (
+            <VideoStudyQuestionsPanel
+              courseId={courseId}
+              periodId={periodId}
+              periodTitle={periodTitle.trim() || videoTitle}
+              lectureTitle={videoTitle}
+              videoId={youtubeVideoId}
+              noteSegments={draft.segments}
+              getPlaybackSnapshot={() =>
+                playerRef.current?.getPlaybackSnapshot() ?? {
+                  currentTimeMs: null,
+                  paused: true,
+                }
+              }
+              onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
+            />
           ) : (
             <VideoStudyNotesPanel
               courseId={courseId}
@@ -307,18 +328,30 @@ export function VideoStudyOverlay({
           )}
         </aside>
       </div>
-
-      <AskLectureQuestionModal
-        isOpen={questionState.isOpen}
-        onClose={() => setQuestionState({ isOpen: false, startMs: null })}
-        courseId={courseId}
-        periodId={periodId}
-        periodTitle={periodTitle.trim() || videoTitle}
-        lectureTitle={videoTitle}
-        videoId={youtubeVideoId}
-        startMs={questionState.startMs}
-      />
     </div>,
     document.body
+  );
+}
+
+function SidebarTab({
+  label,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={isActive}
+      className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+        isActive ? 'bg-white/15 text-white' : 'text-white/55 hover:text-white'
+      }`}
+    >
+      {label}
+    </button>
   );
 }
