@@ -36,6 +36,12 @@ interface AuthState {
    * на /home. Максимум 3 элемента, имеет приоритет над group.featuredCourseIds.
    */
   featuredCourseIds: string[];
+  /**
+   * Дефолт аккаунта «мои вопросы видят» для режима конспекта
+   * (users/{uid}.studyDefaults.questionsVisibility). null — не задан,
+   * эффективный дефолт — 'group'; per-lecture настройка в оверлее приоритетнее.
+   */
+  studyQuestionsDefaultVisibility: 'group' | 'lecturers' | null;
 
   // Computed properties
   isAdmin: boolean;
@@ -59,6 +65,7 @@ interface AuthState {
   setGroupGrantedCourses: (granted: Record<string, boolean>) => void;
   setGeminiApiKey: (key: string | null) => void;
   setFeaturedCourseIds: (ids: string[]) => void;
+  setStudyQuestionsDefaultVisibility: (value: 'group' | 'lecturers' | null) => void;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   initializeAuth: () => () => void;
@@ -82,6 +89,7 @@ export const useAuthStore = create<AuthState>()(
       groupGrantedCourses: {},
       geminiApiKey: null,
       featuredCourseIds: [],
+      studyQuestionsDefaultVisibility: null,
       isAdmin: false,
       isSuperAdmin: false,
       isCoAdmin: false,
@@ -120,6 +128,9 @@ export const useAuthStore = create<AuthState>()(
       setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey: sanitizeGeminiApiKey(geminiApiKey) ?? null }),
 
       setFeaturedCourseIds: (featuredCourseIds) => set({ featuredCourseIds }),
+
+      setStudyQuestionsDefaultVisibility: (studyQuestionsDefaultVisibility) =>
+        set({ studyQuestionsDefaultVisibility }),
 
       hasCourseAccess: (courseType: CourseType) => {
         const { userRole, courseAccess, groupGrantedCourses } = get();
@@ -174,6 +185,7 @@ export const useAuthStore = create<AuthState>()(
             get().setGroupGrantedCourses({});
             get().setGeminiApiKey(null);
             get().setFeaturedCourseIds([]);
+            get().setStudyQuestionsDefaultVisibility(null);
             get().setLoading(false);
             return;
           }
@@ -278,6 +290,16 @@ export const useAuthStore = create<AuthState>()(
                   : [];
                 get().setFeaturedCourseIds(featured);
 
+                // Дефолт аккаунта «мои вопросы видят» (режим конспекта)
+                const questionsVisibilityRaw = (
+                  data?.studyDefaults as { questionsVisibility?: unknown } | undefined
+                )?.questionsVisibility;
+                get().setStudyQuestionsDefaultVisibility(
+                  questionsVisibilityRaw === 'group' || questionsVisibilityRaw === 'lecturers'
+                    ? questionsVisibilityRaw
+                    : null
+                );
+
                 // Обновляем роль если изменилась
                 const newRole = normalizeUserRole(data?.role);
                 if (newRole !== get().userRole) {
@@ -315,6 +337,7 @@ export const useAuthStore = create<AuthState>()(
             get().setGroupGrantedCourses({});
             get().setGeminiApiKey(null);
             get().setFeaturedCourseIds([]);
+            get().setStudyQuestionsDefaultVisibility(null);
           } finally {
             if (!cancelled) {
               get().setLoading(false);

@@ -11,7 +11,9 @@ import {
 } from './StudyVideoPlayer';
 import { VideoTranscriptPanel } from './VideoTranscriptPanel';
 import { TranscriptExplainCard } from './TranscriptExplainCard';
+import { StudySettingsMenu } from './StudySettingsMenu';
 import { useLectureExplain } from '../hooks/useLectureExplain';
+import { useSegmentQuestions } from '../hooks/useSegmentQuestions';
 import { useVideoTranscript } from '../../../hooks';
 import { trackFeatureEvent } from '../../../lib/telemetry';
 
@@ -68,11 +70,9 @@ export function VideoStudyOverlay({
     initialSeekMs ?? highlightedStartMs
   );
   const [showTimestamps, setShowTimestamps] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [noteSaveStatus, setNoteSaveStatus] = useState<LectureNoteSaveStatus>('idle');
   const playerRef = useRef<StudyVideoPlayerHandle | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
-  const settingsRef = useRef<HTMLDivElement | null>(null);
   const youtubeVideoId = useMemo(
     () => getYouTubeVideoId(originalUrl) ?? getYouTubeVideoId(embedUrl),
     [embedUrl, originalUrl]
@@ -89,6 +89,22 @@ export function VideoStudyOverlay({
   const handleClose = useCallback(() => {
     onClose(playerRef.current?.getPlaybackSnapshot());
   }, [onClose]);
+
+  const {
+    isSignedIn,
+    questionsVisibility,
+    setQuestionsVisibility,
+    questionedSegmentIds,
+    toggleSegmentQuestion,
+  } = useSegmentQuestions({
+    enabled: isOpen,
+    courseId,
+    periodId,
+    periodTitle,
+    videoTitle,
+    youtubeVideoId,
+    lectureKey,
+  });
 
   useEffect(() => {
     if (!isOpen) {
@@ -123,39 +139,9 @@ export function VideoStudyOverlay({
     if (!isOpen) {
       setSidebarMode('notes');
       setIsPanelExpanded(false);
-      setIsSettingsOpen(false);
       setShowTimestamps(false);
     }
   }, [isOpen]);
-
-  // Поповер настроек закрывается по клику мимо и по Esc; Esc гасится
-  // в capture-фазе, чтобы не закрыть весь режим конспекта (см. Esc-иерархию).
-  useEffect(() => {
-    if (!isSettingsOpen) {
-      return undefined;
-    }
-
-    const handleMouseDown = (event: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
-        setIsSettingsOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        event.preventDefault();
-        setIsSettingsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('keydown', handleKeyDown, true);
-
-    return () => {
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, [isSettingsOpen]);
 
   // Перенос фокуса в диалог при открытии и возврат туда, откуда пришли.
   useEffect(() => {
@@ -346,42 +332,13 @@ export function VideoStudyOverlay({
                 </div>
               </div>
 
-              <div ref={settingsRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsSettingsOpen((current) => !current)}
-                  aria-label="Настройки конспекта"
-                  aria-expanded={isSettingsOpen}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)] ${
-                    isSettingsOpen ? 'bg-white/10 text-white' : 'text-white/55 hover:text-white'
-                  }`}
-                >
-                  ⚙
-                </button>
-                {isSettingsOpen ? (
-                  <div className="absolute right-0 top-full z-30 mt-1 w-64 rounded-xl border border-white/10 bg-[#11161d]/95 p-3 shadow-2xl">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm text-white/80">Таймкоды в конспекте</span>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={showTimestamps}
-                        aria-label="Таймкоды в конспекте"
-                        onClick={() => setShowTimestamps((current) => !current)}
-                        className={`relative h-5 w-9 shrink-0 rounded-full transition ${
-                          showTimestamps ? 'bg-[color:var(--accent)]' : 'bg-white/15'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
-                            showTimestamps ? 'left-[1.1rem]' : 'left-0.5'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
+              <StudySettingsMenu
+                showTimestamps={showTimestamps}
+                onToggleTimestamps={() => setShowTimestamps((current) => !current)}
+                showQuestionsVisibility={isSignedIn}
+                questionsVisibility={questionsVisibility}
+                onQuestionsVisibilityChange={setQuestionsVisibility}
+              />
             </div>
           </div>
 
@@ -413,12 +370,6 @@ export function VideoStudyOverlay({
               lectureTitle={videoTitle}
               videoId={youtubeVideoId}
               noteSegments={draft.segments}
-              getPlaybackSnapshot={() =>
-                playerRef.current?.getPlaybackSnapshot() ?? {
-                  currentTimeMs: null,
-                  paused: true,
-                }
-              }
               onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
             />
           ) : null}
@@ -444,6 +395,8 @@ export function VideoStudyOverlay({
               periodTitle={periodTitle}
               showTimestamps={showTimestamps}
               videoTitle={videoTitle}
+              questionedSegmentIds={questionedSegmentIds}
+              onToggleSegmentQuestion={isSignedIn ? toggleSegmentQuestion : undefined}
             />
           </div>
         </aside>

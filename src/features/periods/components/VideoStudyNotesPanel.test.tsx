@@ -34,8 +34,10 @@ function renderPanel(props: {
   lectureResourceId: string;
   onSaveStatusChange?: (status: LectureNoteSaveStatus) => void;
   onTimestampClick?: (startMs: number) => void;
+  onToggleSegmentQuestion?: (segment: LectureNoteSegment) => void;
   periodId: string;
   periodTitle: string;
+  questionedSegmentIds?: ReadonlySet<string>;
   showTimestamps?: boolean;
   videoTitle: string;
 }) {
@@ -346,6 +348,44 @@ describe('VideoStudyNotesPanel', () => {
     });
 
     expect(scrollContainer.scrollTop).toBe(120);
+  });
+
+  it('кнопка «?» горит у отмеченного сегмента и вызывает toggle по остальным', async () => {
+    mocks.getLectureNote.mockResolvedValue({
+      id: 'note-3',
+      content: 'Первый\n\nВторой',
+      lectureSegments: [
+        { id: 'segment-1', startMs: 1000, text: 'Первый' },
+        { id: 'segment-2', startMs: 2000, text: 'Второй' },
+      ],
+    });
+    const handleToggle = vi.fn();
+
+    renderPanel({
+      courseId: 'development',
+      initialDraftSegments: [
+        { id: 'segment-1', startMs: 1000, text: 'Первый' },
+        { id: 'segment-2', startMs: 2000, text: 'Второй' },
+      ],
+      lectureResourceId: 'video-8',
+      onToggleSegmentQuestion: handleToggle,
+      periodId: 'school',
+      periodTitle: 'Младший школьный возраст',
+      questionedSegmentIds: new Set(['segment-1']),
+      videoTitle: 'Лекция 8',
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const litButton = screen.getByRole('button', { name: 'Убрать вопрос по абзацу' });
+    expect(litButton).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Задать вопрос по абзацу' }));
+    expect(handleToggle).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'segment-2', startMs: 2000, text: 'Второй' })
+    );
   });
 
   it('открывает логин-модалку для неавторизованного пользователя', async () => {

@@ -4,6 +4,7 @@ import {
   FeaturedCoursesSection,
   GeminiKeySection,
   SearchHistorySection,
+  StudyDefaultsSection,
 } from '../components/profile';
 import { FeedbackButton } from '../components/FeedbackModal';
 import { useAuth } from '../auth/AuthProvider';
@@ -145,6 +146,8 @@ export default function Profile() {
       {user && <FeaturedCoursesSection />}
 
       {user && <SearchHistorySection />}
+
+      {user && <StudyDefaultsSection />}
 
       {user && <GeminiKeySection />}
     </div>
