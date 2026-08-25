@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getYouTubeVideoId } from '../../../lib/videoTranscripts';
 import type { LectureNoteDraft } from '../../../types/notes';
-import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
+import { VideoStudyNotesPanel, type LectureNoteSaveStatus } from './VideoStudyNotesPanel';
 import { VideoStudyQuestionsPanel } from './VideoStudyQuestionsPanel';
 import {
   StudyVideoPlayer,
@@ -67,8 +67,12 @@ export function VideoStudyOverlay({
   const [transcriptFocusMs, setTranscriptFocusMs] = useState<number | null>(
     initialSeekMs ?? highlightedStartMs
   );
+  const [showTimestamps, setShowTimestamps] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [noteSaveStatus, setNoteSaveStatus] = useState<LectureNoteSaveStatus>('idle');
   const playerRef = useRef<StudyVideoPlayerHandle | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const settingsRef = useRef<HTMLDivElement | null>(null);
   const youtubeVideoId = useMemo(
     () => getYouTubeVideoId(originalUrl) ?? getYouTubeVideoId(embedUrl),
     [embedUrl, originalUrl]
@@ -119,8 +123,39 @@ export function VideoStudyOverlay({
     if (!isOpen) {
       setSidebarMode('notes');
       setIsPanelExpanded(false);
+      setIsSettingsOpen(false);
+      setShowTimestamps(false);
     }
   }, [isOpen]);
+
+  // Поповер настроек закрывается по клику мимо и по Esc; Esc гасится
+  // в capture-фазе, чтобы не закрыть весь режим конспекта (см. Esc-иерархию).
+  useEffect(() => {
+    if (!isSettingsOpen) {
+      return undefined;
+    }
+
+    const handleMouseDown = (event: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setIsSettingsOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        event.preventDefault();
+        setIsSettingsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isSettingsOpen]);
 
   // Перенос фокуса в диалог при открытии и возврат туда, откуда пришли.
   useEffect(() => {
@@ -202,6 +237,30 @@ export function VideoStudyOverlay({
     return null;
   }
 
+  const saveStatusLabel =
+    noteSaveStatus === 'signed-out'
+      ? 'Войдите, чтобы сохранять конспект'
+      : noteSaveStatus === 'saving'
+      ? 'Автосохранение...'
+      : noteSaveStatus === 'error'
+      ? 'Ошибка сохранения'
+      : noteSaveStatus === 'dirty'
+      ? 'Есть несохранённые изменения'
+      : noteSaveStatus === 'saved'
+      ? 'Конспект сохранён'
+      : 'Автосохранение включено';
+
+  const saveIndicatorClassName =
+    noteSaveStatus === 'signed-out'
+      ? 'bg-white/20 shadow-[0_0_0_4px_rgba(255,255,255,0.08)]'
+      : noteSaveStatus === 'saving'
+      ? 'bg-amber-300 shadow-[0_0_0_4px_rgba(252,211,77,0.15)]'
+      : noteSaveStatus === 'error'
+      ? 'bg-rose-400 shadow-[0_0_0_4px_rgba(251,113,133,0.15)]'
+      : noteSaveStatus === 'saved'
+      ? 'bg-emerald-400 shadow-[0_0_0_4px_rgba(52,211,153,0.15)]'
+      : 'bg-white/35 shadow-[0_0_0_4px_rgba(255,255,255,0.08)]';
+
   return createPortal(
     <div
       ref={dialogRef}
@@ -268,10 +327,62 @@ export function VideoStudyOverlay({
               />
             ) : null}
             <SidebarTab
-              label="Вопросы"
+              label="Чат"
               isActive={sidebarMode === 'questions'}
               onClick={() => setSidebarMode('questions')}
             />
+
+            <div className="ml-auto flex items-center gap-1">
+              <div className="group relative">
+                <button
+                  type="button"
+                  aria-label={saveStatusLabel}
+                  className="flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]"
+                >
+                  <span className={`h-2.5 w-2.5 rounded-full ${saveIndicatorClassName}`} />
+                </button>
+                <div className="pointer-events-none absolute right-0 top-full z-30 mt-1 max-w-[12rem] translate-y-1 whitespace-nowrap rounded-xl border border-white/10 bg-[#11161d]/95 px-3 py-2 text-xs leading-5 text-white/80 opacity-0 shadow-2xl transition duration-150 group-hover:translate-y-0 group-hover:opacity-100">
+                  {saveStatusLabel}
+                </div>
+              </div>
+
+              <div ref={settingsRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsSettingsOpen((current) => !current)}
+                  aria-label="Настройки конспекта"
+                  aria-expanded={isSettingsOpen}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)] ${
+                    isSettingsOpen ? 'bg-white/10 text-white' : 'text-white/55 hover:text-white'
+                  }`}
+                >
+                  ⚙
+                </button>
+                {isSettingsOpen ? (
+                  <div className="absolute right-0 top-full z-30 mt-1 w-64 rounded-xl border border-white/10 bg-[#11161d]/95 p-3 shadow-2xl">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm text-white/80">Таймкоды в конспекте</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={showTimestamps}
+                        aria-label="Таймкоды в конспекте"
+                        onClick={() => setShowTimestamps((current) => !current)}
+                        className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+                          showTimestamps ? 'bg-[color:var(--accent)]' : 'bg-white/15'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
+                            showTimestamps ? 'left-[1.1rem]' : 'left-0.5'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
 
           {sidebarMode === 'transcript' ? (
@@ -310,7 +421,12 @@ export function VideoStudyOverlay({
               }
               onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
             />
-          ) : (
+          ) : null}
+
+          {/* Панель конспекта не размонтируется при смене вкладки: автосейв
+              продолжает работать, а индикатор ● в строке вкладок отражает
+              реальное состояние, а не последнее перед размонтированием. */}
+          <div className={sidebarMode === 'notes' ? 'min-h-0 flex-1' : 'hidden'}>
             <VideoStudyNotesPanel
               courseId={courseId}
               draft={draft}
@@ -322,12 +438,14 @@ export function VideoStudyOverlay({
               }
               lectureResourceId={lectureResourceId}
               onDraftChange={onDraftChange}
+              onSaveStatusChange={setNoteSaveStatus}
               onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
               periodId={periodId}
               periodTitle={periodTitle}
+              showTimestamps={showTimestamps}
               videoTitle={videoTitle}
             />
-          )}
+          </div>
         </aside>
       </div>
     </div>,

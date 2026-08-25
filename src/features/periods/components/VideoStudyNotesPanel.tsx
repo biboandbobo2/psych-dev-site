@@ -20,13 +20,24 @@ interface VideoStudyNotesPanelProps {
   getPlaybackSnapshot?: () => StudyVideoPlaybackSnapshot;
   lectureResourceId: string;
   onDraftChange: (draft: LectureNoteDraft) => void;
+  /** Статус автосейва рендерится в строке вкладок оверлея, а не в панели. */
+  onSaveStatusChange?: (status: LectureNoteSaveStatus) => void;
   onTimestampClick: (startMs: number) => void;
   periodId: string;
   periodTitle: string;
+  showTimestamps: boolean;
   videoTitle: string;
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+export type LectureNoteSaveStatus =
+  | 'signed-out'
+  | 'idle'
+  | 'saving'
+  | 'saved'
+  | 'dirty'
+  | 'error';
 
 export function VideoStudyNotesPanel({
   courseId,
@@ -34,9 +45,11 @@ export function VideoStudyNotesPanel({
   getPlaybackSnapshot,
   lectureResourceId,
   onDraftChange,
+  onSaveStatusChange,
   onTimestampClick,
   periodId,
   periodTitle,
+  showTimestamps,
   videoTitle,
 }: VideoStudyNotesPanelProps) {
   const user = useAuthStore((state) => state.user);
@@ -55,7 +68,6 @@ export function VideoStudyNotesPanel({
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isHydrating, setIsHydrating] = useState(false);
-  const [showTimestamps, setShowTimestamps] = useState(false);
   const isDesktop = useIsDesktop();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -77,8 +89,16 @@ export function VideoStudyNotesPanel({
     [persistedSegments]
   );
   const hasContent = persistedSegments.length > 0;
+  // Сигнатура последнего сейва живёт и в state (isDirty должен пересчитаться
+  // рендером после сейва — setSaveState('saved') бэйлится, если значение не
+  // менялось), и в ref — для чтения из колбэков без устаревших замыканий.
+  const [lastSavedSignature, setLastSavedSignature] = useState(persistedSignature);
   const lastSavedSignatureRef = useRef(persistedSignature);
-  const isDirty = persistedSignature !== lastSavedSignatureRef.current;
+  const markSavedSignature = useCallback((signature: string) => {
+    lastSavedSignatureRef.current = signature;
+    setLastSavedSignature(signature);
+  }, []);
+  const isDirty = persistedSignature !== lastSavedSignature;
   // Последняя версия черновика, известная панели (локальные правки либо прокинутый prop).
   const latestDraftRef = useRef<LectureNoteDraft>(draft);
   const lastPublishedSignatureRef = useRef(persistedSignature);
@@ -115,7 +135,7 @@ export function VideoStudyNotesPanel({
         await upsertLectureNote(nextContent, lectureContext, {
           lectureSegments: nextSegments,
         });
-        lastSavedSignatureRef.current = JSON.stringify(nextSegments);
+        markSavedSignature(JSON.stringify(nextSegments));
 
         if (!options?.silent) {
           setSaveState(nextSegments.length > 0 ? 'saved' : 'idle');
@@ -130,7 +150,7 @@ export function VideoStudyNotesPanel({
         return false;
       }
     },
-    [lectureContext, upsertLectureNote, user]
+    [lectureContext, markSavedSignature, upsertLectureNote, user]
   );
 
   useEffect(() => {
@@ -155,7 +175,7 @@ export function VideoStudyNotesPanel({
           note?.content ?? ''
         );
         const savedSignature = JSON.stringify(savedSegments);
-        lastSavedSignatureRef.current = savedSignature;
+        markSavedSignature(savedSignature);
 
         // Локальный черновик побеждает, если он публиковался в этой сессии
         // (updatedAtMs выставлен) и реально отличается от сохранённой версии;
@@ -192,7 +212,7 @@ export function VideoStudyNotesPanel({
     return () => {
       cancelled = true;
     };
-  }, [getLectureNote, lectureContext, resetDraft, user]);
+  }, [getLectureNote, lectureContext, markSavedSignature, resetDraft, user]);
 
   useEffect(() => {
     if (!user || isHydrating) {
@@ -296,47 +316,31 @@ export function VideoStudyNotesPanel({
     };
   }, []);
 
-  const statusLabel = !user
-    ? 'Войдите, чтобы сохранять конспект'
-    : saveState === 'saving'
-    ? 'Автосохранение...'
-    : saveState === 'error'
-    ? 'Ошибка сохранения'
-    : isDirty
-    ? 'Есть несохранённые изменения'
-    : hasContent
-    ? 'Конспект сохранён'
-    : 'Автосохранение включено';
+  useEffect(() => {
+    if (!onSaveStatusChange) {
+      return;
+    }
 
-  const indicatorClassName = !user
-    ? 'bg-white/20 shadow-[0_0_0_4px_rgba(255,255,255,0.08)]'
-    : saveState === 'saving'
-    ? 'bg-amber-300 shadow-[0_0_0_4px_rgba(252,211,77,0.15)]'
-    : saveState === 'error'
-    ? 'bg-rose-400 shadow-[0_0_0_4px_rgba(251,113,133,0.15)]'
-    : !isDirty && hasContent
-    ? 'bg-emerald-400 shadow-[0_0_0_4px_rgba(52,211,153,0.15)]'
-    : 'bg-white/35 shadow-[0_0_0_4px_rgba(255,255,255,0.08)]';
+    onSaveStatusChange(
+      !user
+        ? 'signed-out'
+        : saveState === 'saving'
+        ? 'saving'
+        : saveState === 'error'
+        ? 'error'
+        : isDirty
+        ? 'dirty'
+        : hasContent
+        ? 'saved'
+        : 'idle'
+    );
+  }, [hasContent, isDirty, onSaveStatusChange, saveState, user]);
 
   return (
     <>
       <aside className="flex h-full min-h-0 flex-col px-4 py-4 text-white lg:px-5 lg:py-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => setShowTimestamps((current) => !current)}
-            aria-pressed={showTimestamps}
-            title="Показывать привязку абзацев к моментам видео"
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-              showTimestamps
-                ? 'border-[color:var(--accent)] bg-[color:var(--accent)]/25 text-white'
-                : 'border-white/10 bg-white/5 text-white/55 hover:text-white'
-            }`}
-          >
-            Таймкоды
-          </button>
-
-          {!user ? (
+        {!user ? (
+          <div className="mb-4 flex items-center justify-end">
             <button
               type="button"
               onClick={() => setIsLoginOpen(true)}
@@ -344,37 +348,22 @@ export function VideoStudyNotesPanel({
             >
               Войти
             </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         <div className="flex-1 min-h-0">
           <div className="relative h-full min-h-[18rem] rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-4">
-            <div className="group absolute right-4 top-4 z-10">
-              <button
-                type="button"
-                className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]"
-                aria-label={statusLabel}
-              >
-                <span className={`h-2.5 w-2.5 rounded-full ${indicatorClassName}`} />
-              </button>
-
-              <div className="pointer-events-none absolute right-0 top-8 z-10 max-w-[12rem] translate-y-1 rounded-xl border border-white/10 bg-[#11161d]/95 px-3 py-2 text-xs leading-5 text-white/80 opacity-0 shadow-2xl transition duration-150 group-hover:translate-y-0 group-hover:opacity-100">
-                {statusLabel}
-              </div>
-            </div>
-
             <div ref={scrollContainerRef} className="h-full overflow-y-auto pr-2 pt-1">
-              {/* mr-8 — не наезжать на индикатор автосохранения в углу */}
               {!hasContent && !composer.text ? (
                 isDesktop ? (
-                  <div className="mb-4 mr-8 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs leading-5 text-white/50">
+                  <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs leading-5 text-white/50">
                     <p>Пишите тезисы по ходу лекции. Enter закрывает абзац, Shift+Enter — перенос строки.</p>
                     <p className="mt-1">
-                      Каждый абзац привязывается к моменту видео — включите «Таймкоды» и кликните по метке, чтобы перемотать.
+                      Каждый абзац привязывается к моменту видео — включите «Таймкоды в конспекте» в настройках ⚙ и кликните по метке, чтобы перемотать.
                     </p>
                   </div>
                 ) : (
-                  <p className="mb-4 mr-8 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs leading-5 text-white/50">
+                  <p className="mb-4 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs leading-5 text-white/50">
                     Конспект пока пуст. Набор конспекта доступен на компьютере.
                   </p>
                 )
