@@ -60,6 +60,14 @@ export function buildChatFeed({
     question,
   }));
 
+  // Абзац, отмеченный «?», уже в ленте как вопрос — как реплику конспекта
+  // его не дублируем (id сегментов уникальны между конспектами).
+  const questionedSegmentIds = new Set(
+    questions
+      .map((question) => question.sourceSegmentId)
+      .filter((id): id is string => Boolean(id))
+  );
+
   for (const note of openNotes) {
     // Свои абзацы приходят из локального draft — документ автора пропускаем.
     if (note.userId === currentUserUid || note.lectureVideoId !== videoId) {
@@ -67,7 +75,7 @@ export function buildChatFeed({
     }
 
     for (const segment of note.segments) {
-      if (!segment.text.trim()) {
+      if (!segment.text.trim() || questionedSegmentIds.has(segment.id)) {
         continue;
       }
 
@@ -85,7 +93,7 @@ export function buildChatFeed({
   }
 
   for (const segment of ownSegments) {
-    if (!segment.text.trim()) {
+    if (!segment.text.trim() || questionedSegmentIds.has(segment.id)) {
       continue;
     }
 
