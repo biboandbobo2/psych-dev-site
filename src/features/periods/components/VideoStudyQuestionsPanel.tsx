@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import LoginModal from '../../../components/LoginModal';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useMyGroups } from '../../../hooks/useMyGroups';
 import {
   useLessonAllQuestions,
   useLessonQuestions,
-  useLectureQuestionActions,
 } from '../../../hooks/useLectureQuestions';
 import {
   useLessonAllOpenNotes,
@@ -14,7 +13,6 @@ import {
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { buildChatFeed, type ChatFeedItem } from '../lib/chatFeed';
 import { canEditCourse } from '../../../types/user';
-import { debugError } from '../../../lib/debug';
 import { formatTimestampMs } from '../../../lib/formatTimestamp';
 import type { LectureNoteSegment } from '../../../types/notes';
 
@@ -27,7 +25,8 @@ interface VideoStudyQuestionsPanelProps {
   onTimestampClick: (startMs: number) => void;
 }
 
-function TimestampChip({
+/** Таймкод в одной строке с началом текста реплики. */
+function InlineTimestamp({
   startMs,
   onClick,
 }: {
@@ -42,7 +41,7 @@ function TimestampChip({
       type="button"
       onClick={() => onClick(startMs)}
       aria-label={`Перейти к ${label}`}
-      className="inline-flex items-center rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-white/60 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white"
+      className="mr-1.5 align-baseline text-xs font-medium tabular-nums text-white/40 transition hover:text-white"
     >
       {label}
     </button>
@@ -54,6 +53,47 @@ function LecturersOnlyBadge() {
     <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] text-amber-200">
       только лекторам
     </span>
+  );
+}
+
+/**
+ * Пузырь реплики: свои — справа, чужие — слева; вопрос отличается от абзаца
+ * конспекта тоном фона (акцентный vs нейтральный), без текстовых пометок.
+ */
+function ChatBubble({
+  isOwn,
+  isQuestion,
+  authorName,
+  badge,
+  children,
+}: {
+  isOwn: boolean;
+  isQuestion: boolean;
+  authorName: string | null;
+  badge?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`max-w-[85%] rounded-[1.1rem] px-3.5 py-2 ${
+          isQuestion
+            ? 'bg-[color:var(--accent)]/20 ring-1 ring-[color:var(--accent)]/30'
+            : 'bg-white/[0.06] ring-1 ring-white/10'
+        }`}
+      >
+        {!isOwn && (authorName || badge) ? (
+          <div className="mb-0.5 flex items-center gap-2">
+            {authorName ? (
+              <span className="text-xs text-white/45">{authorName}</span>
+            ) : null}
+            {badge}
+          </div>
+        ) : null}
+        {isOwn && badge ? <div className="mb-0.5 flex justify-end">{badge}</div> : null}
+        <p className="text-sm leading-6 text-white/85">{children}</p>
+      </div>
+    </div>
   );
 }
 
@@ -98,7 +138,6 @@ export function VideoStudyQuestionsPanel({
   );
   const groupOpenNotes = useLessonGroupOpenNotes(studentScope, periodId, groupIds);
   const allOpenNotes = useLessonAllOpenNotes(lecturerScope, periodId);
-  const { deleteQuestion } = useLectureQuestionActions();
 
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [onlyQuestions, setOnlyQuestions] = useState(false);
@@ -122,56 +161,35 @@ export function VideoStudyQuestionsPanel({
     ? feed.filter((item) => item.kind === 'question')
     : feed;
 
-  const handleDeleteQuestion = async (questionId: string) => {
-    if (!confirm('Удалить вопрос?')) return;
-    try {
-      await deleteQuestion(questionId);
-    } catch (err) {
-      debugError('[VideoStudyQuestionsPanel] failed to delete question', err);
-    }
-  };
-
   const renderItem = (item: ChatFeedItem) => {
     if (item.kind === 'question') {
       const { question } = item;
       const isOwn = question.authorUid === user?.uid;
       return (
-        <div key={item.key} className="rounded-[1.1rem] border border-white/10 bg-black/20 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <TimestampChip startMs={question.startMs} onClick={onTimestampClick} />
-            <span className="text-xs text-white/45">
-              {isOwn ? 'Вы' : question.authorName ?? 'Участник группы'}
-            </span>
-            {question.visibility === 'lecturers' ? <LecturersOnlyBadge /> : null}
-            {isOwn ? (
-              <button
-                type="button"
-                onClick={() => handleDeleteQuestion(question.id)}
-                className="ml-auto text-xs text-white/40 transition hover:text-rose-300"
-              >
-                Удалить
-              </button>
-            ) : null}
-          </div>
-          <p className="mt-2 text-sm leading-6 text-white/85">{question.text}</p>
-        </div>
+        <ChatBubble
+          key={item.key}
+          isOwn={isOwn}
+          isQuestion
+          authorName={isOwn ? null : question.authorName ?? 'Участник группы'}
+          badge={question.visibility === 'lecturers' ? <LecturersOnlyBadge /> : undefined}
+        >
+          <InlineTimestamp startMs={question.startMs} onClick={onTimestampClick} />
+          {question.text}
+        </ChatBubble>
       );
     }
 
     return (
-      <div key={item.key} className="rounded-[1.1rem] border border-white/10 bg-white/[0.03] px-4 py-3">
-        <div className="flex items-center gap-2">
-          <TimestampChip startMs={item.anchorMs} onClick={onTimestampClick} />
-          <span className="text-xs text-white/45">
-            {item.isOwn ? 'Вы' : item.authorName ?? 'Участник группы'}
-          </span>
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/35">
-            конспект
-          </span>
-          {item.visibility === 'lecturers' ? <LecturersOnlyBadge /> : null}
-        </div>
-        <p className="mt-2 text-sm leading-6 text-white/85">{item.text}</p>
-      </div>
+      <ChatBubble
+        key={item.key}
+        isOwn={item.isOwn}
+        isQuestion={false}
+        authorName={item.isOwn ? null : item.authorName ?? 'Участник группы'}
+        badge={item.visibility === 'lecturers' ? <LecturersOnlyBadge /> : undefined}
+      >
+        <InlineTimestamp startMs={item.anchorMs} onClick={onTimestampClick} />
+        {item.text}
+      </ChatBubble>
     );
   };
 
@@ -214,7 +232,7 @@ export function VideoStudyQuestionsPanel({
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-2">
+            <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pb-2">
               {loading ? (
                 <p className="text-sm text-white/50">Загружаем чат…</p>
               ) : visibleFeed.length === 0 ? (

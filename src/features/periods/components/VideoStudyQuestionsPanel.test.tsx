@@ -13,7 +13,6 @@ const mocks = vi.hoisted(() => ({
   allQuestions: [] as LectureQuestion[],
   groupOpenNotes: [] as OpenLectureNote[],
   allOpenNotes: [] as OpenLectureNote[],
-  deleteQuestion: vi.fn(),
   lessonQuestionsScope: [] as Array<string | null>,
   allQuestionsScope: [] as Array<string | null>,
 }));
@@ -46,10 +45,6 @@ vi.mock('../../../hooks/useLectureQuestions', () => ({
     mocks.allQuestionsScope.push(courseId);
     return { questions: courseId ? mocks.allQuestions : [], loading: false };
   },
-  useLectureQuestionActions: () => ({
-    createQuestion: vi.fn(),
-    deleteQuestion: mocks.deleteQuestion,
-  }),
 }));
 
 vi.mock('../../../hooks/useOpenLectureNotes', () => ({
@@ -117,7 +112,6 @@ describe('VideoStudyQuestionsPanel', () => {
     mocks.allQuestions = [];
     mocks.groupOpenNotes = [];
     mocks.allOpenNotes = [];
-    mocks.deleteQuestion.mockReset();
     mocks.lessonQuestionsScope = [];
     mocks.allQuestionsScope = [];
   });
@@ -133,10 +127,50 @@ describe('VideoStudyQuestionsPanel', () => {
     const texts = screen
       .getAllByText(/Дисрегуляция|Мой тезис|Поздний вопрос/)
       .map((node) => node.textContent);
-    // 00:30 конспект Петра → 01:40 свой абзац → 05:00 вопрос
-    expect(texts).toEqual(['Дисрегуляция — когда система…', 'Мой тезис', 'Поздний вопрос']);
+    // 00:30 конспект Петра → 01:40 свой абзац → 05:00 вопрос; таймкод —
+    // инлайн в той же строке, что и начало текста реплики
+    expect(texts).toEqual([
+      '00:30Дисрегуляция — когда система…',
+      '01:40Мой тезис',
+      '05:00Поздний вопрос',
+    ]);
+    // Автор подписан только у чужих реплик; свои узнаются по выравниванию вправо
     expect(screen.getByText('Пётр')).toBeInTheDocument();
-    expect(screen.getByText('Вы')).toBeInTheDocument();
+    expect(screen.queryByText('Вы')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Удалить' })).not.toBeInTheDocument();
+  });
+
+  it('абзац, отмеченный «?», показан один раз — как вопрос, не дублируется конспектом', () => {
+    mocks.groupQuestions = [
+      makeQuestion({
+        id: 'q-from-segment',
+        authorUid: 'user-2',
+        startMs: 30_000,
+        text: 'Дисрегуляция — когда система…',
+        sourceSegmentId: 's-1',
+      }),
+    ];
+    mocks.groupOpenNotes = [makeOpenNote({})];
+
+    renderPanel();
+
+    expect(screen.getAllByText(/Дисрегуляция — когда система…/)).toHaveLength(1);
+  });
+
+  it('свой абзац с «?» тоже не дублируется: показан как вопрос, не как конспект', () => {
+    mocks.groupQuestions = [
+      makeQuestion({
+        id: 'q-own',
+        authorUid: 'user-1',
+        startMs: 90_000,
+        text: 'Свой отмеченный абзац',
+        sourceSegmentId: 'own-q',
+      }),
+    ];
+
+    renderPanel([{ id: 'own-q', startMs: 90_000, text: 'Свой отмеченный абзац' }]);
+
+    expect(screen.getAllByText(/Свой отмеченный абзац/)).toHaveLength(1);
   });
 
   it('чужой конспект другой лекции занятия в ленту не попадает', () => {
