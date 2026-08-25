@@ -21,7 +21,8 @@
 | MR-3 | M (S) | Убрать `lessonRef as never` | типизированный payload dynamic course lessons |
 | MR-5 | M (S-M) | Синхронизировать `firestore.indexes.json` с БД и починить vector-deploy | 2026-07-11: vector-индексы `book_chunks`/`lecture_chunks` уже в файле. Осталось: прод-сверка (4 missing composite) + проверить, что deploy проходит (CLI bug с `__name__`). |
 | UX-1 | L (L) | Profile v2 — унификация с акварельной палитрой | ожидаем брендбук от дизайнера, после — полный редизайн Profile + вложенных секций |
-| UX-2 | L (S) | Тёмная тема модалок режима конспекта | «Спросить лектора» / «Поделиться конспектом» / Login — светлый `BaseModal` поверх тёмного fullscreen-оверлея; нужен variant='dark' или токены |
+| UX-2 | L (S) | Тёмная тема LoginModal в режиме конспекта | После этапов B/C редизайна (2026-08-25) из оверлея исчезли «Спросить лектора» и «Поделиться конспектом» — остался только светлый LoginModal поверх тёмного fullscreen; нужен variant='dark' или токены |
+| ST-1 | L (S) | Полный выпил легаси `sharedLectureNotes` | Этап C заменил share-контур живыми открытыми конспектами (`notes.visibility`); коллекция не пополняется, но остались: показ/удаление на `/admin/questions`, rules-блок коллекции, типы. Когда старые записи станут не нужны лекторам — выпилить всё и добавить открытые конспекты в `/admin/questions` |
 | AG-1 | M (M) | Роль «agent» — вход Claude на сайт под своим аккаунтом | Firebase-аккаунт агента + custom claim, вход через `signInWithCustomToken` (без Google OAuth), матрица прав, фиксированный uid для аудита. Разблокирует e2e smoke админ/студент-сценариев агентом |
 | LP-1 | L (M) | Observability / telemetry | Базовый logger (Sentry/PostHog), описание процессов |
 | LP-5 | L (S-M) | Firebase/GCP follow-ups | dependency review, cleanup policy, индексы, Telegram formatting |
@@ -48,7 +49,7 @@
 | BR-7 | M (L) | Персональные книги пользователей | Свои PDF у студента (как заметки/таймлайн), privacy/quota, upload+ingestion, UI в Profile |
 | MKT-1 | M (S) | Ревью маркетинг-контекста `.agents/product-marketing.md` | Пройти опросник `.agents/product-marketing-review.md` (цели, verbatim-язык студентов, конкуренты, прайс/оффер переподготовки), вписать ответы в док (бамп v2 + changelog), закоммитить оба файла. Черновик v1 автосгенерирован из кодовой базы 2026-07-17; поля «уточнить» без ответов Алексея не закрыть. Контекст читают все 10 маркетинг-скиллов (~/.claude/skills). |
 | HM-5 | L (S) | Vite dev overlay на `/booking`: «Cannot find module bookingCancellation.js» | Пред-существующая проблема (импорт в `api/booking.ts` появился в `8c53242`); прод-сборка работает, ломается только dev ESM-резолвер. Поправить vite/api dev-конфиг или alias |
-| LP-17 | L (S-M) | Fan-out подписок `useLessonScopedDocs` → `in`-запросы | 2×(G+1) листенеров на страницу занятия → 4. Только с rules-тестом на эмуляторе (per-doc get()-membership vs `in`-query) |
+| LP-17 | L (S-M) | Fan-out подписок занятия → `in`-запросы | После этапа C (2026-08-25): `useLessonScopedDocs` остался только у вопросов (G+1), плюс открытые конспекты `useOpenLectureNotes` (G) и свои вопросы «?» (1) — листенеры gated по isOpen оверлея. Свёртка в `in`-запросы — только с rules-тестом на эмуляторе (per-doc get()-membership vs `in`-query) |
 
 ---
 

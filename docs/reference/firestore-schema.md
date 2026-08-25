@@ -93,9 +93,10 @@ interface User {
   prefsUpdatedAt?: Timestamp;
 
   // Дефолты режима конспекта (секция «Режим конспекта» в профиле).
-  // Per-lecture настройка в шестерёнке оверлея (localStorage) приоритетнее.
+  // Per-lecture настройки в шестерёнке оверлея приоритетнее.
   studyDefaults?: {
-    questionsVisibility?: 'group' | 'lecturers';  // «мои вопросы видят», дефолт 'group'
+    questionsVisibility?: 'group' | 'lecturers';            // «мои вопросы видят», дефолт 'group'
+    noteVisibility?: 'private' | 'group' | 'lecturers';     // «мой конспект видят», дефолт 'private'
   };
 
   // Метаданные
@@ -431,6 +432,13 @@ interface Note {
   //   { id: string; startMs: number | null; text: string }
   //   startMs — момент видео; в content таймкоды не попадают
 
+  // Живой открытый конспект (этап C редизайна, только noteScope='lecture').
+  // Отсутствие поля = 'private'. Пишутся каждым сейвом (upsertLectureNote
+  // options.share) из настройки «мой конспект видят» в шестерёнке оверлея.
+  visibility?: 'private' | 'group' | 'lecturers';
+  groupId?: string | null;        // Снапшот целевой группы при visibility='group'
+  authorName?: string | null;     // Снапшот displayName для чата
+
   topicId: string | null;         // ID темы для размышления (topics/{topicId})
   topicTitle: string | null;
 
@@ -441,8 +449,11 @@ interface Note {
 
 **ID документа:** ручные заметки — auto-id (`addDoc`); лекционный конспект — детерминированный `lecture__{uid}__{encodeURIComponent(lectureKey)}` (один документ на пользователя+лекцию, upsert через `setDoc merge`).
 
-**Правила доступа:**
-- Пользователь видит только свои заметки (`request.auth.uid == resource.data.userId`); админ имеет read (см. `firestore.rules`)
+**Правила доступа** (этап C, 2026-08-25):
+- Владелец — полный доступ к своим заметкам.
+- Чужие заметки читаются ТОЛЬКО при `noteScope='lecture'` с явной видимостью: `visibility='group'` — участники группы `groupId` (per-doc `get()` членства, как в `lectureQuestions`); `'group'|'lecturers'` — лекторы курса (`canEditCourse`).
+- manual/timeline и приватные конспекты не читает через клиент никто, кроме владельца — широкий `|| isAdmin()` из notes read сознательно убран этапом C (Admin SDK правила не ограничивают).
+- List-запросы чата фиксируют `noteScope`+`visibility`+`groupId` equality-фильтрами — иначе правило непровабельно (см. rules-тесты).
 
 ---
 
@@ -477,7 +488,9 @@ interface LectureQuestion {
 
 UI: кнопка «?» у абзаца конспекта в оверлее, секция «Вопросы к семинару» на странице занятия, лекторский экран `/admin/questions`.
 
-### `sharedLectureNotes/{shareId}`
+### `sharedLectureNotes/{shareId}` — ЛЕГАСИ
+
+**Контур «Поделиться конспектом» выпилен этапом C (2026-08-25)** в пользу живых открытых конспектов (`notes.visibility`). Коллекция не пополняется; старые записи видны только на лекторском `/admin/questions` (просмотр и удаление). Follow-up на полный выпил — в audit-backlog.
 
 Расшаренные фрагменты конспекта — **снапшот** выбранных сегментов на момент отправки (правки задним числом не протекают). Модель доступа идентична `lectureQuestions`.
 

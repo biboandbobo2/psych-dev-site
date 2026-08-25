@@ -22,22 +22,33 @@
   **Конспект | Транскрипт | Чат** (вкладка «Транскрипт» видна только при
   `hasTranscript`). Справа в строке вкладок — индикатор автосейва ● (статус
   репортится из `VideoStudyNotesPanel` через `onSaveStatusChange`) и шестерёнка ⚙
-  (`StudySettingsMenu`): тумблер «Таймкоды в конспекте» и «Мои вопросы видят»
-  (группа и лекторы / только лекторы; per-lecture в localStorage по lectureKey,
-  поверх дефолта аккаунта `users/{uid}.studyDefaults.questionsVisibility` —
-  секция «Режим конспекта» в профиле). Esc закрывает поповер, не оверлей.
+  (`StudySettingsMenu`): тумблер «Таймкоды в конспекте», «Мои вопросы видят»
+  (группа и лекторы / только лекторы; per-lecture в localStorage по lectureKey)
+  и «Мой конспект видят» (только я / группа / лекторы; живёт в самой заметке,
+  `useLectureNoteSharing`). Дефолты аккаунта — `users/{uid}.studyDefaults`
+  (секция «Режим конспекта» в профиле), per-lecture настройки приоритетнее.
+  Esc закрывает поповер, не оверлей.
 - Вопрос задаётся кнопкой «?» у абзаца конспекта (`useSegmentQuestions`):
   создаётся вопрос-снапшот в `lectureQuestions` (текст + startMs абзаца,
   `sourceSegmentId`), у отправленного абзаца «?» горит постоянно, повторный
-  клик удаляет свой вопрос; правка абзаца вопрос не обновляет. Модалки
-  «Спросить лектора» в оверлее больше нет. Вкладка «Чат» — лента вопросов
-  группы и расшаренных фрагментов конспектов по моментам лекции, чип-фильтр
-  «только вопросы», «Поделиться конспектом» (`VideoStudyQuestionsPanel`).
+  клик удаляет свой вопрос; правка абзаца вопрос не обновляет.
+- **Живой открытый конспект**: lecture-заметка либо приватная, либо открыта
+  (`visibility: 'group'|'lecturers'` + снапшоты `groupId`/`authorName` пишутся
+  каждым сейвом через `upsertLectureNote(options.share)`; правки видны сразу).
+  Вкладка «Чат» (`VideoStudyQuestionsPanel` + `buildChatFeed`) — единая лента
+  по таймкодам: вопросы группы, абзацы открытых конспектов одногруппников
+  (`useOpenLectureNotes`) и свои записи из локального draft («Вы»); чип-фильтр
+  «только вопросы». Лектор курса (canEditCourse) видит все вопросы занятия и
+  все открытые конспекты. Правила `notes`: чужие заметки читаются ТОЛЬКО
+  noteScope='lecture' с явной видимостью; manual/timeline и приватные — только
+  владелец (широкий `isAdmin()` из notes read убран этапом C). Прежний
+  share-контур (`ShareLectureNoteModal`, `sharedLectureNotes`) выпилен —
+  коллекция легаси, видна только на лекторском `/admin/questions`.
 - Панель конспекта не размонтируется при переключении вкладок (скрывается CSS):
   автосейв работает в фоне, индикатор ● отражает реальное состояние. Конспект
   свёрстан плотно: таймкод слева в строке абзаца, композер сразу под последним
-  абзацем. Идёт перестройка по ТЗ `docs/plans/study-mode-chat-redesign.md`
-  (этапы A и B выполнены 2026-08-25, этап C — живой открытый конспект — в работе).
+  абзацем. Перестройка по ТЗ `docs/plans/study-mode-chat-redesign.md`
+  выполнена целиком (этапы A/B/C — 2026-08-25).
 - Непрерывность: при входе inline-плеер ставится на паузу, оверлей продолжает с его
   позиции; при выходе inline-плеер получает позицию оверлея. Оверлейный плеер пишет
   resume-точку и отметку «просмотрено» так же, как inline.
@@ -59,7 +70,10 @@
 
 - `src/features/periods/components/VideoSection.tsx`
 - `src/features/periods/components/VideoStudyOverlay.tsx`
-- `src/features/periods/components/VideoStudyQuestionsPanel.tsx`
+- `src/features/periods/components/VideoStudyQuestionsPanel.tsx` (+ `lib/chatFeed.ts`)
+- `src/features/periods/components/StudySettingsMenu.tsx`
+- `src/features/periods/hooks/useSegmentQuestions.ts`, `useLectureNoteSharing.ts`
+- `src/hooks/useOpenLectureNotes.ts`
 - `src/features/periods/components/VideoTranscriptPanel.tsx`
 - `src/features/periods/lib/transcriptDisplay.ts`
 - `src/lib/decodeHtmlEntities.ts`
