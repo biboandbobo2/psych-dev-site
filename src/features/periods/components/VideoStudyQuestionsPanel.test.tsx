@@ -171,6 +171,37 @@ describe('VideoStudyQuestionsPanel', () => {
     expect(screen.getByText('Share modal')).toBeInTheDocument();
   });
 
+  it('чип «только вопросы» скрывает фрагменты конспектов из ленты', () => {
+    mocks.questions = [makeQuestion({ startMs: 60_000, text: 'Вопрос группы' })];
+    mocks.sharedNotes = [
+      {
+        id: 'share-1',
+        authorUid: 'user-2',
+        authorName: 'Пётр',
+        courseId: 'clinical',
+        periodId: 'clinical-1',
+        periodTitle: null,
+        lectureTitle: null,
+        videoId: 'video-1',
+        segments: [{ id: 's-1', startMs: 30_000, text: 'Фрагмент конспекта' }],
+        visibility: 'group',
+        groupId: 'group-1',
+        createdAt: new Date('2026-08-01T10:00:00Z'),
+      },
+    ];
+
+    renderPanel();
+
+    expect(screen.getByText('Фрагмент конспекта')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Показывать только вопросы' }));
+    expect(screen.queryByText('Фрагмент конспекта')).not.toBeInTheDocument();
+    expect(screen.getByText('Вопрос группы')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Показывать только вопросы' }));
+    expect(screen.getByText('Фрагмент конспекта')).toBeInTheDocument();
+  });
+
   it('гостю показывает вход вместо ленты', () => {
     mocks.user = null;
 

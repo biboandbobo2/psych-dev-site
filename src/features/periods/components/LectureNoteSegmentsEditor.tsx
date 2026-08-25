@@ -35,7 +35,7 @@ function TimestampButton({
       type="button"
       onClick={() => onClick(startMs)}
       aria-label={`Перейти к ${label}`}
-      className="inline-flex items-center rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-white/60 ring-1 ring-white/10 transition hover:bg-white/10"
+      className="mt-[3px] min-w-[2.75rem] shrink-0 text-left text-[11px] font-medium tabular-nums text-white/40 transition hover:text-white"
     >
       {label}
     </button>
@@ -78,30 +78,26 @@ export function LectureNoteSegmentsEditor({
   showComposer = true,
 }: LectureNoteSegmentsEditorProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-1">
       {segments.map((segment) => (
-        <section key={segment.id} className="border-b border-white/10 pb-4 last:border-b-0">
+        <section key={segment.id} className="flex items-start gap-2">
           {showTimestamps ? (
-            <div className="mb-3">
-              <TimestampButton startMs={segment.startMs} onClick={onTimestampClick} />
-            </div>
+            <TimestampButton startMs={segment.startMs} onClick={onTimestampClick} />
           ) : null}
           <AutoSizeTextarea
             value={segment.text}
             onChange={(event) => onSegmentChange(segment.id, event.target.value)}
             onBlur={() => onSegmentBlur(segment.id)}
-            className="min-h-[5.5rem] w-full resize-none bg-transparent text-sm leading-7 text-white outline-none placeholder:text-white/30"
+            className="w-full resize-none bg-transparent text-sm leading-6 text-white outline-none placeholder:text-white/30"
             aria-label="Сегмент конспекта"
           />
         </section>
       ))}
 
       {showComposer ? (
-        <section>
-          {showTimestamps && composer.startMs !== null ? (
-            <div className="mb-3">
-              <TimestampButton startMs={composer.startMs} onClick={onTimestampClick} />
-            </div>
+        <section className="flex items-start gap-2">
+          {showTimestamps ? (
+            <TimestampButton startMs={composer.startMs} onClick={onTimestampClick} />
           ) : null}
           <AutoSizeTextarea
             value={composer.text}
@@ -113,7 +109,7 @@ export function LectureNoteSegmentsEditor({
               }
             }}
             placeholder={'Пишите конспект по ходу лекции...'}
-            className="min-h-[6rem] w-full resize-none bg-transparent text-sm leading-7 text-white outline-none placeholder:text-white/30 lg:min-h-[12rem]"
+            className="w-full resize-none bg-transparent text-sm leading-6 text-white outline-none placeholder:text-white/30"
             aria-label="Заметки по лекции"
           />
         </section>

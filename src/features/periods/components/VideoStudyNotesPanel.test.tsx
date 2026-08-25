@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { VideoStudyNotesPanel } from './VideoStudyNotesPanel';
+import { VideoStudyNotesPanel, type LectureNoteSaveStatus } from './VideoStudyNotesPanel';
 import type { LectureNoteDraft, LectureNoteSegment } from '../../../types/notes';
 
 const mocks = vi.hoisted(() => ({
@@ -32,12 +32,14 @@ function renderPanel(props: {
   initialDraftSegments?: LectureNoteSegment[];
   initialDraftUpdatedAtMs?: number | null;
   lectureResourceId: string;
+  onSaveStatusChange?: (status: LectureNoteSaveStatus) => void;
   onTimestampClick?: (startMs: number) => void;
   periodId: string;
   periodTitle: string;
+  showTimestamps?: boolean;
   videoTitle: string;
 }) {
-  const { initialDraftSegments, initialDraftUpdatedAtMs, ...panelProps } = props;
+  const { initialDraftSegments, initialDraftUpdatedAtMs, showTimestamps, ...panelProps } = props;
 
   function TestPanel() {
     const [draft, setDraft] = useState<LectureNoteDraft>(() => ({
@@ -51,6 +53,7 @@ function renderPanel(props: {
         onDraftChange={setDraft}
         getPlaybackSnapshot={props.getPlaybackSnapshot}
         onTimestampClick={props.onTimestampClick ?? vi.fn()}
+        showTimestamps={showTimestamps ?? false}
         {...panelProps}
       />
     );
@@ -98,6 +101,7 @@ describe('VideoStudyNotesPanel', () => {
       ],
     });
     const handleTimestampClick = vi.fn();
+    const handleSaveStatusChange = vi.fn();
 
     renderPanel({
       courseId: 'development',
@@ -110,9 +114,11 @@ describe('VideoStudyNotesPanel', () => {
         },
       ],
       lectureResourceId: 'video-1',
+      onSaveStatusChange: handleSaveStatusChange,
       onTimestampClick: handleTimestampClick,
       periodId: 'school',
       periodTitle: 'Младший школьный возраст',
+      showTimestamps: true,
       videoTitle: 'Лекция 1',
     });
 
@@ -157,10 +163,9 @@ describe('VideoStudyNotesPanel', () => {
       )
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Таймкоды' }));
     fireEvent.click(screen.getByRole('button', { name: 'Перейти к 02:00' }));
     expect(handleTimestampClick).toHaveBeenCalledWith(120000);
-    expect(screen.getByRole('button', { name: 'Конспект сохранён' })).toBeInTheDocument();
+    await waitFor(() => expect(handleSaveStatusChange).toHaveBeenLastCalledWith('saved'));
   });
 
   it('clock-skew: локальный отличающийся черновик побеждает, даже если серверный updatedAt «свежее» по часам', async () => {

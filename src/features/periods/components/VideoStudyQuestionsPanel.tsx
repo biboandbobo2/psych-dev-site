@@ -118,8 +118,12 @@ export function VideoStudyQuestionsPanel({
   });
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [onlyQuestions, setOnlyQuestions] = useState(false);
 
   const feed = useMemo(() => buildFeed(questions, sharedNotes), [questions, sharedNotes]);
+  const visibleFeed = onlyQuestions
+    ? feed.filter((item) => item.kind === 'question')
+    : feed;
   const hasNoteContent = noteSegments.length > 0;
 
   const handleDeleteQuestion = async (questionId: string) => {
@@ -186,18 +190,31 @@ export function VideoStudyQuestionsPanel({
                   Поделиться конспектом
                 </button>
               ) : null}
+              <button
+                type="button"
+                onClick={() => setOnlyQuestions((current) => !current)}
+                aria-pressed={onlyQuestions}
+                aria-label="Показывать только вопросы"
+                className={`ml-auto rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                  onlyQuestions
+                    ? 'border-[color:var(--accent)] bg-[color:var(--accent)]/25 text-white'
+                    : 'border-white/10 bg-white/5 text-white/55 hover:text-white'
+                }`}
+              >
+                ? только вопросы
+              </button>
             </div>
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-2">
               {loading ? (
                 <p className="text-sm text-white/50">Загружаем вопросы…</p>
-              ) : feed.length === 0 ? (
+              ) : visibleFeed.length === 0 ? (
                 <p className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-white/60">
                   Пока никто не задал вопрос по этой лекции — будьте первым. Вопрос увидит
                   ваша группа, ведущий разберёт его на семинаре.
                 </p>
               ) : (
-                feed.map((item) => {
+                visibleFeed.map((item) => {
                   if (item.kind === 'question') {
                     const { question } = item;
                     const isOwn = question.authorUid === user.uid;
