@@ -180,6 +180,7 @@
 .ga-course-cover-terracotta { background: var(--ga-terracotta); }
 .ga-course-cover-cream { background: var(--ga-cream); }
 .ga-course-cover-lilac { background: var(--ga-lilac); }
+.ga-course-cover-plain { background: #eef0ec; }
 .ga-course-art {
   position: absolute;
   bottom: -5px;

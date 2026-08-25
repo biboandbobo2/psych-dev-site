@@ -53,7 +53,7 @@ const COURSE_VISUALS: CourseVisual[] = [
   },
 ];
 
-function visualForCourse(course: CourseOption, index: number): CourseVisual {
+function visualForCourse(course: CourseOption): CourseVisual | null {
   const haystack = `${course.id} ${course.name}`.toLocaleLowerCase('ru');
 
   if (haystack.includes('групп')) return COURSE_VISUALS[0];
@@ -63,31 +63,35 @@ function visualForCourse(course: CourseOption, index: number): CourseVisual {
   if (haystack.includes('клинич')) return COURSE_VISUALS[4];
   if (haystack.includes('гуманист') || haystack.includes('лекци')) return COURSE_VISUALS[5];
 
-  return COURSE_VISUALS[index % COURSE_VISUALS.length];
+  return null;
 }
 
 function CourseCard({
   course,
   isOpen,
-  index,
 }: {
   course: CourseOption;
   isOpen: boolean;
-  index: number;
 }) {
-  const visual = visualForCourse(course, index);
+  const visual = visualForCourse(course);
 
   return (
     <Link to={getCourseIntroPath(course.id)} className="ga-course-card">
-      <div className={`ga-course-cover ga-course-cover-${visual.tone}`}>
-        <div className="ga-course-art" aria-hidden="true">
-          <img src={visual.image} alt="" />
-        </div>
-        <span className="ga-course-label">{visual.label}</span>
+      <div
+        className={`ga-course-cover ${visual ? `ga-course-cover-${visual.tone}` : 'ga-course-cover-plain'}`}
+      >
+        {visual ? (
+          <>
+            <div className="ga-course-art" aria-hidden="true">
+              <img src={visual.image} alt="" />
+            </div>
+            <span className="ga-course-label">{visual.label}</span>
+          </>
+        ) : null}
       </div>
       <div className="ga-course-copy">
         <h3>{course.name}</h3>
-        <p>{visual.description}</p>
+        {visual ? <p>{visual.description}</p> : null}
         <span>{isOpen ? 'Смотреть бесплатно →' : 'Посмотреть структуру →'}</span>
       </div>
     </Link>
@@ -225,13 +229,8 @@ export function GuestLanding() {
           <p className="ga-loading">Проверяем доступность материалов…</p>
         ) : null}
         <div className="ga-course-grid">
-          {sortedCourses.map((course, index) => (
-            <CourseCard
-              key={course.id}
-              course={course}
-              isOpen={openCourseIds.has(course.id)}
-              index={index}
-            />
+          {sortedCourses.map((course) => (
+            <CourseCard key={course.id} course={course} isOpen={openCourseIds.has(course.id)} />
           ))}
         </div>
       </section>
