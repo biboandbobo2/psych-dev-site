@@ -1,95 +1,149 @@
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { SITE_NAME } from '../../routes';
-import { useCourses } from '../../hooks/useCourses';
+import { useCourses, type CourseOption } from '../../hooks/useCourses';
 import { useCoursesOpenness } from '../../hooks/useCoursesOpenness';
 import { getCourseIntroPath } from '../../lib/courseLinks';
 import { PageLoader } from '../../components/ui';
-import { usePlatformNews } from '../../hooks/usePlatformNews';
-import { PlatformNewsSection } from './PlatformNewsSection';
+import './guest-landing.css';
 
-interface FeatureItem {
-  icon: string;
-  title: string;
+type CourseVisual = {
+  image: string;
+  label: string;
   description: string;
-}
+  tone: string;
+};
 
-const FEATURES_AFTER_SIGN_IN: FeatureItem[] = [
+const COURSE_VISUALS: CourseVisual[] = [
   {
-    icon: '📝',
-    title: 'Тесты по занятиям и по курсу',
-    description: 'Закрепляйте материал — результаты сохраняются в истории.',
+    image: '/images/academy-home/group-therapy.webp',
+    label: 'Теория и практика групп',
+    description: 'Теории и практика работы с группой.',
+    tone: 'sage',
   },
   {
-    icon: '🗺️',
-    title: 'Таймлайн жизни',
-    description: 'Визуализируйте свой путь и связывайте события с теориями развития.',
+    image: '/images/academy-home/development.webp',
+    label: '14 периодов жизни',
+    description: 'От периода до рождения до глубокой старости.',
+    tone: 'ochre',
   },
   {
-    icon: '📓',
-    title: 'Заметки по лекциям',
-    description: 'Ведите конспекты прямо во время просмотра видео; всё привязано к курсу.',
+    image: '/images/academy-home/pathopsychology.webp',
+    label: 'Детский и взрослый возраст',
+    description: 'Норма, нарушения и методы исследования.',
+    tone: 'blue',
   },
   {
-    icon: '🤖',
-    title: 'AI-помощник и научный поиск',
-    description: 'Задавайте вопросы по лекциям, ищите статьи в OpenAlex и Semantic Scholar.',
+    image: '/images/academy-home/general-psychology.webp',
+    label: 'Базовые процессы психики',
+    description: 'Системное понимание психических процессов.',
+    tone: 'terracotta',
   },
   {
-    icon: '🔑',
-    title: 'Свой Gemini-ключ (BYOK)',
-    description: 'Подключите собственный API-ключ Gemini — и используйте его на сайте.',
+    image: '/images/academy-home/clinical-psychology.webp',
+    label: 'Введение в профессию',
+    description: 'Основные понятия, направления и задачи.',
+    tone: 'cream',
+  },
+  {
+    image: '/images/academy-home/humanistic-education.webp',
+    label: 'Архив редких лекций',
+    description: 'Записи встреч и профессиональных семинаров.',
+    tone: 'lilac',
   },
 ];
+
+function visualForCourse(course: CourseOption, index: number): CourseVisual {
+  const haystack = `${course.id} ${course.name}`.toLocaleLowerCase('ru');
+
+  if (haystack.includes('групп')) return COURSE_VISUALS[0];
+  if (course.id === 'development' || haystack.includes('развит')) return COURSE_VISUALS[1];
+  if (haystack.includes('патопсих')) return COURSE_VISUALS[2];
+  if (course.id === 'general' || haystack.includes('общая психолог')) return COURSE_VISUALS[3];
+  if (haystack.includes('клинич')) return COURSE_VISUALS[4];
+  if (haystack.includes('гуманист') || haystack.includes('лекци')) return COURSE_VISUALS[5];
+
+  return COURSE_VISUALS[index % COURSE_VISUALS.length];
+}
 
 function CourseCard({
   course,
   isOpen,
+  index,
 }: {
-  course: { id: string; name: string; icon: string; isCore?: boolean };
+  course: CourseOption;
   isOpen: boolean;
+  index: number;
 }) {
+  const visual = visualForCourse(course, index);
+
   return (
-    <Link
-      to={getCourseIntroPath(course.id)}
-      className="group flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-brand transition hover:-translate-y-0.5 hover:border-accent/40 hover:bg-accent-100/40"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-3xl" aria-hidden>
-          {course.icon || '📘'}
-        </span>
-        {isOpen ? (
-          <span className="inline-flex shrink-0 items-center rounded-full bg-accent-100 px-2.5 py-1 text-xs font-semibold text-accent">
-            Открытый доступ
-          </span>
-        ) : null}
+    <Link to={getCourseIntroPath(course.id)} className="ga-course-card">
+      <div className={`ga-course-cover ga-course-cover-${visual.tone}`}>
+        <div className="ga-course-art" aria-hidden="true">
+          <img src={visual.image} alt="" />
+        </div>
+        <span className="ga-course-label">{visual.label}</span>
       </div>
-      <h3 className="mt-3 text-lg font-semibold leading-snug text-fg">{course.name}</h3>
-      <p className="mt-1 text-sm text-muted">Курс платформы</p>
-      <span className="mt-auto pt-4">
-        {isOpen ? (
-          <span className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition group-hover:opacity-90">
-            ▶ Смотреть сейчас
-          </span>
-        ) : (
-          <span className="text-sm font-semibold text-accent">Посмотреть структуру →</span>
-        )}
-      </span>
+      <div className="ga-course-copy">
+        <h3>{course.name}</h3>
+        <p>{visual.description}</p>
+        <span>{isOpen ? 'Смотреть бесплатно →' : 'Посмотреть структуру →'}</span>
+      </div>
     </Link>
   );
 }
 
+const PLATFORM_FEATURES = [
+  {
+    number: '01',
+    eyebrow: 'Режим конспекта',
+    title: 'Видео, заметки и транскрипт — на одном экране',
+    description:
+      'Смотрите лекцию и фиксируйте мысли рядом с видео. Конспект сохраняется автоматически и остаётся привязанным к курсу.',
+    image: '/images/vozrast/screens/konspekt.jpg',
+    alt: 'Экран лекции с видео, конспектом и транскриптом',
+    caption: 'Лекция и личный конспект',
+    tone: 'blue',
+  },
+  {
+    number: '02',
+    eyebrow: 'Проверка знаний',
+    title: 'Тесты показывают, что усвоено, а к чему стоит вернуться',
+    description:
+      'Результаты сохраняются в профиле. Обучение дополняют AI-помощник, вопросы к семинарам и научный поиск.',
+    image: '/images/vozrast/screens/tests.jpg',
+    alt: 'Экран теста по занятию на платформе DOM Academy',
+    caption: 'Тесты по занятиям и курсам',
+    tone: 'ochre',
+  },
+  {
+    number: '03',
+    eyebrow: 'Таймлайн жизни',
+    title: 'Связывайте события с теориями развития',
+    description:
+      'Собирайте жизненный путь на интерактивном холсте: события, возрастные периоды, сферы жизни и развилки становятся видимой картой.',
+    image: '/images/vozrast/screens/timeline.jpg',
+    alt: 'Интерактивный таймлайн жизни с событиями по возрастам',
+    caption: 'Инструмент курса по психологии развития',
+    tone: 'sage',
+  },
+];
+
 export function GuestLanding() {
   const { courses, loading: coursesLoading } = useCourses();
   const { openCourseIds, loading: opennessLoading } = useCoursesOpenness(
-    courses.map((course) => course.id)
+    courses.map((course) => course.id),
   );
-  const { items: platformNews, loading: newsLoading } = usePlatformNews();
 
   if (coursesLoading) return <PageLoader />;
 
+  const sortedCourses = [...courses].sort(
+    (a, b) => Number(openCourseIds.has(b.id)) - Number(openCourseIds.has(a.id)),
+  );
+
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-8 py-6">
+    <div className="ga-page">
       <Helmet>
         <title>{SITE_NAME} — образовательная платформа по психологии</title>
         <meta
@@ -98,144 +152,163 @@ export function GuestLanding() {
         />
       </Helmet>
 
-      <section className="group relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-accent-100 to-mark p-8 shadow-brand transition hover:shadow-xl sm:p-10">
-        <Link
-          to="/about"
-          aria-label="О проекте: DOM Academy — Development Of Mind"
-          className="absolute inset-0 z-0 rounded-3xl"
-        >
-          <span className="sr-only">О проекте</span>
-        </Link>
-        <div className="pointer-events-none relative z-10">
-          <h1 className="text-4xl font-black uppercase tracking-[0.18em] text-accent sm:text-5xl">
-            DOM Academy
-          </h1>
-          <p className="mt-1 text-sm italic text-muted sm:text-base">Development Of Mind</p>
-          <p className="mt-5 max-w-2xl text-base text-fg/80 sm:text-lg">
-            Образовательная платформа по психологии и смежным с ней областям. Курсы, инструменты
-            для самостоятельной работы и научный поиск.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              to="/login"
-              className="pointer-events-auto inline-flex items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-            >
-              Войти / Зарегистрироваться
-            </Link>
-            <a
-              href="#catalog"
-              className="pointer-events-auto inline-flex items-center justify-center rounded-xl border border-accent/40 bg-card px-5 py-3 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
-            >
-              Посмотреть курсы
-            </a>
-          </div>
+      <section className="ga-panel ga-hero">
+        <p className="ga-eyebrow">Development of Mind</p>
+        <h1>DOM Academy</h1>
+        <p className="ga-hero-copy">
+          Образовательная платформа по психологии и смежным областям. Курсы, инструменты для
+          самостоятельной работы и научный поиск.
+        </p>
+        <div className="ga-actions">
+          <Link className="ga-button ga-button-primary" to="/login">
+            Войти / Зарегистрироваться
+          </Link>
+          <a className="ga-button ga-button-secondary" href="#catalog">
+            Посмотреть курсы
+          </a>
         </div>
       </section>
 
-      <PlatformNewsSection items={platformNews} loading={newsLoading} />
-
-      <section id="catalog" className="space-y-4">
+      <section className="ga-panel ga-about" id="about-academy">
         <div>
-          <h2 className="text-2xl font-bold text-fg">Наши курсы</h2>
-          <p className="mt-1 text-sm text-muted">
-            Нажмите на карточку, чтобы увидеть структуру курса и открыть вводную страницу.
-            «Открытый курс» доступен без регистрации.
+          <p className="ga-eyebrow">Об Академии</p>
+          <h2>Что такое DOM Academy</h2>
+          <p className="ga-about-copy">
+            DOM Academy — образовательная среда для тех, кто изучает психологию и развивает
+            собственную практику. Проект вырос из психологического центра и профессионального
+            сообщества DOM в Тбилиси, поэтому обучение здесь связано с живым опытом, встречами и
+            обменом. Академию делают Иракли Кобалия, Алексей Зыков и Анастасия Вологжанина. Для
+            команды это «не просто набор программ, а среда, в которой человек постепенно ищет
+            собственный путь в профессии».
+          </p>
+          <Link className="ga-text-link" to="/about">
+            Подробнее о проекте →
+          </Link>
+        </div>
+        <div className="ga-about-points">
+          <article>
+            <span>01</span>
+            <div>
+              <h3>Найти свой путь</h3>
+              <p>Изучать разные подходы и постепенно начинать практику.</p>
+            </div>
+          </article>
+          <article>
+            <span>02</span>
+            <div>
+              <h3>Расти в профессии</h3>
+              <p>Становиться специалистом, супервизором или преподавателем.</p>
+            </div>
+          </article>
+          <article>
+            <span>03</span>
+            <div>
+              <h3>Создавать своё</h3>
+              <p>Запускать группы, проекты и события, которые меняют что-то вокруг.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section className="ga-panel ga-courses" id="catalog">
+        <div className="ga-section-heading">
+          <div>
+            <p className="ga-eyebrow">Каталог</p>
+            <h2>Наши курсы</h2>
+          </div>
+          <p>
+            Выберите тему и откройте вводную страницу. Открытые курсы можно смотреть без
+            регистрации.
           </p>
         </div>
         {opennessLoading && courses.length > 0 ? (
-          <p className="text-sm text-muted">Проверяем доступность материалов...</p>
+          <p className="ga-loading">Проверяем доступность материалов…</p>
         ) : null}
-        <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
-          {[...courses]
-            .sort(
-              (a, b) =>
-                Number(openCourseIds.has(b.id)) - Number(openCourseIds.has(a.id))
-            )
-            .map((course) => (
-              <CourseCard key={course.id} course={course} isOpen={openCourseIds.has(course.id)} />
-            ))}
+        <div className="ga-course-grid">
+          {sortedCourses.map((course, index) => (
+            <CourseCard
+              key={course.id}
+              course={course}
+              isOpen={openCourseIds.has(course.id)}
+              index={index}
+            />
+          ))}
         </div>
       </section>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-2xl font-bold text-fg">После регистрации</h2>
-          <p className="mt-1 text-sm text-muted">
-            Зарегистрируйтесь, чтобы получить доступ к ключевым инструментам платформы.
+      <section className="ga-panel ga-platform" id="after-registration">
+        <div className="ga-platform-intro">
+          <p className="ga-eyebrow">Личный кабинет</p>
+          <h2>После регистрации</h2>
+          <p>
+            Платформа становится рабочим пространством: лекция, конспект, личный опыт и проверка
+            знаний связаны между собой.
           </p>
         </div>
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {FEATURES_AFTER_SIGN_IN.map((feature) => (
-            <li
-              key={feature.title}
-              className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4"
-            >
-              <span className="text-2xl" aria-hidden>
-                {feature.icon}
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-fg">{feature.title}</p>
-                <p className="mt-1 text-xs text-muted">{feature.description}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="rounded-2xl border border-border bg-card2 p-6 shadow-brand">
-        <p className="text-sm font-semibold text-muted">Приходите знакомиться лично</p>
-        <h2 className="mt-1 text-xl font-bold text-fg">
-          Психологический центр «Dom» в Тбилиси
-        </h2>
-        <p className="mt-2 text-sm text-muted">
-          Очные сессии и аренда кабинета для работы с клиентами. Мы объединяем DOM Academy с
-          сервисом бронирования центра.
-        </p>
-        <Link
-          to="/booking"
-          className="mt-4 inline-flex items-center gap-1 rounded-xl border border-accent/30 bg-accent-100 px-4 py-2 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
-        >
-          Бронирование кабинетов →
-        </Link>
-      </section>
-
-      <Link
-        to="/features"
-        className="block overflow-hidden rounded-2xl border border-border bg-mark shadow-brand transition hover:bg-[#FFE98C]"
-      >
-        <div className="px-6 py-4 sm:px-8 sm:py-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl sm:text-3xl">💡</span>
-              <div>
-                <h3 className="text-lg font-bold text-[#5a4b00] sm:text-xl">Возможности платформы</h3>
-                <p className="hidden text-sm text-[#5a4b00]/75 sm:block">
-                  Узнайте обо всех функциях: тесты, заметки, таймлайн, научный поиск
-                </p>
-              </div>
+        {PLATFORM_FEATURES.map((feature) => (
+          <article key={feature.number} className={`ga-feature ga-feature-${feature.tone}`}>
+            <div className="ga-feature-copy">
+              <span className="ga-feature-number">{feature.number}</span>
+              <p className="ga-feature-eyebrow">{feature.eyebrow}</p>
+              <h3>{feature.title}</h3>
+              <p>{feature.description}</p>
             </div>
-            <svg
-              className="h-6 w-6 text-[#5a4b00]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
+            <figure>
+              <img src={feature.image} alt={feature.alt} loading="lazy" />
+              <figcaption>{feature.caption}</figcaption>
+            </figure>
+          </article>
+        ))}
+        <div className="ga-platform-actions">
+          <Link className="ga-button ga-button-primary" to="/login">
+            Зарегистрироваться
+          </Link>
+          <Link className="ga-text-link" to="/features">
+            Все возможности платформы →
+          </Link>
         </div>
-      </Link>
+      </section>
 
-      <section className="rounded-2xl border border-border bg-gradient-to-br from-accent-100 to-mark p-6 text-center shadow-brand">
-        <p className="text-2xl font-bold text-fg">Готовы начать?</p>
-        <p className="mt-1 text-sm text-fg/75">
-          Регистрация занимает минуту — через Google.
-        </p>
-        <Link
-          to="/login"
-          className="mt-4 inline-flex items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-        >
-          Зарегистрироваться
+      <section className="ga-center" id="dom-center">
+        <div className="ga-center-image">
+          <img
+            src="/images/academy-home/dom-center.webp"
+            alt="Изумрудный кабинет психологического центра DOM"
+            loading="lazy"
+          />
+        </div>
+        <div className="ga-center-copy">
+          <div className="ga-center-brand">
+            <span>DOM</span>
+            <small>Психологический центр</small>
+          </div>
+          <p className="ga-eyebrow">Тбилиси · Орбелиани 38 / Мтквари 2</p>
+          <h2>Пространство для практики и встреч</h2>
+          <p>
+            Четыре кабинета для консультаций и небольших групп, а также зал для лекций,
+            практикумов и мастер-классов.
+          </p>
+          <div className="ga-center-facts">
+            <article>
+              <b>4 кабинета</b>
+              <small>для консультаций и небольших групп</small>
+            </article>
+            <article>
+              <b>Зал до 30 человек</b>
+              <small>лекции, группы и мастер-классы</small>
+            </article>
+          </div>
+          <Link className="ga-button ga-button-center" to="/booking">
+            Выбрать кабинет и время
+          </Link>
+        </div>
+      </section>
+
+      <section className="ga-panel ga-final">
+        <p className="ga-eyebrow">Начните знакомство с платформой</p>
+        <h2>Учитесь в своём темпе и сохраняйте всё важное в одном месте</h2>
+        <Link className="ga-button ga-button-primary" to="/login">
+          Войти / Зарегистрироваться
         </Link>
       </section>
     </div>
