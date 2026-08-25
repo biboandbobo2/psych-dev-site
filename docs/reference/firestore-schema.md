@@ -92,6 +92,12 @@ interface User {
   };
   prefsUpdatedAt?: Timestamp;
 
+  // Дефолты режима конспекта (секция «Режим конспекта» в профиле).
+  // Per-lecture настройка в шестерёнке оверлея (localStorage) приоритетнее.
+  studyDefaults?: {
+    questionsVisibility?: 'group' | 'lecturers';  // «мои вопросы видят», дефолт 'group'
+  };
+
   // Метаданные
   createdAt: Timestamp;
   lastLoginAt?: Timestamp;
@@ -457,6 +463,7 @@ interface LectureQuestion {
   text: string;                   // ≤ 2000 символов (правила)
   visibility: 'group' | 'lecturers';
   groupId: string | null;         // Обязателен при visibility='group'
+  sourceSegmentId: string | null; // Id абзаца конспекта, если вопрос создан кнопкой «?»
   createdAt: Timestamp;
 }
 ```
@@ -466,7 +473,9 @@ interface LectureQuestion {
 - create: только от своего имени; для `visibility='group'` — только участник группы
 - update: запрещён всем; delete: автор или лектор курса
 
-UI: секция «Вопросы к семинару» на странице занятия, кнопка «Задать вопрос» в оверлее конспекта, лекторский экран `/admin/questions`.
+Вопрос — **снапшот**: созданный кнопкой «?» вопрос хранит текст абзаца на момент отправки, правка абзаца его не обновляет; снятие «?» удаляет вопрос.
+
+UI: кнопка «?» у абзаца конспекта в оверлее, секция «Вопросы к семинару» на странице занятия, лекторский экран `/admin/questions`.
 
 ### `sharedLectureNotes/{shareId}`
 
