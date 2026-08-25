@@ -41,11 +41,6 @@ vi.mock('../../../components/LoginModal', () => ({
   default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div>Login modal</div> : null),
 }));
 
-vi.mock('./AskLectureQuestionModal', () => ({
-  AskLectureQuestionModal: ({ isOpen, startMs }: { isOpen: boolean; startMs: number | null }) =>
-    isOpen ? <div>Ask modal at {startMs}</div> : null,
-}));
-
 vi.mock('./ShareLectureNoteModal', () => ({
   ShareLectureNoteModal: ({ isOpen }: { isOpen: boolean }) =>
     isOpen ? <div>Share modal</div> : null,
@@ -65,6 +60,7 @@ function makeQuestion(overrides: Partial<LectureQuestion>): LectureQuestion {
     text: 'Вопрос по лекции',
     visibility: 'group',
     groupId: 'group-1',
+    sourceSegmentId: null,
     createdAt: new Date('2026-08-01T10:00:00Z'),
     ...overrides,
   };
@@ -79,7 +75,6 @@ function renderPanel() {
       lectureTitle="Лекция"
       videoId="video-1"
       noteSegments={[{ id: 's-1', startMs: 1000, text: 'Тезис' }]}
-      getPlaybackSnapshot={() => ({ currentTimeMs: 120_000, paused: false })}
       onTimestampClick={vi.fn()}
     />
   );
@@ -112,7 +107,7 @@ describe('VideoStudyQuestionsPanel', () => {
     expect(order[1]).toBeLessThan(order[2]);
   });
 
-  it('таймкод вопроса перематывает видео, «Спросить лектора» открывает модалку с текущим моментом', () => {
+  it('таймкод вопроса перематывает видео, кнопки «Спросить лектора» больше нет', () => {
     const onTimestampClick = vi.fn();
     mocks.questions = [makeQuestion({ startMs: 60_000 })];
 
@@ -124,7 +119,6 @@ describe('VideoStudyQuestionsPanel', () => {
         lectureTitle="Лекция"
         videoId="video-1"
         noteSegments={[]}
-        getPlaybackSnapshot={() => ({ currentTimeMs: 120_000, paused: false })}
         onTimestampClick={onTimestampClick}
       />
     );
@@ -132,8 +126,7 @@ describe('VideoStudyQuestionsPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Перейти к 01:00' }));
     expect(onTimestampClick).toHaveBeenCalledWith(60_000);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Спросить лектора' }));
-    expect(screen.getByText('Ask modal at 120000')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Спросить лектора' })).not.toBeInTheDocument();
   });
 
   it('«Поделиться конспектом» недоступна без сегментов и открывает модалку при их наличии', () => {
@@ -147,7 +140,6 @@ describe('VideoStudyQuestionsPanel', () => {
         lectureTitle="Лекция"
         videoId="video-1"
         noteSegments={[]}
-        getPlaybackSnapshot={() => ({ currentTimeMs: null, paused: true })}
         onTimestampClick={vi.fn()}
       />
     );
@@ -162,7 +154,6 @@ describe('VideoStudyQuestionsPanel', () => {
         lectureTitle="Лекция"
         videoId="video-1"
         noteSegments={[{ id: 's-1', startMs: null, text: 'Тезис' }]}
-        getPlaybackSnapshot={() => ({ currentTimeMs: null, paused: true })}
         onTimestampClick={vi.fn()}
       />
     );
@@ -207,7 +198,7 @@ describe('VideoStudyQuestionsPanel', () => {
 
     renderPanel();
 
-    expect(screen.queryByRole('button', { name: 'Спросить лектора' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Поделиться конспектом' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
     expect(screen.getByText('Login modal')).toBeInTheDocument();
   });

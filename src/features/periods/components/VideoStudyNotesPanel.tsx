@@ -27,6 +27,10 @@ interface VideoStudyNotesPanelProps {
   periodTitle: string;
   showTimestamps: boolean;
   videoTitle: string;
+  /** Сегменты с отправленным вопросом «?» (id → горит постоянно). */
+  questionedSegmentIds?: ReadonlySet<string>;
+  /** Тоггл вопроса-снапшота по абзацу; не передан — «?» скрыты (гость). */
+  onToggleSegmentQuestion?: (segment: LectureNoteSegment) => void;
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -51,6 +55,8 @@ export function VideoStudyNotesPanel({
   periodTitle,
   showTimestamps,
   videoTitle,
+  questionedSegmentIds,
+  onToggleSegmentQuestion,
 }: VideoStudyNotesPanelProps) {
   const user = useAuthStore((state) => state.user);
   const { getLectureNote, upsertLectureNote } = useNotes(undefined, { subscribe: false });
@@ -378,6 +384,8 @@ export function VideoStudyNotesPanel({
                 segments={segments}
                 showTimestamps={showTimestamps}
                 showComposer={isDesktop}
+                questionedSegmentIds={questionedSegmentIds}
+                onToggleSegmentQuestion={onToggleSegmentQuestion}
               />
             </div>
           </div>

@@ -10,7 +10,6 @@ import {
   useLessonSharedNotes,
   useSharedLectureNoteActions,
 } from '../../../hooks/useSharedLectureNotes';
-import { AskLectureQuestionModal } from './AskLectureQuestionModal';
 import { ShareLectureNoteModal } from './ShareLectureNoteModal';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { debugError } from '../../../lib/debug';
@@ -18,7 +17,6 @@ import { formatTimestampMs } from '../../../lib/formatTimestamp';
 import type { LectureNoteSegment } from '../../../types/notes';
 import type { LectureQuestion } from '../../../types/lectureQuestions';
 import type { SharedLectureNote } from '../../../types/sharedLectureNotes';
-import type { StudyVideoPlaybackSnapshot } from './StudyVideoPlayer';
 
 interface VideoStudyQuestionsPanelProps {
   courseId: string;
@@ -28,7 +26,6 @@ interface VideoStudyQuestionsPanelProps {
   videoId: string | null;
   /** Текущие сегменты конспекта — для «Поделиться конспектом» */
   noteSegments: LectureNoteSegment[];
-  getPlaybackSnapshot: () => StudyVideoPlaybackSnapshot;
   onTimestampClick: (startMs: number) => void;
 }
 
@@ -94,7 +91,6 @@ export function VideoStudyQuestionsPanel({
   lectureTitle,
   videoId,
   noteSegments,
-  getPlaybackSnapshot,
   onTimestampClick,
 }: VideoStudyQuestionsPanelProps) {
   const user = useAuthStore((s) => s.user);
@@ -112,10 +108,6 @@ export function VideoStudyQuestionsPanel({
   const { deleteQuestion } = useLectureQuestionActions();
   const { deleteSharedNote } = useSharedLectureNoteActions();
 
-  const [askState, setAskState] = useState<{ isOpen: boolean; startMs: number | null }>({
-    isOpen: false,
-    startMs: null,
-  });
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [onlyQuestions, setOnlyQuestions] = useState(false);
@@ -163,18 +155,6 @@ export function VideoStudyQuestionsPanel({
         ) : (
           <>
             <div className="mb-4 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setAskState({
-                    isOpen: true,
-                    startMs: getPlaybackSnapshot().currentTimeMs,
-                  })
-                }
-                className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-              >
-                Спросить лектора
-              </button>
               {isDesktop ? (
                 <button
                   type="button"
@@ -210,8 +190,9 @@ export function VideoStudyQuestionsPanel({
                 <p className="text-sm text-white/50">Загружаем вопросы…</p>
               ) : visibleFeed.length === 0 ? (
                 <p className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-white/60">
-                  Пока никто не задал вопрос по этой лекции — будьте первым. Вопрос увидит
-                  ваша группа, ведущий разберёт его на семинаре.
+                  Пока никто не задал вопрос по этой лекции. Отметьте абзац конспекта
+                  кнопкой «?» — вопрос увидит ваша группа, ведущий разберёт его на
+                  семинаре.
                 </p>
               ) : (
                 visibleFeed.map((item) => {
@@ -303,17 +284,6 @@ export function VideoStudyQuestionsPanel({
       </aside>
 
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
-
-      <AskLectureQuestionModal
-        isOpen={askState.isOpen}
-        onClose={() => setAskState({ isOpen: false, startMs: null })}
-        courseId={courseId}
-        periodId={periodId}
-        periodTitle={periodTitle}
-        lectureTitle={lectureTitle}
-        videoId={videoId}
-        startMs={askState.startMs}
-      />
 
       <ShareLectureNoteModal
         isOpen={isShareOpen}

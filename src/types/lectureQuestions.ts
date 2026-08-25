@@ -16,6 +16,11 @@ export interface LectureQuestion {
   visibility: LectureQuestionVisibility;
   /** Обязателен при visibility='group'. */
   groupId: string | null;
+  /**
+   * Id сегмента конспекта, из которого вопрос создан кнопкой «?».
+   * Вопрос — снапшот: правка абзаца после отправки вопрос не обновляет.
+   */
+  sourceSegmentId: string | null;
   createdAt: Date;
 }
 
@@ -29,6 +34,7 @@ export interface LectureQuestionInput {
   text: string;
   visibility: LectureQuestionVisibility;
   groupId?: string | null;
+  sourceSegmentId?: string | null;
 }
 
 export const LECTURE_QUESTION_MAX_LENGTH = 2000;
@@ -50,6 +56,7 @@ export function mapLectureQuestionRecord(
     text: typeof data.text === 'string' ? data.text : '',
     visibility: data.visibility === 'lecturers' ? 'lecturers' : 'group',
     groupId: typeof data.groupId === 'string' ? data.groupId : null,
+    sourceSegmentId: typeof data.sourceSegmentId === 'string' ? data.sourceSegmentId : null,
     createdAt:
       (data.createdAt as { toDate?: () => Date } | undefined)?.toDate?.() ?? new Date(),
   };

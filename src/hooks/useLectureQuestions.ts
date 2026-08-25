@@ -45,6 +45,7 @@ export function useLectureQuestionActions() {
         text: input.text,
         visibility: input.visibility,
         groupId: input.visibility === 'group' ? input.groupId ?? null : null,
+        sourceSegmentId: input.sourceSegmentId ?? null,
         createdAt: serverTimestamp(),
       };
 
@@ -79,6 +80,42 @@ export function useLessonQuestions(
   );
 
   return { questions: docs, loading };
+}
+
+/**
+ * Свои вопросы занятия (любой видимости) — для отметок «?» на абзацах
+ * конспекта. Отдельный листенер: equality-фильтры по authorUid не входят
+ * в контур useLessonScopedDocs (см. LP-17 — подписки не плодить без нужды).
+ */
+export function useMyLectureQuestions(courseId: string | null, periodId: string | null) {
+  const user = useAuthStore((s) => s.user);
+  const [questions, setQuestions] = useState<LectureQuestion[]>([]);
+
+  useEffect(() => {
+    if (!courseId || !periodId || !user) {
+      setQuestions([]);
+      return undefined;
+    }
+
+    const unsubscribe = onSnapshot(
+      query(
+        collection(db, 'lectureQuestions'),
+        where('authorUid', '==', user.uid),
+        where('courseId', '==', courseId),
+        where('periodId', '==', periodId)
+      ),
+      (snap) => {
+        setQuestions(snap.docs.map((d) => mapLectureQuestionRecord(d.id, d.data())));
+      },
+      (err) => {
+        debugError('[useMyLectureQuestions] snapshot error', err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [courseId, periodId, user]);
+
+  return questions;
 }
 
 /** Все вопросы курса — для лектора (правила требуют canEditCourse). */

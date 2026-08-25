@@ -36,15 +36,16 @@ export function normalizeGroupDoc(id: string, data: unknown): Group | null {
 
 /**
  * Подписка на группы, в которых состоит текущий пользователь.
- * Возвращает [] пока не авторизован.
+ * Возвращает [] пока не авторизован. `enabled: false` не открывает
+ * листенер (для компонентов, смонтированных, но скрытых — LP-17).
  */
-export function useMyGroups() {
+export function useMyGroups(enabled = true) {
   const user = useAuthStore((s) => s.user);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !enabled) {
       setGroups([]);
       setLoading(false);
       return;
@@ -70,7 +71,7 @@ export function useMyGroups() {
       }
     );
     return () => unsubscribe();
-  }, [user]);
+  }, [user, enabled]);
 
   return { groups, loading };
 }
