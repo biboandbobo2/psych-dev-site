@@ -13,6 +13,7 @@ import { VideoTranscriptPanel } from './VideoTranscriptPanel';
 import { TranscriptExplainCard } from './TranscriptExplainCard';
 import { StudySettingsMenu } from './StudySettingsMenu';
 import { useLectureExplain } from '../hooks/useLectureExplain';
+import { useLectureNoteSharing } from '../hooks/useLectureNoteSharing';
 import { useSegmentQuestions } from '../hooks/useSegmentQuestions';
 import { useVideoTranscript } from '../../../hooks';
 import { trackFeatureEvent } from '../../../lib/telemetry';
@@ -92,6 +93,7 @@ export function VideoStudyOverlay({
 
   const {
     isSignedIn,
+    targetGroupId,
     questionsVisibility,
     setQuestionsVisibility,
     questionedSegmentIds,
@@ -105,6 +107,9 @@ export function VideoStudyOverlay({
     youtubeVideoId,
     lectureKey,
   });
+
+  const { noteVisibility, setNoteVisibility, onNoteVisibilityLoaded, noteShare } =
+    useLectureNoteSharing({ lectureKey, targetGroupId });
 
   useEffect(() => {
     if (!isOpen) {
@@ -338,6 +343,8 @@ export function VideoStudyOverlay({
                 showQuestionsVisibility={isSignedIn}
                 questionsVisibility={questionsVisibility}
                 onQuestionsVisibilityChange={setQuestionsVisibility}
+                noteVisibility={noteVisibility}
+                onNoteVisibilityChange={setNoteVisibility}
               />
             </div>
           </div>
@@ -366,8 +373,6 @@ export function VideoStudyOverlay({
             <VideoStudyQuestionsPanel
               courseId={courseId}
               periodId={periodId}
-              periodTitle={periodTitle.trim() || videoTitle}
-              lectureTitle={videoTitle}
               videoId={youtubeVideoId}
               noteSegments={draft.segments}
               onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
@@ -397,6 +402,8 @@ export function VideoStudyOverlay({
               videoTitle={videoTitle}
               questionedSegmentIds={questionedSegmentIds}
               onToggleSegmentQuestion={isSignedIn ? toggleSegmentQuestion : undefined}
+              noteShare={noteShare}
+              onNoteVisibilityLoaded={onNoteVisibilityLoaded}
             />
           </div>
         </aside>

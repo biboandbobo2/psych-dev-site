@@ -262,9 +262,31 @@ service cloud.firestore {
       allow write: if isOwner(userId);
     }
 
+    // Личные заметки. Живой открытый конспект (этап C редизайна конспекта):
+    // чужие notes читаются ТОЛЬКО при noteScope='lecture' с ЯВНОЙ видимостью
+    // ('group' — одногруппники автора через per-doc get() членства, как в
+    // lectureQuestions; 'group'/'lecturers' — лекторы курса). manual/timeline
+    // заметки и приватные конспекты не открываются никому, кроме владельца:
+    // прежний широкий `|| isAdmin()` сознательно убран этапом C (клиентских
+    // админ-чтений чужих notes не было; Admin SDK правила не ограничивают).
+    // Клиентские list-запросы фиксируют noteScope+visibility+groupId
+    // equality-фильтрами, иначе правило непровабельно.
     match /notes/{noteId} {
+      function isOpenLectureNote() {
+        return resource.data.noteScope == 'lecture' &&
+          resource.data.visibility in ['group', 'lecturers'];
+      }
+      function isLectureNoteGroupMember() {
+        return isOpenLectureNote() &&
+          resource.data.visibility == 'group' &&
+          resource.data.groupId is string &&
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.memberIds;
+      }
+
       allow read: if isAuthenticated() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
+        (resource.data.userId == request.auth.uid
+          || isLectureNoteGroupMember()
+          || (isOpenLectureNote() && canEditCourse(resource.data.courseId)));
       allow create: if isAuthenticated() &&
         request.resource.data.userId == request.auth.uid;
       allow update: if isAuthenticated() &&

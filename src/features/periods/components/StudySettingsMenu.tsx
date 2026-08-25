@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LectureQuestionVisibility } from '../../../types/lectureQuestions';
+import type { LectureNoteVisibility } from '../../../types/notes';
 
 interface StudySettingsMenuProps {
   showTimestamps: boolean;
   onToggleTimestamps: () => void;
-  /** false — гость: блок видимости вопросов скрыт. */
+  /** false — гость: блоки видимости скрыты. */
   showQuestionsVisibility: boolean;
   questionsVisibility: LectureQuestionVisibility;
   onQuestionsVisibilityChange: (value: LectureQuestionVisibility) => void;
+  noteVisibility: LectureNoteVisibility;
+  onNoteVisibilityChange: (value: LectureNoteVisibility) => void;
 }
 
 /** Шестерёнка ⚙ в строке вкладок оверлея с поповером настроек конспекта. */
@@ -17,6 +20,8 @@ export function StudySettingsMenu({
   showQuestionsVisibility,
   questionsVisibility,
   onQuestionsVisibilityChange,
+  noteVisibility,
+  onNoteVisibilityChange,
 }: StudySettingsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -86,21 +91,48 @@ export function StudySettingsMenu({
           </div>
 
           {showQuestionsVisibility ? (
-            <div className="mt-3 border-t border-white/10 pt-3">
-              <p className="text-xs text-white/50">Мои вопросы видят · эта лекция</p>
-              <div role="radiogroup" aria-label="Мои вопросы видят" className="mt-2 flex gap-1">
-                <VisibilityOption
-                  label="Группа и лекторы"
-                  isActive={questionsVisibility === 'group'}
-                  onClick={() => onQuestionsVisibilityChange('group')}
-                />
-                <VisibilityOption
-                  label="Только лекторы"
-                  isActive={questionsVisibility === 'lecturers'}
-                  onClick={() => onQuestionsVisibilityChange('lecturers')}
-                />
+            <>
+              <div className="mt-3 border-t border-white/10 pt-3">
+                <p className="text-xs text-white/50">Мои вопросы видят · эта лекция</p>
+                <div role="radiogroup" aria-label="Мои вопросы видят" className="mt-2 flex gap-1">
+                  <VisibilityOption
+                    label="Группа и лекторы"
+                    isActive={questionsVisibility === 'group'}
+                    onClick={() => onQuestionsVisibilityChange('group')}
+                  />
+                  <VisibilityOption
+                    label="Только лекторы"
+                    isActive={questionsVisibility === 'lecturers'}
+                    onClick={() => onQuestionsVisibilityChange('lecturers')}
+                  />
+                </div>
               </div>
-            </div>
+
+              <div className="mt-3 border-t border-white/10 pt-3">
+                <p className="text-xs text-white/50">Мой конспект видят · эта лекция</p>
+                <div role="radiogroup" aria-label="Мой конспект видят" className="mt-2 flex gap-1">
+                  <VisibilityOption
+                    label="Только я"
+                    isActive={noteVisibility === 'private'}
+                    onClick={() => onNoteVisibilityChange('private')}
+                  />
+                  <VisibilityOption
+                    label="Группа"
+                    isActive={noteVisibility === 'group'}
+                    onClick={() => onNoteVisibilityChange('group')}
+                  />
+                  <VisibilityOption
+                    label="Лекторы"
+                    isActive={noteVisibility === 'lecturers'}
+                    onClick={() => onNoteVisibilityChange('lecturers')}
+                  />
+                </div>
+                <p className="mt-2 text-[11px] leading-4 text-white/35">
+                  Открытый конспект виден живьём: правки появляются сразу.
+                  «Группа» — группа и лекторы.
+                </p>
+              </div>
+            </>
           ) : null}
         </div>
       ) : null}

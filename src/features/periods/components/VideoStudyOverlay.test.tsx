@@ -22,15 +22,20 @@ vi.mock('./VideoStudyNotesPanel', () => ({
     showTimestamps,
     questionedSegmentIds,
     onToggleSegmentQuestion,
+    noteShare,
   }: {
     onSaveStatusChange?: (status: LectureNoteSaveStatus) => void;
     showTimestamps: boolean;
     questionedSegmentIds?: ReadonlySet<string>;
     onToggleSegmentQuestion?: (segment: LectureNoteSegment) => void;
+    noteShare?: { visibility: string; groupId: string | null };
   }) => (
     <div>
       <div>Notes panel, timestamps: {showTimestamps ? 'on' : 'off'}</div>
       <div>questioned: {[...(questionedSegmentIds ?? [])].join(',') || 'none'}</div>
+      <div>
+        share: {noteShare ? `${noteShare.visibility}:${noteShare.groupId ?? 'none'}` : 'none'}
+      </div>
       <button type="button" onClick={() => onSaveStatusChange?.('saved')}>
         report saved
       </button>
@@ -49,10 +54,16 @@ vi.mock('./VideoStudyNotesPanel', () => ({
 vi.mock('../../../stores/useAuthStore', () => ({
   useAuthStore: (
     selector: (state: {
-      user: { uid: string } | null;
+      user: { uid: string; displayName: string | null } | null;
       studyQuestionsDefaultVisibility: 'group' | 'lecturers' | null;
+      studyNoteDefaultVisibility: 'private' | 'group' | 'lecturers' | null;
     }) => unknown
-  ) => selector({ user: mocks.user, studyQuestionsDefaultVisibility: null }),
+  ) =>
+    selector({
+      user: mocks.user ? { ...mocks.user, displayName: 'Алексей' } : null,
+      studyQuestionsDefaultVisibility: null,
+      studyNoteDefaultVisibility: null,
+    }),
 }));
 
 vi.mock('../../../hooks/useMyGroups', () => ({
@@ -210,6 +221,24 @@ describe('VideoStudyOverlay', () => {
     expect(mocks.createQuestion).toHaveBeenLastCalledWith(
       expect.objectContaining({ visibility: 'lecturers', groupId: null })
     );
+  });
+
+  it('«Мой конспект видят»: дефолт «только я», выбор группы даёт share с целевой группой', () => {
+    renderOverlay();
+
+    expect(screen.getByText('share: private:none')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Настройки конспекта' }));
+    expect(screen.getByRole('radio', { name: 'Только я' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Группа' }));
+    expect(screen.getByText('share: group:group-1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Лекторы' }));
+    expect(screen.getByText('share: lecturers:none')).toBeInTheDocument();
   });
 
   it('повторный «?» по отмеченному абзацу удаляет свой вопрос', () => {

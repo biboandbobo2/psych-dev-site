@@ -140,6 +140,8 @@ export function useSegmentQuestions({
   return {
     /** null — гость: «?» не показываем. */
     isSignedIn: Boolean(user),
+    /** Первая учебная группа пользователя — целевая для вопросов и конспекта. */
+    targetGroupId,
     questionsVisibility,
     setQuestionsVisibility,
     questionedSegmentIds,

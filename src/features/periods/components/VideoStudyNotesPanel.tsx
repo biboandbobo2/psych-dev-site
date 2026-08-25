@@ -7,7 +7,9 @@ import {
   normalizeLectureNoteSegments,
   type LectureNoteDraft,
   type LectureNoteSegment,
+  type LectureNoteVisibility,
 } from '../../../types/notes';
+import type { LectureNoteShare } from '../hooks/useLectureNoteSharing';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import type { StudyVideoPlaybackSnapshot } from './StudyVideoPlayer';
 import { LectureNoteSegmentsEditor } from './LectureNoteSegmentsEditor';
@@ -31,9 +33,20 @@ interface VideoStudyNotesPanelProps {
   questionedSegmentIds?: ReadonlySet<string>;
   /** Тоггл вопроса-снапшота по абзацу; не передан — «?» скрыты (гость). */
   onToggleSegmentQuestion?: (segment: LectureNoteSegment) => void;
+  /**
+   * «Мой конспект видят» из шестерёнки: пишется каждым сейвом; смена
+   * значения при существующем конспекте триггерит отдельный сейв.
+   */
+  noteShare?: LectureNoteShare;
+  /** Репорт видимости загруженной заметки вверх (null — заметки ещё нет). */
+  onNoteVisibilityLoaded?: (visibility: LectureNoteVisibility | null) => void;
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+function buildShareSignature(share: LectureNoteShare) {
+  return `${share.visibility}|${share.groupId ?? ''}`;
+}
 
 export type LectureNoteSaveStatus =
   | 'signed-out'
@@ -57,6 +70,8 @@ export function VideoStudyNotesPanel({
   videoTitle,
   questionedSegmentIds,
   onToggleSegmentQuestion,
+  noteShare,
+  onNoteVisibilityLoaded,
 }: VideoStudyNotesPanelProps) {
   const user = useAuthStore((state) => state.user);
   const { getLectureNote, upsertLectureNote } = useNotes(undefined, { subscribe: false });
@@ -105,6 +120,9 @@ export function VideoStudyNotesPanel({
     setLastSavedSignature(signature);
   }, []);
   const isDirty = persistedSignature !== lastSavedSignature;
+  // Сигнатура видимости последнего сейва: отличие от текущей настройки
+  // «мой конспект видят» триггерит отдельный сейв без правки текста.
+  const lastSavedShareRef = useRef<string | null>(null);
   // Последняя версия черновика, известная панели (локальные правки либо прокинутый prop).
   const latestDraftRef = useRef<LectureNoteDraft>(draft);
   const lastPublishedSignatureRef = useRef(persistedSignature);
@@ -140,8 +158,12 @@ export function VideoStudyNotesPanel({
       try {
         await upsertLectureNote(nextContent, lectureContext, {
           lectureSegments: nextSegments,
+          share: noteShare,
         });
         markSavedSignature(JSON.stringify(nextSegments));
+        if (noteShare) {
+          lastSavedShareRef.current = buildShareSignature(noteShare);
+        }
 
         if (!options?.silent) {
           setSaveState(nextSegments.length > 0 ? 'saved' : 'idle');
@@ -156,7 +178,7 @@ export function VideoStudyNotesPanel({
         return false;
       }
     },
-    [lectureContext, markSavedSignature, upsertLectureNote, user]
+    [lectureContext, markSavedSignature, noteShare, upsertLectureNote, user]
   );
 
   useEffect(() => {
@@ -182,6 +204,10 @@ export function VideoStudyNotesPanel({
         );
         const savedSignature = JSON.stringify(savedSegments);
         markSavedSignature(savedSignature);
+        onNoteVisibilityLoaded?.(note ? note.visibility ?? 'private' : null);
+        lastSavedShareRef.current = note
+          ? `${note.visibility ?? 'private'}|${note.groupId ?? ''}`
+          : null;
 
         // Локальный черновик побеждает, если он публиковался в этой сессии
         // (updatedAtMs выставлен) и реально отличается от сохранённой версии;
@@ -218,7 +244,31 @@ export function VideoStudyNotesPanel({
     return () => {
       cancelled = true;
     };
-  }, [getLectureNote, lectureContext, markSavedSignature, resetDraft, user]);
+  }, [getLectureNote, lectureContext, markSavedSignature, onNoteVisibilityLoaded, resetDraft, user]);
+
+  // Смена «мой конспект видят» при уже сохранённом конспекте: отдельный сейв,
+  // если текст чист (dirty-текст запишет новую видимость обычным автосейвом).
+  const shareSignature = noteShare ? buildShareSignature(noteShare) : null;
+  useEffect(() => {
+    if (!user || isHydrating || !shareSignature || !hasContent || isDirty) {
+      return;
+    }
+
+    if (lastSavedShareRef.current === shareSignature) {
+      return;
+    }
+
+    void saveLectureNote(plainText, persistedSegments);
+  }, [
+    hasContent,
+    isDirty,
+    isHydrating,
+    persistedSegments,
+    plainText,
+    saveLectureNote,
+    shareSignature,
+    user,
+  ]);
 
   useEffect(() => {
     if (!user || isHydrating) {

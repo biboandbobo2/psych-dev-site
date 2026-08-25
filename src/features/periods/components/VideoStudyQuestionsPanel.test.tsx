@@ -2,48 +2,65 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VideoStudyQuestionsPanel } from './VideoStudyQuestionsPanel';
 import type { LectureQuestion } from '../../../types/lectureQuestions';
-import type { SharedLectureNote } from '../../../types/sharedLectureNotes';
+import type { OpenLectureNote } from '../../../hooks/useOpenLectureNotes';
+import type { UserRole } from '../../../types/user';
 
 const mocks = vi.hoisted(() => ({
   user: { uid: 'user-1' } as { uid: string } | null,
-  questions: [] as LectureQuestion[],
-  sharedNotes: [] as SharedLectureNote[],
+  userRole: null as UserRole | null,
+  adminEditableCourses: [] as string[],
+  groupQuestions: [] as LectureQuestion[],
+  allQuestions: [] as LectureQuestion[],
+  groupOpenNotes: [] as OpenLectureNote[],
+  allOpenNotes: [] as OpenLectureNote[],
   deleteQuestion: vi.fn(),
-  deleteSharedNote: vi.fn(),
+  lessonQuestionsScope: [] as Array<string | null>,
+  allQuestionsScope: [] as Array<string | null>,
 }));
 
 vi.mock('../../../stores/useAuthStore', () => ({
-  useAuthStore: (selector: (state: { user: { uid: string } | null }) => unknown) =>
-    selector({ user: mocks.user }),
+  useAuthStore: (
+    selector: (state: {
+      user: { uid: string } | null;
+      userRole: UserRole | null;
+      adminEditableCourses: string[];
+    }) => unknown
+  ) =>
+    selector({
+      user: mocks.user,
+      userRole: mocks.userRole,
+      adminEditableCourses: mocks.adminEditableCourses,
+    }),
 }));
 
 vi.mock('../../../hooks/useMyGroups', () => ({
-  useMyGroups: () => ({ groups: [{ id: 'group-1', isSystem: false }] }),
+  useMyGroups: () => ({ groups: [{ id: 'group-1', isSystem: false }], loading: false }),
 }));
 
 vi.mock('../../../hooks/useLectureQuestions', () => ({
-  useLessonQuestions: () => ({ questions: mocks.questions, loading: false }),
+  useLessonQuestions: (courseId: string | null) => {
+    mocks.lessonQuestionsScope.push(courseId);
+    return { questions: courseId ? mocks.groupQuestions : [], loading: false };
+  },
+  useLessonAllQuestions: (courseId: string | null) => {
+    mocks.allQuestionsScope.push(courseId);
+    return { questions: courseId ? mocks.allQuestions : [], loading: false };
+  },
   useLectureQuestionActions: () => ({
     createQuestion: vi.fn(),
     deleteQuestion: mocks.deleteQuestion,
   }),
 }));
 
-vi.mock('../../../hooks/useSharedLectureNotes', () => ({
-  useLessonSharedNotes: () => ({ sharedNotes: mocks.sharedNotes }),
-  useSharedLectureNoteActions: () => ({
-    shareLectureNote: vi.fn(),
-    deleteSharedNote: mocks.deleteSharedNote,
-  }),
+vi.mock('../../../hooks/useOpenLectureNotes', () => ({
+  useLessonGroupOpenNotes: (courseId: string | null) =>
+    courseId ? mocks.groupOpenNotes : [],
+  useLessonAllOpenNotes: (courseId: string | null) =>
+    courseId ? mocks.allOpenNotes : [],
 }));
 
 vi.mock('../../../components/LoginModal', () => ({
   default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div>Login modal</div> : null),
-}));
-
-vi.mock('./ShareLectureNoteModal', () => ({
-  ShareLectureNoteModal: ({ isOpen }: { isOpen: boolean }) =>
-    isOpen ? <div>Share modal</div> : null,
 }));
 
 function makeQuestion(overrides: Partial<LectureQuestion>): LectureQuestion {
@@ -66,15 +83,26 @@ function makeQuestion(overrides: Partial<LectureQuestion>): LectureQuestion {
   };
 }
 
-function renderPanel() {
+function makeOpenNote(overrides: Partial<OpenLectureNote>): OpenLectureNote {
+  return {
+    id: 'note-1',
+    userId: 'user-2',
+    authorName: 'Пётр',
+    lectureVideoId: 'video-1',
+    visibility: 'group',
+    segments: [{ id: 's-1', startMs: 30_000, text: 'Дисрегуляция — когда система…' }],
+    updatedAt: new Date('2026-08-01T10:00:00Z'),
+    ...overrides,
+  };
+}
+
+function renderPanel(noteSegments: Array<{ id: string; startMs: number | null; text: string }> = []) {
   return render(
     <VideoStudyQuestionsPanel
       courseId="clinical"
       periodId="clinical-1"
-      periodTitle="Занятие"
-      lectureTitle="Лекция"
       videoId="video-1"
-      noteSegments={[{ id: 's-1', startMs: 1000, text: 'Тезис' }]}
+      noteSegments={noteSegments}
       onTimestampClick={vi.fn()}
     />
   );
@@ -83,114 +111,70 @@ function renderPanel() {
 describe('VideoStudyQuestionsPanel', () => {
   beforeEach(() => {
     mocks.user = { uid: 'user-1' };
-    mocks.questions = [];
-    mocks.sharedNotes = [];
+    mocks.userRole = null;
+    mocks.adminEditableCourses = [];
+    mocks.groupQuestions = [];
+    mocks.allQuestions = [];
+    mocks.groupOpenNotes = [];
+    mocks.allOpenNotes = [];
+    mocks.deleteQuestion.mockReset();
+    mocks.lessonQuestionsScope = [];
+    mocks.allQuestionsScope = [];
   });
 
-  it('сортирует ленту по моменту лекции, вопросы без якоря — в конец', () => {
-    mocks.questions = [
+  it('единая лента: вопросы, абзацы открытых конспектов и свои записи по таймкодам', () => {
+    mocks.groupQuestions = [
       makeQuestion({ id: 'late', startMs: 300_000, text: 'Поздний вопрос' }),
-      makeQuestion({ id: 'unanchored', startMs: null, text: 'Вопрос без момента' }),
-      makeQuestion({ id: 'early', startMs: 60_000, text: 'Ранний вопрос' }),
     ];
+    mocks.groupOpenNotes = [makeOpenNote({})];
 
-    renderPanel();
+    renderPanel([{ id: 'own-1', startMs: 100_000, text: 'Мой тезис' }]);
 
     const texts = screen
-      .getAllByText(/вопрос/i)
-      .map((node) => node.textContent)
-      .filter((text) => text?.includes('вопрос') || text?.includes('Вопрос'));
-    const order = ['Ранний вопрос', 'Поздний вопрос', 'Вопрос без момента'].map((expected) =>
-      texts.findIndex((text) => text === expected)
-    );
-    expect(order[0]).toBeLessThan(order[1]);
-    expect(order[1]).toBeLessThan(order[2]);
+      .getAllByText(/Дисрегуляция|Мой тезис|Поздний вопрос/)
+      .map((node) => node.textContent);
+    // 00:30 конспект Петра → 01:40 свой абзац → 05:00 вопрос
+    expect(texts).toEqual(['Дисрегуляция — когда система…', 'Мой тезис', 'Поздний вопрос']);
+    expect(screen.getByText('Пётр')).toBeInTheDocument();
+    expect(screen.getByText('Вы')).toBeInTheDocument();
   });
 
-  it('таймкод вопроса перематывает видео, кнопки «Спросить лектора» больше нет', () => {
-    const onTimestampClick = vi.fn();
-    mocks.questions = [makeQuestion({ startMs: 60_000 })];
-
-    render(
-      <VideoStudyQuestionsPanel
-        courseId="clinical"
-        periodId="clinical-1"
-        periodTitle="Занятие"
-        lectureTitle="Лекция"
-        videoId="video-1"
-        noteSegments={[]}
-        onTimestampClick={onTimestampClick}
-      />
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Перейти к 01:00' }));
-    expect(onTimestampClick).toHaveBeenCalledWith(60_000);
-
-    expect(screen.queryByRole('button', { name: 'Спросить лектора' })).not.toBeInTheDocument();
-  });
-
-  it('«Поделиться конспектом» недоступна без сегментов и открывает модалку при их наличии', () => {
-    mocks.questions = [];
-
-    const { rerender } = render(
-      <VideoStudyQuestionsPanel
-        courseId="clinical"
-        periodId="clinical-1"
-        periodTitle="Занятие"
-        lectureTitle="Лекция"
-        videoId="video-1"
-        noteSegments={[]}
-        onTimestampClick={vi.fn()}
-      />
-    );
-
-    expect(screen.getByRole('button', { name: 'Поделиться конспектом' })).toBeDisabled();
-
-    rerender(
-      <VideoStudyQuestionsPanel
-        courseId="clinical"
-        periodId="clinical-1"
-        periodTitle="Занятие"
-        lectureTitle="Лекция"
-        videoId="video-1"
-        noteSegments={[{ id: 's-1', startMs: null, text: 'Тезис' }]}
-        onTimestampClick={vi.fn()}
-      />
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Поделиться конспектом' }));
-    expect(screen.getByText('Share modal')).toBeInTheDocument();
-  });
-
-  it('чип «только вопросы» скрывает фрагменты конспектов из ленты', () => {
-    mocks.questions = [makeQuestion({ startMs: 60_000, text: 'Вопрос группы' })];
-    mocks.sharedNotes = [
-      {
-        id: 'share-1',
-        authorUid: 'user-2',
-        authorName: 'Пётр',
-        courseId: 'clinical',
-        periodId: 'clinical-1',
-        periodTitle: null,
-        lectureTitle: null,
-        videoId: 'video-1',
-        segments: [{ id: 's-1', startMs: 30_000, text: 'Фрагмент конспекта' }],
-        visibility: 'group',
-        groupId: 'group-1',
-        createdAt: new Date('2026-08-01T10:00:00Z'),
-      },
-    ];
+  it('чужой конспект другой лекции занятия в ленту не попадает', () => {
+    mocks.groupOpenNotes = [makeOpenNote({ lectureVideoId: 'other-video' })];
 
     renderPanel();
 
-    expect(screen.getByText('Фрагмент конспекта')).toBeInTheDocument();
+    expect(screen.queryByText(/Дисрегуляция/)).not.toBeInTheDocument();
+  });
+
+  it('чип «только вопросы» скрывает абзацы конспектов', () => {
+    mocks.groupQuestions = [makeQuestion({ startMs: 60_000, text: 'Вопрос группы' })];
+    mocks.groupOpenNotes = [makeOpenNote({})];
+
+    renderPanel();
+
+    expect(screen.getByText(/Дисрегуляция/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Показывать только вопросы' }));
-    expect(screen.queryByText('Фрагмент конспекта')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Дисрегуляция/)).not.toBeInTheDocument();
     expect(screen.getByText('Вопрос группы')).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Показывать только вопросы' }));
-    expect(screen.getByText('Фрагмент конспекта')).toBeInTheDocument();
+  it('лекторский режим: вопросы всех групп и открытые конспекты, групповые хуки выключены', () => {
+    mocks.userRole = 'admin';
+    mocks.adminEditableCourses = ['clinical'];
+    mocks.allQuestions = [makeQuestion({ text: 'Вопрос из другой группы', groupId: 'group-9' })];
+    mocks.allOpenNotes = [makeOpenNote({ visibility: 'lecturers' })];
+
+    renderPanel();
+
+    expect(screen.getByText('Лекторский режим: все вопросы занятия')).toBeInTheDocument();
+    expect(screen.getByText('Вопрос из другой группы')).toBeInTheDocument();
+    expect(screen.getByText(/Дисрегуляция/)).toBeInTheDocument();
+    expect(screen.getByText('только лекторам')).toBeInTheDocument();
+    // студенческий хук получил null-скоуп (листенеры не открыты)
+    expect(mocks.lessonQuestionsScope.every((scope) => scope === null)).toBe(true);
+    expect(mocks.allQuestionsScope.some((scope) => scope === 'clinical')).toBe(true);
   });
 
   it('гостю показывает вход вместо ленты', () => {
@@ -198,7 +182,7 @@ describe('VideoStudyQuestionsPanel', () => {
 
     renderPanel();
 
-    expect(screen.queryByRole('button', { name: 'Поделиться конспектом' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Показывать только вопросы' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
     expect(screen.getByText('Login modal')).toBeInTheDocument();
   });

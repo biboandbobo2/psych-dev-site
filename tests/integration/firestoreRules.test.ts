@@ -101,6 +101,64 @@ beforeEach(async () => {
         startMs: null,
         createdAt: serverTimestamp(),
       }),
+      // Живые открытые конспекты (этап C): private / group / lecturers +
+      // manual-заметка с «подделанной» видимостью (не должна открыться).
+      setDoc(doc(db, 'notes', 'note-private'), {
+        userId: 'alice',
+        title: 'Приватный конспект',
+        content: 'секрет',
+        noteScope: 'lecture',
+        courseId: 'development',
+        periodId: 'prenatal',
+        visibility: 'private',
+        groupId: null,
+        updatedAt: serverTimestamp(),
+      }),
+      setDoc(doc(db, 'notes', 'note-open-group'), {
+        userId: 'alice',
+        authorName: 'Alice',
+        title: 'Открытый конспект',
+        content: 'тезисы',
+        noteScope: 'lecture',
+        courseId: 'development',
+        periodId: 'prenatal',
+        visibility: 'group',
+        groupId: 'g1',
+        lectureSegments: [{ id: 's1', startMs: 1000, text: 'тезисы' }],
+        updatedAt: serverTimestamp(),
+      }),
+      setDoc(doc(db, 'notes', 'note-open-lecturers'), {
+        userId: 'alice',
+        authorName: 'Alice',
+        title: 'Конспект лекторам',
+        content: 'тезисы лекторам',
+        noteScope: 'lecture',
+        courseId: 'development',
+        periodId: 'prenatal',
+        visibility: 'lecturers',
+        groupId: null,
+        updatedAt: serverTimestamp(),
+      }),
+      setDoc(doc(db, 'notes', 'note-manual-forged'), {
+        userId: 'alice',
+        title: 'Ручная заметка',
+        content: 'личное',
+        noteScope: 'manual',
+        courseId: 'development',
+        periodId: 'prenatal',
+        visibility: 'group',
+        groupId: 'g1',
+        updatedAt: serverTimestamp(),
+      }),
+      setDoc(doc(db, 'notes', 'note-legacy'), {
+        userId: 'alice',
+        title: 'Старая lecture-заметка без visibility',
+        content: 'легаси',
+        noteScope: 'lecture',
+        courseId: 'development',
+        periodId: 'prenatal',
+        updatedAt: serverTimestamp(),
+      }),
     ]);
   });
 });
@@ -172,6 +230,158 @@ describe('server-only коллекции не утекают клиенту', ()
       .authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL })
       .firestore();
     await assertFails(setDoc(doc(db, 'books', 'b2'), { title: 'x' }));
+  });
+});
+
+describe('notes: живой открытый конспект (этап C редизайна)', () => {
+  const lecturerCtx = () =>
+    testEnv
+      .authenticatedContext('lecturer-uid', {
+        role: 'admin',
+        editableCourses: ['development'],
+      })
+      .firestore();
+  const foreignLecturerCtx = () =>
+    testEnv
+      .authenticatedContext('other-lecturer', {
+        role: 'admin',
+        editableCourses: ['clinical'],
+      })
+      .firestore();
+
+  it('владелец: get всех своих заметок → success', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(getDoc(doc(db, 'notes', 'note-private')));
+    await assertSucceeds(getDoc(doc(db, 'notes', 'note-open-group')));
+    await assertSucceeds(getDoc(doc(db, 'notes', 'note-legacy')));
+  });
+
+  it('одногруппник: get открытого group-конспекта → success', async () => {
+    const db = testEnv.authenticatedContext('bob').firestore();
+    await assertSucceeds(getDoc(doc(db, 'notes', 'note-open-group')));
+  });
+
+  it('одногруппник: приватный, lecturers и легаси-конспект → denied', async () => {
+    const db = testEnv.authenticatedContext('bob').firestore();
+    await assertFails(getDoc(doc(db, 'notes', 'note-private')));
+    await assertFails(getDoc(doc(db, 'notes', 'note-open-lecturers')));
+    await assertFails(getDoc(doc(db, 'notes', 'note-legacy')));
+  });
+
+  it('manual-заметка с «подделанной» visibility=group не открывается никому', async () => {
+    const bob = testEnv.authenticatedContext('bob').firestore();
+    await assertFails(getDoc(doc(bob, 'notes', 'note-manual-forged')));
+    const lecturer = lecturerCtx();
+    await assertFails(getDoc(doc(lecturer, 'notes', 'note-manual-forged')));
+  });
+
+  it('посторонний (не в группе): get открытого group-конспекта → denied', async () => {
+    const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(getDoc(doc(db, 'notes', 'note-open-group')));
+  });
+
+  it('одногруппник: list конспектов группы (контур чата) → success', async () => {
+    const db = testEnv.authenticatedContext('bob').firestore();
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db, 'notes'),
+          where('courseId', '==', 'development'),
+          where('periodId', '==', 'prenatal'),
+          where('noteScope', '==', 'lecture'),
+          where('visibility', '==', 'group'),
+          where('groupId', '==', 'g1')
+        )
+      )
+    );
+  });
+
+  it('посторонний: тот же list-запрос конспектов чужой группы → denied', async () => {
+    const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(
+      getDocs(
+        query(
+          collection(db, 'notes'),
+          where('courseId', '==', 'development'),
+          where('periodId', '==', 'prenatal'),
+          where('noteScope', '==', 'lecture'),
+          where('visibility', '==', 'group'),
+          where('groupId', '==', 'g1')
+        )
+      )
+    );
+  });
+
+  it('одногруппник: list без visibility-фильтра → denied (приватное не утекает)', async () => {
+    const db = testEnv.authenticatedContext('bob').firestore();
+    await assertFails(
+      getDocs(
+        query(
+          collection(db, 'notes'),
+          where('courseId', '==', 'development'),
+          where('periodId', '==', 'prenatal'),
+          where('noteScope', '==', 'lecture'),
+          where('groupId', '==', 'g1')
+        )
+      )
+    );
+  });
+
+  it('лектор курса: get и list открытых конспектов (group и lecturers) → success', async () => {
+    const db = lecturerCtx();
+    await assertSucceeds(getDoc(doc(db, 'notes', 'note-open-group')));
+    await assertSucceeds(getDoc(doc(db, 'notes', 'note-open-lecturers')));
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db, 'notes'),
+          where('courseId', '==', 'development'),
+          where('periodId', '==', 'prenatal'),
+          where('noteScope', '==', 'lecture'),
+          where('visibility', '==', 'lecturers')
+        )
+      )
+    );
+  });
+
+  it('лектор курса: приватный конспект → denied', async () => {
+    const db = lecturerCtx();
+    await assertFails(getDoc(doc(db, 'notes', 'note-private')));
+  });
+
+  // Фиксация сужения этапа C: широкий `|| isAdmin()` из notes read убран —
+  // приватные заметки через клиент не читает даже супер-админ.
+  it('супер-админ: приватный и manual → denied, открытый group-конспект → success', async () => {
+    const db = testEnv
+      .authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL })
+      .firestore();
+    await assertFails(getDoc(doc(db, 'notes', 'note-private')));
+    await assertFails(getDoc(doc(db, 'notes', 'note-manual-forged')));
+    await assertSucceeds(getDoc(doc(db, 'notes', 'note-open-group')));
+  });
+
+  it('лектор чужого курса: открытый конспект → denied', async () => {
+    const db = foreignLecturerCtx();
+    await assertFails(getDoc(doc(db, 'notes', 'note-open-group')));
+    await assertFails(getDoc(doc(db, 'notes', 'note-open-lecturers')));
+  });
+
+  it('одногруппник: update чужого открытого конспекта → denied', async () => {
+    const db = testEnv.authenticatedContext('bob').firestore();
+    await assertFails(
+      setDoc(doc(db, 'notes', 'note-open-group'), { content: 'правка' }, { merge: true })
+    );
+  });
+
+  it('владелец: update видимости своей заметки → success', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, 'notes', 'note-private'),
+        { visibility: 'group', groupId: 'g1' },
+        { merge: true }
+      )
+    );
   });
 });
 

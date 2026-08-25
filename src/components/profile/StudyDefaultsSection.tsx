@@ -4,36 +4,47 @@ import { db } from '../../lib/firebase';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { debugError } from '../../lib/debug';
 import type { LectureQuestionVisibility } from '../../types/lectureQuestions';
+import type { LectureNoteVisibility } from '../../types/notes';
 
 /**
  * Дефолты режима конспекта для аккаунта (users/{uid}.studyDefaults).
- * Per-lecture настройка в шестерёнке оверлея приоритетнее этих значений.
+ * Per-lecture настройки в шестерёнке оверлея приоритетнее этих значений.
  */
 export function StudyDefaultsSection() {
   const user = useAuthStore((s) => s.user);
-  const accountDefault = useAuthStore((s) => s.studyQuestionsDefaultVisibility);
+  const questionsDefault = useAuthStore((s) => s.studyQuestionsDefaultVisibility);
+  const noteDefault = useAuthStore((s) => s.studyNoteDefaultVisibility);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const value: LectureQuestionVisibility = accountDefault ?? 'group';
+  const questionsValue: LectureQuestionVisibility = questionsDefault ?? 'group';
+  const noteValue: LectureNoteVisibility = noteDefault ?? 'private';
 
-  const handleSelect = async (next: LectureQuestionVisibility) => {
-    if (!user || saving || next === value) return;
+  const saveDefaults = async (
+    patch: Partial<{ questionsVisibility: LectureQuestionVisibility; noteVisibility: LectureNoteVisibility }>
+  ) => {
+    if (!user || saving) return;
     setSaving(true);
     setError(null);
     try {
       // Store обновится сам через onSnapshot userDoc в useAuthStore.
-      await setDoc(
-        doc(db, 'users', user.uid),
-        { studyDefaults: { questionsVisibility: next } },
-        { merge: true }
-      );
+      await setDoc(doc(db, 'users', user.uid), { studyDefaults: patch }, { merge: true });
     } catch (err) {
       debugError('[StudyDefaultsSection] save error', err);
       setError('Не удалось сохранить настройку. Попробуйте ещё раз.');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleQuestionsSelect = (next: LectureQuestionVisibility) => {
+    if (next === questionsValue) return;
+    void saveDefaults({ questionsVisibility: next });
+  };
+
+  const handleNoteSelect = (next: LectureNoteVisibility) => {
+    if (next === noteValue) return;
+    void saveDefaults({ noteVisibility: next });
   };
 
   return (
@@ -53,8 +64,8 @@ export function StudyDefaultsSection() {
           <input
             type="radio"
             name="study-questions-visibility"
-            checked={value === 'group'}
-            onChange={() => handleSelect('group')}
+            checked={questionsValue === 'group'}
+            onChange={() => handleQuestionsSelect('group')}
           />
           Моя группа и лекторы
         </label>
@@ -62,8 +73,41 @@ export function StudyDefaultsSection() {
           <input
             type="radio"
             name="study-questions-visibility"
-            checked={value === 'lecturers'}
-            onChange={() => handleSelect('lecturers')}
+            checked={questionsValue === 'lecturers'}
+            onChange={() => handleQuestionsSelect('lecturers')}
+          />
+          Только лекторы курса
+        </label>
+      </fieldset>
+
+      <fieldset className="mt-4 space-y-2" disabled={saving}>
+        <legend className="text-sm font-medium text-gray-700">
+          Мой конспект видят (дефолт для новых конспектов)
+        </legend>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="radio"
+            name="study-note-visibility"
+            checked={noteValue === 'private'}
+            onChange={() => handleNoteSelect('private')}
+          />
+          Только я
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="radio"
+            name="study-note-visibility"
+            checked={noteValue === 'group'}
+            onChange={() => handleNoteSelect('group')}
+          />
+          Моя группа и лекторы
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="radio"
+            name="study-note-visibility"
+            checked={noteValue === 'lecturers'}
+            onChange={() => handleNoteSelect('lecturers')}
           />
           Только лекторы курса
         </label>
@@ -71,7 +115,8 @@ export function StudyDefaultsSection() {
 
       <p className="mt-3 text-xs text-gray-500">
         Для конкретной лекции видимость можно поменять в настройках ⚙ режима конспекта —
-        она приоритетнее этого дефолта.
+        она приоритетнее этих дефолтов. Открытый конспект виден живьём: правки
+        появляются сразу.
       </p>
 
       {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}

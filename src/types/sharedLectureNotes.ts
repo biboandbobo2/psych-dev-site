@@ -9,9 +9,10 @@ import type { LectureQuestionVisibility } from './lectureQuestions';
 export const MAX_SHARED_NOTE_SEGMENTS = 100;
 
 /**
- * Расшаренный фрагмент конспекта — снапшот выбранных сегментов на момент
- * отправки (не ссылка на живую заметку: правки задним числом не протекают,
- * личная заметка целиком не открывается).
+ * ЛЕГАСИ: расшаренный фрагмент конспекта — снапшот выбранных сегментов на
+ * момент отправки. Контур «Поделиться конспектом» выпилен (этап C редизайна,
+ * живые открытые конспекты — visibility в notes); коллекция не пополняется,
+ * старые записи видны только на лекторском /admin/questions.
  */
 export interface SharedLectureNote {
   id: string;
@@ -26,17 +27,6 @@ export interface SharedLectureNote {
   visibility: LectureQuestionVisibility;
   groupId: string | null;
   createdAt: Date;
-}
-
-export interface SharedLectureNoteInput {
-  courseId: string;
-  periodId: string;
-  periodTitle?: string | null;
-  lectureTitle?: string | null;
-  videoId?: string | null;
-  segments: LectureNoteSegment[];
-  visibility: LectureQuestionVisibility;
-  groupId?: string | null;
 }
 
 export function mapSharedLectureNoteRecord(
