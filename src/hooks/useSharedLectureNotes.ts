@@ -1,80 +1,23 @@
+// ЛЕГАСИ-контур: «Поделиться конспектом» выпилен в пользу живых открытых
+// конспектов (этап C редизайна, см. useOpenLectureNotes). Коллекция
+// `sharedLectureNotes` больше не пополняется; хуки ниже остались только
+// для лекторского экрана /admin/questions (просмотр и удаление старых записей).
 import { useCallback, useEffect, useState } from 'react';
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  serverTimestamp,
-  where,
-} from 'firebase/firestore';
+import { collection, deleteDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { useAuthStore } from '../stores/useAuthStore';
 import { debugError } from '../lib/debug';
-import { useLessonScopedDocs } from './useLessonScopedDocs';
 import {
   mapSharedLectureNoteRecord,
   type SharedLectureNote,
-  type SharedLectureNoteInput,
 } from '../types/sharedLectureNotes';
 
-/** Отправка и удаление расшаренных фрагментов конспекта. */
+/** Удаление легаси-записи (автор или лектор курса — по правилам). */
 export function useSharedLectureNoteActions() {
-  const user = useAuthStore((s) => s.user);
-
-  const shareLectureNote = useCallback(
-    async (input: SharedLectureNoteInput) => {
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      const payload = {
-        authorUid: user.uid,
-        authorName: user.displayName ?? null,
-        courseId: input.courseId,
-        periodId: input.periodId,
-        periodTitle: input.periodTitle ?? null,
-        lectureTitle: input.lectureTitle ?? null,
-        videoId: input.videoId ?? null,
-        segments: input.segments.map((segment) => ({
-          id: segment.id,
-          startMs: segment.startMs,
-          text: segment.text,
-        })),
-        visibility: input.visibility,
-        groupId: input.visibility === 'group' ? input.groupId ?? null : null,
-        createdAt: serverTimestamp(),
-      };
-
-      const ref = await addDoc(collection(db, 'sharedLectureNotes'), payload);
-      return ref.id;
-    },
-    [user]
-  );
-
   const deleteSharedNote = useCallback(async (shareId: string) => {
     await deleteDoc(doc(db, 'sharedLectureNotes', shareId));
   }, []);
 
-  return { shareLectureNote, deleteSharedNote };
-}
-
-/** Конспекты занятия, расшаренные в группы студента (плюс его собственные). */
-export function useLessonSharedNotes(
-  courseId: string | null,
-  periodId: string | null,
-  groupIds: string[]
-) {
-  const { docs, loading } = useLessonScopedDocs(
-    'sharedLectureNotes',
-    mapSharedLectureNoteRecord,
-    courseId,
-    periodId,
-    groupIds
-  );
-
-  return { sharedNotes: docs, loading };
+  return { deleteSharedNote };
 }
 
 /** Все расшаренные конспекты курса — для лектора (правила требуют canEditCourse). */

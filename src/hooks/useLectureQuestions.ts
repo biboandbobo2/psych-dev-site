@@ -118,6 +118,44 @@ export function useMyLectureQuestions(courseId: string | null, periodId: string 
   return questions;
 }
 
+/**
+ * Все вопросы занятия (всех групп) — лекторский режим чата в оверлее.
+ * Правила требуют canEditCourse: хук включать только для лектора курса.
+ */
+export function useLessonAllQuestions(courseId: string | null, periodId: string | null) {
+  const [questions, setQuestions] = useState<LectureQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!courseId || !periodId) {
+      setQuestions([]);
+      setLoading(false);
+      return undefined;
+    }
+
+    setLoading(true);
+    const unsubscribe = onSnapshot(
+      query(
+        collection(db, 'lectureQuestions'),
+        where('courseId', '==', courseId),
+        where('periodId', '==', periodId)
+      ),
+      (snap) => {
+        setQuestions(snap.docs.map((d) => mapLectureQuestionRecord(d.id, d.data())));
+        setLoading(false);
+      },
+      (err) => {
+        debugError('[useLessonAllQuestions] snapshot error', err);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [courseId, periodId]);
+
+  return { questions, loading };
+}
+
 /** Все вопросы курса — для лектора (правила требуют canEditCourse). */
 export function useCourseQuestions(courseId: string | null) {
   const [questions, setQuestions] = useState<LectureQuestion[]>([]);

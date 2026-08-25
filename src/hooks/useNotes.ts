@@ -19,6 +19,7 @@ import {
   type AgeRange,
   type LectureNoteContext,
   type LectureNoteSegment,
+  type LectureNoteVisibility,
   normalizeLectureNoteSegments,
   type ManualNoteContext,
   AGE_RANGE_LABELS,
@@ -68,6 +69,10 @@ function mapNoteRecord(id: string, data: Record<string, any>): Note {
     lectureVideoId: typeof data.lectureVideoId === 'string' ? data.lectureVideoId : null,
     lectureKey: typeof data.lectureKey === 'string' ? data.lectureKey : null,
     lectureSegments: normalizeLectureNoteSegments(data.lectureSegments, data.content || ''),
+    visibility:
+      data.visibility === 'group' || data.visibility === 'lecturers' ? data.visibility : 'private',
+    groupId: typeof data.groupId === 'string' ? data.groupId : null,
+    authorName: typeof data.authorName === 'string' ? data.authorName : null,
     topicId: data.topicId || null,
     topicTitle: data.topicTitle ?? null,
     createdAt: data.createdAt?.toDate?.() || new Date(),
@@ -193,7 +198,19 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
   const upsertLectureNote = useCallback(async (
     content: string,
     context: LectureNoteContext,
-    options?: { lectureSegments?: LectureNoteSegment[] }
+    options?: {
+      lectureSegments?: LectureNoteSegment[];
+      /**
+       * Видимость живого конспекта. Передаётся каждым сейвом из оверлея,
+       * чтобы настройка «мой конспект видят» применялась и к новой заметке;
+       * без options.share поля видимости не трогаются (merge).
+       */
+      share?: {
+        visibility: LectureNoteVisibility;
+        groupId: string | null;
+        authorName: string | null;
+      };
+    }
   ) => {
     if (!user) {
       debugError('[useNotes] Cannot upsert lecture note: user not authenticated');
@@ -223,6 +240,13 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
 
       if (options?.lectureSegments) {
         payload.lectureSegments = options.lectureSegments;
+      }
+
+      if (options?.share) {
+        payload.visibility = options.share.visibility;
+        payload.groupId =
+          options.share.visibility === 'group' ? options.share.groupId : null;
+        payload.authorName = options.share.authorName;
       }
 
       if (!knownLectureDocIdsRef.current.has(lectureDocId)) {

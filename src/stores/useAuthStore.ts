@@ -42,6 +42,12 @@ interface AuthState {
    * эффективный дефолт — 'group'; per-lecture настройка в оверлее приоритетнее.
    */
   studyQuestionsDefaultVisibility: 'group' | 'lecturers' | null;
+  /**
+   * Дефолт аккаунта «мой конспект видят» для НОВЫХ lecture-конспектов
+   * (users/{uid}.studyDefaults.noteVisibility). null — не задан, эффективный
+   * дефолт — 'private'; значение в самой заметке приоритетнее.
+   */
+  studyNoteDefaultVisibility: 'private' | 'group' | 'lecturers' | null;
 
   // Computed properties
   isAdmin: boolean;
@@ -66,6 +72,7 @@ interface AuthState {
   setGeminiApiKey: (key: string | null) => void;
   setFeaturedCourseIds: (ids: string[]) => void;
   setStudyQuestionsDefaultVisibility: (value: 'group' | 'lecturers' | null) => void;
+  setStudyNoteDefaultVisibility: (value: 'private' | 'group' | 'lecturers' | null) => void;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   initializeAuth: () => () => void;
@@ -90,6 +97,7 @@ export const useAuthStore = create<AuthState>()(
       geminiApiKey: null,
       featuredCourseIds: [],
       studyQuestionsDefaultVisibility: null,
+      studyNoteDefaultVisibility: null,
       isAdmin: false,
       isSuperAdmin: false,
       isCoAdmin: false,
@@ -131,6 +139,9 @@ export const useAuthStore = create<AuthState>()(
 
       setStudyQuestionsDefaultVisibility: (studyQuestionsDefaultVisibility) =>
         set({ studyQuestionsDefaultVisibility }),
+
+      setStudyNoteDefaultVisibility: (studyNoteDefaultVisibility) =>
+        set({ studyNoteDefaultVisibility }),
 
       hasCourseAccess: (courseType: CourseType) => {
         const { userRole, courseAccess, groupGrantedCourses } = get();
@@ -186,6 +197,7 @@ export const useAuthStore = create<AuthState>()(
             get().setGeminiApiKey(null);
             get().setFeaturedCourseIds([]);
             get().setStudyQuestionsDefaultVisibility(null);
+            get().setStudyNoteDefaultVisibility(null);
             get().setLoading(false);
             return;
           }
@@ -290,13 +302,22 @@ export const useAuthStore = create<AuthState>()(
                   : [];
                 get().setFeaturedCourseIds(featured);
 
-                // Дефолт аккаунта «мои вопросы видят» (режим конспекта)
-                const questionsVisibilityRaw = (
-                  data?.studyDefaults as { questionsVisibility?: unknown } | undefined
-                )?.questionsVisibility;
+                // Дефолты режима конспекта (studyDefaults)
+                const studyDefaults = data?.studyDefaults as
+                  | { questionsVisibility?: unknown; noteVisibility?: unknown }
+                  | undefined;
+                const questionsVisibilityRaw = studyDefaults?.questionsVisibility;
                 get().setStudyQuestionsDefaultVisibility(
                   questionsVisibilityRaw === 'group' || questionsVisibilityRaw === 'lecturers'
                     ? questionsVisibilityRaw
+                    : null
+                );
+                const noteVisibilityRaw = studyDefaults?.noteVisibility;
+                get().setStudyNoteDefaultVisibility(
+                  noteVisibilityRaw === 'private' ||
+                    noteVisibilityRaw === 'group' ||
+                    noteVisibilityRaw === 'lecturers'
+                    ? noteVisibilityRaw
                     : null
                 );
 
@@ -338,6 +359,7 @@ export const useAuthStore = create<AuthState>()(
             get().setGeminiApiKey(null);
             get().setFeaturedCourseIds([]);
             get().setStudyQuestionsDefaultVisibility(null);
+            get().setStudyNoteDefaultVisibility(null);
           } finally {
             if (!cancelled) {
               get().setLoading(false);

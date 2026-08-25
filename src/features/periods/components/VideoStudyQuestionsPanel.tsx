@@ -3,63 +3,28 @@ import LoginModal from '../../../components/LoginModal';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useMyGroups } from '../../../hooks/useMyGroups';
 import {
+  useLessonAllQuestions,
   useLessonQuestions,
   useLectureQuestionActions,
 } from '../../../hooks/useLectureQuestions';
 import {
-  useLessonSharedNotes,
-  useSharedLectureNoteActions,
-} from '../../../hooks/useSharedLectureNotes';
-import { ShareLectureNoteModal } from './ShareLectureNoteModal';
+  useLessonAllOpenNotes,
+  useLessonGroupOpenNotes,
+} from '../../../hooks/useOpenLectureNotes';
 import { useIsDesktop } from '../hooks/useIsDesktop';
+import { buildChatFeed, type ChatFeedItem } from '../lib/chatFeed';
+import { canEditCourse } from '../../../types/user';
 import { debugError } from '../../../lib/debug';
 import { formatTimestampMs } from '../../../lib/formatTimestamp';
 import type { LectureNoteSegment } from '../../../types/notes';
-import type { LectureQuestion } from '../../../types/lectureQuestions';
-import type { SharedLectureNote } from '../../../types/sharedLectureNotes';
 
 interface VideoStudyQuestionsPanelProps {
   courseId: string;
   periodId: string;
-  periodTitle: string;
-  lectureTitle: string;
   videoId: string | null;
-  /** Текущие сегменты конспекта — для «Поделиться конспектом» */
+  /** Абзацы собственного конспекта текущей лекции (local draft). */
   noteSegments: LectureNoteSegment[];
   onTimestampClick: (startMs: number) => void;
-}
-
-type FeedItem =
-  | { kind: 'question'; anchorMs: number | null; createdAt: Date; question: LectureQuestion }
-  | { kind: 'note'; anchorMs: number | null; createdAt: Date; note: SharedLectureNote };
-
-/** Единая лента занятия: вопросы группы и фрагменты конспектов по моментам лекции. */
-function buildFeed(questions: LectureQuestion[], sharedNotes: SharedLectureNote[]): FeedItem[] {
-  const items: FeedItem[] = [
-    ...questions.map((question) => ({
-      kind: 'question' as const,
-      anchorMs: question.startMs,
-      createdAt: question.createdAt,
-      question,
-    })),
-    ...sharedNotes.map((note) => {
-      const anchored = note.segments.find((segment) => segment.startMs !== null);
-      return {
-        kind: 'note' as const,
-        anchorMs: anchored?.startMs ?? null,
-        createdAt: note.createdAt,
-        note,
-      };
-    }),
-  ];
-
-  // Хронология лекции: с якорем — по моменту видео, без якоря — в конец по дате.
-  return items.sort((a, b) => {
-    if (a.anchorMs !== null && b.anchorMs !== null) return a.anchorMs - b.anchorMs;
-    if (a.anchorMs !== null) return -1;
-    if (b.anchorMs !== null) return 1;
-    return a.createdAt.getTime() - b.createdAt.getTime();
-  });
 }
 
 function TimestampChip({
@@ -84,18 +49,32 @@ function TimestampChip({
   );
 }
 
+function LecturersOnlyBadge() {
+  return (
+    <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] text-amber-200">
+      только лекторам
+    </span>
+  );
+}
+
+/**
+ * Вкладка «Чат»: единая лента занятия по таймкодам лекции — вопросы группы,
+ * абзацы живых открытых конспектов одногруппников и свои записи («Вы»).
+ * Лектор курса (canEditCourse) видит все вопросы занятия и все открытые конспекты.
+ */
 export function VideoStudyQuestionsPanel({
   courseId,
   periodId,
-  periodTitle,
-  lectureTitle,
   videoId,
   noteSegments,
   onTimestampClick,
 }: VideoStudyQuestionsPanelProps) {
   const user = useAuthStore((s) => s.user);
+  const userRole = useAuthStore((s) => s.userRole);
+  const adminEditableCourses = useAuthStore((s) => s.adminEditableCourses);
+  const isLecturer = canEditCourse(userRole, adminEditableCourses, courseId);
   const isDesktop = useIsDesktop();
-  const { groups } = useMyGroups();
+  const { groups } = useMyGroups(Boolean(user) && !isLecturer);
   const groupIds = useMemo(
     () =>
       groups
@@ -103,20 +82,45 @@ export function VideoStudyQuestionsPanel({
         .map((group) => group.id),
     [groups]
   );
-  const { questions, loading } = useLessonQuestions(user ? courseId : null, periodId, groupIds);
-  const { sharedNotes } = useLessonSharedNotes(user ? courseId : null, periodId, groupIds);
-  const { deleteQuestion } = useLectureQuestionActions();
-  const { deleteSharedNote } = useSharedLectureNoteActions();
 
-  const [isShareOpen, setIsShareOpen] = useState(false);
+  // Студент и лектор ходят разными запросами (правила: group-membership vs
+  // canEditCourse); неактивный режим получает null и не открывает листенеры.
+  const studentScope = user && !isLecturer ? courseId : null;
+  const lecturerScope = user && isLecturer ? courseId : null;
+  const { questions: groupQuestions, loading: groupLoading } = useLessonQuestions(
+    studentScope,
+    periodId,
+    groupIds
+  );
+  const { questions: allQuestions, loading: allLoading } = useLessonAllQuestions(
+    lecturerScope,
+    periodId
+  );
+  const groupOpenNotes = useLessonGroupOpenNotes(studentScope, periodId, groupIds);
+  const allOpenNotes = useLessonAllOpenNotes(lecturerScope, periodId);
+  const { deleteQuestion } = useLectureQuestionActions();
+
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [onlyQuestions, setOnlyQuestions] = useState(false);
 
-  const feed = useMemo(() => buildFeed(questions, sharedNotes), [questions, sharedNotes]);
+  const questions = isLecturer ? allQuestions : groupQuestions;
+  const loading = isLecturer ? allLoading : groupLoading;
+  const openNotes = isLecturer ? allOpenNotes : groupOpenNotes;
+
+  const feed = useMemo(
+    () =>
+      buildChatFeed({
+        questions,
+        openNotes,
+        ownSegments: noteSegments,
+        currentUserUid: user?.uid ?? null,
+        videoId,
+      }),
+    [questions, openNotes, noteSegments, user?.uid, videoId]
+  );
   const visibleFeed = onlyQuestions
     ? feed.filter((item) => item.kind === 'question')
     : feed;
-  const hasNoteContent = noteSegments.length > 0;
 
   const handleDeleteQuestion = async (questionId: string) => {
     if (!confirm('Удалить вопрос?')) return;
@@ -127,13 +131,48 @@ export function VideoStudyQuestionsPanel({
     }
   };
 
-  const handleDeleteSharedNote = async (shareId: string) => {
-    if (!confirm('Удалить отправленный конспект?')) return;
-    try {
-      await deleteSharedNote(shareId);
-    } catch (err) {
-      debugError('[VideoStudyQuestionsPanel] failed to delete shared note', err);
+  const renderItem = (item: ChatFeedItem) => {
+    if (item.kind === 'question') {
+      const { question } = item;
+      const isOwn = question.authorUid === user?.uid;
+      return (
+        <div key={item.key} className="rounded-[1.1rem] border border-white/10 bg-black/20 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <TimestampChip startMs={question.startMs} onClick={onTimestampClick} />
+            <span className="text-xs text-white/45">
+              {isOwn ? 'Вы' : question.authorName ?? 'Участник группы'}
+            </span>
+            {question.visibility === 'lecturers' ? <LecturersOnlyBadge /> : null}
+            {isOwn ? (
+              <button
+                type="button"
+                onClick={() => handleDeleteQuestion(question.id)}
+                className="ml-auto text-xs text-white/40 transition hover:text-rose-300"
+              >
+                Удалить
+              </button>
+            ) : null}
+          </div>
+          <p className="mt-2 text-sm leading-6 text-white/85">{question.text}</p>
+        </div>
+      );
     }
+
+    return (
+      <div key={item.key} className="rounded-[1.1rem] border border-white/10 bg-white/[0.03] px-4 py-3">
+        <div className="flex items-center gap-2">
+          <TimestampChip startMs={item.anchorMs} onClick={onTimestampClick} />
+          <span className="text-xs text-white/45">
+            {item.isOwn ? 'Вы' : item.authorName ?? 'Участник группы'}
+          </span>
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/35">
+            конспект
+          </span>
+          {item.visibility === 'lecturers' ? <LecturersOnlyBadge /> : null}
+        </div>
+        <p className="mt-2 text-sm leading-6 text-white/85">{item.text}</p>
+      </div>
+    );
   };
 
   return (
@@ -142,7 +181,7 @@ export function VideoStudyQuestionsPanel({
         {!user ? (
           <div className="flex flex-1 flex-col items-start justify-center gap-3">
             <p className="text-sm leading-6 text-white/60">
-              Вопросы по лекции видят ваша группа и лекторы. Войдите, чтобы задать свой.
+              Чат лекции видят ваша группа и лекторы. Войдите, чтобы участвовать.
             </p>
             <button
               type="button"
@@ -155,20 +194,10 @@ export function VideoStudyQuestionsPanel({
         ) : (
           <>
             <div className="mb-4 flex flex-wrap items-center gap-2">
-              {isDesktop ? (
-                <button
-                  type="button"
-                  onClick={() => setIsShareOpen(true)}
-                  disabled={!hasNoteContent}
-                  title={
-                    hasNoteContent
-                      ? 'Отправить фрагменты конспекта группе или лектору'
-                      : 'Сначала напишите конспект'
-                  }
-                  className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Поделиться конспектом
-                </button>
+              {isLecturer ? (
+                <span className="rounded-full bg-white/5 px-3 py-1.5 text-xs font-medium text-white/55 ring-1 ring-white/10">
+                  Лекторский режим: все вопросы занятия
+                </span>
               ) : null}
               <button
                 type="button"
@@ -187,96 +216,15 @@ export function VideoStudyQuestionsPanel({
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-2">
               {loading ? (
-                <p className="text-sm text-white/50">Загружаем вопросы…</p>
+                <p className="text-sm text-white/50">Загружаем чат…</p>
               ) : visibleFeed.length === 0 ? (
                 <p className="rounded-[1.25rem] border border-white/10 bg-black/20 px-4 py-4 text-sm leading-6 text-white/60">
-                  Пока никто не задал вопрос по этой лекции. Отметьте абзац конспекта
-                  кнопкой «?» — вопрос увидит ваша группа, ведущий разберёт его на
-                  семинаре.
+                  {isDesktop
+                    ? 'В чате пока пусто. Пишите конспект — открытые записи и вопросы по абзацам («?») появятся здесь по таймкодам лекции.'
+                    : 'В чате пока пусто. Вопросы и открытые конспекты группы появятся здесь по таймкодам лекции.'}
                 </p>
               ) : (
-                visibleFeed.map((item) => {
-                  if (item.kind === 'question') {
-                    const { question } = item;
-                    const isOwn = question.authorUid === user.uid;
-                    return (
-                      <div
-                        key={`question-${question.id}`}
-                        className="rounded-[1.1rem] border border-white/10 bg-black/20 px-4 py-3"
-                      >
-                        <div className="flex items-center gap-2">
-                          <TimestampChip startMs={question.startMs} onClick={onTimestampClick} />
-                          <span className="text-xs text-white/45">
-                            {isOwn ? 'Вы' : question.authorName ?? 'Участник группы'}
-                          </span>
-                          {question.visibility === 'lecturers' ? (
-                            <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] text-amber-200">
-                              только лекторам
-                            </span>
-                          ) : null}
-                          {isOwn ? (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteQuestion(question.id)}
-                              className="ml-auto text-xs text-white/40 transition hover:text-rose-300"
-                            >
-                              Удалить
-                            </button>
-                          ) : null}
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-white/85">{question.text}</p>
-                      </div>
-                    );
-                  }
-
-                  const { note } = item;
-                  const isOwn = note.authorUid === user.uid;
-                  return (
-                    <div
-                      key={`note-${note.id}`}
-                      className="rounded-[1.1rem] border border-white/10 bg-white/[0.03] px-4 py-3"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/40">
-                          Конспект
-                        </span>
-                        <span className="text-xs text-white/45">
-                          {isOwn ? 'Вы' : note.authorName ?? 'Участник группы'}
-                        </span>
-                        {note.visibility === 'lecturers' ? (
-                          <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] text-amber-200">
-                            только лекторам
-                          </span>
-                        ) : null}
-                        {isOwn ? (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSharedNote(note.id)}
-                            className="ml-auto text-xs text-white/40 transition hover:text-rose-300"
-                          >
-                            Удалить
-                          </button>
-                        ) : null}
-                      </div>
-                      <div className="mt-2 space-y-2">
-                        {note.segments.map((segment) => (
-                          <p key={segment.id} className="text-sm leading-6 text-white/85">
-                            {segment.startMs !== null ? (
-                              <button
-                                type="button"
-                                onClick={() => onTimestampClick(segment.startMs as number)}
-                                className="mr-2 text-xs font-medium text-white/50 transition hover:text-white"
-                              >
-                                {formatTimestampMs(segment.startMs)}
-                              </button>
-                            ) : null}
-                            {segment.text}
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })
+                visibleFeed.map(renderItem)
               )}
             </div>
           </>
@@ -284,17 +232,6 @@ export function VideoStudyQuestionsPanel({
       </aside>
 
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
-
-      <ShareLectureNoteModal
-        isOpen={isShareOpen}
-        onClose={() => setIsShareOpen(false)}
-        segments={noteSegments}
-        courseId={courseId}
-        periodId={periodId}
-        periodTitle={periodTitle}
-        lectureTitle={lectureTitle}
-        videoId={videoId}
-      />
     </>
   );
 }

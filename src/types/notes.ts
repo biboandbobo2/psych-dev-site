@@ -53,6 +53,13 @@ export const EMPTY_LECTURE_NOTE_DRAFT: LectureNoteDraft = {
   updatedAtMs: null,
 };
 
+/**
+ * Видимость lecture-конспекта: приватный либо «живой открытый»
+ * (правки видны сразу). Отсутствие поля в документе = 'private'.
+ * Только для noteScope='lecture'; manual/timeline всегда приватны.
+ */
+export type LectureNoteVisibility = 'private' | 'group' | 'lecturers';
+
 export interface Note {
   id: string;
   userId: string;
@@ -67,6 +74,11 @@ export interface Note {
   lectureVideoId?: string | null;
   lectureKey?: string | null;
   lectureSegments?: LectureNoteSegment[] | null;
+  /** Только lecture-конспект. Снапшот группы при visibility='group'. */
+  visibility?: LectureNoteVisibility;
+  groupId?: string | null;
+  /** Снапшот displayName автора для чата (у открытых конспектов). */
+  authorName?: string | null;
   topicId: string | null;
   topicTitle?: string | null;
   createdAt: Date;

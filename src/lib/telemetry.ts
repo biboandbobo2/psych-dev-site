@@ -16,6 +16,8 @@ export type FeatureEventName =
   | 'book_rag_question'
   | 'lecture_ai_question'
   | 'lecture_question_asked'
+  // legacy: «Поделиться конспектом» выпилен в пользу живых открытых конспектов
+  // (этап C редизайна); событие оставлено для чтения старой статистики.
   | 'note_shared'
   | 'test_started'
   | 'test_completed';
