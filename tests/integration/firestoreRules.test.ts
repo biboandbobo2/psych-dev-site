@@ -261,6 +261,15 @@ describe('notes: живой открытый конспект (этап C ред
     await assertSucceeds(getDoc(doc(db, 'notes', 'note-open-group')));
   });
 
+  // getLectureNote читает детерминированный id lecture__{uid}__… до первого
+  // сохранения — get несуществующего документа по своему префиксу разрешён.
+  it('get несуществующей заметки: свой lecture-префикс → success, чужой → denied', async () => {
+    const db = testEnv.authenticatedContext('bob').firestore();
+    await assertSucceeds(getDoc(doc(db, 'notes', 'lecture__bob__clinical%3A%3Ac1%3A%3Av1')));
+    await assertFails(getDoc(doc(db, 'notes', 'lecture__alice__clinical%3A%3Ac1%3A%3Av1')));
+    await assertFails(getDoc(doc(db, 'notes', 'random-nonexistent-id')));
+  });
+
   it('одногруппник: приватный, lecturers и легаси-конспект → denied', async () => {
     const db = testEnv.authenticatedContext('bob').firestore();
     await assertFails(getDoc(doc(db, 'notes', 'note-private')));
