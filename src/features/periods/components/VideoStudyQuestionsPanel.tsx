@@ -211,24 +211,21 @@ export function VideoStudyQuestionsPanel({
           </div>
         ) : (
           <>
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              {isLecturer ? (
-                <span className="rounded-full bg-white/5 px-3 py-1.5 text-xs font-medium text-white/55 ring-1 ring-white/10">
-                  Лекторский режим: все вопросы занятия
-                </span>
-              ) : null}
+            {/* Фильтр — служебный элемент панели, а не реплика: поднят к
+                верхней кромке и вынесен за правый padding списка. */}
+            <div className="-mr-1 -mt-2 mb-1.5 flex justify-end">
               <button
                 type="button"
                 onClick={() => setOnlyQuestions((current) => !current)}
                 aria-pressed={onlyQuestions}
                 aria-label="Показывать только вопросы"
-                className={`ml-auto rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
                   onlyQuestions
                     ? 'border-[color:var(--accent)] bg-[color:var(--accent)]/25 text-white'
-                    : 'border-white/10 bg-white/5 text-white/55 hover:text-white'
+                    : 'border-white/10 bg-white/5 text-white/50 hover:text-white'
                 }`}
               >
-                ? только вопросы
+                Только вопросы
               </button>
             </div>
 

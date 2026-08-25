@@ -202,7 +202,8 @@ describe('VideoStudyQuestionsPanel', () => {
 
     renderPanel();
 
-    expect(screen.getByText('Лекторский режим: все вопросы занятия')).toBeInTheDocument();
+    // Режим не подписывается в UI — виден только по составу ленты
+    expect(screen.queryByText(/Лекторский режим/)).not.toBeInTheDocument();
     expect(screen.getByText('Вопрос из другой группы')).toBeInTheDocument();
     expect(screen.getByText(/Дисрегуляция/)).toBeInTheDocument();
     expect(screen.getByText('только лекторам')).toBeInTheDocument();
