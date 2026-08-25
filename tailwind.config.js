@@ -19,8 +19,26 @@ export default {
         accent: {
           DEFAULT: 'var(--accent)',
           100: 'var(--accent-100)',
+          muted: 'var(--accent-muted)',
+          deep: 'var(--accent-deep)',
         },
         mark: "var(--mark)",
+        ink: {
+          DEFAULT: 'var(--ink)',
+          soft: 'var(--ink-soft)',
+          faint: 'var(--ink-faint)',
+        },
+        'border-cool': 'var(--border-cool)',
+        pastel: {
+          sage: 'var(--pastel-sage)',
+          ochre: 'var(--pastel-ochre)',
+          blue: 'var(--pastel-blue)',
+          'blue-deep': 'var(--pastel-blue-deep)',
+          terracotta: 'var(--pastel-terracotta)',
+          lilac: 'var(--pastel-lilac)',
+          cream: 'var(--pastel-cream)',
+          plain: 'var(--pastel-plain)',
+        },
         dom: {
           green: { DEFAULT: '#6d8134', hover: '#7f983a', active: '#46512a' },
           red: { DEFAULT: '#ce164d', hover: '#bb1345' },
@@ -49,6 +67,7 @@ export default {
           "system-ui",
           "sans-serif",
         ],
+        display: ["Georgia", "Times New Roman", "serif"],
       },
       maxWidth: {
         measure: "72ch",

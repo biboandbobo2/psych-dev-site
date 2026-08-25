@@ -12,6 +12,22 @@
   --mark: #FFF3B0;
   --radius: 16px;
   --shadow-card: 0 22px 45px -24px rgba(17, 24, 39, 0.25);
+
+  /* Стиль лендингов (гостевая входная и далее): чернильные тексты, зелень, пастельные подложки */
+  --ink: #24384B;
+  --ink-soft: #3C4852;
+  --ink-faint: #6F777A;
+  --border-cool: #CFD7D6;
+  --accent-muted: #56724A;
+  --accent-deep: #405A35;
+  --pastel-sage: #E8ECD9;
+  --pastel-ochre: #F5E7BD;
+  --pastel-blue: #DFE9F1;
+  --pastel-blue-deep: #385771;
+  --pastel-terracotta: #F0D7CF;
+  --pastel-lilac: #ECE4F0;
+  --pastel-cream: #FFF5DF;
+  --pastel-plain: #EEF0EC;
 }
 
 body {
