@@ -67,8 +67,26 @@ export function useTimelineState() {
 
   const activeData = activeCanvas?.data ?? createEmptyTimelineData();
 
+  // Отложенный ресинк вьюпорта: таймер обязан отменяться при новом вызове
+  // и при размонтировании — иначе колбэк стреляет в уже снесённое окружение
+  // (в CI это ловилось как «window is not defined» после конца теста).
+  const syncViewportTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (syncViewportTimeoutRef.current !== null) {
+        window.clearTimeout(syncViewportTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const syncViewportForTimeline = useCallback((data: TimelineData) => {
-    window.setTimeout(() => {
+    if (syncViewportTimeoutRef.current !== null) {
+      window.clearTimeout(syncViewportTimeoutRef.current);
+    }
+
+    syncViewportTimeoutRef.current = window.setTimeout(() => {
+      syncViewportTimeoutRef.current = null;
       const targetAge = getViewportTargetAge(data);
       const currentWorldHeight = (data.ageMax || DEFAULT_AGE_MAX) * YEAR_PX + 500;
       const targetY = currentWorldHeight - targetAge * YEAR_PX;
