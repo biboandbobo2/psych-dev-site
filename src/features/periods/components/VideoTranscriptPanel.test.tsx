@@ -1,7 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { VideoTranscriptPanel } from './VideoTranscriptPanel';
 import type { VideoTranscriptStoragePayload } from '../../../types/videoTranscripts';
+
+// jsdom не реализует Element.scrollTo — авто-скролл следования падал бы в эффекте
+beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+    configurable: true,
+    writable: true,
+    value: vi.fn(),
+  });
+});
 
 const TWO_PARAGRAPH_TRANSCRIPT: VideoTranscriptStoragePayload = {
   youtubeVideoId: 'video-1',
@@ -38,6 +47,45 @@ describe('VideoTranscriptPanel', () => {
     expect(screen.getByText('Найдено абзацев: 1')).toBeInTheDocument();
     expect(screen.queryByText('Первый фрагмент')).not.toBeInTheDocument();
     expect(screen.getByText('Второй').tagName).toBe('MARK');
+  });
+
+  it('живая позиция приоритетнее deep-link подсветки: рамка не залипает на ?t=', () => {
+    render(
+      <VideoTranscriptPanel
+        error={null}
+        focusTimeMs={48000}
+        highlightedStartMs={33000}
+        isChecking={false}
+        isLoading={false}
+        onTimestampClick={vi.fn()}
+        transcript={TWO_PARAGRAPH_TRANSCRIPT}
+      />
+    );
+
+    expect(
+      screen.getByText('Второй фрагмент').closest('[data-start-ms="47000"]')
+    ).toHaveClass('border-accent');
+    expect(
+      screen.getByText('Первый фрагмент').closest('[data-start-ms="32000"]')
+    ).not.toHaveClass('border-accent');
+  });
+
+  it('без живой позиции deep-link подсветка работает как раньше', () => {
+    render(
+      <VideoTranscriptPanel
+        error={null}
+        focusTimeMs={null}
+        highlightedStartMs={33000}
+        isChecking={false}
+        isLoading={false}
+        onTimestampClick={vi.fn()}
+        transcript={TWO_PARAGRAPH_TRANSCRIPT}
+      />
+    );
+
+    expect(
+      screen.getByText('Первый фрагмент').closest('[data-start-ms="32000"]')
+    ).toHaveClass('border-accent');
   });
 
   it('ручной скролл выключает следование, кнопка возвращает к текущему месту', () => {

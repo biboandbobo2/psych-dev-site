@@ -33,6 +33,20 @@ function getFocusedSegmentStartMs(
     return null;
   }
 
+  // Живая позиция воспроизведения приоритетнее deep-link подсветки (?t=...):
+  // иначе рамка навсегда залипает на моменте из URL, хотя лекция ушла дальше.
+  if (focusTimeMs !== null) {
+    const containing = groups.find(
+      (group) => focusTimeMs >= group.startMs && focusTimeMs < group.endMs
+    );
+    if (containing) {
+      return containing.startMs;
+    }
+
+    const previous = [...groups].reverse().find((group) => group.startMs <= focusTimeMs);
+    return previous?.startMs ?? groups[0].startMs;
+  }
+
   if (highlightedStartMs !== null) {
     const highlighted = groups.find(
       (group) => highlightedStartMs >= group.startMs && highlightedStartMs < group.endMs
@@ -42,20 +56,7 @@ function getFocusedSegmentStartMs(
     }
   }
 
-  if (focusTimeMs === null) {
-    return null;
-  }
-
-  const containing = groups.find(
-    (group) => focusTimeMs >= group.startMs && focusTimeMs < group.endMs
-  );
-  if (containing) {
-    return containing.startMs;
-  }
-
-  const previous = [...groups].reverse().find((group) => group.startMs <= focusTimeMs);
-
-  return previous?.startMs ?? groups[0].startMs;
+  return null;
 }
 
 /** Подсветка совпадений поиска внутри абзаца транскрипта. */

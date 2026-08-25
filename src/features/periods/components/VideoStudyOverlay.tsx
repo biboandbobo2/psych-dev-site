@@ -185,8 +185,10 @@ export function VideoStudyOverlay({
     }
 
     const intervalId = window.setInterval(() => {
+      // Обновляем и на паузе — перемотка в паузе тоже должна двигать рамку;
+      // при неизменном времени setState с тем же значением не рендерит.
       const snapshot = playerRef.current?.getPlaybackSnapshot();
-      if (snapshot && snapshot.currentTimeMs !== null && !snapshot.paused) {
+      if (snapshot && snapshot.currentTimeMs !== null) {
         setTranscriptFocusMs(snapshot.currentTimeMs);
       }
     }, 1000);
