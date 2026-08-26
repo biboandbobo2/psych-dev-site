@@ -349,6 +349,7 @@ export function AppShell() {
   const isStandaloneLanding =
     normalizedPath === '/warm_springs2' ||
     normalizedPath === '/vozrast' ||
+    normalizedPath.startsWith('/academy/retraining-psychologist-consultant-') ||
     normalizedPath.startsWith('/booking');
   if (isStandaloneLanding) {
     return (

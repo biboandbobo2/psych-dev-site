@@ -41,6 +41,7 @@ import {
   HomeV2Debug,
   WarmSprings2Page,
   VozrastLandingPage,
+  RetrainingLandingPage,
   DynamicProjectPage,
   BookingSectionLayout,
   BookingPage,
@@ -114,6 +115,14 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route path="/about" element={<AboutPage />} />
         <Route path="/warm_springs2" element={<WarmSprings2Page />} />
         <Route path="/vozrast" element={<VozrastLandingPage />} />
+        <Route
+          path="/academy/retraining-psychologist-consultant-belgrade"
+          element={<RetrainingLandingPage city="belgrade" />}
+        />
+        <Route
+          path="/academy/retraining-psychologist-consultant-tbilisi"
+          element={<RetrainingLandingPage city="tbilisi" />}
+        />
         <Route path="/projects/:slug" element={<DynamicProjectPage />} />
         <Route path="/booking" element={<BookingSectionLayout />}>
           <Route index element={<BookingPage />} />

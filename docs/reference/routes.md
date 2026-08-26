@@ -34,6 +34,8 @@
 | `/projects/:slug` | `DynamicProjectPage` | Страница проекта академии. Контент в `projectPages/{slug}`, fallback на хардкод-словарь (`dom-academy-overview`). |
 | `/warm_springs2` | `WarmSprings2Page` | Лендинг интенсива по групповой психотерапии «Тёплые ключи» (Тбилиси, июль 2026). Статическая, не редактируется через `/superadmin/pages`. |
 | `/vozrast` | `VozrastLandingPage` | Лендинг программы повышения квалификации «Понимание и помощь человеку в контексте возраста» (осень 2026). Standalone (без AppShell-сайдбара), статический контент в `src/pages/vozrastLanding/data.ts`. |
+| `/academy/retraining-psychologist-consultant-belgrade` | `RetrainingLandingPage` (`city="belgrade"`) | Лендинг переподготовки «Психолог-консультант», Белград (старт 15.02.2027). Standalone, Tailwind + токены theme.css; общий контент и городские конфиги в `src/pages/retrainingLanding/data.ts`. |
+| `/academy/retraining-psychologist-consultant-tbilisi` | `RetrainingLandingPage` (`city="tbilisi"`) | Тбилисская версия того же лендинга (общий компонент, городской конфиг). |
 | `/login` | `Login` | Страница входа (eager load, не через lazy.ts). |
 
 **Вводные страницы курсов:**
@@ -304,7 +306,7 @@
 
 | Display-роль | Доступ | Маршруты |
 |---|---|---|
-| **Guest** | Публичный контент | `/home`, `/homepage`, `/features`, `/about`, `/projects/:slug`, `/booking/*`, `/login`, `/warm_springs2`, `/vozrast`, intro-страницы курсов |
+| **Guest** | Публичный контент | `/home`, `/homepage`, `/features`, `/about`, `/projects/:slug`, `/booking/*`, `/login`, `/warm_springs2`, `/vozrast`, `/academy/retraining-psychologist-consultant-*`, intro-страницы курсов |
 | **Student** | Базовый доступ (есть хотя бы один courseAccess) | + `/profile`, `/notes`, `/tests`, `/tests-lesson`, `/timeline`, `/research` |
 | **Student + courseAccess.clinical** | Клиническая психология | + `/clinical/*`, `/disorder-table` |
 | **Student + courseAccess.general** | Общая психология | + `/general/*` |

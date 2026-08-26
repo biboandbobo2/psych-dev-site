@@ -55,6 +55,7 @@ export const PaletteDebug = lazy(() => lazyWithReload(() => import('./debug/Pale
 export const HomeV2Debug = lazy(() => lazyWithReload(() => import('./debug/HomeV2Debug'), 'HomeV2Debug'));
 export const WarmSprings2Page = lazy(() => lazyWithReload(() => import('./WarmSprings2Page'), 'WarmSprings2Page'));
 export const VozrastLandingPage = lazy(() => lazyWithReload(() => import('./VozrastLandingPage'), 'VozrastLandingPage'));
+export const RetrainingLandingPage = lazy(() => lazyWithReload(() => import('./RetrainingLandingPage'), 'RetrainingLandingPage'));
 export const AboutPage = lazy(() => lazyWithReload(() => import('./about/AboutPage'), 'AboutPage'));
 export const DynamicProjectPage = lazy(() =>
   lazyWithReload(() => import('./projects/DynamicProjectPage'), 'DynamicProjectPage')
