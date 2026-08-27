@@ -33,7 +33,7 @@
 | `/about` | `AboutPage` | О проекте DOM Academy (Development Of Mind): 6 вкладок (проект/команды/история/офлайн-центр/партнёры). Контент в `pages/about`, fallback на хардкод. |
 | `/projects/:slug` | `DynamicProjectPage` | Страница проекта академии. Контент в `projectPages/{slug}`, fallback на хардкод-словарь (`dom-academy-overview`). |
 | `/warm_springs2` | `WarmSprings2Page` | Лендинг интенсива по групповой психотерапии «Тёплые ключи» (Тбилиси, июль 2026). Статическая, не редактируется через `/superadmin/pages`. |
-| `/vozrast` | `VozrastLandingPage` | Лендинг программы повышения квалификации «Понимание и помощь человеку в контексте возраста» (осень 2026). Standalone (без AppShell-сайдбара), статический контент в `src/pages/vozrastLanding/data.ts`. |
+| `/vozrast` | `VozrastLandingPage` | Лендинг программы повышения квалификации «Понимание и помощь человеку в контексте возраста» (осень 2026). Standalone (без AppShell-сайдбара), статический контент в `src/pages/vozrastLanding/data.ts`. Карточка курса `development` в каталоге гостевой `/home` ведёт сюда, а не на intro (`COURSE_LANDING_PATHS` в `GuestLanding.tsx`). |
 | `/academy/retraining-psychologist-consultant-belgrade` | `RetrainingLandingPage` (`city="belgrade"`) | Лендинг переподготовки «Психолог-консультант», Белград (старт 15.02.2027). Standalone, Tailwind + токены theme.css; общий контент и городские конфиги в `src/pages/retrainingLanding/data.ts`. |
 | `/academy/retraining-psychologist-consultant-tbilisi` | `RetrainingLandingPage` (`city="tbilisi"`) | Тбилисская версия того же лендинга (общий компонент, городской конфиг). |
 | `/login` | `Login` | Страница входа (eager load, не через lazy.ts). |

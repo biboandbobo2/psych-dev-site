@@ -6,6 +6,11 @@ import { useCoursesOpenness } from '../../hooks/useCoursesOpenness';
 import { getCourseIntroPath } from '../../lib/courseLinks';
 import { PageLoader } from '../../components/ui';
 
+// Курсы с собственным лендингом: карточка каталога ведёт на него вместо вводной страницы
+const COURSE_LANDING_PATHS: Record<string, string> = {
+  development: '/vozrast',
+};
+
 const PANEL = 'overflow-hidden rounded-[26px] border border-border-cool max-[420px]:rounded-[20px]';
 const EYEBROW = 'mb-3 text-[0.65rem] font-bold uppercase tracking-[0.14em] text-accent-muted';
 const BUTTON =
@@ -83,7 +88,7 @@ function CourseCard({
 
   return (
     <Link
-      to={getCourseIntroPath(course.id)}
+      to={COURSE_LANDING_PATHS[course.id] ?? getCourseIntroPath(course.id)}
       className="grid min-h-[330px] grid-rows-[156px_1fr] overflow-hidden rounded-[20px] border border-border-cool bg-card text-inherit transition hover:-translate-y-0.5 hover:border-[#AEBBB8] hover:shadow-[0_14px_30px_rgb(36_56_75/0.1)]"
     >
       <div
