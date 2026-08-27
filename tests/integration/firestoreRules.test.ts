@@ -203,6 +203,27 @@ describe('tests коллекция (та самая регрессия MR-8)', (
       setDoc(doc(db, 'tests', 't-new'), { title: 'new', status: 'draft' })
     );
   });
+
+  it('аноним: get tests/<id>/content/questions → success', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(db, 'tests', 't1', 'content', 'questions')));
+  });
+
+  it('обычный пользователь: write tests/<id>/content/questions → denied', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'tests', 't1', 'content', 'questions'), { questions: [] })
+    );
+  });
+
+  it('admin: write tests/<id>/content/questions → success', async () => {
+    const db = testEnv
+      .authenticatedContext('admin-uid', { role: 'admin' })
+      .firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'tests', 't1', 'content', 'questions'), { questions: [] })
+    );
+  });
 });
 
 describe('server-only коллекции не утекают клиенту', () => {

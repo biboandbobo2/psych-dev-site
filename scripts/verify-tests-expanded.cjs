@@ -17,8 +17,8 @@ async function verifyTests() {
         } else {
             const doc = snapshot3.docs[0].data();
             console.log(`✅ general-3 found: "${doc.title}"`);
-            console.log(`   Questions: ${doc.questions.length} (Expected: 10)`);
-            if (doc.questions.length !== 10) console.error('   ❌ Incorrect question count!');
+            console.log(`   Questions: ${doc.questionCount} (Expected: 10)`);
+            if (doc.questionCount !== 10) console.error('   ❌ Incorrect question count!');
         }
 
         // 2. Verify Attention (general-4)
@@ -28,8 +28,8 @@ async function verifyTests() {
         } else {
             const doc = snapshot4.docs[0].data();
             console.log(`✅ general-4 found: "${doc.title}"`);
-            console.log(`   Questions: ${doc.questions.length} (Expected: 10)`);
-            if (doc.questions.length !== 10) console.error('   ❌ Incorrect question count!');
+            console.log(`   Questions: ${doc.questionCount} (Expected: 10)`);
+            if (doc.questionCount !== 10) console.error('   ❌ Incorrect question count!');
         }
 
     } catch (error) {

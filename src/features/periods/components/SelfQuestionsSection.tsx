@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import type { Test } from '../../../types/tests';
+import type { TestSummary } from '../../../types/tests';
 import { Section } from '../../../components/ui/Section';
 import { Button } from '../../../components/ui/Button';
 import { ensureUrl } from '../utils/media';
@@ -9,7 +9,7 @@ interface SelfQuestionsSectionProps {
   slug: string;
   title: string;
   content: any[];
-  periodTests: Test[];
+  periodTests: TestSummary[];
 }
 
 export function SelfQuestionsSection({ slug, title, content, periodTests }: SelfQuestionsSectionProps) {

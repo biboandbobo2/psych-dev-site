@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import type { Test } from '../../../types/tests';
+import type { TestSummary } from '../../../types/tests';
 
 interface TestPrerequisiteSelectorProps {
   prerequisiteTestId?: string;
   requiredPercentage: number;
-  existingTests: Test[];
+  existingTests: TestSummary[];
   currentTestId?: string;
   onPrerequisiteChange: (testId: string | undefined) => void;
   onPercentageChange: (percentage: number) => void;

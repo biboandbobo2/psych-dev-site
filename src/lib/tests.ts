@@ -6,13 +6,21 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
+  setDoc,
   query,
   where,
   orderBy,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Test, TestQuestion, CreateTestData, UpdateTestData } from '../types/tests';
+import type {
+  Test,
+  TestSummary,
+  TestQuestion,
+  CreateTestData,
+  UpdateTestData,
+} from '../types/tests';
 import { removeUndefined } from '../utils/removeUndefined';
 import { debugError, debugLog } from '../lib/debug';
 import {
@@ -25,11 +33,19 @@ import {
 } from './testsNormalization';
 
 const TESTS_COLLECTION = 'tests';
+// Вопросы живут отдельно от метаданных: tests/{id}/content/questions.
+// Документ tests/{id} лёгкий, списки не тянут вопросы (раньше — ~4 МБ на выборку).
+const CONTENT_SUBCOLLECTION = 'content';
+const QUESTIONS_DOC_ID = 'questions';
+
+function questionsDocRef(testId: string) {
+  return doc(db, TESTS_COLLECTION, testId, CONTENT_SUBCOLLECTION, QUESTIONS_DOC_ID);
+}
 
 /**
- * Преобразовать данные Firestore в объект Test
+ * Преобразовать данные Firestore в метаданные теста (без вопросов)
  */
-function firestoreToTest(id: string, data: any): Test {
+function firestoreToTestSummary(id: string, data: any): TestSummary {
   // Безопасное преобразование Timestamp в Date
   const toDate = (timestamp: any): Date => {
     if (!timestamp) return new Date();
@@ -40,11 +56,13 @@ function firestoreToTest(id: string, data: any): Test {
     return new Date();
   };
 
-  const normalizedQuestions: TestQuestion[] = Array.isArray(data.questions)
-    ? data.questions.map((question: any, index: number) => normalizeQuestion(question, index))
-    : [];
-
-  const questionCount = normalizedQuestions.length;
+  // Fallback на embedded questions — документы до миграции в subdoc
+  const questionCount =
+    typeof data.questionCount === 'number'
+      ? data.questionCount
+      : Array.isArray(data.questions)
+        ? data.questions.length
+        : 0;
 
   const defaultRevealPolicy =
     data.defaultRevealPolicy !== undefined
@@ -58,7 +76,6 @@ function firestoreToTest(id: string, data: any): Test {
     rubric: data.rubric,
     prerequisiteTestId: data.prerequisiteTestId,
     questionCount,
-    questions: normalizedQuestions,
     status: data.status,
     requiredPercentage: data.requiredPercentage ?? 70,
     defaultRevealPolicy,
@@ -69,25 +86,44 @@ function firestoreToTest(id: string, data: any): Test {
   };
 }
 
+function normalizeQuestions(raw: unknown): TestQuestion[] {
+  return Array.isArray(raw)
+    ? raw.map((question: any, index: number) => normalizeQuestion(question, index))
+    : [];
+}
+
 /**
- * Получить все тесты
+ * Собрать полный тест: метаданные + вопросы из subdoc,
+ * с fallback на embedded questions (документы до миграции).
  */
-export async function getAllTests(): Promise<Test[]> {
+function buildFullTest(id: string, data: any, contentData: any | undefined): Test {
+  const questions =
+    contentData !== undefined
+      ? normalizeQuestions(contentData?.questions)
+      : normalizeQuestions(data.questions);
+  const summary = firestoreToTestSummary(id, data);
+  return { ...summary, questionCount: questions.length, questions };
+}
+
+/**
+ * Получить все тесты (только метаданные)
+ */
+export async function getAllTests(): Promise<TestSummary[]> {
   debugLog('🔵 [getAllTests] Загружаем все тесты...');
   const testsRef = collection(db, TESTS_COLLECTION);
   const q = query(testsRef, orderBy('updatedAt', 'desc'));
 
   const snapshot = await getDocs(q);
-  const tests = snapshot.docs.map(doc => firestoreToTest(doc.id, doc.data()));
+  const tests = snapshot.docs.map(doc => firestoreToTestSummary(doc.id, doc.data()));
 
   debugLog('✅ [getAllTests] Загружено тестов:', tests.length);
   return tests;
 }
 
 /**
- * Получить только опубликованные тесты
+ * Получить только опубликованные тесты (только метаданные)
  */
-export async function getPublishedTests(): Promise<Test[]> {
+export async function getPublishedTests(): Promise<TestSummary[]> {
   debugLog('🔵 [getPublishedTests] Загружаем опубликованные тесты...');
   const testsRef = collection(db, TESTS_COLLECTION);
   const q = query(
@@ -97,26 +133,63 @@ export async function getPublishedTests(): Promise<Test[]> {
   );
 
   const snapshot = await getDocs(q);
-  const tests = snapshot.docs.map(doc => firestoreToTest(doc.id, doc.data()));
+  const tests = snapshot.docs.map(doc => firestoreToTestSummary(doc.id, doc.data()));
 
   debugLog('✅ [getPublishedTests] Загружено опубликованных тестов:', tests.length);
   return tests;
 }
 
 /**
- * Получить тест по ID
+ * Получить опубликованные тесты с вопросами (для поиска по контенту).
+ * Дорогая операция — использовать только там, где нужны тексты вопросов.
+ */
+export async function getPublishedTestsWithQuestions(): Promise<Test[]> {
+  debugLog('🔵 [getPublishedTestsWithQuestions] Загружаем тесты с вопросами...');
+  const testsRef = collection(db, TESTS_COLLECTION);
+  const q = query(testsRef, where('status', '==', 'published'), orderBy('updatedAt', 'desc'));
+
+  const snapshot = await getDocs(q);
+  const tests = await Promise.all(
+    snapshot.docs.map(async (testDoc) => {
+      const data = testDoc.data();
+      // Документы до миграции хранят вопросы embedded — subdoc не запрашиваем
+      if (Array.isArray(data.questions)) {
+        return buildFullTest(testDoc.id, data, undefined);
+      }
+      const contentSnapshot = await getDoc(questionsDocRef(testDoc.id));
+      return buildFullTest(
+        testDoc.id,
+        data,
+        contentSnapshot.exists() ? contentSnapshot.data() : { questions: [] }
+      );
+    })
+  );
+
+  debugLog('✅ [getPublishedTestsWithQuestions] Загружено тестов:', tests.length);
+  return tests;
+}
+
+/**
+ * Получить тест по ID (метаданные + вопросы)
  */
 export async function getTestById(testId: string): Promise<Test | null> {
   debugLog('🔵 [getTestById] Загружаем тест:', testId);
   const testRef = doc(db, TESTS_COLLECTION, testId);
-  const snapshot = await getDoc(testRef);
+  const [snapshot, contentSnapshot] = await Promise.all([
+    getDoc(testRef),
+    getDoc(questionsDocRef(testId)),
+  ]);
 
   if (!snapshot.exists()) {
     debugError('❌ [getTestById] Тест не найден');
     return null;
   }
 
-  const test = firestoreToTest(snapshot.id, snapshot.data());
+  const test = buildFullTest(
+    snapshot.id,
+    snapshot.data(),
+    contentSnapshot.exists() ? contentSnapshot.data() : undefined
+  );
   debugLog('✅ [getTestById] Тест загружен:', test.title);
   return test;
 }
@@ -135,7 +208,6 @@ export async function createTest(
 
   const data = removeUndefined({
     ...rest,
-    questions: [], // Изначально пустой массив вопросов
     requiredPercentage: testData.requiredPercentage ?? 70,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -190,8 +262,12 @@ export async function updateTestQuestions(
 
   const testRef = doc(db, TESTS_COLLECTION, testId);
 
-  await updateDoc(testRef, {
+  await setDoc(questionsDocRef(testId), {
     questions: questions.map((question, index) => sanitizeQuestionForWrite(question, index)),
+  });
+  await updateDoc(testRef, {
+    // Подчищаем embedded questions у документов до миграции
+    questions: deleteField(),
     questionCount: questions.length,
     updatedAt: serverTimestamp(),
   });
@@ -206,6 +282,7 @@ export async function deleteTest(testId: string): Promise<void> {
   debugLog('🔵 [deleteTest] Удаляем тест:', testId);
 
   const testRef = doc(db, TESTS_COLLECTION, testId);
+  await deleteDoc(questionsDocRef(testId));
   await deleteDoc(testRef);
 
   debugLog('✅ [deleteTest] Тест удалён');

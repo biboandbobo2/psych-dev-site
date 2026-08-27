@@ -19,8 +19,8 @@ async function verifyDevTests() {
             } else {
                 const doc = snapshot.docs[0].data();
                 console.log(`✅ Found '${rubric}': "${doc.title}"`);
-                console.log(`   Questions: ${doc.questions.length} (Expected: 10)`);
-                if (doc.questions.length !== 10) console.error('   ❌ Incorrect question count!');
+                console.log(`   Questions: ${doc.questionCount} (Expected: 10)`);
+                if (doc.questionCount !== 10) console.error('   ❌ Incorrect question count!');
             }
         }
 

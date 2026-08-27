@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import type { Test, TestQuestion, CourseType } from '../types/tests';
+import type { Test, TestSummary, TestQuestion, CourseType } from '../types/tests';
 import { THEME_PRESETS } from '../constants/themePresets';
 import { debugError } from '../lib/debug';
 import { TestQuestionsManager } from './tests/editor/TestQuestionsManager';
@@ -18,7 +18,7 @@ interface TestEditorFormProps {
   testId: string | null;
   onClose: () => void;
   onSaved: () => void;
-  existingTests: Test[];
+  existingTests: TestSummary[];
   importedData?: {
     data?: Partial<Test>;
     questions?: TestQuestion[];
