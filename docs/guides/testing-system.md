@@ -80,13 +80,16 @@ Utils
 ### Firestore коллекции
 
 ```
-tests/{testId}
+tests/{testId}                        ← только метаданные (TestSummary)
   ├── title: string
   ├── rubric: 'full-course' | AgeRange
-  ├── questions: TestQuestion[]
+  ├── questionCount: number
   ├── status: 'draft' | 'published' | 'unpublished'
   ├── prerequisiteTestId?: string
   └── appearance?: TestAppearance
+
+tests/{testId}/content/questions      ← вопросы отдельным subdoc
+  └── questions: TestQuestion[]
 
 testResults/{resultId}
   ├── userId: string
@@ -137,14 +140,13 @@ interface TestQuestion {
 }
 
 // Полная структура теста
-interface Test {
+interface TestSummary {               // документ tests/{testId}, без вопросов
   id: string;
   title: string;
   rubric: TestRubric;
   prerequisiteTestId?: string;        // Предыдущий тест в цепочке
   requiredPercentage?: number;        // Порог для разблокировки (70%)
   questionCount: number;              // 1-20
-  questions: TestQuestion[];
   status: TestStatus;
   defaultRevealPolicy?: RevealPolicy;
   appearance?: TestAppearance;
@@ -152,7 +154,15 @@ interface Test {
   updatedAt: Date;
   createdBy: string;
 }
+
+interface Test extends TestSummary {  // getTestById: meta + subdoc content/questions
+  questions: TestQuestion[];
+}
 ```
+
+Списки (`getPublishedTests`, `getAllTests`) возвращают `TestSummary[]` — вопросы
+не загружаются. Полный тест собирает `getTestById`; для поиска по текстам
+вопросов есть `getPublishedTestsWithQuestions` (дорогая, только search drawers).
 
 **Полный список типов:** `src/types/tests.ts`, `src/types/testResults.ts`
 
