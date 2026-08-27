@@ -10,7 +10,7 @@ import { useClinicalTopics } from '../hooks/useClinicalTopics';
 import { useGeneralTopics } from '../hooks/useGeneralTopics';
 import { useSearchHistory } from '../hooks';
 import { useContentSearchStore } from '../stores';
-import { getPublishedTests } from '../lib/tests';
+import { getPublishedTestsWithQuestions } from '../lib/tests';
 import type { Test } from '../types/tests';
 
 type SearchTab = 'content' | 'research';
@@ -46,7 +46,7 @@ export function CombinedSearchDrawer({ open, onClose }: CombinedSearchDrawerProp
   useEffect(() => {
     if (!open || testsLoadedRef.current) return;
     setTestsLoading(true);
-    getPublishedTests()
+    getPublishedTestsWithQuestions()
       .then((loadedTests) => {
         setTests(loadedTests);
         testsLoadedRef.current = true;

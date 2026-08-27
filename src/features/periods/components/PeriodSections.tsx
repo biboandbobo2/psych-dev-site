@@ -1,4 +1,4 @@
-import type { Test, CourseType } from '../../../types/tests';
+import type { TestSummary, CourseType } from '../../../types/tests';
 import { BadgeSection } from './BadgeSection';
 import { ListSection } from './ListSection';
 import { SelfQuestionsSection } from './SelfQuestionsSection';
@@ -12,7 +12,7 @@ interface PeriodSectionsProps {
   sections?: Record<string, PeriodSectionData>;
   deckUrl: string;
   defaultVideoTitle: string;
-  periodTests: Test[];
+  periodTests: TestSummary[];
   periodId?: string;
   periodTitle: string;
   /** Тип курса для проверки доступа к видео */
@@ -104,7 +104,7 @@ interface SectionRendererProps {
   section: PeriodSectionData;
   deckUrl: string;
   defaultVideoTitle: string;
-  periodTests: Test[];
+  periodTests: TestSummary[];
   periodId?: string;
   periodTitle: string;
   /** Тип курса для проверки доступа к видео */

@@ -421,6 +421,13 @@ service cloud.firestore {
     match /tests/{testId} {
       allow read: if true;
       allow write: if isAdmin();
+
+      // Вопросы теста (tests/{id}/content/questions) — та же политика:
+      // чтение публичное, запись только админам.
+      match /content/{contentId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
     }
 
     // Админская служебная коллекция (например, admin/task-board — метрики

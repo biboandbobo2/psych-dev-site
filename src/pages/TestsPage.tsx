@@ -2,9 +2,8 @@ import { useState, useEffect, useMemo, memo } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { getPublishedTests } from '../lib/tests';
-import { isTestUnlocked } from '../lib/testAccess';
 import { getAllTestResults, groupResultsByTest } from '../lib/testResults';
-import type { Test as FirestoreTest, TestRubric, CourseType } from '../types/tests';
+import type { TestSummary, CourseType } from '../types/tests';
 import type { TestAttemptSummary } from '../types/testResults';
 import { buildTestChains } from '../utils/testChainHelpers';
 import { TestCard } from '../components/tests/TestCard';
@@ -115,9 +114,9 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
   const [searchParams] = useSearchParams();
   const { currentCourse, setCurrentCourse } = useCourseStore();
   const { loading: coursesLoading } = useCourses();
-  const [firestoreTests, setFirestoreTests] = useState<FirestoreTest[]>([]);
+  const [firestoreTests, setFirestoreTests] = useState<TestSummary[]>([]);
   const [loadingTests, setLoadingTests] = useState(true);
-  const [testUnlockStatus, setTestUnlockStatus] = useState<Record<string, boolean>>({});
+  const [loadingResults, setLoadingResults] = useState(false);
   const [resultsByTestId, setResultsByTestId] = useState<Map<string, TestAttemptSummary>>(
     () => new Map()
   );
@@ -133,44 +132,67 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
 
   const pageConfig = PAGE_CONFIGS[rubricFilter];
 
-  // Загрузка опубликованных тестов из Firestore
+  // Загрузка опубликованных тестов из Firestore (метаданные, без вопросов)
   useEffect(() => {
+    let cancelled = false;
     const loadTests = async () => {
       try {
         setLoadingTests(true);
         const tests = await getPublishedTests();
+        if (cancelled) return;
         debugLog(`🔵 [TestsPage/${rubricFilter}] Загружено тестов из Firestore:`, tests.length);
         setFirestoreTests(tests);
-
-        // Проверяем доступность тестов для пользователя и подгружаем результаты
-        if (user) {
-          const unlockStatus: Record<string, boolean> = {};
-          for (const test of tests) {
-            unlockStatus[test.id] = await isTestUnlocked(
-              user.uid,
-              test.prerequisiteTestId,
-              test.requiredPercentage ?? 70
-            );
-          }
-          setTestUnlockStatus(unlockStatus);
-          debugLog(`🔓 [TestsPage/${rubricFilter}] Статусы разблокировки:`, unlockStatus);
-
-          try {
-            const allResults = await getAllTestResults(user.uid);
-            setResultsByTestId(groupResultsByTest(allResults));
-          } catch (resultsError) {
-            debugError(`❌ [TestsPage/${rubricFilter}] Ошибка загрузки результатов:`, resultsError);
-          }
-        }
       } catch (error) {
         debugError(`❌ [TestsPage/${rubricFilter}] Ошибка загрузки тестов:`, error);
       } finally {
-        setLoadingTests(false);
+        if (!cancelled) setLoadingTests(false);
       }
     };
 
     loadTests();
+    return () => {
+      cancelled = true;
+    };
+  }, [rubricFilter]);
+
+  // Результаты пользователя — параллельно со списком тестов
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setResultsByTestId(new Map());
+      setLoadingResults(false);
+      return;
+    }
+    setLoadingResults(true);
+    getAllTestResults(user.uid)
+      .then((allResults) => {
+        if (!cancelled) setResultsByTestId(groupResultsByTest(allResults));
+      })
+      .catch((resultsError) => {
+        if (!cancelled) {
+          debugError(`❌ [TestsPage/${rubricFilter}] Ошибка загрузки результатов:`, resultsError);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingResults(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user, rubricFilter]);
+
+  // Разблокировка считается локально из уже загруженных результатов —
+  // раньше здесь было до 30 последовательных запросов isTestUnlocked.
+  const testUnlockStatus = useMemo(() => {
+    const status: Record<string, boolean> = {};
+    for (const test of firestoreTests) {
+      status[test.id] =
+        !test.prerequisiteTestId ||
+        (resultsByTestId.get(test.prerequisiteTestId)?.bestPercentage ?? -1) >=
+          (test.requiredPercentage ?? 70);
+    }
+    return status;
+  }, [firestoreTests, resultsByTestId]);
 
   // Фильтруем тесты в зависимости от rubricFilter и course
   const filteredTests = useMemo(() => {
@@ -195,10 +217,14 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
 
   const testChains = useMemo(() => buildTestChains(filteredTests), [filteredTests]);
 
+  // Скелетоны держим, пока не готовы и список, и результаты (грузятся параллельно) —
+  // иначе замки на тестах с prerequisite мигали бы locked → unlocked.
+  const showLoading = loadingTests || loadingResults;
+
   // Placeholder-карточки («Скоро») показываем только когда в категории ещё нет
   // ни одного реального теста. Появился хоть один — заглушки прячутся.
   const showPlaceholders =
-    rubricFilter === 'full-course' && !loadingTests && testChains.length === 0;
+    rubricFilter === 'full-course' && !showLoading && testChains.length === 0;
 
   // Страница всегда в контексте курса: если курс не выбран и нет ?course=,
   // отправляем в «Дом», чтобы студент зашёл через intro-страницу курса.
@@ -227,7 +253,7 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Тесты из Firestore */}
-          {loadingTests ? (
+          {showLoading ? (
             <>
               <LoadingSkeleton />
               <LoadingSkeleton />

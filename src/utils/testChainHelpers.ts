@@ -1,11 +1,11 @@
-import type { Test } from '../types/tests';
+import type { TestSummary } from '../types/tests';
 
 /**
  * Интерфейс цепочки тестов
  */
 export interface TestChain {
-  root: Test;      // Корневой тест (без prerequisite)
-  levels: Test[];  // Уровни (с prerequisiteTestId)
+  root: TestSummary;      // Корневой тест (без prerequisite)
+  levels: TestSummary[];  // Уровни (с prerequisiteTestId)
 }
 
 /**
@@ -26,7 +26,7 @@ export function cleanLevelLabel(text: string): string {
  * Форматирует название уровня из title теста
  * Извлекает часть после ':' или возвращает очищенный title
  */
-export function formatLevelLabel(test: Test, index: number): string {
+export function formatLevelLabel(test: TestSummary, index: number): string {
   const levelNumber = index + 1;
   const parts = test.title.split(':');
 
@@ -69,15 +69,15 @@ export function getTestMetadata(rubric: string): {
  * Строит цепочки тестов из массива
  * Группирует тесты по prerequisite связям
  */
-export function buildTestChains(tests: Test[]): TestChain[] {
+export function buildTestChains(tests: TestSummary[]): TestChain[] {
   // 1. Создать Map для быстрого доступа
-  const map = new Map<string, Test>();
+  const map = new Map<string, TestSummary>();
   for (const test of tests) {
     map.set(test.id, test);
   }
 
   // 2. Найти корневые тесты
-  const roots: Test[] = [];
+  const roots: TestSummary[] = [];
   for (const test of tests) {
     if (!test.prerequisiteTestId || !map.has(test.prerequisiteTestId)) {
       roots.push(test);
@@ -90,8 +90,8 @@ export function buildTestChains(tests: Test[]): TestChain[] {
     const visited = new Set<string>();
     visited.add(root.id);
 
-    let current: Test | undefined = root;
-    const levels: Test[] = [];
+    let current: TestSummary | undefined = root;
+    const levels: TestSummary[] = [];
 
     while (current && levels.length < MAX_CHAIN_LENGTH) {
       const successors = tests.filter(

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import type { Test } from '../../../types/tests';
+import type { TestSummary } from '../../../types/tests';
 import { getPublishedTests } from '../../../lib/tests';
 import { debugError } from '../../../lib/debug';
 
-const testsCache = new Map<string, Test[]>();
-let publishedTestsPromise: Promise<Test[]> | null = null;
+const testsCache = new Map<string, TestSummary[]>();
+let publishedTestsPromise: Promise<TestSummary[]> | null = null;
 
-async function loadPublishedTests(): Promise<Test[]> {
+async function loadPublishedTests(): Promise<TestSummary[]> {
   if (!publishedTestsPromise) {
     publishedTestsPromise = getPublishedTests().catch((error) => {
       publishedTestsPromise = null;
@@ -17,7 +17,7 @@ async function loadPublishedTests(): Promise<Test[]> {
 }
 
 export function usePeriodTests(periodId?: string) {
-  const [tests, setTests] = useState<Test[]>([]);
+  const [tests, setTests] = useState<TestSummary[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

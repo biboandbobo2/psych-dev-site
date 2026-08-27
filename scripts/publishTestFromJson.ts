@@ -161,7 +161,8 @@ async function main() {
     return;
   }
 
-  // 1. Создаём/обновляем документ
+  // 1. Создаём/обновляем документ: метаданные в tests/{id},
+  //    вопросы отдельно в tests/{id}/content/questions
   if (testId) {
     await db.collection('tests').doc(testId).update({
       title: t.title,
@@ -172,7 +173,7 @@ async function main() {
       questionCount: questions.length,
       defaultRevealPolicy: t.defaultRevealPolicy,
       appearance: t.appearance,
-      questions,
+      questions: FieldValue.delete(),
       status: opts.status,
       updatedAt: now,
     });
@@ -188,7 +189,6 @@ async function main() {
       questionCount: questions.length,
       defaultRevealPolicy: t.defaultRevealPolicy,
       appearance: t.appearance,
-      questions,
       createdBy: SUPER_ADMIN_UID,
       createdAt: now,
       updatedAt: now,
@@ -196,6 +196,8 @@ async function main() {
     testId = ref.id;
     console.log(`✓ created tests/${testId}`);
   }
+  await db.collection('tests').doc(testId).collection('content').doc('questions').set({ questions });
+  console.log(`✓ questions → tests/${testId}/content/questions (${questions.length})`);
 
   // 2. Опционально: фото → Storage → imageUrl
   if (opts.photosDir && bucket) {
@@ -219,8 +221,13 @@ async function main() {
         console.log(`  ✓ ${srcQ.id} ← ${srcQ._photoFile}`);
       }
       if (uploaded > 0) {
+        await db
+          .collection('tests')
+          .doc(testId)
+          .collection('content')
+          .doc('questions')
+          .set({ questions: updated });
         await db.collection('tests').doc(testId).update({
-          questions: updated,
           updatedAt: FieldValue.serverTimestamp(),
         });
         console.log(`✓ imageUrl проставлен для ${uploaded} вопросов`);

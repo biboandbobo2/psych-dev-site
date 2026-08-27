@@ -8,7 +8,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import { useNotes } from '../../hooks/useNotes';
 import { getPublishedTests } from '../../lib/tests';
 import { getAllTestResults, groupResultsByTest } from '../../lib/testResults';
-import type { Test } from '../../types/tests';
+import type { TestSummary } from '../../types/tests';
 import type { TestAttemptSummary } from '../../types/testResults';
 import { PageLoader } from '../../components/ui';
 import { useCourseIntro } from '../../hooks/useCourseIntro';
@@ -75,9 +75,32 @@ interface ActionButtonProps {
   };
   expanded: boolean;
   onToggle: () => void;
+  disabled?: boolean;
 }
 
-function ActionButton({ to, icon, title, summary, palette, expanded, onToggle }: ActionButtonProps) {
+function ActionButton({
+  to,
+  icon,
+  title,
+  summary,
+  palette,
+  expanded,
+  onToggle,
+  disabled,
+}: ActionButtonProps) {
+  if (disabled) {
+    return (
+      <div className="flex h-full items-center gap-3 rounded-2xl bg-gray-100 px-4 py-3 text-gray-400">
+        <span className="text-2xl opacity-60" aria-hidden>
+          {icon}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-semibold">{title}</span>
+          <span className="block text-xs">{summary}</span>
+        </span>
+      </div>
+    );
+  }
   return (
     <div className={cn('relative flex h-full rounded-2xl transition', palette.bg, palette.hover)}>
       <Link
@@ -116,7 +139,7 @@ function ActionButton({ to, icon, title, summary, palette, expanded, onToggle }:
   );
 }
 
-function TestRow({ test, summary }: { test: Test; summary: TestAttemptSummary | undefined }) {
+function TestRow({ test, summary }: { test: TestSummary; summary: TestAttemptSummary | undefined }) {
   return (
     <Link
       to={`/tests/dynamic/${test.id}`}
@@ -144,7 +167,7 @@ function TestsContent({
   loading,
   emptyMessage,
 }: {
-  tests: Test[];
+  tests: TestSummary[];
   resultsByTestId: Map<string, TestAttemptSummary>;
   loading: boolean;
   emptyMessage: string;
@@ -191,7 +214,7 @@ function NotesContent({ courseId }: { courseId: string }) {
 export default function CourseIntroPage({ courseId }: CourseIntroPageProps) {
   const { user } = useAuth();
   const { courses, loading: coursesLoading } = useCourses();
-  const [tests, setTests] = useState<Test[] | null>(null);
+  const [tests, setTests] = useState<TestSummary[] | null>(null);
   const [testsLoading, setTestsLoading] = useState(true);
   const [resultsByTestId, setResultsByTestId] = useState<Map<string, TestAttemptSummary>>(new Map());
   const [resultsLoading, setResultsLoading] = useState(true);
@@ -268,6 +291,13 @@ export default function CourseIntroPage({ courseId }: CourseIntroPageProps) {
   }).length;
 
   const testsAreLoading = testsLoading || resultsLoading;
+  const lessonTestsDisabled = !testsAreLoading && lessonTests.length === 0;
+  const courseTestsDisabled = !testsAreLoading && courseTests.length === 0;
+  const visibleExpanded =
+    (expanded === 'lesson-tests' && lessonTestsDisabled) ||
+    (expanded === 'course-tests' && courseTestsDisabled)
+      ? null
+      : expanded;
 
   const handleToggle = (section: Exclude<ExpandedSection, null>) => {
     setExpanded((current) => (current === section ? null : section));
@@ -341,19 +371,33 @@ export default function CourseIntroPage({ courseId }: CourseIntroPageProps) {
           to="/tests-lesson"
           icon="📝"
           title="Тесты по занятиям"
-          summary={testsAreLoading ? 'Загрузка...' : `${passedLessonCount} пройдено из ${lessonTests.length}`}
+          summary={
+            testsAreLoading
+              ? 'Загрузка...'
+              : lessonTests.length === 0
+                ? 'Тестов пока нет'
+                : `${passedLessonCount} пройдено из ${lessonTests.length}`
+          }
           palette={palettes.lessonTests}
-          expanded={expanded === 'lesson-tests'}
+          expanded={visibleExpanded === 'lesson-tests'}
           onToggle={() => handleToggle('lesson-tests')}
+          disabled={lessonTestsDisabled}
         />
         <ActionButton
           to="/tests"
           icon="📚"
           title="Тесты по курсу"
-          summary={testsAreLoading ? 'Загрузка...' : `${passedCourseCount} пройдено из ${courseTests.length}`}
+          summary={
+            testsAreLoading
+              ? 'Загрузка...'
+              : courseTests.length === 0
+                ? 'Тестов пока нет'
+                : `${passedCourseCount} пройдено из ${courseTests.length}`
+          }
           palette={palettes.courseTests}
-          expanded={expanded === 'course-tests'}
+          expanded={visibleExpanded === 'course-tests'}
           onToggle={() => handleToggle('course-tests')}
+          disabled={courseTestsDisabled}
         />
         <ActionButton
           to={notesLink}
@@ -361,14 +405,14 @@ export default function CourseIntroPage({ courseId }: CourseIntroPageProps) {
           title="Заметки"
           summary={notesLoadingIndicator ?? `${courseNotes.length} ${pluralizeNotes(courseNotes.length)}`}
           palette={palettes.notes}
-          expanded={expanded === 'notes'}
+          expanded={visibleExpanded === 'notes'}
           onToggle={() => handleToggle('notes')}
         />
       </div>
 
-      {expanded !== null ? (
+      {visibleExpanded !== null ? (
         <section className="rounded-2xl border border-[#DDE5EE] bg-white p-4">
-          {expanded === 'lesson-tests' && (
+          {visibleExpanded === 'lesson-tests' && (
             <TestsContent
               tests={lessonTests}
               resultsByTestId={resultsByTestId}
@@ -376,7 +420,7 @@ export default function CourseIntroPage({ courseId }: CourseIntroPageProps) {
               emptyMessage="Для этого курса пока нет тестов по занятиям."
             />
           )}
-          {expanded === 'course-tests' && (
+          {visibleExpanded === 'course-tests' && (
             <TestsContent
               tests={courseTests}
               resultsByTestId={resultsByTestId}
@@ -384,7 +428,7 @@ export default function CourseIntroPage({ courseId }: CourseIntroPageProps) {
               emptyMessage="Итоговых тестов по курсу пока нет."
             />
           )}
-          {expanded === 'notes' && <NotesContent courseId={courseId} />}
+          {visibleExpanded === 'notes' && <NotesContent courseId={courseId} />}
         </section>
       ) : null}
 

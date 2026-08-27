@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Test } from '../../../../types/tests';
+import type { TestSummary } from '../../../../types/tests';
 
 interface UseTestPrerequisiteOptions {
-  existingTests: Test[];
+  existingTests: TestSummary[];
   testId: string | null;
 }
 
@@ -121,7 +121,7 @@ export function useTestPrerequisite({ existingTests, testId }: UseTestPrerequisi
   }, [isNextLevel, prerequisiteTestId, testOptions]);
 
   // Build chain from root
-  const buildChainFromRoot = useCallback((startId: string, tests: Test[]): Test[] => {
+  const buildChainFromRoot = useCallback((startId: string, tests: TestSummary[]): TestSummary[] => {
     if (!startId) return [];
     const map = new Map(tests.map((t) => [t.id, t]));
     let current = map.get(startId);
@@ -134,9 +134,9 @@ export function useTestPrerequisite({ existingTests, testId }: UseTestPrerequisi
       current = map.get(current.prerequisiteTestId)!;
     }
 
-    const chain: Test[] = [];
+    const chain: TestSummary[] = [];
     visited.clear();
-    let node: Test | undefined = current;
+    let node: TestSummary | undefined = current;
 
     while (node && !visited.has(node.id) && chain.length < 3) {
       chain.push(node);

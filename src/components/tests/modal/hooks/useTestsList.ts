@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getAllTests, getTestById } from '../../../../lib/tests';
 import { debugError } from '../../../../lib/debug';
-import type { Test } from '../../../../types/tests';
+import type { TestSummary } from '../../../../types/tests';
 
 /**
  * Hook for managing tests list data
  */
 export function useTestsList() {
-  const [tests, setTests] = useState<Test[]>([]);
+  const [tests, setTests] = useState<TestSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nextLevelCache, setNextLevelCache] = useState<Record<string, string>>({});

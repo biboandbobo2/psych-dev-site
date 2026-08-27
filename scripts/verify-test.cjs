@@ -18,7 +18,7 @@ async function verifyTest() {
         const data = doc.data();
         console.log('✅ Verification Successful!');
         console.log(`Title: ${data.title}`);
-        console.log(`Questions: ${data.questions.length}`);
+        console.log(`Questions: ${data.questionCount}`);
         console.log(`Rubric: ${data.rubric}`);
 
     } catch (error) {

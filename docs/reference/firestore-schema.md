@@ -543,75 +543,51 @@ interface Topic {
 
 ### `tests/{testId}`
 
-Тесты с вопросами, рубриками и системой разблокировки уровней.
+Метаданные теста — **без вопросов**. Вопросы вынесены в subdoc
+`tests/{testId}/content/questions` (август 2026), чтобы списки тестов
+(/tests, /tests-lesson, «О курсе», админка) не тянули тяжёлые массивы вопросов
+(~4 МБ на выборку до разделения).
+
+Актуальные типы: `src/types/tests.ts` (`TestSummary` — метаданные,
+`Test = TestSummary + questions`). Доступ к данным: `src/lib/tests.ts`.
 
 ```typescript
-interface Test {
-  id: string;                     // Уникальный ID теста
-  title: string;                  // Название теста
-  description?: string;           // Описание
-
-  // Статус публикации
+interface TestSummary {              // документ tests/{testId}
+  id: string;
+  title: string;
+  course: CourseType;                // 'development' | 'clinical' | 'general' | id динамического курса
+  rubric: TestRubric;                // 'full-course' | AgeRange | id темы ('general-3', 'intro', ...)
+  prerequisiteTestId?: string;       // тест-предшественник (цепочки уровней)
+  questionCount: number;             // хранится в документе, поддерживается при записи вопросов
   status: 'draft' | 'published' | 'unpublished';
-
-  // Рубрика (для какого контента)
-  rubric: {
-    type: 'all' | 'period';       // 'all' = весь курс, 'period' = конкретный период
-    course: 'development' | 'clinical' | 'general';
-    periodId?: string;            // ID периода (если type === 'period')
-  };
-
-  // Вопросы
-  questions: Question[];
-
-  // Система разблокировки
-  prerequisiteTestId?: string;    // ID теста, который нужно пройти перед этим
-
-  // Метаданные
+  requiredPercentage?: number;       // порог прохождения (default 70)
+  defaultRevealPolicy?: RevealPolicy;
+  appearance?: TestAppearance;       // оформление (иконки, градиенты, тема)
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  createdBy: string;              // userId создателя
-}
-
-interface Question {
-  id: string;                     // Уникальный ID вопроса
-  questionText: string;           // Текст вопроса
-
-  options: string[];              // 4 варианта ответа
-  correctAnswerIndex: number;     // Индекс правильного ответа (0-3)
-
-  // Кастомные сообщения
-  successMessage?: string;        // Сообщение при правильном ответе
-  failureMessage?: string;        // Сообщение при неправильном ответе
+  createdBy: string;
 }
 ```
 
-**Пример документа:**
-```json
+### `tests/{testId}/content/questions`
+
+Единственный документ подколлекции — массив вопросов теста.
+
+```typescript
 {
-  "id": "test_erikson_stages",
-  "title": "Стадии развития Эриксона",
-  "description": "Проверьте знание 8 стадий психосоциального развития",
-  "status": "published",
-  "rubric": {
-    "type": "all",
-    "course": "development"
-  },
-  "questions": [
-    {
-      "id": "q1",
-      "questionText": "Какой возраст соответствует стадии 'Автономия vs Стыд'?",
-      "options": ["0-1 год", "1-3 года", "3-6 лет", "7-9 лет"],
-      "correctAnswerIndex": 1,
-      "successMessage": "Верно! Это ранний возраст (1-3 года).",
-      "failureMessage": "Подсказка: это возраст приучения к горшку."
-    }
-  ],
-  "createdAt": "2025-11-10T12:00:00Z",
-  "updatedAt": "2025-11-10T12:00:00Z",
-  "createdBy": "admin_uid_123"
+  questions: TestQuestion[];         // см. src/types/tests.ts (answers[], correctAnswerId,
+                                     // revealPolicy, explanation, imageUrl, ...)
 }
 ```
+
+Как читается:
+
+- Списки — `getPublishedTests()` / `getAllTests()` → только `TestSummary`.
+- Прохождение/редактор — `getTestById()` → метаданные + subdoc параллельно.
+- Поиск по контенту — `getPublishedTestsWithQuestions()` (дорогая, только для search drawers).
+- **Fallback:** документы старого формата с embedded `questions` в родителе
+  читаются без subdoc (обратная совместимость на время миграции;
+  скрипт: `scripts/migrate-tests-split-content.cjs`).
 
 **См. подробности:** [docs/guides/testing-system.md](../guides/testing-system.md)
 
@@ -1090,10 +1066,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Тесты доступны для чтения, редактирование только админы
+    // Тесты доступны для чтения всем (в т.ч. гостям), редактирование только админы
     match /tests/{testId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if isAdmin();
+
+      // Вопросы теста — та же политика
+      match /content/{contentId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
     }
 
     // Результаты тестов приватные

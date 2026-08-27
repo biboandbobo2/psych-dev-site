@@ -34,8 +34,12 @@ async function uploadTest() {
 
     const testData = jsonData.test;
 
+    // Вопросы живут в subdoc tests/{id}/content/questions, метаданные — в tests/{id}
+    const { questions = [], ...testMeta } = testData;
+
     const docData = {
-      ...testData,
+      ...testMeta,
+      questionCount: questions.length,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       createdBy: 'system-script',
@@ -59,12 +63,15 @@ async function uploadTest() {
       console.log(`⚠️ Test with rubric '${testData.rubric}' already exists (ID: ${existingDoc.id}). Updating...`);
       await existingDoc.ref.update({
         ...docData,
+        questions: admin.firestore.FieldValue.delete(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
       docRef = existingDoc.ref;
     } else {
       docRef = await db.collection('tests').add(docData);
     }
+    await docRef.collection('content').doc('questions').set({ questions });
+    console.log(`✓ Questions written to subdoc (${questions.length})`);
 
     console.log(`\n✅ Test uploaded successfully!`);
     console.log(`🆔 Test ID: ${docRef.id}`);

@@ -86,16 +86,16 @@ export interface TestQuestion {
 }
 
 /**
- * Определение теста
+ * Метаданные теста (документ tests/{id}, без вопросов).
+ * Списки (/tests, /tests-lesson, «О курсе», админка) работают с этим типом.
  */
-export interface Test {
+export interface TestSummary {
   id: string; // UUID теста
   title: string; // Название теста
   course: CourseType; // Курс (включая динамические)
   rubric: TestRubric; // Рубрика (курс целиком или период)
   prerequisiteTestId?: string; // ID теста-предшественника (если это следующий уровень)
   questionCount: number; // Количество вопросов (1-20)
-  questions: TestQuestion[]; // Массив вопросов
   status: TestStatus; // Статус публикации
   requiredPercentage?: number; // Порог прохождения для открытия следующего уровня
   defaultRevealPolicy?: RevealPolicy; // Глобальная политика показа правильного ответа
@@ -106,12 +106,19 @@ export interface Test {
 }
 
 /**
+ * Полный тест: метаданные + вопросы (subdoc tests/{id}/content/questions).
+ */
+export interface Test extends TestSummary {
+  questions: TestQuestion[]; // Массив вопросов
+}
+
+/**
  * Данные для создания нового теста
  */
-export type CreateTestData = Omit<Test, 'id' | 'createdAt' | 'updatedAt' | 'questions'>;
+export type CreateTestData = Omit<TestSummary, 'id' | 'createdAt' | 'updatedAt'>;
 
 /**
  * Данные для обновления существующего теста
  */
-export type UpdateTestData = Partial<Omit<Test, 'id' | 'createdAt' | 'createdBy'>>;
+export type UpdateTestData = Partial<Omit<TestSummary, 'id' | 'createdAt' | 'createdBy'>>;
 export type { ThemePreset };
