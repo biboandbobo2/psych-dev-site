@@ -704,6 +704,18 @@ UI остаётся на `useCourses` — сам хук не трогали, у 
 Тесты: `src/hooks/useEditableCourses.test.ts`, `src/stores/useAuthStore.test.ts`,
 блок `feature_events` в `tests/integration/firestoreRules.test.ts`.
 
+### Стартовый экран `/admin`
+
+Для админа курса `/admin` — не редирект, а кабинет (`src/pages/admin/cabinet/AuthorCabinet.tsx`):
+карточка на каждый курс из `useEditableCourses` со сводкой (занятия опубликованы /
+черновики, вопросы студентов и новые за неделю, события телеметрии за 4 недели и
+уникальные студенты) и ссылками на контент, вопросы, телеметрию и «О курсе».
+Метрики собирает `useAuthorCabinetStats` разовыми запросами к существующим
+коллекциям (`lessons`, `lectureQuestions`, `feature_events`) — новых коллекций и
+полей кабинет не заводит; упавшая по правам или отсутствующему индексу метрика
+показывается прочерком и не роняет карточку. Super-admin по-прежнему уходит с
+`/admin` на `/superadmin`.
+
 ### Подводный камень: права живут в токене
 
 Rules читают `editableCourses` из токена запроса, а токен обновляется примерно
@@ -853,7 +865,7 @@ npm run dev
 ---
 
 **История изменений:**
-- 2026-08-29: Кабинет автора — админка ограничена курсами из `editableCourses` (useEditableCourses), телеметрия по курсу
+- 2026-08-29: Кабинет автора — админка ограничена курсами из `editableCourses` (useEditableCourses), телеметрия по курсу, стартовый экран `/admin` для админа курса
 - 2026-08-18: Скрытие/удаление динамических курсов, shared-инвалидация useCourses, фикс сброса курса в CreateLessonModal
 
 - 2026-02-05: Добавлены динамические курсы, sidebar-компоненты, useActiveCourse, bulk enrollment

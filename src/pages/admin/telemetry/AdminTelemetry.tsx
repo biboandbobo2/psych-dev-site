@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { collection, getDocs, orderBy, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { debugError } from '../../../lib/debug';
@@ -59,6 +59,15 @@ export default function AdminTelemetry() {
   // '' — «все курсы»: доступно только super-admin, у остальных rules отклонят
   // запрос без фильтра.
   const [courseFilter, setCourseFilter] = useState('');
+  const [searchParams] = useSearchParams();
+  const courseParam = searchParams.get('course');
+
+  // ?course= из кабинета автора — только в рамках прав.
+  useEffect(() => {
+    if (!courseParam) return;
+    if (!isSuperAdmin && !editableCourses.some((course) => course.id === courseParam)) return;
+    setCourseFilter(courseParam);
+  }, [courseParam, isSuperAdmin, editableCourses]);
 
   useEffect(() => {
     if (isSuperAdmin || coursesLoading || editableCourses.length === 0) return;

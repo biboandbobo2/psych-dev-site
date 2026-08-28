@@ -203,7 +203,7 @@
 
 | Маршрут | Компонент | Роль | Описание | Lazy |
 |---------|-----------|------|----------|------|
-| `/admin` | `AdminLanding` | Admin | Редирект на `/superadmin` (Super Admin) или `/admin/content` (Admin) | — |
+| `/admin` | `AdminLanding` → `AuthorCabinet` | Admin | Super Admin — редирект на `/superadmin`; Admin — кабинет автора: карточки своих курсов со сводкой и ссылками на контент / вопросы / телеметрию / «О курсе» | ✅ |
 | `/superadmin` | `Admin` | Super Admin | Главная админ-панель | ✅ |
 | `/coadmin` | `CoAdmin` | флаг `coAdmin === true` | Лендинг для со-админа: ссылка на редактор страниц DOM Academy | ✅ |
 | `/admin/users` | `AdminUsers` | Super Admin | Управление пользователями и ролями | ✅ |

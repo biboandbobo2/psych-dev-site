@@ -32,6 +32,7 @@ import {
   AdminAnnouncements,
   AdminExams,
   AdminTelemetry,
+  AuthorCabinet,
   AdminGroups,
   AdminLectureQuestions,
   AdminPagesList,
@@ -94,7 +95,10 @@ function CourseDataBoundary({
 
 function AdminLanding() {
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
-  return <Navigate to={isSuperAdmin ? "/superadmin" : "/admin/content"} replace />;
+  // Super-admin как и раньше уходит в общую панель; админ курса получает
+  // кабинет автора — сводку по своим курсам.
+  if (isSuperAdmin) return <Navigate to="/superadmin" replace />;
+  return <AuthorCabinet />;
 }
 
 function DynamicCourseIntroRoute() {
