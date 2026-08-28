@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useAuthStore } from './useAuthStore';
+import { readEditableCoursesClaim, useAuthStore } from './useAuthStore';
 
 /**
  * Регрессионный тест на derivation флагов в setUserRole / setCoAdminFlag.
@@ -89,5 +89,45 @@ describe('useAuthStore — derivation флагов', () => {
     const s = useAuthStore.getState();
     expect(s.isAdmin).toBe(true);
     expect(s.isCoAdmin).toBe(false);
+  });
+});
+
+/**
+ * Права админа на курсы: rules читают claim `editableCourses`, поэтому в UI
+ * побеждает он, а Firestore-зеркало adminEditableCourses остаётся фолбэком.
+ * Расхождение этих двух источников даёт «кнопка активна, запись отклонена».
+ */
+describe('useAuthStore — editableCourses из claims', () => {
+  it('массив строк → возвращается как есть', () => {
+    expect(readEditableCoursesClaim({ editableCourses: ['external-x', 'clinical'] })).toEqual([
+      'external-x',
+      'clinical',
+    ]);
+  });
+
+  it('пустой массив в claim → [] (права отозваны, зеркало не должно перебивать)', () => {
+    expect(readEditableCoursesClaim({ editableCourses: [] })).toEqual([]);
+  });
+
+  it('claim отсутствует → null (используется Firestore-зеркало)', () => {
+    expect(readEditableCoursesClaim({ role: 'admin' })).toBeNull();
+  });
+
+  it('не-массив в claim → null', () => {
+    expect(readEditableCoursesClaim({ editableCourses: 'external-x' })).toBeNull();
+  });
+
+  it('мусор внутри массива отфильтровывается', () => {
+    expect(readEditableCoursesClaim({ editableCourses: ['ok', 42, null, 'fine'] })).toEqual([
+      'ok',
+      'fine',
+    ]);
+  });
+
+  it('setAdminEditableCourses кладёт список в стор', () => {
+    useAuthStore.getState().setAdminEditableCourses(['external-x']);
+    expect(useAuthStore.getState().adminEditableCourses).toEqual(['external-x']);
+    useAuthStore.getState().setAdminEditableCourses([]);
+    expect(useAuthStore.getState().adminEditableCourses).toEqual([]);
   });
 });

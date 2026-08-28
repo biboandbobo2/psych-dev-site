@@ -16,6 +16,16 @@ import {
 } from '../lib/courseProgress/cloudSync';
 import { migrateLocalProgressIfNeeded } from '../lib/courseProgress/migration';
 
+/**
+ * `editableCourses` из custom claims. null — claim отсутствует (значит нечему
+ * побеждать Firestore-зеркало), [] — claim есть и пуст.
+ */
+export function readEditableCoursesClaim(claims: Record<string, unknown>): string[] | null {
+  const raw = claims.editableCourses;
+  if (!Array.isArray(raw)) return null;
+  return raw.filter((courseId): courseId is string => typeof courseId === 'string');
+}
+
 interface AuthState {
   user: User | null;
   loading: boolean;
@@ -171,9 +181,14 @@ export const useAuthStore = create<AuthState>()(
         let cancelled = false;
         let userDocUnsubscribe: Unsubscribe | null = null;
         let myGroupsUnsubscribe: Unsubscribe | null = null;
+        // Истина для UI — claim `editableCourses` из токена: именно его читают
+        // Firestore rules. Зеркало users/{uid}.adminEditableCourses остаётся
+        // фолбэком, пока claim не пришёл (legacy-аккаунты, старый токен).
+        let claimEditableApplied = false;
 
         const unsubscribe = onAuthStateChanged(auth, async (next) => {
           if (cancelled) return;
+          claimEditableApplied = false;
 
           // Отписываемся от предыдущего пользователя
           if (userDocUnsubscribe) {
@@ -210,6 +225,7 @@ export const useAuthStore = create<AuthState>()(
           try {
             let resolvedRole: UserRole | null = null;
             let resolvedCoAdmin = false;
+            let resolvedEditableCourses: string[] | null = null;
 
             if (next.email === SUPER_ADMIN_EMAIL) {
               resolvedRole = 'super-admin';
@@ -219,6 +235,7 @@ export const useAuthStore = create<AuthState>()(
               const cachedToken = await next.getIdTokenResult(false);
               resolvedRole = normalizeUserRole(cachedToken.claims.role);
               resolvedCoAdmin = cachedToken.claims.coAdmin === true;
+              resolvedEditableCourses = readEditableCoursesClaim(cachedToken.claims);
 
               if (!resolvedRole || !resolvedCoAdmin) {
                 // Нет роли/флага в claims — проверяем Firestore для legacy/freshly-granted
@@ -232,6 +249,10 @@ export const useAuthStore = create<AuthState>()(
             // который выставляется в setUserRole.
             get().setUserRole(resolvedRole);
             get().setCoAdminFlag(resolvedCoAdmin);
+            if (resolvedEditableCourses) {
+              claimEditableApplied = true;
+              get().setAdminEditableCourses(resolvedEditableCourses);
+            }
 
             // Фаза 2: обновляем токен в фоне (подхватит изменения claims).
             if (next.email !== SUPER_ADMIN_EMAIL) {
@@ -246,6 +267,18 @@ export const useAuthStore = create<AuthState>()(
                 if (freshCoAdmin !== get().isCoAdmin) {
                   debugLog('🔄 Auth: coAdmin flag updated from fresh token:', freshCoAdmin);
                   get().setCoAdminFlag(freshCoAdmin);
+                }
+                const freshEditable = readEditableCoursesClaim(freshToken.claims);
+                if (freshEditable) {
+                  claimEditableApplied = true;
+                  const current = get().adminEditableCourses;
+                  const changed =
+                    freshEditable.length !== current.length ||
+                    freshEditable.some((courseId, index) => courseId !== current[index]);
+                  if (changed) {
+                    debugLog('🔄 Auth: editableCourses updated from fresh token:', freshEditable);
+                    get().setAdminEditableCourses(freshEditable);
+                  }
                 }
               }).catch((err) => {
                 reportAppError({
@@ -335,12 +368,16 @@ export const useAuthStore = create<AuthState>()(
                   get().setCoAdminFlag(newCoAdmin);
                 }
 
-                // adminEditableCourses синхронно с Firestore
-                const editableRaw = data?.adminEditableCourses;
-                const editable = Array.isArray(editableRaw)
-                  ? editableRaw.filter((c): c is string => typeof c === 'string')
-                  : [];
-                get().setAdminEditableCourses(editable);
+                // adminEditableCourses из Firestore-зеркала — только пока claim
+                // не пришёл. Иначе UI показывал бы курс, куда rules (они читают
+                // claim) не пустят: «кнопка активна, запись отклонена».
+                if (!claimEditableApplied) {
+                  const editableRaw = data?.adminEditableCourses;
+                  const editable = Array.isArray(editableRaw)
+                    ? editableRaw.filter((c): c is string => typeof c === 'string')
+                    : [];
+                  get().setAdminEditableCourses(editable);
+                }
               },
               (error) => {
                 reportAppError({

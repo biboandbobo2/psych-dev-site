@@ -4,8 +4,9 @@ import { collection, doc, getDocs, orderBy, query, serverTimestamp, setDoc, writ
 import type { CourseType } from '../types/tests';
 import { useCourseStore } from '../stores/useCourseStore';
 import { cn } from '../lib/cn';
-import { useCourses } from '../hooks/useCourses';
+import { useEditableCourses } from '../hooks/useEditableCourses';
 import { useActiveCourse } from '../hooks/useActiveCourse';
+import { useAuthStore } from '../stores/useAuthStore';
 import CreateCourseModal from './CreateCourseModal';
 import { db } from '../lib/firebase';
 import { debugError } from '../lib/debug';
@@ -72,7 +73,8 @@ export default function AdminCourseSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentCourse, setCurrentCourse } = useCourseStore();
-  const { courses, loading: coursesLoading, reload } = useCourses({ includeUnpublished: true });
+  const { courses, loading: coursesLoading, reload } = useEditableCourses();
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const [showCreateCourse, setShowCreateCourse] = useState(false);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [editingCourseName, setEditingCourseName] = useState('');
@@ -98,10 +100,11 @@ export default function AdminCourseSidebar() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (queryCourse && queryCourse !== currentCourse) {
-      setCurrentCourse(queryCourse as CourseType);
-    }
-  }, [queryCourse, currentCourse, setCurrentCourse]);
+    if (!queryCourse || queryCourse === currentCourse) return;
+    // ?course= чужого курса игнорируем: список уже отфильтрован по правам.
+    if (!courses.some((course) => course.id === queryCourse)) return;
+    setCurrentCourse(queryCourse as CourseType);
+  }, [queryCourse, currentCourse, courses, setCurrentCourse]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -259,6 +262,18 @@ export default function AdminCourseSidebar() {
     }
   };
 
+  if (!coursesLoading && courses.length === 0) {
+    return (
+      <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-4 sm:p-5 space-y-1">
+        <p className="text-xs uppercase tracking-[0.3em] text-muted">Редактор</p>
+        <h3 className="text-lg font-semibold text-fg">Курсы</h3>
+        <p className="text-sm text-muted">
+          У вас пока нет курсов в управлении. Напишите администратору академии, чтобы получить доступ.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-border/60 bg-card shadow-brand p-4 sm:p-5 space-y-4">
@@ -268,6 +283,7 @@ export default function AdminCourseSidebar() {
           <p className="text-xs text-muted">Выберите курс для редактуры материалов.</p>
         </div>
 
+        {isSuperAdmin && (
         <div className="flex flex-col gap-2">
           <button
             type="button"
@@ -278,6 +294,7 @@ export default function AdminCourseSidebar() {
             <span>Добавить курс</span>
           </button>
         </div>
+        )}
 
         <nav className="flex flex-col gap-2">
           {courses.map((course) => {
