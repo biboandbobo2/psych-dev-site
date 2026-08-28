@@ -35,13 +35,20 @@ describe('useActiveCourse', () => {
     expect(result.current).toBe('development');
   });
 
-  it('returns currentCourse even when not in list (useEffect corrects on next tick)', () => {
+  it('returns first available course when currentCourse is not in list', () => {
     mockCurrentCourse = 'nonexistent';
     const courses = [makeCourse('clinical'), makeCourse('general')];
     const { result } = renderHook(() => useActiveCourse(courses, false));
-    // The computed value falls back to currentCourse (2nd in the ?? chain).
-    // useEffect triggers setCurrentCourse to fix it on next render cycle.
-    expect(result.current).toBe('nonexistent');
+    // Персистентный курс, недоступный текущему пользователю (удалён или вне
+    // editableCourses), не должен просачиваться наружу.
+    expect(result.current).toBe('clinical');
+  });
+
+  it('keeps persisted course while the list is loading', () => {
+    mockCurrentCourse = 'my-course';
+    const courses = [makeCourse('development')];
+    const { result } = renderHook(() => useActiveCourse(courses, true));
+    expect(result.current).toBe('my-course');
   });
 
   it('calls setCurrentCourse when currentCourse is not in courses', () => {
@@ -64,11 +71,10 @@ describe('useActiveCourse', () => {
     expect(mockSetCurrentCourse).not.toHaveBeenCalled();
   });
 
-  it('returns currentCourse when courses list is empty', () => {
+  it('returns empty string when courses list is empty and loading finished', () => {
     mockCurrentCourse = 'nonexistent';
     const { result } = renderHook(() => useActiveCourse([], false));
-    // With empty courses, ?? chain: undefined ?? 'nonexistent' ?? undefined ?? 'development'
-    // 'nonexistent' is truthy so it wins.
-    expect(result.current).toBe('nonexistent');
+    // Админ без курсов в управлении: вызывающий код показывает заглушку.
+    expect(result.current).toBe('');
   });
 });
