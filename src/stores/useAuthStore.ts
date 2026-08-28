@@ -288,6 +288,8 @@ export const useAuthStore = create<AuthState>()(
             if (next.email !== SUPER_ADMIN_EMAIL) {
               next.getIdTokenResult(true).then((freshToken) => {
                 if (cancelled) return;
+                // Пользователь мог смениться, пока промис висел.
+                if (get().user?.uid !== next.uid) return;
                 const freshRole = normalizeUserRole(freshToken.claims.role);
                 const freshCoAdmin = freshToken.claims.coAdmin === true;
                 if (freshRole !== get().userRole) {
@@ -402,9 +404,15 @@ export const useAuthStore = create<AuthState>()(
                 // прав, а пересечение с claim'ом не даёт показать курс, куда
                 // rules ещё не пустят («кнопка активна, запись отклонена»).
                 const editableRaw = data?.adminEditableCourses;
-                mirrorEditableCourses = Array.isArray(editableRaw)
-                  ? editableRaw.filter((c): c is string => typeof c === 'string')
-                  : [];
+                if (Array.isArray(editableRaw)) {
+                  mirrorEditableCourses = editableRaw.filter(
+                    (c): c is string => typeof c === 'string'
+                  );
+                } else {
+                  // Поля нет вовсе — зеркало ничего не утверждает о правах,
+                  // иначе пересечение обнулило бы живой claim.
+                  mirrorEditableCourses = editableRaw === undefined ? null : [];
+                }
                 applyEditableCourses();
               },
               (error) => {

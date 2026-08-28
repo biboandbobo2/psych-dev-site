@@ -56,18 +56,26 @@ export default function AdminTelemetry() {
   const [error, setError] = useState<string | null>(null);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const { courses: editableCourses, loading: coursesLoading } = useEditableCourses();
-  // '' — «все курсы»: доступно только super-admin, у остальных rules отклонят
-  // запрос без фильтра.
   const [searchParams] = useSearchParams();
   const courseParam = searchParams.get('course');
-  // Стартовое значение — ?course= из кабинета автора; дальше выбором владеет
-  // пользователь, а эффект ниже только чинит недоступный курс.
-  const [courseFilter, setCourseFilter] = useState(() => courseParam ?? '');
+  // null — курс ещё не выбран, запрос не шлём. '' — «все курсы»: валидно
+  // только для super-admin, у остальных rules отклонят запрос без фильтра.
+  // Единственный эффект-корректор: ?course= из кабинета автора применяется
+  // только после загрузки списка и только если курс в правах.
+  const [courseFilter, setCourseFilter] = useState<string | null>(null);
 
   useEffect(() => {
-    // Для super-admin валиден любой выбор, включая '' («все курсы»).
-    if (isSuperAdmin || coursesLoading || editableCourses.length === 0) return;
-    if (editableCourses.some((course) => course.id === courseFilter)) return;
+    if (coursesLoading) return;
+    if (isSuperAdmin) {
+      // Для super-admin валиден любой выбор, включая '' («все курсы»),
+      // поэтому трогаем состояние только один раз — на инициализации.
+      if (courseFilter === null) setCourseFilter(courseParam ?? '');
+      return;
+    }
+    // Админ без курсов остаётся с null: заглушка вместо заведомо отклонённого
+    // запроса.
+    if (editableCourses.length === 0) return;
+    if (courseFilter && editableCourses.some((course) => course.id === courseFilter)) return;
     const fallback =
       editableCourses.find((course) => course.id === courseParam)?.id ?? editableCourses[0].id;
     setCourseFilter(fallback);
@@ -114,17 +122,18 @@ export default function AdminTelemetry() {
     }
   }, []);
 
-  const waitingForCourse = !isSuperAdmin && !courseFilter;
-
   useEffect(() => {
-    // Админ без выбранного курса не шлёт запрос: rules отклонят его целиком.
-    if (waitingForCourse) {
+    // Пока курс не выбран, запрос не уходит: без фильтра по courseId rules
+    // отклонят его целиком.
+    if (courseFilter === null) {
       setRows([]);
-      setLoading(coursesLoading);
+      // Скелет держим, только пока выбор ещё возможен: у админа без курсов
+      // должна показаться заглушка, а не бесконечная загрузка.
+      setLoading(coursesLoading || editableCourses.length > 0);
       return;
     }
     load(weeks, courseFilter);
-  }, [load, weeks, courseFilter, waitingForCourse, coursesLoading]);
+  }, [load, weeks, courseFilter, coursesLoading, editableCourses]);
 
   const summary = useMemo(() => {
     const weekKeys = new Set<string>();
@@ -189,7 +198,7 @@ export default function AdminTelemetry() {
               </label>
               <select
                 id="telemetry-course"
-                value={courseFilter}
+                value={courseFilter ?? ''}
                 onChange={(e) => setCourseFilter(e.target.value)}
                 className="rounded border border-gray-300 px-2 py-1"
               >

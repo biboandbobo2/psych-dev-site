@@ -30,11 +30,18 @@ function buildCourseLessons(
   }));
 }
 
-export function usePublishedLessonOptions() {
+interface UsePublishedLessonOptionsParams {
+  /** Админским экранам нужны и скрытые курсы: тест можно делать до публикации. */
+  includeUnpublished?: boolean;
+}
+
+export function usePublishedLessonOptions({
+  includeUnpublished = false,
+}: UsePublishedLessonOptionsParams = {}) {
   const { periods, loading: periodsLoading } = usePeriods();
   const { topics: clinicalTopics, loading: clinicalLoading } = useClinicalTopics();
   const { topics: generalTopics, loading: generalLoading } = useGeneralTopics();
-  const { courses, loading: coursesLoading } = useCourses();
+  const { courses, loading: coursesLoading } = useCourses({ includeUnpublished });
   const [dynamicLessons, setDynamicLessons] = useState<Record<string, PublishedLessonOption[]>>({});
   const [dynamicLoading, setDynamicLoading] = useState(false);
 

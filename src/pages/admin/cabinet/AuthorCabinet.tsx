@@ -20,7 +20,7 @@ function StatBlock({ label, value, hint }: { label: string; value: string; hint?
 const num = (value: number | null) => (value === null ? '—' : String(value));
 
 /** Подпись под цифрой: у неизвестной метрики её нет — «0» тут был бы враньём. */
-const hint = (value: number | null, format: (value: number) => string, whenZero?: string) => {
+const formatHint = (value: number | null, format: (value: number) => string, whenZero?: string) => {
   if (value === null) return undefined;
   return value > 0 ? format(value) : whenZero;
 };
@@ -45,17 +45,17 @@ function CourseCard({ course, stats }: { course: CourseOption; stats: CourseCabi
         <StatBlock
           label="Занятия"
           value={num(s?.lessonsPublished ?? null)}
-          hint={hint(s?.lessonsDraft ?? null, (value) => `${value} в черновиках`, 'без черновиков')}
+          hint={formatHint(s?.lessonsDraft ?? null, (value) => `${value} в черновиках`, 'без черновиков')}
         />
         <StatBlock
           label="Вопросы студентов"
           value={num(s?.questionsTotal ?? null)}
-          hint={hint(s?.questionsLastWeek ?? null, (value) => `${value} за неделю`, 'новых нет')}
+          hint={formatHint(s?.questionsLastWeek ?? null, (value) => `${value} за неделю`, 'новых нет')}
         />
         <StatBlock
           label="События за 4 недели"
           value={num(s?.events ?? null)}
-          hint={hint(s?.uniqueStudents ?? null, (value) => `${value} студентов`)}
+          hint={formatHint(s?.uniqueStudents ?? null, (value) => `${value} студентов`)}
         />
       </div>
 

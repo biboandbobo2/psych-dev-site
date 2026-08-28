@@ -93,9 +93,9 @@ describe('useAuthStore — derivation флагов', () => {
 });
 
 /**
- * Права админа на курсы: rules читают claim `editableCourses`, поэтому в UI
- * побеждает он, а Firestore-зеркало adminEditableCourses остаётся фолбэком.
- * Расхождение этих двух источников даёт «кнопка активна, запись отклонена».
+ * Права админа на курсы приходят из claim `editableCourses` (его читают rules)
+ * и Firestore-зеркала adminEditableCourses. В UI берётся пересечение —
+ * расхождение источников иначе даёт «кнопка активна, запись отклонена».
  */
 describe('useAuthStore — editableCourses из claims', () => {
   it('массив строк → возвращается как есть', () => {
