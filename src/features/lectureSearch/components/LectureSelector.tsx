@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getCourseDisplayName, getCourseIcon } from '../../../constants/courses';
+import { useCourses } from '../../../hooks/useCourses';
 import { useLectureSources } from '../hooks/useLectureSources';
 
 interface LectureSelectorProps {
@@ -20,6 +21,10 @@ export function LectureSelector({
   onLectureKeysChange,
 }: LectureSelectorProps) {
   const { courses, loading, error } = useLectureSources();
+  // Актуальные названия и иконки курсов из courses/{courseId}: API лекций
+  // возвращает только courseId, а статический fallback знает лишь core-курсы
+  // и показывал транслитерированные ID динамических курсов.
+  const { courseMap } = useCourses({ includeUnpublished: true });
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
@@ -83,6 +88,9 @@ export function LectureSelector({
         <div className="grid gap-2 sm:grid-cols-3">
           {courses.map((course) => {
             const selected = course.courseId === selectedCourseId;
+            const courseOption = courseMap.get(course.courseId);
+            const courseName = courseOption?.name ?? getCourseDisplayName(course.courseId);
+            const courseIcon = courseOption?.icon ?? getCourseIcon(course.courseId);
             return (
               <button
                 key={course.courseId}
@@ -95,7 +103,7 @@ export function LectureSelector({
                 }`}
               >
                 <div className="text-sm font-semibold">
-                  {getCourseIcon(course.courseId)} {getCourseDisplayName(course.courseId)}
+                  {courseIcon} {courseName}
                 </div>
                 <div className="mt-1 text-xs text-muted">
                   {course.lectures.length} лекц.

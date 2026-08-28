@@ -12,7 +12,9 @@ import {
   getEstimatedCourseLessons,
   formatTimeFromSeconds,
   resolveContinueCourses,
+  parseDateKey,
   toDateKey,
+  toDateKeyInTimeZone,
   tryParseDateLabel,
   type ParsedCalendarEvent,
 } from './homeHelpers';
@@ -174,7 +176,10 @@ function StudentDashboard() {
         text: `Экзамен: ${primaryExam.title} в ${time}`,
         dateLabel: `${dateLabel} ${time}`,
         parsedDate: startDate,
-        dateKey: toDateKey(startDate),
+        // Подпись выше отформатирована в таймзоне экзамена — dateKey считаем
+        // в ней же, иначе около полуночи точка календаря и подпись
+        // расходились на день.
+        dateKey: toDateKeyInTimeZone(startDate, primaryExam.timezone),
       },
     ];
   }, [primaryExam, primaryBooking, primarySlots]);
@@ -195,22 +200,14 @@ function StudentDashboard() {
     [parsedCalendarEvents],
   );
 
-  const openEventsCalendar = () => {
-    const firstDatedEvent = parsedCalendarEvents.find((event) => event.parsedDate);
-    if (firstDatedEvent?.parsedDate) {
-      setCalendarCursor(
-        new Date(
-          firstDatedEvent.parsedDate.getFullYear(),
-          firstDatedEvent.parsedDate.getMonth(),
-          1,
-        ),
-      );
-      if (!selectedCalendarDateKey) {
-        setSelectedCalendarDateKey(firstDatedEvent.dateKey);
-      }
-    } else if (!selectedCalendarDateKey) {
-      setSelectedCalendarDateKey(toDateKey(new Date()));
-    }
+  // Обычное открытие показывает текущий месяц, клик по дню мини-календаря —
+  // месяц этого дня. Лента групп отсортирована по createdAt, поэтому её
+  // события не должны управлять курсором: недавно созданная запись со старой
+  // датой проведения уводила календарь в прошлое.
+  const openEventsCalendar = (dateKey?: string) => {
+    const targetDate = (dateKey ? parseDateKey(dateKey) : null) ?? new Date();
+    setCalendarCursor(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
+    setSelectedCalendarDateKey(dateKey ?? toDateKey(targetDate));
     setIsEventsCalendarOpen(true);
   };
 
@@ -284,11 +281,8 @@ function StudentDashboard() {
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
             <MiniWeekCalendar
               calendarEventsByDate={calendarEventsByDate}
-              onSelectDate={(dateKey) => {
-                setSelectedCalendarDateKey(dateKey);
-                openEventsCalendar();
-              }}
-              onOpen={openEventsCalendar}
+              onSelectDate={(dateKey) => openEventsCalendar(dateKey)}
+              onOpen={() => openEventsCalendar()}
             />
 
             <MyGroupsFeedSection

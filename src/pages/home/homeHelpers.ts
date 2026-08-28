@@ -80,13 +80,29 @@ export function toDateKey(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
-export function formatDateKey(dateKey: string): string {
+/**
+ * dateKey (YYYY-MM-DD) для момента времени в заданной IANA-таймзоне.
+ * Нужен, когда подпись события форматируется в чужой таймзоне (экзамен):
+ * локальный toDateKey мог поставить точку календаря на соседний день.
+ * Локаль en-CA даёт ровно формат YYYY-MM-DD.
+ */
+export function toDateKeyInTimeZone(date: Date, timeZone: string): string {
+  return date.toLocaleDateString('en-CA', { timeZone });
+}
+
+export function parseDateKey(dateKey: string): Date | null {
   const [yearRaw, monthRaw, dayRaw] = dateKey.split('-');
   const year = Number(yearRaw);
   const month = Number(monthRaw);
   const day = Number(dayRaw);
-  if (!year || !month || !day) return dateKey;
-  return new Date(year, month - 1, day).toLocaleDateString('ru-RU', {
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+export function formatDateKey(dateKey: string): string {
+  const parsed = parseDateKey(dateKey);
+  if (!parsed) return dateKey;
+  return parsed.toLocaleDateString('ru-RU', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',

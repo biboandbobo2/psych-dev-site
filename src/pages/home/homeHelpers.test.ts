@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   formatTimeFromSeconds,
   toDateKey,
+  toDateKeyInTimeZone,
+  parseDateKey,
   formatDateKey,
   tryParseDateLabel,
   resolveContinueCourses,
@@ -46,6 +48,40 @@ describe('toDateKey', () => {
 
   it('zero-pads month and day', () => {
     expect(toDateKey(new Date(2026, 2, 3))).toBe('2026-03-03');
+  });
+});
+
+describe('toDateKeyInTimeZone', () => {
+  it('даёт формат YYYY-MM-DD в заданной таймзоне', () => {
+    // 22:30 UTC = 01:30 следующего дня в Москве (+3)
+    const instant = new Date('2026-08-28T22:30:00Z');
+    expect(toDateKeyInTimeZone(instant, 'Europe/Moscow')).toBe('2026-08-29');
+    expect(toDateKeyInTimeZone(instant, 'UTC')).toBe('2026-08-28');
+  });
+
+  it('около полуночи день зависит от таймзоны', () => {
+    const instant = new Date('2025-12-09T02:00:00+03:00'); // 09.12 в Москве
+    expect(toDateKeyInTimeZone(instant, 'Europe/Moscow')).toBe('2025-12-09');
+    expect(toDateKeyInTimeZone(instant, 'America/New_York')).toBe('2025-12-08');
+  });
+});
+
+describe('parseDateKey', () => {
+  it('parses YYYY-MM-DD into local Date', () => {
+    const date = parseDateKey('2026-08-28');
+    expect(date).toBeInstanceOf(Date);
+    expect(date!.getFullYear()).toBe(2026);
+    expect(date!.getMonth()).toBe(7); // August = 7
+    expect(date!.getDate()).toBe(28);
+  });
+
+  it('round-trips with toDateKey', () => {
+    expect(toDateKey(parseDateKey('2025-12-09')!)).toBe('2025-12-09');
+  });
+
+  it('returns null for invalid input', () => {
+    expect(parseDateKey('invalid')).toBeNull();
+    expect(parseDateKey('')).toBeNull();
   });
 });
 

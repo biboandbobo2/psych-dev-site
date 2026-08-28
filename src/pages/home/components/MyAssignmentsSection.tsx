@@ -1,5 +1,6 @@
 import type { GroupFeedItem } from '../../../types/groupFeed';
-import { formatDueDateRu } from '../utils';
+import { toDateKey } from '../homeHelpers';
+import { formatDueDateRu, selectUpcomingAssignments } from '../utils';
 
 interface MyAssignmentsSectionProps {
   items: GroupFeedItem[];
@@ -9,7 +10,7 @@ interface MyAssignmentsSectionProps {
 
 export function MyAssignmentsSection({ items, loading, onOpen }: MyAssignmentsSectionProps) {
   if (loading) return null;
-  const assignments = items.filter((item) => item.kind === 'assignment');
+  const assignments = selectUpcomingAssignments(items, toDateKey(new Date()));
   if (assignments.length === 0) return null;
 
   return (

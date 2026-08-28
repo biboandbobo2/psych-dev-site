@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, orderBy, query, type Unsubscribe } from 'firebase/firestore';
+import { collection, limit, onSnapshot, orderBy, query, type Unsubscribe } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { debugError } from '../lib/debug';
 import { useMyGroups } from './useMyGroups';
@@ -9,9 +9,14 @@ import {
   type GroupFeedItem,
 } from '../types/groupFeed';
 
+// Потребители на /home показывают максимум ~6 элементов на секцию; без
+// лимита подписка тянула бы весь растущий архив группы при каждом заходе.
+const FEED_LIMIT = 50;
+
 /**
  * Объединённая лента объявлений и событий из всех групп, в которых
- * состоит текущий пользователь. Сортировка — по createdAt (desc).
+ * состоит текущий пользователь. Сортировка — по createdAt (desc),
+ * по FEED_LIMIT новейших записей на подколлекцию каждой группы.
  */
 export function useMyGroupsFeed() {
   const { groups, loading: groupsLoading } = useMyGroups();
@@ -54,7 +59,8 @@ export function useMyGroupsFeed() {
         onSnapshot(
           query(
             collection(db, 'groups', group.id, 'announcements'),
-            orderBy('createdAt', 'desc')
+            orderBy('createdAt', 'desc'),
+            limit(FEED_LIMIT)
           ),
           (snap) => {
             const next: GroupFeedItem[] = snap.docs
@@ -84,7 +90,8 @@ export function useMyGroupsFeed() {
         onSnapshot(
           query(
             collection(db, 'groups', group.id, 'events'),
-            orderBy('createdAt', 'desc')
+            orderBy('createdAt', 'desc'),
+            limit(FEED_LIMIT)
           ),
           (snap) => {
             const next: GroupFeedItem[] = snap.docs

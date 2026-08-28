@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { toDateKey, type ParsedCalendarEvent } from '../homeHelpers';
+import { useEffect, useMemo, useState } from 'react';
+import { parseDateKey, toDateKey, type ParsedCalendarEvent } from '../homeHelpers';
 
 interface MiniWeekCalendarProps {
   calendarEventsByDate: Map<string, ParsedCalendarEvent[]>;
@@ -12,14 +12,29 @@ export function MiniWeekCalendar({
   onSelectDate,
   onOpen,
 }: MiniWeekCalendarProps) {
+  // «Сегодня» — state, а не разовый расчёт: вкладка, открытая через полночь,
+  // иначе продолжала подсвечивать вчерашний день. Обновляем по таймеру до
+  // следующей полуночи и при возврате на вкладку (в фоне таймеры троттлятся).
+  const [todayKey, setTodayKey] = useState(() => toDateKey(new Date()));
+  useEffect(() => {
+    const refresh = () => setTodayKey(toDateKey(new Date()));
+    const now = new Date();
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const timer = setTimeout(refresh, nextMidnight.getTime() - now.getTime() + 1000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [todayKey]);
+
   const days = useMemo(() => {
-    const today = new Date();
+    const today = parseDateKey(todayKey) ?? new Date();
     const dayOfWeek = today.getDay();
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const monday = new Date(today);
     monday.setDate(today.getDate() + mondayOffset);
     const weekday = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
-    const todayKey = toDateKey(today);
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
@@ -31,7 +46,7 @@ export function MiniWeekCalendar({
         isToday: key === todayKey,
       };
     });
-  }, []);
+  }, [todayKey]);
 
   return (
     <section className="rounded-2xl border border-border bg-card p-4 shadow-brand">
