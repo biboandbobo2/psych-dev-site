@@ -13,8 +13,7 @@ import { useTestTheme } from './tests/editor/hooks/useTestTheme';
 import { useTestPrerequisite } from './tests/editor/hooks/useTestPrerequisite';
 import { useTestSave } from './tests/editor/hooks/useTestSave';
 import { usePublishedLessonOptions } from '../hooks';
-import { filterEditableCourses } from '../hooks/useEditableCourses';
-import { useAuthStore } from '../stores/useAuthStore';
+import { useEditableCourses } from '../hooks/useEditableCourses';
 
 interface TestEditorFormProps {
   testId: string | null;
@@ -33,17 +32,13 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
   const formHook = useTestEditorForm({ testId, importedData, defaultCourse });
   const themeHook = useTestTheme();
   const prerequisiteHook = useTestPrerequisite({ existingTests, testId });
-  const { courseOptions, rubricOptions } = usePublishedLessonOptions();
+  const { rubricOptions } = usePublishedLessonOptions();
   const { setCourse } = formHook.setters;
-  const userRole = useAuthStore((state) => state.userRole);
-  const adminEditableCourses = useAuthStore((state) => state.adminEditableCourses);
-
   // Селектор курса показывает только курсы, доступные автору: rules всё равно
-  // не дадут привязать тест к чужому курсу.
-  const editableCourseOptions = useMemo(
-    () => filterEditableCourses(courseOptions, userRole, adminEditableCourses),
-    [courseOptions, userRole, adminEditableCourses]
-  );
+  // не дадут привязать тест к чужому курсу. Список берём из useEditableCourses,
+  // а не из courseOptions: там только опубликованные курсы, и тест на скрытом
+  // курсе иначе молча переехал бы на чужой.
+  const { courses: editableCourseOptions } = useEditableCourses();
 
   // Дефолтный курс (например, 'development' из AdminContent) может быть вне
   // прав автора — переключаем на первый доступный.

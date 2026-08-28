@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readEditableCoursesClaim, useAuthStore } from './useAuthStore';
+import { readEditableCoursesClaim, resolveEditableCourses, useAuthStore } from './useAuthStore';
 
 /**
  * Регрессионный тест на derivation флагов в setUserRole / setCoAdminFlag.
@@ -129,5 +129,31 @@ describe('useAuthStore — editableCourses из claims', () => {
     expect(useAuthStore.getState().adminEditableCourses).toEqual(['external-x']);
     useAuthStore.getState().setAdminEditableCourses([]);
     expect(useAuthStore.getState().adminEditableCourses).toEqual([]);
+  });
+});
+
+describe('useAuthStore — сведение claim и Firestore-зеркала', () => {
+  it('оба источника есть → пересечение (курс появится, только когда его пустят rules)', () => {
+    expect(resolveEditableCourses(['a', 'b'], ['b', 'c'])).toEqual(['b']);
+  });
+
+  it('права отозвали в Firestore, токен ещё старый → курс уходит из UI сразу', () => {
+    expect(resolveEditableCourses(['a', 'b'], ['a'])).toEqual(['a']);
+  });
+
+  it('права выдали в Firestore, claim ещё без них → курс появится после обновления токена', () => {
+    expect(resolveEditableCourses(['a'], ['a', 'b'])).toEqual(['a']);
+  });
+
+  it('claim ещё не пришёл → работает зеркало', () => {
+    expect(resolveEditableCourses(null, ['a'])).toEqual(['a']);
+  });
+
+  it('зеркало ещё не пришло → работает claim', () => {
+    expect(resolveEditableCourses(['a'], null)).toEqual(['a']);
+  });
+
+  it('нет ни одного источника → пусто', () => {
+    expect(resolveEditableCourses(null, null)).toEqual([]);
   });
 });

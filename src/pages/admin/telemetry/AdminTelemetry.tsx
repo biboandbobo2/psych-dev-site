@@ -58,22 +58,20 @@ export default function AdminTelemetry() {
   const { courses: editableCourses, loading: coursesLoading } = useEditableCourses();
   // '' — «все курсы»: доступно только super-admin, у остальных rules отклонят
   // запрос без фильтра.
-  const [courseFilter, setCourseFilter] = useState('');
   const [searchParams] = useSearchParams();
   const courseParam = searchParams.get('course');
-
-  // ?course= из кабинета автора — только в рамках прав.
-  useEffect(() => {
-    if (!courseParam) return;
-    if (!isSuperAdmin && !editableCourses.some((course) => course.id === courseParam)) return;
-    setCourseFilter(courseParam);
-  }, [courseParam, isSuperAdmin, editableCourses]);
+  // Стартовое значение — ?course= из кабинета автора; дальше выбором владеет
+  // пользователь, а эффект ниже только чинит недоступный курс.
+  const [courseFilter, setCourseFilter] = useState(() => courseParam ?? '');
 
   useEffect(() => {
+    // Для super-admin валиден любой выбор, включая '' («все курсы»).
     if (isSuperAdmin || coursesLoading || editableCourses.length === 0) return;
     if (editableCourses.some((course) => course.id === courseFilter)) return;
-    setCourseFilter(editableCourses[0].id);
-  }, [isSuperAdmin, coursesLoading, editableCourses, courseFilter]);
+    const fallback =
+      editableCourses.find((course) => course.id === courseParam)?.id ?? editableCourses[0].id;
+    setCourseFilter(fallback);
+  }, [isSuperAdmin, coursesLoading, editableCourses, courseFilter, courseParam]);
 
   const load = useCallback(async (rangeWeeks: number, courseId: string) => {
     setLoading(true);

@@ -659,14 +659,17 @@ export function useActiveCourse(courses: CourseOption[], loading: boolean): stri
 | Источник | Где живёт | Роль |
 |---|---|---|
 | claim `editableCourses` | custom claims токена | Истина: его читают Firestore rules (`canEditCourse`), и с этого этапа — UI |
-| `users/{uid}.adminEditableCourses` | Firestore | Зеркало claim'а; в UI применяется только пока claim не пришёл (legacy-аккаунт, старый токен) |
+| `users/{uid}.adminEditableCourses` | Firestore | Зеркало claim'а; обновляется мгновенно, поэтому первым отражает отзыв прав |
 
 Оба поля пишет одна Cloud Function `makeUserAdmin` (`functions/src/makeAdmin.ts`,
 вызывается из `AddAdminModal` на `/admin/users`, только super-admin); список
 курсов обязателен и не может быть пустым, `removeAdmin` снимает и claim, и поле.
 Сведение источников — в `src/stores/useAuthStore.ts`: claim читается из
-кешированного токена, затем из фонового `getIdTokenResult(true)`, и попадает в
-`adminEditableCourses` стора (хелпер `readEditableCoursesClaim`).
+кешированного токена, затем из фонового `getIdTokenResult(true)` (хелпер
+`readEditableCoursesClaim`), зеркало — из подписки на `users/{uid}`. В стор
+кладётся **пересечение** обоих списков (`resolveEditableCourses`): свежевыданный
+курс не появится в UI раньше, чем его пустят rules, а отозванный исчезнет сразу,
+не дожидаясь нового токена. Пока один из источников не пришёл — работает второй.
 
 ### useEditableCourses
 
@@ -719,10 +722,10 @@ UI остаётся на `useCourses` — сам хук не трогали, у 
 ### Подводный камень: права живут в токене
 
 Rules читают `editableCourses` из токена запроса, а токен обновляется примерно
-раз в час. Свежевыданные (и отозванные) права появляются не мгновенно:
-`useAuthStore` при инициализации делает форсированный `getIdTokenResult(true)`,
-то есть достаточно перезагрузить страницу, но в уже открытой вкладке изменения
-сами по себе не подхватятся.
+раз в час. `useAuthStore` при инициализации делает форсированный
+`getIdTokenResult(true)`, поэтому выдача новых прав доезжает до UI после
+перезагрузки страницы; в уже открытой вкладке новый курс сам не появится.
+Отзыв прав виден сразу — его приносит подписка на Firestore-зеркало.
 
 ## Массовое открытие курсов (Bulk Enrollment)
 
