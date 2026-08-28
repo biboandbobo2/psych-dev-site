@@ -496,9 +496,14 @@ service cloud.firestore {
     // Продуктовая телеметрия (PT-1): сырые события использования фич.
     // Агрегаты, не слежка: клиент пишет усечённый SHA-256 от uid, тексты
     // запросов/заметок не сохраняются. Пишут авторизованные (fire-and-forget
-    // из src/lib/telemetry.ts), читает только админ-сводка /superadmin/telemetry.
+    // из src/lib/telemetry.ts), читает админ-сводка телеметрии.
     match /feature_events/{eventId} {
-      allow read: if isAdmin();
+      // Super-admin видит всю платформу; админ курса — только события своих
+      // курсов (кабинет автора). Из-за семантики list-запросов Firestore
+      // запрос обычного админа обязан содержать where('courseId','==',...),
+      // иначе отклоняется целиком. События без courseId (research_search,
+      // book_rag_question) остаются доступны только super-admin.
+      allow read: if isSuperAdmin() || canEditCourse(resource.data.get('courseId', ''));
       allow create: if isAuthenticated()
         && request.resource.data.keys().hasOnly(
           ['hashedUid', 'event', 'courseId', 'periodId', 'platform', 'createdAt']

@@ -200,7 +200,17 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           path="/superadmin/telemetry"
           element={
             <RequireAdmin>
-              {isSuperAdmin ? <AdminTelemetry /> : <Navigate to="/admin/content" replace />}
+              <AdminTelemetry />
+            </RequireAdmin>
+          }
+        />
+        {/* Тот же экран под «своим» адресом для админа курса: сводка
+            ограничена его курсами самими rules. */}
+        <Route
+          path="/admin/telemetry"
+          element={
+            <RequireAdmin>
+              <AdminTelemetry />
             </RequireAdmin>
           }
         />
