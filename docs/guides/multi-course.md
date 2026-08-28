@@ -641,9 +641,76 @@ export function useActiveCourse(courses: CourseOption[], loading: boolean): stri
 
 Общий хук, используемый обоими сайдбарами:
 1. Читает `currentCourse` из `useCourseStore`
-2. Если текущий курс есть в списке — возвращает его
-3. Если нет — переключает store на первый доступный курс
-4. Фоллбэк: `'development'`
+2. Пока список грузится — держит персистентный выбор (иначе на первом кадре мигал бы чужой курс)
+3. Если текущий курс есть в списке — возвращает его
+4. Если нет (курс удалён или недоступен админу по `editableCourses`) — переключает store на первый доступный
+5. Пустой список после загрузки → `''`; вызывающий код показывает заглушку (хардкод-фолбэка `'development'` больше нет)
+
+## Кабинет автора
+
+> **Дата добавления:** 2026-08-29
+
+Внешние авторы курсов получают роль `admin`, но администрируют **только свои
+курсы**: чужой контент им не виден и не редактируем. До этого любой админ видел
+в админке все курсы платформы.
+
+### Два источника прав
+
+| Источник | Где живёт | Роль |
+|---|---|---|
+| claim `editableCourses` | custom claims токена | Истина: его читают Firestore rules (`canEditCourse`), и с этого этапа — UI |
+| `users/{uid}.adminEditableCourses` | Firestore | Зеркало claim'а; в UI применяется только пока claim не пришёл (legacy-аккаунт, старый токен) |
+
+Оба поля пишет одна Cloud Function `makeUserAdmin` (`functions/src/makeAdmin.ts`,
+вызывается из `AddAdminModal` на `/admin/users`, только super-admin); список
+курсов обязателен и не может быть пустым, `removeAdmin` снимает и claim, и поле.
+Сведение источников — в `src/stores/useAuthStore.ts`: claim читается из
+кешированного токена, затем из фонового `getIdTokenResult(true)`, и попадает в
+`adminEditableCourses` стора (хелпер `readEditableCoursesClaim`).
+
+### useEditableCourses
+
+`src/hooks/useEditableCourses.ts` — обёртка над `useCourses({ includeUnpublished: true })`
+с фильтром `canEditCourse(role, adminEditableCourses, id)` (`src/types/user.ts`):
+super-admin получает весь список, admin — только свои курсы. Отдельно
+экспортируется чистая `filterEditableCourses` для мест, где список курсов уже на
+руках (селектор курса в `TestEditorForm`).
+
+**Правило:** админские экраны берут курсы из `useEditableCourses`, студенческий
+UI остаётся на `useCourses` — сам хук не трогали, у него больше двух десятков
+потребителей вне админки.
+
+### Что гейтится в админке
+
+- **Список курсов** — `AdminCourseSidebar`, `AdminContent`, `CreateLessonModal`,
+  `CourseIntroEditor`, `AdminTelemetry` (все на `useEditableCourses`).
+- **Переключение курса** — `?course=`, navigation state и `document.referrer` в
+  `AdminContent` меняют курс только через `canEditCourse`; занятия недоступного
+  курса не грузятся вовсе.
+- **Кнопки** — «Добавить занятие» и «Создать тест» (`AdminContentToolbar`)
+  блокируются по `canEditActiveCourse`; «Добавить курс» в сайдбаре — только для
+  super-admin.
+- **Редакторы** — прямая ссылка на занятие чужого курса (`AdminContentEdit`)
+  даёт «У вас нет прав на редактирование этого курса», сам документ не читается
+  (`useContentLoader` получил параметр `enabled`).
+- **Селектор курса теста** (`TestEditorForm`) фильтруется по правам; дефолтный
+  курс вне прав переключается на первый доступный.
+- **Телеметрия** — `/admin/telemetry`, сводка ограничена курсами админа самими
+  rules, см. [product-telemetry.md](product-telemetry.md).
+
+При пустых правах админка не падает: сайдбар и `/admin/content` показывают
+заглушку «Курсы не назначены», телеметрия — свою заглушку, запросы не уходят.
+
+Тесты: `src/hooks/useEditableCourses.test.ts`, `src/stores/useAuthStore.test.ts`,
+блок `feature_events` в `tests/integration/firestoreRules.test.ts`.
+
+### Подводный камень: права живут в токене
+
+Rules читают `editableCourses` из токена запроса, а токен обновляется примерно
+раз в час. Свежевыданные (и отозванные) права появляются не мгновенно:
+`useAuthStore` при инициализации делает форсированный `getIdTokenResult(true)`,
+то есть достаточно перезагрузить страницу, но в уже открытой вкладке изменения
+сами по себе не подхватятся.
 
 ## Массовое открытие курсов (Bulk Enrollment)
 
@@ -786,6 +853,7 @@ npm run dev
 ---
 
 **История изменений:**
+- 2026-08-29: Кабинет автора — админка ограничена курсами из `editableCourses` (useEditableCourses), телеметрия по курсу
 - 2026-08-18: Скрытие/удаление динамических курсов, shared-инвалидация useCourses, фикс сброса курса в CreateLessonModal
 
 - 2026-02-05: Добавлены динамические курсы, sidebar-компоненты, useActiveCourse, bulk enrollment

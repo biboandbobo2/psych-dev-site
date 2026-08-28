@@ -243,7 +243,8 @@
 | `/superadmin/pages/about` | `AdminAboutPageEditor` | флаг `coAdmin` | Редактор `pages/about` — 6 фиксированных вкладок | ✅ |
 | `/superadmin/pages/projects/:slug` | `AdminProjectPageEditor` | флаг `coAdmin` | Редактор `projectPages/{slug}` (создание/редактирование/удаление) | ✅ |
 | `/superadmin/exams` | `AdminExams` | Super Admin | Управление экзаменами и слотами бронирования (см. [docs/guides/exam-booking.md](../guides/exam-booking.md)) | ✅ |
-| `/superadmin/telemetry` | `AdminTelemetry` | Super Admin | Сводка продуктовой телеметрии `feature_events` (см. [docs/guides/product-telemetry.md](../guides/product-telemetry.md)) | ✅ |
+| `/admin/telemetry` | `AdminTelemetry` | Admin | Сводка продуктовой телеметрии `feature_events` по своим курсам (`editableCourses`) | ✅ |
+| `/superadmin/telemetry` | `AdminTelemetry` | Admin (полный объём — Super Admin) | Тот же компонент: super-admin видит все курсы и блок «Посещения страниц» (PV-1), админ курса — только свои события (см. [docs/guides/product-telemetry.md](../guides/product-telemetry.md)) | ✅ |
 
 ---
 
@@ -310,8 +311,10 @@
 | **Student** | Базовый доступ (есть хотя бы один courseAccess) | + `/profile`, `/notes`, `/tests`, `/tests-lesson`, `/timeline`, `/research` |
 | **Student + courseAccess.clinical** | Клиническая психология | + `/clinical/*`, `/disorder-table` |
 | **Student + courseAccess.general** | Общая психология | + `/general/*` |
-| **Admin** | Редактирование контента | + `/admin/content`, `/admin/content/edit/*`, `/admin/content/course-intro/*`, `/admin/topics`, `/admin/books`, `/admin/announcements`, `/admin/groups`, `/admin/users` |
-| **Super Admin** | Полный доступ | + `/superadmin`, `/superadmin/pages/*`, `/admin/archive`, `/migrate-topics` |
+| **Admin** | Редактирование контента **только своих курсов** (claim `editableCourses`) | + `/admin/content`, `/admin/content/edit/*`, `/admin/content/course-intro/*`, `/admin/topics`, `/admin/books`, `/admin/announcements`, `/admin/groups`, `/admin/telemetry` |
+| **Super Admin** | Полный доступ | + `/superadmin`, `/superadmin/pages/*`, `/superadmin/telemetry`, `/admin/users`, `/admin/archive`, `/migrate-topics` |
+
+Admin администрирует только курсы из `editableCourses`: список курсов, редакторы, дропдауны и телеметрия ограничены ими, чужой курс недоступен даже по прямой ссылке. Подробности — [docs/guides/multi-course.md → Кабинет автора](../guides/multi-course.md#кабинет-автора).
 
 ### Гранулярный доступ к курсам
 
