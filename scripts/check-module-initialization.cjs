@@ -66,6 +66,8 @@ const SHARED_MODULES = [
 // Files that are allowed to have top-level initialization
 const ALLOWED_TOP_LEVEL_FILES = [
   'src/lib/firebase.ts', // Firebase requires top-level initialization
+  'src/features/contentSearch/lib/textMatch.ts', // STOP_WORDS: static Set literal, no module deps
+  'src/routes/index.ts', // byPeriodLookup over static configs; routes/* import types only, no cycles
 ];
 
 function findFiles(dir, ext) {
