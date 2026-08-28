@@ -38,6 +38,31 @@ export const TRACKED_PAGES: TrackedPage[] = [
     label: 'Переподготовка — Тбилиси',
     match: (p) => p === '/academy/retraining-psychologist-consultant-tbilisi',
   },
+  {
+    id: 'booking',
+    label: 'Бронирование — главная',
+    match: (p) => p === '/booking',
+  },
+  {
+    id: 'booking-account',
+    label: 'Бронирование — личный кабинет',
+    match: (p) => p === '/booking/account',
+  },
+  {
+    id: 'booking-photos',
+    label: 'Бронирование — фото кабинетов',
+    match: (p) => p === '/booking/photos',
+  },
+  {
+    id: 'booking-pricing',
+    label: 'Бронирование — цены',
+    match: (p) => p === '/booking/pricing',
+  },
+  {
+    id: 'booking-directions',
+    label: 'Бронирование — как добраться',
+    match: (p) => p === '/booking/directions',
+  },
 ];
 
 // Месячный потолок записей телеметрии (~3.3k/день при равномерном трафике).

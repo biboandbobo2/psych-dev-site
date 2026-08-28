@@ -44,7 +44,9 @@ describe('pageVisits: чистые помощники', () => {
     expect(matchTrackedPage('/academy/retraining-psychologist-consultant-tbilisi')?.id).toBe(
       'retraining-tbilisi'
     );
-    expect(matchTrackedPage('/booking')).toBeNull();
+    expect(matchTrackedPage('/booking')?.id).toBe('booking');
+    expect(matchTrackedPage('/booking/pricing')?.id).toBe('booking-pricing');
+    expect(matchTrackedPage('/booking/unknown')).toBeNull();
     expect(matchTrackedPage('/home')).toBeNull();
   });
 

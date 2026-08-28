@@ -1023,7 +1023,8 @@ interface FeatureEventDoc {
 
 ```typescript
 interface PageVisitDailyDoc {
-  pageId: string;                 // из TRACKED_PAGES: vozrast | retraining-belgrade | retraining-tbilisi
+  pageId: string;                 // из TRACKED_PAGES (src/lib/pageVisits.ts — source of truth):
+                                  // лендинги (vozrast, retraining-*) + booking-страницы
   date: string;                   // YYYY-MM-DD, локальная дата посетителя; doc id = `${pageId}__${date}`
   views?: number;                 // просмотры
   uniqueGuests?: number;          // дневные уникальные без аккаунта
