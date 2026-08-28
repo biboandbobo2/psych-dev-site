@@ -1017,6 +1017,43 @@ interface FeatureEventDoc {
 
 **Ретеншн:** пока не настроен (отложен до первых данных, см. PT-1 в audit-backlog). Кандидаты: чистка шагом weekly job `weeklyTranscriptRefresh` либо Firestore TTL-политика на `createdAt`.
 
+### `page_visit_daily/{pageId__date}` (PV-1)
+
+Телеметрия посещений публичных страниц (лендингов) — по одному документу-агрегату на страницу×день, только инкременты. Privacy-first: идентификаторов посетителя в данных нет вообще; «уникальность» считается локально в браузере (отметка в localStorage) и уходит как `increment(1)`. Кто и когда трекается — конфиг `TRACKED_PAGES` в `src/lib/pageVisits.ts` (добавить страницу = одна строка, деплой rules не нужен).
+
+```typescript
+interface PageVisitDailyDoc {
+  pageId: string;                 // из TRACKED_PAGES: vozrast | retraining-belgrade | retraining-tbilisi
+  date: string;                   // YYYY-MM-DD, локальная дата посетителя; doc id = `${pageId}__${date}`
+  views?: number;                 // просмотры
+  uniqueGuests?: number;          // дневные уникальные без аккаунта
+  uniqueUsers?: number;           // дневные уникальные с аккаунтом
+  newVisitors?: number;           // впервые на этой странице (с этого браузера)
+  hours?: Record<string, number>; // просмотры по часам 0–23 (локальное время посетителя)
+  scroll?: Record<'p0'|'p25'|'p50'|'p75'|'p100', number>; // max-глубина скролла за просмотр
+  clicks?: Record<string, number>; // клики по [data-track-click] (дедуп в рамках просмотра)
+  updatedAt: Timestamp;           // serverTimestamp (rules требуют request.time)
+}
+```
+
+**Кто пишет:** любой посетитель, включая гостей (`src/lib/pageVisits.ts`, хук `usePageVisitTracking` в `AppShell` до ветвления standalone-лендингов). Rules: `create/update` с валидацией формы (docId == pageId__date, счётчики — только рост малыми шагами ≤5, карты ограничены по размеру), `delete` — никому. Значения внутри карт не валидируются — целостность best-effort.
+
+**Кто читает:** только админ — раздел «Посещения страниц» в `/superadmin/telemetry` (`AdminPageVisits.tsx`).
+
+### `page_visit_months/{YYYY-MM}` (PV-1)
+
+Месячный счётчик записей телеметрии посещений — автостоп и оценка стоимости.
+
+```typescript
+interface PageVisitMonthDoc {
+  writes: number;    // документо-записей телеметрии за месяц (каждый батч = +2)
+  views: number;     // просмотров за месяц
+  updatedAt: Timestamp;
+}
+```
+
+**Кто пишет:** клиент, вторым элементом каждого батча. **Кто читает:** публично (`read: if true`) — клиент перед записью проверяет автостоп `MONTHLY_WRITE_CAP` (100 000 записей/мес, одно чтение на сессию с кэшем в sessionStorage); наружу утекают только суммарные счётчики. При достижении потолка подсчёт молча останавливается до 1 числа, админ-сводка показывает плашку.
+
 ---
 
 ## Правила доступа

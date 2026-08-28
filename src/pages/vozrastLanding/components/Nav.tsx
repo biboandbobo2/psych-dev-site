@@ -13,7 +13,7 @@ export function Nav() {
           <a href="#team">Ведущие</a>
           <a href="#price">Стоимость</a>
         </div>
-        <a href={TG_LINK} target="_blank" rel="noopener noreferrer" className="vz-nav-cta">
+        <a href={TG_LINK} target="_blank" rel="noopener noreferrer" data-track-click="cta-nav" className="vz-nav-cta">
           {CTA_TEXT}
         </a>
       </div>

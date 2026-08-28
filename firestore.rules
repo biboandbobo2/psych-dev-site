@@ -524,6 +524,80 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Телеметрия посещений (PV-1): агрегаты «страница×день» + месячный
+    // счётчик записей. Пишут все посетители (включая гостей) только
+    // инкрементами из src/lib/pageVisits.ts; идентификаторов посетителя в
+    // данных нет. Счётчики только растут и малыми шагами (клиент шлёт ≤2 за
+    // батч, потолок 5 — запас); значения внутри карт не валидируются —
+    // целостность best-effort, стоимость ограничена самой формой данных.
+    function pvIntInRange(field, maxValue) {
+      return !(field in request.resource.data)
+        || (request.resource.data[field] is int
+            && request.resource.data[field] >= 0
+            && request.resource.data[field] <= maxValue);
+    }
+    function pvDeltaOk(field) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([field])
+        || (request.resource.data.get(field, 0) is int
+            && request.resource.data.get(field, 0) >= resource.data.get(field, 0)
+            && request.resource.data.get(field, 0) <= resource.data.get(field, 0) + 5);
+    }
+    function pvMapsOk() {
+      return (!('hours' in request.resource.data)
+          || (request.resource.data.hours is map && request.resource.data.hours.size() <= 24))
+        && (!('scroll' in request.resource.data)
+          || (request.resource.data.scroll is map && request.resource.data.scroll.size() <= 5))
+        && (!('clicks' in request.resource.data)
+          || (request.resource.data.clicks is map && request.resource.data.clicks.size() <= 40));
+    }
+
+    match /page_visit_daily/{docId} {
+      allow read: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly([
+          'pageId', 'date', 'views', 'uniqueGuests', 'uniqueUsers',
+          'newVisitors', 'hours', 'scroll', 'clicks', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasAll(['pageId', 'date', 'updatedAt'])
+        && request.resource.data.pageId is string
+        && request.resource.data.pageId.matches('[a-z0-9-]{1,40}')
+        && request.resource.data.date is string
+        && request.resource.data.date.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && docId == request.resource.data.pageId + '__' + request.resource.data.date
+        && pvIntInRange('views', 5)
+        && pvIntInRange('uniqueGuests', 5)
+        && pvIntInRange('uniqueUsers', 5)
+        && pvIntInRange('newVisitors', 5)
+        && pvMapsOk()
+        && request.resource.data.updatedAt == request.time;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'views', 'uniqueGuests', 'uniqueUsers', 'newVisitors',
+          'hours', 'scroll', 'clicks', 'updatedAt'
+        ])
+        && pvDeltaOk('views')
+        && pvDeltaOk('uniqueGuests')
+        && pvDeltaOk('uniqueUsers')
+        && pvDeltaOk('newVisitors')
+        && pvMapsOk()
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    match /page_visit_months/{monthId} {
+      // Публичное чтение: клиент (включая гостей) перед записью проверяет
+      // автостоп MONTHLY_WRITE_CAP. Наружу утекают только суммарные счётчики.
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['writes', 'views', 'updatedAt'])
+        && monthId.matches('[0-9]{4}-[0-9]{2}')
+        && pvIntInRange('writes', 10)
+        && pvIntInRange('views', 5)
+        && request.resource.data.updatedAt == request.time;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['writes', 'views', 'updatedAt'])
+        && pvDeltaOk('writes')
+        && pvDeltaOk('views')
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
     // Default-deny для всех остальных коллекций. Любая новая коллекция
     // должна получить свой явный `match`-блок выше — иначе read/write
     // запрещены. Это закрытие MR-8: больше нет catch-all `allow read: if true`,

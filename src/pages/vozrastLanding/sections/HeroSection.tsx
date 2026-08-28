@@ -15,7 +15,7 @@ export function HeroSection() {
               путь человека — от зачатия до завершения жизни — за 14 недель теории,
               семинаров и практики
             </p>
-            <a href={TG_LINK} target="_blank" rel="noopener noreferrer" className="vz-hero-cta">
+            <a href={TG_LINK} target="_blank" rel="noopener noreferrer" data-track-click="cta-hero" className="vz-hero-cta">
               {CTA_TEXT} на программу
             </a>
             <p className="vz-hero-note">

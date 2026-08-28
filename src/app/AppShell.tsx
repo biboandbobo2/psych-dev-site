@@ -21,6 +21,7 @@ import TelegramOpenInBrowser from '../components/TelegramOpenInBrowser';
 import { useAuthSync } from '../hooks/useAuthSync';
 import { AppLayout } from '../layouts/AppLayout';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
+import { usePageVisitTracking } from '../hooks/usePageVisitTracking';
 import { AppRoutes, type CourseDataStatus } from './AppRoutes';
 import SuperAdminTaskPanel from '../components/SuperAdminTaskPanel';
 import AdminCourseSidebar from '../components/AdminCourseSidebar';
@@ -342,6 +343,7 @@ export function AppShell() {
   useScrollRestoration();
   const location = useLocation();
   const normalizedPath = normalizePath(location.pathname);
+  usePageVisitTracking(normalizedPath);
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const isCoAdmin = useAuthStore((state) => state.isCoAdmin);
 

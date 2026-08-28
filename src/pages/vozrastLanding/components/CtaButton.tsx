@@ -7,7 +7,7 @@ interface CtaButtonProps {
 
 export function CtaButton({ className = '', label = CTA_TEXT }: CtaButtonProps) {
   return (
-    <a href={TG_LINK} target="_blank" rel="noopener noreferrer" className={`vz-btn ${className}`}>
+    <a href={TG_LINK} target="_blank" rel="noopener noreferrer" data-track-click="cta-price" className={`vz-btn ${className}`}>
       {label}
     </a>
   );

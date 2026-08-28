@@ -24,6 +24,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   query,
   serverTimestamp,
   setDoc,
@@ -948,6 +949,178 @@ describe('feature_events: продуктовая телеметрия (PT-1)', (
       .authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL })
       .firestore();
     await assertSucceeds(getDocs(collection(db, 'feature_events')));
+  });
+});
+
+describe('page_visit_daily / page_visit_months: телеметрия посещений (PV-1)', () => {
+  const DAILY_ID = 'vozrast__2026-08-28';
+  const validDailyView = () => ({
+    pageId: 'vozrast',
+    date: '2026-08-28',
+    views: increment(1),
+    uniqueGuests: increment(1),
+    newVisitors: increment(1),
+    hours: { '14': increment(1) },
+    updatedAt: serverTimestamp(),
+  });
+
+  const seedDaily = () =>
+    testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'page_visit_daily', DAILY_ID), {
+        pageId: 'vozrast',
+        date: '2026-08-28',
+        views: 3,
+        uniqueGuests: 2,
+        updatedAt: serverTimestamp(),
+      });
+    });
+
+  it('аноним: create дневного агрегата (первый просмотр за день) → success', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'page_visit_daily', DAILY_ID), validDailyView(), { merge: true })
+    );
+  });
+
+  it('аноним: инкремент поверх существующего агрегата (+scroll) → success', async () => {
+    await seedDaily();
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, 'page_visit_daily', DAILY_ID),
+        {
+          pageId: 'vozrast',
+          date: '2026-08-28',
+          views: increment(1),
+          scroll: { p50: increment(1) },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+    );
+  });
+
+  it('аноним: docId не совпадает с pageId__date → denied', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(doc(db, 'page_visit_daily', 'other__2026-08-28'), validDailyView(), { merge: true })
+    );
+  });
+
+  it('аноним: create с лишним полем (идентификатор) → denied', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(
+        doc(db, 'page_visit_daily', DAILY_ID),
+        { ...validDailyView(), visitorId: 'abc123' },
+        { merge: true }
+      )
+    );
+  });
+
+  it('аноним: скачок счётчика (+100 за раз) → denied', async () => {
+    await seedDaily();
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(
+        doc(db, 'page_visit_daily', DAILY_ID),
+        {
+          pageId: 'vozrast',
+          date: '2026-08-28',
+          views: increment(100),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+    );
+  });
+
+  it('аноним: смена pageId существующего агрегата → denied', async () => {
+    await seedDaily();
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(
+        doc(db, 'page_visit_daily', DAILY_ID),
+        { pageId: 'hacked', views: increment(1), updatedAt: serverTimestamp() },
+        { merge: true }
+      )
+    );
+  });
+
+  it('аноним и не-админ: get/list дневных агрегатов → denied', async () => {
+    await seedDaily();
+    const anon = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(anon, 'page_visit_daily', DAILY_ID)));
+    const alice = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(getDocs(collection(alice, 'page_visit_daily')));
+  });
+
+  it('супер-админ: list дневных агрегатов → success; delete → denied', async () => {
+    await seedDaily();
+    const db = testEnv
+      .authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL })
+      .firestore();
+    await assertSucceeds(getDocs(collection(db, 'page_visit_daily')));
+    await assertFails(deleteDoc(doc(db, 'page_visit_daily', DAILY_ID)));
+  });
+
+  it('аноним: create/инкремент месячного счётчика → success', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, 'page_visit_months', '2026-08'),
+        { writes: increment(2), views: increment(1), updatedAt: serverTimestamp() },
+        { merge: true }
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(db, 'page_visit_months', '2026-08'),
+        { writes: increment(2), views: increment(0), updatedAt: serverTimestamp() },
+        { merge: true }
+      )
+    );
+  });
+
+  it('аноним: чтение месячного счётчика (проверка автостопа) → success', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'page_visit_months', '2026-08'), {
+        writes: 10,
+        views: 5,
+        updatedAt: serverTimestamp(),
+      });
+    });
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(db, 'page_visit_months', '2026-08')));
+  });
+
+  it('аноним: скачок месячного writes (+100) → denied', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'page_visit_months', '2026-08'), {
+        writes: 10,
+        views: 5,
+        updatedAt: serverTimestamp(),
+      });
+    });
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(
+        doc(db, 'page_visit_months', '2026-08'),
+        { writes: increment(100), updatedAt: serverTimestamp() },
+        { merge: true }
+      )
+    );
+  });
+
+  it('аноним: месячный doc с кривым id → denied', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(
+      setDoc(
+        doc(db, 'page_visit_months', 'not-a-month'),
+        { writes: increment(2), updatedAt: serverTimestamp() },
+        { merge: true }
+      )
+    );
   });
 });
 

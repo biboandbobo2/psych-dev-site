@@ -18,6 +18,7 @@ export function CtaLink({ children, secondary }: { children?: ReactNode; seconda
       href={TG_LINK}
       target="_blank"
       rel="noopener noreferrer"
+      data-track-click="cta-telegram"
       className={
         secondary
           ? `${BUTTON} border border-accent/40 bg-white text-accent`

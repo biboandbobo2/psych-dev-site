@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { collection, getDocs, orderBy, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { debugError } from '../../../lib/debug';
+import AdminPageVisits from './AdminPageVisits';
 
 // Сводка продуктовой телеметрии (PT-1): читает сырые события из
 // `feature_events` напрямую (rules: read — только админ) и агрегирует на
@@ -127,7 +128,7 @@ export default function AdminTelemetry() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-semibold">📊 Телеметрия фич</h1>
+        <h1 className="text-3xl font-semibold">📊 Телеметрия</h1>
         <div className="flex items-center gap-3 text-sm">
           <label htmlFor="telemetry-range" className="opacity-70">
             Диапазон:
@@ -150,6 +151,9 @@ export default function AdminTelemetry() {
         </div>
       </div>
 
+      <AdminPageVisits weeks={weeks} />
+
+      <h2 className="text-2xl font-semibold">🧪 Использование фич</h2>
       {loading && <div className="opacity-70">Загружаем события…</div>}
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">

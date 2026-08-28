@@ -9,12 +9,18 @@ export function FinalCtaSection() {
           14 недель, три события в неделю, удостоверение о повышении квалификации — и
           рабочая оптика, которая останется с вами на всю практику.
         </p>
-        <a href={TG_LINK} target="_blank" rel="noopener noreferrer" className="vz-hero-cta">
+        <a
+          href={TG_LINK}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-track-click="cta-final"
+          className="vz-hero-cta"
+        >
           {CTA_TEXT} в Telegram
         </a>
         <p className="vz-final-contacts">
           Вопросы:{' '}
-          <a href={TG_LINK} target="_blank" rel="noopener noreferrer">
+          <a href={TG_LINK} target="_blank" rel="noopener noreferrer" data-track-click="cta-final-link">
             @PsychologistAnya
           </a>{' '}
           или <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
