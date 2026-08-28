@@ -1,6 +1,6 @@
 import type { Timestamp } from 'firebase/firestore';
 import type { CoreCourseType, CourseType } from './tests';
-import { CORE_COURSE_ORDER, CORE_COURSE_META } from '../constants/courses';
+import { CORE_COURSE_ORDER } from '../constants/courses';
 
 /**
  * Роль администратора.
@@ -131,15 +131,6 @@ export function canEditCourse(
   if (role !== 'admin') return false;
   return Array.isArray(adminEditableCourses) && adminEditableCourses.includes(courseId);
 }
-
-/**
- * Названия курсов для UI
- */
-export const COURSE_LABELS: Record<CoreCourseType, string> = {
-  development: CORE_COURSE_META.development.name,
-  clinical: CORE_COURSE_META.clinical.name,
-  general: CORE_COURSE_META.general.name,
-};
 
 /**
  * Все типы курсов в порядке отображения

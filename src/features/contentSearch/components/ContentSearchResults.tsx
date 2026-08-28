@@ -8,6 +8,7 @@ import type {
 } from '../types';
 import type { CoreCourseType } from '../../../types/tests';
 import { isCoreCourse } from '../../../constants/courses';
+import { useCourses } from '../../../hooks/useCourses';
 
 interface ContentSearchResultsProps {
   results: SearchResult[];
@@ -15,7 +16,15 @@ interface ContentSearchResultsProps {
   onResultClick: (path: string) => void;
 }
 
-const COURSE_LABELS: Record<CoreCourseType, { label: string; color: string; icon: string }> = {
+interface CourseBadge {
+  label: string;
+  color: string;
+  icon: string;
+}
+
+// Статические подписи — только fallback на время загрузки courseMap;
+// актуальные названия и иконки приходят из courses/{courseId}.
+const COURSE_LABELS: Record<CoreCourseType, CourseBadge> = {
   development: {
     label: 'Психология развития',
     color: 'bg-blue-100 text-blue-800',
@@ -66,6 +75,17 @@ export function ContentSearchResults({
   query,
   onResultClick,
 }: ContentSearchResultsProps) {
+  const { courseMap } = useCourses({ includeUnpublished: true });
+  const resolveCourseBadge = (courseId: CourseType): CourseBadge => {
+    const base = isCoreCourse(courseId) ? COURSE_LABELS[courseId] : DEFAULT_COURSE_BADGE;
+    const option = courseMap.get(courseId);
+    return {
+      label: option?.name ?? base.label,
+      icon: option?.icon ?? base.icon,
+      color: base.color,
+    };
+  };
+
   // Разделяем результаты на контент и тесты
   const contentResults = results.filter((r): r is ContentSearchResult => r.type === 'content');
   const transcriptResults = results.filter((r): r is TranscriptSearchResult => r.type === 'transcript');
@@ -87,6 +107,7 @@ export function ContentSearchResults({
               <ContentResultItem
                 key={result.id}
                 result={result}
+                courseInfo={resolveCourseBadge(result.course)}
                 query={query}
                 onResultClick={onResultClick}
               />
@@ -102,6 +123,7 @@ export function ContentSearchResults({
                 <TranscriptResultItem
                   key={result.id}
                   result={result}
+                  courseInfo={resolveCourseBadge(result.course)}
                   query={query}
                   onResultClick={onResultClick}
                 />
@@ -132,12 +154,12 @@ export function ContentSearchResults({
 
 interface ContentResultItemProps {
   result: ContentSearchResult;
+  courseInfo: CourseBadge;
   query: string;
   onResultClick: (path: string) => void;
 }
 
-function ContentResultItem({ result, query, onResultClick }: ContentResultItemProps) {
-  const courseInfo = isCoreCourse(result.course) ? COURSE_LABELS[result.course] : DEFAULT_COURSE_BADGE;
+function ContentResultItem({ result, courseInfo, query, onResultClick }: ContentResultItemProps) {
   const path = getContentPath(result);
 
   return (
@@ -205,12 +227,12 @@ function TestResultItem({ result, onResultClick }: TestResultItemProps) {
 
 interface TranscriptResultItemProps {
   result: TranscriptSearchResult;
+  courseInfo: CourseBadge;
   query: string;
   onResultClick: (path: string) => void;
 }
 
-function TranscriptResultItem({ result, query, onResultClick }: TranscriptResultItemProps) {
-  const courseInfo = isCoreCourse(result.course) ? COURSE_LABELS[result.course] : DEFAULT_COURSE_BADGE;
+function TranscriptResultItem({ result, courseInfo, query, onResultClick }: TranscriptResultItemProps) {
 
   return (
     <li>
