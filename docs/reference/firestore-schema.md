@@ -326,13 +326,13 @@ interface CourseDescription {
 
 ### `pages/about`
 
-Контент страницы `/about` (6 вкладок + список партнёров). Read public, write `isAdmin`. Редактируется через `/superadmin/pages/about`.
+Контент страницы `/about` (7 вкладок + список партнёров). Read public, write `isAdmin` или `isCoAdmin`. Редактируется через `/superadmin/pages/about`.
 
 ```typescript
 interface AboutPageDocument {
   version: number;                 // схема, сейчас 1
   lastModified?: string;           // ISO timestamp последней правки через UI
-  tabs: AboutTab[];                // 6 фиксированных вкладок
+  tabs: AboutTab[];                // 7 фиксированных вкладок
   partners: Partner[];             // партнёры, отображаются на вкладке kind: 'partners'
 }
 
@@ -341,6 +341,7 @@ interface AboutPageDocument {
 //   - placeholder: { intro, note? }
 //   - offline: { intro, paragraphs[], bookingPath, bookingLabel, instagramUrl, instagramLabel }
 //   - partners: { intro }
+//   - projects: { intro, sections? }; карточки программ — из STATIC_PROJECTS + projectPages
 // Полные типы: src/pages/about/aboutContent.ts
 
 interface Partner {

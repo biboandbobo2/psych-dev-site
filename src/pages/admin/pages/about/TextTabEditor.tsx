@@ -104,6 +104,60 @@ function SectionEditor({
   );
 }
 
+export function TextSectionsEditor({
+  sections,
+  onChange,
+}: {
+  sections: AboutTextSection[];
+  onChange: (sections: AboutTextSection[]) => void;
+}) {
+  const updateSection = (idx: number, patch: Partial<AboutTextSection>) => {
+    const next = sections.map((section, i) =>
+      i === idx ? { ...section, ...patch } : section
+    );
+    onChange(next);
+  };
+  const removeSection = (idx: number) =>
+    onChange(sections.filter((_, i) => i !== idx));
+  const addSection = () =>
+    onChange([...sections, { heading: '', paragraphs: [''] }]);
+  const moveSection = (idx: number, dir: 'up' | 'down') => {
+    const target = dir === 'up' ? idx - 1 : idx + 1;
+    if (target < 0 || target >= sections.length) return;
+    const next = [...sections];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    onChange(next);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <span className={LABEL_CLASS}>Секции</span>
+        <button
+          type="button"
+          onClick={addSection}
+          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700"
+        >
+          + Секция
+        </button>
+      </div>
+      <ul className="mt-2 space-y-3">
+        {sections.map((section, idx) => (
+          <SectionEditor
+            key={idx}
+            section={section}
+            index={idx}
+            total={sections.length}
+            onUpdate={(patch) => updateSection(idx, patch)}
+            onRemove={() => removeSection(idx)}
+            onMove={(dir) => moveSection(idx, dir)}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function TextTabEditor({
   tab,
   onChange,
@@ -111,22 +165,6 @@ export function TextTabEditor({
   tab: TextTab;
   onChange: (patch: Partial<TextTab>) => void;
 }) {
-  const updateSection = (idx: number, patch: Partial<AboutTextSection>) => {
-    const next = tab.sections.map((s, i) => (i === idx ? { ...s, ...patch } : s));
-    onChange({ sections: next });
-  };
-  const removeSection = (idx: number) =>
-    onChange({ sections: tab.sections.filter((_, i) => i !== idx) });
-  const addSection = () =>
-    onChange({ sections: [...tab.sections, { heading: '', paragraphs: [''] }] });
-  const moveSection = (idx: number, dir: 'up' | 'down') => {
-    const target = dir === 'up' ? idx - 1 : idx + 1;
-    if (target < 0 || target >= tab.sections.length) return;
-    const next = [...tab.sections];
-    [next[idx], next[target]] = [next[target], next[idx]];
-    onChange({ sections: next });
-  };
-
   return (
     <div className="space-y-4">
       <div>
@@ -139,31 +177,10 @@ export function TextTabEditor({
         />
       </div>
 
-      <div>
-        <div className="flex items-center justify-between">
-          <span className={LABEL_CLASS}>Секции</span>
-          <button
-            type="button"
-            onClick={addSection}
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700"
-          >
-            + Секция
-          </button>
-        </div>
-        <ul className="mt-2 space-y-3">
-          {tab.sections.map((section, idx) => (
-            <SectionEditor
-              key={idx}
-              section={section}
-              index={idx}
-              total={tab.sections.length}
-              onUpdate={(patch) => updateSection(idx, patch)}
-              onRemove={() => removeSection(idx)}
-              onMove={(dir) => moveSection(idx, dir)}
-            />
-          ))}
-        </ul>
-      </div>
+      <TextSectionsEditor
+        sections={tab.sections}
+        onChange={(sections) => onChange({ sections })}
+      />
     </div>
   );
 }

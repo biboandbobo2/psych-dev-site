@@ -30,7 +30,7 @@
 | `/homepage` | `Navigate → /home` | Legacy-URL, сохранён для совместимости с внешними ссылками. |
 | `/profile` | `Profile` | Страница настроек/идентичности: аватар, роль, обратная связь, история поиска, Gemini API ключ (BYOK). |
 | `/features` | `FeaturesPage` | Обзор возможностей платформы (курсы, тесты, заметки, таймлайн, поиск, бронирование). |
-| `/about` | `AboutPage` | О проекте DOM Academy (Development Of Mind): 6 вкладок (проект/команды/история/офлайн-центр/партнёры). Контент в `pages/about`, fallback на хардкод. |
+| `/about` | `AboutPage` | О проекте DOM Academy (Development of Mind): 7 вкладок (проект, команда платформы, команда Академии, история, проекты, офлайн-центр, партнёры). Контент в `pages/about`, fallback на хардкод; карточки программ ведут на актуальные статические лендинги. |
 | `/projects/:slug` | `DynamicProjectPage` | Страница проекта академии. Контент в `projectPages/{slug}`, fallback на хардкод-словарь (`dom-academy-overview`). |
 | `/warm_springs2` | `WarmSprings2Page` | Лендинг интенсива по групповой психотерапии «Тёплые ключи» (Тбилиси, июль 2026). Статическая, не редактируется через `/superadmin/pages`. |
 | `/vozrast` | `VozrastLandingPage` | Лендинг программы повышения квалификации «Понимание и помощь человеку в контексте возраста» (осень 2026). Standalone (без AppShell-сайдбара), статический контент в `src/pages/vozrastLanding/data.ts`. Карточка курса `development` в каталоге гостевой `/home` ведёт сюда, а не на intro (`COURSE_LANDING_PATHS` в `GuestLanding.tsx`). |

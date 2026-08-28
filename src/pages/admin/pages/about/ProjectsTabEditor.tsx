@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { AboutTab } from '../../../about/aboutContent';
+import { TextSectionsEditor } from './TextTabEditor';
 
 type ProjectsTab = Extract<AboutTab, { kind: 'projects' }>;
 
@@ -24,7 +25,7 @@ export function ProjectsTabEditor({
         </Link>
         ). Статические перечислены в коде —{' '}
         <span className="font-mono">src/pages/projects/staticProjects.ts</span>.
-        Здесь редактируется только intro над списком.
+        Здесь редактируются intro над списком и текстовые секции под карточками.
       </div>
       <div>
         <label className={LABEL_CLASS}>Intro вкладки</label>
@@ -35,6 +36,10 @@ export function ProjectsTabEditor({
           className={`${INPUT_CLASS} mt-1`}
         />
       </div>
+      <TextSectionsEditor
+        sections={tab.sections ?? []}
+        onChange={(sections) => onChange({ sections })}
+      />
     </div>
   );
 }

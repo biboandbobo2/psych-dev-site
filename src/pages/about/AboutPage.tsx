@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useSearchParams } from 'react-router-dom';
-import { type AboutTab } from './aboutContent';
+import { type AboutTab, type AboutTextSection } from './aboutContent';
 import type { Partner } from './partnersContent';
 import { useAboutPageContent } from '../../hooks/useAboutPageContent';
 import { useProjectsList } from '../admin/pages/useProjectsList';
@@ -28,11 +28,10 @@ function PlaceholderTab({ tab }: { tab: Extract<AboutTab, { kind: 'placeholder' 
   );
 }
 
-function TextTab({ tab }: { tab: Extract<AboutTab, { kind: 'text' }> }) {
+function TextSections({ sections }: { sections: AboutTextSection[] }) {
   return (
     <div className="space-y-6">
-      {tab.intro ? <p className="text-base text-fg/90">{tab.intro}</p> : null}
-      {tab.sections.map((section, idx) => (
+      {sections.map((section, idx) => (
         <section key={section.heading ?? idx} className="space-y-2">
           {section.heading ? (
             <h3 className="text-lg font-semibold text-fg">{section.heading}</h3>
@@ -44,6 +43,15 @@ function TextTab({ tab }: { tab: Extract<AboutTab, { kind: 'text' }> }) {
           ))}
         </section>
       ))}
+    </div>
+  );
+}
+
+function TextTab({ tab }: { tab: Extract<AboutTab, { kind: 'text' }> }) {
+  return (
+    <div className="space-y-6">
+      {tab.intro ? <p className="text-base text-fg/90">{tab.intro}</p> : null}
+      <TextSections sections={tab.sections} />
     </div>
   );
 }
@@ -103,25 +111,36 @@ function ProjectsTab({ tab }: { tab: Extract<AboutTab, { kind: 'projects' }> }) 
             </span>
           </Link>
         ))}
-        {STATIC_PROJECTS.map((item) => (
-          <Link
-            key={`static-${item.url}`}
-            to={item.url}
-            className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-brand transition hover:bg-card2"
-          >
-            <h3 className="text-lg font-semibold text-fg">{item.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-fg/85">{item.summary}</p>
-            <span className="mt-auto pt-3 text-sm font-semibold text-accent">
-              Подробнее →
-            </span>
-          </Link>
-        ))}
+        {STATIC_PROJECTS.map((item) => {
+          const links = item.links ?? [{ label: 'Подробнее', url: item.url }];
+          return (
+            <article
+              key={`static-${item.url}`}
+              className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-brand"
+            >
+              <h3 className="text-lg font-semibold text-fg">{item.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-fg/85">{item.summary}</p>
+              <div className="mt-auto flex flex-wrap gap-x-4 gap-y-2 pt-3">
+                {links.map((link) => (
+                  <Link
+                    key={link.url}
+                    to={link.url}
+                    className="text-sm font-semibold text-accent hover:underline"
+                  >
+                    {link.label} →
+                  </Link>
+                ))}
+              </div>
+            </article>
+          );
+        })}
       </div>
       {!loading && !error && items.length === 0 && STATIC_PROJECTS.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border bg-card2 px-5 py-6 text-sm text-muted">
           Проекты пока не добавлены.
         </p>
       ) : null}
+      <TextSections sections={tab.sections ?? []} />
     </div>
   );
 }
@@ -228,7 +247,7 @@ export default function AboutPage() {
         <title>О нас — DOM Academy</title>
         <meta
           name="description"
-          content="DOM Academy: проект, команда, история, офлайн-центр Dom в Тбилиси и партнёры."
+          content="DOM Academy: образовательные программы по психологии, команда, история, проекты, офлайн-центр DOM в Тбилиси и партнёры."
         />
       </Helmet>
 
@@ -236,8 +255,9 @@ export default function AboutPage() {
         <header className="mb-6 sm:mb-8">
           <h1 className="text-3xl font-bold sm:text-4xl">О нас</h1>
           <p className="mt-2 max-w-measure text-sm text-muted sm:text-base">
-            DOM Academy — образовательная платформа по психологии. Здесь — про сам проект,
-            команду, историю, офлайн-центр и партнёров.
+            DOM Academy — образовательная и исследовательская площадка в экосистеме DOM.
+            Здесь можно узнать о самом проекте, команде, истории, программах, офлайн-центре
+            и партнёрах.
           </p>
         </header>
 
