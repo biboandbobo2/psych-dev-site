@@ -14,7 +14,7 @@
 | HP-2 | H (L) | Расширенное Playwright покрытие | Фундамент готов 2026-08-18: решение по авторизации принято (эмуляторный режим за флагом `VITE_USE_FIREBASE_EMULATORS` в `src/lib/firebase.ts`, см. testing-system.md «HP-2: решение»), e2e развязан с AG-1. Осталось: seed-данные в эмулятор, пользовательские сценарии, e2e-job в CI, stress-тесты, отчётность |
 | CQ-7 | M (M) | Рефакторинг новых монолитов и дублей | State-хуки DisorderTable закрыты 2026-07-17 (766→397, 7 хуков). Осталось: `sharedApiRuntime` для booking/papers/automation |
 | CQ-8 | L (—) | Легаси-список светофора размеров (6 файлов) | Рефакторинг по мере касания зоны; список в `scripts/check-file-sizes.cjs`, гейт подсказывает удаление |
-| PT-1 | L (S) | Ретеншн телеметрии `feature_events` | Основная часть закрыта 2026-08-23 (события + rules + сводка `/superadmin/telemetry`). Остался ретеншн — ждёт первых данных |
+| PT-1 | L (S) | Ретеншн телеметрии `feature_events` | Основная часть закрыта 2026-08-23 (события + rules + сводка `/superadmin/telemetry`, с 2026-08-29 ещё `/admin/telemetry` по курсам). Остался ретеншн — ждёт первых данных |
 | MP-2 | M (S) | Повторные Lighthouse/perf-замеры | Новые метрики в `docs/reference/perf-metrics.md` + README summary |
 | MP-3 | M (M) | Static analysis + bundle monitoring | `npx madge`/import-order checks + CI guardrails на размеры чанков |
 | MP-4 | M (S) | Документация и tooling вокруг тестов | Скрипт `ts:prune`, README policy, обновление lazy-docов и perf метрик |
@@ -24,6 +24,7 @@
 | UX-2 | L (S) | Тёмная тема LoginModal в режиме конспекта | После этапов B/C редизайна (2026-08-25) из оверлея исчезли «Спросить лектора» и «Поделиться конспектом» — остался только светлый LoginModal поверх тёмного fullscreen; нужен variant='dark' или токены |
 | ST-1 | L (S) | Полный выпил легаси `sharedLectureNotes` | Этап C заменил share-контур живыми открытыми конспектами (`notes.visibility`); коллекция не пополняется, но остались: показ/удаление на `/admin/questions`, rules-блок коллекции, типы. Когда старые записи станут не нужны лекторам — выпилить всё и добавить открытые конспекты в `/admin/questions` |
 | AG-1 | M (M) | Роль «agent» — вход Claude на сайт под своим аккаунтом | Firebase-аккаунт агента + custom claim, вход через `signInWithCustomToken` (без Google OAuth), матрица прав, фиксированный uid для аудита. Разблокирует e2e smoke админ/студент-сценариев агентом |
+| AC-1 | L (S-M) | Хвосты кабинета автора | `research_search`/`book_rag_question` без `courseId` (не видны админу курса), нет модели «ответа» на вопрос студента, `tests` в rules гейтятся только `isAdmin()` |
 | LP-1 | L (M) | Observability / telemetry | Базовый logger (Sentry/PostHog), описание процессов |
 | LP-5 | L (S-M) | Firebase/GCP follow-ups | dependency review, cleanup policy, индексы, Telegram formatting |
 | LP-6 | L (M) | Разбить `functions/src/billingExport.ts` на модули | 810 строк → queries / runner / discovery / archive / aggregator / index |
@@ -289,6 +290,13 @@ CI часть (осталась):
   - [ ] Явно исключить: чтение PII других пользователей (полный admin-read `users` нежелателен), запись в чужие курсы, супер-админские операции.
 - **Аудит:** фиксированный uid агента виден в `promotedBy`/`updatedBy`-полях; при желании — отдельный лог действий.
 - **Rules:** новые кейсы в `tests/integration/firestoreRules.test.ts` на границы роли agent — до деплоя.
+
+### AC‑1. Хвосты кабинета автора (P: L, E: S-M)
+- **Контекст:** этапы A–C кабинета автора закрыты 2026-08-29 (`docs/plans/author-cabinet.md`, раздел «Кабинет автора» в [multi-course.md](../guides/multi-course.md)). Ниже — то, что осознанно осталось за рамками.
+- [ ] **События без `courseId`.** `research_search` (глобальный поисковый дровер из `UserMenu`) и `book_rag_question` (вопрос по книгам) пишутся без курса, поэтому в сводку админа курса не попадают — их видит только super-admin. Прокидывать курс имеет смысл, только если появится контекст курса в самом дровере; брать `useCourseStore.currentCourse` нельзя — persist-значение не отражает контекст поиска.
+- [ ] **Нет модели «ответа» на вопрос студента.** В `lectureQuestions` ответ нигде не помечается (лекторский чат живёт в оверлее), поэтому кабинет показывает «всего вопросов» и «новых за неделю» вместо «без ответа» из первоначального ТЗ. Если метрика долга нужна — понадобится поле/подколлекция ответа.
+- [ ] **Коллекция `tests` в rules гейтится только `isAdmin()`** (`firestore.rules`), то есть любой админ может писать тест любого курса. UI уже ограничивает селектор курса правами, но правило стоит сузить до `canEditCourse(request.resource.data.course)` перед выдачей внешних админок. Требует отдельного прогона rules-тестов и деплоя.
+- [ ] **Смоук под ролями admin/super-admin** остаётся ручным до закрытия AG‑1.
 
 ## 💤 Low Priority
 
