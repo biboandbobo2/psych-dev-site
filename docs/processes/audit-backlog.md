@@ -31,7 +31,7 @@
 | LP-8 | L (M-L) | Миграция `*-automation` функций в Cloud Functions | `timeline-biography-automation`, `*-extractor-automation` → Cloud Functions с Pub/Sub trigger; снимет 60s Vercel limit |
 | LP-9 | L (S) | Auth + per-user квота на `/api/transcript-search` | По образцу `/api/books` (HR-1): Bearer auth + лимит N запросов/день. Защита от ботов, фигачащих публичный endpoint. |
 | LP-10 | L (S-M) | Auto-disconnect Firestore listeners при бездействии | Page Visibility API + idle timer (~15 мин): отписка от `onSnapshot` в DisorderTable / GroupsFeed для забытых открытых вкладок. |
-| LP-11 | L (S) | Pagination/cache для `useCourses` при росте курсов | Триггер: курсов > 30. Сейчас free tier покрывает, но при росте `getDocs(courses)` × N пользователей = много reads. |
+| LP-11 | L (S) | Дедуп/кэш для `useCourses` при росте курсов | Шаг 1 — промис-дедуп одновременных `getDocs` (без устаревания). Триггеры: курсов > 30, юзеров > 50/час, reads `courses` > ~20k/день. |
 | LP-12 | L (M-L) | Детальная статистика Firestore Read Ops в админке | Виджет «по фичам/коллекциям/дням». Фаза 1: Cloud Monitoring API → график агрегата. Фаза 2: instrumented client wrapper + Cloud Logging sink → BQ → разбивка по hooks/fea. |
 | LP-13 | L (S-M) | API proxy для `videoTranscripts` metadata вместо public read | Сейчас `videoTranscripts/{videoId}` открыт на чтение (`allow read: if true`), потому что клиентский `useVideoTranscript` ходит напрямую. Альтернатива: `/api/transcript-metadata?videoId=...` через Admin SDK, тогда rules можно вернуть в `read: if false`. Стоит делать только если упрёмся в реальный сценарий злоупотребления или захотим rate-limit. Цена: +1 Vercel function (сейчас 11/12, лимит впритык) + правка хука. |
 | LP-15 | L (S) | Закрепить версию Node для проекта | `.nvmrc` и `engines.node` требуют Node 22, но глобально стоит Node 25.2.0 (зафиксировано 2026-05-14). Поставить fnm/nvm + auto-switch по `.nvmrc`. До этого — потенциальный источник тонких багов в Vite/Firebase/Functions, которые не воспроизводятся в CI. |
@@ -379,13 +379,18 @@ CI часть (осталась):
   - [ ] Применить в `useDisorderTable*`, `useMyGroupsFeed`, `useAllGroups`.
 - **Файлы:** `src/hooks/useIdleAwareSnapshot.ts` (новый), все hooks с `onSnapshot`.
 
-### LP‑11. Pagination/cache для `useCourses` при росте курсов (P: L, E: S)
-- **Проблема:** `getDocs(collection(db, 'courses'))` в `useCourses.ts` тянет все курсы целиком. При 10 курсах × 100 пользователей в час = 1000 reads/час. При 100 курсах = 10 000.
-- **Триггер:** курсов > 30 **или** активных пользователей > 50/час.
-- **Решение:**
-  - [ ] Pagination через `limit(20)` + cursor.
-  - [ ] Альтернатива: TanStack Query / SWR для shared cache между компонентами с TTL 5-10 мин.
-  - [ ] Server-side кэш: один Cloud Function `listCourses` с in-memory кэшем 60 сек (всё ещё дешевле, чем prod-Firestore reads).
+### LP‑11. Дедуп/кэш для `useCourses` при росте курсов (P: L, E: S)
+- **Проблема:** `getDocs(collection(db, 'courses'))` в `useCourses.ts` тянет все курсы целиком, и каждый экземпляр хука делает собственное чтение. Экземпляров на страницу 2–3 (сайдбар + страница; с 2026-08-28 ещё LectureSelector в ИИ-дровере), плюс REST-префетч LS-4 может дублировать SDK-запрос — то есть одна навигация = до ~4–6 полных чтений коллекции. При 10 курсах × 100 пользователей в час = единицы тысяч reads/час; free tier (50k/день) пока покрывает с запасом.
+- **Как понять, что пора (любой из сигналов):**
+  - курсов в коллекции > 30;
+  - активных пользователей > 50/час;
+  - в Cloud Monitoring (`firestore.googleapis.com/document/read_count`, см. LP-12 Фаза 0) reads устойчиво > ~20k/день — близко к free tier;
+  - строка Firestore reads появилась в billing (> $1/мес).
+- **Решение — по нарастающей, не перепрыгивать шаги:**
+  - [ ] **Шаг 1 (предпочтительный первый): промис-дедуп одновременных запросов.** Пока один `getDocs` в полёте, все монтирующиеся экземпляры ждут его же промис. Убирает реальное дублирование (2–3 экземпляра монтируются на одной странице одновременно), устаревания не создаёт — каждый новый заход позже читает свежее. Учесть: гонку REST-префетча против SDK (LS-4), флаг `includeUnpublished` (дедупить сырые доки до фильтрации), не кэшировать rejected-промис, сброс модульного состояния в тестах.
+  - [ ] Шаг 2 (только при дальнейшем росте): shared cache с TTL 5–10 мин (SWR/TanStack Query). **Минус, из-за которого не делать раньше времени:** список замораживается в долгоживущих вкладках — `invalidateCourses()` сбрасывает кэш только в той вкладке, где менял админ; студенты с открытыми сутками вкладками не увидят новый/переименованный курс до перезагрузки.
+  - [ ] Шаг 3 (при курсах > 30): pagination `limit(20)` + cursor либо server-side кэш (Cloud Function `listCourses`, in-memory 60 сек).
+- **Контекст решения (2026-08-28):** обсуждено при фиксе транслита названий в LectureSelector — сам фикс добавил +1 экземпляр хука, удорожание оценено как копеечное (см. обсуждение), полный кэш на сессию отвергнут из-за минуса устаревания, дедуп отложен как преждевременный при текущем трафике.
 - **Файлы:** `src/hooks/useCourses.ts`, потенциально новый `functions/src/listCourses.ts`.
 
 ### LP‑12. Детальная статистика Firestore Read Ops в админке (P: L, E: M-L)
