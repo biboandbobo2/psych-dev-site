@@ -34,6 +34,10 @@ test.describe('Студент группы: доступ только к кур�
       .getByRole('button', { name: 'Не выбрано. Нажмите, чтобы выбрать актуальные курсы.' })
       .click();
 
+    // Под --with-functions машина нагружена сильнее и «Загрузка курсов…»
+    // может жить дольше дефолтного таймаута ассерта — дожидаемся явно.
+    await expect(section.getByText('Загрузка курсов…')).toHaveCount(0, { timeout: 15_000 });
+
     const options = section.getByRole('listitem');
     await expect(options).toHaveCount(1);
     await expect(options.first()).toContainText(GRANTED_COURSE_NAME);
