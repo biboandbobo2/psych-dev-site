@@ -24,13 +24,25 @@ debugLog('🔍 Firebase env check:', {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
 });
 
+// HP-2: dev-only переопределение projectId (?testProject=… / sessionStorage)
+// для изоляции параллельных e2e-песочниц: один dev-сервер обслуживает несколько
+// Firestore-проектов эмулятора. Гейт — статический import.meta.env, поэтому
+// Vite вырезает блок из прод-сборки (критерий: `grep "testProject" dist/` пуст).
+let testProjectId: string | undefined;
+if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true" && typeof window === "object") {
+  const fromQuery = new URLSearchParams(window.location.search).get("testProject");
+  if (fromQuery) window.sessionStorage.setItem("testProject", fromQuery);
+  testProjectId = fromQuery ?? window.sessionStorage.getItem("testProject") ?? undefined;
+  if (testProjectId) debugLog("🧪 testProject override:", testProjectId);
+}
+
 const firebaseConfig: FirebaseOptions = {
   apiKey: env.VITE_FIREBASE_API_KEY || env.FIREBASE_API_KEY || "test-api-key",
   authDomain: resolveFirebaseAuthDomain(
     env.VITE_FIREBASE_AUTH_DOMAIN || env.FIREBASE_AUTH_DOMAIN,
     browserHostname
   ),
-  projectId: env.VITE_FIREBASE_PROJECT_ID || env.FIREBASE_PROJECT_ID || "psych-dev-site-test",
+  projectId: testProjectId || env.VITE_FIREBASE_PROJECT_ID || env.FIREBASE_PROJECT_ID || "psych-dev-site-test",
   storageBucket:
     env.VITE_FIREBASE_STORAGE_BUCKET || env.FIREBASE_STORAGE_BUCKET || "psych-dev-site-test.appspot.com",
   messagingSenderId:
@@ -58,4 +70,10 @@ if (env.VITE_USE_FIREBASE_EMULATORS === "true") {
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
   connectStorageEmulator(storage, "127.0.0.1", 9199);
+}
+
+// HP-2: dev-only вход без Google OAuth для ролевого e2e-стенда. Статический
+// гейт import.meta.env гарантирует, что чанк testAuth не попадает в прод-сборку.
+if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true") {
+  void import("./testAuth");
 }
