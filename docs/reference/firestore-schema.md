@@ -1126,13 +1126,17 @@ service cloud.firestore {
     }
 
     // Тесты доступны для чтения всем (в т.ч. гостям),
-    // редактирование — только админ курса теста
+    // редактирование — только админ курса теста.
+    // Упрощённо: точный текст — в firestore.rules (там курс читается через
+    // helper courseOf() с data.get('course','') и проверкой is string, чтобы
+    // документ без строкового course не ронял вычисление, а падал в '' —
+    // тогда его пишет только super-admin).
     match /tests/{testId} {
       allow read: if true;
-      allow create: if canEditCourse(request.resource.data.course);
-      allow update: if canEditCourse(resource.data.course) &&
-        canEditCourse(request.resource.data.course);
-      allow delete: if canEditCourse(resource.data.course);
+      allow create: if canEditCourse(courseOf(request.resource.data));
+      allow update: if canEditCourse(courseOf(resource.data)) &&
+        canEditCourse(courseOf(request.resource.data));
+      allow delete: if canEditCourse(courseOf(resource.data));
 
       // Вопросы теста — по курсу родительского документа
       match /content/{contentId} {

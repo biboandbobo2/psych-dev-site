@@ -276,6 +276,18 @@ describe('tests: запись гейтится курсом теста (AC-1)', 
     );
   });
 
+  it('админ курса: create с не-строковым course (число/массив) → denied', async () => {
+    // Ветка `is string` в courseOf(): мусорный тип падает в '' и режется
+    // осознанно, а не ошибкой вычисления rules.
+    const db = ownerCtx();
+    await assertFails(
+      setDoc(doc(db, 'tests', 't-badtype'), { title: 'Числовой курс', course: 123 })
+    );
+    await assertFails(
+      setDoc(doc(db, 'tests', 't-badtype'), { title: 'Массив-курс', course: ['development'] })
+    );
+  });
+
   it('админ курса: update теста СВОЕГО курса → success', async () => {
     const db = ownerCtx();
     await assertSucceeds(
