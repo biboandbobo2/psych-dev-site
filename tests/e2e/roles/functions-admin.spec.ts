@@ -20,7 +20,10 @@ import type { Page } from '@playwright/test';
 import { test, expect, gotoAndSettle, signInAs } from './helpers';
 import { SMOKE_COURSES, SMOKE_ROLES } from '../fixtures/roles';
 
-test.describe.configure({ mode: 'serial' });
+// retries: 0 — serial-группа мутирует состояние (промоушен, занятие), ретрай
+// стартовал бы с грязного и падал по нечитаемой причине; сид чинит только
+// следующий полный прогон стенда.
+test.describe.configure({ mode: 'serial', retries: 0 });
 
 const PROMOTEE = SMOKE_ROLES.promotee;
 const KEPT_COURSE = SMOKE_COURSES.externalX;
@@ -60,6 +63,9 @@ function watchDialogs(page: Page) {
   return async (message: string) => {
     await expect
       .poll(() => seen.some((text) => text.includes(message)), {
+        // Холодный старт воркера functions + импорт всего index.js — первый
+        // callable легко переживает дефолтные 5 с expect.poll.
+        timeout: 20_000,
         message: `не дождались подтверждения «${message}»`,
       })
       .toBe(true);

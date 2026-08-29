@@ -115,11 +115,18 @@ async function waitForUserCreateTrigger(auth: ReturnType<typeof getAuth>, uids: 
       if (record?.customClaims?.role) pending.delete(uid);
     }
   }
-  console.log(
-    pending.size
-      ? `${TAG} onUserCreate не отметился у ${pending.size} польз. за ${TRIGGER_WAIT_MS} мс — иду дальше`
-      : `${TAG} onUserCreate отработал по ${uids.length} новым пользователям`
-  );
+  if (pending.size) {
+    // Продолжать нельзя: запоздавший триггер перетёр бы наши claims и
+    // users/{uid} ролью guest — соседние спеки падали бы с невнятным
+    // Access denied при «успешном» сиде.
+    console.error(
+      `${TAG} onUserCreate не отметился у ${pending.size} польз. за ${TRIGGER_WAIT_MS} мс: ` +
+        [...pending].join(', ') +
+        ' — эмулятор функций не прогрелся, перезапустите стенд'
+    );
+    process.exit(1);
+  }
+  console.log(`${TAG} onUserCreate отработал по ${uids.length} новым пользователям`);
 }
 
 /** Чистит Firestore-песочницу целиком (auth-пользователи не трогаются). */

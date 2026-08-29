@@ -67,6 +67,9 @@ interface Managed {
   child: ChildProcess;
   alive: boolean;
   tail: string[];
+  /** Иглы, которые ждёт waitForLog: отмечаются в момент прихода строки. */
+  watch: Set<string>;
+  seen: Set<string>;
 }
 
 const managed: Managed[] = [];
@@ -171,9 +174,12 @@ async function waitForPorts(ports: number[], what: string, proc: Managed): Promi
 
 /** Ждёт строку в выводе процесса (порт открыт ≠ сервис прогрет). */
 async function waitForLog(proc: Managed, needle: string, what: string): Promise<void> {
+  // Ищем и в live-потоке (seen), и в хвосте: болтливый functions-эмулятор
+  // может вымыть баннер из кольцевого буфера между тиками опроса.
+  proc.watch.add(needle);
   const deadline = Date.now() + WAIT_TIMEOUT_MS;
   while (Date.now() < deadline) {
-    if (proc.tail.some((line) => line.includes(needle))) return;
+    if (proc.seen.has(needle) || proc.tail.some((line) => line.includes(needle))) return;
     if (!proc.alive) {
       console.error(proc.tail.join("\n"));
       throw new Error(`${what} завершился раньше времени`);
@@ -192,10 +198,14 @@ function start(name: string, command: string, args: string[], env: NodeJS.Proces
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env, ...env },
   });
-  const proc: Managed = { name, child, alive: true, tail: [] };
+  const proc: Managed = { name, child, alive: true, tail: [], watch: new Set(), seen: new Set() };
   const collect = (buf: Buffer) => {
     for (const line of buf.toString().split("\n")) {
-      if (line.trim()) proc.tail.push(line);
+      if (!line.trim()) continue;
+      proc.tail.push(line);
+      for (const needle of proc.watch) {
+        if (line.includes(needle)) proc.seen.add(needle);
+      }
     }
     if (proc.tail.length > TAIL_LINES) proc.tail.splice(0, proc.tail.length - TAIL_LINES);
   };
