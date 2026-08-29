@@ -566,7 +566,7 @@ npm run smoke:roles -- --with-functions          # + эмулятор Cloud Func
 
 ##### Режим `--with-functions` (реальный контур выдачи прав)
 
-Флаг добавляет к стенду эмулятор Cloud Functions (порт 5001, секция `functions` в `firebase.smoke.json`) и проект `smoke:functions` — сквозные сценарии `tests/e2e/roles/functions-admin.spec.ts`: super-admin через настоящую модалку `/admin/users` зовёт `makeUserAdmin` → `setAdminEditableCourses` → `removeAdmin`, а результат проверяется входом под повышаемым пользователем (кабинет автора, новый курс, создание занятия, потеря доступа к `/admin`). Без флага стенд работает как раньше — эмулятор функций не поднимается и `smoke:functions` не существует.
+Флаг добавляет к стенду эмулятор Cloud Functions (порт 5001, секция `functions` в `firebase.smoke.json`) и проект `smoke:functions` — сквозные сценарии `tests/e2e/roles/functions-admin.spec.ts`: super-admin через настоящую модалку `/admin/users` зовёт `makeUserAdmin` → `setAdminEditableCourses` → `removeAdmin`, а результат проверяется входом под повышаемым пользователем (`promotee`): кабинет автора с двумя курсами и создание занятия, сужение списка курсов, потеря доступа к `/admin`. Без флага стенд работает как раньше — эмулятор функций не поднимается и `smoke:functions` не существует.
 
 Ограничения и грабли — их легко наступить снова:
 
@@ -575,6 +575,7 @@ npm run smoke:roles -- --with-functions          # + эмулятор Cloud Func
 - **`onUserCreate` (gen1) оживает вместе с эмулятором** и перезаписывает `users/{uid}` и claims ролью `guest`. Сид ждёт, пока триггер отработает по всем созданным пользователям (признак — появившийся claim `role`), и только потом пишет свои claims и доки.
 - **Claims применяются при следующем выпуске токена.** После вызова функции нужен полный `signOut` + `signIn` (`signInAs` в `tests/e2e/roles/helpers.ts`), фонового refresh недостаточно.
 - **Ждать надо подтверждающий `window.alert`, а не изменение таблицы.** Функции пишут в Firestore ДО `setCustomUserClaims`, поэтому живой `onSnapshot` обновляет строку раньше, чем claims готовы, и перелогин выпустил бы токен со старыми правами.
+- **UI-проверка кабинета claims не доказывает.** При пустом claim `editableCourses` `resolveEditableCourses` (`useAuthStore`) откатывается на Firestore-зеркало, и кабинет выглядит правильно даже со сломанной функцией. Единственный claim-чувствительный сигнал — запись: `firestore.rules` читают только токен. Поэтому в сценарии `makeUserAdmin` есть создание занятия — проверено пробой (убрать `editableCourses` из claims в `makeAdmin.ts` → сценарий падает).
 - **Идемпотентность.** Сид возвращает `promotee` в состояние «без ролей» (полная перезапись `users/{uid}` и claims) и удаляет занятия, которых нет в фикстурах, — иначе созданное сценарием занятие ломало бы следующий прогон.
 - `functions/lib` пересобирается только когда исходники `functions/src` / `shared` свежее сборки.
 
