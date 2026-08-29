@@ -98,6 +98,20 @@ export const SMOKE_ROLES = {
     claims: { coAdmin: true },
     userDoc: { coAdmin: true },
   },
+  /**
+   * Кандидат в авторы: обычный пользователь без ролей. Сценарии
+   * `tests/e2e/roles/functions-admin.spec.ts` повышают его через реальные
+   * Cloud Functions и снимают права обратно; сид возвращает его в это
+   * исходное состояние на каждом прогоне.
+   */
+  promotee: {
+    key: "promotee",
+    uid: "smoke-promotee",
+    email: "promotee@smoke.test",
+    displayName: "Кандидат В Авторы",
+    claims: null,
+    userDoc: {},
+  },
   /** Super-admin распознаётся по email (src/constants/superAdmin.ts и rules). */
   superAdmin: {
     key: "superadmin",
