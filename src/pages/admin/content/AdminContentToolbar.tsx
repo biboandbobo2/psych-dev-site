@@ -40,8 +40,14 @@ export function AdminContentToolbar({
         </button>
 
         <button
-          onClick={onCreateTest}
-          className={`${ACTION_BUTTON_CLASS} bg-blue-600 hover:bg-blue-700`}
+          onClick={() => canEditActiveCourse && onCreateTest()}
+          disabled={!canEditActiveCourse}
+          title={canEditActiveCourse ? undefined : 'Нет прав на редактирование этого курса'}
+          className={`${ACTION_BUTTON_CLASS} ${
+            canEditActiveCourse
+              ? 'bg-blue-600 hover:bg-blue-700'
+              : 'cursor-not-allowed bg-gray-300 text-gray-500'
+          }`}
         >
           <span aria-hidden>📝</span>
           <span>Создать тест</span>

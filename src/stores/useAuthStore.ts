@@ -16,6 +16,32 @@ import {
 } from '../lib/courseProgress/cloudSync';
 import { migrateLocalProgressIfNeeded } from '../lib/courseProgress/migration';
 
+/**
+ * `editableCourses` из custom claims. null — claim отсутствует (значит нечему
+ * побеждать Firestore-зеркало), [] — claim есть и пуст.
+ */
+export function readEditableCoursesClaim(claims: Record<string, unknown>): string[] | null {
+  const raw = claims.editableCourses;
+  if (!Array.isArray(raw)) return null;
+  return raw.filter((courseId): courseId is string => typeof courseId === 'string');
+}
+
+/**
+ * Права на курсы для UI: пересечение claim'а (истина для rules, обновляется с
+ * токеном) и Firestore-зеркала (обновляется мгновенно). Пока один из источников
+ * не пришёл — используется второй.
+ */
+export function resolveEditableCourses(
+  claim: string[] | null,
+  mirror: string[] | null
+): string[] {
+  if (claim && mirror) {
+    const allowed = new Set(mirror);
+    return claim.filter((courseId) => allowed.has(courseId));
+  }
+  return claim ?? mirror ?? [];
+}
+
 interface AuthState {
   user: User | null;
   loading: boolean;
@@ -171,9 +197,28 @@ export const useAuthStore = create<AuthState>()(
         let cancelled = false;
         let userDocUnsubscribe: Unsubscribe | null = null;
         let myGroupsUnsubscribe: Unsubscribe | null = null;
+        // Права на курсы приходят из двух источников: claim `editableCourses`
+        // (его читают Firestore rules, обновляется с токеном) и Firestore-зеркало
+        // users/{uid}.adminEditableCourses (обновляется мгновенно). В UI берём
+        // пересечение — тогда ни свежевыданный курс не появится раньше, чем его
+        // пустят rules, ни отозванный не задержится до обновления токена.
+        let claimEditableCourses: string[] | null = null;
+        let mirrorEditableCourses: string[] | null = null;
+
+        const applyEditableCourses = () => {
+          const next = resolveEditableCourses(claimEditableCourses, mirrorEditableCourses);
+          const current = get().adminEditableCourses;
+          const same =
+            next.length === current.length &&
+            next.every((courseId, index) => courseId === current[index]);
+          if (same) return;
+          get().setAdminEditableCourses(next);
+        };
 
         const unsubscribe = onAuthStateChanged(auth, async (next) => {
           if (cancelled) return;
+          claimEditableCourses = null;
+          mirrorEditableCourses = null;
 
           // Отписываемся от предыдущего пользователя
           if (userDocUnsubscribe) {
@@ -210,6 +255,7 @@ export const useAuthStore = create<AuthState>()(
           try {
             let resolvedRole: UserRole | null = null;
             let resolvedCoAdmin = false;
+            let resolvedEditableCourses: string[] | null = null;
 
             if (next.email === SUPER_ADMIN_EMAIL) {
               resolvedRole = 'super-admin';
@@ -219,6 +265,7 @@ export const useAuthStore = create<AuthState>()(
               const cachedToken = await next.getIdTokenResult(false);
               resolvedRole = normalizeUserRole(cachedToken.claims.role);
               resolvedCoAdmin = cachedToken.claims.coAdmin === true;
+              resolvedEditableCourses = readEditableCoursesClaim(cachedToken.claims);
 
               if (!resolvedRole || !resolvedCoAdmin) {
                 // Нет роли/флага в claims — проверяем Firestore для legacy/freshly-granted
@@ -232,11 +279,17 @@ export const useAuthStore = create<AuthState>()(
             // который выставляется в setUserRole.
             get().setUserRole(resolvedRole);
             get().setCoAdminFlag(resolvedCoAdmin);
+            if (resolvedEditableCourses) {
+              claimEditableCourses = resolvedEditableCourses;
+              applyEditableCourses();
+            }
 
             // Фаза 2: обновляем токен в фоне (подхватит изменения claims).
             if (next.email !== SUPER_ADMIN_EMAIL) {
               next.getIdTokenResult(true).then((freshToken) => {
                 if (cancelled) return;
+                // Пользователь мог смениться, пока промис висел.
+                if (get().user?.uid !== next.uid) return;
                 const freshRole = normalizeUserRole(freshToken.claims.role);
                 const freshCoAdmin = freshToken.claims.coAdmin === true;
                 if (freshRole !== get().userRole) {
@@ -246,6 +299,18 @@ export const useAuthStore = create<AuthState>()(
                 if (freshCoAdmin !== get().isCoAdmin) {
                   debugLog('🔄 Auth: coAdmin flag updated from fresh token:', freshCoAdmin);
                   get().setCoAdminFlag(freshCoAdmin);
+                }
+                const freshEditable = readEditableCoursesClaim(freshToken.claims);
+                if (freshEditable) {
+                  const changed =
+                    !claimEditableCourses ||
+                    freshEditable.length !== claimEditableCourses.length ||
+                    freshEditable.some((courseId, index) => courseId !== claimEditableCourses![index]);
+                  claimEditableCourses = freshEditable;
+                  if (changed) {
+                    debugLog('🔄 Auth: editableCourses updated from fresh token:', freshEditable);
+                  }
+                  applyEditableCourses();
                 }
               }).catch((err) => {
                 reportAppError({
@@ -335,12 +400,20 @@ export const useAuthStore = create<AuthState>()(
                   get().setCoAdminFlag(newCoAdmin);
                 }
 
-                // adminEditableCourses синхронно с Firestore
+                // Зеркало adminEditableCourses: даёт мгновенную реакцию на отзыв
+                // прав, а пересечение с claim'ом не даёт показать курс, куда
+                // rules ещё не пустят («кнопка активна, запись отклонена»).
                 const editableRaw = data?.adminEditableCourses;
-                const editable = Array.isArray(editableRaw)
-                  ? editableRaw.filter((c): c is string => typeof c === 'string')
-                  : [];
-                get().setAdminEditableCourses(editable);
+                if (Array.isArray(editableRaw)) {
+                  mirrorEditableCourses = editableRaw.filter(
+                    (c): c is string => typeof c === 'string'
+                  );
+                } else {
+                  // Поля нет вовсе — зеркало ничего не утверждает о правах,
+                  // иначе пересечение обнулило бы живой claim.
+                  mirrorEditableCourses = editableRaw === undefined ? null : [];
+                }
+                applyEditableCourses();
               },
               (error) => {
                 reportAppError({

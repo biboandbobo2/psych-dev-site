@@ -3,13 +3,14 @@ import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { useAuth } from '../../../auth/AuthProvider';
-import { useCourses } from '../../../hooks/useCourses';
+import { useEditableCourses } from '../../../hooks/useEditableCourses';
 import { SITE_NAME } from '../../../routes';
 import { useCourseIntroEditor } from './useCourseIntroEditor';
 import { PageLoader } from '../../../components/ui';
 import { debugError } from '../../../lib/debug';
 import { db } from '../../../lib/firebase';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { canEditCourse } from '../../../types/user';
 import { generateCourseIntroDraft, type CourseIntroDraftKind } from './api';
 import { AuthorCardEditor } from './components/AuthorCardEditor';
 import { MarkdownDraftSection } from './components/MarkdownDraftSection';
@@ -20,14 +21,17 @@ export default function CourseIntroEditor() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const geminiKey = useAuthStore((s) => s.geminiApiKey);
-  const { courseMap, loading: coursesLoading } = useCourses({ includeUnpublished: true });
+  const { courseMap, loading: coursesLoading } = useEditableCourses();
+  const userRole = useAuthStore((s) => s.userRole);
+  const adminEditableCourses = useAuthStore((s) => s.adminEditableCourses);
+  const canEdit = canEditCourse(userRole, adminEditableCourses, courseId ?? '');
   const editor = useCourseIntroEditor(courseId ?? '');
   const [lessons, setLessons] = useState<string[]>([]);
   const [generating, setGenerating] = useState<CourseIntroDraftKind | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!courseId) return;
+    if (!courseId || !canEdit) return;
     let cancelled = false;
     (async () => {
       try {
@@ -49,7 +53,7 @@ export default function CourseIntroEditor() {
     return () => {
       cancelled = true;
     };
-  }, [courseId]);
+  }, [courseId, canEdit]);
 
   if (!courseId) {
     return (
@@ -64,6 +68,17 @@ export default function CourseIntroEditor() {
 
   if (editor.loading || coursesLoading) {
     return <PageLoader />;
+  }
+
+  if (!canEdit) {
+    return (
+      <div className="mx-auto max-w-3xl p-6">
+        <p>У вас нет прав на редактирование этого курса.</p>
+        <Link to="/admin/content" className="text-[#2F6DB5] underline">
+          ← К управлению контентом
+        </Link>
+      </div>
+    );
   }
 
   const course = courseMap.get(courseId);

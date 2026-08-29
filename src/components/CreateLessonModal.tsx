@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import type { CourseType } from '../types/tests';
 import { useCreateLesson } from '../hooks/useCreateLesson';
 import { generateLessonId } from '../utils/transliterate';
-import { useCourses } from '../hooks/useCourses';
+import { useEditableCourses } from '../hooks/useEditableCourses';
 import { getCourseBasePath } from '../constants/courses';
 
 interface CreateLessonModalProps {
@@ -15,7 +15,7 @@ interface CreateLessonModalProps {
 export function CreateLessonModal({ onClose, defaultCourse = 'development' }: CreateLessonModalProps) {
   const navigate = useNavigate();
   const { createLesson, checkIdExists, creating } = useCreateLesson();
-  const { courses, loading: coursesLoading } = useCourses({ includeUnpublished: true });
+  const { courses, loading: coursesLoading } = useEditableCourses();
 
   const [selectedCourse, setSelectedCourse] = useState<CourseType>(defaultCourse);
   const [title, setTitle] = useState('');

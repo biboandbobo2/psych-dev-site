@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { collection, getDocs, orderBy, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { debugError } from '../../../lib/debug';
+import { useEditableCourses } from '../../../hooks/useEditableCourses';
+import { useAuthStore } from '../../../stores/useAuthStore';
 import AdminPageVisits from './AdminPageVisits';
 
 // Сводка продуктовой телеметрии (PT-1): читает сырые события из
-// `feature_events` напрямую (rules: read — только админ) и агрегирует на
-// клиенте. Как читать цифры — docs/guides/product-telemetry.md.
+// `feature_events` напрямую и агрегирует на клиенте. Rules пускают
+// super-admin ко всей коллекции, админа курса — только к событиям своих
+// курсов, поэтому его запрос обязан содержать where('courseId','==',...).
+// Как читать цифры — docs/guides/product-telemetry.md.
 
 interface FeatureEventRow {
   event: string;
@@ -50,18 +54,51 @@ export default function AdminTelemetry() {
   const [rows, setRows] = useState<FeatureEventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
+  const { courses: editableCourses, loading: coursesLoading } = useEditableCourses();
+  const [searchParams] = useSearchParams();
+  const courseParam = searchParams.get('course');
+  // null — курс ещё не выбран, запрос не шлём. '' — «все курсы»: валидно
+  // только для super-admin, у остальных rules отклонят запрос без фильтра.
+  // Единственный эффект-корректор: ?course= из кабинета автора применяется
+  // только после загрузки списка и только если курс в правах.
+  const [courseFilter, setCourseFilter] = useState<string | null>(null);
 
-  const load = useCallback(async (rangeWeeks: number) => {
+  useEffect(() => {
+    if (coursesLoading) return;
+    if (isSuperAdmin) {
+      // Для super-admin валиден любой выбор, включая '' («все курсы»),
+      // поэтому трогаем состояние только один раз — на инициализации.
+      if (courseFilter === null) setCourseFilter(courseParam ?? '');
+      return;
+    }
+    // Админ без курсов остаётся с null: заглушка вместо заведомо отклонённого
+    // запроса.
+    if (editableCourses.length === 0) return;
+    if (courseFilter && editableCourses.some((course) => course.id === courseFilter)) return;
+    const fallback =
+      editableCourses.find((course) => course.id === courseParam)?.id ?? editableCourses[0].id;
+    setCourseFilter(fallback);
+  }, [isSuperAdmin, coursesLoading, editableCourses, courseFilter, courseParam]);
+
+  const load = useCallback(async (rangeWeeks: number, courseId: string) => {
     setLoading(true);
     setError(null);
     try {
       const since = new Date(Date.now() - rangeWeeks * 7 * 24 * 60 * 60 * 1000);
       const snapshot = await getDocs(
-        query(
-          collection(db, 'feature_events'),
-          where('createdAt', '>=', Timestamp.fromDate(since)),
-          orderBy('createdAt', 'desc')
-        )
+        courseId
+          ? query(
+              collection(db, 'feature_events'),
+              where('courseId', '==', courseId),
+              where('createdAt', '>=', Timestamp.fromDate(since)),
+              orderBy('createdAt', 'desc')
+            )
+          : query(
+              collection(db, 'feature_events'),
+              where('createdAt', '>=', Timestamp.fromDate(since)),
+              orderBy('createdAt', 'desc')
+            )
       );
       const loaded: FeatureEventRow[] = [];
       snapshot.forEach((docSnap) => {
@@ -86,8 +123,17 @@ export default function AdminTelemetry() {
   }, []);
 
   useEffect(() => {
-    load(weeks);
-  }, [load, weeks]);
+    // Пока курс не выбран, запрос не уходит: без фильтра по courseId rules
+    // отклонят его целиком.
+    if (courseFilter === null) {
+      setRows([]);
+      // Скелет держим, только пока выбор ещё возможен: у админа без курсов
+      // должна показаться заглушка, а не бесконечная загрузка.
+      setLoading(coursesLoading || editableCourses.length > 0);
+      return;
+    }
+    load(weeks, courseFilter);
+  }, [load, weeks, courseFilter, coursesLoading, editableCourses]);
 
   const summary = useMemo(() => {
     const weekKeys = new Set<string>();
@@ -145,15 +191,43 @@ export default function AdminTelemetry() {
               </option>
             ))}
           </select>
-          <Link to="/superadmin" className="text-blue-600 hover:underline">
-            ← Админ-панель
-          </Link>
+          {(isSuperAdmin || editableCourses.length > 1) && (
+            <>
+              <label htmlFor="telemetry-course" className="opacity-70">
+                Курс:
+              </label>
+              <select
+                id="telemetry-course"
+                value={courseFilter ?? ''}
+                onChange={(e) => setCourseFilter(e.target.value)}
+                className="rounded border border-gray-300 px-2 py-1"
+              >
+                {isSuperAdmin && <option value="">Все курсы</option>}
+                {editableCourses.map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+          {isSuperAdmin && (
+            <Link to="/superadmin" className="text-blue-600 hover:underline">
+              ← Админ-панель
+            </Link>
+          )}
         </div>
       </div>
 
-      <AdminPageVisits weeks={weeks} />
+      {/* Посещения лендингов — данные всей платформы, обычному админу не показываем */}
+      {isSuperAdmin && <AdminPageVisits weeks={weeks} />}
 
       <h2 className="text-2xl font-semibold">🧪 Использование фич</h2>
+      {!coursesLoading && !isSuperAdmin && editableCourses.length === 0 && (
+        <div className="rounded-2xl border border-border/60 bg-card p-5 text-sm text-muted">
+          У вас пока нет курсов в управлении — телеметрию показывать не по чему.
+        </div>
+      )}
       {loading && <div className="opacity-70">Загружаем события…</div>}
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
