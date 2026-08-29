@@ -18,6 +18,7 @@
  */
 import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { importProdSnapshot } from './lib/prodSnapshot';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 
 import {
@@ -35,6 +36,9 @@ import {
 const TAG = '[seed-roles]';
 const AUTH_HOST = '127.0.0.1:9099';
 const FIRESTORE_HOST = '127.0.0.1:8080';
+const FUNCTIONS_HOST = '127.0.0.1:5001';
+/** Потолок ожидания gen1-триггера onUserCreate (обычно отрабатывает за ~300 мс). */
+const TRIGGER_WAIT_MS = 6000;
 
 // Только эмулятор: admin SDK читает эти переменные при первом обращении,
 // поэтому выставляем их до любого initializeApp (он живёт в main()).
@@ -56,6 +60,8 @@ interface SeedArgs {
   /** Полный projectId песочницы Firestore. */
   sandbox: string;
   reset: boolean;
+  /** Долить прод-срез контента поверх синтетики (tmp/prod-snapshot/). */
+  prodData: boolean;
 }
 
 function parseArgs(): SeedArgs {
@@ -70,7 +76,11 @@ function parseArgs(): SeedArgs {
     }
   }
 
-  return { sandbox: sandboxProjectId(suffix), reset: argv.includes('--reset') };
+  return {
+    sandbox: sandboxProjectId(suffix),
+    reset: argv.includes('--reset'),
+    prodData: argv.includes('--prod-data'),
+  };
 }
 
 /** Падаем понятной ошибкой, если эмулятор не поднят. */
@@ -84,6 +94,46 @@ async function assertEmulatorUp(host: string, label: string): Promise<void> {
       `${label}-эмулятор не запущен на ${host} (${reason}). Подними его: npm run firebase:emulators:start`
     );
   }
+}
+
+/** Стенд поднят с --with-functions → на createUser сработает onUserCreate. */
+async function isFunctionsEmulatorUp(): Promise<boolean> {
+  try {
+    const res = await fetch(`http://${FUNCTIONS_HOST}/`, { signal: AbortSignal.timeout(1000) });
+    return res.status < 500;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * gen1-триггер onUserCreate перезаписывает users/{uid} и claims ролью guest,
+ * поэтому при живом functions-эмуляторе сид сначала даёт ему отработать по всем
+ * созданным пользователям и только потом пишет свои claims и доки. Признак
+ * завершения — claim `role`, который триггер выставляет последним шагом.
+ */
+async function waitForUserCreateTrigger(auth: ReturnType<typeof getAuth>, uids: string[]): Promise<void> {
+  const deadline = Date.now() + TRIGGER_WAIT_MS;
+  const pending = new Set(uids);
+  while (pending.size && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    for (const uid of [...pending]) {
+      const record = await auth.getUser(uid).catch(() => null);
+      if (record?.customClaims?.role) pending.delete(uid);
+    }
+  }
+  if (pending.size) {
+    // Продолжать нельзя: запоздавший триггер перетёр бы наши claims и
+    // users/{uid} ролью guest — соседние спеки падали бы с невнятным
+    // Access denied при «успешном» сиде.
+    console.error(
+      `${TAG} onUserCreate не отметился у ${pending.size} польз. за ${TRIGGER_WAIT_MS} мс: ` +
+        [...pending].join(', ') +
+        ' — эмулятор функций не прогрелся, перезапустите стенд'
+    );
+    process.exit(1);
+  }
+  console.log(`${TAG} onUserCreate отработал по ${uids.length} новым пользователям`);
 }
 
 /** Чистит Firestore-песочницу целиком (auth-пользователи не трогаются). */
@@ -107,10 +157,11 @@ async function seedAuthUsers(app: App): Promise<number> {
   let created = 0;
   let updated = 0;
   let untouched = 0;
+  /** uid'ы, созданные этим прогоном: по ним мог отработать onUserCreate. */
+  const createdUids: string[] = [];
+  const claimsBefore = new Map<string, Record<string, unknown>>();
 
   for (const role of SMOKE_ROLE_LIST) {
-    const wantedClaims = role.claims ?? {};
-
     let existing = await auth.getUser(role.uid).catch((err: unknown) => {
       if ((err as { code?: string }).code === 'auth/user-not-found') return null;
       throw err;
@@ -145,11 +196,23 @@ async function seedAuthUsers(app: App): Promise<number> {
       }
     }
 
-    const currentClaims = existing?.customClaims ?? {};
-    if (JSON.stringify(currentClaims) !== JSON.stringify(wantedClaims)) {
+    if (existing) claimsBefore.set(role.uid, existing.customClaims ?? {});
+    else createdUids.push(role.uid);
+    console.log(`${TAG}   ${role.key} → ${role.email} (${existing ? 'на месте' : 'создан'})`);
+  }
+
+  // Claims ставим вторым проходом: у новых пользователей их перед этим успевает
+  // перезаписать onUserCreate (только при живом functions-эмуляторе).
+  if (createdUids.length && (await isFunctionsEmulatorUp())) {
+    await waitForUserCreateTrigger(auth, createdUids);
+  }
+  for (const role of SMOKE_ROLE_LIST) {
+    const wantedClaims = role.claims ?? {};
+    const currentClaims = claimsBefore.get(role.uid);
+    // Для только что созданных актуальные claims неизвестны — пишем всегда.
+    if (!currentClaims || JSON.stringify(currentClaims) !== JSON.stringify(wantedClaims)) {
       await auth.setCustomUserClaims(role.uid, wantedClaims);
     }
-    console.log(`${TAG}   ${role.key} → ${role.email} (${existing ? 'на месте' : 'создан'})`);
   }
 
   console.log(`${TAG} auth: создано ${created}, обновлено ${updated}, не тронуто ${untouched}`);
@@ -174,19 +237,31 @@ async function seedUserDocs(db: Firestore, now: Timestamp): Promise<number> {
   return count;
 }
 
-/** courses/{id} + courses/{id}/lessons/{lessonId}. */
+/**
+ * courses/{id} + courses/{id}/lessons/{lessonId}. Занятия, которых нет в
+ * фикстурах, удаляются: сценарии умеют создавать занятия через UI, и без
+ * уборки повторный прогон падал бы на «занятие с таким ID уже существует».
+ */
 async function seedCourses(db: Firestore): Promise<number> {
   let count = 0;
   for (const course of Object.values(SMOKE_COURSES)) {
     await db.doc(`courses/${course.id}`).set({ ...course.doc });
     count++;
+    const wanted = new Set<string>();
     for (const lesson of course.lessons) {
       await db.doc(`courses/${course.id}/lessons/${lesson.id}`).set({
         title: lesson.title,
         order: lesson.order,
         published: lesson.published,
       });
+      wanted.add(lesson.id);
       count++;
+    }
+    const existing = await db.collection(`courses/${course.id}/lessons`).get();
+    for (const doc of existing.docs) {
+      if (wanted.has(doc.id)) continue;
+      await doc.ref.delete();
+      console.log(`${TAG} удалено лишнее занятие courses/${course.id}/lessons/${doc.id}`);
     }
   }
   return count;
@@ -254,8 +329,30 @@ async function seedFeatureEvents(db: Firestore, nowMs: number): Promise<number> 
   return count;
 }
 
+/**
+ * Пути контента, записанные синтетическим сидом: в режиме --prod-data они
+ * защищены от перезаписи снапшотом («фикстура побеждает прод») — иначе
+ * прод-документ перетёр бы мир сценариев (имена core-курсов, external-x).
+ */
+function fixtureContentPaths(): Set<string> {
+  const paths = new Set<string>();
+  for (const course of Object.values(SMOKE_COURSES)) {
+    paths.add(`courses/${course.id}`);
+    for (const lesson of course.lessons) {
+      paths.add(`courses/${course.id}/lessons/${lesson.id}`);
+    }
+  }
+  for (const [courseId, lessons] of Object.entries(SMOKE_CORE_LESSONS)) {
+    const collection = CORE_LESSON_COLLECTIONS[courseId as keyof typeof CORE_LESSON_COLLECTIONS];
+    for (const lesson of lessons) {
+      paths.add(`${collection}/${lesson.id}`);
+    }
+  }
+  return paths;
+}
+
 async function main() {
-  const { sandbox, reset } = parseArgs();
+  const { sandbox, reset, prodData } = parseArgs();
 
   await assertEmulatorUp(FIRESTORE_HOST, 'Firestore');
   await assertEmulatorUp(AUTH_HOST, 'Auth');
@@ -278,7 +375,14 @@ async function main() {
     const groupDocs = await seedGroup(db);
     const questionDocs = await seedLectureQuestions(db, now);
     const eventDocs = await seedFeatureEvents(db, nowMs);
-    const total = userDocs + courseDocs + coreDocs + groupDocs + questionDocs + eventDocs;
+    let prodDocs = 0;
+    if (prodData) {
+      const stats = await importProdSnapshot(db, fixtureContentPaths(), (message) =>
+        console.log(`${TAG} ${message}`)
+      );
+      prodDocs = stats.written;
+    }
+    const total = userDocs + courseDocs + coreDocs + groupDocs + questionDocs + eventDocs + prodDocs;
 
     console.log(`\n${TAG} Итого:`);
     console.log(`  auth-пользователей (${SMOKE_AUTH_PROJECT}): ${users}`);
@@ -288,6 +392,7 @@ async function main() {
     console.log(`  groups/: ${groupDocs}`);
     console.log(`  lectureQuestions/: ${questionDocs}`);
     console.log(`  feature_events/: ${eventDocs}`);
+    if (prodData) console.log(`  прод-срез: ${prodDocs}`);
     console.log(`\n✅ Firestore-доков ${total} записано в проект ${sandbox}.`);
   } finally {
     await deleteApp(dataApp);

@@ -5,23 +5,14 @@
  * только в сборке с VITE_USE_FIREBASE_EMULATORS=true. Пользователей и пароль
  * создаёт scripts/seedEmulatorRoles.ts из тех же фикстур.
  *
- * Все 7 ролей проверяются на вход (критерий приёмки «агент входит под каждой
+ * Все роли проверяются на вход (критерий приёмки «агент входит под каждой
  * ролью»); для сценарных ролей дополнительно сохраняется storageState —
  * с `indexedDB: true`, потому что firebase/auth держит сессию в IndexedDB.
  */
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { test, expect, smokeProject } from "./helpers";
+import { test, expect, smokeProject, type TestAuthWindow } from "./helpers";
 import { SMOKE_PASSWORD, SMOKE_ROLE_LIST } from "../fixtures/roles";
-
-interface TestAuthApi {
-  signIn: (email: string, password: string) => Promise<string>;
-  signOut: () => Promise<void>;
-  currentUserEmail: () => string | null;
-  waitForUser: () => Promise<string>;
-}
-
-type TestAuthWindow = Window & { __testAuth?: TestAuthApi };
 
 /** Роли, у которых есть сценарные спеки: должно совпадать с playwright.config.ts. */
 const SCENARIO_KEYS = new Set(["author", "admin-empty", "superadmin", "student-group"]);

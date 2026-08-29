@@ -98,6 +98,20 @@ export const SMOKE_ROLES = {
     claims: { coAdmin: true },
     userDoc: { coAdmin: true },
   },
+  /**
+   * Кандидат в авторы: обычный пользователь без ролей. Сценарии
+   * `tests/e2e/roles/functions-admin.spec.ts` повышают его через реальные
+   * Cloud Functions и снимают права обратно; сид возвращает его в это
+   * исходное состояние на каждом прогоне.
+   */
+  promotee: {
+    key: "promotee",
+    uid: "smoke-promotee",
+    email: "promotee@smoke.test",
+    displayName: "Кандидат В Авторы",
+    claims: null,
+    userDoc: {},
+  },
   /** Super-admin распознаётся по email (src/constants/superAdmin.ts и rules). */
   superAdmin: {
     key: "superadmin",
@@ -113,6 +127,26 @@ export const SMOKE_ROLE_LIST: SmokeRole[] = Object.values(SMOKE_ROLES);
 
 /** Динамические курсы стенда (core development/clinical синтезируются сами). */
 export const SMOKE_COURSES = {
+  /**
+   * Core-курсы закреплены фикстурами с каноническими именами: в режиме
+   * --prod-data «фикстура побеждает прод», и сценарии не зависят от того,
+   * как курс сейчас называется в проде (например, clinical там переименован).
+   */
+  development: {
+    id: "development",
+    doc: { name: "Психология развития", icon: "🧠", order: 0, published: true },
+    lessons: [],
+  },
+  clinical: {
+    id: "clinical",
+    doc: { name: "Клиническая психология", icon: "🩺", order: 1, published: true },
+    lessons: [],
+  },
+  general: {
+    id: "general",
+    doc: { name: "Общая психология", icon: "📚", order: 2, published: true },
+    lessons: [],
+  },
   externalX: {
     id: "external-x",
     doc: { name: "Внешний курс X", icon: "🧪", order: 110, published: true },

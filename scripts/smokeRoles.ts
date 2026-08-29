@@ -13,35 +13,57 @@
  * в tests/e2e/fixtures/roles.ts).
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { createConnection } from "node:net";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SMOKE_AUTH_PROJECT, SMOKE_DEV_PORT, sandboxProjectId } from "../tests/e2e/fixtures/roles";
+import { SNAPSHOT_MISSING_HINT, readManifest } from "./lib/prodSnapshot";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 /** Роли со сценарными спеками — тот же список, что в playwright.config.ts. */
 const SCENARIO_KEYS = ["author", "admin-empty", "superadmin", "student-group"];
+/** Сквозной сценарий выдачи прав через Cloud Functions; только с --with-functions. */
+const FUNCTIONS_KEY = "functions";
 const FIRESTORE_PORT = 8080;
 const AUTH_PORT = 9099;
+const FUNCTIONS_PORT = 5001;
+const EMULATOR_SERVICES = ["firestore", "auth", "storage"];
 const WAIT_TIMEOUT_MS = 60_000;
 const TAIL_LINES = 40;
+/** tsc-выход functions: собранный index, который читает эмулятор. */
+const FUNCTIONS_ENTRY = "functions/lib/functions/src/index.js";
+const FUNCTIONS_SOURCES = ["functions/src", "shared"];
+/**
+ * Эмулятор функций требует firebase-tools ≥ 15: рантайм 14.x при старте зовёт
+ * functions.config(), удалённый в firebase-functions 7, и валит ВСЕ функции
+ * («Failed to load function»). Держать две версии рядом нельзя: каждая при
+ * старте выкачивает свой jar Firestore, удаляя чужой.
+ */
+const MIN_FUNCTIONS_TOOLS_MAJOR = 15;
 
 const USAGE = `Ролевой e2e-стенд (HP-2).
 
   npm run smoke:roles -- [опции]
 
-  --roles <a,b>    роли для прогона (по умолчанию: ${SCENARIO_KEYS.join(",")})
-  --project <id>   песочница Firestore: суффикс (a → demo-smoke-a) или полный id
-  --reset          очистить песочницу перед сидом
-  --keep           не гасить эмулятор и dev-сервер после прогона
-  --help           эта справка
+  --roles <a,b>      роли для прогона (по умолчанию: ${SCENARIO_KEYS.join(",")})
+  --project <id>     песочница Firestore: суффикс (a → demo-smoke-a) или полный id
+  --with-functions   поднять эмулятор Cloud Functions и прогнать сценарий ${FUNCTIONS_KEY}
+                     (только в default-песочнице ${SMOKE_AUTH_PROJECT})
+  --prod-data        долить в песочницу срез контента прода (сначала снять его:
+                     npx tsx scripts/fetchProdContentSnapshot.ts)
+  --reset            очистить песочницу перед сидом
+  --keep             не гасить эмулятор и dev-сервер после прогона
+  --help             эта справка
 `;
 
 interface Options {
   roles: string[];
   project: string;
   reset: boolean;
+  prodData: boolean;
   keep: boolean;
+  withFunctions: boolean;
 }
 
 interface Managed {
@@ -49,6 +71,9 @@ interface Managed {
   child: ChildProcess;
   alive: boolean;
   tail: string[];
+  /** Иглы, которые ждёт waitForLog: отмечаются в момент прихода строки. */
+  watch: Set<string>;
+  seen: Set<string>;
 }
 
 const managed: Managed[] = [];
@@ -56,7 +81,14 @@ let shuttingDown = false;
 let keepAlive = false;
 
 function parseArgs(argv: string[]): Options | null {
-  const opts: Options = { roles: [...SCENARIO_KEYS], project: SMOKE_AUTH_PROJECT, reset: false, keep: false };
+  const opts: Options = {
+    roles: [],
+    project: SMOKE_AUTH_PROJECT,
+    reset: false,
+    keep: false,
+    withFunctions: false,
+    prodData: false,
+  };
   const value = (flag: string, inline: string | undefined, next: string | undefined): string => {
     const raw = inline ?? next;
     if (!raw) throw new Error(`${flag} требует значение`);
@@ -70,6 +102,8 @@ function parseArgs(argv: string[]): Options | null {
     if (flag === "--help" || flag === "-h") return null;
     else if (flag === "--reset") opts.reset = true;
     else if (flag === "--keep") opts.keep = true;
+    else if (flag === "--with-functions") opts.withFunctions = true;
+    else if (flag === "--prod-data") opts.prodData = true;
     else if (flag === "--roles") {
       const raw = value(flag, inline, argv[i + 1]);
       if (inline === undefined) i += 1;
@@ -82,11 +116,31 @@ function parseArgs(argv: string[]): Options | null {
       throw new Error(`Неизвестный аргумент: ${arg}`);
     }
   }
-  const unknown = opts.roles.filter((r) => !SCENARIO_KEYS.includes(r));
-  if (unknown.length) {
-    throw new Error(`Неизвестные роли: ${unknown.join(", ")}. Доступны: ${SCENARIO_KEYS.join(", ")}`);
+  const explicitRoles = opts.roles.length > 0;
+  if (!explicitRoles) {
+    opts.roles = opts.withFunctions ? [...SCENARIO_KEYS, FUNCTIONS_KEY] : [...SCENARIO_KEYS];
   }
-  if (!opts.roles.length) throw new Error("--roles не должен быть пустым");
+  const known = [...SCENARIO_KEYS, FUNCTIONS_KEY];
+  const unknown = opts.roles.filter((r) => !known.includes(r));
+  if (unknown.length) {
+    throw new Error(`Неизвестные роли: ${unknown.join(", ")}. Доступны: ${known.join(", ")}`);
+  }
+  if (explicitRoles && !opts.roles.length) throw new Error("--roles не должен быть пустым");
+  if (opts.roles.includes(FUNCTIONS_KEY) && !opts.withFunctions) {
+    throw new Error(`Сценарий ${FUNCTIONS_KEY} требует флага --with-functions`);
+  }
+  // Admin SDK внутри functions-эмулятора пишет в default-проект (GCLOUD_PROJECT),
+  // а песочницы --project — отдельные проекты Firestore: повышенный через
+  // callable пользователь просто не появился бы в песочнице.
+  if (opts.prodData && !readManifest()) {
+    throw new Error(SNAPSHOT_MISSING_HINT);
+  }
+  if (opts.withFunctions && opts.project !== SMOKE_AUTH_PROJECT) {
+    throw new Error(
+      `--with-functions работает только в default-песочнице ${SMOKE_AUTH_PROJECT}: ` +
+        `эмулятор функций пишет в неё, а не в ${opts.project}. Убери --project.`
+    );
+  }
   return opts;
 }
 
@@ -127,6 +181,24 @@ async function waitForPorts(ports: number[], what: string, proc: Managed): Promi
   throw new Error(`${what} не поднялся за ${WAIT_TIMEOUT_MS / 1000}с (порты ${ports.join(", ")})`);
 }
 
+/** Ждёт строку в выводе процесса (порт открыт ≠ сервис прогрет). */
+async function waitForLog(proc: Managed, needle: string, what: string): Promise<void> {
+  // Ищем и в live-потоке (seen), и в хвосте: болтливый functions-эмулятор
+  // может вымыть баннер из кольцевого буфера между тиками опроса.
+  proc.watch.add(needle);
+  const deadline = Date.now() + WAIT_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (proc.seen.has(needle) || proc.tail.some((line) => line.includes(needle))) return;
+    if (!proc.alive) {
+      console.error(proc.tail.join("\n"));
+      throw new Error(`${what} завершился раньше времени`);
+    }
+    await sleep(400);
+  }
+  console.error(proc.tail.join("\n"));
+  throw new Error(`${what} не сообщил «${needle}» за ${WAIT_TIMEOUT_MS / 1000}с`);
+}
+
 /** detached: своя process group, чтобы гасить всё дерево через kill(-pid). */
 function start(name: string, command: string, args: string[], env: NodeJS.ProcessEnv = {}): Managed {
   const child = spawn(command, args, {
@@ -135,10 +207,14 @@ function start(name: string, command: string, args: string[], env: NodeJS.Proces
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env, ...env },
   });
-  const proc: Managed = { name, child, alive: true, tail: [] };
+  const proc: Managed = { name, child, alive: true, tail: [], watch: new Set(), seen: new Set() };
   const collect = (buf: Buffer) => {
     for (const line of buf.toString().split("\n")) {
-      if (line.trim()) proc.tail.push(line);
+      if (!line.trim()) continue;
+      proc.tail.push(line);
+      for (const needle of proc.watch) {
+        if (line.includes(needle)) proc.seen.add(needle);
+      }
     }
     if (proc.tail.length > TAIL_LINES) proc.tail.splice(0, proc.tail.length - TAIL_LINES);
   };
@@ -177,23 +253,80 @@ async function shutdown(): Promise<void> {
   for (const proc of managed) signalGroup(proc, "SIGKILL");
 }
 
-async function ensureEmulator(): Promise<void> {
+/** Падаем понятной ошибкой, если репозиторий откатили на firebase-tools 14.x. */
+function assertFunctionsToolsSupported(): void {
+  let version = "не найден";
+  try {
+    const raw = readFileSync(resolve(ROOT, "node_modules/firebase-tools/package.json"), "utf8");
+    version = JSON.parse(raw).version as string;
+  } catch {
+    /* пакета нет — сообщим ниже */
+  }
+  if ((Number.parseInt(version, 10) || 0) >= MIN_FUNCTIONS_TOOLS_MAJOR) return;
+  throw new Error(
+    `--with-functions требует firebase-tools ≥ ${MIN_FUNCTIONS_TOOLS_MAJOR} (сейчас ${version}): ` +
+      "рантайм 14.x зовёт удалённый functions.config() и не поднимает ни одной функции."
+  );
+}
+
+/** Самый свежий mtime среди .ts исходников functions/shared. */
+function newestSourceMtime(): number {
+  let newest = 0;
+  for (const dir of FUNCTIONS_SOURCES) {
+    const base = resolve(ROOT, dir);
+    for (const entry of readdirSync(base, { recursive: true, withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".ts")) continue;
+      const mtime = statSync(join(entry.parentPath, entry.name)).mtimeMs;
+      if (mtime > newest) newest = mtime;
+    }
+  }
+  return newest;
+}
+
+/** Эмулятор функций читает functions/lib — пересобираем только при устаревании. */
+function ensureFunctionsBuilt(): void {
+  const built = statSync(resolve(ROOT, FUNCTIONS_ENTRY), { throwIfNoEntry: false })?.mtimeMs ?? 0;
+  if (built > newestSourceMtime()) {
+    console.log("▶ functions/lib свежее исходников — сборка не нужна");
+    return;
+  }
+  console.log("▶ собираю functions (tsc)…");
+  const res = spawnSync("npm", ["--prefix", "functions", "run", "build"], { cwd: ROOT, stdio: "inherit" });
+  if (res.status !== 0) throw new Error(`Сборка functions упала (exit ${res.status ?? res.signal})`);
+}
+
+async function ensureEmulator(opts: Options): Promise<void> {
   const [firestoreUp, authUp] = await Promise.all([isPortOpen(FIRESTORE_PORT), isPortOpen(AUTH_PORT)]);
   if (firestoreUp && authUp) {
+    if (opts.withFunctions && !(await isPortOpen(FUNCTIONS_PORT))) {
+      throw new Error(
+        `Эмулятор уже поднят без функций (порт ${FUNCTIONS_PORT} свободен). ` +
+          "Погаси его и запусти стенд заново с --with-functions."
+      );
+    }
     console.log(`▶ эмулятор уже слушает ${FIRESTORE_PORT}/${AUTH_PORT} — переиспользую (гасить не буду)`);
     return;
   }
   if (firestoreUp || authUp) {
     throw new Error(`Порт ${firestoreUp ? AUTH_PORT : FIRESTORE_PORT} свободен, а соседний занят — почини эмулятор вручную`);
   }
-  console.log("▶ поднимаю firebase emulators (firestore, auth, storage)…");
+  const services = opts.withFunctions ? [...EMULATOR_SERVICES, "functions"] : EMULATOR_SERVICES;
+  if (opts.withFunctions) {
+    assertFunctionsToolsSupported();
+    ensureFunctionsBuilt();
+  }
+  console.log(`▶ поднимаю firebase emulators (${services.join(", ")})…`);
   const proc = start("firebase emulators", "npx", [
     "firebase", "emulators:start",
     "--config", "firebase.smoke.json",
     "--project", SMOKE_AUTH_PROJECT,
-    "--only", "firestore,auth,storage",
+    "--only", services.join(","),
   ]);
-  await waitForPorts([FIRESTORE_PORT, AUTH_PORT], "Эмулятор", proc);
+  const ports = opts.withFunctions ? [FIRESTORE_PORT, AUTH_PORT, FUNCTIONS_PORT] : [FIRESTORE_PORT, AUTH_PORT];
+  await waitForPorts(ports, "Эмулятор", proc);
+  // 5001 открывается до загрузки триггеров, поэтому в режиме функций ждём
+  // баннер готовности — иначе сид создаст пользователей мимо onUserCreate.
+  if (opts.withFunctions) await waitForLog(proc, "All emulators ready", "Эмулятор");
   console.log("  эмулятор готов");
 }
 
@@ -201,6 +334,7 @@ function seed(opts: Options): void {
   console.log(`▶ сид песочницы ${opts.project}${opts.reset ? " (--reset)" : ""}…`);
   const args = ["tsx", "scripts/seedEmulatorRoles.ts", "--project", opts.project];
   if (opts.reset) args.push("--reset");
+  if (opts.prodData) args.push("--prod-data");
   const res = spawnSync("npx", args, { cwd: ROOT, stdio: "inherit" });
   if (res.status !== 0) throw new Error(`Сид упал (exit ${res.status ?? res.signal})`);
 }
@@ -226,7 +360,12 @@ function runPlaywright(opts: Options): Promise<number> {
   const child = spawn("npx", args, {
     cwd: ROOT,
     stdio: "inherit",
-    env: { ...process.env, SMOKE_PROJECT: opts.project, SMOKE_BASE_URL: baseURL },
+    env: {
+      ...process.env,
+      SMOKE_PROJECT: opts.project,
+      SMOKE_BASE_URL: baseURL,
+      ...(opts.withFunctions ? { SMOKE_WITH_FUNCTIONS: "1" } : {}),
+    },
   });
   return new Promise((res) => {
     child.once("error", () => res(1));
@@ -261,7 +400,7 @@ async function main(): Promise<void> {
 
   let code = 1;
   try {
-    await ensureEmulator();
+    await ensureEmulator(opts);
     seed(opts);
     await ensureDevServer();
     code = await runPlaywright(opts);

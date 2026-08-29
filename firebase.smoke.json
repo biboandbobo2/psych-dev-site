@@ -9,6 +9,9 @@
     "storage": {
       "port": 9199
     },
+    "functions": {
+      "port": 5001
+    },
     "singleProjectMode": false
   },
   "firestore": {
@@ -16,5 +19,9 @@
   },
   "storage": {
     "rules": "storage.rules"
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs22"
   }
 }

@@ -552,6 +552,17 @@ interface Topic {
 Актуальные типы: `src/types/tests.ts` (`TestSummary` — метаданные,
 `Test = TestSummary + questions`). Доступ к данным: `src/lib/tests.ts`.
 
+**Кто пишет:** админ курса теста — редактор в `/admin/content` (`TestEditorForm` →
+`src/lib/tests.ts`). Rules гейтят запись по полю `course`: `create` —
+`canEditCourse(request.resource.data.course)`, `update` — права **на старый и на
+новый** курс (перенос теста между курсами требует обоих), `delete` —
+`canEditCourse(resource.data.course)`. Документ без строкового `course`
+(легаси) пишет только super-admin. Курсы берутся из claim `editableCourses` —
+тот же список, которым UI ограничивает селектор курса (`useEditableCourses`).
+
+**Кто читает:** публично (`read: if true`) — тесты видны гостям на /tests и
+/tests-lesson.
+
 ```typescript
 interface TestSummary {              // документ tests/{testId}
   id: string;
@@ -580,6 +591,14 @@ interface TestSummary {              // документ tests/{testId}
                                      // revealPolicy, explanation, imageUrl, ...)
 }
 ```
+
+**Кто пишет:** админ курса **родительского** теста — в subdoc своего поля курса
+нет, поэтому rules читают `tests/{testId}.course` через `get()`. Родитель на
+момент записи всегда существует: клиент создаёт тест и только потом пишет
+вопросы, а при удалении сначала убирает вопросы и лишь затем сам тест
+(`src/lib/tests.ts`). Если родителя нет — писать может только super-admin.
+
+**Кто читает:** публично (`read: if true`).
 
 Как читается:
 
@@ -1073,8 +1092,9 @@ interface PageVisitMonthDoc {
    - Редактирование: только админы
 
 3. **Темы и тесты**
-   - Чтение: все авторизованные пользователи
-   - Редактирование: только админы
+   - Чтение: публичное (в т.ч. гости)
+   - Редактирование тем — любой админ; тестов — только админ курса теста
+     (`canEditCourse(course)`), см. секцию `tests/{testId}`
 
 4. **Книги (RAG)**
    - `books` — чтение для всех, редактирование только админы
@@ -1105,15 +1125,25 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Тесты доступны для чтения всем (в т.ч. гостям), редактирование только админы
+    // Тесты доступны для чтения всем (в т.ч. гостям),
+    // редактирование — только админ курса теста.
+    // Упрощённо: точный текст — в firestore.rules (там курс читается через
+    // helper courseOf() с data.get('course','') и проверкой is string, чтобы
+    // документ без строкового course не ронял вычисление, а падал в '' —
+    // тогда его пишет только super-admin).
     match /tests/{testId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if canEditCourse(courseOf(request.resource.data));
+      allow update: if canEditCourse(courseOf(resource.data)) &&
+        canEditCourse(courseOf(request.resource.data));
+      allow delete: if canEditCourse(courseOf(resource.data));
 
-      // Вопросы теста — та же политика
+      // Вопросы теста — по курсу родительского документа
       match /content/{contentId} {
         allow read: if true;
-        allow write: if isAdmin();
+        allow write: if isSuperAdmin() || canEditCourse(
+          get(/databases/$(database)/documents/tests/$(testId)).data.course
+        );
       }
     }
 

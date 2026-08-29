@@ -8,11 +8,11 @@ import { SMOKE_COURSES } from '../fixtures/roles';
 
 const HIDDEN_COURSE_NAME = SMOKE_COURSES.externalHidden.doc.name;
 
-/** Все курсы стенда: 3 core (всегда подмешиваются) + 2 динамических. */
+/** Все курсы стенда: 3 core (закреплены фикстурами) + 2 динамических. */
 const ALL_COURSE_NAMES = [
-  'Психология развития',
-  'Клиническая психология',
-  'Общая психология',
+  SMOKE_COURSES.development.doc.name,
+  SMOKE_COURSES.clinical.doc.name,
+  SMOKE_COURSES.general.doc.name,
   SMOKE_COURSES.externalX.doc.name,
   HIDDEN_COURSE_NAME,
 ];

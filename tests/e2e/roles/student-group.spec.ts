@@ -6,8 +6,10 @@
  */
 import { test, expect, gotoAndSettle } from './helpers';
 
-const GRANTED_COURSE_NAME = 'Клиническая психология';
-const DENIED_COURSE_NAME = 'Психология развития';
+import { SMOKE_COURSES } from '../fixtures/roles';
+
+const GRANTED_COURSE_NAME = SMOKE_COURSES.clinical.doc.name;
+const DENIED_COURSE_NAME = SMOKE_COURSES.development.doc.name;
 
 test.describe('Студент группы: доступ только к курсу группы, админка закрыта', () => {
   test('на /home открывается дашборд студента, а не экран гостя без доступов', async ({ page }) => {
@@ -33,6 +35,11 @@ test.describe('Студент группы: доступ только к кур�
     await section
       .getByRole('button', { name: 'Не выбрано. Нажмите, чтобы выбрать актуальные курсы.' })
       .click();
+
+    // На самом холодном пути (одиночный спек: vite ещё не прогрет, песочница
+    // с прод-объёмом) «Загрузка курсов…» переживает и 15 с — дожидаемся с
+    // запасом. Полный прогон прогревает dev-сервер соседними ролями.
+    await expect(section.getByText('Загрузка курсов…')).toHaveCount(0, { timeout: 30_000 });
 
     const options = section.getByRole('listitem');
     await expect(options).toHaveCount(1);

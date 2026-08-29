@@ -67,6 +67,7 @@ npm run test:e2e:prod
 ```bash
 npm run smoke:roles                              # все сценарные роли
 npm run smoke:roles -- --roles author --project a # выборочно, в песочнице
+npm run smoke:roles -- --with-functions           # + эмулятор Cloud Functions (выдача прав)
 ```
 
 Одной командой: эмулятор (прод-rules из `firebase.smoke.json`) → сид ролей

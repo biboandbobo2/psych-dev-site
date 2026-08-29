@@ -417,16 +417,42 @@ service cloud.firestore {
 
     // Тесты курса (динамические тесты в /tests и /tests-lesson).
     // Чтение публичное — раньше работало через catch-all с `allow read: if true`.
-    // Запись — только админ (создание/редактирование в /admin/content).
+    // Запись гейтится курсом теста (AC-1, 2026-08-29): админ пишет только
+    // тесты своих курсов из claim `editableCourses`, super-admin — любые.
+    // До этого стоял голый isAdmin(), то есть любой админ мог править тест
+    // любого курса; UI-селектор курса уже был ограничен `editableCourses`.
+    // Поле курса в документе — `course` (см. TestSummary в src/types/tests.ts).
     match /tests/{testId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      // Курс теста строкой. Поля нет (легаси-документ) или значение не строка
+      // → '': такой курс не проходит canEditCourse ни у кого, кроме super-admin.
+      function courseOf(data) {
+        return data.get('course', '') is string ? data.get('course', '') : '';
+      }
 
-      // Вопросы теста (tests/{id}/content/questions) — та же политика:
-      // чтение публичное, запись только админам.
+      allow read: if true;
+      allow create: if canEditCourse(courseOf(request.resource.data));
+      // Перенос теста в другой курс требует прав на оба — старый и новый.
+      allow update: if canEditCourse(courseOf(resource.data)) &&
+        canEditCourse(courseOf(request.resource.data));
+      allow delete: if canEditCourse(courseOf(resource.data));
+
+      // Вопросы теста (tests/{id}/content/questions). Чтение публичное,
+      // запись — по курсу РОДИТЕЛЬСКОГО документа: в самом subdoc курса нет.
+      // Родитель на момент записи всегда существует: клиент создаёт тест и
+      // только потом пишет вопросы, а при удалении сначала убирает вопросы и
+      // лишь затем сам тест (src/lib/tests.ts). Если родителя всё же нет,
+      // курс проверять не по чему — тогда только super-admin: сиротские
+      // вопросы без теста заводить незачем.
       match /content/{contentId} {
+        function parentTestCourse() {
+          return exists(/databases/$(database)/documents/tests/$(testId))
+            ? courseOf(get(/databases/$(database)/documents/tests/$(testId)).data)
+            : '';
+        }
+
         allow read: if true;
-        allow write: if isAdmin();
+        // isSuperAdmin() первым — короткое замыкание экономит get() родителя.
+        allow write: if isSuperAdmin() || canEditCourse(parentTestCourse());
       }
     }
 
