@@ -17,6 +17,12 @@ const SMOKE_SCENARIO_KEYS = ['author', 'admin-empty', 'superadmin', 'student-gro
 
 const smokeBaseURL = process.env.SMOKE_BASE_URL;
 const smokeProject = process.env.SMOKE_PROJECT || 'demo-smoke';
+/**
+ * Сценарии реального контура выдачи прав (Cloud Functions). Включаются только
+ * стендом `smoke:roles --with-functions`: без эмулятора функций callable
+ * упирается в закрытый порт.
+ */
+const smokeWithFunctions = process.env.SMOKE_WITH_FUNCTIONS === '1';
 
 /**
  * storageState роли. Путь относительный — Playwright резолвит его от cwd,
@@ -53,6 +59,18 @@ export default defineConfig({
           dependencies: ['smoke:setup'],
           use: { ...devices['Desktop Chrome'], storageState: storageStatePath(key) },
         })),
+        // Стартовая сессия — super-admin: он единственный, кому Cloud Functions
+        // разрешают управлять админами; на promotee спек переключается сам.
+        ...(smokeWithFunctions
+          ? [
+              {
+                name: 'smoke:functions',
+                testMatch: 'roles/functions-admin.spec.ts',
+                dependencies: ['smoke:setup'],
+                use: { ...devices['Desktop Chrome'], storageState: storageStatePath('superadmin') },
+              },
+            ]
+          : []),
       ]
     : [
         {
