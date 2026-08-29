@@ -18,6 +18,7 @@ import { createConnection } from "node:net";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SMOKE_AUTH_PROJECT, SMOKE_DEV_PORT, sandboxProjectId } from "../tests/e2e/fixtures/roles";
+import { SNAPSHOT_MISSING_HINT, readManifest } from "./lib/prodSnapshot";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 /** Роли со сценарными спеками — тот же список, что в playwright.config.ts. */
@@ -49,6 +50,8 @@ const USAGE = `Ролевой e2e-стенд (HP-2).
   --project <id>     песочница Firestore: суффикс (a → demo-smoke-a) или полный id
   --with-functions   поднять эмулятор Cloud Functions и прогнать сценарий ${FUNCTIONS_KEY}
                      (только в default-песочнице ${SMOKE_AUTH_PROJECT})
+  --prod-data        долить в песочницу срез контента прода (сначала снять его:
+                     npx tsx scripts/fetchProdContentSnapshot.ts)
   --reset            очистить песочницу перед сидом
   --keep             не гасить эмулятор и dev-сервер после прогона
   --help             эта справка
@@ -58,6 +61,7 @@ interface Options {
   roles: string[];
   project: string;
   reset: boolean;
+  prodData: boolean;
   keep: boolean;
   withFunctions: boolean;
 }
@@ -83,6 +87,7 @@ function parseArgs(argv: string[]): Options | null {
     reset: false,
     keep: false,
     withFunctions: false,
+    prodData: false,
   };
   const value = (flag: string, inline: string | undefined, next: string | undefined): string => {
     const raw = inline ?? next;
@@ -98,6 +103,7 @@ function parseArgs(argv: string[]): Options | null {
     else if (flag === "--reset") opts.reset = true;
     else if (flag === "--keep") opts.keep = true;
     else if (flag === "--with-functions") opts.withFunctions = true;
+    else if (flag === "--prod-data") opts.prodData = true;
     else if (flag === "--roles") {
       const raw = value(flag, inline, argv[i + 1]);
       if (inline === undefined) i += 1;
@@ -126,6 +132,9 @@ function parseArgs(argv: string[]): Options | null {
   // Admin SDK внутри functions-эмулятора пишет в default-проект (GCLOUD_PROJECT),
   // а песочницы --project — отдельные проекты Firestore: повышенный через
   // callable пользователь просто не появился бы в песочнице.
+  if (opts.prodData && !readManifest()) {
+    throw new Error(SNAPSHOT_MISSING_HINT);
+  }
   if (opts.withFunctions && opts.project !== SMOKE_AUTH_PROJECT) {
     throw new Error(
       `--with-functions работает только в default-песочнице ${SMOKE_AUTH_PROJECT}: ` +
@@ -325,6 +334,7 @@ function seed(opts: Options): void {
   console.log(`▶ сид песочницы ${opts.project}${opts.reset ? " (--reset)" : ""}…`);
   const args = ["tsx", "scripts/seedEmulatorRoles.ts", "--project", opts.project];
   if (opts.reset) args.push("--reset");
+  if (opts.prodData) args.push("--prod-data");
   const res = spawnSync("npx", args, { cwd: ROOT, stdio: "inherit" });
   if (res.status !== 0) throw new Error(`Сид упал (exit ${res.status ?? res.signal})`);
 }

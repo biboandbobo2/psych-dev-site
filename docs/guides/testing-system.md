@@ -581,6 +581,28 @@ npm run smoke:roles -- --with-functions          # + эмулятор Cloud Func
 
 Как добавить functions-сценарий: спек в `tests/e2e/roles/`, `testMatch` в проекте `smoke:functions` (`playwright.config.ts`) — сейчас проект указывает на один файл; стартовая сессия проекта — super-admin, на другие роли спек переключается через `signInAs`.
 
+**Прод-срез данных (`--prod-data`)** — сценарии на реальной форме контента:
+
+```bash
+npx tsx scripts/fetchProdContentSnapshot.ts   # снять срез (нужен ADC к проду)
+npm run smoke:roles -- --prod-data            # долить срез в песочницу поверх синтетики
+```
+
+- Зачем: ловит баги «локально работает, на проде данные другой формы» (старые
+  документы без новых полей, реальные объёмы: ~210 док. контента).
+- **Жёсткий allow-list** (`scripts/lib/prodSnapshot.ts`): только контент —
+  `courses`(+lessons), `periods`, `clinical-topics`, `general-topics`,
+  `courseNavIndex`, `tests`(+content), `pages`. Рядом явный deny-list: users,
+  notes, lectureQuestions, groups, телеметрия, exams, RAG-чанки — **не
+  выкачиваются никогда**. Поверх — PII-маска (email/телефоны в строках).
+- Снапшот живёт в гитигнореном `tmp/prod-snapshot/` (манифест с датой и
+  счётчиками), пишется атомарной подменой каталога; обновлять — повторным
+  запуском fetch-скрипта. Стенд его сам не качает: без снапшота `--prod-data`
+  падает с подсказкой.
+- Конфликты id: **фикстура побеждает прод** — core-курсы (`development`,
+  `clinical`, `general`) закреплены в `SMOKE_COURSES` с каноническими именами,
+  прод-переименования сценарии не трогают. Совместимо с `--with-functions`.
+
 За рамками стенда: внешние AI-эндпоинты (`/api/*`), реальные прод-данные, деплой функций. Осталось из HP-2: e2e-job в CI.
 
 **Тестовый URL** (ручной смоук): https://psych-dev-site-git-red-background-alexey-zykovs-projects.vercel.app

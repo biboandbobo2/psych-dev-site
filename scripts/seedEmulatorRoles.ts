@@ -18,6 +18,7 @@
  */
 import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { importProdSnapshot } from './lib/prodSnapshot';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 
 import {
@@ -59,6 +60,8 @@ interface SeedArgs {
   /** Полный projectId песочницы Firestore. */
   sandbox: string;
   reset: boolean;
+  /** Долить прод-срез контента поверх синтетики (tmp/prod-snapshot/). */
+  prodData: boolean;
 }
 
 function parseArgs(): SeedArgs {
@@ -73,7 +76,11 @@ function parseArgs(): SeedArgs {
     }
   }
 
-  return { sandbox: sandboxProjectId(suffix), reset: argv.includes('--reset') };
+  return {
+    sandbox: sandboxProjectId(suffix),
+    reset: argv.includes('--reset'),
+    prodData: argv.includes('--prod-data'),
+  };
 }
 
 /** Падаем понятной ошибкой, если эмулятор не поднят. */
@@ -322,8 +329,30 @@ async function seedFeatureEvents(db: Firestore, nowMs: number): Promise<number> 
   return count;
 }
 
+/**
+ * Пути контента, записанные синтетическим сидом: в режиме --prod-data они
+ * защищены от перезаписи снапшотом («фикстура побеждает прод») — иначе
+ * прод-документ перетёр бы мир сценариев (имена core-курсов, external-x).
+ */
+function fixtureContentPaths(): Set<string> {
+  const paths = new Set<string>();
+  for (const course of Object.values(SMOKE_COURSES)) {
+    paths.add(`courses/${course.id}`);
+    for (const lesson of course.lessons) {
+      paths.add(`courses/${course.id}/lessons/${lesson.id}`);
+    }
+  }
+  for (const [courseId, lessons] of Object.entries(SMOKE_CORE_LESSONS)) {
+    const collection = CORE_LESSON_COLLECTIONS[courseId as keyof typeof CORE_LESSON_COLLECTIONS];
+    for (const lesson of lessons) {
+      paths.add(`${collection}/${lesson.id}`);
+    }
+  }
+  return paths;
+}
+
 async function main() {
-  const { sandbox, reset } = parseArgs();
+  const { sandbox, reset, prodData } = parseArgs();
 
   await assertEmulatorUp(FIRESTORE_HOST, 'Firestore');
   await assertEmulatorUp(AUTH_HOST, 'Auth');
@@ -346,7 +375,14 @@ async function main() {
     const groupDocs = await seedGroup(db);
     const questionDocs = await seedLectureQuestions(db, now);
     const eventDocs = await seedFeatureEvents(db, nowMs);
-    const total = userDocs + courseDocs + coreDocs + groupDocs + questionDocs + eventDocs;
+    let prodDocs = 0;
+    if (prodData) {
+      const stats = await importProdSnapshot(db, fixtureContentPaths(), (message) =>
+        console.log(`${TAG} ${message}`)
+      );
+      prodDocs = stats.written;
+    }
+    const total = userDocs + courseDocs + coreDocs + groupDocs + questionDocs + eventDocs + prodDocs;
 
     console.log(`\n${TAG} Итого:`);
     console.log(`  auth-пользователей (${SMOKE_AUTH_PROJECT}): ${users}`);
@@ -356,6 +392,7 @@ async function main() {
     console.log(`  groups/: ${groupDocs}`);
     console.log(`  lectureQuestions/: ${questionDocs}`);
     console.log(`  feature_events/: ${eventDocs}`);
+    if (prodData) console.log(`  прод-срез: ${prodDocs}`);
     console.log(`\n✅ Firestore-доков ${total} записано в проект ${sandbox}.`);
   } finally {
     await deleteApp(dataApp);
