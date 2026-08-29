@@ -187,21 +187,12 @@ describe('tests коллекция (та самая регрессия MR-8)', (
     await assertFails(setDoc(doc(db, 'tests', 't1'), { title: 'hack', status: 'published' }));
   });
 
-  it('admin (custom claim role=admin): write tests/<id> → success', async () => {
-    const db = testEnv
-      .authenticatedContext('admin-uid', { role: 'admin' })
-      .firestore();
-    await assertSucceeds(
-      setDoc(doc(db, 'tests', 't1'), { title: 'edited by admin', status: 'published' })
-    );
-  });
-
   it('super-admin (email): write tests/<new> → success', async () => {
     const db = testEnv
       .authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL })
       .firestore();
     await assertSucceeds(
-      setDoc(doc(db, 'tests', 't-new'), { title: 'new', status: 'draft' })
+      setDoc(doc(db, 'tests', 't-new'), { title: 'new', status: 'draft', course: 'clinical' })
     );
   });
 
@@ -216,14 +207,181 @@ describe('tests коллекция (та самая регрессия MR-8)', (
       setDoc(doc(db, 'tests', 't1', 'content', 'questions'), { questions: [] })
     );
   });
+});
 
-  it('admin: write tests/<id>/content/questions → success', async () => {
-    const db = testEnv
-      .authenticatedContext('admin-uid', { role: 'admin' })
+// AC-1 (2026-08-29): запись в tests сужена с isAdmin() до canEditCourse(course).
+// Фикстура beforeEach выше кладёт tests/t1 с course: 'development'.
+describe('tests: запись гейтится курсом теста (AC-1)', () => {
+  const ownerCtx = () =>
+    testEnv
+      .authenticatedContext('lecturer-uid', { role: 'admin', editableCourses: ['development'] })
       .firestore();
+  const strangerCtx = () =>
+    testEnv
+      .authenticatedContext('other-lecturer', { role: 'admin', editableCourses: ['clinical'] })
+      .firestore();
+  const superCtx = () =>
+    testEnv.authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL }).firestore();
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await Promise.all([
+        setDoc(doc(db, 'tests', 't-legacy'), {
+          title: 'Тест без поля course',
+          status: 'published',
+          rubric: 'full-course',
+        }),
+        setDoc(doc(db, 'tests', 't1', 'content', 'questions'), { questions: [] }),
+        setDoc(doc(db, 'tests', 't-legacy', 'content', 'questions'), { questions: [] }),
+      ]);
+    });
+  });
+
+  it('админ курса: create теста СВОЕГО курса → success', async () => {
+    const db = ownerCtx();
     await assertSucceeds(
+      setDoc(doc(db, 'tests', 't-mine'), {
+        title: 'Мой тест',
+        status: 'draft',
+        rubric: 'full-course',
+        course: 'development',
+      })
+    );
+  });
+
+  it('админ курса: create теста ЧУЖОГО курса → denied', async () => {
+    const db = ownerCtx();
+    await assertFails(
+      setDoc(doc(db, 'tests', 't-alien'), {
+        title: 'Чужой тест',
+        status: 'draft',
+        rubric: 'full-course',
+        course: 'clinical',
+      })
+    );
+  });
+
+  it('админ курса: create теста БЕЗ поля course → denied', async () => {
+    const db = ownerCtx();
+    await assertFails(
+      setDoc(doc(db, 'tests', 't-nocourse'), { title: 'Без курса', status: 'draft' })
+    );
+  });
+
+  it('super-admin: create теста БЕЗ поля course → success', async () => {
+    const db = superCtx();
+    await assertSucceeds(
+      setDoc(doc(db, 'tests', 't-nocourse'), { title: 'Без курса', status: 'draft' })
+    );
+  });
+
+  it('админ курса: update теста СВОЕГО курса → success', async () => {
+    const db = ownerCtx();
+    await assertSucceeds(
+      setDoc(doc(db, 'tests', 't1'), { title: 'Отредактировано' }, { merge: true })
+    );
+  });
+
+  it('админ ЧУЖОГО курса: update теста development → denied', async () => {
+    const db = strangerCtx();
+    await assertFails(
+      setDoc(doc(db, 'tests', 't1'), { title: 'Захват' }, { merge: true })
+    );
+  });
+
+  it('админ курса: перенос СВОЕГО теста в чужой курс → denied', async () => {
+    const db = ownerCtx();
+    await assertFails(
+      setDoc(doc(db, 'tests', 't1'), { course: 'clinical' }, { merge: true })
+    );
+  });
+
+  it('админ чужого курса: перенос теста development в СВОЙ курс → denied', async () => {
+    const db = strangerCtx();
+    await assertFails(
+      setDoc(doc(db, 'tests', 't1'), { course: 'clinical' }, { merge: true })
+    );
+  });
+
+  it('админ курса: update легаси-теста без course → denied', async () => {
+    const db = ownerCtx();
+    await assertFails(
+      setDoc(doc(db, 'tests', 't-legacy'), { title: 'Правка легаси' }, { merge: true })
+    );
+  });
+
+  it('super-admin: перенос теста между курсами и update легаси-теста → success', async () => {
+    const db = superCtx();
+    await assertSucceeds(
+      setDoc(doc(db, 'tests', 't1'), { course: 'clinical' }, { merge: true })
+    );
+    await assertSucceeds(
+      setDoc(doc(db, 'tests', 't-legacy'), { title: 'Правка легаси' }, { merge: true })
+    );
+  });
+
+  it('админ курса: delete теста СВОЕГО курса → success, чужого → denied', async () => {
+    await assertFails(deleteDoc(doc(strangerCtx(), 'tests', 't1')));
+    await assertSucceeds(deleteDoc(doc(ownerCtx(), 'tests', 't1')));
+  });
+
+  it('админ курса: delete легаси-теста без course → denied, super-admin → success', async () => {
+    await assertFails(deleteDoc(doc(ownerCtx(), 'tests', 't-legacy')));
+    await assertSucceeds(deleteDoc(doc(superCtx(), 'tests', 't-legacy')));
+  });
+
+  it('админ без editableCourses: create/update/delete → denied', async () => {
+    const db = testEnv.authenticatedContext('admin-empty', { role: 'admin' }).firestore();
+    await assertFails(
+      setDoc(doc(db, 'tests', 't-empty-admin'), { title: 'x', course: 'development' })
+    );
+    await assertFails(setDoc(doc(db, 'tests', 't1'), { title: 'x' }, { merge: true }));
+    await assertFails(deleteDoc(doc(db, 'tests', 't1')));
+  });
+
+  it('content/questions: админ курса пишет вопросы СВОЕГО теста → success', async () => {
+    const db = ownerCtx();
+    await assertSucceeds(
+      setDoc(doc(db, 'tests', 't1', 'content', 'questions'), { questions: [{ id: 'q1' }] })
+    );
+  });
+
+  it('content/questions: админ ЧУЖОГО курса пишет вопросы → denied', async () => {
+    const db = strangerCtx();
+    await assertFails(
       setDoc(doc(db, 'tests', 't1', 'content', 'questions'), { questions: [] })
     );
+  });
+
+  it('content/questions: админ курса удаляет вопросы своего теста → success', async () => {
+    const db = ownerCtx();
+    await assertSucceeds(deleteDoc(doc(db, 'tests', 't1', 'content', 'questions')));
+  });
+
+  it('content/questions: вопросы легаси-теста без course — админу denied, super-admin success', async () => {
+    await assertFails(
+      setDoc(doc(ownerCtx(), 'tests', 't-legacy', 'content', 'questions'), { questions: [] })
+    );
+    await assertSucceeds(
+      setDoc(doc(superCtx(), 'tests', 't-legacy', 'content', 'questions'), { questions: [] })
+    );
+  });
+
+  it('content/questions без родительского теста: админу denied, super-admin success', async () => {
+    await assertFails(
+      setDoc(doc(ownerCtx(), 'tests', 't-orphan', 'content', 'questions'), { questions: [] })
+    );
+    await assertSucceeds(
+      setDoc(doc(superCtx(), 'tests', 't-orphan', 'content', 'questions'), { questions: [] })
+    );
+  });
+
+  it('публичное чтение теста и его вопросов не сломано', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(db, 'tests', 't1')));
+    await assertSucceeds(getDoc(doc(db, 'tests', 't1', 'content', 'questions')));
+    await assertSucceeds(getDoc(doc(db, 'tests', 't-legacy', 'content', 'questions')));
   });
 });
 
