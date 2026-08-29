@@ -540,15 +540,30 @@ npm run test:e2e        # против preview (localhost:4175, поднимае
 npm run test:e2e:prod   # против прод-сборки
 ```
 
-Сейчас e2e — один смоук-спек `tests/e2e/production-smoke.spec.ts` (8 тестов «страница открылась без console-ошибок»), в CI не запускается. Реальных пользовательских сценариев и авторизации нет.
+Гостевой смоук — `tests/e2e/production-smoke.spec.ts` (8 тестов «страница открылась без console-ошибок»), в CI не запускается. Авторизованные сценарии живут на ролевом стенде (ниже).
 
-**HP-2: решение по авторизации e2e (принято 2026-08-18).** Сайт логинится только через Google OAuth, сессия живёт в IndexedDB — классический Playwright `storageState` не работает (это же ограничение блокирует AG-1). Выбранный путь — **прогон против эмуляторов**:
+#### Ролевой стенд (HP-2, реализован 2026-08-29)
 
-- В `src/lib/firebase.ts` есть режим за build-time флагом `VITE_USE_FIREBASE_EMULATORS=true`: auth/firestore/storage подключаются к локальным эмуляторам (порты — как в `tests/integration/firebase.test.json`). По умолчанию выключен; в Vercel-окружении переменной нет, в прод этот код-путь не попадает. Проверен вживую 2026-08-18 (dev-сервер + эмуляторы, auth-запросы уходят на `127.0.0.1:9099`).
-- Auth-эмулятор позволяет создавать пользователей и логиниться без Google OAuth — e2e-сценарии получают полноценную авторизацию и любые роли.
-- Осталось сделать (отдельная задача, E: L): сид-данные (курсы/периоды/тесты в эмулятор перед прогоном), пользовательские сценарии, e2e-job в CI.
+Стенд гоняет приложение против Firebase-эмуляторов и входит **под любой ролью без Google OAuth**. Одна команда поднимает всё с нуля (эмулятор → сид → vite на 4180 → Playwright) и гасит за собой:
 
-Альтернатива (отклонена как основной путь): ждать AG-1 — служебный аккаунт агента с `signInWithCustomToken` против прода. Даёт прогон на реальных данных, но требует секрет в CI, мутирует прод и не изолирует тестовые данные. Эмуляторный путь развязывает HP-2 с AG-1; AG-1 остаётся полезным для ручных агентских смоуков на проде.
+```bash
+npm run smoke:roles                              # все 4 сценарные роли
+npm run smoke:roles -- --roles author,superadmin # выборочно
+npm run smoke:roles -- --project a --reset       # песочница demo-smoke-a с чистого листа
+npm run smoke:roles -- --keep                    # оставить эмулятор/vite жить (отладка)
+```
+
+Как устроено:
+
+- **Вход без OAuth** — `window.__testAuth` (`src/lib/testAuth.ts`): email/пароль против Auth-эмулятора. Модуль грузится динамическим импортом под статическим гейтом `import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true"` — в прод-бандле его нет (проверка: `grep -r "__testAuth\|testProject" dist/` пуст).
+- **Роли и данные** — единый контракт `tests/e2e/fixtures/roles.ts`: 7 ролей (студенты трёх видов, админ курса `external-x`, админ без курсов, co-admin, super-admin), курсы `external-x`/`external-hidden` с занятиями, core-занятия, группа, `lectureQuestions`, `feature_events`. Сид — `scripts/seedEmulatorRoles.ts` (идемпотентный; custom claims **и** Firestore-зеркала выставляются вместе, иначе роль ведёт себя не как в проде).
+- **Прод-rules**: эмулятор стартует с `firebase.smoke.json` (корень репо) — он подключает боевой `firestore.rules`. Внимание: конфиг integration-тестов `tests/integration/firebase.test.json` подключает open-заглушку `tests/integration/firestore.rules` — для ролевого смоука он не годится.
+- **Изоляция параллельных прогонов**: Firestore-данные сидятся в песочницы-проекты (`demo-smoke-a`, `-b`, …), клиент выбирает песочницу через `?testProject=` / `sessionStorage` (dev-only оверрайд в `src/lib/firebase.ts`). Auth-пользователи всегда живут в default-проекте `demo-smoke`: Auth-эмулятор роутит все клиентские запросы туда независимо от API-ключа (`getProjectIdByApiKey` в firebase-tools), а Firestore-эмулятор принимает idToken чужого проекта — проверено вживую. Префикс `demo-*` гарантирует оффлайн-режим эмулятора.
+- **Playwright-проекты** (`playwright.config.ts`, включаются переменной `SMOKE_BASE_URL`): `smoke:setup` логинит все 7 ролей и сохраняет `storageState` с IndexedDB (Playwright ≥1.51) для четырёх сценарных; `smoke:author` / `smoke:admin-empty` / `smoke:superadmin` / `smoke:student-group` — спеки `tests/e2e/roles/*.spec.ts` (критерии приёмки кабинета автора). Обычный `npm run test:e2e` ролевые спеки не видит.
+
+Как добавить роль: (1) запись в `SMOKE_ROLES` в `tests/e2e/fixtures/roles.ts` (uid/email/claims/userDoc — claims и зеркало синхронно!); (2) если нужен сценарный спек — `tests/e2e/roles/<key>.spec.ts` плюс ключ в `SMOKE_SCENARIO_KEYS` (`playwright.config.ts`) и в `SCENARIO_KEYS` (`scripts/smokeRoles.ts`), storageState в `auth.setup.ts` подхватится по ключу автоматически.
+
+За рамками стенда: Cloud Functions (эмулятор functions не поднимается), внешние AI-эндпоинты (`/api/*`), реальные прод-данные. Осталось из HP-2: e2e-job в CI.
 
 **Тестовый URL** (ручной смоук): https://psych-dev-site-git-red-background-alexey-zykovs-projects.vercel.app
 

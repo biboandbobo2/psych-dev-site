@@ -62,6 +62,20 @@ npm run test:e2e:prod
 
 **Время выполнения:** ~30-60 секунд
 
+### Ролевой e2e-смоук на эмуляторах (HP-2)
+
+```bash
+npm run smoke:roles                              # все сценарные роли
+npm run smoke:roles -- --roles author --project a # выборочно, в песочнице
+```
+
+Одной командой: эмулятор (прод-rules из `firebase.smoke.json`) → сид ролей
+(`scripts/seedEmulatorRoles.ts`) → vite на 4180 → ролевые Playwright-проекты.
+Вход под ролями без Google OAuth, песочницы изолируют параллельные прогоны.
+Подробности: `docs/guides/testing-system.md`, раздел «Ролевой стенд».
+
+**Время выполнения:** ~10 секунд на прогон при живом эмуляторе, ~40 секунд с нуля
+
 ### Integration тесты (Firebase эмуляторы)
 
 ```bash
