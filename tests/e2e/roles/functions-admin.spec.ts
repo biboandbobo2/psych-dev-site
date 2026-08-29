@@ -23,14 +23,19 @@ import { SMOKE_COURSES, SMOKE_ROLES } from '../fixtures/roles';
 test.describe.configure({ mode: 'serial' });
 
 const PROMOTEE = SMOKE_ROLES.promotee;
-const FIRST_COURSE = SMOKE_COURSES.externalX;
-const SECOND_COURSE = SMOKE_COURSES.externalHidden;
+const KEPT_COURSE = SMOKE_COURSES.externalX;
+const REVOKED_COURSE = SMOKE_COURSES.externalHidden;
 
 /**
- * Занятие, которое повышенный автор создаёт через UI: проверка, что claim
- * реально открыл запись в firestore.rules. Лежит в external-hidden — этот курс
- * не участвует в счётчиках других ролевых спеков, идущих параллельно.
- * Лишние занятия сид удаляет, поэтому id фиксированный.
+ * Занятие, которое повышенный автор создаёт через UI. Это единственная
+ * claim-чувствительная проверка спека: firestore.rules читают ТОЛЬКО claim
+ * `editableCourses`, тогда как кабинет автора при отсутствующем claim
+ * откатывается на Firestore-зеркало (resolveEditableCourses в useAuthStore) и
+ * выглядел бы правильно даже со сломанной функцией.
+ *
+ * Курс — external-hidden: его занятия не считает ни один соседний ролевой спек,
+ * идущий параллельно в той же песочнице. Id фиксированный — лишние занятия
+ * удаляет сид, иначе следующий прогон упёрся бы в «ID уже существует».
  */
 const NEW_LESSON = { id: 'smoke-fn-lesson', title: 'Занятие повышенного автора' };
 
@@ -62,7 +67,7 @@ function watchDialogs(page: Page) {
 }
 
 test.describe('Выдача прав автору через Cloud Functions', () => {
-  test('makeUserAdmin: super-admin выдаёт права на курс, кабинет автора открывается', async ({
+  test('makeUserAdmin: права на курсы выданы, автор видит кабинет и пишет в свой курс', async ({
     page,
   }) => {
     const awaitAlert = watchDialogs(page);
@@ -77,7 +82,8 @@ test.describe('Выдача прав автору через Cloud Functions', (
     await page.getByRole('button', { name: '+ Добавить админа' }).click();
     await expect(page.getByRole('heading', { name: 'Добавить администратора' })).toBeVisible();
     await page.getByPlaceholder('user@example.com').fill(PROMOTEE.email);
-    await page.getByRole('checkbox', { name: FIRST_COURSE.doc.name }).check();
+    await page.getByRole('checkbox', { name: KEPT_COURSE.doc.name }).check();
+    await page.getByRole('checkbox', { name: REVOKED_COURSE.doc.name }).check();
     await page.getByRole('button', { name: 'Назначить' }).click();
     await awaitAlert('Администратор добавлен');
 
@@ -93,34 +99,16 @@ test.describe('Выдача прав автору через Cloud Functions', (
     await gotoAndSettle(page, '/admin');
 
     await expect(page.getByRole('heading', { name: 'Кабинет автора' })).toBeVisible();
-    const card = page.locator('section').filter({
-      has: page.getByRole('heading', { name: FIRST_COURSE.doc.name }),
-    });
-    await expect(card).toHaveCount(1);
-    await expect(page.getByRole('heading', { name: SECOND_COURSE.doc.name })).toHaveCount(0);
-  });
+    for (const course of [KEPT_COURSE, REVOKED_COURSE]) {
+      const card = page.locator('section').filter({
+        has: page.getByRole('heading', { name: course.doc.name }),
+      });
+      await expect(card).toHaveCount(1);
+    }
 
-  test('setAdminEditableCourses: новый курс появляется у автора и открыт на запись', async ({
-    page,
-  }) => {
-    const awaitAlert = watchDialogs(page);
-    await gotoAndSettle(page, '/admin/users');
-    await promoteeRow(page).getByRole('button', { name: 'Курсы' }).click();
-
-    await expect(page.getByRole('heading', { name: 'Редактируемые курсы' })).toBeVisible();
-    await page.getByRole('checkbox', { name: SECOND_COURSE.doc.name }).check();
-    await page.getByRole('button', { name: 'Сохранить' }).click();
-    await awaitAlert('Список редактируемых курсов обновлён');
-    await expect(page.getByRole('heading', { name: 'Редактируемые курсы' })).toHaveCount(0);
-
-    await signInAs(page, PROMOTEE.email);
-    await gotoAndSettle(page, '/admin');
-    await expect(page.getByRole('heading', { name: FIRST_COURSE.doc.name })).toBeVisible();
-    await expect(page.getByRole('heading', { name: SECOND_COURSE.doc.name })).toBeVisible();
-
-    // Запись: создаём занятие в новом курсе. Успех = редирект в редактор,
-    // отказ rules остался бы ошибкой внутри модалки.
-    await gotoAndSettle(page, `/admin/content?course=${SECOND_COURSE.id}`);
+    // Запись: создаём занятие. Успех = редирект в редактор; отказ rules
+    // остался бы ошибкой внутри модалки.
+    await gotoAndSettle(page, `/admin/content?course=${REVOKED_COURSE.id}`);
     await page.getByRole('button', { name: 'Добавить занятие' }).click();
 
     const dialog = page.locator('div.fixed.inset-0').filter({
@@ -133,11 +121,35 @@ test.describe('Выдача прав автору через Cloud Functions', (
     await submit.click();
 
     await expect(page).toHaveURL(
-      new RegExp(`/admin/content/edit/${NEW_LESSON.id}\\?course=${SECOND_COURSE.id}$`)
+      new RegExp(`/admin/content/edit/${NEW_LESSON.id}\\?course=${REVOKED_COURSE.id}$`)
     );
     await expect(
       page.getByRole('heading', { name: `Редактирование: ${NEW_LESSON.title}` })
     ).toBeVisible();
+  });
+
+  test('setAdminEditableCourses: суженный список курсов доезжает до автора', async ({ page }) => {
+    const awaitAlert = watchDialogs(page);
+    await gotoAndSettle(page, '/admin/users');
+    await promoteeRow(page).getByRole('button', { name: 'Курсы' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Редактируемые курсы' })).toBeVisible();
+    await page.getByRole('checkbox', { name: REVOKED_COURSE.doc.name }).uncheck();
+    await page.getByRole('button', { name: 'Сохранить' }).click();
+    await awaitAlert('Список редактируемых курсов обновлён');
+    await expect(page.getByRole('heading', { name: 'Редактируемые курсы' })).toHaveCount(0);
+
+    await signInAs(page, PROMOTEE.email);
+    await gotoAndSettle(page, '/admin');
+    await expect(page.getByRole('heading', { name: KEPT_COURSE.doc.name })).toBeVisible();
+    await expect(page.getByRole('heading', { name: REVOKED_COURSE.doc.name })).toHaveCount(0);
+
+    // Отозванный курс закрыт и на запись: сайдбар его не показывает.
+    await gotoAndSettle(page, `/admin/content?course=${REVOKED_COURSE.id}`);
+    await expect(
+      page.getByRole('button', { name: `Переименовать курс ${KEPT_COURSE.doc.name}` })
+    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: NEW_LESSON.title })).toHaveCount(0);
   });
 
   test('removeAdmin: после снятия прав /admin для promotee закрыт', async ({ page }) => {
