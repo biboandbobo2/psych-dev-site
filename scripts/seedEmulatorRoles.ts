@@ -97,41 +97,63 @@ async function resetSandbox(projectId: string): Promise<void> {
 }
 
 /**
- * Создаёт/обновляет auth-пользователей всех ролей. uid фиксированы, поэтому
- * повторный запуск идемпотентен. Claims перевыставляются каждый раз.
+ * Создаёт auth-пользователей всех ролей. uid фиксированы, поэтому повторный
+ * запуск идемпотентен. Существующего пользователя НЕ трогаем без расхождений:
+ * updateUser({password}) ревокает живые сессии, и параллельный прогон в
+ * соседней песочнице вылетает на /login (auth-проект у прогонов общий).
  */
 async function seedAuthUsers(app: App): Promise<number> {
   const auth = getAuth(app);
   let created = 0;
   let updated = 0;
+  let untouched = 0;
 
   for (const role of SMOKE_ROLE_LIST) {
-    const payload = {
-      email: role.email,
-      password: SMOKE_PASSWORD,
-      displayName: role.displayName,
-      emailVerified: true,
-    };
+    const wantedClaims = role.claims ?? {};
 
-    const existing = await auth.getUser(role.uid).catch((err: unknown) => {
+    let existing = await auth.getUser(role.uid).catch((err: unknown) => {
       if ((err as { code?: string }).code === 'auth/user-not-found') return null;
       throw err;
     });
 
-    if (existing) {
-      await auth.updateUser(role.uid, payload);
-      updated++;
-    } else {
-      await auth.createUser({ uid: role.uid, ...payload });
-      created++;
+    if (!existing) {
+      try {
+        await auth.createUser({
+          uid: role.uid,
+          email: role.email,
+          password: SMOKE_PASSWORD,
+          displayName: role.displayName,
+          emailVerified: true,
+        });
+        created++;
+      } catch (err) {
+        // Гонка с параллельным сидом: юзера успел создать сосед — это ок.
+        if ((err as { code?: string }).code !== 'auth/uid-already-exists') throw err;
+        existing = await auth.getUser(role.uid);
+      }
     }
 
-    await auth.setCustomUserClaims(role.uid, role.claims ?? {});
-    console.log(`${TAG}   ${role.key} → ${role.email} (${existing ? 'обновлён' : 'создан'})`);
+    if (existing) {
+      // Пароль не сравнить и не перевыставить без ревокации сессий; он
+      // константа SMOKE_PASSWORD и задаётся при создании. Обновляем только
+      // реально разъехавшиеся профильные поля (фикстуры поменялись).
+      if (existing.email !== role.email || existing.displayName !== role.displayName) {
+        await auth.updateUser(role.uid, { email: role.email, displayName: role.displayName });
+        updated++;
+      } else {
+        untouched++;
+      }
+    }
+
+    const currentClaims = existing?.customClaims ?? {};
+    if (JSON.stringify(currentClaims) !== JSON.stringify(wantedClaims)) {
+      await auth.setCustomUserClaims(role.uid, wantedClaims);
+    }
+    console.log(`${TAG}   ${role.key} → ${role.email} (${existing ? 'на месте' : 'создан'})`);
   }
 
-  console.log(`${TAG} auth: создано ${created}, обновлено ${updated}`);
-  return created + updated;
+  console.log(`${TAG} auth: создано ${created}, обновлено ${updated}, не тронуто ${untouched}`);
+  return created + updated + untouched;
 }
 
 /** users/{uid}: зеркало роли + базовые профильные поля. */

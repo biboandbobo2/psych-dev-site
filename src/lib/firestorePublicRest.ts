@@ -19,10 +19,14 @@ const BASE = `https://firestore.googleapis.com/v1/projects/${projectId}/database
 /**
  * REST-путь включён только в реальном рантайме: в vitest (MODE === 'test')
  * выключен, чтобы тесты не ходили в сеть — они мокают этот модуль явно.
+ * В эмуляторном режиме (HP-2, ролевой стенд) тоже выключен: BASE указывает
+ * на прод-endpoint и не знает про песочницы testProject, а SDK против
+ * локального эмулятора и так отвечает мгновенно.
  */
 export function isPublicRestAvailable(): boolean {
   return (
     env.MODE !== 'test' &&
+    env.VITE_USE_FIREBASE_EMULATORS !== 'true' &&
     typeof fetch === 'function' &&
     Boolean(projectId) &&
     Boolean(apiKey)
