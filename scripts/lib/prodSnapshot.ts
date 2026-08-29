@@ -177,6 +177,12 @@ export async function importProdSnapshot(
   const writer = db.bulkWriter();
   let written = 0;
   let skipped = 0;
+  const failures: string[] = [];
+  writer.onWriteError((error) => {
+    if (error.failedAttempts < 3) return true; // штатный ретрай BulkWriter
+    failures.push(`${error.documentRef.path}: ${error.message}`);
+    return false;
+  });
 
   for (const { name } of SNAPSHOT_COLLECTIONS) {
     const file = join(SNAPSHOT_DIR, `${name}.json`);
@@ -193,6 +199,14 @@ export async function importProdSnapshot(
   }
 
   await writer.close();
+  if (failures.length) {
+    // close() контрактно не реджектится, а per-write ошибки гасятся внутри
+    // SDK — без этого throw сид отчитался бы «записано N» при неполной
+    // песочнице, и спеки зеленели бы на дырявых данных.
+    throw new Error(
+      `Прод-срез записан не полностью (${failures.length} отказов):\n  ${failures.slice(0, 5).join('\n  ')}`
+    );
+  }
   log(`прод-срез от ${manifest.generatedAt}: записано ${written}, пропущено фикстурных ${skipped}`);
   return { written, skipped };
 }

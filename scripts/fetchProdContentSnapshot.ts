@@ -46,6 +46,9 @@ const PII_PATTERNS: Array<{ label: string; re: RegExp; mask: string }> = [
     re: /(?:\+7|\b8)[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}\b/g,
     mask: '[phone]',
   },
+  { label: 'telegram-link', re: /(?:https?:\/\/)?t\.me\/[A-Za-z0-9_]+/g, mask: '[telegram]' },
+  // Хендл после email-паттерна: почты к этому моменту уже заменены на [email].
+  { label: 'telegram-handle', re: /(?<![\w.])@[A-Za-z][A-Za-z0-9_]{3,}/g, mask: '[telegram]' },
   {
     label: 'phone-intl',
     re: /\+\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}\b/g,
@@ -116,8 +119,17 @@ async function main(): Promise<void> {
   console.log(`${TAG} allow-list: ${SNAPSHOT_COLLECTIONS.map((c) => c.name).join(', ')}`);
   console.log(`${TAG} никогда не выкачивается: ${SNAPSHOT_DENIED_COLLECTIONS.join(', ')}`);
 
-  // Прод читается только по ADC. Явный ключ сервис-аккаунта в окружении —
-  // повод остановиться: скрипту достаточно прав пользователя.
+  // Прод читается только по ADC пользователя. Экспортированный после работы
+  // со стендом FIRESTORE_EMULATOR_HOST молча увёл бы чтение в эмулятор и
+  // затёр хороший снапшот срезом песочницы (манифест при этом соврал бы про
+  // источник); явный ключ сервис-аккаунта скрипту не нужен — прав пользователя
+  // достаточно, лишние полномочия здесь только риск.
+  for (const envVar of ['FIRESTORE_EMULATOR_HOST', 'FIREBASE_AUTH_EMULATOR_HOST', 'GOOGLE_APPLICATION_CREDENTIALS']) {
+    if (process.env[envVar]) {
+      console.error(`${TAG} Ошибка: в окружении задан ${envVar} — снимаю срез только напрямую с прода по ADC. Уберите переменную.`);
+      process.exit(1);
+    }
+  }
   const app = initializeApp({ credential: applicationDefault(), projectId: PROD_PROJECT_ID }, 'prod-snapshot');
   const db = getFirestore(app);
 
