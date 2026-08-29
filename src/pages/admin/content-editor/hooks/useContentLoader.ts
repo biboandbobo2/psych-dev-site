@@ -12,6 +12,8 @@ import type { CourseType } from '../../../../types/tests';
 interface UseContentLoaderParams {
   periodId: string | undefined;
   course: CourseType;
+  /** false — курс вне прав пользователя, документ не читаем. */
+  enabled?: boolean;
   placeholderDefaultEnabled: boolean;
   placeholderDisplayText: string;
   fallbackTitle: string;
@@ -39,6 +41,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
   const {
     periodId,
     course,
+    enabled = true,
     placeholderDefaultEnabled,
     placeholderDisplayText,
     fallbackTitle,
@@ -64,7 +67,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
 
   useEffect(() => {
     async function loadPeriod() {
-      if (!periodId) {
+      if (!periodId || !enabled) {
         setLoading(false);
         return;
       }
@@ -317,6 +320,7 @@ export function useContentLoader(params: UseContentLoaderParams) {
   }, [
     periodId,
     course,
+    enabled,
     placeholderDefaultEnabled,
     placeholderDisplayText,
     fallbackTitle,

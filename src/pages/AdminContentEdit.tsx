@@ -14,6 +14,8 @@ import {
   ContentActionsBar,
 } from './admin/content-editor/components';
 import { isCoreCourse } from '../constants/courses';
+import { useAuthStore } from '../stores/useAuthStore';
+import { canEditCourse } from '../types/user';
 import type { CourseType } from '../types/tests';
 
 /**
@@ -28,6 +30,10 @@ export default function AdminContentEdit() {
   const courseParam = searchParams.get('course');
   const course: CourseType = courseParam && courseParam.trim() ? courseParam : 'development';
   const isCore = isCoreCourse(course);
+
+  const userRole = useAuthStore((s) => s.userRole);
+  const adminEditableCourses = useAuthStore((s) => s.adminEditableCourses);
+  const canEdit = canEditCourse(userRole, adminEditableCourses, course);
 
   // Get route config for placeholder settings
   const routesByPeriod = isCore
@@ -56,6 +62,7 @@ export default function AdminContentEdit() {
   const { period, loading } = useContentLoader({
     periodId,
     course,
+    enabled: canEdit,
     placeholderDefaultEnabled,
     placeholderDisplayText,
     fallbackTitle,
@@ -104,6 +111,19 @@ export default function AdminContentEdit() {
   const onDelete = () => {
     handleDelete(periodId, form.title);
   };
+
+  // Прямая ссылка на занятие чужого курса: rules отклонят запись, поэтому
+  // редактор не открываем вовсе.
+  if (!canEdit) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 space-y-3">
+        <p className="text-gray-700">У вас нет прав на редактирование этого курса.</p>
+        <Link to="/admin/content" className="text-blue-600 hover:underline">
+          ← К управлению контентом
+        </Link>
+      </div>
+    );
+  }
 
   // Loading state
   if (loading) {

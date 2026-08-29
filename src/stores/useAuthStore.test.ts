@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useAuthStore } from './useAuthStore';
+import { readEditableCoursesClaim, resolveEditableCourses, useAuthStore } from './useAuthStore';
 
 /**
  * Регрессионный тест на derivation флагов в setUserRole / setCoAdminFlag.
@@ -89,5 +89,71 @@ describe('useAuthStore — derivation флагов', () => {
     const s = useAuthStore.getState();
     expect(s.isAdmin).toBe(true);
     expect(s.isCoAdmin).toBe(false);
+  });
+});
+
+/**
+ * Права админа на курсы приходят из claim `editableCourses` (его читают rules)
+ * и Firestore-зеркала adminEditableCourses. В UI берётся пересечение —
+ * расхождение источников иначе даёт «кнопка активна, запись отклонена».
+ */
+describe('useAuthStore — editableCourses из claims', () => {
+  it('массив строк → возвращается как есть', () => {
+    expect(readEditableCoursesClaim({ editableCourses: ['external-x', 'clinical'] })).toEqual([
+      'external-x',
+      'clinical',
+    ]);
+  });
+
+  it('пустой массив в claim → [] (права отозваны, зеркало не должно перебивать)', () => {
+    expect(readEditableCoursesClaim({ editableCourses: [] })).toEqual([]);
+  });
+
+  it('claim отсутствует → null (используется Firestore-зеркало)', () => {
+    expect(readEditableCoursesClaim({ role: 'admin' })).toBeNull();
+  });
+
+  it('не-массив в claim → null', () => {
+    expect(readEditableCoursesClaim({ editableCourses: 'external-x' })).toBeNull();
+  });
+
+  it('мусор внутри массива отфильтровывается', () => {
+    expect(readEditableCoursesClaim({ editableCourses: ['ok', 42, null, 'fine'] })).toEqual([
+      'ok',
+      'fine',
+    ]);
+  });
+
+  it('setAdminEditableCourses кладёт список в стор', () => {
+    useAuthStore.getState().setAdminEditableCourses(['external-x']);
+    expect(useAuthStore.getState().adminEditableCourses).toEqual(['external-x']);
+    useAuthStore.getState().setAdminEditableCourses([]);
+    expect(useAuthStore.getState().adminEditableCourses).toEqual([]);
+  });
+});
+
+describe('useAuthStore — сведение claim и Firestore-зеркала', () => {
+  it('оба источника есть → пересечение (курс появится, только когда его пустят rules)', () => {
+    expect(resolveEditableCourses(['a', 'b'], ['b', 'c'])).toEqual(['b']);
+  });
+
+  it('права отозвали в Firestore, токен ещё старый → курс уходит из UI сразу', () => {
+    expect(resolveEditableCourses(['a', 'b'], ['a'])).toEqual(['a']);
+  });
+
+  it('права выдали в Firestore, claim ещё без них → курс появится после обновления токена', () => {
+    expect(resolveEditableCourses(['a'], ['a', 'b'])).toEqual(['a']);
+  });
+
+  it('claim ещё не пришёл → работает зеркало', () => {
+    expect(resolveEditableCourses(null, ['a'])).toEqual(['a']);
+  });
+
+  it('зеркало ещё не пришло → работает claim', () => {
+    expect(resolveEditableCourses(['a'], null)).toEqual(['a']);
+  });
+
+  it('нет ни одного источника → пусто', () => {
+    expect(resolveEditableCourses(null, null)).toEqual([]);
   });
 });

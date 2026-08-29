@@ -10,12 +10,14 @@ import { trackFeatureEvent } from '../../../lib/telemetry';
 import { groupTranscriptSegments } from '../lib/transcriptDisplay';
 
 interface VideoTranscriptPanelProps {
+  courseId: string;
   error: string | null;
   focusTimeMs?: number | null;
   highlightedStartMs?: number | null;
   isChecking: boolean;
   isLoading: boolean;
   onTimestampClick: (startMs: number) => void;
+  periodId: string;
   query?: string | null;
   transcript: VideoTranscriptStoragePayload | null;
   /** Понятия урока для поисковых чипов при длинном выделении */
@@ -91,12 +93,14 @@ function renderWithMatches(text: string, normalizedQuery: string): ReactNode {
 }
 
 export function VideoTranscriptPanel({
+  courseId,
   error,
   focusTimeMs = null,
   highlightedStartMs = null,
   isChecking,
   isLoading,
   onTimestampClick,
+  periodId,
   query = null,
   transcript,
   concepts = [],
@@ -128,7 +132,7 @@ export function VideoTranscriptPanel({
   );
 
   const handleSearchSelection = (selectionQuery: string) => {
-    trackFeatureEvent('selection_search');
+    trackFeatureEvent('selection_search', { courseId, periodId });
     window.open(`/research?q=${encodeURIComponent(selectionQuery)}`, '_blank', 'noopener');
     clearSelection();
   };

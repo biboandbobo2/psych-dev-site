@@ -1014,7 +1014,7 @@ interface FeatureEventDoc {
 
 **Кто пишет:** клиент, `trackFeatureEvent(event, meta?)` из `src/lib/telemetry.ts` — только авторизованные (rules: `create` с валидацией ключей/длин, `update/delete` — никому). Дедуп повторов `event+meta` в рамках сессии — счётчики означают «фича использована в сессии», а не число кликов.
 
-**Кто читает:** только админ (rules: `read: if isAdmin()`) — сводка `/superadmin/telemetry` (`src/pages/admin/telemetry/AdminTelemetry.tsx`), агрегация на клиенте. Как читать цифры: [docs/guides/product-telemetry.md](../guides/product-telemetry.md).
+**Кто читает:** super-admin — всю коллекцию; админ курса — только события своих курсов (rules: `read: if isSuperAdmin() || canEditCourse(resource.data.get('courseId', ''))`, курсы берутся из claim `editableCourses`). Следствие семантики list-запросов: запрос обычного админа обязан содержать `where('courseId', '==', ...)`, иначе отклоняется целиком; события без `courseId` (`research_search`, `book_rag_question`) видит только super-admin. Сводка — `/admin/telemetry` и `/superadmin/telemetry` (`src/pages/admin/telemetry/AdminTelemetry.tsx`), агрегация на клиенте. Как читать цифры: [docs/guides/product-telemetry.md](../guides/product-telemetry.md).
 
 **Ретеншн:** пока не настроен (отложен до первых данных, см. PT-1 в audit-backlog). Кандидаты: чистка шагом weekly job `weeklyTranscriptRefresh` либо Firestore TTL-политика на `createdAt`.
 

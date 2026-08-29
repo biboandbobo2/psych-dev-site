@@ -13,6 +13,8 @@ import { useTestTheme } from './tests/editor/hooks/useTestTheme';
 import { useTestPrerequisite } from './tests/editor/hooks/useTestPrerequisite';
 import { useTestSave } from './tests/editor/hooks/useTestSave';
 import { usePublishedLessonOptions } from '../hooks';
+import { filterEditableCourses } from '../hooks/useEditableCourses';
+import { useAuthStore } from '../stores/useAuthStore';
 
 interface TestEditorFormProps {
   testId: string | null;
@@ -31,7 +33,29 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
   const formHook = useTestEditorForm({ testId, importedData, defaultCourse });
   const themeHook = useTestTheme();
   const prerequisiteHook = useTestPrerequisite({ existingTests, testId });
-  const { courseOptions, rubricOptions } = usePublishedLessonOptions();
+  // includeUnpublished: тест можно готовить и на ещё скрытом курсе — иначе у
+  // автора такого курса пуст и селектор курса, и список занятий для рубрики.
+  const { courseOptions, rubricOptions } = usePublishedLessonOptions({
+    includeUnpublished: true,
+  });
+  const { setCourse } = formHook.setters;
+  const userRole = useAuthStore((state) => state.userRole);
+  const adminEditableCourses = useAuthStore((state) => state.adminEditableCourses);
+
+  // Селектор курса показывает только курсы, доступные автору: rules всё равно
+  // не дадут привязать тест к чужому курсу.
+  const editableCourseOptions = useMemo(
+    () => filterEditableCourses(courseOptions, userRole, adminEditableCourses),
+    [courseOptions, userRole, adminEditableCourses]
+  );
+
+  // Дефолтный курс (например, 'development' из AdminContent) может быть вне
+  // прав автора — переключаем на первый доступный.
+  useEffect(() => {
+    if (!editableCourseOptions.length) return;
+    if (editableCourseOptions.some((course) => course.id === formHook.form.course)) return;
+    setCourse(editableCourseOptions[0].id);
+  }, [editableCourseOptions, formHook.form.course, setCourse]);
 
   // Build rubric options based on selected course
   const selectedRubricOptions = useMemo(
@@ -153,7 +177,7 @@ export function TestEditorForm({ testId, onClose, onSaved, existingTests, import
         titleHint={formHook.form.titleHint}
         course={formHook.form.course}
         onCourseChange={formHook.setters.setCourse}
-        courseOptions={courseOptions.map((course) => ({ id: course.id, name: course.name }))}
+        courseOptions={editableCourseOptions.map((course) => ({ id: course.id, name: course.name }))}
         rubric={formHook.form.rubric}
         onRubricChange={formHook.setters.setRubric}
         rubricOptions={selectedRubricOptions}

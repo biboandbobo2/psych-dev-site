@@ -906,49 +906,100 @@ describe('feature_events: продуктовая телеметрия (PT-1)', (
     );
   });
 
-  it('авторизованный (не админ): get/list событий → denied', async () => {
+  // События трёх видов: свой курс админа, чужой курс и событие без courseId.
+  const seedEvents = async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), 'feature_events', 'seeded'), {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'feature_events', 'own-course'), {
         hashedUid: 'a1b2c3d4e5f60718',
+        event: 'study_mode_opened',
+        courseId: 'demo-course',
+        platform: 'desktop',
+        createdAt: serverTimestamp(),
+      });
+      await setDoc(doc(db, 'feature_events', 'foreign-course'), {
+        hashedUid: 'b1b2c3d4e5f60718',
+        event: 'study_mode_opened',
+        courseId: 'other-course',
+        platform: 'desktop',
+        createdAt: serverTimestamp(),
+      });
+      await setDoc(doc(db, 'feature_events', 'no-course'), {
+        hashedUid: 'c1b2c3d4e5f60718',
         event: 'research_search',
         platform: 'desktop',
         createdAt: serverTimestamp(),
       });
     });
+  };
+
+  const lecturerDb = () =>
+    testEnv
+      .authenticatedContext('lecturer-uid', { role: 'admin', editableCourses: ['demo-course'] })
+      .firestore();
+
+  const superAdminDb = () =>
+    testEnv.authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL }).firestore();
+
+  it('авторизованный (не админ): get/list событий → denied', async () => {
+    await seedEvents();
     const db = testEnv.authenticatedContext('alice').firestore();
-    await assertFails(getDoc(doc(db, 'feature_events', 'seeded')));
+    await assertFails(getDoc(doc(db, 'feature_events', 'own-course')));
     await assertFails(getDocs(collection(db, 'feature_events')));
   });
 
   it('авторизованный: update/delete события → denied', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), 'feature_events', 'seeded'), {
-        hashedUid: 'a1b2c3d4e5f60718',
-        event: 'research_search',
-        platform: 'desktop',
-        createdAt: serverTimestamp(),
-      });
-    });
+    await seedEvents();
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
-      setDoc(doc(db, 'feature_events', 'seeded'), { ...validEvent(), event: 'other' })
+      setDoc(doc(db, 'feature_events', 'own-course'), { ...validEvent(), event: 'other' })
     );
-    await assertFails(deleteDoc(doc(db, 'feature_events', 'seeded')));
+    await assertFails(deleteDoc(doc(db, 'feature_events', 'own-course')));
   });
 
-  it('супер-админ: list событий → success', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), 'feature_events', 'seeded'), {
-        hashedUid: 'a1b2c3d4e5f60718',
-        event: 'research_search',
-        platform: 'desktop',
-        createdAt: serverTimestamp(),
-      });
-    });
-    const db = testEnv
-      .authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL })
-      .firestore();
-    await assertSucceeds(getDocs(collection(db, 'feature_events')));
+  it('админ курса: list с фильтром по своему курсу → success', async () => {
+    await seedEvents();
+    const db = lecturerDb();
+    await assertSucceeds(
+      getDocs(query(collection(db, 'feature_events'), where('courseId', '==', 'demo-course')))
+    );
+  });
+
+  it('админ курса: list без фильтра по курсу → denied', async () => {
+    await seedEvents();
+    const db = lecturerDb();
+    await assertFails(getDocs(collection(db, 'feature_events')));
+  });
+
+  it('админ курса: list с фильтром по чужому курсу → denied', async () => {
+    await seedEvents();
+    const db = lecturerDb();
+    await assertFails(
+      getDocs(query(collection(db, 'feature_events'), where('courseId', '==', 'other-course')))
+    );
+  });
+
+  it('админ курса: get события своего курса → success, чужого → denied', async () => {
+    await seedEvents();
+    const db = lecturerDb();
+    await assertSucceeds(getDoc(doc(db, 'feature_events', 'own-course')));
+    await assertFails(getDoc(doc(db, 'feature_events', 'foreign-course')));
+  });
+
+  it('админ курса: событие без courseId → denied (видит только супер-админ)', async () => {
+    await seedEvents();
+    const db = lecturerDb();
+    await assertFails(getDoc(doc(db, 'feature_events', 'no-course')));
+  });
+
+  it('супер-админ: list всех событий без фильтра → success', async () => {
+    await seedEvents();
+    await assertSucceeds(getDocs(collection(superAdminDb(), 'feature_events')));
+  });
+
+  it('супер-админ: событие без courseId читается → success', async () => {
+    await seedEvents();
+    await assertSucceeds(getDoc(doc(superAdminDb(), 'feature_events', 'no-course')));
   });
 });
 

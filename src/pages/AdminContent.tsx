@@ -26,7 +26,7 @@ import {
   mapCanonicalCourseLessons,
 } from '../lib/courseLessons';
 import { isCoreCourse } from '../constants/courses';
-import { useCourses } from '../hooks/useCourses';
+import { useEditableCourses } from '../hooks/useEditableCourses';
 import { useActiveCourse } from '../hooks/useActiveCourse';
 import { useMyAnnouncementGroups } from '../hooks/useMyAnnouncementGroups';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -42,7 +42,9 @@ export default function AdminContent() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const { setCurrentCourse } = useCourseStore();
-  const { courses, loading: coursesLoading } = useCourses({ includeUnpublished: true });
+  const { courses, loading: coursesLoading } = useEditableCourses();
+  const userRole = useAuthStore((s) => s.userRole);
+  const adminEditableCourses = useAuthStore((s) => s.adminEditableCourses);
   const [periods, setPeriods] = useState<AdminPeriod[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTestEditor, setShowTestEditor] = useState(false);
@@ -55,34 +57,39 @@ export default function AdminContent() {
   );
 
   // Синхронизация активного курса с URL / navigation state / referrer.
+  // Любой источник переключает курс только если он в правах пользователя:
+  // иначе ссылка или referrer с чужого курса открывали бы чужой редактор.
   useEffect(() => {
+    const applyCourse = (courseId: string) => {
+      if (!canEditCourse(userRole, adminEditableCourses, courseId)) return;
+      setCurrentCourse(courseId as CourseType);
+    };
+
     const courseParam = searchParams.get('course');
     if (courseParam) {
-      setCurrentCourse(courseParam as CourseType);
+      applyCourse(courseParam);
       return;
     }
 
     const stateC = (location.state as { course?: unknown } | null)?.course;
     if (typeof stateC === 'string' && stateC.trim()) {
-      setCurrentCourse(stateC as CourseType);
+      applyCourse(stateC);
       return;
     }
 
     if (typeof document !== 'undefined' && document.referrer) {
       if (document.referrer.includes('/clinical/')) {
-        setCurrentCourse('clinical');
+        applyCourse('clinical');
         return;
       }
       if (document.referrer.includes('/general/')) {
-        setCurrentCourse('general');
+        applyCourse('general');
       }
     }
-  }, [searchParams, location.state, setCurrentCourse]);
+  }, [searchParams, location.state, setCurrentCourse, userRole, adminEditableCourses]);
 
   const activeCourse = useActiveCourse(courses, coursesLoading);
   const isCore = isCoreCourse(activeCourse);
-  const userRole = useAuthStore((s) => s.userRole);
-  const adminEditableCourses = useAuthStore((s) => s.adminEditableCourses);
   const { groups: myAnnouncementGroups } = useMyAnnouncementGroups();
   const canEditActiveCourse = canEditCourse(userRole, adminEditableCourses, activeCourse);
   const canWriteAnnouncements =
@@ -118,11 +125,18 @@ export default function AdminContent() {
     }
   };
 
-  // Перезагружаем данные при смене курса
+  // Перезагружаем данные при смене курса. Курс вне прав не читаем вовсе —
+  // rules всё равно отклонят запись, а список занятий чужого курса
+  // в кабинете автора показывать нечего.
   useEffect(() => {
+    if (!activeCourse || !canEditActiveCourse) {
+      setPeriods([]);
+      setLoading(false);
+      return;
+    }
     loadPeriods();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCourse]);
+  }, [activeCourse, canEditActiveCourse]);
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -169,6 +183,19 @@ export default function AdminContent() {
       loadPeriods();
     }
   };
+
+  if (!coursesLoading && (courses.length === 0 || !activeCourse)) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <div className="rounded-2xl border border-border/60 bg-card p-8 text-center space-y-2">
+          <h1 className="text-lg font-semibold text-fg">Курсы не назначены</h1>
+          <p className="text-sm text-muted">
+            У вас пока нет курсов в управлении. Напишите администратору академии, чтобы получить доступ.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || coursesLoading) {
     return (

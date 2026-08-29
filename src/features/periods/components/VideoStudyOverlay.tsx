@@ -352,12 +352,14 @@ export function VideoStudyOverlay({
           {sidebarMode === 'transcript' ? (
             <>
               <VideoTranscriptPanel
+                courseId={courseId}
                 error={transcriptState.error}
                 focusTimeMs={transcriptFocusMs}
                 highlightedStartMs={highlightedStartMs}
                 isChecking={transcriptState.isChecking}
                 isLoading={transcriptState.isLoading}
                 onTimestampClick={(startMs) => playerRef.current?.seekToMs(startMs)}
+                periodId={periodId}
                 query={initialQuery}
                 transcript={transcriptState.transcript}
                 concepts={concepts}

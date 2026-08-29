@@ -32,10 +32,12 @@ describe('VideoTranscriptPanel', () => {
   it('поиск фильтрует абзацы и подсвечивает совпадения', () => {
     render(
       <VideoTranscriptPanel
+        courseId="development"
         error={null}
         isChecking={false}
         isLoading={false}
         onTimestampClick={vi.fn()}
+        periodId="period-1"
         transcript={TWO_PARAGRAPH_TRANSCRIPT}
       />
     );
@@ -52,12 +54,14 @@ describe('VideoTranscriptPanel', () => {
   it('живая позиция приоритетнее deep-link подсветки: рамка не залипает на ?t=', () => {
     render(
       <VideoTranscriptPanel
+        courseId="development"
         error={null}
         focusTimeMs={48000}
         highlightedStartMs={33000}
         isChecking={false}
         isLoading={false}
         onTimestampClick={vi.fn()}
+        periodId="period-1"
         transcript={TWO_PARAGRAPH_TRANSCRIPT}
       />
     );
@@ -73,12 +77,14 @@ describe('VideoTranscriptPanel', () => {
   it('без живой позиции deep-link подсветка работает как раньше', () => {
     render(
       <VideoTranscriptPanel
+        courseId="development"
         error={null}
         focusTimeMs={null}
         highlightedStartMs={33000}
         isChecking={false}
         isLoading={false}
         onTimestampClick={vi.fn()}
+        periodId="period-1"
         transcript={TWO_PARAGRAPH_TRANSCRIPT}
       />
     );
@@ -91,11 +97,13 @@ describe('VideoTranscriptPanel', () => {
   it('ручной скролл выключает следование, кнопка возвращает к текущему месту', () => {
     const { container } = render(
       <VideoTranscriptPanel
+        courseId="development"
         error={null}
         focusTimeMs={null}
         isChecking={false}
         isLoading={false}
         onTimestampClick={vi.fn()}
+        periodId="period-1"
         transcript={TWO_PARAGRAPH_TRANSCRIPT}
       />
     );
@@ -120,10 +128,12 @@ describe('VideoTranscriptPanel', () => {
 
     render(
       <VideoTranscriptPanel
+        courseId="development"
         error={null}
         isChecking={false}
         isLoading={false}
         onTimestampClick={handleTimestampClick}
+        periodId="period-1"
         transcript={{
           youtubeVideoId: 'video-1',
           version: 1,
@@ -156,11 +166,13 @@ describe('VideoTranscriptPanel', () => {
     const scrollTo = vi.fn();
     const { container, rerender } = render(
       <VideoTranscriptPanel
+        courseId="development"
         error={null}
         focusTimeMs={null}
         isChecking={false}
         isLoading={false}
         onTimestampClick={() => {}}
+        periodId="period-1"
         transcript={{
           youtubeVideoId: 'video-1',
           version: 1,
@@ -210,11 +222,13 @@ describe('VideoTranscriptPanel', () => {
 
     rerender(
       <VideoTranscriptPanel
+        courseId="development"
         error={null}
         focusTimeMs={49000}
         isChecking={false}
         isLoading={false}
         onTimestampClick={() => {}}
+        periodId="period-1"
         transcript={{
           youtubeVideoId: 'video-1',
           version: 1,
