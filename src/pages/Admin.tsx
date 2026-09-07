@@ -142,6 +142,16 @@ export default function Admin() {
               📊 Телеметрия
             </Link>
           )}
+          {isSuperAdmin && (
+            <a
+              href="https://claude.ai/code/artifact/38189108-60d4-40b2-b6e0-bd3f2754e7e0"
+              target="_blank"
+              rel="noreferrer"
+              className="px-4 py-2 rounded font-medium transition-colors bg-rose-100 text-rose-900 hover:bg-rose-200"
+            >
+              🗺️ Карта внешних курсов
+            </a>
+          )}
         </nav>
       )}
 
