@@ -1,4 +1,4 @@
-import { NoteContextSelector } from './NoteContextSelector';
+import { NOTE_FIELD_CLASS, NoteContextSelector } from './NoteContextSelector';
 
 interface NoteFormFieldsProps {
   title: string;
@@ -9,6 +9,9 @@ interface NoteFormFieldsProps {
   autoFocus?: boolean;
   titlePlaceholder?: string;
   contentPlaceholder?: string;
+  contentLabel?: string;
+  /** false — конспект лекции: курс/занятие и заголовок заданы лекцией и не редактируются. */
+  showContext?: boolean;
   onTitleChange: (value: string) => void;
   onContentChange: (value: string) => void;
   onCourseChange: (courseId: string | null) => void;
@@ -24,6 +27,8 @@ export function NoteFormFields({
   autoFocus = false,
   titlePlaceholder = 'Введите заголовок...',
   contentPlaceholder = 'Напишите свои мысли...',
+  contentLabel = 'Ваши размышления',
+  showContext = true,
   onTitleChange,
   onContentChange,
   onCourseChange,
@@ -31,35 +36,46 @@ export function NoteFormFields({
 }: NoteFormFieldsProps) {
   return (
     <div className="space-y-4">
-      <NoteContextSelector
-        selectedCourseId={selectedCourseId}
-        selectedPeriodId={selectedPeriodId}
-        saving={saving}
-        onCourseChange={onCourseChange}
-        onPeriodChange={onPeriodChange}
-      />
+      {showContext ? (
+        <>
+          <NoteContextSelector
+            selectedCourseId={selectedCourseId}
+            selectedPeriodId={selectedPeriodId}
+            saving={saving}
+            onCourseChange={onCourseChange}
+            onPeriodChange={onPeriodChange}
+          />
+
+          <div>
+            <label htmlFor="note-title" className="mb-2 block text-sm font-medium text-fg">
+              Заголовок заметки
+            </label>
+            <input
+              id="note-title"
+              type="text"
+              value={title}
+              onChange={(event) => onTitleChange(event.target.value)}
+              placeholder={titlePlaceholder}
+              className={NOTE_FIELD_CLASS}
+              disabled={saving}
+              autoFocus={autoFocus}
+            />
+          </div>
+        </>
+      ) : null}
 
       <div>
-        <label className="mb-2 block text-sm font-medium text-gray-700">Заголовок заметки</label>
-        <input
-          type="text"
-          value={title}
-          onChange={(event) => onTitleChange(event.target.value)}
-          placeholder={titlePlaceholder}
-          className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={saving}
-          autoFocus={autoFocus}
-        />
-      </div>
-
-      <div>
-        <label className="mb-2 block text-sm font-medium text-gray-700">Ваши размышления</label>
+        <label htmlFor="note-content" className="mb-2 block text-sm font-medium text-fg">
+          {contentLabel}
+        </label>
         <textarea
+          id="note-content"
           value={content}
           onChange={(event) => onContentChange(event.target.value)}
           placeholder={contentPlaceholder}
-          className="min-h-[300px] w-full resize-y rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`${NOTE_FIELD_CLASS} min-h-[300px] resize-y`}
           disabled={saving}
+          autoFocus={autoFocus && !showContext}
         />
       </div>
     </div>

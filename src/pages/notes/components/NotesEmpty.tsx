@@ -15,19 +15,19 @@ export function NotesEmpty({ hasQuery, query, onResetSearch, onCreate }: NotesEm
       <p className="mx-auto mb-6 max-w-lg text-muted">
         {hasQuery
           ? `По запросу "${query}" заметок не найдено. Попробуйте изменить поисковый запрос.`
-          : 'Начните вести заметки во время изучения материалов — так информация запоминается лучше.'}
+          : 'Конспект, который вы ведёте под видео лекции, появится здесь сам. Мысли вне лекции добавляйте кнопкой ниже.'}
       </p>
       {hasQuery ? (
         <button
           onClick={onResetSearch}
-          className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-white transition hover:bg-accent-600"
+          className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-white transition hover:bg-accent-deep"
         >
           Очистить поиск
         </button>
       ) : (
         <button
           onClick={onCreate}
-          className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-white transition hover:bg-accent-600"
+          className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-white transition hover:bg-accent-deep"
         >
           Создать заметку
         </button>

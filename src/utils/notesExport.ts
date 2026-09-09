@@ -1,4 +1,4 @@
-import type { Note } from '../types/notes';
+import { buildTimestampedLectureContent, type Note } from '../types/notes';
 
 const formatNoteDate = (value: Date | string): string => {
   const date = value instanceof Date ? value : new Date(value);
@@ -11,11 +11,17 @@ const formatNoteDate = (value: Date | string): string => {
 
 const groupNotesByPeriod = (notes: Note[]) =>
   notes.reduce<Record<string, Note[]>>((acc, note) => {
-    const key = note.periodId ?? note.ageRange ?? 'other';
+    const key = note.periodTitle ?? note.periodId ?? note.ageRange ?? 'Без занятия';
     if (!acc[key]) acc[key] = [];
     acc[key].push(note);
     return acc;
   }, {});
+
+/** Конспект лекции экспортируется с таймкодами, обычная заметка — как есть. */
+const getExportContent = (note: Note) =>
+  note.noteScope === 'lecture' && note.lectureSegments?.length
+    ? buildTimestampedLectureContent(note.lectureSegments)
+    : note.content;
 
 export function generateNotesMarkdown(notes: Note[]): string {
   const date = formatNoteDate(new Date());
@@ -24,14 +30,13 @@ export function generateNotesMarkdown(notes: Note[]): string {
   md += `**Всего заметок:** ${notes.length}\n\n---\n\n`;
 
   const grouped = groupNotesByPeriod(notes);
-  for (const [periodId, periodNotes] of Object.entries(grouped)) {
-    const title = periodId.toUpperCase();
+  for (const [title, periodNotes] of Object.entries(grouped)) {
     md += `## ${title}\n\n`;
     periodNotes.forEach((note) => {
       md += `### ${note.title || 'Без названия'}\n\n`;
       md += `**Дата создания:** ${formatNoteDate(note.createdAt)}\n\n`;
       if (note.topicTitle) md += `**Тема:** ${note.topicTitle}\n\n`;
-      md += `${note.content || '_Описание отсутствует_'}\n\n`;
+      md += `${getExportContent(note) || '_Описание отсутствует_'}\n\n`;
       md += `---\n\n`;
     });
   }
@@ -48,14 +53,13 @@ export function generateNotesText(notes: Note[]): string {
   txt += `${'='.repeat(60)}\n\n`;
 
   const grouped = groupNotesByPeriod(notes);
-  for (const [periodId, periodNotes] of Object.entries(grouped)) {
-    const title = periodId.toUpperCase();
+  for (const [title, periodNotes] of Object.entries(grouped)) {
     txt += `[${title}]\n\n`;
     periodNotes.forEach((note) => {
       txt += `Заголовок: ${note.title || 'Без названия'}\n`;
       txt += `Дата: ${formatNoteDate(note.createdAt)}\n`;
       if (note.topicTitle) txt += `Тема: ${note.topicTitle}\n`;
-      txt += `\n${note.content || '(Описание отсутствует)'}\n\n`;
+      txt += `\n${getExportContent(note) || '(Описание отсутствует)'}\n\n`;
       txt += `${'='.repeat(60)}\n\n`;
     });
   }

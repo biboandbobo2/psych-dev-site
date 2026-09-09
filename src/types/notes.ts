@@ -222,6 +222,26 @@ export function buildTimestampedLectureContent(segments: LectureNoteSegment[]) {
     .join('\n\n');
 }
 
+/**
+ * Пересобирает сегменты конспекта из плоского текста (правка из /notes):
+ * абзацы через пустую строку → сегменты; таймкоды и id берутся у прежних
+ * сегментов по порядку, новые абзацы остаются без таймкода.
+ */
+export function buildLectureSegmentsFromContent(
+  content: string,
+  previous: LectureNoteSegment[] = []
+): LectureNoteSegment[] {
+  return content
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((text, index) => ({
+      id: previous[index]?.id ?? buildLectureSegmentId(Date.now() + index),
+      startMs: previous[index]?.startMs ?? null,
+      text,
+    }));
+}
+
 export function normalizeLectureNoteSegments(
   value: unknown,
   fallbackContent = ''

@@ -17,11 +17,6 @@ export function ExportNotesButton({ notes }: ExportNotesButtonProps) {
   const filenameBase = useMemo(() => new Date().toISOString().split('T')[0], []);
 
   const handleExport = (format: 'markdown' | 'txt') => {
-    if (!notes.length) {
-      alert('Нет заметок для экспорта');
-      return;
-    }
-
     const content = format === 'markdown' ? generateNotesMarkdown(notes) : generateNotesText(notes);
     const filename = `notes-${filenameBase}.${format === 'markdown' ? 'md' : 'txt'}`;
     downloadPlainText(content, filename);
@@ -32,11 +27,24 @@ export function ExportNotesButton({ notes }: ExportNotesButtonProps) {
     <div ref={dropdownRef} className="relative w-full">
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-fg shadow-sm transition hover:bg-card2"
+        disabled={!notes.length}
+        title={notes.length ? undefined : 'Нет заметок для экспорта'}
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-fg shadow-sm transition hover:bg-card2 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span>💾</span>
-        <span className="hidden sm:inline">Экспорт</span>
-        <span className="text-xs">{isOpen ? '▲' : '▼'}</span>
+        <span>Экспорт</span>
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 20 20"
+          className={`h-4 w-4 text-muted transition ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6 8l4 4 4-4" />
+        </svg>
       </button>
 
       {isOpen ? (

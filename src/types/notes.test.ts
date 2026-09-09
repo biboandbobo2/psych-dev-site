@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildLectureContentFromSegments,
+  buildLectureSegmentsFromContent,
   buildTimestampedLectureContent,
   formatLectureTimestamp,
   normalizeAgeRange,
@@ -52,5 +53,34 @@ describe('lecture note helpers', () => {
         text: 'Старый конспект',
       },
     ]);
+  });
+});
+
+describe('buildLectureSegmentsFromContent', () => {
+  const previous = [
+    { id: 'a', startMs: 1000, text: 'Первый' },
+    { id: 'b', startMs: 2000, text: 'Второй' },
+  ];
+
+  it('переносит id и таймкоды прежних сегментов по порядку абзацев', () => {
+    expect(buildLectureSegmentsFromContent('Первый (правка)\n\nВторой', previous)).toEqual([
+      { id: 'a', startMs: 1000, text: 'Первый (правка)' },
+      { id: 'b', startMs: 2000, text: 'Второй' },
+    ]);
+  });
+
+  it('новый абзац получает свой id без таймкода, лишние прежние отбрасываются', () => {
+    const result = buildLectureSegmentsFromContent('Первый\n\n\nВторой\n\nТретий', previous);
+    expect(result).toHaveLength(3);
+    expect(result[2]).toMatchObject({ startMs: null, text: 'Третий' });
+    expect(result[2].id).not.toBe('a');
+
+    expect(buildLectureSegmentsFromContent('Только первый', previous)).toEqual([
+      { id: 'a', startMs: 1000, text: 'Только первый' },
+    ]);
+  });
+
+  it('пустой текст даёт пустой список сегментов', () => {
+    expect(buildLectureSegmentsFromContent('  \n\n ', previous)).toEqual([]);
   });
 });

@@ -1,105 +1,71 @@
 import { PERIOD_CONFIG } from '../../../utils/periodConfig';
-import { AGE_RANGE_LABELS } from '../../../types/notes';
+import { AGE_RANGE_LABELS, buildTimestampedLectureContent } from '../../../types/notes';
 import type { Note } from '../../../types/notes';
 
 interface NotesListProps {
   notes: Note[];
-  showStats: boolean;
-  stats: {
-    total: number;
-    periods: number;
-    today: number;
-    week: number;
-  };
   onEdit: (note: Note) => void;
-  onDelete: (noteId: string) => void;
+  onDelete: (note: Note) => void;
 }
 
-export function NotesList({ notes, showStats, stats, onEdit, onDelete }: NotesListProps) {
-  const hasStats = showStats && notes.length > 0;
-
+export function NotesList({ notes, onEdit, onDelete }: NotesListProps) {
   return (
-    <>
-      {hasStats ? <StatsPanel {...stats} /> : null}
-      <div className="space-y-2">
-        {notes.map((note) => (
-          <NoteListItem key={note.id} note={note} onEdit={onEdit} onDelete={onDelete} />
-        ))}
-      </div>
-    </>
+    <div className="space-y-2">
+      {notes.map((note) => (
+        <NoteListItem key={note.id} note={note} onEdit={onEdit} onDelete={onDelete} />
+      ))}
+    </div>
   );
 }
 
-function NoteListItem({ note, onEdit, onDelete }: { note: Note; onEdit: (note: Note) => void; onDelete: (noteId: string) => void }) {
+function NoteListItem({ note, onEdit, onDelete }: { note: Note; onEdit: (note: Note) => void; onDelete: (note: Note) => void }) {
   const metaKey = (note.periodId ?? note.ageRange ?? 'other') as keyof typeof PERIOD_CONFIG;
   const meta = PERIOD_CONFIG[metaKey] ?? PERIOD_CONFIG.other;
   const periodLabel = note.periodTitle ?? (note.ageRange ? AGE_RANGE_LABELS[note.ageRange] : null);
+  const isLecture = note.noteScope === 'lecture';
+  // Конспект в превью — с таймкодами: сразу видно, что это запись по ходу лекции.
+  const preview =
+    isLecture && note.lectureSegments?.length
+      ? buildTimestampedLectureContent(note.lectureSegments)
+      : note.content;
 
   return (
     <div
       onClick={() => onEdit(note)}
       className={`group cursor-pointer rounded-lg border border-border border-l-4 bg-card p-4 transition hover:bg-card2 hover:shadow ${meta.colorClass}`}
     >
-      <div className="mb-2 flex items-start justify-between gap-4">
+      <div className="mb-1 flex items-start justify-between gap-4">
         <h3 className="flex-1 text-lg font-semibold text-fg group-hover:text-accent">
           {note.title || 'Без названия'}
         </h3>
-        <span className="whitespace-nowrap text-sm text-muted">{formatDate(note.createdAt)}</span>
-      </div>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="flex-1 text-sm text-muted line-clamp-1">{note.content || '💭 Описание не добавлено'}</p>
-        <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="whitespace-nowrap text-sm text-muted">{formatDate(note.updatedAt ?? note.createdAt)}</span>
           <button
             onClick={(event) => {
               event.stopPropagation();
-              onEdit(note);
+              onDelete(note);
             }}
-            className="rounded-md p-1.5 text-muted transition hover:bg-white hover:text-accent hover:shadow"
-            title="Редактировать"
-          >
-            ✏️
-          </button>
-          <button
-            onClick={(event) => {
-              event.stopPropagation();
-              onDelete(note.id);
-            }}
-            className="rounded-md p-1.5 text-muted transition hover:bg-white hover:text-red-600 hover:shadow"
+            className="rounded-md p-1 text-muted transition hover:bg-card hover:text-red-600 hover:shadow"
             title="Удалить"
+            aria-label="Удалить заметку"
           >
             🗑️
           </button>
         </div>
       </div>
+      <p className="mb-2 text-sm text-muted line-clamp-2">{preview || '💭 Описание не добавлено'}</p>
       <div className="flex flex-wrap items-center gap-2 text-sm text-fg/80">
+        {isLecture ? (
+          <span className="rounded-full bg-accent-100 px-2 py-0.5 text-xs font-medium text-accent">
+            Конспект лекции
+          </span>
+        ) : null}
         {periodLabel ? (
           <span>
             {meta.icon} {periodLabel}
           </span>
         ) : null}
         {note.topicTitle ? <span>• 📚 {note.topicTitle}</span> : null}
-      </div>
-    </div>
-  );
-}
-
-function StatsPanel({ total, periods, today, week }: { total: number; periods: number; today: number; week: number }) {
-  const stats = [
-    { label: 'Всего заметок', value: total },
-    { label: 'Периодов изучено', value: periods },
-    { label: 'Создано сегодня', value: today },
-    { label: 'На этой неделе', value: week },
-  ];
-
-  return (
-    <div className="mb-6 rounded-lg border border-border bg-card p-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((item) => (
-          <div key={item.label} className="rounded-lg bg-white px-4 py-3 shadow-sm">
-            <div className="text-2xl font-bold text-fg">{item.value}</div>
-            <div className="text-sm text-muted">{item.label}</div>
-          </div>
-        ))}
       </div>
     </div>
   );

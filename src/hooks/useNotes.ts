@@ -47,6 +47,7 @@ type NoteUpdatePayload = Partial<
     | 'topicId'
     | 'topicTitle'
     | 'noteScope'
+    | 'lectureSegments'
   >
 >;
 
@@ -54,6 +55,7 @@ function mapNoteRecord(id: string, data: Record<string, any>): Note {
   const ageRange = normalizeAgeRange(data.ageRange ?? data.periodId);
   const periodId = typeof data.periodId === 'string' ? data.periodId : ageRange;
   const periodTitle = data.periodTitle ?? (ageRange ? AGE_RANGE_LABELS[ageRange] : null);
+  const createdAt: Date = data.createdAt?.toDate?.() || new Date();
 
   return {
     id,
@@ -75,8 +77,9 @@ function mapNoteRecord(id: string, data: Record<string, any>): Note {
     authorName: typeof data.authorName === 'string' ? data.authorName : null,
     topicId: data.topicId || null,
     topicTitle: data.topicTitle ?? null,
-    createdAt: data.createdAt?.toDate?.() || new Date(),
-    updatedAt: data.updatedAt?.toDate?.() || new Date(),
+    createdAt,
+    // Легаси без updatedAt: считаем «не правилась с создания», а не «только что».
+    updatedAt: data.updatedAt?.toDate?.() || createdAt,
   } as Note;
 }
 

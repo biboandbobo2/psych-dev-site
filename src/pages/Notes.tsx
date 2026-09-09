@@ -2,12 +2,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useNotes } from '../hooks/useNotes';
 import { useActiveCourse, usePublishedLessonOptions } from '../hooks';
-import { buildNotePeriodKey, normalizeAgeRange, type Note } from '../types/notes';
-import { sortNotes, type SortOption } from '../utils/sortNotes';
+import {
+  buildLectureSegmentsFromContent,
+  buildNotePeriodKey,
+  normalizeAgeRange,
+  type Note,
+} from '../types/notes';
+import { getEffectivePeriodKey, sortNotes, type SortOption } from '../utils/sortNotes';
+import { getCourseLessonPath } from '../lib/courseNavItems';
 import { NotesHeader } from './notes/components/NotesHeader';
 import { NotesList } from './notes/components/NotesList';
 import { NotesEmpty } from './notes/components/NotesEmpty';
 import { NotesEditor } from './notes/components/NotesEditor';
+import { NoteDeleteConfirm } from './notes/components/NoteDeleteConfirm';
 import { debugError } from '../lib/debug';
 import { useCourseStore } from '../stores';
 import type { CourseType } from '../types/tests';
@@ -23,9 +30,11 @@ export default function Notes() {
     const saved = window.localStorage.getItem(SORT_STORAGE_KEY) as SortOption | null;
     return saved ?? 'date-new';
   });
-  const [showStats, setShowStats] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Note | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
   const { currentCourse, setCurrentCourse } = useCourseStore();
 
   useEffect(() => {
@@ -71,7 +80,10 @@ export default function Notes() {
     return courseNotes.filter((note) => getEffectivePeriodKey(note) === selectedPeriod);
   }, [activeCourse, notes, selectedPeriod]);
 
-  const sortedNotes = useMemo(() => sortNotes(scopedNotes, sortBy), [scopedNotes, sortBy]);
+  const sortedNotes = useMemo(
+    () => sortNotes(scopedNotes, sortBy, activeLessons.map((lesson) => lesson.periodKey)),
+    [activeLessons, scopedNotes, sortBy]
+  );
 
   const displayNotes = useMemo(() => {
     if (!searchQuery.trim()) return sortedNotes;
@@ -85,25 +97,15 @@ export default function Notes() {
     });
   }, [sortedNotes, searchQuery]);
 
-  const totalNotes = scopedNotes.length;
-  const studiedPeriods = useMemo(() => {
-    const set = new Set(
-      scopedNotes
-        .map((note) => note.periodId ?? note.ageRange ?? null)
-        .filter(Boolean) as string[]
-    );
-    return set.size;
-  }, [scopedNotes]);
-
-  const createdToday = useMemo(() => {
-    const today = new Date();
-    return scopedNotes.filter((note) => isSameDay(note.createdAt, today)).length;
-  }, [scopedNotes]);
-
-  const createdThisWeek = useMemo(() => {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    return scopedNotes.filter((note) => getNoteDate(note.createdAt) >= weekAgo).length;
+  const summary = useMemo(() => {
+    if (!scopedNotes.length) return '';
+    const lessonCount = new Set(
+      scopedNotes.map(getEffectivePeriodKey).filter(Boolean) as string[]
+    ).size;
+    const notesPart = pluralize(scopedNotes.length, ['заметка', 'заметки', 'заметок']);
+    return lessonCount
+      ? `${notesPart} · ${pluralize(lessonCount, ['занятие', 'занятия', 'занятий'])}`
+      : notesPart;
   }, [scopedNotes]);
 
   const handleCreateNote = () => {
@@ -125,51 +127,62 @@ export default function Notes() {
     topicId: string | null;
     topicTitle: string | null;
   }) => {
-    try {
-      if (!data.courseId || !data.periodId || !data.periodTitle) {
-        throw new Error('Выберите курс и занятие');
-      }
+    if (!data.courseId || !data.periodId || !data.periodTitle) {
+      throw new Error('Выберите курс и занятие');
+    }
 
-      if (editingNote) {
-        await updateNote(editingNote.id, {
-          title: data.title,
-          content: data.content,
+    if (editingNote?.noteScope === 'lecture') {
+      // Конспект: курс, занятие и заголовок принадлежат лекции; правится
+      // только текст, и он же пересобирается в сегменты (иначе оверлей
+      // показал бы старые сегменты и перетёр бы правку автосейвом).
+      await updateNote(editingNote.id, {
+        content: data.content,
+        lectureSegments: buildLectureSegmentsFromContent(
+          data.content,
+          editingNote.lectureSegments ?? []
+        ),
+      });
+    } else if (editingNote) {
+      await updateNote(editingNote.id, {
+        title: data.title,
+        content: data.content,
+        courseId: data.courseId,
+        periodId: data.periodId,
+        periodTitle: data.periodTitle,
+        topicId: data.topicId,
+        topicTitle: data.topicTitle,
+        noteScope: editingNote.noteScope ?? 'manual',
+      });
+    } else {
+      await createManualNote(
+        data.title,
+        data.content,
+        {
           courseId: data.courseId,
           periodId: data.periodId,
           periodTitle: data.periodTitle,
-          topicId: data.topicId,
-          topicTitle: data.topicTitle,
-          noteScope: editingNote.noteScope ?? 'manual',
-        });
-      } else {
-        await createManualNote(
-          data.title,
-          data.content,
-          {
-            courseId: data.courseId,
-            periodId: data.periodId,
-            periodTitle: data.periodTitle,
-          },
-          data.topicId,
-          data.topicTitle
-        );
-      }
-
-      setCurrentCourse(data.courseId as CourseType);
-      setSelectedPeriod(buildNotePeriodKey(data.courseId, data.periodId));
-    } catch (err) {
-      debugError('Error saving note', err);
-      alert('Ошибка при сохранении заметки');
+        },
+        data.topicId,
+        data.topicTitle
+      );
     }
+
+    setCurrentCourse(data.courseId as CourseType);
+    setSelectedPeriod(buildNotePeriodKey(data.courseId, data.periodId));
   };
 
-  const handleDeleteNote = async (noteId: string) => {
-    if (!confirm('Удалить заметку?')) return;
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
     try {
-      await deleteNote(noteId);
+      await deleteNote(pendingDelete.id);
+      setPageError(null);
     } catch (err) {
       debugError(err);
-      alert('Ошибка при удалении заметки');
+      setPageError('Не удалось удалить заметку. Проверьте связь и попробуйте ещё раз.');
+    } finally {
+      setDeleting(false);
+      setPendingDelete(null);
     }
   };
 
@@ -205,12 +218,8 @@ export default function Notes() {
     );
   }
 
-  const stats = {
-    total: totalNotes,
-    periods: studiedPeriods,
-    today: createdToday,
-    week: createdThisWeek,
-  };
+  const lectureLessonPath =
+    editingNote?.noteScope === 'lecture' ? buildLectureLaunchPath(editingNote) : null;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -223,11 +232,22 @@ export default function Notes() {
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         onClearSearch={() => setSearchQuery('')}
-        showStats={showStats}
-        onToggleStats={() => setShowStats((prev) => !prev)}
         onCreate={handleCreateNote}
         notesForExport={displayNotes}
+        summary={summary}
       />
+
+      {pageError ? (
+        <div
+          role="alert"
+          className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700"
+        >
+          <span>{pageError}</span>
+          <button onClick={() => setPageError(null)} aria-label="Скрыть сообщение" className="text-red-700/70 hover:text-red-700">
+            ✕
+          </button>
+        </div>
+      ) : null}
 
       {displayNotes.length === 0 ? (
         <NotesEmpty
@@ -237,18 +257,20 @@ export default function Notes() {
           onCreate={handleCreateNote}
         />
       ) : (
-        <NotesList
-          notes={displayNotes}
-          showStats={showStats}
-          stats={stats}
-          onEdit={handleEditNote}
-          onDelete={handleDeleteNote}
-        />
+        <NotesList notes={displayNotes} onEdit={handleEditNote} onDelete={setPendingDelete} />
       )}
+
+      <NoteDeleteConfirm
+        note={pendingDelete}
+        deleting={deleting}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={handleConfirmDelete}
+      />
 
       <NotesEditor
         isOpen={isModalOpen}
         editingNote={editingNote}
+        lectureLessonPath={lectureLessonPath}
         defaultCourseId={activeCourse}
         defaultPeriodId={selectedLesson?.periodId ?? null}
         defaultPeriodTitle={selectedLesson?.periodTitle ?? null}
@@ -275,29 +297,32 @@ function isNoteInCourse(note: Note, courseId: string) {
   return false;
 }
 
-function getEffectivePeriodKey(note: Note) {
-  if (note.periodKey) {
-    return note.periodKey;
-  }
-
-  const fallbackCourseId = note.courseId ?? 'development';
-  const fallbackPeriodId = note.periodId ?? note.ageRange ?? null;
-  if (!fallbackPeriodId) {
+/**
+ * Deep-link на страницу занятия с автооткрытием режима конспекта — тот же
+ * контракт `?study=1&panel=notes&video=`, что у «Продолжить» (courseVideoResume).
+ */
+function buildLectureLaunchPath(note: Note): string | null {
+  if (!note.courseId || !note.periodId) {
     return null;
   }
 
-  return buildNotePeriodKey(fallbackCourseId, fallbackPeriodId);
+  const lessonPath = getCourseLessonPath(note.courseId, note.periodId);
+  if (!note.lectureVideoId) {
+    return lessonPath;
+  }
+
+  const params = new URLSearchParams({ study: '1', panel: 'notes', video: note.lectureVideoId });
+  return `${lessonPath}?${params.toString()}`;
 }
 
-function getNoteDate(date: Date | string): Date {
-  return date instanceof Date ? date : new Date(date);
-}
-
-function isSameDay(dateA: Date | string, dateB: Date): boolean {
-  const a = getNoteDate(dateA);
-  return (
-    a.getFullYear() === dateB.getFullYear() &&
-    a.getMonth() === dateB.getMonth() &&
-    a.getDate() === dateB.getDate()
-  );
+function pluralize(count: number, [one, few, many]: [string, string, string]): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  const word =
+    mod10 === 1 && mod100 !== 11
+      ? one
+      : mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)
+      ? few
+      : many;
+  return `${count} ${word}`;
 }

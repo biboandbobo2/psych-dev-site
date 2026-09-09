@@ -1,67 +1,50 @@
-import { type Note, type AgeRange, AGE_RANGE_ORDER, normalizeAgeRange } from '../types/notes';
+import { buildNotePeriodKey, type Note } from '../types/notes';
 
 export type SortOption = 'date-new' | 'date-old' | 'period';
 
-// Lazy initialization to avoid "Cannot access uninitialized variable" in production
-let PERIOD_PRIORITY: Record<AgeRange, number> | null = null;
-
-function getPeriodPriority(): Record<AgeRange, number> {
-  if (!PERIOD_PRIORITY) {
-    PERIOD_PRIORITY = AGE_RANGE_ORDER.reduce<Record<AgeRange, number>>((acc, key, index) => {
-      acc[key] = index;
-      return acc;
-    }, {} as Record<AgeRange, number>);
-  }
-  return PERIOD_PRIORITY;
-}
-
-const getDate = (value: Date | undefined): number => {
+const getDate = (value: Date | string | undefined): number => {
   if (!value) return 0;
   return value instanceof Date ? value.getTime() : new Date(value).getTime();
 };
 
-const compareDateDesc = (a: Note, b: Note) => getDate(b.createdAt) - getDate(a.createdAt);
-const compareDateAsc = (a: Note, b: Note) => getDate(a.createdAt) - getDate(b.createdAt);
+/** Дата последней правки: конспект живёт неделями, «свежесть» — это updatedAt. */
+const noteTime = (note: Note) => getDate(note.updatedAt ?? note.createdAt);
 
-const getPeriodKey = (note: Note): AgeRange | null =>
-  normalizeAgeRange(note.ageRange ?? note.periodId ?? null);
+const compareDateDesc = (a: Note, b: Note) => noteTime(b) - noteTime(a);
+const compareDateAsc = (a: Note, b: Note) => noteTime(a) - noteTime(b);
 
-const getPeriodLabel = (note: Note): string =>
-  String(note.periodTitle || note.title || note.periodId || '').trim().toLowerCase();
+/** Ключ занятия `courseId::periodId`; для легаси-заметок без periodKey собирается из полей. */
+export function getEffectivePeriodKey(note: Note): string | null {
+  if (note.periodKey) {
+    return note.periodKey;
+  }
 
-export function sortNotes(notes: Note[], sortBy: SortOption): Note[] {
+  const fallbackPeriodId = note.periodId ?? note.ageRange ?? null;
+  if (!fallbackPeriodId) {
+    return null;
+  }
+
+  return buildNotePeriodKey(note.courseId ?? 'development', fallbackPeriodId);
+}
+
+/**
+ * @param lessonOrder periodKey занятий в порядке курса — для режима «По занятиям».
+ * Заметки без занятия или с неизвестным занятием уходят в конец.
+ */
+export function sortNotes(notes: Note[], sortBy: SortOption, lessonOrder: string[] = []): Note[] {
   const copy = [...notes];
 
   switch (sortBy) {
     case 'date-old':
       return copy.sort(compareDateAsc);
-    case 'period':
-      return copy.sort((a, b) => {
-        const periodA = getPeriodKey(a);
-        const periodB = getPeriodKey(b);
-
-        if (!periodA && !periodB) {
-          return compareDateDesc(a, b);
-        }
-
-        if (!periodA) return 1;
-        if (!periodB) return -1;
-
-        const priority = getPeriodPriority();
-        const indexA = priority[periodA] ?? Number.POSITIVE_INFINITY;
-        const indexB = priority[periodB] ?? Number.POSITIVE_INFINITY;
-
-        if (indexA !== indexB) {
-          return indexA - indexB;
-        }
-
-        const labelCompare = getPeriodLabel(a).localeCompare(getPeriodLabel(b), 'ru');
-        if (labelCompare !== 0) {
-          return labelCompare;
-        }
-
-        return compareDateDesc(a, b);
-      });
+    case 'period': {
+      const rank = new Map(lessonOrder.map((key, index) => [key, index]));
+      const rankOf = (note: Note) => {
+        const key = getEffectivePeriodKey(note);
+        return key !== null ? rank.get(key) ?? Number.POSITIVE_INFINITY : Number.POSITIVE_INFINITY;
+      };
+      return copy.sort((a, b) => rankOf(a) - rankOf(b) || compareDateDesc(a, b));
+    }
     case 'date-new':
     default:
       return copy.sort(compareDateDesc);

@@ -1,5 +1,10 @@
 import { useMemo } from 'react';
 import { usePublishedLessonOptions } from '../hooks';
+import { SELECT_CHEVRON_CLASS, SELECT_CHEVRON_STYLE } from './ui/selectChevron';
+
+/** Общий вид полей формы заметки (селекты, инпут, textarea). */
+export const NOTE_FIELD_CLASS =
+  'w-full rounded-md border border-border bg-card px-4 py-2 text-fg focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:opacity-60';
 
 interface NoteContextSelectorProps {
   selectedCourseId: string | null;
@@ -26,15 +31,19 @@ export function NoteContextSelector({
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <div>
-        <label className="mb-2 block text-sm font-medium text-gray-700">Курс</label>
+        <label htmlFor="note-course" className="mb-2 block text-sm font-medium text-fg">
+          Курс
+        </label>
         <select
+          id="note-course"
           value={selectedCourseId ?? ''}
           onChange={(event) => {
             const nextCourseId = event.target.value || null;
             onCourseChange(nextCourseId);
             onPeriodChange(null, null);
           }}
-          className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`${NOTE_FIELD_CLASS} ${SELECT_CHEVRON_CLASS}`}
+          style={SELECT_CHEVRON_STYLE}
           disabled={saving}
         >
           <option value="">Выберите курс</option>
@@ -47,15 +56,19 @@ export function NoteContextSelector({
       </div>
 
       <div>
-        <label className="mb-2 block text-sm font-medium text-gray-700">Занятие</label>
+        <label htmlFor="note-period" className="mb-2 block text-sm font-medium text-fg">
+          Занятие
+        </label>
         <select
+          id="note-period"
           value={selectedPeriodId ?? ''}
           onChange={(event) => {
             const periodId = event.target.value || null;
             const selectedLesson = selectedLessons.find((lesson) => lesson.periodId === periodId) ?? null;
             onPeriodChange(periodId, selectedLesson?.periodTitle ?? null);
           }}
-          className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`${NOTE_FIELD_CLASS} ${SELECT_CHEVRON_CLASS}`}
+          style={SELECT_CHEVRON_STYLE}
           disabled={saving || !selectedCourseId}
         >
           <option value="">{selectedCourseId ? 'Выберите занятие' : 'Сначала выберите курс'}</option>

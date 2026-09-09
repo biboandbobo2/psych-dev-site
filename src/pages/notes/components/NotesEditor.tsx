@@ -4,6 +4,8 @@ import type { Note } from '../../../types/notes';
 interface NotesEditorProps {
   isOpen: boolean;
   editingNote: Note | null;
+  /** Deep-link в режим конспекта для lecture-заметки; null — заметка не lecture или путь неизвестен. */
+  lectureLessonPath: string | null;
   defaultCourseId: string | null;
   defaultPeriodId: string | null;
   defaultPeriodTitle: string | null;
@@ -22,6 +24,7 @@ interface NotesEditorProps {
 export function NotesEditor({
   isOpen,
   editingNote,
+  lectureLessonPath,
   defaultCourseId,
   defaultPeriodId,
   defaultPeriodTitle,
@@ -32,6 +35,7 @@ export function NotesEditor({
     <NoteModal
       isOpen={isOpen}
       noteId={editingNote?.id}
+      lecture={editingNote?.noteScope === 'lecture' ? { lessonPath: lectureLessonPath } : null}
       initialTitle={editingNote?.title}
       initialContent={editingNote?.content}
       initialCourseId={editingNote?.courseId ?? defaultCourseId}

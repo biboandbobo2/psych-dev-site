@@ -28,6 +28,12 @@ function getCourseLessonBasePath(courseId: string): string {
   return `/course/${courseId}/`;
 }
 
+/** Путь страницы занятия: статический маршрут core-курса либо `<base>/<periodId>`. */
+export function getCourseLessonPath(courseId: string, periodId: string): string {
+  const staticRoute = getCourseRoutes(courseId).find((route) => route.periodId === periodId);
+  return staticRoute?.path ?? `${getCourseLessonBasePath(courseId)}${encodeURIComponent(periodId)}`;
+}
+
 function sortNavItemsWithRouteFallback<T extends CourseNavItem>(
   routes: Array<{ path: string }>,
   items: T[]
