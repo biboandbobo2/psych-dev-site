@@ -620,6 +620,19 @@ describe('per-uid ограничения уважаются (без catch-all ov
     const db = testEnv.authenticatedContext('mallory').firestore();
     await assertFails(getDoc(doc(db, 'aiUsageDaily', 'alice_2026-01-01')));
   });
+
+  // useByokUsage подписывается на документ текущего дня до первого AI-запроса:
+  // правило не должно падать на resource == null (в эмуляторе такой сбой
+  // рвал весь Listen-канал, audit-backlog NT-1).
+  it('обычный пользователь: get своего несуществующего aiUsageDaily (день без запросов) → success', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(getDoc(doc(db, 'aiUsageDaily', 'alice_2026-02-02')));
+  });
+
+  it('другой пользователь: get чужого несуществующего aiUsageDaily → denied', async () => {
+    const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(getDoc(doc(db, 'aiUsageDaily', 'alice_2026-02-02')));
+  });
 });
 
 describe('публичные коллекции остаются публичными', () => {

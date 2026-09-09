@@ -353,8 +353,14 @@ service cloud.firestore {
 
     // BYOK usage счётчик (волна 6). Документ ID = `${uid}_${day}`, где день в UTC.
     // Read — только сам пользователь. Write — только server-side (admin SDK обходит rules).
+    // resource == null обязателен: клиент подписывается (onSnapshot) на документ
+    // текущего дня, которого до первого AI-запроса нет. Без guard'а правило
+    // падает с «Null value error» — в эмуляторе это рвёт Listen-канал целиком
+    // (audit-backlog NT-1). Владение несуществующим доком — по префиксу id.
     match /aiUsageDaily/{docId} {
-      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow read: if isAuthenticated()
+        && docId.split('_')[0] == request.auth.uid
+        && (resource == null || resource.data.uid == request.auth.uid);
       allow write: if false;
     }
 
