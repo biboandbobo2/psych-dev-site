@@ -17,7 +17,7 @@
 .ico-brand { display:flex; align-items:center; gap:12px; font:26px/1 Georgia,serif; letter-spacing:-.025em; white-space:nowrap; }
 .ico-brand small { display:block; font:9px/1.3 'Manrope',sans-serif; text-transform:uppercase; letter-spacing:.16em; margin-top:9px; }
 .ico-brand-mark { display:grid; place-items:center; border:1px solid #727768; width:39px; height:46px; border-radius:21px 21px 0 0; font:italic 32px Georgia,serif; }
-.ico-header nav { display:flex; gap:30px; font-size:13px; }
+.ico-header nav { display:flex; flex-wrap:nowrap; gap:30px; font-size:13px; white-space:nowrap; }
 .ico-header nav a { padding:10px 0; border-bottom:1px solid transparent; }
 .ico-header nav a.active,.ico-header nav a:hover { border-bottom-color:var(--ico-green); }
 .ico-header-support { font-size:12px; white-space:nowrap; }
@@ -82,9 +82,9 @@
 .iconography input:not([type=radio]):not([type=range]),.iconography select,.iconography textarea { display:block; width:100%; color:var(--ico-ink); background:transparent; border:1px solid #bdbfb3; border-radius:2px; min-height:47px; padding:11px 13px; margin:8px 0; font-size:14px; }
 .iconography textarea { resize:vertical; }
 .iconography select { text-overflow:ellipsis; }
-.ico-filters { display:flex; gap:20px; margin:40px 0 20px; }
-.ico-filters label { flex:1; min-width:0; }
-.ico-filters .ico-search { flex:2; }
+.ico-filters { display:flex; flex-wrap:wrap; gap:20px; margin:40px 0 20px; }
+.ico-filters label { flex:1 1 170px; min-width:0; }
+.ico-filters .ico-search { flex:2 1 260px; }
 .ico-results { display:flex; justify-content:space-between; gap:20px; margin-bottom:26px; color:var(--ico-muted); font-size:11px; }
 .ico-results p { margin:0; }
 .ico-pagination { display:flex; align-items:center; justify-content:center; gap:35px; margin-top:40px; }
@@ -136,6 +136,9 @@
 .ico-iconostasis>button.active { border:2px solid #4e5940; background:#dfe4cf; }
 .ico-arches { display:flex; justify-content:space-around; gap:8px; margin:0 0 5px; }
 .ico-arches>span { display:block; width:35px; height:45px; border:1px solid #aa9461; border-radius:20px 20px 0 0; background:linear-gradient(#d7c9a4,#e7dbb9); }
+.ico-row-icons { margin:0 0 28px; }
+.ico-row-icons ul { list-style:none; padding:0; margin:10px 0 0; display:flex; flex-wrap:wrap; gap:2px 22px; }
+.ico-row-icons li { margin:0; }
 .ico-gates { display:flex; justify-content:center; gap:25px; text-align:center; font-size:10px; margin-top:15px; }
 .ico-feast-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:30px; margin:30px 0; }
 .ico-feast-grid article { border-top:1px solid var(--ico-line); padding-top:15px; }
@@ -198,8 +201,8 @@
   .ico-passport-art .ico-artwork { height:500px; }.ico-question { gap:30px; }.ico-question-art .ico-artwork { height:470px; }
 }
 @media(max-width:700px) {
-  .iconography h1 { font-size:43px; }.iconography h2 { font-size:32px; }.ico-header { flex-wrap:wrap; padding:20px 6% 0; gap:18px; }
-  .ico-brand { font-size:25px; }.ico-header nav { width:100%; justify-content:space-between; gap:12px; padding:0 0 5px; font-size:11px; }
+  .iconography h1 { font-size:43px; }.iconography h2 { font-size:32px; }.iconography .ico-header.ico-header { flex-wrap:wrap; padding:16px 6% 0; gap:14px; }
+  .ico-brand { font-size:25px; }.iconography .ico-header.ico-header nav { width:100%; justify-content:space-between; gap:10px; padding:0 0 6px; font-size:11px; }
   .ico-header nav a { min-height:44px; display:flex; align-items:center; }.ico-hero { grid-template-columns:1fr; }
   .ico-hero-copy { padding:30px 7% 25px; }.ico-hero-copy h1 { font-size:58px; margin:18px 0 20px; }
   .ico-hero-copy .ico-actions { gap:12px; flex-wrap:nowrap; }.ico-hero-copy .ico-button { padding:13px; gap:12px; font-size:11px!important; }.ico-hero-copy .ico-link { font-size:10px; white-space:nowrap; }
@@ -213,7 +216,7 @@
   .ico-daily { grid-template-columns:1fr; padding:35px 6%; gap:30px; }.ico-daily-art .ico-artwork { height:330px; }
   .ico-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px 14px; }.ico-card .ico-artwork { height:235px; padding:12px; }.ico-card h3 { font-size:23px; }
   .ico-card .ico-eyebrow { font-size:8px; letter-spacing:.04em; }.ico-card-caption>p:last-child { font-size:10px; }
-  .ico-filters { flex-wrap:wrap; gap:15px; }.ico-filters .ico-search { flex:1 1 100%; }.ico-results { flex-direction:column; gap:10px; }
+  .ico-filters { gap:15px; }.ico-filters label { flex:1 1 140px; }.ico-filters .ico-search { flex:1 1 100%; }.ico-results { flex-direction:column; gap:10px; }
   .ico-lead { font-size:15px; }.ico-passport { grid-template-columns:1fr; margin-top:25px; gap:20px; }.ico-passport-art { position:static; }.ico-passport-art .ico-artwork { height:480px; }
   .ico-passport h1 { font-size:42px; }.ico-facts>div { grid-template-columns:1fr 1.6fr; }.ico-clue { gap:15px; }.ico-clue h3 { font-size:25px; }
   .ico-sources { overflow-wrap:anywhere; }.ico-compare,.ico-compare-selects { gap:16px; }.ico-compare .ico-artwork { height:260px; padding:10px; }.ico-compare h2 { font-size:25px; }
@@ -226,5 +229,6 @@
   .ico-question-body h1 { font-size:30px; }.ico-quiz-top .ico-link { font-size:10px; }.ico-support-countries { grid-template-columns:1fr; }.ico-footer { flex-wrap:wrap; padding:40px 6%; }
   .ico-footer>p { width:100%; }.ico-zoom { width:98vw; height:96dvh; max-height:96dvh; padding:10px; }.ico-zoom-toolbar { gap:5px; }.ico-zoom-toolbar label { font-size:0; }.ico-zoom-toolbar input { width:65px; }
 }
+@media(max-width:400px) { .iconography .ico-header.ico-header nav { gap:6px; font-size:10px; } }
 @media(max-width:380px) { .ico-feast-grid { grid-template-columns:1fr; } }
 @media(prefers-reduced-motion:reduce) { .iconography * { transition:none!important; scroll-behavior:auto!important; } }

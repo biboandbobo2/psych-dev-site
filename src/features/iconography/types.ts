@@ -1,4 +1,5 @@
-export type Topic = 'subject' | 'people' | 'type' | 'mary' | 'attribute' | 'feast' | 'tradition' | 'period' | 'attribution' | 'museum' | 'iconostasis';
+/** Только визуальные темы плюс два текстовых занятия-путеводителя (feast, iconostasis). */
+export type Topic = 'subject' | 'people' | 'type' | 'mary' | 'attribute' | 'feast' | 'iconostasis';
 export type Difficulty = 'beginner' | 'explorer' | 'expert';
 export interface Source { label: string; url: string }
 export interface IconSummary {
@@ -42,6 +43,8 @@ export interface Question {
   distractors: string[];
   hint: string;
   explanation: string;
+  /** Почему каждый дистрактор не подходит именно к этому изображению. Ключ — текст дистрактора. */
+  rationale?: Record<string, string>;
   source?: Source;
 }
 export interface Progress { difficult: string[]; answered: number; correct: number }

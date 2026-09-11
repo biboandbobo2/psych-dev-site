@@ -1,53 +1,180 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { readFileSync } from 'node:fs';
 import type { IconRecord, IconSummary } from '../types';
+import { subjectOptions, traditionGroup, traditionOptions } from '../lib/catalog';
 import { Catalog } from './Catalog';
 import { BackLink } from './BackLink';
 import { PassportFacts } from './Passport';
 import { Learn } from './Learn';
+
 const icons: IconSummary[] = JSON.parse(readFileSync('public/iconography/catalog.json', 'utf8'));
-function Location() { const location = useLocation(); return <output data-testid="location">{location.pathname}{location.search}{location.hash}</output>; }
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
-describe('catalogue and reading navigation', () => {
-  it('returns to the same filters, page and icon after opening a result', () => {
+const readRecord = (id: string): IconRecord => JSON.parse(readFileSync(`public/iconography/records/${id}.json`, 'utf8'));
+
+function Location() {
+  const location = useLocation();
+  return <output data-testid="location">{location.pathname}{location.search}{location.hash}</output>;
+}
+
+/** jsdom не реализует scrollIntoView — подменяем и запоминаем, к какой карточке прокрутили. */
+function trackScroll() {
+  const scrolled: string[] = [];
+  Element.prototype.scrollIntoView = vi.fn(function scrollIntoView(this: Element) { scrolled.push(this.id); });
+  return scrolled;
+}
+
+function renderCatalog(entry: string) {
+  return render(<MemoryRouter initialEntries={[entry]}><Location /><Routes>
+    <Route path="/iconography/catalog" element={<Catalog icons={icons} />} />
+    <Route path="/iconography/icon/:id" element={<BackLink />} />
+  </Routes></MemoryRouter>);
+}
+
+const cardTitles = () => screen.getAllByRole('heading', { level: 3 }).map((x) => x.textContent);
+// <output> в Location тоже имеет роль status, поэтому счётчик ищем по тексту.
+const found = () => screen.getByText(/^Найдено: /).textContent;
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+});
+
+describe('возврат из паспорта в каталог', () => {
+  it('восстанавливает фильтры, страницу и прокручивает к открытой карточке', async () => {
+    const scrolled = trackScroll();
     const start = '/iconography/catalog?tradition=Русская&page=2';
-    render(<MemoryRouter initialEntries={[start]}><Location /><Routes>
-      <Route path="/iconography/catalog" element={<Catalog icons={icons} />} />
-      <Route path="/iconography/icon/:id" element={<BackLink />} />
-    </Routes></MemoryRouter>);
+    renderCatalog(start);
+
     const card = screen.getAllByRole('link').find((x) => x.getAttribute('href')?.includes('/icon/'))!;
-    const id = card.getAttribute('href')!.split('/').at(-1);
+    const id = card.getAttribute('href')!.split('/').at(-1)!;
     fireEvent.click(card);
     fireEvent.click(screen.getByRole('link', { name: 'Назад к коллекции' }));
+
     expect(screen.getByTestId('location')).toHaveTextContent(`${start}#${id}`);
     expect(screen.getByRole('combobox', { name: 'Традиция' })).toHaveValue('Русская');
+    await waitFor(() => expect(scrolled).toContain(id));
   });
-  it('uses the catalogue for a direct entry and rejects an external return destination', () => {
-    render(<MemoryRouter initialEntries={[{ pathname: '/iconography/icon/ru-6226762', state: { returnTo: 'https://example.com', returnLabel: 'Outside' } }]}><BackLink /></MemoryRouter>);
+
+  it('не прокручивает каталог, если открыт без якоря', async () => {
+    const scrolled = trackScroll();
+    renderCatalog('/iconography/catalog');
+    await waitFor(() => expect(screen.getAllByRole('heading', { level: 3 }).length).toBeGreaterThan(0));
+    expect(scrolled).toEqual([]);
+  });
+
+  it('использует каталог при прямом входе и отклоняет внешний адрес возврата', () => {
+    render(<MemoryRouter initialEntries={[{ pathname: '/iconography/icon/ru-6226762', state: { returnTo: 'https://example.com', returnLabel: 'Outside' } }]}>
+      <BackLink />
+    </MemoryRouter>);
     expect(screen.getByRole('link', { name: 'Назад к коллекции' })).toHaveAttribute('href', '/iconography/catalog');
   });
-  it('links an attributed school and returns from it to the same icon', () => {
-    const icon: IconRecord = JSON.parse(readFileSync('public/iconography/records/ru-35409809.json', 'utf8'));
+});
+
+describe('фильтры и порядок каталога', () => {
+  it('предлагает четыре группы традиций и считает византийские записи вместе', () => {
+    renderCatalog('/iconography/catalog');
+    const select = screen.getByRole('combobox', { name: 'Традиция' });
+    const options = within(select).getAllByRole('option').map((x) => x.textContent);
+    expect(options).toHaveLength(traditionOptions(icons).length + 1);
+    expect(options[0]).toBe('Все традиции');
+
+    const byzantine = icons.filter((x) => traditionGroup(x.tradition) === 'Византийская');
+    expect(byzantine.some((x) => x.tradition !== 'Византийская')).toBe(true);
+    fireEvent.change(select, { target: { value: 'Византийская' } });
+    expect(found()).toBe(`Найдено: ${byzantine.length}`);
+  });
+
+  it('отбирает коллекцию по сюжету и сохраняет выбор в адресе', () => {
+    renderCatalog('/iconography/catalog');
+    const biggest = [...subjectOptions(icons)].sort((a, b) => b.count - a.count)[0];
+    fireEvent.change(screen.getByRole('combobox', { name: 'Сюжет' }), { target: { value: biggest.value } });
+    expect(found()).toBe(`Найдено: ${biggest.count}`);
+    expect(screen.getByTestId('location')).toHaveTextContent(`subject=${encodeURIComponent(biggest.value)}`);
+  });
+
+  it('показывает века римскими цифрами', () => {
+    renderCatalog('/iconography/catalog');
+    const options = within(screen.getByRole('combobox', { name: 'Век' })).getAllByRole('option').map((x) => x.textContent);
+    expect(options[0]).toBe('Все периоды');
+    for (const option of options.slice(1)) expect(option).toMatch(/^[IVX]+ век$/);
+  });
+
+  it('идёт по векам по умолчанию и переключается на порядок по названию', () => {
+    renderCatalog('/iconography/catalog');
+    const earliest = Math.min(...icons.map((x) => x.centuries[0] ?? Number.MAX_SAFE_INTEGER));
+    const opened = icons.find((x) => x.title === cardTitles()[0])!;
+    expect(opened.centuries[0]).toBe(earliest);
+
+    const order = screen.getByRole('combobox', { name: 'Порядок' });
+    expect(order).toHaveValue('century');
+    fireEvent.change(order, { target: { value: 'title' } });
+
+    const alphabetical = [...icons].sort((a, b) => a.title.localeCompare(b.title, 'ru'))[0].title;
+    expect(cardTitles()[0]).toBe(alphabetical);
+    expect(screen.getByTestId('location')).toHaveTextContent('sort=title');
+  });
+
+  it('ставит совпадение в названии выше совпадения в тегах и персонажах', () => {
+    renderCatalog('/iconography/catalog');
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Поиск' }), { target: { value: 'Пётр' } });
+    const shown = cardTitles();
+    const byTitle = shown.filter((title) => title!.includes('Пётр'));
+    expect(byTitle.length).toBeGreaterThan(0);
+    expect(byTitle.length).toBeLessThan(shown.length);
+    // Совпадения в названии идут раньше совпадений в персонажах и тегах.
+    expect(shown.slice(0, byTitle.length)).toEqual(byTitle);
+  });
+});
+
+describe('паспорт и школы', () => {
+  it('связывает регион со школой и возвращает со школы к той же иконе', () => {
+    const icon = readRecord('ru-35409809');
     render(<MemoryRouter initialEntries={['/iconography/icon/ru-35409809']}><Location /><Routes>
       <Route path="/iconography/icon/:id" element={<PassportFacts icon={icon} />} />
       <Route path="/iconography/schools/:id" element={<BackLink />} />
     </Routes></MemoryRouter>);
-    fireEvent.click(screen.getByRole('link', { name: 'Псков' }));
-    expect(screen.getByTestId('location')).toHaveTextContent('/iconography/schools/pskov');
+
+    fireEvent.click(screen.getByRole('link', { name: icon.region }));
+    expect(screen.getByTestId('location')).toHaveTextContent(`/iconography/schools/${icon.schoolId}`);
     fireEvent.click(screen.getByRole('link', { name: 'Назад к иконе' }));
     expect(screen.getByTestId('location')).toHaveTextContent('/iconography/icon/ru-35409809');
   });
-  it('reveals a church example, then changes question and image without carrying over the answer', () => {
+
+  it('скрывает строки фактов со значением-заглушкой', () => {
+    const icon = { ...readRecord('ru-35409809'), inventory: 'Не указан в доступном источнике', museum: 'Государственный Эрмитаж' };
+    render(<MemoryRouter><PassportFacts icon={icon} /></MemoryRouter>);
+    expect(screen.queryByText('Инвентарный номер')).not.toBeInTheDocument();
+    expect(screen.getByText('Собрание')).toBeInTheDocument();
+    expect(screen.getByText('Государственный Эрмитаж')).toBeInTheDocument();
+  });
+});
+
+describe('маршрут перед поездкой', () => {
+  it('меняет вопрос и изображение без переноса ответа', () => {
     render(<MemoryRouter><Learn icons={icons} /></MemoryRouter>);
     expect(screen.getByRole('img').getAttribute('src')).toContain('ru-95156246');
     fireEvent.click(screen.getByRole('button', { name: 'Показать объяснение' }));
-    expect(screen.getByText(/Когда видите несколько фигур/)).toBeInTheDocument();
+    expect(document.querySelector('.ico-trip-answer')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
-    expect(screen.queryByText(/Когда видите несколько фигур/)).not.toBeInTheDocument();
+    expect(document.querySelector('.ico-trip-answer')).not.toBeInTheDocument();
     expect(screen.getByRole('img').getAttribute('src')).toContain('ru-95156254');
     expect(screen.getByRole('button', { name: 'Показать объяснение' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Праотеческий ряд' })).not.toBeInTheDocument();
+  });
+
+  it('показывает иконы выбранного ряда и молчит о ряде без примеров', () => {
+    render(<MemoryRouter><Learn icons={icons} /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: /Деисусный ряд/ }));
+    const block = screen.getByText('Иконы этого ряда в коллекции').parentElement!;
+    expect(within(block).getAllByRole('link').map((x) => x.getAttribute('href')))
+      .toEqual(['/iconography/icon/ru-95156246', '/iconography/icon/ru-95156254']);
+
+    fireEvent.click(screen.getByRole('button', { name: /Праздничный ряд/ }));
+    const feast = screen.getByText('Иконы этого ряда в коллекции').parentElement!;
+    expect(within(feast).getAllByRole('link').length).toBeGreaterThan(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /Пророческий ряд/ }));
+    expect(screen.queryByText('Иконы этого ряда в коллекции')).not.toBeInTheDocument();
   });
 });
