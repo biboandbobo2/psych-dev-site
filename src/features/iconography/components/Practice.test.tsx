@@ -107,11 +107,13 @@ describe('занятия практики', () => {
     expect(screen.getByText('Святые и персонажи')).toBeInTheDocument();
   });
 
-  it('честно говорит, что у новой темы вопросов пока нет', async () => {
-    render(<MemoryRouter initialEntries={['/iconography/practice?topic=material']}><Practice icons={icons} /></MemoryRouter>);
+  // Пустой каталог вместо реального: сколько вопросов размечено темой сегодня — дело контента, не кода.
+  it('честно говорит, что у темы без вопросов нет заданий', async () => {
+    render(<MemoryRouter initialEntries={['/iconography/practice?topic=material']}><Practice icons={[]} /></MemoryRouter>);
     expect(screen.getByRole('radio', { name: /Материал и техника/ })).toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: 'Начать занятие' }));
     expect(await screen.findByRole('heading', { name: 'Вопросов по этой теме пока нет' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Выбрать тему' })).toBeInTheDocument();
   });
 
   it('учит иконостасу, не загружая ни одной репродукции', async () => {
