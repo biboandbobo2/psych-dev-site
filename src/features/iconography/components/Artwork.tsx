@@ -45,7 +45,8 @@ export function Artwork({ icon, priority = false, alt, zoom = false, detail, siz
       : <div className={artworkClass}>{picture}</div>}
     {/* Подпись только там, где картинка занимает большой слот: в карточках каталога это был бы шум. */}
     {zoom && small && <p className="ico-small ico-artwork-note">Небольшая репродукция: показана в натуральную величину.</p>}
-    {zoom && <dialog ref={dialog} onClose={() => setZoomOpen(false)} className="ico-zoom" aria-label="Просмотр изображения с увеличением"
+    {zoom && <dialog ref={dialog} onClose={() => setZoomOpen(false)} className="ico-zoom" role="dialog" aria-modal="true"
+      aria-label={`Просмотр изображения с увеличением: ${icon.title}`}
       onClick={(event) => { if (event.target === dialog.current) dialog.current?.close(); }}>
       <div className="ico-zoom-toolbar">
         <button onClick={() => changeScale(Math.max(1, scale - .5))} disabled={scale === 1} aria-label="Уменьшить">−</button>
@@ -54,7 +55,8 @@ export function Artwork({ icon, priority = false, alt, zoom = false, detail, siz
         <button onClick={() => changeScale(Math.min(4, scale + .5))} disabled={scale === 4} aria-label="Увеличить">+</button>
         <button onClick={() => dialog.current?.close()} autoFocus>Закрыть ×</button>
       </div>
-      <p className="ico-zoom-help">Прокручивайте изображение пальцем или стрелками. Escape — закрыть.</p>
+      {/* Подсказка про Escape — только там, где есть клавиатура: на телефоне она сбивает с толку. */}
+      <p className="ico-zoom-help">Прокручивайте изображение пальцем или стрелками.<span className="ico-zoom-keys"> Escape — закрыть.</span></p>
       <div ref={pan} className="ico-zoom-pan" tabIndex={0} role="region" aria-label="Область прокрутки изображения">
         {zoomOpen && <img src={imageUrl(icon.id, largest)} alt={description}
           style={{ width: `${scale * 100}%`, height: `${scale * 100}%`, maxWidth: 'none', maxHeight: 'none' }} />}

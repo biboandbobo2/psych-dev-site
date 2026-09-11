@@ -9,11 +9,18 @@ export interface CatalogFilterValues {
   order: CatalogOrder;
 }
 
-export function CatalogFilters({ icons, values, onChange }: {
+export function CatalogFilters({ icons, subjectIcons, values, onChange }: {
   icons: IconSummary[];
+  /** Срез по традиции и веку: счётчики сюжетов должны совпадать с тем, что реально найдётся. */
+  subjectIcons: IconSummary[];
   values: CatalogFilterValues;
   onChange: (name: string, value: string) => void;
 }) {
+  const subjects = subjectOptions(subjectIcons);
+  // Выбранный сюжет мог исчезнуть из среза: оставляем его в списке, иначе select потеряет значение.
+  const withSelected = values.subject && !subjects.some((option) => option.value === values.subject)
+    ? [{ value: values.subject, count: 0 }, ...subjects]
+    : subjects;
   return (
     <div className="ico-filters">
       <label className="ico-search">
@@ -30,7 +37,7 @@ export function CatalogFilters({ icons, values, onChange }: {
         Сюжет
         <select value={values.subject} onChange={(event) => onChange('subject', event.target.value)}>
           <option value="">Все сюжеты</option>
-          {subjectOptions(icons).map((option) => (
+          {withSelected.map((option) => (
             <option key={option.value} value={option.value}>{option.value} ({option.count})</option>
           ))}
         </select>

@@ -82,10 +82,14 @@ export function Catalog({ icons }: { icons: IconSummary[] }) {
       <h1>Коллекция</h1>
       <CatalogFilters
         icons={icons}
+        subjectIcons={searchIcons(icons, '', tradition, century, '')}
         values={{ query, tradition: tradition ? traditionGroup(tradition) : '', century, subject, order }}
         onChange={setFilter}
       />
-      <div className="ico-results"><p role="status">Найдено: {filtered.length}</p></div>
+      <div className="ico-results">
+        <p role="status">Найдено: {filtered.length}</p>
+        <Link className="ico-link" to="/iconography/schools">Статьи о школах и традициях</Link>
+      </div>
 
       {filtered.length ? (
         <div className="ico-grid">

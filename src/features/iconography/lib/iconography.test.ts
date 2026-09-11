@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { IconRecord, IconSummary } from '../types';
-import { dailyIcon, loadIcon, searchIcons } from './catalog';
+import { dailyIcon, loadIcon, MISSING, searchIcons } from './catalog';
 import { readProgress, recordAnswer } from './progress';
-import { difficulties, optionsFor } from './quiz';
+import { counted, plural } from './format';
+import { difficulties, optionsFor, repeatDifficulty, topicLabel } from './quiz';
 import { teachingQuestions } from './learning';
 import { allRecordQuestions } from './recognition';
 const base = resolve(process.cwd(), 'public/iconography');
@@ -97,7 +98,7 @@ describe('discovery and bounded loading', () => {
   });
   it('rejects traversal before fetching a record', async () => {
     const fetcher = vi.spyOn(globalThis, 'fetch');
-    await expect(loadIcon('../private')).rejects.toThrow('не найдена');
+    await expect(loadIcon('../private')).rejects.toThrow(MISSING);
     expect(fetcher).not.toHaveBeenCalled();
     fetcher.mockRestore();
   });
@@ -117,5 +118,31 @@ describe('private local learning progress', () => {
     const set = vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
     expect(recordAnswer('icon-a', false)).toBe(false);
     set.mockRestore();
+  });
+});
+
+describe('русские формы и ярлыки', () => {
+  it('склоняет слово по числу вместо «32 вопросов»', () => {
+    expect(counted(1, 'вопрос', 'вопроса', 'вопросов')).toBe('1 вопрос');
+    expect(counted(2, 'вопрос', 'вопроса', 'вопросов')).toBe('2 вопроса');
+    expect(counted(5, 'вопрос', 'вопроса', 'вопросов')).toBe('5 вопросов');
+    expect(counted(11, 'вопрос', 'вопроса', 'вопросов')).toBe('11 вопросов');
+    expect(counted(32, 'вопрос', 'вопроса', 'вопросов')).toBe('32 вопроса');
+    expect(counted(0, 'икона', 'иконы', 'икон')).toBe('0 икон');
+    expect(plural(21, 'икона', 'иконы', 'икон')).toBe('икона');
+  });
+
+  it('называет тему вопроса по-человечески и знает новые темы практики', () => {
+    expect(topicLabel('mary')).toBe('Типы Богородицы');
+    expect(topicLabel('composition')).toBe('Композиция и формат');
+    expect(topicLabel('material')).toBe('Материал и техника');
+    expect(difficulties.map((level) => level.id)).toEqual(['beginner', 'explorer', 'expert']);
+  });
+
+  it('берёт уровень повтора из id вопроса викторины, а практику повторяет на среднем', () => {
+    const question = records[0].recognition!.expert;
+    expect(repeatDifficulty(question)).toBe('expert');
+    expect(repeatDifficulty(records[0].recognition!.beginner)).toBe('beginner');
+    expect(repeatDifficulty(records[0].questions[0])).toBe('explorer');
   });
 });

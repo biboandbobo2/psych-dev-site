@@ -9,8 +9,12 @@ export const imageUrl = (id: string, width: number) => `${assetBase}/images/${id
 let catalogPromise: Promise<IconSummary[]> | undefined;
 const recordCache = new Map<string, Promise<IconRecord>>();
 
+/** Отличает «такой записи нет» от сетевой ошибки: сообщения на экране разные. */
+export const MISSING = 'iconography/missing';
+
 async function readJson<T>(path: string): Promise<T> {
   const response = await fetch(`${assetBase}/${path}`);
+  if (response.status === 404) throw new Error(MISSING);
   if (!response.ok) throw new Error('Не удалось загрузить каталог. Попробуйте ещё раз.');
   return response.json() as Promise<T>;
 }
@@ -24,7 +28,7 @@ export function loadCatalog() {
 }
 
 export function loadIcon(id: string) {
-  if (!/^[a-z0-9-]+$/.test(id)) return Promise.reject(new Error('Икона не найдена.'));
+  if (!/^[a-z0-9-]+$/.test(id)) return Promise.reject(new Error(MISSING));
   if (!recordCache.has(id)) {
     recordCache.set(id, readJson<IconRecord>(`records/${id}.json`).catch((error: unknown) => {
       recordCache.delete(id);
@@ -39,19 +43,24 @@ export function loadIcon(id: string) {
 export function useResource<T>(loader: () => Promise<T>, key: string) {
   const [value, setValue] = useState<T>();
   const [error, setError] = useState('');
+  const [missing, setMissing] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let alive = true;
     setValue(undefined);
     setError('');
-    loader().then((data) => { if (alive) setValue(data); }).catch(() => {
-      if (alive) setError('Не удалось загрузить данные. Проверьте соединение и повторите.');
+    setMissing(false);
+    loader().then((data) => { if (alive) setValue(data); }).catch((caught: unknown) => {
+      if (!alive) return;
+      const gone = caught instanceof Error && caught.message === MISSING;
+      setMissing(gone);
+      setError(gone ? 'Такой записи нет.' : 'Не удалось загрузить данные. Проверьте соединение и повторите.');
     });
     return () => { alive = false; };
     // Callers identify their stable resource explicitly.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, attempt]);
-  return { value, error, retry: () => setAttempt((n) => n + 1) };
+  return { value, error, missing, retry: () => setAttempt((n) => n + 1) };
 }
 
 const normalize = (text: string) => text.toLocaleLowerCase('ru').replaceAll('ё', 'е');
@@ -166,6 +175,22 @@ export function searchIcons(icons: IconSummary[], query: string, tradition = '',
     && (!century || icon.centuries.includes(Number(century)))
     && (!subject || icon.subject === subject)
     && terms.every((term) => searchFields(icon).some((field) => field.includes(term))));
+}
+
+/** Список для выпадающих списков: группы традиций в учебном порядке, внутри — по названию. */
+export function iconsByTradition(icons: IconSummary[]) {
+  const groups = new Map<string, IconSummary[]>();
+  for (const icon of icons) {
+    const group = traditionGroup(icon.tradition);
+    groups.set(group, [...(groups.get(group) ?? []), icon]);
+  }
+  const rank = (group: string) => {
+    const index = traditionGroups.indexOf(group);
+    return index < 0 ? traditionGroups.length : index;
+  };
+  return [...groups.entries()]
+    .sort((a, b) => rank(a[0]) - rank(b[0]) || a[0].localeCompare(b[0], 'ru'))
+    .map(([tradition, list]) => ({ tradition, icons: [...list].sort(byTitle) }));
 }
 
 export function dailyIcon(icons: IconSummary[], date = new Date()) {
