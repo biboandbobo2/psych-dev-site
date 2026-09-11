@@ -1,371 +1,65 @@
-# Система обратной связи
+# Система обратной связи / Telegram
 
-> Интегрированная система сбора отзывов от пользователей с отправкой в Telegram
+Актуализировано 2026-09-08 по коду. Единый контур используется Академией и бесплатным разделом «Иконография».
 
----
+## Поток
 
-## 📋 Обзор
+`FeedbackModal` / `features/iconography/components/Feedback` → `src/lib/feedback.ts` (`submitFeedback`) → Firebase callable `sendFeedback` → `functions/src/lib/telegram.ts` → существующий Telegram-бот и чат.
 
-Система обратной связи позволяет пользователям отправлять сообщения трёх типов:
-- 🐛 **Баг** — сообщения о проблемах и ошибках
-- 💡 **Идея** — предложения по улучшению платформы
-- 🙏 **Благодарность** — позитивные отзывы и слова благодарности
+Второй бот, публичный Telegram endpoint, Firestore-коллекция отзывов и клиентские токены не создаются. Гостевые сообщения разрешены. Вызов успешен только при `data.success === true`.
 
-Все сообщения отправляются в Telegram через Bot API, что позволяет быстро реагировать на обратную связь.
+## Клиент
 
----
+`src/components/FeedbackModal.tsx` сохраняет существующие варианты кнопки header/profile/mobile и расширенные параметры заголовков/префикса/фиксированного типа. Авторизованное окно может передавать email, имя и роль. Состояния: ввод, отправка, успех, ошибка.
 
-## 🎯 Основные возможности
+Форма портала не требует Auth. Текст 3–1700 символов оставляет место для служебного префикса. Передаёт `iconId` и текущий URL; ID также в префиксе, поэтому контекст доставляется через предыдущую production-версию функции. Есть honeypot, двухсекундная задержка, защита двойного клика и минутная пауза после успешного сообщения. При ошибке текст остаётся в форме, техническая ошибка сервера не показывается. Рядом с кнопкой объясняется, какие сведения уйдут в Telegram; комментарии не публикуются.
 
-### Для пользователей
+## Callable и входной контракт
 
-1. **Доступность:**
-   - Кнопка обратной связи в header (для студентов)
-   - Кнопка в меню профиля
-   - Кнопка в мобильном меню
+`functions/src/sendFeedback.ts`: Gen2 `onCall`, регион `us-central1`, общие `CALLABLE_OPTS`, service account из `FUNCTIONS_SERVICE_ACCOUNT` для доступа к Secret Manager.
 
-2. **Простота использования:**
-   - Выбор типа сообщения одним кликом
-   - Текстовое поле с подсказками по типу сообщения
-   - Автоматическая валидация (3-2000 символов)
-   - Визуальное подтверждение успешной отправки
-
-3. **Автоматический контекст:**
-   - Email пользователя
-   - Имя пользователя
-   - Роль (Гость, Студент, Администратор, Супер-админ)
-   - URL страницы, с которой отправлено сообщение
-
-### Для администраторов
-
-Все сообщения приходят в Telegram с полным контекстом:
-```
-🐛 Баг
-
-[Текст сообщения пользователя]
-
-━━━━━━━━━━━━━━━
-👤 Иван Иванов
-✉️ ivan@example.com
-🎭 Студент
-🔗 https://psych-dev-site.vercel.app/timeline
-```
-
----
-
-## 🏗️ Архитектура
-
-### Frontend компоненты
-
-#### `FeedbackModal`
-**Расположение:** `src/components/FeedbackModal.tsx`
-
-Основной компонент модального окна:
-- Выбор типа сообщения (баг/идея/благодарность)
-- Текстовое поле с валидацией
-- Отображение контекста пользователя
-- Обработка состояний (загрузка, успех, ошибка)
-
-**Props:**
-```typescript
-interface FeedbackModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-```
-
-#### `FeedbackButton`
-**Расположение:** `src/components/FeedbackModal.tsx`
-
-Кнопка для открытия модального окна:
-
-**Варианты:**
-- `variant="header"` — для header (студенты)
-- `variant="profile"` — для страницы профиля
-- `variant="mobile"` — для мобильного меню
-
-**Props:**
-```typescript
-interface FeedbackButtonProps {
-  variant?: 'header' | 'profile' | 'mobile';
-  className?: string;
-}
-```
-
-### Backend (Cloud Function)
-
-#### `sendFeedback`
-**Расположение:** `functions/src/sendFeedback.ts`
-
-HTTPS Callable Cloud Function (Gen1) для отправки сообщений:
-
-**Входные данные:**
-```typescript
-interface FeedbackData {
+```ts
+interface FeedbackPayload {
   type: 'bug' | 'idea' | 'thanks';
-  message: string;
-  userEmail?: string;
-  userName?: string;
-  userRole?: string;
-  pageUrl?: string;
+  message: string; // 3–2000 символов
+  userEmail?: string; // до 254
+  userName?: string; // до 120
+  userRole?: string; // до 80
+  pageUrl?: string; // до 600, http/https, без userinfo
+  iconId?: string; // до 100, [a-z0-9-]+
+  website?: string; // honeypot; непустое значение отклоняется
 }
 ```
 
-**Валидация:**
-- Тип должен быть 'bug', 'idea' или 'thanks'
-- Сообщение: 3-2000 символов
-- Все опциональные поля проверяются на наличие
+Вход должен быть объектом, строки проверяются по типу и длине; служебные поля не допускают управляющие символы. Старые клиенты без дополнительных полей поддерживаются. Проверка URL не является проверкой личности отправителя: это предоставленный клиентом контекст.
 
-**Процесс:**
-1. Валидация входных данных
-2. Формирование сообщения для Telegram
-3. Отправка через Telegram Bot API
-4. Возврат результата или ошибки
+Лимитер в памяти: 5 запросов / 10 минут по Auth uid или IP. Лимит на один инстанс; распределённой квоты нет. При существенном спаме следующий шаг — защита публичного endpoint на уровне инфраструктуры, а не создание нового бота.
 
----
+Сообщения обратной связи передаются с `{ plainText: true }`. Telegram Markdown не разбирает пользовательский текст; незакрытые скобки, подчёркивания и обратные кавычки не ломают доставку. Другие вызовы helper сохраняют Markdown по умолчанию. Сумма ограничений полей остаётся ниже лимита Telegram. Клиенту возвращается нейтральная ошибка без внутреннего текста исключения и секретов.
 
-## 🔧 Конфигурация
+## Секреты
 
-### Telegram Bot
+`functions/src/lib/telegram.ts` сначала читает Secret Manager (`telegram-bot-token`, `telegram-chat-id`), затем использует серверные `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` при отсутствии секретов. Результат кэшируется, неудачный lookup не кэшируется навсегда. Значения не должны попадать в клиентский bundle, документацию или логи.
 
-**Bot Token:** Хранится в коде функции
-**Chat ID:** Хранится в коде функции
+Предыдущая версия guide ошибочно говорила о Gen1 и токенах в исходнике. Эти утверждения удалены: фактический код использует Gen2 и Secret Manager.
 
-⚠️ **Безопасность:** Токен и Chat ID хранятся в коде функции. Для production рекомендуется использовать Firebase Secret Manager.
-
-**API endpoint:** `https://api.telegram.org/bot{token}/sendMessage`
-
-### Firebase Functions
-
-**Функция:** `sendFeedback`
-**Тип:** HTTPS Callable (Gen1)
-**Регион:** us-central1 (по умолчанию)
-
----
-
-## 📝 Использование
-
-### Вызов из компонента
-
-```typescript
-import { FeedbackButton, FeedbackModal } from '@/components/FeedbackModal';
-
-// Вариант 1: Использовать готовую кнопку
-<FeedbackButton variant="header" />
-
-// Вариант 2: Управлять состоянием вручную
-const [isModalOpen, setIsModalOpen] = useState(false);
-
-<button onClick={() => setIsModalOpen(true)}>
-  Обратная связь
-</button>
-
-<FeedbackModal
-  isOpen={isModalOpen}
-  onClose={() => setIsModalOpen(false)}
-/>
-```
-
-### Вызов функции напрямую
-
-```typescript
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
-
-const sendFeedback = httpsCallable(functions, 'sendFeedback');
-
-await sendFeedback({
-  type: 'idea',
-  message: 'Было бы здорово добавить тёмную тему!',
-  userEmail: 'user@example.com',
-  userName: 'Пользователь',
-  userRole: 'Студент',
-  pageUrl: window.location.href,
-});
-```
-
----
-
-## 🧪 Тестирование
-
-### Локальное тестирование функции
-
-1. **Запустите Firebase эмулятор:**
-```bash
-npm run firebase:emulators
-```
-
-2. **В коде укажите использование эмулятора:**
-```typescript
-import { connectFunctionsEmulator } from 'firebase/functions';
-connectFunctionsEmulator(functions, 'localhost', 5001);
-```
-
-3. **Отправьте тестовое сообщение через UI**
-
-⚠️ **Важно:** В эмуляторе сообщения не будут отправляться в реальный Telegram.
-
-### Тестирование в production
-
-1. Откройте любую страницу приложения
-2. Нажмите на кнопку обратной связи (в header или профиле)
-3. Выберите тип сообщения
-4. Введите тестовое сообщение (мин. 3 символа)
-5. Нажмите "Отправить"
-6. Проверьте Telegram на наличие сообщения
-
----
-
-## 🚀 Деплой
-
-### Деплой функции
+## Проверки
 
 ```bash
-# Деплой только sendFeedback
-firebase deploy --only functions:sendFeedback
-
-# Деплой всех функций
-npm run firebase:deploy:functions
+npm run typecheck:app
+npm run typecheck:functions
+npm test -- --run src/features/iconography/components/Feedback.test.tsx
+cd functions
+npm test -- --run src/sendFeedback.test.ts src/lib/telegram.test.ts
+npm run build
 ```
 
-### Проверка после деплоя
+Unit-тесты mock-ируют Telegram helper / fetch и не отправляют сообщений. Эмулятор сам по себе НЕ гарантирует отсутствия реальной отправки: при доступных серверных секретах helper может обратиться к Telegram. Для изоляции использовать тестовые секреты или mock transport; не запускать реальные рассылки случайно.
 
-1. Проверьте логи функции:
-```bash
-firebase functions:log --only sendFeedback
-```
+Локальный live smoke 2026-09-08: одно явно помеченное QA-сообщение со страницы `cma-168322` получило успешный ответ существующего production callable; в тексте был ID, в payload — URL локального паспорта. Это подтверждает старый опубликованный контур. Новая валидация/`plainText` проверены локальными тестами и требуют отдельного targeted deploy.
 
-2. Проверьте метрики в Firebase Console:
-   - Количество вызовов
-   - Ошибки
-   - Время выполнения
+## Публикация
 
----
+Только после разрешения владельца. Планируемое изменение: **одна существующая функция `sendFeedback`**, без создания/удаления функций или смены бота/секретов. Пересобрать функции, перечислить изменения и получить одобрение до `firebase deploy --only functions:sendFeedback`. После публикации проверить plain-text комментарий и URL/ID на production.
 
-## 🔍 Мониторинг
-
-### Firebase Console
-
-**Путь:** Firebase Console → Functions → sendFeedback
-
-**Метрики:**
-- Invocations (количество вызовов)
-- Execution time (время выполнения)
-- Memory usage (использование памяти)
-- Errors (ошибки)
-
-### Telegram
-
-Все сообщения приходят в реальном времени в указанный Telegram чат.
-
----
-
-## 🐛 Возможные проблемы
-
-### Сообщение не отправляется
-
-**Проверьте:**
-1. Валидность Telegram Bot Token
-2. Правильность Chat ID
-3. Доступность Telegram API (не заблокирован ли?)
-4. Логи Cloud Function в Firebase Console
-
-### Ошибка "invalid-argument"
-
-**Причины:**
-- Неверный тип сообщения (не bug/idea/thanks)
-- Сообщение короче 3 символов
-- Сообщение длиннее 2000 символов
-
-### Таймаут функции
-
-**Решение:**
-- Увеличить таймаут функции в `functions/src/index.ts`:
-```typescript
-export const sendFeedback = functions
-  .runWith({ timeoutSeconds: 60 })
-  .https.onCall(async (data, context) => {
-    // ...
-  });
-```
-
----
-
-## 📊 Расширение функциональности
-
-### Идеи для улучшения
-
-1. **Хранение в Firestore:**
-   - Сохранять все сообщения в коллекцию `feedback`
-   - Добавить админ-панель для просмотра истории
-
-2. **Аналитика:**
-   - Отслеживать частоту и типы сообщений
-   - Группировать по пользователям и страницам
-
-3. **Уведомления:**
-   - Добавить поддержку Email уведомлений
-   - Slack интеграция
-
-4. **Модерация:**
-   - Автоматическая фильтрация спама
-   - Rate limiting (ограничение частоты отправки)
-
-5. **Улучшения UX:**
-   - Прикрепление скриншотов
-   - Автоматический захват console errors
-   - Опциональная анонимность
-
----
-
-## 📚 Связанные документы
-
-- [README.md](../../README.md) - Общий обзор проекта
-- [CHANGELOG.md](../../CHANGELOG.md) - История изменений
-- [Testing Workflow](../development/testing-workflow.md) - Процесс тестирования
-
----
-
-## 🔐 Безопасность
-
-### Текущая конфигурация
-
-⚠️ **Telegram credentials хранятся в коде:**
-```typescript
-const TELEGRAM_BOT_TOKEN = "...";
-const TELEGRAM_CHAT_ID = "...";
-```
-
-### Рекомендации для production
-
-**Использовать Firebase Secret Manager:**
-
-1. **Создать секреты:**
-```bash
-firebase functions:secrets:set TELEGRAM_BOT_TOKEN
-firebase functions:secrets:set TELEGRAM_CHAT_ID
-```
-
-2. **Обновить функцию:**
-```typescript
-import { defineSecret } from 'firebase-functions/params';
-
-const telegramBotToken = defineSecret('TELEGRAM_BOT_TOKEN');
-const telegramChatId = defineSecret('TELEGRAM_CHAT_ID');
-
-export const sendFeedback = functions
-  .runWith({
-    secrets: [telegramBotToken, telegramChatId],
-  })
-  .https.onCall(async (data, context) => {
-    const token = telegramBotToken.value();
-    const chatId = telegramChatId.value();
-    // ...
-  });
-```
-
-3. **Пересобрать и задеплоить функцию**
-
----
-
-**Последнее обновление:** 2026-01-27
+Связанные документы: [Иконография](iconography.md), [testing-workflow](../development/testing-workflow.md), [QA log](../processes/qa-smoke-log.md).

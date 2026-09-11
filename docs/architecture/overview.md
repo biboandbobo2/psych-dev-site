@@ -368,3 +368,12 @@ firebase deploy --only firestore:rules,storage:rules
 - [Testing workflow](../development/testing-workflow.md)
 
 **Последнее обновление:** 2026-01-08
+
+
+## Бесплатный портал «Иконография» (2026-09-08, локально)
+
+`src/features/iconography` — публичная feature с route-level lazy wrapper `src/pages/IconographyPage.tsx`. Основная оболочка использует существующий standalone path; данные — индекс и отдельные JSON-паспорта в `public/iconography`, изображения — заранее подготовленные WebP. Firebase не участвует в каталоге, поиске или учебном прогрессе (localStorage). Единственный серверный вызов feature — общий `submitFeedback` → существующий `sendFeedback`.
+
+`npm run build:iconography` использует отдельный HTML entry, тот же lazy registry / PageLoader / scroll restoration и создаёт статический `dist-iconography` без приложения курсов и `api/`. PURE-аннотации фабрик `React.lazy` дают tree shaking неиспользуемых страниц; не добавлять инициализирующие side effects в эти фабрики. Общая сборка и отдельная проверяются независимо. Подробности: [guide](../guides/iconography.md), [стоимость и ограничения](../reports/iconography-local-2026-09-08.md).
+
+Уточнение 2026-09-09: вход в портал — `RecognitionQuiz`, переиспользующий загрузку паспортов, `Artwork` и хранилище прогресса. Семантические уровни и координаты отмечаемых деталей хранятся в JSON-паспортах, в индекс добавлены лёгкие поля `recognitionGroup` и `schoolId`. Первые 21 записи сохранены; расширение до 83 и отдельный JSON 12 школ не добавляют архив в JS bundle. Паспорта содержат ссылки дальнейшего чтения и предметный контекст.
