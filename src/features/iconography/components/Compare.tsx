@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { IconSummary } from '../types';
-import { displayPeriod, loadIcon, useResource } from '../lib/catalog';
+import { displayPeriod, iconsByTradition, loadIcon, useResource } from '../lib/catalog';
 import { Artwork } from './Artwork';
 import { LoadState } from './Passport';
 
@@ -68,7 +68,11 @@ export function Compare({ icons }: { icons: IconSummary[] }) {
           <label key={side}>
             {side === 'left' ? 'Первое произведение' : 'Второе произведение'}
             <select value={side === 'left' ? left : right} onChange={(event) => choose(side, event.target.value)}>
-              {icons.map((x) => <option key={x.id} value={x.id}>{x.title} · {displayPeriod(x)}</option>)}
+              {iconsByTradition(icons).map((group) => (
+                <optgroup key={group.tradition} label={group.tradition}>
+                  {group.icons.map((x) => <option key={x.id} value={x.id}>{x.title} · {displayPeriod(x)}</option>)}
+                </optgroup>
+              ))}
             </select>
           </label>
         ))}

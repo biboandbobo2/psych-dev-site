@@ -47,7 +47,7 @@ describe('занятия практики', () => {
       expect(await screen.findByRole('heading', { level: 2, name: i === 0 ? 'Неверно' : 'Верно' })).toBeInTheDocument();
       if (i === 0) {
         expect(screen.getByText(new RegExp(`Вы выбрали «${escape(chosen)}»`))).toBeInTheDocument();
-        expect(screen.getByText(/^Верно:/)).toHaveTextContent(`Верно: ${question.answer}`);
+        expect(screen.getByText(/^Верный ответ:/)).toHaveTextContent(`Верный ответ: «${question.answer}»`);
       }
       fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
     }
@@ -55,8 +55,9 @@ describe('занятия практики', () => {
     // Формулировки в занятии не повторяются.
     expect(new Set(prompts).size).toBe(total);
     expect(await screen.findByRole('heading', { level: 1, name: `Верно ${total - 1} из ${total}` })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Что стоит пересмотреть' })).toBeInTheDocument();
-    expect(screen.getByText(`Вы выбрали «${firstMistake!.chosen}». Верно: ${firstMistake!.answer}`)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Произведения этого занятия' })).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`вы выбрали «${escape(firstMistake!.chosen)}»\\. Верный ответ: «${escape(firstMistake!.answer)}»`)))
+      .toBeInTheDocument();
     expect(screen.getByRole('heading', { name: `Полный паспорт: ${icon.title}` })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: new RegExp(escape(icon.sources[0].label)) })).toHaveAttribute('href', icon.sources[0].url);
     expect(readProgress()).toMatchObject({ answered: total, correct: total - 1 });
@@ -66,21 +67,51 @@ describe('занятия практики', () => {
   it('на углублённом уровне прячет варианты до самопроверки и не спрашивает свободный ответ', async () => {
     const question = icon.questions[0];
     localStorage.setItem('academy.iconography.progress.v1', JSON.stringify({ difficult: [question.id], answered: 1, correct: 0 }));
-    render(<MemoryRouter initialEntries={['/iconography/practice?repeat=1']}><Practice icons={icons} /></MemoryRouter>);
-    expect(screen.getByRole('button', { name: /Повторить сложное \(1\)/ })).toBeInTheDocument();
-    expect(screen.getByText(/вопросы викторины, и вопросы практики/)).toBeInTheDocument();
+    render(<MemoryRouter initialEntries={['/iconography/practice?icon=cma-168322']}><Practice icons={icons} /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole('radio', { name: /Углублённый/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Начать занятие' }));
-    await screen.findByRole('heading', { level: 1, name: question.prompt });
+    await screen.findByText(/Вопрос 1 из /);
 
-    expect(screen.queryByRole('button', { name: new RegExp(escape(question.answer)) })).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.getByText('Сначала вспомните ответ, затем откройте варианты.')).toBeInTheDocument();
+    const prompt = screen.getByRole('heading', { level: 1 }).textContent!;
+    const shown = wholeIconPool.find((x) => x.prompt === prompt)!;
+    expect(screen.queryByRole('button', { name: new RegExp(escape(shown.answer)) })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Открыть варианты' }));
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(escape(question.answer)) }));
-    await waitFor(() => expect(readProgress().difficult).toEqual([]));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(escape(shown.answer)) }));
+    await waitFor(() => expect(readProgress().difficult).not.toContain(shown.id));
+  });
+
+  it('повторение сохраняет исходную сложность вопроса викторины', async () => {
+    const expert = icon.recognition!.expert;
+    localStorage.setItem('academy.iconography.progress.v1', JSON.stringify({ difficult: [expert.id], answered: 1, correct: 0 }));
+    render(<MemoryRouter initialEntries={['/iconography/practice?repeat=1']}><Practice icons={icons} /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: /Повторить сложное \(1\)/ })).toBeInTheDocument();
+    expect(screen.getByText(/Каждый вопрос сохраняет исходную сложность/)).toBeInTheDocument();
+    // Уровень занятия для повтора не выбирают: он берётся из самого вопроса.
+    expect(screen.queryByRole('radio', { name: /Углублённый/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Начать занятие' }));
+    await screen.findByRole('heading', { level: 1, name: expert.prompt });
+    expect(screen.getByText('Углублённый')).toBeInTheDocument();
+    expect(screen.getByText('Сначала вспомните ответ, затем откройте варианты.')).toBeInTheDocument();
+  });
+
+  it('ставит над вопросом название темы вместо общего ярлыка', async () => {
+    render(<MemoryRouter initialEntries={['/iconography/practice?topic=people']}><Practice icons={icons} /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Начать занятие' }));
+    await screen.findByText(/Вопрос 1 из /);
+    expect(screen.queryByText('Внимательное чтение')).not.toBeInTheDocument();
+    expect(screen.getByText('Святые и персонажи')).toBeInTheDocument();
+  });
+
+  it('честно говорит, что у новой темы вопросов пока нет', async () => {
+    render(<MemoryRouter initialEntries={['/iconography/practice?topic=material']}><Practice icons={icons} /></MemoryRouter>);
+    expect(screen.getByRole('radio', { name: /Материал и техника/ })).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Начать занятие' }));
+    expect(await screen.findByRole('heading', { name: 'Вопросов по этой теме пока нет' })).toBeInTheDocument();
   });
 
   it('учит иконостасу, не загружая ни одной репродукции', async () => {
