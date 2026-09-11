@@ -33,7 +33,8 @@ const chunkMapper = (id) => {
 };
 
 export default defineConfig(({ mode }) => {
-  const isProd = mode === 'production';
+  const isIconography = mode === 'iconography';
+  const isProd = mode === 'production' || isIconography;
   const wrapApiMiddleware = (apiPath, filePath) => ({
     name: `dev-api-${apiPath.replace(/\//g, '-')}`,
     apply: 'serve',
@@ -77,11 +78,14 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: '/',
+    ...(isIconography ? { publicDir: false } : {}),
     envPrefix: ['VITE_', 'DEVLOG'],
     plugins,
     build: {
+      ...(isIconography ? { outDir: 'dist-iconography' } : {}),
       chunkSizeWarningLimit: 6000,
       rollupOptions: {
+        ...(isIconography ? { input: 'iconography.html' } : {}),
         output: {
           manualChunks(id) {
             return chunkMapper(id);

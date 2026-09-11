@@ -1,0 +1,126 @@
+/* A single activity leads; museum typography and palette come from iconography.css. */
+.ico-artwork-plane { position:relative; display:block; width:100%; height:100%; min-width:0; }
+.ico-detail-mark { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.ico-detail-mark rect { fill:#fff2bd15; stroke:#ffdf83; stroke-width:3px; vector-effect:non-scaling-stroke; filter:drop-shadow(0 0 2px #302910); }
+.iconography .ico-header { padding-top:20px; padding-bottom:20px; }
+.iconography .ico-header nav { gap:30px; }
+.iconography .ico-footer { padding:28px 5%; }
+.iconography .ico-footer nav { flex-direction:row; flex-wrap:wrap; gap:25px; }
+.ico-quiz-home { max-width:1300px; margin:auto; padding:0 5% 50px; min-height:calc(100dvh - 170px); }
+.ico-quiz-settings-bar { display:flex; justify-content:space-between; align-items:center; gap:15px; padding:23px 0; color:var(--ico-muted); font-size:12px; }
+.ico-quiz-settings-bar .ico-link { font-size:11px; }
+.ico-quiz-settings { display:flex; align-items:start; flex-wrap:wrap; gap:30px; padding:24px; margin-bottom:25px; border:1px solid var(--ico-line); }
+.ico-quiz-settings fieldset { border:0; padding:0; margin:0; display:flex; flex-wrap:wrap; gap:20px; flex:1; }
+.ico-quiz-settings legend { font-size:12px; margin-bottom:15px; }
+.ico-quiz-settings fieldset label { display:flex; align-items:start; gap:8px; flex:1; min-width:160px; }
+.ico-quiz-settings small { display:block; color:var(--ico-muted); margin-top:5px; max-width:190px; }
+.ico-quiz-settings input { accent-color:var(--ico-green); margin-top:5px; }
+.ico-recognition { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:clamp(35px,6vw,85px); align-items:start; }
+.ico-recognition-image { position:sticky; top:20px; min-width:0; }
+.ico-recognition-image .ico-artwork { height:clamp(440px,calc(100dvh - 200px),750px); background:#e9e3d5; padding:25px; }
+.ico-recognition-body { padding:12px 0 0; min-width:0; }
+.ico-round-position { font-size:12px; letter-spacing:.09em; margin-bottom:17px!important; }
+.ico-round-position span { color:var(--ico-muted); }
+.ico-recognition h1 { font-size:clamp(32px,3.4vw,47px); line-height:1.13; margin:0 0 30px; letter-spacing:-.035em; }
+.ico-recognition h1:focus, .ico-recognition-finish h1:focus { outline:none; }
+.ico-recognition-options { display:grid; gap:10px; }
+.ico-recognition-options button { display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%; min-height:58px; text-align:left; padding:15px 20px; border:1px solid #c9c9bc; border-radius:3px; background:transparent; color:var(--ico-ink); font-size:14px; line-height:1.5; }
+.ico-recognition-options button:hover:not(:disabled) { background:#eaeadd; border-color:#7f866e; }
+.ico-recognition-options button:disabled { opacity:1; }
+.ico-recognition-options button.is-correct { background:#e5eadf; border-color:#657458; }
+.ico-recognition-options button.is-incorrect { border-color:#927661; background:#f0e9e1; }
+.ico-recognition-options button.is-muted { color:#787c72; border-color:var(--ico-line); }
+.ico-answer-word { font-size:10px; color:#46553d; flex-shrink:0; }
+.ico-recognition-response { margin-top:22px; }
+.ico-recognition-hint p { font-size:13px; margin-top:14px; }
+.ico-recognition-feedback:focus { outline:none; }
+.ico-recognition-feedback h2 { font:600 14px/1.5 'Manrope',sans-serif; letter-spacing:0; margin:0 0 10px; }
+.ico-recognition-feedback>p { font-size:14px; line-height:1.8; margin-bottom:14px; }
+.ico-recognition-details { display:flex; flex-wrap:wrap; gap:12px 24px; align-items:baseline; margin-bottom:20px; }
+.ico-recognition-details details { font-size:12px; }
+.ico-recognition-details summary { cursor:pointer; text-decoration:underline; text-underline-offset:5px; padding:5px 0; }
+.ico-recognition-details details[open] { flex-basis:100%; }
+.ico-recognition-details details p { margin:14px 0 5px; color:var(--ico-muted); }
+.ico-next-icon { width:100%; }
+.ico-recognition-finish { padding:30px 0; }
+.ico-recognition-finish>p { max-width:570px; color:var(--ico-muted); }
+.ico-seen-icons { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:16px; margin:36px 0; }
+.ico-seen-icons .ico-artwork { height:170px; padding:10px; }
+.ico-seen-icons a>span { display:block; margin-top:12px; font-size:11px; line-height:1.5; }
+.ico-further { max-width:800px; border-top:1px solid var(--ico-line); margin-top:50px; padding-top:25px; }
+.ico-further h2 { font-size:30px; }
+.ico-further-choice { display:block; width:100%; text-align:left; padding:18px 0; background:none; border:0; border-top:1px solid var(--ico-line); color:inherit; }
+.ico-further-choice strong { font-weight:500; font-size:15px; }
+.ico-further-choice span { display:block; color:var(--ico-muted); font-size:12px; margin-top:5px; }
+@media(max-width:700px) {
+  .iconography .ico-header { flex-wrap:nowrap; gap:12px; padding:16px 6%; }
+  .iconography .ico-header nav { width:auto; gap:17px; padding:0; font-size:11px; }
+  .iconography .ico-header .ico-brand { font-size:22px; gap:8px; }
+  .iconography .ico-header .ico-brand-mark { width:29px; height:37px; font-size:27px; }
+  .iconography .ico-header .ico-brand small { display:none; }
+  .ico-quiz-home { padding:0 6% 28px; }
+  .ico-quiz-settings-bar { padding:12px 0 18px; justify-content:flex-end; }
+  .ico-quiz-settings-bar>span { display:none; }
+  .ico-quiz-settings-bar .ico-link { font-size:10px; }
+  .ico-quiz-settings { padding:18px; gap:20px; }
+  .ico-quiz-settings fieldset { display:grid; gap:14px; }
+  .ico-recognition { grid-template-columns:1fr; gap:20px; }
+  .ico-recognition-image { position:static; }
+  .ico-recognition-image .ico-artwork { height:clamp(240px,36dvh,390px); padding:12px; }
+  .ico-recognition-body { padding:0; }
+  .ico-round-position { float:right; margin:4px 0 0 12px!important; font-size:11px; }
+  .ico-recognition h1 { font-size:29px; margin:0 0 20px; }
+  .ico-recognition-options { gap:8px; }
+  .ico-recognition-options button { min-height:47px; padding:11px 15px; font-size:13px; }
+  .ico-recognition-response { margin-top:16px; }
+  .ico-recognition-feedback>p { font-size:13px; }
+  .ico-seen-icons { grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px 12px; }
+  .ico-seen-icons .ico-artwork { height:150px; }
+  .ico-further h2 { font-size:28px; }
+  .iconography .ico-footer { padding:22px 6%; }
+  .iconography .ico-footer nav { gap:18px; font-size:10px; }
+}
+@media(max-width:360px) {
+  .iconography .ico-header .ico-brand-mark { display:none; }
+  .iconography .ico-header nav { gap:14px; }
+  .ico-recognition h1 { font-size:27px; }
+}
+
+.ico-quiz-controls { display:flex; align-items:end; gap:22px; padding:22px 0; }
+.ico-quiz-controls label { display:grid; gap:7px; color:var(--ico-muted); font-size:12px; }
+.ico-quiz-controls select { min-width:155px; padding:11px 32px 11px 13px; border:1px solid #b6b8aa; border-radius:3px; color:var(--ico-ink); background:transparent; font:500 14px 'Manrope',sans-serif; }
+.ico-quiz-controls p { margin:0 0 10px!important; color:var(--ico-muted); font-size:12px; }
+@media(max-width:700px) {
+ .ico-quiz-controls { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.2fr); gap:10px; padding:16px 0; }
+ .ico-quiz-controls select { min-width:0; width:100%; font-size:12px; padding:11px 20px 11px 8px; }
+ .ico-quiz-controls p { grid-column:1/-1; margin:0!important; font-size:11px; }
+}
+
+.ico-back { margin:0 0 26px; min-height:44px; padding:10px 18px; font-size:13px; }
+.ico-card { scroll-margin-top:24px; }
+.ico-clue-text { display:block; padding:22px 0; }
+.ico-context { margin:32px 0; }
+.ico-context h2 { font-size:30px; }
+.ico-reading-links { margin:32px 0; }
+.ico-reading-links li { margin:12px 0; }
+.ico-trip-intro { max-width:760px; margin:25px 0 35px; }
+.ico-trip-steps { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:35px 0; }
+.ico-trip-steps button { display:flex; align-items:center; gap:12px; text-align:left; min-height:64px; padding:12px; border:1px solid var(--ico-line); background:transparent; font-size:13px; }
+.ico-trip-steps button[aria-current] { background:var(--ico-ink); color:var(--ico-paper); }
+.ico-trip-steps button span { font-size:22px; }
+.ico-trip-example { display:grid; grid-template-columns:1fr 1fr; gap:7%; align-items:center; }
+.ico-trip-example .ico-artwork { height:550px; padding:25px; }
+.ico-trip-example .ico-artwork img { max-height:500px; }
+.ico-trip-example article>h3 { margin:28px 0; font-size:25px; }
+.ico-trip-answer { padding:20px; background:#e8ebdf; }
+.ico-trip #temple-map { scroll-margin-top:30px; }
+@media(max-width:700px) {
+  .ico-trip-steps { grid-template-columns:1fr 1fr; gap:8px; }
+  .ico-trip-steps button { font-size:12px; padding:10px; }
+  .ico-trip-example { grid-template-columns:1fr; gap:20px; }
+  .ico-trip-example .ico-artwork { height:390px; }
+  .ico-trip-example .ico-artwork img { max-height:340px; }
+}
+
+.ico-trip-intro details { margin-bottom:18px; }
+@media(max-width:700px) { .ico-trip { padding-top:28px; } .ico-trip h1 { font-size:36px; } }

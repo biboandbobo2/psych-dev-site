@@ -7,6 +7,7 @@ import Login from '../pages/Login';
 import { useAuthStore } from '../stores/useAuthStore';
 import {
   HomePage,
+  IconographyPage,
   Admin,
   CoAdmin,
   AdminArchive,
@@ -113,6 +114,7 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
     <Suspense fallback={<PageLoader />}>
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/iconography/*" element={<IconographyPage />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/homepage" element={<Navigate to="/home" replace />} />
         <Route path="/features" element={<FeaturesPage />} />

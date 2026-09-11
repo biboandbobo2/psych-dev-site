@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "rewrites": [
+    { "source": "/iconography", "destination": "/index.html" },
+    { "source": "/iconography/catalog", "destination": "/index.html" },
+    { "source": "/iconography/learn", "destination": "/index.html" },
+    { "source": "/iconography/practice", "destination": "/index.html" },
+    { "source": "/iconography/compare", "destination": "/index.html" },
+    { "source": "/iconography/support", "destination": "/index.html" },
+    { "source": "/iconography/about", "destination": "/index.html" },
+    { "source": "/iconography/schools/:id", "destination": "/index.html" },
+    { "source": "/iconography/icon/:id", "destination": "/index.html" }
+  ],
+  "headers": [
+    { "source": "/assets/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
+    { "source": "/iconography/images/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }] },
+    { "source": "/iconography/records/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, s-maxage=300" }] },
+    { "source": "/iconography/catalog.json", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, s-maxage=300" }] }
+  ]
+}

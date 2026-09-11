@@ -1,0 +1,287 @@
+{
+  "id": "ru-72116211",
+  "title": "Богоматерь Знамение",
+  "tradition": "Русская",
+  "region": "Московская школа — по описанию репродукции",
+  "period": "Начало XVII века",
+  "centuries": [
+    17
+  ],
+  "subject": "Богородица с Младенцем",
+  "people": "Богородица и Иисус Христос",
+  "type": "Знамение",
+  "museum": "Музей искусств Джордана Шнитцера, Юджин",
+  "tags": [
+    "mary",
+    "Знамение",
+    "Неизвестный мастер",
+    "Живопись на доске"
+  ],
+  "image": {
+    "width": 3428,
+    "height": 4152,
+    "widths": [
+      320,
+      800,
+      1600
+    ]
+  },
+  "attribution": "Неизвестный мастер",
+  "material": "Живопись на доске; техника по записи источника",
+  "inventory": "Не указан в использованной записи",
+  "description": "Богородица поднимает руки в молитве, перед её грудью — Христос в медальоне. В русской традиции такое сочетание характерно для типа «Знамение».",
+  "clues": [
+    {
+      "title": "Как узнать образ",
+      "text": "Богородица поднимает руки в молитве, перед её грудью — Христос в медальоне. В русской традиции такое сочетание характерно для типа «Знамение»."
+    },
+    {
+      "title": "Медальон с Христом",
+      "text": "Он находится перед грудью Богородицы. Образ Младенца отличает этот вариант от одной только молитвенной позы Оранты."
+    },
+    {
+      "title": "Поднятые руки",
+      "text": "Богородица изображена в молитве. Она не держит Младенца на руках, как в Одигитрии или Умилении."
+    }
+  ],
+  "caution": "Датировка, регион и собрание приведены по указанным источникам. Запись репродукции не заменяет музейной экспертизы; неизвестное авторство не уточняется по стилю. Сведения этой карточки проверены по Wikimedia Commons; первичная музейная запись отдельно не сверялась.",
+  "sources": [
+    {
+      "label": "Запись репродукции и права — Wikimedia Commons",
+      "url": "https://commons.wikimedia.org/wiki/File:The_Sign_of_the_Theotokos,_Moscow_School,_early_1600s,_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art,_University_of_Oregon_-_Eugene,_Oregon_-_DSC09255.jpg"
+    }
+  ],
+  "rights": {
+    "label": "Общественное достояние (PD-Art)",
+    "url": "https://commons.wikimedia.org/wiki/Commons:Reuse_of_PD-Art_photographs",
+    "credit": "Репродукция: Wikimedia Commons",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/a/ae/The_Sign_of_the_Theotokos%2C_Moscow_School%2C_early_1600s%2C_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art%2C_University_of_Oregon_-_Eugene%2C_Oregon_-_DSC09255.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "checked": "2026-09-09"
+  },
+  "originalMetadata": {
+    "title": "The Sign of the Theotokos, Moscow School, early 1600s, egg tempera on wood - Jordan Schnitzer Museum of Art, University of Oregon - Eugene, Oregon - DSC09255.jpg",
+    "date": "Начало XVII века",
+    "culture": "Московская школа — по описанию репродукции",
+    "attribution": "Неизвестный мастер",
+    "material": "Сведения о технике см. в источнике"
+  },
+  "recognitionGroup": "mary",
+  "recognition": {
+    "beginner": {
+      "id": "ru-72116211-recognition-beginner",
+      "topic": "people",
+      "prompt": "Кто изображён?",
+      "answer": "Богородица с Младенцем",
+      "distractors": [
+        "Праведная Анна с Марией",
+        "Два апостола"
+      ],
+      "hint": "Посмотрите на поднятые руки и медальон с Христом.",
+      "explanation": "Богородица поднимает руки в молитве, перед её грудью — Христос в медальоне. В русской традиции такое сочетание характерно для типа «Знамение».",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Sign_of_the_Theotokos,_Moscow_School,_early_1600s,_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art,_University_of_Oregon_-_Eugene,_Oregon_-_DSC09255.jpg"
+      },
+      "iconId": "ru-72116211"
+    },
+    "explorer": {
+      "id": "ru-72116211-recognition-explorer",
+      "topic": "people",
+      "prompt": "Какой это образ?",
+      "answer": "Знамение",
+      "distractors": [
+        "Умиление (Елеуса)",
+        "Одигитрия",
+        "Богоматерь в молении"
+      ],
+      "hint": "Посмотрите на поднятые руки и медальон с Христом.",
+      "explanation": "Богородица поднимает руки в молитве, перед её грудью — Христос в медальоне. В русской традиции такое сочетание характерно для типа «Знамение».",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Sign_of_the_Theotokos,_Moscow_School,_early_1600s,_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art,_University_of_Oregon_-_Eugene,_Oregon_-_DSC09255.jpg"
+      },
+      "iconId": "ru-72116211"
+    },
+    "expert": {
+      "id": "ru-72116211-recognition-expert",
+      "topic": "people",
+      "prompt": "Что отличает «Знамение» от одной только позы Оранты?",
+      "answer": "Образ Христа в медальоне",
+      "distractors": [
+        "Только поднятые руки",
+        "Красный цвет одежды",
+        "Наличие нимба"
+      ],
+      "hint": "Посмотрите на поднятые руки и медальон с Христом.",
+      "explanation": "Богородица поднимает руки в молитве, перед её грудью — Христос в медальоне. В русской традиции такое сочетание характерно для типа «Знамение».",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Sign_of_the_Theotokos,_Moscow_School,_early_1600s,_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art,_University_of_Oregon_-_Eugene,_Oregon_-_DSC09255.jpg"
+      },
+      "iconId": "ru-72116211"
+    },
+    "detail": {
+      "x": 0.43,
+      "y": 0.56,
+      "width": 0.24,
+      "height": 0.2,
+      "label": "Медальон с Христом"
+    }
+  },
+  "questions": [
+    {
+      "id": "ru-72116211-subject",
+      "topic": "subject",
+      "prompt": "Кто или что изображено?",
+      "answer": "Богородица с Младенцем",
+      "distractors": [
+        "Праведная Анна с Марией",
+        "Два апостола"
+      ],
+      "hint": "Посмотрите на поднятые руки и медальон с Христом.",
+      "explanation": "Богородица поднимает руки в молитве, перед её грудью — Христос в медальоне. В русской традиции такое сочетание характерно для типа «Знамение».",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Sign_of_the_Theotokos,_Moscow_School,_early_1600s,_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art,_University_of_Oregon_-_Eugene,_Oregon_-_DSC09255.jpg"
+      },
+      "iconId": "ru-72116211"
+    },
+    {
+      "id": "ru-72116211-people",
+      "topic": "people",
+      "prompt": "Какие персонажи относятся к этой иконе?",
+      "answer": "Богородица и Иисус Христос",
+      "distractors": [
+        "Святители Василий Великий и Григорий Богослов",
+        "Борис и Глеб",
+        "Праведные Иоаким и Анна"
+      ],
+      "hint": "Посмотрите на поднятые руки и медальон с Христом.",
+      "explanation": "Богородица поднимает руки в молитве, перед её грудью — Христос в медальоне. В русской традиции такое сочетание характерно для типа «Знамение».",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Sign_of_the_Theotokos,_Moscow_School,_early_1600s,_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art,_University_of_Oregon_-_Eugene,_Oregon_-_DSC09255.jpg"
+      },
+      "iconId": "ru-72116211"
+    },
+    {
+      "id": "ru-72116211-type",
+      "topic": "type",
+      "prompt": "Как назван этот образ в карточке?",
+      "answer": "Знамение",
+      "distractors": [
+        "Введение Богородицы во храм",
+        "Троица Ветхозаветная",
+        "Покров Богородицы"
+      ],
+      "hint": "Посмотрите на поднятые руки и медальон с Христом.",
+      "explanation": "Богородица поднимает руки в молитве, перед её грудью — Христос в медальоне. В русской традиции такое сочетание характерно для типа «Знамение».",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Sign_of_the_Theotokos,_Moscow_School,_early_1600s,_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art,_University_of_Oregon_-_Eugene,_Oregon_-_DSC09255.jpg"
+      },
+      "iconId": "ru-72116211"
+    },
+    {
+      "id": "ru-72116211-tradition",
+      "topic": "tradition",
+      "prompt": "К какой традиции отнесена эта икона?",
+      "answer": "Русская",
+      "distractors": [
+        "Грузинская",
+        "Коптская",
+        "Армянская"
+      ],
+      "hint": "Традиция определяется по происхождению и исследованиям. Для этой записи сохранено: Русская.",
+      "explanation": "Традиция определяется по происхождению и исследованиям. Для этой записи сохранено: Русская.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Sign_of_the_Theotokos,_Moscow_School,_early_1600s,_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art,_University_of_Oregon_-_Eugene,_Oregon_-_DSC09255.jpg"
+      },
+      "iconId": "ru-72116211"
+    },
+    {
+      "id": "ru-72116211-period",
+      "topic": "period",
+      "prompt": "Как датирован этот образ в источнике?",
+      "answer": "Начало XVII века",
+      "distractors": [
+        "X век",
+        "Конец XX века",
+        "Середина IX века"
+      ],
+      "hint": "В карточке сохранена датировка: Начало XVII века. По одному изображению нельзя доказать точный год.",
+      "explanation": "В карточке сохранена датировка: Начало XVII века. По одному изображению нельзя доказать точный год.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Sign_of_the_Theotokos,_Moscow_School,_early_1600s,_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art,_University_of_Oregon_-_Eugene,_Oregon_-_DSC09255.jpg"
+      },
+      "iconId": "ru-72116211"
+    },
+    {
+      "id": "ru-72116211-attribution",
+      "topic": "attribution",
+      "prompt": "Как указано авторство?",
+      "answer": "Неизвестный мастер",
+      "distractors": [
+        "Феофан Грек, достоверная подпись",
+        "Дионисий, достоверная подпись",
+        "Симон Ушаков, достоверная подпись"
+      ],
+      "hint": "Формулировка источника: Неизвестный мастер. Предположение, мастерская и авторство конкретной руки — разные степени уверенности.",
+      "explanation": "Формулировка источника: Неизвестный мастер. Предположение, мастерская и авторство конкретной руки — разные степени уверенности.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Sign_of_the_Theotokos,_Moscow_School,_early_1600s,_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art,_University_of_Oregon_-_Eugene,_Oregon_-_DSC09255.jpg"
+      },
+      "iconId": "ru-72116211"
+    },
+    {
+      "id": "ru-72116211-museum",
+      "topic": "museum",
+      "prompt": "Какое собрание указано в карточке?",
+      "answer": "Музей искусств Джордана Шнитцера, Юджин",
+      "distractors": [
+        "Национальная галерея, Лондон",
+        "Музей Прадо, Мадрид",
+        "Галерея Уффици, Флоренция"
+      ],
+      "hint": "По доступной записи: Музей искусств Джордана Шнитцера, Юджин. Это сведения источника, а не вывод по внешнему виду иконы.",
+      "explanation": "По доступной записи: Музей искусств Джордана Шнитцера, Юджин. Это сведения источника, а не вывод по внешнему виду иконы.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Sign_of_the_Theotokos,_Moscow_School,_early_1600s,_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art,_University_of_Oregon_-_Eugene,_Oregon_-_DSC09255.jpg"
+      },
+      "iconId": "ru-72116211"
+    },
+    {
+      "id": "ru-72116211-attribute",
+      "topic": "attribute",
+      "prompt": "Что отличает «Знамение» от одной только позы Оранты?",
+      "answer": "Образ Христа в медальоне",
+      "distractors": [
+        "Только поднятые руки",
+        "Красный цвет одежды",
+        "Наличие нимба"
+      ],
+      "hint": "Посмотрите на поднятые руки и медальон с Христом.",
+      "explanation": "Богородица поднимает руки в молитве, перед её грудью — Христос в медальоне. В русской традиции такое сочетание характерно для типа «Знамение».",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Sign_of_the_Theotokos,_Moscow_School,_early_1600s,_egg_tempera_on_wood_-_Jordan_Schnitzer_Museum_of_Art,_University_of_Oregon_-_Eugene,_Oregon_-_DSC09255.jpg"
+      },
+      "iconId": "ru-72116211"
+    }
+  ],
+  "reading": [
+    {
+      "label": "Богородица — Википедия",
+      "url": "https://ru.wikipedia.org/wiki/%D0%91%D0%BE%D0%B3%D0%BE%D1%80%D0%BE%D0%B4%D0%B8%D1%86%D0%B0"
+    },
+    {
+      "label": "Знамение (икона) — Википедия",
+      "url": "https://ru.wikipedia.org/wiki/%D0%9D%D0%BE%D0%B2%D0%B3%D0%BE%D1%80%D0%BE%D0%B4%D1%81%D0%BA%D0%B0%D1%8F_%D0%B8%D0%BA%D0%BE%D0%BD%D0%B0_%D0%97%D0%BD%D0%B0%D0%BC%D0%B5%D0%BD%D0%B8%D1%8F_%D0%9F%D1%80%D0%B5%D1%81%D0%B2%D1%8F%D1%82%D0%BE%D0%B9_%D0%91%D0%BE%D0%B3%D0%BE%D1%80%D0%BE%D0%B4%D0%B8%D1%86%D1%8B"
+    }
+  ],
+  "schoolId": "moscow"
+}

@@ -1,0 +1,230 @@
+/* Museum surface, scoped to the standalone public route. Shared Manrope is inherited. */
+.iconography { --ico-paper:#f7f4ed; --ico-ink:#292e29; --ico-muted:#64685f; --ico-line:#dcd9cf; --ico-green:#343e30; --ico-gold:#b19557; color:var(--ico-ink); background:var(--ico-paper); font:15px/1.65 'Manrope',sans-serif; min-height:100vh; }
+.iconography * { box-sizing:border-box; }
+.iconography h1,.iconography h2,.iconography h3,.ico-footer-brand { font-family:Georgia,'Times New Roman',serif; font-weight:400; letter-spacing:-.035em; line-height:1.12; color:inherit; }
+.iconography h1 { font-size:clamp(42px,5.5vw,74px); margin:18px 0 28px; }
+.iconography h2 { font-size:clamp(30px,3.2vw,46px); margin:12px 0 24px; }
+.iconography h3 { font-size:27px; margin:12px 0; }
+.iconography p { margin:0 0 20px; }
+.iconography a { color:inherit; text-decoration:none; }
+.iconography button,.iconography input,.iconography select,.iconography textarea { font:inherit; }
+.iconography button { cursor:pointer; }
+.iconography button:disabled { cursor:default; opacity:.6; }
+.iconography :focus-visible { outline:3px solid #a56b31; outline-offset:5px; }
+.iconography main:focus { outline:none; }
+.iconography img { border:0; border-radius:0; box-shadow:none; }
+.ico-header { display:flex; align-items:center; justify-content:space-between; gap:28px; max-width:1440px; margin:auto; padding:27px 5%; border-bottom:1px solid var(--ico-line); }
+.ico-brand { display:flex; align-items:center; gap:12px; font:26px/1 Georgia,serif; letter-spacing:-.025em; white-space:nowrap; }
+.ico-brand small { display:block; font:9px/1.3 'Manrope',sans-serif; text-transform:uppercase; letter-spacing:.16em; margin-top:9px; }
+.ico-brand-mark { display:grid; place-items:center; border:1px solid #727768; width:39px; height:46px; border-radius:21px 21px 0 0; font:italic 32px Georgia,serif; }
+.ico-header nav { display:flex; gap:30px; font-size:13px; }
+.ico-header nav a { padding:10px 0; border-bottom:1px solid transparent; }
+.ico-header nav a.active,.ico-header nav a:hover { border-bottom-color:var(--ico-green); }
+.ico-header-support { font-size:12px; white-space:nowrap; }
+.ico-header-support span { margin-left:12px; }
+.ico-skip { position:absolute; z-index:100; top:0; left:20px; transform:translateY(-110%); background:white; padding:12px; }
+.ico-skip:focus { transform:none; }
+.ico-hero { max-width:1440px; margin:auto; display:grid; grid-template-columns:1fr 1fr; min-height:710px; }
+.ico-hero-copy { padding:72px 10% 56px; align-self:center; }
+.ico-eyebrow { font:10px/1.65 'Manrope',sans-serif; text-transform:uppercase; letter-spacing:.17em; color:var(--ico-muted); }
+.ico-hero-copy h1 { font-size:clamp(60px,6.6vw,96px); line-height:1.04; margin:30px 0; }
+.ico-hero-copy h1 em { font-weight:400; color:#737b61; }
+.ico-hero-copy>p:not(.ico-eyebrow):not(.ico-hero-note) { font-size:16px; color:var(--ico-muted); line-height:1.9; }
+.ico-actions { display:flex; flex-wrap:wrap; gap:22px; align-items:center; margin:28px 0; }
+.ico-button { display:inline-flex; align-items:center; justify-content:center; gap:25px; padding:15px 23px; min-height:50px; background:var(--ico-green); color:#fff!important; border:1px solid var(--ico-green); border-radius:2px; font-size:12px!important; font-weight:600; text-decoration:none!important; }
+.ico-button:hover { background:#46503e; }
+.ico-button-light { background:#ece9df; color:var(--ico-green)!important; border-color:#ece9df; }
+.ico-button-light:hover { background:white; }
+.ico-button-outline { color:var(--ico-green)!important; background:transparent; }
+.ico-link { display:inline-block; background:none; border:0; padding:5px 0; border-bottom:1px solid #a4a898; font-size:12px; line-height:1.8; }
+.ico-link:hover { border-bottom-color:currentColor; }
+.ico-hero-note { font-size:10px; color:var(--ico-muted); margin-top:38px!important; }
+.ico-hero-image { position:relative; background:#ded6c5; overflow:hidden; min-width:0; }
+.ico-hero-image>.ico-artwork { height:100%; padding:38px 70px 85px; background:linear-gradient(120deg,#ded6c6,#cbc1ad); }
+.ico-hero-image .ico-artwork img { width:100%; height:100%; object-fit:contain; max-height:600px; filter:drop-shadow(0 16px 22px #31281338); }
+.ico-hero-image .ico-zoom-trigger>span { top:20px; bottom:auto; color:#313b2d; }
+.ico-hero-caption { position:absolute; bottom:26px; left:35px; right:35px; display:flex; align-items:end; justify-content:space-between; gap:15px; pointer-events:none; }
+.ico-hero-caption>span { display:none; }
+.ico-hero-caption p { font:20px/1.25 Georgia,serif; margin:0; }
+.ico-hero-caption a { pointer-events:auto; font-size:10px; border-bottom:1px solid #8d856e; padding:8px 0; }
+.ico-collection-strip { display:flex; align-items:center; justify-content:space-between; max-width:1440px; margin:auto; border-top:1px solid var(--ico-line); border-bottom:1px solid var(--ico-line); padding:23px 5%; color:var(--ico-muted); font-size:10px; letter-spacing:.1em; text-transform:uppercase; }
+.ico-section { max-width:1300px; margin:auto; padding:76px 5%; }
+.ico-section-inner { padding:60px 0; }
+.ico-heading { display:flex; justify-content:space-between; align-items:end; gap:25px; margin-bottom:36px; }
+.ico-heading>p { color:var(--ico-muted); font-size:13px; }
+.ico-heading h2 { margin-bottom:0; }
+.ico-paths { display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--ico-line); border-bottom:1px solid var(--ico-line); }
+.ico-path { padding:32px 32px 36px 0; }
+.ico-path+.ico-path { border-left:1px solid var(--ico-line); padding-left:32px; }
+.ico-number { font:italic 16px Georgia,serif; color:#7b7e6e; }
+.ico-path h3 { font-size:34px; margin:25px 0; }
+.ico-path p { color:var(--ico-muted); font-size:13px; max-width:285px; min-height:85px; }
+.ico-path:hover h3 { color:#6a715b; }
+.ico-daily { background:var(--ico-green); color:#f5f1e5; display:grid; grid-template-columns:1fr 1fr; gap:70px; align-items:center; padding:60px max(5%,calc((100vw - 1170px)/2)); }
+.ico-daily .ico-eyebrow { color:#c8cfb9; }
+.ico-daily>div:last-child { max-width:450px; }
+.ico-daily>div>p:not(.ico-eyebrow) { color:#dbdfd2; }
+.ico-daily-art { min-width:0; }
+.ico-daily-art .ico-artwork { background:#2a3227; height:360px; padding:28px; }
+.ico-artwork { display:flex; align-items:center; justify-content:center; background:#e9e4d9; width:100%; overflow:hidden; }
+.ico-artwork img { width:100%; height:100%; object-fit:contain; }
+.ico-zoom-trigger { position:relative; border:0; border-radius:0; cursor:zoom-in!important; padding:24px; }
+.ico-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:38px 28px; }
+.ico-card { min-width:0; }
+.ico-card .ico-artwork { height:330px; padding:24px; transition:background .2s; }
+.ico-card a:hover .ico-artwork { background:#ded8c9; }
+.ico-card-caption { padding:18px 0; }
+.ico-card .ico-eyebrow { font-size:9px; letter-spacing:.09em; margin:0 0 8px; }
+.ico-card h3 { font-size:27px; margin:0 0 10px; }
+.ico-card-caption>p:last-child { font-size:11px; color:var(--ico-muted); margin:0; }
+.ico-lead { max-width:720px; font-size:17px; line-height:1.9; color:var(--ico-muted); }
+.iconography label { display:block; font-size:12px; }
+.iconography input:not([type=radio]):not([type=range]),.iconography select,.iconography textarea { display:block; width:100%; color:var(--ico-ink); background:transparent; border:1px solid #bdbfb3; border-radius:2px; min-height:47px; padding:11px 13px; margin:8px 0; font-size:14px; }
+.iconography textarea { resize:vertical; }
+.iconography select { text-overflow:ellipsis; }
+.ico-filters { display:flex; gap:20px; margin:40px 0 20px; }
+.ico-filters label { flex:1; min-width:0; }
+.ico-filters .ico-search { flex:2; }
+.ico-results { display:flex; justify-content:space-between; gap:20px; margin-bottom:26px; color:var(--ico-muted); font-size:11px; }
+.ico-results p { margin:0; }
+.ico-pagination { display:flex; align-items:center; justify-content:center; gap:35px; margin-top:40px; }
+.ico-pagination button,.ico-tabs button { border:1px solid var(--ico-line); padding:12px 18px; background:transparent; color:var(--ico-ink); font-size:12px; min-height:44px; }
+.ico-empty { padding:80px 25px; text-align:center; min-height:300px; }
+.ico-passport { display:grid; grid-template-columns:1fr 1fr; gap:56px; margin:30px 0 70px; }
+.ico-passport h1 { font-size:clamp(35px,4vw,55px); }
+.ico-passport-art { align-self:start; position:sticky; top:20px; min-width:0; }
+.ico-passport-art .ico-artwork { height:650px; }
+.ico-small { font-size:11px; color:var(--ico-muted); margin-top:12px!important; }
+.ico-facts { margin:30px 0; font-size:12px; }
+.ico-facts>div { border-top:1px solid var(--ico-line); padding:13px 0; display:grid; grid-template-columns:minmax(100px,1fr) 1.7fr; gap:18px; }
+.ico-facts dt { color:var(--ico-muted); }
+.ico-facts dd { margin:0; overflow-wrap:anywhere; }
+.ico-reading { max-width:800px; margin-left:auto; margin-right:auto; }
+.ico-reading>h2 { margin-top:50px; }
+.ico-clue { display:flex; gap:25px; border-top:1px solid var(--ico-line); padding:24px 0; }
+.ico-clue h3 { margin-top:0; }
+.ico-clue p { color:var(--ico-muted); }
+.ico-sources { padding:35px 0; border-top:1px solid var(--ico-line); margin-top:40px; font-size:13px; }
+.ico-sources h2 { font-size:32px; }
+.ico-sources a,.ico-reading li a,.ico-answer>a { text-decoration:underline; text-underline-offset:4px; }
+.iconography ul { list-style:disc; padding-left:22px; }
+.iconography li { margin-bottom:12px; }
+.iconography details { margin:28px 0; }
+.iconography summary { cursor:pointer; padding:12px 0; }
+.ico-feedback { border-top:1px solid var(--ico-line); padding:50px 0 20px; margin-top:35px; }
+.ico-feedback h2 { font-size:34px; }
+.ico-feedback>p { font-size:13px; color:var(--ico-muted); }
+.ico-feedback [role=alert] { color:#9c3c2b; }
+.ico-honeypot { position:absolute; left:-10000px; width:1px; height:1px; overflow:hidden; }
+.ico-notice { background:#eceee5; border-left:2px solid #8c967d; padding:24px; margin:28px 0; }
+.ico-notice h3 { margin-top:0; }
+.ico-notice p:last-child { margin-bottom:0; }
+.ico-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:32px 0; }
+.ico-tabs .active { background:var(--ico-green); color:white; border-color:var(--ico-green); }
+.ico-compare-selects,.ico-compare { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:32px; }
+.ico-compare .ico-artwork { height:500px; }
+.ico-compare h2 { font-size:34px; margin:24px 0 12px; }
+.ico-compare p { font-size:13px; color:var(--ico-muted); }
+.ico-comparison-note { background:#e8e9de; padding:40px; margin-top:60px; }
+.ico-lesson { display:grid; grid-template-columns:1fr 1.7fr; gap:60px; border-top:1px solid var(--ico-line); margin:50px 0 85px; padding-top:35px; }
+.ico-lesson nav button { display:flex; align-items:center; text-align:left; gap:20px; padding:18px 10px; background:none; border:0; border-bottom:1px solid var(--ico-line); width:100%; font-size:13px; }
+.ico-lesson nav button[aria-current] { color:#34452b; background:#e8ebdf; }
+.ico-lesson nav button span { color:#767d68; font:italic 18px Georgia,serif; }
+.ico-lesson article>p:not(.ico-eyebrow) { font-size:17px; line-height:1.85; }
+.ico-iconostasis { padding:30px; background:#e8e1d0; margin:30px 0; }
+.ico-iconostasis>button { display:block; width:100%; border:1px solid #ac9c78; background:#f4efdf; color:#494632; margin:6px 0; padding:8px; font-size:11px; }
+.ico-iconostasis>button.active { border:2px solid #4e5940; background:#dfe4cf; }
+.ico-arches { display:flex; justify-content:space-around; gap:8px; margin:0 0 5px; }
+.ico-arches>span { display:block; width:35px; height:45px; border:1px solid #aa9461; border-radius:20px 20px 0 0; background:linear-gradient(#d7c9a4,#e7dbb9); }
+.ico-gates { display:flex; justify-content:center; gap:25px; text-align:center; font-size:10px; margin-top:15px; }
+.ico-feast-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:30px; margin:30px 0; }
+.ico-feast-grid article { border-top:1px solid var(--ico-line); padding-top:15px; }
+.ico-feast-grid p { color:var(--ico-muted); font-size:13px; }
+.ico-fieldset { border:0; margin:40px 0; padding:0; min-width:0; }
+.ico-fieldset legend { font:30px Georgia,serif; margin-bottom:24px; }
+.ico-topic-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+.ico-topic-grid label,.ico-difficulties label { display:flex; align-items:start; gap:14px; border:1px solid var(--ico-line); padding:20px; cursor:pointer; }
+.ico-topic-grid input,.ico-difficulties input { accent-color:var(--ico-green); margin-top:5px; width:16px; height:16px; flex-shrink:0; }
+.ico-topic-grid label.selected,.ico-difficulties label.selected { background:#e8ebdf; border-color:#909a80; }
+.ico-fieldset strong { display:block; font-size:14px; font-weight:600; }
+.ico-fieldset small { display:block; color:var(--ico-muted); margin-top:7px; font-size:11px; }
+.ico-difficulties { display:grid; grid-template-columns:repeat(3,1fr); gap:15px; }
+.ico-quiz-top { display:flex; align-items:center; justify-content:space-between; gap:15px; font-size:11px; }
+.ico-progress { width:100%; height:3px; display:block; margin:25px 0 40px; accent-color:var(--ico-green); }
+.ico-progress::-webkit-progress-bar { background:#dedfcf; }
+.ico-progress::-webkit-progress-value { background:var(--ico-green); }
+.ico-question { display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:start; }
+.ico-question-art { position:sticky; top:20px; }
+.ico-question-art .ico-artwork { height:560px; }
+.ico-question-body { padding:10px 0; }
+.ico-question-body h1 { font-size:34px; }
+.ico-question-text { display:block; max-width:800px; margin:auto; }
+.ico-options { display:flex; flex-direction:column; gap:12px; margin:30px 0; }
+.ico-options button { display:flex; align-items:center; text-align:left; gap:15px; padding:16px; border:1px solid #bbc0ae; background:transparent; color:var(--ico-ink); font-size:13px; min-height:60px; }
+.ico-options button:not(:disabled):hover { background:#e8ebdf; }
+.ico-options button:disabled { opacity:1; }
+.ico-option-letter { font-size:10px; color:var(--ico-muted); }
+.ico-options button.correct { border-color:#71825d; background:#e0e9d7; }
+.ico-options button.incorrect { border-color:#b88e79; background:#f0e0d7; }
+.ico-hint { font-size:13px; color:var(--ico-muted); }
+.ico-hint p { padding:20px 0; }
+.ico-answer { background:#efe6db; padding:25px; margin:25px 0; }
+.ico-answer.correct { background:#e6ecdf; }
+.ico-answer h2 { font-size:27px; }
+.ico-answer p { font-size:13px; }
+.ico-answer .ico-button { margin-top:20px; }
+.ico-lesson-finish { max-width:1000px; margin:auto; padding:70px 5%; }
+.ico-support-countries { display:grid; grid-template-columns:1fr 1fr; gap:25px; margin:35px 0; }
+.ico-support-countries article { border:1px solid var(--ico-line); padding:25px; }
+.ico-image-error { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:250px; padding:25px; background:#eee6dc; }
+.ico-footer { border-top:1px solid var(--ico-line); display:flex; justify-content:space-between; gap:35px; max-width:1440px; padding:55px 5%; margin:auto; font-size:11px; color:var(--ico-muted); }
+.ico-footer-brand { font-size:30px; color:var(--ico-ink)!important; display:block; margin-bottom:20px; }
+.ico-footer nav { display:flex; flex-direction:column; gap:18px; }
+.ico-zoom { position:fixed; width:94vw; max-width:1200px; height:94dvh; max-height:94dvh; background:#eee9dd; color:#292e29; border:0; padding:18px; overflow:hidden; margin:auto; box-shadow:0 20px 80px #0006; }
+.ico-zoom::backdrop { background:#111d; }
+.ico-zoom-toolbar { display:flex; justify-content:center; align-items:center; gap:15px; }
+.ico-zoom-toolbar button { min-width:44px; min-height:44px; padding:8px; border:1px solid #aaa; background:#f7f4ed; }
+.ico-zoom-toolbar label { display:flex; align-items:center; gap:10px; }
+.ico-zoom-toolbar output { font-size:12px; min-width:40px; }
+.ico-zoom-pan { height:calc(100% - 130px); overflow:auto; overscroll-behavior:contain; background:#d8d0be; }
+.ico-zoom-pan img { display:block; height:auto; margin:auto; object-fit:contain; }
+.ico-zoom-help { font-size:10px; text-align:center; margin:10px 0!important; }
+@media(min-width:1500px) { .ico-hero-image .ico-artwork img { max-height:650px; } }
+@media(max-width:1050px) {
+  .ico-header { gap:15px; }.ico-header nav { gap:18px; font-size:11px; }.ico-header-support { display:none; }
+  .ico-hero { min-height:610px; }.ico-hero-copy { padding:55px 10%; }.ico-hero-copy h1 { font-size:65px; }
+  .ico-hero-image>.ico-artwork { padding:30px 35px 95px; }.ico-hero-image .ico-artwork img { max-height:530px; }
+  .ico-daily { gap:40px; }.ico-card .ico-artwork { height:280px; }.ico-passport { gap:30px; }
+  .ico-passport-art .ico-artwork { height:500px; }.ico-question { gap:30px; }.ico-question-art .ico-artwork { height:470px; }
+}
+@media(max-width:700px) {
+  .iconography h1 { font-size:43px; }.iconography h2 { font-size:32px; }.ico-header { flex-wrap:wrap; padding:20px 6% 0; gap:18px; }
+  .ico-brand { font-size:25px; }.ico-header nav { width:100%; justify-content:space-between; gap:12px; padding:0 0 5px; font-size:11px; }
+  .ico-header nav a { min-height:44px; display:flex; align-items:center; }.ico-hero { grid-template-columns:1fr; }
+  .ico-hero-copy { padding:30px 7% 25px; }.ico-hero-copy h1 { font-size:58px; margin:18px 0 20px; }
+  .ico-hero-copy .ico-actions { gap:12px; flex-wrap:nowrap; }.ico-hero-copy .ico-button { padding:13px; gap:12px; font-size:11px!important; }.ico-hero-copy .ico-link { font-size:10px; white-space:nowrap; }
+  .ico-hero-copy>p:not(.ico-eyebrow):not(.ico-hero-note) { font-size:14px; }.ico-hero-note { margin-top:23px!important; }
+  .ico-actions { gap:18px; margin:22px 0; }.ico-hero-image { min-height:510px; }.ico-hero-image>.ico-artwork { height:510px; padding:25px 50px 95px; }
+  .ico-hero-image .ico-artwork img { max-height:380px; }.ico-hero-caption { left:26px; right:26px; bottom:24px; }
+  .ico-collection-strip { flex-wrap:wrap; gap:10px 15px; justify-content:center; font-size:8px; padding:18px; }
+  .ico-section { padding:48px 6%; }.ico-heading { align-items:start; flex-direction:column; gap:15px; margin-bottom:25px; }
+  .ico-heading>p { margin:0; }.ico-paths { grid-template-columns:1fr; }.ico-path { padding:24px 0!important; }
+  .ico-path+.ico-path { border-left:0; border-top:1px solid var(--ico-line); }.ico-path h3 { margin:14px 0; }.ico-path h3 br { display:none; }.ico-path p { max-width:none; min-height:0; }
+  .ico-daily { grid-template-columns:1fr; padding:35px 6%; gap:30px; }.ico-daily-art .ico-artwork { height:330px; }
+  .ico-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px 14px; }.ico-card .ico-artwork { height:235px; padding:12px; }.ico-card h3 { font-size:23px; }
+  .ico-card .ico-eyebrow { font-size:8px; letter-spacing:.04em; }.ico-card-caption>p:last-child { font-size:10px; }
+  .ico-filters { flex-wrap:wrap; gap:15px; }.ico-filters .ico-search { flex:1 1 100%; }.ico-results { flex-direction:column; gap:10px; }
+  .ico-lead { font-size:15px; }.ico-passport { grid-template-columns:1fr; margin-top:25px; gap:20px; }.ico-passport-art { position:static; }.ico-passport-art .ico-artwork { height:480px; }
+  .ico-passport h1 { font-size:42px; }.ico-facts>div { grid-template-columns:1fr 1.6fr; }.ico-clue { gap:15px; }.ico-clue h3 { font-size:25px; }
+  .ico-sources { overflow-wrap:anywhere; }.ico-compare,.ico-compare-selects { gap:16px; }.ico-compare .ico-artwork { height:260px; padding:10px; }.ico-compare h2 { font-size:25px; }
+  .ico-compare p { font-size:12px; }.ico-compare .ico-facts>div { display:block; }.ico-compare dt { margin-bottom:5px; }.ico-compare .ico-link { font-size:11px; }
+  .ico-compare-selects label { font-size:10px; }.ico-compare-selects select { font-size:12px; padding:8px; }.ico-comparison-note { padding:25px; margin-top:40px; }
+  .ico-lesson { grid-template-columns:1fr; gap:25px; margin:35px 0 50px; }.ico-lesson article>p:not(.ico-eyebrow) { font-size:15px; }
+  .ico-iconostasis { padding:15px; }.ico-gates { gap:15px; font-size:9px; }.ico-feast-grid { gap:25px; }.ico-feast-grid h3 { font-size:24px; }
+  .ico-topic-grid,.ico-difficulties { grid-template-columns:1fr; }.ico-fieldset { margin:30px 0; }.ico-fieldset legend { font-size:28px; }.ico-topic-grid label { padding:17px; }
+  .ico-quiz-top { flex-wrap:wrap; }.ico-quiz-top>span:last-child { display:none; }.ico-question { grid-template-columns:1fr; gap:20px; }.ico-question-art { position:static; }.ico-question-art .ico-artwork { height:380px; }
+  .ico-question-body h1 { font-size:30px; }.ico-quiz-top .ico-link { font-size:10px; }.ico-support-countries { grid-template-columns:1fr; }.ico-footer { flex-wrap:wrap; padding:40px 6%; }
+  .ico-footer>p { width:100%; }.ico-zoom { width:98vw; height:96dvh; max-height:96dvh; padding:10px; }.ico-zoom-toolbar { gap:5px; }.ico-zoom-toolbar label { font-size:0; }.ico-zoom-toolbar input { width:65px; }
+}
+@media(max-width:380px) { .ico-feast-grid { grid-template-columns:1fr; } }
+@media(prefers-reduced-motion:reduce) { .iconography * { transition:none!important; scroll-behavior:auto!important; } }

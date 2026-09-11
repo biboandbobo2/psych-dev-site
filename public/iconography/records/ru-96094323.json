@@ -1,0 +1,276 @@
+{
+  "id": "ru-96094323",
+  "title": "Преображение Господне",
+  "tradition": "Русская",
+  "region": "Русь; центр не уточнён",
+  "period": "XV век",
+  "centuries": [
+    15
+  ],
+  "subject": "Христос в сиянии на горе",
+  "people": "Христос, Моисей, Илия; апостолы Пётр, Иаков и Иоанн",
+  "type": "Преображение",
+  "museum": "Государственная Третьяковская галерея, Москва",
+  "tags": [
+    "transfiguration",
+    "Преображение Господне",
+    "Неизвестный мастер",
+    "Живопись на доске"
+  ],
+  "image": {
+    "width": 4144,
+    "height": 5696,
+    "widths": [
+      320,
+      800,
+      1600
+    ]
+  },
+  "attribution": "Неизвестный мастер",
+  "material": "Живопись на доске; техника по записи источника",
+  "inventory": "Не указан в использованной записи",
+  "description": "Христос изображён в сиянии, рядом — Моисей и Илия. Три апостола внизу реагируют на явление славы.",
+  "clues": [
+    {
+      "title": "Как узнать образ",
+      "text": "Христос изображён в сиянии, рядом — Моисей и Илия. Три апостола внизу реагируют на явление славы."
+    },
+    {
+      "title": "Три апостола внизу",
+      "text": "Пётр, Иаков и Иоанн реагируют на явление Христа в славе. Они не образуют спокойного деисусного предстояния."
+    },
+    {
+      "title": "Сияние не даёт сюжета само по себе",
+      "text": "Мандорла встречается и в Вознесении, и в Сошествии во ад. Для Преображения важны Моисей, Илия и три апостола."
+    }
+  ],
+  "caution": "Датировка, регион и собрание приведены по указанным источникам. Запись репродукции не заменяет музейной экспертизы; неизвестное авторство не уточняется по стилю. Сведения этой карточки проверены по Wikimedia Commons; первичная музейная запись отдельно не сверялась.",
+  "sources": [
+    {
+      "label": "Запись репродукции и права — Wikimedia Commons",
+      "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Jesus_icon.jpg"
+    }
+  ],
+  "rights": {
+    "label": "Общественное достояние (PD-Art)",
+    "url": "https://commons.wikimedia.org/wiki/Commons:Reuse_of_PD-Art_photographs",
+    "credit": "Репродукция: альбом М. В. Алпатова «Древнерусская иконопись» (1978), оцифровка Michel Bakni / Wikimedia Commons",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/6/62/Transfiguration_of_Jesus_icon.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "checked": "2026-09-09"
+  },
+  "originalMetadata": {
+    "title": "Transfiguration of Jesus icon.jpg",
+    "date": "XV век",
+    "culture": "Русь; центр не уточнён",
+    "attribution": "Неизвестный мастер",
+    "material": "Сведения о технике см. в источнике"
+  },
+  "recognitionGroup": "transfiguration",
+  "recognition": {
+    "beginner": {
+      "id": "ru-96094323-recognition-beginner",
+      "topic": "subject",
+      "prompt": "Что изображено?",
+      "answer": "Христос в сиянии на горе",
+      "distractors": [
+        "Крещение Христа",
+        "Рождение Христа"
+      ],
+      "hint": "Найдите Христа наверху и трёх апостолов внизу.",
+      "explanation": "Христос изображён в сиянии, рядом — Моисей и Илия. Три апостола внизу реагируют на явление славы.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Jesus_icon.jpg"
+      },
+      "iconId": "ru-96094323"
+    },
+    "explorer": {
+      "id": "ru-96094323-recognition-explorer",
+      "topic": "subject",
+      "prompt": "Как называется сюжет?",
+      "answer": "Преображение Господне",
+      "distractors": [
+        "Вознесение",
+        "Сошествие во ад",
+        "Крещение"
+      ],
+      "hint": "Найдите Христа наверху и трёх апостолов внизу.",
+      "explanation": "Христос изображён в сиянии, рядом — Моисей и Илия. Три апостола внизу реагируют на явление славы.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Jesus_icon.jpg"
+      },
+      "iconId": "ru-96094323"
+    },
+    "expert": {
+      "id": "ru-96094323-recognition-expert",
+      "topic": "subject",
+      "prompt": "Кто стоит рядом со Христом в верхней части?",
+      "answer": "Моисей и Илия",
+      "distractors": [
+        "Пётр и Павел",
+        "Иоаким и Анна",
+        "Борис и Глеб"
+      ],
+      "hint": "Найдите Христа наверху и трёх апостолов внизу.",
+      "explanation": "Христос изображён в сиянии, рядом — Моисей и Илия. Три апостола внизу реагируют на явление славы.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Jesus_icon.jpg"
+      },
+      "iconId": "ru-96094323"
+    }
+  },
+  "questions": [
+    {
+      "id": "ru-96094323-subject",
+      "topic": "subject",
+      "prompt": "Кто или что изображено?",
+      "answer": "Христос в сиянии на горе",
+      "distractors": [
+        "Крещение Христа",
+        "Рождение Христа"
+      ],
+      "hint": "Найдите Христа наверху и трёх апостолов внизу.",
+      "explanation": "Христос изображён в сиянии, рядом — Моисей и Илия. Три апостола внизу реагируют на явление славы.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Jesus_icon.jpg"
+      },
+      "iconId": "ru-96094323"
+    },
+    {
+      "id": "ru-96094323-people",
+      "topic": "people",
+      "prompt": "Какие персонажи относятся к этой иконе?",
+      "answer": "Христос, Моисей, Илия; апостолы Пётр, Иаков и Иоанн",
+      "distractors": [
+        "Святители Василий Великий и Григорий Богослов",
+        "Борис и Глеб",
+        "Праведные Иоаким и Анна"
+      ],
+      "hint": "Найдите Христа наверху и трёх апостолов внизу.",
+      "explanation": "Христос изображён в сиянии, рядом — Моисей и Илия. Три апостола внизу реагируют на явление славы.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Jesus_icon.jpg"
+      },
+      "iconId": "ru-96094323"
+    },
+    {
+      "id": "ru-96094323-type",
+      "topic": "type",
+      "prompt": "Как назван этот образ в карточке?",
+      "answer": "Преображение",
+      "distractors": [
+        "Введение Богородицы во храм",
+        "Троица Ветхозаветная",
+        "Покров Богородицы"
+      ],
+      "hint": "Найдите Христа наверху и трёх апостолов внизу.",
+      "explanation": "Христос изображён в сиянии, рядом — Моисей и Илия. Три апостола внизу реагируют на явление славы.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Jesus_icon.jpg"
+      },
+      "iconId": "ru-96094323"
+    },
+    {
+      "id": "ru-96094323-tradition",
+      "topic": "tradition",
+      "prompt": "К какой традиции отнесена эта икона?",
+      "answer": "Русская",
+      "distractors": [
+        "Грузинская",
+        "Коптская",
+        "Армянская"
+      ],
+      "hint": "Традиция определяется по происхождению и исследованиям. Для этой записи сохранено: Русская.",
+      "explanation": "Традиция определяется по происхождению и исследованиям. Для этой записи сохранено: Русская.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Jesus_icon.jpg"
+      },
+      "iconId": "ru-96094323"
+    },
+    {
+      "id": "ru-96094323-period",
+      "topic": "period",
+      "prompt": "Как датирован этот образ в источнике?",
+      "answer": "XV век",
+      "distractors": [
+        "X век",
+        "Конец XX века",
+        "Середина IX века"
+      ],
+      "hint": "В карточке сохранена датировка: XV век. По одному изображению нельзя доказать точный год.",
+      "explanation": "В карточке сохранена датировка: XV век. По одному изображению нельзя доказать точный год.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Jesus_icon.jpg"
+      },
+      "iconId": "ru-96094323"
+    },
+    {
+      "id": "ru-96094323-attribution",
+      "topic": "attribution",
+      "prompt": "Как указано авторство?",
+      "answer": "Неизвестный мастер",
+      "distractors": [
+        "Феофан Грек, достоверная подпись",
+        "Дионисий, достоверная подпись",
+        "Симон Ушаков, достоверная подпись"
+      ],
+      "hint": "Формулировка источника: Неизвестный мастер. Предположение, мастерская и авторство конкретной руки — разные степени уверенности.",
+      "explanation": "Формулировка источника: Неизвестный мастер. Предположение, мастерская и авторство конкретной руки — разные степени уверенности.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Jesus_icon.jpg"
+      },
+      "iconId": "ru-96094323"
+    },
+    {
+      "id": "ru-96094323-museum",
+      "topic": "museum",
+      "prompt": "Какое собрание указано в карточке?",
+      "answer": "Государственная Третьяковская галерея, Москва",
+      "distractors": [
+        "Национальная галерея, Лондон",
+        "Музей Прадо, Мадрид",
+        "Галерея Уффици, Флоренция"
+      ],
+      "hint": "По доступной записи: Государственная Третьяковская галерея, Москва. Это сведения источника, а не вывод по внешнему виду иконы.",
+      "explanation": "По доступной записи: Государственная Третьяковская галерея, Москва. Это сведения источника, а не вывод по внешнему виду иконы.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Jesus_icon.jpg"
+      },
+      "iconId": "ru-96094323"
+    },
+    {
+      "id": "ru-96094323-attribute",
+      "topic": "attribute",
+      "prompt": "Кто стоит рядом со Христом в верхней части?",
+      "answer": "Моисей и Илия",
+      "distractors": [
+        "Пётр и Павел",
+        "Иоаким и Анна",
+        "Борис и Глеб"
+      ],
+      "hint": "Найдите Христа наверху и трёх апостолов внизу.",
+      "explanation": "Христос изображён в сиянии, рядом — Моисей и Илия. Три апостола внизу реагируют на явление славы.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Jesus_icon.jpg"
+      },
+      "iconId": "ru-96094323"
+    }
+  ],
+  "reading": [
+    {
+      "label": "Преображение Господне — Википедия",
+      "url": "https://ru.wikipedia.org/wiki/%D0%9F%D1%80%D0%B5%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5_%D0%93%D0%BE%D1%81%D0%BF%D0%BE%D0%B4%D0%BD%D0%B5"
+    }
+  ],
+  "schoolId": "russian"
+}

@@ -1,0 +1,1 @@
+export { IconographyPortal } from './IconographyPortal';

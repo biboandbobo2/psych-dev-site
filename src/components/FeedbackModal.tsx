@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '../lib/firebase';
+import { submitFeedback } from '../lib/feedback';
 import { BaseModal, ModalCancelButton, ModalSaveButton } from './ui/BaseModal';
 import { useAuth } from '../auth/AuthProvider';
 
@@ -75,9 +74,8 @@ export function FeedbackModal({
     setError(null);
 
     try {
-      const sendFeedback = httpsCallable(functions, 'sendFeedback');
       const finalMessage = `${messagePrefix}${message.trim()}`;
-      await sendFeedback({
+      await submitFeedback({
         type: lockedType ?? feedbackType,
         message: finalMessage,
         userEmail: user?.email || undefined,

@@ -349,6 +349,7 @@ export function AppShell() {
 
   // Standalone routes should not pay the cost of unrelated content hooks or generic loaders.
   const isStandaloneLanding =
+    (normalizedPath === '/iconography' || normalizedPath.startsWith('/iconography/')) ||
     normalizedPath === '/warm_springs2' ||
     normalizedPath === '/vozrast' ||
     normalizedPath.startsWith('/academy/retraining-psychologist-consultant-') ||

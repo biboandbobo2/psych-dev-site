@@ -1,0 +1,286 @@
+{
+  "id": "ru-57341600",
+  "title": "Богоматерь Ярославская",
+  "tradition": "Русская",
+  "region": "Русь; центр не уточнён",
+  "period": "Середина XV века",
+  "centuries": [
+    15
+  ],
+  "subject": "Богородица с Младенцем",
+  "people": "Богородица и Иисус Христос",
+  "type": "Умиление (Елеуса)",
+  "museum": "Государственная Третьяковская галерея, Москва",
+  "tags": [
+    "mary",
+    "Умиление (Елеуса)",
+    "Неизвестный мастер",
+    "Живопись на доске"
+  ],
+  "image": {
+    "width": 585,
+    "height": 743,
+    "widths": [
+      320,
+      585
+    ]
+  },
+  "attribution": "Неизвестный мастер",
+  "material": "Живопись на доске; техника по записи источника",
+  "inventory": "Не указан в использованной записи",
+  "description": "Младенец прижимается к Матери. Соприкосновение щёк — главный ориентир типа Умиление.",
+  "clues": [
+    {
+      "title": "Как узнать образ",
+      "text": "Младенец прижимается к Матери. Соприкосновение щёк — главный ориентир типа Умиление."
+    },
+    {
+      "title": "Мать и Младенец",
+      "text": "Смотрите на взаимное положение голов и рук. Сближение щёк отличает Умиление от более фронтальных вариантов Богоматери с Младенцем."
+    },
+    {
+      "title": "Имя и название типа",
+      "text": "«Богородица» отвечает на вопрос, кто изображён; «Умиление» — как устроен образ. Название вроде «Ярославская» может относиться к почитаемой иконе и её повторениям, а не к месту создания любой копии."
+    }
+  ],
+  "caution": "Датировка, регион и собрание приведены по указанным источникам. Запись репродукции не заменяет музейной экспертизы; неизвестное авторство не уточняется по стилю. Сведения этой карточки проверены по Wikimedia Commons; первичная музейная запись отдельно не сверялась.",
+  "sources": [
+    {
+      "label": "Запись репродукции и права — Wikimedia Commons",
+      "url": "https://commons.wikimedia.org/wiki/File:The_Yaroslavi_Virgin_With_Child_(15th_century,_Tretyakov).jpg"
+    }
+  ],
+  "rights": {
+    "label": "Общественное достояние (PD-Art)",
+    "url": "https://commons.wikimedia.org/wiki/Commons:Reuse_of_PD-Art_photographs",
+    "credit": "Репродукция: Wikimedia Commons",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/6/60/The_Yaroslavi_Virgin_With_Child_%2815th_century%2C_Tretyakov%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "checked": "2026-09-09"
+  },
+  "originalMetadata": {
+    "title": "The Yaroslavi Virgin With Child (15th century, Tretyakov).jpg",
+    "date": "Середина XV века",
+    "culture": "Русь; центр не уточнён",
+    "attribution": "Неизвестный мастер",
+    "material": "Сведения о технике см. в источнике"
+  },
+  "recognitionGroup": "mary",
+  "recognition": {
+    "beginner": {
+      "id": "ru-57341600-recognition-beginner",
+      "topic": "people",
+      "prompt": "Кто изображён?",
+      "answer": "Богородица с Младенцем",
+      "distractors": [
+        "Праведная Анна с Марией",
+        "Два апостола"
+      ],
+      "hint": "Посмотрите, как расположены лица Матери и Младенца.",
+      "explanation": "Младенец прижимается к Матери. Соприкосновение щёк — главный ориентир типа Умиление.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Yaroslavi_Virgin_With_Child_(15th_century,_Tretyakov).jpg"
+      },
+      "iconId": "ru-57341600"
+    },
+    "explorer": {
+      "id": "ru-57341600-recognition-explorer",
+      "topic": "people",
+      "prompt": "Какой это образ?",
+      "answer": "Умиление (Елеуса)",
+      "distractors": [
+        "Одигитрия",
+        "Знамение",
+        "Богоматерь в молении"
+      ],
+      "hint": "Посмотрите, как расположены лица Матери и Младенца.",
+      "explanation": "Младенец прижимается к Матери. Соприкосновение щёк — главный ориентир типа Умиление.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Yaroslavi_Virgin_With_Child_(15th_century,_Tretyakov).jpg"
+      },
+      "iconId": "ru-57341600"
+    },
+    "expert": {
+      "id": "ru-57341600-recognition-expert",
+      "topic": "people",
+      "prompt": "Какая деталь здесь отличает Умиление от Одигитрии?",
+      "answer": "Соприкосновение лиц Матери и Младенца",
+      "distractors": [
+        "Указующий жест Богородицы",
+        "Медальон перед грудью",
+        "Отсутствие Младенца"
+      ],
+      "hint": "Посмотрите, как расположены лица Матери и Младенца.",
+      "explanation": "Младенец прижимается к Матери. Соприкосновение щёк — главный ориентир типа Умиление.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Yaroslavi_Virgin_With_Child_(15th_century,_Tretyakov).jpg"
+      },
+      "iconId": "ru-57341600"
+    },
+    "detail": {
+      "x": 0.36,
+      "y": 0.14,
+      "width": 0.38,
+      "height": 0.28,
+      "label": "Соприкосновение лиц Матери и Младенца"
+    }
+  },
+  "questions": [
+    {
+      "id": "ru-57341600-subject",
+      "topic": "subject",
+      "prompt": "Кто или что изображено?",
+      "answer": "Богородица с Младенцем",
+      "distractors": [
+        "Праведная Анна с Марией",
+        "Два апостола"
+      ],
+      "hint": "Посмотрите, как расположены лица Матери и Младенца.",
+      "explanation": "Младенец прижимается к Матери. Соприкосновение щёк — главный ориентир типа Умиление.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Yaroslavi_Virgin_With_Child_(15th_century,_Tretyakov).jpg"
+      },
+      "iconId": "ru-57341600"
+    },
+    {
+      "id": "ru-57341600-people",
+      "topic": "people",
+      "prompt": "Какие персонажи относятся к этой иконе?",
+      "answer": "Богородица и Иисус Христос",
+      "distractors": [
+        "Святители Василий Великий и Григорий Богослов",
+        "Борис и Глеб",
+        "Праведные Иоаким и Анна"
+      ],
+      "hint": "Посмотрите, как расположены лица Матери и Младенца.",
+      "explanation": "Младенец прижимается к Матери. Соприкосновение щёк — главный ориентир типа Умиление.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Yaroslavi_Virgin_With_Child_(15th_century,_Tretyakov).jpg"
+      },
+      "iconId": "ru-57341600"
+    },
+    {
+      "id": "ru-57341600-type",
+      "topic": "type",
+      "prompt": "Как назван этот образ в карточке?",
+      "answer": "Умиление (Елеуса)",
+      "distractors": [
+        "Введение Богородицы во храм",
+        "Троица Ветхозаветная",
+        "Покров Богородицы"
+      ],
+      "hint": "Посмотрите, как расположены лица Матери и Младенца.",
+      "explanation": "Младенец прижимается к Матери. Соприкосновение щёк — главный ориентир типа Умиление.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Yaroslavi_Virgin_With_Child_(15th_century,_Tretyakov).jpg"
+      },
+      "iconId": "ru-57341600"
+    },
+    {
+      "id": "ru-57341600-tradition",
+      "topic": "tradition",
+      "prompt": "К какой традиции отнесена эта икона?",
+      "answer": "Русская",
+      "distractors": [
+        "Грузинская",
+        "Коптская",
+        "Армянская"
+      ],
+      "hint": "Традиция определяется по происхождению и исследованиям. Для этой записи сохранено: Русская.",
+      "explanation": "Традиция определяется по происхождению и исследованиям. Для этой записи сохранено: Русская.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Yaroslavi_Virgin_With_Child_(15th_century,_Tretyakov).jpg"
+      },
+      "iconId": "ru-57341600"
+    },
+    {
+      "id": "ru-57341600-period",
+      "topic": "period",
+      "prompt": "Как датирован этот образ в источнике?",
+      "answer": "Середина XV века",
+      "distractors": [
+        "X век",
+        "Конец XX века",
+        "Середина IX века"
+      ],
+      "hint": "В карточке сохранена датировка: Середина XV века. По одному изображению нельзя доказать точный год.",
+      "explanation": "В карточке сохранена датировка: Середина XV века. По одному изображению нельзя доказать точный год.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Yaroslavi_Virgin_With_Child_(15th_century,_Tretyakov).jpg"
+      },
+      "iconId": "ru-57341600"
+    },
+    {
+      "id": "ru-57341600-attribution",
+      "topic": "attribution",
+      "prompt": "Как указано авторство?",
+      "answer": "Неизвестный мастер",
+      "distractors": [
+        "Феофан Грек, достоверная подпись",
+        "Дионисий, достоверная подпись",
+        "Симон Ушаков, достоверная подпись"
+      ],
+      "hint": "Формулировка источника: Неизвестный мастер. Предположение, мастерская и авторство конкретной руки — разные степени уверенности.",
+      "explanation": "Формулировка источника: Неизвестный мастер. Предположение, мастерская и авторство конкретной руки — разные степени уверенности.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Yaroslavi_Virgin_With_Child_(15th_century,_Tretyakov).jpg"
+      },
+      "iconId": "ru-57341600"
+    },
+    {
+      "id": "ru-57341600-museum",
+      "topic": "museum",
+      "prompt": "Какое собрание указано в карточке?",
+      "answer": "Государственная Третьяковская галерея, Москва",
+      "distractors": [
+        "Национальная галерея, Лондон",
+        "Музей Прадо, Мадрид",
+        "Галерея Уффици, Флоренция"
+      ],
+      "hint": "По доступной записи: Государственная Третьяковская галерея, Москва. Это сведения источника, а не вывод по внешнему виду иконы.",
+      "explanation": "По доступной записи: Государственная Третьяковская галерея, Москва. Это сведения источника, а не вывод по внешнему виду иконы.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Yaroslavi_Virgin_With_Child_(15th_century,_Tretyakov).jpg"
+      },
+      "iconId": "ru-57341600"
+    },
+    {
+      "id": "ru-57341600-attribute",
+      "topic": "attribute",
+      "prompt": "Какая деталь здесь отличает Умиление от Одигитрии?",
+      "answer": "Соприкосновение лиц Матери и Младенца",
+      "distractors": [
+        "Указующий жест Богородицы",
+        "Медальон перед грудью",
+        "Отсутствие Младенца"
+      ],
+      "hint": "Посмотрите, как расположены лица Матери и Младенца.",
+      "explanation": "Младенец прижимается к Матери. Соприкосновение щёк — главный ориентир типа Умиление.",
+      "source": {
+        "label": "Запись репродукции и права — Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:The_Yaroslavi_Virgin_With_Child_(15th_century,_Tretyakov).jpg"
+      },
+      "iconId": "ru-57341600"
+    }
+  ],
+  "reading": [
+    {
+      "label": "Богородица — Википедия",
+      "url": "https://ru.wikipedia.org/wiki/%D0%91%D0%BE%D0%B3%D0%BE%D1%80%D0%BE%D0%B4%D0%B8%D1%86%D0%B0"
+    },
+    {
+      "label": "Умиление — Википедия",
+      "url": "https://ru.wikipedia.org/wiki/%D0%A3%D0%BC%D0%B8%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5"
+    }
+  ],
+  "schoolId": "russian"
+}

@@ -1,0 +1,276 @@
+{
+  "title": "Преображение. Фрагмент эпистилия",
+  "period": "Середина XII века",
+  "centuries": [
+    12
+  ],
+  "tradition": "Византийская",
+  "region": "Константинопольские стилистические черты — по источнику",
+  "museum": "Монастырь Святой Екатерины, Синай",
+  "attribution": "Неизвестный мастер",
+  "material": "Живопись на доске",
+  "inventory": "Не указан в доступном источнике",
+  "description": "Христос в сиянии находится выше трёх апостолов; рядом с Ним — Моисей и Илия. Эта композиция передаёт явление славы на горе.",
+  "clues": [
+    {
+      "title": "Три фигуры наверху",
+      "text": "Христос между Моисеем и Илиёй. Это не три ангела Троицы."
+    },
+    {
+      "title": "Апостолы внизу",
+      "text": "Пётр, Иаков и Иоанн реагируют на явление. Их движение отличается от спокойного предстояния деисусного ряда."
+    },
+    {
+      "title": "Эпизод общего повествования",
+      "text": "Репродукция показывает часть длинного эпистилия с праздничными сценами, а не отдельную полную доску."
+    }
+  ],
+  "id": "by-3859855",
+  "subject": "Христос в сиянии на горе",
+  "people": "Христос, Моисей, Илия; апостолы Пётр, Иаков и Иоанн",
+  "type": "Преображение",
+  "tags": [
+    "transfiguration",
+    "Преображение Господне",
+    "Константинопольские стилистические черты — по источнику"
+  ],
+  "image": {
+    "width": 1047,
+    "height": 1000,
+    "widths": [
+      320,
+      800,
+      1047
+    ]
+  },
+  "recognitionGroup": "transfiguration",
+  "caution": "Датировка и происхождение сохранены по указанному описанию. Место хранения не доказывает место создания, а принадлежность ансамблю не устанавливает имя живописца. Первичная музейная карточка отдельно не сверена: использовано описание репродукции с указанным в нём изданием.",
+  "sources": [
+    {
+      "label": "Wikimedia Commons: репродукция, описание и права",
+      "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg"
+    }
+  ],
+  "rights": {
+    "label": "Общественное достояние (PD-Art)",
+    "url": "https://commons.wikimedia.org/wiki/Commons:Reuse_of_PD-Art_photographs",
+    "credit": "Курт Вайцман, «Die Ikone», репродукция через Wikimedia Commons",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/6/69/Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "checked": "2026-09-09"
+  },
+  "originalMetadata": {
+    "title": "Transfiguration of Christ Icon Sinai 12th century.jpg",
+    "date": "Середина XII века",
+    "culture": "Константинопольские стилистические черты — по источнику",
+    "attribution": "Неизвестный мастер",
+    "material": "Живопись на доске"
+  },
+  "recognition": {
+    "beginner": {
+      "id": "by-3859855-recognition-beginner",
+      "topic": "subject",
+      "prompt": "Кто или что изображено?",
+      "answer": "Христос в сиянии на горе",
+      "distractors": [
+        "Крещение Христа",
+        "Рождение Христа"
+      ],
+      "explanation": "Христос в сиянии находится выше трёх апостолов; рядом с Ним — Моисей и Илия. Эта композиция передаёт явление славы на горе.",
+      "source": {
+        "label": "Wikimedia Commons: репродукция, описание и права",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg"
+      },
+      "hint": "Христос между Моисеем и Илиёй. Это не три ангела Троицы.",
+      "iconId": "by-3859855"
+    },
+    "explorer": {
+      "id": "by-3859855-recognition-explorer",
+      "topic": "subject",
+      "prompt": "Какой это образ?",
+      "answer": "Преображение Господне",
+      "distractors": [
+        "Вознесение",
+        "Сошествие во ад",
+        "Крещение"
+      ],
+      "explanation": "Христос в сиянии находится выше трёх апостолов; рядом с Ним — Моисей и Илия. Эта композиция передаёт явление славы на горе.",
+      "source": {
+        "label": "Wikimedia Commons: репродукция, описание и права",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg"
+      },
+      "hint": "Христос между Моисеем и Илиёй. Это не три ангела Троицы.",
+      "iconId": "by-3859855"
+    },
+    "expert": {
+      "id": "by-3859855-recognition-expert",
+      "topic": "subject",
+      "prompt": "Кто стоит рядом со Христом в верхней части?",
+      "answer": "Моисей и Илия",
+      "distractors": [
+        "Пётр и Павел",
+        "Иоаким и Анна",
+        "Борис и Глеб"
+      ],
+      "explanation": "Христос в сиянии находится выше трёх апостолов; рядом с Ним — Моисей и Илия. Эта композиция передаёт явление славы на горе. Пётр, Иаков и Иоанн реагируют на явление. Их движение отличается от спокойного предстояния деисусного ряда.",
+      "source": {
+        "label": "Wikimedia Commons: репродукция, описание и права",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg"
+      },
+      "hint": "Христос между Моисеем и Илиёй. Это не три ангела Троицы.",
+      "iconId": "by-3859855"
+    }
+  },
+  "questions": [
+    {
+      "id": "by-3859855-subject",
+      "topic": "subject",
+      "prompt": "Какой образ показан?",
+      "answer": "Преображение Господне",
+      "distractors": [
+        "Вознесение",
+        "Сошествие во ад",
+        "Крещение"
+      ],
+      "explanation": "Христос в сиянии находится выше трёх апостолов; рядом с Ним — Моисей и Илия. Эта композиция передаёт явление славы на горе.",
+      "source": {
+        "label": "Wikimedia Commons: репродукция, описание и права",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg"
+      },
+      "hint": "Христос между Моисеем и Илиёй. Это не три ангела Троицы.",
+      "iconId": "by-3859855"
+    },
+    {
+      "id": "by-3859855-people",
+      "topic": "people",
+      "prompt": "Кто назван в описании этой иконы?",
+      "answer": "Христос, Моисей, Илия; апостолы Пётр, Иаков и Иоанн",
+      "distractors": [
+        "Борис и Глеб",
+        "Святые Иоаким и Анна",
+        "Три отрока в пещи"
+      ],
+      "explanation": "Христос в сиянии находится выше трёх апостолов; рядом с Ним — Моисей и Илия. Эта композиция передаёт явление славы на горе.",
+      "source": {
+        "label": "Wikimedia Commons: репродукция, описание и права",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg"
+      },
+      "hint": "Христос между Моисеем и Илиёй. Это не три ангела Троицы.",
+      "iconId": "by-3859855"
+    },
+    {
+      "id": "by-3859855-type",
+      "topic": "type",
+      "prompt": "Как этот образ назван в источнике?",
+      "answer": "Преображение",
+      "distractors": [
+        "Ветхозаветная Троица",
+        "Покров Богородицы",
+        "Святые жёны-мироносицы"
+      ],
+      "explanation": "Христос в сиянии находится выше трёх апостолов; рядом с Ним — Моисей и Илия. Эта композиция передаёт явление славы на горе.",
+      "source": {
+        "label": "Wikimedia Commons: репродукция, описание и права",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg"
+      },
+      "hint": "Христос между Моисеем и Илиёй. Это не три ангела Троицы.",
+      "iconId": "by-3859855"
+    },
+    {
+      "id": "by-3859855-tradition",
+      "topic": "tradition",
+      "prompt": "К какой традиции отнесена эта работа?",
+      "answer": "Византийская",
+      "distractors": [
+        "Русская",
+        "Грузинская",
+        "Греческая"
+      ],
+      "explanation": "В этой карточке сохранена традиция: Византийская. Это сведения об истории произведения, а не вывод по цвету фона.",
+      "source": {
+        "label": "Wikimedia Commons: репродукция, описание и права",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg"
+      },
+      "hint": "Христос между Моисеем и Илиёй. Это не три ангела Троицы.",
+      "iconId": "by-3859855"
+    },
+    {
+      "id": "by-3859855-period",
+      "topic": "period",
+      "prompt": "Как датируется эта работа?",
+      "answer": "Середина XII века",
+      "distractors": [
+        "I век до н. э.",
+        "XXI век",
+        "Середина XX века"
+      ],
+      "explanation": "По указанной записи: Середина XII века. Точная дата не угадывается только по внешнему виду.",
+      "source": {
+        "label": "Wikimedia Commons: репродукция, описание и права",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg"
+      },
+      "hint": "Христос между Моисеем и Илиёй. Это не три ангела Троицы.",
+      "iconId": "by-3859855"
+    },
+    {
+      "id": "by-3859855-attribution",
+      "topic": "attribution",
+      "prompt": "Как указано авторство этой работы?",
+      "answer": "Неизвестный мастер",
+      "distractors": [
+        "Автор достоверно известен по автопортрету",
+        "Произведение подписано Рафаэлем",
+        "Мастер определён по месту нынешнего хранения"
+      ],
+      "explanation": "Формулировка в используемом источнике: Неизвестный мастер. Достоверное имя, предположение и анонимная мастерская различаются.",
+      "source": {
+        "label": "Wikimedia Commons: репродукция, описание и права",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg"
+      },
+      "hint": "Христос между Моисеем и Илиёй. Это не три ангела Троицы.",
+      "iconId": "by-3859855"
+    },
+    {
+      "id": "by-3859855-museum",
+      "topic": "museum",
+      "prompt": "Какое собрание указано в паспорте?",
+      "answer": "Монастырь Святой Екатерины, Синай",
+      "distractors": [
+        "Третьяковская галерея, Москва",
+        "Музей искусств Грузии, Тбилиси",
+        "Кливлендский музей искусств"
+      ],
+      "explanation": "В паспорте этой репродукции указано: Монастырь Святой Екатерины, Синай. Место хранения следует сверять по источнику, а не по стилю.",
+      "source": {
+        "label": "Wikimedia Commons: репродукция, описание и права",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg"
+      },
+      "hint": "Христос между Моисеем и Илиёй. Это не три ангела Троицы.",
+      "iconId": "by-3859855"
+    },
+    {
+      "id": "by-3859855-attribute",
+      "topic": "attribute",
+      "prompt": "Кто стоит рядом со Христом в верхней части?",
+      "answer": "Моисей и Илия",
+      "distractors": [
+        "Пётр и Павел",
+        "Иоаким и Анна",
+        "Борис и Глеб"
+      ],
+      "explanation": "Христос в сиянии находится выше трёх апостолов; рядом с Ним — Моисей и Илия. Эта композиция передаёт явление славы на горе. Пётр, Иаков и Иоанн реагируют на явление. Их движение отличается от спокойного предстояния деисусного ряда.",
+      "source": {
+        "label": "Wikimedia Commons: репродукция, описание и права",
+        "url": "https://commons.wikimedia.org/wiki/File:Transfiguration_of_Christ_Icon_Sinai_12th_century.jpg"
+      },
+      "hint": "Христос между Моисеем и Илиёй. Это не три ангела Троицы.",
+      "iconId": "by-3859855"
+    }
+  ],
+  "reading": [
+    {
+      "label": "Преображение Господне — Википедия",
+      "url": "https://ru.wikipedia.org/wiki/%D0%9F%D1%80%D0%B5%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5_%D0%93%D0%BE%D1%81%D0%BF%D0%BE%D0%B4%D0%BD%D0%B5"
+    }
+  ],
+  "schoolId": "byzantine"
+}
