@@ -154,7 +154,7 @@ describe('паспорт и школы', () => {
 describe('маршрут перед поездкой', () => {
   it('меняет вопрос и изображение без переноса ответа', () => {
     render(<MemoryRouter><Learn icons={icons} /></MemoryRouter>);
-    expect(screen.getByRole('img').getAttribute('src')).toContain('ru-95156246');
+    expect(screen.getByRole('img').getAttribute('src')).toContain('ru-95156256');
     fireEvent.click(screen.getByRole('button', { name: 'Показать объяснение' }));
     expect(document.querySelector('.ico-trip-answer')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Дальше' }));
@@ -168,7 +168,7 @@ describe('маршрут перед поездкой', () => {
     fireEvent.click(screen.getByRole('button', { name: /Деисусный ряд/ }));
     const block = screen.getByText('Иконы этого ряда в коллекции').parentElement!;
     expect(within(block).getAllByRole('link').map((x) => x.getAttribute('href')))
-      .toEqual(['/iconography/icon/ru-95156246', '/iconography/icon/ru-95156254']);
+      .toEqual(['/iconography/icon/ru-95156254', '/iconography/icon/ru-95156256']);
 
     fireEvent.click(screen.getByRole('button', { name: /Праздничный ряд/ }));
     const feast = screen.getByText('Иконы этого ряда в коллекции').parentElement!;
