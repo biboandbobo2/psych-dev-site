@@ -28,7 +28,7 @@ vi.mock('firebase-functions/logger', () => ({ info: vi.fn(), warn: vi.fn(), erro
 
 // ── Import after mocks ─────────────────────────────────────────
 
-import { sendFeedback, resetFeedbackRateLimiter } from './sendFeedback';
+import { sendFeedback, resetFeedbackRateLimiter } from './sendFeedback.js';
 
 const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
 
@@ -89,7 +89,7 @@ describe('sendFeedback delivery', () => {
 
     expect(result).toEqual({ success: true, message: 'Спасибо за обратную связь!' });
     const sent = mockSendTelegramMessage.mock.calls[0][0] as string;
-    expect(sent).toContain('🐛 *Баг*');
+    expect(sent).toContain('🐛 Баг');
     expect(sent).toContain('Кнопка не работает');
     expect(sent).toContain('👤 Иван');
     expect(sent).toContain('✉️ ivan@test.com');
@@ -102,7 +102,7 @@ describe('sendFeedback delivery', () => {
     await (sendFeedback as Function)({ data: { type: 'thanks', message: 'Спасибо большое!' }, ...ctx });
 
     const sent = mockSendTelegramMessage.mock.calls[0][0] as string;
-    expect(sent).toContain('🙏 *Благодарность*');
+    expect(sent).toContain('🙏 Благодарность');
     expect(sent).not.toContain('👤');
     expect(sent).not.toContain('✉️');
     expect(sent).not.toContain('🎭');
@@ -151,6 +151,26 @@ describe('sendFeedback delivery', () => {
     mockSendTelegramMessage.mockRejectedValue(new Error('chat not found'));
     await expect(
       (sendFeedback as Function)({ data: { type: 'idea', message: 'валидная идея' }, ...ctx }),
-    ).rejects.toThrow('Failed to send feedback: chat not found');
+    ).rejects.toThrow('Не удалось отправить сообщение. Попробуйте позже.');
+  });
+});
+
+
+describe('iconography feedback hardening', () => {
+  it.each([null, [], 42])('rejects malformed payload %s', async (data) => {
+    await expect((sendFeedback as Function)({ data, ...ctx })).rejects.toThrow('Invalid feedback payload');
+    expect(mockSendTelegramMessage).not.toHaveBeenCalled();
+  });
+  it.each([{ message: 123 }, { iconId: '../secret' }, { pageUrl: 'javascript:alert(1)' },
+    { userName: 'x'.repeat(121) }, { website: 'spam.test' }, { userEmail: 'x\nspoof' }])('rejects invalid optional fields %s', async (extra) => {
+    await expect((sendFeedback as Function)({ data: { type: 'idea', message: 'valid message', ...extra }, ...ctx })).rejects.toThrow();
+    expect(mockSendTelegramMessage).not.toHaveBeenCalled();
+  });
+  it('delivers literal Markdown, icon id and URL without formatting injection', async () => {
+    const message = '[broken * _ ` text';
+    await (sendFeedback as Function)({ data: { type: 'idea', message, iconId: 'cma-168322', pageUrl: 'http://localhost:5173/iconography/icon/cma-168322' }, ...ctx });
+    expect(mockSendTelegramMessage).toHaveBeenCalledWith(expect.stringContaining(message), { plainText: true });
+    expect(mockSendTelegramMessage.mock.calls[0][0]).toContain('Икона: cma-168322');
+    expect(mockSendTelegramMessage.mock.calls[0][0]).toContain('/iconography/icon/cma-168322');
   });
 });

@@ -16,6 +16,8 @@ interface FeedbackData {
   userName?: string;
   userRole?: string;
   pageUrl?: string;
+  iconId?: string;
+  website?: string;
 }
 
 // serviceAccount: telegram-секреты в Secret Manager доступны только appspot SA.
@@ -91,6 +93,9 @@ export const sendFeedback = onCall(CALLABLE_OPTS, async (request) => {
   }
 
   // Валидация данных
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new HttpsError("invalid-argument", "Invalid feedback payload");
+  }
   const feedbackData = data as FeedbackData;
 
   if (!feedbackData.type || !["bug", "idea", "thanks"].includes(feedbackData.type)) {
@@ -100,7 +105,7 @@ export const sendFeedback = onCall(CALLABLE_OPTS, async (request) => {
     );
   }
 
-  if (!feedbackData.message || feedbackData.message.trim().length < 3) {
+  if (typeof feedbackData.message !== "string" || feedbackData.message.trim().length < 3) {
     throw new HttpsError(
       "invalid-argument",
       "Message is required and must be at least 3 characters"
@@ -114,11 +119,29 @@ export const sendFeedback = onCall(CALLABLE_OPTS, async (request) => {
     );
   }
 
+  const limits = { userName: 120, userEmail: 254, userRole: 80, pageUrl: 600, iconId: 100, website: 200 } as const;
+  for (const [field, limit] of Object.entries(limits)) {
+    const value = data[field];
+    if (value !== undefined && (typeof value !== "string" || value.length > limit || [...value].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127))) {
+      throw new HttpsError("invalid-argument", `Invalid ${field}`);
+    }
+  }
+  if (feedbackData.website) throw new HttpsError("invalid-argument", "Invalid submission");
+  if (feedbackData.iconId && !/^[a-z0-9-]+$/.test(feedbackData.iconId)) {
+    throw new HttpsError("invalid-argument", "Invalid iconId");
+  }
+  if (feedbackData.pageUrl) {
+    try {
+      const url = new URL(feedbackData.pageUrl);
+      if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) throw new Error();
+    } catch { throw new HttpsError("invalid-argument", "Invalid pageUrl"); }
+  }
+
   // Формируем сообщение для Telegram
   const emoji = FEEDBACK_EMOJI[feedbackData.type];
   const label = FEEDBACK_LABELS[feedbackData.type];
 
-  let telegramMessage = `${emoji} *${label}*\n\n`;
+  let telegramMessage = `${emoji} ${label}\n\n`;
   telegramMessage += `${feedbackData.message}\n\n`;
   telegramMessage += `━━━━━━━━━━━━━━━\n`;
 
@@ -135,13 +158,15 @@ export const sendFeedback = onCall(CALLABLE_OPTS, async (request) => {
     telegramMessage += `🔗 ${feedbackData.pageUrl}\n`;
   }
 
+  if (feedbackData.iconId) telegramMessage += `Икона: ${feedbackData.iconId}\n`;
+
   // Добавляем время
   const now = new Date();
   const timeStr = now.toLocaleString("ru-RU", { timeZone: "Europe/Moscow" });
   telegramMessage += `🕐 ${timeStr}`;
 
   try {
-    await sendTelegramMessage(telegramMessage);
+    await sendTelegramMessage(telegramMessage, { plainText: true });
 
     fnLogger.info("✅ Feedback sent successfully", {
       hasMessage: true,
@@ -151,11 +176,8 @@ export const sendFeedback = onCall(CALLABLE_OPTS, async (request) => {
       success: true,
       message: "Спасибо за обратную связь!",
     };
-  } catch (error: any) {
-    fnLogger.error("❌ Error sending feedback", {
-      error: error?.message,
-    });
-
-    throw new HttpsError("internal", "Failed to send feedback: " + error?.message);
+  } catch {
+    fnLogger.error("Feedback delivery failed");
+    throw new HttpsError("internal", "Не удалось отправить сообщение. Попробуйте позже.");
   }
 });

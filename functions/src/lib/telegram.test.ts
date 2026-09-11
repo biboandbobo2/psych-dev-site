@@ -111,4 +111,16 @@ describe("sendTelegramMessage", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toContain("retry-token");
   });
+  it("sends feedback as literal text while preserving Markdown for existing callers", async () => {
+    process.env.TELEGRAM_BOT_TOKEN = "test-token";
+    process.env.TELEGRAM_CHAT_ID = "test-chat";
+    delete process.env.GCLOUD_PROJECT;
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ ok: true }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await sendTelegramMessage("[unclosed * text", { plainText: true });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ chat_id: "test-chat", text: "[unclosed * text" });
+    await sendTelegramMessage("*formatted*");
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).parse_mode).toBe("Markdown");
+  });
+
 });

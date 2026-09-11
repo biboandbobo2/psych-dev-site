@@ -78,7 +78,7 @@ export function resetTelegramConfigCache() {
 
 export async function sendTelegramMessage(
   text: string,
-  opts: { chatId?: string } = {}
+  opts: { chatId?: string; plainText?: boolean } = {}
 ) {
   const { token, chatId: defaultChatId } = await getTelegramConfig();
   const chatId = opts.chatId ?? defaultChatId;
@@ -92,7 +92,7 @@ export async function sendTelegramMessage(
     body: JSON.stringify({
       chat_id: chatId,
       text,
-      parse_mode: "Markdown",
+      ...(opts.plainText ? {} : { parse_mode: "Markdown" }),
     }),
   });
 
