@@ -5,6 +5,10 @@ import { optionsFor } from '../lib/quiz';
 import type { RecognitionItem } from '../lib/recognition';
 import { Artwork } from './Artwork';
 
+/** Прокрутка уважает системную настройку «меньше движения». */
+const scrollMotion = (): ScrollBehavior =>
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
+
 export function RecognitionQuestion({ item, index, total, seed, onAnswer, onNext }: {
   item: RecognitionItem;
   index: number;
@@ -25,14 +29,14 @@ export function RecognitionQuestion({ item, index, total, seed, onAnswer, onNext
 
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, []);
 
+  // Область `detail` описана под углублённый вопрос, поэтому на других уровнях её не показываем.
+  const mark = question.id === icon.recognition?.expert.id ? icon.recognition.detail : undefined;
+
   const toggleDetail = () => {
-    setDetail(!detail);
-    if (!detail && (picture.current?.getBoundingClientRect().top ?? 0) < 0) {
-      picture.current?.scrollIntoView({
-        block: 'start',
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
-      });
-    }
+    const next = !detail;
+    setDetail(next);
+    // Кадр после отрисовки отметки: на телефоне изображение уходит далеко вверх от кнопки.
+    if (next) requestAnimationFrame(() => picture.current?.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() }));
   };
 
   const answer = (option: string) => {
@@ -41,7 +45,14 @@ export function RecognitionQuestion({ item, index, total, seed, onAnswer, onNext
     setChosen(option);
     setSaved(recordAnswer(question.id, option === question.answer));
     onAnswer(option);
-    requestAnimationFrame(() => feedback.current?.focus({ preventScroll: true }));
+    requestAnimationFrame(() => {
+      feedback.current?.focus({ preventScroll: true });
+      // На узком экране разбор оказывается ниже сгиба: подводим его к глазам.
+      const box = feedback.current?.getBoundingClientRect();
+      if (box && box.bottom > window.innerHeight) {
+        feedback.current?.scrollIntoView?.({ block: 'nearest', behavior: scrollMotion() });
+      }
+    });
   };
 
   const correct = chosen === question.answer;
@@ -52,7 +63,7 @@ export function RecognitionQuestion({ item, index, total, seed, onAnswer, onNext
     <section className="ico-recognition" aria-label="Викторина по иконам">
       <div className="ico-recognition-image" ref={picture}>
         <Artwork icon={icon} priority zoom alt="Икона для вопроса. Нажмите, чтобы увеличить."
-          detail={detail ? icon.recognition?.detail : undefined} />
+          detail={detail ? mark : undefined} />
       </div>
       <div className="ico-recognition-body">
         <p className="ico-round-position" aria-label={`Икона ${index + 1} из ${total}`}>
@@ -84,11 +95,11 @@ export function RecognitionQuestion({ item, index, total, seed, onAnswer, onNext
                   Вы выбрали «{chosen}».{rationale ? ` ${rationale}` : ''}
                 </p>
               )}
-              {!correct && <p className="ico-right-answer">Верно: <strong>{question.answer}</strong></p>}
+              {!correct && <p className="ico-right-answer">Верный ответ: <strong>«{question.answer}»</strong></p>}
               <p>{question.explanation}</p>
 
               <div className="ico-recognition-details">
-                {icon.recognition?.detail && (
+                {mark && (
                   <button className="ico-link" aria-pressed={detail} onClick={toggleDetail}>
                     {detail ? 'Скрыть отметку' : 'Показать признак'}
                   </button>

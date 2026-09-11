@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { IconSummary } from '../types';
 import { dailyIcon } from '../lib/catalog';
@@ -6,6 +6,8 @@ import { readProgress } from '../lib/progress';
 import { newSessionSeed } from '../lib/quiz';
 import type { RecognitionResult, RecognitionSession } from '../lib/recognition';
 import { Artwork } from './Artwork';
+import { CollectionNote } from './CollectionNote';
+import { ProgressSummary } from './ProgressSummary';
 
 export function RecognitionFinish({ results, session, change, icons }: {
   results: RecognitionResult[];
@@ -15,8 +17,8 @@ export function RecognitionFinish({ results, session, change, icons }: {
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, []);
+  const [progress, setProgress] = useState(readProgress);
 
-  const progress = readProgress();
   const difficult = progress.difficult.filter((id) => id.includes('-recognition-'));
   const mistakes = results.filter((result) => !result.correct);
   const correct = results.length - mistakes.length;
@@ -40,6 +42,9 @@ export function RecognitionFinish({ results, session, change, icons }: {
         ? 'Встретив эти образы в храме, попробуйте узнать их по деталям.'
         : 'Сложные вопросы появятся здесь после занятия.'}</p>
 
+      <CollectionNote icons={icons} collection={session.collection}
+        onAll={() => change({ ...session, collection: 'all', repeat: false, retry: undefined, seed: newSessionSeed() })} />
+
       {results.length > 0 && (
         <ul className="ico-session-review">
           {results.map(({ item, chosen, correct: right }) => (
@@ -53,7 +58,7 @@ export function RecognitionFinish({ results, session, change, icons }: {
               <p className="ico-review-answer">
                 {right
                   ? `Ваш ответ: ${chosen}`
-                  : `Вы выбрали «${chosen}». Верно: ${item.question.answer}`}
+                  : `Вы выбрали «${chosen}». Верный ответ: «${item.question.answer}»`}
               </p>
             </li>
           ))}
@@ -72,19 +77,20 @@ export function RecognitionFinish({ results, session, change, icons }: {
         )}
       </div>
 
-      <p className="ico-small ico-progress-total" role="status">
-        Всего ответов: {progress.answered}, верных: {progress.correct}. В «сложном» сейчас {progress.difficult.length} вопросов викторины и практики.
-      </p>
+      <ProgressSummary progress={progress} onReset={() => setProgress(readProgress())} />
 
       <div className="ico-further">
         <h2>Если хочется глубже</h2>
         {session.level !== 'expert' && (
-          <button className="ico-further-choice" onClick={() => change({ ...session, level: deeper, repeat: false, retry: undefined, seed: newSessionSeed() })}>
+          <div className="ico-further-choice ico-further-level">
             <strong>{session.level === 'beginner' ? 'Назвать точнее' : 'Различать по деталям'}</strong>
             <span>{session.level === 'beginner'
-              ? 'Попробуйте другие имена и близкие сюжеты среди ответов.'
-              : 'Обратите внимание на жесты, надписи и иконографические типы.'}</span>
-          </button>
+              ? 'Вопросы про имена святых и близкие сюжеты.'
+              : 'Вопросы про жесты, надписи и иконографические типы.'}</span>
+            <button className="ico-button" onClick={() => change({ ...session, level: deeper, repeat: false, retry: undefined, seed: newSessionSeed() })}>
+              {session.level === 'beginner' ? 'Начать занятие среднего уровня' : 'Начать углублённое занятие'}
+            </button>
+          </div>
         )}
         <Link className="ico-further-choice" to="/iconography/compare">
           <strong>Сравнить похожие образы</strong><span>Рассмотреть две иконы рядом.</span>

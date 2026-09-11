@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { IconRecord, IconSummary } from '../types';
+import { traditionGroup } from './catalog';
 import { optionsFor } from './quiz';
-import { allRecordQuestions, loadRecognitionLesson, selectRecognitionIcons } from './recognition';
+import { allRecordQuestions, collectionSize, loadRecognitionLesson, recentIconIds, selectRecognitionIcons } from './recognition';
 
 const base = resolve(process.cwd(), 'public/iconography');
 const icons: IconSummary[] = JSON.parse(readFileSync(`${base}/catalog.json`, 'utf8'));
@@ -45,9 +46,41 @@ describe('подборка занятия', () => {
     });
   });
 
-  it('«Все традиции» действительно смешивают традиции', () => {
-    const mixed = Array.from({ length: 6 }, (_, i) => selectRecognitionIcons(icons, 'all', i + 11)).flat();
-    expect(new Set(mixed.map((icon) => icon.tradition)).size).toBeGreaterThan(1);
+  it('«Все традиции» набирают группы по кругу, а не тянутся к русским', () => {
+    for (let seed = 1; seed <= 10; seed += 1) {
+      const lesson = selectRecognitionIcons(icons, 'all', seed);
+      const traditions = lesson.map((icon) => traditionGroup(icon.tradition));
+      // Четыре группы традиций на семь слотов: круг даёт каждой не больше двух мест.
+      expect(new Set(traditions).size).toBe(4);
+      expect(traditions.filter((name) => name === 'Русская').length).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('не повторяет работы трёх последних занятий, пока в группе есть замена', () => {
+    const lessons = [selectRecognitionIcons(icons, 'russian', 5)];
+    for (const seed of [6, 7, 8]) lessons.push(selectRecognitionIcons(icons, 'russian', seed, lessons.flat().map((x) => x.id)));
+    const seenBefore = new Set(lessons.slice(0, 3).flat().map((icon) => icon.id));
+    for (const icon of lessons[3]) {
+      const variants = quizIcons.filter((x) => x.tradition === 'Русская' && x.recognitionGroup === icon.recognitionGroup);
+      // Повтор допустим только там, где вся группа уже была показана.
+      if (variants.some((x) => !seenBefore.has(x.id))) expect(seenBefore.has(icon.id)).toBe(false);
+    }
+  });
+
+  it('при равных условиях берёт работу, которую видели реже', () => {
+    const variants = quizIcons.filter((icon) => icon.tradition === 'Русская' && icon.recognitionGroup === 'mary');
+    expect(variants.length).toBeGreaterThan(1);
+    const seen = Object.fromEntries(variants.slice(1).map((icon) => [icon.id, 4]));
+    for (let seed = 1; seed <= 12; seed += 1) {
+      const chosen = selectRecognitionIcons(icons, 'russian', seed, [], seen).find((icon) => icon.recognitionGroup === 'mary');
+      if (chosen) expect(chosen.id).toBe(variants[0].id);
+    }
+  });
+
+  it('считает размер подборки: грузинская и греческая — не больше семи работ', () => {
+    expect(collectionSize(icons, 'russian')).toBeGreaterThan(7);
+    expect(collectionSize(icons, 'georgian')).toBeLessThanOrEqual(7);
+    expect(collectionSize(icons, 'all')).toBe(quizIcons.length);
   });
 
   it('держит региональные подборки отдельно', () => {
@@ -94,8 +127,21 @@ describe('загрузка занятия', () => {
     const lesson = await loadRecognitionLesson(icons, session);
     expect(lesson.length).toBeGreaterThan(0);
     for (const item of lesson) expect(item.question.id).toBe(item.icon.recognition!.beginner.id);
-    expect(JSON.parse(localStorage.getItem('academy.iconography.lastLesson.v1')!))
-      .toEqual(lesson.map((item) => item.icon.id));
+    expect(recentIconIds()).toEqual(lesson.map((item) => item.icon.id));
+    expect(JSON.parse(localStorage.getItem('academy.iconography.seen.v1')!))
+      .toEqual(Object.fromEntries(lesson.map((item) => [item.icon.id, 1])));
+  });
+
+  it('помнит три последних занятия и забывает четвёртое от конца', async () => {
+    const played: string[][] = [];
+    for (const seed of [11, 22, 33, 44]) {
+      const lesson = await loadRecognitionLesson(icons, { level: 'explorer', collection: 'russian', seed, repeat: false });
+      played.push(lesson.map((item) => item.icon.id));
+    }
+    const remembered = recentIconIds();
+    for (const id of [...played[1], ...played[2], ...played[3]]) expect(remembered).toContain(id);
+    const later = new Set([...played[1], ...played[2], ...played[3]]);
+    for (const id of played[0]) if (!later.has(id)) expect(remembered).not.toContain(id);
   });
 
   it('повторяет именно названные вопросы — ошибки прошлого занятия', async () => {

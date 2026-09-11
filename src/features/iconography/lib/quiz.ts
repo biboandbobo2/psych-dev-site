@@ -7,9 +7,20 @@ export const topics: { id: Topic; label: string; note: string }[] = [
   { id: 'attribute', label: 'Атрибуты и жесты', note: 'Детали, которые помогают узнать образ' },
   { id: 'type', label: 'Иконографические типы', note: 'Умиление, Одигитрия, Пантократор' },
   { id: 'mary', label: 'Типы Богородицы', note: 'Умиление, Одигитрия, Знамение и другие' },
+  { id: 'composition', label: 'Композиция и формат', note: 'Расположение фигур, поясной или ростовой образ, фон, поля и надписи вокруг' },
+  { id: 'material', label: 'Материал и техника', note: 'Из чего сделан образ: доска, резьба, шитьё, оклад, мозаика' },
   { id: 'feast', label: 'Праздники', note: 'События церковного года' },
   { id: 'iconostasis', label: 'Иконостас', note: 'Образы и их место в храме' },
 ];
+
+/** Человекочитаемое название темы: ставится ярлыком над вопросом занятия. */
+export const topicLabel = (topic: Topic) => topics.find((item) => item.id === topic)?.label ?? 'Вопрос занятия';
+
+/** Уровень вопроса викторины зашит в его id; вопросы практики повторяем на среднем. */
+export function repeatDifficulty(question: Question): Difficulty {
+  const level = /-recognition-(beginner|explorer|expert)$/.exec(question.id)?.[1];
+  return (level as Difficulty | undefined) ?? 'explorer';
+}
 
 /** Уровни названы так же, как в викторине: разница — в количестве вариантов и в помощи. */
 export const difficulties: { id: Difficulty; label: string; note: string }[] = [

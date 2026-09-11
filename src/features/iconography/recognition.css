@@ -24,7 +24,7 @@
 .ico-recognition h1 { font-size:clamp(32px,3.4vw,47px); line-height:1.13; margin:0 0 30px; letter-spacing:-.035em; }
 .ico-recognition h1:focus, .ico-recognition-finish h1:focus { outline:none; }
 .ico-recognition-options { display:grid; gap:10px; }
-.ico-recognition-options button { display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%; min-height:58px; text-align:left; padding:15px 20px; border:1px solid #c9c9bc; border-radius:3px; background:transparent; color:var(--ico-ink); font-size:14px; line-height:1.5; }
+.ico-recognition-options button { display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%; min-height:58px; text-align:left; padding:15px 20px; border:1px solid #c9c9bc; border-radius:3px; background:transparent; color:var(--ico-ink); font-size:15px; line-height:1.5; }
 .ico-recognition-options button:hover:not(:disabled) { background:#eaeadd; border-color:#7f866e; }
 .ico-recognition-options button:disabled { opacity:1; }
 .ico-recognition-options button.is-correct { background:#e5eadf; border-color:#657458; }
@@ -68,7 +68,7 @@
   .ico-round-position { float:right; margin:4px 0 0 12px!important; font-size:11px; }
   .ico-recognition h1 { font-size:29px; margin:0 0 20px; }
   .ico-recognition-options { gap:8px; }
-  .ico-recognition-options button { min-height:47px; padding:11px 15px; font-size:13px; }
+  .ico-recognition-options button { min-height:47px; padding:11px 15px; font-size:15px; }
   .ico-recognition-response { margin-top:16px; }
   .ico-recognition-feedback>p { font-size:13px; }
   .ico-further h2 { font-size:28px; }
@@ -157,19 +157,52 @@ ul.ico-session-review>li { margin:0; }
 .ico-session-mistakes { max-width:760px; margin:26px 0; }
 ul.ico-session-mistakes-list { margin:0; padding:0; list-style:none; }
 .ico-session-mistakes li { margin:0; padding:16px 0; border-top:1px solid var(--ico-line); }
-.ico-review-prompt { margin:0 0 6px!important; font-size:14px; }
 .ico-recall { margin:18px 0; }
 .ico-recall p { margin-bottom:12px!important; color:var(--ico-muted); font-size:13px; }
+
+/* Маленькая подборка: честная оговорка и выход на все традиции. */
+.ico-collection-note { max-width:760px; margin:0 0 18px!important; padding:12px 16px; border-left:2px solid #8c967d; background:#eceee5; color:var(--ico-ink); font-size:13px; }
+.ico-collection-note .ico-link { margin-left:4px; font-size:12px; }
+
+/* Прогресс и его сброс: единственное место, где счётчик можно обнулить. */
+.ico-progress-summary { margin-top:22px; }
+.ico-progress-summary .ico-quiz-confirm { max-width:620px; }
+
+/* Переход на следующий уровень — кнопка, а не ссылка в списке. */
+.ico-further-level { display:block; }
+.ico-further-level .ico-button { margin-top:14px; }
+
+/* Ошибки занятия внутри списка произведений. */
+.ico-session-mistakes li.is-incorrect { border-left:2px solid #b08a6d; padding-left:14px; }
+.ico-session-mistakes .ico-review-answer { margin-top:8px!important; }
+
+/* Индекс статей о школах. */
+ul.ico-school-index { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:30px 32px; margin:38px 0; padding:0; list-style:none; }
+ul.ico-school-index>li { margin:0; padding-top:18px; border-top:1px solid var(--ico-line); }
+.ico-school-index h2 { font-size:24px; margin:0 0 10px; }
+.ico-school-index p { color:var(--ico-muted); font-size:13px; line-height:1.7; }
+
+/* Наблюдения идут выше таблицы фактов — в колонке рядом с репродукцией. */
+.ico-passport-clues { margin:34px 0 10px; }
+.ico-passport-clues h2 { font-size:30px; margin:8px 0 10px; }
+.ico-passport-clues .ico-clue-text { padding:16px 0; border-top:1px solid var(--ico-line); }
+.ico-passport-clues h3 { font-size:21px; margin:0 0 8px; }
+.ico-passport-clues p { font-size:14px; line-height:1.8; }
 
 /* Небольшой исходник не растягиваем: увеличение даёт мыло, а не детали. */
 .ico-artwork.ico-artwork-small .ico-artwork-plane { width:auto; height:auto; max-height:100%; }
 .ico-artwork.ico-artwork-small img { width:auto; height:auto; max-width:100%; max-height:100%; }
 .ico-artwork-note { margin-top:8px!important; text-align:center; }
 
+@media(max-width:1050px) {
+  ul.ico-school-index { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
 @media(max-width:700px) {
   .ico-quiz-intro { padding:16px 0 0; }
   .ico-quiz-intro>p { font-size:13px; }
   .ico-quiz-current { padding:14px 0 0; }
   ul.ico-session-review { grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px 12px; }
   .ico-session-review .ico-artwork { height:135px; }
+  ul.ico-school-index { grid-template-columns:1fr; gap:0; }
+  .ico-passport-clues h2 { font-size:27px; }
 }

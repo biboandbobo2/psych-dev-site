@@ -1,5 +1,5 @@
 /** Только визуальные темы плюс два текстовых занятия-путеводителя (feast, iconostasis). */
-export type Topic = 'subject' | 'people' | 'type' | 'mary' | 'attribute' | 'feast' | 'iconostasis';
+export type Topic = 'subject' | 'people' | 'type' | 'mary' | 'attribute' | 'composition' | 'material' | 'feast' | 'iconostasis';
 export type Difficulty = 'beginner' | 'explorer' | 'expert';
 export interface Source { label: string; url: string }
 export interface IconSummary {

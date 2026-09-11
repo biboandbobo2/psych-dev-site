@@ -5,6 +5,7 @@ import { useResource } from '../lib/catalog';
 import { newSessionSeed } from '../lib/quiz';
 import { loadRecognitionLesson, recognitionCollections, recognitionLevels } from '../lib/recognition';
 import type { Collection, RecognitionResult, RecognitionSession } from '../lib/recognition';
+import { CollectionNote } from './CollectionNote';
 import { LoadState } from './Passport';
 import { RecognitionFinish } from './RecognitionFinish';
 import { RecognitionQuestion } from './RecognitionQuestion';
@@ -16,8 +17,9 @@ function QuizIntro() {
   return (
     <div className="ico-quiz-intro">
       <p>
-        Викторина по узнаванию образов: смотрите на икону и выбирайте ответ. Уровень меняет не число
-        вариантов, а сам вопрос — от «кто перед нами» до значения отдельной детали.
+        Викторина по узнаванию образов: смотрите на икону и выбирайте ответ. Уровень меняет сам вопрос —
+        от «кто перед нами» до значения отдельной детали. Вариантов ответа три на начальном уровне
+        и четыре на среднем и углублённом.
       </p>
       <details>
         <summary>Как устроены уровни</summary>
@@ -105,6 +107,10 @@ export function RecognitionQuiz({ icons }: { icons: IconSummary[] }) {
         : <>
           {index === 0 && !repeating && <QuizIntro />}
           <QuizControls session={session} change={change} />
+          {!repeating && (
+            <CollectionNote icons={icons} collection={session.collection}
+              onAll={() => change({ ...session, collection: 'all', repeat: false, retry: undefined, seed: newSessionSeed() })} />
+          )}
         </>}
 
       {!items ? <LoadState error={error} retry={retry} />

@@ -110,7 +110,7 @@ describe('ответ и разбор', () => {
 
     expect(screen.getByRole('heading', { level: 2, name: 'Неверно' })).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`Вы выбрали «${wrong.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}»`))).toBeInTheDocument();
-    expect(screen.getByText(/^Верно:/)).toHaveTextContent(`Верно: ${question.answer}`);
+    expect(screen.getByText(/^Верный ответ:/)).toHaveTextContent(`Верный ответ: «${question.answer}»`);
     expect(screen.getByText(question.explanation)).toBeInTheDocument();
     if (question.rationale?.[wrong]) expect(screen.getByText(new RegExp(question.rationale[wrong].slice(0, 24).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))).toBeInTheDocument();
   });
@@ -125,19 +125,26 @@ describe('ответ и разбор', () => {
     expect(screen.getByText(question.explanation)).toBeInTheDocument();
   });
 
-  it('открывает отметку признака только после ответа', async () => {
+  it('показывает отметку признака только на углублённом вопросе и только после ответа', async () => {
     render(<MemoryRouter><RecognitionQuiz icons={withDetail} /></MemoryRouter>);
     await screen.findByRole('heading', { level: 1 });
     expect(screen.queryByRole('button', { name: 'Показать признак' })).not.toBeInTheDocument();
-    const detail = record(currentIconId()).recognition!.detail!;
+    // Рамка описана под углублённый вопрос: на среднем её не предлагают даже после ответа.
     fireEvent.click(screen.getByRole('button', { name: currentQuestion().answer }));
+    expect(screen.queryByRole('button', { name: 'Показать признак' })).not.toBeInTheDocument();
+    expect(screen.getByText('Об этой иконе')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Уровень' }), { target: { value: 'expert' } });
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByRole('button', { name: 'Показать признак' })).not.toBeInTheDocument();
+    const detail = record(currentIconId()).recognition!.detail!;
+    fireEvent.click(screen.getByRole('button', { name: currentQuestion('expert').answer }));
 
     const toggle = screen.getByRole('button', { name: 'Показать признак' });
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(toggle);
     expect(screen.getByRole('img', { name: detail.label })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Скрыть отметку' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText('Об этой иконе')).toBeInTheDocument();
   });
 });
 
@@ -149,10 +156,10 @@ describe('итог занятия', () => {
     expect(await screen.findByRole('heading', { level: 1, name: `Верно ${trio.length - 1} из ${trio.length}` })).toBeInTheDocument();
     expect(screen.getAllByText('Верно')).toHaveLength(trio.length - 1);
     expect(screen.getByText('Неверно')).toBeInTheDocument();
-    expect(screen.getByText(`Вы выбрали «${played[0].chosen}». Верно: ${played[0].answer}`)).toBeInTheDocument();
+    expect(screen.getByText(`Вы выбрали «${played[0].chosen}». Верный ответ: «${played[0].answer}»`)).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /Паспорт и источники/ })).toHaveLength(trio.length);
     for (const { iconId } of played) expect(document.querySelector(`a[href="/iconography/icon/${iconId}"]`)).toBeTruthy();
-    expect(screen.getByRole('status')).toHaveTextContent(/Всего ответов: 3, верных: 2/);
+    expect(screen.getByText(/Всего ответов: 3, верных: 2/)).toHaveTextContent('В «сложном» сейчас 1 вопрос викторины и практики.');
     expect(screen.getByRole('heading', { name: 'Если хочется глубже' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Повторить ошибки этого занятия' }));
@@ -162,6 +169,25 @@ describe('итог занятия', () => {
     fireEvent.click(screen.getByRole('button', { name: played[0].answer }));
     expect(readProgress().difficult).toEqual([]);
     expect(screen.getByRole('button', { name: 'Завершить занятие' })).toBeInTheDocument();
+  });
+
+  it('сбрасывает накопленный прогресс с подтверждением', async () => {
+    render(<MemoryRouter><RecognitionQuiz icons={trio} /></MemoryRouter>);
+    await playLesson(trio.length, [0]);
+    await screen.findByRole('heading', { level: 1, name: /Верно \d+ из/ });
+    expect(readProgress().answered).toBe(trio.length);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить прогресс' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+    expect(readProgress().answered).toBe(trio.length);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить прогресс' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить прогресс' }));
+    expect(readProgress()).toEqual({ difficult: [], answered: 0, correct: 0 });
+    expect(localStorage.getItem('academy.iconography.lastLessons.v2')).toBeNull();
+    expect(localStorage.getItem('academy.iconography.seen.v1')).toBeNull();
+    expect(screen.getByText(/Всего ответов: 0, верных: 0/)).toHaveTextContent('В «сложном» сейчас 0 вопросов');
+    expect(screen.queryByRole('button', { name: 'Сбросить прогресс' })).not.toBeInTheDocument();
   });
 
   it('предлагает повторить накопленное сложное и начать новое занятие', async () => {

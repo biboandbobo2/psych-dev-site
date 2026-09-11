@@ -21,3 +21,11 @@ export function recordAnswer(id: string, correct: boolean): boolean {
     return true;
   } catch { return false; }
 }
+
+/** Сброс накопленного прогресса: счётчики ответов и список сложных вопросов. */
+export function clearProgress(): boolean {
+  try {
+    localStorage.removeItem(KEY);
+    return true;
+  } catch { return false; }
+}
