@@ -41,7 +41,7 @@ export function Feedback({ iconId }: { iconId?: string }) {
         <textarea id="ico-comment" rows={4} minLength={3} maxLength={1700} required value={message}
           disabled={state === 'sending'} onChange={(e) => setMessage(e.target.value)} aria-describedby="ico-feedback-privacy ico-feedback-error" />
         <div className="ico-honeypot" aria-hidden="true"><label>Сайт<input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label></div>
-        <p className="ico-small" id="ico-feedback-privacy">При отправке передаются текст, адрес страницы{iconId ? ' и идентификатор иконы' : ''}. Не включайте конфиденциальные сведения. Ответ на сайте не предусмотрен.</p>
+        <p className="ico-small" id="ico-feedback-privacy">При отправке передаются текст сообщения{iconId ? ', адрес страницы и идентификатор иконы' : ' и адрес страницы'}. Не включайте конфиденциальные сведения. Ответ на сайте не предусмотрен.</p>
         <p id="ico-feedback-error" role="alert">{error}</p>
         <button className="ico-button" disabled={state === 'sending'}>{state === 'sending' ? 'Отправляем…' : 'Отправить комментарий'}</button>
       </form>}

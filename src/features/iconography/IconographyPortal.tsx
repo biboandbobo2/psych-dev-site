@@ -1,4 +1,4 @@
-import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { loadCatalog, useResource } from './lib/catalog';
 import { Home } from './components/Home';
@@ -8,6 +8,7 @@ import { Compare } from './components/Compare';
 import { Learn } from './components/Learn';
 import { Practice } from './components/Practice';
 import { School } from './components/School';
+import { Schools } from './components/Schools';
 import { About } from './components/About';
 import './iconography.css';
 import './recognition.css';
@@ -34,6 +35,8 @@ export function IconographyPortal() {
           <NavLink to="/iconography/catalog">Коллекция</NavLink>
           <NavLink to="/iconography/practice">Практика</NavLink>
           <NavLink to="/iconography/learn">Маршрут</NavLink>
+          <NavLink to="/iconography/compare">Сравнение</NavLink>
+          <NavLink to="/iconography/schools">Школы</NavLink>
         </nav>
       </header>
 
@@ -42,12 +45,14 @@ export function IconographyPortal() {
           <Routes>
             <Route index element={<Home icons={icons} />} />
             <Route path="catalog" element={<Catalog icons={icons} />} />
-            <Route path="icon/:id" element={<Passport />} />
+            <Route path="icon/:id" element={<Passport icons={icons} />} />
+            <Route path="schools" element={<Schools icons={icons} />} />
             <Route path="schools/:id" element={<School icons={icons} />} />
             <Route path="learn" element={<Learn icons={icons} />} />
             <Route path="compare" element={<Compare icons={icons} />} />
             <Route path="practice" element={<Practice key={location.search} icons={icons} />} />
-            <Route path="support" element={<About support />} />
+            {/* Реквизитов пока нет: страница поддержки скрыта, маршрут оставлен до их публикации. */}
+            <Route path="support" element={<Navigate to="/iconography/about" replace />} />
             <Route path="about" element={<About />} />
             <Route path="*" element={(
               <section className="ico-empty">

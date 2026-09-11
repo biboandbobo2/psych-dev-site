@@ -1,9 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { readFileSync } from 'node:fs';
-import type { IconRecord, IconSummary } from '../types';
+import type { IconRecord, IconSchool, IconSummary } from '../types';
 import { subjectOptions, traditionGroup, traditionOptions } from '../lib/catalog';
+import { IconographyPortal } from '../IconographyPortal';
 import { Catalog } from './Catalog';
 import { BackLink } from './BackLink';
 import { PassportFacts } from './Passport';
@@ -11,6 +13,7 @@ import { Learn } from './Learn';
 
 const icons: IconSummary[] = JSON.parse(readFileSync('public/iconography/catalog.json', 'utf8'));
 const readRecord = (id: string): IconRecord => JSON.parse(readFileSync(`public/iconography/records/${id}.json`, 'utf8'));
+const schools: IconSchool[] = JSON.parse(readFileSync('public/iconography/schools.json', 'utf8'));
 
 function Location() {
   const location = useLocation();
@@ -176,5 +179,67 @@ describe('маршрут перед поездкой', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Пророческий ряд/ }));
     expect(screen.queryByText('Иконы этого ряда в коллекции')).not.toBeInTheDocument();
+  });
+});
+
+describe('счётчики фильтра сюжетов', () => {
+  it('пересчитываются по выбранной традиции', () => {
+    renderCatalog('/iconography/catalog');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Традиция' }), { target: { value: 'Грузинская' } });
+    const georgian = icons.filter((x) => traditionGroup(x.tradition) === 'Грузинская');
+    const options = within(screen.getByRole('combobox', { name: 'Сюжет' })).getAllByRole('option').slice(1);
+    expect(options).toHaveLength(new Set(georgian.map((x) => x.subject)).size);
+    for (const option of options) {
+      const [, subject, count] = /^(.+) \((\d+)\)$/.exec(option.textContent!)!;
+      expect(georgian.filter((x) => x.subject === subject)).toHaveLength(Number(count));
+    }
+  });
+});
+
+describe('портал целиком: шапка, школы и несуществующие адреса', () => {
+  beforeEach(() => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) =>
+      new Response(readFileSync(`public/iconography/${String(url).split('/iconography/').at(-1)}`, 'utf8'), { status: 200 }));
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  });
+
+  const renderPortal = (entry: string) => render(
+    <HelmetProvider><MemoryRouter initialEntries={[entry]}><Location />
+      <Routes><Route path="/iconography/*" element={<IconographyPortal />} /></Routes>
+    </MemoryRouter></HelmetProvider>);
+
+  it('ведёт из шапки в сравнение и школы', async () => {
+    renderPortal('/iconography/catalog');
+    await screen.findByRole('heading', { name: 'Коллекция' });
+    const header = screen.getByRole('navigation', { name: 'Иконография' });
+    expect(within(header).getAllByRole('link').map((x) => x.textContent))
+      .toEqual(['Викторина', 'Коллекция', 'Практика', 'Маршрут', 'Сравнение', 'Школы']);
+    fireEvent.click(within(header).getByRole('link', { name: 'Школы' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/iconography/schools');
+  });
+
+  it('показывает индекс школ со ссылками и числом примеров', async () => {
+    renderPortal('/iconography/schools');
+    await screen.findByRole('heading', { level: 1, name: 'О чём говорят школы' });
+    const articles = screen.getAllByRole('heading', { level: 2 });
+    expect(articles).toHaveLength(schools.length);
+    const first = schools[0];
+    expect(screen.getByRole('link', { name: first.title })).toHaveAttribute('href', `/iconography/schools/${first.id}`);
+    const examples = icons.filter((x) => x.schoolId === first.id).length;
+    if (examples) expect(screen.getAllByText(new RegExp(`^${examples} икон`))[0]).toBeInTheDocument();
+  });
+
+  it('уводит страницу поддержки на «О проекте», пока нет реквизитов', async () => {
+    renderPortal('/iconography/support');
+    await screen.findByRole('heading', { level: 1, name: 'Образы становятся понятнее' });
+    expect(screen.getByTestId('location')).toHaveTextContent('/iconography/about');
+    expect(screen.queryByText(/Реквизиты пока не опубликованы/)).not.toBeInTheDocument();
+  });
+
+  it('отличает несуществующую икону от обрыва связи', async () => {
+    renderPortal('/iconography/icon/nonexistent-id');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Такой иконы нет' })).toBeInTheDocument();
+    expect(screen.queryByText(/Проверьте соединение/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Открыть коллекцию' })).toHaveAttribute('href', '/iconography/catalog');
   });
 });

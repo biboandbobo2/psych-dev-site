@@ -1,7 +1,7 @@
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import type { IconRecord } from '../types';
-import { displayPeriod, isPlaceholderFact, loadIcon, useResource } from '../lib/catalog';
+import type { IconRecord, IconSummary } from '../types';
+import { displayPeriod, isPlaceholderFact, loadIcon, MISSING, useResource } from '../lib/catalog';
 import { Artwork } from './Artwork';
 import { Feedback } from './Feedback';
 import { BackLink } from './BackLink';
@@ -89,11 +89,24 @@ export function Sources({ icon }: { icon: IconRecord }) {
   );
 }
 
-export function Passport() {
+/** Адрес есть, записи нет: это не сбой сети, и предлагать «повторить» бессмысленно. */
+function MissingIcon() {
+  return (
+    <section className="ico-empty">
+      <h1>Такой иконы нет</h1>
+      <p>Адрес мог устареть или содержать опечатку.</p>
+      <Link className="ico-button" to="/iconography/catalog">Открыть коллекцию</Link>
+    </section>
+  );
+}
+
+export function Passport({ icons }: { icons: IconSummary[] }) {
   const { id = '' } = useParams();
   const location = useLocation();
-  const { value: icon, error, retry } = useResource(() => loadIcon(id), id);
-  if (!icon) return <LoadState error={error} retry={retry} />;
+  const known = icons.some((summary) => summary.id === id);
+  const { value: icon, error, missing, retry } = useResource(
+    () => (known ? loadIcon(id) : Promise.reject(new Error(MISSING))), id);
+  if (!icon) return missing ? <MissingIcon /> : <LoadState error={error} retry={retry} />;
   const period = displayPeriod(icon);
   return (
     <>
@@ -116,19 +129,21 @@ export function Passport() {
               <Link className="ico-button" to={`/iconography/practice?icon=${icon.id}`}>Одна икона — всё о ней</Link>
               <Link className="ico-link" to={`/iconography/compare?left=${icon.id}`}>Сравнить</Link>
             </div>
+            {/* Наблюдения полезнее таблицы, поэтому они идут раньше — и на телефоне, и на десктопе. */}
+            <div className="ico-passport-clues">
+              <p className="ico-eyebrow">Учимся смотреть</p>
+              <h2>На что обратить внимание</h2>
+              {icon.clues.filter((clue) => clue.title !== 'Что важно помнить').map((clue) => (
+                <article className="ico-clue ico-clue-text" key={clue.title}>
+                  <div><h3>{clue.title}</h3><p>{clue.text}</p></div>
+                </article>
+              ))}
+            </div>
             <PassportFacts icon={icon} />
           </div>
         </div>
 
         <div className="ico-reading">
-          <p className="ico-eyebrow">Учимся смотреть</p>
-          <h2>На что обратить внимание</h2>
-          {icon.clues.filter((clue) => clue.title !== 'Что важно помнить').map((clue) => (
-            <article className="ico-clue ico-clue-text" key={clue.title}>
-              <div><h3>{clue.title}</h3><p>{clue.text}</p></div>
-            </article>
-          ))}
-
           {icon.story?.map((section) => (
             <section className="ico-context" key={section.title}><h2>{section.title}</h2><p>{section.text}</p></section>
           ))}
