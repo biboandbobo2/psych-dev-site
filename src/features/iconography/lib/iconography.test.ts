@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import type { IconRecord, IconSummary } from '../types';
 import { dailyIcon, loadIcon, MISSING, searchIcons } from './catalog';
 import { readProgress, recordAnswer } from './progress';
-import { counted, plural } from './format';
+import { cleanSourceValue, counted, hasSourceValue, plural, withoutTracking } from './format';
 import { difficulties, optionsFor, repeatDifficulty, topicLabel } from './quiz';
 import { teachingQuestions } from './learning';
 import { allRecordQuestions } from './recognition';
@@ -144,5 +144,39 @@ describe('русские формы и ярлыки', () => {
     expect(repeatDifficulty(question)).toBe('expert');
     expect(repeatDifficulty(records[0].recognition!.beginner)).toBe('beginner');
     expect(repeatDifficulty(records[0].questions[0])).toBe('explorer');
+  });
+});
+
+describe('сведения записи источника', () => {
+  it('снимает служебный хвост Wikidata, но не трогает саму формулировку', () => {
+    expect(cleanSourceValue('9th centurydate QS:P571,+850-00-00T00:00:00Z/7, renewed several times by 18th century'))
+      .toBe('9th century, renewed several times by 18th century');
+    expect(cleanSourceValue('14th centurydate QS:P571,+1350-00-00T00:00:00Z/7')).toBe('14th century');
+    // Английский оригинал остаётся английским: это исходная запись, а не наша экспертиза.
+    expect(cleanSourceValue('Elephant ivory')).toBe('Elephant ivory');
+  });
+
+  it('не выводит строку без сведений', () => {
+    expect(hasSourceValue('Not specified')).toBe(false);
+    expect(hasSourceValue('unknown')).toBe(false);
+    expect(hasSourceValue('  ')).toBe(false);
+    expect(hasSourceValue('tempera and gold on wood')).toBe(true);
+  });
+
+  it('снимает utm-хвосты со ссылки на исходное изображение', () => {
+    expect(withoutTracking('https://upload.wikimedia.org/x.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo'))
+      .toBe('https://upload.wikimedia.org/x.jpg');
+    expect(withoutTracking('https://www.metmuseum.org/art/collection/search/464531?utm_source=x&page=2'))
+      .toBe('https://www.metmuseum.org/art/collection/search/464531?page=2');
+    expect(withoutTracking('не ссылка')).toBe('не ссылка');
+    for (const record of records) expect(withoutTracking(record.rights.original)).not.toContain('utm_');
+  });
+
+  it('индекс несёт темы вопросов каждого паспорта', () => {
+    for (const icon of icons) {
+      const record = records.find((x) => x.id === icon.id)!;
+      const expected = [...new Set(allRecordQuestions(record).map((question) => question.topic))].sort();
+      expect(icon.topics, icon.id).toEqual(expected);
+    }
   });
 });

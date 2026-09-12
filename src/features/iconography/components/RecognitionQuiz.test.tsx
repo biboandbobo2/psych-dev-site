@@ -125,6 +125,17 @@ describe('ответ и разбор', () => {
     expect(screen.getByText(question.explanation)).toBeInTheDocument();
   });
 
+  it('не показывает в карточке иконы строку-заглушку о собрании', async () => {
+    const unknownMuseum = icons.find((icon) => icon.id === 'ru-24341211')!;
+    render(<MemoryRouter><RecognitionQuiz icons={[unknownMuseum]} /></MemoryRouter>);
+    await screen.findByRole('heading', { level: 1 });
+    fireEvent.click(screen.getByRole('button', { name: currentQuestion().answer }));
+    fireEvent.click(screen.getByText('Об этой иконе'));
+    // В паспорте такая строка скрыта — в викторине правило то же.
+    expect(screen.queryByText(/Собрание не установлено/)).not.toBeInTheDocument();
+    expect(screen.getByText(`${unknownMuseum.title}. ${unknownMuseum.period}.`)).toBeInTheDocument();
+  });
+
   it('показывает отметку признака только на углублённом вопросе и только после ответа', async () => {
     render(<MemoryRouter><RecognitionQuiz icons={withDetail} /></MemoryRouter>);
     await screen.findByRole('heading', { level: 1 });
@@ -200,6 +211,31 @@ describe('итог занятия', () => {
     await screen.findByRole('heading', { level: 1 });
     expect(screen.getByLabelText(`Икона 1 из ${trio.length}`)).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Уровень' })).toBeInTheDocument();
+  });
+});
+
+describe('размер подборки', () => {
+  it('предупреждает о маленькой греческой подборке перед вопросом и на итоге — по одному разу', async () => {
+    const greek = quizIcons.filter((icon) => icon.tradition === 'Греческая' || icon.tradition.includes('критская'));
+    expect(greek.length).toBeGreaterThan(7);
+    expect(greek.length).toBeLessThan(12);
+    const note = new RegExp(`В подборке «Греческая и критская» всего ${greek.length} икон`);
+
+    render(<MemoryRouter><RecognitionQuiz icons={icons} /></MemoryRouter>);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Традиция' }), { target: { value: 'greek' } });
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.getAllByText(note)).toHaveLength(1);
+
+    const total = Number(/из (\d+)/.exec(screen.getByLabelText(/^Икона 1 из /).getAttribute('aria-label')!)![1]);
+    await playLesson(total);
+    await screen.findByRole('heading', { level: 1, name: /Верно \d+ из/ });
+    expect(screen.getAllByText(note)).toHaveLength(1);
+  });
+
+  it('о большой русской подборке не предупреждает', async () => {
+    render(<MemoryRouter><RecognitionQuiz icons={icons} /></MemoryRouter>);
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByText(/повторы неизбежны/)).not.toBeInTheDocument();
   });
 });
 

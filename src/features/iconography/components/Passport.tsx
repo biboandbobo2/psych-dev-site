@@ -2,6 +2,7 @@ import { Link, useParams, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import type { IconRecord, IconSummary } from '../types';
 import { displayPeriod, isPlaceholderFact, loadIcon, MISSING, useResource } from '../lib/catalog';
+import { cleanSourceValue, hasSourceValue, withoutTracking } from '../lib/format';
 import { Artwork } from './Artwork';
 import { Feedback } from './Feedback';
 import { BackLink } from './BackLink';
@@ -69,7 +70,7 @@ export function Sources({ icon }: { icon: IconRecord }) {
         ))}
       </ul>
       <p>{icon.rights.credit}. <a href={icon.rights.url} target="_blank" rel="noreferrer">{icon.rights.label}</a>.</p>
-      <a className="ico-link" href={icon.rights.original} target="_blank" rel="noreferrer">Открыть исходное изображение</a>
+      <a className="ico-link" href={withoutTracking(icon.rights.original)} target="_blank" rel="noreferrer">Открыть исходное изображение</a>
 
       {/* Единственное место оговорок: раньше они повторялись под чтением и в самом разделе источников. */}
       <details>
@@ -82,8 +83,10 @@ export function Sources({ icon }: { icon: IconRecord }) {
 
       <details>
         <summary>Сведения записи источника</summary>
+        {/* Исходная запись приводится как есть: английский не переводим, но служебный хвост и «Not specified» не показываем. */}
         <dl className="ico-facts">
-          {Object.entries(original).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}
+          {Object.entries(original).filter(([, value]) => hasSourceValue(value))
+            .map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{cleanSourceValue(value)}</dd></div>)}
         </dl>
       </details>
     </section>

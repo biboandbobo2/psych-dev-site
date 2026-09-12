@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { isPlaceholderFact } from '../lib/catalog';
 import { recordAnswer } from '../lib/progress';
 import { optionsFor } from '../lib/quiz';
 import type { RecognitionItem } from '../lib/recognition';
@@ -107,7 +108,8 @@ export function RecognitionQuestion({ item, index, total, seed, onAnswer, onNext
                 )}
                 <details>
                   <summary>Об этой иконе</summary>
-                  <p>{icon.title}. {icon.period}. {icon.museum}.</p>
+                  {/* Заглушки вроде «Собрание не установлено» скрыты по тому же правилу, что в паспорте. */}
+                  <p>{[icon.title, icon.period, icon.museum].filter((fact) => !isPlaceholderFact(fact)).join('. ')}.</p>
                   <Link to={`/iconography/icon/${icon.id}`} className="ico-link">Паспорт и источники</Link>
                 </details>
               </div>
