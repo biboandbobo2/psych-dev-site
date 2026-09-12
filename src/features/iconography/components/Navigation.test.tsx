@@ -94,7 +94,7 @@ describe('фильтры и порядок каталога', () => {
     const biggest = [...subjectOptions(icons)].sort((a, b) => b.count - a.count)[0];
     fireEvent.change(screen.getByRole('combobox', { name: 'Сюжет' }), { target: { value: biggest.value } });
     expect(found()).toBe(`Найдено: ${biggest.count}`);
-    expect(screen.getByTestId('location')).toHaveTextContent(`subject=${encodeURIComponent(biggest.value)}`);
+    expect(screen.getByTestId('location')).toHaveTextContent(`subject=${new URLSearchParams({ subject: biggest.value })}`);
   });
 
   it('показывает века римскими цифрами', () => {

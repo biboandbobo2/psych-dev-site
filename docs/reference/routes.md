@@ -401,6 +401,6 @@ const hasGeneralAccess = useAuthStore(state => state.user?.courseAccess?.general
 
 ## Иконография (локальная версия, 2026-09-09)
 
-Публичный standalone-раздел `/iconography/*`, lazy entry `IconographyPage` через `pages/lazy.ts`; регистрация не нужна. Подмаршруты: `/iconography`, `/catalog`, `/icon/:id`, `/schools/:id`, `/practice`, `/compare`, `/learn`, `/about`, `/support` относительно префикса. Каталог и изображения — статические ресурсы, не Firestore. Отдельная сборка также перенаправляет `/` на `/iconography`. Контракт query и правила публикации: [guide](../guides/iconography.md). Production ещё не опубликован.
+Публичный standalone-раздел `/iconography/*`, lazy entry `IconographyPage` через `pages/lazy.ts`; регистрация не нужна. Подмаршруты: `/iconography`, `/catalog`, `/icon/:id`, `/schools`, `/schools/:id`, `/practice`, `/compare`, `/learn`, `/glossary`, `/about` относительно префикса; `/support` редиректит на `/about` до появления реквизитов. Каталог и изображения — статические ресурсы, не Firestore. Отдельная сборка также перенаправляет `/` на `/iconography`. Контракт query и правила публикации: [guide](../guides/iconography.md). Опубликовано в составе Академии (`academydom.com/iconography`, без ссылок с сайта).
 
 Главная `/iconography` сразу открывает викторину узнавания образов: по умолчанию средний уровень и явно выбранная русская традиция. Икона дня и дополнительные режимы доступны после занятия; URL существующих страниц сохранены.
