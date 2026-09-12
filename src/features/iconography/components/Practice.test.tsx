@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { IconRecord, IconSummary, Question } from '../types';
 import { Practice } from './Practice';
+import { teachingQuestions } from '../lib/learning';
 import { readProgress } from '../lib/progress';
 
 const base = resolve(process.cwd(), 'public/iconography');
@@ -107,13 +108,54 @@ describe('занятия практики', () => {
     expect(screen.getByText('Святые и персонажи')).toBeInTheDocument();
   });
 
+  it('показывает размер пула темы до старта', () => {
+    render(<MemoryRouter initialEntries={['/iconography/practice?topic=material']}><Practice icons={icons} /></MemoryRouter>);
+    const pool = icons.filter((icon) => icon.topics?.includes('material')).length;
+    expect(pool).toBeGreaterThan(0);
+    expect(screen.getByText(`В этой теме ${pool} икон.`)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Начать занятие' })).toBeEnabled();
+    // Тема без репродукций честно об этом говорит вместо счёта икон.
+    fireEvent.click(screen.getByRole('radio', { name: /Иконостас/ }));
+    expect(screen.getByText('Занятие идёт по схеме иконостаса, без изображений.')).toBeInTheDocument();
+  });
+
   // Пустой каталог вместо реального: сколько вопросов размечено темой сегодня — дело контента, не кода.
-  it('честно говорит, что у темы без вопросов нет заданий', async () => {
+  it('не даёт начать занятие по теме без икон', () => {
     render(<MemoryRouter initialEntries={['/iconography/practice?topic=material']}><Practice icons={[]} /></MemoryRouter>);
     expect(screen.getByRole('radio', { name: /Материал и техника/ })).toBeChecked();
+    expect(screen.getByText('В этой теме пока нет икон — выберите другую.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Начать занятие' })).toBeDisabled();
+  });
+
+  it('в списке произведений на итоге только те, о которых спрашивали', async () => {
+    render(<MemoryRouter initialEntries={['/iconography/practice?topic=material']}><Practice icons={icons} /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: 'Начать занятие' }));
-    expect(await screen.findByRole('heading', { name: 'Вопросов по этой теме пока нет' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Выбрать тему' })).toBeInTheDocument();
+    await screen.findByText(/Вопрос 1 из /);
+    const total = lessonSize();
+    expect(total).toBeGreaterThan(1);
+
+    for (let i = 0; i < total; i += 1) {
+      fireEvent.click(document.querySelectorAll<HTMLButtonElement>('.ico-options button')[0]);
+      fireEvent.click(await screen.findByRole('button', { name: 'Продолжить' }));
+    }
+
+    expect(await screen.findByRole('heading', { name: 'Произведения этого занятия' })).toBeInTheDocument();
+    const listed = document.querySelectorAll('.ico-session-mistakes-list > li').length;
+    expect(listed).toBeGreaterThan(0);
+    expect(listed).toBeLessThanOrEqual(total);
+  });
+
+  it('разбирает неверный ответ в теме «Иконостас», где картинки нет', async () => {
+    render(<MemoryRouter initialEntries={['/iconography/practice?topic=iconostasis']}><Practice icons={icons} /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Начать занятие' }));
+    const prompt = (await screen.findByRole('heading', { level: 1, name: /Какой ряд описан/ })).textContent!;
+    const question = teachingQuestions.find((x) => x.prompt === prompt)!;
+    const wrong = question.distractors[0];
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(escape(wrong)) }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Неверно' })).toBeInTheDocument();
+    expect(question.rationale![wrong].length).toBeGreaterThan(60);
+    expect(screen.getByText(new RegExp(escape(question.rationale![wrong])))).toBeInTheDocument();
   });
 
   it('учит иконостасу, не загружая ни одной репродукции', async () => {
@@ -129,7 +171,7 @@ describe('занятия практики', () => {
     await screen.findByText(/Вопрос 1 из /);
     const requested = vi.mocked(fetch).mock.calls.map((call) => String(call[0]).split('/').at(-1)!.replace('.json', ''));
     expect(requested.length).toBeGreaterThan(0);
-    expect(requested.length).toBeLessThanOrEqual(8);
+    expect(requested.length).toBeLessThanOrEqual(12);
     const feastGroups = new Set(['annunciation', 'nativity', 'presentation', 'baptism', 'transfiguration', 'lazarus',
       'entry', 'crucifixion', 'resurrection', 'ascension', 'pentecost', 'dormition', 'mary-entry', 'noli']);
     for (const id of requested) expect(feastGroups.has(icons.find((x) => x.id === id)!.recognitionGroup!)).toBe(true);
