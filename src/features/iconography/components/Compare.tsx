@@ -56,6 +56,9 @@ function AutoBreakdown({ left, right }: { left: IconRecord; right: IconRecord })
 export function Compare({ icons }: { icons: IconSummary[] }) {
   const [params, setParams] = useSearchParams();
   const [revealed, setRevealed] = useState(false);
+  // Несуществующий id в адресе не подменяем молча: иначе кажется, что открылась запрошенная икона.
+  const unknownIcon = (['left', 'right'] as const)
+    .some((side) => params.get(side) && !icons.some((x) => x.id === params.get(side)));
   const left = icons.some((x) => x.id === params.get('left')) ? params.get('left')! : pairs[0].left;
   // Задан только left — подбираем пару из той же группы узнавания, а не первую попавшуюся икону.
   const fallbackRight = left === pairs[0].left ? pairs[0].right : (defaultRight(icons, left) ?? pairs[0].left);
@@ -103,8 +106,12 @@ export function Compare({ icons }: { icons: IconSummary[] }) {
 
       {!value ? <LoadState error={error} retry={retry} /> : (
         <>
+          {unknownIcon && (
+            <p className="ico-notice" role="status">Такой иконы нет — показываем пару по умолчанию.</p>
+          )}
+
           {left === right && (
-            <p className="ico-notice">Вы выбрали одно произведение дважды. Выберите другое, чтобы увидеть различия.</p>
+            <p className="ico-notice" role="status">Вы выбрали одно произведение дважды. Выберите другое, чтобы увидеть различия.</p>
           )}
 
           <div className="ico-compare">
@@ -123,7 +130,8 @@ export function Compare({ icons }: { icons: IconSummary[] }) {
             ))}
           </div>
 
-          <div className="ico-comparison-note">
+          {/* Одна и та же икона с двух сторон: сравнивать нечего, задание и разбор только сбивают. */}
+          {left !== right && <div className="ico-comparison-note">
             <p className="ico-eyebrow">Задание</p>
             <h2>Что отличает эти два образа?</h2>
             {!pair && <p><WithGlossary text={compareTask(value[0], value[1])} /></p>}
@@ -148,7 +156,7 @@ export function Compare({ icons }: { icons: IconSummary[] }) {
                 </div>
               </div>
             )}
-          </div>
+          </div>}
         </>
       )}
     </section>

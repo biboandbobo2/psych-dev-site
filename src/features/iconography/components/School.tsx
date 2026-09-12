@@ -38,7 +38,14 @@ export function School({ icons }: { icons: IconSummary[] }) {
   if (!schools) return <LoadState error={error} retry={retry} />;
 
   const school = schools.find((x) => x.id === id);
-  if (!school) return <section className="ico-section"><BackLink /><h1>Материал не найден</h1></section>;
+  // Пришли из индекса школ, а не из коллекции: и текст, и ссылка должны вести туда же.
+  if (!school) return (
+    <section className="ico-empty">
+      <h1>Такой статьи нет</h1>
+      <p>Адрес мог устареть или содержать опечатку.</p>
+      <Link className="ico-button" to="/iconography/schools">Все статьи о школах</Link>
+    </section>
+  );
   const examples = icons.filter((x) => x.schoolId === id);
 
   return (

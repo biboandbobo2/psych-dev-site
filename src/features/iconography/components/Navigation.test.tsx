@@ -119,6 +119,13 @@ describe('фильтры и порядок каталога', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('sort=title');
   });
 
+  it('подсказывает, что делать, когда поиск ничего не нашёл', () => {
+    renderCatalog('/iconography/catalog?q=щщщщ');
+    expect(found()).toBe('Найдено: 0');
+    expect(screen.getByRole('heading', { name: 'Ничего не найдено' })).toBeInTheDocument();
+    expect(screen.getByText('Попробуйте другое слово или снимите фильтры.')).toBeInTheDocument();
+  });
+
   it('ставит совпадение в названии выше совпадения в тегах и персонажах', () => {
     renderCatalog('/iconography/catalog');
     fireEvent.change(screen.getByRole('searchbox', { name: 'Поиск' }), { target: { value: 'Пётр' } });
@@ -241,5 +248,35 @@ describe('портал целиком: шапка, школы и несущес�
     expect(await screen.findByRole('heading', { level: 1, name: 'Такой иконы нет' })).toBeInTheDocument();
     expect(screen.queryByText(/Проверьте соединение/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Открыть коллекцию' })).toHaveAttribute('href', '/iconography/catalog');
+  });
+
+  it('возвращает с несуществующей статьи о школе к индексу школ', async () => {
+    renderPortal('/iconography/schools/nope');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Такой статьи нет' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Все статьи о школах' })).toHaveAttribute('href', '/iconography/schools');
+  });
+
+  it('даёт разделам разные заголовки вкладки и цель для ссылки «Перейти к содержанию»', async () => {
+    renderPortal('/iconography/catalog');
+    await screen.findByRole('heading', { name: 'Коллекция' });
+    await waitFor(() => expect(document.title).toBe('Коллекция — Иконография'));
+    expect(screen.getByRole('link', { name: 'Перейти к содержанию' })).toHaveAttribute('href', '#iconography-content');
+    expect(document.querySelector('main#iconography-content')).toBeInTheDocument();
+
+    cleanup();
+    renderPortal('/iconography/practice');
+    await screen.findByRole('heading', { name: 'Учиться замечать' });
+    await waitFor(() => expect(document.title).toBe('Практика — Иконография'));
+  });
+
+  it('в сравнении не выдумывает задание для одной и той же иконы и не подменяет битый адрес молча', async () => {
+    renderPortal('/iconography/compare?left=tsilkani&right=tsilkani');
+    expect(await screen.findByText('Вы выбрали одно произведение дважды. Выберите другое, чтобы увидеть различия.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Что отличает эти два образа?' })).not.toBeInTheDocument();
+
+    cleanup();
+    renderPortal('/iconography/compare?left=nope');
+    expect(await screen.findByText('Такой иконы нет — показываем пару по умолчанию.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Что отличает эти два образа?' })).toBeInTheDocument();
   });
 });

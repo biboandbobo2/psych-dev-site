@@ -15,13 +15,26 @@ import { About } from './components/About';
 import './iconography.css';
 import './recognition.css';
 
+/** Свой заголовок вкладки у каждого раздела: в истории и закладках страницы должны различаться. */
+const sectionTitles = new Map([
+  ['', 'Викторина'],
+  ['catalog', 'Коллекция'],
+  ['practice', 'Практика'],
+  ['learn', 'Маршрут'],
+  ['compare', 'Сравнение'],
+  ['schools', 'Школы'],
+  ['about', 'О проекте'],
+]);
+
 export function IconographyPortal() {
   const { value: icons, error, retry } = useResource(loadCatalog, 'catalog');
   const location = useLocation();
+  // Паспорт и глоссарий ставят собственный заголовок ниже по дереву и перекрывают этот.
+  const section = sectionTitles.get(location.pathname.replace(/^\/iconography\/?/, '').split('/')[0]);
   return (
     <div className="iconography">
       <Helmet>
-        <title>Иконография — учиться видеть | Академия</title>
+        <title>{section ? `${section} — Иконография` : 'Иконография — учиться видеть | Академия'}</title>
         <meta name="description" content="Бесплатный путеводитель по иконографии: подлинные иконы, музейные паспорта, сравнения и обучение без подготовки." />
         <html lang="ru" />
       </Helmet>

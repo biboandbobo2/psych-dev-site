@@ -97,8 +97,8 @@ export function Catalog({ icons }: { icons: IconSummary[] }) {
         </div>
       ) : (
         <div className="ico-empty">
-          <h2>Пока нет совпадений</h2>
-          <p>Попробуйте имя святого или более широкий период.</p>
+          <h2>Ничего не найдено</h2>
+          <p>Попробуйте другое слово или снимите фильтры.</p>
           <button className="ico-button" onClick={() => setParams({})}>Сбросить фильтры</button>
         </div>
       )}
