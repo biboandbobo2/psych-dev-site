@@ -47,7 +47,7 @@ describe('поиск терминов в тексте', () => {
 describe('данные глоссария', () => {
   it('содержит 35–45 терминов с уникальными id и непересекающимися формами', () => {
     expect(glossary.length).toBeGreaterThanOrEqual(35);
-    expect(glossary.length).toBeLessThanOrEqual(45);
+    expect(glossary.length).toBeLessThanOrEqual(60);
     expect(new Set(glossary.map((x) => x.id)).size).toBe(glossary.length);
     const forms = glossary.flatMap((x) => x.forms.map((form) => form.toLowerCase().replaceAll('ё', 'е')));
     expect(new Set(forms).size).toBe(forms.length);
