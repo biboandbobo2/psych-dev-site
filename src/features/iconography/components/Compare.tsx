@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import type { IconSummary } from '../types';
+import type { IconRecord, IconSummary } from '../types';
 import { displayPeriod, iconsByTradition, loadIcon, useResource } from '../lib/catalog';
+import { compareRows, compareTask, defaultRight, pickClues } from '../lib/compare';
 import { Artwork } from './Artwork';
 import { LoadState } from './Passport';
 
@@ -28,15 +29,36 @@ const pairs = [
   },
 ];
 
-const freeNote = 'Сопоставьте сюжет, тип, жесты и материал. Дату, регион и автора проверяйте по каждому паспорту отдельно: цвет фона или похожее лицо не устанавливают мастерскую.';
+const caution = 'Дату, регион и автора проверяйте по каждому паспорту отдельно: цвет фона или похожее лицо не устанавливают мастерскую.';
+
+/** Автоматический разбор произвольной пары: сравнимые поля паспортов и наблюдения об одном. */
+function AutoBreakdown({ left, right }: { left: IconRecord; right: IconRecord }) {
+  return (
+    <>
+      <p className="ico-eyebrow">Автоматическое сопоставление по паспортам</p>
+      <h3>Что сравнить</h3>
+      <dl className="ico-compare-table">
+        {compareRows(left, right).map((row) => (
+          <div key={row.label} className={row.same ? 'ico-same' : ''}>
+            <dt>{row.label}</dt>
+            {row.same
+              ? <dd>{row.left}<em>совпадает</em></dd>
+              : <><dd>{row.left}</dd><dd>{row.right}</dd></>}
+          </div>
+        ))}
+      </dl>
+      <p className="ico-small">{caution}</p>
+    </>
+  );
+}
 
 export function Compare({ icons }: { icons: IconSummary[] }) {
   const [params, setParams] = useSearchParams();
   const [revealed, setRevealed] = useState(false);
   const left = icons.some((x) => x.id === params.get('left')) ? params.get('left')! : pairs[0].left;
-  const right = icons.some((x) => x.id === params.get('right'))
-    ? params.get('right')!
-    : (left === pairs[0].right ? pairs[0].left : pairs[0].right);
+  // Задан только left — подбираем пару из той же группы узнавания, а не первую попавшуюся икону.
+  const fallbackRight = left === pairs[0].left ? pairs[0].right : (defaultRight(icons, left) ?? pairs[0].left);
+  const right = icons.some((x) => x.id === params.get('right')) ? params.get('right')! : fallbackRight;
   const { value, error, retry } = useResource(() => Promise.all([loadIcon(left), loadIcon(right)]), `${left}:${right}`);
   const pair = pairs.find((p) => (p.left === left && p.right === right) || (p.left === right && p.right === left));
 
@@ -90,7 +112,6 @@ export function Compare({ icons }: { icons: IconSummary[] }) {
                 <Artwork icon={icon} priority zoom />
                 <h2>{icon.title}</h2>
                 <p>{icon.tradition} · {displayPeriod(icon)}</p>
-                <p>{icon.clues[0].text}</p>
                 <dl className="ico-facts">
                   <div><dt>Тип</dt><dd>{icon.type}</dd></div>
                   <div><dt>Атрибуция</dt><dd>{icon.attribution}</dd></div>
@@ -104,13 +125,27 @@ export function Compare({ icons }: { icons: IconSummary[] }) {
           <div className="ico-comparison-note">
             <p className="ico-eyebrow">Задание</p>
             <h2>Что отличает эти два образа?</h2>
-            {!pair ? <p>{freeNote}</p> : revealed ? (
-              <p role="status"><strong>{pair.name}.</strong> {pair.note}</p>
-            ) : (
+            {!pair && <p>{compareTask(value[0], value[1])}</p>}
+            {!revealed ? (
               <>
                 <p>Назовите отличия вслух или про себя, затем проверьте себя.</p>
                 <button className="ico-button" onClick={() => setRevealed(true)}>Показать разбор</button>
               </>
+            ) : (
+              <div role="status">
+                {pair
+                  ? <p><strong>{pair.name}.</strong> {pair.note}</p>
+                  : <AutoBreakdown left={value[0]} right={value[1]} />}
+                <h3>На что смотреть</h3>
+                <div className="ico-compare-clues">
+                  {pickClues(value[0], value[1]).map((clue, i) => clue && (
+                    <div key={`${value[i].id}-${i}`}>
+                      <p className="ico-eyebrow">{value[i].title}</p>
+                      <p><strong>{clue.title}.</strong> {clue.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </>

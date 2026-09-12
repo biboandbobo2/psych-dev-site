@@ -126,6 +126,15 @@
 .ico-compare h2 { font-size:34px; margin:24px 0 12px; }
 .ico-compare p { font-size:13px; color:var(--ico-muted); }
 .ico-comparison-note { background:#e8e9de; padding:40px; margin-top:60px; }
+.ico-comparison-note h3 { margin:26px 0 14px; }
+.ico-compare-table { margin:0 0 22px; font-size:13px; }
+.ico-compare-table>div { display:grid; grid-template-columns:minmax(110px,.75fr) 1fr 1fr; gap:6px 18px; align-items:start; border-top:1px solid #d3d5c6; padding:11px 0; }
+.ico-compare-table dt { color:var(--ico-muted); padding:6px 0; }
+.ico-compare-table dd { margin:0; padding:6px 11px; background:#f2f2ea; overflow-wrap:anywhere; }
+.ico-compare-table .ico-same dd { grid-column:2/-1; background:none; padding:6px 0; color:var(--ico-muted); }
+.ico-compare-table em { font:10px/1.65 'Manrope',sans-serif; font-style:normal; text-transform:uppercase; letter-spacing:.14em; color:#7b8270; margin-left:14px; }
+.ico-compare-clues { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.ico-compare-clues p:not(.ico-eyebrow) { font-size:14px; margin-bottom:0; }
 .ico-lesson { display:grid; grid-template-columns:1fr 1.7fr; gap:60px; border-top:1px solid var(--ico-line); margin:50px 0 85px; padding-top:35px; }
 .ico-lesson nav button { display:flex; align-items:center; text-align:left; gap:20px; padding:18px 10px; background:none; border:0; border-bottom:1px solid var(--ico-line); width:100%; font-size:13px; }
 .ico-lesson nav button[aria-current] { color:#34452b; background:#e8ebdf; }
@@ -224,6 +233,8 @@
   .ico-sources { overflow-wrap:anywhere; }.ico-compare,.ico-compare-selects { grid-template-columns:1fr; gap:16px; }.ico-compare .ico-artwork { height:360px; padding:12px; }.ico-compare h2 { font-size:25px; }
   .ico-compare p { font-size:12px; }.ico-compare .ico-facts>div { display:block; }.ico-compare dt { margin-bottom:5px; }.ico-compare .ico-link { font-size:11px; }
   .ico-compare-selects label { font-size:10px; }.ico-compare-selects select { font-size:12px; padding:8px; }.ico-comparison-note { padding:25px; margin-top:40px; }
+  .ico-compare-table>div { grid-template-columns:1fr 1fr; gap:4px 10px; }.ico-compare-table dt { grid-column:1/-1; padding:0 0 2px; }
+  .ico-compare-table .ico-same dd { grid-column:1/-1; }.ico-compare-table dd { padding:6px 9px; }.ico-compare-clues { grid-template-columns:1fr; gap:20px; }
   .ico-lesson { grid-template-columns:1fr; gap:25px; margin:35px 0 50px; }.ico-lesson article>p:not(.ico-eyebrow) { font-size:15px; }
   .ico-iconostasis { padding:15px; }.ico-gates { gap:15px; font-size:9px; }.ico-feast-grid { gap:25px; }.ico-feast-grid h3 { font-size:24px; }
   .ico-topic-grid,.ico-difficulties { grid-template-columns:1fr; }.ico-fieldset { margin:30px 0; }.ico-fieldset legend { font-size:28px; }.ico-topic-grid label { padding:17px; }
