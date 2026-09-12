@@ -5,6 +5,7 @@ import { displayPeriod, isPlaceholderFact, loadIcon, MISSING, useResource } from
 import { Artwork } from './Artwork';
 import { Feedback } from './Feedback';
 import { BackLink } from './BackLink';
+import { WithGlossary } from './Term';
 
 export function LoadState({ error, retry }: { error?: string; retry?: () => void }) {
   return (
@@ -73,7 +74,7 @@ export function Sources({ icon }: { icon: IconRecord }) {
       {/* Единственное место оговорок: раньше они повторялись под чтением и в самом разделе источников. */}
       <details>
         <summary>Датировка и атрибуция: что известно</summary>
-        <p>{icon.caution}</p>
+        <p><WithGlossary text={icon.caution} /></p>
         <p className="ico-small">
           Подготовлены WebP-копии с изменением размера, без изменения композиции. Проверка записи: {icon.rights.checked}.
         </p>
@@ -124,7 +125,7 @@ export function Passport({ icons }: { icons: IconSummary[] }) {
           <div>
             <p className="ico-eyebrow">{icon.tradition} · {period}</p>
             <h1>{icon.title}</h1>
-            <p className="ico-lead">{icon.description}</p>
+            <p className="ico-lead"><WithGlossary text={icon.description} /></p>
             <div className="ico-actions">
               <Link className="ico-button" to={`/iconography/practice?icon=${icon.id}`}>Одна икона — всё о ней</Link>
               <Link className="ico-link" to={`/iconography/compare?left=${icon.id}`}>Сравнить</Link>
@@ -135,7 +136,7 @@ export function Passport({ icons }: { icons: IconSummary[] }) {
               <h2>На что обратить внимание</h2>
               {icon.clues.filter((clue) => clue.title !== 'Что важно помнить').map((clue) => (
                 <article className="ico-clue ico-clue-text" key={clue.title}>
-                  <div><h3>{clue.title}</h3><p>{clue.text}</p></div>
+                  <div><h3>{clue.title}</h3><p><WithGlossary text={clue.text} /></p></div>
                 </article>
               ))}
             </div>
@@ -145,7 +146,7 @@ export function Passport({ icons }: { icons: IconSummary[] }) {
 
         <div className="ico-reading">
           {icon.story?.map((section) => (
-            <section className="ico-context" key={section.title}><h2>{section.title}</h2><p>{section.text}</p></section>
+            <section className="ico-context" key={section.title}><h2>{section.title}</h2><p><WithGlossary text={section.text} /></p></section>
           ))}
 
           {icon.reading && (

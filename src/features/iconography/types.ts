@@ -50,3 +50,12 @@ export interface Question {
 export interface Progress { difficult: string[]; answered: number; correct: number }
 
 export interface IconSchool { id: string; title: string; intro: string; sections: { title: string; text: string }[]; sources: Source[] }
+
+/** Словоформы перечислены вручную: морфологического анализа в проекте нет. */
+export interface GlossaryTerm {
+  id: string;
+  term: string;
+  forms: string[];
+  definition: string;
+  example?: { iconId: string; note: string };
+}

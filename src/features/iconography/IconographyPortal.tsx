@@ -9,6 +9,8 @@ import { Learn } from './components/Learn';
 import { Practice } from './components/Practice';
 import { School } from './components/School';
 import { Schools } from './components/Schools';
+import { Glossary } from './components/Glossary';
+import { GlossaryProvider } from './components/Term';
 import { About } from './components/About';
 import './iconography.css';
 import './recognition.css';
@@ -42,7 +44,7 @@ export function IconographyPortal() {
 
       <main id="iconography-content" tabIndex={-1}>
         {!icons ? <LoadState error={error} retry={retry} /> : (
-          <Routes>
+          <GlossaryProvider><Routes>
             <Route index element={<Home icons={icons} />} />
             <Route path="catalog" element={<Catalog icons={icons} />} />
             <Route path="icon/:id" element={<Passport icons={icons} />} />
@@ -54,19 +56,21 @@ export function IconographyPortal() {
             {/* Реквизитов пока нет: страница поддержки скрыта, маршрут оставлен до их публикации. */}
             <Route path="support" element={<Navigate to="/iconography/about" replace />} />
             <Route path="about" element={<About />} />
+            <Route path="glossary" element={<Glossary icons={icons} />} />
             <Route path="*" element={(
               <section className="ico-empty">
                 <h1>Такой страницы нет</h1>
                 <Link className="ico-button" to="/iconography/catalog">Открыть коллекцию</Link>
               </section>
             )} />
-          </Routes>
+          </Routes></GlossaryProvider>
         )}
       </main>
 
       <footer className="ico-footer">
         <nav aria-label="О проекте">
           <Link to="/iconography/about">О проекте</Link>
+          <Link to="/iconography/glossary">Глоссарий</Link>
           <Link to="/iconography/learn">Перед поездкой</Link>
           <a href={import.meta.env.MODE === 'iconography' ? 'https://academydom.com' : '/home'}>Академия</a>
         </nav>

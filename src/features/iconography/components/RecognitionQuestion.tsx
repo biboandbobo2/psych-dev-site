@@ -4,6 +4,7 @@ import { recordAnswer } from '../lib/progress';
 import { optionsFor } from '../lib/quiz';
 import type { RecognitionItem } from '../lib/recognition';
 import { Artwork } from './Artwork';
+import { WithGlossary } from './Term';
 
 /** Прокрутка уважает системную настройку «меньше движения». */
 const scrollMotion = (): ScrollBehavior =>
@@ -85,18 +86,18 @@ export function RecognitionQuestion({ item, index, total, seed, onAnswer, onNext
           {!chosen ? (
             <div className="ico-recognition-hint">
               <button className="ico-link" aria-expanded={hint} onClick={() => setHint(!hint)}>Подсказка</button>
-              {hint && <p>{question.hint}</p>}
+              {hint && <p><WithGlossary text={question.hint} /></p>}
             </div>
           ) : (
             <div ref={feedback} tabIndex={-1} className={`ico-recognition-feedback${correct ? ' is-correct' : ''}`}>
               <h2>{correct ? 'Верно' : 'Неверно'}</h2>
               {!correct && (
                 <p className="ico-wrong-choice">
-                  Вы выбрали «{chosen}».{rationale ? ` ${rationale}` : ''}
+                  Вы выбрали «{chosen}».{rationale ? <> <WithGlossary text={rationale} /></> : ''}
                 </p>
               )}
               {!correct && <p className="ico-right-answer">Верный ответ: <strong>«{question.answer}»</strong></p>}
-              <p>{question.explanation}</p>
+              <p><WithGlossary text={question.explanation} /></p>
 
               <div className="ico-recognition-details">
                 {mark && (

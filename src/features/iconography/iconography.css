@@ -104,6 +104,13 @@
 .ico-clue { display:flex; gap:25px; border-top:1px solid var(--ico-line); padding:24px 0; }
 .ico-clue h3 { margin-top:0; }
 .ico-clue p { color:var(--ico-muted); }
+/* Примеры под абзацем статьи о школе: две миниатюры в ряд, подпись «что смотреть» под каждой. */
+.ico-school-examples { list-style:none; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px 24px; padding:0; margin:22px 0 0; }
+.ico-school-examples li { min-width:0; margin:0; }
+.ico-school-examples .ico-artwork { height:clamp(150px,24vw,200px); padding:14px; transition:background .2s; }
+.ico-school-examples a:hover .ico-artwork { background:#ded8c9; }
+.ico-school-examples h3 { font-size:21px; margin:12px 0 0; }
+.ico-school-examples .ico-small { margin-top:7px!important; }
 .ico-sources { padding:35px 0; border-top:1px solid var(--ico-line); margin-top:40px; font-size:13px; }
 .ico-sources h2 { font-size:32px; }
 .ico-sources a,.ico-reading li a,.ico-answer>a { text-decoration:underline; text-underline-offset:4px; }
@@ -116,6 +123,19 @@
 .ico-feedback>p { font-size:13px; color:var(--ico-muted); }
 .ico-feedback [role=alert] { color:#9c3c2b; }
 .ico-honeypot { position:absolute; left:-10000px; width:1px; height:1px; overflow:hidden; }
+/* Глоссарий: пунктирное подчёркивание в тексте и всплывающее пояснение поверх страницы. */
+.ico-term-wrap { position:relative; }
+.ico-term { display:inline; margin:0; padding:0; border:0; background:none; color:inherit; font:inherit; text-align:inherit; border-bottom:1px dotted #9aa08c; }
+.ico-term:hover,.ico-term[aria-expanded=true] { border-bottom-style:solid; border-bottom-color:currentColor; }
+.ico-term-tip { position:fixed; z-index:60; display:block; background:#fff; border:1px solid var(--ico-line); box-shadow:0 14px 30px #2b2b1f2e; padding:16px 18px; font-size:13px; line-height:1.6; color:var(--ico-ink); }
+.ico-term-tip b { display:block; font:400 19px/1.2 Georgia,serif; margin-bottom:8px; }
+.ico-term-tip .ico-link { display:block; width:fit-content; margin-top:10px; }
+.ico-glossary { margin:40px 0 0; }
+.ico-glossary>div { border-top:1px solid var(--ico-line); padding:22px 0; }
+.ico-glossary dt { font:400 27px/1.15 Georgia,serif; letter-spacing:-.035em; scroll-margin-top:24px; }
+.ico-glossary dd { margin:10px 0 0; }
+.ico-glossary dd p { margin:0; max-width:640px; }
+.ico-glossary dd .ico-small { margin-top:10px!important; }
 .ico-notice { background:#eceee5; border-left:2px solid #8c967d; padding:24px; margin:28px 0; }
 .ico-notice h3 { margin-top:0; }
 .ico-notice p:last-child { margin-bottom:0; }

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import type { IconSummary } from '../types';
 import { Artwork } from './Artwork';
 import { learningSources } from '../lib/learning';
+import { WithGlossary } from './Term';
 
 const steps = [
   {
@@ -97,10 +98,10 @@ export function Learn({ icons }: { icons: IconSummary[] }) {
         <article>
           <p className="ico-eyebrow">{step + 1} из {steps.length}</p>
           <h2>{current.title}</h2>
-          <p>{current.body}</p>
+          <p><WithGlossary text={current.body} /></p>
           <h3>{current.question}</h3>
           {revealed
-            ? <p className="ico-trip-answer" role="status">{current.answer}</p>
+            ? <p className="ico-trip-answer" role="status"><WithGlossary text={current.answer} /></p>
             : <button className="ico-button ico-button-outline" onClick={() => setRevealed(true)}>Показать объяснение</button>}
           <div className="ico-actions">
             {step > 0 && <button className="ico-button ico-button-outline" onClick={() => changeStep(step - 1)}>Назад</button>}
@@ -131,7 +132,7 @@ export function Learn({ icons }: { icons: IconSummary[] }) {
           ))}
         </div>
 
-        <div className="ico-notice" role="status"><h3>{rows[row].name}</h3><p>{rows[row].text}</p></div>
+        <div className="ico-notice" role="status"><h3>{rows[row].name}</h3><p><WithGlossary text={rows[row].text} /></p></div>
 
         {examples.length > 0 && (
           <div className="ico-row-icons">

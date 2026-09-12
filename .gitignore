@@ -33,6 +33,8 @@ dist-ssr
 *.key
 *service-account*.json
 *sa*.json
+# Правило выше ловит служебные ключи, но заодно и glossary.json портала — это публичные данные.
+!public/iconography/glossary.json
 playwright-report/
 .playwright-mcp/
 test-results/

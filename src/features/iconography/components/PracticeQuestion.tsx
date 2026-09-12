@@ -3,6 +3,7 @@ import type { Difficulty, IconRecord, Question } from '../types';
 import { optionsFor, topicLabel } from '../lib/quiz';
 import { recordAnswer } from '../lib/progress';
 import { Artwork } from './Artwork';
+import { WithGlossary } from './Term';
 
 export interface Answered { question: Question; chosen: string; correct: boolean }
 
@@ -63,16 +64,16 @@ export function PracticeQuestion({ question, record, difficulty, seed, onAnswer 
             <button className="ico-link" aria-expanded={showHint} onClick={() => setShowHint(!showHint)}>
               {showHint ? 'Скрыть подсказку' : 'Нужна подсказка?'}
             </button>
-            {showHint && <p>{question.hint}</p>}
+            {showHint && <p><WithGlossary text={question.hint} /></p>}
           </div>
         )}
 
         {chosen && (
           <div className={`ico-answer ${correct ? 'correct' : ''}`} ref={answerRef} tabIndex={-1}>
             <h2>{correct ? 'Верно' : 'Неверно'}</h2>
-            {!correct && <p className="ico-wrong-choice">Вы выбрали «{chosen}».{rationale ? ` ${rationale}` : ''}</p>}
+            {!correct && <p className="ico-wrong-choice">Вы выбрали «{chosen}».{rationale ? <> <WithGlossary text={rationale} /></> : ''}</p>}
             {!correct && <p className="ico-right-answer">Верный ответ: <strong>«{question.answer}»</strong></p>}
-            <p>{question.explanation}</p>
+            <p><WithGlossary text={question.explanation} /></p>
             {/* У вопросов паспорта источник — музейная запись самой репродукции, а не текста объяснения. */}
             {question.source && (
               <a href={question.source.url} target="_blank" rel="noreferrer">{record ? 'Источник изображения' : 'Источник объяснения'}</a>

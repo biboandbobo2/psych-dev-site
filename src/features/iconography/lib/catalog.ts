@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { IconRecord, IconSummary, IconSchool } from '../types';
+import type { GlossaryTerm, IconRecord, IconSummary, IconSchool } from '../types';
 
 // Metadata and images can move together to an object store without changing routes.
 const configuredBase = import.meta.env.VITE_ICONOGRAPHY_ASSET_BASE as string | undefined;
@@ -199,3 +199,14 @@ export function dailyIcon(icons: IconSummary[], date = new Date()) {
 }
 
 export const loadSchools = () => readJson<IconSchool[]>('schools.json');
+
+let glossaryPromise: Promise<GlossaryTerm[]> | undefined;
+
+/** Термины нужны почти на каждой странице портала, поэтому загружаются один раз за сессию. */
+export function loadGlossary() {
+  glossaryPromise ??= readJson<GlossaryTerm[]>('glossary.json').catch((error: unknown) => {
+    glossaryPromise = undefined;
+    throw error;
+  });
+  return glossaryPromise;
+}

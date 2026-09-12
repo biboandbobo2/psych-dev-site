@@ -5,6 +5,7 @@ import { displayPeriod, iconsByTradition, loadIcon, useResource } from '../lib/c
 import { compareRows, compareTask, defaultRight, pickClues } from '../lib/compare';
 import { Artwork } from './Artwork';
 import { LoadState } from './Passport';
+import { WithGlossary } from './Term';
 
 const pairs = [
   {
@@ -125,7 +126,7 @@ export function Compare({ icons }: { icons: IconSummary[] }) {
           <div className="ico-comparison-note">
             <p className="ico-eyebrow">Задание</p>
             <h2>Что отличает эти два образа?</h2>
-            {!pair && <p>{compareTask(value[0], value[1])}</p>}
+            {!pair && <p><WithGlossary text={compareTask(value[0], value[1])} /></p>}
             {!revealed ? (
               <>
                 <p>Назовите отличия вслух или про себя, затем проверьте себя.</p>
@@ -134,14 +135,14 @@ export function Compare({ icons }: { icons: IconSummary[] }) {
             ) : (
               <div role="status">
                 {pair
-                  ? <p><strong>{pair.name}.</strong> {pair.note}</p>
+                  ? <p><strong>{pair.name}.</strong> <WithGlossary text={pair.note} /></p>
                   : <AutoBreakdown left={value[0]} right={value[1]} />}
                 <h3>На что смотреть</h3>
                 <div className="ico-compare-clues">
                   {pickClues(value[0], value[1]).map((clue, i) => clue && (
                     <div key={`${value[i].id}-${i}`}>
                       <p className="ico-eyebrow">{value[i].title}</p>
-                      <p><strong>{clue.title}.</strong> {clue.text}</p>
+                      <p><strong>{clue.title}.</strong> <WithGlossary text={clue.text} /></p>
                     </div>
                   ))}
                 </div>

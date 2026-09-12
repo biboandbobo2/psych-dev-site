@@ -3,6 +3,7 @@ import type { IconSummary } from '../types';
 import { loadSchools, useResource } from '../lib/catalog';
 import { counted } from '../lib/format';
 import { LoadState } from './Passport';
+import { WithGlossary } from './Term';
 
 /** Первое предложение вступления: достаточно, чтобы выбрать статью, и не пересказывает её. */
 const opening = (intro: string) => intro.split(/(?<=[.!?])\s+/)[0];
@@ -26,7 +27,7 @@ export function Schools({ icons }: { icons: IconSummary[] }) {
           return (
             <li key={school.id}>
               <h2><Link to={`/iconography/schools/${school.id}`}>{school.title}</Link></h2>
-              <p>{opening(school.intro)}</p>
+              <p><WithGlossary text={opening(school.intro)} /></p>
               <p className="ico-small">
                 {examples ? `${counted(examples, 'икона', 'иконы', 'икон')} в коллекции` : 'Примеров в коллекции пока нет'}
               </p>
