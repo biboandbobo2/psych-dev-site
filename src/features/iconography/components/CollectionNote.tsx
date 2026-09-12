@@ -3,8 +3,8 @@ import { counted } from '../lib/format';
 import { collectionSize, recognitionCollections } from '../lib/recognition';
 import type { Collection } from '../lib/recognition';
 
-/** До семи работ — это одно-два занятия: честнее сказать это вслух, чем делать вид, что подборка большая. */
-const SMALL_COLLECTION = 7;
+/** Меньше двенадцати работ — это одно-два занятия: честнее сказать это вслух, чем делать вид, что подборка большая. */
+const SMALL_COLLECTION = 12;
 
 export function CollectionNote({ icons, collection, onAll }: {
   icons: IconSummary[];
@@ -13,7 +13,7 @@ export function CollectionNote({ icons, collection, onAll }: {
 }) {
   if (collection === 'all') return null;
   const size = collectionSize(icons, collection);
-  if (!size || size > SMALL_COLLECTION) return null;
+  if (!size || size >= SMALL_COLLECTION) return null;
   const label = recognitionCollections.find((item) => item.id === collection)?.label ?? 'этой подборке';
 
   return (

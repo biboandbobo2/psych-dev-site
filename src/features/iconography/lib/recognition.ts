@@ -39,6 +39,14 @@ export interface RecognitionItem { icon: IconRecord; question: Question }
 export interface RecognitionResult { item: RecognitionItem; chosen: string; correct: boolean }
 
 const LESSON_SIZE = 7;
+/**
+ * Иконостас Кирилло-Белозерского монастыря — девять работ одного комплекса среди 46 русских:
+ * без ограничения занятие набиралось из одного храма. Ограничение намеренно узкое: в критской
+ * и грузинской подборках одно место даёт большинство записей, и квота обрезала бы занятие.
+ */
+const ENSEMBLE_LIMIT = 2;
+const ensembleOf = (icon: IconSummary) =>
+  icon.schoolId === 'kirillov' || icon.region === 'Кирилло-Белозерский монастырь' ? 'kirillov' : '';
 /** Иконы последних занятий: столько занятий подряд стараемся не повторять ни одной работы. */
 const LESSON_MEMORY = 3;
 const LAST_LESSONS_KEY = 'academy.iconography.lastLessons.v2';
@@ -120,13 +128,26 @@ export function collectionSize(icons: IconSummary[], collection: Collection): nu
 const groupsOf = (icons: IconSummary[]) => [...new Set(icons.map((icon) => icon.recognitionGroup!))];
 
 /**
- * Слоты занятия: до семи сюжетных групп, каждая — список работ, из которых берём одну.
+ * Группы, где вся работа уже была в прошлых занятиях, уходят в конец очереди: иначе группа
+ * из одной иконы возвращает её сразу после итога. Сортировка стабильна, поэтому случайный
+ * порядок внутри каждой половины сохраняется.
+ */
+function freshFirst(groups: string[], pool: IconSummary[], skip: ReadonlySet<string>): string[] {
+  const stale = (group: string) => pool.filter((icon) => icon.recognitionGroup === group).every((icon) => skip.has(icon.id));
+  return [...groups].sort((a, b) => Number(stale(a)) - Number(stale(b)));
+}
+
+/**
+ * Слоты занятия: сюжетные группы, каждая — список работ, из которых берём одну.
+ * Групп набираем с запасом: слот пропускается, если из него нельзя взять работу
+ * (например, ансамбль уже исчерпал свою квоту).
  * Для «всех традиций» группы набираются по кругу, иначе 46 русских записей вытесняют остальные.
  */
-function lessonSlots(pool: IconSummary[], collection: Collection, rng: () => number): IconSummary[][] {
+function lessonSlots(pool: IconSummary[], collection: Collection, rng: () => number, skip: ReadonlySet<string>): IconSummary[][] {
+  const wanted = LESSON_SIZE * 2;
   if (collection !== 'all') {
-    return shuffle(groupsOf(pool), rng)
-      .slice(0, LESSON_SIZE)
+    return freshFirst(shuffle(groupsOf(pool), rng), pool, skip)
+      .slice(0, wanted)
       .map((group) => pool.filter((icon) => icon.recognitionGroup === group));
   }
 
@@ -135,16 +156,18 @@ function lessonSlots(pool: IconSummary[], collection: Collection, rng: () => num
     const key = traditionGroup(icon.tradition);
     byTradition.set(key, [...(byTradition.get(key) ?? []), icon]);
   }
-  const queues = shuffle([...byTradition.keys()], rng)
-    .map((tradition) => ({ icons: byTradition.get(tradition)!, groups: shuffle(groupsOf(byTradition.get(tradition)!), rng) }));
+  const queues = shuffle([...byTradition.keys()], rng).map((tradition) => {
+    const icons = byTradition.get(tradition)!;
+    return { icons, groups: freshFirst(shuffle(groupsOf(icons), rng), icons, skip) };
+  });
 
   const slots: IconSummary[][] = [];
   const used = new Set<string>();
   let served = true;
-  while (slots.length < LESSON_SIZE && served) {
+  while (slots.length < wanted && served) {
     served = false;
     for (const queue of queues) {
-      if (slots.length >= LESSON_SIZE) break;
+      if (slots.length >= wanted) break;
       let group = queue.groups.shift();
       while (group && used.has(group)) group = queue.groups.shift();
       if (!group) continue;
@@ -173,14 +196,32 @@ export function selectRecognitionIcons(
   const rng = createRng(seed);
   const skip = new Set(exclude);
   const times = (icon: IconSummary) => seen[icon.id] ?? 0;
+  // Пустой ключ — работа вне ансамбля: такие ничем не ограничены.
+  const fromEnsemble = new Map<string, number>();
+  const room = (icon: IconSummary) => {
+    const ensemble = ensembleOf(icon);
+    return !ensemble || (fromEnsemble.get(ensemble) ?? 0) < ENSEMBLE_LIMIT;
+  };
 
-  return lessonSlots(pool, collection, rng).map((variants) => {
-    const fresh = variants.filter((icon) => !skip.has(icon.id));
-    const choices = fresh.length ? fresh : variants;
+  const lesson: IconSummary[] = [];
+  for (const variants of lessonSlots(pool, collection, rng, skip)) {
+    if (lesson.length >= LESSON_SIZE) break;
+    // Квота ансамбля исчерпана и заменить внутри группы нечем — берём следующую группу.
+    const allowed = variants.filter(room);
+    if (!allowed.length) continue;
+    const fresh = allowed.filter((icon) => !skip.has(icon.id));
+    // Невиденная работа в группе есть, но её не пускает квота ансамбля: лучше взять другую группу,
+    // чем повторить икону прошлого занятия.
+    if (!fresh.length && variants.some((icon) => !skip.has(icon.id))) continue;
+    const choices = fresh.length ? fresh : allowed;
     const least = Math.min(...choices.map(times));
     const rare = choices.filter((icon) => times(icon) === least);
-    return rare[Math.floor(rng() * rare.length)];
-  });
+    const chosen = rare[Math.floor(rng() * rare.length)];
+    const ensemble = ensembleOf(chosen);
+    if (ensemble) fromEnsemble.set(ensemble, (fromEnsemble.get(ensemble) ?? 0) + 1);
+    lesson.push(chosen);
+  }
+  return lesson;
 }
 
 export function allRecordQuestions(record: IconRecord): Question[] {

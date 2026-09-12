@@ -107,7 +107,8 @@ export function RecognitionQuiz({ icons }: { icons: IconSummary[] }) {
         : <>
           {index === 0 && !repeating && <QuizIntro />}
           <QuizControls session={session} change={change} />
-          {!repeating && (
+          {/* На итоге ту же пометку показывает RecognitionFinish: два одинаковых предупреждения подряд ни к чему. */}
+          {index === 0 && !repeating && (
             <CollectionNote icons={icons} collection={session.collection}
               onAll={() => change({ ...session, collection: 'all', repeat: false, retry: undefined, seed: newSessionSeed() })} />
           )}

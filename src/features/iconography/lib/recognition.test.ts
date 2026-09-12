@@ -39,11 +39,20 @@ describe('подборка занятия', () => {
   it('старается не повторять работы предыдущего занятия', () => {
     const previous = selectRecognitionIcons(icons, 'russian', 77);
     const next = selectRecognitionIcons(icons, 'russian', 77, ids(previous));
-    expect(next.map((icon) => icon.recognitionGroup)).toEqual(previous.map((icon) => icon.recognitionGroup));
-    next.forEach((icon, i) => {
-      const variants = quizIcons.filter((x) => x.tradition === 'Русская' && x.recognitionGroup === icon.recognitionGroup);
-      if (variants.length > 1) expect(icon.id).not.toBe(previous[i].id);
-    });
+    expect(next).toHaveLength(previous.length);
+    // Группа из одной работы уходит в конец очереди, поэтому занятие целиком новое.
+    expect(next.filter((icon) => ids(previous).includes(icon.id))).toEqual([]);
+  });
+
+  it('не берёт больше двух работ одного ансамбля', () => {
+    for (let seed = 1; seed <= 40; seed += 1) {
+      for (const collection of ['russian', 'all'] as const) {
+        const lesson = selectRecognitionIcons(icons, collection, seed);
+        expect(lesson.filter((icon) => icon.schoolId === 'kirillov').length).toBeLessThanOrEqual(2);
+      }
+    }
+    // В подборке всё ещё семь работ: ансамбль заменяется другой группой, а не выбрасывается.
+    expect(selectRecognitionIcons(icons, 'russian', 4242)).toHaveLength(7);
   });
 
   it('«Все традиции» набирают группы по кругу, а не тянутся к русским', () => {
@@ -130,6 +139,16 @@ describe('загрузка занятия', () => {
     expect(recentIconIds()).toEqual(lesson.map((item) => item.icon.id));
     expect(JSON.parse(localStorage.getItem('academy.iconography.seen.v1')!))
       .toEqual(Object.fromEntries(lesson.map((item) => [item.icon.id, 1])));
+  });
+
+  it('после итога «Ещё иконы» не повторяет ни одной работы прошлого занятия', async () => {
+    const first = await loadRecognitionLesson(icons, { level: 'explorer', collection: 'russian', seed: 101, repeat: false });
+    // Занятие записано уже при формировании, а не на экране итога.
+    expect(recentIconIds()).toEqual(first.map((item) => item.icon.id));
+    const second = await loadRecognitionLesson(icons, { level: 'explorer', collection: 'russian', seed: 202, repeat: false });
+    expect(second.length).toBeGreaterThan(0);
+    const before = new Set(first.map((item) => item.icon.id));
+    expect(second.filter((item) => before.has(item.icon.id))).toEqual([]);
   });
 
   it('помнит три последних занятия и забывает четвёртое от конца', async () => {
