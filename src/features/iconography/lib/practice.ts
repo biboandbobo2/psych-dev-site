@@ -9,7 +9,8 @@ export interface PracticeSession { iconId: string; topic: Topic; difficulty: Dif
 export interface PracticeLesson { questions: Question[]; records: IconRecord[] }
 
 export const MAX_QUESTIONS = 12;
-const MAX_RECORDS = 8;
+/** Паспортов на занятие: вопросов темы в одном паспорте бывает всего один, поэтому берём с запасом. */
+const MAX_RECORDS = 12;
 /** Иконостас разбирается по общей схеме: паспорта для него не нужны. */
 const TEXT_ONLY: Topic[] = ['iconostasis'];
 /** Карточки без репродукции уместны только там, где занятие не обещает разбор изображения. */
@@ -24,11 +25,30 @@ function questionTopics(topic: Topic): Topic[] {
   return [topic];
 }
 
-function iconPool(topic: Topic, icons: IconSummary[]): IconSummary[] {
-  if (topic === 'mary') return icons.filter((icon) => icon.recognitionGroup === 'mary');
-  if (topic === 'feast') return icons.filter((icon) => icon.recognitionGroup && FEAST_GROUPS.has(icon.recognitionGroup));
-  return icons;
+/** Индекс несёт темы вопросов паспорта; у старого индекса поля нет — тогда икона подходит любой теме. */
+const hasTopic = (icon: IconSummary, topic: Topic) => icon.topics?.includes(topic) ?? true;
+
+/** Иконы, из которых вообще может выйти вопрос выбранной темы. */
+export function iconPool(topic: Topic, icons: IconSummary[]): IconSummary[] {
+  if (topic === 'mary') return icons.filter((icon) => icon.recognitionGroup === 'mary' && hasTopic(icon, 'mary'));
+  if (topic === 'feast') {
+    return icons.filter((icon) => icon.recognitionGroup && FEAST_GROUPS.has(icon.recognitionGroup)
+      && questionTopics('feast').some((wanted) => hasTopic(icon, wanted)));
+  }
+  return icons.filter((icon) => hasTopic(icon, topic));
 }
+
+/** Что известно о теме до загрузки паспортов: размер пула и есть ли занятие вообще без изображений. */
+export function topicSummary(topic: Topic, icons: IconSummary[]): { size: number; textOnly: boolean } {
+  const textOnly = TEXT_ONLY.includes(topic);
+  return { size: textOnly ? 0 : iconPool(topic, icons).length, textOnly };
+}
+
+/** В итог занятия идут только произведения, из которых действительно прозвучал вопрос. */
+const askedRecords = (questions: Question[], records: IconRecord[]) => {
+  const asked = new Set(questions.map((question) => question.iconId));
+  return records.filter((record) => asked.has(record.id));
+};
 
 const normalize = (text: string) => text.toLocaleLowerCase('ru').replace(/ё/g, 'е').replace(/[^a-zа-я0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -64,7 +84,8 @@ export async function prepareLesson(session: PracticeSession, icons: IconSummary
       ...teachingQuestions.filter((question) => difficult.includes(question.id)),
       ...records.flatMap(allRecordQuestions).filter((question) => difficult.includes(question.id)),
     ];
-    return { questions: shuffle(questions, rng).slice(0, MAX_QUESTIONS), records };
+    const asked = shuffle(questions, rng).slice(0, MAX_QUESTIONS);
+    return { questions: asked, records: askedRecords(asked, records) };
   }
 
   const theory = TEXT_TOPICS.includes(session.topic)
@@ -77,5 +98,6 @@ export async function prepareLesson(session: PracticeSession, icons: IconSummary
   const wanted = questionTopics(session.topic);
   // Вопросы темы живут и в паспорте, и в трёх вопросах викторины: «какой сюжет» и «какой тип» — именно там.
   const questions = records.flatMap(allRecordQuestions).filter((question) => wanted.includes(question.topic));
-  return { questions: shuffle([...theory, ...dedupeByPrompt(questions)], rng).slice(0, MAX_QUESTIONS), records };
+  const asked = shuffle([...theory, ...dedupeByPrompt(questions)], rng).slice(0, MAX_QUESTIONS);
+  return { questions: asked, records: askedRecords(asked, records) };
 }

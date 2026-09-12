@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { IconSummary, Topic } from '../types';
-import { prepareLesson } from './practice';
+import { iconPool, prepareLesson, topicSummary } from './practice';
 import type { PracticeSession } from './practice';
 
 const base = resolve(process.cwd(), 'public/iconography');
@@ -50,5 +50,34 @@ describe('набор вопросов по теме практики', () => {
       const { questions } = await lesson(topic);
       expect(questions.every((question) => question.topic === topic)).toBe(true);
     }
+  });
+
+  it('набирает занятие из икон, у которых тема действительно есть', async () => {
+    // Раньше восемь случайных паспортов давали по теме один-два вопроса.
+    for (const topic of ['subject', 'type', 'mary'] as Topic[]) {
+      const { questions } = await lesson(topic);
+      expect(questions.length, topic).toBeGreaterThanOrEqual(8);
+    }
+    // «Материал и техника» — самая узкая тема: вопросов меньше десяти во всём каталоге.
+    const material = await lesson('material');
+    expect(material.questions.length).toBeGreaterThanOrEqual(iconPool('material', icons).length);
+  });
+
+  it('в итог занятия отдаёт только произведения прозвучавших вопросов', async () => {
+    for (const topic of ['subject', 'material', 'feast'] as Topic[]) {
+      const { questions, records } = await lesson(topic);
+      const asked = new Set(questions.map((question) => question.iconId));
+      expect(records.map((record) => record.id).sort(), topic).toEqual([...asked].filter(Boolean).sort());
+    }
+  });
+
+  it('считает размер пула темы по индексу, без загрузки паспортов', () => {
+    expect(topicSummary('material', icons)).toEqual({ size: iconPool('material', icons).length, textOnly: false });
+    expect(topicSummary('subject', icons).size).toBeGreaterThan(topicSummary('material', icons).size);
+    expect(topicSummary('mary', icons).size).toBe(icons.filter((icon) => icon.topics?.includes('mary')
+      && icon.recognitionGroup === 'mary').length);
+    // Иконостас идёт по схеме: пул паспортов ему не нужен.
+    expect(topicSummary('iconostasis', icons)).toEqual({ size: 0, textOnly: true });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

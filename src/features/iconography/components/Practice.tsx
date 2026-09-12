@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { Difficulty, IconSummary, Topic } from '../types';
 import { iconsByTradition, useResource } from '../lib/catalog';
+import { counted } from '../lib/format';
 import { difficulties, newSessionSeed, repeatDifficulty, topics } from '../lib/quiz';
 import { readProgress } from '../lib/progress';
-import { MAX_QUESTIONS, prepareLesson } from '../lib/practice';
+import { MAX_QUESTIONS, prepareLesson, topicSummary } from '../lib/practice';
 import type { PracticeSession } from '../lib/practice';
 import { LoadState } from './Passport';
 import { PracticeFinish } from './PracticeFinish';
@@ -53,13 +54,17 @@ function ActiveLesson({ session, icons, finish }: { session: PracticeSession; ic
 
 export function Practice({ icons }: { icons: IconSummary[] }) {
   const [params] = useSearchParams();
-  const paramIcon = icons.find((x) => x.id === params.get('icon'))?.id ?? '';
+  const requestedIcon = params.get('icon') ?? '';
+  const paramIcon = icons.find((x) => x.id === requestedIcon)?.id ?? '';
   const [mode, setMode] = useState<'parameter' | 'icon' | 'repeat'>(paramIcon ? 'icon' : params.has('repeat') ? 'repeat' : 'parameter');
   const [iconId, setIconId] = useState(paramIcon || icons[0]?.id || '');
   const [topic, setTopic] = useState<Topic>(topics.find((x) => x.id === params.get('topic'))?.id ?? 'subject');
   const [difficulty, setDifficulty] = useState<Difficulty>('beginner');
   const [session, setSession] = useState<PracticeSession>();
   const difficult = readProgress().difficult;
+  // Размер пула виден до старта: «занятие» из одного вопроса не должно быть сюрпризом.
+  const pool = topicSummary(topic, icons);
+  const emptyTopic = mode === 'parameter' && !pool.textOnly && pool.size === 0;
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [session]);
 
@@ -77,6 +82,10 @@ export function Practice({ icons }: { icons: IconSummary[] }) {
       <h1>Учиться замечать</h1>
       <p className="ico-lead">Ошибаться здесь полезно. После каждого ответа — объяснение, а сложное можно повторить.</p>
 
+      {requestedIcon && !paramIcon && (
+        <p className="ico-notice" role="status">Такой иконы нет. Выберите произведение из списка или другую тему.</p>
+      )}
+
       <div className="ico-tabs" aria-label="Режим занятия">
         {modes.map(([key, text]) => (
           <button key={key} className={mode === key ? 'active' : ''} aria-pressed={mode === key} onClick={() => setMode(key)}>{text}</button>
@@ -92,6 +101,11 @@ export function Practice({ icons }: { icons: IconSummary[] }) {
               <span><strong>{t.label}</strong><small>{t.note}</small></span>
             </label>
           ))}</div>
+          <p className="ico-small" role="status">{pool.textOnly
+            ? 'Занятие идёт по схеме иконостаса, без изображений.'
+            : pool.size
+              ? `В этой теме ${counted(pool.size, 'икона', 'иконы', 'икон')}.`
+              : 'В этой теме пока нет икон — выберите другую.'}</p>
         </fieldset>
       )}
 
@@ -131,7 +145,7 @@ export function Practice({ icons }: { icons: IconSummary[] }) {
         </fieldset>
       )}
 
-      <button className="ico-button" disabled={mode === 'repeat' && difficult.length === 0}
+      <button className="ico-button" disabled={emptyTopic || (mode === 'repeat' && difficult.length === 0)}
         onClick={() => setSession({ iconId: mode === 'icon' ? iconId : '', topic, difficulty, repeat: mode === 'repeat', seed: newSessionSeed() })}>
         Начать занятие
       </button>

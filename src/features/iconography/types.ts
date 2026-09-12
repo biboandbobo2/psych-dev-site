@@ -17,6 +17,8 @@ export interface IconSummary {
   image: { width: number; height: number; widths: number[] };
   recognitionGroup?: string;
   schoolId?: string;
+  /** Темы вопросов паспорта и викторины: практика отбирает иконы по ним, не загружая паспорта. */
+  topics?: Topic[];
 }
 export interface IconRecord extends IconSummary {
   attribution: string;
