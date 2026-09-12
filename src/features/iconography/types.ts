@@ -49,7 +49,14 @@ export interface Question {
 }
 export interface Progress { difficult: string[]; answered: number; correct: number }
 
-export interface IconSchool { id: string; title: string; intro: string; sections: { title: string; text: string }[]; sources: Source[] }
+/** `examples` — 1–2 иконы коллекции к абзацу: `note` говорит, что именно смотреть на этой репродукции. */
+export interface IconSchool {
+  id: string;
+  title: string;
+  intro: string;
+  sections: { title: string; text: string; examples?: { iconId: string; note: string }[] }[];
+  sources: Source[];
+}
 
 /** Словоформы перечислены вручную: морфологического анализа в проекте нет. */
 export interface GlossaryTerm {

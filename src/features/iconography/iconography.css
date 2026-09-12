@@ -105,8 +105,8 @@
 .ico-clue h3 { margin-top:0; }
 .ico-clue p { color:var(--ico-muted); }
 /* Примеры под абзацем статьи о школе: две миниатюры в ряд, подпись «что смотреть» под каждой. */
-.ico-school-examples { list-style:none; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px 24px; padding:0; margin:22px 0 0; }
-.ico-school-examples li { min-width:0; margin:0; }
+.iconography ul.ico-school-examples { list-style:none; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px 24px; padding:0; margin:22px 0 0; }
+.iconography .ico-school-examples li { min-width:0; margin:0; }
 .ico-school-examples .ico-artwork { height:clamp(150px,24vw,200px); padding:14px; transition:background .2s; }
 .ico-school-examples a:hover .ico-artwork { background:#ded8c9; }
 .ico-school-examples h3 { font-size:21px; margin:12px 0 0; }
