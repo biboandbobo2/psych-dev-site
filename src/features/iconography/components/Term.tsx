@@ -5,14 +5,16 @@ import type { GlossaryTerm } from '../types';
 import { loadGlossary } from '../lib/catalog';
 import { markTerms } from '../lib/glossary';
 
-interface GlossaryState { terms: GlossaryTerm[]; open: string; setOpen: (id: string) => void }
+interface GlossaryState { terms: GlossaryTerm[]; open: string; setOpen: (id: string) => void; claims: Map<string, string> }
 
-const GlossaryContext = createContext<GlossaryState>({ terms: [], open: '', setOpen: () => {} });
+const GlossaryContext = createContext<GlossaryState>({ terms: [], open: '', setOpen: () => {}, claims: new Map() });
 
 /** Без провайдера (и без файла терминов) тексты рендерятся как раньше, просто без пояснений. */
 export function GlossaryProvider({ children }: { children: ReactNode }) {
   const [terms, setTerms] = useState<GlossaryTerm[]>([]);
   const [open, setOpen] = useState('');
+  // Кто из текстов страницы первым показал термин: подчёркиваем один раз на страницу, а не в каждом абзаце.
+  const claims = useRef(new Map<string, string>()).current;
 
   useEffect(() => {
     let alive = true;
@@ -27,7 +29,7 @@ export function GlossaryProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', close);
   }, [open]);
 
-  const value = useMemo(() => ({ terms, open, setOpen }), [terms, open]);
+  const value = useMemo(() => ({ terms, open, setOpen, claims }), [terms, open, claims]);
   return <GlossaryContext.Provider value={value}>{children}</GlossaryContext.Provider>;
 }
 
@@ -104,8 +106,20 @@ export function Term({ term, children }: { term: GlossaryTerm; children: string 
 
 /** Текст с пунктирным подчёркиванием терминов глоссария. Оборачивает только строки. */
 export function WithGlossary({ text }: { text: string }) {
-  const { terms } = useContext(GlossaryContext);
-  const segments = useMemo(() => markTerms(text, terms), [text, terms]);
+  const { terms, claims } = useContext(GlossaryContext);
+  const me = useId();
+  // Термин достаётся тому тексту, который отрисован первым; порядок рендера совпадает с порядком в документе.
+  const segments = useMemo(() => markTerms(text, terms).map((segment) => {
+    if (!segment.term) return segment;
+    const owner = claims.get(segment.term.id);
+    if (owner && owner !== me) return { text: segment.text };
+    claims.set(segment.term.id, me);
+    return segment;
+  }), [text, terms, claims, me]);
+  useEffect(() => {
+    for (const segment of segments) if (segment.term && !claims.has(segment.term.id)) claims.set(segment.term.id, me);
+    return () => { for (const [id, owner] of claims) if (owner === me) claims.delete(id); };
+  }, [segments, claims, me]);
   return (
     <>
       {segments.map((segment, index) => (segment.term

@@ -45,7 +45,7 @@ describe('поиск терминов в тексте', () => {
 });
 
 describe('данные глоссария', () => {
-  it('содержит 35–45 терминов с уникальными id и непересекающимися формами', () => {
+  it('содержит 35–60 терминов с уникальными id и непересекающимися формами', () => {
     expect(glossary.length).toBeGreaterThanOrEqual(35);
     expect(glossary.length).toBeLessThanOrEqual(60);
     expect(new Set(glossary.map((x) => x.id)).size).toBe(glossary.length);

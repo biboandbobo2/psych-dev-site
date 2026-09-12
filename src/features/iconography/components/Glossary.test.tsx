@@ -49,6 +49,16 @@ describe('всплывающее пояснение термина', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
+  it('подчёркивает термин один раз на страницу, а не в каждом абзаце', async () => {
+    renderIn(<GlossaryProvider>
+      <p><WithGlossary text="Хитон виден под плащом." /></p>
+      <p><WithGlossary text="Складки хитона спадают до пола, рядом гиматий." /></p>
+    </GlossaryProvider>);
+    expect(await screen.findByRole('button', { name: 'Хитон' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'гиматий' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'хитона' })).not.toBeInTheDocument();
+  });
+
   it('держит открытым только одно пояснение', async () => {
     renderIn(<GlossaryProvider><p><WithGlossary text="Хитон и гиматий." /></p></GlossaryProvider>);
     fireEvent.click(await screen.findByRole('button', { name: 'Хитон' }));
