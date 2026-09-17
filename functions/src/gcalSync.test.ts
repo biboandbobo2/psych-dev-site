@@ -235,11 +235,14 @@ describe('onGroupEventWrite export', () => {
     });
   });
 
-  it('decodes percent-encoded params (кириллический id группы)', async () => {
+  it('repairs latin1-mojibake params (кириллический id группы)', async () => {
     const cyrillicGid = 'студенты-второго-потока-x';
     state.groups.set(cyrillicGid, { gcalId: CAL, name: 'Поток 2' });
     const evt = change(baseEvent(), baseEvent({ text: 'Перенос' }));
-    evt.params = { groupId: encodeURIComponent(cyrillicGid), eventId: 'ev-1' };
+    // Ровно то, что приходит из Eventarc: UTF-8-байты, прочитанные как Latin-1.
+    const mojibake = Buffer.from(cyrillicGid, 'utf8').toString('latin1');
+    expect(mojibake).not.toBe(cyrillicGid);
+    evt.params = { groupId: mojibake, eventId: 'ev-1' };
 
     await (onGroupEventWrite as Function)(evt);
 

@@ -15,6 +15,7 @@
 
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import * as fnLogger from "firebase-functions/logger";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import {
   debugError as functionsDebugError,
@@ -217,9 +218,9 @@ export const onGroupEventWrite = onDocumentWritten(
     serviceAccount: FUNCTIONS_SERVICE_ACCOUNT,
   },
   async (event) => {
-    // Eventarc отдаёт сегменты пути в percent-encoding: для кириллического
-    // id группы («студенты-второго-потока-…») без декодирования документ
-    // группы не находится и экспорт молча пропускается.
+    // Eventarc отдаёт сегменты пути как UTF-8-байты, прочитанные в Latin-1
+    // («студенты» → «ÑÑÑÐ´ÐµÐ½ÑÑ»): для кириллического id группы документ
+    // не находился и экспорт молча пропускался.
     const groupId = decodePathSegment(event.params.groupId);
     const eventId = decodePathSegment(event.params.eventId);
     const beforeSnap = event.data?.before;
@@ -247,7 +248,18 @@ export const onGroupEventWrite = onDocumentWritten(
     if (before && onlyMetaFieldsChanged(before, after)) return;
 
     const group = await loadGroupForSync(groupId);
-    if (!group?.gcalId) return;
+    if (!group?.gcalId) {
+      // Группа без календаря — норма; отсутствующая группа — нет, это
+      // рассинхрон между params триггера и реальным путём документа.
+      if (!group) {
+        fnLogger.warn("gcal export: group not found", {
+          groupId,
+          rawParams: event.params,
+          document: event.document,
+        });
+      }
+      return;
+    }
 
     // Для корректного экспорта нужны startAt/endAt. Если их нет (старое событие
     // или админ ввёл только dateLabel) — skip, фича включится после того как
@@ -297,11 +309,12 @@ export const onGroupEventWrite = onDocumentWritten(
 );
 
 function decodePathSegment(segment: string): string {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return segment;
-  }
+  // Только строки из «латинского» диапазона с байтами ≥ 0x80 могут быть
+  // mojibake; чистый ASCII и настоящий Unicode возвращаем как есть.
+  const codes = Array.from(segment, (ch) => ch.charCodeAt(0));
+  if (!codes.some((c) => c >= 0x80) || codes.some((c) => c > 0xff)) return segment;
+  const decoded = Buffer.from(segment, "latin1").toString("utf8");
+  return decoded.includes("\uFFFD") ? segment : decoded;
 }
 
 async function loadGroupForSync(groupId: string): Promise<GroupDocData | null> {
