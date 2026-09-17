@@ -235,6 +235,18 @@ describe('onGroupEventWrite export', () => {
     });
   });
 
+  it('decodes percent-encoded params (кириллический id группы)', async () => {
+    const cyrillicGid = 'студенты-второго-потока-x';
+    state.groups.set(cyrillicGid, { gcalId: CAL, name: 'Поток 2' });
+    const evt = change(baseEvent(), baseEvent({ text: 'Перенос' }));
+    evt.params = { groupId: encodeURIComponent(cyrillicGid), eventId: 'ev-1' };
+
+    await (onGroupEventWrite as Function)(evt);
+
+    expect(mockPatchEvent).toHaveBeenCalledTimes(1);
+    expect(mockPatchEvent.mock.calls[0][0]).toBe(CAL);
+  });
+
   it('patches existing event and refreshes lastSyncedAt only', async () => {
     await (onGroupEventWrite as Function)(
       change(baseEvent(), baseEvent({ text: 'Перенос' })),

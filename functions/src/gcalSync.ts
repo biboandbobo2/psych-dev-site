@@ -217,8 +217,11 @@ export const onGroupEventWrite = onDocumentWritten(
     serviceAccount: FUNCTIONS_SERVICE_ACCOUNT,
   },
   async (event) => {
-    const groupId = event.params.groupId;
-    const eventId = event.params.eventId;
+    // Eventarc отдаёт сегменты пути в percent-encoding: для кириллического
+    // id группы («студенты-второго-потока-…») без декодирования документ
+    // группы не находится и экспорт молча пропускается.
+    const groupId = decodePathSegment(event.params.groupId);
+    const eventId = decodePathSegment(event.params.eventId);
     const beforeSnap = event.data?.before;
     const afterSnap = event.data?.after;
     const before = beforeSnap?.exists ? (beforeSnap.data() as EventDocData) : null;
@@ -292,6 +295,14 @@ export const onGroupEventWrite = onDocumentWritten(
     }
   }
 );
+
+function decodePathSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
 
 async function loadGroupForSync(groupId: string): Promise<GroupDocData | null> {
   const snap = await getFirestore().collection("groups").doc(groupId).get();

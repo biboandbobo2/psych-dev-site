@@ -20,6 +20,18 @@ function getAuth(): GoogleAuth {
   return cachedAuth;
 }
 
+/**
+ * Паузы между повторами. Экспорт серии из админки бьёт по Calendar API залпом
+ * (N триггеров onGroupEventWrite разом) — Google отвечает 403 rateLimitExceeded,
+ * и без ретрая часть событий в календарь не доезжает.
+ */
+const RETRY_DELAYS_MS = [1000, 2000, 4000, 8000];
+
+function isRetryable(status: number, body: string): boolean {
+  if (status === 429 || status >= 500) return true;
+  return status === 403 && /rateLimitExceeded/i.test(body);
+}
+
 async function authFetch(
   url: string,
   init: RequestInit & { method?: string; body?: string } = {}
@@ -29,14 +41,24 @@ async function authFetch(
   if (!token.token) {
     throw new Error("Failed to acquire Google access token for Calendar API");
   }
-  return fetch(url, {
+  const request: RequestInit = {
     ...init,
     headers: {
       Authorization: `Bearer ${token.token}`,
       "Content-Type": "application/json",
       ...(init.headers ?? {}),
     },
-  });
+  };
+  for (let attempt = 0; ; attempt += 1) {
+    const resp = await fetch(url, request);
+    if (resp.ok || attempt >= RETRY_DELAYS_MS.length) return resp;
+    const body = await resp.text();
+    if (!isRetryable(resp.status, body)) {
+      // Тело уже прочитано — отдаём вызывающему эквивалентный Response.
+      return new Response(body, { status: resp.status, statusText: resp.statusText, headers: resp.headers });
+    }
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt] + Math.random() * 500));
+  }
 }
 
 export interface GCalEvent {
