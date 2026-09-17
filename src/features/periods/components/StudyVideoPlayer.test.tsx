@@ -79,7 +79,7 @@ describe('StudyVideoPlayer', () => {
     });
   });
 
-  it('initialPaused: после initial seek ставит видео на паузу (seekTo у YouTube запускает воспроизведение)', async () => {
+  it('initialPaused: позиция задаётся через playerVars.start, без seekTo и pauseVideo', async () => {
     const seekToMock = vi.fn();
     const pauseVideoMock = vi.fn();
     const playerMock = vi.fn(function Player(
@@ -111,9 +111,50 @@ describe('StudyVideoPlayer', () => {
     );
 
     await waitFor(() => {
-      expect(seekToMock).toHaveBeenCalledWith(65, true);
-      expect(pauseVideoMock).toHaveBeenCalledTimes(1);
+      expect(playerMock).toHaveBeenCalledTimes(1);
     });
+    // seekTo у cued-видео запускает воспроизведение, а мгновенная пауза
+    // оставляет чёрный кадр — поэтому позиция уходит в start.
+    expect(playerMock.mock.calls[0][1].playerVars).toMatchObject({ start: 65 });
+    expect(seekToMock).not.toHaveBeenCalled();
+    expect(pauseVideoMock).not.toHaveBeenCalled();
+  });
+
+  it('initialPaused с позиции 0: плеер остаётся cued с постером, start не задаётся', async () => {
+    const seekToMock = vi.fn();
+    const playerMock = vi.fn(function Player(
+      _element: HTMLElement,
+      options: { events?: { onReady?: () => void } }
+    ) {
+      queueMicrotask(() => options.events?.onReady?.());
+      return {
+        destroy: vi.fn(),
+        getCurrentTime: vi.fn(() => 0),
+        getDuration: vi.fn(() => 120),
+        getPlayerState: vi.fn(() => 5),
+        pauseVideo: vi.fn(),
+        seekTo: seekToMock,
+      };
+    });
+
+    (window as typeof window & { YT?: unknown }).YT = {
+      Player: playerMock,
+    };
+
+    render(
+      <StudyVideoPlayer
+        embedUrl="https://www.youtube.com/embed/video-1?si=test"
+        initialSeekMs={0}
+        initialPaused
+        title="Тестовое видео"
+      />
+    );
+
+    await waitFor(() => {
+      expect(playerMock).toHaveBeenCalledTimes(1);
+    });
+    expect(playerMock.mock.calls[0][1].playerVars).not.toHaveProperty('start');
+    expect(seekToMock).not.toHaveBeenCalled();
   });
 
   it('pause() из handle ставит видео на паузу', async () => {

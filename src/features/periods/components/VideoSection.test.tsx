@@ -246,6 +246,67 @@ describe('VideoSection', () => {
     }
   });
 
+  it('незапущенное видео: оверлей открывается cued с постером, без seekTo+pause (чёрный кадр)', async () => {
+    const instances: Array<{
+      getCurrentTime: ReturnType<typeof vi.fn>;
+      pauseVideo: ReturnType<typeof vi.fn>;
+      seekTo: ReturnType<typeof vi.fn>;
+    }> = [];
+    const playerMock = vi.fn(function Player(
+      _element: HTMLElement,
+      options: { events?: { onReady?: () => void } }
+    ) {
+      const instance = {
+        destroy: vi.fn(),
+        getCurrentTime: vi.fn(() => 0),
+        getDuration: vi.fn(() => 3600),
+        getPlayerState: vi.fn(() => 5),
+        pauseVideo: vi.fn(),
+        seekTo: vi.fn(),
+      };
+      instances.push(instance);
+      queueMicrotask(() => options.events?.onReady?.());
+      return instance;
+    });
+    (window as typeof window & { YT?: unknown }).YT = { Player: playerMock };
+
+    try {
+      render(
+        <VideoSection
+          slug="video"
+          title="Видео"
+          content={[{ title: 'Лекция 1', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }]}
+          deckUrl=""
+          defaultVideoTitle="Видео-лекция"
+          courseId="development"
+          periodId="preschool"
+          periodTitle="Дошкольный возраст"
+        />
+      );
+      await waitFor(() => {
+        expect(playerMock).toHaveBeenCalledTimes(1);
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Открыть конспект' }));
+      await waitFor(() => {
+        expect(playerMock).toHaveBeenCalledTimes(2);
+      });
+      expect(playerMock.mock.calls[1][1].playerVars).not.toHaveProperty('start');
+      expect(instances[1].seekTo).not.toHaveBeenCalled();
+      expect(instances[1].pauseVideo).not.toHaveBeenCalled();
+
+      fireEvent.click(
+        within(screen.getByRole('dialog')).getByRole('button', {
+          name: 'Выйти из режима конспекта',
+        })
+      );
+      // inline так и не запускали — не дёргаем seekTo+pause, иначе постер пропадёт
+      expect(instances[0].seekTo).not.toHaveBeenCalled();
+    } finally {
+      delete (window as typeof window & { YT?: unknown }).YT;
+    }
+  });
+
   it('не откатывает transcript panel в notes, пока транскрипт ещё проверяется', async () => {
     mocks.transcriptChecking = true;
 

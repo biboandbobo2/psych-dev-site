@@ -188,8 +188,10 @@ function VideoSectionCard({
 
   const closeStudyMode = (snapshot?: StudyVideoPlaybackSnapshot) => {
     // Inline-плеер возвращается на позицию оверлея и остаётся на паузе:
-    // авто-воспроизведение под страницей после выхода не нужно.
-    if (snapshot && snapshot.currentTimeMs !== null) {
+    // авто-воспроизведение под страницей после выхода не нужно. Если видео
+    // так и не запускали (0), не трогаем — seekTo+pause на cued-плеере
+    // оставляет чёрный кадр вместо постера.
+    if (snapshot && snapshot.currentTimeMs) {
       inlinePlayerRef.current?.seekToMs(snapshot.currentTimeMs);
       inlinePlayerRef.current?.pause();
     }

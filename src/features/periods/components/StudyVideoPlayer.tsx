@@ -161,11 +161,13 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
     const onWatchThresholdReachedRef = useRef(onWatchThresholdReached);
     const onPlaybackProgressMsRef = useRef(onPlaybackProgressMs);
     const initialPausedRef = useRef(initialPaused);
+    const initialSeekMsRef = useRef(initialSeekMs);
     const playerConfig = useMemo(() => parseYouTubeEmbedConfig(embedUrl), [embedUrl]);
 
     onWatchThresholdReachedRef.current = onWatchThresholdReached;
     onPlaybackProgressMsRef.current = onPlaybackProgressMs;
     initialPausedRef.current = initialPaused;
+    initialSeekMsRef.current = initialSeekMs;
 
     const notifyWatchThresholdReached = () => {
       if (watchReachedRef.current) return;
@@ -221,7 +223,10 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
     );
 
     useEffect(() => {
-      if (initialSeekMs === null) {
+      // На паузе позиция задаётся через playerVars.start при создании плеера:
+      // seekTo у cued-видео запускает воспроизведение, а мгновенный pauseVideo
+      // оставляет чёрный кадр без постера и контролов.
+      if (initialSeekMs === null || initialPausedRef.current) {
         return;
       }
 
@@ -262,13 +267,22 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
             return;
           }
 
+          const cuedStartSeconds =
+            initialPausedRef.current && initialSeekMsRef.current
+              ? Math.floor(initialSeekMsRef.current / 1000)
+              : 0;
           playerRef.current = new youtubeApi.Player(containerRef.current, {
             width: '100%',
             height: '100%',
             videoId: playerConfig.videoId,
-            playerVars: playerConfig.playerVars,
+            playerVars:
+              cuedStartSeconds > 0
+                ? { ...playerConfig.playerVars, start: cuedStartSeconds }
+                : playerConfig.playerVars,
             events: {
               onReady: () => {
+                // Отложенный seek здесь — только явный (deep-link или клик по
+                // таймкоду до готовности), он и должен запустить воспроизведение.
                 if (
                   pendingSeekMsRef.current !== null &&
                   hasReadyPlayerMethods(playerRef.current)
@@ -276,10 +290,6 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
                   const pendingSeekMs = pendingSeekMsRef.current;
                   pendingSeekMsRef.current = null;
                   playerRef.current.seekTo(Math.max(0, pendingSeekMs / 1000), true);
-
-                  if (initialPausedRef.current) {
-                    playerRef.current.pauseVideo();
-                  }
                 }
 
                 maybeNotifyByProgress();
