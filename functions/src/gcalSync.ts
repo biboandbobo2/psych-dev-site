@@ -155,8 +155,6 @@ async function syncSingleGroup(groupId: string, group: GroupDocData): Promise<vo
       text: mapped.text,
       dateLabel: mapped.dateLabel,
       dueDate: null,
-      ...(mapped.zoomLink ? { zoomLink: mapped.zoomLink } : {}),
-      ...(mapped.siteLink ? { siteLink: mapped.siteLink } : {}),
       startAt: Timestamp.fromMillis(mapped.startAtMs),
       endAt: Timestamp.fromMillis(mapped.endAtMs),
       isAllDay: mapped.isAllDay,
@@ -168,11 +166,23 @@ async function syncSingleGroup(groupId: string, group: GroupDocData): Promise<vo
     if (existing.empty) {
       await eventsRef.add({
         ...payload,
+        ...(mapped.zoomLink ? { zoomLink: mapped.zoomLink } : {}),
+        ...(mapped.siteLink ? { siteLink: mapped.siteLink } : {}),
         createdAt: FieldValue.serverTimestamp(),
         createdBy: "gcal-sync",
       });
     } else {
-      await existing.docs[0].ref.set(payload, { merge: true });
+      // GCal — источник правды для своих событий: ссылку, убранную или
+      // нераспознанную в календаре, снимаем и здесь, иначе merge молча
+      // оставит старое значение.
+      await existing.docs[0].ref.set(
+        {
+          ...payload,
+          zoomLink: mapped.zoomLink ?? FieldValue.delete(),
+          siteLink: mapped.siteLink ?? FieldValue.delete(),
+        },
+        { merge: true }
+      );
     }
     applied += 1;
   }

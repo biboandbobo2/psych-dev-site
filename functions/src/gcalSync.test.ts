@@ -314,6 +314,33 @@ describe('syncGroupCalendars import', () => {
     expect(opts).toEqual({ merge: true });
   });
 
+  it('merge clears zoomLink/siteLink when the GCal event no longer carries them', async () => {
+    const existingRef = { delete: vi.fn(async () => {}), set: vi.fn(async () => {}) };
+    state.eventQueryResults.set(`${GID}:g-1`, { docs: [{ ref: existingRef }], empty: false });
+    mockListEvents.mockResolvedValue({ events: [gcalTimed('g-1')], nextSyncToken: 'tok-3' });
+
+    await (syncGroupCalendars as Function)({});
+
+    const [payload] = existingRef.set.mock.calls[0];
+    expect(payload.zoomLink).toBe('__DELETE__');
+    expect(payload.siteLink).toBe('__DELETE__');
+  });
+
+  it('merge writes zoomLink extracted from location', async () => {
+    const existingRef = { delete: vi.fn(async () => {}), set: vi.fn(async () => {}) };
+    state.eventQueryResults.set(`${GID}:g-1`, { docs: [{ ref: existingRef }], empty: false });
+    mockListEvents.mockResolvedValue({
+      events: [{ ...gcalTimed('g-1'), location: 'https://us06web.zoom.us/j/1?pwd=abc' }],
+      nextSyncToken: 'tok-4',
+    });
+
+    await (syncGroupCalendars as Function)({});
+
+    const [payload] = existingRef.set.mock.calls[0];
+    expect(payload.zoomLink).toBe('https://us06web.zoom.us/j/1?pwd=abc');
+    expect(payload.siteLink).toBe('__DELETE__');
+  });
+
   it('deletes Firestore docs for cancelled GCal events', async () => {
     const doomedRef = { delete: vi.fn(async () => {}), set: vi.fn(async () => {}) };
     state.eventQueryResults.set(`${GID}:g-dead`, { docs: [{ ref: doomedRef }], empty: false });
