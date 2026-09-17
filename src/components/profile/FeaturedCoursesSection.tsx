@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/useAuthStore';
 import { setMyFeaturedCourses } from '../../lib/adminFunctions';
 import { debugError } from '../../lib/debug';
 import type { CourseType } from '../../types/tests';
+import { resolveContinueCourses } from '../../pages/home/homeHelpers';
 
 const MAX_FEATURED_COURSES = 3;
 
@@ -43,23 +44,18 @@ export function FeaturedCoursesSection() {
     return map;
   }, [courses]);
 
-  // Объединение featured-курсов всех групп пользователя (дедуп, фильтр по
-  // accessible, лимит 3). Используется для подсказки в профиле: что сейчас
-  // подсвечивается на /home, если личного выбора нет.
-  const groupFeaturedCourseIds = useMemo(() => {
-    const seen = new Set<string>();
-    const result: string[] = [];
-    for (const g of groups) {
-      for (const id of g.featuredCourseIds ?? []) {
-        if (seen.has(id)) continue;
-        if (!hasCourseAccess(id as CourseType)) continue;
-        seen.add(id);
-        result.push(id);
-        if (result.length >= MAX_FEATURED_COURSES) return result;
-      }
-    }
-    return result;
-  }, [groups, hasCourseAccess]);
+  // Что подсветится на /home, если личного выбора нет — тот же резолвер,
+  // что и у главной, иначе подсказка в профиле расходится с карточками.
+  const groupFeaturedCourseIds = useMemo(
+    () =>
+      resolveContinueCourses({
+        userFeaturedCourseIds: [],
+        groups,
+        lastWatchedCourseId: null,
+        accessibleCourseIds: accessibleCourses.map((c) => c.id),
+      }).ids,
+    [groups, accessibleCourses]
+  );
 
   const groupFeaturedSet = useMemo(
     () => new Set(groupFeaturedCourseIds),
