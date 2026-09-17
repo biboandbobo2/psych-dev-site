@@ -40,12 +40,30 @@ export interface MappedFirestoreEvent {
  */
 const ZOOM_LINK_RE = /https?:\/\/(?:[a-z0-9-]+\.)?zoom\.us\/[^\s<>"')]+/i;
 const SITE_LINK_RE = /Сайт:\s*(https?:\/\/[^\s<>"')]+)/i;
+const GOOGLE_REDIRECT_RE = /https?:\/\/(?:www\.)?google\.com\/url\?[^\s<>"')]+/gi;
+
+/**
+ * Ссылка, скопированная с любой страницы Google (карточка события, Gmail,
+ * Docs), приходит завёрнутой в редирект `google.com/url?q=<url>&sa=…`.
+ * Разворачиваем до исходного адреса: иначе регэксп захватит хвост редиректа,
+ * а `pwd%3D` вместо `pwd=` оставит Zoom без пароля.
+ */
+function unwrapGoogleRedirects(source: string): string {
+  return source.replace(GOOGLE_REDIRECT_RE, (wrapped) => {
+    try {
+      return new URL(wrapped).searchParams.get('q') ?? wrapped;
+    } catch {
+      return wrapped;
+    }
+  });
+}
 
 export function extractZoomLink(
   ...sources: Array<string | null | undefined>
 ): string | undefined {
-  for (const source of sources) {
-    if (!source) continue;
+  for (const raw of sources) {
+    if (!raw) continue;
+    const source = unwrapGoogleRedirects(raw);
     const match = source.match(ZOOM_LINK_RE);
     if (match) {
       return match[0].replace(/[),.;]+$/, '');
@@ -61,8 +79,9 @@ export function extractZoomLink(
 export function extractSiteLink(
   ...sources: Array<string | null | undefined>
 ): string | undefined {
-  for (const source of sources) {
-    if (!source) continue;
+  for (const raw of sources) {
+    if (!raw) continue;
+    const source = unwrapGoogleRedirects(raw);
     const match = source.match(SITE_LINK_RE);
     if (match && match[1]) {
       return match[1].replace(/[),.;]+$/, '');

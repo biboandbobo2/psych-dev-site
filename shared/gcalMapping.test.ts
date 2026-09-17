@@ -32,6 +32,14 @@ describe('extractZoomLink', () => {
     );
   });
 
+  it('unwraps google.com/url redirect and decodes pwd', () => {
+    const wrapped =
+      'https://www.google.com/url?q=https://us06web.zoom.us/j/81676661526?pwd%3DOHN4gTcmabH9.1&sa=D&source=calendar&usd=2&usg=AOvVaw2okhs';
+    expect(extractZoomLink(wrapped, null)).toBe(
+      'https://us06web.zoom.us/j/81676661526?pwd=OHN4gTcmabH9.1'
+    );
+  });
+
   it('returns undefined when none found', () => {
     expect(extractZoomLink('https://example.com', 'no link')).toBeUndefined();
     expect(extractZoomLink(null, null, undefined)).toBeUndefined();
@@ -49,6 +57,14 @@ describe('extractSiteLink', () => {
     expect(extractSiteLink('Подробнее Сайт: https://academydom.com/a,')).toBe(
       'https://academydom.com/a'
     );
+  });
+
+  it('unwraps google.com/url redirect after the marker', () => {
+    expect(
+      extractSiteLink(
+        'Сайт: https://www.google.com/url?q=https://academydom.com/course/x%3Fstudy%3D1&sa=D'
+      )
+    ).toBe('https://academydom.com/course/x?study=1');
   });
 
   it('returns undefined when marker is missing even if url exists', () => {
