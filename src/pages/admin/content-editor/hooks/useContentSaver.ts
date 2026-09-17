@@ -8,7 +8,6 @@ import {
   serverTimestamp,
   collection,
   getDocs,
-  getDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../../../../lib/firebase';
@@ -192,58 +191,31 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
       data.subtitle = trimmedSubtitle ? trimmedSubtitle : deleteField();
       const sectionFieldPayload = buildSectionFieldPayload(sections, deleteField);
 
-      // Определяем коллекцию в зависимости от курса
-      if (isCoreCourse(course) && periodId === 'intro') {
-        // Intro can live in both legacy and current locations.
-        const singletonRef = doc(db, 'intro', 'singleton');
-        const singletonSnap = await getDoc(singletonRef);
-        if (singletonSnap.exists()) {
-          await updateDoc(singletonRef, {
-            ...data,
-            ...sectionFieldPayload,
-          });
-        } else {
-          const introCol = collection(db, 'intro');
-          const introSnap = await getDocs(introCol);
-          if (!introSnap.empty) {
-            await updateDoc(introSnap.docs[0].ref, {
-              ...data,
-              ...sectionFieldPayload,
-            });
-          } else {
-            await setDoc(
-              singletonRef,
-              {
-                ...data,
-                sections,
-              },
-              { merge: true }
-            );
-          }
-        }
+      // Определяем коллекцию в зависимости от курса. Intro development-курса
+      // идёт общим путём в periods/intro: именно его первым читают и загрузчик
+      // редактора (getPeriod('intro')), и студенческая сторона (getIntro);
+      // запись в legacy intro/singleton уходила «в никуда».
+      const collectionName = getCourseCollectionName(course);
+      if (!collectionName) {
+        data.courseId = course;
+      }
+      const resolvedDoc = collectionName ? await findCourseLessonDoc(course, periodId!) : null;
+      const docRef = resolvedDoc?.ref
+        ?? (collectionName ? doc(db, collectionName, periodId!) : getCourseLessonDocRef(course, periodId!));
+      if (resolvedDoc) {
+        await updateDoc(docRef as typeof resolvedDoc.ref, {
+          ...data,
+          ...sectionFieldPayload,
+        });
       } else {
-        const collectionName = getCourseCollectionName(course);
-        if (!collectionName) {
-          data.courseId = course;
-        }
-        const resolvedDoc = collectionName ? await findCourseLessonDoc(course, periodId!) : null;
-        const docRef = resolvedDoc?.ref
-          ?? (collectionName ? doc(db, collectionName, periodId!) : getCourseLessonDocRef(course, periodId!));
-        if (resolvedDoc) {
-          await updateDoc(docRef as typeof resolvedDoc.ref, {
+        await setDoc(
+          docRef as typeof resolvedDoc.ref,
+          {
             ...data,
-            ...sectionFieldPayload,
-          });
-        } else {
-          await setDoc(
-            docRef as typeof resolvedDoc.ref,
-            {
-              ...data,
-              sections,
-            },
-            { merge: true }
-          );
-        }
+            sections,
+          },
+          { merge: true }
+        );
       }
 
       void invalidateCourseContentByCourseId(course);
