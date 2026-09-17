@@ -48,3 +48,36 @@ export function eventToFormValue(event: GroupEvent): EventFormValue {
     siteLink: event.siteLink ?? '',
   };
 }
+
+export const MAX_EVENT_REPEATS = 30;
+
+function shiftWeeks(ms: number, weeks: number): number {
+  if (weeks === 0) return ms;
+  const date = new Date(ms);
+  date.setDate(date.getDate() + weeks * 7);
+  return date.getTime();
+}
+
+/**
+ * Даты серии однотипных занятий: k-е сдвинуто на k*intervalWeeks недель.
+ * Сдвигаем календарными днями, а не миллисекундами, чтобы время начала
+ * пережило переход на летнее/зимнее время.
+ */
+export function buildEventOccurrences(
+  startAtMs: number,
+  endAtMs: number,
+  intervalWeeks: number,
+  count: number
+): Array<{ startAtMs: number; endAtMs: number }> {
+  const total =
+    intervalWeeks > 0 ? Math.max(1, Math.min(Math.floor(count), MAX_EVENT_REPEATS)) : 1;
+  const occurrences: Array<{ startAtMs: number; endAtMs: number }> = [];
+  for (let i = 0; i < total; i += 1) {
+    const offset = intervalWeeks * i;
+    occurrences.push({
+      startAtMs: shiftWeeks(startAtMs, offset),
+      endAtMs: shiftWeeks(endAtMs, offset),
+    });
+  }
+  return occurrences;
+}

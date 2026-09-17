@@ -123,6 +123,7 @@ export interface CreateGroupParams {
   memberIds?: string[];
   grantedCourses?: string[];
   announcementAdminIds?: string[];
+  gcalId?: string;
 }
 export interface UpdateGroupParams {
   groupId: string;
@@ -130,6 +131,8 @@ export interface UpdateGroupParams {
   description?: string;
   grantedCourses?: string[];
   announcementAdminIds?: string[];
+  /** Пустая строка отвязывает календарь от группы. */
+  gcalId?: string;
 }
 export interface SetGroupMembersParams {
   groupId: string;

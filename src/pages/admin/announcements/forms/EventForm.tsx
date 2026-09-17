@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { EMPTY_EVENT_FORM } from './formHelpers';
+import { EMPTY_EVENT_FORM, MAX_EVENT_REPEATS } from './formHelpers';
 
 export interface EventFormValue {
   text: string;
@@ -17,6 +17,9 @@ export interface EventFormSubmitPayload {
   isAllDay: boolean;
   zoomLink: string;
   siteLink: string;
+  /** 0 — одиночное событие, иначе шаг серии в неделях. */
+  repeatIntervalWeeks: number;
+  repeatCount: number;
 }
 
 function pad(n: number): string {
@@ -42,6 +45,8 @@ interface EventFormProps {
   saving: boolean;
   errorMessage: string | null;
   submitLabel: string;
+  /** Серию можно задать только при создании — редактор правит одно событие. */
+  allowRepeat?: boolean;
   onSubmit: (value: EventFormSubmitPayload) => void;
 }
 
@@ -51,6 +56,7 @@ export function EventForm({
   saving,
   errorMessage,
   submitLabel,
+  allowRepeat = false,
   onSubmit,
 }: EventFormProps) {
   const seed: EventFormValue = (() => {
@@ -72,6 +78,8 @@ export function EventForm({
   const [isAllDay, setIsAllDay] = useState(seed.isAllDay);
   const [zoomLink, setZoomLink] = useState(seed.zoomLink);
   const [siteLink, setSiteLink] = useState(seed.siteLink);
+  const [repeatIntervalWeeks, setRepeatIntervalWeeks] = useState(0);
+  const [repeatCount, setRepeatCount] = useState(8);
   const [validation, setValidation] = useState<string | null>(null);
 
   const canSubmit =
@@ -113,6 +121,8 @@ export function EventForm({
       setValidation('Время окончания должно быть позже начала');
       return;
     }
+    // Границы серии держит сам input (min/max) — до submit'а браузер не пустит.
+    const repeat = allowRepeat ? repeatIntervalWeeks : 0;
     onSubmit({
       text: text.trim(),
       startAtMs: startMs,
@@ -120,6 +130,8 @@ export function EventForm({
       isAllDay,
       zoomLink: zoomLink.trim(),
       siteLink: siteLink.trim(),
+      repeatIntervalWeeks: repeat,
+      repeatCount: repeat > 0 ? repeatCount : 1,
     });
   };
 
@@ -182,6 +194,37 @@ export function EventForm({
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         disabled={saving}
       />
+      {allowRepeat && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+          <select
+            value={repeatIntervalWeeks}
+            onChange={(e) => setRepeatIntervalWeeks(Number(e.target.value))}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            aria-label="Повтор"
+            disabled={saving}
+          >
+            <option value={0}>Без повтора</option>
+            <option value={1}>Каждую неделю</option>
+            <option value={2}>Раз в две недели</option>
+          </select>
+          {repeatIntervalWeeks > 0 && (
+            <label className="flex items-center gap-2">
+              всего
+              <input
+                type="number"
+                min={2}
+                max={MAX_EVENT_REPEATS}
+                value={repeatCount}
+                onChange={(e) => setRepeatCount(Number(e.target.value))}
+                className="w-20 rounded-md border border-gray-300 px-2 py-2 text-sm"
+                aria-label="Количество занятий"
+                disabled={saving}
+              />
+              занятий, у всех одна ссылка
+            </label>
+          )}
+        </div>
+      )}
       {validation && <p className="text-xs text-rose-700">{validation}</p>}
       {errorMessage && <p className="text-xs text-rose-700">{errorMessage}</p>}
       <button

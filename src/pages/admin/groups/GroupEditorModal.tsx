@@ -35,6 +35,7 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [gcalId, setGcalId] = useState('');
   const [grantedCourses, setGrantedCourses] = useState<Set<string>>(() => new Set());
   const [memberIds, setMemberIds] = useState<Set<string>>(() => new Set());
   const [announcementAdminIds, setAnnouncementAdminIds] = useState<Set<string>>(() => new Set());
@@ -54,6 +55,7 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
     if (!isOpen) return;
     setName(group?.name ?? '');
     setDescription(group?.description ?? '');
+    setGcalId(group?.gcalId ?? '');
     setGrantedCourses(new Set(group?.grantedCourses ?? []));
     setMemberIds(new Set(group?.memberIds ?? []));
     setAnnouncementAdminIds(new Set(group?.announcementAdminIds ?? []));
@@ -119,6 +121,7 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
           description,
           grantedCourses: Array.from(grantedCourses),
           announcementAdminIds: Array.from(announcementAdminIds),
+          gcalId: gcalId.trim(),
         });
         // Состав системной группы управляется автоматически onUserCreate,
         // ручной setGroupMembers для неё запрещён.
@@ -133,6 +136,7 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
           memberIds: Array.from(memberIds),
           grantedCourses: Array.from(grantedCourses),
           announcementAdminIds: Array.from(announcementAdminIds),
+          gcalId: gcalId.trim(),
         });
         targetGroupId = created.groupId;
       }
@@ -257,6 +261,25 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={saving}
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              ID Google-календаря
+            </label>
+            <input
+              type="text"
+              value={gcalId}
+              onChange={(e) => setGcalId(e.target.value)}
+              placeholder="xxx@group.calendar.google.com"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={saving}
+            />
+            <p className="text-xs text-gray-500">
+              События синхронизируются в обе стороны; пусто — синхронизации нет. ID — в
+              настройках календаря, «Интеграция календаря»; дай ему доступ на редактирование
+              для <span className="font-mono">psych-dev-site-prod@appspot.gserviceaccount.com</span>.
+            </p>
           </div>
 
           <CourseChecklistField

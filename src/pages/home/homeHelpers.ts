@@ -1,6 +1,7 @@
 import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG } from '../../routes';
 import type { CourseType } from '../../types/tests';
 import type { Group } from '../../types/groups';
+import { isEveryoneGroup } from '../../../shared/groups/everyoneGroup';
 
 export const MAX_CONTINUE_CARDS = 3;
 
@@ -122,15 +123,17 @@ export interface ResolvedContinueCourses {
  * Приоритет, сверху вниз:
  *  1) `userFeaturedCourseIds` — личные «актуальные» курсы пользователя
  *     (фильтруются по accessibleCourseIds, max 3).
- *  2) Объединённые `featuredCourseIds` всех групп пользователя в порядке
- *     `groups` (max 3, дедуп; фильтр по accessibleCourseIds).
+ *  2) Объединённые `featuredCourseIds` групп пользователя (max 3, дедуп;
+ *     фильтр по accessibleCourseIds). Сначала обычные группы в порядке
+ *     `groups`, затем системная «Все» — её подборка общая для всех и не
+ *     должна вытеснять курсы своего потока.
  *  3) `lastWatchedCourseId` — последний просмотренный (даже если не отмечен
  *     как featured); должен принадлежать accessibleCourseIds.
  *  4) `empty` — пустой список (UI показывает CTA-заглушку).
  */
 export function resolveContinueCourses(params: {
   userFeaturedCourseIds: string[];
-  groups: Pick<Group, 'featuredCourseIds'>[];
+  groups: (Pick<Group, 'featuredCourseIds'> & { id?: string })[];
   lastWatchedCourseId: string | null;
   accessibleCourseIds: string[];
 }): ResolvedContinueCourses {
@@ -155,13 +158,14 @@ export function resolveContinueCourses(params: {
     return { ids: userPicks, source: 'user' };
   }
 
-  const groupIds: string[] = [];
+  const streamIds: string[] = [];
+  const everyoneIds: string[] = [];
   for (const group of groups) {
-    if (Array.isArray(group.featuredCourseIds)) {
-      groupIds.push(...group.featuredCourseIds);
-    }
+    if (!Array.isArray(group.featuredCourseIds)) continue;
+    const target = isEveryoneGroup(group.id) ? everyoneIds : streamIds;
+    target.push(...group.featuredCourseIds);
   }
-  const groupPicks = filterAccessibleUnique(groupIds);
+  const groupPicks = filterAccessibleUnique([...streamIds, ...everyoneIds]);
   if (groupPicks.length > 0) {
     return { ids: groupPicks, source: 'group' };
   }

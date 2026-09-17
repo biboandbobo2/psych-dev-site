@@ -16,6 +16,7 @@ import { AnnouncementForm } from './forms/AnnouncementForm';
 import { EventForm } from './forms/EventForm';
 import { AssignmentForm } from './forms/AssignmentForm';
 import {
+  buildEventOccurrences,
   EMPTY_ANNOUNCEMENT_FORM,
   EMPTY_ASSIGNMENT_FORM,
   EMPTY_EVENT_FORM,
@@ -127,6 +128,8 @@ export function CreateModal({
     isAllDay: boolean;
     zoomLink: string;
     siteLink: string;
+    repeatIntervalWeeks: number;
+    repeatCount: number;
   }) => {
     if (selectedRefs.length === 0) {
       setErrorMessage('Выберите хотя бы одну группу');
@@ -135,21 +138,31 @@ export function CreateModal({
     setSaving(true);
     setErrorMessage(null);
     try {
-      const result = await publishToGroups(selectedRefs, (groupId) =>
-        createGroupEvent(
-          groupId,
-          {
-            text: payload.text,
-            startAtMs: payload.startAtMs,
-            endAtMs: payload.endAtMs,
-            isAllDay: payload.isAllDay,
-            zoomLink: payload.zoomLink || undefined,
-            siteLink: payload.siteLink || undefined,
-            createdByName,
-          },
-          userId
-        )
+      // Серия — это N обычных событий с общими текстом и ссылкой: отдельной
+      // сущности «серия» нет, каждое потом правится и удаляется само по себе.
+      const occurrences = buildEventOccurrences(
+        payload.startAtMs,
+        payload.endAtMs,
+        payload.repeatIntervalWeeks,
+        payload.repeatCount
       );
+      const result = await publishToGroups(selectedRefs, async (groupId) => {
+        for (const occurrence of occurrences) {
+          await createGroupEvent(
+            groupId,
+            {
+              text: payload.text,
+              startAtMs: occurrence.startAtMs,
+              endAtMs: occurrence.endAtMs,
+              isAllDay: payload.isAllDay,
+              zoomLink: payload.zoomLink || undefined,
+              siteLink: payload.siteLink || undefined,
+              createdByName,
+            },
+            userId
+          );
+        }
+      });
       if (result.failures.length > 0) {
         debugError('createGroupEvent partial failure', result.failures);
       }
@@ -297,6 +310,7 @@ export function CreateModal({
                 ? `Опубликовать в ${selectedRefs.length} группах`
                 : 'Опубликовать событие'
             }
+            allowRepeat
             onSubmit={handleEvent}
           />
         )}

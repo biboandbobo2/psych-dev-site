@@ -196,6 +196,29 @@ describe('resolveContinueCourses', () => {
     expect(result).toEqual({ ids: ['A', 'B', 'C'], source: 'group' });
   });
 
+  it('курсы потока идут раньше курсов системной группы «Все»', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [
+        { id: 'everyone', featuredCourseIds: ['A', 'B'] },
+        { id: 'stream-first', featuredCourseIds: ['X', 'Y'] },
+      ],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['X', 'Y', 'A'], source: 'group' });
+  });
+
+  it('«Все» остаётся источником, если своих групп с актуальными нет', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [{ id: 'everyone', featuredCourseIds: ['A', 'B'] }],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['A', 'B'], source: 'group' });
+  });
+
   it('user-featured имеет приоритет над group', () => {
     const result = resolveContinueCourses({
       userFeaturedCourseIds: ['X', 'Y'],

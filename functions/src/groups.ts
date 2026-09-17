@@ -114,6 +114,23 @@ function normalizeStringArray(raw: unknown): string[] {
   );
 }
 
+/**
+ * ID Google-календаря группы: адрес вида `xxx@group.calendar.google.com` или
+ * email владельца. `undefined` — поле не передано, пустая строка — отвязать.
+ */
+function normalizeGcalId(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  if (!trimmed.includes("@") || /\s/.test(trimmed)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "ID календаря должен выглядеть как xxx@group.calendar.google.com"
+    );
+  }
+  return trimmed;
+}
+
 function requireNonEmptyString(value: unknown, field: string): string {
   if (typeof value !== "string" || !value.trim()) {
     throw new HttpsError("invalid-argument", `${field} is required and must be a non-empty string`);
@@ -139,6 +156,8 @@ export const createGroup = onCall(CALLABLE_OPTS, async (request) => {
     updatedBy: uid,
   };
   if (description) payload.description = description;
+  const gcalId = normalizeGcalId(d.gcalId);
+  if (gcalId) payload.gcalId = gcalId;
 
   const ref = await db.collection("groups").add(payload);
   fnLogger.info("✅ Group created", { groupId: ref.id, name, by: uid });
@@ -178,6 +197,17 @@ export const updateGroup = onCall(CALLABLE_OPTS, async (request) => {
   }
   if (Array.isArray(d.announcementAdminIds)) {
     updates.announcementAdminIds = normalizeStringArray(d.announcementAdminIds);
+  }
+  const gcalId = normalizeGcalId(d.gcalId);
+  if (gcalId !== undefined) {
+    const snap = await db.collection("groups").doc(groupId).get();
+    const current = (snap.data() as { gcalId?: string } | undefined)?.gcalId ?? "";
+    if (gcalId !== current) {
+      updates.gcalId = gcalId ? gcalId : FieldValue.delete();
+      // syncToken выдан под прежний календарь — после смены он бесполезен,
+      // чистим состояние, чтобы следующий прогон сделал полный импорт.
+      updates.gcalSyncState = FieldValue.delete();
+    }
   }
 
   await db.collection("groups").doc(groupId).update(updates);

@@ -129,6 +129,15 @@ describe('createGroup', () => {
     expect(payload.memberIds).toEqual(['a', 'b']);
   });
 
+  it('stores gcalId when provided', async () => {
+    mockAdd.mockResolvedValue({ id: 'g-new' });
+    await (createGroup as Function)({
+      data: { name: 'Поток 3', gcalId: 'cal@group.calendar.google.com' },
+      ...superAdminCtx(),
+    });
+    expect(mockAdd.mock.calls[0][0].gcalId).toBe('cal@group.calendar.google.com');
+  });
+
   it('normalizeStringArray handles non-array input', async () => {
     mockAdd.mockResolvedValue({ id: 'g1' });
     await (createGroup as Function)({ data: { name: 'G', memberIds: 'not-array' }, ...superAdminCtx() });
@@ -179,6 +188,45 @@ describe('updateGroup', () => {
     await (updateGroup as Function)({ data: { groupId: 'g1', description: '' }, ...superAdminCtx() });
     const updates = mockUpdate.mock.calls[0][0];
     expect(updates.description).toBe('__DELETE__');
+  });
+
+  it('rejects gcalId without @', async () => {
+    await expect(
+      (updateGroup as Function)({ data: { groupId: 'g1', gcalId: 'not-a-calendar' }, ...superAdminCtx() }),
+    ).rejects.toThrow('ID календаря');
+  });
+
+  it('writes new gcalId and drops stale sync state', async () => {
+    mockUpdate.mockResolvedValue(undefined);
+    mockGet.mockResolvedValue({ data: () => ({ gcalId: 'old@group.calendar.google.com' }) });
+    await (updateGroup as Function)({
+      data: { groupId: 'g1', gcalId: ' new@group.calendar.google.com ' },
+      ...superAdminCtx(),
+    });
+    const updates = mockUpdate.mock.calls[0][0];
+    expect(updates.gcalId).toBe('new@group.calendar.google.com');
+    expect(updates.gcalSyncState).toBe('__DELETE__');
+  });
+
+  it('keeps sync state when gcalId is unchanged', async () => {
+    mockUpdate.mockResolvedValue(undefined);
+    mockGet.mockResolvedValue({ data: () => ({ gcalId: 'same@group.calendar.google.com' }) });
+    await (updateGroup as Function)({
+      data: { groupId: 'g1', gcalId: 'same@group.calendar.google.com' },
+      ...superAdminCtx(),
+    });
+    const updates = mockUpdate.mock.calls[0][0];
+    expect(updates.gcalId).toBeUndefined();
+    expect(updates.gcalSyncState).toBeUndefined();
+  });
+
+  it('empty gcalId unlinks the calendar', async () => {
+    mockUpdate.mockResolvedValue(undefined);
+    mockGet.mockResolvedValue({ data: () => ({ gcalId: 'old@group.calendar.google.com' }) });
+    await (updateGroup as Function)({ data: { groupId: 'g1', gcalId: '' }, ...superAdminCtx() });
+    const updates = mockUpdate.mock.calls[0][0];
+    expect(updates.gcalId).toBe('__DELETE__');
+    expect(updates.gcalSyncState).toBe('__DELETE__');
   });
 });
 
