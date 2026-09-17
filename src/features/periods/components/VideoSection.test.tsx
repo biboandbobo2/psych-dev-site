@@ -187,7 +187,7 @@ describe('VideoSection', () => {
     }> = [];
     const playerMock = vi.fn(function Player(
       _element: HTMLElement,
-      options: { events?: { onReady?: () => void } }
+      options: { events?: { onReady?: () => void }; playerVars?: Record<string, unknown> }
     ) {
       const instance = {
         destroy: vi.fn(),
@@ -254,7 +254,7 @@ describe('VideoSection', () => {
     }> = [];
     const playerMock = vi.fn(function Player(
       _element: HTMLElement,
-      options: { events?: { onReady?: () => void } }
+      options: { events?: { onReady?: () => void }; playerVars?: Record<string, unknown> }
     ) {
       const instance = {
         destroy: vi.fn(),

@@ -49,7 +49,7 @@ describe('StudyVideoPlayer', () => {
     const seekToMock = vi.fn();
     const playerMock = vi.fn(function Player(
       _element: HTMLElement,
-      options: { events?: { onReady?: () => void } }
+      options: { events?: { onReady?: () => void }; playerVars?: Record<string, unknown> }
     ) {
       queueMicrotask(() => options.events?.onReady?.());
       return {
@@ -84,7 +84,7 @@ describe('StudyVideoPlayer', () => {
     const pauseVideoMock = vi.fn();
     const playerMock = vi.fn(function Player(
       _element: HTMLElement,
-      options: { events?: { onReady?: () => void } }
+      options: { events?: { onReady?: () => void }; playerVars?: Record<string, unknown> }
     ) {
       queueMicrotask(() => options.events?.onReady?.());
       return {
@@ -124,7 +124,7 @@ describe('StudyVideoPlayer', () => {
     const seekToMock = vi.fn();
     const playerMock = vi.fn(function Player(
       _element: HTMLElement,
-      options: { events?: { onReady?: () => void } }
+      options: { events?: { onReady?: () => void }; playerVars?: Record<string, unknown> }
     ) {
       queueMicrotask(() => options.events?.onReady?.());
       return {
@@ -161,7 +161,7 @@ describe('StudyVideoPlayer', () => {
     const pauseVideoMock = vi.fn();
     const playerMock = vi.fn(function Player(
       _element: HTMLElement,
-      options: { events?: { onReady?: () => void } }
+      options: { events?: { onReady?: () => void }; playerVars?: Record<string, unknown> }
     ) {
       queueMicrotask(() => options.events?.onReady?.());
       return {
@@ -199,7 +199,7 @@ describe('StudyVideoPlayer', () => {
   it('безопасно отдаёт playback snapshot, если player ещё не предоставляет youtube методы', async () => {
     const playerMock = vi.fn(function Player(
       _element: HTMLElement,
-      options: { events?: { onReady?: () => void } }
+      options: { events?: { onReady?: () => void }; playerVars?: Record<string, unknown> }
     ) {
       queueMicrotask(() => options.events?.onReady?.());
       return {
