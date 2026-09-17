@@ -174,7 +174,20 @@ export const SMOKE_CORE_LESSONS = {
     { id: "smoke-dev-2", title: "Раннее детство (смоук)", order: 2, published: true },
   ],
   clinical: [
-    { id: "smoke-clin-1", title: "Неврозы (смоук)", order: 1, published: true },
+    {
+      id: "smoke-clin-1",
+      title: "Неврозы (смоук)",
+      order: 1,
+      published: true,
+      // Видео нужно ролевому e2e: PaywallGuard рендерится только вокруг него
+      // (регрессия «замок после F5»).
+      sections: {
+        video_section: {
+          title: "Видео-лекция",
+          content: [{ title: "Лекция (смоук)", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }],
+        },
+      },
+    },
     { id: "smoke-clin-2", title: "ПРЛ (смоук)", order: 2, published: true },
   ],
 } as const;

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useCourses } from '../../hooks/useCourses';
 import { useMyGroups } from '../../hooks/useMyGroups';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { useAuthStore, useCourseAccessChecker } from '../../stores/useAuthStore';
 import { setMyFeaturedCourses } from '../../lib/adminFunctions';
 import { debugError } from '../../lib/debug';
 import type { CourseType } from '../../types/tests';
@@ -16,7 +16,7 @@ const MAX_FEATURED_COURSES = 3;
  */
 export function FeaturedCoursesSection() {
   const featuredCourseIds = useAuthStore((s) => s.featuredCourseIds);
-  const hasCourseAccess = useAuthStore((s) => s.hasCourseAccess);
+  const hasCourseAccess = useCourseAccessChecker();
   const { courses, loading: coursesLoading } = useCourses();
   const { groups } = useMyGroups();
 

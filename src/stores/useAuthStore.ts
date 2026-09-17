@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
@@ -111,6 +112,33 @@ interface AuthState {
   hasCourseAccess: (courseType: CourseType) => boolean;
 }
 
+function resolveCourseAccess(
+  userRole: UserRole | null,
+  courseAccess: CourseAccessMap | null,
+  groupGrantedCourses: Record<string, boolean>,
+  courseType: CourseType
+): boolean {
+  if (checkCourseAccess(userRole, courseAccess, courseType)) return true;
+  return groupGrantedCourses[courseType] === true;
+}
+
+/**
+ * Проверка доступа к курсу для компонентов. В отличие от `state.hasCourseAccess`
+ * (стабильная ссылка — zustand не перерисует компонент, когда придут снапшоты
+ * courseAccess/groupGrantedCourses), хук подписан на сами входы: после первого
+ * рендера с пустым доступом замок сменится на контент, а не зависнет.
+ */
+export function useCourseAccessChecker(): (courseType: CourseType) => boolean {
+  const userRole = useAuthStore((state) => state.userRole);
+  const courseAccess = useAuthStore((state) => state.courseAccess);
+  const groupGrantedCourses = useAuthStore((state) => state.groupGrantedCourses);
+  return useCallback(
+    (courseType: CourseType) =>
+      resolveCourseAccess(userRole, courseAccess, groupGrantedCourses, courseType),
+    [userRole, courseAccess, groupGrantedCourses]
+  );
+}
+
 export const useAuthStore = create<AuthState>()(
   devtools(
     (set, get) => ({
@@ -171,8 +199,7 @@ export const useAuthStore = create<AuthState>()(
 
       hasCourseAccess: (courseType: CourseType) => {
         const { userRole, courseAccess, groupGrantedCourses } = get();
-        if (checkCourseAccess(userRole, courseAccess, courseType)) return true;
-        return groupGrantedCourses[courseType] === true;
+        return resolveCourseAccess(userRole, courseAccess, groupGrantedCourses, courseType);
       },
 
       signInWithGoogle: async () => {

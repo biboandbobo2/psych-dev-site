@@ -277,6 +277,7 @@ async function seedCoreLessons(db: Firestore): Promise<number> {
         title: lesson.title,
         order: lesson.order,
         published: lesson.published,
+        ...("sections" in lesson ? { sections: lesson.sections } : {}),
       });
       count++;
     }

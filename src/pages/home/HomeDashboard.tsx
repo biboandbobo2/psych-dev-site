@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCourses } from '../../hooks/useCourses';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { useAuthStore, useCourseAccessChecker } from '../../stores/useAuthStore';
 import { useAuth } from '../../auth/AuthProvider';
 import { getLastCourseLesson, getMostRecentlyWatchedCourseId } from '../../lib/lastCourseLesson';
 import { getWatchedLessonIds } from '../../lib/courseWatchedLessons';
@@ -58,7 +58,7 @@ function StudentDashboard() {
   const { courses, courseMap } = useCourses();
   const { groups: myGroups } = useMyGroups();
   const userFeaturedCourseIds = useAuthStore((s) => s.featuredCourseIds);
-  const hasCourseAccess = useAuthStore((s) => s.hasCourseAccess);
+  const hasCourseAccess = useCourseAccessChecker();
   const courseStreamLabel = myGroups.length > 0 ? 'Курс потока' : 'Мой курс';
   const { openCourseIds } = useCoursesOpenness(courses.map((course) => course.id));
   const { items: myFeedItems, loading: myFeedLoading } = useMyGroupsFeed();

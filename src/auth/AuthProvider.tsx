@@ -5,7 +5,7 @@
  * This provides a compatibility layer for existing code using useAuth() hook.
  */
 import { useMemo } from 'react';
-import { useAuthStore } from '../stores/useAuthStore';
+import { useAuthStore, useCourseAccessChecker } from '../stores/useAuthStore';
 
 /**
  * @deprecated Use useAuthStore from '../stores/useAuthStore' instead
@@ -23,7 +23,7 @@ export function useAuth() {
   const isCoAdmin = useAuthStore((state) => state.isCoAdmin);
   const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
   const logout = useAuthStore((state) => state.logout);
-  const hasCourseAccess = useAuthStore((state) => state.hasCourseAccess);
+  const hasCourseAccess = useCourseAccessChecker();
 
   return useMemo(
     () => ({

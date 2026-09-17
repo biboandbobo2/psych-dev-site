@@ -47,6 +47,25 @@ test.describe('Студент группы: доступ только к кур�
     await expect(section.getByText(DENIED_COURSE_NAME)).toHaveCount(0);
   });
 
+  test('после F5 на занятии видео курса группы не закрывается замком', async ({ page }) => {
+    // Путь F5: снапшоты courseAccess/groupGrantedCourses приходят после
+    // loading=false, и PaywallGuard, подписанный на функцию hasCourseAccess,
+    // а не на её входы, зависал с замком (fix — useCourseAccessChecker).
+    // На синтетическом стенде гонка не воспроизводится (воспроизводилась с
+    // --prod-data); детерминированный гард — src/components/PaywallGuard.test.tsx,
+    // здесь — дымовая проверка, что перезагрузка не закрывает доступ.
+    await gotoAndSettle(page, '/clinical/1');
+    await page.getByRole('link', { name: 'Неврозы (смоук)' }).click();
+    await expect(page.getByRole('heading', { name: 'Неврозы (смоук)' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Открыть конспект' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Доступно при оплате курса')).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Неврозы (смоук)' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Открыть конспект' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Доступно при оплате курса')).toHaveCount(0);
+  });
+
   test('/admin недоступен студенту', async ({ page }) => {
     await gotoAndSettle(page, '/admin');
 

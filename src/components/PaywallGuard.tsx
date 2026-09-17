@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useAuthStore } from '../stores/useAuthStore';
+import { useAuthStore, useCourseAccessChecker } from '../stores/useAuthStore';
 import type { CourseType } from '../types/tests';
 import { Section } from './ui/Section';
 import { Skeleton } from './ui/Skeleton';
@@ -59,7 +59,7 @@ export function PaywallGuard({
   sectionTitle,
   publicContent,
 }: PaywallGuardProps) {
-  const hasCourseAccess = useAuthStore((state) => state.hasCourseAccess);
+  const hasCourseAccess = useCourseAccessChecker();
   const user = useAuthStore((state) => state.user);
   const loading = useAuthStore((state) => state.loading);
 
