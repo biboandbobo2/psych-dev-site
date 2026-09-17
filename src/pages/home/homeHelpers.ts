@@ -123,10 +123,10 @@ export interface ResolvedContinueCourses {
  * Приоритет, сверху вниз:
  *  1) `userFeaturedCourseIds` — личные «актуальные» курсы пользователя
  *     (фильтруются по accessibleCourseIds, max 3).
- *  2) Объединённые `featuredCourseIds` групп пользователя (max 3, дедуп;
- *     фильтр по accessibleCourseIds). Сначала обычные группы в порядке
- *     `groups`, затем системная «Все» — её подборка общая для всех и не
- *     должна вытеснять курсы своего потока.
+ *  2) `featuredCourseIds` обычных групп пользователя в порядке `groups`
+ *     (max 3, дедуп; фильтр по accessibleCourseIds). Системная «Все» —
+ *     только запасной вариант для тех, чьи группы ничего не настроили:
+ *     у студента потока она не участвует вовсе.
  *  3) `lastWatchedCourseId` — последний просмотренный (даже если не отмечен
  *     как featured); должен принадлежать accessibleCourseIds.
  *  4) `empty` — пустой список (UI показывает CTA-заглушку).
@@ -165,7 +165,8 @@ export function resolveContinueCourses(params: {
     const target = isEveryoneGroup(group.id) ? everyoneIds : streamIds;
     target.push(...group.featuredCourseIds);
   }
-  const groupPicks = filterAccessibleUnique([...streamIds, ...everyoneIds]);
+  const streamPicks = filterAccessibleUnique(streamIds);
+  const groupPicks = streamPicks.length > 0 ? streamPicks : filterAccessibleUnique(everyoneIds);
   if (groupPicks.length > 0) {
     return { ids: groupPicks, source: 'group' };
   }

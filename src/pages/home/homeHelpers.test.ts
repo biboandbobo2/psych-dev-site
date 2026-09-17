@@ -196,7 +196,7 @@ describe('resolveContinueCourses', () => {
     expect(result).toEqual({ ids: ['A', 'B', 'C'], source: 'group' });
   });
 
-  it('курсы потока идут раньше курсов системной группы «Все»', () => {
+  it('если у потока есть актуальные, системная «Все» не участвует', () => {
     const result = resolveContinueCourses({
       userFeaturedCourseIds: [],
       groups: [
@@ -206,7 +206,20 @@ describe('resolveContinueCourses', () => {
       lastWatchedCourseId: null,
       accessibleCourseIds: allAccessible,
     });
-    expect(result).toEqual({ ids: ['X', 'Y', 'A'], source: 'group' });
+    expect(result).toEqual({ ids: ['X', 'Y'], source: 'group' });
+  });
+
+  it('«Все» — запасной вариант, если у групп студента актуальные пусты', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [
+        { id: 'everyone', featuredCourseIds: ['A', 'B'] },
+        { id: 'stream-first', featuredCourseIds: [] },
+      ],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['A', 'B'], source: 'group' });
   });
 
   it('«Все» остаётся источником, если своих групп с актуальными нет', () => {
