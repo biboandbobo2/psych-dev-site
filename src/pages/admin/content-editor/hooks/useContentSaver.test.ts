@@ -111,15 +111,39 @@ describe('useContentSaver.handleSave — целевой документ', () =>
     expect(JSON.stringify(payload.sections.video_section)).toContain(NEW_VIDEO_URL);
   });
 
-  it('занятие динамического курса пишет в courses/{id}/lessons/{lessonId}', async () => {
+  it('новое занятие динамического курса создаёт courses/{id}/lessons/{lessonId}', async () => {
+    getDocMock.mockResolvedValue({ exists: () => false } as never);
+
     const { result } = renderHook(() => useContentSaver(vi.fn(), 'external-x'));
     await act(async () => {
       await result.current.handleSave({ ...saveParams, periodId: 'lesson-1' });
     });
 
-    expect(getDocMock).not.toHaveBeenCalled();
+    expect(updateDocMock).not.toHaveBeenCalled();
     expect(setDocMock).toHaveBeenCalledTimes(1);
     const [ref] = setDocMock.mock.calls[0] as unknown as [RefLike];
     expect(ref.path).toBe('courses/external-x/lessons/lesson-1');
+  });
+
+  it('существующее занятие динамического курса обновляется updateDoc и удаляет очищенные разделы', async () => {
+    getDocMock.mockResolvedValue({
+      id: 'lesson-1',
+      exists: () => true,
+      data: () => ({ title: 'Занятие' }),
+    } as never);
+
+    const { result } = renderHook(() => useContentSaver(vi.fn(), 'external-x'));
+    await act(async () => {
+      await result.current.handleSave({ ...saveParams, periodId: 'lesson-1' });
+    });
+
+    expect(setDocMock).not.toHaveBeenCalled();
+    expect(updateDocMock).toHaveBeenCalledTimes(1);
+    const [ref, payload] = updateDocMock.mock.calls[0] as unknown as [RefLike, Record<string, unknown>];
+    expect(ref.path).toBe('courses/external-x/lessons/lesson-1');
+    expect(JSON.stringify(payload['sections.video_section'])).toContain(NEW_VIDEO_URL);
+    // Пустые в форме разделы удаляются, а не остаются от прошлого сохранения (setDoc+merge)
+    expect(payload['sections.concepts']).toBe('__delete__');
+    expect(payload['sections.self_questions']).toBe('__delete__');
   });
 });

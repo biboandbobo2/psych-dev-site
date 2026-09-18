@@ -199,7 +199,9 @@ export function useContentSaver(onNavigate: () => void, course: CourseType = 'de
       if (!collectionName) {
         data.courseId = course;
       }
-      const resolvedDoc = collectionName ? await findCourseLessonDoc(course, periodId!) : null;
+      // Существующее занятие (динамического курса тоже) обновляем updateDoc с
+      // deleteField для очищенных разделов: setDoc+merge оставлял их от прошлого сохранения.
+      const resolvedDoc = await findCourseLessonDoc(course, periodId!);
       const docRef = resolvedDoc?.ref
         ?? (collectionName ? doc(db, collectionName, periodId!) : getCourseLessonDocRef(course, periodId!));
       if (resolvedDoc) {
