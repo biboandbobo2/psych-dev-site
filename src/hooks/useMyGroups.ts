@@ -31,6 +31,9 @@ export function normalizeGroupDoc(id: string, data: unknown): Group | null {
     announcementAdminIds: announcers,
     isSystem: raw.isSystem === true ? true : undefined,
     featuredCourseIds: featured,
+    // Редактор группы шлёт gcalId обратно как есть; без этого поля он
+    // отправлял пустую строку, и updateGroup отвязывал календарь.
+    gcalId: typeof raw.gcalId === 'string' && raw.gcalId ? raw.gcalId : undefined,
   };
 }
 

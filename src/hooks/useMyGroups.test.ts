@@ -20,6 +20,17 @@ describe('normalizeGroupDoc', () => {
     });
   });
 
+  it('прокидывает gcalId — редактор группы отправляет его обратно как есть', () => {
+    // Без этого поля редактор слал пустую строку, и updateGroup отвязывал
+    // календарь при любом сохранении группы (2026-09-17, обе группы потоков).
+    const withCalendar = normalizeGroupDoc('g1', {
+      name: 'Поток',
+      gcalId: 'abc@group.calendar.google.com',
+    });
+    expect(withCalendar?.gcalId).toBe('abc@group.calendar.google.com');
+    expect(normalizeGroupDoc('g2', { name: 'Без календаря' })?.gcalId).toBeUndefined();
+  });
+
   it('returns null for null/undefined/non-object', () => {
     expect(normalizeGroupDoc('g1', null)).toBeNull();
     expect(normalizeGroupDoc('g1', undefined)).toBeNull();
