@@ -58,8 +58,8 @@ function StudentDashboard() {
   const { courses, courseMap } = useCourses();
   const { groups: myGroups } = useMyGroups();
   const userFeaturedCourseIds = useAuthStore((s) => s.featuredCourseIds);
+  const courseAccess = useAuthStore((s) => s.courseAccess);
   const hasCourseAccess = useCourseAccessChecker();
-  const courseStreamLabel = myGroups.length > 0 ? 'Курс потока' : 'Мой курс';
   const { openCourseIds } = useCoursesOpenness(courses.map((course) => course.id));
   const { items: myFeedItems, loading: myFeedLoading } = useMyGroupsFeed();
   const { items: platformNews, loading: platformNewsLoading } = usePlatformNews();
@@ -81,15 +81,24 @@ function StudentDashboard() {
   // на /home обновлялись после cloud-snapshot или локальной записи.
   const progressVersion = useCourseProgressStore((s) => s.version);
 
+  // Лично открытые курсы (courseAccess) в порядке каталога — для студента
+  // без потока это и есть его «актуальные».
+  const personalCourseIds = useMemo(
+    () => courses.filter((c) => courseAccess?.[c.id as CourseType] === true).map((c) => c.id),
+    [courses, courseAccess],
+  );
+
   const continueResolution = useMemo(() => {
     void progressVersion;
     return resolveContinueCourses({
       userFeaturedCourseIds,
       groups: myGroups,
+      personalCourseIds,
       lastWatchedCourseId: getMostRecentlyWatchedCourseId(),
       accessibleCourseIds,
     });
-  }, [userFeaturedCourseIds, myGroups, accessibleCourseIds, progressVersion]);
+  }, [userFeaturedCourseIds, myGroups, personalCourseIds, accessibleCourseIds, progressVersion]);
+  const courseStreamLabel = continueResolution.source === 'group' ? 'Курс потока' : 'Мой курс';
 
   const primaryContinueCourses = useMemo(() => {
     void progressVersion;

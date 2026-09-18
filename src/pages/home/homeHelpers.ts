@@ -110,7 +110,7 @@ export function formatDateKey(dateKey: string): string {
   });
 }
 
-export type ContinueCoursesSource = 'user' | 'group' | 'lastWatched' | 'empty';
+export type ContinueCoursesSource = 'user' | 'group' | 'personal' | 'lastWatched' | 'empty';
 
 export interface ResolvedContinueCourses {
   ids: string[];
@@ -124,20 +124,30 @@ export interface ResolvedContinueCourses {
  *  1) `userFeaturedCourseIds` — личные «актуальные» курсы пользователя
  *     (фильтруются по accessibleCourseIds, max 3).
  *  2) `featuredCourseIds` обычных групп пользователя в порядке `groups`
- *     (max 3, дедуп; фильтр по accessibleCourseIds). Системная «Все» —
- *     только запасной вариант для тех, чьи группы ничего не настроили:
- *     у студента потока она не участвует вовсе.
- *  3) `lastWatchedCourseId` — последний просмотренный (даже если не отмечен
+ *     (max 3, дедуп; фильтр по accessibleCourseIds).
+ *  3) `personalCourseIds` — курсы, открытые лично (users/{uid}.courseAccess):
+ *     студент без потока видит то, что ему купили/выдали.
+ *  4) Системная «Все» — запасной вариант для тех, у кого нет ни потока,
+ *     ни личных курсов.
+ *  5) `lastWatchedCourseId` — последний просмотренный (даже если не отмечен
  *     как featured); должен принадлежать accessibleCourseIds.
- *  4) `empty` — пустой список (UI показывает CTA-заглушку).
+ *  6) `empty` — пустой список (UI показывает CTA-заглушку).
  */
 export function resolveContinueCourses(params: {
   userFeaturedCourseIds: string[];
   groups: (Pick<Group, 'featuredCourseIds'> & { id?: string })[];
+  /** Курсы из users/{uid}.courseAccess в порядке каталога. */
+  personalCourseIds?: string[];
   lastWatchedCourseId: string | null;
   accessibleCourseIds: string[];
 }): ResolvedContinueCourses {
-  const { userFeaturedCourseIds, groups, lastWatchedCourseId, accessibleCourseIds } = params;
+  const {
+    userFeaturedCourseIds,
+    groups,
+    personalCourseIds = [],
+    lastWatchedCourseId,
+    accessibleCourseIds,
+  } = params;
   const accessible = new Set(accessibleCourseIds);
 
   const filterAccessibleUnique = (ids: string[]): string[] => {
@@ -166,9 +176,18 @@ export function resolveContinueCourses(params: {
     target.push(...group.featuredCourseIds);
   }
   const streamPicks = filterAccessibleUnique(streamIds);
-  const groupPicks = streamPicks.length > 0 ? streamPicks : filterAccessibleUnique(everyoneIds);
-  if (groupPicks.length > 0) {
-    return { ids: groupPicks, source: 'group' };
+  if (streamPicks.length > 0) {
+    return { ids: streamPicks, source: 'group' };
+  }
+
+  const personalPicks = filterAccessibleUnique(personalCourseIds);
+  if (personalPicks.length > 0) {
+    return { ids: personalPicks, source: 'personal' };
+  }
+
+  const everyonePicks = filterAccessibleUnique(everyoneIds);
+  if (everyonePicks.length > 0) {
+    return { ids: everyonePicks, source: 'group' };
   }
 
   if (lastWatchedCourseId && accessible.has(lastWatchedCourseId)) {

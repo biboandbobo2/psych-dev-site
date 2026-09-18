@@ -209,6 +209,39 @@ describe('resolveContinueCourses', () => {
     expect(result).toEqual({ ids: ['X', 'Y'], source: 'group' });
   });
 
+  it('без потока: лично открытые курсы идут раньше подборки «Все»', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [{ id: 'everyone', featuredCourseIds: ['A', 'B'] }],
+      personalCourseIds: ['X', 'Y'],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['X', 'Y'], source: 'personal' });
+  });
+
+  it('актуальные потока важнее лично открытых курсов', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [{ id: 'stream-first', featuredCourseIds: ['A'] }],
+      personalCourseIds: ['X', 'Y'],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['A'], source: 'group' });
+  });
+
+  it('лично открытые курсы режутся по accessible и лимиту 3', () => {
+    const result = resolveContinueCourses({
+      userFeaturedCourseIds: [],
+      groups: [],
+      personalCourseIds: ['A', 'NO_ACCESS', 'B', 'C', 'D'],
+      lastWatchedCourseId: null,
+      accessibleCourseIds: allAccessible,
+    });
+    expect(result).toEqual({ ids: ['A', 'B', 'C'], source: 'personal' });
+  });
+
   it('«Все» — запасной вариант, если у групп студента актуальные пусты', () => {
     const result = resolveContinueCourses({
       userFeaturedCourseIds: [],
