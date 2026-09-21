@@ -114,6 +114,17 @@ interface User {
 
 `src/lib/roleHelpers.ts:computeDisplayRole` считает только личный `courseAccess` и не видит группы — годится там, где группы недоступны/не нужны. Для полного эффективного доступа (личный ∪ группы), в т.ч. в админке, используйте [`src/lib/effectiveAccess.ts`](../../src/lib/effectiveAccess.ts): `computeEffectiveAccess`/`computeEffectiveAccessWithIndex`.
 
+**Кто читает и меняет чужие профили:**
+- Коллекция закрыта для админа курса — своих студентов он получает через callable
+  `getCourseStudents({ courseId })` ([`functions/src/courseStudents.ts`](../../functions/src/courseStudents.ts)),
+  которая отдаёт только `uid / displayName / email / photoURL / lastLoginAt /
+  pendingRegistration / disabled` (ни `phone`, ни `geminiApiKey`, ни `prefs`).
+- `courseAccess`, `disabled` и состав потоков правят super-admin **и со-админ**
+  (`updateCourseAccess`, `toggleUserDisabled`, группы).
+- Роли и админские права — только super-admin (`setUserRole`, `makeUserAdmin`,
+  `removeAdmin`, `setAdminEditableCourses`, `makeUserCoAdmin`, `removeCoAdmin`,
+  `seedAdmin`). Отключить владельца нельзя никому.
+
 **Пример документа (студент с booking):**
 ```json
 {
@@ -159,6 +170,10 @@ interface Group {
 ```
 
 **Special-case группа `everyone`** — все пользователи неявно её члены, используется для глобальных featured courses на /home.
+
+**Кто управляет:** super-admin и со-админ (`createGroup`, `updateGroup`,
+`setGroupMembers`, `addGroupMembersByEmail`, `deleteGroup`); `featuredCourseIds`
+дополнительно — админ из `announcementAdminIds` группы.
 
 См. [docs/guides/multi-course.md](../guides/multi-course.md).
 

@@ -719,6 +719,45 @@ UI остаётся на `useCourses` — сам хук не трогали, у 
 показывается прочерком и не роняет карточку. Super-admin по-прежнему уходит с
 `/admin` на `/superadmin`.
 
+### Студенты курса: `getCourseStudents`
+
+Коллекция `users` закрыта для админа курса (читают владелец, super-admin и
+со-админ), поэтому своих студентов он получает через callable
+`getCourseStudents` (`functions/src/courseStudents.ts`).
+
+**Право вызова:** super-admin, со-админ (claim `coAdmin`) или `role === 'admin'`,
+у которого `courseId` есть в claim `editableCourses` (хелпер `ensureCanEditCourse`
+из `functions/src/lib/shared.ts`). Остальным — `permission-denied`, без
+авторизации — `unauthenticated`.
+
+**Контракт:**
+```ts
+getCourseStudents({ courseId: string })
+
+interface CourseStudent {
+  uid: string; displayName: string | null; email: string | null; photoURL: string | null;
+  lastLoginAt: string | null;   // ISO; у pending-приглашений всегда null
+  pendingRegistration: boolean; disabled: boolean;
+}
+interface CourseStudentsResponse {
+  courseId: string;
+  groups: Array<{ id: string; name: string; students: CourseStudent[] }>;
+  individual: CourseStudent[];
+}
+```
+
+- `groups` — потоки, у которых `grantedCourses ∋ courseId`, без `everyone` и
+  `isSystem`; отсортированы по имени, студенты внутри — по `displayName`
+  (ru-локаль, безымянные в конец).
+- `individual` — у кого `courseAccess[courseId] === true` и кто **не** состоит ни
+  в одном из этих потоков (дублей между секциями нет).
+- Pending-приглашения (`users/pending_*`) приходят с `pendingRegistration: true`.
+- Полей сверх контракта нет: ни `phone`, ни `altegClientIds`, ни `geminiApiKey`,
+  ни `prefs`. `courseId` валидируется как slug — точка или слеш ломали бы путь
+  `courseAccess.<courseId>`, поэтому отбиваются `invalid-argument`.
+
+Тесты: `functions/src/courseStudents.test.ts`.
+
 ### Подводный камень: права живут в токене
 
 Rules читают `editableCourses` из токена запроса, а токен обновляется примерно
@@ -731,7 +770,15 @@ Rules читают `editableCourses` из токена запроса, а ток
 
 > **Дата добавления:** 2026-02-05
 
-Позволяет super-admin массово выдавать доступ к курсам для списка студентов.
+Позволяет массово выдавать доступ к курсам для списка студентов.
+
+**Кто вызывает:** super-admin и со-админ — на любые курсы; **админ курса — на
+свои** (каждый `courseId` запроса должен быть в его claim `editableCourses`,
+иначе `permission-denied` со списком чужих курсов). Чужие курсы студента при
+этом не трогаются: патч доливает только запрошенные `courseAccess[courseId]`,
+а роль `admin`/`super-admin` сохраняется. Сохранённые списки email
+(`getStudentEmailLists`, `saveStudentEmailList`) остаются у super-admin и
+со-админа.
 
 ### Как работает
 
@@ -748,6 +795,7 @@ Rules читают `editableCourses` из токена запроса, а ток
   - Обработка идёт параллельно чанками по 10 email
 - **`getStudentEmailLists`** — получение сохранённых списков email
 - **`saveStudentEmailList`** — сохранение списка для повторного использования
+- **`getCourseStudents`** — кто уже на курсе (см. «Студенты курса» выше)
 
 ### Pending-приглашения
 
@@ -767,7 +815,8 @@ users/pending_{base64url(email)}
 - **`src/components/BulkStudentAccessModal.tsx`** — UI модалки
 - **`src/lib/adminFunctions.ts`** — клиентские обёртки Cloud Functions
 - **`functions/src/bulkEnrollment.ts`** — Cloud Functions
-- **`functions/src/lib/shared.ts`** — общие утилиты (`toPendingUid`, `extractCourseAccess`, `normalizeEmailList`)
+- **`functions/src/courseStudents.ts`** — `getCourseStudents`
+- **`functions/src/lib/shared.ts`** — общие утилиты (`toPendingUid`, `extractCourseAccess`, `normalizeEmailList`) и проверки прав (`ensureUserManager`, `ensureCanEditCourse`)
 
 ## Известные проблемы
 
