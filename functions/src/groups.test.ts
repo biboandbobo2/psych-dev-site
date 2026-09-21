@@ -81,23 +81,48 @@ function regularCtx(uid = 'regular-uid', email = 'user@example.com') {
   return { auth: { uid, token: { email } } };
 }
 
+function coAdminCtx(uid = 'co-uid') {
+  return { auth: { uid, token: { email: 'co@example.com', coAdmin: true } } };
+}
+
 // ── Tests ───────────────────────────────────────────────────────
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-// ── assertSuperAdmin (tested indirectly) ─────────────────────
+// ── ensureUserManager (tested indirectly) ────────────────────
 
-describe('auth checks (assertSuperAdmin)', () => {
+describe('auth checks (ensureUserManager)', () => {
   it('throws unauthenticated when no auth', async () => {
     await expect((createGroup as Function)({ data: {} })).rejects.toThrow('Требуется авторизация');
   });
 
-  it('throws permission-denied for non-super-admin', async () => {
+  it('throws permission-denied for a regular user', async () => {
     await expect((createGroup as Function)({ data: { name: 'g' }, ...regularCtx() })).rejects.toThrow(
-      'Только super-admin',
+      'Только super-admin или со-админ',
     );
+  });
+
+  it('rejects a course admin: потоки — зона менеджера пользователей', async () => {
+    const ctx = { auth: { uid: 'author-uid', token: { email: 'a@e.com', role: 'admin', editableCourses: ['external-x'] } } };
+    await expect((createGroup as Function)({ data: { name: 'g' }, ...ctx })).rejects.toThrow(
+      'Только super-admin или со-админ',
+    );
+  });
+
+  it('co-admin manages groups: audit-поля пишут его uid', async () => {
+    mockAdd.mockResolvedValue({ id: 'g-co' });
+    mockUpdate.mockResolvedValue(undefined);
+
+    await (createGroup as Function)({ data: { name: 'Поток со-админа' }, ...coAdminCtx() });
+    expect(mockAdd.mock.calls[0][0].createdBy).toBe('co-uid');
+
+    await (setGroupMembers as Function)({ data: { groupId: 'g1', memberIds: ['a'] }, ...coAdminCtx() });
+    expect(mockUpdate.mock.calls[0][0].updatedBy).toBe('co-uid');
+
+    await (deleteGroup as Function)({ data: { groupId: 'g1' }, ...coAdminCtx() });
+    expect(mockDelete).toHaveBeenCalled();
   });
 });
 
@@ -442,6 +467,16 @@ describe('setGroupFeaturedCourses', () => {
     );
     const updates = mockUpdate.mock.calls[0][0];
     expect(updates.featuredCourseIds).toBe('__DELETE__');
+  });
+
+  it('allows co-admin without reading announcementAdminIds', async () => {
+    mockGetAll.mockResolvedValue([{ exists: true }]);
+    mockUpdate.mockResolvedValue(undefined);
+    const result = await (setGroupFeaturedCourses as Function)(
+      { data: { groupId: 'g1', courseIds: ['X'] }, ...coAdminCtx() },
+    );
+    expect(result.courseIds).toEqual(['X']);
+    expect(mockGet).not.toHaveBeenCalled();
   });
 
   it('allows announcement-admin caller', async () => {

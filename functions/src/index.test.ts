@@ -177,10 +177,32 @@ describe('toggleUserDisabled', () => {
     ).rejects.toThrow('Authentication required');
   });
 
-  it('rejects non-super-admin', async () => {
+  it('rejects a regular user', async () => {
     await expect(
       (toggleUserDisabled as Function)({ data: { targetUid: 'u1', disabled: true }, ...authedCtx() }),
-    ).rejects.toThrow('Только super-admin');
+    ).rejects.toThrow('Только super-admin или со-админ');
+  });
+
+  it('allows co-admin', async () => {
+    const coCtx = authedCtx('co-uid', { email: 'co@test.com', coAdmin: true });
+    const result = await (toggleUserDisabled as Function)({ data: { targetUid: 'u1', disabled: true }, ...coCtx });
+
+    expect(result.success).toBe(true);
+    expect(mockUpdateUser).toHaveBeenCalledWith('u1', { disabled: true });
+    expect(refFor('users/u1').set).toHaveBeenCalledWith(
+      expect.objectContaining({ disabledBy: 'co-uid' }),
+      { merge: true },
+    );
+  });
+
+  it('cannot disable the super-admin', async () => {
+    mockGetUser.mockResolvedValue({ email: SUPER_ADMIN_EMAIL, customClaims: {} });
+    const coCtx = authedCtx('co-uid', { email: 'co@test.com', coAdmin: true });
+
+    await expect(
+      (toggleUserDisabled as Function)({ data: { targetUid: 'owner-uid', disabled: true }, ...coCtx }),
+    ).rejects.toThrow('Нельзя отключить super-admin');
+    expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
   it('validates targetUid and disabled flag', async () => {

@@ -6,7 +6,7 @@ import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/
 import * as fnLogger from "firebase-functions/logger";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { SUPER_ADMIN_EMAIL, CALLABLE_OPTS } from "./lib/shared.js";
+import { SUPER_ADMIN_EMAIL, CALLABLE_OPTS, ensureUserManager } from "./lib/shared.js";
 
 /**
  * Интерфейс для карты доступа к курсам
@@ -21,7 +21,7 @@ interface CourseAccessMap {
 /**
  * updateCourseAccess - обновление доступа пользователя к курсам
  *
- * Только super-admin может вызывать эту функцию.
+ * Вызывают super-admin и со-админ (менеджер пользователей).
  * Используется для гранулярного управления доступом к видео-контенту.
  *
  * @param data.targetUid - UID пользователя
@@ -41,19 +41,8 @@ export const updateCourseAccess = onCall(CALLABLE_OPTS, async (request) => {
     throw new HttpsError("unauthenticated", "Authentication required");
   }
 
-  // Только super-admin может управлять доступом к курсам
-  const callerEmail = request.auth.token?.email;
-
-  if (callerEmail !== SUPER_ADMIN_EMAIL) {
-    fnLogger.error("❌ Caller is not super-admin", {
-      caller: request.auth.uid,
-      callerEmail,
-    });
-    throw new HttpsError(
-      "permission-denied",
-      "Only super-admin can manage course access"
-    );
-  }
+  // Доступом к курсам управляют владелец и его со-админ
+  ensureUserManager(request);
 
   const targetUid = request.data?.targetUid;
   const courseAccess = request.data?.courseAccess as CourseAccessMap | undefined;
