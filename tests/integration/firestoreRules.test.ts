@@ -28,6 +28,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
 } from 'firebase/firestore';
 
@@ -1463,6 +1464,260 @@ describe('page_visit_daily / page_visit_months: телеметрия посещ�
         { merge: true }
       )
     );
+  });
+});
+
+describe('accessRequests: заявки на доступ к курсу (AC-2)', () => {
+  const OWN_COURSE = 'demo-course';
+  const FOREIGN_COURSE = 'other-course';
+
+  const newRequest = (overrides: Record<string, unknown> = {}) => ({
+    uid: 'alice',
+    email: 'alice@example.com',
+    displayName: 'Alice',
+    courseId: OWN_COURSE,
+    message: 'Хочу на курс, учусь на психолога',
+    status: 'new',
+    createdAt: serverTimestamp(),
+    ...overrides,
+  });
+
+  const ctx = {
+    alice: () => testEnv.authenticatedContext('alice').firestore(),
+    mallory: () => testEnv.authenticatedContext('mallory').firestore(),
+    courseAdmin: () =>
+      testEnv
+        .authenticatedContext('lecturer-uid', { role: 'admin', editableCourses: [OWN_COURSE] })
+        .firestore(),
+    coAdmin: () =>
+      testEnv.authenticatedContext('co-uid', { role: 'student', coAdmin: true }).firestore(),
+    superAdmin: () =>
+      testEnv.authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL }).firestore(),
+  };
+
+  // Три вида заявок: свой курс админа, чужой курс и «не знаю / несколько».
+  const seedRequests = async () => {
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+      const db = c.firestore();
+      await setDoc(doc(db, 'accessRequests', 'req-own-course'), newRequest());
+      await setDoc(
+        doc(db, 'accessRequests', 'req-foreign-course'),
+        newRequest({ uid: 'bob', email: 'bob@example.com', courseId: FOREIGN_COURSE })
+      );
+      await setDoc(
+        doc(db, 'accessRequests', 'req-no-course'),
+        newRequest({ uid: 'carol', email: 'carol@example.com', courseId: null })
+      );
+    });
+  };
+
+  const resolution = (uid: string, status: 'approved' | 'declined' = 'approved') => ({
+    status,
+    resolvedAt: serverTimestamp(),
+    resolvedBy: uid,
+  });
+
+  it('аноним: create заявки → denied', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(db, 'accessRequests', 'r1'), newRequest()));
+  });
+
+  it('авторизованный: create своей заявки с курсом → success', async () => {
+    await assertSucceeds(setDoc(doc(ctx.alice(), 'accessRequests', 'r1'), newRequest()));
+  });
+
+  it('авторизованный: create заявки без курса («не знаю») → success', async () => {
+    await assertSucceeds(
+      setDoc(doc(ctx.alice(), 'accessRequests', 'r2'), newRequest({ courseId: null }))
+    );
+  });
+
+  it('авторизованный: create с пустым сообщением → success', async () => {
+    await assertSucceeds(
+      setDoc(doc(ctx.alice(), 'accessRequests', 'r3'), newRequest({ message: '' }))
+    );
+  });
+
+  it('авторизованный: create с чужим uid → denied', async () => {
+    await assertFails(setDoc(doc(ctx.alice(), 'accessRequests', 'r4'), newRequest({ uid: 'bob' })));
+  });
+
+  it('авторизованный: create сразу со статусом approved → denied', async () => {
+    await assertFails(
+      setDoc(doc(ctx.alice(), 'accessRequests', 'r5'), newRequest({ status: 'approved' }))
+    );
+  });
+
+  it('авторизованный: create с лишним ключом → denied', async () => {
+    await assertFails(
+      setDoc(doc(ctx.alice(), 'accessRequests', 'r6'), newRequest({ resolvedBy: 'alice' }))
+    );
+  });
+
+  it('авторизованный: create без обязательного ключа → denied', async () => {
+    const { displayName: _omitted, ...withoutDisplayName } = newRequest();
+    await assertFails(setDoc(doc(ctx.alice(), 'accessRequests', 'r7'), withoutDisplayName));
+  });
+
+  it('авторизованный: create с сообщением длиннее 1000 символов → denied', async () => {
+    await assertFails(
+      setDoc(doc(ctx.alice(), 'accessRequests', 'r8'), newRequest({ message: 'x'.repeat(1001) }))
+    );
+  });
+
+  it('авторизованный: create с клиентским createdAt → denied', async () => {
+    await assertFails(
+      setDoc(doc(ctx.alice(), 'accessRequests', 'r9'), newRequest({ createdAt: 'вчера' }))
+    );
+  });
+
+  it('авторизованный: create с courseId вне формата slug → denied', async () => {
+    await assertFails(
+      setDoc(doc(ctx.alice(), 'accessRequests', 'r10'), newRequest({ courseId: 'курс/../hack' }))
+    );
+    await assertFails(
+      setDoc(doc(ctx.alice(), 'accessRequests', 'r11'), newRequest({ courseId: 'x'.repeat(81) }))
+    );
+  });
+
+  it('автор заявки: читает свою и находит её списком по uid', async () => {
+    await seedRequests();
+    const db = ctx.alice();
+    await assertSucceeds(getDoc(doc(db, 'accessRequests', 'req-own-course')));
+    await assertSucceeds(
+      getDocs(query(collection(db, 'accessRequests'), where('uid', '==', 'alice')))
+    );
+  });
+
+  it('обычный пользователь: чужую заявку не читает и не листает коллекцию', async () => {
+    await seedRequests();
+    const db = ctx.mallory();
+    await assertFails(getDoc(doc(db, 'accessRequests', 'req-own-course')));
+    await assertFails(getDocs(collection(db, 'accessRequests')));
+    await assertFails(getDocs(query(collection(db, 'accessRequests'), where('uid', '==', 'alice'))));
+  });
+
+  it('супер-админ: читает все новые заявки и закрывает любую', async () => {
+    await seedRequests();
+    const db = ctx.superAdmin();
+    await assertSucceeds(
+      getDocs(query(collection(db, 'accessRequests'), where('status', '==', 'new')))
+    );
+    await assertSucceeds(getDoc(doc(db, 'accessRequests', 'req-no-course')));
+    await assertSucceeds(
+      updateDoc(doc(db, 'accessRequests', 'req-foreign-course'), resolution('super-uid'))
+    );
+  });
+
+  it('со-админ: читает все новые заявки и отклоняет любую', async () => {
+    await seedRequests();
+    const db = ctx.coAdmin();
+    await assertSucceeds(
+      getDocs(query(collection(db, 'accessRequests'), where('status', '==', 'new')))
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, 'accessRequests', 'req-no-course'), resolution('co-uid', 'declined'))
+    );
+  });
+
+  it('админ курса: list только с фильтром по своему курсу', async () => {
+    await seedRequests();
+    const db = ctx.courseAdmin();
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db, 'accessRequests'),
+          where('status', '==', 'new'),
+          where('courseId', '==', OWN_COURSE)
+        )
+      )
+    );
+    await assertFails(
+      getDocs(query(collection(db, 'accessRequests'), where('status', '==', 'new')))
+    );
+    await assertFails(
+      getDocs(
+        query(
+          collection(db, 'accessRequests'),
+          where('status', '==', 'new'),
+          where('courseId', '==', FOREIGN_COURSE)
+        )
+      )
+    );
+  });
+
+  it('админ курса: заявку чужого курса и заявку без курса не читает', async () => {
+    await seedRequests();
+    const db = ctx.courseAdmin();
+    await assertSucceeds(getDoc(doc(db, 'accessRequests', 'req-own-course')));
+    await assertFails(getDoc(doc(db, 'accessRequests', 'req-foreign-course')));
+    await assertFails(getDoc(doc(db, 'accessRequests', 'req-no-course')));
+  });
+
+  it('админ курса: закрывает заявку своего курса, но не чужую и не без курса', async () => {
+    await seedRequests();
+    const db = ctx.courseAdmin();
+    await assertSucceeds(
+      updateDoc(doc(db, 'accessRequests', 'req-own-course'), resolution('lecturer-uid'))
+    );
+    await assertFails(
+      updateDoc(doc(db, 'accessRequests', 'req-foreign-course'), resolution('lecturer-uid'))
+    );
+    await assertFails(
+      updateDoc(doc(db, 'accessRequests', 'req-no-course'), resolution('lecturer-uid'))
+    );
+  });
+
+  it('закрытие заявки: чужой resolvedBy и статус вне словаря → denied', async () => {
+    await seedRequests();
+    const db = ctx.superAdmin();
+    await assertFails(
+      updateDoc(doc(db, 'accessRequests', 'req-own-course'), resolution('lecturer-uid'))
+    );
+    await assertFails(
+      updateDoc(doc(db, 'accessRequests', 'req-own-course'), {
+        status: 'new',
+        resolvedAt: serverTimestamp(),
+        resolvedBy: 'super-uid',
+      })
+    );
+  });
+
+  it('подмена текста, автора или курса заявки → denied даже супер-админу', async () => {
+    await seedRequests();
+    const db = ctx.superAdmin();
+    await assertFails(
+      updateDoc(doc(db, 'accessRequests', 'req-own-course'), {
+        ...resolution('super-uid'),
+        message: 'переписанная заявка',
+      })
+    );
+    await assertFails(
+      updateDoc(doc(db, 'accessRequests', 'req-own-course'), {
+        ...resolution('super-uid'),
+        uid: 'mallory',
+      })
+    );
+    await assertFails(
+      updateDoc(doc(db, 'accessRequests', 'req-own-course'), {
+        ...resolution('super-uid'),
+        courseId: FOREIGN_COURSE,
+      })
+    );
+  });
+
+  it('автор заявки: собственную заявку не одобряет и не удаляет', async () => {
+    await seedRequests();
+    const db = ctx.alice();
+    await assertFails(updateDoc(doc(db, 'accessRequests', 'req-own-course'), resolution('alice')));
+    await assertFails(deleteDoc(doc(db, 'accessRequests', 'req-own-course')));
+  });
+
+  it('delete: только супер-админ', async () => {
+    await seedRequests();
+    await assertFails(deleteDoc(doc(ctx.coAdmin(), 'accessRequests', 'req-own-course')));
+    await assertFails(deleteDoc(doc(ctx.courseAdmin(), 'accessRequests', 'req-own-course')));
+    await assertSucceeds(deleteDoc(doc(ctx.superAdmin(), 'accessRequests', 'req-own-course')));
   });
 });
 
