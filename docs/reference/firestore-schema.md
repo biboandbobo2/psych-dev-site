@@ -73,8 +73,7 @@ interface User {
   altegClientIds?: number[];              // Cache связок с alteg.io clients
   altegClientId?: number;                 // Legacy single-id (deprecated)
 
-  // BYOK для AI-фич (assistant, lectures, books)
-  geminiApiKey?: string;                  // Пользовательский Gemini API key
+  // BYOK-ключ Gemini здесь НЕ хранится — он в users/{uid}/private/settings
 
   // /home featured-курсы пользователя (max 3)
   featuredCourseIds?: string[];
@@ -144,6 +143,30 @@ interface User {
 }
 ```
 
+**Правила доступа:** read — владелец, супер-админ и со-админ (он ведёт
+пользователей и потоки). Админ курса (внешний автор с claim `editableCourses`)
+чужие профили **не читает**: список своих студентов он получает callable-функцией
+`getCourseStudents` (uid, имя, почта, аватар, `lastLoginAt`, `pendingRegistration`,
+`disabled` — и ничего больше). Update — владелец и супер-админ; delete — супер-админ.
+
+### `users/{userId}/private/settings`
+
+Приватные настройки пользователя. Сюда переехал BYOK-ключ Gemini из корневого
+документа — его не должен видеть никто, включая супер-админа.
+
+```typescript
+interface UserPrivateSettings {
+  geminiApiKey?: string;                  // Пользовательский Gemini API key (BYOK)
+}
+```
+
+**Правила доступа:** read/write — **только владелец** (`isOwner(userId)`).
+Супер-админ и со-админ доступа не имеют.
+
+Legacy-хвост в корневом `users/{uid}.geminiApiKey` мигрирует лениво при входе
+(`src/stores/useAuthStore.ts`); остаток добирается разово скриптом
+`scripts/migrateGeminiKeysToPrivate.ts`.
+
 ### `users/{userId}/courseProgress/{courseId}`
 
 Прогресс просмотра курса (multi-device sync поверх localStorage): `watchedLessonIds[]`, resume point видео, last-lesson. Источник истины по типам — `src/lib/courseProgress/types.ts`.
@@ -174,6 +197,10 @@ interface Group {
 **Кто управляет:** super-admin и со-админ (`createGroup`, `updateGroup`,
 `setGroupMembers`, `addGroupMembersByEmail`, `deleteGroup`); `featuredCourseIds`
 дополнительно — админ из `announcementAdminIds` группы.
+
+**Правила доступа:** read — админы, участники группы и админы из
+`announcementAdminIds`; create/update/delete — супер-админ и со-админ (клиент
+ходит через Cloud Functions, rules согласованы с правами со-админа).
 
 См. [docs/guides/multi-course.md](../guides/multi-course.md).
 
@@ -1107,6 +1134,8 @@ interface PageVisitMonthDoc {
 1. **Приватность по умолчанию**
    - Пользователи видят только свои данные (заметки, результаты тестов, таймлайны)
    - Правило: `request.auth.uid == resource.data.userId`
+   - `users/{uid}` читают владелец, супер-админ и со-админ; `users/{uid}/private/*`
+     — только владелец
 
 2. **Контент доступен всем для чтения**
    - `periods`, `clinical-topics`, `general-topics`, `pages` — чтение для всех
@@ -1128,10 +1157,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Пользователи видят только свой профиль
+    // Профиль: владелец, супер-админ и со-админ; приватные настройки
+    // (BYOK-ключ) — только владелец
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId) || isSuperAdmin() || isCoAdmin();
+      allow update: if isOwner(userId) || isSuperAdmin();
+
+      match /private/{docId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // Заметки приватные

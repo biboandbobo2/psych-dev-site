@@ -83,12 +83,6 @@ export function UserRow({
                     invite
                   </span>
                 )}
-                {user.geminiApiKey && (
-                  <span
-                    className="inline-block w-2 h-2 rounded-full bg-emerald-500"
-                    title="Свой API ключ Gemini"
-                  />
-                )}
               </div>
               <div className="text-sm text-gray-500">UID: {user.uid.substring(0, 8)}...</div>
             </div>

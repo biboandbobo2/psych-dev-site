@@ -858,6 +858,114 @@ describe('sharedLectureNotes: расшаренные фрагменты конс
   });
 });
 
+describe('users: персональные данные читают только владелец, супер-админ и со-админ', () => {
+  const ctx = {
+    alice: () => testEnv.authenticatedContext('alice').firestore(),
+    courseAdmin: () =>
+      testEnv
+        .authenticatedContext('lecturer-uid', { role: 'admin', editableCourses: ['development'] })
+        .firestore(),
+    coAdmin: () =>
+      testEnv.authenticatedContext('co-uid', { role: 'student', coAdmin: true }).firestore(),
+    superAdmin: () =>
+      testEnv.authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL }).firestore(),
+  };
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+      const db = c.firestore();
+      await setDoc(doc(db, 'users', 'alice'), {
+        email: 'alice@example.com',
+        displayName: 'Alice',
+        phone: '+70000000000',
+      });
+      await setDoc(doc(db, 'users', 'alice', 'private', 'settings'), {
+        geminiApiKey: 'AIzaSyTOPSECRET',
+      });
+    });
+  });
+
+  it('владелец читает свой документ', async () => {
+    await assertSucceeds(getDoc(doc(ctx.alice(), 'users', 'alice')));
+  });
+
+  it('админ курса НЕ читает чужой users/{uid} (утечка почт и телефонов)', async () => {
+    await assertFails(getDoc(doc(ctx.courseAdmin(), 'users', 'alice')));
+    await assertFails(getDocs(collection(ctx.courseAdmin(), 'users')));
+  });
+
+  it('со-админ читает чужой users/{uid}', async () => {
+    await assertSucceeds(getDoc(doc(ctx.coAdmin(), 'users', 'alice')));
+    await assertSucceeds(getDocs(collection(ctx.coAdmin(), 'users')));
+  });
+
+  it('супер-админ читает чужой users/{uid}', async () => {
+    await assertSucceeds(getDoc(doc(ctx.superAdmin(), 'users', 'alice')));
+  });
+
+  it('обычный пользователь не читает чужой users/{uid}', async () => {
+    const mallory = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(getDoc(doc(mallory, 'users', 'alice')));
+  });
+
+  it('private/settings (BYOK-ключ) читает и пишет только владелец', async () => {
+    await assertSucceeds(getDoc(doc(ctx.alice(), 'users', 'alice', 'private', 'settings')));
+    await assertSucceeds(
+      setDoc(
+        doc(ctx.alice(), 'users', 'alice', 'private', 'settings'),
+        { geminiApiKey: 'AIzaSyNEW' },
+        { merge: true }
+      )
+    );
+
+    await assertFails(getDoc(doc(ctx.courseAdmin(), 'users', 'alice', 'private', 'settings')));
+    await assertFails(getDoc(doc(ctx.coAdmin(), 'users', 'alice', 'private', 'settings')));
+    await assertFails(getDoc(doc(ctx.superAdmin(), 'users', 'alice', 'private', 'settings')));
+    await assertFails(
+      setDoc(doc(ctx.superAdmin(), 'users', 'alice', 'private', 'settings'), {
+        geminiApiKey: 'AIzaSyHIJACK',
+      })
+    );
+  });
+
+  it('обычный админ больше не правит чужой users/{uid}', async () => {
+    await assertFails(
+      setDoc(doc(ctx.courseAdmin(), 'users', 'alice'), { displayName: 'Взлом' }, { merge: true })
+    );
+  });
+});
+
+describe('groups: потоки ведёт супер-админ и со-админ', () => {
+  it('со-админ создаёт и правит группу', async () => {
+    const coAdmin = testEnv
+      .authenticatedContext('co-uid', { role: 'student', coAdmin: true })
+      .firestore();
+    await assertSucceeds(
+      setDoc(doc(coAdmin, 'groups', 'g-new'), {
+        name: 'Новый поток',
+        memberIds: [],
+        announcementAdminIds: [],
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(coAdmin, 'groups', 'g1'), { name: 'Переименован' }, { merge: true })
+    );
+  });
+
+  it('админ курса группу не создаёт', async () => {
+    const courseAdmin = testEnv
+      .authenticatedContext('lecturer-uid', { role: 'admin', editableCourses: ['development'] })
+      .firestore();
+    await assertFails(
+      setDoc(doc(courseAdmin, 'groups', 'g-hijack'), {
+        name: 'Чужой поток',
+        memberIds: [],
+        announcementAdminIds: [],
+      })
+    );
+  });
+});
+
 describe('courseProgress: прогресс просмотров для лекторов курса', () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {

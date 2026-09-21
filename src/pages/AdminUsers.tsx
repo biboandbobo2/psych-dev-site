@@ -13,7 +13,7 @@ type UserFilter = 'all' | 'students' | 'admins' | 'guests';
 
 export default function AdminUsers() {
   const { users, loading, error } = useAllUsers();
-  const { user: currentUser, isAdmin, isSuperAdmin } = useAuth();
+  const { user: currentUser, isCoAdmin, isSuperAdmin } = useAuth();
   const { courses } = useCourses({ includeUnpublished: true });
   const courseOptions = useMemo(
     () => courses.map((course) => ({ id: course.id, name: course.name })),
@@ -42,13 +42,13 @@ export default function AdminUsers() {
     availableCourseIds: courseOptions.map((c) => c.id),
   });
 
-  if (!isAdmin) {
+  if (!isCoAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4 text-center">
         <div className="max-w-md space-y-3">
           <h1 className="text-2xl font-semibold text-gray-900">Доступ запрещён</h1>
           <p className="text-gray-600">
-            Управление пользователями доступно только администраторам платформы.
+            Управление пользователями доступно супер-админу и со-админам.
           </p>
         </div>
       </div>

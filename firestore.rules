@@ -46,24 +46,23 @@ service cloud.firestore {
       );
     }
 
-    function isValidStudentStream(stream) {
-      return stream in ['first', 'second', 'none'];
-    }
-
-    function isAdminStudentStreamUpdate() {
-      return isAdmin() &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['studentStream', 'studentStreamUpdatedAt', 'studentStreamUpdatedBy']) &&
-        !(resource.data.get('role', '') in ['admin', 'super-admin']) &&
-        isValidStudentStream(request.resource.data.studentStream) &&
-        request.resource.data.studentStreamUpdatedBy == request.auth.uid;
-    }
-
+    // Персональные данные (email, телефон, alteg.io-связки). Читают только
+    // владелец, супер-админ и со-админ — «помощник владельца», который ведёт
+    // пользователей и потоки. Админ курса (внешний автор с claim
+    // `editableCourses`) чужие документы НЕ читает: свой список студентов он
+    // получает callable-функцией `getCourseStudents`, которая отдаёт только
+    // имя/почту/аватар участников его курса.
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
+      allow read: if isOwner(userId) || isSuperAdmin() || isCoAdmin();
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isOwner(userId) || isSuperAdmin() || isAdminStudentStreamUpdate();
+      allow update: if isOwner(userId) || isSuperAdmin();
       allow delete: if isSuperAdmin();
+
+      // Приватные настройки пользователя: сюда переехал BYOK-ключ Gemini
+      // (`geminiApiKey`). Доступ — только владелец, супер-админ тоже не читает.
+      match /private/{docId} {
+        allow read, write: if isOwner(userId);
+      }
 
       // Прогресс просмотра курсов (resume point, last-lesson, watched).
       // Один документ на курс. Multi-device: clients пишут гибридно
@@ -81,7 +80,9 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
-    // Группы студентов (потоки). Создание/редактирование — супер-админ.
+    // Группы студентов (потоки). Создание/редактирование — супер-админ и
+    // со-админ (он ведёт пользователей и потоки; клиент ходит через Cloud
+    // Functions, но rules держим согласованными с его правами).
     // Чтение — любые админы (для управления), участники группы и админы,
     // назначенные писать объявления этой группе (announcementAdminIds).
     match /groups/{groupId} {
@@ -108,7 +109,7 @@ service cloud.firestore {
       }
 
       allow read: if canReadGroup();
-      allow create, update, delete: if isSuperAdmin();
+      allow create, update, delete: if isSuperAdmin() || isCoAdmin();
 
       // Объявления группы «Все» читаются публично (anonymous) — это
       // новости платформы, которые видят все гости /home. Для любой

@@ -206,7 +206,7 @@
 | `/admin` | `AdminLanding` → `AuthorCabinet` | Admin | Super Admin — редирект на `/superadmin`; Admin — кабинет автора: карточки своих курсов со сводкой и ссылками на контент / вопросы / телеметрию / «О курсе» | ✅ |
 | `/superadmin` | `Admin` | Super Admin | Главная админ-панель | ✅ |
 | `/coadmin` | `CoAdmin` | флаг `coAdmin === true` | Лендинг для со-админа: ссылка на редактор страниц DOM Academy | ✅ |
-| `/admin/users` | `AdminUsers` | Super Admin | Управление пользователями и ролями | ✅ |
+| `/admin/users` | `AdminUsers` | Super Admin / Co-admin | Управление пользователями и ролями | ✅ |
 | `/admin/archive` | `AdminArchive` | Super Admin | Утилиты: диагностика токенов, загрузка ассетов, seed-admin | ✅ |
 | `/migrate-topics` | `MigrateTopics` | Super Admin | Миграция тем в Firestore | ✅ |
 
@@ -237,12 +237,12 @@
 | `/admin/topics` | `AdminTopics` | Admin | Управление темами для заметок | ✅ |
 | `/admin/books` | `AdminBooks` | Admin | Управление книгами для RAG-поиска | ✅ |
 | `/admin/announcements` | `AdminAnnouncements` | Admin | События/объявления (calendar-style UX) | ✅ |
-| `/admin/groups` | `AdminGroups` | Admin | Группы пользователей (потоки/featuredCourses) | ✅ |
+| `/admin/groups` | `AdminGroups` | Super Admin / Co-admin | Группы пользователей (потоки/featuredCourses) | ✅ |
 | `/admin/content/course-intro/:courseId` | `AdminCourseIntro` | Admin | Редактор вводной страницы курса | ✅ |
 | `/superadmin/pages` | `AdminPagesList` | флаг `coAdmin` (включая super-admin) | Список редактируемых статических страниц (`/about` + проекты) | ✅ |
 | `/superadmin/pages/about` | `AdminAboutPageEditor` | флаг `coAdmin` | Редактор `pages/about` — 6 фиксированных вкладок | ✅ |
 | `/superadmin/pages/projects/:slug` | `AdminProjectPageEditor` | флаг `coAdmin` | Редактор `projectPages/{slug}` (создание/редактирование/удаление) | ✅ |
-| `/superadmin/exams` | `AdminExams` | Super Admin | Управление экзаменами и слотами бронирования (см. [docs/guides/exam-booking.md](../guides/exam-booking.md)) | ✅ |
+| `/superadmin/exams` | `AdminExams` | Super Admin / Co-admin | Управление экзаменами и слотами бронирования (см. [docs/guides/exam-booking.md](../guides/exam-booking.md)) | ✅ |
 | `/admin/telemetry` | `AdminTelemetry` | Admin | Сводка продуктовой телеметрии `feature_events` по своим курсам (`editableCourses`) | ✅ |
 | `/superadmin/telemetry` | `AdminTelemetry` | Admin (полный объём — Super Admin) | Тот же компонент: super-admin видит все курсы и блок «Посещения страниц» (PV-1), админ курса — только свои события (см. [docs/guides/product-telemetry.md](../guides/product-telemetry.md)) | ✅ |
 
@@ -319,14 +319,15 @@
 | **Student** | Базовый доступ (есть хотя бы один courseAccess) | + `/profile`, `/notes`, `/tests`, `/tests-lesson`, `/timeline`, `/research` |
 | **Student + courseAccess.clinical** | Клиническая психология | + `/clinical/*`, `/disorder-table` |
 | **Student + courseAccess.general** | Общая психология | + `/general/*` |
-| **Admin** | Редактирование контента **только своих курсов** (claim `editableCourses`) | + `/admin/content`, `/admin/content/edit/*`, `/admin/content/course-intro/*`, `/admin/topics`, `/admin/books`, `/admin/announcements`, `/admin/groups`, `/admin/telemetry` |
-| **Super Admin** | Полный доступ | + `/superadmin`, `/superadmin/pages/*`, `/superadmin/telemetry`, `/admin/users`, `/admin/archive`, `/migrate-topics` |
+| **Admin** | Редактирование контента **только своих курсов** (claim `editableCourses`); чужие профили `users/*` не читает — свои студенты приходят из callable `getCourseStudents` | + `/admin/content`, `/admin/content/edit/*`, `/admin/content/course-intro/*`, `/admin/topics`, `/admin/books`, `/admin/announcements`, `/admin/telemetry` |
+| **Co-admin** (флаг `coAdmin`, параллельно любой роли) | Помощник владельца: ведёт пользователей и потоки, редактирует страницы DOM Academy | + `/coadmin`, `/superadmin/pages/*`, `/admin/users`, `/admin/groups`, `/superadmin/exams` |
+| **Super Admin** | Полный доступ (всегда co-admin) | + `/superadmin`, `/superadmin/pages/*`, `/superadmin/telemetry`, `/admin/users`, `/admin/groups`, `/superadmin/exams`, `/admin/archive`, `/migrate-topics` |
 
 Admin администрирует только курсы из `editableCourses`: список курсов, редакторы, дропдауны и телеметрия ограничены ими, чужой курс недоступен даже по прямой ссылке. Подробности — [docs/guides/multi-course.md → Кабинет автора](../guides/multi-course.md#кабинет-автора).
 
 ### Гранулярный доступ к курсам
 
-Super Admin может выдать студенту доступ к отдельным курсам через `/admin/users`:
+Super Admin и со-админ могут выдать студенту доступ к отдельным курсам через `/admin/users`:
 
 ```typescript
 // Firestore: users/{userId}

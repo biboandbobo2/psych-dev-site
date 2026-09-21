@@ -44,6 +44,7 @@ vi.mock('../../auth/AuthProvider', () => ({
     user: { uid: 'u3', email: 'super@example.com' },
     isAdmin: true,
     isSuperAdmin: true,
+    isCoAdmin: true,
   }),
 }));
 

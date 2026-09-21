@@ -19,8 +19,6 @@ export interface UserRecord {
   courseAccess?: CourseAccessMap;
   /** Пользователь отключён (не может войти, но данные сохранены) */
   disabled?: boolean;
-  /** API ключ Gemini пользователя (BYOK) */
-  geminiApiKey?: string;
   /** Пользователь приглашён массово, но ещё не зарегистрировался */
   pendingRegistration?: boolean;
   createdAt: any;
@@ -31,10 +29,10 @@ export function useAllUsers() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { isAdmin } = useAuth();
+  const { isCoAdmin } = useAuth();
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (!isCoAdmin) {
       setUsers([]);
       setLoading(false);
       return;
@@ -59,7 +57,7 @@ export function useAllUsers() {
     );
 
     return () => unsubscribe();
-  }, [isAdmin]);
+  }, [isCoAdmin]);
 
   return { users, loading, error };
 }

@@ -662,7 +662,9 @@ export function useActiveCourse(courses: CourseOption[], loading: boolean): stri
 | `users/{uid}.adminEditableCourses` | Firestore | Зеркало claim'а; обновляется мгновенно, поэтому первым отражает отзыв прав |
 
 Оба поля пишет одна Cloud Function `makeUserAdmin` (`functions/src/makeAdmin.ts`,
-вызывается из `AddAdminModal` на `/admin/users`, только super-admin); список
+вызывается из `AddAdminModal` на `/admin/users` — саму страницу открывает
+super-admin и со-админ, но выдачу админских прав функция по-прежнему пускает
+только от super-admin); список
 курсов обязателен и не может быть пустым, `removeAdmin` снимает и claim, и поле.
 Сведение источников — в `src/stores/useAuthStore.ts`: claim читается из
 кешированного токена, затем из фонового `getIdTokenResult(true)` (хелпер
@@ -782,7 +784,7 @@ Rules читают `editableCourses` из токена запроса, а ток
 
 ### Как работает
 
-1. Super-admin открывает `/admin/users` → «Массово открыть курсы»
+1. Super-admin открывает `/admin/users` (страница доступна ещё и со-админу) → «Массово открыть курсы»
 2. Вводит список email (через запятую, новую строку или `;`)
 3. Выбирает курсы для открытия
 4. Нажимает «Применить»

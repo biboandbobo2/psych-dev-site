@@ -197,9 +197,9 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route
           path="/superadmin/exams"
           element={
-            <RequireAdmin>
+            <RequireCoAdmin>
               <AdminExams />
-            </RequireAdmin>
+            </RequireCoAdmin>
           }
         />
         <Route
@@ -223,9 +223,9 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route
           path="/admin/groups"
           element={
-            <RequireAdmin>
+            <RequireCoAdmin>
               <AdminGroups />
-            </RequireAdmin>
+            </RequireCoAdmin>
           }
         />
         <Route
@@ -342,9 +342,9 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route
           path="/admin/users"
           element={
-            <RequireAdmin>
+            <RequireCoAdmin>
               <AdminUsers />
-            </RequireAdmin>
+            </RequireCoAdmin>
           }
         />
         {isSuperAdmin && (
