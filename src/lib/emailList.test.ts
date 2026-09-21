@@ -1,16 +1,5 @@
 import { describe, it, expect } from 'vitest';
-
-// Re-implement the function here to test it in isolation.
-// After refactoring, this will import from the actual module.
-const splitEmails = (value: string): string[] => {
-  const dedupe = new Set<string>();
-  value
-    .split(/[\n,;\s]+/g)
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean)
-    .forEach((email) => dedupe.add(email));
-  return Array.from(dedupe);
-};
+import { isValidEmail, splitEmails } from './emailList';
 
 describe('splitEmails', () => {
   it('splits by newline', () => {
@@ -49,5 +38,17 @@ describe('splitEmails', () => {
     expect(splitEmails('')).toEqual([]);
     expect(splitEmails('   ')).toEqual([]);
     expect(splitEmails(',,,;;;\n\n')).toEqual([]);
+  });
+});
+
+describe('isValidEmail', () => {
+  it('принимает обычный адрес', () => {
+    expect(isValidEmail('student@example.com')).toBe(true);
+  });
+
+  it('отбивает то, что сервер всё равно отбросит', () => {
+    expect(isValidEmail('student')).toBe(false);
+    expect(isValidEmail('student@example')).toBe(false);
+    expect(isValidEmail('@example.com')).toBe(false);
   });
 });

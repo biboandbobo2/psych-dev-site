@@ -5,6 +5,7 @@ import {
   saveStudentEmailList,
   type StudentEmailList,
 } from "../lib/adminFunctions";
+import { splitEmails } from "../lib/emailList";
 
 interface CourseOption {
   id: string;
@@ -16,16 +17,6 @@ interface BulkStudentAccessModalProps {
   onClose: () => void;
   courseOptions: CourseOption[];
 }
-
-const splitEmails = (value: string): string[] => {
-  const dedupe = new Set<string>();
-  value
-    .split(/[\n,;\s]+/g)
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean)
-    .forEach((email) => dedupe.add(email));
-  return Array.from(dedupe);
-};
 
 export function BulkStudentAccessModal({ isOpen, onClose, courseOptions }: BulkStudentAccessModalProps) {
   const [lists, setLists] = useState<StudentEmailList[]>([]);
