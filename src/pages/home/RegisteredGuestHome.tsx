@@ -100,8 +100,9 @@ export function RegisteredGuestHome() {
       <section className="rounded-2xl border border-border bg-card2 p-6 shadow-brand">
         <h2 className="text-xl font-bold text-fg">Как получить доступ</h2>
         <p className="mt-2 text-sm text-muted">
-          Напишите нам любым удобным способом — мы откроем нужный курс. Укажите email, с которым вы
-          зарегистрированы.
+          {pendingRequest
+            ? 'Заявка у нас, ответим на email, с которым вы зарегистрированы. Если срочно — напишите в Telegram.'
+            : 'Напишите нам любым удобным способом — мы откроем нужный курс. Укажите email, с которым вы зарегистрированы.'}
         </p>
         {pendingRequest ? (
           <p className="mt-4 rounded-xl border border-accent/30 bg-accent-100 px-4 py-3 text-sm font-semibold text-accent">
