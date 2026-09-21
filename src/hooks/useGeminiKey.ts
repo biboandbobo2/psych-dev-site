@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { doc, updateDoc, deleteField } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, deleteField } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { useAuthStore } from '../stores/useAuthStore';
 import { reportAppError } from '../lib/errorHandler';
@@ -24,7 +24,9 @@ interface UseGeminiKeyReturn {
 }
 
 /**
- * Хук для управления пользовательским API ключом Gemini (BYOK)
+ * Хук для управления пользовательским API ключом Gemini (BYOK).
+ * Ключ живёт в приватном поддокументе `users/{uid}/private/settings` —
+ * его не читает никто, кроме владельца (включая супер-админа).
  */
 export function useGeminiKey(): UseGeminiKeyReturn {
   const user = useAuthStore((s) => s.user);
@@ -142,10 +144,11 @@ export function useGeminiKey(): UseGeminiKeyReturn {
       setStatus('saving');
       debugLog('[useGeminiKey] Saving key to Firestore...');
 
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        geminiApiKey: trimmedKey,
-      });
+      await setDoc(
+        doc(db, 'users', user.uid, 'private', 'settings'),
+        { geminiApiKey: trimmedKey },
+        { merge: true }
+      );
 
       debugLog('[useGeminiKey] Key saved successfully');
       setStatus('success');
@@ -182,8 +185,7 @@ export function useGeminiKey(): UseGeminiKeyReturn {
       setError(null);
       debugLog('[useGeminiKey] Removing key from Firestore...');
 
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
+      await updateDoc(doc(db, 'users', user.uid, 'private', 'settings'), {
         geminiApiKey: deleteField(),
       });
 
