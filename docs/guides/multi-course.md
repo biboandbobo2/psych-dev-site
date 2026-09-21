@@ -821,16 +821,28 @@ Rules читают `editableCourses` из токена запроса, а ток
 свои** (каждый `courseId` запроса должен быть в его claim `editableCourses`,
 иначе `permission-denied` со списком чужих курсов). Чужие курсы студента при
 этом не трогаются: патч доливает только запрошенные `courseAccess[courseId]`,
-а роль `admin`/`super-admin` сохраняется. Сохранённые списки email
-(`getStudentEmailLists`, `saveStudentEmailList`) остаются у super-admin и
-со-админа.
+а роль `admin`/`super-admin` сохраняется.
 
-### Как работает
+### Окно «Добавить» на `/admin/users`
 
-1. Super-admin открывает `/admin/users` (страница доступна ещё и со-админу) → «Массово открыть курсы»
-2. Вводит список email (через запятую, новую строку или `;`)
-3. Выбирает курсы для открытия
-4. Нажимает «Применить»
+Один ввод email (запятая, `;`, пробел или перевод строки; нормализация к
+lower-case, дедупликация, проверка формата) и три режима — что именно открыть:
+
+| Режим | Cloud Function | Кому |
+|---|---|---|
+| **В поток** (по умолчанию) | `addGroupMembersByEmail({ groupId, emails })` | super-admin, со-админ |
+| **Курсы лично** | `bulkEnrollStudents({ emails, courseIds })` | super-admin, со-админ |
+| **Права администратора курса** | `makeUserAdmin({ targetEmail, editableCourses })` по каждому email | только super-admin |
+
+Результат — inline-сводка (сколько добавлено, сколько ждёт регистрации, ошибки
+по конкретным email), без `window.alert`. Единица доступа — поток: личный
+доступ остаётся для исключений. Поэтому **курсы, пришедшие из потока, меняются
+только в самом потоке** (вкладка «Потоки» → редактор группы), а личный доступ —
+тумблером «лично» в карточке пользователя.
+
+Сохранённые списки email (`getStudentEmailLists`, `saveStudentEmailList`)
+остались только как обёртки в `src/lib/adminFunctions.ts` — UI после редизайна
+их не вызывает.
 
 ### Cloud Functions
 
@@ -857,7 +869,8 @@ users/pending_{base64url(email)}
 
 ### Ключевые файлы
 
-- **`src/components/BulkStudentAccessModal.tsx`** — UI модалки
+- **`src/pages/admin/users/components/InviteModal.tsx`** — окно «Добавить»
+  (заменило `BulkStudentAccessModal`, `AddAdminModal`-кнопку и `AddCoAdminModal`)
 - **`src/lib/adminFunctions.ts`** — клиентские обёртки Cloud Functions
 - **`functions/src/bulkEnrollment.ts`** — Cloud Functions
 - **`functions/src/courseStudents.ts`** — `getCourseStudents`
