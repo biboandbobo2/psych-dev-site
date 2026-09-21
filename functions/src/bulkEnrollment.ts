@@ -1,8 +1,10 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import {
-  ensureSuperAdmin,
+  ensureUserManager,
+  isUserManager,
+  extractEditableCourses,
   toPendingUid,
   extractCourseAccess,
   normalizeEmailList,
@@ -28,6 +30,26 @@ interface StudentEmailListData {
   emails?: unknown;
 }
 
+/**
+ * Кто зачисляет студентов: менеджер пользователей (super-admin / со-админ) —
+ * на любые курсы, админ курса — только на свои. Возвращает true для менеджера,
+ * false для админа курса (его список курсов сверяется отдельно, после разбора
+ * запроса).
+ */
+function ensureEnrollmentCaller(request: Pick<CallableRequest, "auth">): boolean {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Требуется авторизация");
+  }
+  if (isUserManager(request)) return true;
+  if ((request.auth.token as { role?: unknown }).role !== "admin") {
+    throw new HttpsError(
+      "permission-denied",
+      "Зачислять студентов может super-admin, со-админ или администратор курса"
+    );
+  }
+  return false;
+}
+
 async function getValidCourseIds() {
   const firestore = getFirestore();
   const validCourseIds = new Set<string>(CORE_COURSE_IDS);
@@ -37,7 +59,7 @@ async function getValidCourseIds() {
 }
 
 export const getStudentEmailLists = onCall(CALLABLE_OPTS, async (request) => {
-  ensureSuperAdmin(request);
+  ensureUserManager(request);
 
   const firestore = getFirestore();
   const snapshot = await firestore
@@ -65,7 +87,7 @@ export const getStudentEmailLists = onCall(CALLABLE_OPTS, async (request) => {
 });
 
 export const saveStudentEmailList = onCall(CALLABLE_OPTS, async (request) => {
-  ensureSuperAdmin(request);
+  ensureUserManager(request);
   const data = request.data as StudentEmailListData;
 
   const name = typeof data?.name === "string" ? data.name.trim() : "";
@@ -94,7 +116,7 @@ export const saveStudentEmailList = onCall(CALLABLE_OPTS, async (request) => {
 });
 
 export const bulkEnrollStudents = onCall(CALLABLE_OPTS, async (request) => {
-  ensureSuperAdmin(request);
+  const isManager = ensureEnrollmentCaller(request);
   const data = request.data as BulkEnrollData;
 
   const emails = normalizeEmailList(data?.emails);
@@ -108,6 +130,19 @@ export const bulkEnrollStudents = onCall(CALLABLE_OPTS, async (request) => {
   }
   if (emails.length > 1000) {
     throw new HttpsError("invalid-argument", "Too many emails in one request (max 1000)");
+  }
+
+  // Админ курса приглашает только на свои курсы; чужие courseAccess студента
+  // при этом не трогаются — enrollmentPatch доливает только запрошенные курсы.
+  if (!isManager) {
+    const editable = new Set(extractEditableCourses(request));
+    const foreignCourseIds = courseIds.filter((courseId) => !editable.has(courseId));
+    if (foreignCourseIds.length) {
+      throw new HttpsError(
+        "permission-denied",
+        `Нет прав на курсы: ${foreignCourseIds.join(", ")}`
+      );
+    }
   }
 
   const validCourseIds = await getValidCourseIds();
