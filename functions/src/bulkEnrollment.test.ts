@@ -83,6 +83,15 @@ function superAdminCtx(uid = 'sa-uid') {
   return { auth: { uid, token: { email: SUPER_ADMIN_EMAIL } } };
 }
 
+function coAdminCtx(uid = 'co-uid') {
+  return { auth: { uid, token: { email: 'co@example.com', coAdmin: true } } };
+}
+
+/** Админ курса external-x (claim editableCourses). */
+function courseAdminCtx(uid = 'author-uid', editableCourses = ['external-x']) {
+  return { auth: { uid, token: { email: 'author@example.com', role: 'admin', editableCourses } } };
+}
+
 function authUserNotFound() {
   return Object.assign(new Error('user not found'), { code: 'auth/user-not-found' });
 }
@@ -100,16 +109,37 @@ beforeEach(() => {
 
 describe('bulkEnrollment auth checks', () => {
   it('all three callables reject unauthenticated calls', async () => {
-    await expect((getStudentEmailLists as Function)({ data: {} })).rejects.toThrow('Authentication required');
-    await expect((saveStudentEmailList as Function)({ data: {} })).rejects.toThrow('Authentication required');
-    await expect((bulkEnrollStudents as Function)({ data: {} })).rejects.toThrow('Authentication required');
+    await expect((getStudentEmailLists as Function)({ data: {} })).rejects.toThrow('Требуется авторизация');
+    await expect((saveStudentEmailList as Function)({ data: {} })).rejects.toThrow('Требуется авторизация');
+    await expect((bulkEnrollStudents as Function)({ data: {} })).rejects.toThrow('Требуется авторизация');
   });
 
-  it('all three callables reject non-super-admin', async () => {
+  it('all three callables reject a regular user', async () => {
     const ctx = { auth: { uid: 'u1', token: { email: 'user@example.com' } } };
-    await expect((getStudentEmailLists as Function)({ data: {}, ...ctx })).rejects.toThrow('Only super-admin');
-    await expect((saveStudentEmailList as Function)({ data: {}, ...ctx })).rejects.toThrow('Only super-admin');
-    await expect((bulkEnrollStudents as Function)({ data: {}, ...ctx })).rejects.toThrow('Only super-admin');
+    await expect((getStudentEmailLists as Function)({ data: {}, ...ctx })).rejects.toThrow(
+      'Только super-admin или со-админ',
+    );
+    await expect((saveStudentEmailList as Function)({ data: {}, ...ctx })).rejects.toThrow(
+      'Только super-admin или со-админ',
+    );
+    await expect((bulkEnrollStudents as Function)({ data: {}, ...ctx })).rejects.toThrow(
+      'Зачислять студентов может',
+    );
+  });
+
+  it('email lists stay closed to a course admin', async () => {
+    await expect((getStudentEmailLists as Function)({ data: {}, ...courseAdminCtx() })).rejects.toThrow(
+      'Только super-admin или со-админ',
+    );
+    await expect(
+      (saveStudentEmailList as Function)({ data: { name: 'X', emails: ['a@test.com'] }, ...courseAdminCtx() }),
+    ).rejects.toThrow('Только super-admin или со-админ');
+  });
+
+  it('co-admin passes where super-admin does', async () => {
+    state.listDocs = [];
+    const result = await (getStudentEmailLists as Function)({ data: {}, ...coAdminCtx() });
+    expect(result.lists).toEqual([]);
   });
 });
 
@@ -204,6 +234,56 @@ describe('bulkEnrollStudents input validation', () => {
       { data: { emails: ['a@test.com'], courseIds: ['development', 'custom-course'] }, ...superAdminCtx() },
     );
     expect(result.success).toBe(true);
+  });
+});
+
+describe('bulkEnrollStudents: админ курса приглашает на свои курсы', () => {
+  it('rejects courses outside editableCourses', async () => {
+    state.courses = ['external-x'];
+    await expect(
+      (bulkEnrollStudents as Function)({
+        data: { emails: ['a@test.com'], courseIds: ['external-x', 'development'] },
+        ...courseAdminCtx(),
+      }),
+    ).rejects.toThrow('Нет прав на курсы: development');
+  });
+
+  it('rejects an admin without editableCourses claim', async () => {
+    state.courses = ['external-x'];
+    await expect(
+      (bulkEnrollStudents as Function)({
+        data: { emails: ['a@test.com'], courseIds: ['external-x'] },
+        ...courseAdminCtx('empty-admin', []),
+      }),
+    ).rejects.toThrow('Нет прав на курсы: external-x');
+  });
+
+  it('enrolls into own course and leaves foreign courseAccess untouched', async () => {
+    state.courses = ['external-x'];
+    const email = 'exists@test.com';
+    const existingRef = { set: vi.fn(async () => {}) };
+    state.emailQueryResults.set(email, {
+      empty: false,
+      docs: [{ ref: existingRef, data: () => ({ role: 'student', courseAccess: { development: true } }) }],
+    });
+
+    const result = await (bulkEnrollStudents as Function)({
+      data: { emails: [email], courseIds: ['external-x'] },
+      ...courseAdminCtx(),
+    });
+
+    expect(result).toMatchObject({ success: true, updatedExisting: 1 });
+    const payload = existingRef.set.mock.calls[0][0];
+    expect(payload.courseAccess).toEqual({ development: true, 'external-x': true });
+    expect(payload.roleUpdatedBy).toBe('author-uid');
+  });
+
+  it('co-admin enrolls into any course', async () => {
+    const result = await (bulkEnrollStudents as Function)({
+      data: { emails: ['newbie@test.com'], courseIds: ['development'] },
+      ...coAdminCtx(),
+    });
+    expect(result).toMatchObject({ success: true, createdPending: 1 });
   });
 });
 

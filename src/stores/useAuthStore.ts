@@ -8,6 +8,7 @@ import { SUPER_ADMIN_EMAIL } from '../constants/superAdmin';
 import { reportAppError } from '../lib/errorHandler';
 import { debugLog } from '../lib/debug';
 import { sanitizeGeminiApiKey } from '../lib/geminiKey';
+import { startGeminiKeySync, type GeminiKeySync } from '../lib/geminiKeySync';
 import type { CourseType } from '../types/tests';
 import type { CourseAccessMap, UserRole } from '../types/user';
 import { hasCourseAccess as checkCourseAccess, normalizeUserRole } from '../types/user';
@@ -56,7 +57,7 @@ interface AuthState {
    * Обновляется реалтайм через подписку на collection('groups') where memberIds array-contains uid.
    */
   groupGrantedCourses: Record<string, boolean>;
-  /** API ключ Gemini пользователя (BYOK) */
+  /** API ключ Gemini пользователя (BYOK), из users/{uid}/private/settings */
   geminiApiKey: string | null;
   /**
    * Личный список «актуальных» курсов пользователя для continue-cards
@@ -224,6 +225,8 @@ export const useAuthStore = create<AuthState>()(
         let cancelled = false;
         let userDocUnsubscribe: Unsubscribe | null = null;
         let myGroupsUnsubscribe: Unsubscribe | null = null;
+        // BYOK-ключ: подписка на users/{uid}/private/settings + миграция legacy.
+        let geminiKeySync: GeminiKeySync | null = null;
         // Права на курсы приходят из двух источников: claim `editableCourses`
         // (его читают Firestore rules, обновляется с токеном) и Firestore-зеркало
         // users/{uid}.adminEditableCourses (обновляется мгновенно). В UI берём
@@ -255,6 +258,10 @@ export const useAuthStore = create<AuthState>()(
           if (myGroupsUnsubscribe) {
             myGroupsUnsubscribe();
             myGroupsUnsubscribe = null;
+          }
+          if (geminiKeySync) {
+            geminiKeySync.stop();
+            geminiKeySync = null;
           }
           cleanupCourseProgressSync();
 
@@ -374,6 +381,11 @@ export const useAuthStore = create<AuthState>()(
               }
             );
 
+            geminiKeySync = startGeminiKeySync(next.uid, (key) => {
+              if (cancelled) return;
+              get().setGeminiApiKey(key);
+            });
+
             // Подписываемся на изменения courseAccess в реальном времени
             userDocUnsubscribe = onSnapshot(
               doc(db, 'users', next.uid),
@@ -383,9 +395,9 @@ export const useAuthStore = create<AuthState>()(
                 const courseAccess = data?.courseAccess as CourseAccessMap | undefined;
                 get().setCourseAccess(courseAccess ?? null);
 
-                // Синхронизируем Gemini API ключ (BYOK)
-                const geminiApiKey = data?.geminiApiKey as string | undefined;
-                get().setGeminiApiKey(geminiApiKey ?? null);
+                // Legacy-ключ BYOK: отдаём только на миграцию в приватный
+                // поддокумент. В стор из корневого документа он не попадает.
+                geminiKeySync?.setLegacyKey(data?.geminiApiKey);
 
                 // Личные «актуальные курсы» пользователя (continue-cards)
                 const featuredRaw = data?.featuredCourseIds;
@@ -476,6 +488,7 @@ export const useAuthStore = create<AuthState>()(
           if (myGroupsUnsubscribe) {
             myGroupsUnsubscribe();
           }
+          geminiKeySync?.stop();
           cleanupCourseProgressSync();
         };
       },

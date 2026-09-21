@@ -389,18 +389,27 @@ function AdminPanel() {
 }
 ```
 
-**Роли:**
-- **Student** — базовый доступ
-- **Admin** — редактирование контента курсов (по списку `adminEditableCourses`)
-- **Super Admin** — управление пользователями, всегда включает все остальные роли
+**Роли** (подписи в UI — `getRoleLabel` в `src/lib/roleHelpers.ts`):
+- **Гость** — авторизован, но платных курсов нет: либо ничего не открыто, либо
+  только бесплатные курсы через системную группу `everyone`.
+- **Студент** — хотя бы один платный доступ: личный `courseAccess[courseId]` или
+  `grantedCourses` несистемного потока (`groups`). Эффективный доступ считает
+  `src/lib/effectiveAccess.ts`.
+- **Администратор курса** (`role: 'admin'`) — редактирование контента только своих
+  курсов (claim `editableCourses`), ответы студентам, телеметрия и страница
+  «Студенты курса» (`/admin/students?course=`, данные через callable
+  `getCourseStudents`, чужие профили `users/*` не читает); приглашает студентов на
+  свои курсы (`bulkEnrollStudents`).
+- **Супер-админ** (`role: 'super-admin'`) — полный доступ; единственный, кто
+  выдаёт и снимает права администратора курса и со-админа.
 
 **Параллельный флаг (не значение `role`):**
-- **Co-admin страниц DOM Academy** — доступ к редактору `/superadmin/pages*`
-  (страница «О нас», страницы проектов). Хранится в `users/{uid}.coAdmin: boolean`
-  + custom claim `coAdmin: true`. Может быть выдан поверх любой роли (admin или
-  обычный пользователь) независимо. Назначается super-admin'ом через AdminUsers UI
-  (кнопка «+ Добавить со-админа»). Лендинг: `/coadmin`. Cloud Functions:
-  `makeUserCoAdmin` / `removeCoAdmin`.
+- **Со-админ** — помощник владельца: страница «Пользователи и потоки»
+  (`/admin/users`: доступ к курсам, потоки, отключение, приглашения) и редактор
+  страниц DOM Academy (`/superadmin/pages*`). Хранится в `users/{uid}.coAdmin: boolean`
+  + custom claim `coAdmin: true`, может стоять поверх любой роли. Включается
+  тумблером в карточке пользователя на `/admin/users` (только супер-админ);
+  Cloud Functions: `makeUserCoAdmin` / `removeCoAdmin`. Лендинг: `/coadmin`.
 - **Все функции, меняющие custom claims, делают merge** — чтобы добавление/снятие
   одной роли не затирало другие (`role` и `coAdmin` независимы).
 

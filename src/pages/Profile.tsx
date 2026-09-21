@@ -80,10 +80,10 @@ export default function Profile() {
                 </span>
               ) : role === 'admin' ? (
                 <span className="inline-flex items-center gap-2 rounded-full bg-mark px-4 py-2 text-sm font-semibold text-[#5a4b00]">
-                  <span className="text-lg" role="img" aria-label="Администратор">
+                  <span className="text-lg" role="img" aria-label="Администратор курса">
                     ✏️
                   </span>
-                  Администратор
+                  Администратор курса
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-2 rounded-full bg-accent-100 px-4 py-2 text-sm font-semibold text-accent">

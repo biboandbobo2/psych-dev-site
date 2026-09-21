@@ -73,8 +73,7 @@ interface User {
   altegClientIds?: number[];              // Cache связок с alteg.io clients
   altegClientId?: number;                 // Legacy single-id (deprecated)
 
-  // BYOK для AI-фич (assistant, lectures, books)
-  geminiApiKey?: string;                  // Пользовательский Gemini API key
+  // BYOK-ключ Gemini здесь НЕ хранится — он в users/{uid}/private/settings
 
   // /home featured-курсы пользователя (max 3)
   featuredCourseIds?: string[];
@@ -106,13 +105,24 @@ interface User {
 ```
 
 **Display-роли** (вычисляются, не хранятся):
-- `userRole === null` + нет courseAccess → **guest**
-- `userRole === null` + есть хотя бы один courseAccess[*] === true → **student**
-- `userRole === 'admin'` → **admin** (редактирование контента; courseAccess может быть)
+- `userRole === null` + эффективный доступ (личный `courseAccess` ∪ группы, где пользователь состоит) ограничен только курсами через системные группы (`groups.isSystem === true`, напр. `everyone`) или отсутствует вовсе → **guest**
+- `userRole === null` + есть хотя бы один платный доступ — личный `courseAccess[*] === true` или через несистемную группу (поток) → **student**
+- `userRole === 'admin'` → **admin** (редактирование контента; courseAccess/группы могут быть — админ курса может быть студентом другого курса)
 - `userRole === 'super-admin'` → **super-admin** (полный доступ; всегда co-admin)
 - `coAdmin === true` → дополнительный бейдж «Со-админ» поверх любой роли (доступ к `/superadmin/pages*`)
 
-См. [`src/lib/roleHelpers.ts:computeDisplayRole`](../../src/lib/roleHelpers.ts).
+`src/lib/roleHelpers.ts:computeDisplayRole` считает только личный `courseAccess` и не видит группы — годится там, где группы недоступны/не нужны. Для полного эффективного доступа (личный ∪ группы), в т.ч. в админке, используйте [`src/lib/effectiveAccess.ts`](../../src/lib/effectiveAccess.ts): `computeEffectiveAccess`/`computeEffectiveAccessWithIndex`.
+
+**Кто читает и меняет чужие профили:**
+- Коллекция закрыта для админа курса — своих студентов он получает через callable
+  `getCourseStudents({ courseId })` ([`functions/src/courseStudents.ts`](../../functions/src/courseStudents.ts)),
+  которая отдаёт только `uid / displayName / email / photoURL / lastLoginAt /
+  pendingRegistration / disabled` (ни `phone`, ни `geminiApiKey`, ни `prefs`).
+- `courseAccess`, `disabled` и состав потоков правят super-admin **и со-админ**
+  (`updateCourseAccess`, `toggleUserDisabled`, группы).
+- Роли и админские права — только super-admin (`setUserRole`, `makeUserAdmin`,
+  `removeAdmin`, `setAdminEditableCourses`, `makeUserCoAdmin`, `removeCoAdmin`,
+  `seedAdmin`). Отключить владельца нельзя никому.
 
 **Пример документа (студент с booking):**
 ```json
@@ -132,6 +142,30 @@ interface User {
   "lastLoginAt": "2026-04-28T15:30:00Z"
 }
 ```
+
+**Правила доступа:** read — владелец, супер-админ и со-админ (он ведёт
+пользователей и потоки). Админ курса (внешний автор с claim `editableCourses`)
+чужие профили **не читает**: список своих студентов он получает callable-функцией
+`getCourseStudents` (uid, имя, почта, аватар, `lastLoginAt`, `pendingRegistration`,
+`disabled` — и ничего больше). Update — владелец и супер-админ; delete — супер-админ.
+
+### `users/{userId}/private/settings`
+
+Приватные настройки пользователя. Сюда переехал BYOK-ключ Gemini из корневого
+документа — его не должен видеть никто, включая супер-админа.
+
+```typescript
+interface UserPrivateSettings {
+  geminiApiKey?: string;                  // Пользовательский Gemini API key (BYOK)
+}
+```
+
+**Правила доступа:** read/write — **только владелец** (`isOwner(userId)`).
+Супер-админ и со-админ доступа не имеют.
+
+Legacy-хвост в корневом `users/{uid}.geminiApiKey` мигрирует лениво при входе
+(`src/stores/useAuthStore.ts`); остаток добирается разово скриптом
+`scripts/migrateGeminiKeysToPrivate.ts`.
 
 ### `users/{userId}/courseProgress/{courseId}`
 
@@ -159,6 +193,14 @@ interface Group {
 ```
 
 **Special-case группа `everyone`** — все пользователи неявно её члены, используется для глобальных featured courses на /home.
+
+**Кто управляет:** super-admin и со-админ (`createGroup`, `updateGroup`,
+`setGroupMembers`, `addGroupMembersByEmail`, `deleteGroup`); `featuredCourseIds`
+дополнительно — админ из `announcementAdminIds` группы.
+
+**Правила доступа:** read — админы, участники группы и админы из
+`announcementAdminIds`; create/update/delete — супер-админ и со-админ (клиент
+ходит через Cloud Functions, rules согласованы с правами со-админа).
 
 См. [docs/guides/multi-course.md](../guides/multi-course.md).
 
@@ -1092,6 +1134,8 @@ interface PageVisitMonthDoc {
 1. **Приватность по умолчанию**
    - Пользователи видят только свои данные (заметки, результаты тестов, таймлайны)
    - Правило: `request.auth.uid == resource.data.userId`
+   - `users/{uid}` читают владелец, супер-админ и со-админ; `users/{uid}/private/*`
+     — только владелец
 
 2. **Контент доступен всем для чтения**
    - `periods`, `clinical-topics`, `general-topics`, `pages` — чтение для всех
@@ -1113,10 +1157,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Пользователи видят только свой профиль
+    // Профиль: владелец, супер-админ и со-админ; приватные настройки
+    // (BYOK-ключ) — только владелец
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId) || isSuperAdmin() || isCoAdmin();
+      allow update: if isOwner(userId) || isSuperAdmin();
+
+      match /private/{docId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // Заметки приватные

@@ -551,22 +551,37 @@ npm run smoke:roles                              # все 4 сценарные �
 npm run smoke:roles -- --roles author,superadmin # выборочно
 npm run smoke:roles -- --project a --reset       # песочница demo-smoke-a с чистого листа
 npm run smoke:roles -- --keep                    # оставить эмулятор/vite жить (отладка)
-npm run smoke:roles -- --with-functions          # + эмулятор Cloud Functions и сценарий functions
+npm run smoke:roles -- --with-functions          # + эмулятор Cloud Functions и сценарии functions, author-students
 ```
 
 Как устроено:
 
 - **Вход без OAuth** — `window.__testAuth` (`src/lib/testAuth.ts`): email/пароль против Auth-эмулятора. Модуль грузится динамическим импортом под статическим гейтом `import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true"` — в прод-бандле его нет (проверка: `grep -r "__testAuth\|testProject" dist/` пуст).
-- **Роли и данные** — единый контракт `tests/e2e/fixtures/roles.ts`: 8 ролей (студенты трёх видов, админ курса `external-x`, админ без курсов, co-admin, super-admin, `promotee` — кандидат в авторы для functions-сценариев), курсы `external-x`/`external-hidden` с занятиями, core-занятия, группа, `lectureQuestions`, `feature_events`. Сид — `scripts/seedEmulatorRoles.ts` (идемпотентный; custom claims **и** Firestore-зеркала выставляются вместе, иначе роль ведёт себя не как в проде).
+- **Роли и данные** — единый контракт `tests/e2e/fixtures/roles.ts`: 10 ролей (студенты трёх видов, `student-external` и `student-external-stream` — студенты внешнего курса лично и потоком, админ курса `external-x`, админ без курсов, co-admin, super-admin, `promotee` — кандидат в авторы для functions-сценариев), курсы `external-x`/`external-hidden` с занятиями, core-занятия, две группы (`smoke-group` → `clinical`, `smoke-external-group` → `external-x`), `courseProgress` двух студентов внешнего курса, `lectureQuestions`, `feature_events`. Сид — `scripts/seedEmulatorRoles.ts` (идемпотентный; custom claims **и** Firestore-зеркала выставляются вместе, иначе роль ведёт себя не как в проде).
 - **Прод-rules**: эмулятор стартует с `firebase.smoke.json` (корень репо) — он подключает боевой `firestore.rules`. Внимание: конфиг integration-тестов `tests/integration/firebase.test.json` подключает open-заглушку `tests/integration/firestore.rules` — для ролевого смоука он не годится.
 - **Изоляция параллельных прогонов**: Firestore-данные сидятся в песочницы-проекты (`demo-smoke-a`, `-b`, …), клиент выбирает песочницу через `?testProject=` / `sessionStorage` (dev-only оверрайд в `src/lib/firebase.ts`). Auth-пользователи всегда живут в default-проекте `demo-smoke`: Auth-эмулятор роутит все клиентские запросы туда независимо от API-ключа (`getProjectIdByApiKey` в firebase-tools), а Firestore-эмулятор принимает idToken чужого проекта — проверено вживую. Префикс `demo-*` гарантирует оффлайн-режим эмулятора.
-- **Playwright-проекты** (`playwright.config.ts`, включаются переменной `SMOKE_BASE_URL`): `smoke:setup` логинит все 8 ролей и сохраняет `storageState` с IndexedDB (Playwright ≥1.51) для четырёх сценарных; `smoke:author` / `smoke:admin-empty` / `smoke:superadmin` / `smoke:student-group` — спеки `tests/e2e/roles/*.spec.ts` (критерии приёмки кабинета автора). Обычный `npm run test:e2e` ролевые спеки не видит.
+- **Playwright-проекты** (`playwright.config.ts`, включаются переменной `SMOKE_BASE_URL`): `smoke:setup` логинит все 10 ролей и сохраняет `storageState` с IndexedDB (Playwright ≥1.51) для сценарных проектов; `smoke:author` / `smoke:admin-empty` / `smoke:superadmin` / `smoke:student-group` / `smoke:coadmin` — спеки `tests/e2e/roles/*.spec.ts` (критерии приёмки кабинета автора и страницы «Пользователи и потоки»), `smoke:author-students` — страница «Студенты курса», только с `--with-functions`. Обычный `npm run test:e2e` ролевые спеки не видит.
+
+`/admin/users` покрыта тремя спеками: `superadmin.spec.ts` (список, поиск,
+фильтр по роли, карточка кликом и по `?user=`, вкладка «Потоки» и фильтр
+`?stream=`, плюс тумблер «лично» — он зовёт реальный `updateCourseAccess`,
+поэтому `test.skip` без `--with-functions`), `coadmin.spec.ts` (страница и
+вкладка «Потоки» открыты, секция «Права» в карточке заблокирована, карточка на
+`/coadmin`) и `author.spec.ts` (админ курса получает «Access denied» от
+`RequireCoAdmin`). Сценарии выдачи прав в `functions-admin.spec.ts` работают
+через новый UI: окно «Добавить» → «Права администратора курса», в карточке —
+«Изменить» и двухшаговое «Снять права»; ждать надо inline-сводку/подпись
+секции, `window.alert` из админки убран.
 
 Как добавить роль: (1) запись в `SMOKE_ROLES` в `tests/e2e/fixtures/roles.ts` (uid/email/claims/userDoc — claims и зеркало синхронно!); (2) если нужен сценарный спек — `tests/e2e/roles/<key>.spec.ts` плюс ключ в `SMOKE_SCENARIO_KEYS` (`playwright.config.ts`) и в `SCENARIO_KEYS` (`scripts/smokeRoles.ts`), storageState в `auth.setup.ts` подхватится по ключу автоматически.
 
 ##### Режим `--with-functions` (реальный контур выдачи прав)
 
-Флаг добавляет к стенду эмулятор Cloud Functions (порт 5001, секция `functions` в `firebase.smoke.json`) и проект `smoke:functions` — сквозные сценарии `tests/e2e/roles/functions-admin.spec.ts`: super-admin через настоящую модалку `/admin/users` зовёт `makeUserAdmin` → `setAdminEditableCourses` → `removeAdmin`, а результат проверяется входом под повышаемым пользователем (`promotee`): кабинет автора с двумя курсами и создание занятия, сужение списка курсов, потеря доступа к `/admin`. Без флага стенд работает как раньше — эмулятор функций не поднимается и `smoke:functions` не существует.
+Флаг добавляет к стенду эмулятор Cloud Functions (порт 5001, секция `functions` в `firebase.smoke.json`) и два проекта.
+
+`smoke:functions` — сквозные сценарии `tests/e2e/roles/functions-admin.spec.ts`: super-admin через настоящую модалку `/admin/users` зовёт `makeUserAdmin` → `setAdminEditableCourses` → `removeAdmin`, а результат проверяется входом под повышаемым пользователем (`promotee`): кабинет автора с двумя курсами и создание занятия, сужение списка курсов, потеря доступа к `/admin`. `smoke:author-students` — `tests/e2e/roles/author-students.spec.ts`: админ курса открывает `/admin/students?course=external-x` и видит обе секции (поток `smoke-external-group` и «Индивидуально»), прогресс просмотра из `courseProgress` (`2 / 2` и `1 / 2`), кнопку «Объявление потоку», заглушку на чужом `?course=development` и модалку приглашения. Состав курса приходит из настоящей callable `getCourseStudents`, поэтому без эмулятора функций сценарий не имеет смысла; мутаций стенда он не делает (приглашение доводится только до активной кнопки).
+
+Без флага стенд работает как раньше — эмулятор функций не поднимается и проекты `smoke:functions` / `smoke:author-students` не существуют.
 
 Ограничения и грабли — их легко наступить снова:
 
@@ -574,12 +589,12 @@ npm run smoke:roles -- --with-functions          # + эмулятор Cloud Func
 - **firebase-tools ≥ 15 обязателен.** Рантайм 14.x при старте зовёт `functions.config()`, удалённый в firebase-functions 7, и валит **все** функции («Failed to load function»). Держать две версии рядом нельзя: каждая при старте выкачивает свой jar Firestore, удаляя чужой. Оркестратор проверяет версию и падает с объяснением.
 - **`onUserCreate` (gen1) оживает вместе с эмулятором** и перезаписывает `users/{uid}` и claims ролью `guest`. Сид ждёт, пока триггер отработает по всем созданным пользователям (признак — появившийся claim `role`), и только потом пишет свои claims и доки.
 - **Claims применяются при следующем выпуске токена.** После вызова функции нужен полный `signOut` + `signIn` (`signInAs` в `tests/e2e/roles/helpers.ts`), фонового refresh недостаточно.
-- **Ждать надо подтверждающий `window.alert`, а не изменение таблицы.** Функции пишут в Firestore ДО `setCustomUserClaims`, поэтому живой `onSnapshot` обновляет строку раньше, чем claims готовы, и перелогин выпустил бы токен со старыми правами.
+- **Ждать надо подтверждение UI, а не изменение списка.** Функции пишут в Firestore ДО `setCustomUserClaims`, поэтому живой `onSnapshot` обновляет строку раньше, чем claims готовы, и перелогин выпустил бы токен со старыми правами. После редизайна `/admin/users` подтверждение — inline-сводка окна «Добавить» и подписи секций карточки (раньше был `window.alert`).
 - **UI-проверка кабинета claims не доказывает.** При пустом claim `editableCourses` `resolveEditableCourses` (`useAuthStore`) откатывается на Firestore-зеркало, и кабинет выглядит правильно даже со сломанной функцией. Единственный claim-чувствительный сигнал — запись: `firestore.rules` читают только токен. Поэтому в сценарии `makeUserAdmin` есть создание занятия — проверено пробой (убрать `editableCourses` из claims в `makeAdmin.ts` → сценарий падает). **Claim-чувствителен только этот шаг**: сценарии `setAdminEditableCourses` и `removeAdmin` проверяют пока только UI (см. пункт в audit-backlog).
 - **Идемпотентность.** Сид возвращает `promotee` в состояние «без ролей» (полная перезапись `users/{uid}` и claims) и удаляет занятия, которых нет в фикстурах, — иначе созданное сценарием занятие ломало бы следующий прогон.
 - `functions/lib` пересобирается только когда исходники `functions/src` / `shared` свежее сборки.
 
-Как добавить functions-сценарий: спек в `tests/e2e/roles/`, `testMatch` в проекте `smoke:functions` (`playwright.config.ts`) — сейчас проект указывает на один файл; стартовая сессия проекта — super-admin, на другие роли спек переключается через `signInAs`.
+Как добавить functions-сценарий: спек в `tests/e2e/roles/`, свой проект в блоке `smokeWithFunctions` (`playwright.config.ts`, каждый проект указывает на один файл и на `storageState` стартовой роли) и ключ в `FUNCTIONS_KEYS` (`scripts/smokeRoles.ts`) — иначе оркестратор не знает такой роли. На другие роли спек переключается через `signInAs`.
 
 **Прод-срез данных (`--prod-data`)** — сценарии на реальной форме контента:
 

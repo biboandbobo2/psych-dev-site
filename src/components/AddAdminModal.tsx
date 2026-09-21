@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { makeUserAdmin } from "../lib/adminFunctions";
 import { useCourses } from "../hooks/useCourses";
 
@@ -6,10 +6,12 @@ interface AddAdminModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  /** Предзаполненный email (из карточки пользователя) — поле read-only. */
+  initialEmail?: string;
 }
 
-export function AddAdminModal({ isOpen, onClose, onSuccess }: AddAdminModalProps) {
-  const [email, setEmail] = useState("");
+export function AddAdminModal({ isOpen, onClose, onSuccess, initialEmail }: AddAdminModalProps) {
+  const [email, setEmail] = useState(initialEmail ?? "");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +21,10 @@ export function AddAdminModal({ isOpen, onClose, onSuccess }: AddAdminModalProps
     () => [...courses].sort((a, b) => a.name.localeCompare(b.name, "ru")),
     [courses]
   );
+
+  useEffect(() => {
+    if (isOpen) setEmail(initialEmail ?? "");
+  }, [isOpen, initialEmail]);
 
   if (!isOpen) return null;
 
@@ -42,7 +48,7 @@ export function AddAdminModal({ isOpen, onClose, onSuccess }: AddAdminModalProps
 
     try {
       await makeUserAdmin({ targetEmail: email, editableCourses: Array.from(selected) });
-      setEmail("");
+      setEmail(initialEmail ?? "");
       setSelected(new Set());
       onSuccess();
       onClose();
@@ -78,8 +84,9 @@ export function AddAdminModal({ isOpen, onClose, onSuccess }: AddAdminModalProps
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="user@example.com"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 read-only:bg-gray-50"
               required
+              readOnly={Boolean(initialEmail)}
               disabled={loading}
             />
             <p className="mt-2 text-sm text-gray-500">Пользователь должен хотя бы раз войти через Google</p>

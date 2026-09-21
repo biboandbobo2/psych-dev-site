@@ -8,6 +8,10 @@ import {
   normalizeCourseIds,
   ensureAdmin,
   ensureSuperAdmin,
+  ensureUserManager,
+  ensureCanEditCourse,
+  isUserManager,
+  extractEditableCourses,
   SUPER_ADMIN_EMAIL,
 } from './shared';
 
@@ -49,6 +53,76 @@ describe('ensureSuperAdmin', () => {
 
   it('allows the super-admin email', () => {
     expect(() => ensureSuperAdmin(makeRequest({ email: SUPER_ADMIN_EMAIL }))).not.toThrow();
+  });
+});
+
+const makeAuthed = (uid: string, token: Record<string, unknown>) =>
+  ({ auth: { uid, token } }) as Parameters<typeof ensureUserManager>[0];
+
+describe('ensureUserManager', () => {
+  it('rejects unauthenticated request', () => {
+    expect(() => ensureUserManager({} as Parameters<typeof ensureUserManager>[0])).toThrowError(
+      'Требуется авторизация',
+    );
+  });
+
+  it('allows super-admin by email and by role claim', () => {
+    expect(ensureUserManager(makeAuthed('sa', { email: SUPER_ADMIN_EMAIL }))).toBe('sa');
+    expect(ensureUserManager(makeAuthed('sa2', { role: 'super-admin' }))).toBe('sa2');
+  });
+
+  it('allows co-admin', () => {
+    expect(ensureUserManager(makeAuthed('co', { coAdmin: true }))).toBe('co');
+  });
+
+  it('rejects course admin and regular users', () => {
+    expect(() => ensureUserManager(makeAuthed('a', { role: 'admin', editableCourses: ['x'] }))).toThrowError(
+      'Только super-admin или со-админ',
+    );
+    expect(() => ensureUserManager(makeAuthed('u', { email: 'u@e.com' }))).toThrowError(
+      'Только super-admin или со-админ',
+    );
+  });
+
+  it('isUserManager is the pure predicate behind it', () => {
+    expect(isUserManager(makeAuthed('co', { coAdmin: true }))).toBe(true);
+    expect(isUserManager(makeAuthed('u', { coAdmin: 'yes' }))).toBe(false);
+  });
+});
+
+describe('extractEditableCourses', () => {
+  it('returns [] for missing or malformed claim', () => {
+    expect(extractEditableCourses(makeAuthed('u', {}))).toEqual([]);
+    expect(extractEditableCourses(makeAuthed('u', { editableCourses: 'x' }))).toEqual([]);
+  });
+
+  it('keeps only non-empty strings', () => {
+    expect(extractEditableCourses(makeAuthed('u', { editableCourses: ['a', '', 2, ' '] }))).toEqual(['a']);
+  });
+});
+
+describe('ensureCanEditCourse', () => {
+  it('rejects unauthenticated request', () => {
+    expect(() =>
+      ensureCanEditCourse({} as Parameters<typeof ensureCanEditCourse>[0], 'x'),
+    ).toThrowError('Требуется авторизация');
+  });
+
+  it('allows super-admin and co-admin for any course', () => {
+    expect(ensureCanEditCourse(makeAuthed('sa', { email: SUPER_ADMIN_EMAIL }), 'anything')).toBe('sa');
+    expect(ensureCanEditCourse(makeAuthed('co', { coAdmin: true }), 'anything')).toBe('co');
+  });
+
+  it('allows admin only for courses in editableCourses', () => {
+    const author = makeAuthed('au', { role: 'admin', editableCourses: ['external-x'] });
+    expect(ensureCanEditCourse(author, 'external-x')).toBe('au');
+    expect(() => ensureCanEditCourse(author, 'development')).toThrowError('Нет прав на курс development');
+  });
+
+  it('rejects a student even with editableCourses claim', () => {
+    expect(() =>
+      ensureCanEditCourse(makeAuthed('s', { editableCourses: ['external-x'] }), 'external-x'),
+    ).toThrowError('Нет прав на курс');
   });
 });
 

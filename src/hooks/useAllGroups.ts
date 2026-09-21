@@ -7,17 +7,19 @@ import { normalizeGroupDoc } from './useMyGroups';
 import { useAuthStore } from '../stores/useAuthStore';
 
 /**
- * Полный список групп. Доступно только админам (Firestore rules разрешают
- * read всей коллекции только role in ['admin', 'super-admin']).
+ * Полный список групп. Доступно админам и со-админам — они ведут потоки
+ * на /admin/users?tab=streams (см. canReadGroup в firestore.rules).
  */
 export function useAllGroups() {
   const isAdmin = useAuthStore((s) => s.isAdmin);
+  const isCoAdmin = useAuthStore((s) => s.isCoAdmin);
+  const canRead = isAdmin || isCoAdmin;
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (!canRead) {
       setGroups([]);
       setLoading(false);
       return;
@@ -41,7 +43,7 @@ export function useAllGroups() {
       }
     );
     return () => unsubscribe();
-  }, [isAdmin]);
+  }, [canRead]);
 
   return { groups, loading, error };
 }

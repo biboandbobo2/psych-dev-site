@@ -2,29 +2,23 @@ import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/
 import * as fnLogger from "firebase-functions/logger";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
-import { CORE_COURSE_IDS, SUPER_ADMIN_EMAIL, toPendingUid, CALLABLE_OPTS } from "./lib/shared.js";
+import {
+  CORE_COURSE_IDS,
+  toPendingUid,
+  CALLABLE_OPTS,
+  ensureUserManager,
+  isUserManager,
+} from "./lib/shared.js";
 import { isEveryoneGroup } from "../../shared/groups/everyoneGroup.js";
 
 const db = getFirestore();
 
 const MAX_FEATURED_COURSES = 3;
 
-function assertSuperAdmin(request: Pick<CallableRequest, "auth">): string {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Требуется авторизация");
-  }
-  if (request.auth.token.email !== SUPER_ADMIN_EMAIL) {
-    throw new HttpsError(
-      "permission-denied",
-      "Только super-admin может управлять группами"
-    );
-  }
-  return request.auth.uid;
-}
-
 /**
- * Каллер либо super-admin, либо обычный admin, либо явный announcement-admin
- * указанной группы. Используется в setGroupFeaturedCourses.
+ * Каллер либо менеджер пользователей (super-admin / со-админ), либо обычный
+ * admin, либо явный announcement-admin указанной группы.
+ * Используется в setGroupFeaturedCourses.
  */
 async function assertCanManageGroup(
   request: Pick<CallableRequest, "auth">,
@@ -34,12 +28,9 @@ async function assertCanManageGroup(
     throw new HttpsError("unauthenticated", "Требуется авторизация");
   }
   const callerUid = request.auth.uid;
-  const callerEmail = request.auth.token.email;
-  if (callerEmail === SUPER_ADMIN_EMAIL) return callerUid;
+  if (isUserManager(request)) return callerUid;
 
   const role = (request.auth.token as { role?: string } | undefined)?.role;
-  if (role === "super-admin") return callerUid;
-
   const groupSnap = await db.collection("groups").doc(groupId).get();
   if (!groupSnap.exists) {
     throw new HttpsError("not-found", "Group not found");
@@ -140,7 +131,7 @@ function requireNonEmptyString(value: unknown, field: string): string {
 
 export const createGroup = onCall(CALLABLE_OPTS, async (request) => {
   const data = request.data;
-  const uid = assertSuperAdmin(request);
+  const uid = ensureUserManager(request);
   const d = (data ?? {}) as Record<string, unknown>;
   const name = requireNonEmptyString(d.name, "name");
   const description = typeof d.description === "string" ? d.description.trim() : "";
@@ -166,7 +157,7 @@ export const createGroup = onCall(CALLABLE_OPTS, async (request) => {
 
 export const updateGroup = onCall(CALLABLE_OPTS, async (request) => {
   const data = request.data;
-  const uid = assertSuperAdmin(request);
+  const uid = ensureUserManager(request);
   const d = (data ?? {}) as Record<string, unknown>;
   const groupId = requireNonEmptyString(d.groupId, "groupId");
 
@@ -217,7 +208,7 @@ export const updateGroup = onCall(CALLABLE_OPTS, async (request) => {
 
 export const setGroupMembers = onCall(CALLABLE_OPTS, async (request) => {
   const data = request.data;
-  const uid = assertSuperAdmin(request);
+  const uid = ensureUserManager(request);
   const d = (data ?? {}) as Record<string, unknown>;
   const groupId = requireNonEmptyString(d.groupId, "groupId");
   const memberIds = normalizeStringArray(d.memberIds);
@@ -246,7 +237,7 @@ export const setGroupMembers = onCall(CALLABLE_OPTS, async (request) => {
  */
 export const addGroupMembersByEmail = onCall(CALLABLE_OPTS, async (request) => {
   const data = request.data;
-  const callerUid = assertSuperAdmin(request);
+  const callerUid = ensureUserManager(request);
   const d = (data ?? {}) as Record<string, unknown>;
   const groupId = requireNonEmptyString(d.groupId, "groupId");
   const emails = Array.isArray(d.emails)
@@ -338,7 +329,7 @@ export const addGroupMembersByEmail = onCall(CALLABLE_OPTS, async (request) => {
 
 export const deleteGroup = onCall(CALLABLE_OPTS, async (request) => {
   const data = request.data;
-  const uid = assertSuperAdmin(request);
+  const uid = ensureUserManager(request);
   const d = (data ?? {}) as Record<string, unknown>;
   const groupId = requireNonEmptyString(d.groupId, "groupId");
 

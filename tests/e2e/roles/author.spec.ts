@@ -44,6 +44,10 @@ test.describe('Админ курса external-x: кабинет автора о�
       'href',
       '/admin/questions?course=external-x'
     );
+    await expect(card.getByRole('link', { name: 'Студенты' })).toHaveAttribute(
+      'href',
+      '/admin/students?course=external-x'
+    );
     await expect(card.getByRole('link', { name: 'Телеметрия' })).toHaveAttribute(
       'href',
       '/admin/telemetry?course=external-x'
@@ -98,6 +102,15 @@ test.describe('Админ курса external-x: кабинет автора о�
         .getByRole('heading', { name: LESSON_PUBLISHED.title })
         .locator('xpath=following-sibling::span[1]')
     ).toHaveText('Опубликовано');
+  });
+
+  test('/admin/users закрыт: людьми управляет владелец, а не админ курса', async ({ page }) => {
+    await gotoAndSettle(page, '/admin/users');
+
+    // RequireCoAdmin рендерит отказ, а не редирект.
+    await expect(page.getByRole('heading', { name: 'Access denied' })).toBeVisible();
+    await expect(page.getByText('У вас нет прав со-админа')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Пользователи', level: 1 })).toHaveCount(0);
   });
 
   test('подмена ?course= чужим курсом не открывает чужой контент', async ({ page }) => {

@@ -10,7 +10,6 @@ import {
   useCourseSharedNotes,
   useSharedLectureNoteActions,
 } from '../../../hooks/useSharedLectureNotes';
-import { GroupWatchStats } from './GroupWatchStats';
 import type { SharedLectureNote } from '../../../types/sharedLectureNotes';
 import { canEditCourse } from '../../../types/user';
 import { debugError } from '../../../lib/debug';
@@ -155,10 +154,17 @@ export default function AdminLectureQuestions() {
         ) : null}
       </header>
 
+      {/* Просмотры лекций переехали на «Студентов курса»: там же состав потоков,
+          почты и прогресс каждого студента. */}
       {canViewSelected && selectedCourseId ? (
-        <div className="mb-8">
-          <GroupWatchStats courseId={selectedCourseId} />
-        </div>
+        <p className="mb-6 text-sm">
+          <Link
+            to={`/admin/students?course=${selectedCourseId}`}
+            className="text-accent no-underline hover:underline"
+          >
+            Студенты и просмотры →
+          </Link>
+        </p>
       ) : null}
 
       {canViewSelected && sharedNotesError ? (

@@ -10,7 +10,7 @@ export function getRoleLabel(role: DisplayRole): string {
     case 'super-admin':
       return 'Супер-админ';
     case 'admin':
-      return 'Админ';
+      return 'Администратор курса';
     case 'student':
       return 'Студент';
     case 'guest':
@@ -21,20 +21,20 @@ export function getRoleLabel(role: DisplayRole): string {
 }
 
 /**
- * CSS классы для бейджа роли.
+ * CSS классы для бейджа роли (токены палитры сайта, см. theme.css).
  */
 export function getRoleBadgeClasses(role: DisplayRole): string {
   switch (role) {
     case 'super-admin':
-      return 'bg-purple-100 text-purple-800';
+      return 'bg-pastel-lilac text-ink';
     case 'admin':
-      return 'bg-blue-100 text-blue-800';
+      return 'bg-pastel-blue text-pastel-blue-deep';
     case 'student':
-      return 'bg-green-100 text-green-800';
+      return 'bg-accent-100 text-accent';
     case 'guest':
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-pastel-plain text-ink-faint';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-pastel-plain text-ink-faint';
   }
 }
 
@@ -43,6 +43,12 @@ export function getRoleBadgeClasses(role: DisplayRole): string {
  * admin/super-admin — из поля role. Остальные: student если у юзера есть
  * хоть один курс в courseAccess, иначе guest. Флаг co-admin показывается
  * отдельным бейджем поверх основной роли (см. UserRow.tsx).
+ *
+ * ВАЖНО: учитывает только личный `courseAccess`, доступ через группы
+ * (`groups/{id}.grantedCourses`) не видит. Для админки, где нужен полный
+ * эффективный доступ (личный ∪ группы), используйте
+ * `computeEffectiveAccess`/`computeEffectiveAccessWithIndex` из
+ * `src/lib/effectiveAccess.ts`.
  */
 export function computeDisplayRole(
   role: UserRole | null,

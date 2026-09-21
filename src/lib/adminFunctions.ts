@@ -1,6 +1,7 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase";
 import type { CourseAccessMap, UpdateCourseAccessParams } from "../types/user";
+import type { CourseStudentsResponse } from "../types/courseStudents";
 
 export interface MakeAdminParams {
   targetUid?: string;
@@ -266,6 +267,21 @@ export async function bulkEnrollStudents(params: BulkEnrollStudentsParams) {
     "bulkEnrollStudents"
   );
   const result = await fn(params);
+  return result.data;
+}
+
+/**
+ * Студенты курса: группы с их участниками + индивидуальные доступы.
+ * Доступно super-admin, co-admin и админу курса (claim `editableCourses`).
+ * Единственный путь к именам/почтам студентов для админа курса — читать
+ * `users/*` ему запрещено.
+ */
+export async function getCourseStudents(payload: { courseId: string }) {
+  const fn = httpsCallable<{ courseId: string }, CourseStudentsResponse>(
+    functions,
+    "getCourseStudents"
+  );
+  const result = await fn(payload);
   return result.data;
 }
 

@@ -16,7 +16,7 @@
  * оставленное предыдущим. Исходное состояние promotee («без ролей») на каждом
  * прогоне возвращает scripts/seedEmulatorRoles.ts.
  */
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { test, expect, gotoAndSettle, signInAs } from './helpers';
 import { SMOKE_COURSES, SMOKE_ROLES } from '../fixtures/roles';
 
@@ -28,6 +28,12 @@ test.describe.configure({ mode: 'serial', retries: 0 });
 const PROMOTEE = SMOKE_ROLES.promotee;
 const KEPT_COURSE = SMOKE_COURSES.externalX;
 const REVOKED_COURSE = SMOKE_COURSES.externalHidden;
+
+/**
+ * Холодный старт воркера функций + импорт всего index.js: первый callable
+ * легко переживает дефолтные 5 с ожидания.
+ */
+const COLD_START = 30_000;
 
 /**
  * Занятие, которое повышенный автор создаёт через UI. Это единственная
@@ -42,63 +48,53 @@ const REVOKED_COURSE = SMOKE_COURSES.externalHidden;
  */
 const NEW_LESSON = { id: 'smoke-fn-lesson', title: 'Занятие повышенного автора' };
 
-/** Строка пользователя в таблице /admin/users. */
-function promoteeRow(page: Page) {
-  return page.getByRole('row').filter({ hasText: PROMOTEE.email });
+/** Строка пользователя в списке /admin/users — кнопка с его email. */
+function promoteeRow(page: Page): Locator {
+  return page.locator('button').filter({ hasText: PROMOTEE.email });
 }
 
-/**
- * Админка подтверждает каждое действие через window.alert — это единственный
- * сигнал, что callable дошёл до конца. Ждать его обязательно: Firestore-запись
- * функция делает ДО setCustomUserClaims, поэтому строка таблицы успевает
- * обновиться, когда claims ещё старые, и перелогин выпустил бы токен с ними.
- * Обработчик заодно подтверждает window.confirm (иначе Playwright его отклонит).
- */
-function watchDialogs(page: Page) {
-  const seen: string[] = [];
-  page.on('dialog', (dialog) => {
-    seen.push(dialog.message());
-    void dialog.accept();
-  });
-  return async (message: string) => {
-    await expect
-      .poll(() => seen.some((text) => text.includes(message)), {
-        // Холодный старт воркера functions + импорт всего index.js — первый
-        // callable легко переживает дефолтные 5 с expect.poll.
-        timeout: 20_000,
-        message: `не дождались подтверждения «${message}»`,
-      })
-      .toBe(true);
-  };
+/** Карточка пользователя (drawer справа). */
+function drawer(page: Page): Locator {
+  return page.getByRole('complementary');
+}
+
+/** Открыть карточку promotee по прямой ссылке. */
+async function openPromoteeCard(page: Page): Promise<Locator> {
+  await gotoAndSettle(page, `/admin/users?user=${PROMOTEE.uid}`);
+  const card = drawer(page);
+  await expect(card.getByRole('heading', { name: PROMOTEE.displayName })).toBeVisible();
+  return card;
 }
 
 test.describe('Выдача прав автору через Cloud Functions', () => {
   test('makeUserAdmin: права на курсы выданы, автор видит кабинет и пишет в свой курс', async ({
     page,
   }) => {
-    const awaitAlert = watchDialogs(page);
     await gotoAndSettle(page, '/admin/users');
-    await expect(page.getByRole('heading', { name: 'Управление пользователями' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Пользователи', level: 1 })).toBeVisible();
 
-    // Исходное состояние — обычный пользователь без админ-действий.
+    // Исходное состояние — обычный пользователь без админских бейджей.
     const row = promoteeRow(page);
     await expect(row).toHaveCount(1);
-    await expect(row.getByRole('button', { name: 'Снять права' })).toHaveCount(0);
+    await expect(row.getByText('Администратор курса')).toHaveCount(0);
 
-    await page.getByRole('button', { name: '+ Добавить админа' }).click();
-    await expect(page.getByRole('heading', { name: 'Добавить администратора' })).toBeVisible();
-    await page.getByPlaceholder('user@example.com').fill(PROMOTEE.email);
+    await page.getByRole('button', { name: 'Добавить', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Добавить пользователей' })).toBeVisible();
+    await page.getByLabel('Email пользователей').fill(PROMOTEE.email);
+    await page.getByRole('radio', { name: /Права администратора курса/ }).check();
     await page.getByRole('checkbox', { name: KEPT_COURSE.doc.name }).check();
     await page.getByRole('checkbox', { name: REVOKED_COURSE.doc.name }).check();
-    await page.getByRole('button', { name: 'Назначить' }).click();
-    await awaitAlert('Администратор добавлен');
+    await page.getByRole('button', { name: /^Выдать права · 1$/ }).click();
 
-    // Модалка закрывается только после успешного ответа функции, а строка
-    // таблицы обновляется живым onSnapshot — это и есть запись, сделанная
-    // функцией в users/{uid}.
-    await expect(page.getByRole('heading', { name: 'Добавить администратора' })).toHaveCount(0);
-    await expect(row.getByText('Админ', { exact: true })).toBeVisible();
-    await expect(row.getByRole('button', { name: 'Снять права' })).toBeVisible();
+    // Инлайн-сводка вместо window.alert: это единственный сигнал, что callable
+    // дошёл до конца. Ждать его обязательно — Firestore-запись функция делает
+    // ДО setCustomUserClaims, и перелогин выпустил бы токен со старыми claims.
+    await expect(page.getByText('Права выданы: 1 из 1.')).toBeVisible({ timeout: COLD_START });
+    await page.getByRole('button', { name: 'Отмена' }).click();
+
+    // Строка таблицы обновляется живым onSnapshot — это и есть запись функции.
+    await expect(row.getByText('Администратор курса')).toBeVisible();
+    await expect(row.getByText('Редактирует 2 курса')).toBeVisible();
 
     // Claims применяются при следующем выпуске токена → полный перелогин.
     await signInAs(page, PROMOTEE.email);
@@ -135,15 +131,17 @@ test.describe('Выдача прав автору через Cloud Functions', (
   });
 
   test('setAdminEditableCourses: суженный список курсов доезжает до автора', async ({ page }) => {
-    const awaitAlert = watchDialogs(page);
-    await gotoAndSettle(page, '/admin/users');
-    await promoteeRow(page).getByRole('button', { name: 'Курсы' }).click();
+    const card = await openPromoteeCard(page);
+    await card.getByRole('button', { name: 'Изменить' }).click();
 
     await expect(page.getByRole('heading', { name: 'Редактируемые курсы' })).toBeVisible();
     await page.getByRole('checkbox', { name: REVOKED_COURSE.doc.name }).uncheck();
     await page.getByRole('button', { name: 'Сохранить' }).click();
-    await awaitAlert('Список редактируемых курсов обновлён');
+
     await expect(page.getByRole('heading', { name: 'Редактируемые курсы' })).toHaveCount(0);
+    await expect(card.getByText('Список редактируемых курсов обновлён')).toBeVisible({
+      timeout: COLD_START,
+    });
 
     await signInAs(page, PROMOTEE.email);
     await gotoAndSettle(page, '/admin');
@@ -159,12 +157,17 @@ test.describe('Выдача прав автору через Cloud Functions', (
   });
 
   test('removeAdmin: после снятия прав /admin для promotee закрыт', async ({ page }) => {
-    const awaitAlert = watchDialogs(page);
-    await gotoAndSettle(page, '/admin/users');
-    const row = promoteeRow(page);
-    await row.getByRole('button', { name: 'Снять права' }).click();
-    await awaitAlert('Права администратора сняты');
-    await expect(row.getByRole('button', { name: 'Снять права' })).toHaveCount(0);
+    const card = await openPromoteeCard(page);
+
+    // Двухшаговое подтверждение вместо window.confirm.
+    await card.getByRole('button', { name: 'Снять права' }).click();
+    await expect(card.getByText('Снять права администратора курса?')).toBeVisible();
+    await card.getByRole('button', { name: 'Да, снять' }).click();
+
+    await expect(card.getByText('Права администратора курса сняты')).toBeVisible({
+      timeout: COLD_START,
+    });
+    await expect(card.getByRole('button', { name: 'Назначить курсы' })).toBeVisible();
 
     await signInAs(page, PROMOTEE.email);
     await gotoAndSettle(page, '/admin');

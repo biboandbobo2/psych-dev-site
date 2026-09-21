@@ -14,6 +14,7 @@ import {
   FUNCTIONS_SERVICE_ACCOUNT,
   SUPER_ADMIN_EMAIL,
   CALLABLE_OPTS,
+  ensureUserManager,
 } from "./lib/shared.js";
 import {
   debugError as functionsDebugError,
@@ -90,7 +91,7 @@ export const seedAdmin = onCall(
 });
 
 /**
- * toggleUserDisabled - отключает/включает пользователя (только для super-admin)
+ * toggleUserDisabled - отключает/включает пользователя (super-admin или со-админ)
  * Отключённый пользователь не может войти, но все его данные сохраняются.
  * При повторном включении — пользователь входит с тем же uid и данными.
  *
@@ -109,15 +110,8 @@ export const toggleUserDisabled = onCall(CALLABLE_OPTS, async (request) => {
     throw new HttpsError("unauthenticated", "Authentication required");
   }
 
-  // Только super-admin может отключать пользователей
-  const callerEmail = request.auth.token?.email;
-  if (callerEmail !== SUPER_ADMIN_EMAIL) {
-    fnLogger.error("❌ Caller is not super-admin", { callerEmail });
-    throw new HttpsError(
-      "permission-denied",
-      "Только super-admin может отключать/включать пользователей"
-    );
-  }
+  // Отключать пользователей может владелец и его со-админ
+  ensureUserManager(request);
 
   const targetUid = data?.targetUid;
   const disabled = data?.disabled;
@@ -142,6 +136,11 @@ export const toggleUserDisabled = onCall(CALLABLE_OPTS, async (request) => {
     // Проверяем что пользователь существует
     const targetUser = await authAdmin.getUser(targetUid);
     fnLogger.info("✅ Target user found", { email: targetUser.email });
+
+    // Владельца отключить нельзя даже со-админу — это отрезало бы доступ к проекту
+    if (targetUser.email === SUPER_ADMIN_EMAIL) {
+      throw new HttpsError("permission-denied", "Нельзя отключить super-admin");
+    }
 
     // Обновляем статус disabled
     await authAdmin.updateUser(targetUid, { disabled });
@@ -169,6 +168,11 @@ export const toggleUserDisabled = onCall(CALLABLE_OPTS, async (request) => {
         : "Пользователь включён. Он может войти и все его данные на месте.",
     };
   } catch (error: any) {
+    // Свои же проверки прав не превращаем в internal
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
     fnLogger.error("❌ Error in toggleUserDisabled", {
       error: error?.message,
       code: error?.code,
@@ -199,6 +203,7 @@ export { ingestBook } from './ingestBook.js';
 export { ingestLectureRag } from './ingestLectureRag.js';
 export { runVerify, runReconcile } from './verify.js';
 export { updateCourseAccess, setUserRole } from './courseAccess.js';
+export { getCourseStudents } from './courseStudents.js';
 export { bulkEnrollStudents, getStudentEmailLists, saveStudentEmailList } from './bulkEnrollment.js';
 export { sendFeedback } from './sendFeedback.js';
 export { billingBudgetAlert } from './billingBudgetAlert.js';

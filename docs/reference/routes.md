@@ -206,7 +206,7 @@
 | `/admin` | `AdminLanding` → `AuthorCabinet` | Admin | Super Admin — редирект на `/superadmin`; Admin — кабинет автора: карточки своих курсов со сводкой и ссылками на контент / вопросы / телеметрию / «О курсе» | ✅ |
 | `/superadmin` | `Admin` | Super Admin | Главная админ-панель | ✅ |
 | `/coadmin` | `CoAdmin` | флаг `coAdmin === true` | Лендинг для со-админа: ссылка на редактор страниц DOM Academy | ✅ |
-| `/admin/users` | `AdminUsers` | Super Admin | Управление пользователями и ролями | ✅ |
+| `/admin/users` | `AdminUsers` | Super Admin / Co-admin | Пользователи и потоки: две вкладки, карточка пользователя, окно «Добавить» (см. ниже) | ✅ |
 | `/admin/archive` | `AdminArchive` | Super Admin | Утилиты: диагностика токенов, загрузка ассетов, seed-admin | ✅ |
 | `/migrate-topics` | `MigrateTopics` | Super Admin | Миграция тем в Firestore | ✅ |
 
@@ -237,12 +237,13 @@
 | `/admin/topics` | `AdminTopics` | Admin | Управление темами для заметок | ✅ |
 | `/admin/books` | `AdminBooks` | Admin | Управление книгами для RAG-поиска | ✅ |
 | `/admin/announcements` | `AdminAnnouncements` | Admin | События/объявления (calendar-style UX) | ✅ |
-| `/admin/groups` | `AdminGroups` | Admin | Группы пользователей (потоки/featuredCourses) | ✅ |
+| `/admin/groups` | — (редирект) | Super Admin / Co-admin | `<Navigate to="/admin/users?tab=streams">` — потоки переехали во вкладку | — |
 | `/admin/content/course-intro/:courseId` | `AdminCourseIntro` | Admin | Редактор вводной страницы курса | ✅ |
 | `/superadmin/pages` | `AdminPagesList` | флаг `coAdmin` (включая super-admin) | Список редактируемых статических страниц (`/about` + проекты) | ✅ |
 | `/superadmin/pages/about` | `AdminAboutPageEditor` | флаг `coAdmin` | Редактор `pages/about` — 6 фиксированных вкладок | ✅ |
 | `/superadmin/pages/projects/:slug` | `AdminProjectPageEditor` | флаг `coAdmin` | Редактор `projectPages/{slug}` (создание/редактирование/удаление) | ✅ |
-| `/superadmin/exams` | `AdminExams` | Super Admin | Управление экзаменами и слотами бронирования (см. [docs/guides/exam-booking.md](../guides/exam-booking.md)) | ✅ |
+| `/superadmin/exams` | `AdminExams` | Super Admin / Co-admin | Управление экзаменами и слотами бронирования (см. [docs/guides/exam-booking.md](../guides/exam-booking.md)) | ✅ |
+| `/admin/students` | `CourseStudents` | Admin (свои курсы; Super Admin / Co-admin — любые) | Студенты курса `?course=<id>`: потоки и индивидуальный доступ, почты, прогресс просмотра занятий, приглашение на курс по email. Курс вне прав — заглушка. См. [multi-course.md → Студенты курса](../guides/multi-course.md#студенты-курса-экран-adminstudents) | ✅ |
 | `/admin/telemetry` | `AdminTelemetry` | Admin | Сводка продуктовой телеметрии `feature_events` по своим курсам (`editableCourses`) | ✅ |
 | `/superadmin/telemetry` | `AdminTelemetry` | Admin (полный объём — Super Admin) | Тот же компонент: super-admin видит все курсы и блок «Посещения страниц» (PV-1), админ курса — только свои события (см. [docs/guides/product-telemetry.md](../guides/product-telemetry.md)) | ✅ |
 
@@ -294,14 +295,22 @@
 ## Система ролей
 
 `UserRole` сужен до `'admin' | 'super-admin'` (Wave 2, коммит `b4b37e8`).
-«Гость» и «Студент» — это **не значения** поля `role`, а **вычисляемые** статусы:
+«Гость» и «Студент» — это **не значения** поля `role`, а **вычисляемые** статусы,
+причём с учётом не только личного `courseAccess`, но и групп (потоков), где
+состоит пользователь (`groups/{id}.grantedCourses`, `memberIds`):
 
-- `userRole === null` + нет `courseAccess` → guest.
-- `userRole === null` + есть хотя бы один `courseAccess[*] === true` → student.
+- `userRole === null` + эффективный доступ (личный `courseAccess` ∪ группы) ограничен
+  только курсами через системные группы (`groups.isSystem === true`, напр. `everyone`)
+  или отсутствует вовсе → guest.
+- `userRole === null` + есть хотя бы один платный доступ — личный `courseAccess[*] === true`
+  или через несистемную группу (поток) → student.
 - `userRole === 'admin'` → admin.
 - `userRole === 'super-admin'` → super-admin.
 
-См. [`src/lib/roleHelpers.ts:computeDisplayRole`](../../src/lib/roleHelpers.ts).
+`src/lib/roleHelpers.ts:computeDisplayRole` считает только личный `courseAccess`
+и не видит группы. Там, где важен полный эффективный доступ (в т.ч. в админке),
+используйте [`src/lib/effectiveAccess.ts`](../../src/lib/effectiveAccess.ts):
+`computeEffectiveAccess`/`computeEffectiveAccessWithIndex`.
 
 ### Роли и права доступа
 
@@ -311,14 +320,42 @@
 | **Student** | Базовый доступ (есть хотя бы один courseAccess) | + `/profile`, `/notes`, `/tests`, `/tests-lesson`, `/timeline`, `/research` |
 | **Student + courseAccess.clinical** | Клиническая психология | + `/clinical/*`, `/disorder-table` |
 | **Student + courseAccess.general** | Общая психология | + `/general/*` |
-| **Admin** | Редактирование контента **только своих курсов** (claim `editableCourses`) | + `/admin/content`, `/admin/content/edit/*`, `/admin/content/course-intro/*`, `/admin/topics`, `/admin/books`, `/admin/announcements`, `/admin/groups`, `/admin/telemetry` |
-| **Super Admin** | Полный доступ | + `/superadmin`, `/superadmin/pages/*`, `/superadmin/telemetry`, `/admin/users`, `/admin/archive`, `/migrate-topics` |
+| **Admin** | Редактирование контента **только своих курсов** (claim `editableCourses`); чужие профили `users/*` не читает — свои студенты приходят из callable `getCourseStudents` | + `/admin/content`, `/admin/content/edit/*`, `/admin/content/course-intro/*`, `/admin/topics`, `/admin/books`, `/admin/announcements`, `/admin/telemetry`, `/admin/students` |
+| **Co-admin** (флаг `coAdmin`, параллельно любой роли) | Помощник владельца: ведёт пользователей и потоки, редактирует страницы DOM Academy. Права (админ курса, со-админ) раздаёт только super-admin | + `/coadmin`, `/superadmin/pages/*`, `/admin/users`, `/superadmin/exams` |
+| **Super Admin** | Полный доступ (всегда co-admin) | + `/superadmin`, `/superadmin/pages/*`, `/superadmin/telemetry`, `/admin/users`, `/superadmin/exams`, `/admin/archive`, `/migrate-topics` |
 
 Admin администрирует только курсы из `editableCourses`: список курсов, редакторы, дропдауны и телеметрия ограничены ими, чужой курс недоступен даже по прямой ссылке. Подробности — [docs/guides/multi-course.md → Кабинет автора](../guides/multi-course.md#кабинет-автора).
 
+### `/admin/users` — пользователи и потоки
+
+Один экран управления людьми; точка входа — карточка «Пользователи и потоки»
+в `/superadmin` и в `/coadmin`. Состояние экрана целиком в query, поэтому на
+любой вид есть ссылка:
+
+| Параметр | Значения | Что делает |
+|---|---|---|
+| `tab` | `users` (по умолчанию) / `streams` | Вкладка «Пользователи» или «Потоки» |
+| `stream` | `groupId` | Фильтр списка по потоку; на него ведёт ссылка «Участники» с карточки потока |
+| `user` | `uid` | Открытая карточка пользователя (drawer справа) |
+
+- **Список** — роль (по эффективному доступу: личный `courseAccess` ∪
+  `grantedCourses` потоков, см. `src/lib/effectiveAccess.ts`), доступ с
+  источниками, чипы потоков, последний вход. Фильтры: поиск, роль, поток,
+  курс, «ожидают регистрации», сортировка. Действий в строках нет.
+- **Карточка** (`?user=`) — доступ к курсам (курс из потока помечен замком и
+  здесь не меняется; личный — тумблером, сразу `updateCourseAccess`), потоки
+  (`setGroupMembers`), права (`makeUserAdmin` / `setAdminEditableCourses` /
+  `removeAdmin`, `makeUserCoAdmin` / `removeCoAdmin` — только super-admin),
+  отключение (`toggleUserDisabled`). Опасные действия — двухшаговая кнопка.
+- **Окно «Добавить»** — три режима для одного списка email: в поток, курсы
+  лично, права администратора курса (см.
+  [multi-course.md → Массовое открытие курсов](../guides/multi-course.md#массовое-открытие-курсов-bulk-enrollment)).
+- **Вкладка «Потоки»** (`?tab=streams`) — карточки групп; клик открывает
+  `GroupEditorModal`. Со-админ читает `groups` (правило `canReadGroup`).
+
 ### Гранулярный доступ к курсам
 
-Super Admin может выдать студенту доступ к отдельным курсам через `/admin/users`:
+Super Admin и со-админ могут выдать студенту доступ к отдельным курсам через карточку на `/admin/users`:
 
 ```typescript
 // Firestore: users/{userId}

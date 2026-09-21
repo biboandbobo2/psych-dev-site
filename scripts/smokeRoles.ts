@@ -22,9 +22,9 @@ import { SNAPSHOT_MISSING_HINT, readManifest } from "./lib/prodSnapshot";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 /** Роли со сценарными спеками — тот же список, что в playwright.config.ts. */
-const SCENARIO_KEYS = ["author", "admin-empty", "superadmin", "student-group"];
-/** Сквозной сценарий выдачи прав через Cloud Functions; только с --with-functions. */
-const FUNCTIONS_KEY = "functions";
+const SCENARIO_KEYS = ["author", "admin-empty", "superadmin", "student-group", "coadmin"];
+/** Сценарии, которым нужен эмулятор функций (callable); только с --with-functions. */
+const FUNCTIONS_KEYS = ["functions", "author-students"];
 const FIRESTORE_PORT = 8080;
 const AUTH_PORT = 9099;
 const FUNCTIONS_PORT = 5001;
@@ -48,8 +48,8 @@ const USAGE = `Ролевой e2e-стенд (HP-2).
 
   --roles <a,b>      роли для прогона (по умолчанию: ${SCENARIO_KEYS.join(",")})
   --project <id>     песочница Firestore: суффикс (a → demo-smoke-a) или полный id
-  --with-functions   поднять эмулятор Cloud Functions и прогнать сценарий ${FUNCTIONS_KEY}
-                     (только в default-песочнице ${SMOKE_AUTH_PROJECT})
+  --with-functions   поднять эмулятор Cloud Functions и прогнать сценарии
+                     ${FUNCTIONS_KEYS.join(", ")} (только в default-песочнице ${SMOKE_AUTH_PROJECT})
   --prod-data        долить в песочницу срез контента прода (сначала снять его:
                      npx tsx scripts/fetchProdContentSnapshot.ts)
   --reset            очистить песочницу перед сидом
@@ -118,16 +118,17 @@ function parseArgs(argv: string[]): Options | null {
   }
   const explicitRoles = opts.roles.length > 0;
   if (!explicitRoles) {
-    opts.roles = opts.withFunctions ? [...SCENARIO_KEYS, FUNCTIONS_KEY] : [...SCENARIO_KEYS];
+    opts.roles = opts.withFunctions ? [...SCENARIO_KEYS, ...FUNCTIONS_KEYS] : [...SCENARIO_KEYS];
   }
-  const known = [...SCENARIO_KEYS, FUNCTIONS_KEY];
+  const known = [...SCENARIO_KEYS, ...FUNCTIONS_KEYS];
   const unknown = opts.roles.filter((r) => !known.includes(r));
   if (unknown.length) {
     throw new Error(`Неизвестные роли: ${unknown.join(", ")}. Доступны: ${known.join(", ")}`);
   }
   if (explicitRoles && !opts.roles.length) throw new Error("--roles не должен быть пустым");
-  if (opts.roles.includes(FUNCTIONS_KEY) && !opts.withFunctions) {
-    throw new Error(`Сценарий ${FUNCTIONS_KEY} требует флага --with-functions`);
+  const needsFunctions = opts.roles.filter((r) => FUNCTIONS_KEYS.includes(r));
+  if (needsFunctions.length && !opts.withFunctions) {
+    throw new Error(`Сценарии ${needsFunctions.join(", ")} требуют флага --with-functions`);
   }
   // Admin SDK внутри functions-эмулятора пишет в default-проект (GCLOUD_PROJECT),
   // а песочницы --project — отдельные проекты Firestore: повышенный через

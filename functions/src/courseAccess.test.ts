@@ -62,6 +62,10 @@ function regularCtx(uid = 'regular-uid') {
   return { auth: { uid, token: { email: 'user@example.com', role: 'guest' } } };
 }
 
+function coAdminCtx(uid = 'co-uid') {
+  return { auth: { uid, token: { email: 'co@example.com', coAdmin: true } } };
+}
+
 const noAuthCtx = {};
 
 // ── Tests ───────────────────────────────────────────────────────
@@ -79,10 +83,24 @@ describe('updateCourseAccess', () => {
     );
   });
 
-  it('throws permission-denied for non-super-admin', async () => {
+  it('throws permission-denied for a regular user', async () => {
     await expect(
       (updateCourseAccess as Function)({ data: { targetUid: 'u1', courseAccess: {} }, ...regularCtx() }),
-    ).rejects.toThrow('Only super-admin');
+    ).rejects.toThrow('Только super-admin или со-админ');
+  });
+
+  it('allows co-admin', async () => {
+    mockGet.mockResolvedValue({ exists: true, data: () => ({ role: 'guest', email: 'u@t.com' }) });
+    mockUpdate.mockResolvedValue(undefined);
+
+    const result = await (updateCourseAccess as Function)({
+      data: { targetUid: 'u1', courseAccess: { development: true } },
+      ...coAdminCtx(),
+    });
+
+    expect(result.success).toBe(true);
+    // Аудит пишет uid вызывающего, а не владельца
+    expect(mockUpdate.mock.calls[0][0].courseAccessUpdatedBy).toBe('co-uid');
   });
 
   it('throws when targetUid missing', async () => {
@@ -136,6 +154,12 @@ describe('setUserRole', () => {
   it('throws permission-denied for non-super-admin', async () => {
     await expect(
       (setUserRole as Function)({ data: { targetUid: 'u1', role: 'student' }, ...regularCtx() }),
+    ).rejects.toThrow('Only super-admin');
+  });
+
+  it('stays super-admin only: co-admin is rejected', async () => {
+    await expect(
+      (setUserRole as Function)({ data: { targetUid: 'u1', role: 'student' }, ...coAdminCtx() }),
     ).rejects.toThrow('Only super-admin');
   });
 

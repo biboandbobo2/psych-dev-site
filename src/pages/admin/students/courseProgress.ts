@@ -2,9 +2,12 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { debugError } from '../../../lib/debug';
 
-export interface MemberProgress {
+export interface GroupMember {
   uid: string;
   name: string;
+}
+
+export interface MemberProgress extends GroupMember {
   watchedLessonIds: Set<string>;
 }
 
@@ -16,17 +19,15 @@ export function normalizeLessonId(lessonId: string): string {
   }
 }
 
-async function loadMemberProgress(uid: string, courseId: string): Promise<MemberProgress> {
-  const [userSnap, progressSnap] = await Promise.all([
-    getDoc(doc(db, 'users', uid)),
-    getDoc(doc(db, 'users', uid, 'courseProgress', courseId)),
-  ]);
-
-  const userData = userSnap.exists() ? userSnap.data() : {};
-  const name =
-    (typeof userData.displayName === 'string' && userData.displayName.trim()) ||
-    (typeof userData.email === 'string' && userData.email) ||
-    uid;
+/**
+ * Имя участника приходит из callable `getCourseStudents` — читать `users/{uid}`
+ * админу курса нельзя. Здесь остаётся только прогресс по курсу.
+ */
+async function loadMemberProgress(
+  member: GroupMember,
+  courseId: string
+): Promise<MemberProgress> {
+  const progressSnap = await getDoc(doc(db, 'users', member.uid, 'courseProgress', courseId));
 
   const rawWatched = progressSnap.exists() ? progressSnap.data().watchedLessonIds : [];
   const watchedLessonIds = new Set(
@@ -37,7 +38,7 @@ async function loadMemberProgress(uid: string, courseId: string): Promise<Member
       : []
   );
 
-  return { uid, name, watchedLessonIds };
+  return { ...member, watchedLessonIds };
 }
 
 /**
@@ -45,18 +46,18 @@ async function loadMemberProgress(uid: string, courseId: string): Promise<Member
  * упавший участник не валит батч, а получает fallback-строку.
  */
 export async function loadGroupProgress(
-  memberIds: string[],
+  members: GroupMember[],
   courseId: string
 ): Promise<{ members: MemberProgress[]; failedCount: number }> {
   let failedCount = 0;
-  const members = await Promise.all(
-    memberIds.map((uid) =>
-      loadMemberProgress(uid, courseId).catch((err): MemberProgress => {
-        debugError('[GroupWatchStats] failed to load member progress', uid, err);
+  const loaded = await Promise.all(
+    members.map((member) =>
+      loadMemberProgress(member, courseId).catch((err): MemberProgress => {
+        debugError('[CourseStudents] failed to load member progress', member.uid, err);
         failedCount += 1;
-        return { uid, name: `${uid} (не загрузился)`, watchedLessonIds: new Set() };
+        return { ...member, name: `${member.name} (не загрузился)`, watchedLessonIds: new Set() };
       })
     )
   );
-  return { members, failedCount };
+  return { members: loaded, failedCount };
 }

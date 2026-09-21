@@ -9,7 +9,9 @@ import {
   useDisorderTableStudents,
 } from '../features/disorderTable';
 import { useCourseStore } from '../stores';
+import { useAuthStore } from '../stores/useAuthStore';
 import { useAuth } from '../auth/AuthProvider';
+import { canEditCourse } from '../types/user';
 import { EntryModal } from './disorderTable/components/EntryModal';
 import { CellDetailsModal } from './disorderTable/components/CellDetailsModal';
 import { BulkEntryModal } from './disorderTable/components/BulkEntryModal';
@@ -34,8 +36,14 @@ import {
 } from './disorderTable/hooks';
 
 export default function DisorderTable() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isCoAdmin } = useAuth();
   const { currentCourse } = useCourseStore();
+  const userRole = useAuthStore((state) => state.userRole);
+  const adminEditableCourses = useAuthStore((state) => state.adminEditableCourses);
+  // Режим преподавателя — тем, кто отвечает за этот курс: со-админ (и супер-админ
+  // через него) либо админ курса. Список студентов приходит из callable
+  // getCourseStudents, чужие `users/*` не читаются.
+  const canPickStudents = isCoAdmin || canEditCourse(userRole, adminEditableCourses, currentCourse);
   const {
     entries,
     loading,
@@ -61,13 +69,13 @@ export default function DisorderTable() {
     students,
     loading: studentsLoading,
     error: studentsError,
-  } = useDisorderTableStudents(isAdmin);
+  } = useDisorderTableStudents(currentCourse, canPickStudents);
 
   const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!user) return;
-    if (!isAdmin) {
+    if (!canPickStudents) {
       setTargetOwnerUid(user.uid);
       return;
     }
@@ -79,7 +87,7 @@ export default function DisorderTable() {
     if (!selectedStillExists) {
       setTargetOwnerUid(students[0].uid);
     }
-  }, [user, isAdmin, students, studentsLoading, targetOwnerUid, setTargetOwnerUid]);
+  }, [user, canPickStudents, students, studentsLoading, targetOwnerUid, setTargetOwnerUid]);
 
   const rowLabels = useMemo(() => new Map(DISORDER_TABLE_ROWS.map((row) => [row.id, row.label])), []);
   const columnLabels = useMemo(
@@ -236,7 +244,7 @@ export default function DisorderTable() {
             }}
           />
 
-          {isAdmin && (
+          {canPickStudents && (
             <AdminTeacherSelect
               students={students}
               studentsLoading={studentsLoading}

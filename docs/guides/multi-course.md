@@ -662,7 +662,9 @@ export function useActiveCourse(courses: CourseOption[], loading: boolean): stri
 | `users/{uid}.adminEditableCourses` | Firestore | Зеркало claim'а; обновляется мгновенно, поэтому первым отражает отзыв прав |
 
 Оба поля пишет одна Cloud Function `makeUserAdmin` (`functions/src/makeAdmin.ts`,
-вызывается из `AddAdminModal` на `/admin/users`, только super-admin); список
+вызывается из `AddAdminModal` на `/admin/users` — саму страницу открывает
+super-admin и со-админ, но выдачу админских прав функция по-прежнему пускает
+только от super-admin); список
 курсов обязателен и не может быть пустым, `removeAdmin` снимает и claim, и поле.
 Сведение источников — в `src/stores/useAuthStore.ts`: claim читается из
 кешированного токена, затем из фонового `getIdTokenResult(true)` (хелпер
@@ -700,6 +702,8 @@ UI остаётся на `useCourses` — сам хук не трогали, у 
   курс вне прав переключается на первый доступный.
 - **Телеметрия** — `/admin/telemetry`, сводка ограничена курсами админа самими
   rules, см. [product-telemetry.md](product-telemetry.md).
+- **Студенты курса** — `/admin/students`, чужой `?course=` даёт заглушку, состав
+  приходит только из callable `getCourseStudents` (см. ниже).
 
 При пустых правах админка не падает: сайдбар и `/admin/content` показывают
 заглушку «Курсы не назначены», телеметрия — свою заглушку, запросы не уходят.
@@ -719,6 +723,86 @@ UI остаётся на `useCourses` — сам хук не трогали, у 
 показывается прочерком и не роняет карточку. Super-admin по-прежнему уходит с
 `/admin` на `/superadmin`.
 
+### Студенты курса: экран `/admin/students`
+
+`src/pages/admin/students/` — «Студенты курса» для админа курса
+(`/admin/students?course=<courseId>`, гейт `RequireAdmin` + `canEditCourse`;
+super-admin и со-админ открывают любой курс, их пускает и callable). Курс вне
+прав **не** подменяется своим: `?course=` чужого курса даёт заглушку «У вас нет
+прав на этот курс», чтобы подмена в URL была видна, а не молчала.
+
+Что показывает:
+
+- секцию на каждый поток курса (`grantedCourses ∋ courseId`) с шапкой
+  «N студентов · в среднем k из Z занятий» и секцию «Индивидуально» — тех, кому
+  доступ выдали лично;
+- по студенту: имя, почту, бейджи «Ожидает регистрации» / «Отключён», последний
+  вход (`сегодня` / `вчера` / дата / `больше месяца назад`, `null` → `никогда`)
+  и полоску «просмотрено X / N»;
+- поиск по имени и почте, сортировку по прогрессу / имени / последнему входу,
+  по 10 строк на секцию с «Показать ещё»;
+- кнопку «Объявление потоку» — только тем, кто вправе писать этой группе
+  (`announcementAdminIds` или super-admin), ведёт на `/admin/announcements`.
+
+Откуда данные:
+
+- **состав** — callable `getCourseStudents` (см. ниже): коллекция `users` админу
+  курса закрыта, других путей к именам и почтам у него нет;
+- **прогресс** — клиентские чтения `users/{uid}/courseProgress/{courseId}`,
+  которые `firestore.rules` разрешают лектору курса (`canEditCourse`). Хелперы —
+  `src/pages/admin/students/courseProgress.ts`, мягкая деградация: упавший
+  участник не валит батч. Знаменатель N — опубликованные занятия курса из
+  `usePublishedLessonOptions`;
+- **приглашение** — модалка «Пригласить на курс» поверх `bulkEnrollStudents`
+  (`courseIds: [courseId]`; админу курса функция разрешает только его курсы).
+  Разбор списка email — общий `src/lib/emailList.ts`; после успеха показывается
+  сводка «добавлено / ждут регистрации» и список перечитывается.
+
+Экран забрал «Просмотры лекций» с `/admin/questions`: компонент `GroupWatchStats`
+удалён, на странице вопросов осталась ссылка «Студенты и просмотры →».
+
+Тесты: `src/pages/admin/students/*.test.ts(x)`, ролевой сценарий
+`tests/e2e/roles/author-students.spec.ts` (только `--with-functions`).
+
+### Студенты курса: `getCourseStudents`
+
+Коллекция `users` закрыта для админа курса (читают владелец, super-admin и
+со-админ), поэтому своих студентов он получает через callable
+`getCourseStudents` (`functions/src/courseStudents.ts`).
+
+**Право вызова:** super-admin, со-админ (claim `coAdmin`) или `role === 'admin'`,
+у которого `courseId` есть в claim `editableCourses` (хелпер `ensureCanEditCourse`
+из `functions/src/lib/shared.ts`). Остальным — `permission-denied`, без
+авторизации — `unauthenticated`.
+
+**Контракт:**
+```ts
+getCourseStudents({ courseId: string })
+
+interface CourseStudent {
+  uid: string; displayName: string | null; email: string | null; photoURL: string | null;
+  lastLoginAt: string | null;   // ISO; у pending-приглашений всегда null
+  pendingRegistration: boolean; disabled: boolean;
+}
+interface CourseStudentsResponse {
+  courseId: string;
+  groups: Array<{ id: string; name: string; students: CourseStudent[] }>;
+  individual: CourseStudent[];
+}
+```
+
+- `groups` — потоки, у которых `grantedCourses ∋ courseId`, без `everyone` и
+  `isSystem`; отсортированы по имени, студенты внутри — по `displayName`
+  (ru-локаль, безымянные в конец).
+- `individual` — у кого `courseAccess[courseId] === true` и кто **не** состоит ни
+  в одном из этих потоков (дублей между секциями нет).
+- Pending-приглашения (`users/pending_*`) приходят с `pendingRegistration: true`.
+- Полей сверх контракта нет: ни `phone`, ни `altegClientIds`, ни `geminiApiKey`,
+  ни `prefs`. `courseId` валидируется как slug — точка или слеш ломали бы путь
+  `courseAccess.<courseId>`, поэтому отбиваются `invalid-argument`.
+
+Тесты: `functions/src/courseStudents.test.ts`.
+
 ### Подводный камень: права живут в токене
 
 Rules читают `editableCourses` из токена запроса, а токен обновляется примерно
@@ -731,14 +815,34 @@ Rules читают `editableCourses` из токена запроса, а ток
 
 > **Дата добавления:** 2026-02-05
 
-Позволяет super-admin массово выдавать доступ к курсам для списка студентов.
+Позволяет массово выдавать доступ к курсам для списка студентов.
 
-### Как работает
+**Кто вызывает:** super-admin и со-админ — на любые курсы; **админ курса — на
+свои** (каждый `courseId` запроса должен быть в его claim `editableCourses`,
+иначе `permission-denied` со списком чужих курсов). Чужие курсы студента при
+этом не трогаются: патч доливает только запрошенные `courseAccess[courseId]`,
+а роль `admin`/`super-admin` сохраняется.
 
-1. Super-admin открывает `/admin/users` → «Массово открыть курсы»
-2. Вводит список email (через запятую, новую строку или `;`)
-3. Выбирает курсы для открытия
-4. Нажимает «Применить»
+### Окно «Добавить» на `/admin/users`
+
+Один ввод email (запятая, `;`, пробел или перевод строки; нормализация к
+lower-case, дедупликация, проверка формата) и три режима — что именно открыть:
+
+| Режим | Cloud Function | Кому |
+|---|---|---|
+| **В поток** (по умолчанию) | `addGroupMembersByEmail({ groupId, emails })` | super-admin, со-админ |
+| **Курсы лично** | `bulkEnrollStudents({ emails, courseIds })` | super-admin, со-админ |
+| **Права администратора курса** | `makeUserAdmin({ targetEmail, editableCourses })` по каждому email | только super-admin |
+
+Результат — inline-сводка (сколько добавлено, сколько ждёт регистрации, ошибки
+по конкретным email), без `window.alert`. Единица доступа — поток: личный
+доступ остаётся для исключений. Поэтому **курсы, пришедшие из потока, меняются
+только в самом потоке** (вкладка «Потоки» → редактор группы), а личный доступ —
+тумблером «лично» в карточке пользователя.
+
+Сохранённые списки email (`getStudentEmailLists`, `saveStudentEmailList`)
+остались только как обёртки в `src/lib/adminFunctions.ts` — UI после редизайна
+их не вызывает.
 
 ### Cloud Functions
 
@@ -748,6 +852,7 @@ Rules читают `editableCourses` из токена запроса, а ток
   - Обработка идёт параллельно чанками по 10 email
 - **`getStudentEmailLists`** — получение сохранённых списков email
 - **`saveStudentEmailList`** — сохранение списка для повторного использования
+- **`getCourseStudents`** — кто уже на курсе (см. «Студенты курса» выше)
 
 ### Pending-приглашения
 
@@ -764,10 +869,12 @@ users/pending_{base64url(email)}
 
 ### Ключевые файлы
 
-- **`src/components/BulkStudentAccessModal.tsx`** — UI модалки
+- **`src/pages/admin/users/components/InviteModal.tsx`** — окно «Добавить»
+  (заменило `BulkStudentAccessModal`, `AddAdminModal`-кнопку и `AddCoAdminModal`)
 - **`src/lib/adminFunctions.ts`** — клиентские обёртки Cloud Functions
 - **`functions/src/bulkEnrollment.ts`** — Cloud Functions
-- **`functions/src/lib/shared.ts`** — общие утилиты (`toPendingUid`, `extractCourseAccess`, `normalizeEmailList`)
+- **`functions/src/courseStudents.ts`** — `getCourseStudents`
+- **`functions/src/lib/shared.ts`** — общие утилиты (`toPendingUid`, `extractCourseAccess`, `normalizeEmailList`) и проверки прав (`ensureUserManager`, `ensureCanEditCourse`)
 
 ## Известные проблемы
 

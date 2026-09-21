@@ -45,6 +45,87 @@ export function ensureAdmin(request: Pick<CallableRequest, "auth">) {
   }
 }
 
+/** Claims вызывающего, важные для ролевых проверок. */
+interface AuthClaims {
+  email?: unknown;
+  role?: unknown;
+  coAdmin?: unknown;
+  editableCourses?: unknown;
+}
+
+function readClaims(request: Pick<CallableRequest, "auth">): AuthClaims {
+  return (request.auth?.token ?? {}) as AuthClaims;
+}
+
+/**
+ * Super-admin — владелец по email (у него может не быть claims вовсе) либо
+ * claim `role: 'super-admin'`, который выставляет onUserCreate.
+ */
+export function isSuperAdmin(request: Pick<CallableRequest, "auth">): boolean {
+  const claims = readClaims(request);
+  return claims.email === SUPER_ADMIN_EMAIL || claims.role === "super-admin";
+}
+
+/**
+ * «Менеджер пользователей» — super-admin или со-админ (claim `coAdmin: true`).
+ * Со-админ помогает владельцу с пользователями и потоками; выдача админских
+ * прав (makeUserAdmin/removeAdmin/setAdminEditableCourses/makeUserCoAdmin/
+ * removeCoAdmin), seedAdmin и setUserRole остаются только у super-admin.
+ */
+export function isUserManager(request: Pick<CallableRequest, "auth">): boolean {
+  return isSuperAdmin(request) || readClaims(request).coAdmin === true;
+}
+
+/** Бросает unauthenticated/permission-denied; возвращает uid вызывающего. */
+export function ensureUserManager(request: Pick<CallableRequest, "auth">): string {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Требуется авторизация");
+  }
+  if (!isUserManager(request)) {
+    throw new HttpsError(
+      "permission-denied",
+      "Только super-admin или со-админ может управлять пользователями и потоками"
+    );
+  }
+  return request.auth.uid;
+}
+
+/** Курсы из claim `editableCourses` (админ курса). */
+export function extractEditableCourses(request: Pick<CallableRequest, "auth">): string[] {
+  const raw = readClaims(request).editableCourses;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+}
+
+/** Super-admin / со-админ — любой курс; admin — только свои editableCourses. */
+export function canEditCourse(
+  request: Pick<CallableRequest, "auth">,
+  courseId: string
+): boolean {
+  if (isUserManager(request)) return true;
+  return (
+    readClaims(request).role === "admin" &&
+    extractEditableCourses(request).includes(courseId)
+  );
+}
+
+/** Бросает unauthenticated/permission-denied; возвращает uid вызывающего. */
+export function ensureCanEditCourse(
+  request: Pick<CallableRequest, "auth">,
+  courseId: string
+): string {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Требуется авторизация");
+  }
+  if (!canEditCourse(request, courseId)) {
+    throw new HttpsError(
+      "permission-denied",
+      `Нет прав на курс ${courseId}`
+    );
+  }
+  return request.auth.uid;
+}
+
 // ── Pending user helpers ──────────────────────────────────────
 
 export function toPendingUid(email: string): string {

@@ -15,7 +15,13 @@ import { test, expect, smokeProject, type TestAuthWindow } from "./helpers";
 import { SMOKE_PASSWORD, SMOKE_ROLE_LIST } from "../fixtures/roles";
 
 /** Роли, у которых есть сценарные спеки: должно совпадать с playwright.config.ts. */
-const SCENARIO_KEYS = new Set(["author", "admin-empty", "superadmin", "student-group"]);
+const SCENARIO_KEYS = new Set([
+  "author",
+  "admin-empty",
+  "superadmin",
+  "student-group",
+  "coadmin",
+]);
 
 /** Та же формула, что в playwright.config.ts (путь резолвится от cwd = корень репо). */
 function storageStatePath(key: string): string {

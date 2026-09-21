@@ -13,7 +13,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 
 /** Роли со сценарными спеками: имя проекта smoke:<key>, файл roles/<key>.spec.ts. */
-const SMOKE_SCENARIO_KEYS = ['author', 'admin-empty', 'superadmin', 'student-group'];
+const SMOKE_SCENARIO_KEYS = ['author', 'admin-empty', 'superadmin', 'student-group', 'coadmin'];
 
 const smokeBaseURL = process.env.SMOKE_BASE_URL;
 const smokeProject = process.env.SMOKE_PROJECT || 'demo-smoke';
@@ -68,6 +68,14 @@ export default defineConfig({
                 testMatch: 'roles/functions-admin.spec.ts',
                 dependencies: ['smoke:setup'],
                 use: { ...devices['Desktop Chrome'], storageState: storageStatePath('superadmin') },
+              },
+              // «Студенты курса» ходят за составом в callable getCourseStudents,
+              // поэтому сценарий живёт только в режиме с эмулятором функций.
+              {
+                name: 'smoke:author-students',
+                testMatch: 'roles/author-students.spec.ts',
+                dependencies: ['smoke:setup'],
+                use: { ...devices['Desktop Chrome'], storageState: storageStatePath('author') },
               },
             ]
           : []),

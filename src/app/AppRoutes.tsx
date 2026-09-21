@@ -34,8 +34,8 @@ import {
   AdminExams,
   AdminTelemetry,
   AuthorCabinet,
-  AdminGroups,
   AdminLectureQuestions,
+  AdminCourseStudents,
   AdminPagesList,
   AdminAboutPageEditor,
   AdminProjectPageEditor,
@@ -197,9 +197,9 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route
           path="/superadmin/exams"
           element={
-            <RequireAdmin>
+            <RequireCoAdmin>
               <AdminExams />
-            </RequireAdmin>
+            </RequireCoAdmin>
           }
         />
         <Route
@@ -220,19 +220,23 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             </RequireAdmin>
           }
         />
-        <Route
-          path="/admin/groups"
-          element={
-            <RequireAdmin>
-              <AdminGroups />
-            </RequireAdmin>
-          }
-        />
+        {/* Потоки переехали во вкладку страницы «Пользователи». */}
+        <Route path="/admin/groups" element={<Navigate to="/admin/users?tab=streams" replace />} />
         <Route
           path="/admin/questions"
           element={
             <RequireAdmin>
               <AdminLectureQuestions />
+            </RequireAdmin>
+          }
+        />
+        {/* Свои студенты курса: админ видит только курсы из editableCourses,
+            super-admin и со-админ — любой (callable пускает их так же). */}
+        <Route
+          path="/admin/students"
+          element={
+            <RequireAdmin>
+              <AdminCourseStudents />
             </RequireAdmin>
           }
         />
@@ -342,9 +346,9 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
         <Route
           path="/admin/users"
           element={
-            <RequireAdmin>
+            <RequireCoAdmin>
               <AdminUsers />
-            </RequireAdmin>
+            </RequireCoAdmin>
           }
         />
         {isSuperAdmin && (
