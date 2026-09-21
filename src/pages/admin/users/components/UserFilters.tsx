@@ -25,8 +25,8 @@ export function UserFilters({
   const patch = (part: Partial<UserListFilters>) => onChange({ ...filters, ...part });
 
   return (
-    <div className="flex flex-col gap-2.5 md:flex-row md:items-center">
-      <label className="relative flex items-center md:w-80">
+    <div className="flex flex-col gap-2.5 md:flex-row md:flex-wrap md:items-center">
+      <label className="relative flex items-center md:w-72">
         <span className="pointer-events-none absolute left-3 text-muted">
           <SearchIcon />
         </span>
@@ -40,7 +40,9 @@ export function UserFilters({
         />
       </label>
 
-      <div className="-mx-4 flex items-center gap-2.5 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-1 md:flex-wrap md:overflow-visible md:px-0 md:pb-0">
+      {/* До md — один ряд с горизонтальной прокруткой; на десктопе обёртка
+          схлопывается (md:contents) и контролы встают в общий ряд с поиском. */}
+      <div className="-mx-4 flex items-center gap-2.5 overflow-x-auto px-4 pb-1 md:contents">
         <label className={FIELD}>
           <span className="text-muted">Роль</span>
           <select

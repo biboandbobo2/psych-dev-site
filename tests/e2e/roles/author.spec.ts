@@ -104,6 +104,15 @@ test.describe('Админ курса external-x: кабинет автора о�
     ).toHaveText('Опубликовано');
   });
 
+  test('/admin/users закрыт: людьми управляет владелец, а не админ курса', async ({ page }) => {
+    await gotoAndSettle(page, '/admin/users');
+
+    // RequireCoAdmin рендерит отказ, а не редирект.
+    await expect(page.getByRole('heading', { name: 'Access denied' })).toBeVisible();
+    await expect(page.getByText('У вас нет прав со-админа')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Пользователи', level: 1 })).toHaveCount(0);
+  });
+
   test('подмена ?course= чужим курсом не открывает чужой контент', async ({ page }) => {
     await gotoAndSettle(page, '/admin/content?course=development');
 

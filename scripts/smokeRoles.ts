@@ -22,7 +22,7 @@ import { SNAPSHOT_MISSING_HINT, readManifest } from "./lib/prodSnapshot";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 /** Роли со сценарными спеками — тот же список, что в playwright.config.ts. */
-const SCENARIO_KEYS = ["author", "admin-empty", "superadmin", "student-group"];
+const SCENARIO_KEYS = ["author", "admin-empty", "superadmin", "student-group", "coadmin"];
 /** Сценарии, которым нужен эмулятор функций (callable); только с --with-functions. */
 const FUNCTIONS_KEYS = ["functions", "author-students"];
 const FIRESTORE_PORT = 8080;
