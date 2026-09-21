@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useSearchParams } from 'react-router-dom';
+import { AccessRequestsPanel } from '../../../components/accessRequests';
 import { usePublishedLessonOptions } from '../../../hooks';
 import { useEditableCourses } from '../../../hooks/useEditableCourses';
 import { useMyAnnouncementGroups } from '../../../hooks/useMyAnnouncementGroups';
@@ -197,6 +198,10 @@ export default function CourseStudents() {
         <Notice>У вас нет прав на этот курс.</Notice>
       ) : (
         <>
+          {/* Заявки на доступ именно к этому курсу (AC-2): «Открыть курс»
+              записывает студента и перечитывает список ниже. */}
+          <AccessRequestsPanel courseId={course.id} onResolved={reload} />
+
           <div className="flex flex-wrap items-center gap-3">
             <label className="relative flex w-full items-center sm:w-80">
               <span className="pointer-events-none absolute left-3 inline-flex text-muted">

@@ -764,6 +764,36 @@ super-admin и со-админ открывают любой курс, их пу
 Тесты: `src/pages/admin/students/*.test.ts(x)`, ролевой сценарий
 `tests/e2e/roles/author-students.spec.ts` (только `--with-functions`).
 
+### Заявки на доступ: панель «Заявки на доступ» (AC-2)
+
+`src/components/accessRequests/AccessRequestsPanel.tsx` — одна панель на два
+экрана. На `/admin/users` (вкладка «Пользователи», над фильтрами) она без
+`courseId` и показывает **все** новые заявки: этот экран открыт только
+супер-админу и со-админу. На «Студентах курса» она получает `courseId` текущего
+курса — так её видит и админ курса, которому `firestore.rules` отдают только
+заявки его `editableCourses`. Панели нет, пока нет заявок.
+
+В строке: имя и почта заявителя, название курса (или «курс не указан»), дата и
+текст заявки (сворачивается в три строки, разворачивается кликом).
+
+- **«Открыть курс»** — `bulkEnrollStudents({ emails: [email], courseIds: [courseId] })`
+  (админу курса функция разрешает только его курсы), затем `updateDoc` заявки в
+  `status: 'approved'` с `resolvedAt`/`resolvedBy`. На странице студентов список
+  после этого перечитывается. Кнопки нет, если в заявке нет курса или почты —
+  открывать нечего, вместо неё ссылка на карточку `/admin/users?user=<uid>`.
+- **«Отклонить»** — `status: 'declined'` с подтверждением на месте (тот же
+  `ConfirmAction`, что и у снятия прав в карточке пользователя).
+
+Ошибки показываются в самой панели и уходят в `reportAppError`; заявка при
+ошибке `bulkEnrollStudents` не закрывается. Хуки и схема коллекции —
+[firestore-schema.md](../reference/firestore-schema.md#accessrequestsrequestid-ac-2),
+отправка заявки гостем — [feedback-system.md](feedback-system.md).
+
+Тесты: `src/components/accessRequests/AccessRequestsPanel.test.tsx`, ролевые
+сценарии в `tests/e2e/roles/` — `student-no-access.spec.ts` (отправка),
+`superadmin.spec.ts` и `author.spec.ts` (видимость), `functions-admin.spec.ts`
+(«Открыть курс», только `--with-functions`).
+
 ### Студенты курса: `getCourseStudents`
 
 Коллекция `users` закрыта для админа курса (читают владелец, super-admin и

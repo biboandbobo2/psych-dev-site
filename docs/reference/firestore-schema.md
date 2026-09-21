@@ -9,7 +9,7 @@
 
 ## 📋 Содержание
 
-1. [Пользователи и роли](#пользователи-и-роли) — включая groups и aiUsageDaily
+1. [Пользователи и роли](#пользователи-и-роли) — включая groups, accessRequests и aiUsageDaily
 2. [Образовательный контент](#образовательный-контент)
 3. [Заметки и темы](#заметки-и-темы)
 4. [Система тестирования](#система-тестирования)
@@ -203,6 +203,47 @@ interface Group {
 ходит через Cloud Functions, rules согласованы с правами со-админа).
 
 См. [docs/guides/multi-course.md](../guides/multi-course.md).
+
+### `accessRequests/{requestId}` (AC-2)
+
+Заявка на доступ к курсу, отправленная зарегистрированным гостем с `/home`
+(`src/pages/home/AccessRequestModal.tsx`). Раньше такая заявка уходила только
+в Telegram и в админке не существовала; теперь Telegram — канал уведомления,
+а хранилище — эта коллекция. Id документа auto-id.
+
+```typescript
+interface AccessRequestDoc {
+  uid: string;                 // автор заявки (= request.auth.uid)
+  email: string | null;        // почта на момент заявки
+  displayName: string | null;
+  courseId: string | null;     // выбранный курс или null — «не знаю / несколько»
+  message: string;             // до 1000 символов, может быть пустым
+  status: 'new' | 'approved' | 'declined';
+  createdAt: Timestamp;        // serverTimestamp (rules требуют request.time)
+  resolvedAt?: Timestamp;      // проставляются при закрытии заявки
+  resolvedBy?: string;         // uid того, кто закрыл
+}
+```
+
+**Кто пишет:** автор заявки — только `create` и только про себя
+(`uid == request.auth.uid`, `status == 'new'`, строгий `hasOnly` по семи ключам,
+`courseId` — slug `[A-Za-z0-9_-]` до 80 символов или null). Закрывают заявку
+супер-админ, со-админ и администратор курса из `courseId`; менять им разрешено
+только `status`, `resolvedAt`, `resolvedBy` — текст, автор и курс заявки
+неизменны. `delete` — только супер-админ.
+
+**Кто читает:** автор — свои заявки; супер-админ и со-админ — все; админ курса
+— только заявки своего курса. Как и с `feature_events`, из семантики
+list-запросов следует: запрос админа курса обязан содержать
+`where('courseId', '==', ...)`, иначе отклоняется целиком, а заявки без курса
+видят только супер-админ и со-админ.
+
+**Индексов нет намеренно.** Деплой `firestore.indexes.json` в проекте сломан
+(MR-5), поэтому запросы обходятся без composite-индексов: только equality по
+`status`, `courseId`, `uid` и никакого `orderBy` — порядок задаёт клиент
+(`sortAccessRequests` в `src/types/accessRequests.ts`). Хуки —
+`src/hooks/useAccessRequests.ts`, панель в админке —
+`src/components/accessRequests/AccessRequestsPanel.tsx`.
 
 ### `aiUsageDaily/{uid}_{day}`
 

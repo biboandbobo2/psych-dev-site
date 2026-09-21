@@ -6,20 +6,31 @@ import { useAuth } from '../../auth/AuthProvider';
 import { useCourses } from '../../hooks/useCourses';
 import { useCoursesOpenness } from '../../hooks/useCoursesOpenness';
 import { getCourseIntroPath } from '../../lib/courseLinks';
-import { FeedbackModal } from '../../components/FeedbackModal';
 import { usePlatformNews } from '../../hooks/usePlatformNews';
+import { useMyAccessRequests } from '../../hooks/useAccessRequests';
+import { accessRequestDate, formatAccessRequestDate } from '../../types/accessRequests';
+import { AccessRequestModal } from './AccessRequestModal';
 import { PlatformNewsSection } from './PlatformNewsSection';
 
 const TELEGRAM_CONTACT = 'https://t.me/BiboiBobo2';
 
 export function RegisteredGuestHome() {
   const { user } = useAuth();
-  const { courses, loading: coursesLoading } = useCourses();
+  const { courses, courseMap, loading: coursesLoading } = useCourses();
   const { openCourseIds, loading: opennessLoading } = useCoursesOpenness(
     courses.map((course) => course.id)
   );
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const { items: platformNews, loading: newsLoading } = usePlatformNews();
+  // Заявки отсортированы по дате убыв. — берём последнюю в каждом статусе.
+  const { requests: accessRequests } = useMyAccessRequests();
+  const pendingRequest = accessRequests.find((request) => request.status === 'new');
+  const declinedRequest = pendingRequest
+    ? null
+    : accessRequests.find((request) => request.status === 'declined');
+  const pendingCourseName = pendingRequest?.courseId
+    ? (courseMap.get(pendingRequest.courseId)?.name ?? pendingRequest.courseId)
+    : null;
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'гость';
 
@@ -89,17 +100,32 @@ export function RegisteredGuestHome() {
       <section className="rounded-2xl border border-border bg-card2 p-6 shadow-brand">
         <h2 className="text-xl font-bold text-fg">Как получить доступ</h2>
         <p className="mt-2 text-sm text-muted">
-          Напишите нам любым удобным способом — мы откроем нужный курс. Укажите email, с которым вы
-          зарегистрированы.
+          {pendingRequest
+            ? 'Заявка у нас, ответим на email, с которым вы зарегистрированы. Если срочно — напишите в Telegram.'
+            : 'Напишите нам любым удобным способом — мы откроем нужный курс. Укажите email, с которым вы зарегистрированы.'}
         </p>
+        {pendingRequest ? (
+          <p className="mt-4 rounded-xl border border-accent/30 bg-accent-100 px-4 py-3 text-sm font-semibold text-accent">
+            Заявка отправлена {formatAccessRequestDate(accessRequestDate(pendingRequest))} · ждём
+            ответа
+            {pendingCourseName ? ` · ${pendingCourseName}` : ''}
+          </p>
+        ) : declinedRequest ? (
+          <p className="mt-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted">
+            Заявка от {formatAccessRequestDate(accessRequestDate(declinedRequest), false)}{' '}
+            отклонена. Можно отправить новую.
+          </p>
+        ) : null}
         <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => setIsAccessModalOpen(true)}
-            className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-          >
-            💬 Отправить запрос через бота
-          </button>
+          {!pendingRequest && (
+            <button
+              type="button"
+              onClick={() => setIsAccessModalOpen(true)}
+              className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+            >
+              🔓 Запросить доступ
+            </button>
+          )}
           <a
             href={TELEGRAM_CONTACT}
             target="_blank"
@@ -109,19 +135,10 @@ export function RegisteredGuestHome() {
             ✉️ Написать Алексею в Telegram
           </a>
         </div>
-        <FeedbackModal
+        <AccessRequestModal
           isOpen={isAccessModalOpen}
           onClose={() => setIsAccessModalOpen(false)}
-          title="Запрос доступа к курсу"
-          introText={[
-            'Расскажите, к какому курсу нужен доступ и кратко о себе. Мы ответим в ближайшее время.',
-          ]}
-          lockedType="idea"
-          messagePrefix="🔓 Запрос доступа к курсу\n\n"
-          messageLabel="Какой курс вам нужен и контекст"
-          placeholder="Например: «Хочу доступ к курсу ‘Психология развития’, меня интересует подростковый возраст»"
-          successMessage="Спасибо! Заявка отправлена в Telegram, мы ответим в ближайшее время."
-          cancelLabel="Закрыть"
+          courses={closedCourses}
         />
       </section>
 

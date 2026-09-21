@@ -18,7 +18,7 @@
  */
 import type { Locator, Page } from '@playwright/test';
 import { test, expect, gotoAndSettle, signInAs } from './helpers';
-import { SMOKE_COURSES, SMOKE_ROLES } from '../fixtures/roles';
+import { SMOKE_ACCESS_REQUESTS, SMOKE_COURSES, SMOKE_ROLES } from '../fixtures/roles';
 
 // retries: 0 — serial-группа мутирует состояние (промоушен, занятие), ретрай
 // стартовал бы с грязного и падал по нечитаемой причине; сид чинит только
@@ -28,6 +28,8 @@ test.describe.configure({ mode: 'serial', retries: 0 });
 const PROMOTEE = SMOKE_ROLES.promotee;
 const KEPT_COURSE = SMOKE_COURSES.externalX;
 const REVOKED_COURSE = SMOKE_COURSES.externalHidden;
+/** Заявка promotee на скрытый курс — её закрывает сценарий в конце файла. */
+const ACCESS_REQUEST = SMOKE_ACCESS_REQUESTS[2];
 
 /**
  * Холодный старт воркера функций + импорт всего index.js: первый callable
@@ -174,5 +176,34 @@ test.describe('Выдача прав автору через Cloud Functions', (
 
     await expect(page.getByRole('heading', { name: 'Access denied' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Кабинет автора' })).toHaveCount(0);
+  });
+});
+
+/**
+ * «Открыть курс» в панели заявок (AC-2) — второй реальный callable этого
+ * спека: bulkEnrollStudents выдаёт доступ, и только после него заявка
+ * помечается закрытой. Заявку и исходное состояние promotee возвращает сид.
+ */
+test.describe('Заявка на доступ: «Открыть курс» супер-админом', () => {
+  test('заявка уходит из панели, а курс у студента открыт', async ({ page }) => {
+    // Предыдущая группа оставила сессию promotee — возвращаемся к владельцу.
+    await signInAs(page, SMOKE_ROLES.superAdmin.email);
+    await gotoAndSettle(page, '/admin/users');
+
+    const panel = page.locator('section').filter({
+      has: page.getByRole('heading', { name: /^Заявки на доступ · \d+$/ }),
+    });
+    const row = panel.getByRole('listitem').filter({ hasText: ACCESS_REQUEST.message });
+    await expect(row).toHaveCount(1);
+
+    await row.getByRole('button', { name: 'Открыть курс' }).click();
+
+    // Закрытая заявка уходит из выдачи (панель слушает status == 'new').
+    await expect(row).toHaveCount(0, { timeout: COLD_START });
+
+    const card = await openPromoteeCard(page);
+    await expect(
+      card.getByRole('switch', { name: `Открыть лично: ${REVOKED_COURSE.doc.name}` })
+    ).toBeChecked();
   });
 });
