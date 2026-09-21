@@ -5,7 +5,11 @@
  */
 import type { Page } from '@playwright/test';
 import { test, expect, gotoAndSettle } from './helpers';
-import { SMOKE_COURSES, SMOKE_GROUP, SMOKE_ROLES } from '../fixtures/roles';
+import { SMOKE_COURSES, SMOKE_GROUP, SMOKE_ROLES, SMOKE_ROLE_LIST } from '../fixtures/roles';
+
+/** Все роли стенда, кроме супер-админа, сидятся с почтой @smoke.test. */
+const SMOKE_EMAIL_ROWS = SMOKE_ROLE_LIST.filter((role) => role.email.endsWith('@smoke.test')).length;
+const SMOKE_USERS_TOTAL = SMOKE_ROLE_LIST.length;
 
 const HIDDEN_COURSE_NAME = SMOKE_COURSES.externalHidden.doc.name;
 
@@ -81,13 +85,12 @@ test.describe('Супер-админ: /admin/users', () => {
     await gotoAndSettle(page, '/admin/users');
 
     await expect(page.getByRole('heading', { name: 'Пользователи', level: 1 })).toBeVisible();
-    // Все роли стенда, кроме супер-админа, сидятся с почтой @smoke.test.
-    await expect(page.locator('button').filter({ hasText: '@smoke.test' })).toHaveCount(7);
+    await expect(page.locator('button').filter({ hasText: '@smoke.test' })).toHaveCount(SMOKE_EMAIL_ROWS);
 
     await page.getByLabel('Поиск по имени или email').fill('Студент Курса');
     await expect(page.locator('button').filter({ hasText: '@smoke.test' })).toHaveCount(1);
     await expect(userRow(page, SMOKE_ROLES.studentCourse.email)).toBeVisible();
-    await expect(page.getByText('Показано 1 из 8')).toBeVisible();
+    await expect(page.getByText(`Показано 1 из ${SMOKE_USERS_TOTAL}`)).toBeVisible();
 
     await page.getByLabel('Поиск по имени или email').fill('');
     await page.getByLabel('Фильтр по роли').selectOption('guest');
@@ -118,14 +121,14 @@ test.describe('Супер-админ: /admin/users', () => {
 
     const card = page.getByRole('heading', { name: SMOKE_GROUP.name });
     await expect(card).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Участники' }).first()).toHaveAttribute(
-      'href',
-      `/admin/users?tab=users&stream=${SMOKE_GROUP.id}`
-    );
+    // Потоков на стенде несколько — ищем ссылку «Участники» именно этой карточки.
+    await expect(
+      page.locator(`a[href="/admin/users?tab=users&stream=${SMOKE_GROUP.id}"]`, { hasText: 'Участники' })
+    ).toBeVisible();
 
     // Фильтр по потоку из карточки: в смоук-группе один студент.
     await gotoAndSettle(page, `/admin/users?tab=users&stream=${SMOKE_GROUP.id}`);
-    await expect(page.getByText('Показано 1 из 8')).toBeVisible();
+    await expect(page.getByText(`Показано 1 из ${SMOKE_USERS_TOTAL}`)).toBeVisible();
     await expect(userRow(page, SMOKE_ROLES.studentGroup.email)).toBeVisible();
   });
 
