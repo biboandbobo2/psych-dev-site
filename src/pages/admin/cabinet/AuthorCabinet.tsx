@@ -66,6 +66,9 @@ function CourseCard({ course, stats }: { course: CourseOption; stats: CourseCabi
         <Link to={`/admin/questions?course=${course.id}`} className={LINK_CLASS}>
           Вопросы
         </Link>
+        <Link to={`/admin/students?course=${course.id}`} className={LINK_CLASS}>
+          Студенты
+        </Link>
         <Link to={`/admin/telemetry?course=${course.id}`} className={LINK_CLASS}>
           Телеметрия
         </Link>

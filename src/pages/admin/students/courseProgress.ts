@@ -53,7 +53,7 @@ export async function loadGroupProgress(
   const loaded = await Promise.all(
     members.map((member) =>
       loadMemberProgress(member, courseId).catch((err): MemberProgress => {
-        debugError('[GroupWatchStats] failed to load member progress', member.uid, err);
+        debugError('[CourseStudents] failed to load member progress', member.uid, err);
         failedCount += 1;
         return { ...member, name: `${member.name} (не загрузился)`, watchedLessonIds: new Set() };
       })

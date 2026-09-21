@@ -36,6 +36,7 @@ import {
   AuthorCabinet,
   AdminGroups,
   AdminLectureQuestions,
+  AdminCourseStudents,
   AdminPagesList,
   AdminAboutPageEditor,
   AdminProjectPageEditor,
@@ -233,6 +234,16 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
           element={
             <RequireAdmin>
               <AdminLectureQuestions />
+            </RequireAdmin>
+          }
+        />
+        {/* Свои студенты курса: админ видит только курсы из editableCourses,
+            super-admin и со-админ — любой (callable пускает их так же). */}
+        <Route
+          path="/admin/students"
+          element={
+            <RequireAdmin>
+              <AdminCourseStudents />
             </RequireAdmin>
           }
         />

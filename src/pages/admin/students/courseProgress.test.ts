@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDoc } from 'firebase/firestore';
-import { loadGroupProgress } from './groupWatchStatsHelpers';
+import { loadGroupProgress } from './courseProgress';
 
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db, ...path: string[]) => ({ path: path.join('/') })),
