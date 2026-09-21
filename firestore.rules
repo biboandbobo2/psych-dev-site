@@ -83,12 +83,13 @@ service cloud.firestore {
     // Группы студентов (потоки). Создание/редактирование — супер-админ и
     // со-админ (он ведёт пользователей и потоки; клиент ходит через Cloud
     // Functions, но rules держим согласованными с его правами).
-    // Чтение — любые админы (для управления), участники группы и админы,
-    // назначенные писать объявления этой группе (announcementAdminIds).
+    // Чтение — любые админы и со-админ (для управления), участники группы и
+    // админы, назначенные писать объявления этой группе (announcementAdminIds).
     match /groups/{groupId} {
       function canReadGroup() {
         return isAuthenticated() && (
           isAdmin() ||
+          isCoAdmin() ||
           (request.auth.uid in resource.data.memberIds) ||
           (request.auth.uid in resource.data.announcementAdminIds)
         );
