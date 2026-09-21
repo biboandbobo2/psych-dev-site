@@ -298,3 +298,43 @@ export const SMOKE_FEATURE_EVENTS = [
   { id: "smoke-ev-5", event: "transcript_opened", courseId: "clinical", hashedUid: "smoke-hash-s4", platform: "mobile", daysAgo: 5 },
   { id: "smoke-ev-6", event: "research_search", hashedUid: "smoke-hash-s5", platform: "desktop", daysAgo: 1 },
 ] as const;
+
+/**
+ * Заявки на доступ к курсу (AC-2). Id фиксированные, и сид не только
+ * переписывает их, но и удаляет из accessRequests всё лишнее: заявку,
+ * отправленную спеком student-no-access, иначе застал бы следующий прогон —
+ * и кнопка «Запросить доступ» на /home уже не показалась бы.
+ *
+ * smoke-req-approve закрывает functions-сценарий («Открыть курс» супер-админом),
+ * поэтому его курс — external-hidden: состав его студентов не считает ни один
+ * соседний спек, идущий параллельно в той же песочнице.
+ */
+export const SMOKE_ACCESS_REQUESTS = [
+  {
+    // Автор заявки — admin-empty, а не студент: панель на /admin/students
+    // живёт на одной странице со списком студентов курса, и author-students
+    // проверяет, что чужих студентов там нет по их почте.
+    id: "smoke-req-external",
+    uid: SMOKE_ROLES.adminEmpty.uid,
+    email: SMOKE_ROLES.adminEmpty.email,
+    displayName: SMOKE_ROLES.adminEmpty.displayName,
+    courseId: "external-x",
+    message: "Хочу пройти внешний курс X целиком, работаю с подростками.",
+  },
+  {
+    id: "smoke-req-no-course",
+    uid: SMOKE_ROLES.studentCourse.uid,
+    email: SMOKE_ROLES.studentCourse.email,
+    displayName: SMOKE_ROLES.studentCourse.displayName,
+    courseId: null,
+    message: "Пока не знаю, какой курс мне подойдёт — подскажите.",
+  },
+  {
+    id: "smoke-req-approve",
+    uid: SMOKE_ROLES.promotee.uid,
+    email: SMOKE_ROLES.promotee.email,
+    displayName: SMOKE_ROLES.promotee.displayName,
+    courseId: "external-hidden",
+    message: "Прошу доступ к скрытому курсу.",
+  },
+] as const;

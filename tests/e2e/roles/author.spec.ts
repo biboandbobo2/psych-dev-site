@@ -8,7 +8,10 @@
  * 3 события телеметрии от 2 уникальных hashedUid.
  */
 import { test, expect, gotoAndSettle } from './helpers';
-import { SMOKE_COURSES, SMOKE_CORE_LESSONS } from '../fixtures/roles';
+import { SMOKE_ACCESS_REQUESTS, SMOKE_COURSES, SMOKE_CORE_LESSONS } from '../fixtures/roles';
+
+/** Заявки стенда: external-x, «не знаю какой курс» и заявка на скрытый курс. */
+const [ACCESS_REQUEST, NO_COURSE_REQUEST, HIDDEN_COURSE_REQUEST] = SMOKE_ACCESS_REQUESTS;
 
 const COURSE_NAME = SMOKE_COURSES.externalX.doc.name;
 const HIDDEN_COURSE_NAME = SMOKE_COURSES.externalHidden.doc.name;
@@ -162,5 +165,27 @@ test.describe('Админ курса external-x: кабинет автора о�
     await gotoAndSettle(page, '/superadmin');
 
     await expect(page).toHaveURL(/\/admin\/content$/);
+  });
+
+  test('на «Студентах курса» видны заявки своего курса и только они', async ({ page }) => {
+    // Сама страница студентов ходит за составом в callable getCourseStudents
+    // (это покрывает author-students.spec.ts на стенде с функциями), а панель
+    // заявок читает Firestore напрямую — здесь проверяется только она.
+    await gotoAndSettle(page, `/admin/students?course=${SMOKE_COURSES.externalX.id}`);
+
+    const panel = page.locator('section').filter({
+      has: page.getByRole('heading', { name: /^Заявки на доступ · \d+$/ }),
+    });
+    await expect(panel).toHaveCount(1);
+
+    const own = panel.getByRole('listitem').filter({ hasText: ACCESS_REQUEST.email });
+    await expect(own).toHaveCount(1);
+    await expect(own.getByText(ACCESS_REQUEST.message)).toBeVisible();
+    await expect(own.getByRole('button', { name: 'Открыть курс' })).toBeVisible();
+
+    // Заявка без курса и заявка чужого курса админу курса не видны:
+    // firestore.rules отдают ему только заявки его editableCourses.
+    await expect(panel.getByText(NO_COURSE_REQUEST.email)).toHaveCount(0);
+    await expect(panel.getByText(HIDDEN_COURSE_REQUEST.email)).toHaveCount(0);
   });
 });

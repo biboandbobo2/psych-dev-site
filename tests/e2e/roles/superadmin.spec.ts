@@ -5,7 +5,16 @@
  */
 import type { Page } from '@playwright/test';
 import { test, expect, gotoAndSettle } from './helpers';
-import { SMOKE_COURSES, SMOKE_GROUP, SMOKE_ROLES, SMOKE_ROLE_LIST } from '../fixtures/roles';
+import {
+  SMOKE_ACCESS_REQUESTS,
+  SMOKE_COURSES,
+  SMOKE_GROUP,
+  SMOKE_ROLES,
+  SMOKE_ROLE_LIST,
+} from '../fixtures/roles';
+
+/** Заявки стенда: с курсом external-x и «не знаю, какой курс». */
+const [ACCESS_REQUEST, NO_COURSE_REQUEST] = SMOKE_ACCESS_REQUESTS;
 
 /** Все роли стенда, кроме супер-админа, сидятся с почтой @smoke.test. */
 const SMOKE_EMAIL_ROWS = SMOKE_ROLE_LIST.filter((role) => role.email.endsWith('@smoke.test')).length;
@@ -132,33 +141,69 @@ test.describe('Супер-админ: /admin/users', () => {
     await expect(userRow(page, SMOKE_ROLES.studentGroup.email)).toBeVisible();
   });
 
-  test('тумблер «лично» открывает курс студенту без доступа', async ({ page }) => {
+  test('тумблер «лично» открывает ещё один курс студенту', async ({ page }) => {
     test.skip(
       process.env.SMOKE_WITH_FUNCTIONS !== '1',
       'updateCourseAccess — реальный callable, нужен стенд с --with-functions'
     );
-    const target = SMOKE_ROLES.studentNoAccess;
+    // Цель — НЕ student-no-access: у него теперь свой спек на гостевом /home
+    // (заявка на доступ), а любой выданный курс увёл бы его на дашборд
+    // студента прямо посреди параллельного прогона. У student-external доступ
+    // только личный (external-x) и ни одного соседнего спека на /home.
+    const target = SMOKE_ROLES.studentExternal;
     const courseName = SMOKE_COURSES.general.doc.name;
 
     await gotoAndSettle(page, `/admin/users?user=${target.uid}`);
     const drawer = page.getByRole('complementary');
-    await expect(drawer.getByText('Доступ к курсам · 0 из 5')).toBeVisible();
+    await expect(drawer.getByText('Доступ к курсам · 1 из 5')).toBeVisible();
 
     // Именно click, а не check(): тумблер управляемый, он переключится только
     // после ответа callable и свежего onSnapshot.
     await drawer.getByRole('switch', { name: `Открыть лично: ${courseName}` }).click();
     // Первый callable поднимает воркер функций — ждём дольше дефолта.
     await expect(drawer.getByText('Курс открыт лично')).toBeVisible({ timeout: 30_000 });
-    await expect(drawer.getByText('Доступ к курсам · 1 из 5')).toBeVisible();
+    await expect(drawer.getByText('Доступ к курсам · 2 из 5')).toBeVisible();
 
     await drawer.getByRole('button', { name: 'Закрыть', exact: true }).click();
     const row = userRow(page, target.email);
-    await expect(row.getByText('1 курс', { exact: true })).toBeVisible();
+    await expect(row.getByText('2 курса', { exact: true })).toBeVisible();
     await expect(row.getByText('Студент', { exact: true })).toBeVisible();
 
     // Возвращаем стенд в исходное состояние.
     await row.click();
     await drawer.getByRole('switch', { name: `Открыть лично: ${courseName}` }).click();
     await expect(drawer.getByText('Личный доступ снят')).toBeVisible({ timeout: 30_000 });
+  });
+
+  test('панель «Заявки на доступ» на /admin/users показывает заявки всех курсов', async ({
+    page,
+  }) => {
+    await gotoAndSettle(page, '/admin/users');
+
+    // Счётчик не фиксируем числом: заявки создаёт спек student-no-access и
+    // закрывает functions-сценарий — оба идут параллельно в этой же песочнице.
+    const panel = page.locator('section').filter({
+      has: page.getByRole('heading', { name: /^Заявки на доступ · \d+$/ }),
+    });
+    await expect(panel).toHaveCount(1);
+
+    // Заявка с курсом: её же видит админ курса на «Студентах курса».
+    const withCourse = panel.getByRole('listitem').filter({ hasText: ACCESS_REQUEST.email });
+    await expect(withCourse).toHaveCount(1);
+    // Название курса анкерим: в тексте самой заявки оно тоже встречается.
+    await expect(
+      withCourse.getByText(new RegExp(`^${SMOKE_COURSES.externalX.doc.name} · \\d`))
+    ).toBeVisible();
+    await expect(withCourse.getByText(ACCESS_REQUEST.message)).toBeVisible();
+    await expect(withCourse.getByRole('button', { name: 'Открыть курс' })).toBeVisible();
+
+    // Заявка «не знаю, какой курс» — только у владельца платформы, и открывать
+    // по ней нечего: вместо кнопки ссылка в карточку.
+    const withoutCourse = panel.getByRole('listitem').filter({ hasText: NO_COURSE_REQUEST.email });
+    await expect(withoutCourse.getByText('курс не указан')).toBeVisible();
+    await expect(withoutCourse.getByRole('link', { name: 'Открыть карточку' })).toHaveAttribute(
+      'href',
+      `/admin/users?user=${NO_COURSE_REQUEST.uid}`
+    );
   });
 });

@@ -13,7 +13,14 @@ import { defineConfig, devices } from '@playwright/test';
  */
 
 /** Роли со сценарными спеками: имя проекта smoke:<key>, файл roles/<key>.spec.ts. */
-const SMOKE_SCENARIO_KEYS = ['author', 'admin-empty', 'superadmin', 'student-group', 'coadmin'];
+const SMOKE_SCENARIO_KEYS = [
+  'author',
+  'admin-empty',
+  'superadmin',
+  'student-group',
+  'student-no-access',
+  'coadmin',
+];
 
 const smokeBaseURL = process.env.SMOKE_BASE_URL;
 const smokeProject = process.env.SMOKE_PROJECT || 'demo-smoke';

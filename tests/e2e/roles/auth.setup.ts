@@ -20,6 +20,7 @@ const SCENARIO_KEYS = new Set([
   "admin-empty",
   "superadmin",
   "student-group",
+  "student-no-access",
   "coadmin",
 ]);
 

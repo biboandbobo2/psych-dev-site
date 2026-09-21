@@ -22,6 +22,7 @@ import { importProdSnapshot } from './lib/prodSnapshot';
 import { getFirestore, Timestamp, type Firestore } from 'firebase-admin/firestore';
 
 import {
+  SMOKE_ACCESS_REQUESTS,
   SMOKE_AUTH_PROJECT,
   SMOKE_CORE_LESSONS,
   SMOKE_COURSES,
@@ -349,6 +350,27 @@ async function seedFeatureEvents(db: Firestore, nowMs: number): Promise<number> 
 }
 
 /**
+ * accessRequests: заявки с фиксированными id + чистка всего лишнего.
+ * Уборка обязательна — спек student-no-access отправляет заявку через UI
+ * (auto-id), и без неё следующий прогон увидел бы «заявка уже отправлена»
+ * вместо кнопки. Заявки functions-сценария возвращаются в статус new.
+ */
+async function seedAccessRequests(db: Firestore, now: Timestamp): Promise<number> {
+  const wanted = new Set<string>(SMOKE_ACCESS_REQUESTS.map((request) => request.id));
+  const existing = await db.collection('accessRequests').get();
+  for (const doc of existing.docs) {
+    if (wanted.has(doc.id)) continue;
+    await doc.ref.delete();
+    console.log(`${TAG} удалена лишняя заявка accessRequests/${doc.id}`);
+  }
+  for (const request of SMOKE_ACCESS_REQUESTS) {
+    const { id, ...fields } = request;
+    await db.doc(`accessRequests/${id}`).set({ ...fields, status: 'new', createdAt: now });
+  }
+  return SMOKE_ACCESS_REQUESTS.length;
+}
+
+/**
  * Пути контента, записанные синтетическим сидом: в режиме --prod-data они
  * защищены от перезаписи снапшотом («фикстура побеждает прод») — иначе
  * прод-документ перетёр бы мир сценариев (имена core-курсов, external-x).
@@ -395,6 +417,7 @@ async function main() {
     const progressDocs = await seedCourseProgress(db, now);
     const questionDocs = await seedLectureQuestions(db, now);
     const eventDocs = await seedFeatureEvents(db, nowMs);
+    const requestDocs = await seedAccessRequests(db, now);
     let prodDocs = 0;
     if (prodData) {
       const stats = await importProdSnapshot(db, fixtureContentPaths(), (message) =>
@@ -403,7 +426,15 @@ async function main() {
       prodDocs = stats.written;
     }
     const total =
-      userDocs + courseDocs + coreDocs + groupDocs + progressDocs + questionDocs + eventDocs + prodDocs;
+      userDocs +
+      courseDocs +
+      coreDocs +
+      groupDocs +
+      progressDocs +
+      questionDocs +
+      eventDocs +
+      requestDocs +
+      prodDocs;
 
     console.log(`\n${TAG} Итого:`);
     console.log(`  auth-пользователей (${SMOKE_AUTH_PROJECT}): ${users}`);
@@ -414,6 +445,7 @@ async function main() {
     console.log(`  courseProgress/: ${progressDocs}`);
     console.log(`  lectureQuestions/: ${questionDocs}`);
     console.log(`  feature_events/: ${eventDocs}`);
+    console.log(`  accessRequests/: ${requestDocs}`);
     if (prodData) console.log(`  прод-срез: ${prodDocs}`);
     console.log(`\n✅ Firestore-доков ${total} записано в проект ${sandbox}.`);
   } finally {

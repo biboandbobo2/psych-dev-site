@@ -5,7 +5,10 @@ import type { CourseOption } from '../../hooks/useCourses';
 import type { AccessRequest } from '../../types/accessRequests';
 
 const requests: AccessRequest[] = [];
-const useAccessRequests = vi.fn(() => ({ requests, loading: false }));
+const useAccessRequests = vi.fn((_options?: { courseId?: string }) => ({
+  requests,
+  loading: false,
+}));
 
 vi.mock('../../hooks/useAccessRequests', () => ({
   ACCESS_REQUESTS_COLLECTION: 'accessRequests',
