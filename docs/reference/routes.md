@@ -294,14 +294,22 @@
 ## Система ролей
 
 `UserRole` сужен до `'admin' | 'super-admin'` (Wave 2, коммит `b4b37e8`).
-«Гость» и «Студент» — это **не значения** поля `role`, а **вычисляемые** статусы:
+«Гость» и «Студент» — это **не значения** поля `role`, а **вычисляемые** статусы,
+причём с учётом не только личного `courseAccess`, но и групп (потоков), где
+состоит пользователь (`groups/{id}.grantedCourses`, `memberIds`):
 
-- `userRole === null` + нет `courseAccess` → guest.
-- `userRole === null` + есть хотя бы один `courseAccess[*] === true` → student.
+- `userRole === null` + эффективный доступ (личный `courseAccess` ∪ группы) ограничен
+  только курсами через системные группы (`groups.isSystem === true`, напр. `everyone`)
+  или отсутствует вовсе → guest.
+- `userRole === null` + есть хотя бы один платный доступ — личный `courseAccess[*] === true`
+  или через несистемную группу (поток) → student.
 - `userRole === 'admin'` → admin.
 - `userRole === 'super-admin'` → super-admin.
 
-См. [`src/lib/roleHelpers.ts:computeDisplayRole`](../../src/lib/roleHelpers.ts).
+`src/lib/roleHelpers.ts:computeDisplayRole` считает только личный `courseAccess`
+и не видит группы. Там, где важен полный эффективный доступ (в т.ч. в админке),
+используйте [`src/lib/effectiveAccess.ts`](../../src/lib/effectiveAccess.ts):
+`computeEffectiveAccess`/`computeEffectiveAccessWithIndex`.
 
 ### Роли и права доступа
 

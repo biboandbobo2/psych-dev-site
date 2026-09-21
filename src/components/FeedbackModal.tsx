@@ -29,7 +29,7 @@ const FEEDBACK_OPTIONS: Array<{ type: FeedbackType; emoji: string; label: string
 const ROLE_LABELS: Record<string, string> = {
   'guest': 'Гость',
   'student': 'Студент',
-  'admin': 'Администратор',
+  'admin': 'Администратор курса',
   'super-admin': 'Супер-админ',
 };
 

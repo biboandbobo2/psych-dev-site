@@ -33,7 +33,7 @@ describe('computeDisplayRole', () => {
 describe('getRoleLabel', () => {
   it('returns Russian labels for all roles', () => {
     expect(getRoleLabel('super-admin')).toBe('Супер-админ');
-    expect(getRoleLabel('admin')).toBe('Админ');
+    expect(getRoleLabel('admin')).toBe('Администратор курса');
     expect(getRoleLabel('student')).toBe('Студент');
     expect(getRoleLabel('guest')).toBe('Гость');
   });

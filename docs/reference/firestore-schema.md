@@ -106,13 +106,13 @@ interface User {
 ```
 
 **Display-роли** (вычисляются, не хранятся):
-- `userRole === null` + нет courseAccess → **guest**
-- `userRole === null` + есть хотя бы один courseAccess[*] === true → **student**
-- `userRole === 'admin'` → **admin** (редактирование контента; courseAccess может быть)
+- `userRole === null` + эффективный доступ (личный `courseAccess` ∪ группы, где пользователь состоит) ограничен только курсами через системные группы (`groups.isSystem === true`, напр. `everyone`) или отсутствует вовсе → **guest**
+- `userRole === null` + есть хотя бы один платный доступ — личный `courseAccess[*] === true` или через несистемную группу (поток) → **student**
+- `userRole === 'admin'` → **admin** (редактирование контента; courseAccess/группы могут быть — админ курса может быть студентом другого курса)
 - `userRole === 'super-admin'` → **super-admin** (полный доступ; всегда co-admin)
 - `coAdmin === true` → дополнительный бейдж «Со-админ» поверх любой роли (доступ к `/superadmin/pages*`)
 
-См. [`src/lib/roleHelpers.ts:computeDisplayRole`](../../src/lib/roleHelpers.ts).
+`src/lib/roleHelpers.ts:computeDisplayRole` считает только личный `courseAccess` и не видит группы — годится там, где группы недоступны/не нужны. Для полного эффективного доступа (личный ∪ группы), в т.ч. в админке, используйте [`src/lib/effectiveAccess.ts`](../../src/lib/effectiveAccess.ts): `computeEffectiveAccess`/`computeEffectiveAccessWithIndex`.
 
 **Пример документа (студент с booking):**
 ```json
