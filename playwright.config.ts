@@ -69,6 +69,14 @@ export default defineConfig({
                 dependencies: ['smoke:setup'],
                 use: { ...devices['Desktop Chrome'], storageState: storageStatePath('superadmin') },
               },
+              // «Студенты курса» ходят за составом в callable getCourseStudents,
+              // поэтому сценарий живёт только в режиме с эмулятором функций.
+              {
+                name: 'smoke:author-students',
+                testMatch: 'roles/author-students.spec.ts',
+                dependencies: ['smoke:setup'],
+                use: { ...devices['Desktop Chrome'], storageState: storageStatePath('author') },
+              },
             ]
           : []),
       ]

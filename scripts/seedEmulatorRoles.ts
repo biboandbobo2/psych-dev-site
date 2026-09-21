@@ -25,8 +25,9 @@ import {
   SMOKE_AUTH_PROJECT,
   SMOKE_CORE_LESSONS,
   SMOKE_COURSES,
+  SMOKE_COURSE_PROGRESS,
   SMOKE_FEATURE_EVENTS,
-  SMOKE_GROUP,
+  SMOKE_GROUPS,
   SMOKE_LECTURE_QUESTIONS,
   SMOKE_PASSWORD,
   SMOKE_ROLE_LIST,
@@ -285,16 +286,29 @@ async function seedCoreLessons(db: Firestore): Promise<number> {
   return count;
 }
 
-/** Группа: все пять полей обязательны — rules читают их без guard'ов. */
-async function seedGroup(db: Firestore): Promise<number> {
-  await db.doc(`groups/${SMOKE_GROUP.id}`).set({
-    id: SMOKE_GROUP.id,
-    name: SMOKE_GROUP.name,
-    memberIds: [...SMOKE_GROUP.memberIds],
-    grantedCourses: [...SMOKE_GROUP.grantedCourses],
-    announcementAdminIds: [...SMOKE_GROUP.announcementAdminIds],
-  });
-  return 1;
+/** Группы: все пять полей обязательны — rules читают их без guard'ов. */
+async function seedGroups(db: Firestore): Promise<number> {
+  for (const group of SMOKE_GROUPS) {
+    await db.doc(`groups/${group.id}`).set({
+      id: group.id,
+      name: group.name,
+      memberIds: [...group.memberIds],
+      grantedCourses: [...group.grantedCourses],
+      announcementAdminIds: [...group.announcementAdminIds],
+    });
+  }
+  return SMOKE_GROUPS.length;
+}
+
+/** users/{uid}/courseProgress/{courseId} — «просмотрено X из N» в админке. */
+async function seedCourseProgress(db: Firestore, now: Timestamp): Promise<number> {
+  for (const entry of SMOKE_COURSE_PROGRESS) {
+    await db.doc(`users/${entry.uid}/courseProgress/${entry.courseId}`).set({
+      watchedLessonIds: [...entry.watchedLessonIds],
+      updatedAt: now,
+    });
+  }
+  return SMOKE_COURSE_PROGRESS.length;
 }
 
 async function seedLectureQuestions(db: Firestore, now: Timestamp): Promise<number> {
@@ -373,7 +387,8 @@ async function main() {
     const userDocs = await seedUserDocs(db, now);
     const courseDocs = await seedCourses(db);
     const coreDocs = await seedCoreLessons(db);
-    const groupDocs = await seedGroup(db);
+    const groupDocs = await seedGroups(db);
+    const progressDocs = await seedCourseProgress(db, now);
     const questionDocs = await seedLectureQuestions(db, now);
     const eventDocs = await seedFeatureEvents(db, nowMs);
     let prodDocs = 0;
@@ -383,7 +398,8 @@ async function main() {
       );
       prodDocs = stats.written;
     }
-    const total = userDocs + courseDocs + coreDocs + groupDocs + questionDocs + eventDocs + prodDocs;
+    const total =
+      userDocs + courseDocs + coreDocs + groupDocs + progressDocs + questionDocs + eventDocs + prodDocs;
 
     console.log(`\n${TAG} Итого:`);
     console.log(`  auth-пользователей (${SMOKE_AUTH_PROJECT}): ${users}`);
@@ -391,6 +407,7 @@ async function main() {
     console.log(`  courses/ + lessons: ${courseDocs}`);
     console.log(`  periods/ + clinical-topics/: ${coreDocs}`);
     console.log(`  groups/: ${groupDocs}`);
+    console.log(`  courseProgress/: ${progressDocs}`);
     console.log(`  lectureQuestions/: ${questionDocs}`);
     console.log(`  feature_events/: ${eventDocs}`);
     if (prodData) console.log(`  прод-срез: ${prodDocs}`);

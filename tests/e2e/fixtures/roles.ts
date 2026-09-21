@@ -71,6 +71,30 @@ export const SMOKE_ROLES = {
     claims: null,
     userDoc: {},
   },
+  /**
+   * Студент внешнего курса «лично»: courseAccess.external-x и ни одного потока.
+   * Секция «Индивидуально» на /admin/students.
+   */
+  studentExternal: {
+    key: "student-external",
+    uid: "smoke-student-external",
+    email: "student-external@smoke.test",
+    displayName: "Студент Внешнего Курса",
+    claims: null,
+    userDoc: { courseAccess: { "external-x": true } },
+  },
+  /**
+   * Студент потока внешнего курса: доступ только через SMOKE_EXTERNAL_GROUP.
+   * Секция потока на /admin/students.
+   */
+  studentExternalStream: {
+    key: "student-external-stream",
+    uid: "smoke-student-external-stream",
+    email: "student-external-stream@smoke.test",
+    displayName: "Студент Потока Икс",
+    claims: null,
+    userDoc: {},
+  },
   /** Админ курса external-x (кабинет автора): claim + зеркало обязательны оба. */
   author: {
     key: "author",
@@ -200,6 +224,40 @@ export const SMOKE_GROUP = {
   grantedCourses: ["clinical"],
   announcementAdminIds: [] as string[],
 } as const;
+
+/**
+ * Поток внешнего курса: даёт external-x своим участникам и виден автору курса
+ * на /admin/students. Автор в announcementAdminIds — чтобы в шапке потока
+ * рендерилась кнопка «Объявление потоку».
+ */
+export const SMOKE_EXTERNAL_GROUP = {
+  id: "smoke-external-group",
+  name: "Поток внешнего курса",
+  memberIds: [SMOKE_ROLES.studentExternalStream.uid],
+  grantedCourses: ["external-x"],
+  announcementAdminIds: [SMOKE_ROLES.author.uid],
+} as const;
+
+/** Все несистемные группы стенда. */
+export const SMOKE_GROUPS = [SMOKE_GROUP, SMOKE_EXTERNAL_GROUP] as const;
+
+/**
+ * Прогресс просмотра: users/{uid}/courseProgress/{courseId}. У external-x
+ * опубликованы 2 занятия из 3, поэтому потоковый студент даёт «2 / 2»,
+ * индивидуальный — «1 / 2».
+ */
+export const SMOKE_COURSE_PROGRESS = [
+  {
+    uid: SMOKE_ROLES.studentExternalStream.uid,
+    courseId: "external-x",
+    watchedLessonIds: ["ext-x-lesson-1", "ext-x-lesson-2"],
+  },
+  {
+    uid: SMOKE_ROLES.studentExternal.uid,
+    courseId: "external-x",
+    watchedLessonIds: ["ext-x-lesson-1"],
+  },
+] as const;
 
 /** lectureQuestions: по вопросу на external-x и development. */
 export const SMOKE_LECTURE_QUESTIONS = [

@@ -33,7 +33,8 @@ vi.mock('../../../stores/useAuthStore', () => ({
     selector({ isSuperAdmin: false }),
 }));
 
-const getCourseStudents = vi.fn<[{ courseId: string }], Promise<CourseStudentsResponse>>();
+const getCourseStudents =
+  vi.fn<(payload: { courseId: string }) => Promise<CourseStudentsResponse>>();
 const bulkEnrollStudents = vi.fn();
 
 vi.mock('../../../lib/adminFunctions', () => ({

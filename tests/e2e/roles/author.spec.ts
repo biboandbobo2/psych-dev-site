@@ -44,6 +44,10 @@ test.describe('Админ курса external-x: кабинет автора о�
       'href',
       '/admin/questions?course=external-x'
     );
+    await expect(card.getByRole('link', { name: 'Студенты' })).toHaveAttribute(
+      'href',
+      '/admin/students?course=external-x'
+    );
     await expect(card.getByRole('link', { name: 'Телеметрия' })).toHaveAttribute(
       'href',
       '/admin/telemetry?course=external-x'
