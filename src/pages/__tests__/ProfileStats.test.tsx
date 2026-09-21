@@ -1,4 +1,6 @@
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { describe, expect, it, vi } from 'vitest';
 import AdminUsers from '../AdminUsers';
 
@@ -18,6 +20,7 @@ vi.mock('../../hooks/useAllUsers', () => ({
       {
         uid: 'u2',
         role: 'admin',
+        adminEditableCourses: ['development'],
         email: 'admin@example.com',
         displayName: 'Admin',
         photoURL: null,
@@ -39,6 +42,20 @@ vi.mock('../../hooks/useAllUsers', () => ({
   }),
 }));
 
+vi.mock('../../hooks/useAllGroups', () => ({
+  useAllGroups: () => ({ groups: [], loading: false, error: null }),
+}));
+
+vi.mock('../../hooks/useCourses', () => ({
+  useCourses: () => ({
+    courses: [
+      { id: 'development', name: 'Психология развития', icon: '🧠', order: 0, published: true },
+      { id: 'clinical', name: 'Клиническая психология', icon: '🩺', order: 1, published: true },
+    ],
+    loading: false,
+  }),
+}));
+
 vi.mock('../../auth/AuthProvider', () => ({
   useAuth: () => ({
     user: { uid: 'u3', email: 'super@example.com' },
@@ -48,16 +65,29 @@ vi.mock('../../auth/AuthProvider', () => ({
   }),
 }));
 
+const renderPage = () =>
+  render(
+    <HelmetProvider>
+      <MemoryRouter initialEntries={['/admin/users']}>
+        <AdminUsers />
+      </MemoryRouter>
+    </HelmetProvider>
+  );
+
 describe('AdminUsers statistics', () => {
-  it('отображает счётчики пользователей и ролей', () => {
-    render(<AdminUsers />);
+  it('сводка в подзаголовке считает роли по эффективному доступу', () => {
+    renderPage();
 
     expect(
-      screen.getByText(/Всего:/)
-    ).toHaveTextContent('Всего: 3 (Админов: 2, Студентов: 1, Гостей: 0)');
-    expect(screen.getByText('Все (3)')).toBeInTheDocument();
-    expect(screen.getByText('Гости (0)')).toBeInTheDocument();
-    expect(screen.getByText('Студенты (1)')).toBeInTheDocument();
-    expect(screen.getByText('Администраторы (2)')).toBeInTheDocument();
+      screen.getByText('3 человека · 1 студент · 1 администратор курса · 0 гостей')
+    ).toBeInTheDocument();
+  });
+
+  it('показывает всех пользователей и счётчик показанных', () => {
+    renderPage();
+
+    expect(screen.getByText('student@example.com')).toBeInTheDocument();
+    expect(screen.getByText('admin@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Показано 3 из 3')).toBeInTheDocument();
   });
 });

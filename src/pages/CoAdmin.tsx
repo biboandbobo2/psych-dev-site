@@ -21,13 +21,25 @@ export default function CoAdmin() {
             Панель со-админа
           </h1>
           <p className="text-sm text-[#556476]">
-            Редактирование страниц DOM Academy.
+            Пользователи, потоки и страницы DOM Academy.
           </p>
         </div>
         <div className="text-sm text-[#8A97AB]">{user?.email}</div>
       </header>
 
       <section className="space-y-3">
+        <Link to="/admin/users" className={CARD_CLASS}>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-semibold text-[#2C3E50]">👥 Пользователи и потоки</div>
+              <div className="text-xs text-[#556476]">
+                Доступ к курсам, состав потоков, приглашения новых студентов
+              </div>
+            </div>
+            <span className="text-xl text-[#2F6DB5]">→</span>
+          </div>
+        </Link>
+
         <Link to="/superadmin/pages" className={CARD_CLASS}>
           <div className="flex items-center justify-between">
             <div>

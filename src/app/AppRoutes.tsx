@@ -34,7 +34,6 @@ import {
   AdminExams,
   AdminTelemetry,
   AuthorCabinet,
-  AdminGroups,
   AdminLectureQuestions,
   AdminCourseStudents,
   AdminPagesList,
@@ -221,14 +220,8 @@ export function AppRoutes({ location, periodMap, clinicalTopicsMap, generalTopic
             </RequireAdmin>
           }
         />
-        <Route
-          path="/admin/groups"
-          element={
-            <RequireCoAdmin>
-              <AdminGroups />
-            </RequireCoAdmin>
-          }
-        />
+        {/* Потоки переехали во вкладку страницы «Пользователи». */}
+        <Route path="/admin/groups" element={<Navigate to="/admin/users?tab=streams" replace />} />
         <Route
           path="/admin/questions"
           element={

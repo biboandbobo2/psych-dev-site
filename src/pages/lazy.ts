@@ -48,7 +48,6 @@ export const AdminAnnouncements = /* @__PURE__ */ lazy(() => lazyWithReload(() =
 export const AdminExams = /* @__PURE__ */ lazy(() => lazyWithReload(() => import('./admin/exams/AdminExams'), 'AdminExams'));
 export const AdminTelemetry = /* @__PURE__ */ lazy(() => lazyWithReload(() => import('./admin/telemetry/AdminTelemetry'), 'AdminTelemetry'));
 export const AuthorCabinet = /* @__PURE__ */ lazy(() => lazyWithReload(() => import('./admin/cabinet/AuthorCabinet'), 'AuthorCabinet'));
-export const AdminGroups = /* @__PURE__ */ lazy(() => lazyWithReload(() => import('./admin/groups/AdminGroups'), 'AdminGroups'));
 export const AdminLectureQuestions = /* @__PURE__ */ lazy(() => lazyWithReload(() => import('./admin/questions/AdminLectureQuestions'), 'AdminLectureQuestions'));
 export const AdminCourseStudents = /* @__PURE__ */ lazy(() => lazyWithReload(() => import('./admin/students/CourseStudents'), 'AdminCourseStudents'));
 export const AdminPagesList = /* @__PURE__ */ lazy(() => lazyWithReload(() => import('./admin/pages/AdminPagesList'), 'AdminPagesList'));
