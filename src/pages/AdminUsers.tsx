@@ -10,6 +10,7 @@ import { useAllUsers } from '../hooks/useAllUsers';
 import { useAllGroups } from '../hooks/useAllGroups';
 import { useCourses } from '../hooks/useCourses';
 import { useAuth } from '../auth/AuthProvider';
+import { AccessRequestsPanel } from '../components/accessRequests';
 import { SITE_NAME } from '../routes';
 import {
   DEFAULT_USER_FILTERS,
@@ -141,15 +142,20 @@ export default function AdminUsers() {
           onCreatingChange={setCreatingStream}
         />
       ) : (
-        <UsersTab
-          rows={rows}
-          filters={activeFilters}
-          onFiltersChange={handleFiltersChange}
-          streams={streams}
-          courses={sortedCourses}
-          currentUid={currentUser?.uid}
-          onOpenUser={(uid) => updateParams({ user: uid })}
-        />
+        <>
+          {/* Заявки на доступ с /home (AC-2): все новые — их закрывает
+              супер-админ или со-админ, список людей обновится сам. */}
+          <AccessRequestsPanel />
+          <UsersTab
+            rows={rows}
+            filters={activeFilters}
+            onFiltersChange={handleFiltersChange}
+            streams={streams}
+            courses={sortedCourses}
+            currentUid={currentUser?.uid}
+            onOpenUser={(uid) => updateParams({ user: uid })}
+          />
+        </>
       )}
 
       {selectedRow && (
