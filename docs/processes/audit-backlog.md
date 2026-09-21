@@ -303,6 +303,11 @@ CI часть (осталась):
 - [ ] **Футган `seedAdmin`** (`functions/src/index.ts`): `setCustomUserClaims(uid, { role: "admin" })` БЕЗ merge — прогон по действующему автору сотрёт его `editableCourses` и `coAdmin` из claims (зеркало в Firestore не тронет), и после сужения rules `tests` он не сможет записать ни один тест. Починка: merge с существующими claims, как в `makeAdmin.ts`.
 - [x] **Смоук под ролями admin/super-admin** — ✅ 2026-08-29 закрыт ролевым стендом `npm run smoke:roles` (вход без OAuth, AG‑1 для смоука больше не нужен).
 
+### AC‑2. Заявки на доступ к курсу с сайта (P: M, E: M)
+- **Идея (2026-09-21, Алексей):** гость нажимает «Запросить доступ» на `/home` (`RegisteredGuestHome`), но заявка уходит только в Telegram через `FeedbackModal` и в админке не существует. Отложено при редизайне `/admin/users`, но «фича верная, очень полезная для внешних авторов».
+- **Что сделать:** коллекция `accessRequests/{id}` (uid, email, courseId?, текст, createdAt, status: new/approved/declined, resolvedBy); create — авторизованным, read/update — супер-админ, со-админ и администратор курса по `courseId`; блок «Заявки» вверху `/admin/users` и на `/admin/students?course=` с кнопкой «Открыть курс» (→ `updateCourseAccess` / `bulkEnrollStudents`) и «Отклонить»; Telegram-уведомление сохранить как канал, не как хранилище.
+- **Зависимости:** страница `/admin/users` (вкладки, карточка) и `/admin/students` уже есть; rules-тесты по образцу `feature_events`.
+
 ## 💤 Low Priority
 
 ### LP‑1. Observability / Telemetry (P: L, E: M)
