@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useAllGroups } from '../../../hooks/useAllGroups';
 import { usePublishedLessonOptions } from '../../../hooks';
+import { getCourseStudents } from '../../../lib/adminFunctions';
+import { debugError } from '../../../lib/debug';
+import { courseStudentLabel, type CourseStudentsGroup } from '../../../types/courseStudents';
 import {
   loadGroupProgress,
   normalizeLessonId,
@@ -13,36 +15,65 @@ interface GroupWatchStatsProps {
 
 /**
  * Статистика просмотров лекций по группе — для лектора курса.
- * Точечные чтения courseProgress участников (десятки чтений на открытие),
- * без серверной агрегации.
+ * Состав групп и имена участников приходят из callable `getCourseStudents`
+ * (читать `users/*` лектору нельзя), прогресс — точечными чтениями
+ * courseProgress участников, без серверной агрегации.
  */
 export function GroupWatchStats({ courseId }: GroupWatchStatsProps) {
-  const { groups } = useAllGroups();
   const { lessonsByCourse } = usePublishedLessonOptions();
+  const [targetGroups, setTargetGroups] = useState<CourseStudentsGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [members, setMembers] = useState<MemberProgress[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [groupsError, setGroupsError] = useState(false);
 
-  const targetGroups = useMemo(
-    () => groups.filter((group) => group.id !== 'everyone' && !group.isSystem),
-    [groups]
-  );
   const lessons = lessonsByCourse[courseId] ?? [];
   const selectedGroup = targetGroups.find((group) => group.id === selectedGroupId) ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    setTargetGroups([]);
+    setSelectedGroupId('');
+    setGroupsError(false);
+
+    getCourseStudents({ courseId })
+      .then((response) => {
+        if (cancelled) return;
+        setTargetGroups(response.groups);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        debugError('[GroupWatchStats] failed to load course students', err);
+        setGroupsError(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId]);
+
+  const groupMembers = useMemo(
+    () =>
+      (selectedGroup?.students ?? []).map((student) => ({
+        uid: student.uid,
+        name: courseStudentLabel(student),
+      })),
+    [selectedGroup]
+  );
 
   useEffect(() => {
     setMembers([]);
     setLoadError(false);
 
-    if (!selectedGroup || selectedGroup.memberIds.length === 0) {
+    if (groupMembers.length === 0) {
       return undefined;
     }
 
     let cancelled = false;
     setLoading(true);
 
-    loadGroupProgress(selectedGroup.memberIds, courseId)
+    loadGroupProgress(groupMembers, courseId)
       .then(({ members: loaded, failedCount }) => {
         if (cancelled) {
           return;
@@ -62,7 +93,7 @@ export function GroupWatchStats({ courseId }: GroupWatchStatsProps) {
     return () => {
       cancelled = true;
     };
-  }, [courseId, selectedGroup]);
+  }, [courseId, groupMembers]);
 
   return (
     <section className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4">
@@ -77,13 +108,17 @@ export function GroupWatchStats({ courseId }: GroupWatchStatsProps) {
           <option value="">Выберите группу…</option>
           {targetGroups.map((group) => (
             <option key={group.id} value={group.id}>
-              {group.name} ({group.memberIds.length})
+              {group.name} ({group.students.length})
             </option>
           ))}
         </select>
       </div>
 
-      {!selectedGroup ? (
+      {groupsError ? (
+        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Не удалось загрузить состав групп курса. Попробуйте обновить страницу.
+        </p>
+      ) : !selectedGroup ? (
         <p className="mt-3 text-sm text-gray-500">
           Выберите группу, чтобы увидеть, кто посмотрел лекции курса.
         </p>

@@ -1,12 +1,31 @@
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query } from 'firebase/firestore';
-import { db } from '../../../lib/firebase';
 import { debugError } from '../../../lib/debug';
+import { getCourseStudents } from '../../../lib/adminFunctions';
+import { courseStudentLabel, type CourseStudent } from '../../../types/courseStudents';
 import type { DisorderTableStudent } from '../types';
-import { computeDisplayRole } from '../../../lib/roleHelpers';
-import { normalizeUserRole } from '../../../types/user';
 
-export function useDisorderTableStudents(enabled: boolean) {
+/** Группы + индивидуальные доступы → плоский список без дублей. */
+function flattenCourseStudents(
+  groups: Array<{ students: CourseStudent[] }>,
+  individual: CourseStudent[]
+): DisorderTableStudent[] {
+  const byUid = new Map<string, DisorderTableStudent>();
+  for (const student of [...groups.flatMap((group) => group.students), ...individual]) {
+    if (byUid.has(student.uid)) continue;
+    byUid.set(student.uid, {
+      uid: student.uid,
+      displayName: courseStudentLabel(student),
+      email: student.email ?? '',
+    });
+  }
+  return [...byUid.values()].sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru'));
+}
+
+/**
+ * Список студентов курса для режима преподавателя. Идёт через callable
+ * `getCourseStudents`: коллекция `users/*` админу курса не читается.
+ */
+export function useDisorderTableStudents(courseId: string, enabled: boolean) {
   const [students, setStudents] = useState<DisorderTableStudent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,48 +38,28 @@ export function useDisorderTableStudents(enabled: boolean) {
       return;
     }
 
+    let cancelled = false;
     setLoading(true);
     setError(null);
 
-    const usersQuery = query(collection(db, 'users'));
-
-    const unsubscribe = onSnapshot(
-      usersQuery,
-      (snapshot) => {
-        const nextStudents: DisorderTableStudent[] = snapshot.docs
-          .filter((docSnap) => {
-            const data = docSnap.data() as Record<string, unknown>;
-            const role = normalizeUserRole(data.role);
-            const courseAccess = data.courseAccess as Record<string, boolean | undefined> | null | undefined;
-            return computeDisplayRole(role, courseAccess) === 'student';
-          })
-          .map((docSnap) => {
-            const data = docSnap.data() as Record<string, unknown>;
-            const email = typeof data.email === 'string' ? data.email : '';
-            const displayName = typeof data.displayName === 'string'
-              ? data.displayName
-              : (email ? email.split('@')[0] : 'Студент');
-            return {
-              uid: docSnap.id,
-              displayName,
-              email,
-            };
-          })
-          .sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru'));
-
-        setStudents(nextStudents);
+    getCourseStudents({ courseId })
+      .then((response) => {
+        if (cancelled) return;
+        setStudents(flattenCourseStudents(response.groups, response.individual));
         setLoading(false);
-      },
-      (err) => {
+      })
+      .catch((err) => {
+        if (cancelled) return;
         debugError('Failed to load students for disorder table admin mode', err);
         setStudents([]);
         setError('Не удалось загрузить список студентов');
         setLoading(false);
-      }
-    );
+      });
 
-    return unsubscribe;
-  }, [enabled]);
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId, enabled]);
 
   return {
     students,
@@ -68,4 +67,3 @@ export function useDisorderTableStudents(enabled: boolean) {
     error,
   };
 }
-
