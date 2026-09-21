@@ -8,6 +8,8 @@
 
 Второй бот, публичный Telegram endpoint, Firestore-коллекция отзывов и клиентские токены не создаются. Гостевые сообщения разрешены. Вызов успешен только при `data.success === true`.
 
+**Исключение — заявка на доступ к курсу (AC-2, 2026-09-22).** Кнопка «Запросить доступ» на `/home` больше не ходит через `FeedbackModal`: её окно (`src/pages/home/AccessRequestModal.tsx`) сначала пишет заявку в Firestore-коллекцию `accessRequests`, и только потом шлёт уведомление тем же `submitFeedback`. Порядок важен: Telegram здесь best effort — его ошибка уходит в `reportAppError` и не отменяет уже сохранённую заявку, потому что хранилище теперь Firestore, а Telegram — канал уведомления. Схема коллекции и правила — [firestore-schema.md](../reference/firestore-schema.md#accessrequestsrequestid-ac-2); панель обработки — [multi-course.md](multi-course.md).
+
 ## Клиент
 
 `src/components/FeedbackModal.tsx` сохраняет существующие варианты кнопки header/profile/mobile и расширенные параметры заголовков/префикса/фиксированного типа. Авторизованное окно может передавать email, имя и роль. Состояния: ввод, отправка, успех, ошибка.
