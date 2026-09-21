@@ -243,6 +243,7 @@
 | `/superadmin/pages/about` | `AdminAboutPageEditor` | флаг `coAdmin` | Редактор `pages/about` — 6 фиксированных вкладок | ✅ |
 | `/superadmin/pages/projects/:slug` | `AdminProjectPageEditor` | флаг `coAdmin` | Редактор `projectPages/{slug}` (создание/редактирование/удаление) | ✅ |
 | `/superadmin/exams` | `AdminExams` | Super Admin / Co-admin | Управление экзаменами и слотами бронирования (см. [docs/guides/exam-booking.md](../guides/exam-booking.md)) | ✅ |
+| `/admin/students` | `CourseStudents` | Admin (свои курсы; Super Admin / Co-admin — любые) | Студенты курса `?course=<id>`: потоки и индивидуальный доступ, почты, прогресс просмотра занятий, приглашение на курс по email. Курс вне прав — заглушка. См. [multi-course.md → Студенты курса](../guides/multi-course.md#студенты-курса-экран-adminstudents) | ✅ |
 | `/admin/telemetry` | `AdminTelemetry` | Admin | Сводка продуктовой телеметрии `feature_events` по своим курсам (`editableCourses`) | ✅ |
 | `/superadmin/telemetry` | `AdminTelemetry` | Admin (полный объём — Super Admin) | Тот же компонент: super-admin видит все курсы и блок «Посещения страниц» (PV-1), админ курса — только свои события (см. [docs/guides/product-telemetry.md](../guides/product-telemetry.md)) | ✅ |
 
@@ -319,7 +320,7 @@
 | **Student** | Базовый доступ (есть хотя бы один courseAccess) | + `/profile`, `/notes`, `/tests`, `/tests-lesson`, `/timeline`, `/research` |
 | **Student + courseAccess.clinical** | Клиническая психология | + `/clinical/*`, `/disorder-table` |
 | **Student + courseAccess.general** | Общая психология | + `/general/*` |
-| **Admin** | Редактирование контента **только своих курсов** (claim `editableCourses`); чужие профили `users/*` не читает — свои студенты приходят из callable `getCourseStudents` | + `/admin/content`, `/admin/content/edit/*`, `/admin/content/course-intro/*`, `/admin/topics`, `/admin/books`, `/admin/announcements`, `/admin/telemetry` |
+| **Admin** | Редактирование контента **только своих курсов** (claim `editableCourses`); чужие профили `users/*` не читает — свои студенты приходят из callable `getCourseStudents` | + `/admin/content`, `/admin/content/edit/*`, `/admin/content/course-intro/*`, `/admin/topics`, `/admin/books`, `/admin/announcements`, `/admin/telemetry`, `/admin/students` |
 | **Co-admin** (флаг `coAdmin`, параллельно любой роли) | Помощник владельца: ведёт пользователей и потоки, редактирует страницы DOM Academy | + `/coadmin`, `/superadmin/pages/*`, `/admin/users`, `/admin/groups`, `/superadmin/exams` |
 | **Super Admin** | Полный доступ (всегда co-admin) | + `/superadmin`, `/superadmin/pages/*`, `/superadmin/telemetry`, `/admin/users`, `/admin/groups`, `/superadmin/exams`, `/admin/archive`, `/migrate-topics` |
 
