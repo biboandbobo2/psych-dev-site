@@ -11,6 +11,7 @@ import {
   computeEffectiveAccessWithIndex,
   type EffectiveAccess,
 } from '../../../lib/effectiveAccess';
+import { isValidEmail, splitEmails } from '../../../lib/emailList';
 
 /** Сетка колонок списка: общая для шапки таблицы и строк. */
 export const USER_GRID =
@@ -292,24 +293,17 @@ export function buildUsersSummary(rows: readonly UserRowData[]): string {
 
 // === Разбор email ===
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 export interface ParsedEmails {
   emails: string[];
   invalid: string[];
 }
 
-/** Запятая / точка с запятой / пробелы / переводы строк, lower-case, дедуп. */
+/** Общий разбор списка (`splitEmails`) + разделение на валидные и мусор. */
 export function parseEmailList(input: string): ParsedEmails {
   const emails: string[] = [];
   const invalid: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of input.split(/[\s,;]+/)) {
-    const value = raw.trim().toLowerCase();
-    if (!value || seen.has(value)) continue;
-    seen.add(value);
-    if (EMAIL_RE.test(value)) emails.push(value);
-    else invalid.push(value);
+  for (const value of splitEmails(input)) {
+    (isValidEmail(value) ? emails : invalid).push(value);
   }
   return { emails, invalid };
 }
