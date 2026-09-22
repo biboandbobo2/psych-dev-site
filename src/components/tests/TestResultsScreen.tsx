@@ -1,8 +1,10 @@
-import { type CSSProperties } from 'react';
+import { type CSSProperties, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { Test, TestAppearance } from '../../types/tests';
+import type { Test, TestAppearance, TestSummary } from '../../types/tests';
 import TestHistory from '../TestHistory';
 import { getCompletionRevealItems } from '../../utils/testRevealPolicy';
+import { getNextLevelTest } from '../../lib/tests';
+import { debugError } from '../../lib/debug';
 
 interface TestResultsScreenProps {
   test: Test;
@@ -35,9 +37,30 @@ export function TestResultsScreen({
   user,
   testId,
 }: TestResultsScreenProps) {
+  // undefined — ещё ищем следующий уровень; null — его нет
+  const [nextLevel, setNextLevel] = useState<TestSummary | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    getNextLevelTest(testId)
+      .then((next) => {
+        if (!cancelled) setNextLevel(next);
+      })
+      .catch((error) => {
+        debugError('Не удалось загрузить следующий уровень:', error);
+        if (!cancelled) setNextLevel(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [testId]);
+
   const percentage = Math.round((score / totalQuestions) * 100);
-  const passThreshold = test.requiredPercentage ?? 70;
+  // Порог прохождения = порог разблокировки следующего уровня (он хранится в самом следующем тесте)
+  const passThreshold = nextLevel?.requiredPercentage ?? test.requiredPercentage ?? 70;
   const passed = percentage >= passThreshold;
+  const levelResolved = nextLevel !== undefined;
+  const canGoNext = Boolean(nextLevel) && passed;
   const completionRevealItems = getCompletionRevealItems(test);
 
   const scoreEmoji = () => {
@@ -72,7 +95,7 @@ export function TestResultsScreen({
             )}
             <div className="text-8xl mb-6">{scoreEmoji()}</div>
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              {passed ? 'Тест пройден!' : 'Тест завершён'}
+              {levelResolved && passed ? 'Тест пройден!' : 'Тест завершён'}
             </h1>
             <p className="text-2xl text-gray-600 mb-8">{scoreMessage()}</p>
 
@@ -84,9 +107,13 @@ export function TestResultsScreen({
               <div className="mt-4 text-3xl font-bold" style={{ color: accentColor }}>
                 {percentage}%
               </div>
-              <div className="mt-2 text-sm text-gray-600">
-                Требуемый порог для следующего уровня: {passThreshold}%
-              </div>
+              {levelResolved ? (
+                <div className="mt-2 text-sm text-gray-600">
+                  {nextLevel
+                    ? `Порог для следующего уровня: ${passThreshold}%`
+                    : `Порог прохождения: ${passThreshold}%`}
+                </div>
+              ) : null}
             </div>
 
             {completionRevealItems.length > 0 ? (
@@ -115,21 +142,37 @@ export function TestResultsScreen({
               </div>
             ) : null}
 
-            <div className="space-y-4">
-              <button
-                onClick={onRestart}
-                style={accentGradientStyle}
-                className="w-full text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-              >
-                Пройти тест заново
-              </button>
-              <Link
-                to={backUrl}
-                className="block w-full bg-white border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-bold text-lg hover:border-gray-400 transition-all duration-300"
-              >
-                Вернуться к списку тестов
-              </Link>
-            </div>
+            {levelResolved ? (
+              <div className="space-y-4">
+                {canGoNext && nextLevel ? (
+                  <Link
+                    to={`/tests/dynamic/${nextLevel.id}`}
+                    style={accentGradientStyle}
+                    className="block w-full text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+                  >
+                    Следующий уровень →
+                    <span className="block text-sm font-medium opacity-90">{nextLevel.title}</span>
+                  </Link>
+                ) : null}
+                <button
+                  onClick={onRestart}
+                  style={canGoNext ? undefined : accentGradientStyle}
+                  className={
+                    canGoNext
+                      ? 'w-full bg-white border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-bold text-lg hover:border-gray-400 transition-all duration-300'
+                      : 'w-full text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300'
+                  }
+                >
+                  Пройти тест заново
+                </button>
+                <Link
+                  to={backUrl}
+                  className="block w-full bg-white border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-bold text-lg hover:border-gray-400 transition-all duration-300"
+                >
+                  Вернуться к списку тестов
+                </Link>
+              </div>
+            ) : null}
           </div>
         </div>
 

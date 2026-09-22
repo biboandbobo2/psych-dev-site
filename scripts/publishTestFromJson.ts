@@ -51,6 +51,7 @@ import { resolve, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { initAdmin } from './_adminInit';
+import { lintTest } from './lintTestJson';
 
 interface TestSource {
   test: {
@@ -130,6 +131,14 @@ async function main() {
   const source = JSON.parse(readFileSync(opts.jsonPath, 'utf8')) as TestSource;
   if (!source.test || !Array.isArray(source.test.questions)) {
     console.error('Invalid JSON: ожидаю { test: { ..., questions: [...] } }');
+    process.exit(1);
+  }
+
+  const lint = lintTest(source.test.questions as unknown as Parameters<typeof lintTest>[0]);
+  for (const w of lint.warnings) console.log(`⚠ ${w}`);
+  if (lint.errors.length) {
+    for (const e of lint.errors) console.error(`✗ ${e}`);
+    console.error('Линтер нашёл ошибки — публикация отменена (см. scripts/lintTestJson.ts).');
     process.exit(1);
   }
 

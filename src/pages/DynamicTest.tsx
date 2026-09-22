@@ -76,11 +76,13 @@ export default function DynamicTest() {
             loadedTest.requiredPercentage ?? 70
           );
           if (!unlocked) {
-            setError('Тест заблокирован. Пройдите предыдущий тест с результатом ≥70%');
+            setError(
+              `Тест заблокирован. Пройдите предыдущий уровень с результатом ≥${loadedTest.requiredPercentage ?? 70}%`
+            );
             setLoading(false);
             // Перенаправляем на страницу с тестами через 2 секунды
             setTimeout(() => {
-              navigate('/tests');
+              navigate(loadedTest.rubric === 'full-course' ? '/tests' : '/tests-lesson');
             }, 2000);
             return;
           }
