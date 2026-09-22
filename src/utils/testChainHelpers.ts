@@ -1,4 +1,5 @@
 import type { TestSummary } from '../types/tests';
+import { normalizeAgeRange } from '../types/notes';
 
 /**
  * Интерфейс цепочки тестов
@@ -110,4 +111,23 @@ export function buildTestChains(tests: TestSummary[]): TestChain[] {
   }
 
   return chains;
+}
+
+/**
+ * Сортирует тесты по порядку занятий курса (rubric = id занятия).
+ * Легаси-рубрики development (например, 'school') сводятся к каноническим id;
+ * тесты с неизвестной рубрикой уходят в конец. Внутри занятия — сначала новые.
+ */
+export function sortTestsByLessonOrder<T extends Pick<TestSummary, 'rubric' | 'createdAt'>>(
+  tests: T[],
+  lessonOrder: Map<string, number>
+): T[] {
+  const orderOf = (rubric: string) =>
+    lessonOrder.get(rubric) ??
+    lessonOrder.get(normalizeAgeRange(rubric) ?? '') ??
+    Number.MAX_SAFE_INTEGER;
+  return [...tests].sort(
+    (a, b) =>
+      orderOf(a.rubric) - orderOf(b.rubric) || b.createdAt.getTime() - a.createdAt.getTime()
+  );
 }
