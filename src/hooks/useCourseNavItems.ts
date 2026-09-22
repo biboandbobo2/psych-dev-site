@@ -129,5 +129,5 @@ export function useCourseNavItems(courseId: string | null) {
     [courseId, state.items]
   );
 
-  return { items, loading: state.loading, error: state.error, reload: loadLessons };
+  return { items, lessons: state.items, loading: state.loading, error: state.error, reload: loadLessons };
 }

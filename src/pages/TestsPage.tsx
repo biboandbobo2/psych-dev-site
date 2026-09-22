@@ -5,11 +5,12 @@ import { getPublishedTests } from '../lib/tests';
 import { getAllTestResults, groupResultsByTest } from '../lib/testResults';
 import type { TestSummary, CourseType } from '../types/tests';
 import type { TestAttemptSummary } from '../types/testResults';
-import { buildTestChains } from '../utils/testChainHelpers';
+import { buildTestChains, sortTestsByLessonOrder } from '../utils/testChainHelpers';
 import { TestCard } from '../components/tests/TestCard';
 import { debugLog, debugError } from '../lib/debug';
 import { useCourseStore } from '../stores';
 import { useCourses } from '../hooks/useCourses';
+import { useCourseNavItems } from '../hooks/useCourseNavItems';
 
 interface LegacyTest {
   id: string;
@@ -114,6 +115,7 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
   const [searchParams] = useSearchParams();
   const { currentCourse, setCurrentCourse } = useCourseStore();
   const { loading: coursesLoading } = useCourses();
+  const { lessons } = useCourseNavItems(rubricFilter === 'age-periods' ? currentCourse : null);
   const [firestoreTests, setFirestoreTests] = useState<TestSummary[]>([]);
   const [loadingTests, setLoadingTests] = useState(true);
   const [loadingResults, setLoadingResults] = useState(false);
@@ -212,8 +214,14 @@ function TestsPageComponent({ rubricFilter }: TestsPageProps) {
       filtered = filtered.filter((test) => test.rubric !== 'full-course');
     }
 
+    if (rubricFilter === 'age-periods') {
+      // Тесты по занятиям — в порядке занятий курса
+      const lessonOrder = new Map(lessons.map((lesson, index) => [lesson.id, lesson.order ?? index]));
+      return sortTestsByLessonOrder(filtered, lessonOrder);
+    }
+
     return filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  }, [firestoreTests, rubricFilter, currentCourse]);
+  }, [firestoreTests, rubricFilter, currentCourse, lessons]);
 
   const testChains = useMemo(() => buildTestChains(filteredTests), [filteredTests]);
 
