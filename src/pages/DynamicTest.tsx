@@ -3,6 +3,8 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { getTestById } from '../lib/tests';
 import { isTestUnlocked } from '../lib/testAccess';
+import { getTestResults } from '../lib/testResults';
+import type { TestResult } from '../types/testResults';
 import type { Test, QuestionAnswer, TestAppearance } from '../types/tests';
 import { mergeAppearance, createGradient, hexToRgba } from '../utils/testAppearance';
 import { shuffleArray } from '../utils/array';
@@ -24,6 +26,9 @@ export default function DynamicTest() {
   const [test, setTest] = useState<Test | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // История попыток, загруженная параллельно с тестом; после прохождения сбрасывается,
+  // чтобы вводный экран при повторе показал и новую попытку
+  const [prefetchedHistory, setPrefetchedHistory] = useState<TestResult[] | undefined>();
 
   // Хуки для управления состоянием теста
   const testProgress = useTestProgress({ test, user });
@@ -54,7 +59,14 @@ export default function DynamicTest() {
 
       try {
         setLoading(true);
-        const loadedTest = await getTestById(testId);
+        const [loadedTest, history] = await Promise.all([
+          getTestById(testId),
+          getTestResults(user.uid, testId).catch((historyError) => {
+            debugError('Не удалось заранее загрузить историю теста:', historyError);
+            return undefined;
+          }),
+        ]);
+        setPrefetchedHistory(history);
 
         if (!loadedTest) {
           setError('Тест не найден');
@@ -100,6 +112,10 @@ export default function DynamicTest() {
 
     loadTest();
   }, [testId, user, navigate]);
+
+  useEffect(() => {
+    if (testProgress.finished) setPrefetchedHistory(undefined);
+  }, [testProgress.finished]);
 
   // Определяем URL для возврата в зависимости от рубрики теста
   const backUrl = useMemo(() => {
@@ -204,6 +220,7 @@ export default function DynamicTest() {
         onStart={testProgress.handleStart}
         user={user}
         testId={testId!}
+        initialHistory={prefetchedHistory}
       />
     );
   }
