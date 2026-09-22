@@ -122,7 +122,7 @@ export function TestCard({
             </span>
             <BestResultBadge
               summary={resultsByTestId?.get(root.id)}
-              passingThreshold={root.requiredPercentage ?? 70}
+              passingThreshold={levels[0]?.requiredPercentage ?? root.requiredPercentage ?? 70}
             />
           </div>
         </div>
@@ -146,7 +146,7 @@ export function TestCard({
                   <span className="flex items-center gap-2">
                     <BestResultBadge
                       summary={resultsByTestId?.get(level.id)}
-                      passingThreshold={level.requiredPercentage ?? 70}
+                      passingThreshold={levels[idx + 1]?.requiredPercentage ?? level.requiredPercentage ?? 70}
                     />
                     <span className="text-xs text-blue-500">→</span>
                   </span>

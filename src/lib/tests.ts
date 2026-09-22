@@ -11,6 +11,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -137,6 +138,21 @@ export async function getPublishedTests(): Promise<TestSummary[]> {
 
   debugLog('✅ [getPublishedTests] Загружено опубликованных тестов:', tests.length);
   return tests;
+}
+
+/**
+ * Следующий уровень цепочки: опубликованный тест, для которого testId — prerequisite
+ */
+export async function getNextLevelTest(testId: string): Promise<TestSummary | null> {
+  const q = query(
+    collection(db, TESTS_COLLECTION),
+    where('prerequisiteTestId', '==', testId),
+    where('status', '==', 'published'),
+    limit(1)
+  );
+  const snapshot = await getDocs(q);
+  const next = snapshot.docs[0];
+  return next ? firestoreToTestSummary(next.id, next.data()) : null;
 }
 
 /**
