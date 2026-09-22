@@ -1,6 +1,7 @@
 import { type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import type { Test, TestAppearance } from '../../types/tests';
+import type { TestResult } from '../../types/testResults';
 import TestHistory from '../TestHistory';
 
 interface TestIntroScreenProps {
@@ -16,6 +17,7 @@ interface TestIntroScreenProps {
   onStart: () => void;
   user: { uid: string } | null;
   testId: string;
+  initialHistory?: TestResult[];
 }
 
 export function TestIntroScreen({
@@ -31,6 +33,7 @@ export function TestIntroScreen({
   onStart,
   user,
   testId,
+  initialHistory,
 }: TestIntroScreenProps) {
   const bulletList = appearance.bulletPoints && appearance.bulletPoints.length > 0
     ? appearance.bulletPoints
@@ -105,7 +108,7 @@ export function TestIntroScreen({
 
         {user && testId && (
           <div className="mt-6 space-y-6">
-            <TestHistory testId={testId} />
+            <TestHistory testId={testId} initialResults={initialHistory} />
           </div>
         )}
       </div>

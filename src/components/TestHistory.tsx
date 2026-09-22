@@ -6,12 +6,14 @@ import type { TestResult } from '../types/testResults';
 
 interface TestHistoryProps {
   testId: string;
+  /** Результаты, загруженные заранее (параллельно с тестом) — тогда без своего запроса */
+  initialResults?: TestResult[];
 }
 
-export default function TestHistory({ testId }: TestHistoryProps) {
+export default function TestHistory({ testId, initialResults }: TestHistoryProps) {
   const { user } = useAuth();
-  const [results, setResults] = useState<TestResult[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [results, setResults] = useState<TestResult[]>(initialResults ?? []);
+  const [loading, setLoading] = useState(!initialResults);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -19,6 +21,7 @@ export default function TestHistory({ testId }: TestHistoryProps) {
       debugLog('🟡 [TestHistory] User не авторизован');
       return;
     }
+    if (initialResults) return;
 
     debugLog('🔵 [TestHistory] Загружаем результаты для:', { userId: user.uid, testId });
 
@@ -35,7 +38,7 @@ export default function TestHistory({ testId }: TestHistoryProps) {
     };
 
     loadResults();
-  }, [user, testId]);
+  }, [user, testId, initialResults]);
 
   if (loading) {
     return (
