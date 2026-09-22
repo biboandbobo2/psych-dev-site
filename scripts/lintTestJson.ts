@@ -11,6 +11,7 @@
  * shuffleAnswers/revealPolicy не по дефолту, БРЭ в ссылках, таймкод в названии
  * ссылки не совпадает с t= в URL, буквенные ссылки на варианты в explanation
  * (при shuffle буквы меняются).
+ * Категоричные слова (всегда/только/вообще…) в ≥2 неверных вариантах при их отсутствии в верном — тоже ошибка.
  * Предупреждения: «лектор/лекция» в тексте вопроса, resourcesWrong ≠ resourcesRight.
  *
  * publishTestFromJson.ts вызывает lintTest() перед записью и не публикует при ошибках.
@@ -36,6 +37,10 @@ interface Question {
 export interface LintReport { errors: string[]; warnings: string[] }
 
 const MARKERS = ['«', '"', '('];
+// Категоричные слова: если они стоят в нескольких неверных вариантах и ни разу в верном,
+// вариант отбрасывается без знания темы. \b в JS не работает с кириллицей — границы вручную.
+const CATEGORICAL =
+  /(?<![а-яё])(всегда|никогда|только|полностью|целиком|никак|никакой|никакие|ничего|без исключений|окончательно|необратимо|обязательно|невозможн[а-яё]*|нельзя|вообще|вовсе|абсолютно|исключительно|любой|любая|любое|любые|любую|любого|любом)(?![а-яё])/i;
 const LONGEST_SHARE_LIMIT = 0.4;
 
 function lengthGap(maxOther: number): number {
@@ -71,6 +76,13 @@ function lintQuestion(q: Question, errors: string[], warnings: string[]): 'longe
   const minOther = Math.min(...others);
   if (c > maxOther + lengthGap(maxOther)) errors.push(`${p} правильный длиннее всех на ${c - maxOther} симв.`);
   if (c < minOther - lengthGap(minOther)) errors.push(`${p} правильный короче всех на ${minOther - c} симв.`);
+
+  const categoricalWrong = q.answers.filter(
+    (a) => a.id !== q.correctAnswerId && CATEGORICAL.test(a.text)
+  ).length;
+  if (categoricalWrong >= 2 && !CATEGORICAL.test(correct.text)) {
+    errors.push(`${p} категоричные слова (всегда/только/вообще…) в ${categoricalWrong} неверных вариантах и ни в одном верном`);
+  }
 
   if (q.shuffleAnswers !== true) errors.push(`${p} shuffleAnswers должен быть true`);
   if (q.revealPolicy?.mode !== 'immediately') errors.push(`${p} revealPolicy.mode должен быть immediately`);
