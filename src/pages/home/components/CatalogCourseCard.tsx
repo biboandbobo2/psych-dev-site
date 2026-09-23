@@ -10,11 +10,18 @@ interface CatalogCourse {
 interface CatalogCourseCardProps {
   course: CatalogCourse;
   isOpen: boolean;
+  /** Открыт лично этому пользователю (сам или поток), всем закрыт. */
+  isPurchased: boolean;
   onOpenLessons: (courseId: string) => void;
 }
 
 /** Карточка курса в секции «Каталог платформы» (квадратная). */
-export function CatalogCourseCard({ course, isOpen, onOpenLessons }: CatalogCourseCardProps) {
+export function CatalogCourseCard({
+  course,
+  isOpen,
+  isPurchased,
+  onOpenLessons,
+}: CatalogCourseCardProps) {
   const navigate = useNavigate();
 
   return (
@@ -38,6 +45,10 @@ export function CatalogCourseCard({ course, isOpen, onOpenLessons }: CatalogCour
         {isOpen ? (
           <span className="inline-flex shrink-0 items-center rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-semibold text-accent">
             Открытый
+          </span>
+        ) : isPurchased ? (
+          <span className="inline-flex shrink-0 items-center rounded-full bg-pastel-blue px-2 py-0.5 text-[10px] font-semibold text-pastel-blue-deep">
+            Приобретён
           </span>
         ) : null}
       </div>

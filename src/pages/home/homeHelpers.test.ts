@@ -7,6 +7,7 @@ import {
   formatDateKey,
   tryParseDateLabel,
   resolveContinueCourses,
+  resolvePurchasedCourseIds,
 } from './homeHelpers';
 
 describe('formatTimeFromSeconds', () => {
@@ -369,5 +370,37 @@ describe('resolveContinueCourses', () => {
       accessibleCourseIds: ['A'],
     });
     expect(result).toEqual({ ids: ['A'], source: 'lastWatched' });
+  });
+});
+
+describe('resolvePurchasedCourseIds', () => {
+  it('личный доступ и обычный поток — «Приобретён»', () => {
+    const result = resolvePurchasedCourseIds({
+      courseAccess: { clinical: true, general: false },
+      groups: [{ id: 'g1', grantedCourses: ['development'] }],
+      openCourseIds: new Set(),
+    });
+    expect([...result].sort()).toEqual(['clinical', 'development']);
+  });
+
+  it('открытые всем курсы (публичные видео или группа «Все») не помечаются', () => {
+    const result = resolvePurchasedCourseIds({
+      courseAccess: { clinical: true, 'open-course': true },
+      groups: [
+        { id: 'everyone', grantedCourses: ['free-course'] },
+        { id: 'g1', grantedCourses: ['free-course', 'development'] },
+      ],
+      openCourseIds: new Set(['open-course']),
+    });
+    expect([...result].sort()).toEqual(['clinical', 'development']);
+  });
+
+  it('без доступа — пусто', () => {
+    const result = resolvePurchasedCourseIds({
+      courseAccess: null,
+      groups: [],
+      openCourseIds: new Set(['x']),
+    });
+    expect(result.size).toBe(0);
   });
 });

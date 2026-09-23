@@ -197,6 +197,31 @@ export function resolveContinueCourses(params: {
   return { ids: [], source: 'empty' };
 }
 
+/**
+ * Курсы с бейджем «Приобретён»: открыты лично этому пользователю (личный
+ * `courseAccess` или обычный поток), но не всем. Открытые всем — все видео
+ * публичные или курс выдан системной группой — остаются с бейджем «Открытый».
+ */
+export function resolvePurchasedCourseIds(params: {
+  courseAccess: Record<string, boolean> | null;
+  groups: (Pick<Group, 'grantedCourses'> & { id?: string; isSystem?: boolean })[];
+  openCourseIds: Set<string>;
+}): Set<string> {
+  const { courseAccess, groups, openCourseIds } = params;
+  const isSystem = (group: (typeof groups)[number]) =>
+    group.isSystem === true || isEveryoneGroup(group.id);
+  const openToAll = new Set(openCourseIds);
+  const candidates = new Set<string>();
+  for (const [courseId, granted] of Object.entries(courseAccess ?? {})) {
+    if (granted === true) candidates.add(courseId);
+  }
+  for (const group of groups) {
+    const target = isSystem(group) ? openToAll : candidates;
+    for (const courseId of group.grantedCourses ?? []) target.add(courseId);
+  }
+  return new Set([...candidates].filter((courseId) => !openToAll.has(courseId)));
+}
+
 export function tryParseDateLabel(dateLabel: string): Date | null {
   const normalized = dateLabel.trim().toLowerCase();
   if (!normalized) return null;

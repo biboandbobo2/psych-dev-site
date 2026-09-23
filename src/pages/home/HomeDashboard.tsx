@@ -12,6 +12,7 @@ import {
   getEstimatedCourseLessons,
   formatTimeFromSeconds,
   resolveContinueCourses,
+  resolvePurchasedCourseIds,
   parseDateKey,
   toDateKey,
   toDateKeyInTimeZone,
@@ -40,7 +41,7 @@ import { GeneralEventsSection } from './components/GeneralEventsSection';
 import { MyGroupsFeedSection } from './components/MyGroupsFeedSection';
 import { MiniWeekCalendar } from './components/MiniWeekCalendar';
 import { ContinueCourseCard } from './components/ContinueCourseCard';
-import { CatalogCourseCard } from './components/CatalogCourseCard';
+import { CatalogSection } from './components/CatalogSection';
 
 export function HomeDashboard() {
   const { status } = useGuestStatus();
@@ -71,6 +72,11 @@ function StudentDashboard() {
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
   const [lessonsDrawerCourseId, setLessonsDrawerCourseId] = useState<string | null>(null);
   const [openFeedItem, setOpenFeedItem] = useState<GroupFeedItem | null>(null);
+
+  const purchasedCourseIds = useMemo(
+    () => resolvePurchasedCourseIds({ courseAccess, groups: myGroups, openCourseIds }),
+    [courseAccess, myGroups, openCourseIds],
+  );
 
   const accessibleCourseIds = useMemo(
     () => courses.filter((c) => hasCourseAccess(c.id as CourseType)).map((c) => c.id),
@@ -221,11 +227,6 @@ function StudentDashboard() {
   };
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'студент';
-  const currentCourseIds = new Set(primaryContinueCourses.map((course) => course.id));
-  const catalogCourses = [
-    ...courses.filter((course) => !currentCourseIds.has(course.id) && !course.isCore),
-    ...courses.filter((course) => !currentCourseIds.has(course.id) && course.isCore),
-  ].slice(0, 6);
 
   return (
     <section className="min-h-screen bg-bg py-8 sm:py-10">
@@ -304,26 +305,12 @@ function StudentDashboard() {
         </div>
         <FeedItemModal item={openFeedItem} onClose={() => setOpenFeedItem(null)} />
 
-        {/* Каталог */}
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
-          <h3 className="mb-4 text-xl font-bold text-fg">Каталог платформы</h3>
-          {catalogCourses.length > 0 ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {catalogCourses.map((course) => (
-                <CatalogCourseCard
-                  key={course.id}
-                  course={course}
-                  isOpen={openCourseIds.has(course.id)}
-                  onOpenLessons={setLessonsDrawerCourseId}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-xl border border-border bg-card2 px-4 py-3 text-sm text-muted">
-              Дополнительные курсы пока не добавлены.
-            </p>
-          )}
-        </section>
+        <CatalogSection
+          courses={courses}
+          openCourseIds={openCourseIds}
+          purchasedCourseIds={purchasedCourseIds}
+          onOpenLessons={setLessonsDrawerCourseId}
+        />
 
         {/* Партнёр — центр Dom */}
         <section className="rounded-2xl border border-border bg-card2 p-5 shadow-brand">
