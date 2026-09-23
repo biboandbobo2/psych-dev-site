@@ -868,7 +868,7 @@ interface TimelineEdge {
 | Поле | Тип | Описание |
 |------|-----|----------|
 | `userId` | `string` | UID пользователя |
-| `courseId` | `string` | ID курса (пока только `clinical`) |
+| `courseId` | `string` | ID курса из `DISORDER_TABLE_COURSE_IDS`: `clinical`, `osnovy-patopsihologii-2y-potok` |
 | `updatedAt` | `Timestamp` | Время последнего изменения |
 
 **ID документа:** `{userId}_{courseId}` (например, `abc123_clinical`)
@@ -886,7 +886,7 @@ interface TimelineEdge {
 | `createdAt` | `Timestamp` | Время создания |
 | `updatedAt` | `Timestamp` | Время последнего изменения |
 
-**Правила доступа:** Пользователь может читать/писать только свои документы (docId начинается с его UID).
+**Правила доступа:** владелец читает и пишет свои документы (docId начинается с его UID). Чужую таблицу (корень, `entries`, `comments`) читает только преподаватель её курса — со-админ или админ курса (`canEditCourse` по хвосту docId после последнего `_`); `comments` пишет тоже только он. Админ другого курса чужие таблицы не видит (сужено 2026-09-23, раньше — любой `isAdmin()`).
 
 **Batch-лимит:** При bulk-создании записи разбиваются на группы по 450 (лимит Firestore — 500 операций на batch).
 
