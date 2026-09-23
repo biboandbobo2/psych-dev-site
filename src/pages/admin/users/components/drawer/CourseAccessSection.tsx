@@ -2,6 +2,8 @@
  * Секция «Доступ к курсам». Курсы, открытые потоком, здесь только читаются —
  * состав курсов потока меняется в самом потоке. Личный доступ — тумблер,
  * сохраняется сразу полной нормализованной картой (updateCourseAccess).
+ * Курсы системной группы «Все» открыты каждому — в списке их нет, только
+ * строка под ним.
  */
 import { useMemo, useState } from 'react';
 import type { CourseOption } from '../../../../../hooks/useCourses';
@@ -26,24 +28,35 @@ function groupLabel(sources: AccessSource[]): string {
 export function CourseAccessSection({
   row,
   courses,
+  everyoneCourseIds,
   canEdit,
 }: {
   row: UserRowData;
   courses: CourseOption[];
+  /** `grantedCourses` системной группы «Все». */
+  everyoneCourseIds: readonly string[];
   canEdit: boolean;
 }) {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const isAdminRole = row.user.role === 'admin' || row.user.role === 'super-admin';
 
+  const { listed, openToEveryone } = useMemo(() => {
+    const everyone = new Set(everyoneCourseIds);
+    return {
+      listed: courses.filter((course) => !everyone.has(course.id)),
+      openToEveryone: courses.filter((course) => everyone.has(course.id)),
+    };
+  }, [courses, everyoneCourseIds]);
+
   const sorted = useMemo(() => {
     const rank = (id: string) => (row.access.courses[id] ? 0 : 1);
-    return [...courses].sort(
+    return [...listed].sort(
       (a, b) => rank(a.id) - rank(b.id) || a.name.localeCompare(b.name, 'ru')
     );
-  }, [courses, row.access.courses]);
+  }, [listed, row.access.courses]);
 
-  const openCount = courses.filter((course) => row.access.courses[course.id]).length;
+  const openCount = listed.filter((course) => row.access.courses[course.id]).length;
 
   const handleToggle = async (courseId: string, next: boolean) => {
     const known = new Set([...courses.map((c) => c.id), ...Object.keys(row.user.courseAccess ?? {})]);
@@ -71,7 +84,7 @@ export function CourseAccessSection({
     <section className="space-y-2.5">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-xs font-semibold uppercase tracking-[0.04em] text-ink-faint">
-          Доступ к курсам · {openCount} из {courses.length}
+          Доступ к курсам · {openCount} из {listed.length}
         </h3>
         <span className="text-xs text-muted">через поток меняется в потоке</span>
       </div>
@@ -123,6 +136,12 @@ export function CourseAccessSection({
             );
           })}
         </div>
+      )}
+
+      {openToEveryone.length > 0 && (
+        <p className="text-xs text-muted">
+          Открыты всем: {openToEveryone.map((course) => course.name).join(', ')}
+        </p>
       )}
 
       {notice && <p className="text-xs text-accent">{notice}</p>}

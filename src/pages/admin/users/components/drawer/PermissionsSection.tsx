@@ -34,7 +34,8 @@ export function PermissionsSection({
   const isAdmin = user.role === 'admin';
   const editableNames = (user.adminEditableCourses ?? [])
     .map((id) => courses.find((course) => course.id === id)?.name ?? id)
-    .join(', ');
+    .sort((a, b) => a.localeCompare(b, 'ru'));
+  const hasCourses = isAdmin && editableNames.length > 0;
 
   const handleRemoveAdmin = async () => {
     try {
@@ -67,46 +68,62 @@ export function PermissionsSection({
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border">
-        <div className={ROW}>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-fg">Администратор курса</p>
-            <p className="text-xs text-muted">
-              {isAdmin
-                ? editableNames || 'курсы не выбраны'
-                : 'редактирует свои курсы, отвечает студентам, видит их прогресс'}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-            {isAdmin ? (
-              <>
+        <div className="border-b border-border/60 px-3.5 py-3 last:border-b-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-fg">
+                Администратор курса
+                {hasCourses && (
+                  <span className="font-normal text-muted"> · {editableNames.length}</span>
+                )}
+              </p>
+              {!hasCourses && (
+                <p className="text-xs text-muted">
+                  {isAdmin
+                    ? 'курсы не выбраны'
+                    : 'редактирует свои курсы, отвечает студентам, видит их прогресс'}
+                </p>
+              )}
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              {isAdmin ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={!isSuperAdmin}
+                    onClick={onEditAdminCourses}
+                    className="h-8 rounded-lg border border-border bg-card px-3 text-[13px] font-semibold text-fg transition hover:bg-card2 disabled:opacity-60"
+                  >
+                    Изменить
+                  </button>
+                  <ConfirmAction
+                    danger
+                    disabled={!isSuperAdmin}
+                    label="Снять права"
+                    question="Снять права администратора курса?"
+                    confirmLabel="Да, снять"
+                    onConfirm={handleRemoveAdmin}
+                  />
+                </>
+              ) : (
                 <button
                   type="button"
                   disabled={!isSuperAdmin}
-                  onClick={onEditAdminCourses}
+                  onClick={onAssignAdmin}
                   className="h-8 rounded-lg border border-border bg-card px-3 text-[13px] font-semibold text-fg transition hover:bg-card2 disabled:opacity-60"
                 >
-                  Изменить
+                  Назначить курсы
                 </button>
-                <ConfirmAction
-                  danger
-                  disabled={!isSuperAdmin}
-                  label="Снять права"
-                  question="Снять права администратора курса?"
-                  confirmLabel="Да, снять"
-                  onConfirm={handleRemoveAdmin}
-                />
-              </>
-            ) : (
-              <button
-                type="button"
-                disabled={!isSuperAdmin}
-                onClick={onAssignAdmin}
-                className="h-8 rounded-lg border border-border bg-card px-3 text-[13px] font-semibold text-fg transition hover:bg-card2 disabled:opacity-60"
-              >
-                Назначить курсы
-              </button>
-            )}
+              )}
+            </div>
           </div>
+          {hasCourses && (
+            <ul className="mt-2 space-y-1 text-sm text-fg">
+              {editableNames.map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {user.role !== 'super-admin' && (

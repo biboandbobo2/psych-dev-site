@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import type { CourseOption } from '../../../../hooks/useCourses';
 import type { Group } from '../../../../types/groups';
+import { isEveryoneGroup } from '../../../../../shared/groups/everyoneGroup';
 import { toggleUserDisabled } from '../../../../lib/adminFunctions';
 import { reportAppError } from '../../../../lib/errorHandler';
 import { AddAdminModal } from '../../../../components/AddAdminModal';
@@ -57,6 +58,7 @@ export function UserDrawer({
     }
   };
 
+  const everyoneCourseIds = groups.find((group) => isEveryoneGroup(group.id))?.grantedCourses ?? [];
   const since = row.createdAt ? `с нами с ${formatDate(row.createdAt)} · ` : '';
 
   return (
@@ -94,7 +96,12 @@ export function UserDrawer({
         </header>
 
         <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5 md:px-7">
-          <CourseAccessSection row={row} courses={courses} canEdit={!isSelf} />
+          <CourseAccessSection
+            row={row}
+            courses={courses}
+            everyoneCourseIds={everyoneCourseIds}
+            canEdit={!isSelf}
+          />
           <StreamsSection row={row} groups={groups} />
           <PermissionsSection
             row={row}
