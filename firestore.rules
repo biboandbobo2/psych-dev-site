@@ -379,23 +379,32 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Таблица по расстройствам (личные записи студента)
+    // Таблица по расстройствам (личные записи студента), docId = {uid}_{courseId}.
+    // Чужие таблицы читает и комментирует только преподаватель ЭТОГО курса —
+    // со-админ или админ курса (claim `editableCourses`). Админ другого курса
+    // (внешний автор) записи студентов не видит.
     match /disorderTables/{docId} {
       function isDisorderTableOwner() {
         return isAuthenticated() && docId.matches('^' + request.auth.uid + '_[A-Za-z0-9-]+$');
       }
 
-      allow read: if isDisorderTableOwner() || isAdmin();
+      // courseId — хвост docId после последнего «_» (в courseId «_» не бывает).
+      function isDisorderTableTeacher() {
+        let parts = docId.split('_');
+        return isCoAdmin() || canEditCourse(parts[parts.size() - 1]);
+      }
+
+      allow read: if isDisorderTableOwner() || isDisorderTableTeacher();
       allow create, update, delete: if isDisorderTableOwner();
 
       match /entries/{entryId} {
-        allow read: if isDisorderTableOwner() || isAdmin();
+        allow read: if isDisorderTableOwner() || isDisorderTableTeacher();
         allow create, update, delete: if isDisorderTableOwner();
       }
 
       match /comments/{commentId} {
-        allow read: if isDisorderTableOwner() || isAdmin();
-        allow create, update, delete: if isAdmin();
+        allow read: if isDisorderTableOwner() || isDisorderTableTeacher();
+        allow create, update, delete: if isDisorderTableTeacher();
       }
     }
 

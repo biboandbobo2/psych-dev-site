@@ -24,10 +24,15 @@ import {
 import type { DisorderTableEntry } from './types';
 
 describe('disorderTable model', () => {
-  it('включает таблицу только для нужного курса', () => {
-    expect(DISORDER_TABLE_COURSE_IDS).toEqual(['clinical']);
+  it('включает таблицу только для курсов патопсихологии', () => {
+    expect(DISORDER_TABLE_COURSE_IDS).toEqual(['clinical', 'osnovy-patopsihologii-2y-potok']);
     expect(isDisorderTableCourse('clinical')).toBe(true);
+    expect(isDisorderTableCourse('osnovy-patopsihologii-2y-potok')).toBe(true);
     expect(isDisorderTableCourse('vvedenie-v-osnovy-klinicheskoy-psihologii')).toBe(false);
+  });
+
+  it('в courseId нет «_» — rules берут курс из хвоста docId', () => {
+    for (const courseId of DISORDER_TABLE_COURSE_IDS) expect(courseId).not.toContain('_');
   });
 
   it('строит стабильный id документа', () => {
