@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useSearchParams } from 'react-router-dom';
 import { type AboutTab, type AboutTextSection } from './aboutContent';
@@ -206,35 +205,22 @@ export default function AboutPage() {
   const partners = content.partners;
   const defaultTabId = tabs[0]?.id ?? '';
 
-  const initialTabId = useMemo(() => {
-    const fromUrl = searchParams.get(TAB_QUERY_KEY);
-    return isValidTabId(fromUrl, tabs) ? fromUrl : defaultTabId;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Активная вкладка живёт только в URL: отдельный state с двусторонней
+  // синхронизацией откатывал клик, т.к. роутер обновляет location в transition.
+  const fromUrl = searchParams.get(TAB_QUERY_KEY);
+  const activeId = isValidTabId(fromUrl, tabs) ? fromUrl : defaultTabId;
 
-  const [activeId, setActiveId] = useState<string>(initialTabId);
-
-  // Синхронизация state -> URL (без истории, чтобы кнопка «назад» не ломалась)
-  useEffect(() => {
-    const fromUrl = searchParams.get(TAB_QUERY_KEY);
-    if (fromUrl === activeId) return;
+  // replace — без истории, чтобы кнопка «назад» не ломалась
+  const setActiveId = (id: string) => {
+    if (id === activeId) return;
     const next = new URLSearchParams(searchParams);
-    if (activeId === defaultTabId) {
+    if (id === defaultTabId) {
       next.delete(TAB_QUERY_KEY);
     } else {
-      next.set(TAB_QUERY_KEY, activeId);
+      next.set(TAB_QUERY_KEY, id);
     }
     setSearchParams(next, { replace: true });
-  }, [activeId, defaultTabId, searchParams, setSearchParams]);
-
-  // Синхронизация URL -> state при ручном переходе (back/forward)
-  useEffect(() => {
-    const fromUrl = searchParams.get(TAB_QUERY_KEY);
-    const target = isValidTabId(fromUrl, tabs) ? fromUrl : defaultTabId;
-    if (target !== activeId) {
-      setActiveId(target);
-    }
-  }, [searchParams, activeId, tabs, defaultTabId]);
+  };
 
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
   if (!activeTab) {
