@@ -417,12 +417,13 @@ describe('setGroupFeaturedCourses', () => {
     ).rejects.toThrow('courseIds must be an array');
   });
 
-  it('throws when more than 3 ids', async () => {
+  it('throws above the technical cap of 50 ids', async () => {
+    const ids = Array.from({ length: 51 }, (_, i) => `c${i}`);
     await expect(
       (setGroupFeaturedCourses as Function)(
-        { data: { groupId: 'g1', courseIds: ['a', 'b', 'c', 'd'] }, ...superAdminCtx() },
+        { data: { groupId: 'g1', courseIds: ids }, ...superAdminCtx() },
       ),
-    ).rejects.toThrow('не более 3');
+    ).rejects.toThrow('не больше 50');
   });
 
   it('throws when caller is not super-admin and not announcement-admin', async () => {

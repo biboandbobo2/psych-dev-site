@@ -12,6 +12,8 @@ export interface CourseOption {
   order: number;
   published: boolean;
   isCore?: boolean;
+  /** Дата создания (ms). У базовых курсов нет — они считаются самыми старыми. */
+  createdAtMs?: number;
 }
 
 interface UseCoursesOptions {
@@ -38,6 +40,18 @@ const resolveCourseName = (courseId: string, data: Record<string, unknown>, fall
   if (typeof data.name === 'string' && data.name.trim()) return data.name.trim();
   if (typeof data.title === 'string' && data.title.trim()) return data.title.trim();
   return fallback || courseId;
+};
+
+// SDK отдаёт Timestamp, REST-префетч — ISO-строку.
+const resolveCreatedAtMs = (value: unknown): number | undefined => {
+  if (typeof value === 'string') {
+    const ms = Date.parse(value);
+    return Number.isFinite(ms) ? ms : undefined;
+  }
+  if (value && typeof (value as { toMillis?: unknown }).toMillis === 'function') {
+    return (value as { toMillis: () => number }).toMillis();
+  }
+  return undefined;
 };
 
 const resolveCourseIcon = (data: Record<string, unknown>, fallback: string) => {
@@ -77,6 +91,7 @@ export function buildCourseOptions(courseDocs: CourseDocInput[], includeUnpublis
         order,
         published,
         isCore: false,
+        createdAtMs: resolveCreatedAtMs(doc.data.createdAt),
       } as CourseOption;
     });
 

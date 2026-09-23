@@ -17,16 +17,8 @@ export function parseInviteEmails(input: string): string[] {
     .filter((e) => e.includes('@'));
 }
 
-/**
- * Переключение courseId в списке featured-курсов с учётом лимита.
- * Снять отметку всегда можно; добавить нельзя если список уже на капе.
- */
-export function toggleFeaturedCourse(
-  prev: readonly string[],
-  courseId: string,
-  max: number,
-): string[] {
+/** Переключение courseId в списке featured-курсов с сохранением порядка. */
+export function toggleFeaturedCourse(prev: readonly string[], courseId: string): string[] {
   if (prev.includes(courseId)) return prev.filter((id) => id !== courseId);
-  if (prev.length >= max) return [...prev];
   return [...prev, courseId];
 }

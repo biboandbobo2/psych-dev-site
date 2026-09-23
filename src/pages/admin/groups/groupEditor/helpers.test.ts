@@ -45,25 +45,17 @@ describe('parseInviteEmails', () => {
 });
 
 describe('toggleFeaturedCourse', () => {
-  it('добавляет id в пустой список', () => {
-    expect(toggleFeaturedCourse([], 'c1', 3)).toEqual(['c1']);
+  it('добавляет id в конец списка', () => {
+    expect(toggleFeaturedCourse(['c1', 'c2', 'c3'], 'c4')).toEqual(['c1', 'c2', 'c3', 'c4']);
   });
 
   it('убирает уже выбранный id', () => {
-    expect(toggleFeaturedCourse(['c1', 'c2'], 'c1', 3)).toEqual(['c2']);
-  });
-
-  it('блокирует добавление при достижении max', () => {
-    expect(toggleFeaturedCourse(['c1', 'c2', 'c3'], 'c4', 3)).toEqual(['c1', 'c2', 'c3']);
-  });
-
-  it('позволяет снять отметку даже на капе', () => {
-    expect(toggleFeaturedCourse(['c1', 'c2', 'c3'], 'c2', 3)).toEqual(['c1', 'c3']);
+    expect(toggleFeaturedCourse(['c1', 'c2'], 'c1')).toEqual(['c2']);
   });
 
   it('не мутирует входной массив', () => {
     const input = ['c1'];
-    toggleFeaturedCourse(input, 'c2', 3);
+    toggleFeaturedCourse(input, 'c2');
     expect(input).toEqual(['c1']);
   });
 });

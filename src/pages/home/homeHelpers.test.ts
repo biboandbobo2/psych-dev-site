@@ -8,6 +8,7 @@ import {
   tryParseDateLabel,
   resolveContinueCourses,
   resolvePurchasedCourseIds,
+  sortCoursesOldestFirst,
 } from './homeHelpers';
 
 describe('formatTimeFromSeconds', () => {
@@ -176,200 +177,127 @@ describe('tryParseDateLabel', () => {
 
 describe('resolveContinueCourses', () => {
   const allAccessible = ['A', 'B', 'C', 'D', 'X', 'Y'];
+  const base = {
+    userFeaturedCourseIds: [] as string[],
+    userUnfeaturedCourseIds: [] as string[],
+    groups: [],
+    recentlyWatchedCourseIds: [] as string[],
+    accessibleCourseIds: allAccessible,
+  };
 
-  it('возвращает empty при пустых настройках и без просмотров', () => {
+  it('актуальные потока без лимита, из нескольких потоков с дедупом', () => {
     const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
-      groups: [],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
+      ...base,
+      groups: [
+        { id: 'g1', featuredCourseIds: ['A', 'B'] },
+        { id: 'g2', featuredCourseIds: ['B', 'C', 'D'] },
+      ],
     });
-    expect(result).toEqual({ ids: [], source: 'empty' });
+    expect(result).toEqual({ ids: ['A', 'B', 'C', 'D'], streamIds: ['A', 'B', 'C', 'D'], isFallback: false });
   });
 
-  it('возвращает группу [A,B,C], если у пользователя пусто', () => {
+  it('актуальные потока + купленные + добавленные студентом', () => {
     const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
-      groups: [{ featuredCourseIds: ['A', 'B', 'C'] }],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
+      ...base,
+      userFeaturedCourseIds: ['Y'],
+      groups: [{ id: 'g1', featuredCourseIds: ['A'] }],
+      personalCourseIds: ['X'],
     });
-    expect(result).toEqual({ ids: ['A', 'B', 'C'], source: 'group' });
+    expect(result).toEqual({ ids: ['A', 'X', 'Y'], streamIds: ['A'], isFallback: false });
   });
 
-  it('если у потока есть актуальные, системная «Все» не участвует', () => {
+  it('студент убирает курс потока и купленный', () => {
     const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
+      ...base,
+      userUnfeaturedCourseIds: ['A', 'X'],
+      groups: [{ id: 'g1', featuredCourseIds: ['A', 'B'] }],
+      personalCourseIds: ['X', 'Y'],
+    });
+    expect(result).toEqual({ ids: ['B', 'Y'], streamIds: ['B'], isFallback: false });
+  });
+
+  it('убранный, но добавленный заново курс показывается', () => {
+    const result = resolveContinueCourses({
+      ...base,
+      userFeaturedCourseIds: ['A'],
+      userUnfeaturedCourseIds: ['A'],
+      groups: [{ id: 'g1', featuredCourseIds: ['A'] }],
+    });
+    expect(result.ids).toEqual(['A']);
+  });
+
+  it('системная «Все» и isSystem-группы не участвуют', () => {
+    const result = resolveContinueCourses({
+      ...base,
       groups: [
         { id: 'everyone', featuredCourseIds: ['A', 'B'] },
-        { id: 'stream-first', featuredCourseIds: ['X', 'Y'] },
+        { id: 'sys', isSystem: true, featuredCourseIds: ['C'] },
+        { id: 'g1', featuredCourseIds: ['X'] },
       ],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
     });
-    expect(result).toEqual({ ids: ['X', 'Y'], source: 'group' });
+    expect(result.ids).toEqual(['X']);
   });
 
-  it('без потока: лично открытые курсы идут раньше подборки «Все»', () => {
+  it('недоступные курсы отфильтровываются', () => {
     const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
-      groups: [{ id: 'everyone', featuredCourseIds: ['A', 'B'] }],
-      personalCourseIds: ['X', 'Y'],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
+      ...base,
+      userFeaturedCourseIds: ['NO_ACCESS', 'Y'],
+      groups: [{ id: 'g1', featuredCourseIds: ['NO_1', 'A'] }],
+      personalCourseIds: ['NO_2'],
     });
-    expect(result).toEqual({ ids: ['X', 'Y'], source: 'personal' });
+    expect(result).toEqual({ ids: ['A', 'Y'], streamIds: ['A'], isFallback: false });
   });
 
-  it('актуальные потока важнее лично открытых курсов', () => {
+  it('пусто → последний просмотренный из доступных', () => {
     const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
-      groups: [{ id: 'stream-first', featuredCourseIds: ['A'] }],
-      personalCourseIds: ['X', 'Y'],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
+      ...base,
+      recentlyWatchedCourseIds: ['NO_ACCESS', 'C', 'A'],
     });
-    expect(result).toEqual({ ids: ['A'], source: 'group' });
+    expect(result).toEqual({ ids: ['C'], streamIds: [], isFallback: true });
   });
 
-  it('лично открытые курсы режутся по accessible и лимиту 3', () => {
+  it('всё убрано → запасной курс', () => {
     const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
-      groups: [],
-      personalCourseIds: ['A', 'NO_ACCESS', 'B', 'C', 'D'],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
+      ...base,
+      userUnfeaturedCourseIds: ['A'],
+      groups: [{ id: 'g1', featuredCourseIds: ['A'] }],
+      recentlyWatchedCourseIds: ['B'],
     });
-    expect(result).toEqual({ ids: ['A', 'B', 'C'], source: 'personal' });
+    expect(result).toEqual({ ids: ['B'], streamIds: [], isFallback: true });
   });
 
-  it('«Все» — запасной вариант, если у групп студента актуальные пусты', () => {
+  it('ничего не смотрел → самый старый доступный (первый в accessibleCourseIds)', () => {
     const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
-      groups: [
-        { id: 'everyone', featuredCourseIds: ['A', 'B'] },
-        { id: 'stream-first', featuredCourseIds: [] },
-      ],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
+      ...base,
+      accessibleCourseIds: ['D', 'A'],
+      recentlyWatchedCourseIds: ['NO_ACCESS'],
     });
-    expect(result).toEqual({ ids: ['A', 'B'], source: 'group' });
+    expect(result).toEqual({ ids: ['D'], streamIds: [], isFallback: true });
   });
 
-  it('«Все» остаётся источником, если своих групп с актуальными нет', () => {
-    const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
-      groups: [{ id: 'everyone', featuredCourseIds: ['A', 'B'] }],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
-    });
-    expect(result).toEqual({ ids: ['A', 'B'], source: 'group' });
-  });
-
-  it('user-featured имеет приоритет над group', () => {
-    const result = resolveContinueCourses({
-      userFeaturedCourseIds: ['X', 'Y'],
-      groups: [{ featuredCourseIds: ['A', 'B', 'C'] }],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
-    });
-    expect(result).toEqual({ ids: ['X', 'Y'], source: 'user' });
-  });
-
-  it('lastWatched используется только если featured пусты', () => {
-    const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
-      groups: [],
-      lastWatchedCourseId: 'A',
-      accessibleCourseIds: allAccessible,
-    });
-    expect(result).toEqual({ ids: ['A'], source: 'lastWatched' });
-  });
-
-  it('lastWatched игнорируется, если курс недоступен', () => {
-    const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
-      groups: [],
-      lastWatchedCourseId: 'Z',
-      accessibleCourseIds: ['A'],
-    });
-    expect(result).toEqual({ ids: [], source: 'empty' });
-  });
-
-  it('user-featured фильтруется по accessibleCourseIds', () => {
-    const result = resolveContinueCourses({
-      userFeaturedCourseIds: ['X', 'NO_ACCESS', 'Y'],
-      groups: [],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: ['X', 'Y'],
-    });
-    expect(result).toEqual({ ids: ['X', 'Y'], source: 'user' });
-  });
-
-  it('если user-featured содержит только недоступные — fallback на group', () => {
-    const result = resolveContinueCourses({
-      userFeaturedCourseIds: ['NO_1', 'NO_2'],
-      groups: [{ featuredCourseIds: ['A'] }],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: ['A'],
-    });
-    expect(result).toEqual({ ids: ['A'], source: 'group' });
-  });
-
-  it('объединяет featured из нескольких групп с дедупом и обрезкой до 3', () => {
-    const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
-      groups: [
-        { featuredCourseIds: ['A', 'B'] },
-        { featuredCourseIds: ['B', 'C', 'D'] },
-      ],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
-    });
-    expect(result).toEqual({ ids: ['A', 'B', 'C'], source: 'group' });
-  });
-
-  it('сохраняет порядок групп (приоритет более ранней)', () => {
-    const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
-      groups: [
-        { featuredCourseIds: ['C'] },
-        { featuredCourseIds: ['A', 'B'] },
-      ],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
-    });
-    expect(result).toEqual({ ids: ['C', 'A', 'B'], source: 'group' });
-  });
-
-  it('обрезает user-featured до 3', () => {
-    const result = resolveContinueCourses({
-      userFeaturedCourseIds: ['A', 'B', 'C', 'D'],
-      groups: [],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
-    });
-    expect(result).toEqual({ ids: ['A', 'B', 'C'], source: 'user' });
+  it('нет доступных курсов → пусто', () => {
+    const result = resolveContinueCourses({ ...base, accessibleCourseIds: [] });
+    expect(result).toEqual({ ids: [], streamIds: [], isFallback: true });
   });
 
   it('игнорирует группы с пустым/отсутствующим featuredCourseIds', () => {
     const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
+      ...base,
       groups: [{ featuredCourseIds: [] }, {}, { featuredCourseIds: ['A'] }],
-      lastWatchedCourseId: null,
-      accessibleCourseIds: allAccessible,
     });
-    expect(result).toEqual({ ids: ['A'], source: 'group' });
+    expect(result.ids).toEqual(['A']);
   });
+});
 
-  it('group игнорируется, если все его курсы недоступны', () => {
-    const result = resolveContinueCourses({
-      userFeaturedCourseIds: [],
-      groups: [{ featuredCourseIds: ['NO_1', 'NO_2'] }],
-      lastWatchedCourseId: 'A',
-      accessibleCourseIds: ['A'],
-    });
-    expect(result).toEqual({ ids: ['A'], source: 'lastWatched' });
+describe('sortCoursesOldestFirst', () => {
+  it('базовые (без даты) — первыми в исходном порядке, дальше по дате создания', () => {
+    const sorted = sortCoursesOldestFirst([
+      { id: 'new', createdAtMs: 300 },
+      { id: 'development' },
+      { id: 'old', createdAtMs: 100 },
+      { id: 'clinical' },
+    ]);
+    expect(sorted.map((c) => c.id)).toEqual(['development', 'clinical', 'old', 'new']);
   });
 });
 

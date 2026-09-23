@@ -75,8 +75,12 @@ interface User {
 
   // BYOK-ключ Gemini здесь НЕ хранится — он в users/{uid}/private/settings
 
-  // /home featured-курсы пользователя (max 3)
-  featuredCourseIds?: string[];
+  // /home «актуальные курсы»: личные правки поверх дефолта (актуальные
+  // потоков + купленные). Без лимита (технический предел callable — 50).
+  // Итог = (дефолт − unfeatured) ∪ featured; пусто → последний просмотренный,
+  // иначе самый старый доступный. Пишет только callable setMyFeaturedCourses.
+  featuredCourseIds?: string[];           // добавленные студентом
+  unfeaturedCourseIds?: string[];         // убранные из дефолта
   featuredCoursesUpdatedAt?: Timestamp;
   featuredCoursesUpdatedBy?: string;
 
@@ -176,7 +180,7 @@ Legacy-хвост в корневом `users/{uid}.geminiApiKey` мигриру�
 ### `groups/{groupId}`
 
 Группы пользователей — потоки, выпускные группы, тематические подборки. Используются для:
-- `featuredCourseIds[]` — какие курсы подсвечивать на `/home` для участников группы (max 3).
+- `featuredCourseIds[]` — какие курсы подсвечивать на `/home` для участников группы (без лимита; студент может убрать их у себя; у системной «Все» не используется).
 - Email-рассылок об объявлениях (через Cloud Function).
 
 ```typescript
@@ -185,7 +189,7 @@ interface Group {
   name: string;
   description?: string;
   members?: string[];               // uids пользователей-участников
-  featuredCourseIds?: string[];     // max 3 — поднимаются на /home для members
+  featuredCourseIds?: string[];     // поднимаются на /home для members (кроме «Все»)
   emailListId?: string;             // Связка с email-рассылочной системой (legacy)
   createdAt: Timestamp;
   updatedAt: Timestamp;

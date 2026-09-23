@@ -74,11 +74,12 @@ export interface UserRecord {
   /** Гранулярный доступ к курсам */
   courseAccess?: CourseAccessMap;
   /**
-   * Курсы, которые сам пользователь выбрал как «актуальные» для себя.
-   * Если непустой — имеет приоритет над featuredCourseIds группы при
-   * формировании continue-cards на /home. Максимум 3 элемента.
+   * Курсы, которые пользователь сам добавил в «актуальные» (continue-cards на
+   * /home) поверх актуальных потока и купленных. Без лимита.
    */
   featuredCourseIds?: string[];
+  /** Курсы потока/купленные, которые пользователь убрал из «актуальных». */
+  unfeaturedCourseIds?: string[];
   createdAt: Timestamp | null;
   lastLoginAt: Timestamp | null;
   /** Когда был повышен в роли */

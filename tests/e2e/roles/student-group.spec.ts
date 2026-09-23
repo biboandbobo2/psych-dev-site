@@ -24,7 +24,7 @@ test.describe('Студент группы: доступ только к кур�
 
   test('в профиле доступным числится только курс группы', async ({ page }) => {
     // Каталог на /home перечисляет все курсы платформы независимо от доступа
-    // (HomeDashboard.catalogCourses), поэтому «что реально открыто» проверяем
+    // (CatalogSection), поэтому «что реально открыто» проверяем
     // там, где UI строит список по hasCourseAccess, — в «Моих актуальных
     // курсах» профиля (FeaturedCoursesSection).
     await gotoAndSettle(page, '/profile');
@@ -32,9 +32,7 @@ test.describe('Студент группы: доступ только к кур�
     const section = page.locator('section').filter({
       has: page.getByRole('heading', { name: 'Мои актуальные курсы' }),
     });
-    await section
-      .getByRole('button', { name: 'Не выбрано. Нажмите, чтобы выбрать актуальные курсы.' })
-      .click();
+    await section.getByRole('button', { name: 'Изменить →' }).click();
 
     // На самом холодном пути (одиночный спек: vite ещё не прогрет, песочница
     // с прод-объёмом) «Загрузка курсов…» переживает и 15 с — дожидаемся с

@@ -182,7 +182,7 @@ interface SetFeaturedCoursesResponse {
 
 /**
  * Записать «актуальные курсы» группы. Только super-admin или админ,
- * указанный в announcementAdminIds группы. Максимум 3 курса.
+ * указанный в announcementAdminIds группы.
  */
 export async function setGroupFeaturedCourses(params: SetGroupFeaturedCoursesParams) {
   const call = httpsCallable<SetGroupFeaturedCoursesParams, SetFeaturedCoursesResponse>(
@@ -194,13 +194,16 @@ export async function setGroupFeaturedCourses(params: SetGroupFeaturedCoursesPar
 }
 
 export interface SetMyFeaturedCoursesParams {
+  /** Добавленные в «актуальные» поверх курсов потока и купленных. */
   courseIds: string[];
+  /** Убранные из курсов потока и купленных. */
+  unfeaturedCourseIds: string[];
   /** Только super-admin может менять чужие. По умолчанию — собственный uid. */
   targetUid?: string;
 }
 
 /**
- * Записать личные «актуальные курсы» текущего пользователя. Максимум 3 курса.
+ * Записать личные правки «актуальных курсов» текущего пользователя.
  */
 export async function setMyFeaturedCourses(params: SetMyFeaturedCoursesParams) {
   const call = httpsCallable<SetMyFeaturedCoursesParams, SetFeaturedCoursesResponse>(

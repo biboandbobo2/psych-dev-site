@@ -17,6 +17,7 @@ import {
   initCourseProgressSync,
 } from '../lib/courseProgress/cloudSync';
 import { migrateLocalProgressIfNeeded } from '../lib/courseProgress/migration';
+import { parseUserDocPreferences } from '../lib/userDocPreferences';
 
 /**
  * `editableCourses` из custom claims. null — claim отсутствует (значит нечему
@@ -60,10 +61,12 @@ interface AuthState {
   /** API ключ Gemini пользователя (BYOK), из users/{uid}/private/settings */
   geminiApiKey: string | null;
   /**
-   * Личный список «актуальных» курсов пользователя для continue-cards
-   * на /home. Максимум 3 элемента, имеет приоритет над group.featuredCourseIds.
+   * Курсы, которые пользователь сам добавил в «актуальные» (continue-cards
+   * на /home) поверх курсов потока и купленных. Без лимита.
    */
   featuredCourseIds: string[];
+  /** Курсы потока/купленные, которые пользователь убрал из «актуальных». */
+  unfeaturedCourseIds: string[];
   /**
    * Дефолт аккаунта «мои вопросы видят» для режима конспекта
    * (users/{uid}.studyDefaults.questionsVisibility). null — не задан,
@@ -99,6 +102,7 @@ interface AuthState {
   setGroupGrantedCourses: (granted: Record<string, boolean>) => void;
   setGeminiApiKey: (key: string | null) => void;
   setFeaturedCourseIds: (ids: string[]) => void;
+  setUnfeaturedCourseIds: (ids: string[]) => void;
   setStudyQuestionsDefaultVisibility: (value: 'group' | 'lecturers' | null) => void;
   setStudyNoteDefaultVisibility: (value: 'private' | 'group' | 'lecturers' | null) => void;
   signInWithGoogle: () => Promise<void>;
@@ -151,6 +155,7 @@ export const useAuthStore = create<AuthState>()(
       groupGrantedCourses: {},
       geminiApiKey: null,
       featuredCourseIds: [],
+      unfeaturedCourseIds: [],
       studyQuestionsDefaultVisibility: null,
       studyNoteDefaultVisibility: null,
       isAdmin: false,
@@ -191,6 +196,8 @@ export const useAuthStore = create<AuthState>()(
       setGeminiApiKey: (geminiApiKey) => set({ geminiApiKey: sanitizeGeminiApiKey(geminiApiKey) ?? null }),
 
       setFeaturedCourseIds: (featuredCourseIds) => set({ featuredCourseIds }),
+
+      setUnfeaturedCourseIds: (unfeaturedCourseIds) => set({ unfeaturedCourseIds }),
 
       setStudyQuestionsDefaultVisibility: (studyQuestionsDefaultVisibility) =>
         set({ studyQuestionsDefaultVisibility }),
@@ -275,6 +282,7 @@ export const useAuthStore = create<AuthState>()(
             get().setGroupGrantedCourses({});
             get().setGeminiApiKey(null);
             get().setFeaturedCourseIds([]);
+            get().setUnfeaturedCourseIds([]);
             get().setStudyQuestionsDefaultVisibility(null);
             get().setStudyNoteDefaultVisibility(null);
             get().setLoading(false);
@@ -399,31 +407,12 @@ export const useAuthStore = create<AuthState>()(
                 // поддокумент. В стор из корневого документа он не попадает.
                 geminiKeySync?.setLegacyKey(data?.geminiApiKey);
 
-                // Личные «актуальные курсы» пользователя (continue-cards)
-                const featuredRaw = data?.featuredCourseIds;
-                const featured = Array.isArray(featuredRaw)
-                  ? featuredRaw.filter((c): c is string => typeof c === 'string')
-                  : [];
-                get().setFeaturedCourseIds(featured);
-
-                // Дефолты режима конспекта (studyDefaults)
-                const studyDefaults = data?.studyDefaults as
-                  | { questionsVisibility?: unknown; noteVisibility?: unknown }
-                  | undefined;
-                const questionsVisibilityRaw = studyDefaults?.questionsVisibility;
-                get().setStudyQuestionsDefaultVisibility(
-                  questionsVisibilityRaw === 'group' || questionsVisibilityRaw === 'lecturers'
-                    ? questionsVisibilityRaw
-                    : null
-                );
-                const noteVisibilityRaw = studyDefaults?.noteVisibility;
-                get().setStudyNoteDefaultVisibility(
-                  noteVisibilityRaw === 'private' ||
-                    noteVisibilityRaw === 'group' ||
-                    noteVisibilityRaw === 'lecturers'
-                    ? noteVisibilityRaw
-                    : null
-                );
+                // Правки «актуальных курсов» и дефолты режима конспекта
+                const prefs = parseUserDocPreferences(data);
+                get().setFeaturedCourseIds(prefs.featuredCourseIds);
+                get().setUnfeaturedCourseIds(prefs.unfeaturedCourseIds);
+                get().setStudyQuestionsDefaultVisibility(prefs.studyQuestionsDefaultVisibility);
+                get().setStudyNoteDefaultVisibility(prefs.studyNoteDefaultVisibility);
 
                 // Обновляем роль если изменилась
                 const newRole = normalizeUserRole(data?.role);
@@ -470,6 +459,7 @@ export const useAuthStore = create<AuthState>()(
             get().setGroupGrantedCourses({});
             get().setGeminiApiKey(null);
             get().setFeaturedCourseIds([]);
+            get().setUnfeaturedCourseIds([]);
             get().setStudyQuestionsDefaultVisibility(null);
             get().setStudyNoteDefaultVisibility(null);
           } finally {

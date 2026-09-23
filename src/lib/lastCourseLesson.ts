@@ -67,38 +67,39 @@ export function getLastCourseLesson(courseId: string): LastCourseLesson | null {
 }
 
 /**
- * Возвращает courseId с самой свежей `updatedAt` среди сохранённых записей.
- * Используется на /home чтобы выбрать «продолжить» один курс, когда у
- * пользователя нет личных/групповых featured-настроек. Если сохранений нет —
- * возвращает null.
+ * courseId всех курсов с сохранённым последним уроком или точкой видео —
+ * свежие первыми. Облако приоритетнее localStorage. На /home из этого списка
+ * берётся первый доступный курс, когда актуальных нет.
  */
-export function getMostRecentlyWatchedCourseId(): string | null {
-  let bestId: string | null = null;
-  let bestStamp = 0;
-  const consider = (courseId: string, updatedAt: string | undefined, hasPath: boolean): void => {
-    if (!hasPath) return;
-    const ts = updatedAt ? Date.parse(updatedAt) : 0;
-    if (Number.isFinite(ts) && ts > bestStamp) {
-      bestStamp = ts;
-      bestId = courseId;
-    }
-  };
+export function getRecentlyWatchedCourseIds(): string[] {
+  const byRecency = (items: Array<{ courseId: string; updatedAt?: string; hasPath: boolean }>) =>
+    items
+      .filter((item) => item.hasPath)
+      .map((item) => ({
+        courseId: item.courseId,
+        ts: item.updatedAt ? Date.parse(item.updatedAt) : 0,
+      }))
+      .filter((item) => Number.isFinite(item.ts) && item.ts > 0)
+      .sort((a, b) => b.ts - a.ts)
+      .map((item) => item.courseId);
 
   const cloud = readAllCloudProgress();
   if (cloud) {
-    for (const [courseId, doc] of Object.entries(cloud)) {
-      const ll = doc.lastLesson;
-      const vr = doc.videoResume;
-      const updatedAt = ll?.updatedAt ?? vr?.updatedAt;
-      consider(courseId, updatedAt, Boolean(ll?.path || vr?.path));
-    }
-    if (bestId) return bestId;
+    const cloudIds = byRecency(
+      Object.entries(cloud).map(([courseId, doc]) => ({
+        courseId,
+        updatedAt: doc.lastLesson?.updatedAt ?? doc.videoResume?.updatedAt,
+        hasPath: Boolean(doc.lastLesson?.path || doc.videoResume?.path),
+      }))
+    );
+    if (cloudIds.length > 0) return cloudIds;
   }
 
-  const local = readStorage();
-  for (const [courseId, item] of Object.entries(local)) {
-    consider(courseId, item?.updatedAt, Boolean(item?.path));
-  }
-  return bestId;
+  return byRecency(
+    Object.entries(readStorage()).map(([courseId, item]) => ({
+      courseId,
+      updatedAt: item?.updatedAt,
+      hasPath: Boolean(item?.path),
+    }))
+  );
 }
-

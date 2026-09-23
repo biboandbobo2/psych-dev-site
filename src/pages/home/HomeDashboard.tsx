@@ -1,17 +1,15 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCourses } from '../../hooks/useCourses';
-import { useAuthStore, useCourseAccessChecker } from '../../stores/useAuthStore';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { useAuth } from '../../auth/AuthProvider';
-import { getLastCourseLesson, getMostRecentlyWatchedCourseId } from '../../lib/lastCourseLesson';
+import { getLastCourseLesson } from '../../lib/lastCourseLesson';
 import { getWatchedLessonIds } from '../../lib/courseWatchedLessons';
 import { buildCourseContinuePath, getCourseVideoResumePoint } from '../../lib/courseVideoResume';
-import type { CourseType } from '../../types/tests';
 import {
   resolvePrimaryLesson,
   getEstimatedCourseLessons,
   formatTimeFromSeconds,
-  resolveContinueCourses,
   resolvePurchasedCourseIds,
   parseDateKey,
   toDateKey,
@@ -24,6 +22,7 @@ import { CourseLessonsDrawer } from './CourseLessonsDrawer';
 import { useMyGroupsFeed } from '../../hooks/useMyGroupsFeed';
 import type { GroupFeedItem } from '../../types/groupFeed';
 import { useMyGroups } from '../../hooks/useMyGroups';
+import { useContinueCourses } from '../../hooks/useContinueCourses';
 import { useCourseProgressStore } from '../../stores/useCourseProgressStore';
 import { GuestLanding } from './GuestLanding';
 import { RegisteredGuestHome } from './RegisteredGuestHome';
@@ -58,9 +57,7 @@ function StudentDashboard() {
   const { user } = useAuth();
   const { courses, courseMap } = useCourses();
   const { groups: myGroups } = useMyGroups();
-  const userFeaturedCourseIds = useAuthStore((s) => s.featuredCourseIds);
   const courseAccess = useAuthStore((s) => s.courseAccess);
-  const hasCourseAccess = useCourseAccessChecker();
   const { openCourseIds } = useCoursesOpenness(courses.map((course) => course.id));
   const { items: myFeedItems, loading: myFeedLoading } = useMyGroupsFeed();
   const { items: platformNews, loading: platformNewsLoading } = usePlatformNews();
@@ -78,33 +75,11 @@ function StudentDashboard() {
     [courseAccess, myGroups, openCourseIds],
   );
 
-  const accessibleCourseIds = useMemo(
-    () => courses.filter((c) => hasCourseAccess(c.id as CourseType)).map((c) => c.id),
-    [courses, hasCourseAccess],
-  );
-
   // Bump-tик store'а прогресса. Включаем в deps, чтобы карточки «продолжить»
   // на /home обновлялись после cloud-snapshot или локальной записи.
   const progressVersion = useCourseProgressStore((s) => s.version);
 
-  // Лично открытые курсы (courseAccess) в порядке каталога — для студента
-  // без потока это и есть его «актуальные».
-  const personalCourseIds = useMemo(
-    () => courses.filter((c) => courseAccess?.[c.id as CourseType] === true).map((c) => c.id),
-    [courses, courseAccess],
-  );
-
-  const continueResolution = useMemo(() => {
-    void progressVersion;
-    return resolveContinueCourses({
-      userFeaturedCourseIds,
-      groups: myGroups,
-      personalCourseIds,
-      lastWatchedCourseId: getMostRecentlyWatchedCourseId(),
-      accessibleCourseIds,
-    });
-  }, [userFeaturedCourseIds, myGroups, personalCourseIds, accessibleCourseIds, progressVersion]);
-  const courseStreamLabel = continueResolution.source === 'group' ? 'Курс потока' : 'Мой курс';
+  const { resolution: continueResolution } = useContinueCourses(courses, myGroups);
 
   const primaryContinueCourses = useMemo(() => {
     void progressVersion;
@@ -256,7 +231,9 @@ function StudentDashboard() {
                 <ContinueCourseCard
                   key={course.id}
                   course={course}
-                  streamLabel={courseStreamLabel}
+                  streamLabel={
+                    continueResolution.streamIds.includes(course.id) ? 'Курс потока' : 'Мой курс'
+                  }
                   onOpenLessons={setLessonsDrawerCourseId}
                 />
               ))}
