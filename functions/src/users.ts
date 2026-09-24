@@ -5,7 +5,9 @@ import { CORE_COURSE_IDS, SUPER_ADMIN_EMAIL, CALLABLE_OPTS } from "./lib/shared.
 
 const db = getFirestore();
 
-const MAX_FEATURED_COURSES = 3;
+// Продуктового лимита на «актуальные» нет. Это технический предел против
+// мусорных запросов: на каждый id — чтение courses/{id} в assertCoursesExist.
+const MAX_COURSE_IDS = 50;
 
 function normalizeFeaturedCourseIds(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
@@ -24,10 +26,10 @@ function normalizeFeaturedCourseIds(raw: unknown): string[] {
     seen.add(trimmed);
     result.push(trimmed);
   }
-  if (result.length > MAX_FEATURED_COURSES) {
+  if (result.length > MAX_COURSE_IDS) {
     throw new HttpsError(
       "invalid-argument",
-      `Можно выбрать не более ${MAX_FEATURED_COURSES} актуальных курсов`
+      `Слишком много курсов: не больше ${MAX_COURSE_IDS}`
     );
   }
   return result;
@@ -56,10 +58,12 @@ async function assertCoursesExist(courseIds: string[]): Promise<void> {
 }
 
 /**
- * Обновить личные «актуальные курсы» пользователя
- * (users/{uid}.featuredCourseIds). Писать может либо сам пользователь
- * (на свой документ), либо super-admin (на любой). Валидация: max 3,
- * все courseIds существуют. Пустой массив — очищает поле.
+ * Обновить личные правки «актуальных курсов» пользователя:
+ * `featuredCourseIds` — добавленные поверх курсов потока и купленных,
+ * `unfeaturedCourseIds` — убранные из них. Писать может либо сам пользователь
+ * (на свой документ), либо super-admin (на любой). Добавленные курсы должны
+ * существовать. Пустой массив очищает поле; `unfeaturedCourseIds` не передан
+ * (старый клиент) — поле не трогаем.
  */
 export const setMyFeaturedCourses = onCall(CALLABLE_OPTS, async (request) => {
   if (!request.auth) {
@@ -81,22 +85,25 @@ export const setMyFeaturedCourses = onCall(CALLABLE_OPTS, async (request) => {
   }
 
   const courseIds = normalizeFeaturedCourseIds(d.courseIds);
+  const unfeaturedCourseIds =
+    d.unfeaturedCourseIds === undefined ? null : normalizeFeaturedCourseIds(d.unfeaturedCourseIds);
   await assertCoursesExist(courseIds);
 
   const updates: Record<string, unknown> = {
     featuredCoursesUpdatedAt: FieldValue.serverTimestamp(),
     featuredCoursesUpdatedBy: callerUid,
+    featuredCourseIds: courseIds.length > 0 ? courseIds : FieldValue.delete(),
   };
-  if (courseIds.length === 0) {
-    updates.featuredCourseIds = FieldValue.delete();
-  } else {
-    updates.featuredCourseIds = courseIds;
+  if (unfeaturedCourseIds) {
+    updates.unfeaturedCourseIds =
+      unfeaturedCourseIds.length > 0 ? unfeaturedCourseIds : FieldValue.delete();
   }
 
   await db.collection("users").doc(targetUid).set(updates, { merge: true });
   fnLogger.info("✅ User featuredCourseIds updated", {
     targetUid,
     count: courseIds.length,
+    unfeaturedCount: unfeaturedCourseIds?.length ?? null,
     by: callerUid,
   });
   return { success: true, courseIds };

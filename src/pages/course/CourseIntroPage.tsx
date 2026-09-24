@@ -12,6 +12,7 @@ import type { TestSummary } from '../../types/tests';
 import type { TestAttemptSummary } from '../../types/testResults';
 import { PageLoader } from '../../components/ui';
 import { useCourseIntro } from '../../hooks/useCourseIntro';
+import { isDisorderTableCourse } from '../../features/disorderTable';
 import { CourseAboutSection, CourseCtaLink } from './CourseAboutSection';
 
 interface CourseIntroPageProps {
@@ -38,7 +39,7 @@ function getSpecialCta(courseId: string): SpecialCta | null {
       accent: 'from-amber-400 to-orange-500',
     };
   }
-  if (courseId === 'clinical') {
+  if (isDisorderTableCourse(courseId)) {
     return {
       label: 'Таблица по расстройствам',
       description: 'Интерактивная матрица психических расстройств — симптомы, критерии, терапия.',

@@ -62,9 +62,11 @@ export default function DisorderTable() {
     loading: commentsLoading,
     saving: commentsSaving,
     error: commentsError,
-    canComment,
+    canComment: canCommentAsAdmin,
     createComment,
   } = useDisorderTableComments(currentCourse, targetOwnerUid);
+  // Комментирует преподаватель этого курса, а не любой админ — как в rules.
+  const canComment = canCommentAsAdmin && canPickStudents;
   const {
     students,
     loading: studentsLoading,
@@ -219,8 +221,8 @@ export default function DisorderTable() {
       <div className="space-y-4 rounded-2xl bg-white p-6 shadow-xl">
         <h1 className="text-2xl font-bold text-gray-900">Таблица по расстройствам</h1>
         <p className="text-sm text-gray-600">
-          Этот раздел доступен только для курса «Основы патопсихологии взрослого и детского
-          возрастов».
+          Этот раздел доступен в курсах «Основы патопсихологии». Откройте таблицу со страницы
+          своего курса.
         </p>
         <Link
           to="/profile"

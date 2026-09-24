@@ -13,7 +13,9 @@ import { isEveryoneGroup } from "../../shared/groups/everyoneGroup.js";
 
 const db = getFirestore();
 
-const MAX_FEATURED_COURSES = 3;
+// Продуктового лимита на «актуальные» нет. Это технический предел против
+// мусорных запросов: на каждый id — чтение courses/{id} в assertCoursesExist.
+const MAX_COURSE_IDS = 50;
 
 /**
  * Каллер либо менеджер пользователей (super-admin / со-админ), либо обычный
@@ -89,10 +91,10 @@ function normalizeFeaturedCourseIds(raw: unknown): string[] {
     seen.add(trimmed);
     result.push(trimmed);
   }
-  if (result.length > MAX_FEATURED_COURSES) {
+  if (result.length > MAX_COURSE_IDS) {
     throw new HttpsError(
       "invalid-argument",
-      `Можно выбрать не более ${MAX_FEATURED_COURSES} актуальных курсов`
+      `Слишком много курсов: не больше ${MAX_COURSE_IDS}`
     );
   }
   return result;
@@ -348,7 +350,7 @@ export const deleteGroup = onCall(CALLABLE_OPTS, async (request) => {
 /**
  * Обновить «актуальные курсы» группы (groups/{id}.featuredCourseIds).
  * Право: super-admin или admin, явно указанный в announcementAdminIds группы.
- * Валидация: max 3 элемента, все courseIds существуют в коллекции courses/.
+ * Валидация: все courseIds существуют в коллекции courses/.
  * Пустой массив очищает поле (FieldValue.delete()).
  */
 export const setGroupFeaturedCourses = onCall(CALLABLE_OPTS, async (request) => {

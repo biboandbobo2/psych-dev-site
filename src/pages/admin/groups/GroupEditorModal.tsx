@@ -20,8 +20,6 @@ import {
   toggleSet,
 } from './groupEditor/helpers';
 
-const MAX_FEATURED_COURSES = 3;
-
 interface GroupEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -59,11 +57,7 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
     setGrantedCourses(new Set(group?.grantedCourses ?? []));
     setMemberIds(new Set(group?.memberIds ?? []));
     setAnnouncementAdminIds(new Set(group?.announcementAdminIds ?? []));
-    setFeaturedCourseIds(
-      Array.isArray(group?.featuredCourseIds)
-        ? group!.featuredCourseIds!.slice(0, MAX_FEATURED_COURSES)
-        : [],
-    );
+    setFeaturedCourseIds(Array.isArray(group?.featuredCourseIds) ? group!.featuredCourseIds! : []);
     setMemberSearch('');
     setInviteEmails('');
     setInviteNotice(null);
@@ -141,11 +135,14 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
         targetGroupId = created.groupId;
       }
       // featuredCourseIds сохраняются отдельным callable: используется
-      // в обоих режимах, чтобы не путать схему updateGroup.
-      await setGroupFeaturedCourses({
-        groupId: targetGroupId,
-        courseIds: featuredCourseIds,
-      });
+      // в обоих режимах, чтобы не путать схему updateGroup. У системной
+      // «Все» актуальных нет — поле скрыто.
+      if (!isSystem) {
+        await setGroupFeaturedCourses({
+          groupId: targetGroupId,
+          courseIds: featuredCourseIds,
+        });
+      }
       onSuccess();
       onClose();
     } catch (err) {
@@ -303,25 +300,22 @@ export function GroupEditorModal({ isOpen, onClose, onSuccess, group }: GroupEdi
             disabled={saving}
           />
 
-          <CourseChecklistField
-            legend={`Актуальные в этом семестре (${featuredCourseIds.length}/${MAX_FEATURED_COURSES})`}
-            description={
-              <>
-                Подсветятся в карточке «Продолжить» на главной у студентов потока. Если у
-                студента есть личный выбор актуальных курсов — приоритет у него. Можно выбрать
-                только из открытых выше, максимум {MAX_FEATURED_COURSES}.
-              </>
-            }
-            courses={featuredCandidateCourses}
-            loading={coursesLoading}
-            isChecked={(id) => featuredCourseIds.includes(id)}
-            onToggle={(id) =>
-              setFeaturedCourseIds((prev) => toggleFeaturedCourse(prev, id, MAX_FEATURED_COURSES))
-            }
-            disabled={saving}
-            maxSelected={MAX_FEATURED_COURSES}
-            selectedCount={featuredCourseIds.length}
-          />
+          {!isSystem && (
+            <CourseChecklistField
+              legend={`Актуальные в этом семестре (${featuredCourseIds.length})`}
+              description={
+                <>
+                  Подсветятся в карточке «Продолжить» на главной у студентов потока. Студент
+                  может убрать их у себя в профиле. Можно выбрать только из открытых выше.
+                </>
+              }
+              courses={featuredCandidateCourses}
+              loading={coursesLoading}
+              isChecked={(id) => featuredCourseIds.includes(id)}
+              onToggle={(id) => setFeaturedCourseIds((prev) => toggleFeaturedCourse(prev, id))}
+              disabled={saving}
+            />
+          )}
 
           <AnnouncementAdminsField
             adminUsers={adminUsers}

@@ -1,17 +1,16 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCourses } from '../../hooks/useCourses';
-import { useAuthStore, useCourseAccessChecker } from '../../stores/useAuthStore';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { useAuth } from '../../auth/AuthProvider';
-import { getLastCourseLesson, getMostRecentlyWatchedCourseId } from '../../lib/lastCourseLesson';
+import { getLastCourseLesson } from '../../lib/lastCourseLesson';
 import { getWatchedLessonIds } from '../../lib/courseWatchedLessons';
 import { buildCourseContinuePath, getCourseVideoResumePoint } from '../../lib/courseVideoResume';
-import type { CourseType } from '../../types/tests';
 import {
   resolvePrimaryLesson,
   getEstimatedCourseLessons,
   formatTimeFromSeconds,
-  resolveContinueCourses,
+  resolvePurchasedCourseIds,
   parseDateKey,
   toDateKey,
   toDateKeyInTimeZone,
@@ -23,6 +22,7 @@ import { CourseLessonsDrawer } from './CourseLessonsDrawer';
 import { useMyGroupsFeed } from '../../hooks/useMyGroupsFeed';
 import type { GroupFeedItem } from '../../types/groupFeed';
 import { useMyGroups } from '../../hooks/useMyGroups';
+import { useContinueCourses } from '../../hooks/useContinueCourses';
 import { useCourseProgressStore } from '../../stores/useCourseProgressStore';
 import { GuestLanding } from './GuestLanding';
 import { RegisteredGuestHome } from './RegisteredGuestHome';
@@ -40,7 +40,7 @@ import { GeneralEventsSection } from './components/GeneralEventsSection';
 import { MyGroupsFeedSection } from './components/MyGroupsFeedSection';
 import { MiniWeekCalendar } from './components/MiniWeekCalendar';
 import { ContinueCourseCard } from './components/ContinueCourseCard';
-import { CatalogCourseCard } from './components/CatalogCourseCard';
+import { CatalogSection } from './components/CatalogSection';
 
 export function HomeDashboard() {
   const { status } = useGuestStatus();
@@ -57,9 +57,7 @@ function StudentDashboard() {
   const { user } = useAuth();
   const { courses, courseMap } = useCourses();
   const { groups: myGroups } = useMyGroups();
-  const userFeaturedCourseIds = useAuthStore((s) => s.featuredCourseIds);
   const courseAccess = useAuthStore((s) => s.courseAccess);
-  const hasCourseAccess = useCourseAccessChecker();
   const { openCourseIds } = useCoursesOpenness(courses.map((course) => course.id));
   const { items: myFeedItems, loading: myFeedLoading } = useMyGroupsFeed();
   const { items: platformNews, loading: platformNewsLoading } = usePlatformNews();
@@ -72,33 +70,16 @@ function StudentDashboard() {
   const [lessonsDrawerCourseId, setLessonsDrawerCourseId] = useState<string | null>(null);
   const [openFeedItem, setOpenFeedItem] = useState<GroupFeedItem | null>(null);
 
-  const accessibleCourseIds = useMemo(
-    () => courses.filter((c) => hasCourseAccess(c.id as CourseType)).map((c) => c.id),
-    [courses, hasCourseAccess],
+  const purchasedCourseIds = useMemo(
+    () => resolvePurchasedCourseIds({ courseAccess, groups: myGroups, openCourseIds }),
+    [courseAccess, myGroups, openCourseIds],
   );
 
   // Bump-tик store'а прогресса. Включаем в deps, чтобы карточки «продолжить»
   // на /home обновлялись после cloud-snapshot или локальной записи.
   const progressVersion = useCourseProgressStore((s) => s.version);
 
-  // Лично открытые курсы (courseAccess) в порядке каталога — для студента
-  // без потока это и есть его «актуальные».
-  const personalCourseIds = useMemo(
-    () => courses.filter((c) => courseAccess?.[c.id as CourseType] === true).map((c) => c.id),
-    [courses, courseAccess],
-  );
-
-  const continueResolution = useMemo(() => {
-    void progressVersion;
-    return resolveContinueCourses({
-      userFeaturedCourseIds,
-      groups: myGroups,
-      personalCourseIds,
-      lastWatchedCourseId: getMostRecentlyWatchedCourseId(),
-      accessibleCourseIds,
-    });
-  }, [userFeaturedCourseIds, myGroups, personalCourseIds, accessibleCourseIds, progressVersion]);
-  const courseStreamLabel = continueResolution.source === 'group' ? 'Курс потока' : 'Мой курс';
+  const { resolution: continueResolution } = useContinueCourses(courses, myGroups);
 
   const primaryContinueCourses = useMemo(() => {
     void progressVersion;
@@ -221,11 +202,6 @@ function StudentDashboard() {
   };
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'студент';
-  const currentCourseIds = new Set(primaryContinueCourses.map((course) => course.id));
-  const catalogCourses = [
-    ...courses.filter((course) => !currentCourseIds.has(course.id) && !course.isCore),
-    ...courses.filter((course) => !currentCourseIds.has(course.id) && course.isCore),
-  ].slice(0, 6);
 
   return (
     <section className="min-h-screen bg-bg py-8 sm:py-10">
@@ -255,7 +231,9 @@ function StudentDashboard() {
                 <ContinueCourseCard
                   key={course.id}
                   course={course}
-                  streamLabel={courseStreamLabel}
+                  streamLabel={
+                    continueResolution.streamIds.includes(course.id) ? 'Курс потока' : 'Мой курс'
+                  }
                   onOpenLessons={setLessonsDrawerCourseId}
                 />
               ))}
@@ -304,26 +282,12 @@ function StudentDashboard() {
         </div>
         <FeedItemModal item={openFeedItem} onClose={() => setOpenFeedItem(null)} />
 
-        {/* Каталог */}
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-brand">
-          <h3 className="mb-4 text-xl font-bold text-fg">Каталог платформы</h3>
-          {catalogCourses.length > 0 ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {catalogCourses.map((course) => (
-                <CatalogCourseCard
-                  key={course.id}
-                  course={course}
-                  isOpen={openCourseIds.has(course.id)}
-                  onOpenLessons={setLessonsDrawerCourseId}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-xl border border-border bg-card2 px-4 py-3 text-sm text-muted">
-              Дополнительные курсы пока не добавлены.
-            </p>
-          )}
-        </section>
+        <CatalogSection
+          courses={courses}
+          openCourseIds={openCourseIds}
+          purchasedCourseIds={purchasedCourseIds}
+          onOpenLessons={setLessonsDrawerCourseId}
+        />
 
         {/* Партнёр — центр Dom */}
         <section className="rounded-2xl border border-border bg-card2 p-5 shadow-brand">

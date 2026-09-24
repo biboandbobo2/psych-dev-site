@@ -587,6 +587,96 @@ describe('notes: живой открытый конспект (этап C ред
   });
 });
 
+describe('disorderTables: чужую таблицу видит только преподаватель её курса', () => {
+  const POTOK2 = 'osnovy-patopsihologii-2y-potok';
+  const table = (uid: string, courseId: string) => `${uid}_${courseId}`;
+  const potok2AdminCtx = () =>
+    testEnv
+      .authenticatedContext('potok2-admin', { role: 'admin', editableCourses: [POTOK2] })
+      .firestore();
+  const clinicalAdminCtx = () =>
+    testEnv
+      .authenticatedContext('clinical-admin', { role: 'admin', editableCourses: ['clinical'] })
+      .firestore();
+  const authorCtx = () =>
+    testEnv
+      .authenticatedContext('author', { role: 'admin', editableCourses: ['other-course'] })
+      .firestore();
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await Promise.all(
+        [table('alice', 'clinical'), table('bob', POTOK2)].flatMap((id) => [
+          setDoc(doc(db, 'disorderTables', id), { userId: id.split('_')[0] }),
+          setDoc(doc(db, 'disorderTables', id, 'entries', 'e1'), { text: 'личная запись' }),
+          setDoc(doc(db, 'disorderTables', id, 'comments', 'c1'), { text: 'комментарий' }),
+        ])
+      );
+    });
+  });
+
+  it('владелец: читает и пишет свою таблицу 2-го потока', async () => {
+    const db = testEnv.authenticatedContext('bob').firestore();
+    await assertSucceeds(getDoc(doc(db, 'disorderTables', table('bob', POTOK2), 'entries', 'e1')));
+    await assertSucceeds(
+      setDoc(doc(db, 'disorderTables', table('bob', POTOK2), 'entries', 'e2'), { text: 'новая' })
+    );
+  });
+
+  it('другой студент: чужая таблица → denied', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(getDoc(doc(db, 'disorderTables', table('bob', POTOK2), 'entries', 'e1')));
+    await assertFails(getDocs(collection(db, 'disorderTables', table('bob', POTOK2), 'entries')));
+  });
+
+  it('админ 2-го потока: читает и комментирует таблицы своего курса, но не clinical', async () => {
+    const db = potok2AdminCtx();
+    await assertSucceeds(getDocs(collection(db, 'disorderTables', table('bob', POTOK2), 'entries')));
+    await assertSucceeds(
+      setDoc(doc(db, 'disorderTables', table('bob', POTOK2), 'comments', 'c2'), { text: 'ок' })
+    );
+    await assertFails(getDocs(collection(db, 'disorderTables', table('alice', 'clinical'), 'entries')));
+    await assertFails(getDoc(doc(db, 'disorderTables', table('alice', 'clinical'), 'comments', 'c1')));
+  });
+
+  it('админ clinical: таблицы 2-го потока → denied', async () => {
+    const db = clinicalAdminCtx();
+    await assertSucceeds(getDoc(doc(db, 'disorderTables', table('alice', 'clinical'), 'entries', 'e1')));
+    await assertFails(getDoc(doc(db, 'disorderTables', table('bob', POTOK2), 'entries', 'e1')));
+    await assertFails(
+      setDoc(doc(db, 'disorderTables', table('bob', POTOK2), 'comments', 'c2'), { text: 'x' })
+    );
+  });
+
+  it('админ чужого курса (внешний автор): ни читать, ни комментировать', async () => {
+    const db = authorCtx();
+    await assertFails(getDoc(doc(db, 'disorderTables', table('alice', 'clinical'))));
+    await assertFails(getDoc(doc(db, 'disorderTables', table('bob', POTOK2), 'entries', 'e1')));
+    await assertFails(
+      setDoc(doc(db, 'disorderTables', table('alice', 'clinical'), 'comments', 'c2'), { text: 'x' })
+    );
+  });
+
+  it('со-админ и супер-админ: читают таблицы любого курса', async () => {
+    const coAdmin = testEnv
+      .authenticatedContext('co', { role: 'admin', coAdmin: true, editableCourses: [] })
+      .firestore();
+    const superDb = testEnv.authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL }).firestore();
+    for (const db of [coAdmin, superDb]) {
+      await assertSucceeds(getDoc(doc(db, 'disorderTables', table('bob', POTOK2), 'entries', 'e1')));
+      await assertSucceeds(getDoc(doc(db, 'disorderTables', table('alice', 'clinical'), 'comments', 'c1')));
+    }
+  });
+
+  it('админ курса не пишет записи в чужую таблицу', async () => {
+    const db = potok2AdminCtx();
+    await assertFails(
+      setDoc(doc(db, 'disorderTables', table('bob', POTOK2), 'entries', 'e9'), { text: 'x' })
+    );
+  });
+});
+
 describe('per-uid ограничения уважаются (без catch-all override)', () => {
   it('owner: get свой biographyJobs/<job> → success', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();

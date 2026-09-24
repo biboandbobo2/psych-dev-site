@@ -1,6 +1,9 @@
 import type { DisorderTableColumn, DisorderTableColumnGroup, DisorderTableRow } from './types';
 
-export const DISORDER_TABLE_COURSE_IDS = ['clinical'] as const;
+// Курсы, где студенты заполняют таблицу. Таблица у каждого студента своя на
+// каждый курс (disorderTables/{uid}_{courseId}); читать чужие могут только
+// со-админ и админ ЭТОГО курса — см. firestore.rules.
+export const DISORDER_TABLE_COURSE_IDS = ['clinical', 'osnovy-patopsihologii-2y-potok'] as const;
 
 export const DISORDER_TABLE_COLUMN_GROUPS: DisorderTableColumnGroup[] = [
   { id: 'schizophrenic-spectrum', label: 'Расстройства шизофренического спектра' },

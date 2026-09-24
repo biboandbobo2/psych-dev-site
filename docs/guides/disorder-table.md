@@ -9,9 +9,11 @@
 
 ## Обзор
 
-- **Маршрут:** `/disorder-table`
-- **Доступ:** RequireAuth + `courseAccess.clinical === true`
-- **Firestore:** `disorderTables/{userId}_{courseId}/entries/{entryId}`
+- **Маршрут:** `/disorder-table` — курс берётся из текущего (`useCourseStore.currentCourse`), кнопка на странице курса (`CourseIntroPage`) его выставляет
+- **Курсы:** `DISORDER_TABLE_COURSE_IDS` в `config.ts` — `clinical` и `osnovy-patopsihologii-2y-potok` (2-й поток, с 2026-09-23). Новый курс — добавить id туда же
+- **Доступ:** RequireAuth; у каждого студента своя таблица на каждый курс
+- **Firestore:** `disorderTables/{userId}_{courseId}/entries/{entryId}`, комментарии преподавателя — `.../comments/{commentId}`
+- **Кто видит чужие таблицы:** только преподаватель курса этой таблицы — со-админ или админ курса (claim `editableCourses`). Админ другого курса (внешний автор) чужие записи не читает и не комментирует. courseId в rules — хвост docId после последнего `_`. Список студентов в режиме преподавателя — callable `getCourseStudents` (только студенты этого курса)
 - **Lazy loading:** Да (через `src/pages/lazy.ts`)
 
 ## Структура матрицы
@@ -98,10 +100,11 @@
 | `src/features/disorderTable/model.ts` | Утилиты: валидация, нормализация, матрица |
 | `src/features/disorderTable/config.ts` | Конфигурация строк, столбцов, групп |
 | `src/features/disorderTable/types.ts` | TypeScript интерфейсы |
-| `firestore.rules` (строки 112–118) | Правила доступа |
+| `firestore.rules` (`match /disorderTables`) | Правила доступа |
 
 ## Тесты
 
+- `tests/integration/firestoreRules.test.ts` → «disorderTables» — кто видит чужую таблицу (эмулятор, `npm run test:integration`)
 - `src/features/disorderTable/model.test.ts` — unit-тесты модели (валидация, фильтры, матрица)
 - `src/pages/__tests__/DisorderTable.test.tsx` — интеграционные тесты компонента
 

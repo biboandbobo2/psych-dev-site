@@ -82,11 +82,36 @@ describe('setMyFeaturedCourses', () => {
     expect(mockDoc).toHaveBeenCalledWith('other-uid');
   });
 
-  it('throws when more than 3 courseIds', async () => {
+  it('accepts more than 3 courseIds (no product limit)', async () => {
+    mockGetAll.mockResolvedValue([{ exists: true }, { exists: true }, { exists: true }, { exists: true }]);
+    mockSet.mockResolvedValue(undefined);
     const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
+    const result = await (setMyFeaturedCourses as Function)({ data: { courseIds: ['A', 'B', 'C', 'D'] }, ...ctx });
+    expect(result.courseIds).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('throws above the technical cap of 50 ids', async () => {
+    const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
+    const ids = Array.from({ length: 51 }, (_, i) => `c${i}`);
     await expect(
-      (setMyFeaturedCourses as Function)({ data: { courseIds: ['A', 'B', 'C', 'D'] }, ...ctx }),
-    ).rejects.toThrow('не более 3');
+      (setMyFeaturedCourses as Function)({ data: { courseIds: ids }, ...ctx }),
+    ).rejects.toThrow('не больше 50');
+  });
+
+  it('writes unfeaturedCourseIds when passed, deletes when empty', async () => {
+    mockSet.mockResolvedValue(undefined);
+    const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
+    await (setMyFeaturedCourses as Function)({ data: { courseIds: [], unfeaturedCourseIds: ['S1', 'S1'] }, ...ctx });
+    expect(mockSet.mock.calls[0][0].unfeaturedCourseIds).toEqual(['S1']);
+    await (setMyFeaturedCourses as Function)({ data: { courseIds: [], unfeaturedCourseIds: [] }, ...ctx });
+    expect(mockSet.mock.calls[1][0].unfeaturedCourseIds).toBe('__DELETE__');
+  });
+
+  it('leaves unfeaturedCourseIds untouched for old clients', async () => {
+    mockSet.mockResolvedValue(undefined);
+    const ctx = { auth: { uid: 'u1', token: { email: 'u1@example.com' } } };
+    await (setMyFeaturedCourses as Function)({ data: { courseIds: [] }, ...ctx });
+    expect('unfeaturedCourseIds' in mockSet.mock.calls[0][0]).toBe(false);
   });
 
   it('throws when courseIds not an array', async () => {

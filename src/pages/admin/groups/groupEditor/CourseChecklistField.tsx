@@ -14,9 +14,6 @@ interface CourseChecklistFieldProps {
   isChecked: (id: string) => boolean;
   onToggle: (id: string) => void;
   disabled?: boolean;
-  /** Когда задано, после достижения лимита нельзя добавить новый, но можно снять. */
-  maxSelected?: number;
-  selectedCount?: number;
 }
 
 export function CourseChecklistField({
@@ -27,8 +24,6 @@ export function CourseChecklistField({
   isChecked,
   onToggle,
   disabled = false,
-  maxSelected,
-  selectedCount = 0,
 }: CourseChecklistFieldProps) {
   return (
     <fieldset className="space-y-2">
@@ -40,32 +35,21 @@ export function CourseChecklistField({
         <div className="text-sm text-gray-500">Загрузка…</div>
       ) : (
         <ul className="grid grid-cols-1 gap-1 rounded-md border border-gray-200 p-2 sm:grid-cols-2">
-          {courses.map((c) => {
-            const checked = isChecked(c.id);
-            const limitReached =
-              !checked && typeof maxSelected === 'number' && selectedCount >= maxSelected;
-            return (
-              <li key={c.id}>
-                <label
-                  className={`flex items-center gap-2 rounded px-2 py-1 ${
-                    limitReached
-                      ? 'cursor-not-allowed opacity-50'
-                      : 'cursor-pointer hover:bg-gray-50'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => onToggle(c.id)}
-                    disabled={disabled || limitReached}
-                  />
-                  <span className="text-sm">
-                    {c.icon} {c.name}
-                  </span>
-                </label>
-              </li>
-            );
-          })}
+          {courses.map((c) => (
+            <li key={c.id}>
+              <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-gray-50">
+                <input
+                  type="checkbox"
+                  checked={isChecked(c.id)}
+                  onChange={() => onToggle(c.id)}
+                  disabled={disabled}
+                />
+                <span className="text-sm">
+                  {c.icon} {c.name}
+                </span>
+              </label>
+            </li>
+          ))}
         </ul>
       )}
     </fieldset>

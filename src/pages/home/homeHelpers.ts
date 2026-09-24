@@ -3,8 +3,6 @@ import type { CourseType } from '../../types/tests';
 import type { Group } from '../../types/groups';
 import { isEveryoneGroup } from '../../../shared/groups/everyoneGroup';
 
-export const MAX_CONTINUE_CARDS = 3;
-
 export function resolvePrimaryLesson(courseId: string): { link: string; title: string } {
   if (courseId === 'development') {
     return {
@@ -110,91 +108,107 @@ export function formatDateKey(dateKey: string): string {
   });
 }
 
-export type ContinueCoursesSource = 'user' | 'group' | 'personal' | 'lastWatched' | 'empty';
+type FeaturedGroup = Pick<Group, 'featuredCourseIds'> & { id?: string; isSystem?: boolean };
+
+const uniqueIds = (ids: string[]): string[] => [...new Set(ids.filter(Boolean))];
+
+/**
+ * Актуальные курсы «по умолчанию» — до правок студента в профиле: актуальные
+ * его обычных потоков + все курсы, открытые ему лично (купленные). Системные
+ * группы («Все») не участвуют.
+ */
+export function resolveDefaultFeaturedCourseIds(params: {
+  groups: FeaturedGroup[];
+  /** Курсы из users/{uid}.courseAccess в порядке каталога. */
+  personalCourseIds?: string[];
+}): { ids: string[]; streamIds: string[] } {
+  const streamIds = uniqueIds(
+    params.groups
+      .filter((group) => group.isSystem !== true && !isEveryoneGroup(group.id))
+      .flatMap((group) => (Array.isArray(group.featuredCourseIds) ? group.featuredCourseIds : [])),
+  );
+  return { ids: uniqueIds([...streamIds, ...(params.personalCourseIds ?? [])]), streamIds };
+}
 
 export interface ResolvedContinueCourses {
   ids: string[];
-  source: ContinueCoursesSource;
+  /** Какие из `ids` — актуальные потока (подпись карточки «Курс потока»). */
+  streamIds: string[];
+  /** Никто ничего не выбрал: показан последний просмотренный или самый старый курс. */
+  isFallback: boolean;
 }
 
 /**
  * Чистая функция выбора continue-cards для /home.
  *
- * Приоритет, сверху вниз:
- *  1) `userFeaturedCourseIds` — личные «актуальные» курсы пользователя
- *     (фильтруются по accessibleCourseIds, max 3).
- *  2) `featuredCourseIds` обычных групп пользователя в порядке `groups`
- *     (max 3, дедуп; фильтр по accessibleCourseIds).
- *  3) `personalCourseIds` — курсы, открытые лично (users/{uid}.courseAccess):
- *     студент без потока видит то, что ему купили/выдали.
- *  4) Системная «Все» — запасной вариант для тех, у кого нет ни потока,
- *     ни личных курсов.
- *  5) `lastWatchedCourseId` — последний просмотренный (даже если не отмечен
- *     как featured); должен принадлежать accessibleCourseIds.
- *  6) `empty` — пустой список (UI показывает CTA-заглушку).
+ * Актуальные = (курсы по умолчанию − убранные студентом) ∪ добавленные
+ * студентом, только доступные, без лимита. Курсы по умолчанию — см.
+ * `resolveDefaultFeaturedCourseIds`.
+ *
+ * Если в итоге пусто — один запасной курс: последний просмотренный из
+ * доступных, а если ничего не смотрел — самый старый доступный
+ * (`accessibleCourseIds` приходит от старых к новым).
  */
 export function resolveContinueCourses(params: {
+  /** Добавленные студентом (users/{uid}.featuredCourseIds). */
   userFeaturedCourseIds: string[];
-  groups: (Pick<Group, 'featuredCourseIds'> & { id?: string })[];
+  /** Убранные студентом из курсов по умолчанию (users/{uid}.unfeaturedCourseIds). */
+  userUnfeaturedCourseIds: string[];
+  groups: FeaturedGroup[];
   /** Курсы из users/{uid}.courseAccess в порядке каталога. */
   personalCourseIds?: string[];
-  lastWatchedCourseId: string | null;
+  /** Просмотренные курсы, свежие первыми. */
+  recentlyWatchedCourseIds: string[];
+  /** Доступные курсы от старых к новым. */
   accessibleCourseIds: string[];
 }): ResolvedContinueCourses {
-  const {
-    userFeaturedCourseIds,
-    groups,
-    personalCourseIds = [],
-    lastWatchedCourseId,
-    accessibleCourseIds,
-  } = params;
-  const accessible = new Set(accessibleCourseIds);
+  const accessible = new Set(params.accessibleCourseIds);
+  const removed = new Set(params.userUnfeaturedCourseIds);
+  const defaults = resolveDefaultFeaturedCourseIds(params);
 
-  const filterAccessibleUnique = (ids: string[]): string[] => {
-    const seen = new Set<string>();
-    const result: string[] = [];
-    for (const id of ids) {
-      if (!id || seen.has(id)) continue;
-      if (!accessible.has(id)) continue;
-      seen.add(id);
-      result.push(id);
-      if (result.length >= MAX_CONTINUE_CARDS) break;
-    }
-    return result;
-  };
-
-  const userPicks = filterAccessibleUnique(userFeaturedCourseIds);
-  if (userPicks.length > 0) {
-    return { ids: userPicks, source: 'user' };
+  const ids = uniqueIds([
+    ...defaults.ids.filter((id) => !removed.has(id)),
+    ...params.userFeaturedCourseIds,
+  ]).filter((id) => accessible.has(id));
+  if (ids.length > 0) {
+    const streamIds = defaults.streamIds.filter((id) => ids.includes(id));
+    return { ids, streamIds, isFallback: false };
   }
 
-  const streamIds: string[] = [];
-  const everyoneIds: string[] = [];
+  const fallback =
+    params.recentlyWatchedCourseIds.find((id) => accessible.has(id)) ??
+    params.accessibleCourseIds[0];
+  return { ids: fallback ? [fallback] : [], streamIds: [], isFallback: true };
+}
+
+/** Курсы от старых к новым; базовые (без даты создания) — самые старые. */
+export function sortCoursesOldestFirst<T extends { createdAtMs?: number }>(courses: T[]): T[] {
+  return [...courses].sort((a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0));
+}
+
+/**
+ * Курсы с бейджем «Приобретён»: открыты лично этому пользователю (личный
+ * `courseAccess` или обычный поток), но не всем. Открытые всем — все видео
+ * публичные или курс выдан системной группой — остаются с бейджем «Открытый».
+ */
+export function resolvePurchasedCourseIds(params: {
+  courseAccess: Record<string, boolean> | null;
+  groups: (Pick<Group, 'grantedCourses'> & { id?: string; isSystem?: boolean })[];
+  openCourseIds: Set<string>;
+}): Set<string> {
+  const { courseAccess, groups, openCourseIds } = params;
+  const isSystem = (group: (typeof groups)[number]) =>
+    group.isSystem === true || isEveryoneGroup(group.id);
+  const openToAll = new Set(openCourseIds);
+  const candidates = new Set<string>();
+  for (const [courseId, granted] of Object.entries(courseAccess ?? {})) {
+    if (granted === true) candidates.add(courseId);
+  }
   for (const group of groups) {
-    if (!Array.isArray(group.featuredCourseIds)) continue;
-    const target = isEveryoneGroup(group.id) ? everyoneIds : streamIds;
-    target.push(...group.featuredCourseIds);
+    const target = isSystem(group) ? openToAll : candidates;
+    for (const courseId of group.grantedCourses ?? []) target.add(courseId);
   }
-  const streamPicks = filterAccessibleUnique(streamIds);
-  if (streamPicks.length > 0) {
-    return { ids: streamPicks, source: 'group' };
-  }
-
-  const personalPicks = filterAccessibleUnique(personalCourseIds);
-  if (personalPicks.length > 0) {
-    return { ids: personalPicks, source: 'personal' };
-  }
-
-  const everyonePicks = filterAccessibleUnique(everyoneIds);
-  if (everyonePicks.length > 0) {
-    return { ids: everyonePicks, source: 'group' };
-  }
-
-  if (lastWatchedCourseId && accessible.has(lastWatchedCourseId)) {
-    return { ids: [lastWatchedCourseId], source: 'lastWatched' };
-  }
-
-  return { ids: [], source: 'empty' };
+  return new Set([...candidates].filter((courseId) => !openToAll.has(courseId)));
 }
 
 export function tryParseDateLabel(dateLabel: string): Date | null {
