@@ -8,7 +8,9 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   // .claude/ — worktrees фоновых агентов (полные копии репо): без ignore
   // eslint проваливается в них и ложно краснеет
-  globalIgnores(['dist', 'dist-iconography', 'functions/lib', 'docs/', '.claude/']),
+  // video/ — отдельные HyperFrames-проекты учебных роликов (в сборку сайта не входят,
+  // внутри — вендорный минифицированный GSAP)
+  globalIgnores(['dist', 'dist-iconography', 'functions/lib', 'docs/', '.claude/', 'video/']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

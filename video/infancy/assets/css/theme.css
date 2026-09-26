@@ -1,0 +1,99 @@
+/* «Первый год жизни» — дизайн-система ролика (цвета и шрифты сайта DOM Academy).
+   @font-face — в index.html (пути от корня проекта); шрифты с кириллицей подключены явно,
+   иначе HyperFrames подставит свои встроенные латинские. */
+
+
+:root {
+  --bg: #FAF7F0;
+  --paper: #FFFDF8;
+  --ink: #1D2733;
+  --ink-2: #3C4852;
+  --muted: #5F676B;
+  --faint: #8A8F90;
+  --line: #D9D0C4;
+  --line-soft: #E7E2DA;
+  --accent: #2E7D32;
+  --accent-deep: #256D27;
+  --accent-soft: #E5EFE6;
+  --mark: #FFF1A6;
+  --child: #E4735A;
+  --child-soft: #F6D5CB;
+  --child-deep: #B8533D;
+  --adult: #385771;
+  --adult-soft: #DFE9F1;
+  --object: #E0A930;
+  --object-soft: #F5E7BD;
+  --stranger: #A8A29E;
+  --serif: "DOMSerif", serif;
+  --sans: "DOMSans", sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #FAF7F0; }
+body { font-family: var(--sans); color: var(--ink); -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision; font-kerning: normal; }
+
+#root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #FAF7F0; }
+.layer { position: absolute; inset: 0; }
+#grain { display: none; }
+
+/* Сцены: видимостью управляет таймлайн GSAP */
+.scene { position: absolute; inset: 0; visibility: hidden; opacity: 0; }
+.abs { position: absolute; }
+
+/* Типографика */
+.kicker { font-family: var(--sans); font-weight: 750; font-size: 22px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); line-height: 1.2; }
+.kicker.muted { color: var(--muted); }
+.display { font-family: var(--serif); font-weight: 600; font-size: 132px; line-height: 1.02; letter-spacing: -0.015em; color: var(--ink); }
+.h1 { font-family: var(--serif); font-weight: 600; font-size: 96px; line-height: 1.04; letter-spacing: -0.012em; color: var(--ink); }
+.h2 { font-family: var(--serif); font-weight: 600; font-size: 70px; line-height: 1.08; letter-spacing: -0.01em; color: var(--ink); text-wrap: balance; }
+.h3 { font-family: var(--serif); font-weight: 600; font-size: 46px; line-height: 1.12; color: var(--ink); }
+.statement { font-family: var(--serif); font-weight: 500; font-size: 64px; line-height: 1.14; letter-spacing: -0.008em; color: var(--ink); text-wrap: balance; }
+.quote { font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 54px; line-height: 1.24; color: var(--ink); text-wrap: balance; }
+.lead { font-family: var(--sans); font-weight: 500; font-size: 38px; line-height: 1.36; color: var(--ink); text-wrap: pretty; }
+.body { font-family: var(--sans); font-weight: 500; font-size: 32px; line-height: 1.4; color: var(--ink-2); text-wrap: pretty; }
+.note { font-family: var(--sans); font-weight: 500; font-size: 25px; line-height: 1.4; color: var(--muted); text-wrap: pretty; }
+.cite { font-family: var(--sans); font-weight: 650; font-size: 24px; letter-spacing: 0.02em; color: var(--muted); }
+.label { font-family: var(--sans); font-weight: 650; font-size: 26px; line-height: 1.2; color: var(--ink-2); }
+.small-caps { font-family: var(--sans); font-weight: 700; font-size: 20px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.acc { color: var(--accent); }
+.acc-child { color: var(--child-deep); }
+.acc-adult { color: var(--adult); }
+.it { font-style: italic; }
+.soft { color: var(--muted); }
+
+/* Разбивка на строки для «маскированного» появления */
+.ln { display: block; overflow: hidden; padding: 0.16em 0.06em 0.18em; margin: -0.16em -0.06em -0.18em; }
+.ln > .li { display: inline-block; white-space: nowrap; }
+.w { display: inline; }
+
+/* Маркер-выделение */
+.hl { position: relative; white-space: nowrap; isolation: isolate; }
+.hl > .hl-bg { position: absolute; left: -0.08em; right: -0.08em; top: 0.12em; bottom: 0.04em; background: var(--mark); transform-origin: 0 50%; border-radius: 3px; }
+.hl > .hl-tx { position: relative; }
+
+/* Интерфейс: бренд, глава, шкала */
+#brand { position: absolute; left: 140px; top: 58px; display: flex; align-items: center; gap: 14px; opacity: 0; }
+#brand .psi { width: 38px; height: 38px; border-radius: 11px; background: var(--accent); color: #fff; font-family: var(--sans); font-weight: 700; font-size: 24px; display: flex; align-items: center; justify-content: center; padding-bottom: 1px; }
+#brand .name { font-family: var(--sans); font-weight: 700; font-size: 21px; letter-spacing: 0.01em; color: var(--ink); }
+#brand .name span { color: var(--muted); font-weight: 600; }
+#ui .chapter { position: absolute; right: 140px; top: 66px; opacity: 0; font-family: var(--sans); font-weight: 700; font-size: 19px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); text-align: right; white-space: nowrap; }
+#ui .chapter .num { color: var(--accent); }
+#ruler { position: absolute; inset: 0; pointer-events: none; }
+#ruler text { font-family: var(--sans); font-weight: 650; font-size: 21px; fill: var(--muted); }
+#ruler .evt text { font-weight: 750; font-size: 21px; fill: var(--accent); letter-spacing: 0.02em; }
+
+/* Персонажи */
+.actor { position: absolute; left: 0; top: 0; width: 100px; height: 100px; margin: -50px 0 0 -50px; border-radius: 50%; opacity: 0; }
+#a-baby { background: var(--child); box-shadow: 0 0 0 3px #FAF7F0; }
+#a-adult { background: var(--adult); }
+#a-obj { background: var(--object); border-radius: 18px; }
+#a-stranger { background: var(--stranger); }
+.actor svg.face { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; opacity: 0; }
+
+/* Карточки и чипы */
+.card { background: var(--paper); border: 1.5px solid var(--line-soft); border-radius: 22px; box-shadow: 0 22px 45px -30px rgba(17, 24, 39, 0.28); }
+.chip { display: inline-flex; align-items: center; height: 58px; padding: 0 26px; border-radius: 29px; border: 2px solid var(--line); font-family: var(--sans); font-weight: 650; font-size: 28px; color: var(--ink-2); background: var(--paper); white-space: nowrap; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.num-badge { width: 54px; height: 54px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-deep); font-family: var(--serif); font-weight: 700; font-size: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+.rule { height: 2px; background: var(--line); transform-origin: 0 50%; }
+svg { overflow: visible; }
