@@ -68,4 +68,56 @@
       s.brandIn(4.45);
     }
   });
+
+  // 0:15 — Дисклеймер: возраст в ролике — статистика
+  Film.scene({
+    id: 'note', bars: 3,
+    build: function (s) {
+      var k = s.text('kicker', 'Важно', { left: 140, top: 150 });
+      s.fade(k, 0.1, { y: 8 });
+      var h = s.text('h2', 'Сроки — это статистика', { left: 140, top: 186, width: 900 });
+      s.lines(h, 0.2);
+      var ld = s.text('lead', 'Возрасты в ролике — средние значения. У каждого ребёнка свой темп.', { left: 140, top: 330, width: 760 });
+      s.lines(ld, 0.9);
+
+      // схематичная кривая распределения: первые самостоятельные шаги (окно ВОЗ 8–18 мес)
+      var g = s.svg();
+      var B = 740, HGT = 250, AX0 = 1060, AX1 = 1760, M0 = 7, M1 = 19;
+      function X(m) { return AX0 + (m - M0) / (M1 - M0) * (AX1 - AX0); }
+      var MU = 12, SL = (MU - 8) / 2.33, SR = (18 - MU) / 2.33;
+      var d = '';
+      for (var i = 0; i <= 60; i++) {
+        var m = M0 + (M1 - M0) * i / 60, sg = m < MU ? SL : SR;
+        var y = B - HGT * Math.exp(-((m - MU) * (m - MU)) / (2 * sg * sg));
+        d += (i ? ' L' : 'M') + X(m).toFixed(1) + ' ' + y.toFixed(1);
+      }
+      var area = s.path(g, d + ' L' + X(M1) + ' ' + B + ' L' + X(M0) + ' ' + B + ' Z', { fill: '#EBEDF7', stroke: 'none', opacity: 0 });
+      var curve = s.path(g, d, { stroke: '#5C6BC0', 'stroke-width': 4 });
+      var base = s.path(g, 'M' + AX0 + ' ' + B + ' H' + AX1, { stroke: '#CDC3B4', 'stroke-width': 2 });
+      s.draw(base, 0.8, { dur: 0.7 });
+      s.draw(curve, 1.1, { dur: 1.5, ease: 'power1.inOut' });
+      s.tween(area, 2.0, { opacity: 0 }, { opacity: 1, duration: 0.7 });
+      var med = s.path(g, 'M' + X(MU) + ' ' + B + ' V' + (B - HGT), { stroke: '#5C6BC0', 'stroke-width': 2.5, 'stroke-dasharray': '3 9' });
+      s.dash(med, 2.3, { dur: 0.5 });
+      [[8, '8'], [12, '12'], [18, '18']].forEach(function (q, j) {
+        var tk = s.path(g, 'M' + X(q[0]) + ' ' + (B - 6) + ' V' + (B + 6), { stroke: '#B3A898', 'stroke-width': 2 });
+        s.fade(tk, 2.4 + j * 0.15, { y: 0, dur: 0.3 });
+        var lb = s.text('label', q[1], { left: X(q[0]) - 40, top: B + 12, width: 80, textAlign: 'center', fontSize: 24, color: j === 1 ? '#4A58A6' : '#5F676B' });
+        s.fade(lb, 2.5 + j * 0.15, { y: 6 });
+      });
+      var un = s.text('note', 'мес', { left: X(19) - 20, top: B + 12, fontSize: 22 });
+      s.fade(un, 2.9, { y: 6 });
+      var cap = s.text('small-caps', 'Первые самостоятельные шаги (ВОЗ, 2006)', { left: AX0, top: B - HGT - 70, width: AX1 - AX0, textAlign: 'center' });
+      s.fade(cap, 1.3, { y: 6 });
+      // «каждая точка — ребёнок»
+      var zs = [-1.9, -1.2, -0.7, -0.35, 0, 0.3, 0.65, 1.1, 1.8];
+      zs.forEach(function (z, j) {
+        var m = MU + z * (z < 0 ? SL : SR);
+        var c = s.node(g, 'circle', { cx: X(m), cy: B - 13, r: 10, fill: '#E4735A', opacity: 0 });
+        s.tween(c, 3.0 + j * 0.12, { opacity: 0, y: -18 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' });
+      });
+      var dl = s.text('note', 'каждая точка — ребёнок; все они в норме', { left: 140, top: 470, width: 760 });
+      s.fade(dl, 4.2, { y: 6 });
+    }
+  });
 })();

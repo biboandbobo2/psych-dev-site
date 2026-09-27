@@ -12,7 +12,7 @@
   }
   Film.walk = walk;
 
-  // 1:00 — заставка части
+  // 1:07,5 — заставка части
   Film.scene({
     id: 'ch2', bars: 1,
     build: function (s) {
@@ -20,11 +20,11 @@
       s.range(18, 24, 0.15, 1.3);
       s.age(18, 0.2, 1.3, 2);
       walk(s, 12, 18, 0.2);
-      s.chapter(2, 'Слова и люди', 0.4, 37.5);
+      s.chapter(2, 'Слова и люди', 0.4, 57.5);
     }
   });
 
-  // 1:02,5 — Словарный взрыв
+  // 1:10 — Словарный взрыв
   Film.scene({
     id: 'words', bars: 8,
     build: function (s) {
@@ -87,18 +87,25 @@
       var fk = s.text('small-caps', 'Первые фразы из двух слов', { left: TX, top: 540 });
       s.fade(fk, 5.2, { y: 6 });
       var ph = ['«Мама, дай!»', '«Киса ушла»', '«Ещё сок»'];
-      var bx = [TX, TX + 262, TX + 512];
+      var bx = [TX, TX + 262, TX + 512], bubs = [];
       ph.forEach(function (tx, j) {
         var b = s.div('bubble', { left: bx[j], top: 590, fontSize: 30 }, null, tx);
         s.pop(b, 5.5 + j * 0.35, { from: 0.8, dur: 0.5, origin: '20% 100%' });
+        bubs.push(b);
       });
+      // затем — на их месте: важна речь, обращённая к ребёнку
+      s.out([fk].concat(bubs), 13.4, { dur: 0.5 });
+      var tk = s.text('small-caps', 'Говорить с ребёнком', { left: TX, top: 540, color: '#4A58A6' });
+      s.fade(tk, 14.0, { y: 6 });
+      var tb = s.text('body', 'Словарь растёт от речи, обращённой к ребёнку, — а не от услышанной рядом <span class="soft">(А. Вайследер, А. Фернальд, 2013)</span>.', { left: TX, top: 574, width: 760, fontSize: 29 });
+      s.lines(tb, 14.1, { stagger: 0.08 });
 
       var nt = s.text('note', 'Разброс между детьми огромен. Ориентир «позднего старта»: к двум годам меньше 50 слов или нет фраз из двух слов (Л. Рескорла, 1989).', { left: TX, top: 716, width: 760 });
       s.lines(nt, 9.2, { stagger: 0.08 });
     }
   });
 
-  // 1:22,5 — Помочь другому (Ф. Варнекен, М. Томаселло, 2006)
+  // 1:30 — Помочь другому (Ф. Варнекен, М. Томаселло, 2006)
   Film.scene({
     id: 'help', bars: 6,
     build: function (s) {
@@ -165,6 +172,102 @@
       s.actor('stranger', { o: 0, d: 130 }, 13.4, 0.8, 'power2.in');
       s.actor('obj', { o: 0, d: 10 }, 13.4, 0.6, 'power2.in');
       s.rest(13.3, 1.2);
+    }
+  });
+
+  // 1:45 — Семья — первое общество: социальная референция, правила, «мы»
+  Film.scene({
+    id: 'family', bars: 8,
+    build: function (s) {
+      var k = s.text('kicker', 'Освоение социального мира', { left: 140, top: 150 });
+      s.fade(k, 0.1, { y: 8 });
+      var h = s.text('h2', 'Семья — первое общество', { left: 140, top: 186, width: 1000 });
+      s.lines(h, 0.2);
+      var items = [
+        [1.0, 'Сверяется с лицом взрослого: опасно или можно? <span class="soft">(социальная референция; Дж. Сорс и др., 1985)</span>'],
+        [6.0, 'Слушается «нельзя» при взрослом — а потом и без него: правило становится <span class="acc">своим</span> <span class="soft">(Г. Кочанска)</span>.'],
+        [11.8, 'В семье учатся понимать чувства и правила других: спорят, жалуются, утешают <span class="soft">(Дж. Данн, 1988)</span>. Складывается «мы» — свои и чужие.']
+      ];
+      items.forEach(function (it, i) {
+        var y = [322, 490, 658][i];
+        var b = s.div('num-badge', { left: 140, top: y }, null, String(i + 1));
+        s.pop(b, it[0], { from: 0.7, dur: 0.6 });
+        var e = s.text('body', it[1], { left: 222, top: y + 4, width: 720, fontSize: 29 });
+        s.lines(e, it[0] + 0.1, { stagger: 0.08 });
+      });
+
+      var g = s.svg();
+      var GY = 800;
+      var ground = s.path(g, 'M1030 ' + GY + ' H1780', { stroke: '#D9D0C4', 'stroke-width': 2.5 });
+      s.draw(ground, 0.5, { dur: 0.9 });
+      // 1) социальная референция: новая вещь — взгляд на взрослого — взрослый встревожен — ребёнок отступает
+      s.actor('baby', { x: 1150, y: GY - 50, d: 100, o: 1 }, 0.3, 1.2);
+      s.actor('adult', { x: 1660, y: GY - 80, d: 160, o: 0 }, 0.0, 0.01);
+      s.actor('adult', { o: 1 }, 0.6, 0.8);
+      s.face('baby', true, 1.2, 0.4); s.mouth('baby', 'soft', 1.2, 0.01); s.gaze('baby', 7, 0, 1.2, 0.01);
+      s.face('adult', true, 1.2, 0.4); s.mouth('adult', 'soft', 1.2, 0.01); s.gaze('adult', -7, 2, 1.2, 0.01);
+      s.actor('obj', { x: 1420, y: GY - 28 - 90, d: 56, o: 0 }, 1.25, 0.01);
+      s.actor('obj', { o: 1 }, 1.3, 0.2);
+      s.actor('obj', { y: GY - 28 }, 1.3, 0.4, 'power2.in');
+      s.squash('obj', 1.2, 0.8, 1.7, 0.06); s.squash('obj', 1, 1, 1.76, 0.35, 'back.out(3)');
+      var q = s.text('h3', '?', { left: 1400, top: GY - 130, width: 40, textAlign: 'center', color: '#A77A12' });
+      s.fade(q, 1.8, { y: 6 });
+      s.hop('baby', 1300, GY - 50, 2.2, 0.4, 30);
+      s.gaze('baby', 6, -5, 3.0, 0.25);
+      var look = s.path(g, 'M1356 ' + (GY - 76) + ' L1582 ' + (GY - 118), { stroke: '#8A8F90', 'stroke-width': 3, 'stroke-dasharray': '2 10' });
+      s.dash(look, 3.0, { dur: 0.45 });
+      s.mouth('adult', 'sad', 3.5, 0.3); s.gaze('adult', -8, 4, 3.5, 0.3);
+      s.mouth('baby', 'flat', 4.0, 0.25);
+      s.hop('baby', 1160, GY - 50, 4.2, 0.42, 30);
+      s.gaze('baby', 7, 0, 4.6, 0.3);
+      s.out([look, q], 4.9, { dur: 0.4 });
+      // 2) «нельзя» — взрослый уходит — ребёнок не трогает
+      s.mouth('adult', 'flat', 5.8, 0.3);
+      var no = s.div('bubble tail-r', { left: 1350, top: GY - 290, fontSize: 30 }, null, 'Нельзя!');
+      s.pop(no, 6.0, { from: 0.8, dur: 0.45, origin: '90% 100%' });
+      s.out(no, 7.3, { dur: 0.3 });
+      s.face('adult', false, 7.4, 0.3);
+      s.actor('adult', { x: 1800, o: 0 }, 7.5, 0.9, 'power2.in');
+      s.gaze('baby', 8, 1, 8.3, 0.3); s.mouth('baby', 'soft', 8.3, 0.3);
+      s.hop('baby', 1230, GY - 50, 8.6, 0.36, 18);
+      s.squash('baby', 1.06, 0.94, 9.2, 0.15); s.squash('baby', 1, 1, 9.35, 0.3, 'back.out(3)');
+      s.gaze('baby', -7, 0, 9.5, 0.3);
+      var ok = Film.check(s, g, 1330, GY - 186, '#5C6BC0');
+      s.draw(ok, 9.9, { dur: 0.3 });
+      var okl = s.text('note', 'и без взрослого', { left: 1356, top: GY - 212, color: '#5C6BC0', fontWeight: 650 });
+      s.fade(okl, 9.9, { y: 6 });
+      s.out([ok, okl], 11.3, { dur: 0.3 });
+      // 3) «мы» — свои и «они» — чужие; брат взял игрушку — жалоба маме
+      s.actor('obj', { o: 0, d: 30 }, 11.4, 0.4, 'power2.in');
+      s.actor('baby', { x: 1130 }, 11.6, 0.6);
+      s.gaze('baby', 7, 0, 11.6, 0.3); s.mouth('baby', 'smile', 11.6, 0.3);
+      s.actor('adult', { x: 1500, y: GY - 80, d: 150, o: 0 }, 11.6, 0.01);
+      s.actor('adult', { o: 1 }, 11.8, 0.6);
+      s.face('adult', true, 12.0, 0.3); s.mouth('adult', 'smile', 12.0, 0.01); s.gaze('adult', -6, 2, 12.0, 0.01);
+      var sib = s.node(g, 'g', { opacity: 0 });
+      s.node(sib, 'circle', { cx: 1310, cy: GY - 36, r: 36, fill: '#EE9B86' });
+      s.node(sib, 'circle', { cx: 1300, cy: GY - 42, r: 3.4, fill: '#FFFDF8' });
+      s.node(sib, 'circle', { cx: 1320, cy: GY - 42, r: 3.4, fill: '#FFFDF8' });
+      s.path(sib, 'M1300 ' + (GY - 28) + ' Q1310 ' + (GY - 21) + ' 1320 ' + (GY - 28), { stroke: '#FFFDF8', 'stroke-width': 3 });
+      s.tween(sib, 12.0, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5 });
+      var RX = 290, RY2 = 142, ECX = 1315, ECY = GY - 70;
+      var ring = s.path(g, 'M' + (ECX - RX) + ' ' + ECY + ' A' + RX + ' ' + RY2 + ' 0 1 1 ' + (ECX + RX) + ' ' + ECY + ' A' + RX + ' ' + RY2 + ' 0 1 1 ' + (ECX - RX) + ' ' + ECY, { stroke: '#5C6BC0', 'stroke-width': 3, 'stroke-dasharray': '6 12' });
+      s.dash(ring, 12.7, { dur: 1.0 });
+      var we = s.text('h3', 'мы', { left: 1440, top: GY - 262, width: 80, textAlign: 'center', color: '#5C6BC0' });
+      s.fade(we, 13.4, { y: 8 });
+      s.actor('stranger', { x: 1720, y: GY - 55, d: 110, o: 0 }, 13.3, 0.01);
+      s.actor('stranger', { o: 1 }, 13.5, 0.6);
+      var they = s.text('h3', 'они', { left: 1670, top: GY - 180, width: 100, textAlign: 'center', color: '#8A8F90' });
+      s.fade(they, 14.0, { y: 8 });
+      var cmp = s.div('bubble tail-l', { left: 1046, top: GY - 272, fontSize: 28 }, null, 'Мама, он взял!');
+      s.pop(cmp, 15.2, { from: 0.8, dur: 0.45, origin: '10% 100%' });
+      s.mouth('baby', 'flat', 15.2, 0.25);
+      s.out(cmp, 17.6, { dur: 0.3 });
+
+      s.face('baby', false, 18.6, 0.3); s.face('adult', false, 18.6, 0.3);
+      s.actor('adult', { o: 0, d: 110 }, 18.7, 0.8, 'power2.in');
+      s.actor('stranger', { o: 0, d: 80 }, 18.7, 0.8, 'power2.in');
+      s.rest(18.7, 1.2);
     }
   });
 })();

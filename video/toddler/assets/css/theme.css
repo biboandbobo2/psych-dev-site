@@ -102,10 +102,20 @@ body { font-family: var(--sans); color: var(--ink); -webkit-font-smoothing: anti
 .num-badge { width: 54px; height: 54px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-deep); font-family: var(--serif); font-weight: 700; font-size: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
 .rule { height: 2px; background: var(--line); transform-origin: 0 50%; }
 .bubble { background: var(--paper); border: 2.5px solid var(--ink); border-radius: 26px; padding: 14px 26px 16px; font-family: var(--sans); font-weight: 650; font-size: 32px; color: var(--ink); white-space: nowrap; }
+.bubble.tail-l::before, .bubble.tail-r::before { content: ''; position: absolute; bottom: -17px; border-style: solid; border-color: var(--ink) transparent transparent transparent; }
+.bubble.tail-l::after, .bubble.tail-r::after { content: ''; position: absolute; bottom: -11.5px; border-style: solid; border-color: var(--paper) transparent transparent transparent; }
+.bubble.tail-l::before { left: 26px; border-width: 17px 16px 0 0; }
+.bubble.tail-l::after { left: 29px; border-width: 12px 11px 0 0; }
+.bubble.tail-r::before { right: 26px; border-width: 17px 0 0 16px; }
+.bubble.tail-r::after { right: 29px; border-width: 12px 0 0 11px; }
+.bubble.soft { border-color: var(--accent); color: var(--accent-deep); }
 svg { overflow: visible; }
 
 /* Паспорт возраста — итоговая таблица эпизода (общая для серии) */
 .passport-row { display: flex; align-items: baseline; gap: 0; border-top: 1.5px solid var(--line-soft); }
+.tl-year { font-family: var(--sans); font-weight: 800; font-size: 28px; color: var(--accent); text-align: center; }
+.tl-name { font-family: var(--sans); font-weight: 700; font-size: 25px; color: var(--ink); text-align: center; line-height: 1.25; }
+.tl-idea { font-family: var(--sans); font-weight: 500; font-size: 24px; color: var(--ink-2); text-align: center; line-height: 1.35; text-wrap: balance; }
 .passport-k { flex: none; width: 520px; font-family: var(--sans); font-weight: 700; font-size: 20px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding-top: 4px; }
 .passport-v { font-family: var(--sans); font-weight: 550; font-size: 33px; line-height: 1.3; color: var(--ink); }
 .passport-v .by { color: var(--muted); font-weight: 500; font-size: 25px; white-space: nowrap; }
