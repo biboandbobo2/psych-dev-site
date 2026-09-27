@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">DOM Academy icon</title>
+  <desc id="desc">Ivory arch and open book on an olive rounded square.</desc>
+  <rect width="512" height="512" rx="108" fill="#526B3C"/>
+  <g fill="none" stroke="#F7F4EC" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M78 404C66 202 150 80 256 80C362 80 446 202 434 404"/>
+    <path d="M256 286C205 240 169 228 122 238L122 349C178 341 219 365 256 399"/>
+    <path d="M256 286C307 240 343 228 390 238L390 349C334 341 293 365 256 399"/>
+    <path d="M256 286V399"/>
+  </g>
+</svg>
