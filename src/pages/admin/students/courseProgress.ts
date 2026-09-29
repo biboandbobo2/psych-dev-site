@@ -1,6 +1,7 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { debugError } from '../../../lib/debug';
+import type { CloudLessonVideoStats } from '../../../lib/courseProgress/types';
 
 export interface GroupMember {
   uid: string;
@@ -8,7 +9,10 @@ export interface GroupMember {
 }
 
 export interface MemberProgress extends GroupMember {
+  /** Занятия с просмотренной главной лекцией. */
   watchedLessonIds: Set<string>;
+  /** Просмотры и переходы на YouTube по каждому видео занятий. */
+  videoStats: CloudLessonVideoStats;
 }
 
 export function normalizeLessonId(lessonId: string): string {
@@ -29,7 +33,9 @@ async function loadMemberProgress(
 ): Promise<MemberProgress> {
   const progressSnap = await getDoc(doc(db, 'users', member.uid, 'courseProgress', courseId));
 
-  const rawWatched = progressSnap.exists() ? progressSnap.data().watchedLessonIds : [];
+  const data = progressSnap.exists() ? progressSnap.data() : {};
+  const rawWatched = data.watchedLessonIds;
+  const rawVideoStats = data.videoStats;
   const watchedLessonIds = new Set(
     Array.isArray(rawWatched)
       ? rawWatched
@@ -38,7 +44,12 @@ async function loadMemberProgress(
       : []
   );
 
-  return { ...member, watchedLessonIds };
+  const videoStats =
+    rawVideoStats && typeof rawVideoStats === 'object' && !Array.isArray(rawVideoStats)
+      ? (rawVideoStats as CloudLessonVideoStats)
+      : {};
+
+  return { ...member, watchedLessonIds, videoStats };
 }
 
 /**
@@ -55,7 +66,12 @@ export async function loadGroupProgress(
       loadMemberProgress(member, courseId).catch((err): MemberProgress => {
         debugError('[CourseStudents] failed to load member progress', member.uid, err);
         failedCount += 1;
-        return { ...member, name: `${member.name} (не загрузился)`, watchedLessonIds: new Set() };
+        return {
+          ...member,
+          name: `${member.name} (не загрузился)`,
+          watchedLessonIds: new Set(),
+          videoStats: {},
+        };
       })
     )
   );

@@ -1,12 +1,15 @@
 import { courseStudentLabel, type CourseStudent } from '../../../types/courseStudents';
+import type { StudentViews } from './studentViews';
 
 /** Порядок строк в таблице; значения совпадают с value в селекте сортировки. */
 export type StudentSort = 'progress' | 'name' | 'lastLogin';
 
 export interface StudentRow {
   student: CourseStudent;
-  /** Сколько опубликованных занятий курса студент отметил просмотренными. */
+  /** Сколько главных лекций опубликованных занятий курса просмотрено. */
   watched: number;
+  /** Квадратики занятий и дроби просмотров. */
+  views: StudentViews;
 }
 
 /** Русские склонения по числу: [1, 2–4, 5+]. */

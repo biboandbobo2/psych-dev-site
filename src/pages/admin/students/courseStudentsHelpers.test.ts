@@ -27,6 +27,7 @@ function student(overrides: Partial<CourseStudent> = {}): CourseStudent {
 const row = (overrides: Partial<CourseStudent>, watched: number): StudentRow => ({
   student: student(overrides),
   watched,
+  views: { squares: [], mainWatched: watched, mainOpened: 0, videosWatched: 0, videosTotal: 0 },
 });
 
 describe('plural', () => {

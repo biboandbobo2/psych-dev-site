@@ -228,13 +228,15 @@ export const SMOKE_GROUP = {
 /**
  * Поток внешнего курса: даёт external-x своим участникам и виден автору курса
  * на /admin/students. Автор в announcementAdminIds — чтобы в шапке потока
- * рендерилась кнопка «Объявление потоку».
+ * рендерилась кнопка «Объявление потоку». Курс у потока актуальный — иначе
+ * секция потока на /admin/students свёрнута.
  */
 export const SMOKE_EXTERNAL_GROUP = {
   id: "smoke-external-group",
   name: "Поток внешнего курса",
   memberIds: [SMOKE_ROLES.studentExternalStream.uid],
   grantedCourses: ["external-x"],
+  featuredCourseIds: ["external-x"],
   announcementAdminIds: [SMOKE_ROLES.author.uid],
 } as const;
 
@@ -243,8 +245,8 @@ export const SMOKE_GROUPS = [SMOKE_GROUP, SMOKE_EXTERNAL_GROUP] as const;
 
 /**
  * Прогресс просмотра: users/{uid}/courseProgress/{courseId}. У external-x
- * опубликованы 2 занятия из 3, поэтому потоковый студент даёт «2 / 2»,
- * индивидуальный — «1 / 2».
+ * опубликованы 2 занятия из 3, поэтому потоковый студент даёт «Лекции 2/2»,
+ * индивидуальный — «Лекции 1/2».
  */
 export const SMOKE_COURSE_PROGRESS = [
   {

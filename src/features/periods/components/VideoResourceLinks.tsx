@@ -10,6 +10,8 @@ interface VideoResourceLinksProps {
   audioLinkClassName?: string;
   sourceTextClassName?: string;
   sourceLinkClassName?: string;
+  /** Клик по ссылке на источник не-YouTube видео — студент смотрит его вне сайта. */
+  onSourceLinkClick?: () => void;
 }
 
 export function VideoResourceLinks({
@@ -22,6 +24,7 @@ export function VideoResourceLinks({
   audioLinkClassName = '',
   sourceTextClassName = '',
   sourceLinkClassName = '',
+  onSourceLinkClick,
 }: VideoResourceLinksProps) {
   if (!deckUrl && !audioUrl && (isYoutube || !isUrlString(originalUrl))) {
     return null;
@@ -57,6 +60,7 @@ export function VideoResourceLinks({
             href={originalUrl}
             target="_blank"
             rel="noreferrer"
+            onClick={onSourceLinkClick}
           >
             {originalUrl}
           </a>

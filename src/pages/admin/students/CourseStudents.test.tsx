@@ -22,10 +22,13 @@ vi.mock('../../../hooks/useMyAnnouncementGroups', () => ({
   useMyAnnouncementGroups: () => ({ groups: [], loading: false }),
 }));
 
-const lessonsByCourse: Record<string, Array<{ periodId: string; periodKey: string }>> = {};
+const lessonsResult: {
+  lessons: Array<{ id: string; title: string; videoKeys: string[] }>;
+  loading: boolean;
+} = { lessons: [], loading: false };
 
-vi.mock('../../../hooks', () => ({
-  usePublishedLessonOptions: () => ({ lessonsByCourse }),
+vi.mock('./useCourseLessonVideos', () => ({
+  useCourseLessonVideos: () => lessonsResult,
 }));
 
 vi.mock('../../../stores/useAuthStore', () => ({
@@ -81,6 +84,7 @@ const RESPONSE: CourseStudentsResponse = {
     {
       id: 'stream-1',
       name: 'Поток 1',
+      featured: true,
       students: [
         student({ uid: 'u1', displayName: 'Мария Кузнецова', email: 'maria@example.com' }),
         student({ uid: 'u2', displayName: 'Дмитрий Орлов', email: 'orlov@example.com' }),
@@ -109,16 +113,24 @@ describe('CourseStudents', () => {
     vi.clearAllMocks();
     coursesResult.courses = [COURSE];
     coursesResult.loading = false;
-    lessonsByCourse['external-x'] = [
-      { periodId: 'l1', periodKey: 'external-x:l1' },
-      { periodId: 'l2', periodKey: 'external-x:l2' },
+    lessonsResult.lessons = [
+      { id: 'l1', title: 'Занятие 1', videoKeys: ['v1', 'v1b'] },
+      { id: 'l2', title: 'Занятие 2', videoKeys: ['v2'] },
     ];
     getCourseStudents.mockResolvedValue(RESPONSE);
     loadGroupProgress.mockResolvedValue({
       members: [
-        { uid: 'u1', name: 'u1', watchedLessonIds: new Set(['l1', 'l2']) },
-        { uid: 'u2', name: 'u2', watchedLessonIds: new Set(['l1']) },
-        { uid: 'u3', name: 'u3', watchedLessonIds: new Set<string>() },
+        { uid: 'u1', name: 'u1', watchedLessonIds: new Set(['l1', 'l2']), videoStats: {} },
+        {
+          uid: 'u2',
+          name: 'u2',
+          watchedLessonIds: new Set(['l1']),
+          videoStats: {
+            l1: { v1b: { watched: true } },
+            l2: { v2: { openedExternally: true } },
+          },
+        },
+        { uid: 'u3', name: 'u3', watchedLessonIds: new Set<string>(), videoStats: {} },
       ],
       failedCount: 0,
     });
@@ -139,10 +151,50 @@ describe('CourseStudents', () => {
     ).toBeInTheDocument();
 
     expect(screen.getByText('maria@example.com')).toBeInTheDocument();
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    expect(screen.getByText('Лекции 2/2 · Все видео 2/3 (67%)')).toBeInTheDocument();
+    expect(screen.getByText('Лекции 1/2 · YouTube 1 · Все видео 2/3 (67%)')).toBeInTheDocument();
+    expect(screen.getByText('Лекции 0/2 · Все видео 0/3 (0%)')).toBeInTheDocument();
+    expect(
+      screen.getByTitle('1. Занятие 1 — главная лекция просмотрена; доп. видео: 1 из 1')
+    ).toHaveTextContent('1');
+    expect(screen.getByTitle('2. Занятие 2 — главная лекция открыта на YouTube')).toBeInTheDocument();
     expect(screen.getByText('Ожидает регистрации')).toBeInTheDocument();
     expect(screen.getAllByText('никогда')).toHaveLength(3);
+  });
+
+  it('поток, у которого курс не в актуальных, свёрнут до клика', async () => {
+    getCourseStudents.mockResolvedValue({
+      ...RESPONSE,
+      groups: [{ ...RESPONSE.groups[0], featured: false }],
+    });
+    renderPage();
+
+    const toggle = await screen.findByRole('button', { name: 'Поток 1' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByText('· курс не в актуальных у потока')).toBeInTheDocument();
+    expect(screen.queryByText('Мария Кузнецова')).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(await screen.findByText('Мария Кузнецова')).toBeInTheDocument();
+  });
+
+  it('индивидуальные студенты без курса в актуальных — под стрелкой', async () => {
+    getCourseStudents.mockResolvedValue({
+      ...RESPONSE,
+      individual: [
+        student({ uid: 'u3', displayName: 'Галина Белова', featured: true }),
+        student({ uid: 'u4', displayName: 'Олег Смирнов', featured: false }),
+      ],
+    });
+    renderPage();
+
+    expect(await screen.findByText('Галина Белова')).toBeInTheDocument();
+    expect(screen.queryByText('Олег Смирнов')).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Ещё 1 — курс не в актуальных у студента/ })
+    );
+    expect(await screen.findByText('Олег Смирнов')).toBeInTheDocument();
   });
 
   it('поиск оставляет только совпавших студентов', async () => {

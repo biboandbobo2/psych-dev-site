@@ -24,10 +24,10 @@ export function AdminContentHeader({
           <Link
             to={`/admin/questions?course=${activeCourse}`}
             className={`${PERMITTED_LINK_CLASSES} bg-emerald-50 text-emerald-900 hover:bg-emerald-100`}
-            title="Вопросы студентов по занятиям курса"
+            title="Вопросы студентов и просмотры занятий курса"
           >
             <span className="text-lg" aria-hidden>❓</span>
-            <span className="text-sm font-medium">Вопросы студентов</span>
+            <span className="text-sm font-medium">Вопросы и просмотры</span>
           </Link>
         ) : null}
         {canEditActiveCourse ? (

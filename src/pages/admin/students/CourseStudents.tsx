@@ -2,15 +2,15 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AccessRequestsPanel } from '../../../components/accessRequests';
-import { usePublishedLessonOptions } from '../../../hooks';
 import { useEditableCourses } from '../../../hooks/useEditableCourses';
 import { useMyAnnouncementGroups } from '../../../hooks/useMyAnnouncementGroups';
 import { SITE_NAME } from '../../../routes';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import type { CourseStudent } from '../../../types/courseStudents';
 import { InviteStudentsModal } from './InviteStudentsModal';
+import { LessonSquaresLegend } from './LessonSquares';
 import { StudentsSection } from './StudentsSection';
-import { normalizeLessonId } from './courseProgress';
+import { buildStudentViews } from './studentViews';
 import {
   averageWatched,
   groupSubtitle,
@@ -20,6 +20,7 @@ import {
   type StudentRow,
   type StudentSort,
 } from './courseStudentsHelpers';
+import { useCourseLessonVideos } from './useCourseLessonVideos';
 import { useCourseStudents } from './useCourseStudents';
 
 const SORT_LABELS: Record<StudentSort, string> = {
@@ -78,6 +79,8 @@ function Notice({ children }: { children: ReactNode }) {
  * индивидуальные студенты и прогресс просмотра занятий. Данные о людях берутся
  * только из callable `getCourseStudents` (коллекция `users` админу курса
  * закрыта), прогресс — из `users/{uid}/courseProgress/{courseId}`.
+ * Потоки, у которых курс не в актуальных, свёрнуты; индивидуальные студенты,
+ * убравшие курс из актуальных, — под стрелкой в конце своей секции.
  * Супер-админ и со-админ открывают страницу по тем же правилам, что и автор.
  */
 export default function CourseStudents() {
@@ -85,7 +88,6 @@ export default function CourseStudents() {
   const { courses, loading: coursesLoading } = useEditableCourses();
   const isSuperAdmin = useAuthStore((state) => state.isSuperAdmin);
   const { groups: announcementGroups } = useMyAnnouncementGroups();
-  const { lessonsByCourse } = usePublishedLessonOptions({ includeUnpublished: true });
 
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<StudentSort>('progress');
@@ -99,37 +101,31 @@ export default function CourseStudents() {
   const courseId = course?.id ?? null;
 
   const { data, progress, loading, error, reload } = useCourseStudents(courseId);
-
-  const lessons = useMemo(
-    () => (courseId ? (lessonsByCourse[courseId] ?? []) : []),
-    [courseId, lessonsByCourse]
-  );
+  const { lessons, loading: lessonsLoading } = useCourseLessonVideos(courseId);
   const lessonsTotal = lessons.length;
-
-  const watchedCount = useMemo(() => {
-    const lessonIds = lessons.map((lesson) => normalizeLessonId(lesson.periodId));
-    return (student: CourseStudent) => {
-      const watched = progress.get(student.uid);
-      if (!watched) return 0;
-      return lessonIds.filter((id) => watched.has(id)).length;
-    };
-  }, [lessons, progress]);
 
   const toRows = (students: CourseStudent[]): StudentRow[] =>
     sortRows(
       students
         .filter((student) => matchesQuery(student, query))
-        .map((student) => ({ student, watched: watchedCount(student) })),
+        .map((student) => {
+          const views = buildStudentViews(lessons, progress.get(student.uid));
+          return { student, watched: views.mainWatched, views };
+        }),
       sort
     );
 
+  // Без поля featured (старая версия callable) всё считается актуальным.
   const groups = (data?.groups ?? []).map((group) => ({
     id: group.id,
     name: group.name,
+    featured: group.featured !== false,
     total: group.students.length,
     rows: toRows(group.students),
   }));
-  const individualRows = toRows(data?.individual ?? []);
+  const individual = data?.individual ?? [];
+  const individualRows = toRows(individual.filter((student) => student.featured !== false));
+  const individualHiddenRows = toRows(individual.filter((student) => student.featured === false));
 
   const inGroupsTotal = (data?.groups ?? []).reduce((sum, group) => sum + group.students.length, 0);
   const individualTotal = data?.individual.length ?? 0;
@@ -257,7 +253,7 @@ export default function CourseStudents() {
             <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
               {error}
             </p>
-          ) : loading ? (
+          ) : loading || lessonsLoading ? (
             <Notice>Загружаем студентов…</Notice>
           ) : total === 0 ? (
             <Notice>
@@ -265,6 +261,7 @@ export default function CourseStudents() {
             </Notice>
           ) : (
             <div className="space-y-4">
+              <LessonSquaresLegend />
               {groups.length === 0 ? (
                 <Notice>Потоков с этим курсом нет — студенты получили доступ лично.</Notice>
               ) : (
@@ -274,7 +271,7 @@ export default function CourseStudents() {
                     title={group.name}
                     subtitle={groupSubtitle(group.total, averageWatched(group.rows), lessonsTotal)}
                     rows={group.rows}
-                    lessonsTotal={lessonsTotal}
+                    collapsedNote={group.featured ? undefined : 'курс не в актуальных у потока'}
                     emptyText="Никто из потока не подходит под поиск."
                     action={
                       isSuperAdmin || announcementIds.has(group.id) ? (
@@ -295,7 +292,8 @@ export default function CourseStudents() {
                   title="Индивидуально"
                   subtitle={`${individualTotal} ${plural(individualTotal, ['студент', 'студента', 'студентов'])} · доступ выдан лично, вне потоков`}
                   rows={individualRows}
-                  lessonsTotal={lessonsTotal}
+                  hiddenRows={individualHiddenRows}
+                  hiddenLabel="курс не в актуальных у студента"
                   emptyText="Никто из них не подходит под поиск."
                 />
               )}

@@ -8,10 +8,14 @@
  * Контракт (клиент типизирует по нему же):
  * ```
  * getCourseStudents({ courseId })
- *   → { courseId, groups: [{ id, name, students: CourseStudent[] }], individual: CourseStudent[] }
+ *   → { courseId, groups: [{ id, name, featured, students: CourseStudent[] }], individual: CourseStudent[] }
  * CourseStudent = { uid, displayName, email, photoURL, lastLoginAt (ISO|null),
- *                   pendingRegistration, disabled }
+ *                   pendingRegistration, disabled, featured? }
  * ```
+ * `featured` у группы — курс в `groups/{id}.featuredCourseIds`. `featured` у
+ * студента заполняется только в `individual`: `featuredCourseIds` содержит курс
+ * → true; иначе `unfeaturedCourseIds` содержит → false; иначе true (лично
+ * открытые курсы актуальны по умолчанию). У студентов внутри групп не заполняется.
  * Право вызова: super-admin, со-админ (claim `coAdmin`) или admin, у которого
  * `courseId` есть в claim `editableCourses`.
  */
@@ -36,12 +40,20 @@ export interface CourseStudent {
   lastLoginAt: string | null;
   pendingRegistration: boolean;
   disabled: boolean;
+  /** Только в `individual`: курс в актуальных у студента. */
+  featured?: boolean;
 }
 
 export interface CourseStudentsResponse {
   courseId: string;
   /** Потоки, которым открыт курс (без системных и `everyone`). */
-  groups: Array<{ id: string; name: string; students: CourseStudent[] }>;
+  groups: Array<{
+    id: string;
+    name: string;
+    /** Курс в актуальных у потока (`featuredCourseIds`). */
+    featured: boolean;
+    students: CourseStudent[];
+  }>;
   /** Доступ выдан лично и ни в одном из потоков выше человек не состоит. */
   individual: CourseStudent[];
 }
@@ -70,6 +82,18 @@ function toCourseStudent(uid: string, data: Record<string, unknown>): CourseStud
     pendingRegistration: data.pendingRegistration === true,
     disabled: data.disabled === true,
   };
+}
+
+/** Некорректные значения (не массив / не строки) трактуем как пустой список. */
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+/** Актуальность курса у индивидуального студента: featured > unfeatured > true по умолчанию. */
+function isFeaturedForUser(data: Record<string, unknown>, courseId: string): boolean {
+  if (asStringArray(data.featuredCourseIds).includes(courseId)) return true;
+  if (asStringArray(data.unfeaturedCourseIds).includes(courseId)) return false;
+  return true;
 }
 
 /** По имени (ru), безымянные — в конец, внутри них по email. */
@@ -135,6 +159,7 @@ export const getCourseStudents = onCall(CALLABLE_OPTS, async (request) => {
         id: doc.id,
         name: asString(data.name) ?? doc.id,
         memberIds: normalizeMemberIds(data.memberIds),
+        featured: asStringArray(data.featuredCourseIds).includes(courseId),
       };
     });
 
@@ -145,6 +170,7 @@ export const getCourseStudents = onCall(CALLABLE_OPTS, async (request) => {
     .map((group) => ({
       id: group.id,
       name: group.name,
+      featured: group.featured,
       students: group.memberIds
         .map((uid) => {
           const data = memberDocs.get(uid);
@@ -163,7 +189,10 @@ export const getCourseStudents = onCall(CALLABLE_OPTS, async (request) => {
 
   const individual = individualSnap.docs
     .filter((doc) => !inGroups.has(doc.id))
-    .map((doc) => toCourseStudent(doc.id, (doc.data() ?? {}) as Record<string, unknown>))
+    .map((doc) => {
+      const data = (doc.data() ?? {}) as Record<string, unknown>;
+      return { ...toCourseStudent(doc.id, data), featured: isFeaturedForUser(data, courseId) };
+    })
     .sort(compareStudents);
 
   const response: CourseStudentsResponse = { courseId, groups, individual };

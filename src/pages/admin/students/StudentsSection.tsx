@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { courseStudentLabel } from '../../../types/courseStudents';
+import { LessonSquares } from './LessonSquares';
 import {
   avatarTone,
   formatLastLogin,
@@ -10,7 +11,7 @@ import {
 /** Сколько строк показываем до нажатия «Показать ещё». */
 const PAGE_SIZE = 10;
 
-const GRID = 'sm:grid sm:grid-cols-[2.4fr_1.2fr_2fr] sm:items-center sm:gap-4';
+const GRID = 'sm:grid sm:grid-cols-[2fr_1fr_2.6fr] sm:items-center sm:gap-4';
 
 function Badge({ tone, children }: { tone: 'amber' | 'rose'; children: ReactNode }) {
   const toneClass = tone === 'amber' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700';
@@ -23,23 +24,18 @@ function Badge({ tone, children }: { tone: 'amber' | 'rose'; children: ReactNode
   );
 }
 
-function ProgressBar({ watched, total }: { watched: number; total: number }) {
-  const percent = total > 0 ? Math.round((watched / total) * 100) : 0;
+function Chevron({ open }: { open: boolean }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="h-2 flex-grow overflow-hidden rounded-full bg-pastel-plain">
-        <div className="h-full rounded-full bg-accent" style={{ width: `${percent}%` }} />
-      </div>
-      <span
-        className={`w-14 text-right text-sm font-semibold ${watched === 0 ? 'text-muted' : 'text-fg'}`}
-      >
-        {watched} / {total}
-      </span>
-    </div>
+    <span
+      aria-hidden
+      className={`inline-block text-sm text-muted transition-transform ${open ? 'rotate-180' : ''}`}
+    >
+      ▾
+    </span>
   );
 }
 
-function StudentLine({ row, lessonsTotal }: { row: StudentRow; lessonsTotal: number }) {
+function StudentLine({ row }: { row: StudentRow }) {
   const { student } = row;
   const label = courseStudentLabel(student);
 
@@ -78,7 +74,7 @@ function StudentLine({ row, lessonsTotal }: { row: StudentRow; lessonsTotal: num
       </div>
 
       <div className="mt-2 sm:mt-0">
-        <ProgressBar watched={row.watched} total={lessonsTotal} />
+        <LessonSquares views={row.views} />
       </div>
     </li>
   );
@@ -88,11 +84,15 @@ interface StudentsSectionProps {
   title: string;
   subtitle: string;
   rows: StudentRow[];
-  lessonsTotal: number;
   /** Кнопка в шапке секции (например, «Объявление потоку»). */
   action?: ReactNode;
   /** Текст, когда строк нет: пустая секция или ничего не нашёл поиск. */
   emptyText: string;
+  /** Секция свёрнута, пока её не раскроют (курс не в актуальных у потока); текст — почему. */
+  collapsedNote?: string;
+  /** Строки под стрелкой в конце секции (курс не в актуальных у студента). */
+  hiddenRows?: StudentRow[];
+  hiddenLabel?: string;
 }
 
 /**
@@ -103,25 +103,48 @@ export function StudentsSection({
   title,
   subtitle,
   rows,
-  lessonsTotal,
   action,
   emptyText,
+  collapsedNote,
+  hiddenRows = [],
+  hiddenLabel,
 }: StudentsSectionProps) {
   const [visible, setVisible] = useState(PAGE_SIZE);
+  const [open, setOpen] = useState(!collapsedNote);
+  const [hiddenOpen, setHiddenOpen] = useState(false);
   const shown = rows.slice(0, visible);
   const rest = rows.length - shown.length;
 
   return (
     <section className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-brand">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-card2 px-5 py-4">
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 bg-card2 px-5 py-4 ${
+          open ? 'border-b border-border/60' : ''
+        }`}
+      >
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="text-base font-bold text-fg">{title}</h2>
+          <h2 className="text-base font-bold text-fg">
+            {collapsedNote ? (
+              <button
+                type="button"
+                onClick={() => setOpen((value) => !value)}
+                aria-expanded={open}
+                className="inline-flex items-baseline gap-2 text-left"
+              >
+                <Chevron open={open} />
+                {title}
+              </button>
+            ) : (
+              title
+            )}
+          </h2>
           <span className="text-sm text-muted">{subtitle}</span>
+          {collapsedNote ? <span className="text-sm text-muted">· {collapsedNote}</span> : null}
         </div>
         {action}
       </div>
 
-      {rows.length === 0 ? (
+      {!open ? null : rows.length === 0 && hiddenRows.length === 0 ? (
         <p className="px-5 py-4 text-sm text-muted">{emptyText}</p>
       ) : (
         <>
@@ -130,11 +153,11 @@ export function StudentsSection({
           >
             <div>Студент</div>
             <div>Последний вход</div>
-            <div>Просмотрено занятий</div>
+            <div>Просмотры</div>
           </div>
           <ul className="list-none p-0">
             {shown.map((row) => (
-              <StudentLine key={row.student.uid} row={row} lessonsTotal={lessonsTotal} />
+              <StudentLine key={row.student.uid} row={row} />
             ))}
           </ul>
           {rest > 0 && (
@@ -145,6 +168,27 @@ export function StudentsSection({
             >
               Показать ещё {Math.min(rest, PAGE_SIZE)} из {rest}
             </button>
+          )}
+          {hiddenRows.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setHiddenOpen((value) => !value)}
+                aria-expanded={hiddenOpen}
+                className="flex w-full items-center gap-2 border-t border-border/50 px-5 py-3 text-left text-sm text-muted hover:text-fg"
+              >
+                <Chevron open={hiddenOpen} />
+                Ещё {hiddenRows.length}
+                {hiddenLabel ? ` — ${hiddenLabel}` : ''}
+              </button>
+              {hiddenOpen && (
+                <ul className="list-none border-t border-border/50 p-0">
+                  {hiddenRows.map((row) => (
+                    <StudentLine key={row.student.uid} row={row} />
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </>
       )}
