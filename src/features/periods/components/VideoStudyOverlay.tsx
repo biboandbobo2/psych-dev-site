@@ -7,6 +7,7 @@ import { VideoStudyQuestionsPanel } from './VideoStudyQuestionsPanel';
 import {
   StudyVideoPlayer,
   type StudyVideoPlaybackSnapshot,
+  type StudyVideoPlayedSpan,
   type StudyVideoPlayerHandle,
 } from './StudyVideoPlayer';
 import { VideoTranscriptPanel } from './VideoTranscriptPanel';
@@ -37,8 +38,8 @@ interface VideoStudyOverlayProps {
   highlightedStartMs?: number | null;
   /** Понятия урока для поисковых чипов при выделении в транскрипте */
   concepts?: string[];
-  watchThreshold?: number;
-  onWatchThresholdReached?: () => void;
+  onPlayedSpan?: (span: StudyVideoPlayedSpan) => void;
+  onOpenedExternally?: () => void;
   onPlaybackProgressMs?: (currentTimeMs: number) => void;
 }
 
@@ -61,8 +62,8 @@ export function VideoStudyOverlay({
   initialQuery = null,
   highlightedStartMs = null,
   concepts = [],
-  watchThreshold,
-  onWatchThresholdReached,
+  onPlayedSpan,
+  onOpenedExternally,
   onPlaybackProgressMs,
 }: VideoStudyOverlayProps) {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(initialPanel);
@@ -281,8 +282,8 @@ export function VideoStudyOverlay({
                 embedUrl={embedUrl}
                 initialSeekMs={initialSeekMs}
                 initialPaused={initialPaused}
-                watchThreshold={watchThreshold}
-                onWatchThresholdReached={onWatchThresholdReached}
+                onPlayedSpan={onPlayedSpan}
+                onOpenedExternally={onOpenedExternally}
                 onPlaybackProgressMs={onPlaybackProgressMs}
               />
             </div>

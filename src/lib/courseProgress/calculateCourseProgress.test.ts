@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateCourseProgress } from './courseProgress';
+import { calculateCourseProgress } from './calculateCourseProgress';
 
 describe('courseProgress', () => {
   it('returns zero progress for empty lessons', () => {

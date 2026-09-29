@@ -8,7 +8,6 @@ import { getWatchedLessonIds } from '../../lib/courseWatchedLessons';
 import { buildCourseContinuePath, getCourseVideoResumePoint } from '../../lib/courseVideoResume';
 import {
   resolvePrimaryLesson,
-  getEstimatedCourseLessons,
   formatTimeFromSeconds,
   resolvePurchasedCourseIds,
   parseDateKey,
@@ -93,9 +92,6 @@ function StudentDashboard() {
       const continuePath = buildCourseContinuePath(course.id, fallbackPath);
       const lessonTitle =
         lastCourseLesson?.label ?? resumePoint?.lessonLabel ?? fallbackPrimaryLesson.title;
-      const completed = getWatchedLessonIds(course.id).size;
-      const total = getEstimatedCourseLessons(course.id);
-      const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
 
       return [
         {
@@ -104,7 +100,7 @@ function StudentDashboard() {
           icon: course.icon,
           continuePath,
           lessonTitle,
-          progress: { completed, total, percent },
+          watchedLessonIds: getWatchedLessonIds(course.id),
           resumeTimeLabel:
             resumePoint && resumePoint.timeSec > 0
               ? `Продолжим с ${formatTimeFromSeconds(resumePoint.timeSec)}`

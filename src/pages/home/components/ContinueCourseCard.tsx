@@ -1,6 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useCourseStore } from '../../../stores';
 import type { CourseType } from '../../../types/tests';
+import { useCourseNavItems } from '../../../hooks/useCourseNavItems';
+import { calculateCourseProgress } from '../../../lib/courseProgress/calculateCourseProgress';
 import { getCourseIntroPath } from '../utils';
 
 export interface ContinueCourse {
@@ -9,7 +11,7 @@ export interface ContinueCourse {
   icon?: string;
   continuePath: string;
   lessonTitle: string;
-  progress: { completed: number; total: number; percent: number };
+  watchedLessonIds: Set<string>;
   resumeTimeLabel: string | null;
 }
 
@@ -26,6 +28,15 @@ interface ContinueCourseCardProps {
 export function ContinueCourseCard({ course, streamLabel, onOpenLessons }: ContinueCourseCardProps) {
   const navigate = useNavigate();
   const { setCurrentCourse } = useCourseStore();
+  const { lessons, loading } = useCourseNavItems(course.id);
+  // Пока список занятий не загружен — блок процента не показываем (без мигания «0%»).
+  const progress =
+    lessons.length === 0 && loading
+      ? null
+      : calculateCourseProgress({
+          lessons: lessons.map((lesson) => ({ period: lesson.id })),
+          watchedLessonIds: course.watchedLessonIds,
+        });
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-border bg-card shadow-brand transition">
@@ -79,14 +90,14 @@ export function ContinueCourseCard({ course, streamLabel, onOpenLessons }: Conti
             >
               ▶ Продолжить
             </NavLink>
-            <div className="rounded-xl border border-border bg-card2 px-3 py-2 text-right">
-              <p className="text-lg font-bold leading-none text-fg">{course.progress.percent}%</p>
-              <p className="mt-1 text-[11px] text-muted">
-                {course.progress.total > 0
-                  ? `${course.progress.completed}/${course.progress.total} занятий`
-                  : `${course.progress.completed} занятий`}
-              </p>
-            </div>
+            {progress ? (
+              <div className="rounded-xl border border-border bg-card2 px-3 py-2 text-right">
+                <p className="text-lg font-bold leading-none text-fg">{progress.percent}%</p>
+                <p className="mt-1 text-[11px] text-muted">
+                  {`${progress.completed}/${progress.total} занятий`}
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

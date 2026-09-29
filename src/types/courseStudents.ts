@@ -13,11 +13,15 @@ export interface CourseStudent {
   /** Приглашён массово (pending_*), но ещё не зарегистрировался. */
   pendingRegistration: boolean;
   disabled: boolean;
+  /** Только в `individual`: курс в актуальных у студента. */
+  featured?: boolean;
 }
 
 export interface CourseStudentsGroup {
   id: string;
   name: string;
+  /** Курс в актуальных у потока (`featuredCourseIds`). */
+  featured: boolean;
   students: CourseStudent[];
 }
 

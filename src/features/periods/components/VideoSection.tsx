@@ -4,6 +4,7 @@ import { cn } from '../../../lib/cn';
 import { getYouTubeVideoId } from '../../../lib/videoTranscripts';
 import { EMPTY_LECTURE_NOTE_DRAFT, type LectureNoteDraft } from '../../../types/notes';
 import { isUrlString, normalizeVideoEntry } from '../utils/media';
+import { getLessonVideoKey } from '../utils/lessonVideos';
 import { VideoResourceLinks } from './VideoResourceLinks';
 import { VideoStudyOverlay } from './VideoStudyOverlay';
 import {
@@ -13,8 +14,14 @@ import {
 import {
   StudyVideoPlayer,
   type StudyVideoPlaybackSnapshot,
+  type StudyVideoPlayedSpan,
   type StudyVideoPlayerHandle,
 } from './StudyVideoPlayer';
+import {
+  getVideoStat,
+  recordVideoOpenedExternally,
+  recordVideoPlayback,
+} from '../../../lib/courseVideoStats';
 import { saveCourseVideoResumePoint } from '../../../lib/courseVideoResume';
 import { trackFeatureEvent } from '../../../lib/telemetry';
 
@@ -35,6 +42,8 @@ interface VideoSectionProps {
   } | null;
   /** Понятия урока для поисковых чипов при выделении в транскрипте */
   concepts?: string[];
+  /** Ключ главной (первой) лекции занятия — по ней занятие отмечается просмотренным. */
+  mainVideoKey?: string | null;
 }
 
 type VideoLayoutMode = 'embed' | 'study';
@@ -50,6 +59,7 @@ export function VideoSection({
   periodTitle,
   studyLaunch,
   concepts,
+  mainVideoKey = null,
 }: VideoSectionProps) {
   const videos = content.map((entry, index) => {
     const normalized = normalizeVideoEntry(entry);
@@ -58,6 +68,7 @@ export function VideoSection({
       ...normalized,
       deckUrl: effectiveDeckUrl,
       key: `${slug}-video-${index}`,
+      videoKey: getLessonVideoKey(entry),
     };
   });
 
@@ -77,9 +88,11 @@ export function VideoSection({
   return (
     <Section key={slug} title={title} contentClassName="max-w-none">
       <div className="space-y-6">
-        {videos.map(({ key, title: videoTitle, embedUrl, originalUrl, isYoutube, deckUrl: videoDeckUrl, audioUrl }) => (
+        {videos.map(({ key, videoKey, title: videoTitle, embedUrl, originalUrl, isYoutube, deckUrl: videoDeckUrl, audioUrl }) => (
           <VideoSectionCard
             key={key}
+            videoKey={videoKey}
+            isMainVideo={videoKey !== null && videoKey === mainVideoKey}
             videoTitle={videoTitle}
             embedUrl={embedUrl}
             originalUrl={originalUrl}
@@ -100,7 +113,26 @@ export function VideoSection({
   );
 }
 
+/**
+ * Видео просмотрено по своей статистике; у главной лекции — ещё и по старой
+ * отметке занятия (до учёта по видео отмечалось всё занятие целиком).
+ */
+function readVideoWatched(
+  courseId: string,
+  periodId: string | undefined,
+  videoKey: string | null,
+  isMainVideo: boolean
+): boolean {
+  if (!courseId || !periodId || !videoKey) return false;
+  return (
+    getVideoStat(courseId, periodId, videoKey).watched === true ||
+    (isMainVideo && isLessonWatched(courseId, periodId))
+  );
+}
+
 interface VideoSectionCardProps {
+  videoKey: string | null;
+  isMainVideo: boolean;
   videoTitle: string;
   embedUrl: string;
   originalUrl: string;
@@ -117,6 +149,8 @@ interface VideoSectionCardProps {
 }
 
 function VideoSectionCard({
+  videoKey,
+  isMainVideo,
   videoTitle,
   embedUrl,
   originalUrl,
@@ -158,9 +192,9 @@ function VideoSectionCard({
     mode !== 'study' &&
     Boolean(studyLaunchKey) &&
     consumedStudyLaunchRef.current !== studyLaunchKey;
-  const canTrackWatched = Boolean(courseId && periodId);
-  const [isWatched, setIsWatched] = useState(
-    canTrackWatched ? isLessonWatched(courseId, periodId as string) : false
+  const canTrackWatched = Boolean(courseId && periodId && videoKey);
+  const [isWatched, setIsWatched] = useState(() =>
+    readVideoWatched(courseId, periodId, videoKey, isMainVideo)
   );
 
   useEffect(() => {
@@ -205,27 +239,27 @@ function VideoSectionCard({
   }, [mode, courseId, periodId]);
 
   useEffect(() => {
-    if (!canTrackWatched) {
-      setIsWatched(false);
-      return;
-    }
+    setIsWatched(readVideoWatched(courseId, periodId, videoKey, isMainVideo));
+  }, [courseId, periodId, videoKey, isMainVideo]);
 
-    setIsWatched(isLessonWatched(courseId, periodId as string));
-  }, [canTrackWatched, courseId, periodId]);
-
-  const handleWatchThresholdReached = () => {
+  const handlePlayedSpan = (span: StudyVideoPlayedSpan) => {
     if (!canTrackWatched) return;
     const lessonId = periodId as string;
-    if (isLessonWatched(courseId, lessonId)) {
-      setIsWatched(true);
-      return;
-    }
-    markLessonWatched(courseId, lessonId);
+    const stat = recordVideoPlayback(courseId, lessonId, videoKey as string, span);
+    if (!stat.watched) return;
     setIsWatched(true);
+    if (isMainVideo) {
+      markLessonWatched(courseId, lessonId);
+    }
+  };
+
+  const handleOpenedExternally = () => {
+    if (!canTrackWatched) return;
+    recordVideoOpenedExternally(courseId, periodId as string, videoKey as string);
   };
 
   const handlePlaybackProgress = (currentTimeMs: number) => {
-    if (!canTrackWatched || !youtubeVideoId) return;
+    if (!courseId || !periodId || !youtubeVideoId) return;
     if (!Number.isFinite(currentTimeMs) || currentTimeMs < 1000) return;
 
     const lastSavedMs = lastSavedPlaybackMsRef.current;
@@ -255,7 +289,7 @@ function VideoSectionCard({
           {isPlaylist ? (
             <>
               Это плейлист YouTube — встраивание недоступно.{' '}
-              <a className="text-accent no-underline hover:no-underline focus-visible:no-underline" href={originalUrl} target="_blank" rel="noreferrer">
+              <a className="text-accent no-underline hover:no-underline focus-visible:no-underline" href={originalUrl} target="_blank" rel="noreferrer" onClick={handleOpenedExternally}>
                 Открыть плейлист на YouTube
               </a>
             </>
@@ -263,7 +297,7 @@ function VideoSectionCard({
             <>
               Видео недоступно для встраивания.{' '}
               {isUrlString(originalUrl) ? (
-                <a className="text-accent no-underline hover:no-underline focus-visible:no-underline" href={originalUrl} target="_blank" rel="noreferrer">
+                <a className="text-accent no-underline hover:no-underline focus-visible:no-underline" href={originalUrl} target="_blank" rel="noreferrer" onClick={handleOpenedExternally}>
                   Открыть на YouTube
                 </a>
               ) : (
@@ -316,8 +350,8 @@ function VideoSectionCard({
             ref={inlinePlayerRef}
             title={effectiveVideoTitle}
             embedUrl={embedUrl}
-            onWatchThresholdReached={handleWatchThresholdReached}
-            watchThreshold={0.8}
+            onPlayedSpan={handlePlayedSpan}
+            onOpenedExternally={handleOpenedExternally}
             onPlaybackProgressMs={handlePlaybackProgress}
           />
         </div>
@@ -331,6 +365,7 @@ function VideoSectionCard({
           audioLinkClassName="ml-auto inline-block text-sm font-semibold italic text-[color:var(--accent)] no-underline hover:no-underline focus-visible:no-underline"
           sourceTextClassName="w-full text-sm leading-6 text-muted"
           sourceLinkClassName="text-accent no-underline hover:no-underline focus-visible:no-underline"
+          onSourceLinkClick={handleOpenedExternally}
         />
       </div>
 
@@ -356,8 +391,8 @@ function VideoSectionCard({
           initialPaused={openedFromLaunch ? false : studyEntry?.paused ?? false}
           highlightedStartMs={openedFromLaunch ? studyLaunch?.initialSeekMs ?? null : null}
           concepts={concepts}
-          watchThreshold={0.8}
-          onWatchThresholdReached={handleWatchThresholdReached}
+          onPlayedSpan={handlePlayedSpan}
+          onOpenedExternally={handleOpenedExternally}
           onPlaybackProgressMs={handlePlaybackProgress}
         />
       ) : null}

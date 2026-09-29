@@ -137,7 +137,7 @@ export default function AdminLectureQuestions() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold sm:text-3xl">Вопросы студентов</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">Вопросы и просмотры</h1>
         {editableCourses.length > 1 ? (
           <select
             value={selectedCourseId ?? ''}
@@ -188,15 +188,23 @@ export default function AdminLectureQuestions() {
       ) : (
         <div className="space-y-8">
           {byPeriod.map(([periodId, { title, items, notes }]) => (
-            <section key={periodId}>
-              <h2 className="mb-3 text-lg font-semibold">
-                {title}
-                <span className="ml-2 text-sm font-normal text-gray-400">
-                  {items.length > 0 ? `${items.length} вопр.` : ''}
-                  {items.length > 0 && notes.length > 0 ? ' · ' : ''}
-                  {notes.length > 0 ? `${notes.length} консп.` : ''}
+            <details key={periodId} className="group">
+              <summary className="mb-3 flex cursor-pointer list-none items-center gap-2 text-lg font-semibold [&::-webkit-details-marker]:hidden">
+                <span
+                  className="text-sm text-gray-400 transition-transform group-open:rotate-180"
+                  aria-hidden
+                >
+                  ▾
                 </span>
-              </h2>
+                <h2 className="text-lg font-semibold">
+                  {title}
+                  <span className="ml-2 text-sm font-normal text-gray-400">
+                    {items.length > 0 ? `${items.length} вопр.` : ''}
+                    {items.length > 0 && notes.length > 0 ? ' · ' : ''}
+                    {notes.length > 0 ? `${notes.length} консп.` : ''}
+                  </span>
+                </h2>
+              </summary>
               <ul className="space-y-3">
                 {items.map((question) => (
                   <li
@@ -279,7 +287,7 @@ export default function AdminLectureQuestions() {
                   </ul>
                 </div>
               ) : null}
-            </section>
+            </details>
           ))}
         </div>
       )}

@@ -738,7 +738,17 @@ super-admin и со-админ открывают любой курс, их пу
   доступ выдали лично;
 - по студенту: имя, почту, бейджи «Ожидает регистрации» / «Отключён», последний
   вход (`сегодня` / `вчера` / дата / `больше месяца назад`, `null` → `никогда`)
-  и полоску «просмотрено X / N»;
+  и **квадратик на каждое занятие**: зелёный — главная (первая) лекция
+  просмотрена на сайте (60%+ по минутам), жёлтый — главная лекция открыта на
+  YouTube, серый — ничего, пунктир — в занятии нет видео; цифра в квадратике —
+  сколько доп. видео занятия (2-е, 3-е… в «Видео-лекции») посмотрено или открыто.
+  Под квадратиками — «Лекции X/N · YouTube k · Все видео Y/M (P%)», подсказка
+  квадратика — название занятия и расклад. Правила учёта — `courseProgress` в
+  [firestore-schema.md](../reference/firestore-schema.md#usersuseridcourseprogresscourseid);
+- потоки, у которых курс не в актуальных (`featuredCourseIds` потока), свёрнуты
+  с пометкой «курс не в актуальных у потока»; в «Индивидуально» студенты, убравшие
+  курс из актуальных, спрятаны под стрелкой «Ещё N — курс не в актуальных у
+  студента»;
 - поиск по имени и почте, сортировку по прогрессу / имени / последнему входу,
   по 10 строк на секцию с «Показать ещё»;
 - кнопку «Объявление потоку» — только тем, кто вправе писать этой группе
@@ -751,15 +761,19 @@ super-admin и со-админ открывают любой курс, их пу
 - **прогресс** — клиентские чтения `users/{uid}/courseProgress/{courseId}`,
   которые `firestore.rules` разрешают лектору курса (`canEditCourse`). Хелперы —
   `src/pages/admin/students/courseProgress.ts`, мягкая деградация: упавший
-  участник не валит батч. Знаменатель N — опубликованные занятия курса из
-  `usePublishedLessonOptions`;
+  участник не валит батч. Занятия и их видео — `useCourseLessonVideos`
+  (`loadPublishedCourseLessons`, тот же список, что у nav-индекса), поэтому
+  знаменатель совпадает с процентом в карточке курса на `/home`; расчёт
+  квадратиков — чистая `studentViews.ts`;
 - **приглашение** — модалка «Пригласить на курс» поверх `bulkEnrollStudents`
   (`courseIds: [courseId]`; админу курса функция разрешает только его курсы).
   Разбор списка email — общий `src/lib/emailList.ts`; после успеха показывается
   сводка «добавлено / ждут регистрации» и список перечитывается.
 
 Экран забрал «Просмотры лекций» с `/admin/questions`: компонент `GroupWatchStats`
-удалён, на странице вопросов осталась ссылка «Студенты и просмотры →».
+удалён, на странице вопросов осталась ссылка «Студенты и просмотры →». Кнопка
+на `/admin/content` и заголовок страницы вопросов — «Вопросы и просмотры»;
+вопросы и конспекты там свёрнуты по занятиям (`<details>`), раскрываются кликом.
 
 Тесты: `src/pages/admin/students/*.test.ts(x)`, ролевой сценарий
 `tests/e2e/roles/author-students.spec.ts` (только `--with-functions`).
@@ -813,10 +827,11 @@ interface CourseStudent {
   uid: string; displayName: string | null; email: string | null; photoURL: string | null;
   lastLoginAt: string | null;   // ISO; у pending-приглашений всегда null
   pendingRegistration: boolean; disabled: boolean;
+  featured?: boolean;           // только в individual: курс в актуальных у студента
 }
 interface CourseStudentsResponse {
   courseId: string;
-  groups: Array<{ id: string; name: string; students: CourseStudent[] }>;
+  groups: Array<{ id: string; name: string; featured: boolean; students: CourseStudent[] }>;
   individual: CourseStudent[];
 }
 ```
@@ -826,6 +841,11 @@ interface CourseStudentsResponse {
   (ru-локаль, безымянные в конец).
 - `individual` — у кого `courseAccess[courseId] === true` и кто **не** состоит ни
   в одном из этих потоков (дублей между секциями нет).
+- `groups[].featured` — курс в `featuredCourseIds` потока. `individual[].featured`
+  — по документу студента: `featuredCourseIds ∋ courseId` → `true`, иначе
+  `unfeaturedCourseIds ∋ courseId` → `false`, иначе `true` (лично открытый курс
+  актуален по умолчанию). Клиент без поля (старая версия функции) считает всё
+  актуальным.
 - Pending-приглашения (`users/pending_*`) приходят с `pendingRegistration: true`.
 - Полей сверх контракта нет: ни `phone`, ни `altegClientIds`, ни `geminiApiKey`,
   ни `prefs`. `courseId` валидируется как slug — точка или слеш ломали бы путь

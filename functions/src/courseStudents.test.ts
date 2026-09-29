@@ -269,3 +269,42 @@ describe('getCourseStudents: группировка', () => {
     expect(mockGetAll.mock.calls[0]).toHaveLength(4); // u1, u-pending, u2, u-ghost
   });
 });
+
+// ── Признак «курс актуальный» ──────────────────────────────────
+
+describe('getCourseStudents: featured', () => {
+  it('у потока: true, если курс в featuredCourseIds, иначе false (в т.ч. мусор)', async () => {
+    state.groups = [
+      { id: 'g1', data: { name: 'A', grantedCourses: [COURSE], featuredCourseIds: [COURSE, 'x'] } },
+      { id: 'g2', data: { name: 'B', grantedCourses: [COURSE], featuredCourseIds: ['x'] } },
+      { id: 'g3', data: { name: 'C', grantedCourses: [COURSE] } },
+      { id: 'g4', data: { name: 'D', grantedCourses: [COURSE], featuredCourseIds: COURSE } },
+    ];
+    const result = await call({ courseId: COURSE }, courseAdminCtx);
+    const byId = Object.fromEntries(result.groups.map((g: { id: string; featured: boolean }) => [g.id, g.featured]));
+    expect(byId).toEqual({ g1: true, g2: false, g3: false, g4: false });
+  });
+
+  it('студенты внутри потока не получают featured', async () => {
+    state.groups = [
+      { id: 'g1', data: { name: 'A', grantedCourses: [COURSE], featuredCourseIds: [COURSE], memberIds: ['u1'] } },
+    ];
+    state.users.set('u1', { displayName: 'Аня', unfeaturedCourseIds: [COURSE] });
+    const result = await call({ courseId: COURSE }, courseAdminCtx);
+    expect(result.groups[0].students[0]).not.toHaveProperty('featured');
+  });
+
+  it('индивидуальный студент: по умолчанию true, unfeatured → false, featured перекрывает, мусор = пусто', async () => {
+    const access = { courseAccess: { [COURSE]: true } };
+    state.users.set('def', { ...access });
+    state.users.set('unf', { ...access, unfeaturedCourseIds: [COURSE] });
+    state.users.set('both', { ...access, featuredCourseIds: [COURSE], unfeaturedCourseIds: [COURSE] });
+    state.users.set('junk', { ...access, featuredCourseIds: 'x', unfeaturedCourseIds: [1, null, {}] });
+    state.users.set('other', { ...access, unfeaturedCourseIds: ['another'] });
+    const result = await call({ courseId: COURSE }, courseAdminCtx);
+    const byUid = Object.fromEntries(
+      result.individual.map((s: { uid: string; featured: boolean }) => [s.uid, s.featured])
+    );
+    expect(byUid).toEqual({ def: true, unf: false, both: true, junk: true, other: true });
+  });
+});

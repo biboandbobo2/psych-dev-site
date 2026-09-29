@@ -300,6 +300,7 @@ async function seedGroups(db: Firestore): Promise<number> {
       memberIds: [...group.memberIds],
       grantedCourses: [...group.grantedCourses],
       announcementAdminIds: [...group.announcementAdminIds],
+      ...("featuredCourseIds" in group ? { featuredCourseIds: [...group.featuredCourseIds] } : {}),
     });
   }
   return SMOKE_GROUPS.length;

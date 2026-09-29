@@ -28,13 +28,6 @@ export function resolvePrimaryLesson(courseId: string): { link: string; title: s
   };
 }
 
-export function getEstimatedCourseLessons(courseId: string): number {
-  if (courseId === 'development') return ROUTE_CONFIG.length;
-  if (courseId === 'clinical') return CLINICAL_ROUTE_CONFIG.length;
-  if (courseId === 'general') return GENERAL_ROUTE_CONFIG.length;
-  return 0;
-}
-
 const RU_MONTH_INDEX: Record<string, number> = {
   январ: 0,
   феврал: 1,

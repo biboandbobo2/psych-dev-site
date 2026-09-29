@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react';
 import { parseYouTubeEmbedConfig, isYouTubePausedState } from '../utils/youtubePlayer';
+import { isNaturalPlaybackStep } from '../../../lib/courseProgress/watchSpans';
 
 interface YouTubePlayerApi {
   Player: new (
@@ -25,6 +26,7 @@ interface YouTubePlayerApi {
     destroy: () => void;
     getCurrentTime: () => number;
     getDuration: () => number;
+    getIframe?: () => HTMLIFrameElement;
     getPlayerState: () => number;
     pauseVideo: () => void;
     seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
@@ -37,6 +39,12 @@ type YouTubeWindow = Window & typeof globalThis & {
 };
 
 let youtubeIframeApiPromise: Promise<YouTubePlayerApi> | null = null;
+
+const YT_STATE_ENDED = 0;
+const YT_STATE_PLAYING = 1;
+const YT_STATE_BUFFERING = 3;
+/** Проигранный отрезок отдаётся наружу не реже, чем раз в столько мс. */
+const PLAYED_SPAN_EMIT_MS = 10_000;
 
 // Замедленный (не заблокированный) YouTube в РФ грузит скрипт бесконечно:
 // без таймаута промис никогда не отклонится и fallback не покажется.
@@ -122,6 +130,12 @@ export interface StudyVideoPlaybackSnapshot {
   paused: boolean;
 }
 
+export interface StudyVideoPlayedSpan {
+  startSec: number;
+  endSec: number;
+  durationSec: number;
+}
+
 export interface StudyVideoPlayerHandle {
   getPlaybackSnapshot: () => StudyVideoPlaybackSnapshot;
   pause: () => void;
@@ -134,8 +148,10 @@ interface StudyVideoPlayerProps {
   /** seekTo у YouTube запускает воспроизведение; true — вернуть паузу после initial seek */
   initialPaused?: boolean;
   title: string;
-  watchThreshold?: number;
-  onWatchThresholdReached?: () => void;
+  /** Реально проигранный отрезок (перемотка не засчитывается). */
+  onPlayedSpan?: (span: StudyVideoPlayedSpan) => void;
+  /** Студент ушёл смотреть видео на YouTube (ссылка или кнопка в плеере). */
+  onOpenedExternally?: () => void;
   onPlaybackProgressMs?: (currentTimeMs: number) => void;
 }
 
@@ -146,8 +162,8 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
       initialSeekMs = null,
       initialPaused = false,
       title,
-      watchThreshold = 0.95,
-      onWatchThresholdReached,
+      onPlayedSpan,
+      onOpenedExternally,
       onPlaybackProgressMs,
     },
     ref
@@ -156,24 +172,27 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
     const [playerLoadFailed, setPlayerLoadFailed] = useState(false);
     const playerRef = useRef<InstanceType<YouTubePlayerApi['Player']> | null>(null);
     const pendingSeekMsRef = useRef<number | null>(null);
-    const watchReachedRef = useRef(false);
     const progressIntervalRef = useRef<number | null>(null);
-    const onWatchThresholdReachedRef = useRef(onWatchThresholdReached);
+    // Текущий непрерывный отрезок воспроизведения (секунды видео + время стены).
+    const playTrackRef = useRef<{
+      spanStart: number;
+      lastSec: number;
+      lastWallMs: number;
+      lastEmitWallMs: number;
+    } | null>(null);
+    const startedRef = useRef(false);
+    const onPlayedSpanRef = useRef(onPlayedSpan);
+    const onOpenedExternallyRef = useRef(onOpenedExternally);
     const onPlaybackProgressMsRef = useRef(onPlaybackProgressMs);
     const initialPausedRef = useRef(initialPaused);
     const initialSeekMsRef = useRef(initialSeekMs);
     const playerConfig = useMemo(() => parseYouTubeEmbedConfig(embedUrl), [embedUrl]);
 
-    onWatchThresholdReachedRef.current = onWatchThresholdReached;
+    onPlayedSpanRef.current = onPlayedSpan;
+    onOpenedExternallyRef.current = onOpenedExternally;
     onPlaybackProgressMsRef.current = onPlaybackProgressMs;
     initialPausedRef.current = initialPaused;
     initialSeekMsRef.current = initialSeekMs;
-
-    const notifyWatchThresholdReached = () => {
-      if (watchReachedRef.current) return;
-      watchReachedRef.current = true;
-      onWatchThresholdReachedRef.current?.();
-    };
 
     const clearProgressInterval = () => {
       if (progressIntervalRef.current === null) return;
@@ -238,10 +257,28 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
     }, [initialSeekMs]);
 
     useEffect(() => {
-      watchReachedRef.current = false;
+      playTrackRef.current = null;
+      startedRef.current = false;
       setPlayerLoadFailed(false);
       clearProgressInterval();
     }, [embedUrl]);
+
+    // «Смотреть на YouTube» и название ролика внутри плеера живут в чужом
+    // iframe — клик по ним не виден. Косвенный признак: фокус в нашем iframe,
+    // видео так и не запускалось, а страница скрылась (открылась вкладка
+    // YouTube). Клик по YouTube посреди просмотра видео не останавливает, и он
+    // неотличим от «слушаю в фоне» — такой переход не засчитывается.
+    useEffect(() => {
+      const handleVisibilityChange = () => {
+        if (document.visibilityState !== 'hidden' || startedRef.current) return;
+        const iframe = playerRef.current?.getIframe?.();
+        if (iframe && document.activeElement === iframe) {
+          onOpenedExternallyRef.current?.();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, []);
 
     useEffect(() => {
       if (!containerRef.current || !playerConfig) {
@@ -250,15 +287,61 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
 
       let destroyed = false;
 
-      const maybeNotifyByProgress = () => {
-        if (!hasReadyPlayerMethods(playerRef.current)) return;
-        const duration = playerRef.current.getDuration();
-        if (!duration || duration <= 0) return;
-        const current = playerRef.current.getCurrentTime();
-        emitPlaybackProgress();
-        if (current / duration >= watchThreshold) {
-          notifyWatchThresholdReached();
+      const emitPlayedSpan = (startSec: number, endSec: number, durationSec: number) => {
+        if (endSec - startSec < 1) return;
+        onPlayedSpanRef.current?.({ startSec, endSec, durationSec });
+      };
+
+      /**
+       * Шаг учёта просмотра: продлевает текущий отрезок, если позиция ушла вперёд
+       * как при обычном воспроизведении, иначе (перемотка) закрывает его и
+       * начинает новый. `final` — воспроизведение остановилось.
+       */
+      const trackPlayback = (final: boolean) => {
+        const player = playerRef.current;
+        if (!hasReadyPlayerMethods(player)) return;
+        const current = player.getCurrentTime();
+        const duration = player.getDuration();
+        const now = Date.now();
+        const track = playTrackRef.current;
+
+        if (!track) {
+          if (!final) {
+            playTrackRef.current = {
+              spanStart: current,
+              lastSec: current,
+              lastWallMs: now,
+              lastEmitWallMs: now,
+            };
+          }
+          return;
         }
+
+        if (isNaturalPlaybackStep(current - track.lastSec, (now - track.lastWallMs) / 1000)) {
+          track.lastSec = current;
+        } else {
+          emitPlayedSpan(track.spanStart, track.lastSec, duration);
+          track.spanStart = current;
+          track.lastSec = current;
+          track.lastEmitWallMs = now;
+        }
+        track.lastWallMs = now;
+
+        if (final || now - track.lastEmitWallMs >= PLAYED_SPAN_EMIT_MS) {
+          emitPlayedSpan(track.spanStart, track.lastSec, duration);
+          track.spanStart = track.lastSec;
+          track.lastEmitWallMs = now;
+        }
+        if (final) {
+          playTrackRef.current = null;
+        }
+      };
+
+
+      const handlePlayingTick = () => {
+        if (!hasReadyPlayerMethods(playerRef.current)) return;
+        emitPlaybackProgress();
+        trackPlayback(false);
       };
 
       void loadYouTubeIframeApi()
@@ -292,26 +375,31 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
                   playerRef.current.seekTo(Math.max(0, pendingSeekMs / 1000), true);
                 }
 
-                maybeNotifyByProgress();
+                emitPlaybackProgress();
               },
               onStateChange: ({ data }) => {
-                if (data === 0) {
+                if (data === YT_STATE_PLAYING || data === YT_STATE_BUFFERING) {
+                  startedRef.current = true;
+                }
+
+                if (data === YT_STATE_ENDED) {
                   emitPlaybackProgress();
-                  notifyWatchThresholdReached();
+                  trackPlayback(true);
                   clearProgressInterval();
                   return;
                 }
 
-                if (data === 1) {
+                if (data === YT_STATE_PLAYING) {
                   clearProgressInterval();
-                  maybeNotifyByProgress();
+                  handlePlayingTick();
                   progressIntervalRef.current = window.setInterval(() => {
-                    maybeNotifyByProgress();
+                    handlePlayingTick();
                   }, 1000);
                   return;
                 }
 
                 emitPlaybackProgress();
+                trackPlayback(true);
                 clearProgressInterval();
               },
             },
@@ -327,11 +415,12 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
       return () => {
         destroyed = true;
         emitPlaybackProgress();
+        trackPlayback(true);
         clearProgressInterval();
         playerRef.current?.destroy();
         playerRef.current = null;
       };
-    }, [playerConfig, watchThreshold]);
+    }, [playerConfig]);
 
     if (playerLoadFailed && playerConfig) {
       return (
@@ -346,6 +435,7 @@ export const StudyVideoPlayer = forwardRef<StudyVideoPlayerHandle, StudyVideoPla
             href={`https://www.youtube.com/watch?v=${playerConfig.videoId}`}
             target="_blank"
             rel="noreferrer"
+            onClick={() => onOpenedExternallyRef.current?.()}
           >
             Открыть видео на YouTube
           </a>

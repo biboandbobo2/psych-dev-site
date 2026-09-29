@@ -7,9 +7,10 @@
  * вызов упёрся бы в закрытый порт.
  *
  * Данные стенда — tests/e2e/fixtures/roles.ts: у external-x опубликованы
- * 2 занятия из 3, один студент приходит потоком SMOKE_EXTERNAL_GROUP (2/2
- * просмотрено), один — личным courseAccess (1/2). Прогресс читается клиентом
- * из users/{uid}/courseProgress/external-x под боевыми firestore.rules.
+ * 2 занятия из 3 (без видео), один студент приходит потоком SMOKE_EXTERNAL_GROUP
+ * (курс у потока актуальный, 2/2 лекций), один — личным courseAccess (1/2).
+ * Прогресс читается клиентом из users/{uid}/courseProgress/external-x под
+ * боевыми firestore.rules.
  */
 import { test, expect, gotoAndSettle } from './helpers';
 import { SMOKE_COURSES, SMOKE_EXTERNAL_GROUP, SMOKE_ROLES } from '../fixtures/roles';
@@ -40,7 +41,7 @@ test.describe('Админ курса: страница «Студенты кур
     await expect(stream).toHaveCount(1);
     await expect(stream.getByText(STREAM_STUDENT.displayName)).toBeVisible();
     await expect(stream.getByText(STREAM_STUDENT.email)).toBeVisible();
-    await expect(stream.getByText('2 / 2')).toBeVisible();
+    await expect(stream.getByText('Лекции 2/2')).toBeVisible();
 
     const individual = page.locator('section').filter({
       has: page.getByRole('heading', { name: 'Индивидуально' }),
@@ -48,7 +49,7 @@ test.describe('Админ курса: страница «Студенты кур
     await expect(individual).toHaveCount(1);
     await expect(individual.getByText(SOLO_STUDENT.displayName)).toBeVisible();
     await expect(individual.getByText(SOLO_STUDENT.email)).toBeVisible();
-    await expect(individual.getByText('1 / 2')).toBeVisible();
+    await expect(individual.getByText('Лекции 1/2')).toBeVisible();
 
     // Автор в announcementAdminIds потока — кнопка объявления на месте.
     await expect(stream.getByRole('link', { name: 'Объявление потоку' })).toHaveAttribute(

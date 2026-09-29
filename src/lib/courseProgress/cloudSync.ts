@@ -9,7 +9,12 @@ import {
 import { db } from '../firebase';
 import { debugError } from '../debug';
 import { useCourseProgressStore } from '../../stores/useCourseProgressStore';
-import type { CloudCourseProgress, CloudLastLesson, CloudVideoResume } from './types';
+import type {
+  CloudCourseProgress,
+  CloudLastLesson,
+  CloudVideoResume,
+  CloudVideoStat,
+} from './types';
 
 /**
  * Гибридная стратегия записи прогресса курса:
@@ -64,9 +69,17 @@ async function flushPending(): Promise<void> {
         ).catch((err) => {
           debugError('courseProgress: setDoc failed', { courseId, err });
           // Возвращаем patch в pending, чтобы попробовать ещё раз на следующем
-          // тике или при следующем визите.
+          // тике или при следующем визите. videoStats сливаем по занятиям:
+          // поверхностный spread потерял бы видео из упавшего patch.
           const existing = ctx.pending.get(courseId) ?? {};
-          ctx.pending.set(courseId, { ...patch, ...existing });
+          const merged: Partial<CloudCourseProgress> = { ...patch, ...existing };
+          if (patch.videoStats && existing.videoStats) {
+            merged.videoStats = { ...patch.videoStats };
+            for (const [lessonId, videos] of Object.entries(existing.videoStats)) {
+              merged.videoStats[lessonId] = { ...patch.videoStats[lessonId], ...videos };
+            }
+          }
+          ctx.pending.set(courseId, merged);
         }),
       ),
     );
@@ -184,6 +197,23 @@ export function scheduleWatchedListUpload(
   if (!context || !courseId) return;
   const entry = ensurePending(courseId);
   entry.watchedLessonIds = watchedLessonIds;
+}
+
+/**
+ * Статистика одного видео: в Firestore уходит только это видео — merge:true
+ * сливает вложенные map'ы, остальные видео и занятия не затираются.
+ */
+export function scheduleVideoStatUpload(
+  courseId: string,
+  lessonId: string,
+  videoKey: string,
+  stat: CloudVideoStat,
+): void {
+  if (!context || !courseId) return;
+  const entry = ensurePending(courseId);
+  const stats = entry.videoStats ?? {};
+  stats[lessonId] = { ...stats[lessonId], [videoKey]: stat };
+  entry.videoStats = stats;
 }
 
 /**

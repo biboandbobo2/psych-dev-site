@@ -7,6 +7,7 @@ import { VideoSection } from './VideoSection';
 import { LessonQuestionsSection } from './LessonQuestionsSection';
 import { PaywallGuard } from '../../../components/PaywallGuard';
 import type { PeriodSectionData } from './types';
+import { collectLessonVideoKeys, isMainVideoSection, sortLessonSections } from '../utils/lessonVideos';
 
 interface PeriodSectionsProps {
   sections?: Record<string, PeriodSectionData>;
@@ -24,19 +25,6 @@ interface PeriodSectionsProps {
     initialQuery: string | null;
   } | null;
 }
-
-// Фиксированный порядок отображения секций
-const SECTION_ORDER = [
-  'video',
-  'video_section',
-  'concepts',
-  'authors',
-  'core_literature',
-  'extra_literature',
-  'extra_videos',
-  'leisure',
-  'self_questions',
-];
 
 export function PeriodSections({
   sections,
@@ -56,16 +44,9 @@ export function PeriodSections({
   );
 
   // Сортируем секции по заданному порядку
-  let sortedEntries = Object.entries(sections).sort(([slugA], [slugB]) => {
-    const indexA = SECTION_ORDER.indexOf(slugA);
-    const indexB = SECTION_ORDER.indexOf(slugB);
-
-    // Если slug не найден в SECTION_ORDER, помещаем его в конец
-    const orderA = indexA === -1 ? SECTION_ORDER.length : indexA;
-    const orderB = indexB === -1 ? SECTION_ORDER.length : indexB;
-
-    return orderA - orderB;
-  });
+  const sortedEntries = sortLessonSections(sections);
+  // Главная лекция занятия — первое основное видео; по ней отмечается занятие.
+  const mainVideoKey = collectLessonVideoKeys(sections)[0] ?? null;
 
   // Если нет секции self_questions, но есть тесты - добавляем фейковую секцию
   const hasSelfQuestionsSection = sortedEntries.some(([slug]) => slug === 'self_questions');
@@ -88,6 +69,7 @@ export function PeriodSections({
           courseType={courseType}
           studyLaunch={studyLaunch}
           lessonConcepts={lessonConcepts}
+          mainVideoKey={mainVideoKey}
         />
       ))}
       <LessonQuestionsSection
@@ -111,6 +93,7 @@ interface SectionRendererProps {
   courseType: CourseType;
   studyLaunch?: PeriodSectionsProps['studyLaunch'];
   lessonConcepts?: string[];
+  mainVideoKey: string | null;
 }
 
 function SectionRenderer({
@@ -124,6 +107,7 @@ function SectionRenderer({
   courseType,
   studyLaunch,
   lessonConcepts,
+  mainVideoKey,
 }: SectionRendererProps) {
   // Для self_questions делаем исключение: показываем если есть контент ИЛИ есть тесты
   const isSelfQuestions = slug === 'self_questions';
@@ -135,7 +119,7 @@ function SectionRenderer({
     ? 'Рабочая тетрадь и тесты'
     : rawTitle;
 
-  if (rawTitle === 'Видео-лекция' || rawTitle === 'Видео') {
+  if (isMainVideoSection(rawTitle)) {
     // Проверяем есть ли публичные видео для показа без оплаты
     const publicVideos = section.content.filter((video: any) => video?.isPublic === true);
     const publicContent = publicVideos.length > 0 ? (
@@ -150,6 +134,7 @@ function SectionRenderer({
         courseId={courseType}
         studyLaunch={studyLaunch}
         concepts={lessonConcepts}
+        mainVideoKey={mainVideoKey}
       />
     ) : undefined;
 
@@ -167,6 +152,7 @@ function SectionRenderer({
           courseId={courseType}
           studyLaunch={studyLaunch}
           concepts={lessonConcepts}
+          mainVideoKey={mainVideoKey}
         />
       </PaywallGuard>
     );

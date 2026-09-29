@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getCourseStudents } from '../../../lib/adminFunctions';
 import { reportAppError } from '../../../lib/errorHandler';
 import type { CourseStudentsResponse } from '../../../types/courseStudents';
-import { loadGroupProgress } from './courseProgress';
+import { loadGroupProgress, type MemberProgress } from './courseProgress';
 
 /**
  * Состав курса + прогресс просмотра его студентов.
@@ -10,12 +10,12 @@ import { loadGroupProgress } from './courseProgress';
  * Состав приходит из callable `getCourseStudents` (коллекция `users` админу
  * курса закрыта), прогресс — точечными чтениями `users/{uid}/courseProgress/
  * {courseId}`, которые rules разрешают лектору курса. Прогресс отдаётся
- * множествами id занятий: пересчёт в «X из N» зависит от списка занятий и
- * живёт на стороне страницы, лишней перезагрузки не вызывает.
+ * сырыми отметками (занятия + статистика видео): пересчёт в квадратики и
+ * «X из N» зависит от списка занятий и живёт на стороне страницы.
  */
 export function useCourseStudents(courseId: string | null) {
   const [data, setData] = useState<CourseStudentsResponse | null>(null);
-  const [progress, setProgress] = useState<Map<string, Set<string>>>(new Map());
+  const [progress, setProgress] = useState<Map<string, MemberProgress>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -54,7 +54,7 @@ export function useCourseStudents(courseId: string | null) {
           courseId
         );
         if (cancelled) return;
-        setProgress(new Map(members.map((member) => [member.uid, member.watchedLessonIds])));
+        setProgress(new Map(members.map((member) => [member.uid, member])));
       })
       .catch((err) => {
         if (cancelled) return;
