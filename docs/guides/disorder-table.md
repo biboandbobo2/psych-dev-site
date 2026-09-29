@@ -9,7 +9,7 @@
 
 ## Обзор
 
-- **Маршрут:** `/disorder-table` — курс берётся из текущего (`useCourseStore.currentCourse`), кнопка на странице курса (`CourseIntroPage`) его выставляет
+- **Маршрут:** `/disorder-table?course=<courseId>` — курс из `?course=` (если это курс с таблицей), иначе из последнего открытого (`useCourseStore.currentCourse`). Ссылки строит `getDisorderTableUrl(courseId)` (кнопки в `CourseIntroPage` и `PeriodPage`), такую ссылку можно пересылать студентам. Голый `/disorder-table` в свежем браузере даёт заглушку «Откройте таблицу со страницы своего курса»
 - **Курсы:** `DISORDER_TABLE_COURSE_IDS` в `config.ts` — `clinical` и `osnovy-patopsihologii-2y-potok` (2-й поток, с 2026-09-23). Новый курс — добавить id туда же
 - **Доступ:** RequireAuth; у каждого студента своя таблица на каждый курс
 - **Firestore:** `disorderTables/{userId}_{courseId}/entries/{entryId}`, комментарии преподавателя — `.../comments/{commentId}`

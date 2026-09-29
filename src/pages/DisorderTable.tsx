@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   DISORDER_TABLE_COLUMNS,
   DISORDER_TABLE_ROWS,
@@ -38,12 +38,16 @@ import {
 export default function DisorderTable() {
   const { user, isAdmin, isCoAdmin } = useAuth();
   const { currentCourse } = useCourseStore();
+  const [searchParams] = useSearchParams();
+  const courseParam = searchParams.get('course');
+  // ?course= из ссылки главнее последнего открытого курса — ссылку можно переслать.
+  const courseId = courseParam && isDisorderTableCourse(courseParam) ? courseParam : currentCourse;
   const userRole = useAuthStore((state) => state.userRole);
   const adminEditableCourses = useAuthStore((state) => state.adminEditableCourses);
   // Режим преподавателя — тем, кто отвечает за этот курс: со-админ (и супер-админ
   // через него) либо админ курса. Список студентов приходит из callable
   // getCourseStudents, чужие `users/*` не читаются.
-  const canPickStudents = isCoAdmin || canEditCourse(userRole, adminEditableCourses, currentCourse);
+  const canPickStudents = isCoAdmin || canEditCourse(userRole, adminEditableCourses, courseId);
   const {
     entries,
     loading,
@@ -56,7 +60,7 @@ export default function DisorderTable() {
     createEntriesBatch,
     updateEntry,
     removeEntry,
-  } = useDisorderTableEntries(currentCourse);
+  } = useDisorderTableEntries(courseId);
   const {
     comments,
     loading: commentsLoading,
@@ -64,14 +68,14 @@ export default function DisorderTable() {
     error: commentsError,
     canComment: canCommentAsAdmin,
     createComment,
-  } = useDisorderTableComments(currentCourse, targetOwnerUid);
+  } = useDisorderTableComments(courseId, targetOwnerUid);
   // Комментирует преподаватель этого курса, а не любой админ — как в rules.
   const canComment = canCommentAsAdmin && canPickStudents;
   const {
     students,
     loading: studentsLoading,
     error: studentsError,
-  } = useDisorderTableStudents(currentCourse, canPickStudents);
+  } = useDisorderTableStudents(courseId, canPickStudents);
 
   const isMobile = useIsMobile();
 
@@ -216,7 +220,7 @@ export default function DisorderTable() {
     }
   }, [activeCell, displayedRows, displayedColumns, closeCellModal]);
 
-  if (!isDisorderTableCourse(currentCourse)) {
+  if (!isDisorderTableCourse(courseId)) {
     return (
       <div className="space-y-4 rounded-2xl bg-white p-6 shadow-xl">
         <h1 className="text-2xl font-bold text-gray-900">Таблица по расстройствам</h1>

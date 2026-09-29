@@ -15,6 +15,11 @@ export function isDisorderTableCourse(courseId: string): boolean {
   return DISORDER_TABLE_COURSE_IDS.includes(courseId as (typeof DISORDER_TABLE_COURSE_IDS)[number]);
 }
 
+/** Курс в ссылке: без него страница взяла бы последний открытый курс, и ссылка из чата вела бы в заглушку. */
+export function getDisorderTableUrl(courseId: string): string {
+  return `/disorder-table?course=${encodeURIComponent(courseId)}`;
+}
+
 export function buildDisorderTableDocId(userId: string, courseId: string): string {
   return `${userId}_${courseId}`;
 }

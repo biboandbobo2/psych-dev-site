@@ -13,6 +13,8 @@ import { usePeriodTheme } from '../features/periods/hooks/usePeriodTheme';
 import { usePeriodTests } from '../features/periods/hooks/usePeriodTests';
 import { PeriodSections } from '../features/periods/components/PeriodSections';
 import { debugLog } from '../lib/debug';
+// Напрямую из model: страница eager, barrel потянул бы хуки таблицы в основной бандл.
+import { getDisorderTableUrl } from '../features/disorderTable/model';
 
 interface RouteMeta {
   title?: string;
@@ -328,7 +330,7 @@ export function PeriodPage({ config, period }: PeriodPageProps) {
                 </p>
               </div>
               <Link
-                to="/disorder-table"
+                to={getDisorderTableUrl('clinical')}
                 className="inline-flex items-center justify-center rounded-2xl bg-rose-600 px-6 py-3 text-base font-bold text-white transition hover:bg-rose-700"
               >
                 Открыть таблицу

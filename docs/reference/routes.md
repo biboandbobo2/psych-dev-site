@@ -36,7 +36,7 @@
 | `/vozrast` | `VozrastLandingPage` | Лендинг программы повышения квалификации «Понимание и помощь человеку в контексте возраста» (осень 2026). Standalone (без AppShell-сайдбара), статический контент в `src/pages/vozrastLanding/data.ts`. Карточка курса `development` в каталоге гостевой `/home` ведёт сюда, а не на intro (`COURSE_LANDING_PATHS` в `GuestLanding.tsx`). |
 | `/academy/retraining-psychologist-consultant-belgrade` | `RetrainingLandingPage` (`city="belgrade"`) | Лендинг переподготовки «Психолог-консультант», Белград (старт 15.02.2027). Standalone, Tailwind + токены theme.css; общий контент и городские конфиги в `src/pages/retrainingLanding/data.ts`. |
 | `/academy/retraining-psychologist-consultant-tbilisi` | `RetrainingLandingPage` (`city="tbilisi"`) | Тбилисская версия того же лендинга (общий компонент, городской конфиг). |
-| `/login` | `Login` | Страница входа (eager load, не через lazy.ts). |
+| `/login` | `Login` | Страница входа (eager load, не через lazy.ts). После входа — на `state.from` (с query), без него админ → `/admin`, остальные → `/home`. |
 
 **Вводные страницы курсов:**
 
@@ -171,7 +171,7 @@
 | `/profile` | `Profile` | Профиль пользователя | ✅ |
 | `/notes` | `Notes` | Создание и просмотр заметок | ✅ |
 | `/timeline` | `Timeline` | Интерактивный таймлайн жизни | ✅ |
-| `/disorder-table` | `DisorderTable` | Таблица по расстройствам (матрица функции × диагнозы) | ✅ |
+| `/disorder-table` | `DisorderTable` | Таблица по расстройствам (матрица функции × диагнозы); курс — `?course=<courseId>` | ✅ |
 
 **Lazy Loading:** Эти страницы загружаются через `React.lazy` (см. `src/pages/lazy.ts`)
 

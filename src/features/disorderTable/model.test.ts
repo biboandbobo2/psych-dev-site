@@ -14,6 +14,7 @@ import {
   buildDisorderTableMatrix,
   applyDisorderTableFilters,
   buildDisorderTableDocId,
+  getDisorderTableUrl,
   isDisorderTableCourse,
   isValidDisorderTableEntryInput,
   matchEntryByFilters,
@@ -33,6 +34,12 @@ describe('disorderTable model', () => {
 
   it('в courseId нет «_» — rules берут курс из хвоста docId', () => {
     for (const courseId of DISORDER_TABLE_COURSE_IDS) expect(courseId).not.toContain('_');
+  });
+
+  it('кладёт курс в ссылку на таблицу', () => {
+    expect(getDisorderTableUrl('osnovy-patopsihologii-2y-potok')).toBe(
+      '/disorder-table?course=osnovy-patopsihologii-2y-potok'
+    );
   });
 
   it('строит стабильный id документа', () => {

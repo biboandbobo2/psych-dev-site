@@ -47,9 +47,11 @@ type StudentsHookState = {
 let mockHookState: HookState;
 let mockCommentsHookState: CommentsHookState;
 let mockStudentsHookState: StudentsHookState;
+let mockCurrentCourse: string;
+let entriesHookCourseId: string | undefined;
 
 vi.mock('../../stores', () => ({
-  useCourseStore: () => ({ currentCourse: 'clinical' }),
+  useCourseStore: () => ({ currentCourse: mockCurrentCourse }),
 }));
 
 vi.mock('../../auth/AuthProvider', () => ({
@@ -67,15 +69,18 @@ vi.mock('../../features/disorderTable', async () => {
   const actual = await vi.importActual<typeof import('../../features/disorderTable')>('../../features/disorderTable');
   return {
     ...actual,
-    useDisorderTableEntries: () => mockHookState,
+    useDisorderTableEntries: (courseId: string) => {
+      entriesHookCourseId = courseId;
+      return mockHookState;
+    },
     useDisorderTableComments: () => mockCommentsHookState,
     useDisorderTableStudents: () => mockStudentsHookState,
   };
 });
 
-function renderPage() {
+function renderPage(path = '/disorder-table') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <DisorderTable />
     </MemoryRouter>
   );
@@ -96,6 +101,8 @@ function createEntry(id: string, rowId: string, columnId: string, text: string):
 
 describe('DisorderTable page', () => {
   beforeEach(() => {
+    mockCurrentCourse = 'clinical';
+    entriesHookCourseId = undefined;
     mockHookState = {
       entries: [],
       loading: false,
@@ -122,6 +129,22 @@ describe('DisorderTable page', () => {
       loading: false,
       error: null,
     };
+  });
+
+  it('берёт курс из ?course=, а не из последнего открытого курса', () => {
+    mockCurrentCourse = 'development';
+    renderPage('/disorder-table?course=osnovy-patopsihologii-2y-potok');
+
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(entriesHookCourseId).toBe('osnovy-patopsihologii-2y-potok');
+  });
+
+  it('без курса с таблицей показывает заглушку, чужой ?course= не принимает', () => {
+    mockCurrentCourse = 'development';
+    renderPage('/disorder-table?course=vvedenie-v-osnovy-klinicheskoy-psihologii');
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByText(/доступен в курсах «Основы патопсихологии»/)).toBeInTheDocument();
   });
 
   it('применяет фильтры только после кнопки "Применить фильтр"', () => {
