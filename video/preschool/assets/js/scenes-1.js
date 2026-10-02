@@ -23,7 +23,13 @@
     s.sk(g, [[x, y + 34], [x + 6, y + 60], [x + 22, y + 70]], { at: at + 0.45, dur: 0.3, seed: 73 });
     s.sk(g, circ(x + 30, y + 74, 9, 10), { at: at + 0.7, dur: 0.3, seed: 75, color: ORANGE });
   }
-  Film.circ = circ; Film.cap = cap; Film.steth = steth;
+  function check(s, g, x, y, color) { // галочка
+    return s.path(g, 'M' + (x - 13) + ' ' + y + ' L' + (x - 4) + ' ' + (y + 10) + ' L' + (x + 14) + ' ' + (y - 11), { stroke: color, 'stroke-width': 5 });
+  }
+  function cross(s, g, x, y, color) { // крестик
+    return s.path(g, 'M' + (x - 10) + ' ' + (y - 10) + ' L' + (x + 10) + ' ' + (y + 10) + ' M' + (x + 10) + ' ' + (y - 10) + ' L' + (x - 10) + ' ' + (y + 10), { stroke: color, 'stroke-width': 5 });
+  }
+  Film.circ = circ; Film.cap = cap; Film.steth = steth; Film.check = check; Film.cross = cross;
 
   // 0:22,5 — заставка части
   Film.scene({
