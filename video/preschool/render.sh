@@ -6,14 +6,14 @@ mkdir -p renders
 
 SF="${SOUNDFONT:-/usr/share/sounds/sf3/MuseScore_General_Full.sf3}"
 HF="${HYPERFRAMES:-npx --yes hyperframes@0.8.78}"
-PRE="atrim=0:265,asetpts=N/SR/TB,afade=t=in:st=0:d=0.05,afade=t=out:st=261.5:d=3.5,highpass=f=30"
+PRE="atrim=0:280,asetpts=N/SR/TB,afade=t=in:st=0:d=0.05,afade=t=out:st=276.5:d=3.5,highpass=f=30"
 
 echo "▶ Музыка: партитура → MIDI → WAV"
 (cd music && python3 compose.py)
 fluidsynth -ni -q -g 0.6 -r 48000 \
   -o synth.reverb.active=1 -o synth.reverb.room-size=0.7 -o synth.reverb.damp=0.35 \
   -o synth.reverb.width=0.9 -o synth.reverb.level=0.55 -o synth.chorus.active=0 \
-  -F renders/music_raw.wav "$SF" music/toddler.mid
+  -F renders/music_raw.wav "$SF" music/preschool.mid
 
 echo "▶ Музыка: нормализация громкости к −18 LUFS (два прохода, линейно)"
 read -r MI MTP MLRA MTH OFF < <(ffmpeg -hide_banner -nostats -i renders/music_raw.wav \
@@ -29,6 +29,6 @@ $HF render . -o renders/video.mp4 --fps 30 --quality high --workers 4
 echo "▶ Сведение и финальное кодирование (H.264 + AAC, faststart)"
 ffmpeg -hide_banner -loglevel error -y -i renders/video.mp4 -i renders/music_master.wav \
   -map 0:v:0 -map 1:a:0 -c:v libx264 -preset slow -crf 18 -tune animation -pix_fmt yuv420p \
-  -c:a aac -b:a 192k -movflags +faststart -shortest renders/toddler-one-to-three.mp4
-ffmpeg -hide_banner -loglevel error -y -ss 14.2 -i renders/toddler-one-to-three.mp4 -frames:v 1 renders/poster.png
-echo "✔ Готово: renders/toddler-one-to-three.mp4 (+ обложка renders/poster.png)"
+  -c:a aac -b:a 192k -movflags +faststart -shortest renders/preschool-three-to-seven.mp4
+ffmpeg -hide_banner -loglevel error -y -ss 11.0 -i renders/preschool-three-to-seven.mp4 -frames:v 1 renders/poster.png
+echo "✔ Готово: renders/preschool-three-to-seven.mp4 (+ обложка renders/poster.png)"
