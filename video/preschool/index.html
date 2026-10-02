@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>От трёх до семи — DOM Academy</title>
+    <style>
+      @font-face { font-family: "DOMSerif"; font-style: normal; font-weight: 400 900; font-display: block;
+        src: url("assets/fonts/playfair-display-cyrillic-wght-normal.woff2") format("woff2");
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "DOMSerif"; font-style: normal; font-weight: 400 900; font-display: block;
+        src: url("assets/fonts/playfair-display-latin-wght-normal.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: "DOMSerif"; font-style: italic; font-weight: 400 900; font-display: block;
+        src: url("assets/fonts/playfair-display-cyrillic-wght-italic.woff2") format("woff2");
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "DOMSerif"; font-style: italic; font-weight: 400 900; font-display: block;
+        src: url("assets/fonts/playfair-display-latin-wght-italic.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: "DOMSans"; font-style: normal; font-weight: 200 800; font-display: block;
+        src: url("assets/fonts/manrope-cyrillic-wght-normal.woff2") format("woff2");
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+      @font-face { font-family: "DOMSans"; font-style: normal; font-weight: 200 800; font-display: block;
+        src: url("assets/fonts/manrope-greek-wght-normal.woff2") format("woff2");
+        unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF; }
+      @font-face { font-family: "DOMSans"; font-style: normal; font-weight: 200 800; font-display: block;
+        src: url("assets/fonts/manrope-latin-wght-normal.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    </style>
+    <link rel="stylesheet" href="assets/css/theme.css" />
+    <script>
+      // Эпизод серии: шкала возраста, цвет раздела сайта, место на карте курса
+      window.FILM_CONFIG = {
+        accent: '#FB8C00',
+        accentText: '#A65300',
+        ruler: {
+          from: 36, to: 84, ticks: [36, 42, 48, 54, 60, 66, 72, 78, 84], majors: [36, 48, 60, 72, 84],
+          labels: { 36: '3 года', 48: '4 года', 60: '5 лет', 72: '6 лет', 84: '7 лет' }, unit: ''
+        },
+        series: {
+          current: 3, next: 4,
+          periods: [
+            { label: 'до рожд.', color: '#2F9683' },
+            { label: '0–1', color: '#2E7D32', done: true },
+            { label: '1–3', color: '#5C6BC0', done: true },
+            { label: '3–7', color: '#FB8C00' },
+            { label: '7–10', color: '#26A69A' },
+            { label: '10–13', color: '#5E35B1' },
+            { label: '14–18', color: '#D81B60' },
+            { label: '19–22', color: '#1E88E5' },
+            { label: '22–27', color: '#43A047' },
+            { label: '27–35', color: '#F9A825' },
+            { label: '35–45', color: '#6D4C41' },
+            { label: '45–65', color: '#8D6E63' },
+            { label: '66–80', color: '#607D8B' },
+            { label: '80+', color: '#8D6E63' }
+          ]
+        }
+      };
+    </script>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script src="assets/js/lib.js"></script>
+    <script src="assets/js/sketch.js"></script>
+    <script src="assets/js/scenes-0.js"></script>
+    <script src="assets/js/scenes-1.js"></script>
+    <script src="assets/js/scenes-2.js"></script>
+    <script src="assets/js/scenes-3.js"></script>
+    <script src="assets/js/scenes-4.js"></script>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="97.5" data-width="1920" data-height="1080"></div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      Film.ready().then(function () {
+        Film.build();
+        window.__timelines["main"] = Film.main;
+      });
+    </script>
+  </body>
+</html>
