@@ -5,17 +5,6 @@
   var INK = '#1D2733', ORANGE = '#FB8C00', DEEP = '#A65300', OBJ = '#E0A930', STICK = '#8B6A45', MUTE = '#8A8F90';
   var RED = '#C8553D', BLUE = '#4A7FB0';
 
-  // рисованные значки
-  function rabbit(s, g, x, y, col, at, seed) {
-    s.sk(g, Film.circ(x, y + 8, 20, 14), { at: at, dur: 0.4, color: col, width: 4.5, seed: seed });
-    s.sk(g, [[x - 8, y - 8], [x - 14, y - 40], [x - 2, y - 12]], { at: at + 0.2, dur: 0.3, color: col, width: 4.5, seed: seed + 2 });
-    s.sk(g, [[x + 4, y - 10], [x + 10, y - 42], [x + 14, y - 8]], { at: at + 0.3, dur: 0.3, color: col, width: 4.5, seed: seed + 4 });
-  }
-  function boat(s, g, x, y, col, at, seed) {
-    s.sk(g, [[x - 30, y + 10], [x + 30, y + 10], [x + 20, y + 26], [x - 20, y + 26], [x - 30, y + 10]], { at: at, dur: 0.4, color: col, width: 4.5, seed: seed });
-    s.sk(g, [[x, y + 10], [x, y - 34], [x + 24, y + 4], [x, y + 4]], { at: at + 0.25, dur: 0.4, color: col, width: 4.5, seed: seed + 2 });
-  }
-
   // 2:25 — заставка части
   Film.scene({
     id: 'ch3', bars: 1,
@@ -163,7 +152,9 @@
       [[BX1, BLUE, 'r'], [BX2, RED, 'b']].forEach(function (b, i) {
         var tray = s.node(g, 'rect', { x: b[0] - 110, y: BY - 70, width: 220, height: 150, rx: 16, fill: '#FFFDF8', stroke: '#B3A898', 'stroke-width': 3, opacity: 0 });
         s.tween(tray, 0.5 + i * 0.15, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5 });
-        if (b[2] === 'r') rabbit(s, ov, b[0], BY, b[1], 0.8, 501); else boat(s, ov, b[0], BY, b[1], 1.0, 511);
+        var pic = s.node(g, 'g', {});
+        if (b[2] === 'r') Film.toys.rabbit(s, pic, b[0], BY + 4, 1.15, b[1], '#2F5E8A'); else Film.toys.boat(s, pic, b[0], BY - 4, 1.2, b[1], '#8E3A28');
+        s.tween(pic, 0.8 + i * 0.15, { opacity: 0, scale: 0.6, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(2)' });
       });
       var rule = s.div('chip', { left: 1240, top: 300, height: 50, fontSize: 24 }, null, 'игра в цвета');
       s.fade(rule, 1.3, { y: 6 });
@@ -174,7 +165,7 @@
       function card(t0) {
         var c = s.node(ov, 'g', {});
         var bg = s.node(c, 'rect', { x: -40, y: -46, width: 80, height: 92, rx: 10, fill: '#FFFDF8', stroke: '#B3A898', 'stroke-width': 2.5 });
-        rabbit(s, c, 0, 8, RED, t0 + 0.1, 521 + Math.round(t0 * 10));
+        Film.toys.rabbit(s, c, 0, 6, 0.78, RED, '#8E3A28');
         s.set(c, 0, { x: 1370, y: 660, opacity: 0 }, { x: 1370, y: 660, opacity: 0 });
         s.tween(c, t0, { opacity: 0 }, { opacity: 1, duration: 0.3 });
         return c;
@@ -223,41 +214,63 @@
       var h = s.text('h2', 'Пятнадцать чашек и одна', { left: 140, top: 186, width: 1000 });
       s.lines(h, 0.2);
 
-      var g = s.svg(), ov = s.over();
-      // Джон: дверь, поднос, 15 чашек
-      var JX = 1120, JY = 560;
-      s.sk(ov, [[JX - 140, JY + 140], [JX - 140, JY - 120], [JX - 60, JY - 120], [JX - 60, JY + 140]], { at: 0.6, dur: 0.6, seed: 601 });
+      var g = s.svg(), ov = s.over(), TOY = Film.toys, FL = 712;
+      s.sk(g, [[990, FL], [1790, FL]], { at: 0.5, dur: 0.8, seed: 600, width: 3, opacity: 0.35 }); // пол
+      // Джон: за дверью — стул, на нём поднос с 15 чашками; дверь открывается и сбивает поднос
+      var JX = 1120;
+      s.node(g, 'rect', { x: 1000, y: FL - 260, width: 110, height: 260, fill: '#E9DFD0', stroke: '#9C7A4C', 'stroke-width': 3 });
+      var door = s.node(g, 'g', {});
+      s.node(door, 'rect', { x: 1000, y: FL - 260, width: 110, height: 260, fill: '#D9B98C', stroke: '#9C7A4C', 'stroke-width': 3 });
+      s.node(door, 'rect', { x: 1016, y: FL - 240, width: 78, height: 96, rx: 4, fill: 'none', stroke: '#B8946A', 'stroke-width': 2.5 });
+      s.node(door, 'circle', { cx: 1094, cy: FL - 128, r: 6, fill: '#9C7A4C' });
+      s.tween(door, 0.6, { opacity: 0 }, { opacity: 1, duration: 0.4 });
+      var chair = s.node(g, 'g', {});
+      s.sk(chair, [[1140, FL - 96], [1270, FL - 96]], { seed: 603, width: 4 });
+      s.sk(chair, [[1148, FL - 96], [1148, FL]], { seed: 605, width: 4 });
+      s.sk(chair, [[1262, FL - 96], [1262, FL]], { seed: 607, width: 4 });
+      s.sk(chair, [[1262, FL - 96], [1266, FL - 190]], { seed: 609, width: 4 });
+      s.tween(chair, 0.6, { opacity: 0 }, { opacity: 1, duration: 0.4 });
+      var tray = s.path(g, 'M1138 ' + (FL - 100) + ' H1262', { stroke: INK, 'stroke-width': 4 });
+      s.tween(tray, 0.8, { opacity: 0 }, { opacity: 1, duration: 0.3 });
       var cups = [];
       for (var i = 0; i < 15; i++) {
-        var cx = JX + (i % 5) * 26 - 30, cy = JY + 40 - Math.floor(i / 5) * 22;
-        var c = s.node(g, 'circle', { cx: cx, cy: cy, r: 10, fill: ORANGE, opacity: 0 });
-        s.tween(c, 0.8 + i * 0.03, { opacity: 0 }, { opacity: 1, duration: 0.2 });
-        cups.push(c);
+        var row = Math.floor(i / 5), cx = 1152 + (i % 5) * 24 + (row % 2) * 10, cy = FL - 102 - row * 21;
+        var c = s.node(g, 'g', {});
+        TOY.cup(s, c, cx, cy, 0.62, ORANGE, '#A65300');
+        s.tween(c, 0.8 + i * 0.03, { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.2 });
+        cups.push([c, cx, cy]);
       }
-      var tray = s.path(g, 'M' + (JX - 50) + ' ' + (JY + 54) + ' H' + (JX + 120), { stroke: INK, 'stroke-width': 4 });
-      s.tween(tray, 0.8, { opacity: 0 }, { opacity: 1, duration: 0.3 });
-      s.actor('kid2', { x: JX - 100, y: JY, d: 88, o: 0 }, 1.2, 0.01);
-      s.actor('kid2', { o: 1 }, 1.3, 0.4);
-      s.face('kid2', true, 1.3, 0.3); s.mouth('kid2', 'soft', 1.3, 0.01);
-      // дверь открылась — чашки разлетелись
-      cups.forEach(function (c, i) {
-        var dx = ((i * 37) % 11 - 5) * 14, dy = 110 + (i % 4) * 14;
-        s.tween(c, 2.0 + (i % 5) * 0.02, { x: 0, y: 0 }, { x: dx, y: dy, duration: 0.45, ease: 'power2.in' });
+      // дверь распахивается (поворот на петлях — сжатие к левому краю), в проёме — Джон
+      s.tween(door, 1.9, { scaleX: 1 }, { scaleX: 0.16, duration: 0.25, ease: 'power2.in', svgOrigin: '1000 ' + FL });
+      s.actor('kid2', { x: 1060, y: FL - 48, d: 92, o: 0 }, 1.9, 0.01);
+      s.actor('kid2', { o: 1 }, 1.95, 0.25);
+      s.face('kid2', true, 1.95, 0.2); s.mouth('kid2', 'soft', 1.95, 0.01); s.gaze('kid2', 8, 0, 1.95, 0.01);
+      s.tween(tray, 2.0, { rotation: 0 }, { rotation: 18, duration: 0.3, ease: 'power2.in', svgOrigin: '1262 ' + (FL - 100) });
+      cups.forEach(function (cp, i) {
+        var dx = ((i * 37) % 11 - 3) * 16, rot = ((i * 53) % 7 - 3) * 35;
+        s.tween(cp[0], 2.0 + (i % 5) * 0.02, { x: 0, y: 0, rotation: 0 }, { x: dx, y: FL - cp[2], rotation: rot, duration: 0.45, ease: 'power2.in', svgOrigin: cp[1] + ' ' + (cp[2] - 12) });
       });
-      s.mouth('kid2', 'sad', 2.3, 0.2);
-      var jl = s.text('label', 'Джон: нечаянно — 15 чашек', { left: JX - 150, top: JY + 190, width: 340, textAlign: 'center', fontSize: 24 });
+      s.mouth('kid2', 'sad', 2.3, 0.2); s.gaze('kid2', 4, 8, 2.3, 0.2);
+      var jl = s.text('label', 'Джон: нечаянно — 15 чашек', { left: JX - 150, top: FL + 38, width: 340, textAlign: 'center', fontSize: 24 });
       s.fade(jl, 2.5, { y: 6 });
-      // Генри: варенье без мамы — 1 чашка
-      var HX = 1590, HY = 560;
-      s.sk(ov, [[HX - 20, HY - 150], [HX + 120, HY - 150], [HX + 120, HY - 40], [HX - 20, HY - 40], [HX - 20, HY - 150]], { at: 0.9, dur: 0.6, seed: 611 });
-      s.sk(ov, [[HX + 34, HY - 120], [HX + 34, HY - 70], [HX + 70, HY - 70], [HX + 70, HY - 120]], { at: 1.3, dur: 0.4, seed: 613, color: RED });
-      var one = s.node(g, 'circle', { cx: HX + 90, cy: HY - 30, r: 10, fill: ORANGE, opacity: 0 });
-      s.tween(one, 1.4, { opacity: 0 }, { opacity: 1, duration: 0.2 });
-      s.actor('kid3', { x: HX - 40, y: HY + 10, d: 88, o: 0 }, 1.4, 0.01);
+      // Генри: без мамы тянется за вареньем на высокую полку — падает одна чашка
+      var HX = 1630;
+      s.sk(ov, [[1520, 440], [1780, 440]], { at: 0.9, dur: 0.4, seed: 611, width: 5 });
+      s.sk(ov, [[1540, 440], [1556, 462]], { at: 1.1, dur: 0.15, seed: 613, width: 3.4 });
+      s.sk(ov, [[1760, 440], [1744, 462]], { at: 1.15, dur: 0.15, seed: 615, width: 3.4 });
+      var jar = s.node(ov, 'g', {});
+      TOY.jar(s, jar, 1700, 438, 1.0);
+      s.tween(jar, 1.2, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3 });
+      var one = s.node(ov, 'g', {});
+      TOY.cup(s, one, 1600, 438, 0.9, ORANGE, '#A65300');
+      s.tween(one, 1.4, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.25 });
+      s.actor('kid3', { x: HX, y: FL - 46, d: 88, o: 0 }, 1.4, 0.01);
       s.actor('kid3', { o: 1 }, 1.5, 0.4);
-      s.face('kid3', true, 1.5, 0.3); s.mouth('kid3', 'smile', 1.5, 0.01); s.gaze('kid3', 6, -8, 1.5, 0.01);
-      s.tween(one, 2.3, { y: 0 }, { y: 120, duration: 0.4, ease: 'power2.in' });
-      var hl = s.text('label', 'Генри: доставал варенье без мамы — 1 чашка', { left: HX - 190, top: HY + 190, width: 420, textAlign: 'center', fontSize: 24 });
+      s.face('kid3', true, 1.5, 0.3); s.mouth('kid3', 'smile', 1.5, 0.01); s.gaze('kid3', 8, -9, 1.5, 0.01);
+      s.squash('kid3', 0.9, 1.16, 1.8, 0.3, 'power2.out');
+      s.tween(one, 2.3, { x: 0, y: 0, rotation: 0 }, { x: 110, y: FL - 438, rotation: 110, duration: 0.42, ease: 'power2.in', svgOrigin: '1600 425' }); // падает мимо Генри
+      s.squash('kid3', 1, 1, 2.5, 0.3, 'back.out(2)'); s.mouth('kid3', 'flat', 2.6, 0.2); s.gaze('kid3', 4, 8, 2.6, 0.2);
+      var hl = s.text('label', 'Генри: доставал варенье без мамы — 1 чашка', { left: HX - 210, top: FL + 38, width: 420, textAlign: 'center', fontSize: 24 });
       s.fade(hl, 2.7, { y: 6 });
 
       var qv = s.text('statement', 'Кто виноват больше?', { left: 140, top: 330, width: 780, fontSize: 56 });

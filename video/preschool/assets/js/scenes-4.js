@@ -30,8 +30,7 @@
       s.actor('baby', { x: CX, y: CY, d: 116, o: 0 }, 0.3, 0.01);
       s.actor('baby', { o: 1 }, 0.4, 0.5);
       s.face('baby', true, 0.5, 0.3); s.mouth('baby', 'smile', 0.5, 0.01); s.gaze('baby', 8, 0, 0.5, 0.01);
-      s.actor('obj', { x: OX, y: CY + 20, d: 70, o: 0 }, 0.5, 0.01);
-      s.actor('obj', { o: 1 }, 0.7, 0.5);
+      Film.icons.candy(s, ov, OX, CY, 1.6, { at: 0.6, dur: 0.6, seed: 899 }); // желанная конфета
       // раньше: желание → сразу действие
       var arrow = s.node(ov, 'g', {});
       s.sk(arrow, [[CX + 80, CY], [OX - 70, CY]], { at: 1.0, dur: 0.6, seed: 901, width: 4.5 });
@@ -69,7 +68,7 @@
   Film.scene({
     id: 'border', bars: 5,
     build: function (s) {
-      s.actor('baby', { o: 0 }, 0.0, 0.4); s.actor('obj', { o: 0 }, 0.0, 0.4);
+      s.actor('baby', { o: 0 }, 0.0, 0.4);
       var k = s.text('kicker', 'Не только психология', { left: 140, top: 150 });
       s.fade(k, 0.1, { y: 8 });
       var h = s.text('h2', 'Рубеж 5–7 лет видят и другие науки', { left: 140, top: 186, width: 1640 });

@@ -139,6 +139,6 @@ svg { overflow: visible; }
 .stamp { display: inline-block; font-family: var(--sans); font-weight: 800; font-size: 19px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); border: 2.5px solid var(--ink-2); border-radius: 8px; padding: 5px 12px 4px; transform: rotate(-3deg); }
 .stamp.weak { color: #8A5A00; border-color: #8A5A00; }
 .check-card { background: var(--paper); border: 1.5px solid var(--line-soft); border-radius: 20px; box-shadow: 0 22px 45px -30px rgba(17, 24, 39, 0.28); padding: 26px 30px 24px; }
-.check-card .t { font-family: var(--serif); font-weight: 600; font-size: 38px; line-height: 1.12; color: var(--ink); }
-.check-card .c { font-family: var(--sans); font-weight: 500; font-size: 26px; line-height: 1.35; color: var(--ink-2); margin-top: 10px; }
+.check-card .t { font-family: var(--serif); font-weight: 600; font-size: 38px; line-height: 1.12; color: var(--ink); margin-right: 110px; }
+.check-card .c { font-family: var(--sans); font-weight: 500; font-size: 26px; line-height: 1.35; color: var(--ink-2); margin-top: 10px; margin-right: 110px; } /* справа — значок опыта */
 .check-card .r { font-family: var(--sans); font-weight: 600; font-size: 20px; color: var(--muted); margin-top: 16px; }

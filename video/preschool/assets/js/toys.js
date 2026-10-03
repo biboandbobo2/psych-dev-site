@@ -228,6 +228,53 @@
     return g;
   };
 
+  // ---------- Значки к карточкам «Знаменитые опыты под проверкой» ----------
+  // «Зефирный тест»: зефир на тарелке. (x, y) — центр
+  I.marshmallow = function (s, parent, x, y, k, o) {
+    o = o || {}; var g = grp(s, parent), p = pen(s, g, x, y, k, o);
+    var M = { fill: '#FBE3EA', color: '#C77D93', width: 3.2, amp: 0.25 }, TOP = { fill: '#FFF6F9', color: '#C77D93', width: 3, amp: 0.15 };
+    p(ell(0, 20, 42, 11, 18), 0, 0.35, { fill: PAPER, width: 3.4, amp: 0.4 });
+    // две пухлые зефирки: «одна сейчас или две потом»
+    p([[-6, 14], [-8, 2], [-6, -6], [-24, -6], [-30, -6], [-32, 2], [-30, 14], [-6, 14]], 0.3, 0.25, M);
+    p(ell(-18, -6, 13, 4.5, 12), 0.5, 0.15, TOP);
+    p([[28, 10], [30, -2], [28, -10], [12, -10], [6, -10], [4, -2], [6, 10], [28, 10]], 0.45, 0.25, M);
+    p(ell(17, -10, 12, 4.5, 12), 0.65, 0.15, TOP);
+    return g;
+  };
+  // Ложные убеждения у младенцев: младенец и облачко мысли с вопросом. (x, y) — центр головы
+  I.babyThink = function (s, parent, x, y, k, o) {
+    o = o || {}; var g = grp(s, parent), p = pen(s, g, x, y, k, o);
+    p(ell(-8, 10, 24, 24, 16), 0, 0.35, { fill: '#F6D5CB', color: '#B8533D', width: 3.4, amp: 0.4 });
+    p([[-12, -14], [-6, -22], [2, -16]], 0.3, 0.12, { color: '#B8533D', width: 3, amp: 0.2 });
+    dot(s, g, x - 16 * k, y + 8 * k, 2.6 * k, DARK, o, 0.4); dot(s, g, x - 2 * k, y + 8 * k, 2.6 * k, DARK, o, 0.42);
+    p(ell(26, -22, 16, 12, 14), 0.5, 0.25, { fill: PAPER, width: 3, amp: 0.3 });
+    p(ell(13, -6, 3.5, 3.5, 8), 0.7, 0.1, { fill: PAPER, width: 2.4, amp: 0.1 });
+    var q = s.node(g, 'text', { x: x + 26 * k, y: y - 15 * k, 'text-anchor': 'middle', fill: '#A65300', opacity: o.at != null ? 0 : 1 });
+    q.setAttribute('style', 'font-family: DOMSans; font-weight: 800; font-size: ' + Math.round(18 * k) + 'px;');
+    q.textContent = '?';
+    if (o.at != null) s.tween(q, o.at + 0.75 * (o.dur || 1), { opacity: 0 }, { opacity: 1, duration: 0.2 });
+    return g;
+  };
+  // «Непослушный мишка»: мишка и ряд фишек, одна сдвинута. (x, y) — центр
+  I.naughtyBear = function (s, parent, x, y, k, o) {
+    o = o || {}; var g = grp(s, parent);
+    I.bear(s, g, x - 20 * k, y - 4 * k, 0.62 * k, { at: o.at, dur: (o.dur || 1) * 0.7, seed: (o.seed || 1) + 3 });
+    [[14, 30], [28, 30], [42, 30], [52, 14]].forEach(function (c, i) {
+      var d = s.node(g, 'circle', { cx: x + c[0] * k, cy: y + c[1] * k, r: 5.5 * k, fill: i === 3 ? '#E0A930' : '#4A7FB0', stroke: DARK, 'stroke-width': 1.4, opacity: o.at != null ? 0 : 1 });
+      if (o.at != null) s.tween(d, o.at + (0.6 + i * 0.06) * (o.dur || 1), { opacity: 0 }, { opacity: 1, duration: 0.2 });
+    });
+    return g;
+  };
+  // «Эффект Бэтмена»: ребёнок в маске с ушками. (x, y) — центр головы
+  I.batMask = function (s, parent, x, y, k, o) {
+    o = o || {}; var g = grp(s, parent), p = pen(s, g, x, y, k, o);
+    p(ell(0, 6, 28, 28, 18), 0, 0.35, { fill: '#E4735A', color: '#B8533D', width: 3.2, amp: 0.3 });
+    p([[-28, 4], [-24, -18], [-16, -32], [-12, -16], [12, -16], [16, -32], [24, -18], [28, 4], [10, 6], [0, 0], [-10, 6], [-28, 4]], 0.35, 0.4, { fill: '#2B2F36', color: '#2B2F36', width: 2.6, amp: 0.2 });
+    dot(s, g, x - 11 * k, y - 4 * k, 3.4 * k, '#FFFDF8', o, 0.8); dot(s, g, x + 11 * k, y - 4 * k, 3.4 * k, '#FFFDF8', o, 0.82);
+    p([[-9, 18], [0, 23], [9, 18]], 0.85, 0.12, { color: '#FFFDF8', width: 3, amp: 0.1 });
+    return g;
+  };
+
   // ---------- Игрушки (видимое поле) ----------
   var T = {};
 
@@ -324,6 +371,45 @@
     s.path(g, 'M' + x + ' ' + (y - h + 10) + ' V' + (y - 10), { stroke: edge, 'stroke-width': 2.5 });
     s.node(g, 'circle', { cx: x - 10, cy: y - h / 2, r: 4.5, fill: edge });
     s.node(g, 'circle', { cx: x + 10, cy: y - h / 2, r: 4.5, fill: edge });
+    return g;
+  };
+
+  // Силуэты для сортировки карточек (Ф. Зелазо): кролик и лодка. (x, y) — центр
+  T.rabbit = function (s, parent, x, y, k, color, edge) {
+    var g = s.node(parent, 'g', {});
+    function e(cx, cy, rx, ry, rot, f) {
+      var a = { cx: x + cx * k, cy: y + cy * k, rx: rx * k, ry: ry * k, fill: f || color, stroke: edge, 'stroke-width': 2.2 };
+      if (rot) a.transform = 'rotate(' + rot + ' ' + (x + cx * k) + ' ' + (y + cy * k) + ')';
+      return s.node(g, 'ellipse', a);
+    }
+    e(-14, -38, 5.5, 17, -14); e(-3, -40, 5.5, 17, 10);
+    e(8, 14, 25, 19); e(30, 10, 6.5, 6.5, 0, '#FFFDF8');
+    e(-12, -8, 15, 14); e(-2, 32, 12, 4.5);
+    s.node(g, 'circle', { cx: x - 16 * k, cy: y - 11 * k, r: 2.6 * k, fill: '#FFFDF8' });
+    return g;
+  };
+  T.boat = function (s, parent, x, y, k, color, edge) {
+    var g = s.node(parent, 'g', {});
+    s.path(g, 'M' + (x - 2 * k) + ' ' + (y + 12 * k) + ' V' + (y - 40 * k), { stroke: edge, 'stroke-width': 3 });
+    s.node(g, 'path', { d: 'M' + (x + 2 * k) + ' ' + (y - 38 * k) + ' L' + (x + 30 * k) + ' ' + (y + 6 * k) + ' L' + (x + 2 * k) + ' ' + (y + 6 * k) + ' Z', fill: color, stroke: edge, 'stroke-width': 2.2, 'stroke-linejoin': 'round' });
+    s.node(g, 'path', { d: 'M' + (x - 6 * k) + ' ' + (y - 28 * k) + ' L' + (x - 24 * k) + ' ' + (y + 6 * k) + ' L' + (x - 6 * k) + ' ' + (y + 6 * k) + ' Z', fill: color, 'fill-opacity': 0.7, stroke: edge, 'stroke-width': 2.2, 'stroke-linejoin': 'round' });
+    s.node(g, 'path', { d: 'M' + (x - 36 * k) + ' ' + (y + 12 * k) + ' L' + (x + 36 * k) + ' ' + (y + 12 * k) + ' L' + (x + 24 * k) + ' ' + (y + 30 * k) + ' L' + (x - 24 * k) + ' ' + (y + 30 * k) + ' Z', fill: color, stroke: edge, 'stroke-width': 2.2, 'stroke-linejoin': 'round' });
+    return g;
+  };
+  // Чашка с ручкой; (x, y) — середина донышка
+  T.cup = function (s, parent, x, y, k, color, edge) {
+    var g = s.node(parent, 'g', {});
+    s.path(g, 'M' + (x + 11 * k) + ' ' + (y - 22 * k) + ' C' + (x + 24 * k) + ' ' + (y - 22 * k) + ' ' + (x + 24 * k) + ' ' + (y - 6 * k) + ' ' + (x + 10 * k) + ' ' + (y - 8 * k), { stroke: edge, 'stroke-width': 2.6 });
+    s.node(g, 'path', { d: 'M' + (x - 15 * k) + ' ' + (y - 28 * k) + ' L' + (x + 15 * k) + ' ' + (y - 28 * k) + ' L' + (x + 11 * k) + ' ' + (y - 3 * k) + ' Q' + (x + 10 * k) + ' ' + y + ' ' + (x + 6 * k) + ' ' + y + ' L' + (x - 6 * k) + ' ' + y + ' Q' + (x - 10 * k) + ' ' + y + ' ' + (x - 11 * k) + ' ' + (y - 3 * k) + ' Z', fill: color, stroke: edge, 'stroke-width': 2.4, 'stroke-linejoin': 'round' });
+    s.path(g, 'M' + (x - 13 * k) + ' ' + (y - 22 * k) + ' H' + (x + 13 * k), { stroke: '#FFFDF8', 'stroke-width': 2.2, opacity: 0.8 });
+    return g;
+  };
+  // Банка варенья; (x, y) — середина дна
+  T.jar = function (s, parent, x, y, k) {
+    var g = s.node(parent, 'g', {});
+    s.node(g, 'rect', { x: x - 22 * k, y: y - 50 * k, width: 44 * k, height: 50 * k, rx: 10 * k, fill: '#9E3B5E', stroke: '#6E2340', 'stroke-width': 2.6 });
+    s.node(g, 'rect', { x: x - 24 * k, y: y - 60 * k, width: 48 * k, height: 12 * k, rx: 4 * k, fill: '#E0A930', stroke: '#A77A12', 'stroke-width': 2.4 });
+    s.node(g, 'rect', { x: x - 15 * k, y: y - 36 * k, width: 30 * k, height: 18 * k, rx: 3 * k, fill: '#FFFDF8' });
     return g;
   };
 

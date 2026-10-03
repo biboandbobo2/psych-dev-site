@@ -1,5 +1,7 @@
 # Текст для загрузки на YouTube
 
+Обложка — `cover/cover-youtube.jpg` (1280×720); пересобрать: `./make_cover.sh`.
+
 ## Название
 
 От трёх до семи: главное о дошкольном возрасте | Психология развития — DOM Academy
@@ -50,7 +52,7 @@
 - Nelson (1980).
 - Smetana (1981).
 - Wimmer & Perner (1983).
-- Kochanska, Aksan & Koenig (1995); Kochanska (1997, 2002).
+- Kochanska, Aksan & Koenig (1995); Kochanska (1997).
 - Lenroot & Giedd (2006).
 - Wellman, Cross & Watson (2001).
 - Zelazo (2006).
@@ -58,6 +60,6 @@
 - Lillard et al. (2013).
 - Doebel & Zelazo (2015).
 - Nobes et al. (2016).
-- Watts, Duncan & Quan (2018); Kulke et al. (2018); Eames et al. (1990); White et al. (2017).
+- Опыты под проверкой: Shoda, Mischel & Peake (1990) → Watts, Duncan & Quan (2018); Onishi & Baillargeon (2005) → Kulke et al. (2018); McGarrigle & Donaldson (1974) → Eames et al. (1990); White et al. (2017).
 
 **Музыка:** оригинальная композиция для DOM Academy.
