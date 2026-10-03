@@ -178,7 +178,7 @@
 
   // 0:50 — Уровни развития игры на примере «больницы» (Д. Б. Эльконин, 1978).
   // Слева — лесенка уровней (видна вся сразу, текущий подсвечен) и пояснение; справа — сценка.
-  // Пациенты: 1 — мишка, 2 — зайка, 3 — другой ребёнок (роли распределяют), 4 — снова мишка.
+  // Пациенты: 1 — мишка, 2 — зайка, 3 — другой ребёнок (роли распределяют), 4 — снова мишка, медсестра — младшая.
   Film.scene({
     id: 'hospital', bars: 10,
     build: function (s) {
@@ -289,40 +289,30 @@
       say('Так не бывает!', DX - 70, DY - 210, 16.3, 17.4);
       s.mouth('baby', 'flat', 16.2, 0.2); s.gaze('baby', 8, -4, 16.2, 0.3);
 
-      // 4 · Правила и отношения: снова мишка, медсестра и младший; смысл правила (протокол Д. Б. Эльконина)
+      // 4 · Правила и отношения: снова мишка; младшая — медсестра — предлагает нарушить порядок (протокол Д. Б. Эльконина)
       lit(3, 17.5); s.age(78, 17.5, 1.2);
       explain('Роли связаны, у игры — правила, и ребёнок понимает их смысл: «Так не делают. Так нельзя» — Ваня, 6 лет 6 месяцев.', 17.7, 22.3);
       s.hop('kid2', PX + 230, PY, 17.41, 0.42, 40);
       s.actor('kid2', { o: 0 }, 17.8, 0.3);
       toyIn(bear2, 17.7);
-      var NX = 1350, NY = 772;
-      s.actor('kid3', { x: NX + 140, y: NY, d: 90, o: 0 }, 17.6, 0.01);
-      s.actor('kid3', { o: 1 }, 17.7, 0.3);
-      s.face('kid3', true, 17.7, 0.3); s.mouth('kid3', 'smile', 17.7, 0.01); s.gaze('kid3', 8, -4, 17.7, 0.01);
-      s.hop('kid3', NX, NY, 17.75, 0.4, 40);
-      var nc = s.node(ov, 'g', {});
-      I().docCap(s, nc, NX, NY - 42, 0.66, { at: 17.9, dur: 0.5, seed: 221 });
-      var alc = s.node(ov, 'g', {});
-      s.sk(alc, [[NX + 46, NY - 4], [NX + 47, NY - 40], [NX + 66, NY - 42], [NX + 67, NY - 4], [NX + 46, NY - 4]], { at: 18.1, dur: 0.4, seed: 223, color: ORANGE, fill: '#FFFDF8' });
-      s.sk(alc, [[NX + 52, NY - 42], [NX + 54, NY - 54], [NX + 60, NY - 54], [NX + 61, NY - 42]], { at: 18.4, dur: 0.2, seed: 225, color: ORANGE });
-      // младший — пришёл с мишкой
-      var YX = 1752, YY = 664;
-      s.color('stranger', '#F2A48C', 17.5, 0.01);
-      s.actor('stranger', { x: YX + 120, y: YY, d: 72, o: 0 }, 17.9, 0.01);
-      s.actor('stranger', { o: 1 }, 17.95, 0.25);
-      s.face('stranger', true, 17.95, 0.3); s.mouth('stranger', 'smile', 17.95, 0.01); s.gaze('stranger', -8, 2, 17.95, 0.01);
-      s.hop('stranger', YX, YY, 18.0, 0.36, 36);
-      var yl = s.otext('note', 'младший', { left: YX - 70, top: YY + 42, width: 140, textAlign: 'center', fontSize: 21 });
-      s.fade(yl, 18.4, { y: 4 });
-      s.hop('kid3', PX - 90, NY - 10, 18.51, 0.36, 30); Film.ride(s, nc, PX - 90 - NX, 18.51, 0.36, 30); Film.ride(s, alc, PX - 90 - NX, 18.51, 0.36, 30);
-      bump(bear2, 18.95);
-      s.hop('kid3', NX, NY, 19.21, 0.36, 30); Film.ride(s, nc, NX - (PX - 90), 19.21, 0.36, 30); Film.ride(s, alc, NX - (PX - 90), 19.21, 0.36, 30);
-      say('Давай укол, а потом протрём!', 1300, 470, 19.6, 20.8, true);
+      var NX = 1772, NY = 664;
+      s.actor('kid3', { x: NX + 120, y: NY, d: 74, o: 0 }, 17.6, 0.01);
+      s.actor('kid3', { o: 1 }, 17.65, 0.25);
+      s.face('kid3', true, 17.65, 0.3); s.mouth('kid3', 'smile', 17.65, 0.01); s.gaze('kid3', -8, 2, 17.65, 0.01);
+      s.hop('kid3', NX, NY, 17.75, 0.36, 36);
+      I().docCap(s, ov, NX, NY - 30, 0.54, { at: 18.2, dur: 0.45, seed: 221 });
+      s.sk(ov, [[NX + 30, NY + 40], [NX + 31, NY + 8], [NX + 48, NY + 6], [NX + 49, NY + 40], [NX + 30, NY + 40]], { at: 18.4, dur: 0.35, seed: 223, color: ORANGE, fill: '#FFFDF8' });
+      s.sk(ov, [[NX + 35, NY + 6], [NX + 36, NY - 4], [NX + 43, NY - 4], [NX + 44, NY + 6]], { at: 18.6, dur: 0.2, seed: 225, color: ORANGE });
+      var nl = s.otext('note', 'медсестра<br>(младшая)', { left: NX - 80, top: NY + 44, width: 160, textAlign: 'center', fontSize: 21, lineHeight: 1.15 });
+      s.fade(nl, 18.5, { y: 4 });
+      say('Давай укол, а потом протрём!', 1322, 470, 19.6, 20.8, true);
       say('Так не делают. Так нельзя.', DX - 70, DY - 210, 21.0, null);
-      s.gaze('stranger', -9, -2, 20.9, 0.3); s.mouth('kid3', 'smile', 21.4, 0.3);
+      s.mouth('kid3', 'soft', 21.0, 0.2);
+      s.gaze('kid3', -10, -2, 21.6, 0.3); s.mouth('kid3', 'smile', 21.8, 0.3);
+      s.squash('kid3', 1.06, 0.94, 21.9, 0.15); s.squash('kid3', 1, 1, 22.05, 0.3, 'back.out(3)');
       var note = s.text('note', 'Уровни 1–2 — у младших дошкольников (3–5 лет), 3–4 — у старших (5–7 лет). Ступени, а не нормы.', { left: 140, top: 660, width: 800 });
       s.fade(note, 22.6, { y: 6 });
-      s.actor('kid3', { o: 0 }, 24.0, 0.4); s.actor('stranger', { o: 0 }, 24.0, 0.4);
+      s.actor('kid3', { o: 0 }, 24.0, 0.4);
     }
   });
 

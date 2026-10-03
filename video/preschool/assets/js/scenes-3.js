@@ -145,17 +145,6 @@
       s.fade(term, 14.2, { y: 10 });
       var tn = s.text('body', '«Надо» начинает подчинять «хочу». По Леонтьеву — первое рождение личности.', { left: 140, top: 658, width: 800, fontSize: 28 });
       s.lines(tn, 14.6, { stagger: 0.08 });
-      // весы мотивов
-      var bal = s.node(ov, 'g', {});
-      s.sk(bal, [[1380, 330], [1360, 362], [1400, 362], [1380, 330]], { at: 13.8, dur: 0.3, seed: 431 });
-      var beam = s.node(bal, 'g', {});
-      s.sk(beam, [[1260, 330], [1500, 330]], { at: 13.9, dur: 0.3, seed: 433, width: 4.5 });
-      var w1 = s.otext('label', 'хочу', { left: 1220, top: 280, width: 80, textAlign: 'center', fontSize: 24 });
-      var w2 = s.otext('label', 'надо', { left: 1460, top: 280, width: 80, textAlign: 'center', fontSize: 24, color: DEEP });
-      s.fade(w1, 14.0, { y: 4 }); s.fade(w2, 14.1, { y: 4 });
-      s.tween(beam, 14.4, { rotation: 0 }, { rotation: 9, duration: 0.9, ease: 'back.out(1.6)', svgOrigin: '1380 330' });
-      s.tween(w1, 14.4, { y: 0 }, { y: -19, duration: 0.9, ease: 'back.out(1.6)' });
-      s.tween(w2, 14.4, { y: 0 }, { y: 19, duration: 0.9, ease: 'back.out(1.6)' });
     }
   });
 
@@ -281,11 +270,11 @@
       var p2 = s.text('body', 'О намерениях дети судят раньше, если намерение показано ясно (С. Нельсон, 1980; Г. Ноубс и др., 2016).', { left: 140, top: 526, width: 800, fontSize: 28 });
       s.lines(p2, 7.8, { stagger: 0.08 });
       [p1, nl, p2].forEach(function (e) { s.out(e, 10.0, { dur: 0.4 }); });
-      var p3 = s.text('lead', 'А уже в 3–4 года «ударить» считают хуже, чем «нарушить порядок», — и неправильным, даже если правила нет.', { left: 140, top: 330, width: 800, fontSize: 30 });
+      var p3 = s.text('lead', 'Уже в 3–4 года дети различают два вида запретов. Ударить — плохо, даже если никто этого не запрещал. А нарушить порядок группы — плохо, только пока такое правило есть.', { left: 140, top: 330, width: 800, fontSize: 30 });
       s.lines(p3, 10.4, { stagger: 0.08 });
-      var c3 = s.text('cite', 'Дж. Сметана, 1981', { left: 140, top: 470 });
+      var c3 = s.text('cite', 'Дж. Сметана, 1981', { left: 140, top: 512 });
       s.fade(c3, 11.0, { y: 6 });
-      var term = s.text('h3 acc', '<span class="term">моральное и условное<span class="en">moral vs. conventional</span></span>', { left: 140, top: 540 });
+      var term = s.text('h3 acc', '<span class="term">моральное и условное<span class="en">moral vs. conventional</span></span>', { left: 140, top: 580 });
       s.fade(term, 11.6, { y: 10 });
     }
   });
