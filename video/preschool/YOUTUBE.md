@@ -63,3 +63,5 @@
 - Опыты под проверкой: Shoda, Mischel & Peake (1990) → Watts, Duncan & Quan (2018); Onishi & Baillargeon (2005) → Kulke et al. (2018); McGarrigle & Donaldson (1974) → Eames et al. (1990); White et al. (2017).
 
 **Музыка:** оригинальная композиция для DOM Academy.
+
+Предыдущий ролик серии: «От года до трёх». Далее: младший школьный возраст, 7–10 лет.

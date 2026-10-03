@@ -451,10 +451,8 @@
         ['«Непослушный мишка»', 'Сохранение числа — раньше, чем у Пиаже. Дж. Макгарриг, М. Дональдсон, 1974', 'повторения расходятся', 'Дж. Имс и др., 1990', true],
         ['«Эффект Бэтмена»', 'В образе героя дети упорнее. Р. Уайт и др., 2017', 'нет независимых повторений', 'одна лаборатория', true]
       ];
-      var ov = s.over(), icon = [I().marshmallow, I().babyThink, I().naughtyBear, I().batMask];
       cards.forEach(function (c, i) {
         var x = 140 + (i % 2) * 830, y = 330 + Math.floor(i / 2) * 250, t = 0.7 + i * 1.9;
-        icon[i](s, ov, x + 728, y + 62, 1.05, { at: t + 0.2, dur: 0.7, seed: 631 + i * 10 });
         var card = s.div('check-card', { left: x, top: y, width: 800, height: 222 });
         Film.el('div', 't', card, c[0]);
         Film.el('div', 'c', card, c[1]);

@@ -228,53 +228,6 @@
     return g;
   };
 
-  // ---------- Значки к карточкам «Знаменитые опыты под проверкой» ----------
-  // «Зефирный тест»: зефир на тарелке. (x, y) — центр
-  I.marshmallow = function (s, parent, x, y, k, o) {
-    o = o || {}; var g = grp(s, parent), p = pen(s, g, x, y, k, o);
-    var M = { fill: '#FBE3EA', color: '#C77D93', width: 3.2, amp: 0.25 }, TOP = { fill: '#FFF6F9', color: '#C77D93', width: 3, amp: 0.15 };
-    p(ell(0, 20, 42, 11, 18), 0, 0.35, { fill: PAPER, width: 3.4, amp: 0.4 });
-    // две пухлые зефирки: «одна сейчас или две потом»
-    p([[-6, 14], [-8, 2], [-6, -6], [-24, -6], [-30, -6], [-32, 2], [-30, 14], [-6, 14]], 0.3, 0.25, M);
-    p(ell(-18, -6, 13, 4.5, 12), 0.5, 0.15, TOP);
-    p([[28, 10], [30, -2], [28, -10], [12, -10], [6, -10], [4, -2], [6, 10], [28, 10]], 0.45, 0.25, M);
-    p(ell(17, -10, 12, 4.5, 12), 0.65, 0.15, TOP);
-    return g;
-  };
-  // Ложные убеждения у младенцев: младенец и облачко мысли с вопросом. (x, y) — центр головы
-  I.babyThink = function (s, parent, x, y, k, o) {
-    o = o || {}; var g = grp(s, parent), p = pen(s, g, x, y, k, o);
-    p(ell(-8, 10, 24, 24, 16), 0, 0.35, { fill: '#F6D5CB', color: '#B8533D', width: 3.4, amp: 0.4 });
-    p([[-12, -14], [-6, -22], [2, -16]], 0.3, 0.12, { color: '#B8533D', width: 3, amp: 0.2 });
-    dot(s, g, x - 16 * k, y + 8 * k, 2.6 * k, DARK, o, 0.4); dot(s, g, x - 2 * k, y + 8 * k, 2.6 * k, DARK, o, 0.42);
-    p(ell(26, -22, 16, 12, 14), 0.5, 0.25, { fill: PAPER, width: 3, amp: 0.3 });
-    p(ell(13, -6, 3.5, 3.5, 8), 0.7, 0.1, { fill: PAPER, width: 2.4, amp: 0.1 });
-    var q = s.node(g, 'text', { x: x + 26 * k, y: y - 15 * k, 'text-anchor': 'middle', fill: '#A65300', opacity: o.at != null ? 0 : 1 });
-    q.setAttribute('style', 'font-family: DOMSans; font-weight: 800; font-size: ' + Math.round(18 * k) + 'px;');
-    q.textContent = '?';
-    if (o.at != null) s.tween(q, o.at + 0.75 * (o.dur || 1), { opacity: 0 }, { opacity: 1, duration: 0.2 });
-    return g;
-  };
-  // «Непослушный мишка»: мишка и ряд фишек, одна сдвинута. (x, y) — центр
-  I.naughtyBear = function (s, parent, x, y, k, o) {
-    o = o || {}; var g = grp(s, parent);
-    I.bear(s, g, x - 20 * k, y - 4 * k, 0.62 * k, { at: o.at, dur: (o.dur || 1) * 0.7, seed: (o.seed || 1) + 3 });
-    [[14, 30], [28, 30], [42, 30], [52, 14]].forEach(function (c, i) {
-      var d = s.node(g, 'circle', { cx: x + c[0] * k, cy: y + c[1] * k, r: 5.5 * k, fill: i === 3 ? '#E0A930' : '#4A7FB0', stroke: DARK, 'stroke-width': 1.4, opacity: o.at != null ? 0 : 1 });
-      if (o.at != null) s.tween(d, o.at + (0.6 + i * 0.06) * (o.dur || 1), { opacity: 0 }, { opacity: 1, duration: 0.2 });
-    });
-    return g;
-  };
-  // «Эффект Бэтмена»: ребёнок в маске с ушками. (x, y) — центр головы
-  I.batMask = function (s, parent, x, y, k, o) {
-    o = o || {}; var g = grp(s, parent), p = pen(s, g, x, y, k, o);
-    p(ell(0, 6, 28, 28, 18), 0, 0.35, { fill: '#E4735A', color: '#B8533D', width: 3.2, amp: 0.3 });
-    p([[-28, 4], [-24, -18], [-16, -32], [-12, -16], [12, -16], [16, -32], [24, -18], [28, 4], [10, 6], [0, 0], [-10, 6], [-28, 4]], 0.35, 0.4, { fill: '#2B2F36', color: '#2B2F36', width: 2.6, amp: 0.2 });
-    dot(s, g, x - 11 * k, y - 4 * k, 3.4 * k, '#FFFDF8', o, 0.8); dot(s, g, x + 11 * k, y - 4 * k, 3.4 * k, '#FFFDF8', o, 0.82);
-    p([[-9, 18], [0, 23], [9, 18]], 0.85, 0.12, { color: '#FFFDF8', width: 3, amp: 0.1 });
-    return g;
-  };
-
   // ---------- Игрушки (видимое поле) ----------
   var T = {};
 

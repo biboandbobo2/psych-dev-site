@@ -18,6 +18,7 @@ assets/fonts/            Playfair Display и Manrope (латиница + кир�
 assets/vendor/gsap.min.js
 music/compose.py         партитура (колыбельная 3/4, 72 bpm) → infancy.mid
 render.sh                полная пересборка: музыка → видео → сведение
+cover/, make_cover.sh    обложка YouTube (снимок композиции → cover/cover-youtube.jpg, 1280×720)
 ```
 
 Длительность каждой сцены задаётся в тактах музыки: `bars`, один такт = 2,5 с. Поэтому смены сцен всегда совпадают с сильной долей. Если меняете длину сцены, поменяйте её и в `SCENES` в `music/compose.py`.
