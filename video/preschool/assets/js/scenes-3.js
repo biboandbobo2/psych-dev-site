@@ -1,4 +1,4 @@
-/* Часть 3. Хочу, но надо · воля и правила: горькая конфета, смена правила, чашки, совесть, инициатива */
+/* Часть 3. «Хочу» против «надо» · самоконтроль и мораль: горькая конфета, смена правила, чашки, совесть, инициатива */
 /* global Film */
 (function () {
   'use strict';
@@ -15,23 +15,36 @@
     s.sk(g, [[x - 30, y + 10], [x + 30, y + 10], [x + 20, y + 26], [x - 20, y + 26], [x - 30, y + 10]], { at: at, dur: 0.4, color: col, width: 4.5, seed: seed });
     s.sk(g, [[x, y + 10], [x, y - 34], [x + 24, y + 4], [x, y + 4]], { at: at + 0.25, dur: 0.4, color: col, width: 4.5, seed: seed + 2 });
   }
-  function tear(s, g, x, y, at) {
-    s.sk(g, [[x, y], [x - 6, y + 14], [x, y + 20], [x + 6, y + 14], [x, y]], { at: at, dur: 0.4, color: BLUE, width: 3.5, seed: 991 });
-  }
 
-  // 2:35 — заставка части
+  // 2:25 — заставка части
   Film.scene({
     id: 'ch3', bars: 1,
     build: function (s) {
       s.actor('kid2', { o: 0 }, 0.0, 0.4); s.actor('adult', { o: 0 }, 0.0, 0.4); s.actor('baby', { o: 0 }, 0.0, 0.4);
-      s.chapterCard(3, 'Хочу, но надо', 'воля и правила · 3–7 лет');
+      s.chapterCard(3, '«Хочу» против «надо»', 'самоконтроль и мораль · 3–7 лет');
       s.range(36, 84, 0.15, 1.3);
       s.age(60, 0.2, 1.3);
-      s.chapter(3, 'Хочу, но надо', 0.4, 67.1);
+      s.chapter(3, '«Хочу» против «надо»', 0.4, 67.1);
+      // весы: «надо» перевешивает
+      var ov = s.over(), SX = 1600, SY = 300, A = 12 * Math.PI / 180, DY = Math.round(150 * Math.sin(A));
+      s.sk(ov, [[SX, SY], [SX, SY + 160]], { at: 0.3, dur: 0.3, seed: 31, width: 5 });
+      s.sk(ov, [[SX - 64, SY + 160], [SX + 64, SY + 160]], { at: 0.45, dur: 0.2, seed: 33, width: 5 });
+      var beam = s.node(ov, 'g', {});
+      s.sk(beam, [[SX - 150, SY], [SX + 150, SY]], { at: 0.5, dur: 0.3, seed: 35, width: 5 });
+      [[-1, 'хочу', '#3C4852'], [1, 'надо', DEEP]].forEach(function (pn, i) {
+        var x = SX + pn[0] * 150, pan = s.node(ov, 'g', {});
+        s.sk(pan, [[x, SY], [x - 34, SY + 72]], { at: 0.6, dur: 0.2, seed: 37 + i * 4, width: 3 });
+        s.sk(pan, [[x, SY], [x + 34, SY + 72]], { at: 0.6, dur: 0.2, seed: 38 + i * 4, width: 3 });
+        s.sk(pan, [[x - 44, SY + 72], [x - 26, SY + 94], [x + 26, SY + 94], [x + 44, SY + 72], [x - 44, SY + 72]], { at: 0.7, dur: 0.3, seed: 39 + i * 4, width: 4, fill: i ? '#FEF0DD' : '#FFFDF8' });
+        var lb = s.otext('label', pn[1], { left: x - 60, top: SY + 104, width: 120, textAlign: 'center', fontSize: 26, color: pn[2] });
+        s.fade(lb, 0.8, { y: 4 });
+        s.tween([pan, lb], 1.2, { y: 0 }, { y: pn[0] * DY, duration: 0.8, ease: 'back.out(1.6)' });
+      });
+      s.tween(beam, 1.2, { rotation: 0 }, { rotation: 12, duration: 0.8, ease: 'back.out(1.6)', svgOrigin: SX + ' ' + SY });
     }
   });
 
-  // 2:37,5 — Горькая конфета (описано А. Н. Леонтьевым, 1975): история по шагам, затем — смысл
+  // 2:27,5 — Горькая конфета (описано А. Н. Леонтьевым, 1975): история по шагам, затем — смысл
   Film.scene({
     id: 'candy', bars: 7,
     build: function (s) {
@@ -110,8 +123,15 @@
       s.tween(candy, 10.6, { x: 0 }, { x: 40, duration: 0.4, ease: 'power2.out' });
       var ins = s.div('bubble tail-l soft', { left: 1300, top: 380 }, null, 'Ну возьми же!');
       s.pop(ins, 10.8, { from: 0.7, dur: 0.4, origin: '10% 100%' }); s.out(ins, 11.9, { dur: 0.3 });
-      s.sk(ov, [[CX - 24, CY - 6], [CX - 30, CY + 8], [CX - 24, CY + 14], [CX - 18, CY + 8], [CX - 24, CY - 6]], { at: 11.2, dur: 0.35, color: '#4A7FB0', width: 3.5, seed: 991, fill: '#CFE3F1' });
-      s.sk(ov, [[CX + 22, CY - 2], [CX + 17, CY + 10], [CX + 22, CY + 15], [CX + 27, CY + 10], [CX + 22, CY - 2]], { at: 11.6, dur: 0.3, color: '#4A7FB0', width: 3.5, seed: 993, fill: '#CFE3F1' });
+      // слёзы — аккуратные капли (взгляд ребёнка сдвинут влево-вниз, глаза — у CX−22 и CX+3)
+      function drop(x, y, t) {
+        var d = s.path(ov, 'M' + x + ' ' + y + ' C' + (x + 1.5) + ' ' + (y + 3) + ' ' + (x + 4.5) + ' ' + (y + 6) + ' ' + (x + 4.5) + ' ' + (y + 9) +
+          ' A4.5 4.5 0 1 1 ' + (x - 4.5) + ' ' + (y + 9) + ' C' + (x - 4.5) + ' ' + (y + 6) + ' ' + (x - 1.5) + ' ' + (y + 3) + ' ' + x + ' ' + y + ' Z',
+          { fill: '#9CC9EA', stroke: '#4A7FB0', 'stroke-width': 1.6 });
+        s.tween(d, t, { opacity: 0, y: -2 }, { opacity: 1, y: 4, duration: 0.3, ease: 'power2.out' });
+        s.tween(d, t + 0.35, { opacity: 1, y: 4 }, { opacity: 0, y: 24, duration: 0.9, ease: 'power1.in' });
+      }
+      drop(CX - 30, CY + 2, 11.2); drop(CX + 11, CY + 2, 11.5); drop(CX - 30, CY + 2, 12.2); // у внешних уголков глаз, мимо рта
 
       // смысл
       all.forEach(function (e) { s.out(e, 12.0, { dur: 0.35 }); });
@@ -139,14 +159,14 @@
     }
   });
 
-  // 2:55 — Правило сменилось: сортировка карточек (Ф. Зелазо, 2006)
+  // 2:45 — Удержать новое правило: сортировка карточек (Ф. Зелазо, 2006) — самоконтроль
   Film.scene({
     id: 'cards', bars: 5,
     build: function (s) {
       s.actor('adult', { o: 0 }, 0.0, 0.3);
-      var k = s.text('kicker', 'Ф. Зелазо, 2006', { left: 140, top: 150 });
+      var k = s.text('kicker', 'Самоконтроль · Ф. Зелазо, 2006', { left: 140, top: 150 });
       s.fade(k, 0.1, { y: 8 });
-      var h = s.text('h2', 'Правило сменилось', { left: 140, top: 186, width: 900 });
+      var h = s.text('h2', 'Удержать новое правило', { left: 140, top: 186, width: 1000 });
       s.lines(h, 0.2);
 
       var g = s.svg(), ov = s.over();
@@ -184,7 +204,7 @@
       s.tween(c2, 5.7, { x: BX1 + 20, y: BY - 30 }, { x: BX2, y: BY + 8, duration: 0.6, ease: 'power2.inOut' });
       var no = Film.cross(s, ov, BX2 + 84, BY - 54, RED);
       s.draw(no, 6.4, { dur: 0.3 });
-      var p1 = s.text('lead', 'Трёхлетний верно называет новое правило — и всё равно раскладывает по старому.', { left: 140, top: 330, width: 800, fontSize: 32 });
+      var p1 = s.text('lead', 'Трёхлетний верно называет новое правило — и всё равно раскладывает по старому: знать правило ещё не значит суметь ему следовать.', { left: 140, top: 330, width: 800, fontSize: 32 });
       s.lines(p1, 5.6, { stagger: 0.08 });
       // к 5 годам — переключается
       s.out(no, 7.6, { dur: 0.3 }); s.out(c2, 7.6, { dur: 0.3 });
@@ -195,16 +215,16 @@
       var ok3 = Film.check(s, ov, BX1 + 84, BY - 54, '#2E7D32');
       s.draw(ok3, 9.0, { dur: 0.3 });
       s.mouth('baby', 'smile', 9.0, 0.3);
-      var p2 = s.text('body', 'Половина детей переключается к 4 годам, большинство — к 5 (С. Добел, Ф. Зелазо, 2015: 69 работ).', { left: 140, top: 456, width: 800, fontSize: 28 });
+      var p2 = s.text('body', 'Половина детей переключается к 4 годам, большинство — к 5 (С. Добел, Ф. Зелазо, 2015: 69 работ).', { left: 140, top: 488, width: 800, fontSize: 28 });
       s.lines(p2, 8.4, { stagger: 0.08 });
-      var term = s.text('h3 acc', '<span class="term">исполнительные функции<span class="en">executive functions</span></span>', { left: 140, top: 580 });
+      var term = s.text('h3 acc', '<span class="term">исполнительные функции<span class="en">executive functions</span></span>', { left: 140, top: 596 });
       s.fade(term, 9.6, { y: 10 });
-      var tn = s.text('note', 'Три опоры самоконтроля: торможение, рабочая память, гибкость (А. Даймонд, 2013).', { left: 140, top: 690, width: 800 });
+      var tn = s.text('note', 'Три опоры самоконтроля: торможение, рабочая память, гибкость (А. Даймонд, 2013).', { left: 140, top: 704, width: 800 });
       s.fade(tn, 10.4, { y: 6 });
     }
   });
 
-  // 3:07,5 — Пятнадцать чашек и одна (Ж. Пиаже, 1932) → С. Нельсон; Дж. Сметана
+  // 2:57,5 — Пятнадцать чашек и одна (Ж. Пиаже, 1932) → С. Нельсон; Дж. Сметана
   Film.scene({
     id: 'cups', bars: 6,
     build: function (s) {
@@ -270,54 +290,66 @@
     }
   });
 
-  // 3:22,5 — Совесть: З. Фрейд → Г. Кочанска
+  // 3:12,5 — Совесть: один с запретными игрушками (Г. Кочанска, Н. Аксан, Э. Кёниг, 1995; Г. Кочанска, 1997)
   Film.scene({
     id: 'conscience', bars: 4,
     build: function (s) {
       s.actor('kid2', { o: 0 }, 0.0, 0.4); s.actor('kid3', { o: 0 }, 0.0, 0.4);
-      var k = s.text('kicker', 'З. Фрейд · Г. Кочанска', { left: 140, top: 150 });
+      var k = s.text('kicker', 'Г. Кочанска и др., 1995; 1997', { left: 140, top: 150 });
       s.fade(k, 0.1, { y: 8 });
       var h = s.text('h2', 'Совесть', { left: 140, top: 186, width: 900 });
       s.lines(h, 0.2);
-      var p1 = s.text('lead', 'Фрейд: сверх-Я — «наследник Эдипова комплекса». Ребёнок усваивает запреты, отождествляясь с родителем (1923–1924).', { left: 140, top: 330, width: 800, fontSize: 30 });
+      var p1 = s.text('lead', 'Мама просит не трогать игрушки на полке и выходит. Ребёнок остаётся один.', { left: 140, top: 330, width: 780, fontSize: 32 });
       s.lines(p1, 0.8, { stagger: 0.08 });
 
-      var g = s.svg(), ov = s.over();
-      var CX = 1400, CY = 720;
-      s.actor('adult', { x: 1220, y: 470, d: 130, o: 0 }, 0.3, 0.01); s.actor('adult', { o: 1 }, 0.4, 0.5);
-      s.actor('adult2', { x: 1580, y: 470, d: 130, o: 0 }, 0.3, 0.01); s.actor('adult2', { o: 1 }, 0.5, 0.5);
-      s.actor('baby', { x: CX, y: CY, d: 100, o: 0 }, 0.3, 0.01); s.actor('baby', { o: 1 }, 0.6, 0.5);
-      s.face('baby', true, 0.7, 0.3); s.mouth('baby', 'flat', 0.7, 0.01); s.gaze('baby', 0, -6, 0.7, 0.01);
-      var tri = s.node(g, 'g', {});
-      s.sk(tri, [[1220, 470], [1580, 470], [CX, CY], [1220, 470]], { at: 1.0, dur: 0.9, seed: 701, opacity: 0.5 });
-      // внутренний голос: пунктирный «родитель» уходит внутрь ребёнка
-      var inner = s.node(ov, 'circle', { cx: 1580, cy: 470, r: 28, fill: 'none', stroke: ORANGE, 'stroke-width': 3, 'stroke-dasharray': '4 8', opacity: 0 });
-      s.tween(inner, 2.2, { opacity: 0 }, { opacity: 1, duration: 0.3 });
-      s.tween(inner, 2.6, { attr: { cx: 1580, cy: 470 } }, { attr: { cx: CX, cy: CY - 14 }, duration: 1.3, ease: 'power2.inOut' });
-      var il = s.text('note', 'сверх-Я', { left: CX + 66, top: CY - 40, color: DEEP, fontWeight: 650 });
-      s.fade(il, 3.8, { y: 4 });
+      var g = s.svg(), TOY = Film.toys;
+      // полка с заманчивыми игрушками
+      var shelf = s.node(g, 'g', {});
+      s.sk(shelf, Film.sharp([[1560, 760], [1560, 430], [1780, 430], [1780, 760]]), { seed: 731, width: 4.4, amp: 0.8 });
+      s.sk(shelf, [[1560, 545], [1780, 545]], { seed: 733, width: 4 });
+      s.sk(shelf, [[1560, 655], [1780, 655]], { seed: 735, width: 4 });
+      TOY.ball(s, shelf, 1612, 519, 24, '#E4735A', '#B8533D');
+      TOY.bunny(s, shelf, 1716, 543, 0.42);
+      TOY.block(s, shelf, 1606, 653, 46, '#4A7FB0', '#2F5E8A', 'А');
+      TOY.block(s, shelf, 1658, 653, 46, '#E0A930', '#A77A12', 'Б');
+      TOY.block(s, shelf, 1632, 607, 46, '#5E9E5E', '#3F7A3F', 'В');
+      s.tween(shelf, 0.3, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5 });
+      // свои кубики на полу
+      var own = s.node(g, 'g', {});
+      TOY.block(s, own, 1036, 812, 52, '#E4735A', '#B8533D', 'Г');
+      TOY.block(s, own, 1092, 812, 52, '#4A7FB0', '#2F5E8A', 'Д');
+      s.tween(own, 0.5, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5 });
 
-      // сейчас: тёплые, взаимно отзывчивые отношения
-      [p1, il].forEach(function (e) { s.out(e, 5.0, { dur: 0.4 }); });
-      s.out(tri, 5.0, { dur: 0.4 }); s.out(inner, 5.0, { dur: 0.4 });
-      s.actor('adult2', { o: 0 }, 5.0, 0.4);
-      s.actor('adult', { x: 1170, y: 640 }, 5.0, 0.9, 'power2.inOut');
-      s.mouth('baby', 'smile', 5.6, 0.3); s.gaze('baby', -8, -2, 5.6, 0.3);
-      s.face('adult', true, 5.8, 0.3); s.mouth('adult', 'smile', 5.8, 0.01); s.gaze('adult', 7, 2, 5.8, 0.01);
-      s.sk(ov, [[1240, 590], [1290, 560], [1340, 590]], { at: 6.0, dur: 0.5, color: ORANGE, width: 4.5, seed: 711 });
-      s.sk(ov, [[1340, 740], [1290, 770], [1240, 740]], { at: 6.3, dur: 0.5, color: ORANGE, width: 4.5, seed: 713 });
-      var bub = s.div('bubble tail-l', { left: CX - 20, top: CY - 160 }, null, 'Давай!');
-      s.pop(bub, 7.0, { from: 0.7, dur: 0.5, origin: '10% 100%' });
-      var nl = s.text('small-caps', 'Сейчас понимают так', { left: 140, top: 330 });
-      s.fade(nl, 5.4, { y: 6 });
-      var p2 = s.text('lead', 'Совесть растёт из тёплых, взаимно отзывчивых отношений и добровольного «да» ребёнка — а не из страха.', { left: 140, top: 366, width: 800, fontSize: 30 });
-      s.lines(p2, 5.6, { stagger: 0.08 });
-      var c2 = s.text('cite', 'Г. Кочанска, 1997; 2002', { left: 140, top: 500 });
-      s.fade(c2, 6.6, { y: 6 });
+      var CX = 1200, CY = 760;
+      s.actor('baby', { x: CX, y: CY, d: 100, o: 0 }, 0.0, 0.01);
+      s.actor('baby', { o: 1 }, 0.2, 0.5);
+      s.face('baby', true, 0.3, 0.3); s.mouth('baby', 'soft', 0.3, 0.3); s.gaze('baby', 8, -4, 0.3, 0.3);
+      s.actor('adult', { x: 1500, y: 520, d: 130, o: 0 }, 0.4, 0.01);
+      s.actor('adult', { x: 1420, o: 1 }, 0.5, 0.5, 'power3.out');
+      s.face('adult', true, 0.6, 0.3); s.mouth('adult', 'smile', 0.6, 0.01); s.gaze('adult', -8, 4, 0.6, 0.01);
+      var ask = s.div('bubble tail-r soft', { left: 1000, top: 360 }, null, 'Эти игрушки не трогай!');
+      s.pop(ask, 1.0, { from: 0.7, dur: 0.45, origin: '90% 100%' }); s.out(ask, 2.3, { dur: 0.3 });
+      s.actor('adult', { x: 1820, o: 0 }, 2.5, 0.6, 'power2.in');
+      // один: тянется — останавливается — возвращается к своим кубикам
+      s.gaze('baby', 9, -6, 3.0, 0.3);
+      s.hop('baby', 1400, CY, 3.51, 0.4, 30);
+      s.squash('baby', 1.14, 0.9, 3.95, 0.2);
+      s.squash('baby', 1, 1, 4.2, 0.3, 'power2.out'); s.mouth('baby', 'flat', 4.2, 0.2); s.gaze('baby', 0, 6, 4.2, 0.3);
+      s.hop('baby', CX, CY, 4.51, 0.4, 30);
+      s.gaze('baby', -8, 4, 4.9, 0.3); s.mouth('baby', 'smile', 5.0, 0.3);
+      s.squash('baby', 1.06, 0.95, 5.2, 0.12); s.squash('baby', 1, 1, 5.32, 0.3, 'back.out(3)');
+      s.tween(own, 5.2, { y: 0 }, { y: -10, duration: 0.15, ease: 'power2.out' });
+      s.tween(own, 5.35, { y: -10 }, { y: 0, duration: 0.3, ease: 'bounce.out' });
+
+      var p2 = s.text('body', 'Чаще удерживаются те, кто слушается маму охотно, а не из-под палки, и у кого с ней много общей радости.', { left: 140, top: 450, width: 800, fontSize: 28 });
+      s.lines(p2, 5.0, { stagger: 0.08 });
+      var fin = s.text('statement', 'Совесть растёт из ' + s.HL('тёплых отношений,') + ' а не из страха.', { left: 140, top: 590, width: 820, fontSize: 44 });
+      s.lines(fin, 6.5);
+      s.hl(fin, 7.4);
     }
   });
 
-  // 3:32,5 — Инициатива против вины (Э. Эриксон, 1950): башня из кубиков и ракета-замысел
+  // 3:22,5 — Инициатива против вины (Э. Эриксон, 1950): башня из кубиков и ракета-замысел
   Film.scene({
     id: 'erikson', bars: 4,
     build: function (s) {

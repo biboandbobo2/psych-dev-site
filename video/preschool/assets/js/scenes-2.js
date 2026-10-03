@@ -1,4 +1,4 @@
-/* Часть 2. Мир глазами другого · мышление: сохранение (Пиаже), три горы, Макси (Виммер, Пернер), культура */
+/* Часть 2. Мир глазами другого · мышление: сохранение (Пиаже), три горы, Макси (Виммер, Пернер) */
 /* global Film */
 (function () {
   'use strict';
@@ -23,7 +23,7 @@
       s.chapterCard(2, 'Мир глазами другого', 'мышление · 3–7 лет');
       s.range(36, 84, 0.15, 1.3);
       s.age(48, 0.2, 1.3);
-      s.chapter(2, 'Мир глазами другого', 0.4, 52.1);
+      s.chapter(2, 'Мир глазами другого', 0.4, 42.1);
     }
   });
 
@@ -235,56 +235,4 @@
     }
   });
 
-  // 2:25 — Ступени те же, порядок разный (Г. Уэллман, Д. Лю, 2004; А. Шахаян и др., 2011)
-  Film.scene({
-    id: 'culture', bars: 4,
-    build: function (s) {
-      s.actor('baby', { o: 0 }, 0.0, 0.35);
-      var k = s.text('kicker', 'Межкультурные данные', { left: 140, top: 150 });
-      s.fade(k, 0.1, { y: 8 });
-      var h = s.text('h2', 'Ступени те же — порядок разный', { left: 140, top: 186, width: 1600 });
-      s.lines(h, 0.2);
-      var g = s.svg();
-      var SW = 170, SH = 62, BASE = 760;
-      var names = ['хотят<br>разного', 'думают<br>по-разному', 'не видел —<br>не знает', 'можно<br>ошибаться'];
-      var stairs = [[160, 'Австралия, США', 'baby'], [1060, 'Иран, Китай', 'kid2']].map(function (st, j) {
-        var x0 = st[0], steps = [], labs = [];
-        var hd = s.text('label', st[1], { left: x0, top: 330, fontSize: 30 });
-        s.fade(hd, 0.5 + j * 0.2, { y: 6 });
-        for (var i = 0; i < 4; i++) {
-          var top = BASE - (i + 1) * SH;
-          var r = s.node(g, 'rect', { x: x0 + i * SW, y: top, width: SW, height: (i + 1) * SH, fill: '#F3EDE2', stroke: '#CDC3B4', 'stroke-width': 2.5 });
-          s.tween(r, 0.5 + j * 0.2 + i * 0.08, { opacity: 0, scaleY: 0, transformOrigin: '50% 100%' }, { opacity: 1, scaleY: 1, duration: 0.45, ease: 'power3.out' });
-          var lb = s.text('label', names[i], { left: x0 + i * SW, top: top + 8, width: SW, textAlign: 'center', fontSize: 23, lineHeight: 1.1, color: '#3C4852' });
-          s.fade(lb, 0.9 + j * 0.2 + i * 0.08, { y: 4 });
-          steps.push(r); labs.push(lb);
-        }
-        return { x0: x0, steps: steps, labs: labs, kid: st[2] };
-      });
-      // справа две средние ступени меняются местами
-      var R = stairs[1];
-      s.tween(R.labs[1], 1.6, { x: 0, y: 0 }, { x: SW, y: -SH, duration: 0.7, ease: 'power2.inOut' });
-      s.tween(R.labs[2], 1.6, { x: 0, y: 0 }, { x: -SW, y: SH, duration: 0.7, ease: 'power2.inOut' });
-      var tmp = R.labs[1]; R.labs[1] = R.labs[2]; R.labs[2] = tmp;
-      [stairs[0].labs[1], stairs[0].labs[2], R.labs[1], R.labs[2]].forEach(function (e) {
-        s.tween(e, 2.3, { color: '#3C4852' }, { color: DEEP, duration: 0.4 });
-      });
-      // дети поднимаются по ступеням, каждая ступень загорается под ногами
-      stairs.forEach(function (st) {
-        var id = st.kid, sx = st.x0 - 50, sy = BASE - 32;
-        s.actor(id, { x: sx, y: sy, d: 64, o: 0 }, 0.9, 0.01);
-        s.actor(id, { o: 1 }, 1.0, 0.4);
-        s.face(id, true, 1.0, 0.3); s.mouth(id, 'smile', 1.0, 0.01); s.gaze(id, 8, -4, 1.0, 0.01);
-        [2.5, 3.125, 3.75, 4.375].forEach(function (lt, i) {
-          s.hop(id, st.x0 + i * SW + SW / 2, BASE - (i + 1) * SH - 32, lt - 0.09, 0.32, 34);
-          s.tween(st.steps[i], lt + 0.3, { fill: '#F3EDE2' }, { fill: '#FEF0DD', duration: 0.3 });
-        });
-      });
-      var c1 = s.text('body', 'В Иране и Китае дети раньше понимают «не видел — не знает», а то, что люди думают по-разному, — позже. В Австралии и США — наоборот.', { left: 140, top: 788, width: 1640, fontSize: 27 });
-      s.lines(c1, 5.0, { stagger: 0.08 });
-      var c2 = s.text('note', 'Авторы связывают это с ценностями семьи: уважение к старшим, избегание споров, ценность знания (А. Шахаян и др., 2011; Г. Уэллман, Д. Лю, 2004).', { left: 140, top: 872, width: 1640, fontSize: 22 });
-      s.fade(c2, 6.4, { y: 6 });
-      s.actor('baby', { o: 0 }, 9.4, 0.35); s.actor('kid2', { o: 0 }, 9.4, 0.35);
-    }
-  });
 })();

@@ -136,14 +136,24 @@
     return g;
   };
 
-  // Руль. (x, y) — центр
+  // Руль: обод, ступица, три спицы. (x, y) — центр
   I.wheel = function (s, parent, x, y, k, o) {
     o = o || {}; var g = grp(s, parent), p = pen(s, g, x, y, k, o);
-    p(ell(0, 0, 30, 30, 16), 0, 0.6, { color: ORANGE, width: 5 });
-    p([[-28, 2], [-7, 2]], 0.6, 0.12, { color: ORANGE, width: 4.2 });
-    p([[28, 2], [7, 2]], 0.66, 0.12, { color: ORANGE, width: 4.2 });
-    p([[0, 7], [0, 28]], 0.72, 0.12, { color: ORANGE, width: 4.2 });
-    p(ell(0, 2, 7, 7, 10), 0.8, 0.15, { color: ORANGE, width: 4 });
+    p(ell(0, 0, 30, 30, 22), 0, 0.5, { width: 7, amp: 0.35 });
+    p([[-24, 3], [-9, 3]], 0.5, 0.12, { width: 5.5, amp: 0.2 });
+    p([[24, 3], [9, 3]], 0.56, 0.12, { width: 5.5, amp: 0.2 });
+    p([[0, 11], [0, 25]], 0.62, 0.12, { width: 5.5, amp: 0.2 });
+    p(ell(0, 3, 9, 9, 12), 0.68, 0.2, { color: ORANGE, fill: '#FFC46B', width: 3.6, amp: 0.2 });
+    return g;
+  };
+
+  // Поварской колпак: пышный верх и околыш со складками. (x, y) — середина низа (на макушке)
+  I.chefHat = function (s, parent, x, y, k, o) {
+    o = o || {}; var g = grp(s, parent), p = pen(s, g, x, y, k, o);
+    p([[-24, -16], [-34, -24], [-38, -40], [-28, -54], [-12, -54], [-4, -64], [14, -62], [24, -52], [38, -46], [38, -28], [24, -16]], 0, 0.55, { fill: PAPER, amp: 0.6 });
+    p(sharp([[-24, 0], [24, 0], [24, -16], [-24, -16], [-24, 0]]), 0.45, 0.3, { fill: PAPER, amp: 0.4 });
+    p([[-8, -18], [-10, -40]], 0.75, 0.12, { width: 2.8, opacity: 0.6, amp: 0.3 });
+    p([[8, -18], [10, -40]], 0.8, 0.12, { width: 2.8, opacity: 0.6, amp: 0.3 });
     return g;
   };
 
@@ -241,6 +251,28 @@
     e(0, -100, 16, 12, MUZ);
     e(0, -105, 6.5, 4.8, DARK); e(-14, -120, 3.8, 3.8, DARK); e(14, -120, 3.8, 3.8, DARK);
     s.path(g, 'M' + (x - 6 * k) + ' ' + (y - 95 * k) + ' Q' + x + ' ' + (y - 90 * k) + ' ' + (x + 6 * k) + ' ' + (y - 95 * k), { stroke: DARK, 'stroke-width': 2.4 });
+    return g;
+  };
+
+  // Игрушечный зайка сидит; (x, y) — середина низа
+  T.bunny = function (s, parent, x, y, k) {
+    var g = s.node(parent, 'g', {}), F = '#EEE8E2', E = '#A39488', P = '#F2BDBD';
+    function e(cx, cy, rx, ry, f, st, rot) {
+      var a = { cx: x + cx * k, cy: y + cy * k, rx: rx * k, ry: ry * k, fill: f };
+      if (st) { a.stroke = E; a['stroke-width'] = 3; }
+      if (rot) a.transform = 'rotate(' + rot + ' ' + (x + cx * k) + ' ' + (y + cy * k) + ')';
+      return s.node(g, 'ellipse', a);
+    }
+    e(-14, -164, 11, 34, F, 1, -12); e(14, -164, 11, 34, F, 1, 12);
+    e(-14, -162, 5, 24, P, 0, -12); e(14, -162, 5, 24, P, 0, 12);
+    e(-22, -10, 17, 11, F, 1); e(22, -10, 17, 11, F, 1);
+    e(0, -48, 36, 40, F, 1);
+    e(0, -44, 21, 25, '#FFFFFF');
+    e(-34, -58, 10, 19, F, 1, 22); e(34, -58, 10, 19, F, 1, -22);
+    e(0, -110, 32, 30, F, 1);
+    e(-11, -116, 3.6, 3.6, DARK); e(11, -116, 3.6, 3.6, DARK);
+    e(0, -104, 5, 3.8, '#E58C8C');
+    s.path(g, 'M' + (x - 5 * k) + ' ' + (y - 96 * k) + ' Q' + x + ' ' + (y - 91 * k) + ' ' + (x + 5 * k) + ' ' + (y - 96 * k), { stroke: DARK, 'stroke-width': 2.2 });
     return g;
   };
 
