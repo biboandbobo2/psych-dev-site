@@ -400,7 +400,12 @@
       draw: function (p, lt, o) { draw(p, t0 + lt, o); },
       dash: function (p, lt, o) { drawDashed(p, t0 + lt, o); },
       hl: function (e, lt, o) { hl(e, t0 + lt, o); },
-      tween: function (e, lt, from, to) { to.immediateRender = false; tl.fromTo(e, from, to, t0 + lt); },
+      tween: function (e, lt, from, to) {
+        // первый твин прозрачности, который начинается с нуля, прячет элемент с самого начала —
+        // иначе элемент виден до своего появления (а потом «появляется второй раз»)
+        if (from.opacity != null) [].concat(e).forEach(function (x) { if (!x.__op) { x.__op = 1; if (from.opacity === 0) x.style.opacity = 0; } });
+        to.immediateRender = false; tl.fromTo(e, from, to, t0 + lt);
+      },
       set: function (e, lt, from, to) { to.duration = 0.001; to.immediateRender = false; tl.fromTo(e, from, to, t0 + lt); },
       actor: function (id, props, lt, dur, ease) { aTo(id, props, t0 + lt, dur, ease); },
       hop: function (id, x, y, lt, dur, h) { return hop(id, x, y, t0 + lt, dur, h) - t0; },
@@ -468,8 +473,9 @@
       var s = makeScene(def, t);
       tl.fromTo([s.box, s.ov], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, immediateRender: false }, t);
       def.build(s);
-      tl.fromTo([s.box, s.ov], { autoAlpha: 1, y: 0, filter: 'blur(0px)' },
-        { autoAlpha: 0, y: -14, filter: 'blur(7px)', duration: 0.5, ease: 'power2.in', immediateRender: false }, s.end - 0.5);
+      if (!def.hold) // hold: сцена остаётся до последнего кадра (финальная карточка)
+        tl.fromTo([s.box, s.ov], { autoAlpha: 1, y: 0, filter: 'blur(0px)' },
+          { autoAlpha: 0, y: -14, filter: 'blur(7px)', duration: 0.5, ease: 'power2.in', immediateRender: false }, s.end - 0.5);
       t = s.end;
     });
     Film.total = t;

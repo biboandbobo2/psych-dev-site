@@ -19,31 +19,44 @@
     s.sk(g, [[x, y], [x - 6, y + 14], [x, y + 20], [x + 6, y + 14], [x, y]], { at: at, dur: 0.4, color: BLUE, width: 3.5, seed: 991 });
   }
 
-  // 2:20 — заставка части
+  // 2:35 — заставка части
   Film.scene({
     id: 'ch3', bars: 1,
     build: function (s) {
-      s.actor('kid2', { o: 0 }, 0.0, 0.4); s.actor('adult', { o: 0 }, 0.0, 0.4);
+      s.actor('kid2', { o: 0 }, 0.0, 0.4); s.actor('adult', { o: 0 }, 0.0, 0.4); s.actor('baby', { o: 0 }, 0.0, 0.4);
       s.chapterCard(3, 'Хочу, но надо', 'воля и правила · 3–7 лет');
       s.range(36, 84, 0.15, 1.3);
       s.age(60, 0.2, 1.3);
-      s.chapter(3, 'Хочу, но надо', 0.4, 64.6);
+      s.chapter(3, 'Хочу, но надо', 0.4, 67.1);
     }
   });
 
-  // 2:22,5 — Горькая конфета (описано А. Н. Леонтьевым, 1975)
+  // 2:37,5 — Горькая конфета (описано А. Н. Леонтьевым, 1975): история по шагам, затем — смысл
   Film.scene({
-    id: 'candy', bars: 6,
+    id: 'candy', bars: 7,
     build: function (s) {
       var k = s.text('kicker', 'Описано А. Н. Леонтьевым, 1975', { left: 140, top: 150 });
       s.fade(k, 0.1, { y: 8 });
       var h = s.text('h2', 'Горькая конфета', { left: 140, top: 186, width: 900 });
       s.lines(h, 0.2);
-      var p1 = s.text('lead', 'Задание: достать далёкий предмет, не вставая с места. Взрослый уходит и наблюдает через окошко.', { left: 140, top: 330, width: 780, fontSize: 32 });
-      s.lines(p1, 0.9, { stagger: 0.08 });
+      var steps = [
+        [0.9, 'Задание: достать далёкий предмет, не вставая со стула.'],
+        [2.5, 'Взрослый выходит и наблюдает через окошко.'],
+        [6.0, 'Дотянуться не получается. Ребёнок встаёт, берёт предмет и садится обратно.'],
+        [8.75, 'Взрослый хвалит и даёт конфету. Ребёнок отказывается и тихо плачет.']
+      ];
+      var texts = [], all = [];
+      steps.forEach(function (st, i) {
+        var y = 326 + i * 88;
+        var b = s.div('num-badge', { left: 140, top: y, width: 44, height: 44, fontSize: 24 }, null, String(i + 1));
+        var t = s.text('body', st[1], { left: 204, top: y + 2, width: 740, fontSize: 28 });
+        s.pop(b, st[0], { from: 0.7, dur: 0.4 }); s.lines(t, st[0] + 0.05, { stagger: 0.07 });
+        if (i > 0) s.tween(texts[i - 1], st[0], { color: '#3C4852' }, { color: MUTE, duration: 0.4 }); // прошлый шаг гаснет
+        texts.push(t); all.push(t, b);
+      });
 
-      var g = s.svg(), ov = s.over();
-      var CX = 1100, CY = 640, OX = 1620;
+      var g = s.svg(), ov = s.over(), TOY = Film.toys, IC = Film.icons;
+      var CX = 1100, CY = 640, TX = 1650;
       var chair = s.node(g, 'g', { opacity: 0 });
       s.sk(chair, [[CX - 50, CY + 56], [CX + 50, CY + 56]], { seed: 401, width: 4 });
       s.sk(chair, [[CX - 50, CY + 56], [CX - 50, CY + 110]], { seed: 403, width: 4 });
@@ -53,67 +66,84 @@
       s.actor('baby', { x: CX, y: CY, d: 104, o: 0 }, 0.4, 0.01);
       s.actor('baby', { o: 1 }, 0.6, 0.5);
       s.face('baby', true, 0.7, 0.3); s.mouth('baby', 'soft', 0.7, 0.01); s.gaze('baby', 8, 0, 0.7, 0.01);
-      s.actor('obj', { x: OX, y: CY + 30, d: 70, o: 0 }, 0.6, 0.01);
-      s.actor('obj', { o: 1 }, 0.8, 0.5);
-      // окошко наблюдения
-      var win = s.node(g, 'g', { opacity: 0 });
-      s.sk(win, [[1560, 300], [1760, 300], [1760, 440], [1560, 440], [1560, 300]], { seed: 411, width: 4 });
-      s.sk(win, [[1660, 300], [1660, 440]], { seed: 413, width: 3, opacity: 0.6 });
-      s.tween(win, 1.2, { opacity: 0 }, { opacity: 1, duration: 0.5 });
-      s.actor('adult', { x: 880, y: 560, d: 130, o: 0 }, 0.5, 0.01);
+      // далёкий предмет — мяч на столике
+      var tab = s.node(g, 'g', { opacity: 0 });
+      s.sk(tab, [[TX - 70, CY + 60], [TX + 70, CY + 60]], { seed: 409, width: 4 });
+      s.sk(tab, [[TX - 56, CY + 60], [TX - 56, CY + 110]], { seed: 411, width: 4 });
+      s.sk(tab, [[TX + 56, CY + 60], [TX + 56, CY + 110]], { seed: 413, width: 4 });
+      s.tween(tab, 0.7, { opacity: 0 }, { opacity: 1, duration: 0.5 });
+      var ball = s.node(g, 'g', {});
+      TOY.ball(s, ball, TX, CY + 26, 32, '#4A7FB0', '#2F5E8A');
+      s.tween(ball, 0.8, { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.5, ease: 'back.out(2)' });
+      var far = s.path(ov, 'M' + (CX + 70) + ' ' + (CY + 20) + ' H' + (TX - 50), { stroke: MUTE, 'stroke-width': 3, 'stroke-dasharray': '4 10' });
+      s.dash(far, 1.2, { dur: 0.6 });
+      var farL = s.otext('note', 'не вставая со стула', { left: CX + 90, top: CY - 26, width: 400, textAlign: 'center', fontSize: 22 });
+      s.fade(farL, 1.4, { y: 4 });
+      s.out(far, 5.9, { dur: 0.3 }); s.out(farL, 5.9, { dur: 0.3 });
+      // взрослый уходит к окошку
+      s.actor('adult', { x: 1340, y: 500, d: 130, o: 0 }, 0.5, 0.01);
       s.actor('adult', { o: 1 }, 0.7, 0.5);
-      s.actor('adult', { x: 1700, y: 380, d: 80 }, 1.8, 1.0, 'power2.inOut');
-      // попытки дотянуться
-      s.squash('baby', 1.22, 0.86, 3.0, 0.3); s.squash('baby', 1, 1, 3.35, 0.4, 'back.out(3)');
-      s.squash('baby', 1.26, 0.84, 3.9, 0.3); s.squash('baby', 1, 1, 4.25, 0.4, 'back.out(3)');
-      s.mouth('baby', 'flat', 4.4, 0.2);
-      // встал, взял, спокойно вернулся
-      var land = s.hop('baby', OX - 100, CY, 4.9, 0.5, 40);
-      s.actor('obj', { x: OX - 100 + 58, y: CY + 22, d: 44 }, land + 0.1, 0.4);
-      s.hop('baby', CX, CY, land + 0.6, 0.5, 40);
-      s.actor('obj', { x: CX + 58, y: CY + 22 }, land + 0.69, 0.5, 'sine.inOut');
-      s.mouth('baby', 'soft', 6.6, 0.2);
-      // взрослый входит, хвалит, протягивает конфету
-      s.actor('adult', { x: 1340, y: 560, d: 130 }, 6.8, 0.9, 'power2.inOut');
-      var bub = s.div('bubble tail-r soft', { left: 1220, top: 360 }, null, 'Молодец! Держи конфету.');
-      s.pop(bub, 7.6, { from: 0.7, dur: 0.5, origin: '90% 100%' }); s.out(bub, 10.0, { dur: 0.3 });
+      var win = s.node(g, 'g', { opacity: 0 });
+      s.sk(win, Film.sharp([[1580, 300], [1780, 300], [1780, 440], [1580, 440], [1580, 300]]), { seed: 415, width: 4, fill: '#EEF3F6', amp: 1 });
+      s.sk(win, [[1680, 300], [1680, 440]], { seed: 417, width: 3, opacity: 0.6 });
+      s.tween(win, 2.2, { opacity: 0 }, { opacity: 1, duration: 0.5 });
+      s.actor('adult', { x: 1720, y: 380, d: 80 }, 2.5, 1.0, 'power2.inOut');
+      s.face('adult', true, 3.4, 0.3); s.mouth('adult', 'soft', 3.4, 0.01); s.gaze('adult', -10, 6, 3.4, 0.01);
+      // тянется — не достать
+      s.squash('baby', 1.22, 0.86, 4.4, 0.3); s.squash('baby', 1, 1, 4.75, 0.4, 'back.out(3)');
+      s.squash('baby', 1.26, 0.84, 5.0, 0.3); s.squash('baby', 1, 1, 5.35, 0.4, 'back.out(3)');
+      s.mouth('baby', 'flat', 5.3, 0.2);
+      // встал, взял, вернулся на стул
+      s.hop('baby', TX - 110, CY, 6.16, 0.5, 40);
+      s.tween(ball, 6.8, { x: 0, y: 0 }, { x: -52, y: 6, duration: 0.3, ease: 'power2.out' });
+      s.hop('baby', CX, CY, 7.16, 0.5, 40); Film.ride(s, ball, CX - (TX - 110), 7.16, 0.5, 40);
+      s.mouth('baby', 'soft', 7.9, 0.2); s.gaze('baby', 6, 0, 7.9, 0.3);
+      // взрослый возвращается, хвалит, даёт конфету
+      s.actor('adult', { x: 1340, y: 560, d: 130 }, 8.75, 0.8, 'power2.inOut');
+      s.gaze('adult', -8, 2, 8.9, 0.3); s.mouth('adult', 'smile', 8.9, 0.3);
+      var bub = s.div('bubble tail-l soft', { left: 1300, top: 380 }, null, 'Молодец! Держи конфету.');
+      s.pop(bub, 9.0, { from: 0.7, dur: 0.5, origin: '10% 100%' }); s.out(bub, 10.4, { dur: 0.3 });
       var candy = s.node(ov, 'g', {});
-      s.sk(candy, [[1238, 620], [1270, 620], [1270, 642], [1238, 642], [1238, 620]], { at: 7.8, dur: 0.35, color: ORANGE, width: 4.5, seed: 421 });
-      s.sk(candy, [[1238, 631], [1222, 620], [1222, 642], [1238, 631]], { at: 8.1, dur: 0.2, color: ORANGE, width: 4, seed: 423 });
-      s.sk(candy, [[1270, 631], [1286, 620], [1286, 642], [1270, 631]], { at: 8.2, dur: 0.2, color: ORANGE, width: 4, seed: 425 });
-      // отказывается — тихо плачет
-      s.gaze('baby', -9, 3, 8.6, 0.4); s.mouth('baby', 'sad', 8.8, 0.4);
-      tear(s, ov, CX - 24, CY - 6, 9.4);
-      s.out(p1, 8.6, { dur: 0.4 });
-      var p2 = s.text('lead', 'Ребёнок отказывается от конфеты, а когда взрослый настаивает, тихо плачет.', { left: 140, top: 330, width: 780, fontSize: 32 });
-      s.lines(p2, 9.0, { stagger: 0.08 });
-      var q = s.text('quote', '«Конфета оказалась горькой — горькой по своему личностному смыслу»', { left: 140, top: 470, width: 800, fontSize: 38 });
-      s.lines(q, 10.4, { stagger: 0.1 });
-      var qc = s.text('cite', 'А. Н. Леонтьев', { left: 140, top: 580 });
-      s.fade(qc, 11.1, { y: 6 });
-      var term = s.text('h3 acc', 'Соподчинение мотивов', { left: 140, top: 650 });
-      s.fade(term, 12.0, { y: 10 });
-      var tn = s.text('body', '«Надо» начинает подчинять «хочу». По Леонтьеву — первое рождение личности.', { left: 140, top: 712, width: 800, fontSize: 28 });
-      s.lines(tn, 12.4, { stagger: 0.08 });
+      IC.candy(s, candy, 1240, 610, 0.85, { at: 9.4, dur: 0.6, seed: 421 });
+      // отказывается; взрослый настаивает — ребёнок плачет
+      s.gaze('baby', -9, 3, 10.6, 0.4); s.mouth('baby', 'sad', 10.6, 0.4);
+      s.tween(candy, 10.6, { x: 0 }, { x: 40, duration: 0.4, ease: 'power2.out' });
+      var ins = s.div('bubble tail-l soft', { left: 1300, top: 380 }, null, 'Ну возьми же!');
+      s.pop(ins, 10.8, { from: 0.7, dur: 0.4, origin: '10% 100%' }); s.out(ins, 11.9, { dur: 0.3 });
+      s.sk(ov, [[CX - 24, CY - 6], [CX - 30, CY + 8], [CX - 24, CY + 14], [CX - 18, CY + 8], [CX - 24, CY - 6]], { at: 11.2, dur: 0.35, color: '#4A7FB0', width: 3.5, seed: 991, fill: '#CFE3F1' });
+      s.sk(ov, [[CX + 22, CY - 2], [CX + 17, CY + 10], [CX + 22, CY + 15], [CX + 27, CY + 10], [CX + 22, CY - 2]], { at: 11.6, dur: 0.3, color: '#4A7FB0', width: 3.5, seed: 993, fill: '#CFE3F1' });
+
+      // смысл
+      all.forEach(function (e) { s.out(e, 12.0, { dur: 0.35 }); });
+      var why = s.text('lead', 'Почему? Предмет достался нечестно — и награда не радует.', { left: 140, top: 330, width: 800, fontSize: 32 });
+      s.lines(why, 12.3, { stagger: 0.08 });
+      var q = s.text('quote', '«Конфета оказалась горькой — горькой по своему личностному смыслу»', { left: 140, top: 430, width: 800, fontSize: 36 });
+      s.lines(q, 13.0, { stagger: 0.1 });
+      var qc = s.text('cite', 'А. Н. Леонтьев', { left: 140, top: 532 });
+      s.fade(qc, 13.6, { y: 6 });
+      var term = s.text('h3 acc', 'Соподчинение мотивов', { left: 140, top: 596 });
+      s.fade(term, 14.2, { y: 10 });
+      var tn = s.text('body', '«Надо» начинает подчинять «хочу». По Леонтьеву — первое рождение личности.', { left: 140, top: 658, width: 800, fontSize: 28 });
+      s.lines(tn, 14.6, { stagger: 0.08 });
       // весы мотивов
       var bal = s.node(ov, 'g', {});
-      s.sk(bal, [[1380, 330], [1360, 362], [1400, 362], [1380, 330]], { at: 12.0, dur: 0.4, seed: 431 });
+      s.sk(bal, [[1380, 330], [1360, 362], [1400, 362], [1380, 330]], { at: 13.8, dur: 0.3, seed: 431 });
       var beam = s.node(bal, 'g', {});
-      s.sk(beam, [[1260, 330], [1500, 330]], { at: 12.2, dur: 0.4, seed: 433, width: 4.5 });
-      var w1 = s.text('label', 'хочу', { left: 1220, top: 280, width: 80, textAlign: 'center', fontSize: 24 });
-      var w2 = s.text('label', 'надо', { left: 1460, top: 280, width: 80, textAlign: 'center', fontSize: 24, color: DEEP });
-      s.fade(w1, 12.4, { y: 4 }); s.fade(w2, 12.5, { y: 4 });
-      s.tween(beam, 13.0, { rotation: 0 }, { rotation: 9, duration: 0.9, ease: 'back.out(1.6)', svgOrigin: '1380 330' });
-      s.tween(w1, 13.0, { y: 0 }, { y: -19, duration: 0.9, ease: 'back.out(1.6)' });
-      s.tween(w2, 13.0, { y: 0 }, { y: 19, duration: 0.9, ease: 'back.out(1.6)' });
+      s.sk(beam, [[1260, 330], [1500, 330]], { at: 13.9, dur: 0.3, seed: 433, width: 4.5 });
+      var w1 = s.otext('label', 'хочу', { left: 1220, top: 280, width: 80, textAlign: 'center', fontSize: 24 });
+      var w2 = s.otext('label', 'надо', { left: 1460, top: 280, width: 80, textAlign: 'center', fontSize: 24, color: DEEP });
+      s.fade(w1, 14.0, { y: 4 }); s.fade(w2, 14.1, { y: 4 });
+      s.tween(beam, 14.4, { rotation: 0 }, { rotation: 9, duration: 0.9, ease: 'back.out(1.6)', svgOrigin: '1380 330' });
+      s.tween(w1, 14.4, { y: 0 }, { y: -19, duration: 0.9, ease: 'back.out(1.6)' });
+      s.tween(w2, 14.4, { y: 0 }, { y: 19, duration: 0.9, ease: 'back.out(1.6)' });
     }
   });
 
-  // 2:37,5 — Правило сменилось: сортировка карточек (Ф. Зелазо, 2006)
+  // 2:55 — Правило сменилось: сортировка карточек (Ф. Зелазо, 2006)
   Film.scene({
     id: 'cards', bars: 5,
     build: function (s) {
-      s.actor('obj', { o: 0 }, 0.0, 0.3); s.actor('adult', { o: 0 }, 0.0, 0.3);
+      s.actor('adult', { o: 0 }, 0.0, 0.3);
       var k = s.text('kicker', 'Ф. Зелазо, 2006', { left: 140, top: 150 });
       s.fade(k, 0.1, { y: 8 });
       var h = s.text('h2', 'Правило сменилось', { left: 140, top: 186, width: 900 });
@@ -174,7 +204,7 @@
     }
   });
 
-  // 2:50 — Пятнадцать чашек и одна (Ж. Пиаже, 1932) → С. Нельсон; Дж. Сметана
+  // 3:07,5 — Пятнадцать чашек и одна (Ж. Пиаже, 1932) → С. Нельсон; Дж. Сметана
   Film.scene({
     id: 'cups', bars: 6,
     build: function (s) {
@@ -240,7 +270,7 @@
     }
   });
 
-  // 3:05 — Совесть: З. Фрейд → Г. Кочанска
+  // 3:22,5 — Совесть: З. Фрейд → Г. Кочанска
   Film.scene({
     id: 'conscience', bars: 4,
     build: function (s) {
@@ -287,7 +317,7 @@
     }
   });
 
-  // 3:15 — Инициатива против вины (Э. Эриксон, 1950)
+  // 3:32,5 — Инициатива против вины (Э. Эриксон, 1950): башня из кубиков и ракета-замысел
   Film.scene({
     id: 'erikson', bars: 4,
     build: function (s) {
@@ -299,26 +329,46 @@
       var p1 = s.text('lead', 'Ребёнок затевает своё: строит, придумывает, командует игрой.', { left: 140, top: 330, width: 780, fontSize: 32 });
       s.lines(p1, 0.8);
 
-      var ov = s.over();
-      var CX = 1400, CY = 760;
+      var g = s.svg(), ov = s.over(), TOY = Film.toys;
+      var CX = 1190, CY = 770, TX = 1420, TB = 832, SZ = 72;
       s.actor('baby', { x: CX, y: CY, d: 104 }, 0.0, 0.8, 'power3.inOut');
-      s.mouth('baby', 'smile', 0.4, 0.3); s.gaze('baby', 0, -7, 0.4, 0.3);
-      // замыслы: ракета, дом, мост
-      var ideas = s.node(ov, 'g', {});
-      var rk = s.node(ideas, 'g', {}), hs = s.node(ideas, 'g', {}), br = s.node(ideas, 'g', {});
-      s.sk(rk, [[1180, 560], [1200, 480], [1220, 560], [1180, 560]], { at: 1.0, dur: 0.4, seed: 801, color: ORANGE, width: 4.5 });
-      s.sk(rk, [[1190, 560], [1200, 590], [1210, 560]], { at: 1.3, dur: 0.2, seed: 803, color: ORANGE, width: 4 });
-      s.sk(hs, [[1360, 560], [1360, 510], [1400, 470], [1440, 510], [1440, 560], [1360, 560]], { at: 1.3, dur: 0.5, seed: 805, width: 4.5 });
-      s.sk(br, [[1560, 560], [1600, 520], [1660, 520], [1700, 560]], { at: 1.6, dur: 0.5, seed: 807, width: 4.5 });
-      s.tween([rk, hs, br], 2.2, { y: 0 }, { y: -170, duration: 1.4, ease: 'power2.out', stagger: 0.12 });
+      s.mouth('baby', 'smile', 0.4, 0.3); s.gaze('baby', 8, -4, 0.4, 0.3);
+      // башня: кубики ставятся один на другой
+      var cols = [['#E4735A', '#B8533D', 'А'], ['#4A7FB0', '#2F5E8A', 'Б'], ['#E0A930', '#A77A12', 'В'], ['#5E9E5E', '#3F7A3F', 'Г']];
+      var blocks = cols.map(function (c, i) {
+        var b = TOY.block(s, g, TX, TB - i * SZ, SZ, c[0], c[1], c[2]);
+        var t = 1.0 + i * 0.3;
+        s.tween(b, t, { opacity: 0, y: -70 }, { opacity: 1, y: 0, duration: 0.28, ease: 'power2.in' });
+        s.squash('baby', 1.06, 0.95, t + 0.2, 0.1); s.squash('baby', 1, 1, t + 0.3, 0.25, 'back.out(3)');
+        return b;
+      });
+      // замысел: на вершине — ракета; поддержка — и она взлетает
+      var rk = s.node(ov, 'g', {});
+      Film.icons.rocket(s, rk, TX, 476, 0.9, { at: 2.2, dur: 0.6, seed: 801 });
+      s.actor('adult2', { x: 1780, y: 600, d: 130, o: 0 }, 2.4, 0.01);
+      s.actor('adult2', { x: 1680, o: 1 }, 2.45, 0.5, 'power3.out');
+      s.face('adult2', true, 2.6, 0.3); s.mouth('adult2', 'smile', 2.6, 0.01); s.gaze('adult2', -8, 2, 2.6, 0.01);
+      var yesB = s.div('bubble tail-r soft', { left: 1480, top: 420 }, null, 'Здорово!');
+      s.pop(yesB, 2.7, { from: 0.7, dur: 0.4, origin: '90% 100%' }); s.out(yesB, 4.2, { dur: 0.3 });
+      var trail = s.node(ov, 'g', {});
+      s.sk(trail, [[TX, 520], [TX - 6, 440], [TX + 4, 360], [TX - 2, 290]], { at: 3.1, dur: 0.6, seed: 805, color: ORANGE, width: 3.5, opacity: 0.6 });
+      s.tween(rk, 3.0, { y: 0 }, { y: -230, duration: 1.0, ease: 'power2.in' });
+      s.tween(rk, 4.0, { y: -230 }, { y: -250, duration: 0.8, ease: 'sine.out' });
+      s.mouth('baby', 'smile', 3.0, 0.2); s.squash('baby', 0.92, 1.1, 3.1, 0.2); s.squash('baby', 1, 1, 3.3, 0.4, 'back.out(3)');
       var yes = s.text('label', 'Поддержка → <span class="acc">инициатива, целеустремлённость</span>', { left: 140, top: 450, width: 820, fontSize: 30 });
       s.fade(yes, 2.6, { y: 6 });
-      // запрет и насмешка — замыслы гаснут
-      s.actor('adult', { x: 1720, y: 640, d: 140, o: 0 }, 4.6, 0.01);
-      s.actor('adult', { x: 1680, o: 1 }, 4.7, 0.6, 'power2.out');
-      var nob = s.div('bubble tail-r soft', { left: 1490, top: 470 }, null, 'Глупости. Нельзя!');
+      // насмешка и запрет — башня рушится, замысел падает
+      s.actor('adult2', { x: 1780, o: 0 }, 4.5, 0.4, 'power2.in');
+      s.actor('adult', { x: 1780, y: 600, d: 140, o: 0 }, 4.6, 0.01);
+      s.actor('adult', { x: 1680, o: 1 }, 4.7, 0.5, 'power2.out');
+      var nob = s.div('bubble tail-r soft', { left: 1440, top: 420 }, null, 'Глупости. Нельзя!');
       s.pop(nob, 5.3, { from: 0.7, dur: 0.5, origin: '90% 100%' });
-      s.tween([rk, hs, br], 5.9, { y: -170, opacity: 1 }, { y: 40, opacity: 0.18, duration: 1.0, ease: 'power2.in', stagger: 0.08 });
+      s.out(trail, 5.6, { dur: 0.3 });
+      var fall = [[-120, -28], [96, 40], [-40, -84], [170, 96]];
+      blocks.forEach(function (b, i) {
+        s.tween(b, 5.9 + i * 0.05, { x: 0, y: 0, rotation: 0 }, { x: fall[i][0], y: i * SZ, rotation: fall[i][1], duration: 0.5, ease: 'power2.in', transformOrigin: '50% 50%' });
+      });
+      s.tween(rk, 5.9, { y: -250, rotation: 0, opacity: 1 }, { y: 300, rotation: 70, opacity: 0.2, duration: 0.8, ease: 'power2.in', transformOrigin: '50% 50%' });
       s.mouth('baby', 'sad', 6.0, 0.3); s.gaze('baby', 0, 6, 6.0, 0.3);
       s.squash('baby', 1.1, 0.86, 6.2, 0.6, 'power2.out');
       var no = s.text('label', 'Насмешка и запреты → <span class="acc">вина</span>', { left: 140, top: 510, width: 820, fontSize: 30 });

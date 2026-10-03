@@ -4,7 +4,7 @@
   'use strict';
   var INK = '#1D2733', ORANGE = '#FB8C00', DEEP = '#A65300', STICK = '#8B6A45', MUTE = '#8A8F90';
 
-  // 3:25 — заставка части
+  // 3:42,5 — заставка части
   Film.scene({
     id: 'ch4', bars: 1,
     build: function (s) {
@@ -16,7 +16,7 @@
     }
   });
 
-  // 3:27,5 — Кризис семи лет (Л. С. Выготский)
+  // 3:45 — Кризис семи лет (Л. С. Выготский)
   Film.scene({
     id: 'crisis7', bars: 6,
     build: function (s) {
@@ -65,46 +65,55 @@
     }
   });
 
-  // 3:42,5 — Один перелом — две науки (Ш. Уайт, 1965; А. Самерофф, М. Хейт, 1996; Б. Рогофф и др., 1975)
+  // 4:00 — Рубеж 5–7 лет видят и другие науки: антропология (Б. Рогофф и др., 1975) и нейробиология
   Film.scene({
-    id: 'shift', bars: 5,
+    id: 'border', bars: 5,
     build: function (s) {
       s.actor('baby', { o: 0 }, 0.0, 0.4); s.actor('obj', { o: 0 }, 0.0, 0.4);
-      var k = s.text('kicker', 'Две традиции', { left: 140, top: 150 });
+      var k = s.text('kicker', 'Не только психология', { left: 140, top: 150 });
       s.fade(k, 0.1, { y: 8 });
-      var h = s.text('h2', 'Один перелом — две науки', { left: 140, top: 186, width: 1100 });
+      var h = s.text('h2', 'Рубеж 5–7 лет видят и другие науки', { left: 140, top: 186, width: 1640 });
       s.lines(h, 0.2);
       s.range(60, 84, 0.6, 1.0);
-      var p1 = s.text('lead', 'Перелом 5–7 лет описывают и на Западе — его отмечают психологи, нейробиологи и антропологи.', { left: 140, top: 330, width: 800, fontSize: 30 });
-      s.lines(p1, 0.8, { stagger: 0.08 });
-      // две подписи сходятся к отрезку 5–7 на шкале
-      var ov = s.over();
-      var mid = (s.mx(60) + s.mx(84)) / 2;
-      var L1 = s.otext('label', 'кризис семи лет<br><span class="soft" style="font-weight:500">Л. С. Выготский</span>', { left: 140, top: 720, width: 420, fontSize: 26 });
-      var L2 = s.otext('label', '<span class="term">«сдвиг 5–7 лет»<span class="en">five-to-seven shift</span></span><br><span class="soft" style="font-weight:500">Ш. Уайт, 1965</span>', { left: 1380, top: 720, width: 400, fontSize: 26 });
-      s.fade(L1, 1.6, { y: 8 }); s.fade(L2, 2.0, { y: 8 });
-      s.sk(ov, [[440, 772], [820, 860], [mid - 24, s.RY - 22]], { at: 2.4, dur: 0.8, seed: 951, color: ORANGE, width: 4 });
-      s.sk(ov, [[1370, 790], [1388, 870], [mid + 16, s.RY - 22]], { at: 2.6, dur: 0.8, seed: 953, color: ORANGE, width: 4 });
-      var sh = s.text('note', '«Возраст разума и ответственности» — А. Самерофф, М. Хейт, 1996', { left: 140, top: 470, width: 800 });
-      s.fade(sh, 3.4, { y: 6 });
-      // Рогофф: 50 культур, 27 сфер, в 16 — новые обязанности в 5–7 лет
-      var cap = s.text('small-caps', '50 культур · 27 сфер жизни', { left: 1010, top: 330 });
-      s.fade(cap, 5.0, { y: 6 });
-      var g = s.svg();
-      for (var i = 0; i < 27; i++) {
-        var x = 1010 + (i % 9) * 56, y = 380 + Math.floor(i / 9) * 56;
-        var on = i < 16;
-        var sq = s.node(g, 'rect', { x: x, y: y, width: 42, height: 42, rx: 8, fill: on ? ORANGE : '#E7E2DA', opacity: 0 });
-        s.tween(sq, 5.2 + i * 0.04, { opacity: 0, scale: 0.6, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: 0.3 });
-      }
-      var rg = s.text('body', 'В 16 из 27 сфер новые обязанности детям чаще всего дают в 5–7 лет.', { left: 1010, top: 560, width: 760, fontSize: 26 });
-      s.lines(rg, 6.8, { stagger: 0.08 });
-      var rc = s.text('cite', 'Б. Рогофф и др., 1975', { left: 1010, top: 640 });
-      s.fade(rc, 7.6, { y: 6 });
+      var g = s.svg(), ov = s.over();
+      var div = s.path(g, 'M960 330 V 800', { stroke: '#CDC3B4', 'stroke-width': 2, 'stroke-dasharray': '4 10' });
+      s.dash(div, 0.8, { dur: 0.6 });
+      var L = 140, R = 1020;
+      // антропология: старший ведёт младшего — детям начинают доверять
+      var la = s.text('small-caps', 'Антропология', { left: L, top: 330, color: DEEP });
+      s.fade(la, 0.8, { y: 6 });
+      s.actor('kid2', { x: 300, y: 500, d: 88, o: 0 }, 1.0, 0.01); s.actor('kid2', { o: 1 }, 1.1, 0.4);
+      s.actor('kid3', { x: 220, y: 522, d: 52, o: 0 }, 1.0, 0.01); s.actor('kid3', { o: 1 }, 1.2, 0.4);
+      s.face('kid2', true, 1.1, 0.3); s.mouth('kid2', 'smile', 1.1, 0.01); s.gaze('kid2', 8, -2, 1.1, 0.01);
+      s.face('kid3', true, 1.2, 0.3); s.mouth('kid3', 'smile', 1.2, 0.01); s.gaze('kid3', 8, -4, 1.2, 0.01);
+      var hand = s.node(ov, 'g', {});
+      s.sk(hand, [[244, 530], [262, 536], [270, 528]], { at: 1.5, dur: 0.3, seed: 951, width: 3.6 });
+      [2.41, 3.035, 3.66, 4.285].forEach(function (t) {
+        s.hop('kid2', s.A.kid2.st.x + 80, 500, t, 0.32, 20);
+        s.hop('kid3', s.A.kid3.st.x + 80, 522, t, 0.32, 14);
+        Film.ride(s, hand, 80, t, 0.32, 17);
+      });
+      var at = s.text('body', '50 культур: в 16 из 27 сфер жизни новые роли и обязанности детям чаще всего дают именно в 5–7 лет — ребёнку начинают доверять и всерьёз учить.', { left: L, top: 600, width: 780, fontSize: 27 });
+      s.lines(at, 1.4, { stagger: 0.08 });
+      var ac = s.text('cite', 'Б. Рогофф и др., 1975', { left: L, top: 770 });
+      s.fade(ac, 2.6, { y: 6 });
+      // нейробиология: мозг, лобная кора
+      var na = s.text('small-caps', 'Нейробиология', { left: R, top: 330, color: DEEP });
+      s.fade(na, 5.0, { y: 6 });
+      Film.icons.brain(s, ov, R + 260, 470, 1.45, { at: 5.4, dur: 1.0, seed: 961, lobe: 6.5 });
+      var lb = s.otext('label', 'лобная кора', { left: R + 400, top: 360, fontSize: 24, color: DEEP });
+      s.fade(lb, 6.8, { y: 4 });
+      s.sk(ov, [[R + 396, 384], [R + 372, 404]], { at: 6.8, dur: 0.2, seed: 965, width: 3, color: DEEP });
+      var nt = s.text('body', 'К 6 годам объём мозга — около 95 % от наибольшего. Дольше всего созревает лобная кора — опора самоконтроля и смены правил.', { left: R, top: 600, width: 760, fontSize: 27 });
+      s.lines(nt, 6.0, { stagger: 0.08 });
+      var nc = s.text('cite', 'Р. Ленрут, Дж. Гидд, 2006; А. Даймонд, 2013', { left: R, top: 770 });
+      s.fade(nc, 7.2, { y: 6 });
+      s.event('рубеж 5–7 лет', 72, 9.0);
+      s.actor('kid2', { o: 0 }, 11.8, 0.4); s.actor('kid3', { o: 0 }, 11.8, 0.4);
     }
   });
 
-  // 3:55 — Главное новообразование: внутренняя позиция школьника (Л. И. Божович, 1968); палочка → карандаш
+  // 4:12,5 — Главное новообразование: внутренняя позиция школьника (Л. И. Божович, 1968)
   Film.scene({
     id: 'school', bars: 6,
     build: function (s) {
@@ -113,142 +122,164 @@
       var h = s.text('h2', 'Внутренняя позиция школьника', { left: 140, top: 186, width: 1600 });
       s.lines(h, 0.2);
       s.range(36, 84, 0.3, 1.2);
-      var p1 = s.text('lead', 'Линии возраста сходятся: к 6–7 годам ребёнок хочет учиться всерьёз — занять место школьника.', { left: 140, top: 330, width: 760, fontSize: 32 });
+      var p1 = s.text('lead', 'Линии возраста сходятся: к 6–7 годам ребёнок хочет в школу — и уже не только ради ранца. Он хочет учиться всерьёз и занять место школьника.', { left: 140, top: 330, width: 760, fontSize: 32 });
       s.lines(p1, 0.8, { stagger: 0.08 });
-      var c1 = s.text('cite', 'Л. И. Божович, 1968', { left: 140, top: 470 });
-      s.fade(c1, 1.8, { y: 6 });
+      var c1 = s.text('cite', 'Л. И. Божович, 1968', { left: 140, top: 520 });
+      s.fade(c1, 2.0, { y: 6 });
 
       var CX = 1380, CY = 600;
       s.actor('baby', { x: CX, y: CY, d: 110, o: 0 }, 0.4, 0.01);
       s.actor('baby', { o: 1 }, 0.5, 0.6);
       s.face('baby', true, 0.6, 0.3); s.mouth('baby', 'smile', 0.6, 0.01); s.gaze('baby', 0, -2, 0.6, 0.01);
-      var g = s.svg();
-      var nodes = [['я в роли', 'часовой', -90], ['я представляю', 'палочка', -18], ['я понимаю другого', 'Макси', 54], ['я выбираю', 'конфета', 126], ['я по правилам', 'игра с правилами', 198]];
+      var g = s.svg(), star = s.node(g, 'g', {}), starL = [];
+      var nodes = [['я в роли', 'часовой', -90], ['я представляю', 'палочка-лошадка', -18], ['я понимаю другого', 'Макси', 54], ['я выбираю', 'горькая конфета', 126], ['я по правилам', 'игра с правилами', 198]];
       nodes.forEach(function (n, i) {
         var a = n[2] * Math.PI / 180, R = 250;
         var x = CX + R * Math.cos(a), y = CY + R * Math.sin(a) * 0.86;
-        var ln = s.path(g, 'M' + x + ' ' + y + ' L' + (CX + 70 * Math.cos(a)) + ' ' + (CY + 70 * Math.sin(a)), { stroke: '#F6C27A', 'stroke-width': 3 });
+        var ln = s.path(star, 'M' + x + ' ' + y + ' L' + (CX + 70 * Math.cos(a)) + ' ' + (CY + 70 * Math.sin(a)), { stroke: '#F6C27A', 'stroke-width': 3 });
         s.draw(ln, 1.6 + i * 0.3, { dur: 0.6 });
-        var dot = s.node(g, 'circle', { cx: x, cy: y, r: 9, fill: ORANGE, opacity: 0 });
-        s.tween(dot, 1.6 + i * 0.3, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+        var dot = s.node(star, 'circle', { cx: x, cy: y, r: 9, fill: ORANGE, opacity: 0 });
+        s.tween(dot, 1.6 + i * 0.3, { opacity: 0, scale: 0.4, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2)' });
         var right = Math.cos(a) >= -0.1;
         var lb = s.text('label', n[0] + '<br><span class="soft" style="font-weight:500; font-size: 21px">' + n[1] + '</span>', { left: right ? x + 18 : x - 238, top: y - 22, width: 220, textAlign: right ? 'left' : 'right', fontSize: 25 });
         s.fade(lb, 1.8 + i * 0.3, { y: 6 });
+        starL.push(lb);
       });
-      // палочка → карандаш; клетка тетради — тизер следующего эпизода
+      s.out(star, 5.4, { dur: 0.4 }); starL.forEach(function (e) { s.out(e, 5.4, { dur: 0.4 }); });
+      // с ранцами — в школу
+      var TOY = Film.toys, Y = 724;
+      var kids = [['baby', 1120, 96, '#26A69A', '#1C7A71'], ['kid2', 990, 90, '#4A7FB0', '#2F5E8A'], ['kid3', 870, 86, '#E0A930', '#A77A12']];
+      s.actor('baby', { x: 1120, y: Y, d: 96 }, 5.6, 0.7, 'power3.inOut');
+      kids.forEach(function (kd, i) {
+        var bp = s.node(g, 'g', {});
+        TOY.backpack(s, bp, kd[1] - kd[2] * 0.42, Y - 4, kd[2] / 110, kd[3], kd[4]);
+        if (i) {
+          s.actor(kd[0], { x: kd[1], y: Y, d: kd[2], o: 0 }, 6.2, 0.01);
+          s.actor(kd[0], { o: 1 }, 6.3 + i * 0.1, 0.4);
+          s.face(kd[0], true, 6.3, 0.3); s.mouth(kd[0], 'smile', 6.3, 0.01); s.gaze(kd[0], 8, -2, 6.3, 0.01);
+        }
+        s.tween(bp, 6.25 + i * 0.1, { opacity: 0, scale: 0.5, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(2)' });
+        [7.41, 8.66, 9.91].forEach(function (t) {
+          s.hop(kd[0], s.A[kd[0]].st.x + 110, Y, t, 0.5, 30);
+          Film.ride(s, bp, 110, t, 0.5, 30);
+        });
+      });
+      s.gaze('baby', 8, -2, 6.0, 0.3);
       var ov = s.over();
-      var stick = s.path(ov, 'M' + (CX + 60) + ' ' + (CY + 70) + ' L' + (CX + 150) + ' ' + (CY - 30), { stroke: STICK, 'stroke-width': 11 });
-      s.tween(stick, 4.4, { opacity: 0 }, { opacity: 1, duration: 0.4 });
-      s.tween(stick, 6.4, { opacity: 1 }, { opacity: 0, duration: 0.5 });
-      var pen = s.node(ov, 'g', {});
-      s.sk(pen, [[CX + 54, CY + 64], [CX + 136, CY - 26], [CX + 150, CY - 14], [CX + 68, CY + 76], [CX + 54, CY + 64]], { at: 6.4, dur: 0.6, seed: 971, color: ORANGE, width: 4.5 });
-      s.sk(pen, [[CX + 54, CY + 64], [CX + 44, CY + 88], [CX + 68, CY + 76]], { at: 6.9, dur: 0.3, seed: 973, width: 4.5 });
-      s.mouth('baby', 'smile', 6.6, 0.2); s.squash('baby', 0.94, 1.08, 6.8, 0.3); s.squash('baby', 1, 1, 7.1, 0.4, 'back.out(3)');
-      var grid = s.node(g, 'g', { opacity: 0 });
-      for (var gx = 1000; gx <= 1780; gx += 40) s.path(grid, 'M' + gx + ' 300 V 880', { stroke: '#C9D8E6', 'stroke-width': 1.5 });
-      for (var gy = 300; gy <= 880; gy += 40) s.path(grid, 'M1000 ' + gy + ' H 1780', { stroke: '#C9D8E6', 'stroke-width': 1.5 });
-      s.tween(grid, 7.4, { opacity: 0 }, { opacity: 0.55, duration: 1.0 });
-      s.tween(grid, 11.6, { opacity: 0.55 }, { opacity: 0, duration: 1.2 });
-      var p2 = s.text('body', 'Палочка становится карандашом: следующая игра — по правилам школы.', { left: 140, top: 560, width: 760, fontSize: 28 });
-      s.lines(p2, 7.6, { stagger: 0.08 });
+      Film.icons.school(s, ov, 1665, 800, 0.74, { at: 6.6, dur: 1.0, seed: 975 });
+      var bell = s.node(ov, 'g', {});
+      Film.icons.bell(s, bell, 1772, 640, 0.5, { at: 10.9, dur: 0.3, seed: 979 });
+      [11.3, 11.5, 11.7].forEach(function (t, j) { s.tween(bell, t, { rotation: j % 2 ? 14 : -14 }, { rotation: j % 2 ? -14 : 14, duration: 0.2, svgOrigin: '1772 620' }); });
+      s.tween(bell, 11.9, { rotation: -14 }, { rotation: 0, duration: 0.2, svgOrigin: '1772 620' });
+      kids.forEach(function (kd) { s.squash(kd[0], 0.92, 1.1, 11.3, 0.15); s.squash(kd[0], 1, 1, 11.45, 0.4, 'back.out(3)'); });
+      var p2 = s.text('body', 'Впереди — школа: большая игра по правилам на много лет.', { left: 140, top: 600, width: 760, fontSize: 30 });
+      s.lines(p2, 6.4, { stagger: 0.08 });
     }
   });
 
-  // 4:10 — Что запомнить: «паспорт возраста» (восемь строк с эпизода 3–7)
+  // 4:27,5 — Что запомнить: «паспорт возраста» (восемь строк); фамилии — в одной колонке справа
   Film.scene({
-    id: 'summary', bars: 7,
+    id: 'summary', bars: 6,
     build: function (s) {
-      s.actor('baby', { o: 0 }, 0.0, 0.4);
+      ['baby', 'kid2', 'kid3'].forEach(function (id) { s.actor(id, { o: 0 }, 0.0, 0.4); });
       var k = s.text('kicker', 'Итог', { left: 140, top: 150 });
       s.fade(k, 0.1, { y: 8 });
       var h = s.text('h2', 'Что запомнить', { left: 140, top: 186, width: 1000 });
       s.lines(h, 0.2);
       var rows = [
-        ['Социальная ситуация', 'Стремление жить общей жизнью со взрослыми — через игру'],
-        ['Ведущая деятельность', 'Сюжетно-ролевая игра <span class="by">· Д. Б. Эльконин</span>'],
-        ['Доминирующая функция', 'Память <span class="by">· Л. С. Выготский</span>'],
-        ['Новообразования', 'Внутренняя позиция школьника — главное; произвольность, соподчинение мотивов'],
-        ['Кризис', 'Семи лет: утрата непосредственности'],
-        ['Э. Эриксон', 'Инициатива против вины'],
-        ['Ж. Пиаже', 'Дооперациональная стадия: символ есть, обратимости ещё нет'],
-        ['Ключевые исследования', 'Теория психического — около 4 лет; переключение правил — к 5; <span style="white-space:nowrap">«сдвиг 5–7 лет»</span>']
+        ['Социальная ситуация', 'Хочет жить общей жизнью со взрослыми — и делает это в игре', ''],
+        ['Ведущая деятельность', 'Сюжетно-ролевая игра', 'Д. Б. Эльконин'],
+        ['Доминирующая функция', 'Память', 'Л. С. Выготский'],
+        ['Новообразования', 'Внутренняя позиция школьника — главное; произвольность, соподчинение мотивов', ''],
+        ['Кризис', 'Семи лет: утрата непосредственности', 'Л. С. Выготский'],
+        ['Психосоциальная стадия', 'Инициатива против вины', 'Э. Эриксон'],
+        ['Стадия мышления', 'Дооперациональная: символ есть, обратимости ещё нет', 'Ж. Пиаже'],
+        ['Ключевые исследования', 'Около 4 лет — понимает, что другой может ошибаться (Макси); к 5 — переключается на новое правило (карточки)', '']
       ];
-      var col = s.div('', { left: 140, top: 300, width: 1640, display: 'flex', flexDirection: 'column', gap: '0px' });
+      var col = s.div('', { left: 140, top: 296, width: 1640, display: 'flex', flexDirection: 'column', gap: '0px' });
       rows.forEach(function (r, i) {
         var row = Film.el('div', 'passport-row', col);
-        row.style.padding = '12px 0 12px';
-        Film.el('div', 'passport-k', row, r[0]);
+        row.style.padding = '11px 0 11px';
+        var kk = Film.el('div', 'passport-k', row, r[0]);
+        kk.style.width = '420px';
         var v = Film.el('div', 'passport-v', row, r[1]);
-        v.style.fontSize = '29px';
-        s.fade(row, 0.8 + i * 0.85, { y: 10, dur: 0.7 });
+        v.style.fontSize = '29px'; v.style.flex = '1';
+        Film.el('div', 'passport-a', row, r[2]);
+        s.fade(row, 0.8 + i * 0.7, { y: 10, dur: 0.7 });
       });
     }
   });
 
-  // 4:27,5 — Финал: мир эпизода вокруг ребёнка-«режиссёра», цитата из лекции, знак, карта курса и анонс
+  // 4:42,5 — Финал: рисованный мир эпизода собирается вокруг ребёнка-«режиссёра»; цитата из лекции
   Film.scene({
-    id: 'outro', bars: 5,
+    id: 'outro', bars: 4,
     build: function (s) {
-      var CX = 960, CY = 190;
-      s.actor('baby', { x: CX, y: CY, d: 84, o: 0 }, 0.0, 0.01);
-      s.actor('baby', { o: 1 }, 0.2, 0.8);
+      s.rulerOut(0.3);
+      var CX = 960, CY = 318;
+      s.actor('baby', { x: CX, y: CY, d: 100, o: 0 }, 0.0, 0.01);
+      s.actor('baby', { o: 1 }, 0.2, 0.6);
       s.face('baby', true, 0.3, 0.3); s.mouth('baby', 'smile', 0.3, 0.01); s.gaze('baby', 0, -2, 0.3, 0.01);
-      var ov = s.over(), SK = Film.sketch, items = [];
-      function item(ax, ay) { var it = s.node(ov, 'g', {}); items.push([it, ax]); return it; }
-      function at(ax, ay, pts, k) { return pts.map(function (p) { return [ax + p[0] * (k || 1), ay + p[1] * (k || 1)]; }); }
-      // лошадь (как в прологе)
-      var hz = item(-1);
-      SK.stroke(s, hz, at(CX - 330, CY + 30, [[0, 0], [23, -46], [53, -80], [99, -92], [141, -80], [161, -54], [143, -34], [95, -32], [63, -16], [39, 16], [13, 42]], 0.62), { seed: 981 });
-      SK.stroke(s, hz, at(CX - 330, CY + 30, [[29, -58], [13, -46], [23, -34], [1, -26], [13, -10]], 0.62), { seed: 982, color: ORANGE, width: 4.5 });
-      s.path(hz, 'M' + (CX - 380) + ' ' + (CY + 90) + ' L' + (CX - 330) + ' ' + (CY + 30), { stroke: STICK, 'stroke-width': 8 });
-      // пилотка часового
-      var cp = item(-1);
-      SK.stroke(s, cp, at(CX - 190, CY - 70, [[-40, 20], [-24, -6], [0, -16], [24, -6], [40, 20], [0, 26], [-40, 20]]), { seed: 983 });
-      SK.stroke(s, cp, [[CX - 190, CY - 66], [CX - 189, CY - 65]], { seed: 984, color: ORANGE, width: 9 });
-      // стетоскоп
-      var st = item(-1);
-      SK.stroke(s, st, at(CX - 150, CY + 70, [[-22, -24], [-16, 8], [0, 18], [16, 8], [22, -24]]), { seed: 985 });
-      SK.stroke(s, st, Film.circ(CX - 126, CY + 104, 9, 10), { seed: 986, color: ORANGE });
-      // мысль Макси: облако со шкафом и шоколадкой
-      var th = item(1);
-      SK.stroke(s, th, Film.circ(CX + 190, CY - 60, 44, 18), { seed: 987 });
-      SK.stroke(s, th, at(CX + 190, CY - 60, [[-20, -16], [20, -16], [20, 18], [-20, 18], [-20, -16]]), { seed: 988, color: '#A77A12' });
-      SK.stroke(s, th, at(CX + 190, CY - 60, [[-8, -4], [8, -4], [8, 6], [-8, 6], [-8, -4]]), { seed: 989, color: ORANGE, width: 4.5 });
-      // ракета-замысел
-      var rk = item(1);
-      SK.stroke(s, rk, at(CX + 330, CY + 40, [[-18, 40], [0, -36], [18, 40], [-18, 40]]), { seed: 990, color: ORANGE, width: 4.5 });
-      SK.stroke(s, rk, at(CX + 330, CY + 40, [[-18, 40], [-30, 56], [-12, 46]]), { seed: 991, color: ORANGE });
-      SK.stroke(s, rk, at(CX + 330, CY + 40, [[18, 40], [30, 56], [12, 46]]), { seed: 992, color: ORANGE });
-      // карандаш
-      var pc = item(1);
-      SK.stroke(s, pc, at(CX + 160, CY + 80, [[0, 0], [90, -40], [98, -26], [8, 14], [0, 0]]), { seed: 993, color: ORANGE, width: 4.5 });
-      SK.stroke(s, pc, at(CX + 160, CY + 80, [[0, 0], [-16, 16], [8, 14]]), { seed: 994 });
+      var ov = s.over(), IC = Film.icons, wrap = s.node(ov, 'g', { transform: 'translate(0 50)' });
+      // значки — те же, что в сценах эпизода; рисуются на глазах и слетаются к ребёнку
+      var items = [
+        [-1, function (g, at) { IC.bear(s, g, 560, 250, 1.15, { at: at, dur: 0.8, seed: 981 }); }],
+        [-1, function (g, at) { IC.bag(s, g, 752, 120, 1.0, { at: at, dur: 0.7, seed: 983 }); }],
+        [-1, function (g, at) { IC.horse(s, g, 742, 388, 0.74, { at: at, dur: 0.8, seed: 985, stick: 110 }); }],
+        [1, function (g, at) { IC.cloud(s, g, 1170, 132, 98, 62, { at: at, dur: 0.7, seed: 987, tail: [1016, 232] }); IC.choc(s, g, 1170, 130, 0.7, { at: at + 0.4, dur: 0.4, seed: 989 }); }],
+        [1, function (g, at) { IC.candy(s, g, 1370, 262, 1.2, { at: at, dur: 0.6, seed: 991 }); }],
+        [1, function (g, at) { IC.rocket(s, g, 1196, 372, 0.98, { at: at, dur: 0.7, seed: 993 }); }]
+      ];
       items.forEach(function (it, i) {
-        var fx = it[1] * 460, fy = 140 + (i % 3) * 50;
-        s.tween(it[0], 0.3 + i * 0.12, { x: fx, y: fy, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: 1.2, ease: 'power3.out' });
+        var g = s.node(wrap, 'g', {}), at = 0.35 + i * 0.16;
+        it[1](g, at);
+        s.tween(g, at, { x: it[0] * 140 }, { x: 0, duration: 1.0, ease: 'power3.out' });
+        s.tween(g, 2.0, { y: 0 }, { y: i % 2 ? -7 : 7, duration: 7.5, ease: 'sine.inOut' });
       });
-      var q = s.text('quote', '«Ребёнок выступает режиссёром игры: через предметы он ставит сцены, которые задевают его душу, и проживает внутри то, что ему важно. Он режиссёр, демиург, постановщик».', { left: 210, top: 330, width: 1500, textAlign: 'center', fontSize: 44 });
-      s.lines(q, 0.9, { stagger: 0.14, dur: 1.2 });
-      var c = s.text('cite', 'из лекции курса «Психология развития» о дошкольном возрасте', { left: 360, top: 548, width: 1200, textAlign: 'center' });
+      s.squash('baby', 0.94, 1.08, 1.6, 0.2); s.squash('baby', 1, 1, 1.8, 0.4, 'back.out(3)');
+      s.gaze('baby', -7, -3, 2.6, 0.5); s.gaze('baby', 7, -3, 4.2, 0.5); s.gaze('baby', 0, -2, 5.8, 0.5);
+      var q = s.text('quote', '«Ребёнок выступает режиссёром игры: через предметы он ставит сцены, которые задевают его душу, и проживает внутри то, что ему важно. Он режиссёр, демиург, постановщик».', { left: 210, top: 572, width: 1500, textAlign: 'center', fontSize: 44 });
+      s.lines(q, 1.0, { stagger: 0.14, dur: 1.2 });
+      var c = s.text('cite', 'из лекции курса «Психология развития» о дошкольном возрасте', { left: 360, top: 790, width: 1200, textAlign: 'center' });
       s.fade(c, 2.6, { y: 6 });
+    }
+  });
 
-      s.rulerOut(3.0);
-      s.brandOut(3.0);
-      var logo = s.img('assets/brand/dom-header-tagline.png', { left: 960 - 224, top: 614, height: 110 });
+  // 4:52,5 — Приходите на курс: QR-коды курса и телеграм-канала; карта курса и анонс; ребёнок «переходит» к 7–10
+  Film.scene({
+    id: 'final', bars: 4, hold: true,
+    build: function (s) {
+      s.brandOut(0.0);
+      var logo = s.img('assets/brand/dom-header-tagline.png', { left: 960 - 196, top: 92, height: 96 });
       logo.alt = 'DOM Academy — Development of Mind';
-      s.fade(logo, 3.8, { y: 10, dur: 1.0 });
-      var sub = s.text('small-caps', 'Психология развития', { left: 0, top: 744, width: 1920, textAlign: 'center', fontSize: 21 });
-      s.fade(sub, 4.3, { y: 6 });
-
+      s.fade(logo, 0.3, { y: 10, dur: 0.9 });
+      var h = s.text('h2', 'Приходите на курс', { left: 0, top: 220, width: 1920, textAlign: 'center' });
+      s.lines(h, 0.8);
+      var QR = window.FILM_QR || {};
+      [['course', 'Курс «Психология развития»', 'academydom.com/vozrast', 530], ['tg', 'Телеграм-канал', 't.me/AlexeiZykov', 1010]].forEach(function (c, i) {
+        var card = s.div('card', { left: c[3], top: 350, width: 380, height: 452 });
+        var q = QR[c[0]];
+        if (q) {
+          var sv = Film.svg('svg', { width: 290, height: 290, viewBox: '0 0 ' + q.n + ' ' + q.n, 'shape-rendering': 'crispEdges' }, card);
+          sv.style.position = 'absolute'; sv.style.left = '45px'; sv.style.top = '35px';
+          Film.svg('path', { d: q.d, fill: '#1D2733' }, sv);
+        }
+        var t = Film.el('div', 'label', card, c[1]);
+        Film.css(t, { position: 'absolute', left: 0, top: 344, width: 380, textAlign: 'center', fontSize: 25 });
+        var u = Film.el('div', 'note', card, c[2]);
+        Film.css(u, { position: 'absolute', left: 0, top: 384, width: 380, textAlign: 'center', fontSize: 23, color: '#A65300', fontWeight: 650 });
+        s.fade(card, 1.4 + i * 0.3, { y: 16, dur: 0.7 });
+      });
       var g = s.svg();
       var M = s.map(g);
-      s.mapIn(M, 4.4);
-      s.mapNext(M, 6.0);
-      var nx = s.CFG.series.next, nxX = M.x(nx) + M.segW / 2;
-      var ann = s.text('note', 'Далее: младший школьный возраст, 7–10 лет', { left: nxX - 340, top: s.RY - 70, width: 680, textAlign: 'center', color: '#1C7A71', fontWeight: 650 });
+      s.mapIn(M, 0.4);
+      var cur = s.CFG.series.current, nx = s.CFG.series.next;
+      var cx = M.x(cur) + M.segW / 2, nxX = M.x(nx) + M.segW / 2, Y = s.RY - 24;
+      s.actor('baby', { x: cx, y: Y, d: 40 }, 0.2, 1.1, 'power2.inOut');
+      s.mapNext(M, 5.6);
+      s.hop('baby', nxX, Y, 5.91, 0.5, 60);
+      s.gaze('baby', 6, -2, 5.6, 0.3);
+      var ann = s.text('note', 'Далее: младший школьный возраст, 7–10 лет', { left: nxX - 340, top: s.RY - 92, width: 680, textAlign: 'center', color: '#1C7A71', fontWeight: 650 });
       s.fade(ann, 6.3, { y: 6 });
-
-      s.actor('baby', { o: 0 }, 11.1, 0.8, 'power2.in');
     }
   });
 })();

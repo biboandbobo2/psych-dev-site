@@ -2,7 +2,8 @@
 /* global Film */
 (function () {
   'use strict';
-  var INK = '#1D2733', ORANGE = '#FB8C00', DEEP = '#A65300', OBJ = '#E0A930', WATER = '#9CC3D5', WATER_D = '#5E93AC', MUTE = '#8A8F90';
+  var INK = '#1D2733', ORANGE = '#FB8C00', DEEP = '#A65300', WATER = '#9CC3D5', WATER_D = '#5E93AC', MUTE = '#8A8F90';
+  var RED = '#C8553D', GREEN = '#2E7D32';
 
   // стакан: контур + вода (уровень задаётся высотой прямоугольника)
   function glass(s, g, x, base, w, h, level) {
@@ -11,22 +12,22 @@
     s.path(G, 'M' + (x - w / 2) + ' ' + (base - h) + ' L' + (x - w / 2) + ' ' + base + ' L' + (x + w / 2) + ' ' + base + ' L' + (x + w / 2) + ' ' + (base - h), { stroke: INK, 'stroke-width': 3.5 });
     return { g: G, water: water, x: x, base: base, w: w };
   }
-  function setLevel(s, gl, t, from, to, dur) {
-    s.tween(gl.water, t, { attr: { y: gl.base - from, height: from } }, { attr: { y: gl.base - to, height: to }, duration: dur, ease: 'power1.inOut' });
+  function setLevel(s, gl, t, from, to, dur, ease) {
+    s.tween(gl.water, t, { attr: { y: gl.base - from, height: from } }, { attr: { y: gl.base - to, height: to }, duration: dur, ease: ease || 'power1.inOut' });
   }
 
-  // 1:37,5 — заставка части
+  // 1:42,5 — заставка части
   Film.scene({
     id: 'ch2', bars: 1,
     build: function (s) {
       s.chapterCard(2, 'Мир глазами другого', 'мышление · 3–7 лет');
       s.range(36, 84, 0.15, 1.3);
       s.age(48, 0.2, 1.3);
-      s.chapter(2, 'Мир глазами другого', 0.4, 42.1);
+      s.chapter(2, 'Мир глазами другого', 0.4, 52.1);
     }
   });
 
-  // 1:40 — Где больше воды? Сохранение (Ж. Пиаже, А. Шеминьская, 1941) → М. Дональдсон, 1978
+  // 1:45 — Где больше воды? Сохранение (Ж. Пиаже, А. Шеминьская, 1941) → М. Дональдсон, 1978
   Film.scene({
     id: 'water', bars: 6,
     build: function (s) {
@@ -40,31 +41,54 @@
       var g = s.svg(), ov = s.over();
       var BASE = 700;
       var A = glass(s, g, 1080, BASE, 110, 170, 110);
-      var B = glass(s, g, 1240, BASE, 110, 170, 110);
       var C = glass(s, g, 1460, BASE, 56, 330, 0);
-      s.tween([A.g, B.g], 0.6, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.6, stagger: 0.12 });
-      s.tween(C.g, 1.6, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.6 });
+      // Стакан B переливают по-настоящему: его система координат — с началом в крае слива (правый верх),
+      // вращение — вокруг этого края. Вода — прямоугольник в координатах кадра (поверхность всегда горизонтальна),
+      // обрезанный внутренностью стакана; пока вода у края, всё, что выше края, «выливается» само.
+      function TR(p, a) { return 'translate(' + p[0] + ' ' + p[1] + ') rotate(' + a + ')'; }
+      var LIP0 = [1295, 530], LIP1 = [1447, 215], WTOP = BASE - 110;
+      var defs = s.node(g, 'defs', {});
+      var clip = s.node(defs, 'clipPath', { id: 'pour-b', clipPathUnits: 'userSpaceOnUse' });
+      var cr = s.node(clip, 'rect', { x: -108, y: 0, width: 106, height: 168, transform: TR(LIP0, 0) });
+      var wB = s.node(g, 'rect', { x: 900, y: WTOP, width: 900, height: 700, fill: WATER, 'clip-path': 'url(#pour-b)' });
+      var gB = s.node(g, 'g', { transform: TR(LIP0, 0) });
+      s.path(gB, 'M-110 0 V170 H0 V0', { stroke: INK, 'stroke-width': 3.5 });
+      function moveB(t, p0, a0, p1, a1, dur, ease) {
+        [cr, gB].forEach(function (e) { s.tween(e, t, { attr: { transform: TR(p0, a0) } }, { attr: { transform: TR(p1, a1) }, duration: dur, ease: ease }); });
+      }
+      s.tween([A.g, C.g], 0.6, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.6, stagger: 0.25 });
+      s.tween([gB, wB], 0.72, { opacity: 0 }, { opacity: 1, duration: 0.6 });
       var task = s.text('label', '<span class="term">задача на сохранение<span class="en">conservation task</span></span>', { left: 1010, top: 740, fontSize: 30 });
       s.fade(task, 1.2, { y: 6 });
+      // поднять → наклонить (вода доходит до края) → лить → вернуть пустым
+      var dy = LIP1[1] - LIP0[1];
+      moveB(2.3, LIP0, 0, LIP1, 0, 0.7, 'power2.inOut');
+      s.tween(wB, 2.3, { attr: { y: WTOP } }, { attr: { y: WTOP + dy }, duration: 0.7, ease: 'power2.inOut' });
+      moveB(3.0, LIP1, 0, LIP1, 48, 0.8, 'power1.in');
+      s.tween(wB, 3.0, { attr: { y: WTOP + dy } }, { attr: { y: LIP1[1] }, duration: 0.8, ease: 'power1.in' });
+      moveB(3.8, LIP1, 48, LIP1, 95, 1.2, 'sine.inOut');
+      s.set(wB, 5.0, { attr: { y: LIP1[1] } }, { attr: { y: 2000 } });
+      setLevel(s, C, 3.8, 0, 234, 1.05, 'sine.inOut');
+      var stream = s.node(g, 'rect', { x: LIP1[0] - 3, y: LIP1[1] + 2, width: 7, height: 0, rx: 3.5, fill: WATER_D, opacity: 0 });
+      s.tween(stream, 3.8, { opacity: 0 }, { opacity: 0.9, duration: 0.08 });
+      s.tween(stream, 3.8, { attr: { height: 0 } }, { attr: { height: BASE - LIP1[1] - 2 }, duration: 0.12, ease: 'power2.in' });
+      s.tween(stream, 3.92, { attr: { height: BASE - LIP1[1] - 2 } }, { attr: { height: BASE - 234 - LIP1[1] - 2 }, duration: 0.93, ease: 'sine.inOut' });
+      s.tween(stream, 4.8, { opacity: 0.9 }, { opacity: 0, duration: 0.15 });
+      moveB(5.15, LIP1, 95, LIP1, 0, 0.5, 'power2.inOut');
+      moveB(5.65, LIP1, 0, LIP0, 0, 0.6, 'power2.inOut');
 
-      // переливание из B в высокий узкий C (объём тот же: 102 × 110 ≈ 48 × 234)
-      s.tween(B.g, 2.3, { x: 0, y: 0, rotation: 0 }, { x: 150, y: -230, rotation: 0, duration: 0.7, ease: 'power2.inOut', svgOrigin: '1240 700' });
-      s.tween(B.g, 3.0, { rotation: 0 }, { rotation: 70, duration: 0.5, ease: 'power2.inOut', svgOrigin: '1240 700' });
-      setLevel(s, B, 3.4, 110, 0, 1.1);
-      setLevel(s, C, 3.5, 0, 234, 1.1);
-      var stream = s.path(g, 'M1440 410 L1452 600', { stroke: WATER_D, 'stroke-width': 6, opacity: 0 });
-      s.tween(stream, 3.4, { opacity: 0 }, { opacity: 0.8, duration: 0.15 });
-      s.tween(stream, 4.45, { opacity: 0.8 }, { opacity: 0, duration: 0.15 });
-      s.tween(B.g, 4.7, { rotation: 70 }, { rotation: 0, duration: 0.4, ease: 'power2.inOut', svgOrigin: '1240 700' });
-      s.tween(B.g, 5.1, { x: 150, y: -230 }, { x: 0, y: 0, duration: 0.6, ease: 'power2.inOut' });
+      // ребёнок смотрит с самого начала
+      s.actor('baby', { x: 1720, y: 640, d: 104, o: 0 }, 0.6, 0.01);
+      s.actor('baby', { o: 1 }, 0.7, 0.5);
+      s.face('baby', true, 0.8, 0.3); s.mouth('baby', 'soft', 0.8, 0.01); s.gaze('baby', -9, 0, 0.8, 0.01);
+      s.squash('baby', 0.95, 1.06, 1.6, 0.12); s.squash('baby', 1, 1, 1.72, 0.25, 'back.out(3)');
+      s.squash('baby', 0.95, 1.06, 2.0, 0.12); s.squash('baby', 1, 1, 2.12, 0.25, 'back.out(3)');
+      s.gaze('baby', -8, -7, 2.4, 0.4); s.gaze('baby', -9, -2, 4.6, 0.4);
 
       // вопрос зрителю — пауза — ответ дошкольника
       s.out(p0, 4.8, { dur: 0.4 });
       var qv = s.text('statement', 'А теперь?', { left: 140, top: 330, width: 780, fontSize: 60 });
       s.lines(qv, 5.2);
-      s.actor('baby', { x: 1700, y: 640, d: 104, o: 0 }, 5.0, 0.01);
-      s.actor('baby', { o: 1 }, 5.1, 0.5);
-      s.face('baby', true, 5.2, 0.3); s.mouth('baby', 'soft', 5.2, 0.01); s.gaze('baby', -8, -6, 5.2, 0.01);
       var bub = s.div('bubble tail-r', { left: 1590, top: 470 }, null, 'В высоком!');
       s.pop(bub, 6.9, { from: 0.7, dur: 0.5, origin: '90% 100%' });
       s.mouth('baby', 'smile', 6.9, 0.2);
@@ -88,10 +112,11 @@
     }
   });
 
-  // 1:55 — Три горы → где Макси будет искать шоколадку? (Х. Виммер, Й. Пернер, 1983) → культура
+  // 2:00 — Три горы → где Макси будет искать шоколадку? (Х. Виммер, Й. Пернер, 1983)
   Film.scene({
     id: 'maxi', bars: 10,
     build: function (s) {
+      var TOY = Film.toys, IC = Film.icons;
       var k = s.text('kicker', 'Чужая точка зрения', { left: 140, top: 150 });
       s.fade(k, 0.1, { y: 8 });
       var h1 = s.text('h2', 'Три горы', { left: 140, top: 186, width: 900 });
@@ -104,96 +129,162 @@
       s.actor('baby', { x: 1400, y: 800, d: 92 }, 0.0, 1.0, 'power3.inOut');
       s.mouth('baby', 'soft', 0.2, 0.3); s.gaze('baby', 0, -6, 0.2, 0.3);
       var mt = s.node(ov0, 'g', {});
-      s.sk(mt, [[1180, 640], [1270, 470], [1360, 640]], { at: 0.6, dur: 0.6, seed: 301 });
-      s.sk(mt, [[1300, 640], [1420, 400], [1540, 640]], { at: 0.8, dur: 0.6, seed: 303 });
-      s.sk(mt, [[1480, 640], [1550, 520], [1620, 640]], { at: 1.0, dur: 0.6, seed: 305 });
+      s.sk(mt, [[1180, 640], [1270, 470], [1360, 640]], { at: 0.6, dur: 0.6, seed: 301, fill: '#EFE6D6' });
+      s.sk(mt, [[1300, 640], [1420, 400], [1540, 640]], { at: 0.8, dur: 0.6, seed: 303, fill: '#F3ECDF' });
+      s.sk(mt, [[1480, 640], [1550, 520], [1620, 640]], { at: 1.0, dur: 0.6, seed: 305, fill: '#EFE6D6' });
       s.sk(mt, [[1400, 418], [1420, 400], [1440, 418]], { at: 1.5, dur: 0.3, seed: 307, color: ORANGE, width: 5 });
       var doll = s.node(g0, 'circle', { cx: 1420, cy: 340, r: 16, fill: '#C9A27E', opacity: 0 });
       s.tween(doll, 1.6, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.4 });
       var dl = s.text('note', 'кукла', { left: 1450, top: 316, fontSize: 22 });
       s.fade(dl, 1.8, { y: 4 });
       s.gaze('baby', 6, -4, 2.6, 0.4);
-      [h1, m1, mc, dl].forEach(function (e) { s.out(e, 4.5, { dur: 0.4 }); });
-      s.out(mt, 4.5, { dur: 0.4 }); s.out(doll, 4.5, { dur: 0.4 });
-      s.actor('baby', { o: 0 }, 4.5, 0.4);
+      [h1, m1, mc, dl].forEach(function (e) { s.out(e, 4.3, { dur: 0.4 }); });
+      s.out(mt, 4.3, { dur: 0.4 }); s.out(doll, 4.3, { dur: 0.4 });
+      // ребёнок-испытуемый садится смотреть историю
+      var OX = 1340, OY = 862;
+      s.actor('baby', { x: OX, y: OY, d: 84 }, 4.4, 0.8, 'power3.inOut');
+      s.gaze('baby', -4, -8, 4.6, 0.3);
 
-      // Макси
+      // Макси, шкафы, шоколадка
       var h2 = s.text('h2', 'Где Макси будет искать шоколадку?', { left: 140, top: 186, width: 1500 });
-      s.lines(h2, 5.0);
+      s.lines(h2, 4.7);
       var g = s.svg(), ov = s.over();
-      var CA = 1180, CB = 1560, CY = 640;
+      var CA = 1200, CB = 1480, CYB = 760;
       [CA, CB].forEach(function (x, i) {
-        var c = s.node(g, 'rect', { x: x - 80, y: CY - 60, width: 160, height: 150, rx: 16, fill: '#F5E7BD', stroke: '#A77A12', 'stroke-width': 3, opacity: 0 });
-        s.tween(c, 5.2 + i * 0.15, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5 });
-        var lb = s.text('label', i ? 'другой шкаф' : 'первый шкаф', { left: x - 110, top: CY + 104, width: 220, textAlign: 'center', fontSize: 24, color: '#5F676B' });
-        s.fade(lb, 5.4 + i * 0.15, { y: 6 });
+        var c = TOY.cupboard(s, g, x, CYB, 150, 170, i ? '#DCE8F0' : '#F5E7BD', i ? '#4A7FB0' : '#A77A12');
+        s.tween(c, 4.9 + i * 0.15, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5 });
+        var lb = s.text('label', 'шкаф ' + (i + 1), { left: x - 80, top: CYB + 20, width: 160, textAlign: 'center', fontSize: 24, color: '#5F676B' });
+        s.fade(lb, 5.1 + i * 0.15, { y: 6 });
       });
-      var choc = s.node(g, 'rect', { x: CA - 22, y: CY - 10, width: 44, height: 30, rx: 5, fill: '#7A4A2A', opacity: 0 });
-      // Макси кладёт шоколадку и уходит
-      s.actor('kid2', { x: 900, y: 560, d: 96, o: 0 }, 5.0, 0.01);
-      s.actor('kid2', { o: 1 }, 5.3, 0.5);
-      s.face('kid2', true, 5.4, 0.3); s.mouth('kid2', 'smile', 5.4, 0.01); s.gaze('kid2', 8, 4, 5.4, 0.01);
-      var mx = s.text('label', 'Макси', { left: 840, top: 432, width: 120, textAlign: 'center', fontSize: 24 });
-      s.fade(mx, 5.6, { y: 6 }); s.out(mx, 8.0, { dur: 0.3 });
-      s.tween(choc, 6.0, { opacity: 0, x: -200, y: -80 }, { opacity: 1, x: 0, y: 0, duration: 0.7, ease: 'power2.out' });
-      // мысль Макси — рисованный слой: шоколадка в первом шкафу
+      var choc = s.node(g, 'g', {});
+      TOY.choc(s, choc, CA, 672, 0.8);
+      s.set(choc, 0, { x: -150, y: -40, opacity: 0 }, { x: -150, y: -40, opacity: 0 });
+      // Макси кладёт шоколадку в шкаф 1 и уходит
+      var MX = 1040, MY = 650;
+      s.actor('kid2', { x: MX - 160, y: MY, d: 96, o: 0 }, 4.9, 0.01);
+      s.actor('kid2', { o: 1 }, 5.0, 0.35);
+      s.face('kid2', true, 5.0, 0.3); s.mouth('kid2', 'smile', 5.0, 0.01); s.gaze('kid2', 8, 2, 5.0, 0.01);
+      s.hop('kid2', MX, MY, 5.21, 0.42, 40);
+      var mxl = s.text('label', 'Макси', { left: MX - 70, top: MY + 56, width: 140, textAlign: 'center', fontSize: 25 });
+      s.fade(mxl, 5.5, { y: 6 }); s.out(mxl, 8.0, { dur: 0.3 });
+      s.tween(choc, 5.8, { x: -150, y: -40, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: 0.45, ease: 'power2.out' });
+      // мысль Макси — рисованный слой: шоколадка в шкафу 1
       var th = s.node(ov, 'g', {});
-      s.sk(th, Film.circ(900, 400, 62, 18), { at: 6.8, dur: 0.6, seed: 311 });
-      s.sk(th, [[870, 470], [866, 480]], { at: 7.2, dur: 0.1, seed: 313, width: 5 });
-      s.sk(th, [[874, 400], [926, 400], [926, 440], [874, 440], [874, 400]], { at: 7.2, dur: 0.4, seed: 315, color: '#A77A12' });
-      s.sk(th, [[888, 412], [912, 412], [912, 428], [888, 428], [888, 412]], { at: 7.5, dur: 0.3, seed: 317, color: ORANGE, width: 5 });
-      s.actor('kid2', { x: 760, o: 0 }, 8.0, 0.7, 'power2.in');
-      s.tween(th, 8.0, { opacity: 1 }, { opacity: 0, duration: 0.5 });
+      IC.cloud(s, th, MX, 440, 100, 64, { at: 6.8, dur: 0.7, seed: 311, tail: [MX, 598] });
+      IC.choc(s, th, MX, 420, 0.62, { at: 7.25, dur: 0.4, seed: 315 });
+      var tht = s.otext('label', 'в шкафу 1', { left: MX - 80, top: 452, width: 160, textAlign: 'center', fontSize: 21, color: DEEP });
+      s.fade(tht, 7.5, { y: 4 });
+      s.hop('kid2', MX - 160, MY, 8.0, 0.42, 30);
+      s.actor('kid2', { o: 0 }, 8.4, 0.3);
+      s.tween([th, tht], 8.0, { opacity: 1 }, { opacity: 0, duration: 0.4 });
       // мама перекладывает
-      s.actor('adult', { x: 1560, y: 420, d: 140, o: 0 }, 8.0, 0.01);
-      s.actor('adult', { x: 1370, o: 1 }, 8.3, 0.7, 'power3.out');
-      s.tween(choc, 9.0, { x: 0, y: 0 }, { x: CB - CA, y: 0, duration: 1.0, ease: 'power2.inOut' });
-      s.actor('adult', { x: 1560, o: 0 }, 10.3, 0.6, 'power2.in');
-      // Макси возвращается — в голове всё ещё первый шкаф
-      s.actor('kid2', { x: 900, o: 1 }, 10.4, 0.7, 'power2.out');
-      s.tween(th, 10.9, { opacity: 0 }, { opacity: 1, duration: 0.5 });
+      s.actor('adult', { x: 1790, y: 600, d: 136, o: 0 }, 8.2, 0.01);
+      s.actor('adult', { x: 1670, o: 1 }, 8.3, 0.6, 'power3.out');
+      var ml = s.text('label', 'мама', { left: 1600, top: 676, width: 140, textAlign: 'center', fontSize: 25 });
+      s.fade(ml, 8.6, { y: 6 }); s.out(ml, 10.2, { dur: 0.3 });
+      s.tween(choc, 9.0, { x: 0, y: 0 }, { x: (CB - CA) / 2, y: -80, duration: 0.5, ease: 'power2.out' });
+      s.tween(choc, 9.5, { x: (CB - CA) / 2, y: -80 }, { x: CB - CA, y: 0, duration: 0.5, ease: 'power2.in' });
+      s.actor('adult', { x: 1790, o: 0 }, 10.2, 0.5, 'power2.in');
+      // Макси возвращается — в голове всё ещё шкаф 1
+      s.actor('kid2', { x: MX - 160, o: 1 }, 10.4, 0.3);
+      s.hop('kid2', MX, MY, 10.5, 0.42, 40);
+      s.fade(mxl, 10.8, { y: 6 });
+      s.tween([th, tht], 10.9, { opacity: 0 }, { opacity: 1, duration: 0.5 });
       var q = s.text('statement', 'Где Макси будет искать?', { left: 140, top: 330, width: 640, fontSize: 52 });
       s.lines(q, 11.3);
+      s.out(q, 12.4, { dur: 0.35 });
+
+      // отвечать нужно за Макси, а не за себя
+      var why = s.text('lead', 'Ребёнок видел всё. Но ответить нужно не за себя, а за Макси — из его головы.', { left: 140, top: 330, width: 800, fontSize: 32 });
+      s.lines(why, 12.8, { stagger: 0.08 });
+      var marks = s.svg();
+      var a1 = s.text('body', '3 года: «В шкафу 2!» — там, где шоколадка на самом деле.', { left: 196, top: 470, width: 740, fontSize: 28 });
+      var x1 = Film.cross(s, marks, 160, 490, RED);
+      s.lines(a1, 14.0, { stagger: 0.07 }); s.draw(x1, 14.1, { dur: 0.3 });
+      var a2 = s.text('body', '5 лет: «В шкафу 1!» — там, где её оставил Макси.', { left: 196, top: 556, width: 740, fontSize: 28 });
+      var c2 = Film.check(s, marks, 160, 576, GREEN);
+      s.lines(a2, 15.0, { stagger: 0.07 }); s.draw(c2, 15.1, { dur: 0.3 });
+      var p1 = s.path(ov, 'M' + (OX + 30) + ' ' + (OY - 40) + ' Q' + (OX + 90) + ' ' + (OY - 70) + ' ' + (CB - 20) + ' ' + (CYB + 10), { stroke: RED, 'stroke-width': 3.5, 'stroke-dasharray': '5 9' });
+      s.dash(p1, 14.0, { dur: 0.5 });
+      var p2 = s.path(ov, 'M' + (OX - 30) + ' ' + (OY - 40) + ' Q' + (OX - 90) + ' ' + (OY - 70) + ' ' + (CA + 20) + ' ' + (CYB + 10), { stroke: GREEN, 'stroke-width': 3.5, 'stroke-dasharray': '5 9' });
+      s.dash(p2, 15.0, { dur: 0.5 });
+      s.gaze('baby', 5, -8, 14.0, 0.3); s.gaze('baby', -5, -8, 15.0, 0.3);
+      [why, a1, a2, marks].forEach(function (e) { s.out(e, 16.2, { dur: 0.35 }); });
+      s.out(p1, 16.2, { dur: 0.35 }); s.out(p2, 16.2, { dur: 0.35 });
 
       // ответы по возрасту (Х. Виммер, Й. Пернер, 1983)
-      s.out(q, 13.4, { dur: 0.4 });
-      var ans = [];
-      var cap = s.text('small-caps', 'Ответили «в первом шкафу»', { left: 140, top: 330 });
-      s.fade(cap, 13.7, { y: 6 }); ans.push(cap);
-      s.age(44, 13.7, 1.4);
+      var cap = s.text('small-caps', 'Ответили верно — «в шкафу 1»', { left: 140, top: 330 });
+      s.fade(cap, 16.4, { y: 6 });
+      s.age(44, 16.4, 1.4);
       [['3–4 года', 0], ['4–6 лет', 57], ['6–9 лет', 86]].forEach(function (r, i) {
         var y = 380 + i * 64;
         var lb = s.text('label', r[0], { left: 140, top: y, fontSize: 26 });
         var bg = s.div('', { left: 300, top: y + 6, width: 400, height: 22, background: '#E7E2DA', borderRadius: '11px' });
         var b = s.div('', { left: 300, top: y + 6, width: Math.max(4, 4 * r[1]), height: 22, background: ORANGE, borderRadius: '11px' });
         var v = s.text('label', r[1] ? r[1] + ' %' : 'никто', { left: 716, top: y, fontSize: 26, color: DEEP });
-        s.fade(lb, 13.9 + i * 0.35, { y: 6 }); s.fade(bg, 13.9 + i * 0.35, { y: 0 });
-        s.grow(b, 14.1 + i * 0.35, { dur: 0.7 }); s.fade(v, 14.6 + i * 0.35, { y: 0 });
-        ans.push(lb, bg, b, v);
+        s.fade(lb, 16.5 + i * 0.35, { y: 6 }); s.fade(bg, 16.5 + i * 0.35, { y: 0 });
+        s.grow(b, 16.6 + i * 0.35, { dur: 0.7 }); s.fade(v, 17.1 + i * 0.35, { y: 0 });
       });
       var wc = s.text('cite', 'Х. Виммер, Й. Пернер, 1983', { left: 140, top: 580 });
-      s.fade(wc, 15.0, { y: 6 }); ans.push(wc);
+      s.fade(wc, 17.8, { y: 6 });
       var term = s.text('h3 acc', '<span class="term">теория психического<span class="en">theory of mind</span></span>', { left: 140, top: 640 });
-      s.fade(term, 15.6, { y: 10 }); ans.push(term);
+      s.fade(term, 18.6, { y: 10 });
       var meta = s.text('body', 'Метаанализ 178 исследований: перелом — около 4 лет; форма задачи сдвигает кривую, но не меняет её (Г. Уэллман и др., 2001).', { left: 140, top: 748, width: 820, fontSize: 25 });
-      s.lines(meta, 16.4, { stagger: 0.07 }); ans.push(meta);
+      s.lines(meta, 19.4, { stagger: 0.07 });
+      s.actor('kid2', { o: 0 }, 24.1, 0.4);
+    }
+  });
 
-      // культура: порядок ступеней понимания (А. Шахаян и др., 2011)
-      ans.forEach(function (e) { s.out(e, 19.6, { dur: 0.4 }); });
-      var cl = s.text('small-caps', 'Порядок ступеней зависит от культуры', { left: 140, top: 330 });
-      s.fade(cl, 20.0, { y: 6 });
-      [['Австралия, США', ['разные желания', 'разные мнения', 'кто что знает', 'ложное убеждение']],
-       ['Иран, Китай', ['разные желания', 'кто что знает', 'разные мнения', 'ложное убеждение']]].forEach(function (sq, j) {
-        var y = 380 + j * 176;
-        var nm = s.text('label', sq[0], { left: 140, top: y, fontSize: 25 });
-        s.fade(nm, 20.2 + j * 0.8, { y: 6 });
-        sq[1].forEach(function (w, i) {
-          var ch = s.div('chip' + (i === 1 || i === 2 ? ' sw' : ''), { left: 140 + (i % 2) * 400, top: y + 42 + Math.floor(i / 2) * 58, height: 48, fontSize: 23, padding: '0 20px' }, null, (i + 1) + '. ' + w);
-          s.fade(ch, 20.4 + j * 0.8 + i * 0.12, { y: 6 });
+  // 2:25 — Ступени те же, порядок разный (Г. Уэллман, Д. Лю, 2004; А. Шахаян и др., 2011)
+  Film.scene({
+    id: 'culture', bars: 4,
+    build: function (s) {
+      s.actor('baby', { o: 0 }, 0.0, 0.35);
+      var k = s.text('kicker', 'Межкультурные данные', { left: 140, top: 150 });
+      s.fade(k, 0.1, { y: 8 });
+      var h = s.text('h2', 'Ступени те же — порядок разный', { left: 140, top: 186, width: 1600 });
+      s.lines(h, 0.2);
+      var g = s.svg();
+      var SW = 170, SH = 62, BASE = 760;
+      var names = ['хотят<br>разного', 'думают<br>по-разному', 'не видел —<br>не знает', 'можно<br>ошибаться'];
+      var stairs = [[160, 'Австралия, США', 'baby'], [1060, 'Иран, Китай', 'kid2']].map(function (st, j) {
+        var x0 = st[0], steps = [], labs = [];
+        var hd = s.text('label', st[1], { left: x0, top: 330, fontSize: 30 });
+        s.fade(hd, 0.5 + j * 0.2, { y: 6 });
+        for (var i = 0; i < 4; i++) {
+          var top = BASE - (i + 1) * SH;
+          var r = s.node(g, 'rect', { x: x0 + i * SW, y: top, width: SW, height: (i + 1) * SH, fill: '#F3EDE2', stroke: '#CDC3B4', 'stroke-width': 2.5 });
+          s.tween(r, 0.5 + j * 0.2 + i * 0.08, { opacity: 0, scaleY: 0, transformOrigin: '50% 100%' }, { opacity: 1, scaleY: 1, duration: 0.45, ease: 'power3.out' });
+          var lb = s.text('label', names[i], { left: x0 + i * SW, top: top + 8, width: SW, textAlign: 'center', fontSize: 23, lineHeight: 1.1, color: '#3C4852' });
+          s.fade(lb, 0.9 + j * 0.2 + i * 0.08, { y: 4 });
+          steps.push(r); labs.push(lb);
+        }
+        return { x0: x0, steps: steps, labs: labs, kid: st[2] };
+      });
+      // справа две средние ступени меняются местами
+      var R = stairs[1];
+      s.tween(R.labs[1], 1.6, { x: 0, y: 0 }, { x: SW, y: -SH, duration: 0.7, ease: 'power2.inOut' });
+      s.tween(R.labs[2], 1.6, { x: 0, y: 0 }, { x: -SW, y: SH, duration: 0.7, ease: 'power2.inOut' });
+      var tmp = R.labs[1]; R.labs[1] = R.labs[2]; R.labs[2] = tmp;
+      [stairs[0].labs[1], stairs[0].labs[2], R.labs[1], R.labs[2]].forEach(function (e) {
+        s.tween(e, 2.3, { color: '#3C4852' }, { color: DEEP, duration: 0.4 });
+      });
+      // дети поднимаются по ступеням, каждая ступень загорается под ногами
+      stairs.forEach(function (st) {
+        var id = st.kid, sx = st.x0 - 50, sy = BASE - 32;
+        s.actor(id, { x: sx, y: sy, d: 64, o: 0 }, 0.9, 0.01);
+        s.actor(id, { o: 1 }, 1.0, 0.4);
+        s.face(id, true, 1.0, 0.3); s.mouth(id, 'smile', 1.0, 0.01); s.gaze(id, 8, -4, 1.0, 0.01);
+        [2.5, 3.125, 3.75, 4.375].forEach(function (lt, i) {
+          s.hop(id, st.x0 + i * SW + SW / 2, BASE - (i + 1) * SH - 32, lt - 0.09, 0.32, 34);
+          s.tween(st.steps[i], lt + 0.3, { fill: '#F3EDE2' }, { fill: '#FEF0DD', duration: 0.3 });
         });
       });
-      var sc = s.text('cite', 'А. Шахаян и др., 2011; Г. Уэллман, Д. Лю, 2004', { left: 140, top: 744 });
-      s.fade(sc, 22.0, { y: 6 });
+      var c1 = s.text('body', 'В Иране и Китае дети раньше понимают «не видел — не знает», а то, что люди думают по-разному, — позже. В Австралии и США — наоборот.', { left: 140, top: 788, width: 1640, fontSize: 27 });
+      s.lines(c1, 5.0, { stagger: 0.08 });
+      var c2 = s.text('note', 'Авторы связывают это с ценностями семьи: уважение к старшим, избегание споров, ценность знания (А. Шахаян и др., 2011; Г. Уэллман, Д. Лю, 2004).', { left: 140, top: 872, width: 1640, fontSize: 22 });
+      s.fade(c2, 6.4, { y: 6 });
+      s.actor('baby', { o: 0 }, 9.4, 0.35); s.actor('kid2', { o: 0 }, 9.4, 0.35);
     }
   });
 })();

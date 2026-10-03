@@ -14,7 +14,7 @@
   }
   Film.ride = ride;
 
-  // 0:00 — Пролог: палочка становится лошадью, а ребёнок — всадником
+  // 0:00 — Пролог: палочка становится лошадью, а ребёнок — всадником; следом скачет друг
   Film.scene({
     id: 'prologue', bars: 3,
     build: function (s) {
@@ -32,13 +32,7 @@
       // голова лошади — смысловое поле (рисованный слой над ребёнком)
       var ov = s.over();
       var horse = s.node(ov, 'g', {});
-      var hx = CX + 145, hy = CY - 82;
-      function P(dx, dy) { return [hx + dx, hy + dy]; }
-      s.sk(horse, [P(0, 0), P(23, -46), P(53, -80), P(99, -92), P(141, -80), P(161, -54), P(143, -34), P(95, -32), P(63, -16), P(39, 16), P(13, 42)], { at: 1.05, dur: 1.1, seed: 5 });
-      s.sk(horse, [P(53, -78), P(45, -116), P(71, -90)], { at: 1.85, dur: 0.35, seed: 9 }); // ухо
-      var eye = s.node(horse, 'circle', { cx: hx + 95, cy: hy - 66, r: 5.5, fill: Film.sketch.GRAPHITE, opacity: 0 });
-      s.tween(eye, 2.15, { opacity: 0 }, { opacity: 1, duration: 0.3 });
-      s.sk(horse, [P(29, -58), P(13, -46), P(23, -34), P(1, -26), P(13, -10), P(-9, -4), P(1, 12)], { at: 1.55, dur: 0.8, color: ORANGE, width: 5, seed: 21 }); // грива
+      Film.icons.horse(s, horse, CX + 145, CY - 82, 1.05, { at: 1.05, dur: 1.3, seed: 5 });
 
       var l1 = s.text('statement', 'Палочка становится лошадью.', { left: 160, top: 760, width: 1600, textAlign: 'center' });
       s.lines(l1, 0.55);
@@ -46,18 +40,32 @@
       s.lines(l2, 3.3);
       s.hl(l2, 4.25);
 
-      // галоп: три скачка на доли 6/8 (четверть с точкой = 1,25 с)
+      // галоп: скачки на сильные доли (2,5 · 3,75 · 5 · 6,25 с)
       s.mouth('baby', 'smile', 2.4, 0.3);
-      var t = 2.41;
-      [80, 80, 80].forEach(function (dx) {
-        s.hop('baby', s.A.baby.st.x + dx, CY, t, 0.5, 46);
-        ride(s, stick, dx, t, 0.5, 46);
-        ride(s, horse, dx, t, 0.5, 46);
-        t += 1.25;
+      [2.41, 3.66, 4.91, 6.16].forEach(function (t) {
+        s.hop('baby', s.A.baby.st.x + 70, CY, t, 0.5, 46);
+        ride(s, stick, 70, t, 0.5, 46);
+        ride(s, horse, 70, t, 0.5, 46);
       });
       // линии скорости
       s.sk(horse, [[CX - 120, CY - 10], [CX - 220, CY - 10]], { at: 3.0, dur: 0.3, seed: 41, width: 3, opacity: 0.55 });
       s.sk(horse, [[CX - 100, CY + 40], [CX - 180, CY + 40]], { at: 3.15, dur: 0.3, seed: 43, width: 3, opacity: 0.55 });
+
+      // друг на своей лошадке догоняет — игра уже общая
+      var K = 0.82, FX = 250, FY = 590;
+      s.actor('kid2', { x: FX, y: FY, d: 100, o: 0 }, 0, 0.01);
+      s.actor('kid2', { o: 1 }, 3.0, 0.4, 'power2.out');
+      s.face('kid2', true, 3.0, 0.3); s.mouth('kid2', 'smile', 3.0, 0.01); s.gaze('kid2', 7, -2, 3.0, 0.01);
+      var stick2 = s.node(g0, 'g', {});
+      s.path(stick2, 'M' + (FX - 200 * K) + ' ' + (FY + 140 * K) + ' C' + (FX - 100 * K) + ' ' + (FY + 80 * K) + ' ' + (FX + 20 * K) + ' ' + FY + ' ' + (FX + 145 * K) + ' ' + (FY - 82 * K), { stroke: STICK, 'stroke-width': 9 });
+      s.tween(stick2, 3.0, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+      var horse2 = s.node(ov, 'g', {});
+      Film.icons.horse(s, horse2, FX + 145 * K, FY - 82 * K, 0.86, { at: 3.05, dur: 0.6, seed: 61 });
+      [3.66, 4.91, 6.16].forEach(function (t) {
+        s.hop('kid2', s.A.kid2.st.x + 100, FY, t, 0.5, 40);
+        ride(s, stick2, 100, t, 0.5, 40);
+        ride(s, horse2, 100, t, 0.5, 40);
+      });
     }
   });
 
@@ -74,6 +82,7 @@
 
       s.face('baby', false, 0.0, 0.3);
       s.actor('baby', { x: cx, y: s.RY, d: 26 }, 0.05, 1.15, 'power2.inOut');
+      s.actor('kid2', { o: 0 }, 0.0, 0.4);
 
       var k = s.text('kicker', 'Психология развития', { left: 160, top: 318, width: 1600, textAlign: 'center' });
       s.fade(k, 0.75, { y: 10 });

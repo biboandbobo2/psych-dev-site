@@ -43,10 +43,15 @@
     var flt = defs(svgEl);
     var col = o.color || GRAPHITE, w = o.width || 4.2, seed = o.seed || 11;
     var g = s.node(parent, 'g', { filter: flt });
+    // заливка — под штрихом; если линия рисуется на глазах, заливка проявляется к концу прорисовки
+    if (o.fill) {
+      var fo = o.fillOpacity == null ? 1 : o.fillOpacity;
+      var fp = s.node(g, 'path', { d: rough(pts, seed, o.amp) + ' Z', fill: o.fill, stroke: 'none', opacity: o.at != null ? 0 : fo });
+      if (o.at != null) s.tween(fp, o.at + (o.dur || 0.9) * 0.6, { opacity: 0 }, { opacity: fo, duration: 0.45 });
+    }
     var a = s.path(g, rough(pts, seed, o.amp), { stroke: col, 'stroke-width': w, opacity: o.opacity == null ? 0.92 : o.opacity });
     var b = s.path(g, rough(pts.map(function (q) { return [q[0] + 1.6, q[1] - 1.2]; }), seed + 101, o.amp), { stroke: col, 'stroke-width': w * 0.55, opacity: 0.45 });
     if (o.at != null) { s.draw(a, o.at, { dur: o.dur || 0.9, ease: o.ease || 'power1.inOut' }); s.draw(b, o.at + 0.08, { dur: o.dur || 0.9, ease: o.ease || 'power1.inOut' }); }
-    if (o.fill) s.node(g, 'path', { d: rough(pts, seed, o.amp) + ' Z', fill: o.fill, stroke: 'none', opacity: 0 });
     return g;
   }
 
