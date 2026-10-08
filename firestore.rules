@@ -73,6 +73,20 @@ service cloud.firestore {
         allow read: if isOwner(userId) || canEditCourse(courseId);
         allow write: if isOwner(userId);
       }
+
+      // Полученные наклейки «Достижений»: один документ на наклейку.
+      // Подсчёт идёт в браузере, сервер хранит «храповик»: создать может только
+      // владелец (дата — не из будущего), изменить и удалить нельзя никому, —
+      // однажды полученная наклейка не пропадает при правке курсов и тестов.
+      match /achievements/{badgeId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && badgeId.matches('^[a-z0-9-]{1,40}$')
+          && request.resource.data.keys().hasOnly(['earnedAt'])
+          && request.resource.data.earnedAt is timestamp
+          && request.resource.data.earnedAt <= request.time;
+        allow update, delete: if false;
+      }
     }
 
     match /admins/{adminId} {

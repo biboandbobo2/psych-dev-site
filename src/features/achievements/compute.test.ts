@@ -159,3 +159,23 @@ describe('helpers', () => {
     expect(hasLongBreak([at('2026-07-01T10:00:00'), at('2026-09-20T10:00:00')])).toBe(true);
   });
 });
+
+describe('сохранённые наклейки (храповик)', () => {
+  it('сохранённая остаётся полученной, даже если данные изменились, и берёт серверную дату', () => {
+    const savedAt = at('2026-09-10T12:00:00');
+    const r = computeAchievements({
+      ...base,
+      accessibleCourseIds: ['general'],
+      courses: [{ id: 'general', totalLessons: 16, doneLessons: 15 }],
+      earned: new Map([['course-general', savedAt]]),
+    });
+    expect(byId(r, 'course-general')?.status).toBe('got');
+    expect(byId(r, 'course-general')?.earnedAt).toEqual(savedAt);
+    expect(r.latest?.def.id).toBe('course-general');
+  });
+
+  it('сохранённая наклейка видна, даже если доступ к курсу пропал', () => {
+    const r = computeAchievements({ ...base, earned: new Map([['course-ego', at('2026-09-10T12:00:00')]]) });
+    expect(byId(r, 'course-ego')?.status).toBe('got');
+  });
+});

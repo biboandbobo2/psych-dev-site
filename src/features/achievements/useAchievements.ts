@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { debugError } from '../../lib/debug';
@@ -22,16 +22,20 @@ import {
 } from './compute';
 import type { AchievementSet } from './catalog';
 import { readNotFoundVisited } from './notFoundMark';
+import { loadEarnedAchievements, recordEarnedAchievements } from './achievementsCloud';
 
 interface RemoteData {
   lessonIds: Record<string, string[]>;
   tests: TestInput[];
   questionDates: Date[];
+  earned: Map<string, Date>;
 }
 
 /**
  * Данные пользователя для «Достижений»: всё считается в браузере из того,
  * что пользователь и так может читать (прогресс, тесты, конспекты, вопросы).
+ * Полученные наклейки дописываются на сервер (users/{uid}/achievements) и
+ * дальше не пропадают — ни при чистке браузера, ни на другом устройстве.
  */
 export function useAchievements(): {
   result: AchievementsResult | null;
@@ -61,7 +65,7 @@ export function useAchievements(): {
     const courseIds = coursesKey ? coursesKey.split('|') : [];
 
     (async () => {
-      const [lessonEntries, publishedTests, results, questionsSnap] = await Promise.all([
+      const [lessonEntries, publishedTests, results, questionsSnap, earned] = await Promise.all([
         Promise.all(
           courseIds.map(async (id) => {
             try {
@@ -86,6 +90,10 @@ export function useAchievements(): {
             return null;
           },
         ),
+        loadEarnedAchievements(user.uid).catch((error) => {
+          debugError('[achievements] earned load failed', error);
+          return new Map<string, Date>();
+        }),
       ]);
       if (cancelled) return;
 
@@ -103,6 +111,7 @@ export function useAchievements(): {
         tests,
         questionDates:
           questionsSnap?.docs.map((d) => mapLectureQuestionRecord(d.id, d.data()).createdAt) ?? [],
+        earned,
       });
     })();
 
@@ -150,12 +159,26 @@ export function useAchievements(): {
       })),
       questionDates: remote.questionDates,
       foundNotFound: readNotFoundVisited(),
+      earned: remote.earned,
     });
   }, [remote, byCourse, progressVersion, set, accessibleCourseIds, notes]);
 
-  return {
-    result,
-    set,
-    loading: !result || groupsLoading || notesLoading || opennessLoading,
-  };
+  const loading = !result || groupsLoading || notesLoading || opennessLoading;
+
+  // Новые наклейки — на сервер (один раз за сессию на наклейку).
+  const recordedRef = useRef(new Set<string>());
+  useEffect(() => {
+    if (!user || loading || !result || !remote) return;
+    const fresh = result.items.filter(
+      (i) => i.status === 'got' && !remote.earned.has(i.def.id) && !recordedRef.current.has(i.def.id),
+    );
+    if (!fresh.length) return;
+    fresh.forEach((i) => recordedRef.current.add(i.def.id));
+    void recordEarnedAchievements(
+      user.uid,
+      fresh.map((i) => ({ id: i.def.id, earnedAt: i.earnedAt })),
+    );
+  }, [user, loading, result, remote]);
+
+  return { result, set, loading };
 }

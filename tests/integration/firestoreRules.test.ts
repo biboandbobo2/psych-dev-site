@@ -28,6 +28,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  Timestamp,
   updateDoc,
   where,
 } from 'firebase/firestore';
@@ -1827,5 +1828,38 @@ describe('default-deny для новых неизвестных коллекци
   it('обычный авторизованный: list произвольной новой коллекции → denied', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(getDocs(collection(db, 'random_new_collection')));
+  });
+});
+
+describe('users/{uid}/achievements: «храповик» полученных наклеек', () => {
+  const alice = () => testEnv.authenticatedContext('alice').firestore();
+  const badge = (db: ReturnType<typeof alice>, id = 'first-test') =>
+    doc(db, 'users', 'alice', 'achievements', id);
+
+  it('владелец создаёт наклейку с серверной датой и читает свои', async () => {
+    await assertSucceeds(setDoc(badge(alice()), { earnedAt: serverTimestamp() }));
+    await assertSucceeds(getDocs(collection(alice(), 'users', 'alice', 'achievements')));
+  });
+
+  it('дата из прошлого допустима, из будущего — нет', async () => {
+    await assertSucceeds(setDoc(badge(alice(), 'night-shift'), { earnedAt: Timestamp.fromDate(new Date('2026-09-01')) }));
+    await assertFails(setDoc(badge(alice(), 'bullseye'), { earnedAt: Timestamp.fromMillis(Date.now() + 86_400_000) }));
+  });
+
+  it('лишние поля и кривой id отклоняются', async () => {
+    await assertFails(setDoc(badge(alice()), { earnedAt: serverTimestamp(), extra: 1 }));
+    await assertFails(setDoc(badge(alice(), 'Bad_ID'), { earnedAt: serverTimestamp() }));
+  });
+
+  it('полученную наклейку нельзя изменить или удалить', async () => {
+    await assertSucceeds(setDoc(badge(alice()), { earnedAt: serverTimestamp() }));
+    await assertFails(setDoc(badge(alice()), { earnedAt: serverTimestamp() }));
+    await assertFails(deleteDoc(badge(alice())));
+  });
+
+  it('чужие наклейки не читаются и не создаются', async () => {
+    const mallory = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(getDocs(collection(mallory, 'users', 'alice', 'achievements')));
+    await assertFails(setDoc(badge(mallory), { earnedAt: serverTimestamp() }));
   });
 });

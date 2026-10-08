@@ -38,6 +38,8 @@ export interface AchievementInput {
   notes: NoteInput[];
   questionDates: Date[];
   foundNotFound: boolean;
+  /** Уже сохранённые на сервере наклейки (id → дата получения): не пропадают никогда. */
+  earned?: Map<string, Date>;
 }
 
 export interface AchievementProgress {
@@ -252,7 +254,12 @@ export function computeAchievements(input: AchievementInput): AchievementsResult
     'welcome-back': () => ({ got: hasLongBreak(activity) }),
   };
 
-  const items: AchievementState[] = ACHIEVEMENTS.filter((def) => isVisible(def, input)).map((def) => {
+  const earned = input.earned ?? new Map<string, Date>();
+  const items: AchievementState[] = ACHIEVEMENTS.filter(
+    (def) => isVisible(def, input) || earned.has(def.id)
+  ).map((def) => {
+    const savedAt = earned.get(def.id);
+    if (savedAt) return { def, status: 'got', earnedAt: savedAt };
     if (def.soon) return { def, status: 'soon' };
     let result: Eval;
     if (def.courseIds) {
