@@ -99,6 +99,7 @@ function StudentDashboard() {
           name: course.name,
           icon: course.icon,
           continuePath,
+          started: Boolean(lastCourseLesson || resumePoint),
           lessonTitle,
           watchedLessonIds: getWatchedLessonIds(course.id),
           resumeTimeLabel:

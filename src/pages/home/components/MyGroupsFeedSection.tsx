@@ -33,8 +33,10 @@ export function MyGroupsFeedSection({ items: allItems, loading, onOpen }: MyGrou
     byGroup.set(item.groupName, list);
   }
   // Внутри группы: сначала будущие события по startAt ASC, потом объявления
-  // по createdAt DESC. Прошедшие события уходят в конец.
-  const nowMs = Date.now();
+  // по createdAt DESC. Прошедшие события уходят в конец. Сегодняшние считаем
+  // предстоящими до конца дня — иначе событие пропадало из списка в минуту начала.
+  const now = new Date();
+  const todayStartMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   for (const [groupName, list] of byGroup) {
     list.sort((a, b) => {
       const aIsEvent = a.kind === 'event';
@@ -42,8 +44,8 @@ export function MyGroupsFeedSection({ items: allItems, loading, onOpen }: MyGrou
       if (aIsEvent && bIsEvent) {
         const aMs = a.startAt?.toMillis?.() ?? a.createdAt?.toMillis?.() ?? 0;
         const bMs = b.startAt?.toMillis?.() ?? b.createdAt?.toMillis?.() ?? 0;
-        const aFuture = aMs >= nowMs ? 0 : 1;
-        const bFuture = bMs >= nowMs ? 0 : 1;
+        const aFuture = aMs >= todayStartMs ? 0 : 1;
+        const bFuture = bMs >= todayStartMs ? 0 : 1;
         if (aFuture !== bFuture) return aFuture - bFuture;
         return aFuture === 0 ? aMs - bMs : bMs - aMs;
       }

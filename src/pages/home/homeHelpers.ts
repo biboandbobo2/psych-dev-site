@@ -1,7 +1,7 @@
 import { CLINICAL_ROUTE_CONFIG, GENERAL_ROUTE_CONFIG, ROUTE_CONFIG } from '../../routes';
-import type { CourseType } from '../../types/tests';
 import type { Group } from '../../types/groups';
 import { isEveryoneGroup } from '../../../shared/groups/everyoneGroup';
+import { getCourseIntroPath } from './utils';
 
 export function resolvePrimaryLesson(courseId: string): { link: string; title: string } {
   if (courseId === 'development') {
@@ -22,8 +22,9 @@ export function resolvePrimaryLesson(courseId: string): { link: string; title: s
       title: GENERAL_ROUTE_CONFIG[0]?.navLabel ?? 'Первое занятие курса',
     };
   }
+  // Профиль больше не показывает занятия курса — ведём на страницу «О курсе».
   return {
-    link: `/profile?course=${encodeURIComponent(courseId as CourseType)}`,
+    link: getCourseIntroPath(courseId),
     title: 'Первое занятие выбранного курса',
   };
 }

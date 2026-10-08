@@ -3,6 +3,8 @@ import { useCourseStore } from '../../../stores';
 import type { CourseType } from '../../../types/tests';
 import { useCourseNavItems } from '../../../hooks/useCourseNavItems';
 import { calculateCourseProgress } from '../../../lib/courseProgress/calculateCourseProgress';
+import { getCourseLessonPath } from '../../../lib/courseNavItems';
+import { isCoreCourse } from '../../../constants/courses';
 import { getCourseIntroPath } from '../utils';
 
 export interface ContinueCourse {
@@ -10,6 +12,8 @@ export interface ContinueCourse {
   name: string;
   icon?: string;
   continuePath: string;
+  /** Есть ли сохранённый последний урок или точка видео. */
+  started: boolean;
   lessonTitle: string;
   watchedLessonIds: Set<string>;
   resumeTimeLabel: string | null;
@@ -37,6 +41,15 @@ export function ContinueCourseCard({ course, streamLabel, onOpenLessons }: Conti
           lessons: lessons.map((lesson) => ({ period: lesson.id })),
           watchedLessonIds: course.watchedLessonIds,
         });
+  // Курс не начат — ведём в первую лекцию. У динамических курсов `intro` —
+  // страница «О курсе», а не лекция (как в DynamicCoursePeriodPage).
+  const firstLesson = course.started
+    ? null
+    : [...lessons]
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .find((lesson) => isCoreCourse(course.id) || lesson.id !== 'intro');
+  const ctaPath = firstLesson ? getCourseLessonPath(course.id, firstLesson.id) : course.continuePath;
+  const lessonTitle = firstLesson?.title ?? course.lessonTitle;
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-border bg-card shadow-brand transition">
@@ -74,21 +87,23 @@ export function ContinueCourseCard({ course, streamLabel, onOpenLessons }: Conti
             <h2 className="mt-1 break-words text-xl font-bold leading-tight text-fg sm:text-3xl">
               {course.name}
             </h2>
-            <p className="mt-2 text-sm text-muted">Лекция: {course.lessonTitle}</p>
+            <p className="mt-2 text-sm text-muted">Лекция: {lessonTitle}</p>
             <p className="mt-1 text-xs font-semibold text-accent">
-              {course.resumeTimeLabel ?? 'Продолжим с последнего урока'}
+              {course.started
+                ? course.resumeTimeLabel ?? 'Продолжим с последнего урока'
+                : 'Курс ещё не начат'}
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <NavLink
-              to={course.continuePath}
+              to={ctaPath}
               onClick={(event) => {
                 event.stopPropagation();
                 setCurrentCourse(course.id as CourseType);
               }}
               className="inline-flex items-center gap-2 rounded-xl border border-accent/30 bg-accent-100 px-5 py-2.5 text-sm font-semibold text-accent transition hover:bg-accent-100/70"
             >
-              ▶ Продолжить
+              {course.started ? '▶ Продолжить' : '▶ Смотреть первую лекцию'}
             </NavLink>
             {progress ? (
               <div className="rounded-xl border border-border bg-card2 px-3 py-2 text-right">
