@@ -25,7 +25,7 @@ const LOAD_TIMEOUT_MS = 8000;
 
 const NAV_REQUESTS = new Map<string, Promise<CourseNavIndexItem[]>>();
 
-async function loadNavItems(courseId: string): Promise<CourseNavIndexItem[]> {
+export async function loadNavItems(courseId: string): Promise<CourseNavIndexItem[]> {
   const inFlight = NAV_REQUESTS.get(courseId);
   if (inFlight) return inFlight;
 

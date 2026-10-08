@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Саморегуляция и воля</title>
+  <circle cx="108" cy="134" r="68"/>
+  <circle cx="108" cy="134" r="14"/>
+  <path d="M108 120V66M96 143l-45 30M120 143l45 30"/>
+  <path d="M166 91c8-12 25-8 26 7l1 15 16 6c14 5 19 22 10 34l-27 38"/>
+</svg>

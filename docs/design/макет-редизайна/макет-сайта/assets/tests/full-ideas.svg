@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Ключевые концепции и сравнение позиций</title>
+  <circle cx="128" cy="128" r="34"/>
+  <circle cx="128" cy="42" r="17"/>
+  <circle cx="54" cy="181" r="17"/>
+  <circle cx="202" cy="181" r="17"/>
+  <path d="M128 59v35M100 148l-32 23M156 148l32 23"/>
+</svg>

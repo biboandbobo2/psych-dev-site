@@ -27,7 +27,7 @@ test.describe('Студент группы: доступ только к кур�
     // (CatalogSection), поэтому «что реально открыто» проверяем
     // там, где UI строит список по hasCourseAccess, — в «Моих актуальных
     // курсах» профиля (FeaturedCoursesSection).
-    await gotoAndSettle(page, '/profile');
+    await gotoAndSettle(page, '/profile?tab=courses');
 
     const section = page.locator('section').filter({
       has: page.getByRole('heading', { name: 'Мои актуальные курсы' }),
