@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Аффективные расстройства и суицидальность</title>
+  <circle cx="128" cy="78" r="32"/>
+  <path d="M40 146c24-8 45 0 62 24l26 36M216 146c-24-8-45 0-62 24l-26 36"/>
+  <path d="M40 146l22 64M216 146l-22 64M62 210h132"/>
+</svg>

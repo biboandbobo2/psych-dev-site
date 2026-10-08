@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Введение</title>
+  <path d="M42 66l56-18 60 20 56-18v140l-56 18-60-20-56 18zM98 48v140M158 68v140"/>
+  <path d="M67 157c20-30 38-13 55-31s34-31 65-20"/>
+  <circle cx="67" cy="157" r="7"/>
+</svg>

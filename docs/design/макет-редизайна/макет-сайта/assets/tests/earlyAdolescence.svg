@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Ранняя подростковость</title>
+  <g transform="translate(128 128) scale(1.17) translate(-131 -127.5)" stroke-width="10.26">
+    <circle cx="103" cy="69" r="26"/>
+    <path d="M56 212c2-53 19-85 47-85s45 32 47 85"/>
+    <path d="M190 52v160M190 91h-24M190 147h-24"/>
+  </g>
+</svg>

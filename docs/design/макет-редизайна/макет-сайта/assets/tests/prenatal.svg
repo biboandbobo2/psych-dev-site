@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Пренатальный период</title>
+  <circle cx="101" cy="54" r="23"/>
+  <path d="M78 82c-20 24-25 56-17 87l12 46h80c28-5 44-26 39-52-6-28-31-43-59-37 2-17-4-32-16-44"/>
+  <ellipse cx="156" cy="162" rx="14" ry="19"/>
+</svg>

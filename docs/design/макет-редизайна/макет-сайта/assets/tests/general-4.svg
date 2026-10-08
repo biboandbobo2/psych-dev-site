@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Восприятие. Внимание</title>
+  <circle cx="57" cy="128" r="17"/>
+  <circle cx="128" cy="128" r="17"/>
+  <circle cx="199" cy="128" r="17"/>
+  <path d="M109 72H94v25M147 72h15v25M109 184H94v-25M147 184h15v-25"/>
+</svg>

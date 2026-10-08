@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Младенчество</title>
+  <ellipse cx="128" cy="67" rx="31" ry="27"/>
+  <path d="M91 101c-17 18-23 44-16 70 8 29 28 48 53 57 25-9 45-28 53-57 7-26 1-52-16-70-11 10-23 15-37 15s-26-5-37-15z"/>
+  <path d="M81 128l91 65M175 128l-91 65"/>
+</svg>

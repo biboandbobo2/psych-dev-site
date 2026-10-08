@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Мышление</title>
+  <g transform="translate(128 128) scale(1.15) translate(-128 -147)" stroke-width="10.43">
+    <path d="M46 83h56c-5 11 2 24 14 24s19-13 14-24h80v53c-11-5-24 2-24 14s13 19 24 14v47h-66c5-11-2-24-14-24s-19 13-14 24H46v-52c11 5 24-2 24-14s-13-19-24-14z"/>
+  </g>
+</svg>
