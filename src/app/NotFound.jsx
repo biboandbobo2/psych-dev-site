@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion as Motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { NavLink } from 'react-router-dom';
@@ -5,8 +6,13 @@ import { Section } from '../components/ui/Section';
 import { Button } from '../components/ui/Button';
 import { SITE_NAME } from '../routes';
 import { pageTransition } from '../theme/motion';
+import { markNotFoundVisited } from '../features/achievements/notFoundMark';
 
 export default function NotFound() {
+  useEffect(() => {
+    markNotFoundVisited();
+  }, []);
+
   return (
     <Motion.div
       initial={{ opacity: 0, y: 16 }}

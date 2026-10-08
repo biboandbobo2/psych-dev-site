@@ -1,38 +1,99 @@
-import { Link } from 'react-router-dom';
-import { SuperAdminBadge } from '../components/SuperAdminBadge';
+import { useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   FeaturedCoursesSection,
   GeminiKeySection,
+  ProfileOverview,
+  ProfileSideNav,
   SearchHistorySection,
   StudyDefaultsSection,
+  type ProfileTab,
 } from '../components/profile';
-import { FeedbackButton } from '../components/FeedbackModal';
+import { AchievementsSection } from '../features/achievements';
 import { useAuth } from '../auth/AuthProvider';
 import { triggerHaptic } from '../lib/haptics';
 
+const TABS: Record<ProfileTab, { title: string; subtitle: string }> = {
+  profile: { title: 'Профиль', subtitle: 'Личные данные и настройки обучения' },
+  achievements: {
+    title: 'Достижения',
+    subtitle: 'Наклейки за учёбу. Без рейтингов: только ваш собственный путь.',
+  },
+  courses: {
+    title: 'Курсы на главной',
+    subtitle: 'Эти курсы показываются первыми на главной в блоке «Продолжить».',
+  },
+  study: { title: 'Настройки конспекта', subtitle: 'Как открывается и выглядит режим конспекта.' },
+  ai: {
+    title: 'AI и ключ Gemini',
+    subtitle: 'AI-помощник, поиск по книгам и объяснение фрагментов лекций работают с вашим личным ключом Google Gemini.',
+  },
+  history: { title: 'История поиска', subtitle: 'Запросы к поиску по сайту, статьям, AI-чату и книгам.' },
+};
+
+const isProfileTab = (value: string | null): value is ProfileTab => Boolean(value && value in TABS);
+
+const ROLE_LABELS: Record<string, string> = {
+  'super-admin': 'Супер-админ',
+  admin: 'Администратор курса',
+};
+
 export default function Profile() {
   const { user, loading, userRole } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const tab: ProfileTab = isProfileTab(tabParam) ? tabParam : 'profile';
+
+  // Неизвестный ?tab= убираем из адреса.
+  useEffect(() => {
+    if (tabParam && !isProfileTab(tabParam)) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [tabParam, setSearchParams]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Загрузка профиля...</p>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-accent" />
+          <p className="text-muted">Загрузка профиля...</p>
         </div>
       </div>
     );
   }
 
-  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Гость';
-  const memberSince = user?.metadata.creationTime
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4 rounded-[22px] border border-border bg-card p-8">
+        <h1 className="font-display text-3xl text-ink">Добро пожаловать!</h1>
+        <p className="max-w-lg text-muted">
+          Зарегистрируйтесь или войдите в аккаунт, чтобы получить доступ к видео-лекциям, заметкам и другим
+          материалам курсов.
+        </p>
+        <Link
+          to="/login"
+          className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-medium text-white transition-colors hover:bg-accent-deep"
+        >
+          Войти / Зарегистрироваться
+        </Link>
+      </div>
+    );
+  }
+
+  const displayName = user.displayName || user.email?.split('@')[0] || 'Студент';
+  const memberSince = user.metadata.creationTime
     ? new Date(user.metadata.creationTime).toLocaleDateString('ru-RU', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       })
     : null;
-  const role = userRole ?? 'student';
+  const roleLabel = ROLE_LABELS[userRole ?? ''] ?? 'Студент';
+
+  const selectTab = (next: ProfileTab) => {
+    setSearchParams(next === 'profile' ? {} : { tab: next }, { replace: true });
+    window.scrollTo({ top: 0 });
+  };
 
   const handleHapticClick = (event: React.MouseEvent) => {
     const target = event.target as HTMLElement | null;
@@ -45,111 +106,38 @@ export default function Profile() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6" onClickCapture={handleHapticClick}>
-      <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-32" />
+    <div
+      className="mx-auto max-w-6xl overflow-hidden rounded-[28px] border border-border bg-bg lg:grid lg:grid-cols-[240px_minmax(0,1fr)]"
+      onClickCapture={handleHapticClick}
+    >
+      <ProfileSideNav
+        active={tab}
+        onSelect={selectTab}
+        displayName={displayName}
+        roleLabel={roleLabel}
+        photoURL={user.photoURL}
+      />
+      <div className="min-w-0 px-4 py-6 sm:px-6 lg:px-9 lg:py-8">
+        <header className="mb-6">
+          <h1 className="font-display text-3xl text-ink sm:text-4xl">{TABS[tab].title}</h1>
+          <p className="mt-1 text-[13px] text-muted">{TABS[tab].subtitle}</p>
+        </header>
 
-        <div className="px-8 pb-8">
-          <div className="flex items-end -mt-16 mb-6">
-            {user?.photoURL ? (
-              <img
-                src={user.photoURL}
-                alt={displayName}
-                className="w-32 h-32 rounded-full border-4 border-white shadow-lg"
-              />
-            ) : (
-              <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg bg-accent flex items-center justify-center text-white font-bold text-4xl">
-                {displayName.charAt(0).toUpperCase()}
-              </div>
-            )}
-
-            <div className="ml-6 mb-4">
-              {!user ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-card2 border border-border px-4 py-2 text-sm font-semibold text-muted">
-                  <span className="text-lg" role="img" aria-label="Гость">
-                    👤
-                  </span>
-                  Гость
-                </span>
-              ) : role === 'super-admin' ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white">
-                  <span className="text-lg" role="img" aria-label="Супер-админ">
-                    ⭐
-                  </span>
-                  Супер-админ
-                </span>
-              ) : role === 'admin' ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-mark px-4 py-2 text-sm font-semibold text-[#5a4b00]">
-                  <span className="text-lg" role="img" aria-label="Администратор курса">
-                    ✏️
-                  </span>
-                  Администратор курса
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-2 rounded-full bg-accent-100 px-4 py-2 text-sm font-semibold text-accent">
-                  <span className="text-lg" role="img" aria-label="Студент">
-                    🎓
-                  </span>
-                  Студент
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {user ? (
-              <>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{displayName}</h1>
-                  <span className="hidden sm:inline-flex">
-                    <SuperAdminBadge />
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-6 text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl" role="img" aria-hidden="true">
-                      ✉️
-                    </span>
-                    <span>{user.email}</span>
-                  </div>
-                  {memberSince && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl" role="img" aria-hidden="true">
-                        📅
-                      </span>
-                      <span>С нами с {memberSince}</span>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="space-y-4">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Добро пожаловать!</h1>
-                <p className="text-gray-600 max-w-lg">
-                  Зарегистрируйтесь или войдите в аккаунт, чтобы получить доступ к видео-лекциям,
-                  заметкам и другим материалам курсов.
-                </p>
-                <Link
-                  to="/login"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Войти / Зарегистрироваться
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
+        {tab === 'profile' && (
+          <ProfileOverview
+            displayName={displayName}
+            email={user.email}
+            memberSince={memberSince}
+            roleLabel={roleLabel}
+            onSelect={selectTab}
+          />
+        )}
+        {tab === 'achievements' && <AchievementsSection firstName={displayName.split(' ')[0]} />}
+        {tab === 'courses' && <FeaturedCoursesSection />}
+        {tab === 'study' && <StudyDefaultsSection />}
+        {tab === 'ai' && <GeminiKeySection />}
+        {tab === 'history' && <SearchHistorySection />}
       </div>
-
-      <FeedbackButton variant="profile" />
-
-      {user && <FeaturedCoursesSection />}
-
-      {user && <SearchHistorySection />}
-
-      {user && <StudyDefaultsSection />}
-
-      {user && <GeminiKeySection />}
     </div>
   );
 }

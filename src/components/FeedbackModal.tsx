@@ -210,52 +210,17 @@ export function FeedbackModal({
 }
 
 interface FeedbackButtonProps {
-  variant?: 'header' | 'profile' | 'mobile';
+  variant?: 'header' | 'mobile';
   className?: string;
 }
 
 /**
  * Кнопка обратной связи
  * - variant="header" — для header (студенты)
- * - variant="profile" — для страницы профиля
  * - variant="mobile" — для мобильного меню
  */
 export function FeedbackButton({ variant = 'header', className = '' }: FeedbackButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  if (variant === 'profile') {
-    return (
-      <>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className={`w-full text-left bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-shadow ${className}`}
-        >
-          <div className="bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-4 sm:px-8 sm:py-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl sm:text-3xl">💬</span>
-                <div>
-                  <h3 className="text-lg sm:text-xl font-bold text-white">Обратная связь</h3>
-                  <p className="text-sm text-white/80 hidden sm:block">
-                    Сообщить о баге, предложить идею или оставить благодарность
-                  </p>
-                </div>
-              </div>
-              <svg
-                className="w-6 h-6 text-white/80"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </div>
-        </button>
-        <FeedbackModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-      </>
-    );
-  }
 
   if (variant === 'mobile') {
     return (
