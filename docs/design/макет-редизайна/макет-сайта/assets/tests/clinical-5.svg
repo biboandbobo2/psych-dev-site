@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Расстройства психотического спектра</title>
+  <path d="M128 39l77 44v90l-77 44-77-44V83z"/>
+  <path d="M128 128V39M128 128l-77 45M128 128l77 45"/>
+</svg>

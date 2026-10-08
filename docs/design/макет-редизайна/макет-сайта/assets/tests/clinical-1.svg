@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Предмет, методы и задачи патопсихологии</title>
+  <rect x="48" y="48" width="160" height="170" rx="15"/>
+  <path d="M96 48V32h64v16"/>
+  <path d="M128 91v37M128 128l-42 36M128 128l42 36"/>
+  <circle cx="128" cy="81" r="10"/>
+  <circle cx="86" cy="174" r="10"/>
+  <circle cx="170" cy="174" r="10"/>
+</svg>

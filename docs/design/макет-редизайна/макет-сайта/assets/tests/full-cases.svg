@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Кейсы курса</title>
+  <path d="M41 84h63l17 19h94v103H41z"/>
+  <path d="M41 123h174l-19 83H60z"/>
+  <path d="M98 103V71h62l15 32"/>
+</svg>

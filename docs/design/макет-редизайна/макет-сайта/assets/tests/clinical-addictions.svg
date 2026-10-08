@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="#24384B" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+  <title>Зависимости</title>
+  <path d="M101 101l-20-20c-15-15-39-15-54 0s-15 39 0 54l28 28c15 15 39 15 54 0l13-13"/><path d="M155 155l20 20c15 15 39 15 54 0s15-39 0-54l-28-28c-15-15-39-15-54 0l-13 13"/><path d="M94 162l16-35M147 129l16-35"/>
+</svg>
