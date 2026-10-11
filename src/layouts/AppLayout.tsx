@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import type { User } from 'firebase/auth';
 import { cn } from '../lib/cn';
 import UserMenu from '../components/UserMenu';
@@ -36,6 +36,8 @@ export function AppLayout({
   children,
 }: AppLayoutProps) {
   const mobileNavRef = useRef<HTMLDetailsElement | null>(null);
+  const { pathname } = useLocation();
+  const isHomePage = pathname === '/home';
   const showNavigation = !hideNavigation && (navItems.length > 0 || navigationLoading || Boolean(navigationErrorMessage));
   const showAside = Boolean(sidebar) || showNavigation;
   const asideWidthClass = sidebarWidthClass ?? "lg:w-72";
@@ -106,12 +108,19 @@ export function AppLayout({
             </span>
           </NavLink>
 
-          <div className="ml-auto">
+          {!user && isHomePage && (
+            <nav aria-label="Разделы главной" className="ml-auto hidden items-center gap-6 text-sm font-semibold text-ink md:flex">
+              <a href="#catalog" className="text-ink hover:text-accent">Курсы</a>
+              <a href="#about-academy" className="text-ink hover:text-accent">Об Академии</a>
+              <a href="#dom-center" className="text-ink hover:text-accent">Пространство DOM</a>
+            </nav>
+          )}
+          <div className={!user && isHomePage ? 'ml-auto md:ml-0' : 'ml-auto'}>
             {!user ? (
               <button
                 onClick={onLoginClick}
                 disabled={authLoading}
-                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-md transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-full bg-accent px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Войти
               </button>
