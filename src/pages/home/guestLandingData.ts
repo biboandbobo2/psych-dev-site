@@ -58,6 +58,18 @@ export const GUEST_COURSE_META: Record<string, GuestCourseMeta> = {
     cover: `${COVER}/clinical.webp`,
     tone: 'bg-[#F8E1CC]',
   },
+  'psihologiya-lichnosti-avtorskiy-kurs-aleksandra-za': {
+    title: 'Психология личности',
+    description: 'Авторский курс Александра Загонова: семь лекций.',
+    cover: `${COVER}/personality.webp`,
+    tone: 'bg-[#D3EBE7]',
+  },
+  'chastnye-voprosy-klinicheskoy-psihologii': {
+    title: 'Частные вопросы клинической психологии',
+    description: 'Пограничная организация личности и пограничное расстройство личности.',
+    cover: `${COVER}/clinical-special.webp`,
+    tone: 'bg-[#E6E2C3]',
+  },
 };
 
 export const RETRAINING_LANDING_PATH = '/academy/retraining-psychologist-consultant-tbilisi';
@@ -102,14 +114,14 @@ const COURSE_LANDING_PATHS: Record<string, string> = {
 
 export const courseLink = (id: string) => COURSE_LANDING_PATHS[id] ?? getCourseIntroPath(id);
 
-/** Мета курса; для открытого курса без записи в таблице — название из базы. */
+/** Мета курса; для курса без записи в таблице — название из базы и обложка дизайнера по умолчанию. */
 export function guestMeta(course: CourseOption): GuestCourseMeta {
   return (
     GUEST_COURSE_META[course.id] ?? {
       title: course.name,
       description: '',
-      cover: '',
-      tone: 'bg-pastel-plain',
+      cover: `${COVER}/default.webp`,
+      tone: 'bg-[#ECE7DF]',
     }
   );
 }
