@@ -14,6 +14,8 @@ export interface CourseOption {
   isCore?: boolean;
   /** Дата создания (ms). У базовых курсов нет — они считаются самыми старыми. */
   createdAtMs?: number;
+  /** Показывать на гостевой главной (меняет только супер-админ). */
+  guestHome?: boolean;
 }
 
 interface UseCoursesOptions {
@@ -72,6 +74,7 @@ export function buildCourseOptions(courseDocs: CourseDocInput[], includeUnpublis
       order,
       published: true,
       isCore: true,
+      guestHome: override.guestHome === true,
     } as CourseOption;
   });
 
@@ -92,6 +95,7 @@ export function buildCourseOptions(courseDocs: CourseDocInput[], includeUnpublis
         published,
         isCore: false,
         createdAtMs: resolveCreatedAtMs(doc.data.createdAt),
+        guestHome: doc.data.guestHome === true,
       } as CourseOption;
     });
 

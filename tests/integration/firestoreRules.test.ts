@@ -1863,3 +1863,29 @@ describe('users/{uid}/achievements: «храповик» полученных н
     await assertFails(setDoc(badge(mallory), { earnedAt: serverTimestamp() }));
   });
 });
+
+describe('courses.guestHome: показ на гостевой главной меняет только супер-админ', () => {
+  const lecturer = () =>
+    testEnv.authenticatedContext('lecturer-uid', { role: 'admin', editableCourses: ['ext-course'] }).firestore();
+  const superAdmin = () => testEnv.authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL }).firestore();
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), 'courses', 'ext-course'), { name: 'Курс автора', published: true });
+    });
+  });
+
+  it('админ курса правит свой курс, не трогая guestHome', async () => {
+    await assertSucceeds(updateDoc(doc(lecturer(), 'courses', 'ext-course'), { name: 'Новое имя' }));
+  });
+
+  it('админ курса не может вывести свой курс на главную', async () => {
+    await assertFails(updateDoc(doc(lecturer(), 'courses', 'ext-course'), { guestHome: true }));
+    await assertFails(setDoc(doc(lecturer(), 'courses', 'ext-new'), { name: 'X', guestHome: true }));
+  });
+
+  it('супер-админ включает и выключает показ на главной', async () => {
+    await assertSucceeds(updateDoc(doc(superAdmin(), 'courses', 'ext-course'), { guestHome: true }));
+    await assertSucceeds(updateDoc(doc(superAdmin(), 'courses', 'ext-course'), { guestHome: false }));
+  });
+});

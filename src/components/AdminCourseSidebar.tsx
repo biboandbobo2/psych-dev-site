@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { GuestHomeCoursesButton } from './GuestHomeCoursesModal';
 import { collection, doc, getDocs, orderBy, query, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import type { CourseType } from '../types/tests';
 import { useCourseStore } from '../stores/useCourseStore';
@@ -293,6 +294,7 @@ export default function AdminCourseSidebar() {
             <span aria-hidden>➕</span>
             <span>Добавить курс</span>
           </button>
+          <GuestHomeCoursesButton />
         </div>
         )}
 

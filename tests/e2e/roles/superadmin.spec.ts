@@ -207,3 +207,22 @@ test.describe('Супер-админ: /admin/users', () => {
     );
   });
 });
+
+test.describe('Супер-админ: «Главная для гостей»', () => {
+  test('галочка курса сохраняется и видна после повторного открытия', async ({ page }) => {
+    const courseName = SMOKE_COURSES.externalX.doc.name;
+    await gotoAndSettle(page, '/admin/content');
+
+    const openButton = page.getByRole('button', { name: 'Главная для гостей' });
+    const title = page.getByRole('heading', { name: 'Главная для гостей' });
+    await openButton.click();
+    const checkbox = page.getByRole('checkbox', { name: courseName });
+    await expect(checkbox).not.toBeChecked();
+    await checkbox.check();
+    await page.getByRole('button', { name: 'Сохранить' }).click();
+    await expect(title).toBeHidden();
+
+    await openButton.click();
+    await expect(page.getByRole('checkbox', { name: courseName })).toBeChecked();
+  });
+});
