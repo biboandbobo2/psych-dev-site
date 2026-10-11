@@ -325,7 +325,13 @@ service cloud.firestore {
     // Dynamic-курсы: документ курса и его занятия
     match /courses/{courseId} {
       allow read: if true;
-      allow write: if canEditCourse(courseId);
+      // guestHome (показ курса на гостевой главной) меняет только супер-админ:
+      // админ курса не может сам вывести свой курс на главную.
+      allow create: if canEditCourse(courseId)
+        && (isSuperAdmin() || !('guestHome' in request.resource.data));
+      allow update: if canEditCourse(courseId)
+        && (isSuperAdmin() || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['guestHome']));
+      allow delete: if canEditCourse(courseId);
       match /lessons/{document=**} {
         allow read: if true;
         allow write: if canEditCourse(courseId);

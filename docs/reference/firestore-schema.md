@@ -456,6 +456,12 @@ interface Partner {
 
 При отсутствии документа клиент показывает fallback-константы из `aboutContent.ts` + `partnersContent.ts`.
 
+### `courses/{courseId}` — поле `guestHome` (гостевая главная)
+
+`guestHome: boolean` — показывать курс гостю на `/home`. Открытые курсы (`courseNavIndex/{id}.courseOpen`) попадают в группу «Открытый доступ», остальные — в «Программу переподготовки». Меняет супер-админ в редакторе (`/admin/content` → «Главная для гостей», `src/components/GuestHomeCoursesModal.tsx`). Короткие названия, описания и обложки карточек пока в коде: `src/pages/home/guestLandingData.ts`.
+
+**Правила доступа:** `create`/`update` курса без изменения `guestHome` — как раньше (`canEditCourse`); создать курс с `guestHome` или изменить его может только супер-админ — админ курса не выводит свой курс на главную сам.
+
 ### `courses/{courseId}` — поле `intro` («О курсе»)
 
 Контент страницы «О курсе» (`/{courseId}/intro` для core-курсов, `/course/{courseId}/intro` для динамических). Read public, write `canEditCourse(courseId)`. Редактируется через `/admin/content/course-intro/{courseId}`. Рендер — `CourseAboutSection`, markdown через `renderMiniMarkdown` (абзацы, **жирный**, *курсив*, ссылки, списки `- `, заголовки `##`/`###`).

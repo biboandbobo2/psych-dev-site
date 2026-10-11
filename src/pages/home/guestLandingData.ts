@@ -3,8 +3,8 @@ import type { CourseOption } from '../../hooks/useCourses';
 
 /**
  * Данные гостевой главной (макет редизайна, 11.10.2026).
- * Гостю показываются только открытые курсы и курсы программы переподготовки;
- * внутренние курсы потоков и пустые курсы скрыты.
+ * Какие курсы показывать гостю, задаёт супер-админ (поле courses/{id}.guestHome);
+ * здесь — короткие названия, описания и обложки для карточек.
  */
 
 export interface GuestCourseMeta {
@@ -59,14 +59,6 @@ export const GUEST_COURSE_META: Record<string, GuestCourseMeta> = {
     tone: 'bg-[#F8E1CC]',
   },
 };
-
-/** Курсы программы «Психолог-консультант», которые показываем гостю. */
-export const GUEST_PROGRAM_COURSE_IDS = [
-  'general',
-  'development',
-  'clinical',
-  'vvedenie-v-osnovy-klinicheskoy-psihologii',
-];
 
 export const RETRAINING_LANDING_PATH = '/academy/retraining-psychologist-consultant-tbilisi';
 

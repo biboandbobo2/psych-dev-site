@@ -8,7 +8,6 @@ import { OpenCourseCard, ProgramCourseCard } from './GuestCourseCards';
 import {
   ABOUT_LINKS,
   GUEST_COURSE_META,
-  GUEST_PROGRAM_COURSE_IDS,
   PLATFORM_FEATURES,
   RETRAINING_LANDING_PATH,
 } from './guestLandingData';
@@ -21,23 +20,17 @@ const BTN_PRIMARY =
 const BTN_SECONDARY =
   'inline-flex min-h-[44px] items-center justify-center rounded-full border border-border-cool bg-white px-6 py-3 text-[15px] font-semibold text-ink transition hover:border-ink';
 
-const HERO_TILES = [
-  { id: 'gruppovaya-psihoterapiya', open: true },
-  { id: 'lektsii-ot-ano-dpo-ekzistentsialno-gumanistichesko', open: true },
-  { id: 'development', open: false },
-  { id: 'general', open: false },
-];
-
 export function GuestLanding() {
   const { courses, loading: coursesLoading } = useCourses();
   const { openCourseIds } = useCoursesOpenness(courses.map((course) => course.id));
 
   if (coursesLoading) return <PageLoader />;
 
-  const openCourses = courses.filter((course) => openCourseIds.has(course.id));
-  const programCourses = GUEST_PROGRAM_COURSE_IDS.map((id) => courses.find((c) => c.id === id)).filter(
-    (course): course is NonNullable<typeof course> => Boolean(course) && !openCourseIds.has(course!.id),
-  );
+  // Состав главной задаёт супер-админ в редакторе («Главная для гостей»).
+  const homeCourses = courses.filter((course) => course.guestHome);
+  const openCourses = homeCourses.filter((course) => openCourseIds.has(course.id));
+  const programCourses = homeCourses.filter((course) => !openCourseIds.has(course.id));
+  const heroTiles = [...openCourses, ...programCourses].filter((c) => GUEST_COURSE_META[c.id]?.cover).slice(0, 4);
 
   return (
     <div className="flex flex-col text-fg">
@@ -79,12 +72,12 @@ export function GuestLanding() {
           </div>
         </div>
         <div className="hidden grid-cols-2 gap-3.5 lg:grid" aria-hidden>
-          {HERO_TILES.map((tile) => {
-            const meta = GUEST_COURSE_META[tile.id];
+          {heroTiles.map((course) => {
+            const meta = GUEST_COURSE_META[course.id];
             return (
-              <div key={tile.id} className={`relative h-[220px] overflow-hidden rounded-[22px] ${meta.tone}`}>
+              <div key={course.id} className={`relative h-[220px] overflow-hidden rounded-[22px] ${meta.tone}`}>
                 <img src={meta.cover} alt="" className="h-full w-full rounded-none border-0 object-contain p-4 shadow-none" />
-                {tile.open && openCourseIds.has(tile.id) ? (
+                {openCourseIds.has(course.id) ? (
                   <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-[11.5px] font-bold text-accent">
                     ▶ Открыто
                   </span>
