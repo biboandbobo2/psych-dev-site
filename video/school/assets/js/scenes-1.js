@@ -91,11 +91,12 @@
       var t1 = s.text('lead', 'Первоклассники ещё не знают чисел. Ленты не приложить друг к другу.', { left: 140, top: 130, width: 1640, fontSize: 38 });
       s.lines(t1, 0.3);
       // две парты далеко друг от друга, на каждой лента
-      var DY = 640;
+      var DY = 640, desks = s.node(g, 'g', {});
+      s.tween(desks, 0.1, { opacity: 0 }, { opacity: 1, duration: 0.4 });
       [[200, 520], [1180, 640]].forEach(function (d) {
-        s.node(g, 'rect', { x: d[0], y: DY, width: d[1], height: 36, rx: 6, fill: '#C9A27A', stroke: INK, 'stroke-width': 3 });
-        s.node(g, 'rect', { x: d[0] + 30, y: DY + 36, width: 18, height: 160, fill: '#9C7550', stroke: INK, 'stroke-width': 2.5 });
-        s.node(g, 'rect', { x: d[0] + d[1] - 48, y: DY + 36, width: 18, height: 160, fill: '#9C7550', stroke: INK, 'stroke-width': 2.5 });
+        s.node(desks, 'rect', { x: d[0], y: DY, width: d[1], height: 36, rx: 6, fill: '#C9A27A', stroke: INK, 'stroke-width': 3 });
+        s.node(desks, 'rect', { x: d[0] + 30, y: DY + 36, width: 18, height: 160, fill: '#9C7550', stroke: INK, 'stroke-width': 2.5 });
+        s.node(desks, 'rect', { x: d[0] + d[1] - 48, y: DY + 36, width: 18, height: 160, fill: '#9C7550', stroke: INK, 'stroke-width': 2.5 });
       });
       var A0 = 260, LA = 360, B0 = 1240, LB = 480, M = 120;
       var rA = s.node(g, 'rect', { x: A0, y: DY - 18, width: LA, height: 16, rx: 3, fill: '#E4735A' });
