@@ -53,7 +53,7 @@
       // Миша в шлеме
       var CX = 960, CY = 760;
       s.actor('baby', { x: CX, y: CY, d: 120, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0.8, 0.4);
-      s.face('baby', true, 0.8, 0.01); s.mouth('baby', 'soft', 0.8, 0.01); s.gaze('baby', 0, -8, 0.8, 0.01); s.acc('baby', 'cowlick');
+      s.face('baby', true, 0.8, 0.01); s.mouth('baby', 'soft', 0.8, 0.01); s.gaze('baby', 0, -8, 0.8, 0.01); s.acc('baby', 'hero');
       var helm = s.node(ov, 'g', {});
       K().helmet(s, helm, CX, CY, 92);
       s.tween(helm, 3.0, { opacity: 0, y: -40 }, { opacity: 1, y: 0, duration: 0.5, ease: 'back.out(2)' });
@@ -124,7 +124,7 @@
       s.actor('dad', { x: 520, y: 760, d: 160, o: 0 }, 0, 0.01); s.actor('dad', { o: 1 }, 0.2, 0.4);
       s.face('dad', true, 0.2, 0.01); s.mouth('dad', 'smile', 0.2, 0.01); s.gaze('dad', 9, 6, 0.2, 0.01); s.acc('dad', 'moustache');
       s.actor('baby', { x: 1400, y: 790, d: 100, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0.3, 0.4);
-      s.face('baby', true, 0.3, 0.01); s.mouth('baby', 'smile', 0.3, 0.01); s.gaze('baby', -9, 6, 0.3, 0.01); s.acc('baby', 'cowlick');
+      s.face('baby', true, 0.3, 0.01); s.mouth('baby', 'smile', 0.3, 0.01); s.gaze('baby', -9, 6, 0.3, 0.01); s.acc('baby', 'hero');
       K().tag(s, 'папа', 520, 920, 0.6, 3.6); K().tag(s, 'Миша · шахматный кружок', 1400, 920, 0.6, 3.6);
       // доска с позицией
       var B0 = 820, BY = 520, C = 46, board = s.node(ov, 'g', {});

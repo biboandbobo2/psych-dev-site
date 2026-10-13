@@ -10,7 +10,7 @@
     s.actor('baby', { x: x, y: y, d: d || 100, o: 0 }, 0, 0.01);
     s.actor('baby', { o: 1 }, lt, 0.4);
     s.face('baby', true, lt, 0.01); s.mouth('baby', 'smile', lt, 0.01); s.gaze('baby', 8, -2, lt, 0.01);
-    s.acc('baby', 'cowlick');
+    s.acc('baby', 'hero');
     if (!bpParent) return null;
     var bp = s.node(bpParent, 'g', {});
     Film.toys.backpack(s, bp, x - (d || 100) * 0.5, y - 6, (d || 100) / 95, '#26A69A', TEAL_D);
@@ -57,12 +57,15 @@
       s.actor('adult2', { x: 1640, y: 830, d: 150, o: 0 }, 0, 0.01); s.actor('adult2', { o: 1 }, 3.6, 0.4);
       s.face('adult2', true, 3.6, 0.01); s.mouth('adult2', 'smile', 3.6, 0.01); s.gaze('adult2', -8, 0, 3.6, 0.01); s.acc('adult2', 'glasses');
       K().tag(s, 'учитель', 1640, 920, 4.0);
-      var nb = s.div('paper cells', { left: 1420, top: 700, width: 150, height: 120 }, s.ov);
-      s.fade(nb, 4.6, { y: 8, dur: 0.4 });
-      var w1 = s.otext('kidhand', 'мама', { left: 1436, top: 712, fontSize: 30 });
-      s.fade(w1, 4.8, { y: 0, dur: 0.3 });
-      var five = s.otext('cursive red', '5', { left: 1514, top: 740, fontSize: 70 });
-      s.pop(five, 5.6, { from: 0.4, dur: 0.3 });
+      // крупно: Мишина тетрадь, учитель ставит «5»
+      var nb = s.div('paper cells', { left: 660, top: 300, width: 520, height: 320 }, s.ov);
+      s.fade(nb, 4.4, { y: 12, dur: 0.4 });
+      var nl = s.otext('tag', 'Мишина тетрадь', { left: 660, top: 262, width: 520 }); s.fade(nl, 4.5, { y: 4 });
+      var w1 = s.otext('kidhand', 'мама', { left: 720, top: 360, fontSize: 90 });
+      s.fade(w1, 4.7, { y: 0, dur: 0.3 });
+      var five = s.otext('cursive red', '5', { left: 1010, top: 380, fontSize: 190 });
+      s.pop(five, 5.4, { from: 0.4, dur: 0.3 });
+      s.out([nb, nl, w1, five], 6.9, { dur: 0.4 });
       s.mouth('baby', 'smile', 5.7, 0.2); s.squash('baby', 0.94, 1.08, 5.8, 0.12); s.squash('baby', 1, 1, 5.92, 0.3, 'back.out(3)');
       // две пары отношений — подписанные дуги
       var a1 = s.path(ov, 'M1300 800 Q 860 640 420 790', { stroke: K().DEEP, 'stroke-width': 3, 'stroke-dasharray': '10 10' });
@@ -76,7 +79,7 @@
       var src = s.text('cite', 'Д. Б. Эльконин: в школе появляется новый взрослый — учитель', { left: 140, top: 1000, fontSize: 20 });
       s.fade(src, 8.4, { y: 4 });
       ['baby', 'adult', 'adult2'].forEach(function (id) { s.actor(id, { o: 0 }, 12.0, 0.4); });
-      s.out([bp, nb, five, w1], 12.0, { dur: 0.4 });
+      s.out(bp, 12.0, { dur: 0.4 });
     }
   });
 
@@ -101,7 +104,7 @@
       var la = s.text('label', 'лента А', { left: A0, top: DY + 50, fontSize: 24 }), lb = s.text('label', 'лента Б', { left: B0, top: DY + 50, fontSize: 24 });
       s.fade(la, 0.8, { y: 4 }); s.fade(lb, 1.0, { y: 4 });
       // учитель у доски спрашивает
-      K().board(s, g, 700, 240, 520, 220, { at: 0.3 });
+      var bd = s.node(g, 'g', {}); K().board(s, bd, 700, 240, 520, 220, { at: 0.3 }); s.out(bd, 11.4, { dur: 0.4 });
       s.actor('adult2', { x: 960, y: 420, d: 140, o: 0 }, 0, 0.01); s.actor('adult2', { o: 1 }, 0.6, 0.4);
       s.face('adult2', true, 0.6, 0.01); s.mouth('adult2', 'smile', 0.6, 0.01); s.acc('adult2', 'glasses');
       K().say(s, 'Какая длиннее?', 1000, 280, 1.8, 4.2);
@@ -141,6 +144,7 @@
       var n3 = s.text('kidhand', '3', { left: 740, top: 852, fontSize: 52, color: 'var(--accent-deep)' }), n4 = s.text('kidhand', '4', { left: 740, top: 912, fontSize: 52, color: 'var(--accent-deep)' });
       s.pop(n3, 10.9, { from: 0.5, dur: 0.3 }); s.pop(n4, 11.1, { from: 0.5, dur: 0.3 });
       s.out(t1, 11.4, { dur: 0.3 });
+      s.actor('adult2', { o: 0 }, 11.4, 0.4);
       var t2 = s.text('h3', 'Палочка стала меркой. Сколько раз она уложилась — это и есть число.', { left: 140, top: 130, width: 1640, fontSize: 44 });
       s.lines(t2, 11.8);
       var t3 = s.text('lead', 'Детей учат не готовому ответу, а способу его найти. Это <b class="acc">учебная деятельность</b> — главное занятие возраста.', { left: 140, top: 250, width: 1200, fontSize: 34 });
@@ -176,12 +180,12 @@
         var ml = s.text('cite', m, { left: x - 40, top: 740, width: 80, textAlign: 'center', fontSize: 22 });
         s.fade(ml, 0.9 + i * 0.1, { y: 4 }); mls.push(ml);
       });
-      var ka = s.text('tag', 'Катя', { left: 330 - 120, top: 790, width: 240 }); s.fade(ka, 2.0, { y: 4 }); mls.push(ka);
+      var ka = s.text('tag', 'самая старшая', { left: 330 - 120, top: 560, width: 240 }); s.fade(ka, 2.0, { y: 4 }); mls.push(ka);
       // Миша — последний, самый маленький
       s.actor('baby', { x: 330 + 11 * 120, y: 680, d: 66, o: 0 }, 0, 0.01);
-      s.actor('baby', { o: 1 }, 2.0, 0.3); s.face('baby', true, 2.0, 0.01); s.mouth('baby', 'soft', 2.0, 0.01); s.gaze('baby', -8, -4, 2.0, 0.01); s.acc('baby', 'cowlick');
+      s.actor('baby', { o: 1 }, 2.0, 0.3); s.face('baby', true, 2.0, 0.01); s.mouth('baby', 'soft', 2.0, 0.01); s.gaze('baby', -8, -4, 2.0, 0.01); s.acc('baby', 'hero');
       s.hop('baby', 330 + 11 * 120, 690, 2.2, 0.4, 40);
-      var mi = s.text('tag', 'Миша', { left: 330 + 11 * 120 - 120, top: 790, width: 240, color: 'var(--accent-deep)' }); s.fade(mi, 2.4, { y: 4 }); mls.push(mi);
+      var mi = s.text('tag', 'Миша — самый младший', { left: 330 + 11 * 120 - 260, top: 590, width: 380, color: 'var(--accent-deep)' }); s.fade(mi, 2.4, { y: 4 }); mls.push(mi);
       var t2 = s.text('lead', 'Самым младшим диагноз СДВГ — синдром дефицита внимания — ставят на треть чаще. Но это возраст, а не болезнь.', { left: 140, top: 230, width: 1500, fontSize: 34 });
       s.lines(t2, 3.4);
       var src = s.text('cite', 'Т. Лейтон и др., 2018: 400 тыс. детей, США; где граница в другой день — разницы нет', { left: 140, top: 1010, fontSize: 20 });
@@ -242,6 +246,7 @@
       s.face('adult', true, 0.2, 0.01); s.mouth('adult', 'smile', 0.2, 0.01); s.gaze('adult', 8, 4, 0.2, 0.01); s.acc('adult', 'bun');
       misha(s, 700, 780, 96, 0.3);
       s.gaze('baby', 0, 8, 0.3, 0.01); s.mouth('baby', 'soft', 0.3, 0.01);
+      K().tag(s, 'мама', 380, 650, 0.6, 5.0); K().tag(s, 'Миша', 700, 690, 0.6, 5.0);
       var hw = s.div('paper cells', { left: 640, top: 840, width: 150, height: 40 }); s.fade(hw, 0.4, { y: 0 });
       [1.2, 1.5, 1.8, 3.0, 3.3, 5.0, 5.3].forEach(function (tt) { s.squash('baby', 1.03, 0.97, tt, 0.1); s.squash('baby', 1, 1, tt + 0.1, 0.12); }); // пишет
       var ph = K().phone(s, 1150, 110, 620, 880);
@@ -256,7 +261,7 @@
         var m = ph.add(it[0], it[2]);
         m.style.top = (24 + i * 250) + 'px';
         var st = Film.el('div', 'tstamp', m.parentNode, it[1]);
-        Film.css(st, { position: 'absolute', left: '22px', top: (24 + i * 250 + 120) + 'px', fontSize: '30px', whiteSpace: 'normal', width: '520px', background: '#FFFDF8' });
+        Film.css(st, { position: 'absolute', left: '22px', top: (24 + i * 250 + 120) + 'px', fontFamily: 'var(--sans)', fontWeight: 750, fontSize: '25px', lineHeight: 1.25, whiteSpace: 'normal', width: '520px', background: '#FFFDF8', padding: '6px 14px' });
         s.tween(st, it[2] + 3.0, { opacity: 0, scale: 1.5, rotation: -10, transformOrigin: '30% 50%' }, { opacity: 1, scale: 1, rotation: -3, duration: 0.25, ease: 'power3.in' });
         s.gaze('adult', 9, -2, it[2] + 0.2, 0.3);
         s.mouth('adult', i ? 'flat' : 'soft', it[2] + 3.2, 0.2);

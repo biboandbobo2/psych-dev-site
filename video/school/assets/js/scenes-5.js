@@ -11,7 +11,7 @@
     build: function (s) {
       var g = s.svg(), ov = s.over(), CX = 1310, CY = 640;
       s.actor('baby', { x: CX, y: CY, d: 110, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0.2, 0.4);
-      s.face('baby', true, 0.3, 0.2); s.mouth('baby', 'soft', 0.3, 0.01); s.gaze('baby', 0, 6, 0.3, 0.01); s.acc('baby', 'cowlick');
+      s.face('baby', true, 0.3, 0.2); s.mouth('baby', 'soft', 0.3, 0.01); s.gaze('baby', 0, 6, 0.3, 0.01); s.acc('baby', 'hero');
       s.gaze('baby', 9, -4, 2.8, 0.3); // замечает двойника
       var dk = s.node(ov, 'g', {}); K().desk(s, dk, CX, CY + 64, 1.1);
       s.tween(dk, 0.2, { opacity: 0 }, { opacity: 1, duration: 0.4 });
@@ -27,6 +27,7 @@
       s.node(dbl, 'circle', { cx: CX + 176, cy: CY - 48, r: 5, fill: K().DEEP });
       s.node(dbl, 'circle', { cx: CX + 196, cy: CY - 48, r: 5, fill: K().DEEP });
       s.tween(dbl, 2.4, { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.6, ease: 'power2.out' });
+      var dl = s.text('tag', 'Миша смотрит на себя', { left: CX + 30, top: CY - 150, width: 340, color: 'var(--accent-deep)' }); s.fade(dl, 2.8, { y: 4 });
       var t1 = s.text('h3', 'Главное, что вырастает, — <span class="acc">рефлексия</span>:', { left: 140, top: 150, width: 1640 });
       s.fade(t1, 3.0, { y: 10 });
       var t2 = s.text('lead', 'посмотреть на себя со стороны — как я думаю и учусь.', { left: 140, top: 230, width: 620 });
@@ -75,7 +76,7 @@
     build: function (s) {
       var CX = 960, CY = 470, ov = s.over();
       s.actor('baby', { x: CX, y: CY, d: 100, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0.2, 0.5);
-      s.face('baby', true, 0.3, 0.3); s.mouth('baby', 'smile', 0.3, 0.01); s.gaze('baby', 0, -2, 0.3, 0.01); s.acc('baby', 'cowlick');
+      s.face('baby', true, 0.3, 0.3); s.mouth('baby', 'smile', 0.3, 0.01); s.gaze('baby', 0, -2, 0.3, 0.01); s.acc('baby', 'hero');
       // значки эпизода по кругу: палочка, стакан, числовая прямая, медведь, шахматная фигура, велосипед
       var orb = s.node(ov, 'g', {}), R = 210, a = { fill: 'none', stroke: K().DEEP, 'stroke-width': 4 };
       var ICON = [
@@ -94,7 +95,7 @@
       K().classroom(s, city, { vx: CX, vy: CY - 600, front: CY + 900, back: CY + 420, rows: 3, cols: 7 });
       Film.icons.school(s, city, CX - 900, CY - 300, 3.2, { at: 2.6, dur: 1.0, seed: 77 });
       s.tween(city, 2.6, { opacity: 0 }, { opacity: 0.55, duration: 1.0 });
-      s.tween([city, orb], 3.6, { opacity: 0.55 }, { opacity: 0.14, duration: 0.8 }); // под цитату — приглушить
+      s.tween([city, orb], 3.6, { opacity: 0.55 }, { opacity: 0.28, duration: 0.8 }); // под цитату — приглушить
       s.cam({ cx: CX, cy: CY, z: 1 }, 0, 0.01);
       s.cam({ cx: CX, cy: CY + 80, z: 0.42 }, 2.4, 3.0, 'power2.inOut');
       var q = s.hud('quote', '«Ребёнок понимает, что мир не вращается вокруг него. Зато он может играть по-крупному и научиться многому — могущество от слова „могу“»', { left: 210, top: 690, width: 1500, textAlign: 'center', fontSize: 42 });

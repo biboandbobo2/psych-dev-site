@@ -77,7 +77,7 @@
       moveB(T0 + 2.4, LIP1, 95, LIP1, 0, 0.4, 'power2.inOut');
       moveB(T0 + 2.8, LIP1, 0, LIP0, 0, 0.5, 'power2.inOut');
       K().say(s, 'А теперь где больше?', 120, 470, 8.2, 12.0);
-      kid(s, 'baby', 1280, 820, 104, 4.6, 'cowlick', -9);
+      kid(s, 'baby', 1280, 820, 104, 4.6, 'hero', -9);
       kid(s, 'kid4', 1520, 820, 100, 4.7, 'cap', -9);
       K().tag(s, 'Миша', 1280, 900, 5.0, 8.0); K().tag(s, 'Дима', 1520, 900, 5.0, 8.0);
       ['baby', 'kid4'].forEach(function (id, i) { s.mouth(id, 'flat', 9.2 + i * 1.4, 0.2); s.gaze(id, 0, -9, 9.2 + i * 1.4, 0.3); }); // закатили глаза
@@ -114,7 +114,7 @@
       // Миша с флажком идёт по дорожке; кадр едет рядом
       var MX = X0 + L * 0.47;
       s.actor('baby', { x: X0, y: Y - 70, d: 90, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 5.0, 0.3);
-      s.face('baby', true, 5.0, 0.01); s.mouth('baby', 'smile', 5.0, 0.01); s.gaze('baby', 9, 0, 5.0, 0.01); s.acc('baby', 'cowlick');
+      s.face('baby', true, 5.0, 0.01); s.mouth('baby', 'smile', 5.0, 0.01); s.gaze('baby', 9, 0, 5.0, 0.01); s.acc('baby', 'hero');
       var flag = s.node(ov, 'g', {});
       s.path(flag, 'M0 0 V-90', { stroke: STICK, 'stroke-width': 7 });
       s.path(flag, 'M0 -90 L44 -76 L0 -62 Z', { fill: '#26A69A', stroke: INK, 'stroke-width': 2.5 });
@@ -134,7 +134,7 @@
       s.path(rf, 'M' + RX + ' ' + Y + ' V' + (Y - 90), { stroke: '#8A8F90', 'stroke-width': 6 });
       s.path(rf, 'M' + RX + ' ' + (Y - 90) + ' l40 14 l-40 14 Z', { fill: K().RED, stroke: INK, 'stroke-width': 2.5 });
       s.tween(rf, 9.8, { opacity: 0, y: -30 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power3.in' });
-      var rt = s.text('cursive red', 'здесь', { left: RX - 44, top: Y + 40, fontSize: 46 });
+      var rt = s.text('cursive red', 'на самом деле 150 — здесь', { left: RX - 60, top: Y + 40, fontSize: 40 });
       s.fade(rt, 10.0, { y: 6 });
       var t2 = s.hud('lead', 'Для второклассника 100 — уже огромное число. Поэтому 150 у него оказывается почти посередине.', { left: 140, top: 130, width: 1640, fontSize: 38 });
       s.tween(t2, 10.4, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.6 });
@@ -143,7 +143,7 @@
       var sw = K().flip(s, 14.6);
       [flag, me].forEach(function (e) { s.set(e, sw, { opacity: 1 }, { opacity: 0 }); });
       s.actor('baby', { x: RX - 60, d: 104 }, sw, 0.01);
-      var f4 = s.text('kidhand', '4 класс', { left: 140, top: 140, fontSize: 56, color: 'var(--accent-deep)' });
+      var f4 = s.text('kidhand', 'Через два года, в 4 классе', { left: 140, top: 140, fontSize: 56, color: 'var(--accent-deep)' });
       s.tween(f4, sw, { opacity: 0 }, { opacity: 1, duration: 0.01 });
       var ck = s.path(ov, 'M' + (RX + 30) + ' ' + (Y - 120) + ' l14 16 l28 -32', { stroke: '#26A69A', 'stroke-width': 7 });
       s.draw(ck, 15.6, { dur: 0.25 });
@@ -166,7 +166,8 @@
       K().board(s, school, 860, 330, 580, 360, { at: 0.2 });
       kid(s, 'adult2', 640, 700, 150, 0.4, 'glasses', 8);
       K().say(s, 'Что такое закон Архимеда?', 420, 500, 1.4, 6.8);
-      kid(s, 'baby', 1720, 760, 104, 0.6, 'cowlick', -8);
+      kid(s, 'baby', 1720, 760, 104, 0.6, 'hero', -8);
+      K().tag(s, 'учитель', 640, 790, 0.8, 3.4); K().tag(s, 'Миша', 1720, 840, 0.8, 3.4);
       s.hop('baby', 1720, 760, 3.0, 0.36, 30);
       var ans = K().say(s, 'Тело в воде выталкивается вверх!', 1460, 500, 3.4, 6.8, 'r');
       ans.style.whiteSpace = 'normal'; ans.style.width = '340px';

@@ -23,7 +23,7 @@
       var spots = K().classroom(s, cls, { skip: function (r, c) { return r === 0 && c === 1; } });
       var me = spots.filter(function (p) { return p.r === 0 && p.c === 1; })[0], nb = spots.filter(function (p) { return p.r === 0 && p.c === 2; })[0];
       s.actor('baby', { x: me.x, y: me.y - 64, d: 80, o: 1 }, 0, 0.01);
-      s.face('baby', true, 0, 0.01); s.mouth('baby', 'soft', 0, 0.01); s.gaze('baby', 0, 8, 0, 0.01); s.acc('baby', 'cowlick');
+      s.face('baby', true, 0, 0.01); s.mouth('baby', 'soft', 0, 0.01); s.gaze('baby', 0, 8, 0, 0.01); s.acc('baby', 'hero');
       var myDesk = s.node(ov, 'g', {});
       K().desk(s, myDesk, me.x, me.y, 1);
       // крупно → отъезд с места учителя
@@ -89,7 +89,7 @@
         s.fade(n, 0.3 + i * 0.08, { y: 0 });
       });
       s.actor('baby', { x: HX, y: HY - 60, d: 70, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0.3, 0.3);
-      s.face('baby', true, 0.3, 0.01); s.mouth('baby', 'smile', 0.3, 0.01); s.acc('baby', 'cowlick');
+      s.face('baby', true, 0.3, 0.01); s.mouth('baby', 'smile', 0.3, 0.01); s.acc('baby', 'hero');
       s.hop('baby', HX, HY - 150, 0.8, 0.36, 40); s.hop('baby', HX, HY - 242, 1.3, 0.36, 40);
       s.actor('kid4', { x: 1300, y: 760, d: 90, o: 0 }, 0, 0.01); s.actor('kid4', { o: 1 }, 0.4, 0.3);
       s.face('kid4', true, 0.4, 0.01); s.mouth('kid4', 'flat', 0.4, 0.01); s.gaze('kid4', -9, 0, 0.4, 0.01); s.acc('kid4', 'cap');
@@ -145,7 +145,7 @@
       s.path(bike, 'M' + (BX - 70) + ' ' + BY + ' L' + (BX - 10) + ' ' + (BY - 60) + ' L' + (BX + 70) + ' ' + BY + ' M' + (BX - 10) + ' ' + (BY - 60) + ' L' + (BX + 40) + ' ' + (BY - 64) + ' M' + (BX + 50) + ' ' + (BY - 90) + ' L' + (BX + 70) + ' ' + BY, { stroke: INK, 'stroke-width': 5 });
       s.node(bike, 'rect', { x: BX - 34, y: BY - 72, width: 44, height: 12, rx: 6, fill: INK });
       s.actor('baby', { x: BX - 20, y: BY - 110, d: 90, o: 1 }, 0, 0.01);
-      s.face('baby', true, 0, 0.01); s.mouth('baby', 'soft', 0, 0.01); s.gaze('baby', 9, 0, 0, 0.01); s.acc('baby', 'cowlick');
+      s.face('baby', true, 0, 0.01); s.mouth('baby', 'soft', 0, 0.01); s.gaze('baby', 9, 0, 0, 0.01); s.acc('baby', 'hero');
       s.actor('adult', { x: BX - 170, y: BY - 120, d: 150, o: 1 }, 0, 0.01);
       s.face('adult', true, 0, 0.01); s.mouth('adult', 'smile', 0, 0.01); s.gaze('adult', 9, 4, 0, 0.01); s.acc('adult', 'bun');
       [0.2, 0.6, 1.0, 1.4, 1.8].forEach(function (t) { s.squash('adult', 1.04, 0.96, t, 0.1); s.squash('adult', 1, 1, t + 0.1, 0.2); }); // бежит рядом

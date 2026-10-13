@@ -233,6 +233,10 @@
     } else if (kind === 'cap') {
       svg('path', { d: 'M10 34 Q50 -14 90 34 Z', fill: '#26A69A' }, S);
       svg('path', { d: 'M78 30 L112 36', stroke: '#26A69A', 'stroke-width': 10, 'stroke-linecap': 'round' }, S);
+    } else if (kind === 'hero') { // Миша: тёмные волосы с вихром и белый школьный воротничок
+      svg('path', { d: 'M10 40 Q12 2 50 0 Q88 2 90 40 Q80 22 64 26 Q58 12 46 22 Q30 14 10 40 Z', fill: '#4A2F1D' }, S);
+      svg('path', { d: 'M48 2 Q42 -18 60 -20 Q52 -8 58 2 Z', fill: '#4A2F1D' }, S);
+      svg('path', { d: 'M26 86 L50 99 L34 108 Z M74 86 L50 99 L66 108 Z', fill: '#FFFDF8', stroke: '#1D2733', 'stroke-width': 2 }, S);
     } else if (kind === 'cowlick') {
       svg('path', { d: 'M44 4 Q40 -16 56 -18 Q48 -8 54 4 Z', fill: '#7A4E2D' }, S);
     }
