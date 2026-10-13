@@ -106,7 +106,7 @@
     build: function (s) {
       var K = S(), g = s.svg();
       var HX = 680, HY = 900; // место героя: первый ряд, второй слева
-      K.board(s, g, 610, 110, 700, 150, { at: 0 });
+      // вид с места учителя: доска у нас за спиной, дети смотрят на нас
       var spots = K.classroom(s, g, { skip: function (r, c) { return r === 0 && c === 1; } });
       var me = spots.filter(function (p) { return p.r === 0 && p.c === 1; })[0];
       HX = me.x; HY = me.y;
@@ -119,10 +119,13 @@
       s.cam({ cx: HX, cy: HY - 50, z: 3.4 }, 0, 0.01);
       s.mouth('baby', 'smile', 1.4, 0.3); s.gaze('baby', 0, -6, 1.4, 0.3);
       s.cam({ cx: 960, cy: 600, z: 1 }, 2.0, 3.6, 'power2.inOut');
+      // учитель на переднем плане, со спины — появляется, когда кадр отъехал
+      s.actor('adult2', { x: 1560, y: 1150, d: 340, o: 0 }, 0, 0.01);
+      s.actor('adult2', { o: 1 }, 4.6, 0.8);
       var t = s.text('h3', 'Один из двадцати', { left: 140, top: 300 });
       var t2 = s.text('note', 'Класс — вторая группа после семьи, и надолго.', { left: 140, top: 364, width: 520 });
       s.fade(t, 6.0, { y: 10 }); s.fade(t2, 6.5, { y: 6 });
-      s.actor('baby', { o: 0 }, 9.4, 0.4);
+      s.actor('baby', { o: 0 }, 9.4, 0.4); s.actor('adult2', { o: 0 }, 9.4, 0.4);
     }
   });
 
