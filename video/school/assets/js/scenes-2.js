@@ -1,29 +1,52 @@
-/* Глава 2. Думать по правилам · мышление: тот же стакан (Пиаже), числовая прямая (Сиглер), Архимед и брат (Выготский), медведи (Лурия) */
+/* Глава 2. Думать по правилам · мышление: тот же стакан (Пиаже), куда поставить 150 (Опфер, Сиглер), закон Архимеда и брат (Выготский) */
 /* global Film */
 (function () {
   'use strict';
   var K = function () { return Film.school; };
-  var INK = '#1D2733', WATER = '#9CC3D5', WATER_D = '#5E93AC';
+  var INK = '#1D2733', WATER = '#9CC3D5', WATER_D = '#5E93AC', STICK = '#8B6A45';
 
-  // 1:17,5 — заставка главы (23 такта = 57,5 с)
+  function kid(s, id, x, y, d, lt, acc, gx) {
+    s.actor(id, { x: x, y: y, d: d, o: 0 }, 0, 0.01); s.actor(id, { o: 1 }, lt, 0.4);
+    s.face(id, true, lt, 0.01); s.mouth(id, 'smile', lt, 0.01); s.gaze(id, gx || 0, -2, lt, 0.01);
+    if (acc) s.acc(id, acc);
+  }
+
+  // 1:45 — заставка главы (24 такта = 60 с)
   Film.scene({
     id: 'ch2', bars: 1,
     build: function (s) {
-      s.chapterCard(2, 'Думать по правилам', 'мышление');
+      s.chapterCard(2, 'Думать по правилам', 'Как меняется мышление?');
       K().ruled(s, s.svg(), 336, 476, 1100, 476, { at: 0.5, dur: 0.9, width: 4 });
-      s.chapter(2, 'Думать по правилам', 0.4, 56.9);
+      s.chapter(2, 'Думать по правилам', 0.4, 59.4);
     }
   });
 
-  // 1:20 — Тот же стакан: в 3–7 ответ был «в высоком», теперь вопрос кажется глупым — три довода (Ж. Пиаже)
+  // 1:47,5 — Тот же стакан: три года назад «в высоком!», теперь вопрос кажется глупым (Ж. Пиаже)
   Film.scene({
-    id: 'glass', bars: 5,
+    id: 'glass', bars: 8,
     build: function (s) {
-      var k = s.text('kicker', 'Ж. Пиаже · тот же опыт, что в 3–7', { left: 140, top: 150 });
+      var g = s.svg(), ov = s.over();
+      var k = s.text('kicker', 'Ж. Пиаже · тот же опыт, что в 3–7', { left: 140, top: 130 });
       s.fade(k, 0.1, { y: 8 });
-      var g = s.svg(), BASE = 820;
+      // воспоминание: маленький Миша, «В высоком!»
+      var mem = s.node(ov, 'g', {});
+      s.node(mem, 'ellipse', { cx: 520, cy: 520, rx: 330, ry: 200, fill: '#FFFDF8', stroke: K().DEEP, 'stroke-width': 3, 'stroke-dasharray': '10 10' });
+      s.node(mem, 'circle', { cx: 420, cy: 600, r: 34, fill: '#E4735A' });
+      s.node(mem, 'circle', { cx: 410, cy: 592, r: 4, fill: '#FFFDF8' }); s.node(mem, 'circle', { cx: 430, cy: 592, r: 4, fill: '#FFFDF8' });
+      s.path(mem, 'M408 610 Q420 620 432 610', { stroke: '#FFFDF8', 'stroke-width': 3.5 });
+      s.path(mem, 'M540 640 V560 H600 V640 Z', { fill: 'none', stroke: INK, 'stroke-width': 3 });
+      s.node(mem, 'rect', { x: 543, y: 600, width: 54, height: 40, fill: WATER });
+      s.path(mem, 'M650 640 V470 H680 V640 Z', { fill: 'none', stroke: INK, 'stroke-width': 3 });
+      s.node(mem, 'rect', { x: 653, y: 540, width: 24, height: 100, fill: WATER });
+      s.tween(mem, 0.5, { opacity: 0, scale: 0.9, svgOrigin: '520 520' }, { opacity: 1, scale: 1, duration: 0.6, ease: 'power3.out' });
+      var ago = s.otext('kidhand', 'Три года назад', { left: 330, top: 380, fontSize: 44, color: 'var(--accent-deep)' });
+      s.fade(ago, 0.8, { y: 4 });
+      var vb = s.div('bubble say tail-l', { left: 380, top: 470, fontSize: '30px' }, s.ov, 'В высоком!');
+      s.pop(vb, 1.6, { from: 0.7, dur: 0.35, origin: '10% 100%' });
+      s.out([mem, ago, vb], 4.2, { dur: 0.5 });
+      // сейчас: учитель переливает воду, трое одноклассников отвечают устало
+      var BASE = 820;
       var A = K().glass(s, g, 420, BASE, 110, 170, 110), C = K().glass(s, g, 780, BASE, 56, 330, 0);
-      // стакан B: система координат с началом в крае слива, вращение вокруг него (как в 3–7)
       function TR(p, a) { return 'translate(' + p[0] + ' ' + p[1] + ') rotate(' + a + ')'; }
       var LIP0 = [655, 650], LIP1 = [767, 335], WTOP = BASE - 110;
       var defs = s.node(g, 'defs', {}), clip = s.node(defs, 'clipPath', { id: 'pour-7', clipPathUnits: 'userSpaceOnUse' });
@@ -34,170 +57,153 @@
       function moveB(t, p0, a0, p1, a1, dur, ease) {
         [cr, gB].forEach(function (e) { s.tween(e, t, { attr: { transform: TR(p0, a0) } }, { attr: { transform: TR(p1, a1) }, duration: dur, ease: ease }); });
       }
-      s.tween([A.g, C.g], 0.4, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.6, stagger: 0.2 });
-      s.tween([gB, wB], 0.5, { opacity: 0 }, { opacity: 1, duration: 0.6 });
-      var dy = LIP1[1] - LIP0[1];
-      moveB(1.2, LIP0, 0, LIP1, 0, 0.6, 'power2.inOut');
-      s.tween(wB, 1.2, { attr: { y: WTOP } }, { attr: { y: WTOP + dy }, duration: 0.6, ease: 'power2.inOut' });
-      moveB(1.8, LIP1, 0, LIP1, 48, 0.7, 'power1.in');
-      s.tween(wB, 1.8, { attr: { y: WTOP + dy } }, { attr: { y: LIP1[1] }, duration: 0.7, ease: 'power1.in' });
-      moveB(2.5, LIP1, 48, LIP1, 95, 1.0, 'sine.inOut');
-      s.set(wB, 3.5, { attr: { y: LIP1[1] } }, { attr: { y: 2000 } });
-      K().setLevel(s, C, 2.5, 0, 234, 0.9, 'sine.inOut');
+      s.tween([A.g, C.g], 4.4, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.15 });
+      s.tween([gB, wB], 4.5, { opacity: 0 }, { opacity: 1, duration: 0.5 });
+      kid(s, 'adult2', 180, 640, 140, 4.4, 'glasses', 8);
+      K().tag(s, 'учитель', 180, 730, 4.8, 7.0);
+      var T0 = 5.4, dy = LIP1[1] - LIP0[1];
+      moveB(T0, LIP0, 0, LIP1, 0, 0.6, 'power2.inOut');
+      s.tween(wB, T0, { attr: { y: WTOP } }, { attr: { y: WTOP + dy }, duration: 0.6, ease: 'power2.inOut' });
+      moveB(T0 + 0.6, LIP1, 0, LIP1, 48, 0.7, 'power1.in');
+      s.tween(wB, T0 + 0.6, { attr: { y: WTOP + dy } }, { attr: { y: LIP1[1] }, duration: 0.7, ease: 'power1.in' });
+      moveB(T0 + 1.3, LIP1, 48, LIP1, 95, 1.0, 'sine.inOut');
+      s.set(wB, T0 + 2.3, { attr: { y: LIP1[1] } }, { attr: { y: 2000 } });
+      K().setLevel(s, C, T0 + 1.3, 0, 234, 0.9, 'sine.inOut');
       var stream = s.node(g, 'rect', { x: LIP1[0] - 3, y: LIP1[1] + 2, width: 7, height: 0, rx: 3.5, fill: WATER_D, opacity: 0 });
-      s.tween(stream, 2.5, { opacity: 0 }, { opacity: 0.9, duration: 0.08 });
-      s.tween(stream, 2.5, { attr: { height: 0 } }, { attr: { height: BASE - LIP1[1] - 2 }, duration: 0.12, ease: 'power2.in' });
-      s.tween(stream, 2.62, { attr: { height: BASE - LIP1[1] - 2 } }, { attr: { height: BASE - 234 - LIP1[1] - 2 }, duration: 0.78, ease: 'sine.inOut' });
-      s.tween(stream, 3.35, { opacity: 0.9 }, { opacity: 0, duration: 0.15 });
-      moveB(3.6, LIP1, 95, LIP1, 0, 0.4, 'power2.inOut');
-      moveB(4.0, LIP1, 0, LIP0, 0, 0.5, 'power2.inOut');
-      var q = s.text('statement', 'А теперь?', { left: 140, top: 230 });
-      s.lines(q, 3.9);
-      // трое одноклассников отвечают — устало, вопрос кажется им глупым
-      var KIDS = [['baby', 1240], ['kid2', 1460], ['kid3', 1680]];
-      KIDS.forEach(function (kd, i) {
-        s.actor(kd[0], { x: kd[1], y: 820, d: 104, o: 0 }, 0, 0.01);
-        s.actor(kd[0], { o: 1 }, 0.5 + i * 0.15, 0.4);
-        s.face(kd[0], true, 0.6, 0.3); s.mouth(kd[0], 'soft', 0.6, 0.01); s.gaze(kd[0], -9, 0, 0.6, 0.01);
-        s.mouth(kd[0], 'flat', 4.6 + i * 1.25, 0.2); s.gaze(kd[0], 0, -9, 4.6 + i * 1.25, 0.3); // закатили глаза
-      });
-      K().say(s, 'Та же вода!', 1200, 650, 5.0);
-      K().say(s, 'Можно перелить обратно!', 1420, 540, 6.25);
-      K().say(s, 'Он выше, зато уже.', 1400, 430, 7.5, null, 'r');
-      var t = s.text('h3', '<span class="term acc">Конкретные операции<span class="en">concrete operations</span></span>', { left: 140, top: 330 });
-      s.fade(t, 9.2, { y: 10 });
-      var src = s.text('cite', 'Три довода — тождество, обратимость, компенсация (Ж. Пиаже, Б. Инельдер, 1966). Реплики — постановка.', { left: 140, top: 990, fontSize: 20 });
-      s.fade(src, 9.8, { y: 4 });
-      ['baby', 'kid2', 'kid3'].forEach(function (id) { s.actor(id, { o: 0 }, 12.0, 0.4); });
+      s.tween(stream, T0 + 1.3, { opacity: 0 }, { opacity: 0.9, duration: 0.08 });
+      s.tween(stream, T0 + 1.3, { attr: { height: 0 } }, { attr: { height: BASE - LIP1[1] - 2 }, duration: 0.12, ease: 'power2.in' });
+      s.tween(stream, T0 + 1.42, { attr: { height: BASE - LIP1[1] - 2 } }, { attr: { height: BASE - 234 - LIP1[1] - 2 }, duration: 0.78, ease: 'sine.inOut' });
+      s.tween(stream, T0 + 2.15, { opacity: 0.9 }, { opacity: 0, duration: 0.15 });
+      moveB(T0 + 2.4, LIP1, 95, LIP1, 0, 0.4, 'power2.inOut');
+      moveB(T0 + 2.8, LIP1, 0, LIP0, 0, 0.5, 'power2.inOut');
+      K().say(s, 'А теперь где больше?', 120, 470, 8.2, 12.0);
+      kid(s, 'baby', 1280, 820, 104, 4.6, 'cowlick', -9);
+      kid(s, 'kid4', 1520, 820, 100, 4.7, 'cap', -9);
+      K().tag(s, 'Миша', 1280, 900, 5.0, 8.0); K().tag(s, 'Дима', 1520, 900, 5.0, 8.0);
+      ['baby', 'kid4'].forEach(function (id, i) { s.mouth(id, 'flat', 9.2 + i * 1.4, 0.2); s.gaze(id, 0, -9, 9.2 + i * 1.4, 0.3); }); // закатили глаза
+      K().say(s, 'Та же вода!', 1220, 650, 9.6);
+      K().say(s, 'Он выше, зато уже.', 1430, 540, 11.0);
+      var t1 = s.text('h3', 'Правило в уме: не добавили, не убавили — значит, столько же.', { left: 140, top: 180, width: 1640, fontSize: 46 });
+      s.lines(t1, 12.8);
+      var t2 = s.text('lead', 'Пиаже: это <b class="acc">конкретные операции</b> — логика, пока перед глазами вещи.', { left: 140, top: 300, width: 1640, fontSize: 36 });
+      s.lines(t2, 15.4);
+      var src = s.text('cite', 'concrete operations · Ж. Пиаже, Б. Инельдер, 1966: тождество, обратимость, компенсация · реплики — постановка', { left: 140, top: 1010, fontSize: 20 });
+      s.fade(src, 16.6, { y: 4 });
+      ['baby', 'kid4', 'adult2'].forEach(function (id) { s.actor(id, { o: 0 }, 19.5, 0.4); });
     }
   });
 
-  // 1:32,5 — Куда поставить 150? (Дж. Опфер, Р. Сиглер, 2007; Р. Сиглер, Дж. Опфер, 2003)
+  // 2:07,5 — Куда поставить 150? Миша идёт по числовой прямой с флажком (Дж. Опфер, Р. Сиглер, 2007)
   Film.scene({
-    id: 'line', bars: 5,
+    id: 'line', bars: 7,
     build: function (s) {
-      var g = s.svg(), ov = s.over(), X0 = 300, X1 = 1620, Y = 600;
-      var k = s.text('kicker', 'Числовая прямая · Дж. Опфер, Р. Сиглер, 2007', { left: 140, top: 150 });
-      s.fade(k, 0.1, { y: 8 });
-      var q = s.text('h2', 'Куда поставить 150?', { left: 140, top: 186 });
-      s.lines(q, 0.3);
-      K().ruled(s, g, X0, Y, X1, Y, { at: 0.5, dur: 1.0, width: 5 });
+      var g = s.svg(), ov = s.over(), X0 = 260, X1 = 1660, Y = 700, L = X1 - X0;
+      var t1 = s.hud('lead', 'Второклассникам дают пустую линию от 0 до 1000.', { left: 140, top: 130, width: 1640, fontSize: 38 });
+      s.tween(t1, 0.3, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.6 });
+      var q = s.hud('h2', 'Куда поставить 150?', { left: 140, top: 200 });
+      s.tween(q, 1.6, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.6 });
+      K().ruled(s, g, X0, Y, X1, Y, { at: 0.5, dur: 1.0, width: 6 });
       [[X0, '0'], [X1, '1000']].forEach(function (p, i) {
-        K().ruled(s, g, p[0], Y - 22, p[0], Y + 22, { at: 1.4 + i * 0.1, dur: 0.2, width: 5 });
+        K().ruled(s, g, p[0], Y - 24, p[0], Y + 24, { at: 1.3 + i * 0.1, dur: 0.2, width: 6 });
         var lb = s.text('lead', p[1], { left: p[0] - 60, top: Y + 40, width: 120, textAlign: 'center' });
-        s.fade(lb, 1.5 + i * 0.1, { y: 6 });
+        s.fade(lb, 1.4 + i * 0.1, { y: 6 });
       });
-      s.freeze(2.1, 2.2);
-      var gu = s.text('small-caps', 'Угадайте', { left: 140, top: 290 });
-      s.fade(gu, 2.2, { y: 0, dur: 0.2 }); s.out(gu, 4.05, { dur: 0.2 });
-      var MX = X0 + (X1 - X0) * 0.47;
-      s.actor('baby', { x: MX - 170, y: Y - 160, d: 90, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 4.3, 0.3);
-      s.face('baby', true, 4.3, 0.2); s.mouth('baby', 'smile', 4.3, 0.01); s.gaze('baby', 10, 8, 4.3, 0.01);
-      s.squash('baby', 1.05, 0.95, 4.8, 0.2); s.squash('baby', 1, 1, 5.0, 0.15); // прицелился
-      K().ruled(s, ov, MX, Y - 34, MX, Y + 34, { at: 5.1, dur: 0.18, width: 6 });
-      var me = s.text('kidhand', '150 — тут!', { left: MX - 40, top: Y - 110 });
-      s.fade(me, 5.3, { y: 6 });
-      var RX = X0 + (X1 - X0) * 0.15;
-      K().ruled(s, ov, RX, Y - 34, RX, Y + 34, { at: 6.6, dur: 0.18, width: 6, color: K().RED });
+      s.freeze(2.6, 2.2);
+      var gu = s.hud('small-caps', 'Угадайте', { left: 140, top: 300 });
+      s.tween(gu, 2.7, { opacity: 0 }, { opacity: 1, duration: 0.2 }); s.tween(gu, 4.6, { opacity: 1 }, { opacity: 0, duration: 0.2 });
+      // Миша с флажком идёт по дорожке; кадр едет рядом
+      var MX = X0 + L * 0.47;
+      s.actor('baby', { x: X0, y: Y - 70, d: 90, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 5.0, 0.3);
+      s.face('baby', true, 5.0, 0.01); s.mouth('baby', 'smile', 5.0, 0.01); s.gaze('baby', 9, 0, 5.0, 0.01); s.acc('baby', 'cowlick');
+      var flag = s.node(ov, 'g', {});
+      s.path(flag, 'M0 0 V-90', { stroke: STICK, 'stroke-width': 7 });
+      s.path(flag, 'M0 -90 L44 -76 L0 -62 Z', { fill: '#26A69A', stroke: INK, 'stroke-width': 2.5 });
+      s.set(flag, 0, { x: X0 + 40, y: Y - 40, opacity: 0 }, { x: X0 + 40, y: Y - 40, opacity: 0 });
+      s.tween(flag, 5.0, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+      s.out([t1, q], 4.9, { dur: 0.3 });
+      s.cam({ cx: X0 + 200, cy: Y - 120, z: 1.5 }, 5.0, 0.8, 'power2.inOut');
+      s.actor('baby', { x: MX - 40 }, 5.6, 2.2, 'sine.inOut');
+      s.tween(flag, 5.6, { x: X0 + 40 }, { x: MX, duration: 2.2, ease: 'sine.inOut' });
+      for (var b = 0; b < 6; b++) { s.squash('baby', 1.04, 0.96, 5.7 + b * 0.36, 0.08); s.squash('baby', 1, 1, 5.78 + b * 0.36, 0.2); }
+      s.cam({ cx: MX - 100, cy: Y - 120, z: 1.5 }, 5.6, 2.2, 'sine.inOut');
+      s.tween(flag, 7.9, { y: Y - 40 }, { y: Y, duration: 0.25, ease: 'power3.in' }); // воткнул
+      var me = s.text('kidhand', '150 — тут!', { left: MX - 60, top: Y - 230, fontSize: 40 });
+      s.fade(me, 8.1, { y: 6 });
+      s.cam({ cx: 960, cy: 540, z: 1 }, 8.8, 0.9, 'power2.inOut');
+      var RX = X0 + L * 0.15, rf = s.node(ov, 'g', {});
+      s.path(rf, 'M' + RX + ' ' + Y + ' V' + (Y - 90), { stroke: '#8A8F90', 'stroke-width': 6 });
+      s.path(rf, 'M' + RX + ' ' + (Y - 90) + ' l40 14 l-40 14 Z', { fill: K().RED, stroke: INK, 'stroke-width': 2.5 });
+      s.tween(rf, 9.8, { opacity: 0, y: -30 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power3.in' });
       var rt = s.text('cursive red', 'здесь', { left: RX - 44, top: Y + 40, fontSize: 46 });
-      s.fade(rt, 6.8, { y: 6 });
-      var t2 = s.text('lead', 'Во втором классе маленькие числа растянуты, большие сжаты.', { left: 140, top: 800, width: 1500, fontSize: 36 });
-      s.lines(t2, 7.6);
-      var src = s.text('cite', 'Логарифмически ставят 91 % второклассников и 3 % взрослых (2003). Явление повторяется, объясняют его по-разному (Х. Барт, А. Паладино, 2011).', { left: 140, top: 990, fontSize: 20 });
-      s.fade(src, 8.6, { y: 4 });
-      s.actor('baby', { o: 0 }, 12.0, 0.4);
+      s.fade(rt, 10.0, { y: 6 });
+      var t2 = s.hud('lead', 'Для второклассника 100 — уже огромное число. Поэтому 150 у него оказывается почти посередине.', { left: 140, top: 130, width: 1640, fontSize: 38 });
+      s.tween(t2, 10.4, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.6 });
+      s.tween(t2, 14.6, { opacity: 1 }, { opacity: 0, duration: 0.3 });
+      // два года спустя — ставит верно
+      var sw = K().flip(s, 14.6);
+      [flag, me].forEach(function (e) { s.set(e, sw, { opacity: 1 }, { opacity: 0 }); });
+      s.actor('baby', { x: RX - 60, d: 104 }, sw, 0.01);
+      var f4 = s.text('kidhand', '4 класс', { left: 140, top: 140, fontSize: 56, color: 'var(--accent-deep)' });
+      s.tween(f4, sw, { opacity: 0 }, { opacity: 1, duration: 0.01 });
+      var ck = s.path(ov, 'M' + (RX + 30) + ' ' + (Y - 120) + ' l14 16 l28 -32', { stroke: '#26A69A', 'stroke-width': 7 });
+      s.draw(ck, 15.6, { dur: 0.25 });
+      s.mouth('baby', 'smile', 15.4, 0.2);
+      var src = s.hud('cite', 'Так ставят 91 % второклассников и 3 % взрослых (Р. Сиглер, Дж. Опфер, 2003). Объясняют это по-разному (Х. Барт, А. Паладино, 2011).', { left: 140, top: 1010, fontSize: 20 });
+      s.tween(src, 11.0, { opacity: 0 }, { opacity: 1, duration: 0.5 });
+      s.tween([src, f4], 17.0, { opacity: 1 }, { opacity: 0, duration: 0.4 });
+      s.actor('baby', { o: 0 }, 17.0, 0.4);
     }
   });
 
-  // 1:45 — Закон Архимеда и брат (Л. С. Выготский, 1934, с. 200 т. 2 СС)
+  // 2:25 — Закон Архимеда и брат (Л. С. Выготский, 1934, т. 2 СС, с. 200)
   Film.scene({
-    id: 'archimedes', bars: 5,
+    id: 'archimedes', bars: 8,
     build: function (s) {
       var g = s.svg(), ov = s.over();
+      var t0 = s.text('h3', 'Выготский заметил странное.', { left: 140, top: 130, width: 1600, fontSize: 46 });
+      s.lines(t0, 0.3);
       var school = s.node(g, 'g', {});
-      K().board(s, school, 980, 300, 760, 360, { at: 0.2 });
-      var boat = s.path(school, 'M1180 520 L1520 520 L1470 580 L1230 580 Z M1230 520 L1360 430 L1360 520', { stroke: '#F3EFE4', 'stroke-width': 4 });
-      s.draw(boat, 0.7, { dur: 0.8 });
-      var arr = s.path(school, 'M1350 640 V560 M1330 582 L1350 560 L1370 582', { stroke: '#F3EFE4', 'stroke-width': 4 });
-      s.draw(arr, 1.4, { dur: 0.4 });
-      s.actor('baby', { x: 860, y: 800, d: 104, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0.3, 0.4);
-      s.face('baby', true, 0.4, 0.2); s.mouth('baby', 'smile', 0.4, 0.01); s.gaze('baby', 8, -6, 0.4, 0.01);
-      s.actor('adult2', { x: 1820, y: 760, d: 150, o: 0 }, 0, 0.01); s.actor('adult2', { o: 1 }, 0.5, 0.4);
-      K().say(s, 'Закон Архимеда!', 740, 600, 1.4, 3.6);
-      s.squash('adult2', 1, 0.92, 2.4, 0.15); s.squash('adult2', 1, 1, 2.55, 0.25); // учитель кивает
-      // дома — житейское понятие
-      var sw = K().flip(s, 3.6);
-      s.set(school, sw, { opacity: 1 }, { opacity: 0 });
+      K().board(s, school, 860, 330, 580, 360, { at: 0.2 });
+      kid(s, 'adult2', 640, 700, 150, 0.4, 'glasses', 8);
+      K().say(s, 'Что такое закон Архимеда?', 420, 500, 1.4, 6.8);
+      kid(s, 'baby', 1720, 760, 104, 0.6, 'cowlick', -8);
+      s.hop('baby', 1720, 760, 3.0, 0.36, 30);
+      var ans = K().say(s, 'Тело в воде выталкивается вверх!', 1460, 500, 3.4, 6.8, 'r');
+      ans.style.whiteSpace = 'normal'; ans.style.width = '340px';
+      var boat = s.path(school, 'M1000 560 L1300 560 L1255 620 L1045 620 Z M1045 560 L1160 470 L1160 560', { stroke: '#F3EFE4', 'stroke-width': 4 });
+      s.draw(boat, 3.8, { dur: 0.8 });
+      var wv = s.path(school, 'M900 640 q40 -16 80 0 t80 0 t80 0 t80 0 t80 0 t80 0', { stroke: '#9CC3D5', 'stroke-width': 4 });
+      s.draw(wv, 4.4, { dur: 0.6 });
+      var arr = s.path(school, 'M1150 680 V600 M1130 622 L1150 600 L1170 622', { stroke: '#F3EFE4', 'stroke-width': 4 });
+      s.draw(arr, 4.9, { dur: 0.4 });
+      s.squash('adult2', 1, 0.92, 5.6, 0.15); s.squash('adult2', 1, 1, 5.75, 0.25); // учитель кивает
+      // вечером дома
+      var sw = K().flip(s, 7.0);
+      [school, t0].forEach(function (e) { s.set(e, sw, { opacity: 1 }, { opacity: 0 }); });
       s.actor('adult2', { o: 0 }, sw, 0.01);
       var home = s.node(g, 'g', { opacity: 0 });
       s.set(home, sw, { opacity: 0 }, { opacity: 1 });
-      // стол с тарелками
-      s.node(home, 'rect', { x: 560, y: 830, width: 800, height: 26, rx: 4, fill: '#B48A62', stroke: INK, 'stroke-width': 2.5 });
-      [600, 1300].forEach(function (x) { s.node(home, 'rect', { x: x, y: 856, width: 20, height: 140, fill: '#9C7550', stroke: INK, 'stroke-width': 2.5 }); });
-      [760, 1010, 1250].forEach(function (x) { s.node(home, 'ellipse', { cx: x, cy: 826, rx: 46, ry: 9, fill: '#FFFDF8', stroke: INK, 'stroke-width': 2.5 }); });
-      s.actor('baby', { x: 760, y: 760 }, sw, 0.01);
-      s.actor('adult', { x: 1250, y: 730, d: 150, o: 0 }, 0, 0.01); s.actor('adult', { o: 1 }, sw, 0.01);
-      s.actor('kid3', { x: 1010, y: 780, d: 64, o: 0 }, 0, 0.01); s.actor('kid3', { o: 1 }, sw, 0.01);
-      s.face('kid3', true, sw, 0.01); s.mouth('kid3', 'smile', sw, 0.01);
-      K().say(s, 'А что такое брат?', 990, 560, 4.4, null, 'r');
-      s.mouth('baby', 'flat', 5.0, 0.2); s.gaze('baby', 0, -9, 5.0, 0.3); // думает
-      s.gaze('baby', 9, 3, 6.0, 0.25); s.mouth('baby', 'smile', 6.0, 0.2);
-      K().say(s, 'Брат — это Петя!', 560, 560, 6.3);
-      s.hop('kid3', 1010, 780, 7.0, 0.36, 26); // младший машет ложкой
-      var spoon = s.path(ov, 'M1040 740 L1072 704', { stroke: '#8A8F90', 'stroke-width': 6 });
+      K().kitchen(s, home, 960, 1000);
+      var ev = s.text('kidhand', 'Вечером дома', { left: 140, top: 130, fontSize: 56, color: 'var(--accent-deep)' });
+      s.tween(ev, sw, { opacity: 0 }, { opacity: 1, duration: 0.01 });
+      s.actor('baby', { x: 960, y: 780, d: 100 }, sw, 0.01); s.gaze('baby', 9, -2, sw, 0.01);
+      kid(s, 'adult', 1280, 760, 150, sw, 'bun', -8);
+      kid(s, 'kid3', 680, 800, 64, sw, null, 8);
+      K().tag(s, 'мама', 1500, 750, sw + 0.3, sw + 3); K().tag(s, 'брат Петя', 680, 700, sw + 0.3, sw + 3);
+      var spoon = s.path(ov, 'M712 760 L742 720', { stroke: '#8A8F90', 'stroke-width': 6 });
       s.tween(spoon, sw, { opacity: 0 }, { opacity: 1, duration: 0.01 });
-      var qt = s.text('quote', '«Ребёнок лучше формулирует, что такое закон Архимеда, чем что такое брат»', { left: 140, top: 150, width: 1640, fontSize: 46 });
-      s.lines(qt, 7.9, { stagger: 0.12 });
-      var src = s.text('cite', 'Л. С. Выготский, «Мышление и речь», 1934 · научные понятия · scientific concepts · реплика «Брат — это Петя!» — постановка', { left: 140, top: 990, fontSize: 20 });
-      s.fade(src, 9.0, { y: 4 });
-      ['baby', 'adult', 'kid3'].forEach(function (id) { s.actor(id, { o: 0 }, 12.0, 0.4); });
-      s.out(spoon, 12.0, { dur: 0.4 });
-    }
-  });
-
-  // 1:57,5 — Какого цвета медведи? (А. Р. Лурия, 1931–32; С. Скрибнер, М. Коул, 1981)
-  Film.scene({
-    id: 'bears', bars: 7,
-    build: function (s) {
-      var g = s.svg(), ov = s.over();
-      var k = s.text('kicker', 'А. Р. Лурия · Узбекистан, 1931–32', { left: 140, top: 150 });
-      s.fade(k, 0.1, { y: 8 });
-      var task = s.text('lead', 'Где снег — медведи белые. На Новой Земле снег. Какие там медведи?', { left: 140, top: 200, width: 1500, fontSize: 40 });
-      s.lines(task, 0.5);
-      // задача рисуется ручкой: снежинки, медведь-контур
-      [[1180, 420], [1260, 470], [1540, 430], [1620, 480]].forEach(function (p, i) {
-        var f = s.path(ov, 'M' + (p[0] - 12) + ' ' + p[1] + ' H' + (p[0] + 12) + ' M' + p[0] + ' ' + (p[1] - 12) + ' V' + (p[1] + 12) + ' M' + (p[0] - 9) + ' ' + (p[1] - 9) + ' L' + (p[0] + 9) + ' ' + (p[1] + 9) + ' M' + (p[0] + 9) + ' ' + (p[1] - 9) + ' L' + (p[0] - 9) + ' ' + (p[1] + 9), { stroke: K().DEEP, 'stroke-width': 3 });
-        s.draw(f, 1.6 + i * 0.12, { dur: 0.3 });
-      });
-      var bear = s.node(ov, 'g', {}), BX = 1400, BY = 600, parts = [];
-      parts.push(s.node(bear, 'ellipse', { cx: BX, cy: BY, rx: 120, ry: 66 }));
-      parts.push(s.node(bear, 'circle', { cx: BX + 128, cy: BY - 30, r: 44 }));
-      parts.push(s.node(bear, 'circle', { cx: BX + 112, cy: BY - 70, r: 14 }));
-      [-80, -30, 40, 90].forEach(function (dx) { parts.push(s.node(bear, 'rect', { x: BX + dx - 16, y: BY + 40, width: 32, height: 62, rx: 12 })); });
-      parts.forEach(function (p) { p.setAttribute('fill', '#FFFDF8'); p.setAttribute('stroke', INK); p.setAttribute('stroke-width', 3); });
-      s.tween(bear, 2.0, { opacity: 0 }, { opacity: 1, duration: 0.6 });
-      var nz = s.text('small-caps', 'Новая Земля', { left: BX - 90, top: BY + 124 });
-      s.fade(nz, 2.4, { y: 4 });
-      // двое: старший без школы и молодой — год учёбы
-      s.actor('adult', { x: 380, y: 800, d: 160, o: 0 }, 0, 0.01); s.actor('adult', { o: 1 }, 0.6, 0.4);
-      s.actor('adult2', { x: 720, y: 810, d: 130, o: 0 }, 0, 0.01); s.actor('adult2', { o: 1 }, 0.8, 0.4);
-      var w1 = s.text('small-caps', 'без школы', { left: 300, top: 900, width: 160, textAlign: 'center' });
-      var w2 = s.text('small-caps', 'год учёбы', { left: 640, top: 900, width: 160, textAlign: 'center' });
-      s.fade(w1, 1.0, { y: 4 }); s.fade(w2, 1.2, { y: 4 });
-      s.out([w1, w2], 12.0, { dur: 0.3 });
-      s.freeze(3.8, 2.2);
-      var gu = s.text('small-caps', 'Угадайте, что ответит человек без школы', { left: 140, top: 320 });
-      s.fade(gu, 3.9, { y: 0, dur: 0.2 }); s.out(gu, 5.75, { dur: 0.2 });
-      var b1 = K().say(s, 'Я видел чёрного. Говорю только о том, что видел.', 260, 560, 6.2, 9.7);
-      b1.style.whiteSpace = 'normal'; b1.style.width = '560px';
-      s.tween(parts, 7.2, { attr: { fill: '#FFFDF8' } }, { attr: { fill: '#2B2B2B' }, duration: 0.6 });
-      K().say(s, 'По-вашему выходит — белые.', 600, 620, 10.0);
-      s.tween(parts, 10.6, { attr: { fill: '#2B2B2B' } }, { attr: { fill: '#FFFDF8' }, duration: 0.6 });
-      var c = s.text('h3', 'Рассуждать от условия, а не от опыта, учит школа.', { left: 140, top: 880, width: 1600, fontSize: 44 });
-      s.lines(c, 12.4);
-      var src = s.text('cite', 'А. Р. Лурия, 1974 (реплики — по изданию 1979) · С. Скрибнер, М. Коул, 1981: это даёт школа, а не грамотность сама по себе', { left: 140, top: 990, fontSize: 20 });
-      s.fade(src, 13.4, { y: 4 });
-      ['adult', 'adult2'].forEach(function (id) { s.actor(id, { o: 0 }, 17.0, 0.4); });
+      K().say(s, 'А что такое брат?', 1000, 560, 8.4, 11.0, 'r');
+      s.mouth('baby', 'flat', 9.8, 0.2); s.gaze('baby', 0, -9, 9.8, 0.3); // думает
+      s.gaze('baby', -9, 3, 10.8, 0.25); s.mouth('baby', 'smile', 10.8, 0.2);
+      K().say(s, 'Брат — это Петя!', 760, 560, 11.1, 14.0);
+      s.hop('kid3', 680, 800, 11.8, 0.36, 26); s.tween(spoon, 11.8, { rotation: 0, svgOrigin: '712 760' }, { rotation: -30, duration: 0.18, repeat: 3, yoyo: true });
+      s.squash('adult', 1.05, 0.95, 12.0, 0.15); s.squash('adult', 1, 1, 12.15, 0.3, 'back.out(3)'); // мама смеётся
+      var t2 = s.text('h3', 'Научное понятие ребёнок знает по определению. Житейское — из жизни, и определить его труднее.', { left: 140, top: 230, width: 1060, fontSize: 42 });
+      s.lines(t2, 13.4);
+      var src = s.text('cite', '«Ребёнок лучше формулирует, что такое закон Архимеда, чем что такое брат» · Л. С. Выготский, 1934 · научные понятия · scientific concepts · реплики — постановка', { left: 140, top: 1020, fontSize: 18 });
+      s.fade(src, 15.0, { y: 4 });
+      ['baby', 'adult', 'kid3'].forEach(function (id) { s.actor(id, { o: 0 }, 19.5, 0.4); });
+      s.out(spoon, 19.5, { dur: 0.4 });
     }
   });
 })();

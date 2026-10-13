@@ -101,6 +101,7 @@ body { font-family: var(--sans); color: var(--ink); -webkit-font-smoothing: anti
 #a-kid3 > .body { background: #D9654B; box-shadow: 0 0 0 3px #F7F4EC; }
 #a-adult2 > .body { background: #4D6E8A; }
 #a-dad > .body { background: #2C4459; } /* папа — с эпизода 7–10 */
+#a-kid4 > .body { background: #F09A7E; box-shadow: 0 0 0 3px #F7F4EC; } /* одноклассник Дима */
 .prop { position: absolute; left: 0; top: 0; }
 .hand { width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: var(--child); box-shadow: 0 0 0 2.5px var(--child-deep); }
 .actor svg.face { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; opacity: 0; }

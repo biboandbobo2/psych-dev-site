@@ -228,6 +228,9 @@
     } else if (kind === 'bow') {
       svg('path', { d: 'M50 4 L30 -10 L30 18 Z M50 4 L70 -10 L70 18 Z', fill: '#26A69A' }, S);
       svg('circle', { cx: 50, cy: 4, r: 6, fill: '#1C7A71' }, S);
+    } else if (kind === 'cap') {
+      svg('path', { d: 'M10 34 Q50 -14 90 34 Z', fill: '#26A69A' }, S);
+      svg('path', { d: 'M78 30 L112 36', stroke: '#26A69A', 'stroke-width': 10, 'stroke-linecap': 'round' }, S);
     } else if (kind === 'cowlick') {
       svg('path', { d: 'M44 4 Q40 -16 56 -18 Q48 -8 54 4 Z', fill: '#7A4E2D' }, S);
     }
@@ -515,7 +518,7 @@
 
     tl = gsap.timeline({ paused: true });
     Film.tl = tl;
-    ['stranger', 'dad', 'adult2', 'adult', 'obj', 'kid3', 'kid2', 'baby'].forEach(makeActor); // dad — с эпизода 7–10
+    ['stranger', 'dad', 'adult2', 'adult', 'obj', 'kid4', 'kid3', 'kid2', 'baby'].forEach(makeActor); // dad — с эпизода 7–10
     buildRuler();
     buildUI();
 
