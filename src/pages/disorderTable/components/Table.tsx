@@ -149,8 +149,7 @@ export function Table({
                             cellCommentCount={cellCommentCount}
                             isSelected={isSelected}
                             isCellSelectionMode={isCellSelectionMode}
-                            isMobile={isMobile}
-                            normalizedSearch={normalizedSearch}
+                                                        normalizedSearch={normalizedSearch}
                             onClick={onCellClick}
                           />
                         );

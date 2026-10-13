@@ -5,12 +5,10 @@ import {
 } from '../../../features/disorderTable';
 
 interface UseDisorderTableSelectionParams {
-  isMobile: boolean;
   canEditEntries: boolean;
 }
 
 export function useDisorderTableSelection({
-  isMobile,
   canEditEntries,
 }: UseDisorderTableSelectionParams) {
   const [activeCell, setActiveCell] = useState<DisorderTableCellSelection | null>(null);
@@ -47,7 +45,7 @@ export function useDisorderTableSelection({
   };
 
   const handleCellClick = (rowId: string, columnId: string) => {
-    if (isCellSelectionMode && !isMobile) {
+    if (isCellSelectionMode) {
       toggleCellSelection(rowId, columnId);
       return;
     }

@@ -8,7 +8,6 @@ import {
 import type { OptionalTrack } from '../utils/trackMeta';
 
 interface UseDisorderTableEntryFormParams {
-  isMobile: boolean;
   canEditEntries: boolean;
   entries: DisorderTableEntry[];
   saving: boolean;
@@ -21,7 +20,6 @@ interface UseDisorderTableEntryFormParams {
 }
 
 export function useDisorderTableEntryForm({
-  isMobile,
   canEditEntries,
   entries,
   saving,
@@ -68,7 +66,7 @@ export function useDisorderTableEntryForm({
   };
 
   const openCreateFromCell = (rowId: string, columnId: string) => {
-    if (isMobile || !canEditEntries) return;
+    if (!canEditEntries) return;
     resetForm();
     setFormRowIds([rowId]);
     setFormColumnIds([columnId]);
@@ -82,7 +80,7 @@ export function useDisorderTableEntryForm({
   };
 
   const startEdit = (entryId: string) => {
-    if (isMobile || !canEditEntries) return;
+    if (!canEditEntries) return;
     const entry = entries.find((item) => item.id === entryId);
     if (!entry) return;
     const rowId = activeCell?.rowId ?? entry.rowIds[0] ?? '';
@@ -119,7 +117,7 @@ export function useDisorderTableEntryForm({
   };
 
   const handleRemove = async (entryId: string) => {
-    if (isMobile || !canEditEntries) return;
+    if (!canEditEntries) return;
     if (!window.confirm('Удалить эту запись?')) return;
 
     setListError(null);

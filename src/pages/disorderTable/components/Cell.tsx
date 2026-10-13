@@ -16,7 +16,6 @@ interface CellProps {
   cellCommentCount: number;
   isSelected: boolean;
   isCellSelectionMode: boolean;
-  isMobile: boolean;
   normalizedSearch: string;
   onClick: (rowId: string, columnId: string) => void;
 }
@@ -29,7 +28,6 @@ export function Cell({
   cellCommentCount,
   isSelected,
   isCellSelectionMode,
-  isMobile,
   normalizedSearch,
   onClick,
 }: CellProps) {
@@ -64,7 +62,7 @@ export function Cell({
         }`}
         style={cellToneStyle}
       >
-        {isCellSelectionMode && !isMobile && (
+        {isCellSelectionMode && (
           <span
             className={`absolute right-2 top-2 inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px] ${
               isSelected

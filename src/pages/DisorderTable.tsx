@@ -118,7 +118,7 @@ export default function DisorderTable() {
     toggleCellSelectionMode,
     clearSelectedCells,
     resetSelection,
-  } = useDisorderTableSelection({ isMobile, canEditEntries });
+  } = useDisorderTableSelection({ canEditEntries });
 
   const {
     activeFilters,
@@ -161,7 +161,6 @@ export default function DisorderTable() {
     handleSubmit,
     handleRemove,
   } = useDisorderTableEntryForm({
-    isMobile,
     canEditEntries,
     entries,
     saving,
@@ -184,7 +183,6 @@ export default function DisorderTable() {
     closeBulkModal,
     handleBulkSubmit,
   } = useDisorderTableBulkEntry({
-    isMobile,
     canEditEntries,
     saving,
     selectedCells,
@@ -265,12 +263,11 @@ export default function DisorderTable() {
             canApplyFilters={canApplyFilters}
             onApply={applyDraftFilters}
             onReset={clearAllFilters}
-            showBulkSelectionMode={!isMobile && canEditEntries}
+            showBulkSelectionMode={canEditEntries}
             isCellSelectionMode={isCellSelectionMode}
             selectedCellsCount={selectedCells.length}
             onToggleBulkMode={toggleCellSelectionMode}
             onOpenBulkModal={openBulkModal}
-            isMobile={isMobile}
             isAdmin={isAdmin}
           />
 
@@ -351,7 +348,6 @@ export default function DisorderTable() {
             : 'Пересечение таблицы'
         }
         saving={saving}
-        isMobile={isMobile}
         canEditEntries={canEditEntries}
         canComment={canComment}
         commentsLoading={commentsLoading}

@@ -10,7 +10,6 @@ interface CellDetailsModalProps {
   onClose: () => void;
   title: string;
   saving: boolean;
-  isMobile: boolean;
   canEditEntries: boolean;
   canComment: boolean;
   commentsLoading: boolean;
@@ -34,7 +33,6 @@ export function CellDetailsModal({
   onClose,
   title,
   saving,
-  isMobile,
   canEditEntries,
   canComment,
   commentsLoading,
@@ -62,7 +60,7 @@ export function CellDetailsModal({
       footer={
         <>
           <ModalCancelButton onClick={onClose}>Закрыть</ModalCancelButton>
-          {!isMobile && canEditEntries && hasActiveCell && (
+          {canEditEntries && hasActiveCell && (
             <ModalSaveButton onClick={onAddToCell} disabled={saving}>
               Добавить в это пересечение
             </ModalSaveButton>
@@ -100,7 +98,7 @@ export function CellDetailsModal({
                       Без цвета
                     </span>
                   )}
-                  {!isMobile && canEditEntries && (
+                  {canEditEntries && (
                     <div className="flex items-center gap-2">
                       <button
                         type="button"

@@ -7,7 +7,6 @@ interface FilterControlsProps {
   selectedCellsCount: number;
   onToggleBulkMode: () => void;
   onOpenBulkModal: () => void;
-  isMobile: boolean;
   isAdmin: boolean;
 }
 
@@ -20,7 +19,6 @@ export function FilterControls({
   selectedCellsCount,
   onToggleBulkMode,
   onOpenBulkModal,
-  isMobile,
   isAdmin,
 }: FilterControlsProps) {
   return (
@@ -73,12 +71,6 @@ export function FilterControls({
         </div>
       )}
 
-      {isMobile && (
-        <p className="mb-1 text-xs text-slate-600">
-          Мобильный режим: доступен просмотр таблицы и содержимого ячеек. Редактирование доступно
-          на компьютере.
-        </p>
-      )}
       {isAdmin && (
         <p className="mb-1 text-xs text-slate-600">
           Для преподавателя доступен просмотр и комментирование таблицы студента.

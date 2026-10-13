@@ -7,7 +7,6 @@ import {
 import type { OptionalTrack } from '../utils/trackMeta';
 
 interface UseDisorderTableBulkEntryParams {
-  isMobile: boolean;
   canEditEntries: boolean;
   saving: boolean;
   selectedCells: DisorderTableCellSelection[];
@@ -17,7 +16,6 @@ interface UseDisorderTableBulkEntryParams {
 }
 
 export function useDisorderTableBulkEntry({
-  isMobile,
   canEditEntries,
   saving,
   selectedCells,
@@ -30,7 +28,7 @@ export function useDisorderTableBulkEntry({
   const [bulkError, setBulkError] = useState<string | null>(null);
 
   const openBulkModal = () => {
-    if (isMobile || !canEditEntries || selectedCells.length === 0) return;
+    if (!canEditEntries || selectedCells.length === 0) return;
     setBulkError(null);
     setBulkText('');
     setBulkTrack(null);
