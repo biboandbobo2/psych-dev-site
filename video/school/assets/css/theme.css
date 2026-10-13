@@ -34,6 +34,7 @@
   --serif: "DOMSerif", serif;
   --sans: "DOMSans", sans-serif;
   --hand: "DOMHand", cursive;
+  --kid: "DOMKid", sans-serif;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -146,12 +147,14 @@ svg { overflow: visible; }
 .check-card .c { font-family: var(--sans); font-weight: 500; font-size: 26px; line-height: 1.35; color: var(--ink-2); margin-top: 10px; }
 .check-card .r { font-family: var(--sans); font-weight: 600; font-size: 20px; color: var(--muted); margin-top: 16px; }
 
-/* ---------- Эпизод 7–10: тетрадь, камера, пропись, стоп-кадр ---------- */
+/* ---------- Эпизод 7–10: тетрадь, камера, пропись (реплики и учитель), детский почерк (что пишет ребёнок), стоп-кадр ---------- */
 .cam { transform-origin: 0 0; }
-#grid { opacity: 0; background-image:
+/* клетка — только местами (общий фон-клетка зашумлял кадр, правка автора) */
+.cells { background-image:
   linear-gradient(to right, var(--cell) 1.5px, transparent 1.5px),
   linear-gradient(to bottom, var(--cell) 1.5px, transparent 1.5px);
-  background-size: 48px 48px; background-position: 12px 12px; inset: -1920px; }
+  background-size: 48px 48px; }
+.kidhand { font-family: var(--kid); font-size: 42px; line-height: 1.1; color: #2E3B4E; white-space: nowrap; }
 .cursive { font-family: var(--hand); font-size: 50px; line-height: 1.15; color: var(--accent-deep); white-space: nowrap; }
 .freeze { position: absolute; inset: 22px; border: 6px solid var(--accent); border-radius: 18px; opacity: 0; }
 .freeze i { position: absolute; bottom: 26px; width: 14px; height: 46px; border-radius: 4px; background: var(--accent); left: calc(50% - 22px); }

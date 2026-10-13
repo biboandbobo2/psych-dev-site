@@ -55,8 +55,8 @@
   }
   function desk(s, g, x, y, k) {
     var w = 190 * k, d = 26 * k, h = 70 * k;
-    s.path(g, 'M' + (x - w / 2) + ' ' + y + ' L' + (x + w / 2) + ' ' + y + ' L' + (x + w / 2 - d) + ' ' + (y - d) + ' L' + (x - w / 2 + d) + ' ' + (y - d) + ' Z', { fill: WOOD, stroke: INK, 'stroke-width': 2.5 * k });
-    s.node(g, 'rect', { x: x - w / 2, y: y, width: w, height: h, fill: '#B48A62', stroke: INK, 'stroke-width': 2.5 * k });
+    s.path(g, 'M' + (x - w / 2) + ' ' + y + ' L' + (x + w / 2) + ' ' + y + ' L' + (x + w / 2 - d) + ' ' + (y - d) + ' L' + (x - w / 2 + d) + ' ' + (y - d) + ' Z', { fill: WOOD, stroke: INK, 'stroke-width': 2.5, 'vector-effect': 'non-scaling-stroke' });
+    s.node(g, 'rect', { x: x - w / 2, y: y, width: w, height: h, fill: '#B48A62', stroke: INK, 'stroke-width': 2.5, 'vector-effect': 'non-scaling-stroke' });
   }
   // Дом — линией ручки
   function house(s, g, x, y, k, o) {

@@ -1,8 +1,7 @@
 /* Движок серии «Психология развития» (DOM Academy) поверх HyperFrames + GSAP.
    Эпизод 3–7: акцент для текста (accentText), сверстники kid2/kid3, второй взрослый adult2,
    рисованный слой #sketch над персонажами (s.over / s.otext / s.sk — см. sketch.js).
-   Эпизод 7–10: «камера» (s.cam) — сдвиг и масштаб сцены вместе с героями, тетрадная сетка #grid,
-   стоп-кадр (s.freeze). Шкала возраста и подписи (#ruler, #ui) камерой не двигаются.
+   Эпизод 7–10: «камера» (s.cam) — сдвиг и масштаб сцены вместе с героями, стоп-кадр (s.freeze). Шкала возраста и подписи (#ruler, #ui) камерой не двигаются.
    Эпизод настраивается через window.FILM_CONFIG: шкала возраста, цвет эпизода, карта курса.
    Всё детерминировано: без Math.random/Date/rAF; всё движение — в одном paused-таймлайне,
    который HyperFrames перематывает покадрово. Время сцен кратно такту музыки (такт = 2,5 с). */
@@ -470,7 +469,8 @@
       document.fonts.load('italic 500 54px DOMSerif', probe),
       document.fonts.load('500 32px DOMSans', probe),
       document.fonts.load('700 22px DOMSans', probe + ' Ψ'),
-      document.fonts.load('400 50px DOMHand', probe)
+      document.fonts.load('400 50px DOMHand', probe),
+      document.fonts.load('400 40px DOMKid', probe)
     ]).then(function () { return document.fonts.ready; });
   };
 
@@ -478,14 +478,12 @@
     opts = opts || {};
     root = document.getElementById('root');
     var camA = el('div', 'layer cam', root), camB;
-    layers.grid = el('div', 'layer', camA); layers.grid.id = 'grid';
     layers.scenes = el('div', 'layer', camA); layers.scenes.id = 'scenes';
     layers.ruler = el('div', 'layer', root); layers.ruler.id = 'ruler';
     camB = el('div', 'layer cam', root);
     layers.actors = el('div', 'layer', camB); layers.actors.id = 'actors';
     layers.sketch = el('div', 'layer', camB); layers.sketch.id = 'sketch';
     CAM.els = [camA, camB];
-    Film.gridEl = layers.grid;
     layers.ui = el('div', 'layer', root); layers.ui.id = 'ui';
     var grain = el('div', null, root); grain.id = 'grain';
 
