@@ -188,14 +188,16 @@
     return b;
   }
   // Кухня: окно с занавесками, лампа над столом, стол со скатертью; (x, y) — середина пола под столом
-  function kitchen(s, g, x, y) {
+  function kitchen(s, g, x, y, o) {
     var k = s.node(g, 'g', {});
     s.node(k, 'rect', { x: 0, y: 0, width: 1920, height: y - 150, fill: '#F4E9D8', opacity: 0.55 });
     s.node(k, 'rect', Object.assign({ x: x + 300, y: 260, width: 220, height: 200, rx: 6 }, A(GLASS)));
     s.path(k, 'M' + (x + 410) + ' 260 v200 M' + (x + 300) + ' 360 h220', { stroke: INK, 'stroke-width': 2.5 });
     s.path(k, 'M' + (x + 290) + ' 250 q30 110 0 220 h30 q-14 -110 0 -220 Z M' + (x + 530) + ' 250 q-30 110 0 220 h-30 q14 -110 0 -220 Z', A('#E8B4A0', 2));
-    s.path(k, 'M' + x + ' 300 V' + (y - 520), { stroke: INK, 'stroke-width': 2.5 });
-    s.path(k, 'M' + (x - 60) + ' ' + (y - 450) + ' Q' + x + ' ' + (y - 520) + ' ' + (x + 60) + ' ' + (y - 450) + ' Z', A('#F2C14E'));
+    if (!o || o.lamp !== false) {
+      s.path(k, 'M' + x + ' 300 V' + (y - 520), { stroke: INK, 'stroke-width': 2.5 });
+      s.path(k, 'M' + (x - 60) + ' ' + (y - 450) + ' Q' + x + ' ' + (y - 520) + ' ' + (x + 60) + ' ' + (y - 450) + ' Z', A('#F2C14E'));
+    }
     s.node(k, 'ellipse', { cx: x, cy: y - 120, rx: 360, ry: 70, fill: '#FFF1A6', opacity: 0.35 });
     s.node(k, 'rect', Object.assign({ x: x - 420, y: y - 140, width: 840, height: 30, rx: 4 }, A('#E8EEF2')));
     s.path(k, 'M' + (x - 420) + ' ' + (y - 110) + ' l20 40 l20 -40 l20 40 l20 -40 l20 40 l20 -40 M' + (x + 300) + ' ' + (y - 110) + ' l20 40 l20 -40 l20 40 l20 -40 l20 40 l20 -40', { stroke: '#B8C6D0', 'stroke-width': 2.5, fill: 'none' });
