@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# «От семи до десяти» (7–10 лет, 98 тактов = 4:05): полная пересборка ролика —
+# «От семи до десяти» (7–10 лет, 124 такта = 5:10): полная пересборка ролика —
 # музыка (music/compose.py → school.mid) → видео (HyperFrames) → сведение и финальное кодирование.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -7,7 +7,7 @@ mkdir -p renders
 
 SF="${SOUNDFONT:-/usr/share/sounds/sf3/MuseScore_General_Full.sf3}"
 HF="${HYPERFRAMES:-npx --yes hyperframes@0.8.78}"
-PRE="atrim=0:245,asetpts=N/SR/TB,afade=t=in:st=0:d=0.05,afade=t=out:st=241.5:d=3.5,highpass=f=30"
+PRE="atrim=0:310,asetpts=N/SR/TB,afade=t=in:st=0:d=0.05,afade=t=out:st=306.5:d=3.5,highpass=f=30"
 
 echo "▶ Музыка: партитура → MIDI → WAV"
 (cd music && python3 compose.py)
