@@ -11,7 +11,8 @@
     build: function (s) {
       var g = s.svg(), ov = s.over(), CX = 1310, CY = 640;
       s.actor('baby', { x: CX, y: CY, d: 110, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0.2, 0.4);
-      s.face('baby', true, 0.3, 0.2); s.mouth('baby', 'soft', 0.3, 0.01); s.gaze('baby', 0, 6, 0.3, 0.01);
+      s.face('baby', true, 0.3, 0.2); s.mouth('baby', 'soft', 0.3, 0.01); s.gaze('baby', 0, 6, 0.3, 0.01); s.acc('baby', 'cowlick');
+      s.gaze('baby', 9, -4, 2.8, 0.3); // замечает двойника
       var dk = s.node(ov, 'g', {}); K().desk(s, dk, CX, CY + 64, 1.1);
       s.tween(dk, 0.2, { opacity: 0 }, { opacity: 1, duration: 0.4 });
       [['по правилу', 860, 330], ['в уме', 1760, 330], ['нарочно', 860, 940], ['со стороны', 1760, 940]].forEach(function (l, i) {
@@ -26,11 +27,11 @@
       s.node(dbl, 'circle', { cx: CX + 176, cy: CY - 48, r: 5, fill: K().DEEP });
       s.node(dbl, 'circle', { cx: CX + 196, cy: CY - 48, r: 5, fill: K().DEEP });
       s.tween(dbl, 2.4, { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.6, ease: 'power2.out' });
-      var t1 = s.text('h3', 'Главное новообразование — <span class="term acc">рефлексия<span class="en">ближе всего metacognition</span></span>', { left: 140, top: 150, width: 1640 });
-      s.fade(t1, 3.4, { y: 10 });
-      var t2 = s.text('lead', 'Видеть, как я думаю и учусь.', { left: 140, top: 300, width: 560 });
-      s.lines(t2, 5.6);
-      var c = s.text('cite', 'Д. Б. Эльконин, В. В. Давыдов', { left: 140, top: 990, fontSize: 20 });
+      var t1 = s.text('h3', 'Главное, что вырастает, — <span class="acc">рефлексия</span>:', { left: 140, top: 150, width: 1640 });
+      s.fade(t1, 3.0, { y: 10 });
+      var t2 = s.text('lead', 'посмотреть на себя со стороны — как я думаю и учусь.', { left: 140, top: 230, width: 620 });
+      s.lines(t2, 4.4);
+      var c = s.text('cite', 'ближе всего — metacognition · Д. Б. Эльконин, В. В. Давыдов', { left: 140, top: 990, fontSize: 20 });
       s.fade(c, 6.0, { y: 4 });
       s.actor('baby', { o: 0 }, 9.4, 0.4);
     }
@@ -74,7 +75,7 @@
     build: function (s) {
       var CX = 960, CY = 470, ov = s.over();
       s.actor('baby', { x: CX, y: CY, d: 100, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0.2, 0.5);
-      s.face('baby', true, 0.3, 0.3); s.mouth('baby', 'smile', 0.3, 0.01); s.gaze('baby', 0, -2, 0.3, 0.01);
+      s.face('baby', true, 0.3, 0.3); s.mouth('baby', 'smile', 0.3, 0.01); s.gaze('baby', 0, -2, 0.3, 0.01); s.acc('baby', 'cowlick');
       // значки эпизода по кругу: палочка, стакан, числовая прямая, медведь, шахматная фигура, велосипед
       var orb = s.node(ov, 'g', {}), R = 210, a = { fill: 'none', stroke: K().DEEP, 'stroke-width': 4 };
       var ICON = [
