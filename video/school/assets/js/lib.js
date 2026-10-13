@@ -454,6 +454,8 @@
       sk: function (parent, pts, o) { return Film.sketch.stroke(this, parent, pts, o); },
       cam: function (c, lt, dur, ease) { camTo(c, t0 + lt, dur, ease); },
       freeze: function (lt, dur) { freeze(t0 + lt, dur); },
+      // текст поверх кадра, который камера не двигает (слой #ui); гасить вручную
+      hud: function (cls, html, st) { var e = el('div', cls, layers.ui, html); e.classList.add('abs'); if (st) css(e, st); gsap.set(e, { opacity: 0 }); return e; },
       img: function (src, st, parent) { var e = document.createElement('img'); e.src = src; e.className = 'abs'; (parent || box).appendChild(e); if (st) css(e, st); return e; },
       ACC: ACC, CFG: CFG
     };
