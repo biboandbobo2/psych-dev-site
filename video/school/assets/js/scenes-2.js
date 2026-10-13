@@ -1,238 +1,203 @@
-/* Часть 2. Мир глазами другого · мышление: сохранение (Пиаже), три горы, Макси (Виммер, Пернер) */
+/* Глава 2. Думать по правилам · мышление: тот же стакан (Пиаже), числовая прямая (Сиглер), Архимед и брат (Выготский), медведи (Лурия) */
 /* global Film */
 (function () {
   'use strict';
-  var INK = '#1D2733', ORANGE = '#FB8C00', DEEP = '#A65300', WATER = '#9CC3D5', WATER_D = '#5E93AC', MUTE = '#8A8F90';
-  var RED = '#C8553D', GREEN = '#2E7D32';
+  var K = function () { return Film.school; };
+  var INK = '#1D2733', WATER = '#9CC3D5', WATER_D = '#5E93AC';
 
-  // стакан: контур + вода (уровень задаётся высотой прямоугольника)
-  function glass(s, g, x, base, w, h, level) {
-    var G = s.node(g, 'g', {});
-    var water = s.node(G, 'rect', { x: x - w / 2 + 4, y: base - level, width: w - 8, height: level, fill: WATER, rx: 3 });
-    s.path(G, 'M' + (x - w / 2) + ' ' + (base - h) + ' L' + (x - w / 2) + ' ' + base + ' L' + (x + w / 2) + ' ' + base + ' L' + (x + w / 2) + ' ' + (base - h), { stroke: INK, 'stroke-width': 3.5 });
-    return { g: G, water: water, x: x, base: base, w: w };
-  }
-  function setLevel(s, gl, t, from, to, dur, ease) {
-    s.tween(gl.water, t, { attr: { y: gl.base - from, height: from } }, { attr: { y: gl.base - to, height: to }, duration: dur, ease: ease || 'power1.inOut' });
-  }
-
-  // 1:42,5 — заставка части
+  // 1:17,5 — заставка главы (23 такта = 57,5 с)
   Film.scene({
     id: 'ch2', bars: 1,
     build: function (s) {
-      s.chapterCard(2, 'Мир глазами другого', 'мышление · 3–7 лет');
-      s.range(36, 84, 0.15, 1.3);
-      s.age(48, 0.2, 1.3);
-      s.chapter(2, 'Мир глазами другого', 0.4, 42.1);
+      s.chapterCard(2, 'Думать по правилам', 'мышление');
+      K().ruled(s, s.svg(), 336, 476, 1100, 476, { at: 0.5, dur: 0.9, width: 4 });
+      s.chapter(2, 'Думать по правилам', 0.4, 56.9);
     }
   });
 
-  // 1:45 — Где больше воды? Сохранение (Ж. Пиаже, А. Шеминьская, 1941) → М. Дональдсон, 1978
+  // 1:20 — Тот же стакан: в 3–7 ответ был «в высоком», теперь вопрос кажется глупым — три довода (Ж. Пиаже)
   Film.scene({
-    id: 'water', bars: 6,
+    id: 'glass', bars: 5,
     build: function (s) {
-      var k = s.text('kicker', 'Ж. Пиаже · А. Шеминьская, 1941', { left: 140, top: 150 });
+      var k = s.text('kicker', 'Ж. Пиаже · тот же опыт, что в 3–7', { left: 140, top: 150 });
       s.fade(k, 0.1, { y: 8 });
-      var h = s.text('h2', 'Где больше воды?', { left: 140, top: 186, width: 900 });
-      s.lines(h, 0.2);
-      var p0 = s.text('lead', 'Воды поровну — ребёнок согласен.', { left: 140, top: 330, width: 780, fontSize: 34 });
-      s.lines(p0, 1.0);
-
-      var g = s.svg(), ov = s.over();
-      var BASE = 700;
-      var A = glass(s, g, 1080, BASE, 110, 170, 110);
-      var C = glass(s, g, 1460, BASE, 56, 330, 0);
-      // Стакан B переливают по-настоящему: его система координат — с началом в крае слива (правый верх),
-      // вращение — вокруг этого края. Вода — прямоугольник в координатах кадра (поверхность всегда горизонтальна),
-      // обрезанный внутренностью стакана; пока вода у края, всё, что выше края, «выливается» само.
+      var g = s.svg(), BASE = 820;
+      var A = K().glass(s, g, 420, BASE, 110, 170, 110), C = K().glass(s, g, 780, BASE, 56, 330, 0);
+      // стакан B: система координат с началом в крае слива, вращение вокруг него (как в 3–7)
       function TR(p, a) { return 'translate(' + p[0] + ' ' + p[1] + ') rotate(' + a + ')'; }
-      var LIP0 = [1295, 530], LIP1 = [1447, 215], WTOP = BASE - 110;
-      var defs = s.node(g, 'defs', {});
-      var clip = s.node(defs, 'clipPath', { id: 'pour-b', clipPathUnits: 'userSpaceOnUse' });
+      var LIP0 = [655, 650], LIP1 = [767, 335], WTOP = BASE - 110;
+      var defs = s.node(g, 'defs', {}), clip = s.node(defs, 'clipPath', { id: 'pour-7', clipPathUnits: 'userSpaceOnUse' });
       var cr = s.node(clip, 'rect', { x: -108, y: 0, width: 106, height: 168, transform: TR(LIP0, 0) });
-      var wB = s.node(g, 'rect', { x: 900, y: WTOP, width: 900, height: 700, fill: WATER, 'clip-path': 'url(#pour-b)' });
+      var wB = s.node(g, 'rect', { x: 300, y: WTOP, width: 900, height: 700, fill: WATER, 'clip-path': 'url(#pour-7)' });
       var gB = s.node(g, 'g', { transform: TR(LIP0, 0) });
       s.path(gB, 'M-110 0 V170 H0 V0', { stroke: INK, 'stroke-width': 3.5 });
       function moveB(t, p0, a0, p1, a1, dur, ease) {
         [cr, gB].forEach(function (e) { s.tween(e, t, { attr: { transform: TR(p0, a0) } }, { attr: { transform: TR(p1, a1) }, duration: dur, ease: ease }); });
       }
-      s.tween([A.g, C.g], 0.6, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.6, stagger: 0.25 });
-      s.tween([gB, wB], 0.72, { opacity: 0 }, { opacity: 1, duration: 0.6 });
-      var task = s.text('label', '<span class="term">задача на сохранение<span class="en">conservation task</span></span>', { left: 1010, top: 740, fontSize: 30 });
-      s.fade(task, 1.2, { y: 6 });
-      // поднять → наклонить (вода доходит до края) → лить → вернуть пустым
+      s.tween([A.g, C.g], 0.4, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.6, stagger: 0.2 });
+      s.tween([gB, wB], 0.5, { opacity: 0 }, { opacity: 1, duration: 0.6 });
       var dy = LIP1[1] - LIP0[1];
-      moveB(2.3, LIP0, 0, LIP1, 0, 0.7, 'power2.inOut');
-      s.tween(wB, 2.3, { attr: { y: WTOP } }, { attr: { y: WTOP + dy }, duration: 0.7, ease: 'power2.inOut' });
-      moveB(3.0, LIP1, 0, LIP1, 48, 0.8, 'power1.in');
-      s.tween(wB, 3.0, { attr: { y: WTOP + dy } }, { attr: { y: LIP1[1] }, duration: 0.8, ease: 'power1.in' });
-      moveB(3.8, LIP1, 48, LIP1, 95, 1.2, 'sine.inOut');
-      s.set(wB, 5.0, { attr: { y: LIP1[1] } }, { attr: { y: 2000 } });
-      setLevel(s, C, 3.8, 0, 234, 1.05, 'sine.inOut');
+      moveB(1.2, LIP0, 0, LIP1, 0, 0.6, 'power2.inOut');
+      s.tween(wB, 1.2, { attr: { y: WTOP } }, { attr: { y: WTOP + dy }, duration: 0.6, ease: 'power2.inOut' });
+      moveB(1.8, LIP1, 0, LIP1, 48, 0.7, 'power1.in');
+      s.tween(wB, 1.8, { attr: { y: WTOP + dy } }, { attr: { y: LIP1[1] }, duration: 0.7, ease: 'power1.in' });
+      moveB(2.5, LIP1, 48, LIP1, 95, 1.0, 'sine.inOut');
+      s.set(wB, 3.5, { attr: { y: LIP1[1] } }, { attr: { y: 2000 } });
+      K().setLevel(s, C, 2.5, 0, 234, 0.9, 'sine.inOut');
       var stream = s.node(g, 'rect', { x: LIP1[0] - 3, y: LIP1[1] + 2, width: 7, height: 0, rx: 3.5, fill: WATER_D, opacity: 0 });
-      s.tween(stream, 3.8, { opacity: 0 }, { opacity: 0.9, duration: 0.08 });
-      s.tween(stream, 3.8, { attr: { height: 0 } }, { attr: { height: BASE - LIP1[1] - 2 }, duration: 0.12, ease: 'power2.in' });
-      s.tween(stream, 3.92, { attr: { height: BASE - LIP1[1] - 2 } }, { attr: { height: BASE - 234 - LIP1[1] - 2 }, duration: 0.93, ease: 'sine.inOut' });
-      s.tween(stream, 4.8, { opacity: 0.9 }, { opacity: 0, duration: 0.15 });
-      moveB(5.15, LIP1, 95, LIP1, 0, 0.5, 'power2.inOut');
-      moveB(5.65, LIP1, 0, LIP0, 0, 0.6, 'power2.inOut');
-
-      // ребёнок смотрит с самого начала
-      s.actor('baby', { x: 1720, y: 640, d: 104, o: 0 }, 0.6, 0.01);
-      s.actor('baby', { o: 1 }, 0.7, 0.5);
-      s.face('baby', true, 0.8, 0.3); s.mouth('baby', 'soft', 0.8, 0.01); s.gaze('baby', -9, 0, 0.8, 0.01);
-      s.squash('baby', 0.95, 1.06, 1.6, 0.12); s.squash('baby', 1, 1, 1.72, 0.25, 'back.out(3)');
-      s.squash('baby', 0.95, 1.06, 2.0, 0.12); s.squash('baby', 1, 1, 2.12, 0.25, 'back.out(3)');
-      s.gaze('baby', -8, -7, 2.4, 0.4); s.gaze('baby', -9, -2, 4.6, 0.4);
-
-      // вопрос зрителю — пауза — ответ дошкольника
-      s.out(p0, 4.8, { dur: 0.4 });
-      var qv = s.text('statement', 'А теперь?', { left: 140, top: 330, width: 780, fontSize: 60 });
-      s.lines(qv, 5.2);
-      var bub = s.div('bubble tail-r', { left: 1590, top: 470 }, null, 'В высоком!');
-      s.pop(bub, 6.9, { from: 0.7, dur: 0.5, origin: '90% 100%' });
-      s.mouth('baby', 'smile', 6.9, 0.2);
-      // взгляд «прилипает» к уровню воды
-      var gz = s.path(ov, 'M1672 628 L1500 470', { stroke: ORANGE, 'stroke-width': 3, 'stroke-dasharray': '4 9' });
-      s.dash(gz, 7.3, { dur: 0.6 });
-      var lvl = s.path(ov, 'M1420 466 H1500', { stroke: ORANGE, 'stroke-width': 5 });
-      s.draw(lvl, 7.8, { dur: 0.4 });
-
-      s.out(qv, 8.2, { dur: 0.4 });
-      var p1 = s.text('lead', 'Взгляд прилипает к одному признаку — высоте. Это ' + s.HL('центрация.'), { left: 140, top: 330, width: 800, fontSize: 34 });
-      s.lines(p1, 8.5);
-      s.hl(p1, 9.4);
-      var p2 = s.text('body', 'Мысленно перелить воду обратно ребёнок ещё не может — нет обратимости. Справляются в среднем к 6–7 годам.', { left: 140, top: 440, width: 800, fontSize: 28 });
-      s.lines(p2, 9.6, { stagger: 0.08 });
-      s.age(78, 9.8, 1.4);
-      var nl = s.text('small-caps', 'Сейчас понимают так', { left: 140, top: 590 });
-      s.fade(nl, 11.4, { y: 6 });
-      var now = s.text('body', 'Если смысл задачи ребёнку понятен, он рассуждает раньше, чем думал Пиаже (М. Дональдсон, 1978). Насколько раньше — предмет споров.', { left: 140, top: 626, width: 800, fontSize: 28 });
-      s.lines(now, 11.6, { stagger: 0.08 });
+      s.tween(stream, 2.5, { opacity: 0 }, { opacity: 0.9, duration: 0.08 });
+      s.tween(stream, 2.5, { attr: { height: 0 } }, { attr: { height: BASE - LIP1[1] - 2 }, duration: 0.12, ease: 'power2.in' });
+      s.tween(stream, 2.62, { attr: { height: BASE - LIP1[1] - 2 } }, { attr: { height: BASE - 234 - LIP1[1] - 2 }, duration: 0.78, ease: 'sine.inOut' });
+      s.tween(stream, 3.35, { opacity: 0.9 }, { opacity: 0, duration: 0.15 });
+      moveB(3.6, LIP1, 95, LIP1, 0, 0.4, 'power2.inOut');
+      moveB(4.0, LIP1, 0, LIP0, 0, 0.5, 'power2.inOut');
+      var q = s.text('statement', 'А теперь?', { left: 140, top: 230 });
+      s.lines(q, 3.9);
+      // трое одноклассников отвечают — устало, вопрос кажется им глупым
+      var KIDS = [['baby', 1240], ['kid2', 1460], ['kid3', 1680]];
+      KIDS.forEach(function (kd, i) {
+        s.actor(kd[0], { x: kd[1], y: 820, d: 104, o: 0 }, 0, 0.01);
+        s.actor(kd[0], { o: 1 }, 0.5 + i * 0.15, 0.4);
+        s.face(kd[0], true, 0.6, 0.3); s.mouth(kd[0], 'soft', 0.6, 0.01); s.gaze(kd[0], -9, 0, 0.6, 0.01);
+        s.mouth(kd[0], 'flat', 4.6 + i * 1.25, 0.2); s.gaze(kd[0], 0, -9, 4.6 + i * 1.25, 0.3); // закатили глаза
+      });
+      K().say(s, 'Та же вода!', 1200, 650, 5.0);
+      K().say(s, 'Можно перелить обратно!', 1420, 540, 6.25);
+      K().say(s, 'Он выше, зато уже.', 1400, 430, 7.5, null, 'r');
+      var t = s.text('h3', '<span class="term acc">Конкретные операции<span class="en">concrete operations</span></span>', { left: 140, top: 330 });
+      s.fade(t, 9.2, { y: 10 });
+      var src = s.text('cite', 'Три довода — тождество, обратимость, компенсация (Ж. Пиаже, Б. Инельдер, 1966). Реплики — постановка.', { left: 140, top: 990, fontSize: 20 });
+      s.fade(src, 9.8, { y: 4 });
+      ['baby', 'kid2', 'kid3'].forEach(function (id) { s.actor(id, { o: 0 }, 12.0, 0.4); });
     }
   });
 
-  // 2:00 — Три горы → где Макси будет искать шоколадку? (Х. Виммер, Й. Пернер, 1983)
+  // 1:32,5 — Куда поставить 150? (Дж. Опфер, Р. Сиглер, 2007; Р. Сиглер, Дж. Опфер, 2003)
   Film.scene({
-    id: 'maxi', bars: 10,
+    id: 'line', bars: 5,
     build: function (s) {
-      var TOY = Film.toys, IC = Film.icons;
-      var k = s.text('kicker', 'Чужая точка зрения', { left: 140, top: 150 });
+      var g = s.svg(), ov = s.over(), X0 = 300, X1 = 1620, Y = 600;
+      var k = s.text('kicker', 'Числовая прямая · Дж. Опфер, Р. Сиглер, 2007', { left: 140, top: 150 });
       s.fade(k, 0.1, { y: 8 });
-      var h1 = s.text('h2', 'Три горы', { left: 140, top: 186, width: 900 });
-      s.lines(h1, 0.2);
-      var m1 = s.text('lead', 'Что видит кукла с другой стороны макета? До 7–8 лет ребёнок выбирает картинку со своим видом.', { left: 140, top: 330, width: 800, fontSize: 32 });
-      s.lines(m1, 0.8, { stagger: 0.08 });
-      var mc = s.text('cite', 'Ж. Пиаже, Б. Инельдер, 1948', { left: 140, top: 470 });
-      s.fade(mc, 1.4, { y: 6 });
-      var g0 = s.svg(), ov0 = s.over();
-      s.actor('baby', { x: 1400, y: 800, d: 92 }, 0.0, 1.0, 'power3.inOut');
-      s.mouth('baby', 'soft', 0.2, 0.3); s.gaze('baby', 0, -6, 0.2, 0.3);
-      var mt = s.node(ov0, 'g', {});
-      s.sk(mt, [[1180, 640], [1270, 470], [1360, 640]], { at: 0.6, dur: 0.6, seed: 301, fill: '#EFE6D6' });
-      s.sk(mt, [[1300, 640], [1420, 400], [1540, 640]], { at: 0.8, dur: 0.6, seed: 303, fill: '#F3ECDF' });
-      s.sk(mt, [[1480, 640], [1550, 520], [1620, 640]], { at: 1.0, dur: 0.6, seed: 305, fill: '#EFE6D6' });
-      s.sk(mt, [[1400, 418], [1420, 400], [1440, 418]], { at: 1.5, dur: 0.3, seed: 307, color: ORANGE, width: 5 });
-      var doll = s.node(g0, 'circle', { cx: 1420, cy: 340, r: 16, fill: '#C9A27E', opacity: 0 });
-      s.tween(doll, 1.6, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.4 });
-      var dl = s.text('note', 'кукла', { left: 1450, top: 316, fontSize: 22 });
-      s.fade(dl, 1.8, { y: 4 });
-      s.gaze('baby', 6, -4, 2.6, 0.4);
-      [h1, m1, mc, dl].forEach(function (e) { s.out(e, 4.3, { dur: 0.4 }); });
-      s.out(mt, 4.3, { dur: 0.4 }); s.out(doll, 4.3, { dur: 0.4 });
-      // ребёнок-испытуемый садится смотреть историю
-      var OX = 1340, OY = 862;
-      s.actor('baby', { x: OX, y: OY, d: 84 }, 4.4, 0.8, 'power3.inOut');
-      s.gaze('baby', -4, -8, 4.6, 0.3);
-
-      // Макси, шкафы, шоколадка
-      var h2 = s.text('h2', 'Где Макси будет искать шоколадку?', { left: 140, top: 186, width: 1500 });
-      s.lines(h2, 4.7);
-      var g = s.svg(), ov = s.over();
-      var CA = 1200, CB = 1480, CYB = 760;
-      [CA, CB].forEach(function (x, i) {
-        var c = TOY.cupboard(s, g, x, CYB, 150, 170, i ? '#DCE8F0' : '#F5E7BD', i ? '#4A7FB0' : '#A77A12');
-        s.tween(c, 4.9 + i * 0.15, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5 });
-        var lb = s.text('label', 'шкаф ' + (i + 1), { left: x - 80, top: CYB + 20, width: 160, textAlign: 'center', fontSize: 24, color: '#5F676B' });
-        s.fade(lb, 5.1 + i * 0.15, { y: 6 });
+      var q = s.text('h2', 'Куда поставить 150?', { left: 140, top: 186 });
+      s.lines(q, 0.3);
+      K().ruled(s, g, X0, Y, X1, Y, { at: 0.5, dur: 1.0, width: 5 });
+      [[X0, '0'], [X1, '1000']].forEach(function (p, i) {
+        K().ruled(s, g, p[0], Y - 22, p[0], Y + 22, { at: 1.4 + i * 0.1, dur: 0.2, width: 5 });
+        var lb = s.text('lead', p[1], { left: p[0] - 60, top: Y + 40, width: 120, textAlign: 'center' });
+        s.fade(lb, 1.5 + i * 0.1, { y: 6 });
       });
-      var choc = s.node(g, 'g', {});
-      TOY.choc(s, choc, CA, 672, 0.8);
-      s.set(choc, 0, { x: -150, y: -40, opacity: 0 }, { x: -150, y: -40, opacity: 0 });
-      // Макси кладёт шоколадку в шкаф 1 и уходит
-      var MX = 1040, MY = 650;
-      s.actor('kid2', { x: MX - 160, y: MY, d: 96, o: 0 }, 4.9, 0.01);
-      s.actor('kid2', { o: 1 }, 5.0, 0.35);
-      s.face('kid2', true, 5.0, 0.3); s.mouth('kid2', 'smile', 5.0, 0.01); s.gaze('kid2', 8, 2, 5.0, 0.01);
-      s.hop('kid2', MX, MY, 5.21, 0.42, 40);
-      var mxl = s.text('label', 'Макси', { left: MX - 70, top: MY + 56, width: 140, textAlign: 'center', fontSize: 25 });
-      s.fade(mxl, 5.5, { y: 6 }); s.out(mxl, 8.0, { dur: 0.3 });
-      s.tween(choc, 5.8, { x: -150, y: -40, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: 0.45, ease: 'power2.out' });
-      // мысль Макси — рисованный слой: шоколадка в шкафу 1
-      var th = s.node(ov, 'g', {});
-      IC.cloud(s, th, MX, 440, 100, 64, { at: 6.8, dur: 0.7, seed: 311, tail: [MX, 598] });
-      IC.choc(s, th, MX, 420, 0.62, { at: 7.25, dur: 0.4, seed: 315 });
-      var tht = s.otext('label', 'в шкафу 1', { left: MX - 80, top: 452, width: 160, textAlign: 'center', fontSize: 21, color: DEEP });
-      s.fade(tht, 7.5, { y: 4 });
-      s.hop('kid2', MX - 160, MY, 8.0, 0.42, 30);
-      s.actor('kid2', { o: 0 }, 8.4, 0.3);
-      s.tween([th, tht], 8.0, { opacity: 1 }, { opacity: 0, duration: 0.4 });
-      // мама перекладывает
-      s.actor('adult', { x: 1790, y: 600, d: 136, o: 0 }, 8.2, 0.01);
-      s.actor('adult', { x: 1670, o: 1 }, 8.3, 0.6, 'power3.out');
-      var ml = s.text('label', 'мама', { left: 1600, top: 676, width: 140, textAlign: 'center', fontSize: 25 });
-      s.fade(ml, 8.6, { y: 6 }); s.out(ml, 10.2, { dur: 0.3 });
-      s.tween(choc, 9.0, { x: 0, y: 0 }, { x: (CB - CA) / 2, y: -80, duration: 0.5, ease: 'power2.out' });
-      s.tween(choc, 9.5, { x: (CB - CA) / 2, y: -80 }, { x: CB - CA, y: 0, duration: 0.5, ease: 'power2.in' });
-      s.actor('adult', { x: 1790, o: 0 }, 10.2, 0.5, 'power2.in');
-      // Макси возвращается — в голове всё ещё шкаф 1
-      s.actor('kid2', { x: MX - 160, o: 1 }, 10.4, 0.3);
-      s.hop('kid2', MX, MY, 10.5, 0.42, 40);
-      s.fade(mxl, 10.8, { y: 6 });
-      s.tween([th, tht], 10.9, { opacity: 0 }, { opacity: 1, duration: 0.5 });
-      var q = s.text('statement', 'Где Макси будет искать?', { left: 140, top: 330, width: 640, fontSize: 52 });
-      s.lines(q, 11.3);
-      s.out(q, 12.4, { dur: 0.35 });
-
-      // отвечать нужно за Макси, а не за себя
-      var why = s.text('lead', 'Ребёнок видел всё. Но ответить нужно не за себя, а за Макси — из его головы.', { left: 140, top: 330, width: 800, fontSize: 32 });
-      s.lines(why, 12.8, { stagger: 0.08 });
-      var marks = s.svg();
-      var a1 = s.text('body', '3 года: «В шкафу 2!» — там, где шоколадка на самом деле.', { left: 196, top: 470, width: 740, fontSize: 28 });
-      var x1 = Film.cross(s, marks, 160, 490, RED);
-      s.lines(a1, 14.0, { stagger: 0.07 }); s.draw(x1, 14.1, { dur: 0.3 });
-      var a2 = s.text('body', '5 лет: «В шкафу 1!» — там, где её оставил Макси.', { left: 196, top: 556, width: 740, fontSize: 28 });
-      var c2 = Film.check(s, marks, 160, 576, GREEN);
-      s.lines(a2, 15.0, { stagger: 0.07 }); s.draw(c2, 15.1, { dur: 0.3 });
-      var p1 = s.path(ov, 'M' + (OX + 30) + ' ' + (OY - 40) + ' Q' + (OX + 90) + ' ' + (OY - 70) + ' ' + (CB - 20) + ' ' + (CYB + 10), { stroke: RED, 'stroke-width': 3.5, 'stroke-dasharray': '5 9' });
-      s.dash(p1, 14.0, { dur: 0.5 });
-      var p2 = s.path(ov, 'M' + (OX - 30) + ' ' + (OY - 40) + ' Q' + (OX - 90) + ' ' + (OY - 70) + ' ' + (CA + 20) + ' ' + (CYB + 10), { stroke: GREEN, 'stroke-width': 3.5, 'stroke-dasharray': '5 9' });
-      s.dash(p2, 15.0, { dur: 0.5 });
-      s.gaze('baby', 5, -8, 14.0, 0.3); s.gaze('baby', -5, -8, 15.0, 0.3);
-      [why, a1, a2, marks].forEach(function (e) { s.out(e, 16.2, { dur: 0.35 }); });
-      s.out(p1, 16.2, { dur: 0.35 }); s.out(p2, 16.2, { dur: 0.35 });
-
-      // ответы по возрасту (Х. Виммер, Й. Пернер, 1983)
-      var cap = s.text('small-caps', 'Ответили верно — «в шкафу 1»', { left: 140, top: 330 });
-      s.fade(cap, 16.4, { y: 6 });
-      s.age(44, 16.4, 1.4);
-      [['3–4 года', 0], ['4–6 лет', 57], ['6–9 лет', 86]].forEach(function (r, i) {
-        var y = 380 + i * 64;
-        var lb = s.text('label', r[0], { left: 140, top: y, fontSize: 26 });
-        var bg = s.div('', { left: 300, top: y + 6, width: 400, height: 22, background: '#E7E2DA', borderRadius: '11px' });
-        var b = s.div('', { left: 300, top: y + 6, width: Math.max(4, 4 * r[1]), height: 22, background: ORANGE, borderRadius: '11px' });
-        var v = s.text('label', r[1] ? r[1] + ' %' : 'никто', { left: 716, top: y, fontSize: 26, color: DEEP });
-        s.fade(lb, 16.5 + i * 0.35, { y: 6 }); s.fade(bg, 16.5 + i * 0.35, { y: 0 });
-        s.grow(b, 16.6 + i * 0.35, { dur: 0.7 }); s.fade(v, 17.1 + i * 0.35, { y: 0 });
-      });
-      var wc = s.text('cite', 'Х. Виммер, Й. Пернер, 1983', { left: 140, top: 580 });
-      s.fade(wc, 17.8, { y: 6 });
-      var term = s.text('h3 acc', '<span class="term">теория психического<span class="en">theory of mind</span></span>', { left: 140, top: 640 });
-      s.fade(term, 18.6, { y: 10 });
-      var meta = s.text('body', 'Метаанализ 178 исследований: перелом — около 4 лет; форма задачи сдвигает кривую, но не меняет её (Г. Уэллман и др., 2001).', { left: 140, top: 748, width: 820, fontSize: 25 });
-      s.lines(meta, 19.4, { stagger: 0.07 });
-      s.actor('kid2', { o: 0 }, 24.1, 0.4);
+      s.freeze(2.1, 2.2);
+      var gu = s.text('small-caps', 'Угадайте', { left: 140, top: 290 });
+      s.fade(gu, 2.2, { y: 0, dur: 0.2 }); s.out(gu, 4.05, { dur: 0.2 });
+      var MX = X0 + (X1 - X0) * 0.47;
+      s.actor('baby', { x: MX - 170, y: Y - 160, d: 90, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 4.3, 0.3);
+      s.face('baby', true, 4.3, 0.2); s.mouth('baby', 'smile', 4.3, 0.01); s.gaze('baby', 10, 8, 4.3, 0.01);
+      s.squash('baby', 1.05, 0.95, 4.8, 0.2); s.squash('baby', 1, 1, 5.0, 0.15); // прицелился
+      K().ruled(s, ov, MX, Y - 34, MX, Y + 34, { at: 5.1, dur: 0.18, width: 6 });
+      var me = s.text('kidhand', '150 — тут!', { left: MX - 40, top: Y - 110 });
+      s.fade(me, 5.3, { y: 6 });
+      var RX = X0 + (X1 - X0) * 0.15;
+      K().ruled(s, ov, RX, Y - 34, RX, Y + 34, { at: 6.6, dur: 0.18, width: 6, color: K().RED });
+      var rt = s.text('cursive red', 'здесь', { left: RX - 44, top: Y + 40, fontSize: 46 });
+      s.fade(rt, 6.8, { y: 6 });
+      var t2 = s.text('lead', 'Во втором классе маленькие числа растянуты, большие сжаты.', { left: 140, top: 800, width: 1500, fontSize: 36 });
+      s.lines(t2, 7.6);
+      var src = s.text('cite', 'Логарифмически ставят 91 % второклассников и 3 % взрослых (2003). Явление повторяется, объясняют его по-разному (Х. Барт, А. Паладино, 2011).', { left: 140, top: 990, fontSize: 20 });
+      s.fade(src, 8.6, { y: 4 });
+      s.actor('baby', { o: 0 }, 12.0, 0.4);
     }
   });
 
+  // 1:45 — Закон Архимеда и брат (Л. С. Выготский, 1934, с. 200 т. 2 СС)
+  Film.scene({
+    id: 'archimedes', bars: 5,
+    build: function (s) {
+      var g = s.svg(), ov = s.over();
+      var school = s.node(g, 'g', {});
+      K().board(s, school, 980, 300, 760, 360, { at: 0.2 });
+      var boat = s.path(school, 'M1180 520 L1520 520 L1470 580 L1230 580 Z M1230 520 L1360 430 L1360 520', { stroke: '#F3EFE4', 'stroke-width': 4 });
+      s.draw(boat, 0.7, { dur: 0.8 });
+      var arr = s.path(school, 'M1350 640 V560 M1330 582 L1350 560 L1370 582', { stroke: '#F3EFE4', 'stroke-width': 4 });
+      s.draw(arr, 1.4, { dur: 0.4 });
+      s.actor('baby', { x: 860, y: 800, d: 104, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0.3, 0.4);
+      s.face('baby', true, 0.4, 0.2); s.mouth('baby', 'smile', 0.4, 0.01); s.gaze('baby', 8, -6, 0.4, 0.01);
+      s.actor('adult2', { x: 1820, y: 760, d: 150, o: 0 }, 0, 0.01); s.actor('adult2', { o: 1 }, 0.5, 0.4);
+      K().say(s, 'Закон Архимеда!', 740, 600, 1.4, 3.6);
+      s.squash('adult2', 1, 0.92, 2.4, 0.15); s.squash('adult2', 1, 1, 2.55, 0.25); // учитель кивает
+      // дома — житейское понятие
+      var sw = K().flip(s, 3.6);
+      s.set(school, sw, { opacity: 1 }, { opacity: 0 });
+      s.actor('adult2', { o: 0 }, sw, 0.01);
+      var home = s.node(g, 'g', { opacity: 0 });
+      s.set(home, sw, { opacity: 0 }, { opacity: 1 });
+      // стол с тарелками
+      s.node(home, 'rect', { x: 560, y: 830, width: 800, height: 26, rx: 4, fill: '#B48A62', stroke: INK, 'stroke-width': 2.5 });
+      [600, 1300].forEach(function (x) { s.node(home, 'rect', { x: x, y: 856, width: 20, height: 140, fill: '#9C7550', stroke: INK, 'stroke-width': 2.5 }); });
+      [760, 1010, 1250].forEach(function (x) { s.node(home, 'ellipse', { cx: x, cy: 826, rx: 46, ry: 9, fill: '#FFFDF8', stroke: INK, 'stroke-width': 2.5 }); });
+      s.actor('baby', { x: 760, y: 760 }, sw, 0.01);
+      s.actor('adult', { x: 1250, y: 730, d: 150, o: 0 }, 0, 0.01); s.actor('adult', { o: 1 }, sw, 0.01);
+      s.actor('kid3', { x: 1010, y: 780, d: 64, o: 0 }, 0, 0.01); s.actor('kid3', { o: 1 }, sw, 0.01);
+      s.face('kid3', true, sw, 0.01); s.mouth('kid3', 'smile', sw, 0.01);
+      K().say(s, 'А что такое брат?', 990, 560, 4.4, null, 'r');
+      s.mouth('baby', 'flat', 5.0, 0.2); s.gaze('baby', 0, -9, 5.0, 0.3); // думает
+      s.gaze('baby', 9, 3, 6.0, 0.25); s.mouth('baby', 'smile', 6.0, 0.2);
+      K().say(s, 'Брат — это Петя!', 560, 560, 6.3);
+      s.hop('kid3', 1010, 780, 7.0, 0.36, 26); // младший машет ложкой
+      var spoon = s.path(ov, 'M1040 740 L1072 704', { stroke: '#8A8F90', 'stroke-width': 6 });
+      s.tween(spoon, sw, { opacity: 0 }, { opacity: 1, duration: 0.01 });
+      var qt = s.text('quote', '«Ребёнок лучше формулирует, что такое закон Архимеда, чем что такое брат»', { left: 140, top: 150, width: 1640, fontSize: 46 });
+      s.lines(qt, 7.9, { stagger: 0.12 });
+      var src = s.text('cite', 'Л. С. Выготский, «Мышление и речь», 1934 · научные понятия · scientific concepts · реплика «Брат — это Петя!» — постановка', { left: 140, top: 990, fontSize: 20 });
+      s.fade(src, 9.0, { y: 4 });
+      ['baby', 'adult', 'kid3'].forEach(function (id) { s.actor(id, { o: 0 }, 12.0, 0.4); });
+      s.out(spoon, 12.0, { dur: 0.4 });
+    }
+  });
+
+  // 1:57,5 — Какого цвета медведи? (А. Р. Лурия, 1931–32; С. Скрибнер, М. Коул, 1981)
+  Film.scene({
+    id: 'bears', bars: 7,
+    build: function (s) {
+      var g = s.svg(), ov = s.over();
+      var k = s.text('kicker', 'А. Р. Лурия · Узбекистан, 1931–32', { left: 140, top: 150 });
+      s.fade(k, 0.1, { y: 8 });
+      var task = s.text('lead', 'Где снег — медведи белые. На Новой Земле снег. Какие там медведи?', { left: 140, top: 200, width: 1500, fontSize: 40 });
+      s.lines(task, 0.5);
+      // задача рисуется ручкой: снежинки, медведь-контур
+      [[1180, 420], [1260, 470], [1540, 430], [1620, 480]].forEach(function (p, i) {
+        var f = s.path(ov, 'M' + (p[0] - 12) + ' ' + p[1] + ' H' + (p[0] + 12) + ' M' + p[0] + ' ' + (p[1] - 12) + ' V' + (p[1] + 12) + ' M' + (p[0] - 9) + ' ' + (p[1] - 9) + ' L' + (p[0] + 9) + ' ' + (p[1] + 9) + ' M' + (p[0] + 9) + ' ' + (p[1] - 9) + ' L' + (p[0] - 9) + ' ' + (p[1] + 9), { stroke: K().DEEP, 'stroke-width': 3 });
+        s.draw(f, 1.6 + i * 0.12, { dur: 0.3 });
+      });
+      var bear = s.node(ov, 'g', {}), BX = 1400, BY = 600, parts = [];
+      parts.push(s.node(bear, 'ellipse', { cx: BX, cy: BY, rx: 120, ry: 66 }));
+      parts.push(s.node(bear, 'circle', { cx: BX + 128, cy: BY - 30, r: 44 }));
+      parts.push(s.node(bear, 'circle', { cx: BX + 112, cy: BY - 70, r: 14 }));
+      [-80, -30, 40, 90].forEach(function (dx) { parts.push(s.node(bear, 'rect', { x: BX + dx - 16, y: BY + 40, width: 32, height: 62, rx: 12 })); });
+      parts.forEach(function (p) { p.setAttribute('fill', '#FFFDF8'); p.setAttribute('stroke', INK); p.setAttribute('stroke-width', 3); });
+      s.tween(bear, 2.0, { opacity: 0 }, { opacity: 1, duration: 0.6 });
+      var nz = s.text('small-caps', 'Новая Земля', { left: BX - 90, top: BY + 124 });
+      s.fade(nz, 2.4, { y: 4 });
+      // двое: старший без школы и молодой — год учёбы
+      s.actor('adult', { x: 380, y: 800, d: 160, o: 0 }, 0, 0.01); s.actor('adult', { o: 1 }, 0.6, 0.4);
+      s.actor('adult2', { x: 720, y: 810, d: 130, o: 0 }, 0, 0.01); s.actor('adult2', { o: 1 }, 0.8, 0.4);
+      var w1 = s.text('small-caps', 'без школы', { left: 300, top: 900, width: 160, textAlign: 'center' });
+      var w2 = s.text('small-caps', 'год учёбы', { left: 640, top: 900, width: 160, textAlign: 'center' });
+      s.fade(w1, 1.0, { y: 4 }); s.fade(w2, 1.2, { y: 4 });
+      s.out([w1, w2], 12.0, { dur: 0.3 });
+      s.freeze(3.8, 2.2);
+      var gu = s.text('small-caps', 'Угадайте, что ответит человек без школы', { left: 140, top: 320 });
+      s.fade(gu, 3.9, { y: 0, dur: 0.2 }); s.out(gu, 5.75, { dur: 0.2 });
+      var b1 = K().say(s, 'Я видел чёрного. Говорю только о том, что видел.', 260, 560, 6.2, 9.7);
+      b1.style.whiteSpace = 'normal'; b1.style.width = '560px';
+      s.tween(parts, 7.2, { attr: { fill: '#FFFDF8' } }, { attr: { fill: '#2B2B2B' }, duration: 0.6 });
+      K().say(s, 'По-вашему выходит — белые.', 600, 620, 10.0);
+      s.tween(parts, 10.6, { attr: { fill: '#2B2B2B' } }, { attr: { fill: '#FFFDF8' }, duration: 0.6 });
+      var c = s.text('h3', 'Рассуждать от условия, а не от опыта, учит школа.', { left: 140, top: 880, width: 1600, fontSize: 44 });
+      s.lines(c, 12.4);
+      var src = s.text('cite', 'А. Р. Лурия, 1974 (реплики — по изданию 1979) · С. Скрибнер, М. Коул, 1981: это даёт школа, а не грамотность сама по себе', { left: 140, top: 990, fontSize: 20 });
+      s.fade(src, 13.4, { y: 4 });
+      ['adult', 'adult2'].forEach(function (id) { s.actor(id, { o: 0 }, 17.0, 0.4); });
+    }
+  });
 })();
