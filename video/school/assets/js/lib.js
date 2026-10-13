@@ -211,6 +211,29 @@
     f.gx = gx; f.gy = gy;
   }
 
+  // Приметы героев (с эпизода 7–10): рисуются в системе координат тела 0…100, двигаются вместе с ним
+  function addAcc(id, kind) {
+    var a = A[id], S = svg('svg', { 'class': 'acc-' + kind, viewBox: '0 0 100 100', overflow: 'visible' }, a.body);
+    S.style.position = 'absolute'; S.style.inset = '0'; S.style.overflow = 'visible';
+    var INK = '#1D2733';
+    if (kind === 'glasses') {
+      svg('circle', { cx: 37, cy: 45, r: 11, fill: 'none', stroke: INK, 'stroke-width': 3.5 }, S);
+      svg('circle', { cx: 63, cy: 45, r: 11, fill: 'none', stroke: INK, 'stroke-width': 3.5 }, S);
+      svg('path', { d: 'M48 45 H52', stroke: INK, 'stroke-width': 3.5 }, S);
+    } else if (kind === 'bun') {
+      svg('circle', { cx: 50, cy: -6, r: 16, fill: '#6B4A2E' }, S);
+      svg('path', { d: 'M14 30 Q50 -8 86 30 Q50 14 14 30 Z', fill: '#6B4A2E' }, S);
+    } else if (kind === 'moustache') {
+      svg('path', { d: 'M30 60 Q40 52 50 58 Q60 52 70 60 Q60 66 50 61 Q40 66 30 60 Z', fill: '#3E2A1E' }, S);
+    } else if (kind === 'bow') {
+      svg('path', { d: 'M50 4 L30 -10 L30 18 Z M50 4 L70 -10 L70 18 Z', fill: '#26A69A' }, S);
+      svg('circle', { cx: 50, cy: 4, r: 6, fill: '#1C7A71' }, S);
+    } else if (kind === 'cowlick') {
+      svg('path', { d: 'M44 4 Q40 -16 56 -18 Q48 -8 54 4 Z', fill: '#7A4E2D' }, S);
+    }
+    return S;
+  }
+
   // Сжатие/растяжение «тела» (опора — низ круга)
   function squash(id, sx, sy, t, dur, ease) {
     var a = A[id], f = a.sq;
@@ -430,6 +453,7 @@
       squash: function (id, sx, sy, lt, dur, ease) { squash(id, sx, sy, t0 + lt, dur, ease); },
       color: function (id, c, lt, dur) { aColor(id, c, t0 + lt, dur); },
       face: function (id, on, lt, dur) { faceShow(id, on, t0 + lt, dur); },
+      acc: function (id, kind) { var a = A[id]; a.accs = a.accs || {}; if (!a.accs[kind]) a.accs[kind] = addAcc(id, kind); return a.accs[kind]; },
       mouth: function (id, shape, lt, dur) { mouth(id, shape, t0 + lt, dur); },
       gaze: function (id, gx, gy, lt, dur) { gaze(id, gx, gy, t0 + lt, dur); },
       rest: function (lt, dur, ease) { aTo('baby', { x: mx(R.age), y: RY, d: 26, o: 1 }, t0 + lt, dur == null ? 1.2 : dur, ease); },
@@ -491,7 +515,7 @@
 
     tl = gsap.timeline({ paused: true });
     Film.tl = tl;
-    ['stranger', 'adult2', 'adult', 'obj', 'kid3', 'kid2', 'baby'].forEach(makeActor);
+    ['stranger', 'dad', 'adult2', 'adult', 'obj', 'kid3', 'kid2', 'baby'].forEach(makeActor); // dad — с эпизода 7–10
     buildRuler();
     buildUI();
 

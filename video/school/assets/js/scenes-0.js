@@ -13,6 +13,7 @@
       s.actor('baby', { x: CX, y: CY, d: 110, o: 0 }, 0, 0.01);
       s.actor('baby', { o: 1 }, 0.1, 0.5, 'power2.out');
       s.face('baby', true, 0.2, 0.3); s.mouth('baby', 'smile', 0.2, 0.01); s.gaze('baby', 7, -2, 0.2, 0.01);
+      s.acc('baby', 'cowlick'); // Миша — герой эпизода, его примета
       var g = s.svg(), ov = s.over();
       // палочка — прямая, чтобы потом встать в пропись
       var stick = s.node(g, 'g', {}), inner = s.node(stick, 'g', {}); // внешняя группа скачет, внутренняя — поворачивается
@@ -84,8 +85,8 @@
   });
 
   // 0:15 — Сроки — это статистика: когда дети идут в первый класс
-  var AGES = [['Англия', 4, 5, 'с 4 лет — подготовительный класс, с 5 — обязательно'], ['США', 6, 6, ''], ['Германия', 6, 6, ''],
-    ['Россия', 6.5, 8, 'с 6,5 до 8 лет — по закону'], ['Финляндия', 7, 7, 'с 6 — обязательная подготовка']];
+  var AGES = [['Англия', 4, 5, 'с 4 лет — подготовительный класс, с 5 — обязательно', '4–5'], ['США', 6, 6, '', '6'], ['Германия', 6, 6, '', '6'],
+    ['Россия', 6.5, 8, 'с 6,5 до 8 лет — по закону', '6,5–8'], ['Финляндия', 7, 7, 'с 6 — обязательная подготовка', '7']];
   Film.scene({
     id: 'ages', bars: 4,
     build: function (s) {
@@ -108,11 +109,25 @@
         var bar = s.node(g, 'rect', { x: r[1] === r[2] ? X(r[1]) - 14 : X(r[1]), y: y - 14, width: Math.max(28, X(r[2]) - X(r[1])), height: 28, rx: 14, fill: r[0] === 'Россия' ? K().TEAL : '#9FD6CF' });
         s.grow(bar, at + 0.15, { dur: 0.6 });
         if (r[3]) { var nt = s.text('note', r[3], r[1] === r[2] ? { left: X(r[1]) + 30, top: y - 15, fontSize: 21 } : { left: X(r[1]), top: y + 18, fontSize: 21 }); s.fade(nt, at + 0.4, { y: 4 }); }
+        var al = s.text('label', r[4], { left: (r[1] === r[2] ? X(r[1]) - 60 : X(r[1])) , top: y - 52, width: r[1] === r[2] ? 120 : 200, textAlign: r[1] === r[2] ? 'center' : 'left', fontSize: 24, color: 'var(--accent-deep)' });
+        s.fade(al, at + 0.3, { y: 4 });
       });
-      var c = s.text('lead', 'Возраст начала школы задаёт система образования.', { left: 140, top: 916, width: 1400, fontSize: 32 });
-      s.lines(c, 3.4);
+      // Миша с ранцем идёт по оси и встаёт у своей полосы — «Россия»
+      var bp = s.node(g, 'g', {});
+      Film.toys.backpack(s, bp, X(4) - 120 - 40, Y0 + DY * 4 + 6, 0.8, '#26A69A', '#1C7A71');
+      s.tween(bp, 2.8, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+      s.actor('baby', { x: X(4) - 120, y: Y0 + DY * 4 + 10, d: 70, o: 0 }, 0, 0.01);
+      s.face('baby', true, 0, 0.01); s.mouth('baby', 'smile', 0, 0.01); s.gaze('baby', 9, 0, 0, 0.01); s.acc('baby', 'cowlick');
+      s.actor('baby', { o: 1 }, 2.8, 0.3);
+      K().walk(s, 'baby', X(6.5) - 60, 3.0, { carry: bp, cx: 0, step: 90, dur: 0.22, hold: 0.08 });
+      s.actor('baby', { y: Y0 + 3 * DY + 30 }, 5.8, 0.4, 'back.out(2)');
+      s.tween(bp, 5.8, { y: 0 }, { y: -DY + 20, duration: 0.4, ease: 'back.out(2)' });
+      s.gaze('baby', 0, -6, 6.0, 0.3);
+      s.actor('baby', { o: 0 }, 9.4, 0.4); s.out(bp, 9.4, { dur: 0.4 });
+      var c = s.text('lead', 'В разных странах в школу идут в разном возрасте — так решает каждая страна.', { left: 140, top: 916, width: 1500, fontSize: 32 });
+      s.lines(c, 5.0);
       var src = s.text('cite', 'Eurydice; gov.uk; NCES; ФЗ «Об образовании в РФ», ст. 67', { left: 140, top: 990, fontSize: 20 });
-      s.fade(src, 4.0, { y: 4 });
+      s.fade(src, 6.0, { y: 4 });
     }
   });
 })();
