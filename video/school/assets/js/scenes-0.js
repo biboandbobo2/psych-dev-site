@@ -1,59 +1,61 @@
-/* Вступление: пролог (палочка становится лошадью), титр с картой курса, «сроки — это статистика» */
+/* Вступление: пролог (палочка-лошадка становится знаком), титр с картой курса, «когда дети идут в первый класс» */
 /* global Film */
 (function () {
   'use strict';
-  var ORANGE = '#FB8C00', DEEP = '#A65300', STICK = '#8B6A45', MUTE = '#8A8F90';
+  var STICK = '#8B6A45';
+  var K = function () { return Film.school; };
 
-  // Перенос группы SVG синхронно с прыжком персонажа (та же кривая, что у hop в lib.js)
-  function ride(s, g, dx, lt, dur, h) {
-    var f = g.__st || (g.__st = { x: 0 });
-    s.tween(g, lt + 0.09, { x: f.x }, { x: f.x + dx, duration: dur, ease: 'sine.inOut' });
-    s.tween(g, lt + 0.09, { y: 0 }, { y: -h, duration: dur / 2, ease: 'power2.out' });
-    s.tween(g, lt + 0.09 + dur / 2, { y: -h }, { y: 0, duration: dur / 2, ease: 'power2.in' });
-    f.x += dx;
-  }
-  Film.ride = ride;
-
-  // 0:00 — Пролог: палочка становится лошадью, а ребёнок — всадником
+  // 0:00 — Пролог: палочка была лошадью — теперь палочка знак
   Film.scene({
     id: 'prologue', bars: 3,
     build: function (s) {
-      var CX = 700, CY = 560;
-      s.actor('baby', { x: CX, y: CY, d: 120, o: 0 }, 0, 0.01);
-      s.actor('baby', { o: 1 }, 0.15, 0.6, 'power2.out');
-      s.face('baby', true, 0.3, 0.4); s.mouth('baby', 'soft', 0.3, 0.01); s.gaze('baby', 7, -2, 0.3, 0.01);
-
-      // палочка — под ребёнком (видимое поле)
-      var g0 = s.svg();
-      var stick = s.node(g0, 'g', {});
-      s.path(stick, 'M' + (CX - 200) + ' ' + (CY + 140) + ' C' + (CX - 100) + ' ' + (CY + 80) + ' ' + (CX + 20) + ' ' + CY + ' ' + (CX + 145) + ' ' + (CY - 82), { stroke: STICK, 'stroke-width': 11 });
-      s.tween(stick, 0.25, { opacity: 0 }, { opacity: 1, duration: 0.45 });
-
-      // голова лошади — смысловое поле (рисованный слой над ребёнком)
-      var ov = s.over();
+      var CX = 640, CY = 470;
+      s.actor('baby', { x: CX, y: CY, d: 110, o: 0 }, 0, 0.01);
+      s.actor('baby', { o: 1 }, 0.1, 0.5, 'power2.out');
+      s.face('baby', true, 0.2, 0.3); s.mouth('baby', 'smile', 0.2, 0.01); s.gaze('baby', 7, -2, 0.2, 0.01);
+      var g = s.svg(), ov = s.over();
+      // палочка — прямая, чтобы потом встать в пропись
+      var stick = s.node(g, 'g', {}), inner = s.node(stick, 'g', {}); // внешняя группа скачет, внутренняя — поворачивается
+      s.path(inner, 'M' + (CX - 170) + ' ' + (CY + 110) + ' L' + (CX + 140) + ' ' + (CY - 90), { stroke: STICK, 'stroke-width': 11 });
+      s.tween(stick, 0.15, { opacity: 0 }, { opacity: 1, duration: 0.35 });
       var horse = s.node(ov, 'g', {});
-      Film.icons.horse(s, horse, CX + 145, CY - 82, 1.05, { at: 1.05, dur: 1.3, seed: 5 });
-
-      var l1 = s.text('statement', 'Палочка становится лошадью.', { left: 160, top: 760, width: 1600, textAlign: 'center' });
-      s.lines(l1, 0.55);
-      var l2 = s.text('statement', 'А ребёнок — ' + s.HL('всадником.'), { left: 160, top: 852, width: 1600, textAlign: 'center' });
-      s.lines(l2, 3.3);
-      s.hl(l2, 4.25);
-
-      // галоп: скачки на сильные доли (2,5 · 3,75 · 5 · 6,25 с)
-      s.mouth('baby', 'smile', 2.4, 0.3);
-      [2.41, 3.66, 4.91, 6.16].forEach(function (t) {
+      Film.icons.horse(s, horse, CX + 140, CY - 90, 1.0, { at: 0.3, dur: 0.8, seed: 5 });
+      // два скачка галопа из 3–7
+      [0.9, 1.65].forEach(function (t) {
         s.hop('baby', s.A.baby.st.x + 70, CY, t, 0.5, 46);
-        ride(s, stick, 70, t, 0.5, 46);
-        ride(s, horse, 70, t, 0.5, 46);
+        Film.ride(s, stick, 70, t, 0.5, 46);
+        Film.ride(s, horse, 70, t, 0.5, 46);
       });
-      // линии скорости
-      s.sk(horse, [[CX - 120, CY - 10], [CX - 220, CY - 10]], { at: 3.0, dur: 0.3, seed: 41, width: 3, opacity: 0.55 });
-      s.sk(horse, [[CX - 100, CY + 40], [CX - 180, CY + 40]], { at: 3.15, dur: 0.3, seed: 43, width: 3, opacity: 0.55 });
+      var l1 = s.text('statement', 'Палочка была лошадью.', { left: 160, top: 760, width: 1600, textAlign: 'center' });
+      s.lines(l1, 0.5);
+      // ребёнок спрыгивает и уходит; лошадь гаснет; палочка встаёт вертикально и уменьшается — первая палочка прописи
+      s.out(horse, 2.55, { dur: 0.4 });
+      s.hop('baby', 1500, CY + 40, 2.6, 0.5, 40);
+      s.actor('baby', { o: 0 }, 3.1, 0.4);
+      var page = s.div('cells', { left: 610, top: 300, width: 700, height: 300, opacity: 0 });
+      s.tween(page, 2.9, { opacity: 0 }, { opacity: 1, duration: 0.5 });
+      // палочка встаёт вертикально и уменьшается: центр (CX − 15, CY + 10) после скачков (+140) уходит в (860, 450)
+      var c = (CX - 15) + ' ' + (CY + 10), TF = function (x, y, r, k) { return 'translate(' + x + ' ' + y + ') rotate(' + r + ' ' + c + ') translate(' + c + ') scale(' + k + ') translate(' + (15 - CX) + ' ' + (-CY - 10) + ')'; };
+      s.tween(inner, 2.8, { attr: { transform: TF(0, 0, 0, 1) } }, { attr: { transform: TF(860 - (CX - 15) - 140, 450 - (CY + 10), -57, 0.42) }, duration: 0.9, ease: 'power3.inOut' });
+      var ink = [];
+      for (var i = 0; i < 4; i++) {
+        var x = 860 + i * 66;
+        var p = s.path(g, 'M' + x + ' 385 L' + x + ' 515', { stroke: K().DEEP, 'stroke-width': 7 });
+        s.draw(p, 3.7 + i * 0.22, { dur: 0.18 });
+        ink.push(p);
+      }
+      s.out(stick, 3.75, { dur: 0.2 });
+      s.out(ink, 4.95, { dur: 0.3 });
+      var four = s.text('kidhand', '4', { left: 900, top: 330, fontSize: 200, lineHeight: 1, color: K().DEEP });
+      s.pop(four, 5.1, { from: 0.6, dur: 0.5 });
+      s.out(l1, 4.6, { dur: 0.3 });
+      var l2 = s.text('statement', 'Теперь палочка — ' + s.HL('знак.'), { left: 160, top: 760, width: 1600, textAlign: 'center' });
+      s.lines(l2, 4.9);
+      s.hl(l2, 5.6);
     }
   });
 
-  // 0:07,5 — Титр: карта курса → отрезок «3–7» вырастает в шкалу эпизода
+  // 0:07,5 — Титр: карта курса → отрезок «7–10» вырастает в шкалу эпизода
   Film.scene({
     id: 'title', bars: 3,
     build: function (s) {
@@ -63,77 +65,54 @@
       var cap = s.text('small-caps', 'Карта курса', { left: s.X0, top: s.RY - 58 });
       s.fade(cap, 0.5, { y: 6 });
       s.out(cap, 3.7, { dur: 0.4 });
-
-      s.face('baby', false, 0.0, 0.3);
-      s.actor('baby', { x: cx, y: s.RY, d: 26 }, 0.05, 1.15, 'power2.inOut');
-
+      s.face('baby', false, 0.0, 0.01);
+      s.actor('baby', { x: cx, y: s.RY, d: 26, o: 0 }, 0.0, 0.01);
+      s.actor('baby', { o: 1 }, 0.3, 0.4);
       var k = s.text('kicker', 'Психология развития', { left: 160, top: 318, width: 1600, textAlign: 'center' });
       s.fade(k, 0.75, { y: 10 });
-      var t = s.text('display', 'От трёх до семи', { left: 160, top: 362, width: 1600, textAlign: 'center' });
+      var t = s.text('display', 'От семи до десяти', { left: 160, top: 362, width: 1600, textAlign: 'center' });
       s.lines(t, 0.85, { dur: 1.2 });
-      var sub = s.text('lead soft', 'Дошкольный возраст · 3–7 лет', { left: 160, top: 540, width: 1600, textAlign: 'center' });
+      var sub = s.text('lead soft', 'Младший школьный возраст · 7–10 лет', { left: 160, top: 540, width: 1600, textAlign: 'center' });
       s.fade(sub, 1.5);
-
       s.mapZoom(M, 3.75);
       s.actor('baby', { x: s.X0 }, 3.85, 1.25, 'power3.inOut');
       s.brandIn(4.45);
+      // шкала возраста — только здесь и там, где речь о возрасте (правка автора)
+      s.actor('baby', { o: 0 }, 6.6, 0.4);
+      s.rulerOut(6.4);
     }
   });
 
-  // 0:15 — Сроки — это статистика: понимание ложных убеждений по возрасту (Г. Уэллман и др., 2001)
+  // 0:15 — Сроки — это статистика: когда дети идут в первый класс
+  var AGES = [['Англия', 4, 5, 'с 4 лет — подготовительный класс, с 5 — обязательно'], ['США', 6, 6, ''], ['Германия', 6, 6, ''],
+    ['Россия', 6.5, 8, 'с 6,5 до 8 лет — по закону'], ['Финляндия', 7, 7, 'с 6 — обязательная подготовка']];
   Film.scene({
-    id: 'note', bars: 3,
+    id: 'ages', bars: 4,
     build: function (s) {
-      var k = s.text('kicker', 'Важно', { left: 140, top: 150 });
-      s.fade(k, 0.1, { y: 8 });
-      var h = s.text('h2', 'Сроки — это статистика', { left: 140, top: 186, width: 900 });
-      s.lines(h, 0.2);
-      var ld = s.text('lead', 'Возрасты в ролике — средние значения. У каждого ребёнка свой темп.', { left: 140, top: 330, width: 760 });
-      s.lines(ld, 0.9);
-      var dl = s.text('note', 'Каждая точка — ребёнок, который справился в своём возрасте. Все они в норме.', { left: 140, top: 520, width: 700 });
-      s.lines(dl, 4.0, { stagger: 0.08 });
-
-      // схема: доля верных ответов в задаче на ложное убеждение, 50 % — к 44 месяцам
       var g = s.svg();
-      var B = 760, HGT = 300, AX0 = 1040, AX1 = 1760, M0 = 30, M1 = 72;
-      function X(m) { return AX0 + (m - M0) / (M1 - M0) * (AX1 - AX0); }
-      function P(m) { return 1 / (1 + Math.exp(-0.12 * (m - 44))); }
-      var d = '';
-      for (var i = 0; i <= 60; i++) {
-        var m = M0 + (M1 - M0) * i / 60;
-        d += (i ? ' L' : 'M') + X(m).toFixed(1) + ' ' + (B - HGT * P(m)).toFixed(1);
-      }
-      var area = s.path(g, d + ' L' + X(M1) + ' ' + B + ' L' + X(M0) + ' ' + B + ' Z', { fill: '#FEF0DD', stroke: 'none', opacity: 0 });
-      var curve = s.path(g, d, { stroke: ORANGE, 'stroke-width': 4.5 });
-      var base = s.path(g, 'M' + AX0 + ' ' + B + ' H' + AX1, { stroke: '#CDC3B4', 'stroke-width': 2 });
-      var half = s.path(g, 'M' + AX0 + ' ' + (B - HGT / 2) + ' H' + AX1, { stroke: '#CDC3B4', 'stroke-width': 2, 'stroke-dasharray': '3 9' });
-      s.draw(base, 0.8, { dur: 0.7 });
-      s.dash(half, 1.0, { dur: 0.7 });
-      s.draw(curve, 1.1, { dur: 1.5, ease: 'power1.inOut' });
-      s.tween(area, 2.0, { opacity: 0 }, { opacity: 1, duration: 0.7 });
-      var hl = s.text('note', '50 %', { left: AX0 - 70, top: B - HGT / 2 - 16, width: 60, textAlign: 'right', fontSize: 22 });
-      s.fade(hl, 1.2, { y: 0 });
-      var med = s.path(g, 'M' + X(44) + ' ' + B + ' V' + (B - HGT / 2), { stroke: DEEP, 'stroke-width': 2.5, 'stroke-dasharray': '3 9' });
-      s.dash(med, 2.3, { dur: 0.5 });
-      var ml = s.text('label', '3 г. 8 мес', { left: X(44) - 178, top: B - HGT / 2 + 14, width: 160, textAlign: 'right', fontSize: 24, color: DEEP });
-      s.fade(ml, 2.5, { y: 6 });
-      [[36, '3'], [48, '4'], [60, '5'], [72, '6']].forEach(function (q, j) {
-        var tk = s.path(g, 'M' + X(q[0]) + ' ' + (B - 6) + ' V' + (B + 6), { stroke: '#B3A898', 'stroke-width': 2 });
-        s.fade(tk, 2.4 + j * 0.12, { y: 0, dur: 0.3 });
-        var lb = s.text('label', q[1], { left: X(q[0]) - 40, top: B + 12, width: 80, textAlign: 'center', fontSize: 24, color: '#5F676B' });
-        s.fade(lb, 2.5 + j * 0.12, { y: 6 });
+      var k = s.text('kicker', 'Сроки — это статистика', { left: 140, top: 120 });
+      s.fade(k, 0.1, { y: 8 });
+      var h = s.text('h3', 'Когда дети идут в первый класс', { left: 140, top: 156 });
+      s.lines(h, 0.2);
+      var X = function (a) { return 620 + (a - 4) * 270; }, Y0 = 360, DY = 104;
+      [4, 5, 6, 7, 8].forEach(function (a, i) {
+        var tk = s.path(g, 'M' + X(a) + ' ' + (Y0 - 50) + ' V' + (Y0 + DY * 4 + 50), { stroke: '#D9D0C4', 'stroke-width': 2, 'stroke-dasharray': '4 8' });
+        s.fade(tk, 0.4, { y: 0 });
+        var lb = s.text('cite', a + (a < 5 ? ' года' : ' лет'), { left: X(a) - 60, top: Y0 + DY * 4 + 62, width: 120, textAlign: 'center' });
+        s.fade(lb, 0.5 + i * 0.05, { y: 6 });
       });
-      var un = s.text('note', 'лет', { left: AX1 + 14, top: B + 12, fontSize: 22 });
-      s.fade(un, 2.9, { y: 6 });
-      var cap = s.text('small-caps', 'Понимание, что другой может ошибаться', { left: AX0 - 60, top: B - HGT - 96, width: AX1 - AX0 + 120, textAlign: 'center' });
-      s.fade(cap, 1.3, { y: 6 });
-      var cap2 = s.text('note', 'задача на ложное убеждение · Г. Уэллман и др., 2001: 178 исследований', { left: AX0 - 60, top: B - HGT - 60, width: AX1 - AX0 + 120, textAlign: 'center', fontSize: 21 });
-      s.fade(cap2, 1.5, { y: 6 });
-      // «каждая точка — ребёнок»: возраст, в котором справился (плотность — производная кривой)
-      [34, 38, 40.5, 42, 43.5, 45, 46.5, 48, 50, 53, 57, 63].forEach(function (m, j) {
-        var c = s.node(g, 'circle', { cx: X(m), cy: B - 13, r: 10, fill: '#E4735A', opacity: 0 });
-        s.tween(c, 3.0 + j * 0.09, { opacity: 0, y: -18 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' });
+      AGES.forEach(function (r, i) {
+        var y = Y0 + i * DY, at = 0.8 + i * 0.4;
+        var nm = s.text('lead', r[0], { left: 140, top: y - 28, fontSize: 34 });
+        s.fade(nm, at, { y: 6 });
+        var bar = s.node(g, 'rect', { x: r[1] === r[2] ? X(r[1]) - 14 : X(r[1]), y: y - 14, width: Math.max(28, X(r[2]) - X(r[1])), height: 28, rx: 14, fill: r[0] === 'Россия' ? K().TEAL : '#9FD6CF' });
+        s.grow(bar, at + 0.15, { dur: 0.6 });
+        if (r[3]) { var nt = s.text('note', r[3], r[1] === r[2] ? { left: X(r[1]) + 30, top: y - 15, fontSize: 21 } : { left: X(r[1]), top: y + 18, fontSize: 21 }); s.fade(nt, at + 0.4, { y: 4 }); }
       });
+      var c = s.text('lead', 'Возраст начала школы задаёт система образования.', { left: 140, top: 916, width: 1400, fontSize: 32 });
+      s.lines(c, 3.4);
+      var src = s.text('cite', 'Eurydice; gov.uk; NCES; ФЗ «Об образовании в РФ», ст. 67', { left: 140, top: 990, fontSize: 20 });
+      s.fade(src, 4.0, { y: 4 });
     }
   });
 })();

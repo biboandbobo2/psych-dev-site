@@ -159,3 +159,8 @@ svg { overflow: visible; }
 .freeze { position: absolute; inset: 22px; border: 6px solid var(--accent); border-radius: 18px; opacity: 0; }
 .freeze i { position: absolute; bottom: 26px; width: 14px; height: 46px; border-radius: 4px; background: var(--accent); left: calc(50% - 22px); }
 .freeze i + i { left: calc(50% + 8px); }
+.bubble.say { font-family: var(--hand); font-weight: 400; font-size: 40px; padding: 8px 26px 12px; color: var(--ink); }
+.red { color: var(--margin) !important; }
+.pageflip { background: #F7F4EC; box-shadow: -18px 0 30px -12px rgba(29, 39, 51, 0.25), 18px 0 30px -12px rgba(29, 39, 51, 0.25); }
+.tstamp { font-family: var(--hand); font-size: 40px; letter-spacing: 0; text-transform: none; font-weight: 400; color: var(--margin); border: 3px solid var(--margin); border-radius: 12px; padding: 2px 18px 6px; white-space: nowrap; }
+.paper { background: #FFFDF8; border: 1.5px solid var(--line-soft); border-radius: 6px; box-shadow: 0 18px 36px -28px rgba(17, 24, 39, 0.35); }

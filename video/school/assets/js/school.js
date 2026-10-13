@@ -78,5 +78,55 @@
     return ln;
   }
 
-  Film.school = { kid: kid, classroom: classroom, desk: desk, house: house, board: board, ruled: ruled, INK: INK, TEAL: TEAL, DEEP: DEEP, RED: RED, PAPER: PAPER };
+  // Стакан (как в 3–7): контур + вода; уровень — высотой прямоугольника
+  var WATER = '#9CC3D5';
+  function glass(s, g, x, base, w, h, level) {
+    var G = s.node(g, 'g', {});
+    var water = s.node(G, 'rect', { x: x - w / 2 + 4, y: base - level, width: w - 8, height: level, fill: WATER, rx: 3 });
+    s.path(G, 'M' + (x - w / 2) + ' ' + (base - h) + ' L' + (x - w / 2) + ' ' + base + ' L' + (x + w / 2) + ' ' + base + ' L' + (x + w / 2) + ' ' + (base - h), { stroke: INK, 'stroke-width': 3.5 });
+    return { g: G, water: water, x: x, base: base, w: w };
+  }
+  function setLevel(s, gl, t, from, to, dur, ease) {
+    s.tween(gl.water, t, { attr: { y: gl.base - from, height: from } }, { attr: { y: gl.base - to, height: to }, duration: dur, ease: ease || 'power1.inOut' });
+  }
+  // Шаги по клеткам: ровный шаг с остановкой, короткая подготовка — сдержанная анимация возраста.
+  // o.carry — элементы, которые едут вместе с героем (ранец)
+  function walk(s, id, x1, lt, o) {
+    o = o || {};
+    var x0 = s.A[id].st.x, step = o.step || 96, n = Math.max(1, Math.round(Math.abs(x1 - x0) / step)), d = (x1 - x0) / n, t = lt, dur = o.dur || 0.26;
+    for (var i = 0; i < n; i++) {
+      s.squash(id, 1.04, 0.96, t, 0.08);
+      s.actor(id, { x: x0 + d * (i + 1) }, t + 0.08, dur, 'power2.inOut');
+      if (o.carry) s.tween(o.carry, t + 0.08, { x: (o.cx || 0) + d * i }, { x: (o.cx || 0) + d * (i + 1), duration: dur, ease: 'power2.inOut' });
+      s.squash(id, 1, 1, t + 0.08, 0.2);
+      t += dur + (o.hold || 0.14);
+    }
+    return t - lt;
+  }
+  // Реплика прописью в облачке; tail: 'l' | 'r'
+  function say(s, text, x, y, at, out, tail) {
+    var b = s.div('bubble say tail-' + (tail || 'l'), { left: x, top: y }, null, text);
+    s.pop(b, at, { from: 0.7, dur: 0.4, origin: (tail === 'r' ? '90%' : '10%') + ' 100%' });
+    if (out != null) s.out(b, out, { dur: 0.3 });
+    return b;
+  }
+
+  // Перенос группы SVG синхронно с прыжком персонажа (та же кривая, что у hop в lib.js) — из 3–7
+  function ride(s, g, dx, lt, dur, h) {
+    var f = g.__st || (g.__st = { x: 0 });
+    s.tween(g, lt + 0.09, { x: f.x }, { x: f.x + dx, duration: dur, ease: 'sine.inOut' });
+    s.tween(g, lt + 0.09, { y: 0 }, { y: -h, duration: dur / 2, ease: 'power2.out' });
+    s.tween(g, lt + 0.09 + dur / 2, { y: -h }, { y: 0, duration: dur / 2, ease: 'power2.in' });
+    f.x += dx;
+  }
+  Film.ride = ride;
+
+  // Перелистывание страницы: лист бумаги проезжает справа налево поверх кадра; смена содержимого — в середине (at + 0.45)
+  function flip(s, at) {
+    var e = s.div('pageflip', { left: 0, top: 0, width: 1920, height: 1080, transform: 'translateX(1960px)' }, s.ov);
+    s.tween(e, at, { x: 1960 }, { x: -2000, duration: 0.9, ease: 'power2.inOut' });
+    return at + 0.45;
+  }
+
+  Film.school = { flip: flip, glass: glass, setLevel: setLevel, walk: walk, say: say, WATER: WATER, kid: kid, classroom: classroom, desk: desk, house: house, board: board, ruled: ruled, INK: INK, TEAL: TEAL, DEEP: DEEP, RED: RED, PAPER: PAPER };
 })();
