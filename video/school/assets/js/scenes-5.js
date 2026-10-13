@@ -12,7 +12,8 @@
       var g = s.svg(), ov = s.over(), CX = 1310, CY = 640;
       s.actor('baby', { x: CX, y: CY, d: 110, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0.2, 0.4);
       s.face('baby', true, 0.3, 0.2); s.mouth('baby', 'soft', 0.3, 0.01); s.gaze('baby', 0, 6, 0.3, 0.01);
-      K().desk(s, ov, CX, CY + 64, 1.1);
+      var dk = s.node(ov, 'g', {}); K().desk(s, dk, CX, CY + 64, 1.1);
+      s.tween(dk, 0.2, { opacity: 0 }, { opacity: 1, duration: 0.4 });
       [['по правилу', 860, 330], ['в уме', 1760, 330], ['нарочно', 860, 940], ['со стороны', 1760, 940]].forEach(function (l, i) {
         var e = s.text('kidhand', l[0], { left: l[1] - 90, top: l[2] - 30, width: 180, textAlign: 'center', fontSize: 40 });
         s.fade(e, 0.4 + i * 0.25, { y: 6 });
