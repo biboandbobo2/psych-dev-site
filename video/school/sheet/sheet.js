@@ -1,39 +1,29 @@
-/* Лист героев 7–10 (v3): приметы прилегают к голове; лица у всех; проверка в трёх масштабах */
+/* Лист героев 7–10 (v3.2, «Язык 7–10»): круг — весь человек, брови, руки-точки, своя вещь; учитель — капсула; родители — круги */
 /* global Film */
 (function () {
   'use strict';
   Film.scene({ id: 'sheet', bars: 2, build: function (s) {
     var K = Film.school, g = s.svg();
     s.rulerOut(0);
-    // Крупно: главные герои и взрослые (актёры — так они живут в сценах)
-    var CAST = [['baby', 'hero', 'Миша'], ['kid2', 'anya', 'Аня'], ['kid3', 'dima', 'Дима'],
-      ['adult', 'bun', 'мама'], ['adult2', 'teacher', 'учитель'], ['dad', 'dad', 'папа']];
-    CAST.forEach(function (c, i) {
-      var x = 190 + i * 300, d = i < 3 ? 150 : 190;
-      s.actor(c[0], { x: x, y: 330, d: d, o: 1 }, 0, 0.01); s.face(c[0], true, 0, 0.01);
-      s.acc(c[0], c[1]);
-      if (c[0] === 'kid3' || c[0] === 'adult2') s.acc(c[0], 'glasses');
-      K.tag(s, c[2], x, 330 + d / 2 + 40, 0);
-    });
-    Film.school.toyHorse(s, g, 1700, 1000, 1.4); Film.school.toyHorse(s, g, 1820, 1000, 0.6);
-    // Взгляд в сторону: очки едут вместе с глазами
-    s.gaze('kid3', 6, 2, 1, 0.5); s.gaze('adult2', -6, 0, 1, 0.5);
-    // Статисты: класс (r 40) и дальний ряд (r 18) — у всех лица
-    var KINDS = ['curly', 'ponytail', 'buzz', 'cap', 'anya', 'dima', 'bun', 'hero', null, 'curly'];
-    var COL = ['#E4735A', '#EC8A6F', '#D9654B', '#F09A7E', '#C95A44'];
-    KINDS.forEach(function (k, i) {
-      Film.head(g, 160 + i * 170, 720, 40, COL[i % 5], k, { glasses: i === 2 || i === 9 });
-      Film.head(g, 160 + i * 170, 880, 18, COL[(i + 2) % 5], k, { glasses: i === 2 || i === 9 });
-    });
+    // Герои — актёрами (как в сценах)
+    K.cast(s, 'misha', 200, 300, 120, 0, { dur: 0.01 });
+    K.cast(s, 'anya', 420, 300, 112, 0, { dur: 0.01 });
+    K.cast(s, 'dima', 640, 300, 112, 0, { dur: 0.01 });
+    K.cast(s, 'teacher', 900, 250, 120, 0, { dur: 0.01 });
+    K.cast(s, 'mom', 1180, 290, 170, 0, { dur: 0.01 });
+    K.cast(s, 'dad', 1440, 290, 170, 0, { dur: 0.01 });
+    [[200, 'Миша'], [420, 'Аня'], [640, 'Дима'], [900, 'Ирина Петровна'], [1180, 'мама'], [1440, 'папа']].forEach(function (n) { K.tag(s, n[1], n[0], 430, 0); });
+    // Через 2 с — выражения и руки: Миша поднял руку, Аня сосредоточена и держит, Дима смотрит в сторону, учитель сомневается
+    s.brow('baby', 'proud', 2, 0.3); s.hands('baby', 'up', 2, 0.3);
+    s.brow('kid2', 'focus', 2, 0.3); s.mouth('kid2', 'flat', 2, 0.3); s.hands('kid2', 'hold', 2, 0.3);
+    s.gaze('kid3', 6, 0, 2, 0.3); s.hands('kid3', 'desk', 2, 0.3);
+    s.brow('adult2', 'doubt', 2, 0.3); s.hands('adult2', 'side', 2, 0.3);
+    s.brow('adult', 'sad', 2, 0.3); s.mouth('adult', 'soft', 2, 0.3);
+    // Одноклассники — статисты, в двух масштабах
+    for (var i = 0; i < 10; i++) {
+      K.classmate(g, i, 160 + i * 170, 680, 44);
+      K.classmate(g, i + 7, 160 + i * 170, 860, 22);
+    }
+    K.toyHorse(s, g, 1720, 340, 1.2);
   } });
-  // Заставки глав с тремя дорожками
-  [[2, 'anya', 'Думать по правилам', 'Аня — самая младшая в классе',
-    [{ who: 'misha', x: 380, text: 'новый взрослый' }, { who: 'misha', x: 500, text: 'способ, а не ответ' }, { who: 'misha', x: 610, text: 'игра с правилами' }]],
-   [4, null, '«Я умею»', 'Миша, Аня и Дима среди других',
-    [{ who: 'dima', x: 1150, text: 'повторять про себя' }, { who: 'dima', x: 1290, text: 'знания — память' }]]].forEach(function (c) {
-    Film.scene({ id: 'card' + c[0], bars: 2, build: function (s) {
-      s.chapterCard(c[0], c[2], c[3]);
-      Film.school.pathsCard(s, c[0], c[1], c[4]);
-    } });
-  });
 })();

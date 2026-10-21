@@ -184,6 +184,8 @@
     tl.fromTo(a.body, { backgroundColor: from }, { backgroundColor: color, duration: dur || 0.8, ease: 'power2.inOut', immediateRender: false }, t);
     a.color = color;
   }
+  var BROW = { calm: ['M31 33 Q38 30 45 32', 'M55 32 Q62 30 69 33'], focus: ['M31 32 Q38 31 45 34', 'M55 34 Q62 31 69 32'],
+    doubt: ['M31 34 Q38 31 45 33', 'M55 29 Q62 26 69 30'], proud: ['M31 30 Q38 25 45 28', 'M55 28 Q62 25 69 30'], sad: ['M31 35 Q38 31 45 29', 'M55 29 Q62 31 69 35'] };
   var MOUTH = { smile: 'M36 59 Q50 71 64 59', soft: 'M37 61 Q50 67 63 61', flat: 'M37 63 Q50 63 63 63', sad: 'M38 67 Q50 58 62 67' };
   function addFace(id, shape) {
     var a = A[id];
@@ -193,7 +195,9 @@
     svg('circle', { cx: 38, cy: 45, r: 4.6, fill: '#FFFDF8' }, g);
     svg('circle', { cx: 62, cy: 45, r: 4.6, fill: '#FFFDF8' }, g);
     var m = svg('path', { d: MOUTH[shape || 'smile'], fill: 'none', stroke: '#FFFDF8', 'stroke-width': 4.2, 'stroke-linecap': 'round' }, g);
-    a.face = { svg: s, g: g, mouth: m, cur: shape || 'smile', gx: 0, gy: 0 };
+    // брови (с эпизода 7–10): оттенки чувств; по умолчанию — спокойные
+    var bw = svg('g', {}, g), bl = svg('path', { d: BROW.calm[0], fill: 'none', stroke: '#FFFDF8', 'stroke-width': 3.2, 'stroke-linecap': 'round' }, bw), br = svg('path', { d: BROW.calm[1], fill: 'none', stroke: '#FFFDF8', 'stroke-width': 3.2, 'stroke-linecap': 'round' }, bw);
+    a.face = { svg: s, g: g, mouth: m, cur: shape || 'smile', gx: 0, gy: 0, brows: bw, bl: bl, br: br, bcur: 'calm' };
     return a.face;
   }
   function faceShow(id, on, t, dur) {
@@ -205,70 +209,60 @@
     tl.fromTo(f.mouth, { attr: { d: MOUTH[f.cur] } }, { attr: { d: MOUTH[shape] }, duration: dur || 0.6, ease: 'power2.inOut', immediateRender: false }, t);
     f.cur = shape;
   }
+  function brow(id, kind, t, dur) {
+    var f = addFace(id), d = dur || 0.4;
+    tl.fromTo(f.bl, { attr: { d: BROW[f.bcur][0] } }, { attr: { d: BROW[kind][0] }, duration: d, ease: 'power2.inOut', immediateRender: false }, t);
+    tl.fromTo(f.br, { attr: { d: BROW[f.bcur][1] } }, { attr: { d: BROW[kind][1] }, duration: d, ease: 'power2.inOut', immediateRender: false }, t);
+    f.bcur = kind;
+  }
   function gaze(id, gx, gy, t, dur) {
     var f = addFace(id);
     tl.fromTo(f.g, { x: f.gx, y: f.gy }, { x: gx, y: gy, duration: dur || 0.6, ease: 'power2.inOut', immediateRender: false }, t);
     f.gx = gx; f.gy = gy;
   }
 
-  // Приметы героев (с эпизода 7–10, v3): волосы — «шапочка» по дуге самого круга (r 50, центр 50,50),
-  // поэтому не висят в воздухе; пучок, косички и банты частично закрыты шапочкой; очки — в группе глаз (face.g)
-  var HAIR = { brown: '#6B4A2E', dark: '#4A2F1D', light: '#EBC46A', grey: '#9AA1A6', black: '#2E2420' };
-  function cap(S, yL, yR, line, fill) { // дуга по кругу от левой точки (y = yL) до правой (y = yR) + линия роста волос
-    var R = 51.5, xl = 50 - Math.sqrt(R * R - (yL - 50) * (yL - 50)), xr = 50 + Math.sqrt(R * R - (yR - 50) * (yR - 50)); // чуть шире круга — без светлого ободка
-    svg('path', { d: 'M' + xl.toFixed(1) + ' ' + yL + ' A' + R + ' ' + R + ' 0 0 1 ' + xr.toFixed(1) + ' ' + yR + ' ' + line.replace('0.0', xl.toFixed(1)) + ' Z', fill: fill }, S);
-  }
-  function drawHead(S, kind) {
-    var INK = '#1D2733', C = HAIR;
-    if (kind === 'hero') { // Миша: тёмные волосы с вихром, белый воротничок
-      svg('path', { d: 'M48 4 Q42 -16 60 -18 Q52 -6 58 4 Z', fill: C.dark }, S);
-      cap(S, 40, 40, 'Q84 22 66 26 Q58 14 46 22 Q30 16 0.0 40', C.dark);
-      svg('path', { d: 'M26 88 L50 99 L34 108 Z M74 88 L50 99 L66 108 Z', fill: '#FFFDF8', stroke: INK, 'stroke-width': 2 }, S);
-    } else if (kind === 'anya') { // Аня: две косички с бирюзовыми бантами
-      [[-6, 58], [106, 58]].forEach(function (p) { svg('ellipse', { cx: p[0], cy: p[1], rx: 11, ry: 17, fill: C.brown }, S); });
-      cap(S, 52, 52, 'Q84 30 50 26 Q16 30 0.0 52', C.brown);
-      [[2, 40], [98, 40]].forEach(function (p) {
-        svg('path', { d: 'M' + p[0] + ' ' + p[1] + ' l-10 -7 l0 14 Z M' + p[0] + ' ' + p[1] + ' l10 -7 l0 14 Z', fill: '#26A69A' }, S);
-        svg('circle', { cx: p[0], cy: p[1], r: 3.6, fill: '#1C7A71' }, S);
-      });
-    } else if (kind === 'dima') { // Дима: светлая чёлка
-      cap(S, 34, 34, 'Q76 30 62 34 Q50 26 40 34 Q24 30 0.0 34', C.light);
-    } else if (kind === 'bun') { // мама: пучок, прижатый к макушке
-      svg('circle', { cx: 50, cy: 2, r: 15, fill: C.brown }, S);
-      cap(S, 38, 38, 'Q80 18 50 20 Q20 18 0.0 38', C.brown);
-    } else if (kind === 'teacher') { // учитель: седые волосы
-      cap(S, 34, 34, 'Q80 16 50 18 Q20 16 0.0 34', C.grey);
-    } else if (kind === 'dad') { // папа: короткие волосы и усы
-      cap(S, 30, 30, 'Q80 14 50 16 Q20 14 0.0 30', '#7A5A40');
-      svg('path', { d: 'M30 60 Q40 52 50 58 Q60 52 70 60 Q60 66 50 61 Q40 66 30 60 Z', fill: '#3E2A1E' }, S);
-    } else if (kind === 'curly') {
-      cap(S, 38, 38, 'Q84 24 72 30 Q64 20 56 28 Q48 18 40 28 Q30 20 22 30 Q12 26 0.0 38', C.black);
-    } else if (kind === 'ponytail') {
-      svg('path', { d: 'M88 22 Q118 30 108 66 Q100 44 82 34 Z', fill: C.light }, S);
-      cap(S, 40, 40, 'Q80 24 50 22 Q20 24 0.0 40', C.light);
-    } else if (kind === 'buzz') {
-      cap(S, 30, 30, 'Q80 22 50 22 Q20 22 0.0 30', C.brown);
-    } else if (kind === 'cap') { // кепка
-      cap(S, 34, 34, 'L0.0 34', '#26A69A');
-      svg('path', { d: 'M80 32 L112 38', stroke: '#26A69A', 'stroke-width': 9, 'stroke-linecap': 'round' }, S);
-    }
-  }
-  // Очки — в группе глаз, двигаются вместе со взглядом
-  function drawGlasses(g) {
-    var INK = '#1D2733';
-    svg('circle', { cx: 38, cy: 45, r: 10.5, fill: 'none', stroke: INK, 'stroke-width': 3.2 }, g);
-    svg('circle', { cx: 62, cy: 45, r: 10.5, fill: 'none', stroke: INK, 'stroke-width': 3.2 }, g);
-    svg('path', { d: 'M48.5 45 H51.5', stroke: INK, 'stroke-width': 3.2 }, g);
-  }
+  // Приметы героев (7–10, v3.2 — «Язык 7–10»): круг — весь человек, волос нет; у героя одна своя вещь.
+  // backpack — ранец Миши (за спиной, сбоку); bow — бант Ани; glasses — очки Димы: тонкие линзы вокруг глаз, бровей нет (их заменяет оправа)
   function addAcc(id, kind) {
-    var a = A[id];
-    if (kind === 'glasses') { var f = addFace(id); drawGlasses(f.g); return f.g; }
+    var a = A[id], f;
+    if (kind === 'glasses') {
+      f = addFace(id); f.brows.style.display = 'none';
+      [38, 62].forEach(function (cx) { svg('circle', { cx: cx, cy: 45, r: 9.5, fill: 'none', stroke: '#1D2733', 'stroke-width': 2.2 }, f.g); });
+      svg('path', { d: 'M47.5 44 Q50 41.5 52.5 44', fill: 'none', stroke: '#1D2733', 'stroke-width': 2.2 }, f.g);
+      return f.g;
+    }
     var S = svg('svg', { 'class': 'acc-' + kind, viewBox: '0 0 100 100', overflow: 'visible' }, a.body);
     S.style.position = 'absolute'; S.style.inset = '0'; S.style.overflow = 'visible';
-    drawHead(S, kind);
+    if (kind === 'backpack') { a.body.insertBefore(S, a.body.firstChild); S.style.zIndex = '-1';
+      svg('rect', { x: -24, y: 34, width: 38, height: 52, rx: 11, fill: '#26A69A', stroke: '#1C7A71', 'stroke-width': 3 }, S);
+      svg('rect', { x: -16, y: 58, width: 15, height: 10, rx: 3, fill: '#F5D27A', stroke: '#1C7A71', 'stroke-width': 2 }, S);
+    } else if (kind === 'bow') {
+      svg('path', { d: 'M70 4 l-15 -10 l0 20 Z M70 4 l15 -10 l0 20 Z', fill: '#26A69A' }, S);
+      svg('circle', { cx: 70, cy: 4, r: 5, fill: '#1C7A71' }, S);
+    }
     return S;
   }
-  // Голова-статист (одноклассники в классе, во дворе): круг + лицо + волосы в тех же координатах 0…100
+  // Руки-точки (7–10): появляются, когда герой действует. pose: 'off' | 'side' | 'up' (рука-линия вверх) | 'desk' (на парте) | 'hold' (держит перед собой)
+  var HANDS = { off: [[50, 80], [50, 80], 0], side: [[-6, 66], [106, 66], 1], up: [[-6, 66], [110, -8], 1], desk: [[22, 94], [78, 94], 1], hold: [[26, 78], [74, 78], 1] };
+  function handsOf(id) {
+    var a = A[id];
+    if (a.hands) return a.hands;
+    var S = svg('svg', { 'class': 'hands', viewBox: '0 0 100 100', overflow: 'visible' }, a.body);
+    S.style.position = 'absolute'; S.style.inset = '0'; S.style.overflow = 'visible';
+    var n = 0, col = getComputedStyle(a.body).backgroundColor.replace(/\d+(\.\d+)?/g, function (v) { return n++ < 3 ? Math.round(v * 0.86) : v; }); // руки на тон темнее тела — видны и поверх круга
+    var arm = svg('path', { d: 'M94 62 Q116 30 110 -8', fill: 'none', stroke: col, 'stroke-width': 9, 'stroke-linecap': 'round', opacity: 0 }, S);
+    var l = svg('circle', { cx: 50, cy: 80, r: 11, fill: col, opacity: 0 }, S), r = svg('circle', { cx: 50, cy: 80, r: 11, fill: col, opacity: 0 }, S);
+    a.hands = { svg: S, arm: arm, l: l, r: r, cur: 'off' };
+    return a.hands;
+  }
+  function hands(id, pose, t, dur) {
+    var h = handsOf(id), p0 = HANDS[h.cur], p = HANDS[pose], d = dur || 0.35;
+    tl.fromTo(h.l, { attr: { cx: p0[0][0], cy: p0[0][1] }, opacity: p0[2] }, { attr: { cx: p[0][0], cy: p[0][1] }, opacity: p[2], duration: d, ease: 'power2.out', immediateRender: false }, t);
+    tl.fromTo(h.r, { attr: { cx: p0[1][0], cy: p0[1][1] }, opacity: p0[2] }, { attr: { cx: p[1][0], cy: p[1][1] }, opacity: p[2], duration: d, ease: 'power2.out', immediateRender: false }, t);
+    tl.fromTo(h.arm, { opacity: h.cur === 'up' ? 1 : 0 }, { opacity: pose === 'up' ? 1 : 0, duration: d * 0.6, immediateRender: false }, t + (pose === 'up' ? d * 0.4 : 0));
+    h.cur = pose;
+  }
+  // Ребёнок-статист (одноклассники): круг + лицо серии + спокойные брови; o.bow / o.glasses — редкие приметы
   Film.head = function (parent, x, y, r, color, kind, o) {
     o = o || {};
     var g = svg('g', { transform: 'translate(' + (x - r) + ' ' + (y - r) + ') scale(' + (r / 50) + ')' }, parent);
@@ -276,9 +270,12 @@
     var face = svg('g', {}, g);
     svg('circle', { cx: 38, cy: 45, r: 4.6, fill: '#FFFDF8' }, face);
     svg('circle', { cx: 62, cy: 45, r: 4.6, fill: '#FFFDF8' }, face);
-    svg('path', { d: MOUTH[o.mouth || 'soft'], fill: 'none', stroke: '#FFFDF8', 'stroke-width': 4.2, 'stroke-linecap': 'round' }, face);
-    if (o.glasses) drawGlasses(face);
-    if (kind) { var S = svg('g', {}, g); drawHead(S, kind); }
+    svg('path', { d: MOUTH[o.mouth || 'smile'], fill: 'none', stroke: '#FFFDF8', 'stroke-width': 4.2, 'stroke-linecap': 'round' }, face);
+    if (o.glasses || kind === 'glasses') {
+      [38, 62].forEach(function (cx) { svg('circle', { cx: cx, cy: 45, r: 9.5, fill: 'none', stroke: '#1D2733', 'stroke-width': 2.2 }, face); });
+      svg('path', { d: 'M47.5 44 Q50 41.5 52.5 44', fill: 'none', stroke: '#1D2733', 'stroke-width': 2.2 }, face);
+    } else BROW[o.brow || 'calm'].forEach(function (d) { svg('path', { d: d, fill: 'none', stroke: '#FFFDF8', 'stroke-width': 3.2, 'stroke-linecap': 'round' }, face); });
+    if (o.bow || kind === 'bow') { svg('path', { d: 'M70 4 l-15 -10 l0 20 Z M70 4 l15 -10 l0 20 Z', fill: '#26A69A' }, g); svg('circle', { cx: 70, cy: 4, r: 5, fill: '#1C7A71' }, g); }
     return g;
   };
 
@@ -503,6 +500,8 @@
       face: function (id, on, lt, dur) { faceShow(id, on, t0 + lt, dur); },
       acc: function (id, kind) { var a = A[id]; a.accs = a.accs || {}; if (!a.accs[kind]) a.accs[kind] = addAcc(id, kind); return a.accs[kind]; },
       mouth: function (id, shape, lt, dur) { mouth(id, shape, t0 + lt, dur); },
+      brow: function (id, kind, lt, dur) { brow(id, kind, t0 + lt, dur); },
+      hands: function (id, pose, lt, dur) { hands(id, pose, t0 + lt, dur); },
       gaze: function (id, gx, gy, lt, dur) { gaze(id, gx, gy, t0 + lt, dur); },
       rest: function (lt, dur, ease) { aTo('baby', { x: mx(R.age), y: RY, d: 26, o: 1 }, t0 + lt, dur == null ? 1.2 : dur, ease); },
       age: function (m, lt, dur, hops) { rulerAge(m, t0 + lt, dur, hops); },

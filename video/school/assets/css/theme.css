@@ -99,7 +99,7 @@ body { font-family: var(--sans); color: var(--ink); -webkit-font-smoothing: anti
 /* Сверстники (с эпизода 3–7): тот же коралловый «ребёнок», чуть другой оттенок, чтобы различать в группе */
 #a-kid2 > .body { background: #EC8A6F; box-shadow: 0 0 0 3px #F7F4EC; }
 #a-kid3 > .body { background: #D9654B; box-shadow: 0 0 0 3px #F7F4EC; }
-#a-adult2 > .body { background: #4D6E8A; }
+#a-adult2 > .body { background: #4D6E8A; bottom: -90px; border-radius: 50px; } /* учитель 7–10 — вытянутая капсула: взрослый общественный мир */
 #a-dad > .body { background: #2C4459; } /* папа — с эпизода 7–10 */
 #a-adult3 > .body { background: #556677; } /* папа Ани */
 #a-kid4 > .body { background: #F09A7E; box-shadow: 0 0 0 3px #F7F4EC; } /* одноклассник Дима */

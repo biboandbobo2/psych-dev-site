@@ -265,11 +265,9 @@
 
   // Наш класс (v3): постоянный состав из 17 одноклассников + Миша, Аня, Дима = 20. Один и тот же ребёнок —
   // одна и та же примета и цвет во всех сценах (шеренга, парты, двор), чтобы класс узнавался как одна компания.
-  var ROSTER = [
-    ['curly', 0, false], ['ponytail', 1, false], ['buzz', 2, true], ['cap', 3, false], ['bun', 4, false],
-    ['curly', 1, true], ['ponytail', 3, false], ['buzz', 0, false], [null, 2, false], ['cap', 4, false],
-    ['bun', 0, false], ['curly', 4, false], ['ponytail', 2, true], ['buzz', 3, false], [null, 1, false],
-    ['cap', 0, false], ['bun', 2, false]];
+  var ROSTER = [ // v3.2: одноклассники — простые круги разных оттенков; брови — у всех
+    [null, 0, false], [null, 1, false], [null, 2, false], [null, 3, false], [null, 4, false], [null, 1, false], [null, 3, false], [null, 0, false],
+    [null, 2, false], [null, 4, false], [null, 0, false], [null, 4, false], [null, 2, false], [null, 3, false], [null, 1, false], [null, 0, false], [null, 2, false]];
   function classmate(g, i, x, y, r, o) {
     var m = ROSTER[i % ROSTER.length];
     return Film.head(g, x, y, r, KIDS[m[1]], m[0], { glasses: m[2], mouth: (o && o.mouth) || 'soft' });
@@ -294,8 +292,8 @@
   }
 
   // Герои эпизода: актёр + его приметы (одна примета — одному актёру на весь эпизод)
-  var CAST = { misha: ['baby', ['hero']], anya: ['kid2', ['anya']], dima: ['kid3', ['dima', 'glasses']],
-    mom: ['adult', ['bun']], teacher: ['adult2', ['teacher', 'glasses']], dad: ['dad', ['dad']] };
+  var CAST = { misha: ['baby', ['backpack']], anya: ['kid2', ['bow']], dima: ['kid3', ['glasses']],
+    mom: ['adult', []], teacher: ['adult2', []], dad: ['dad', []] }; // v3.2: без волос — одна своя вещь; родители — просто круги, учитель — капсула (css)
   function cast(s, who, x, y, d, lt, o) {
     o = o || {};
     var c = CAST[who], id = c[0];
