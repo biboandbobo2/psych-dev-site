@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>7–10 — как показать рост</title>
+<style>
+  @font-face { font-family: "DOMSans"; font-weight: 200 800; src: url("../assets/fonts/manrope-cyrillic-wght-normal.woff2") format("woff2"); }
+  @font-face { font-family: "DOMSerif"; font-weight: 400 900; src: url("../assets/fonts/playfair-display-cyrillic-wght-normal.woff2") format("woff2"); }
+  html, body { margin: 0; background: #F6F2E9; }
+  .h1 { font: 500 44px DOMSerif, serif; fill: #1D2733; }
+  .row { font: 700 21px DOMSans, sans-serif; fill: #1C7A71; letter-spacing: 0.06em; }
+  .note { font: 500 19px DOMSans, sans-serif; fill: #5B6470; }
+</style>
+</head>
+<body>
+<svg id="s" width="1920" height="1080" viewBox="0 0 1920 1080"></svg>
+<script>
+'use strict';
+// Четыре способа показать «вырос» и при этом остаться в языке серии (круг, лицо из точек, тонкая линия).
+// Каждый — в трёх позах: стоит, «я знаю!» (рука вверх), сидит за партой (парта — синей ручкой).
+var NS = 'http://www.w3.org/2000/svg', S = document.getElementById('s');
+function el(t, a, p) { var e = document.createElementNS(NS, t); for (var k in a) e.setAttribute(k, a[k]); (p || S).appendChild(e); return e; }
+function txt(x, y, cls, s, anchor) { var e = el('text', { x: x, y: y, class: cls, 'text-anchor': anchor || 'start' }); e.textContent = s; return e; }
+var PEN = '#2F4A8A', CHILD = '#E4735A', CH_D = '#C95A44', PAPER = '#FFFDF8', TEAL = '#26A69A', TEAL_D = '#1C7A71';
+function line(d, w, c, p) { return el('path', { d: d, fill: 'none', stroke: c || PEN, 'stroke-width': w || 2.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, p); }
+// лицо серии в коробке 0…100 вокруг (cx, cy) радиуса r
+function face(p, cx, cy, r, o) {
+  var g = el('g', { transform: 'translate(' + (cx - r) + ' ' + (cy - r) + ') scale(' + (r / 50) + ')' }, p);
+  el('circle', { cx: 38, cy: 45, r: 4.6, fill: PAPER }, g); el('circle', { cx: 62, cy: 45, r: 4.6, fill: PAPER }, g);
+  el('path', { d: 'M36 59 Q50 71 64 59', fill: 'none', stroke: PAPER, 'stroke-width': 4.2, 'stroke-linecap': 'round' }, g);
+  ['M31 33 Q38 30 45 32', 'M55 32 Q62 30 69 33'].forEach(function (d) { el('path', { d: d, fill: 'none', stroke: PAPER, 'stroke-width': 3.2, 'stroke-linecap': 'round' }, g); });
+  if (o && o.bow) { el('path', { d: 'M70 4 l-14 -9 l0 18 Z M70 4 l14 -9 l0 18 Z', fill: TEAL }, g); el('circle', { cx: 70, cy: 4, r: 4.5, fill: TEAL_D }, g); }
+}
+function deskOver(x, y, w) { el('rect', { x: x - w / 2 - 4, y: y, width: w + 8, height: 74, fill: '#F6F2E9' }); line('M' + (x - w / 2) + ' ' + y + ' H' + (x + w / 2) + ' M' + (x - w / 2 + 12) + ' ' + y + ' V' + (y + 56) + ' M' + (x + w / 2 - 12) + ' ' + y + ' V' + (y + 56), 2.8); }
+
+// A · яйцо: круг слегка вытянут (1 : 1,25), руки — точки у боков
+function egg(x, base, pose) {
+  var rx = 48, ry = 60, cy = base - ry;
+  el('ellipse', { cx: x, cy: cy, rx: rx, ry: ry, fill: CHILD });
+  face(null, x, cy - 10, 48);
+  if (pose === 'up') { line('M' + (x + 44) + ' ' + (cy + 4) + ' Q' + (x + 66) + ' ' + (cy - 30) + ' ' + (x + 58) + ' ' + (cy - 66), 9, CH_D); el('circle', { cx: x + 58, cy: cy - 70, r: 10, fill: CH_D }); }
+  else el('circle', { cx: x + 50, cy: cy + 16, r: 10, fill: CH_D });
+  el('circle', { cx: x - 50, cy: cy + 16, r: 10, fill: CH_D });
+}
+// B · пешка: голова-круг серии + колокол-тело (силуэт «человечка»); голова и тело одного цвета, слиты
+function pawn(x, base, pose) {
+  var r = 40, hy = base - 118;
+  el('path', { d: 'M' + (x - 30) + ' ' + (hy + 26) + ' Q' + (x - 58) + ' ' + (base - 6) + ' ' + (x - 54) + ' ' + base + ' L' + (x + 54) + ' ' + base + ' Q' + (x + 58) + ' ' + (base - 6) + ' ' + (x + 30) + ' ' + (hy + 26) + ' Z', fill: CHILD });
+  el('circle', { cx: x, cy: hy, r: r, fill: CHILD });
+  face(null, x, hy, r);
+  if (pose === 'up') { line('M' + (x + 36) + ' ' + (hy + 50) + ' Q' + (x + 62) + ' ' + (hy + 10) + ' ' + (x + 58) + ' ' + (hy - 34), 9, CH_D); el('circle', { cx: x + 58, cy: hy - 38, r: 10, fill: CH_D }); }
+}
+// C · снеговик: два круга — большой (лицо) и меньший под ним (тело)
+function snow(x, base, pose) {
+  var r2 = 34, r1 = 46, by = base - r2, hy = by - r2 - r1 + 16;
+  el('circle', { cx: x, cy: by, r: r2, fill: CH_D });
+  el('circle', { cx: x, cy: hy, r: r1, fill: CHILD });
+  face(null, x, hy, r1);
+  if (pose === 'up') { line('M' + (x + 28) + ' ' + (by - 14) + ' Q' + (x + 60) + ' ' + (hy) + ' ' + (x + 58) + ' ' + (hy - 50), 8, CH_D); el('circle', { cx: x + 58, cy: hy - 54, r: 9, fill: CH_D }); }
+}
+// D · круг серии + руки и ноги тонкой линией ручкой (как «человечки» Харгривза): круг — по-прежнему весь человек
+function limbs(x, base, pose, o) {
+  var r = 52, cy = base - 46 - r;
+  if (pose !== 'sit') line('M' + (x - 16) + ' ' + (cy + r - 4) + ' L' + (x - 20) + ' ' + base + ' L' + (x - 34) + ' ' + base + ' M' + (x + 16) + ' ' + (cy + r - 4) + ' L' + (x + 20) + ' ' + base + ' L' + (x + 34) + ' ' + base, 4.2);
+  if (pose === 'up') line('M' + (x + r - 4) + ' ' + (cy - 6) + ' Q' + (x + r + 26) + ' ' + (cy - 40) + ' ' + (x + r + 18) + ' ' + (cy - 82), 4.2);
+  else if (pose === 'sit') { line('M' + (x - r + 6) + ' ' + (cy + 20) + ' Q' + (x - r - 4) + ' ' + (cy + 44) + ' ' + (x - 24) + ' ' + (cy + 50), 4.2); line('M' + (x + r - 6) + ' ' + (cy + 20) + ' Q' + (x + r + 4) + ' ' + (cy + 44) + ' ' + (x + 24) + ' ' + (cy + 50), 4.2); }
+  else line('M' + (x + r - 4) + ' ' + (cy + 10) + ' Q' + (x + r + 18) + ' ' + (cy + 30) + ' ' + (x + r + 14) + ' ' + (cy + 56), 4.2);
+  if (pose !== 'sit') line('M' + (x - r + 4) + ' ' + (cy + 10) + ' Q' + (x - r - 18) + ' ' + (cy + 30) + ' ' + (x - r - 14) + ' ' + (cy + 56), 4.2);
+  el('circle', { cx: x, cy: cy, r: r, fill: CHILD });
+  if (pose === 'up') el('circle', { cx: x + r + 18, cy: cy - 86, r: 6, fill: PEN });
+  face(null, x, cy, r, o);
+  if (o && o.backpack) { el('rect', { x: x - r - 22, y: cy - 8, width: 30, height: 42, rx: 9, fill: TEAL, stroke: TEAL_D, 'stroke-width': 3 }); }
+}
+
+el('rect', { x: 0, y: 0, width: 1920, height: 1080, fill: '#F6F2E9' });
+txt(120, 90, 'h1', 'Как показать «вырос» — четыре способа');
+var rows = [
+  ['А · яйцо — круг чуть вытянулся', egg, 'самый мягкий шаг: почти круг, но выше'],
+  ['Б · пешка — круг-голова + тело-колокол', pawn, 'силуэт «человечка» и шахматной пешки'],
+  ['В · снеговик — два круга', snow, 'круг серии на круге поменьше'],
+  ['Г · круг серии + руки и ноги ручкой', limbs, 'круг остаётся всем человеком, а ручка «дорисовала» ему руки и ноги']];
+rows.forEach(function (r, i) {
+  var col = i % 2, rw = Math.floor(i / 2), x0 = 120 + col * 900, y0 = 150 + rw * 450;
+  txt(x0, y0 + 20, 'row', r[0]);
+  txt(x0, y0 + 50, 'note', r[2]);
+  var base = y0 + 330;
+  line('M' + x0 + ' ' + (base + 2) + ' H' + (x0 + 760), 1.6, '#C9BBA2');
+  r[1](x0 + 110, base, 'stand');
+  r[1](x0 + 340, base, 'up');
+  // сидит: фигура ниже на высоту стула, парта перекрывает только низ
+  var sx = x0 + 600;
+  r[1](sx, base + (r[1] === limbs ? 0 : 14), r[1] === limbs ? 'sit' : 'stand');
+  deskOver(sx, base - (r[1] === limbs ? 40 : 30), 200);
+  if (r[1] !== limbs) { el('circle', { cx: sx - 34, cy: base - 36, r: 9, fill: CH_D }); el('circle', { cx: sx + 34, cy: base - 36, r: 9, fill: CH_D }); }
+  txt(x0 + 80, base + 40, 'note', 'стоит'); txt(x0 + 300, base + 40, 'note', '«я знаю!»'); txt(sx - 40, base + 40, 'note', 'за партой');
+});
+</script>
+</body>
+</html>
