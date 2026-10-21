@@ -186,7 +186,7 @@
   }
   var BROW = { calm: ['M31 33 Q38 30 45 32', 'M55 32 Q62 30 69 33'], focus: ['M31 32 Q38 31 45 34', 'M55 34 Q62 31 69 32'],
     doubt: ['M31 34 Q38 31 45 33', 'M55 29 Q62 26 69 30'], proud: ['M31 30 Q38 25 45 28', 'M55 28 Q62 25 69 30'], sad: ['M31 35 Q38 31 45 29', 'M55 29 Q62 31 69 35'] };
-  var MOUTH = { smile: 'M36 59 Q50 71 64 59', soft: 'M37 61 Q50 67 63 61', flat: 'M37 63 Q50 63 63 63', sad: 'M38 67 Q50 58 62 67' };
+  var MOUTH = { smile: 'M36 59 Q50 71 64 59', soft: 'M37 61 Q50 67 63 61', flat: 'M37 63 Q50 63 63 63', sad: 'M38 67 Q50 58 62 67', o: 'M44 64 Q50 56 56 64 Q50 72 44 64' }; // o — удивление
   function addFace(id, shape) {
     var a = A[id];
     if (a.face) return a.face;
