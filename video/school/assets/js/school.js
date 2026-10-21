@@ -246,5 +246,45 @@
     return h;
   }
 
-  Film.school = { tag: tag, schoolHouse: schoolHouse, tree: tree, bush: bush, bench: bench, ball: ball, kitchen: kitchen, phone: phone, pawn: pawn, knight: knight, helmet: helmet, flip: flip, glass: glass, setLevel: setLevel, walk: walk, say: say, WATER: WATER, kid: kid, classroom: classroom, desk: desk, house: house, board: board, ruled: ruled, INK: INK, TEAL: TEAL, DEEP: DEEP, RED: RED, PAPER: PAPER };
+  // ---------- Версия 3: три дорожки — три героя, три главы ----------
+  // Тетрадный лист: дверь класса, от неё дорожки Миши, Ани и Димы. Глава n — отрезок n; дорожка героя главы
+  // прорисовывается ярко, пройденные отрезки — с вехами (выводы глав), остальные — бледным пунктиром.
+  // Миша и Аня сближаются в главе 1 (соседи по парте), Дима присоединяется в главе 4.
+  var KIDC = { misha: '#E4735A', anya: TEAL, dima: '#4F7CAC' };
+  var SEG = [300, 660, 1020, 1380, 1740];
+  function trackY(who, x) {
+    var e = function (a, b) { var t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    if (who === 'misha') return 690 - 20 * e(460, 640) + 20 * e(1380, 1640);
+    if (who === 'anya') return 800 - 50 * e(460, 640) - 30 * e(1380, 1640);
+    return 930 - 180 * e(1380, 1640);
+  }
+  function trackD(who, x1, x2) {
+    var d = '', x;
+    for (x = x1; x <= x2; x += 10) d += (d ? ' L' : 'M') + x + ' ' + trackY(who, x).toFixed(1);
+    return d;
+  }
+  var HEROK = { misha: 'hero', anya: 'anya', dima: 'dima' };
+  function pathsCard(s, n, who, notes) {
+    var g = s.svg();
+    s.node(g, 'rect', Object.assign({ x: 190, y: 600, width: 110, height: 400, rx: 6 }, A('#C9A27A')));
+    s.node(g, 'circle', { cx: 280, cy: 810, r: 7, fill: INK });
+    var lab = s.text('tag', 'класс', { left: 125, top: 1010, width: 240 }); s.fade(lab, 0.1);
+    ['misha', 'anya', 'dima'].forEach(function (k) {
+      var done = SEG[n - 1], hot = k === who || (n === 4);
+      if (done > SEG[0]) { var pd = s.path(g, trackD(k, SEG[0], done), { stroke: KIDC[k], 'stroke-width': 7, opacity: 0.55 }); s.draw(pd, 0.05, { dur: 0.01 }); }
+      var rest = s.path(g, trackD(k, done, SEG[4]), { stroke: KIDC[k], 'stroke-width': 4, 'stroke-dasharray': '4 14', opacity: 0.35 }); void rest;
+      if (hot) { var cur = s.path(g, trackD(k, done, SEG[n]), { stroke: KIDC[k], 'stroke-width': 9 }); s.draw(cur, 0.4, { dur: 1.4, ease: 'power1.inOut' }); }
+      var hx = hot ? SEG[n] - (n === 4 ? { misha: 0, anya: 90, dima: 180 }[k] : 0) : done, hy = trackY(k, hx); // в главе 4 — рядом, а не стопкой
+      var hg = s.node(g, 'g', {}); Film.head(hg, hx, hy - 34, 30, '#E4735A', HEROK[k], { glasses: k === 'dima', mouth: 'smile' });
+      if (hot) s.tween(hg, 0.4, { x: done - hx, y: trackY(k, done) - hy }, { x: 0, y: 0, duration: 1.4, ease: 'power1.inOut' });
+    });
+    (notes || []).forEach(function (m, i) { // вехи: выводы прошлой главы на дорожке её героя
+      var x = m.x, y = trackY(m.who, x);
+      s.node(g, 'circle', { cx: x, cy: y, r: 9, fill: PAPER, stroke: KIDC[m.who], 'stroke-width': 4 });
+      var up = i % 2 === 1, t = s.text('note', m.text, { left: x - 90, top: up ? y - 66 : y + 16, width: 180, textAlign: 'center', fontSize: 21, lineHeight: 1.15 });
+      s.fade(t, 0.3 + 0.15 * i, { y: 6 });
+    });
+  }
+
+  Film.school = { pathsCard: pathsCard, KIDC: KIDC, tag: tag, schoolHouse: schoolHouse, tree: tree, bush: bush, bench: bench, ball: ball, kitchen: kitchen, phone: phone, pawn: pawn, knight: knight, helmet: helmet, flip: flip, glass: glass, setLevel: setLevel, walk: walk, say: say, WATER: WATER, kid: kid, classroom: classroom, desk: desk, house: house, board: board, ruled: ruled, INK: INK, TEAL: TEAL, DEEP: DEEP, RED: RED, PAPER: PAPER };
 })();

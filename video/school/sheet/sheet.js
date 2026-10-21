@@ -25,4 +25,14 @@
       Film.head(g, 160 + i * 170, 880, 18, COL[(i + 2) % 5], k, { glasses: i === 2 || i === 9 });
     });
   } });
+  // Заставки глав с тремя дорожками
+  [[2, 'anya', 'Думать по правилам', 'Аня — самая младшая в классе',
+    [{ who: 'misha', x: 380, text: 'новый взрослый' }, { who: 'misha', x: 500, text: 'способ, а не ответ' }, { who: 'misha', x: 610, text: 'игра с правилами' }]],
+   [4, null, '«Я умею»', 'Миша, Аня и Дима среди других',
+    [{ who: 'dima', x: 1150, text: 'повторять про себя' }, { who: 'dima', x: 1290, text: 'знания — память' }]]].forEach(function (c) {
+    Film.scene({ id: 'card' + c[0], bars: 2, build: function (s) {
+      s.chapterCard(c[0], c[2], c[3]);
+      Film.school.pathsCard(s, c[0], c[1], c[4]);
+    } });
+  });
 })();
