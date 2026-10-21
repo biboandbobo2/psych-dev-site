@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>7–10 — пробы рисовки</title>
+<style>
+  @font-face { font-family: "DOMSans"; font-weight: 200 800; src: url("../assets/fonts/manrope-cyrillic-wght-normal.woff2") format("woff2"); }
+  html, body { margin: 0; background: #F7F3EA; }
+  svg { display: block; }
+  .lbl { font: 600 30px DOMSans, sans-serif; fill: #1D2733; letter-spacing: 0.04em; }
+  .name { font: 700 24px DOMSans, sans-serif; fill: #4A3B30; letter-spacing: 0.08em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<svg id="s" width="1920" height="1080" viewBox="0 0 1920 1080"></svg>
+<script>
+'use strict';
+// Пробы рисовки 7–10 после отзыва автора на аниматик v3: ?v=1 «Геометрия+», ?v=2 «Книжка», ?v=3 «Книжка + фон-иллюстрация»; &f=class | cast
+var Q = new URLSearchParams(location.search), V = +(Q.get('v') || 1), F = Q.get('f') || 'class';
+var NS = 'http://www.w3.org/2000/svg', S = document.getElementById('s');
+function el(tag, a, p) { var e = document.createElementNS(NS, tag); for (var k in a) e.setAttribute(k, a[k]); (p || S).appendChild(e); return e; }
+function g(p, a) { return el('g', a || {}, p); }
+
+var INK = V === 1 ? 'none' : '#4A3426', SW = V === 1 ? 0 : 3.2;
+var SKIN = ['#F6CDAE', '#EDB894', '#F3C29F', '#DDA27E', '#F8D6BC'];
+var CORAL = '#E4735A', TEAL = '#26A69A', NAVY = '#4E6A8C';
+// заливка + контур (в «Книжке» — чернильный, слегка дрожащий фильтром)
+function st(fill, extra) { var a = { fill: fill, stroke: INK, 'stroke-width': SW, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }; for (var k in extra) a[k] = extra[k]; return a; }
+
+var defs = el('defs', {});
+if (V >= 2) {
+  var fl = el('filter', { id: 'ink', x: '-5%', y: '-5%', width: '110%', height: '110%' }, defs);
+  el('feTurbulence', { type: 'fractalNoise', baseFrequency: '0.035', numOctaves: '2', seed: '3', result: 'n' }, fl);
+  el('feDisplacementMap', { in: 'SourceGraphic', in2: 'n', scale: '3.2' }, fl);
+  var pf = el('filter', { id: 'paper' }, defs);
+  el('feTurbulence', { type: 'fractalNoise', baseFrequency: '0.9', numOctaves: '3', seed: '8' }, pf);
+  el('feColorMatrix', { values: '0 0 0 0 0.35  0 0 0 0 0.27  0 0 0 0 0.2  0 0 0 0.07 0' }, pf);
+}
+var root = g(S, V >= 2 ? { filter: 'url(#ink)' } : {});
+
+// ---------- волосы (координаты головы 0…100, круг r 50) ----------
+function arcCap(p, yL, yR, line, fill) {
+  var R = 51.5, xl = 50 - Math.sqrt(R * R - (yL - 50) * (yL - 50)), xr = 50 + Math.sqrt(R * R - (yR - 50) * (yR - 50));
+  el('path', st(fill, { d: 'M' + xl + ' ' + yL + ' A' + R + ' ' + R + ' 0 0 1 ' + xr + ' ' + yR + ' ' + line.replace('X', xl) + ' Z' }), p);
+}
+var HAIR = {
+  misha: function (p) { el('path', st('#4A2F1D', { d: 'M48 4 Q42 -14 60 -16 Q52 -4 58 4 Z' }), p); arcCap(p, 42, 42, 'Q84 24 66 28 Q58 16 46 24 Q30 18 X 42', '#4A2F1D'); },
+  anya: function (p, back) {
+    if (back) { [[-4, 62], [104, 62]].forEach(function (q) { el('ellipse', st('#7A4E2D', { cx: q[0], cy: q[1], rx: 12, ry: 20 }), p); }); return; }
+    arcCap(p, 54, 54, 'Q86 30 50 24 Q14 30 X 54', '#7A4E2D');
+    [[4, 40], [96, 40]].forEach(function (q) { el('path', st(TEAL, { d: 'M' + q[0] + ' ' + q[1] + ' l-11 -8 l0 16 Z M' + q[0] + ' ' + q[1] + ' l11 -8 l0 16 Z' }), p); });
+  },
+  dima: function (p) { arcCap(p, 36, 36, 'Q78 30 64 36 Q50 26 38 36 Q22 30 X 36', '#E2B45A'); },
+  teacher: function (p, back) {
+    if (back) { el('circle', st('#8C6A55', { cx: 50, cy: 0, r: 16 }), p); return; }
+    arcCap(p, 40, 40, 'Q82 18 50 20 Q18 18 X 40', '#8C6A55');
+  },
+  curly: function (p) { arcCap(p, 40, 40, 'Q84 26 72 32 Q64 22 56 30 Q48 20 40 30 Q30 22 22 32 Q12 28 X 40', '#2E2420'); },
+  pony: function (p, back) { if (back) { el('path', st('#C58B4E', { d: 'M86 24 Q120 32 108 70 Q100 46 80 36 Z' }), p); return; } arcCap(p, 42, 42, 'Q80 26 50 24 Q20 26 X 42', '#C58B4E'); },
+  buzz: function (p) { arcCap(p, 32, 32, 'Q80 24 50 24 Q20 24 X 32', '#6B4A2E'); },
+  bob: function (p, back) { if (back) { el('path', st('#3E2A1E', { d: 'M-2 40 Q-6 80 14 84 L86 84 Q106 80 102 40 Z' }), p); return; } arcCap(p, 58, 58, 'Q90 34 70 30 Q50 40 30 30 Q10 34 X 58', '#3E2A1E'); }
+};
+
+// ---------- человек: голова + туловище; seated — сидит за партой (видны плечи и руки на парте) ----------
+function person(p, x, y, r, o) {
+  var G = g(p, { transform: 'translate(' + (x - r) + ' ' + (y - r) + ') scale(' + (r / 50) + ')' });
+  var skin = V === 1 ? (o.adult ? NAVY : CORAL) : o.skin;
+  var shirt = o.shirt;
+  // туловище
+  if (o.body !== false) {
+    var bh = o.seated ? 70 : (o.adult ? 170 : 120);
+    el('path', st(shirt, { d: 'M14 ' + (88) + ' Q50 78 86 88 Q100 ' + (88 + bh * 0.5) + ' 98 ' + (88 + bh) + ' L2 ' + (88 + bh) + ' Q0 ' + (88 + bh * 0.5) + ' 14 88 Z' }), G);
+    if (o.collar) el('path', st('#FFFDF8', { d: 'M34 86 L50 98 L40 106 Z M66 86 L50 98 L60 106 Z' }), G);
+    if (!o.seated && !o.adult) { // ноги
+      el('rect', st('#3E4A5C', { x: 24, y: 88 + bh - 2, width: 20, height: 46, rx: 8 }), G);
+      el('rect', st('#3E4A5C', { x: 56, y: 88 + bh - 2, width: 20, height: 46, rx: 8 }), G);
+    }
+    if (o.adult && !o.seated) { el('rect', st('#3E4A5C', { x: 22, y: 88 + bh - 4, width: 22, height: 70, rx: 8 }), G); el('rect', st('#3E4A5C', { x: 56, y: 88 + bh - 4, width: 22, height: 70, rx: 8 }), G); }
+  }
+  var H = HAIR[o.hair];
+  if (H) H(G, true);
+  el('circle', st(skin, { cx: 50, cy: 50, r: 50 }), G);
+  // лицо: тёмные глаза с бликом, щёки, улыбка
+  var eye = V === 1 ? '#1D2733' : '#2B1E16';
+  [[36, 50], [64, 50]].forEach(function (q) {
+    el('ellipse', { cx: q[0], cy: q[1], rx: 5.2, ry: 6.4, fill: eye }, G);
+    el('circle', { cx: q[0] + 1.8, cy: q[1] - 2.4, r: 1.9, fill: '#FFFFFF' }, G);
+  });
+  [[24, 64], [76, 64]].forEach(function (q) { el('ellipse', { cx: q[0], cy: q[1], rx: 8, ry: 5, fill: V === 1 ? '#C9503B' : '#F09A86', opacity: V === 1 ? 0.55 : 0.6 }, G); });
+  el('path', { d: o.sad ? 'M41 74 Q50 67 59 74' : 'M40 68 Q50 77 60 68', fill: 'none', stroke: eye, 'stroke-width': 3.4, 'stroke-linecap': 'round' }, G);
+  if (V >= 2) el('path', { d: 'M48 58 Q50 61 52 58', fill: 'none', stroke: '#C98A6A', 'stroke-width': 2.4, 'stroke-linecap': 'round' }, G);
+  if (o.glasses) {
+    [[36, 50], [64, 50]].forEach(function (q) { el('circle', { cx: q[0], cy: q[1], r: 11, fill: 'none', stroke: '#2B2B33', 'stroke-width': 3 }, G); });
+    el('path', { d: 'M47 50 H53', stroke: '#2B2B33', 'stroke-width': 3 }, G);
+  }
+  if (H) H(G, false);
+  // руки
+  if (o.seated) [[6, 128], [94, 128]].forEach(function (q) { el('ellipse', st(skin, { cx: q[0], cy: q[1], rx: 11, ry: 9 }), G); });
+  return G;
+}
+
+// ---------- окружение ----------
+function room(p) {
+  el('rect', { x: 0, y: 0, width: 1920, height: 640, fill: V === 1 ? '#F3E9D8' : '#F2E4CC' }, p);
+  el('rect', { x: 0, y: 640, width: 1920, height: 440, fill: V === 1 ? '#E9D9BF' : '#E2CBA6' }, p);
+  el('rect', { x: 0, y: 632, width: 1920, height: 14, fill: V === 1 ? '#D8C4A2' : '#C9A87C' }, p);
+  // окно со шторами и цветком
+  el('rect', st('#CFE6EE', { x: 1460, y: 150, width: 320, height: 300, rx: 10 }), p);
+  el('path', { d: 'M1620 150 V450 M1460 300 H1780', stroke: V === 1 ? '#FFFFFF' : INK, 'stroke-width': V === 1 ? 10 : 3 }, p);
+  el('path', st('#E89A86', { d: 'M1440 140 Q1470 300 1450 470 L1490 470 Q1500 300 1480 140 Z' }), p);
+  el('path', st('#E89A86', { d: 'M1800 140 Q1770 300 1790 470 L1750 470 Q1740 300 1760 140 Z' }), p);
+  el('rect', st('#FFFDF8', { x: 1440, y: 456, width: 360, height: 18, rx: 6 }), p);
+  el('path', st('#D9805E', { d: 'M1590 456 L1600 410 L1640 410 L1650 456 Z' }), p);
+  [[1606, 380, 22], [1634, 372, 24], [1620, 350, 20]].forEach(function (c) { el('circle', st('#7FB685', { cx: c[0], cy: c[1], r: c[2] }), p); });
+  // детские рисунки на стене
+  [[180, 200, '#F5D27A'], [340, 230, '#BFE0D6'], [500, 196, '#F4B9A8']].forEach(function (d, i) {
+    el('rect', st('#FFFDF8', { x: d[0], y: d[1], width: 130, height: 104, rx: 4, transform: 'rotate(' + (i - 1) * 3 + ' ' + (d[0] + 65) + ' ' + (d[1] + 52) + ')' }), p);
+    el('circle', { cx: d[0] + 65, cy: d[1] + 50, r: 26, fill: d[2] }, p);
+  });
+  // полка с книгами
+  el('rect', st('#C9A27A', { x: 760, y: 300, width: 300, height: 14, rx: 4 }), p);
+  ['#E4735A', '#26A69A', '#F5D27A', '#4E6A8C', '#E89A86', '#7FB685'].forEach(function (c, i) { el('rect', st(c, { x: 780 + i * 40, y: 236, width: 30, height: 64, rx: 3 }), p); });
+}
+function deskRow(p, y, k, seats) { // парта на двоих, вид спереди
+  seats.forEach(function (x) {
+    var w = 300 * k, h = 110 * k;
+    el('rect', st(V === 1 ? '#D7B48A' : '#D9B07F', { x: x - w / 2, y: y, width: w, height: 26 * k, rx: 8 * k }), p);
+    el('rect', st(V === 1 ? '#C49A6C' : '#C79A68', { x: x - w / 2 + 14 * k, y: y + 26 * k, width: w - 28 * k, height: h, rx: 6 * k }), p);
+  });
+}
+
+if (V === 3) {
+  var img = el('image', { href: 'bg-class.png', x: 0, y: 0, width: 1920, height: 1080, preserveAspectRatio: 'xMidYMid slice' }, S);
+  S.insertBefore(img, root);
+}
+
+if (F === 'class' && V === 3) { // дети за партами фона-иллюстрации: передний ряд — столешница y ≈ 615, задний — y ≈ 510
+  var SH = ['#9CC3D5', '#F5D27A', '#BFE0D6', '#E7B6C9', '#C9D8A0', '#F4B9A8'];
+  [[430, 'curly', 1], [580, 'pony', 3], [915, 'buzz', 0], [1070, 'bob', 2], [1410, 'curly', 4], [1560, 'pony', 5]].forEach(function (b, i) {
+    person(root, b[0], 418, 42, { seated: true, skin: SKIN[i % 5], shirt: SH[b[2]], hair: b[1] });
+  });
+  person(root, 250, 512, 56, { seated: true, skin: SKIN[3], shirt: SH[4], hair: 'bob' });
+  person(root, 900, 512, 58, { seated: true, skin: SKIN[0], shirt: CORAL, hair: 'misha', collar: true });
+  person(root, 1080, 512, 58, { seated: true, skin: SKIN[4], shirt: '#F5D27A', hair: 'anya' });
+  person(root, 1540, 512, 58, { seated: true, skin: SKIN[2], shirt: '#9CC3D5', hair: 'dima', glasses: true });
+  person(root, 1790, 470, 64, { adult: true, skin: SKIN[1], shirt: TEAL, hair: 'teacher', glasses: true });
+  [[900, 'Миша'], [1080, 'Аня'], [1540, 'Дима'], [1790, 'Ирина Петровна']].forEach(function (n) { var e = el('text', { x: n[0], y: 1010, 'text-anchor': 'middle', class: 'name' }, S); e.textContent = n[1]; });
+}
+if (F === 'class' && V !== 3) {
+  room(root);
+  var KIDSHIRTS = ['#9CC3D5', '#F5D27A', '#BFE0D6', '#E7B6C9', '#C9D8A0', '#F4B9A8'];
+  var hairs = ['curly', 'pony', 'buzz', 'bob', 'curly', 'pony', 'buzz', 'bob'];
+  // задний ряд (дальше, мельче)
+  var back = g(root);
+  [420, 760, 1160, 1500].forEach(function (x, i) {
+    person(back, x - 50, 600, 36, { seated: true, skin: SKIN[i % 5], shirt: KIDSHIRTS[i], hair: hairs[i] });
+    person(back, x + 50, 600, 36, { seated: true, skin: SKIN[(i + 2) % 5], shirt: KIDSHIRTS[i + 1], hair: hairs[i + 3] });
+  });
+  deskRow(back, 660, 0.78, [420, 760, 1160, 1500]);
+  // передний ряд: Миша и Аня вместе, Дима у окна один, ещё двое
+  var front = g(root);
+  person(front, 560, 760, 56, { seated: true, skin: SKIN[3], shirt: KIDSHIRTS[4], hair: 'curly' });
+  person(front, 700, 760, 56, { seated: true, skin: SKIN[0], shirt: KIDSHIRTS[3], hair: 'bob' });
+  person(front, 960, 760, 58, { seated: true, skin: SKIN[0], shirt: CORAL, hair: 'misha', collar: true });
+  person(front, 1100, 760, 58, { seated: true, skin: SKIN[4], shirt: '#F5D27A', hair: 'anya' });
+  person(front, 1470, 760, 58, { seated: true, skin: SKIN[2], shirt: '#9CC3D5', hair: 'dima', glasses: true });
+  deskRow(front, 840, 1, [630, 1030, 1540]);
+  // учитель слева, стоит с книгой
+  var t = g(root);
+  person(t, 220, 560, 62, { adult: true, skin: SKIN[1], shirt: TEAL, hair: 'teacher', glasses: true });
+  el('rect', st('#E4735A', { x: 250, y: 700, width: 70, height: 90, rx: 6, transform: 'rotate(-8 285 745)' }), t);
+  // подписи
+  [[960, 'Миша'], [1100, 'Аня'], [1470, 'Дима']].forEach(function (n) { var e = el('text', { x: n[0], y: 1010, 'text-anchor': 'middle', class: 'name' }, S); e.textContent = n[1]; });
+  var tn = el('text', { x: 220, y: 1010, 'text-anchor': 'middle', class: 'name' }, S); tn.textContent = 'Ирина Петровна';
+}
+
+if (F === 'cast') {
+  el('rect', { x: 0, y: 0, width: 1920, height: 1080, fill: V === 1 ? '#F7F3EA' : '#F4EBDC' }, root);
+  var CAST = [
+    [300, 'Миша', { skin: SKIN[0], shirt: CORAL, hair: 'misha', collar: true }],
+    [620, 'Аня', { skin: SKIN[4], shirt: '#F5D27A', hair: 'anya' }],
+    [940, 'Дима', { skin: SKIN[2], shirt: '#9CC3D5', hair: 'dima', glasses: true }],
+    [1300, 'Ирина Петровна', { adult: true, skin: SKIN[1], shirt: TEAL, hair: 'teacher', glasses: true }],
+    [1640, 'мама', { adult: true, skin: SKIN[0], shirt: '#E7B6C9', hair: 'pony' }]];
+  CAST.forEach(function (c) {
+    var o = c[2], r = o.adult ? 82 : 70;
+    person(root, c[0], o.adult ? 330 : 400, r, o);
+    var e = el('text', { x: c[0], y: 960, 'text-anchor': 'middle', class: 'name' }, S); e.textContent = c[1];
+  });
+}
+if (V >= 2) el('rect', { x: 0, y: 0, width: 1920, height: 1080, filter: 'url(#paper)', 'pointer-events': 'none' }, S);
+var L = el('text', { x: 40, y: 1060, class: 'lbl' }, S);
+L.textContent = { 1: 'А · «Геометрия+»', 2: 'Б · «Книжка»', 3: 'В · «Книжка» + фон-иллюстрация' }[V];
+</script>
+</body>
+</html>
