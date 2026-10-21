@@ -250,7 +250,7 @@
     var S = svg('svg', { 'class': 'hands', viewBox: '0 0 100 100', overflow: 'visible' }, a.body);
     S.style.position = 'absolute'; S.style.inset = '0'; S.style.overflow = 'visible';
     var n = 0, col = getComputedStyle(a.body).backgroundColor.replace(/\d+(\.\d+)?/g, function (v) { return n++ < 3 ? Math.round(v * 0.86) : v; }); // руки на тон темнее тела — видны и поверх круга
-    var arm = svg('path', { d: 'M90 58 Q118 34 112 -4', fill: 'none', stroke: col, 'stroke-width': 13, 'stroke-linecap': 'round', opacity: 0 }, S);
+    var arm = svg('path', { d: 'M90 58 Q118 34 112 -4', fill: 'none', stroke: col, 'stroke-width': 8, 'stroke-linecap': 'round', opacity: 0 }, S);
     var l = svg('circle', { cx: 50, cy: 80, r: 12, fill: col, opacity: 0 }, S), r = svg('circle', { cx: 50, cy: 80, r: 12, fill: col, opacity: 0 }, S);
     a.hands = { svg: S, arm: arm, l: l, r: r, cur: 'off' };
     return a.hands;
@@ -502,6 +502,7 @@
       acc: function (id, kind) { var a = A[id]; a.accs = a.accs || {}; if (!a.accs[kind]) a.accs[kind] = addAcc(id, kind); return a.accs[kind]; },
       mouth: function (id, shape, lt, dur) { mouth(id, shape, t0 + lt, dur); },
       brow: function (id, kind, lt, dur) { brow(id, kind, t0 + lt, dur); },
+      gear: function (id, kind, on, lt, dur) { var e = A[id].accs && A[id].accs[kind]; if (e) tl.fromTo(e, { opacity: on ? 0 : 1 }, { opacity: on ? 1 : 0, duration: dur || 0.3, immediateRender: false }, t0 + lt); }, // снять/надеть свою вещь (ранец)
       hands: function (id, pose, lt, dur) { hands(id, pose, t0 + lt, dur); },
       gaze: function (id, gx, gy, lt, dur) { gaze(id, gx, gy, t0 + lt, dur); },
       rest: function (lt, dur, ease) { aTo('baby', { x: mx(R.age), y: RY, d: 26, o: 1 }, t0 + lt, dur == null ? 1.2 : dur, ease); },

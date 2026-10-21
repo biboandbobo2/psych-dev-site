@@ -99,8 +99,10 @@
       });
       seats.unshift(line);
     });
-    return { g: G, board: b, floor: floor, teacher: { x: 700, floor: floor }, seats: seats };
+    return { g: G, board: b, floor: floor, teacher: { x: 400, floor: floor }, seats: seats, heroes: SEATS };
   }
+  // Постоянные места героев в классе (ряд:место): Миша и Аня рядом в первом ряду, Дима — последним в первом ряду. Не менять между сценами.
+  var SEATS = { misha: '0:0', anya: '0:1', dima: '0:3' };
   // y центра лица учителя-капсулы, стоящей на полу (тело: 50 над центром, 140 под ним в единицах 100)
   function standY(floor, d, capsule) { return floor - (capsule ? 1.4 : 0.5) * d; }
   // Посадить одноклассников-статистов на места, кроме занятых героями (skip — массив 'ряд:место')
@@ -188,6 +190,12 @@
     });
     return { g: G, paths: res, door: door, ground: ground };
   }
+  // Точка на дорожке героя: t = 0 — у дома, 1 — у двери школы (кубическая кривая из paths)
+  function pathPoint(p, who, t) {
+    var q = p.paths[who], x0 = q.start[0], y0 = q.start[1], d = p.door;
+    var c1 = [x0 + 420, y0], c2 = [d[0] - 360, d[1] + 10], e = [d[0], d[1] + 6], u = 1 - t;
+    return { x: u * u * u * x0 + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * e[0], y: u * u * u * y0 + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * e[1], k: q.k };
+  }
 
-  Film.places = { standY: standY, page: page, house: house, school: school, tree: tree, bench: bench, classroom: classroom, fill: fill, yard: yard, classics: classics, kitchen: kitchen, paths: paths, chalk: chalk, PATHC: PATHC, INK: INK, BOARD: BOARD };
+  Film.places = { SEATS: SEATS, pathPoint: pathPoint, standY: standY, page: page, house: house, school: school, tree: tree, bench: bench, classroom: classroom, fill: fill, yard: yard, classics: classics, kitchen: kitchen, paths: paths, chalk: chalk, PATHC: PATHC, INK: INK, BOARD: BOARD };
 })();
