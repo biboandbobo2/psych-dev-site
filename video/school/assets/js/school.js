@@ -270,7 +270,7 @@
     [null, 2, false], [null, 4, false], [null, 0, false], [null, 4, false], [null, 2, false], [null, 3, false], [null, 1, false], [null, 0, false], [null, 2, false]];
   function classmate(g, i, x, y, r, o) {
     var m = ROSTER[i % ROSTER.length];
-    return Film.head(g, x, y, r, KIDS[m[1]], m[0], { glasses: m[2], mouth: (o && o.mouth) || 'soft' });
+    return Film.head(g, x, y, r, KIDS[m[1]], m[0], { glasses: m[2], mouth: (o && o.mouth) || 'smile', gx: o && o.gx, gy: o && o.gy });
   }
 
   // Игрушечная лошадка — палочка-лошадка 3–7 в миниатюре, предмет видимого поля (плоская заливка, тёмный контур).

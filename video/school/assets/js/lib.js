@@ -267,7 +267,7 @@
     o = o || {};
     var g = svg('g', { transform: 'translate(' + (x - r) + ' ' + (y - r) + ') scale(' + (r / 50) + ')' }, parent);
     svg('circle', { cx: 50, cy: 50, r: 50, fill: color }, g);
-    var face = svg('g', {}, g);
+    var face = svg('g', { transform: 'translate(' + (o.gx || 0) + ' ' + (o.gy || 0) + ')' }, g); // o.gx — взгляд (лицо сдвигается целиком)
     svg('circle', { cx: 38, cy: 45, r: 4.6, fill: '#FFFDF8' }, face);
     svg('circle', { cx: 62, cy: 45, r: 4.6, fill: '#FFFDF8' }, face);
     svg('path', { d: MOUTH[o.mouth || 'smile'], fill: 'none', stroke: '#FFFDF8', 'stroke-width': 4.2, 'stroke-linecap': 'round' }, face);
