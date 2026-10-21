@@ -236,6 +236,8 @@
     if (kind === 'backpack') { a.body.insertBefore(S, a.body.firstChild); S.style.zIndex = '-1';
       svg('rect', { x: -24, y: 34, width: 38, height: 52, rx: 11, fill: '#26A69A', stroke: '#1C7A71', 'stroke-width': 3 }, S);
       svg('rect', { x: -16, y: 58, width: 15, height: 10, rx: 3, fill: '#F5D27A', stroke: '#1C7A71', 'stroke-width': 2 }, S);
+    } else if (kind === 'collar') { // Миша: белый школьный воротничок — узнаётся и без ранца
+      svg('path', { d: 'M30 90 L50 100 L38 108 Z M70 90 L50 100 L62 108 Z', fill: '#FFFDF8', stroke: '#1D2733', 'stroke-width': 2 }, S);
     } else if (kind === 'bow') {
       svg('path', { d: 'M70 4 l-15 -10 l0 20 Z M70 4 l15 -10 l0 20 Z', fill: '#26A69A' }, S);
       svg('circle', { cx: 70, cy: 4, r: 5, fill: '#1C7A71' }, S);

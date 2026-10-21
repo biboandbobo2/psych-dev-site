@@ -292,7 +292,7 @@
   }
 
   // Герои эпизода: актёр + его приметы (одна примета — одному актёру на весь эпизод)
-  var CAST = { misha: ['baby', ['backpack']], anya: ['kid2', ['bow']], dima: ['kid3', ['glasses']],
+  var CAST = { misha: ['baby', ['backpack', 'collar']], anya: ['kid2', ['bow']], dima: ['kid3', ['glasses']],
     mom: ['adult', []], teacher: ['adult2', []], dad: ['dad', []] }; // v3.2: без волос — одна своя вещь; родители — просто круги, учитель — капсула (css)
   function cast(s, who, x, y, d, lt, o) {
     o = o || {};
@@ -301,6 +301,7 @@
     s.actor(id, { o: 1 }, lt, o.dur == null ? 0.4 : o.dur);
     s.face(id, true, lt, 0.01); s.mouth(id, o.mouth || 'smile', lt, 0.01); s.gaze(id, o.gx || 0, o.gy || -2, lt, 0.01);
     c[1].forEach(function (k) { s.acc(id, k); });
+    if (who === 'teacher') s.hands(id, 'side', lt, 0.01); // у учителя руки видны всегда
     return id;
   }
 
