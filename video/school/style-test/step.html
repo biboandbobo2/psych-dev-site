@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>7–10 — шаг от 3–7</title>
+<style>
+  @font-face { font-family: "DOMSans"; font-weight: 200 800; src: url("../assets/fonts/manrope-cyrillic-wght-normal.woff2") format("woff2"); }
+  @font-face { font-family: "DOMSerif"; font-weight: 400 900; src: url("../assets/fonts/playfair-display-cyrillic-wght-normal.woff2") format("woff2"); }
+  @font-face { font-family: "DOMHand"; src: url("../assets/fonts/marck-script-cyrillic.woff2") format("woff2"); }
+  html, body { margin: 0; background: #F6F2E9; }
+  .tag { font: 700 22px DOMSans, sans-serif; fill: #4B5563; letter-spacing: 0.1em; text-transform: uppercase; }
+  .h1 { font: 500 52px DOMSerif, serif; fill: #1D2733; }
+  .kick { font: 700 18px DOMSans, sans-serif; fill: #1C7A71; letter-spacing: 0.08em; text-transform: uppercase; }
+  .say { font: 30px DOMHand, cursive; fill: #1D2733; }
+  .note { font: 500 24px DOMSans, sans-serif; fill: #5B6470; }
+</style>
+</head>
+<body>
+<svg id="s" width="1920" height="1080" viewBox="0 0 1920 1080"></svg>
+<script>
+'use strict';
+// Шаг от 3–7 к 7–10: круг — весь человек (как в серии), окружение тонкой линией, одна вещь-примета у героя, руки-точки в действии.
+// ?f=class | cast
+var F = new URLSearchParams(location.search).get('f') || 'class';
+var NS = 'http://www.w3.org/2000/svg', S = document.getElementById('s');
+function el(t, a, p) { var e = document.createElementNS(NS, t); for (var k in a) e.setAttribute(k, a[k]); (p || S).appendChild(e); return e; }
+function txt(x, y, cls, s, anchor) { var e = el('text', { x: x, y: y, class: cls, 'text-anchor': anchor || 'start' }); e.textContent = s; return e; }
+var INK = '#2B3440', CHILD = '#E4735A', PEERS = ['#EC8A6F', '#F09A7E', '#E58468', '#F2A58B', '#EA7D62'], ADULT = '#3E5A78', TEAL = '#26A69A', TEAL_D = '#1C7A71', PAPER = '#FFFDF8';
+function line(d, w, c, p) { return el('path', { d: d, fill: 'none', stroke: c || INK, 'stroke-width': w || 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, p); }
+
+// Герой — круг целиком (как в 0–1…3–7): лицо — две точки и улыбка
+function hero(x, y, r, color, o) {
+  o = o || {};
+  var g = el('g', {});
+  if (o.backpack) { // ранец Миши — висит на спинке стула / за спиной, торчит сбоку
+    el('rect', { x: x - r - 26, y: y - r * 0.35, width: 40, height: 54, rx: 11, fill: TEAL, stroke: TEAL_D, 'stroke-width': 3 }, g);
+    el('rect', { x: x - r - 14, y: y - r * 0.35 + 22, width: 16, height: 10, rx: 3, fill: '#F5D27A', stroke: TEAL_D, 'stroke-width': 2 }, g);
+  }
+  el('circle', { cx: x, cy: y, r: r, fill: color }, g);
+  var e = r * 0.09, ex = r * 0.24, ey = -r * 0.1;
+  el('circle', { cx: x - ex + (o.gx || 0), cy: y + ey, r: e, fill: PAPER }, g);
+  el('circle', { cx: x + ex + (o.gx || 0), cy: y + ey, r: e, fill: PAPER }, g);
+  el('path', { d: 'M' + (x - r * 0.26) + ' ' + (y + r * 0.2) + ' Q' + x + ' ' + (y + r * 0.42) + ' ' + (x + r * 0.26) + ' ' + (y + r * 0.2), fill: 'none', stroke: PAPER, 'stroke-width': Math.max(3, r * 0.08), 'stroke-linecap': 'round' }, g);
+  if (o.glasses) { // тонкие очки Димы — линия, не закрывают лицо
+    [-1, 1].forEach(function (s) { el('circle', { cx: x + s * ex + (o.gx || 0), cy: y + ey, r: r * 0.17, fill: 'none', stroke: INK, 'stroke-width': 2.6 }, g); });
+    line('M' + (x - ex + r * 0.17 + (o.gx || 0)) + ' ' + (y + ey) + ' L' + (x + ex - r * 0.17 + (o.gx || 0)) + ' ' + (y + ey), 2.6, INK, g);
+  }
+  if (o.bow) { // бант Ани — маленький, на макушке
+    var bx = x + r * 0.35, by = y - r * 0.9;
+    el('path', { d: 'M' + bx + ' ' + by + ' l-16 -11 l0 22 Z M' + bx + ' ' + by + ' l16 -11 l0 22 Z', fill: TEAL }, g);
+    el('circle', { cx: bx, cy: by, r: 5, fill: TEAL_D }, g);
+  }
+  if (o.hands) o.hands.forEach(function (h) { el('circle', { cx: h[0], cy: h[1], r: r * 0.16, fill: color }, g); }); // руки-точки — появляются, когда герой действует
+  if (o.pointer) line('M' + (x + r * 0.9) + ' ' + (y + r * 0.2) + ' L' + (x + r * 2.1) + ' ' + (y - r * 0.9), 4, '#8B6A45', g);
+  return g;
+}
+// Парта — тонкая линия «по линейке»; круг сидит ЗА ней целиком, парта его не режет
+function desk(x, y, w) {
+  line('M' + (x - w / 2) + ' ' + y + ' H' + (x + w / 2), 3.4);
+  line('M' + (x - w / 2 + 14) + ' ' + y + ' V' + (y + 64) + ' M' + (x + w / 2 - 14) + ' ' + y + ' V' + (y + 64), 3);
+}
+function tag(x, y, s) { txt(x, y, 'tag', s, 'middle'); }
+
+// фон: брендинг и метка главы, как в серии
+el('rect', { x: 0, y: 0, width: 1920, height: 1080, fill: '#F6F2E9' });
+txt(140, 92, 'note', 'Academy');
+
+if (F === 'class') {
+  txt(140, 150, 'kick', '1 · Новое место');
+  txt(140, 214, 'h1', 'Первый урок');
+  // окно и доска — тонкой линией, доска ПЕРЕД детьми (у учителя), окно сбоку
+  line('M1560 250 H1800 V470 H1560 Z M1680 250 V470 M1560 360 H1800', 3);
+  line('M150 330 H560 V560 H150 Z', 3.4); // доска
+  el('rect', { x: 150, y: 330, width: 410, height: 230, fill: '#E8F1EE' });
+  line('M150 330 H560 V560 H150 Z', 3.4);
+  // клетка — только на листе тетради у Миши (локально)
+  // учитель у доски
+  hero(640, 560, 74, ADULT, { pointer: true, gx: 6 });
+  tag(640, 680, 'Ирина Петровна');
+  // пол — одна линия
+  line('M80 900 H1840', 2.4, '#C9BBA2');
+  // ряды: задний — меньше (глубина как в рисунке 8–9 лет), круги целиком
+  [[930, 640, 'dima'], [1130, 640, null], [1330, 640, null], [1530, 640, null]].forEach(function (d, i) {
+    desk(d[0], d[1], 150);
+    if (d[2] === 'dima') hero(d[0], d[1] - 40, 38, CHILD, { glasses: true, gx: -4 });
+    else { hero(d[0] - 34, d[1] - 30, 28, PEERS[i % 5], { gx: -4 }); hero(d[0] + 34, d[1] - 30, 28, PEERS[(i + 2) % 5], { gx: -4 }); }
+  });
+  tag(1010, 600, 'Дима');
+  // передний ряд: Миша и Аня за одной партой
+  desk(1060, 820, 300); desk(1500, 820, 300);
+  hero(990, 760, 58, CHILD, { backpack: true, gx: -8, hands: [[1062, 806]] });
+  line('M1040 816 L1078 790', 4, '#8B6A45'); // карандаш в руке
+  hero(1130, 760, 54, CHILD, { bow: true, gx: -8 });
+  hero(1450, 768, 44, PEERS[1], { gx: -6 }); hero(1550, 768, 44, PEERS[3], { gx: -6 });
+  tag(990, 880, 'Миша'); tag(1130, 880, 'Аня');
+  // тетрадь Миши — клетка локально
+  // реплика учителя
+  el('rect', { x: 260, y: 400, width: 0, height: 0 });
+  var b = el('g', {});
+  el('rect', { x: 720, y: 400, width: 330, height: 70, rx: 22, fill: PAPER, stroke: INK, 'stroke-width': 2.4 }, b);
+  txt(745, 446, 'say', 'Здравствуйте, дети!');
+}
+if (F === 'cast') {
+  txt(140, 150, 'kick', 'шаг от 3–7');
+  txt(140, 214, 'h1', 'Герои 7–10');
+  hero(300, 560, 70, CHILD, { backpack: true }); tag(300, 690, 'Миша — ранец');
+  hero(620, 560, 66, CHILD, { bow: true }); tag(620, 690, 'Аня — бант');
+  hero(940, 560, 66, CHILD, { glasses: true }); tag(940, 690, 'Дима — очки');
+  hero(1300, 540, 90, ADULT, { pointer: true }); tag(1300, 690, 'учитель — указка');
+  hero(1640, 540, 90, ADULT, {}); tag(1640, 690, 'мама');
+  // руки-точки в действии
+  hero(460, 880, 54, CHILD, { backpack: true, hands: [[540, 800]] }); txt(600, 890, 'note', '← руки-точки появляются, когда герой действует: поднял руку, пишет, ловит мяч');
+}
+</script>
+</body>
+</html>
