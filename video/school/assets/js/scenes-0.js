@@ -1,84 +1,110 @@
-/* Вступление (v3.1): крючок (палочка-лошадка становится знаком, лошадка — в ранец), титр с картой курса, «когда дети идут в первый класс» */
+/* Вступление (v3.2, «Язык 7–10»): крючок (палочка-лошадка становится знаком, лошадка — в ранец), титр с картой курса,
+   «когда дети идут в первый класс» (Миша подхватывает ранец), «о чём этот возраст» (карта эпизода: школа и четыре строки-главы) */
 /* global Film */
 (function () {
   'use strict';
-  var STICK = '#8B6A45', INK = '#1D2733';
-  var K = function () { return Film.school; };
+  var STICK = '#8B6A45', INK = '#2B3440', FLOOR = '#C9BBA2', CASE = '#2B8F84';
+  var K = function () { return Film.school; }, P = function () { return Film.places; };
+
+  // Пенал: закруглённый прямоугольник с молнией; (x, y) — левый нижний угол
+  function pencilCase(s, g, x, y, w) {
+    var c = s.node(g, 'g', {});
+    s.node(c, 'rect', { x: x, y: y - 30, width: w, height: 30, rx: 14, fill: CASE, stroke: INK, 'stroke-width': 2.6 });
+    s.path(c, 'M' + (x + 14) + ' ' + (y - 21) + ' H' + (x + w - 14), { stroke: '#F5D27A', 'stroke-width': 3, 'stroke-dasharray': '5 5' });
+    return c;
+  }
 
   // 0:00 — Крючок: палочка была лошадью — теперь палочка знак; палочку — в пенал, игрушечную лошадку — в ранец
   Film.scene({
     id: 'prologue', bars: 3,
     build: function (s) {
-      var CX = 640, CY = 470;
-      K().cast(s, 'misha', CX, CY, 110, 0.1, { gx: 7 });
-      var g = s.svg(), ov = s.over();
-      // двор: земля, дерево, куст — место галопа; уходит, когда появляется тетрадный лист
+      var g = s.svg(), ov = s.over(), GY = 700, CX = 330, CY = GY - 60;
+      // ранец Миши в этой сцене лежит отдельно (надевает его Миша в следующей сцене — «ages»)
+      var bpAcc = s.acc('baby', 'backpack');
+      s.tween(bpAcc, 0, { opacity: 1 }, { opacity: 0, duration: 0.01 });
+      // кадр 1: двор, галоп на палочке-лошадке (из 3–7)
       var yard = s.node(g, 'g', {});
-      s.path(yard, 'M0 640 H1920', { stroke: '#CDC3B4', 'stroke-width': 3 });
-      K().tree(s, yard, 260, 640, 1.2); K().bush(s, yard, 1380, 640, 1.1); K().tree(s, yard, 1700, 640, 0.9, '#9CC8A0');
+      s.path(yard, 'M0 ' + GY + ' H1920', { stroke: FLOOR, 'stroke-width': 2.4 });
+      P().tree(s, yard, 120, GY, 0.9); P().tree(s, yard, 1720, GY, 1.1);
+      P().bench(s, yard, 1250, GY, 1.2);
       s.tween(yard, 0, { opacity: 0 }, { opacity: 1, duration: 0.4 });
-      s.out(yard, 2.6, { dur: 0.4 });
-      // кадр 1: галоп на палочке-лошадке (из 3–7)
-      var stick = s.node(g, 'g', {}), inner = s.node(stick, 'g', {}); // внешняя группа скачет, внутренняя — поворачивается
-      s.path(inner, 'M' + (CX - 170) + ' ' + (CY + 110) + ' L' + (CX + 140) + ' ' + (CY - 90), { stroke: STICK, 'stroke-width': 11 });
-      s.tween(stick, 0.15, { opacity: 0 }, { opacity: 1, duration: 0.35 });
+      K().cast(s, 'misha', CX, CY, 120, 0.1, { gx: 7 });
+      s.brow('baby', 'calm', 0, 0.01);
+      s.hands('baby', 'hold', 0.1, 0.01);
+      var stick = s.node(g, 'g', {});
+      s.path(stick, 'M' + (CX - 150) + ' ' + (CY + 46) + ' L' + (CX + 136) + ' ' + (CY + 4), { stroke: STICK, 'stroke-width': 11 });
+      s.tween(stick, 0.15, { opacity: 0 }, { opacity: 1, duration: 0.3 });
       var horse = s.node(ov, 'g', {});
-      Film.icons.horse(s, horse, CX + 140, CY - 90, 1.0, { at: 0.3, dur: 0.8, seed: 5 });
+      Film.icons.horse(s, horse, CX + 136, CY + 4, 0.95, { at: 0.3, dur: 0.8, seed: 5 });
       [0.9, 1.65].forEach(function (t) {
-        s.hop('baby', s.A.baby.st.x + 70, CY, t, 0.5, 46);
-        Film.ride(s, stick, 70, t, 0.5, 46);
-        Film.ride(s, horse, 70, t, 0.5, 46);
+        s.hop('baby', s.A.baby.st.x + 80, CY, t, 0.5, 46);
+        Film.ride(s, stick, 80, t, 0.5, 46);
+        Film.ride(s, horse, 80, t, 0.5, 46);
       });
-      var l1 = s.text('statement', 'Палочка была лошадью.', { left: 160, top: 760, width: 1600, textAlign: 'center' });
+      var l1 = s.text('statement', 'Палочка была лошадью.', { left: 160, top: 790, width: 1600, textAlign: 'center' });
       s.lines(l1, 0.5);
-      // кадр 2: лошадь гаснет, палочка падает на лист и встаёт первой в ряд палочек прописи: IIII → 4
-      s.out(horse, 2.55, { dur: 0.4 });
-      s.hop('baby', 1500, CY + 40, 2.6, 0.5, 40);
-      s.actor('baby', { o: 0 }, 3.0, 0.3);
-      var page = s.div('cells', { left: 610, top: 300, width: 700, height: 300, opacity: 0 });
-      s.tween(page, 2.9, { opacity: 0 }, { opacity: 1, duration: 0.5 });
-      // центр палочки (CX − 15, CY + 10); после скачков внешняя группа сдвинута на +140
-      var c = (CX - 15) + ' ' + (CY + 10), TF = function (x, y, r, k) { return 'translate(' + x + ' ' + y + ') rotate(' + r + ' ' + c + ') translate(' + c + ') scale(' + k + ') translate(' + (15 - CX) + ' ' + (-CY - 10) + ')'; };
-      var P = function (sx, sy) { return [sx - 140 - (CX - 15), sy - (CY + 10)]; }; // экранный центр → сдвиг
-      var p0 = P(860, 450), pA = P(1290, 506), pB = P(1530, 506);
-      s.tween(inner, 2.8, { attr: { transform: TF(0, 0, 0, 1) } }, { attr: { transform: TF(p0[0], p0[1], -57, 0.42) }, duration: 0.9, ease: 'power3.inOut' });
-      var ink = [];
-      for (var i = 1; i < 4; i++) { // первая палочка — сама палочка-лошадка
-        var x = 860 + i * 66;
-        var p = s.path(g, 'M' + x + ' 385 L' + x + ' 515', { stroke: K().DEEP, 'stroke-width': 7 });
-        s.draw(p, 3.7 + i * 0.22, { dur: 0.18 });
+      s.out(l1, 4.3, { dur: 0.3 });
+      // кадр 2: лошадь гаснет; палочка падает на тетрадный лист и встаёт в ряд палочек прописи: IIII → 4
+      s.out(horse, 2.5, { dur: 0.35 });
+      s.out(stick, 2.65, { dur: 0.2 });
+      s.out(yard, 2.6, { dur: 0.3 });
+      s.actor('baby', { o: 0 }, 2.55, 0.3); s.hands('baby', 'off', 2.85, 0.01);
+      var pg = s.node(g, 'g', {});
+      P().page(s, pg, 560, 220, 800, 440, { cell: 44, margin: 132 });
+      s.tween(pg, 2.75, { opacity: 0 }, { opacity: 1, duration: 0.35 });
+      var SX = 690, DXS = 80, Y1 = 330, Y2 = 506, ink = [];
+      for (var i = 0; i < 3; i++) {
+        var p = s.path(pg, 'M' + (SX + i * DXS) + ' ' + Y1 + ' L' + (SX + i * DXS) + ' ' + Y2, { stroke: '#2E3B4E', 'stroke-width': 8 });
+        s.draw(p, 3.0 + i * 0.18, { dur: 0.16 });
         ink.push(p);
       }
-      s.out(ink, 4.85, { dur: 0.3 });
-      var four = s.text('kidhand', '4', { left: 900, top: 330, fontSize: 200, lineHeight: 1, color: K().DEEP });
-      s.pop(four, 5.0, { from: 0.6, dur: 0.5 });
-      s.out(l1, 4.5, { dur: 0.3 });
-      var l2 = s.text('statement', 'Теперь палочка — ' + s.HL('знак.'), { left: 160, top: 760, width: 1600, textAlign: 'center' });
-      s.lines(l2, 4.8);
-      s.hl(l2, 5.5);
-      // кадр 3: Миша прячет палочку в пенал, а игрушечную лошадку — в ранец
-      s.tween(inner, 4.9, { attr: { transform: TF(p0[0], p0[1], -57, 0.42) } }, { attr: { transform: TF(pA[0], pA[1], 33, 0.6) }, duration: 0.5, ease: 'power2.inOut' });
-      s.tween(inner, 5.5, { attr: { transform: TF(pA[0], pA[1], 33, 0.6) } }, { attr: { transform: TF(pB[0], pB[1], 33, 0.6) }, duration: 0.45, ease: 'power2.in' });
-      var pc = s.node(g, 'g', {}); // пенал рисуется поверх палочки — она «въезжает» внутрь
-      s.node(pc, 'rect', { x: 1400, y: 474, width: 270, height: 64, rx: 26, fill: '#2B8F84', stroke: INK, 'stroke-width': 3 });
-      s.path(pc, 'M1418 492 H1652', { stroke: '#F5D27A', 'stroke-width': 4, 'stroke-dasharray': '6 6' });
-      s.node(pc, 'circle', { cx: 1652, cy: 492, r: 6, fill: '#F5D27A', stroke: INK, 'stroke-width': 2 });
-      s.tween(pc, 4.5, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' });
-      s.actor('baby', { x: 400, y: 520, d: 110 }, 4.6, 0.01);
-      s.gaze('baby', 9, 0, 4.6, 0.01);
-      s.actor('baby', { o: 1 }, 4.65, 0.35);
-      var toy = s.node(g, 'g', {});
-      K().toyHorse(s, toy, 510, 566, 0.7);
-      var bp = s.node(g, 'g', {}); // ранец — поверх лошадки
-      Film.toys.backpack(s, bp, 250, 560, 1.4, '#26A69A', '#1C7A71');
-      s.tween(bp, 4.7, { opacity: 0 }, { opacity: 1, duration: 0.35 });
-      s.tween(toy, 4.9, { opacity: 0, scale: 0.6, transformOrigin: '50% 100%' }, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(2)' });
-      s.gaze('baby', -8, 2, 5.9, 0.3);
-      s.tween(toy, 6.1, { x: 0 }, { x: -260, duration: 0.6, ease: 'sine.inOut' });
-      s.tween(toy, 6.1, { y: 0 }, { y: -70, duration: 0.3, ease: 'power2.out' });
-      s.tween(toy, 6.4, { y: -70 }, { y: 44, duration: 0.3, ease: 'power2.in' });
-      s.squash('baby', 1.06, 0.94, 6.7, 0.1); s.squash('baby', 1, 1, 6.8, 0.3, 'back.out(3)');
-      s.actor('baby', { o: 0 }, 7.05, 0.35);
+      // сама палочка (коричневая) — четвёртая в ряду
+      var st2 = s.node(ov, 'g', {}), X4 = SX + 3 * DXS;
+      s.path(st2, 'M' + X4 + ' ' + Y1 + ' L' + X4 + ' ' + Y2, { stroke: STICK, 'stroke-width': 11 });
+      s.tween(st2, 3.5, { opacity: 0, x: -260, y: -260, rotation: -70, transformOrigin: '50% 100%' },
+        { opacity: 1, x: 0, y: 0, rotation: 0, duration: 0.6, ease: 'power2.in' });
+      s.tween(st2, 4.1, { rotation: 0 }, { rotation: 4, duration: 0.08, repeat: 3, yoyo: true, transformOrigin: '50% 100%' });
+      s.out(ink, 4.55, { dur: 0.25 });
+      s.tween(st2, 4.55, { x: 0, y: 0, opacity: 1 }, { x: 160, y: -120, opacity: 0, duration: 0.5, ease: 'power2.in' });
+      var four = s.node(pg, 'text', { x: SX + 1.5 * DXS, y: Y2, 'text-anchor': 'middle', fill: '#2E3B4E', style: 'font-family: var(--kid); font-size: 220px' });
+      four.textContent = '4';
+      s.tween(four, 4.7, { opacity: 0, scale: 0.6, transformOrigin: '50% 80%' }, { opacity: 1, scale: 1, duration: 0.45, ease: 'back.out(2)' });
+      var l2 = s.text('statement', 'Теперь палочка — ' + s.HL('знак.'), { left: 160, top: 790, width: 1600, textAlign: 'center' });
+      s.lines(l2, 4.45);
+      s.hl(l2, 5.0);
+      // кадр 3: снова двор; на скамейке пенал, на земле ранец и игрушечная лошадка.
+      // Миша прячет палочку в пенал (справа), а лошадку — в ранец (слева)
+      s.out(pg, 5.15, { dur: 0.3 });
+      s.tween(yard, 5.2, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+      var MX = 1010, SEAT = GY - 60; // сиденье скамейки (k = 1.2)
+      var toy = s.node(g, 'g', {}); // лошадка рисуется под ранцем — в ранце она скрывается
+      K().toyHorse(s, toy, 770, GY, 0.6);
+      var bp = s.node(g, 'g', {});
+      Film.toys.backpack(s, bp, 870, GY - 40, 1.0, '#26A69A', '#1C7A71');
+      var held = s.node(ov, 'g', {}); // палочка в руке Миши
+      s.path(held, 'M' + (MX + 40) + ' ' + (CY + 26) + ' L' + (MX + 150) + ' ' + (CY + 26), { stroke: STICK, 'stroke-width': 9 });
+      var pc = s.node(ov, 'g', {});
+      pencilCase(s, pc, 1150, SEAT, 116);
+      [toy, pc, bp].forEach(function (e) { s.tween(e, 5.2, { opacity: 0 }, { opacity: 1, duration: 0.3 }); });
+      s.actor('baby', { x: MX, y: CY }, 5.15, 0.01); s.gaze('baby', 8, 2, 5.15, 0.01);
+      s.actor('baby', { o: 1 }, 5.2, 0.3);
+      s.hands('baby', 'hold', 5.2, 0.01);
+      s.tween(held, 5.2, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+      // палочка въезжает в пенал (пенал нарисован поверх — она скрывается внутри)
+      s.tween(held, 5.6, { x: 0, y: 0 }, { x: 100, y: SEAT - 15 - CY - 26, duration: 0.45, ease: 'power2.inOut' });
+      s.tween(held, 6.05, { x: 100 }, { x: 210, duration: 0.3, ease: 'power2.in' });
+      s.set(held, 6.35, { opacity: 1 }, { opacity: 0 });
+      // лошадку — в ранец: Миша шагает к ней, поднимает рукой и опускает в ранец
+      s.gaze('baby', -9, 3, 6.15, 0.2);
+      s.actor('baby', { x: 842 }, 6.25, 0.3, 'power2.inOut'); // левая рука — над лошадкой
+      s.tween(toy, 6.6, { x: 0, y: 0 }, { x: 0, y: -40, duration: 0.2, ease: 'power2.out' });
+      s.actor('baby', { x: 942 }, 6.8, 0.25, 'power2.inOut');
+      s.tween(toy, 6.8, { x: 0 }, { x: 100, duration: 0.25, ease: 'power2.inOut' });
+      s.tween(toy, 7.05, { y: -40 }, { y: 10, duration: 0.15, ease: 'power2.in' });
+      s.set(toy, 7.2, { opacity: 1 }, { opacity: 0 });
+      s.squash('baby', 1.06, 0.94, 7.1, 0.08); s.squash('baby', 1, 1, 7.18, 0.2, 'back.out(3)');
+      s.actor('baby', { o: 0 }, 7.2, 0.25);
+      s.hands('baby', 'off', 7.45, 0.01);
     }
   });
 
@@ -110,13 +136,13 @@
     }
   });
 
-  // 0:15 — Когда дети идут в первый класс: Миша с ранцем идёт по оси возраста к полосе «Россия»
+  // 0:15 — Когда дети идут в первый класс: ранец лежит в начале оси, Миша подхватывает его, надевает и идёт к полосе «Россия»
   var AGES = [['Англия', 5, 5, '5'], ['США', 6, 6, '6'], ['Германия', 6, 6, '6'], ['Россия', 6.5, 8, '6,5–8'], ['Финляндия', 7, 7, '7']];
   Film.scene({
     id: 'ages', bars: 3,
     build: function (s) {
-      var g = s.svg();
-      var h = s.text('h3', 'В разных странах в первый класс идут в разном возрасте — от 5 до 7 лет.', { left: 140, top: 120, width: 1640 });
+      var g = s.svg(), ov = s.over();
+      var h = s.text('h3', 'В разных странах в первый класс идут в разном возрасте — от 5 до 7 лет.', { left: 140, top: 130, width: 1640 });
       s.lines(h, 0.2);
       var X = function (a) { return 620 + (a - 4) * 270; }, Y0 = 330, DY = 112, AX = Y0 + DY * 4 + 70; // AX — ось возраста, по ней идёт Миша
       [4, 5, 6, 7, 8].forEach(function (a, i) {
@@ -134,20 +160,100 @@
         var al = s.text('label', r[3], { left: one ? X(r[1]) - 60 : X(r[1]), top: y - 52, width: one ? 120 : 200, textAlign: one ? 'center' : 'left', fontSize: 24, color: 'var(--accent-deep)' });
         s.fade(al, at + 0.3, { y: 4 });
       });
-      var axis = s.path(g, 'M' + (X(4) - 200) + ' ' + AX + ' H' + (X(8) + 40), { stroke: '#B3A898', 'stroke-width': 3 });
+      var axis = s.path(g, 'M' + (X(4) - 220) + ' ' + AX + ' H' + (X(8) + 40), { stroke: '#B3A898', 'stroke-width': 3 });
       s.draw(axis, 0.3, { dur: 0.8 });
-      // Миша с ранцем идёт по оси и встаёт у своей полосы — «Россия»
-      var bp = s.node(g, 'g', {});
-      Film.toys.backpack(s, bp, X(4) - 120 - 40, AX - 34, 0.8, '#26A69A', '#1C7A71');
-      s.tween(bp, 2.2, { opacity: 0 }, { opacity: 1, duration: 0.3 });
-      K().cast(s, 'misha', X(4) - 120, AX - 36, 70, 2.2, { gx: 9, gy: 0, dur: 0.3 });
-      K().walk(s, 'baby', X(6.5) - 60, 2.5, { carry: bp, cx: 0, step: 90, dur: 0.2, hold: 0.06 });
-      s.actor('baby', { y: Y0 + 3 * DY - 50 }, 4.7, 0.4, 'back.out(2)');
-      s.tween(bp, 4.7, { y: 0 }, { y: Y0 + 3 * DY - 50 - (AX - 36), duration: 0.4, ease: 'back.out(2)' });
-      s.gaze('baby', 0, -6, 4.9, 0.3);
-      s.actor('baby', { o: 0 }, 7.0, 0.35); s.out(bp, 7.0, { dur: 0.35 });
+      // ранец лежит в начале оси; Миша приходит слева, подхватывает его руками-точками и надевает
+      var D = 70, MY = AX - D / 2, BX = X(4) - 120;
+      var bp = s.node(ov, 'g', {});
+      Film.toys.backpack(s, bp, BX, AX - 26, 0.62, '#26A69A', '#1C7A71');
+      s.tween(bp, 0.6, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+      var bpAcc = s.acc('baby', 'backpack');
+      K().cast(s, 'misha', BX - 170, MY, D, 1.0, { gx: 9, gy: 2, dur: 0.3 });
+      s.brow('baby', 'calm', 1.0, 0.01);
+      K().walk(s, 'baby', BX - 52, 1.1, { step: 60, dur: 0.18, hold: 0.04 });
+      s.gaze('baby', 8, 6, 1.9, 0.2);
+      s.hands('baby', 'hold', 2.0, 0.25);
+      s.tween(bp, 2.1, { y: 0 }, { y: -18, duration: 0.25, ease: 'power2.out' });
+      s.tween(bp, 2.35, { x: 0, opacity: 1 }, { x: -48, opacity: 0, duration: 0.3, ease: 'power2.in' });
+      s.tween(bpAcc, 2.4, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+      s.squash('baby', 1.08, 0.92, 2.6, 0.1); s.squash('baby', 1, 1, 2.7, 0.25, 'back.out(3)');
+      s.hands('baby', 'off', 2.75, 0.25);
+      s.gaze('baby', 9, 0, 2.8, 0.2);
+      K().walk(s, 'baby', X(6.5) - 60, 2.95, { step: 90, dur: 0.18, hold: 0.05 });
+      s.actor('baby', { y: Y0 + 3 * DY - 50 }, 5.0, 0.4, 'back.out(2)');
+      s.gaze('baby', 0, -6, 5.2, 0.3);
+      s.brow('baby', 'proud', 5.3, 0.3);
+      s.actor('baby', { o: 0 }, 7.0, 0.35);
+      s.brow('baby', 'calm', 7.35, 0.01);
       var src = s.text('cite', 'Eurydice; gov.uk; NCES; ФЗ «Об образовании в РФ», ст. 67', { left: 140, top: 1010, fontSize: 20 });
       s.fade(src, 3.0, { y: 4 });
+    }
+  });
+
+  // 0:22,5 — О чём этот возраст (Д. Б. Эльконин): тетрадный разворот — школа, от неё четыре строки-главы со значками
+  var CHAPTERS = ['новое место — учитель и оценка', 'думать по правилам', 'помнить нарочно', 'видеть себя среди других'];
+  // Значки строк (тонкая линия «Языка 7–10»); (x, y) — центр значка
+  function icon(s, g, i, x, y) {
+    var e = s.node(g, 'g', {});
+    if (i === 0) { // учитель-капсула с указкой
+      s.node(e, 'rect', { x: x - 18, y: y - 38, width: 36, height: 76, rx: 18, fill: '#4D6E8A' });
+      [-7, 7].forEach(function (dx) { s.node(e, 'circle', { cx: x + dx, cy: y - 18, r: 3, fill: '#FFFDF8' }); });
+      s.path(e, 'M' + (x - 7) + ' ' + (y - 8) + ' Q' + x + ' ' + (y - 3) + ' ' + (x + 7) + ' ' + (y - 8), { stroke: '#FFFDF8', 'stroke-width': 2.4 });
+      s.path(e, 'M' + (x + 20) + ' ' + (y + 4) + ' L' + (x + 52) + ' ' + (y - 34), { stroke: '#8B6A45', 'stroke-width': 4 });
+    } else if (i === 1) { // облачко со схемой: лента и мерка
+      s.path(e, 'M' + (x - 44) + ' ' + (y + 18) + ' q-10 -26 14 -30 q6 -22 30 -14 q16 -14 32 4 q22 0 18 24 q8 18 -12 18 Z', { fill: '#FFFDF8', stroke: INK, 'stroke-width': 2.4 });
+      s.path(e, 'M' + (x - 30) + ' ' + (y + 4) + ' H' + (x + 34), { stroke: '#4F7CAC', 'stroke-width': 5 });
+      [-30, -9, 12, 33].forEach(function (dx) { s.path(e, 'M' + (x + dx) + ' ' + (y - 6) + ' v20', { stroke: INK, 'stroke-width': 2.4 }); });
+    } else if (i === 2) { // шёпот: ребёнок повторяет про себя
+      Film.head(e, x - 10, y, 28, '#E4735A', null, { mouth: 'soft' });
+      [10, 20, 30].forEach(function (r) { s.path(e, 'M' + (x + 14 + r * 0.6) + ' ' + (y + 6 - r * 0.5) + ' q' + (r * 0.4) + ' ' + (r * 0.5) + ' 0 ' + r, { stroke: INK, 'stroke-width': 2.2, opacity: 0.7 }); });
+    } else { // линии между детьми
+      var pts = [[x - 34, y + 18], [x + 34, y + 18], [x, y - 24]];
+      s.path(e, 'M' + pts[0].join(' ') + ' L' + pts[1].join(' ') + ' L' + pts[2].join(' ') + ' Z', { stroke: INK, 'stroke-width': 2, opacity: 0.6 });
+      pts.forEach(function (q, j) { Film.head(e, q[0], q[1], 15, ['#E4735A', '#EC8A6F', '#D9654B'][j], null, {}); });
+    }
+    return e;
+  }
+  Film.scene({
+    id: 'about', bars: 5,
+    build: function (s) {
+      var g = s.svg();
+      var h = s.text('h3', 'В 7 лет ребёнок становится учеником — и это меняет всё:', { left: 140, top: 130, width: 1640 });
+      s.lines(h, 0.2);
+      // разворот тетради: две страницы, сгиб посередине
+      var sp = s.node(g, 'g', {}), PY = 250, PH = 640;
+      P().page(s, sp, 140, PY, 820, PH, { cell: 40, margin: false });
+      P().page(s, sp, 960, PY, 820, PH, { cell: 40, margin: false });
+      s.path(sp, 'M960 ' + PY + ' V' + (PY + PH), { stroke: '#B9B0A2', 'stroke-width': 3 });
+      s.tween(sp, 0, { opacity: 0 }, { opacity: 1, duration: 0.4 });
+      // в центре левой страницы — школа на линейке
+      var GY = 800, SCX = 590, SK = 0.78;
+      var base = s.path(g, 'M220 ' + GY + ' H900', { stroke: '#C9BBA2', 'stroke-width': 2.4 });
+      s.draw(base, 0.3, { dur: 0.5 });
+      var sch = s.node(g, 'g', {});
+      P().school(s, sch, SCX, GY, SK);
+      s.tween(sch, 0.5, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' });
+      // Миша с ранцем приходит к школе
+      K().cast(s, 'misha', 180, GY - 36, 72, 0.7, { gx: 9, gy: 0, dur: 0.3 });
+      s.brow('baby', 'calm', 0.7, 0.01);
+      K().walk(s, 'baby', SCX - 280 * SK - 56, 0.9, { step: 64, dur: 0.2, hold: 0.08 });
+      s.gaze('baby', 9, -4, 2.2, 0.3);
+      // четыре строки: от школы — линия к значку, рядом — название будущей главы
+      var RY = [340, 480, 620, 760], AT = [3.6, 4.9, 6.2, 7.5];
+      CHAPTERS.forEach(function (c, i) {
+        var y = RY[i], at = AT[i];
+        var x0 = SCX + 280 * SK + 4, ln = s.path(g, 'M' + x0 + ' ' + (GY - 130) + ' C' + (x0 + 120) + ' ' + (GY - 130) + ' ' + 900 + ' ' + y + ' ' + 1010 + ' ' + y, { stroke: INK, 'stroke-width': 2.4, opacity: 0.55 });
+        s.draw(ln, at - 0.4, { dur: 0.5 });
+        var ic = icon(s, g, i, 1060, y);
+        s.tween(ic, at - 0.05, { opacity: 0, scale: 0.6, transformOrigin: '50% 50%' }, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(2)' });
+        var tx = s.text('lead', '<b class="acc">' + (i + 1) + '</b>  ' + c, { left: 1130, top: y - 28, width: 640, fontSize: 36, lineHeight: 1.2 });
+        s.lines(tx, at);
+        s.gaze('baby', 9, i < 2 ? -6 : -2, at, 0.3);
+        s.squash('baby', 1.04, 0.96, at + 0.1, 0.1); s.squash('baby', 1, 1, at + 0.2, 0.25, 'back.out(3)');
+      });
+      s.actor('baby', { o: 0 }, 12.0, 0.35);
+      var src = s.text('cite', 'Д. Б. Эльконин: смена социальной ситуации развития запускает новый возраст', { left: 140, top: 1010, fontSize: 20 });
+      s.fade(src, 4.0, { y: 4 });
     }
   });
 })();
