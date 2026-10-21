@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>7–10 — герой вытягивается</title>
+<style>
+  @font-face { font-family: "DOMSans"; font-weight: 200 800; src: url("../assets/fonts/manrope-cyrillic-wght-normal.woff2") format("woff2"); }
+  @font-face { font-family: "DOMSerif"; font-weight: 400 900; src: url("../assets/fonts/playfair-display-cyrillic-wght-normal.woff2") format("woff2"); }
+  @font-face { font-family: "DOMHand"; src: url("../assets/fonts/marck-script-cyrillic.woff2") format("woff2"); }
+  html, body { margin: 0; background: #F6F2E9; }
+  .tag { font: 700 19px DOMSans, sans-serif; fill: #4B5563; letter-spacing: 0.08em; text-transform: uppercase; }
+  .h1 { font: 500 46px DOMSerif, serif; fill: #1D2733; }
+  .row { font: 700 19px DOMSans, sans-serif; fill: #1C7A71; letter-spacing: 0.08em; text-transform: uppercase; }
+  .note { font: 500 21px DOMSans, sans-serif; fill: #5B6470; }
+  .say { font: 28px DOMHand, cursive; fill: #1D2733; }
+</style>
+</head>
+<body>
+<svg id="s" width="1920" height="1080" viewBox="0 0 1920 1080"></svg>
+<script>
+'use strict';
+// «Герой вытягивается»: круг 0–1…3–7 → капсула 7–10 (тот же цвет и лицо; лицо — в верхнем круге капсулы, геометрия серии).
+// Окружение — синей шариковой ручкой, оценки — красной.
+var NS = 'http://www.w3.org/2000/svg', S = document.getElementById('s');
+function el(t, a, p) { var e = document.createElementNS(NS, t); for (var k in a) e.setAttribute(k, a[k]); (p || S).appendChild(e); return e; }
+function txt(x, y, cls, s, anchor) { var e = el('text', { x: x, y: y, class: cls, 'text-anchor': anchor || 'middle' }); e.textContent = s; return e; }
+var PEN = '#2F4A8A', RED = '#D9534F', CHILD = '#E4735A', ADULT = '#3E5A78', TEAL = '#26A69A', TEAL_D = '#1C7A71', PAPER = '#FFFDF8', INK = '#2B3440';
+var PEERS = ['#EC8A6F', '#F09A7E', '#E58468', '#F2A58B'];
+var MOUTH = { smile: 'M36 59 Q50 71 64 59', soft: 'M37 61 Q50 67 63 61', flat: 'M38 63 Q50 63 62 63', sad: 'M38 67 Q50 58 62 67' };
+var BROW = { calm: ['M31 33 Q38 30 45 32', 'M55 32 Q62 30 69 33'], focus: ['M31 32 Q38 31 45 34', 'M55 34 Q62 31 69 32'], proud: ['M31 30 Q38 25 45 28', 'M55 28 Q62 25 69 30'], sad: ['M31 35 Q38 31 45 29', 'M55 29 Q62 31 69 35'] };
+function line(d, w, c, p) { return el('path', { d: d, fill: 'none', stroke: c || PEN, 'stroke-width': w || 2.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, p); }
+
+// Человек-капсула: ширина 100, высота H (ребёнок 7–10 — 150, взрослый — 190); лицо в верхнем круге (0…100), как у круга серии.
+// o.circle — старый круг (для сравнения); o.hands — 'down' | 'up' | 'write' | 'catch'; o.seat — сидит: низ капсулы скрыт партой (тело, не голова)
+function person(x, y, w, color, o) {
+  o = o || {};
+  var H = o.circle ? 100 : (o.H || 150), k = w / 100;
+  var g = el('g', { transform: 'translate(' + (x - w / 2) + ' ' + (y - H * k) + ') scale(' + k + ')' });
+  if (o.backpack) { el('rect', { x: -22, y: 46, width: 40, height: 60, rx: 12, fill: TEAL, stroke: TEAL_D, 'stroke-width': 3 }, g); el('rect', { x: -14, y: 72, width: 16, height: 10, rx: 3, fill: '#F5D27A', stroke: TEAL_D, 'stroke-width': 2 }, g); }
+  el('rect', { x: 0, y: 0, width: 100, height: H, rx: 50, fill: color }, g);
+  // руки-точки — у боков капсулы, на уровне «плеч»
+  var hc = color === ADULT ? '#35506D' : shade(color);
+  if (o.hands === 'down') [[-4, 98], [104, 98]].forEach(function (h) { el('circle', { cx: h[0], cy: h[1], r: 13, fill: hc }, g); });
+  if (o.hands === 'up') { el('circle', { cx: -4, cy: 100, r: 13, fill: hc }, g); el('path', { d: 'M98 74 Q118 40 112 4', fill: 'none', stroke: hc, 'stroke-width': 11, 'stroke-linecap': 'round' }, g); el('circle', { cx: 112, cy: 0, r: 14, fill: hc }, g); }
+  if (o.hands === 'write') { el('circle', { cx: 30, cy: 120, r: 12, fill: hc }, g); el('circle', { cx: 74, cy: 116, r: 12, fill: hc }, g); el('path', { d: 'M78 114 L98 86', stroke: '#8B6A45', 'stroke-width': 6, 'stroke-linecap': 'round' }, g); }
+  var f = el('g', { transform: 'translate(' + (o.gx || 0) + ' ' + (o.gy || 0) + ')' }, g);
+  if (o.glasses) { // очки: глаза — внутри линз, бровей нет (оправа их заменяет), рот чуть ниже — на лице три элемента, а не пять
+    [36, 64].forEach(function (cx) { el('circle', { cx: cx, cy: 44, r: 10, fill: 'none', stroke: INK, 'stroke-width': 2.4 }, f); el('circle', { cx: cx, cy: 45, r: 4.2, fill: PAPER }, f); });
+    el('path', { d: 'M46 43 Q50 40 54 43', fill: 'none', stroke: INK, 'stroke-width': 2.4 }, f);
+    el('path', { d: 'M38 66 Q50 76 62 66', fill: 'none', stroke: PAPER, 'stroke-width': 4.2, 'stroke-linecap': 'round' }, f);
+  } else {
+    el('circle', { cx: 38, cy: 45, r: 4.6, fill: PAPER }, f); el('circle', { cx: 62, cy: 45, r: 4.6, fill: PAPER }, f);
+    el('path', { d: MOUTH[o.mouth || 'smile'], fill: 'none', stroke: PAPER, 'stroke-width': 4.2, 'stroke-linecap': 'round' }, f);
+    if (o.brow) BROW[o.brow].forEach(function (d) { el('path', { d: d, fill: 'none', stroke: PAPER, 'stroke-width': 3.2, 'stroke-linecap': 'round' }, f); });
+  }
+  if (o.bow) { el('path', { d: 'M70 4 l-15 -10 l0 20 Z M70 4 l15 -10 l0 20 Z', fill: TEAL }, g); el('circle', { cx: 70, cy: 4, r: 5, fill: TEAL_D }, g); }
+  if (o.collar) el('path', { d: 'M32 100 L50 112 L40 120 Z M68 100 L50 112 L60 120 Z', fill: PAPER }, g);
+  return g;
+}
+function shade(c) { return { '#E4735A': '#D2614A', '#EC8A6F': '#DA785E', '#F09A7E': '#DE886D', '#E58468': '#D37258', '#F2A58B': '#E0937A' }[c] || c; }
+function arrow(x1, x2, y) { line('M' + x1 + ' ' + y + ' H' + x2 + ' M' + (x2 - 12) + ' ' + (y - 9) + ' L' + x2 + ' ' + y + ' L' + (x2 - 12) + ' ' + (y + 9), 2.4, '#9AA1A6'); }
+
+el('rect', { x: 0, y: 0, width: 1920, height: 1080, fill: '#F6F2E9' });
+txt(140, 96, 'h1', 'Шаг 7–10: герой вытягивается', 'start');
+
+// 1 · рост героя по серии
+txt(140, 160, 'row', '1 · форма растёт с возрастом', 'start');
+var base = 430;
+person(220, base, 70, CHILD, { circle: true }); txt(220, base + 40, 'note', '0–1');
+person(360, base, 86, CHILD, { circle: true }); txt(360, base + 40, 'note', '1–3');
+person(510, base, 100, CHILD, { circle: true }); txt(510, base + 40, 'note', '3–7');
+arrow(580, 640, base - 50);
+person(720, base, 96, CHILD, { brow: 'calm', hands: 'down', collar: true }); txt(720, base + 40, 'tag', '7–10');
+txt(880, base - 160, 'note', 'Тот же цвет, то же лицо —', 'start');
+txt(880, base - 130, 'note', 'но круг вытянулся: у героя появился рост.', 'start');
+txt(880, base - 100, 'note', 'Тело без отдельной «головы»: ничего', 'start');
+txt(880, base - 70, 'note', 'не отрублено, руки-точки — у боков.', 'start');
+
+// 2 · герои
+txt(1340, 160, 'row', '2 · герои', 'start');
+person(1400, base, 90, CHILD, { brow: 'calm', hands: 'down', backpack: true, collar: true }); txt(1400, base + 40, 'tag', 'Миша');
+person(1540, base, 86, CHILD, { brow: 'calm', hands: 'down', bow: true }); txt(1540, base + 40, 'tag', 'Аня');
+person(1680, base, 86, CHILD, { glasses: true, hands: 'down' }); txt(1680, base + 40, 'tag', 'Дима');
+person(1830, base, 92, ADULT, { H: 190, brow: 'calm', hands: 'down' }); txt(1830, base + 40, 'tag', 'учитель');
+
+// 3 · действие: рука вверх — с «рукой», не точкой в воздухе
+txt(140, 540, 'row', '3 · действие руками', 'start');
+var b3 = 840;
+person(240, b3, 84, CHILD, { brow: 'calm', hands: 'down' }); txt(240, b3 + 40, 'note', 'стоит');
+person(420, b3, 84, CHILD, { brow: 'proud', hands: 'up', gy: -2 }); txt(420, b3 + 40, 'note', '«я знаю!»');
+// пишет за партой: парта закрывает только низ капсулы, руки и карандаш — поверх парты
+person(620, b3 + 20, 84, CHILD, { brow: 'focus', mouth: 'flat', gy: 4, collar: true });
+el('rect', { x: 530, y: b3 - 20, width: 190, height: 60, fill: '#F6F2E9' });
+line('M530 ' + (b3 - 20) + ' H710 M546 ' + (b3 - 20) + ' V' + (b3 + 30) + ' M694 ' + (b3 - 20) + ' V' + (b3 + 30), 2.8);
+el('circle', { cx: 598, cy: b3 - 26, r: 10, fill: '#D2614A' }); el('circle', { cx: 650, cy: b3 - 28, r: 10, fill: '#D2614A' });
+line('M654 ' + (b3 - 30) + ' L672 ' + (b3 - 56), 5, '#8B6A45');
+el('rect', { x: 560, y: b3 - 30, width: 70, height: 8, fill: PAPER, stroke: PEN, 'stroke-width': 1.6 });
+txt(625, b3 + 40, 'note', 'пишет');
+
+// 4 · окружение — шариковой ручкой по тетрадному листу; оценка — красной
+txt(860, 540, 'row', '4 · мир — синей шариковой ручкой', 'start');
+var px = 860, py = 580, pw = 960, ph = 330;
+el('rect', { x: px, y: py, width: pw, height: ph, fill: PAPER, stroke: '#E3DACB', 'stroke-width': 2 });
+for (var i = 1; i < pw / 30; i++) el('path', { d: 'M' + (px + i * 30) + ' ' + py + ' V' + (py + ph), stroke: '#D6E7E3', 'stroke-width': 1 });
+for (var j = 1; j < ph / 30; j++) el('path', { d: 'M' + px + ' ' + (py + j * 30) + ' H' + (px + pw), stroke: '#D6E7E3', 'stroke-width': 1 });
+el('path', { d: 'M' + (px + pw - 80) + ' ' + py + ' V' + (py + ph), stroke: RED, 'stroke-width': 1.6 });
+// доска, окно, парты — ручкой
+line('M900 620 H1150 V740 H900 Z', 2.8); var t = el('text', { x: 1025, y: 690, 'text-anchor': 'middle', style: 'font: 30px DOMHand; fill: #2F4A8A' }); t.textContent = '2 + 3 = 5';
+line('M1620 610 H1760 V720 H1620 Z M1690 610 V720 M1620 665 H1760', 2.6);
+person(1230, 800, 80, ADULT, { H: 190, brow: 'calm', hands: 'down', gx: 4 });
+[[1390, 880], [1580, 880]].forEach(function (d, i) {
+  var a = i ? { brow: 'calm', gx: -3 } : { brow: 'calm', gx: -3, backpack: true, collar: true };
+  var b = i ? { brow: 'calm', gx: -3 } : { brow: 'proud', gx: -3, bow: true, hands: 'up' };
+  person(d[0] - 42, d[1] + 10, 64, i ? PEERS[1] : CHILD, a);
+  person(d[0] + 42, d[1] + 10, 64, i ? PEERS[2] : CHILD, b);
+  el('rect', { x: d[0] - 96, y: d[1] - 22, width: 192, height: 50, fill: PAPER }); // передняя доска парты закрывает только низ
+  line('M' + (d[0] - 96) + ' ' + (d[1] - 22) + ' H' + (d[0] + 96) + ' M' + (d[0] - 84) + ' ' + (d[1] - 22) + ' V' + (d[1] + 26) + ' M' + (d[0] + 84) + ' ' + (d[1] - 22) + ' V' + (d[1] + 26), 2.8);
+  [[d[0] - 64, d[1] - 28], [d[0] - 20, d[1] - 28], [d[0] + 64, d[1] - 28]].forEach(function (h, j) { if (!(i === 0 && j === 2)) el('circle', { cx: h[0], cy: h[1], r: 8, fill: shade(i ? PEERS[1 + (j > 1 ? 1 : 0)] : CHILD) }); });
+});
+var m = el('text', { x: 1780, y: 900, 'text-anchor': 'middle', style: 'font: 54px DOMHand; fill: #D9534F' }); m.textContent = '5';
+
+txt(140, 990, 'note', 'Серия остаётся: цвета, лицо из точек, тонкая линия, бумага, своя музыка. Новое: круг вытягивается в рост (возраст «вытягивания»),', 'start');
+txt(140, 1024, 'note', 'у тела — руки; мир нарисован ручкой в тетради, а не карандашом, как воображение в 3–7.', 'start');
+</script>
+</body>
+</html>
