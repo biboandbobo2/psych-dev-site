@@ -5,48 +5,25 @@
   var INK = '#1D2733', TEAL = '#26A69A', DEEP = '#13534D', RED = '#D9534F', PAPER = '#FFFDF8', WOOD = '#C9A27A';
   var KIDS = ['#E4735A', '#EC8A6F', '#D9654B', '#F09A7E', '#C95A44'];
 
-  // Одноклассник: круг цвета ребёнка + примета (сверстники — отдельные люди, а не «ещё один ребёнок»)
+  // Одноклассник: голова-статист с лицом и приметой (Film.head — те же приметы, что у актёров)
+  var KIND = { glasses: ['buzz', true], pigtails: ['ponytail', false], cap: ['cap', false], freckles: ['curly', false], bow: ['bun', false], fringe: ['dima', false], '': [null, false] };
   function kid(s, g, x, y, r, i, attr) {
-    var k = s.node(g, 'g', {});
-    s.node(k, 'circle', { cx: x, cy: y, r: r, fill: KIDS[i % KIDS.length] });
-    var w = Math.max(2, r * 0.09), a = { stroke: INK, 'stroke-width': w, fill: 'none' };
-    if (attr === 'glasses') {
-      s.node(k, 'circle', Object.assign({ cx: x - r * 0.36, cy: y - r * 0.12, r: r * 0.24 }, a));
-      s.node(k, 'circle', Object.assign({ cx: x + r * 0.36, cy: y - r * 0.12, r: r * 0.24 }, a));
-      s.path(k, 'M' + (x - r * 0.12) + ' ' + (y - r * 0.14) + ' L' + (x + r * 0.12) + ' ' + (y - r * 0.14), { stroke: INK, 'stroke-width': w });
-    } else if (attr === 'pigtails') {
-      [-1, 1].forEach(function (d) {
-        s.node(k, 'circle', { cx: x + d * r * 1.02, cy: y - r * 0.2, r: r * 0.3, fill: '#7A4E2D' });
-        s.node(k, 'circle', { cx: x + d * r * 0.86, cy: y - r * 0.46, r: r * 0.12, fill: RED });
-      });
-    } else if (attr === 'cap') {
-      s.path(k, 'M' + (x - r * 0.92) + ' ' + (y - r * 0.36) + ' Q' + x + ' ' + (y - r * 1.5) + ' ' + (x + r * 0.92) + ' ' + (y - r * 0.36) + ' Z', { fill: TEAL, stroke: 'none' });
-      s.path(k, 'M' + (x + r * 0.5) + ' ' + (y - r * 0.4) + ' L' + (x + r * 1.45) + ' ' + (y - r * 0.32), { stroke: TEAL, 'stroke-width': r * 0.2 });
-    } else if (attr === 'freckles') {
-      [[-0.42, 0.18], [-0.28, 0.3], [-0.5, 0.36], [0.42, 0.18], [0.28, 0.3], [0.5, 0.36]].forEach(function (p) {
-        s.node(k, 'circle', { cx: x + p[0] * r, cy: y + p[1] * r, r: r * 0.055, fill: '#8C3B2A' });
-      });
-    } else if (attr === 'bow') {
-      s.path(k, 'M' + x + ' ' + (y - r * 0.95) + ' l' + (-r * 0.42) + ' ' + (-r * 0.26) + ' l0 ' + (r * 0.52) + ' Z M' + x + ' ' + (y - r * 0.95) + ' l' + (r * 0.42) + ' ' + (-r * 0.26) + ' l0 ' + (r * 0.52) + ' Z', { fill: TEAL, stroke: 'none' });
-    } else if (attr === 'fringe') {
-      s.path(k, 'M' + (x - r * 0.85) + ' ' + (y - r * 0.45) + ' Q' + x + ' ' + (y - r * 1.25) + ' ' + (x + r * 0.85) + ' ' + (y - r * 0.45) + ' Q' + x + ' ' + (y - r * 0.7) + ' ' + (x - r * 0.85) + ' ' + (y - r * 0.45) + ' Z', { fill: '#3E2A1E', stroke: 'none' });
-    }
-    return k;
+    var m = KIND[attr || ''] || [attr, false];
+    return Film.head(g, x, y, r, KIDS[i % KIDS.length], m[0], { glasses: m[1] });
   }
 
   // Класс в перспективе: ряды парт сходятся к точке схода; задние ряды мельче и закрыты передними
-  var ATTRS = ['glasses', 'pigtails', 'cap', 'freckles', 'bow', 'fringe', '', 'glasses', 'bow', 'cap'];
   function classroom(s, g, o) {
     o = o || {};
     var rows = o.rows || 4, cols = o.cols || 5, vx = o.vx || 960, vy = o.vy || 260, front = o.front || 900, back = o.back || 520;
-    var spots = [];
+    var spots = [], n = 0; // n — номер одноклассника по занятым местам: без дублей, если места героев пропущены
     for (var r = rows - 1; r >= 0; r--) { // сзади вперёд — передние ряды перекрывают задние
       var t = r / (rows - 1), y = front - (front - back) * t, k = 1 - 0.55 * t; // масштаб ряда
       var span = 1500 * k, x0 = vx - span / 2;
       for (var c = 0; c < cols; c++) {
         var cx = x0 + span * (c + 0.5) / cols, id = r * cols + c;
         if (o.skip && o.skip(r, c)) { spots.push({ r: r, c: c, x: cx, y: y, k: k }); continue; }
-        kid(s, g, cx, y - 64 * k, 40 * k, id, ATTRS[(id * 7) % ATTRS.length]);
+        classmate(g, n++, cx, y - 64 * k, 40 * k);
         desk(s, g, cx, y, k);
         spots.push({ r: r, c: c, x: cx, y: y, k: k });
       }
@@ -286,6 +263,18 @@
     });
   }
 
+  // Наш класс (v3): постоянный состав из 17 одноклассников + Миша, Аня, Дима = 20. Один и тот же ребёнок —
+  // одна и та же примета и цвет во всех сценах (шеренга, парты, двор), чтобы класс узнавался как одна компания.
+  var ROSTER = [
+    ['curly', 0, false], ['ponytail', 1, false], ['buzz', 2, true], ['cap', 3, false], ['bun', 4, false],
+    ['curly', 1, true], ['ponytail', 3, false], ['buzz', 0, false], [null, 2, false], ['cap', 4, false],
+    ['bun', 0, false], ['curly', 4, false], ['ponytail', 2, true], ['buzz', 3, false], [null, 1, false],
+    ['cap', 0, false], ['bun', 2, false]];
+  function classmate(g, i, x, y, r, o) {
+    var m = ROSTER[i % ROSTER.length];
+    return Film.head(g, x, y, r, KIDS[m[1]], m[0], { glasses: m[2], mouth: (o && o.mouth) || 'soft' });
+  }
+
   // Игрушечная лошадка — палочка-лошадка 3–7 в миниатюре, предмет видимого поля (плоская заливка, тёмный контур).
   // Предмет-эстафета эпизода 7–10. (x, y) — середина подставки снизу; размер при k = 1 ≈ 90 × 100
   function toyHorse(s, parent, x, y, k) {
@@ -317,5 +306,5 @@
     return id;
   }
 
-  Film.school = { toyHorse: toyHorse, cast: cast, CAST: CAST, pathsCard: pathsCard, KIDC: KIDC, tag: tag, schoolHouse: schoolHouse, tree: tree, bush: bush, bench: bench, ball: ball, kitchen: kitchen, phone: phone, pawn: pawn, knight: knight, helmet: helmet, flip: flip, glass: glass, setLevel: setLevel, walk: walk, say: say, WATER: WATER, kid: kid, classroom: classroom, desk: desk, house: house, board: board, ruled: ruled, INK: INK, TEAL: TEAL, DEEP: DEEP, RED: RED, PAPER: PAPER };
+  Film.school = { ROSTER: ROSTER, classmate: classmate, toyHorse: toyHorse, cast: cast, CAST: CAST, pathsCard: pathsCard, KIDC: KIDC, tag: tag, schoolHouse: schoolHouse, tree: tree, bush: bush, bench: bench, ball: ball, kitchen: kitchen, phone: phone, pawn: pawn, knight: knight, helmet: helmet, flip: flip, glass: glass, setLevel: setLevel, walk: walk, say: say, WATER: WATER, kid: kid, classroom: classroom, desk: desk, house: house, board: board, ruled: ruled, INK: INK, TEAL: TEAL, DEEP: DEEP, RED: RED, PAPER: PAPER };
 })();

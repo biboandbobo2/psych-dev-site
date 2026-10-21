@@ -1,44 +1,60 @@
-/* Итог: что вырастает (рефлексия), «паспорт возраста», финал — отъезд под цитату, «Приходите на курс» */
+/* Итог: что вырастает (рефлексия), «паспорт возраста», финал — игра на площадке и цитата, «Приходите на курс» */
 /* global Film */
 (function () {
   'use strict';
   var K = function () { return Film.school; };
   var INK = '#1D2733';
 
-  // 3:22,5 — Что вырастает: линии глав сходятся; двойник-наблюдатель сбоку (Д. Б. Эльконин, В. В. Давыдов)
+  // 4:45 — Что вырастает: Миша сам проверяет работу меркой; двойник смотрит со стороны (Д. Б. Эльконин, В. В. Давыдов)
   Film.scene({
-    id: 'grow', bars: 4,
+    id: 'grow', bars: 5,
     build: function (s) {
-      var g = s.svg(), ov = s.over(), CX = 1310, CY = 640;
-      s.actor('baby', { x: CX, y: CY, d: 110, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0.2, 0.4);
-      s.face('baby', true, 0.3, 0.2); s.mouth('baby', 'soft', 0.3, 0.01); s.gaze('baby', 0, 6, 0.3, 0.01); s.acc('baby', 'hero');
-      s.gaze('baby', 9, -4, 2.8, 0.3); // замечает двойника
-      var dk = s.node(ov, 'g', {}); K().desk(s, dk, CX, CY + 64, 1.1);
-      s.tween(dk, 0.2, { opacity: 0 }, { opacity: 1, duration: 0.4 });
-      [['по правилу', 860, 330], ['в уме', 1760, 330], ['нарочно', 860, 940], ['со стороны', 1760, 940]].forEach(function (l, i) {
-        var e = s.text('kidhand', l[0], { left: l[1] - 90, top: l[2] - 30, width: 180, textAlign: 'center', fontSize: 40 });
-        s.fade(e, 0.4 + i * 0.25, { y: 6 });
-        var p = s.path(g, 'M' + l[1] + ' ' + (l[2] + (l[2] < 600 ? 30 : -40)) + ' L' + (CX + (l[1] < CX ? -70 : 70)) + ' ' + (CY + (l[2] < 600 ? -60 : 60)), { stroke: K().TEAL, 'stroke-width': 3, 'stroke-dasharray': '6 8' });
-        s.dash(p, 0.6 + i * 0.25, { dur: 0.6 });
-      });
-      // двойник: контур сбоку смотрит на ребёнка (в 3–7 контур был «на голову выше»)
+      var g = s.svg({ top: 40 }), ov = s.over({ top: 40 });
+      K().cast(s, 'misha', 760, 640, 130, 0, { mouth: 'soft', gx: 8, gy: 5 });
+      K().desk(s, g, 760, 700, 1.3);
+      // тетрадь с палочками; одна кривая
+      s.node(g, 'rect', { x: 980, y: 470, width: 540, height: 290, rx: 6, fill: '#FFFDF8', stroke: '#D9D0C4', 'stroke-width': 2 });
+      for (var y = 500; y < 760; y += 30) s.path(g, 'M980 ' + y + ' H1520', { stroke: '#DCE8EC', 'stroke-width': 1.5 });
+      for (var x = 1000; x < 1520; x += 30) s.path(g, 'M' + x + ' 470 V760', { stroke: '#DCE8EC', 'stroke-width': 1.5 });
+      var bad;
+      for (var i = 0; i < 7; i++) {
+        var sx = 1040 + i * 65;
+        var st = s.path(g, i === 4 ? 'M' + (sx - 20) + ' 560 L' + (sx + 18) + ' 680' : 'M' + sx + ' 560 V680', { stroke: K().DEEP, 'stroke-width': 7 });
+        if (i === 4) bad = st;
+      }
+      // мерка едет вдоль палочек и останавливается у кривой
+      var ruler = s.node(ov, 'rect', { x: 1060, y: 545, width: 24, height: 150, rx: 4, fill: '#C9A27A', stroke: INK, 'stroke-width': 2.5 });
+      s.tween(ruler, 0.9, { opacity: 0, y: -30 }, { opacity: 1, y: 0, duration: 0.4 });
+      s.tween(ruler, 1.4, { x: 0 }, { x: 266, duration: 1.2, ease: 'power1.inOut' });
+      s.gaze('baby', 9, 3, 1.4, 1.2);
+      s.tween(bad, 2.8, { opacity: 1 }, { opacity: 0, duration: 0.25 });
+      var fix = s.path(g, 'M1300 560 V680', { stroke: K().DEEP, 'stroke-width': 7 });
+      s.draw(fix, 3.0, { dur: 0.4 });
+      s.mouth('baby', 'smile', 3.3, 0.3);
+      s.out(ruler, 4.0, { dur: 0.4 });
+      // двойник: контур сбоку смотрит на Мишу
       var dbl = s.node(ov, 'g', {});
-      s.node(dbl, 'circle', { cx: CX + 200, cy: CY - 40, r: 55, fill: 'none', stroke: K().DEEP, 'stroke-width': 4, 'stroke-dasharray': '10 9' });
-      s.node(dbl, 'circle', { cx: CX + 176, cy: CY - 48, r: 5, fill: K().DEEP });
-      s.node(dbl, 'circle', { cx: CX + 196, cy: CY - 48, r: 5, fill: K().DEEP });
-      s.tween(dbl, 2.4, { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.6, ease: 'power2.out' });
-      var dl = s.text('tag', 'Миша смотрит на себя', { left: CX + 30, top: CY - 150, width: 340, color: 'var(--accent-deep)' }); s.fade(dl, 2.8, { y: 4 });
-      var t1 = s.text('h3', 'Главное, что вырастает, — <span class="acc">рефлексия</span>:', { left: 140, top: 150, width: 1640 });
-      s.fade(t1, 3.0, { y: 10 });
-      var t2 = s.text('lead', 'посмотреть на себя со стороны — как я думаю и учусь.', { left: 140, top: 230, width: 620 });
-      s.lines(t2, 4.4);
-      var c = s.text('cite', 'ближе всего — metacognition · Д. Б. Эльконин, В. В. Давыдов', { left: 140, top: 990, fontSize: 20 });
-      s.fade(c, 6.0, { y: 4 });
-      s.actor('baby', { o: 0 }, 9.4, 0.4);
+      s.node(dbl, 'circle', { cx: 560, cy: 470, r: 72, fill: 'none', stroke: K().DEEP, 'stroke-width': 4, 'stroke-dasharray': '10 9' });
+      s.node(dbl, 'circle', { cx: 572, cy: 466, r: 6, fill: K().DEEP });
+      s.node(dbl, 'circle', { cx: 600, cy: 466, r: 6, fill: K().DEEP });
+      s.tween(dbl, 3.4, { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.6, ease: 'power2.out' });
+      // вехи трёх дорожек — четыре слова
+      [['по правилу', 'misha', 0.4], ['в уме', 'anya', 0.8], ['нарочно', 'dima', 1.2], ['со стороны', null, 3.5]].forEach(function (w, i) {
+        var cx = 330 + i * 420;
+        var d = s.node(g, 'circle', { cx: cx - 110, cy: 862, r: 11, fill: w[1] ? K().KIDC[w[1]] : K().DEEP });
+        s.pop(d, w[2], { from: 0.3, dur: 0.4 });
+        var e = s.text('kidhand', w[0], { left: cx - 90, top: 872, fontSize: 48, color: '#13534D' });
+        s.fade(e, w[2] + 0.1, { y: 6 });
+      });
+      var t1 = s.text('h3', 'Главное, что вырастает, — <span class="acc">рефлексия</span>: умение посмотреть на себя со стороны и проверить, как я думаю и учусь.', { left: 140, top: 140, width: 1640, fontSize: 44 });
+      s.lines(t1, 4.0);
+      var c = s.text('cite', 'ближе всего — metacognition · Д. Б. Эльконин, В. В. Давыдов', { left: 140, top: 1010, fontSize: 20 });
+      s.fade(c, 5.0, { y: 4 });
+      s.actor('baby', { o: 0 }, 12.1, 0.3);
     }
   });
 
-  // 3:32,5 — Что запомнить: «паспорт возраста» (семь строк); фамилии — одной колонкой справа
+  // 4:57,5 — Что запомнить: «паспорт возраста» (семь строк); фамилии — одной колонкой справа
   Film.scene({
     id: 'summary', bars: 5,
     build: function (s) {
@@ -48,7 +64,7 @@
       s.lines(h, 0.2);
       var rows = [
         ['Социальная ситуация', 'Ученик: дело оценивает общественный взрослый — учитель', 'Д. Б. Эльконин'],
-        ['Ведущая деятельность', 'Учебная', 'Д. Б. Эльконин, В. В. Давыдов'],
+        ['Ведущая деятельность', 'Учебная (игра остаётся)', 'Д. Б. Эльконин, В. В. Давыдов'],
         ['Доминирующая функция', 'Мышление: память и внимание становятся произвольными', 'Л. С. Выготский'],
         ['Новообразования', 'Рефлексия, произвольность, внутренний план действий', ''],
         ['Кризис', 'Нет: стабильный период; впереди — подростковый кризис', 'Д. Б. Эльконин'],
@@ -58,11 +74,11 @@
       var col = s.div('', { left: 140, top: 310, width: 1640, display: 'flex', flexDirection: 'column', gap: '0px' });
       rows.forEach(function (r, i) {
         var row = Film.el('div', 'passport-row', col);
-        row.style.padding = '14px 0 14px';
+        row.style.padding = '22px 0 22px';
         var kk = Film.el('div', 'passport-k', row, r[0]);
         kk.style.width = '420px';
         var v = Film.el('div', 'passport-v', row, r[1]);
-        v.style.fontSize = '29px'; v.style.flex = '1';
+        v.style.fontSize = '31px'; v.style.flex = '1';
         var a = Film.el('div', 'passport-a', row, r[2]);
         a.style.width = '360px';
         s.fade(row, 0.8 + i * 0.8, { y: 10, dur: 0.7 });
@@ -70,45 +86,56 @@
     }
   });
 
-  // 3:45 — Финал: вещи эпизода кружат вокруг ребёнка → отъезд; цитата из лекции (мир не вращается вокруг него)
+  // 5:10 — Финал: площадка, трое играют; палочка из пенала снова становится лошадью; Миша прыгает выше всех — наезд; цитата
   Film.scene({
     id: 'outro', bars: 5,
     build: function (s) {
-      var CX = 960, CY = 470, ov = s.over();
-      s.actor('baby', { x: CX, y: CY, d: 100, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0.2, 0.5);
-      s.face('baby', true, 0.3, 0.3); s.mouth('baby', 'smile', 0.3, 0.01); s.gaze('baby', 0, -2, 0.3, 0.01); s.acc('baby', 'hero');
-      // значки эпизода по кругу: палочка, стакан, числовая прямая, медведь, шахматная фигура, велосипед
-      var orb = s.node(ov, 'g', {}), R = 210, a = { fill: 'none', stroke: K().DEEP, 'stroke-width': 4 };
-      var ICON = [
-        function (x, y) { s.path(orb, 'M' + x + ' ' + (y - 34) + ' V' + (y + 34), { stroke: '#8B6A45', 'stroke-width': 8 }); },
-        function (x, y) { s.node(orb, 'rect', { x: x - 18, y: y + 4, width: 36, height: 26, fill: '#9CC3D5' }); s.path(orb, 'M' + (x - 22) + ' ' + (y - 30) + ' V' + (y + 30) + ' H' + (x + 22) + ' V' + (y - 30), a); },
-        function (x, y) { s.path(orb, 'M' + (x - 44) + ' ' + y + ' H' + (x + 44) + ' M' + (x - 44) + ' ' + (y - 10) + ' V' + (y + 10) + ' M' + (x + 44) + ' ' + (y - 10) + ' V' + (y + 10) + ' M' + (x - 14) + ' ' + (y - 14) + ' V' + (y + 14), a); },
-        function (x, y) { s.node(orb, 'ellipse', Object.assign({ cx: x - 6, cy: y, rx: 34, ry: 20 }, a)); s.node(orb, 'circle', Object.assign({ cx: x + 32, cy: y - 10, r: 13 }, a)); },
-        function (x, y) { s.path(orb, 'M' + (x - 22) + ' ' + (y + 30) + ' H' + (x + 22) + ' M' + (x - 14) + ' ' + (y + 30) + ' Q' + (x - 8) + ' ' + y + ' ' + (x - 16) + ' ' + (y - 10) + ' Q' + (x - 4) + ' ' + (y - 34) + ' ' + (x + 18) + ' ' + (y - 22) + ' L' + (x + 14) + ' ' + (y + 30), a); },
-        function (x, y) { s.node(orb, 'circle', Object.assign({ cx: x - 24, cy: y + 12, r: 16 }, a)); s.node(orb, 'circle', Object.assign({ cx: x + 24, cy: y + 12, r: 16 }, a)); s.path(orb, 'M' + (x - 24) + ' ' + (y + 12) + ' L' + (x - 4) + ' ' + (y - 14) + ' L' + (x + 24) + ' ' + (y + 12), a); }
-      ];
-      ICON.forEach(function (f, i) { var an = -Math.PI / 2 + i * Math.PI / 3; f(CX + R * Math.cos(an), CY + R * Math.sin(an)); });
-      s.tween(orb, 0.4, { opacity: 0, scale: 0.6, svgOrigin: CX + ' ' + CY }, { opacity: 1, scale: 1, duration: 0.8, ease: 'power3.out' });
-      s.tween(orb, 0.4, { rotation: 0, svgOrigin: CX + ' ' + CY }, { rotation: 120, duration: 4.0, ease: 'sine.inOut' });
-      // отъезд: класс, школа — ребёнок становится точкой
-      var g = s.svg(), city = s.node(g, 'g', { opacity: 0 });
-      K().classroom(s, city, { vx: CX, vy: CY - 600, front: CY + 900, back: CY + 420, rows: 3, cols: 7 });
-      Film.icons.school(s, city, CX - 900, CY - 300, 3.2, { at: 2.6, dur: 1.0, seed: 77 });
-      s.tween(city, 2.6, { opacity: 0 }, { opacity: 0.55, duration: 1.0 });
-      s.tween([city, orb], 3.6, { opacity: 0.55 }, { opacity: 0.28, duration: 0.8 }); // под цитату — приглушить
-      s.cam({ cx: CX, cy: CY, z: 1 }, 0, 0.01);
-      s.cam({ cx: CX, cy: CY + 80, z: 0.42 }, 2.4, 3.0, 'power2.inOut');
-      var q = s.hud('quote', '«Ребёнок понимает, что мир не вращается вокруг него. Зато он может играть по-крупному и научиться многому — могущество от слова „могу“»', { left: 210, top: 690, width: 1500, textAlign: 'center', fontSize: 42 });
-      s.tween(q, 3.4, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 1.0, ease: 'power3.out' });
-      s.tween(q, 12.0, { opacity: 1 }, { opacity: 0, duration: 0.4 });
-      var c = s.hud('cite', 'из лекции курса «Психология развития» о младшем школьном возрасте', { left: 360, top: 900, width: 1200, textAlign: 'center' });
-      s.tween(c, 4.6, { opacity: 0 }, { opacity: 1, duration: 0.6 });
-      s.tween(c, 12.0, { opacity: 1 }, { opacity: 0, duration: 0.4 });
-      s.actor('baby', { o: 0 }, 12.0, 0.4);
+      var g = s.svg(), ov = s.over(), GY = 800;
+      s.path(g, 'M0 ' + GY + ' H1920', { stroke: '#CDC3B4', 'stroke-width': 3 });
+      K().tree(s, g, 1840, GY, 1.0);
+      // горка
+      s.path(g, 'M180 ' + GY + ' V520 H250 V' + GY + ' M250 540 Q330 560 380 700 Q410 780 470 ' + GY, { stroke: INK, 'stroke-width': 5 });
+      s.path(g, 'M180 560 H250 M180 620 H250 M180 680 H250 M180 740 H250', { stroke: INK, 'stroke-width': 3 });
+      // качели
+      s.path(g, 'M1450 ' + GY + ' L1520 500 L1590 ' + GY + ' M1640 ' + GY + ' L1710 500 L1780 ' + GY + ' M1500 500 H1730', { stroke: INK, 'stroke-width': 5 });
+      var sw = s.node(g, 'g', {});
+      s.path(sw, 'M1580 500 V690 M1650 500 V690', { stroke: INK, 'stroke-width': 2.5 });
+      s.node(sw, 'rect', { x: 1570, y: 688, width: 90, height: 12, rx: 4, fill: '#C9A27A', stroke: INK, 'stroke-width': 2.5 });
+      K().classmate(sw, 7, 1615, 646, 36, { mouth: 'smile' });
+      s.tween(sw, 0, { rotation: -10, svgOrigin: '1615 500' }, { rotation: 10, duration: 1.6, ease: 'sine.inOut', repeat: 1, yoyo: true });
+      K().classmate(g, 9, 230, 480, 34, { mouth: 'smile' });
+      K().classmate(g, 11, 1300, GY - 38, 38, { mouth: 'smile' });
+      K().classmate(g, 13, 1390, GY - 34, 34, { mouth: 'smile' });
+      // скамейка с пеналом
+      K().bench(s, g, 400, GY, 0.9);
+      s.node(g, 'rect', { x: 350, y: 726, width: 90, height: 20, rx: 8, fill: '#26A69A', stroke: INK, 'stroke-width': 2.5 });
+      K().cast(s, 'dima', 560, GY - 45, 90, 0.05, { gx: 8 });
+      K().cast(s, 'misha', 940, GY - 45, 90, 0.05, { gx: -6 });
+      K().cast(s, 'anya', 1150, GY - 45, 90, 0.05, { gx: -8 });
+      // палочка из пенала → лошадь
+      var stick = s.path(g, 'M395 730 L395 650', { stroke: '#8B6A45', 'stroke-width': 9 });
+      s.tween(stick, 0.1, { opacity: 0 }, { opacity: 1, duration: 0.2 });
+      s.tween(stick, 0.3, { x: 0, y: 0 }, { x: 215, y: -20, duration: 0.4, ease: 'power2.inOut' });
+      s.set(stick, 0.7, { opacity: 1 }, { opacity: 0 });
+      var horse = Film.icons.horse(s, ov, 610, 740, 0.6, { stick: 120, at: 0.7, dur: 0.6, seed: 5 });
+      [1.3, 1.95].forEach(function (t) { s.hop('kid3', s.A.kid3.st.x + 70, GY - 45, t, 0.5, 46); Film.ride(s, horse, 70, t, 0.5, 46); });
+      s.mouth('kid3', 'smile', 1.3, 0.2);
+      // Миша прыгает выше всех
+      s.hop('baby', 940, GY - 45, 1.5, 0.7, 190);
+      s.hop('kid2', 1150, GY - 45, 1.6, 0.4, 50);
+      s.gaze('kid2', -6, -6, 1.6, 0.3); s.gaze('kid3', 6, -4, 2.4, 0.3);
+      s.cam({ cx: 960, cy: 640, z: 1.2 }, 0, 0.01);
+      s.cam({ cx: 940, cy: 857, z: 1.5 }, 2.4, 1.0, 'power2.inOut');
+      var q = s.hud('quote', '«Ребёнок понимает, что мир не вращается вокруг него. Зато он может играть по-крупному и научиться многому — могущество от слова „могу“»', { left: 190, top: 680, width: 1540, textAlign: 'center', fontSize: 42, background: 'rgba(255, 253, 248, 0.94)', padding: '14px 24px 16px', borderRadius: 14 });
+      s.tween(q, 3.0, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' });
+      var c = s.hud('cite', 'из лекции курса «Психология развития» о младшем школьном возрасте', { left: 360, top: 930, width: 1200, textAlign: 'center' });
+      s.tween(c, 3.6, { opacity: 0 }, { opacity: 1, duration: 0.5 });
+      s.out([q, c], 12.0, { dur: 0.4 });
+      ['baby', 'kid2', 'kid3'].forEach(function (id) { s.actor(id, { o: 0 }, 12.1, 0.3); });
     }
   });
 
-  // 3:57,5 — Приходите на курс: QR-коды; карта курса; ребёнок переходит к 10–13
+  // 5:22,5 — Приходите на курс: QR-коды; карта курса; ребёнок переходит к 10–13
   Film.scene({
     id: 'final', bars: 3, hold: true,
     build: function (s) {

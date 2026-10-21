@@ -213,7 +213,7 @@
 
   // Приметы героев (с эпизода 7–10, v3): волосы — «шапочка» по дуге самого круга (r 50, центр 50,50),
   // поэтому не висят в воздухе; пучок, косички и банты частично закрыты шапочкой; очки — в группе глаз (face.g)
-  var HAIR = { brown: '#6B4A2E', dark: '#4A2F1D', light: '#B7834F', grey: '#9AA1A6', black: '#2E2420' };
+  var HAIR = { brown: '#6B4A2E', dark: '#4A2F1D', light: '#EBC46A', grey: '#9AA1A6', black: '#2E2420' };
   function cap(S, yL, yR, line, fill) { // дуга по кругу от левой точки (y = yL) до правой (y = yR) + линия роста волос
     var R = 51.5, xl = 50 - Math.sqrt(R * R - (yL - 50) * (yL - 50)), xr = 50 + Math.sqrt(R * R - (yR - 50) * (yR - 50)); // чуть шире круга — без светлого ободка
     svg('path', { d: 'M' + xl.toFixed(1) + ' ' + yL + ' A' + R + ' ' + R + ' 0 0 1 ' + xr.toFixed(1) + ' ' + yR + ' ' + line.replace('0.0', xl.toFixed(1)) + ' Z', fill: fill }, S);
