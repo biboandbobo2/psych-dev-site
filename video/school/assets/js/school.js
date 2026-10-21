@@ -286,5 +286,36 @@
     });
   }
 
-  Film.school = { pathsCard: pathsCard, KIDC: KIDC, tag: tag, schoolHouse: schoolHouse, tree: tree, bush: bush, bench: bench, ball: ball, kitchen: kitchen, phone: phone, pawn: pawn, knight: knight, helmet: helmet, flip: flip, glass: glass, setLevel: setLevel, walk: walk, say: say, WATER: WATER, kid: kid, classroom: classroom, desk: desk, house: house, board: board, ruled: ruled, INK: INK, TEAL: TEAL, DEEP: DEEP, RED: RED, PAPER: PAPER };
+  // Игрушечная лошадка — палочка-лошадка 3–7 в миниатюре, предмет видимого поля (плоская заливка, тёмный контур).
+  // Предмет-эстафета эпизода 7–10. (x, y) — середина подставки снизу; размер при k = 1 ≈ 90 × 100
+  function toyHorse(s, parent, x, y, k) {
+    k = k || 1;
+    var g = s.node(parent, 'g', {}), P = function (pts) { return pts.map(function (q, i) { return (i ? 'L' : 'M') + (x + q[0] * k).toFixed(1) + ' ' + (y + q[1] * k).toFixed(1); }).join(' ') + ' Z'; };
+    var BODY = '#D9955E', MANE = '#7A4A2A';
+    s.node(g, 'rect', Object.assign({ x: x - 44 * k, y: y - 12 * k, width: 88 * k, height: 12 * k, rx: 5 * k }, A('#2B8F84', 2.5)));
+    [-28, 28].forEach(function (dx) { s.node(g, 'circle', Object.assign({ cx: x + dx * k, cy: y + 2 * k, r: 7 * k }, A('#F5D27A', 2.5))); });
+    [[-26, -12, -22, -44], [-12, -12, -10, -44], [14, -12, 12, -44], [28, -12, 26, -44]].forEach(function (l) {
+      s.path(g, 'M' + (x + l[0] * k) + ' ' + (y + l[1] * k) + ' L' + (x + l[2] * k) + ' ' + (y + l[3] * k), { stroke: INK, 'stroke-width': 7 * k, 'stroke-linecap': 'round' });
+    });
+    s.path(g, P([[-36, -40], [-34, -66], [14, -70], [22, -78], [28, -98], [44, -102], [56, -88], [46, -80], [40, -62], [36, -40]]), A(BODY, 2.5));
+    s.path(g, P([[24, -76], [30, -98], [22, -92], [16, -70]]), { fill: MANE });
+    s.path(g, 'M' + (x - 34 * k) + ' ' + (y - 58 * k) + ' Q' + (x - 50 * k) + ' ' + (y - 52 * k) + ' ' + (x - 46 * k) + ' ' + (y - 36 * k), { stroke: MANE, 'stroke-width': 6 * k, 'stroke-linecap': 'round', fill: 'none' });
+    s.node(g, 'circle', { cx: x + 42 * k, cy: y - 88 * k, r: 2.8 * k, fill: INK });
+    return g;
+  }
+
+  // Герои эпизода: актёр + его приметы (одна примета — одному актёру на весь эпизод)
+  var CAST = { misha: ['baby', ['hero']], anya: ['kid2', ['anya']], dima: ['kid3', ['dima', 'glasses']],
+    mom: ['adult', ['bun']], teacher: ['adult2', ['teacher', 'glasses']], dad: ['dad', ['dad']] };
+  function cast(s, who, x, y, d, lt, o) {
+    o = o || {};
+    var c = CAST[who], id = c[0];
+    s.actor(id, { x: x, y: y, d: d, o: 0 }, 0, 0.01);
+    s.actor(id, { o: 1 }, lt, o.dur == null ? 0.4 : o.dur);
+    s.face(id, true, lt, 0.01); s.mouth(id, o.mouth || 'smile', lt, 0.01); s.gaze(id, o.gx || 0, o.gy || -2, lt, 0.01);
+    c[1].forEach(function (k) { s.acc(id, k); });
+    return id;
+  }
+
+  Film.school = { toyHorse: toyHorse, cast: cast, CAST: CAST, pathsCard: pathsCard, KIDC: KIDC, tag: tag, schoolHouse: schoolHouse, tree: tree, bush: bush, bench: bench, ball: ball, kitchen: kitchen, phone: phone, pawn: pawn, knight: knight, helmet: helmet, flip: flip, glass: glass, setLevel: setLevel, walk: walk, say: say, WATER: WATER, kid: kid, classroom: classroom, desk: desk, house: house, board: board, ruled: ruled, INK: INK, TEAL: TEAL, DEEP: DEEP, RED: RED, PAPER: PAPER };
 })();
