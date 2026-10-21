@@ -75,7 +75,7 @@
   function classroom(s, g, o) {
     o = o || {};
     var G = s.node(g, 'g', {});
-    var floor = o.floor || 980;
+    var floor = o.floor || 900; // пол класса — на 900: под ним место для вывода во всех главах (одна высота во всём ролике)
     ln(s, G, 'M60 ' + floor + ' H1860', 2.4, FLOOR);
     rect(s, G, 1640, 170, 200, 220, GLASS, 3, 6); ln(s, G, 'M1740 170 V390 M1640 280 H1840', 2.4);
     s.node(G, 'circle', Object.assign({ cx: 1240, cy: 200, r: 44 }, L(3, PAPER))); ln(s, G, 'M1240 200 v-28 M1240 200 h20', 3);
