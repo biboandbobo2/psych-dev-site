@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>7–10 — шаг от 3–7, лист</title>
+<style>
+  @font-face { font-family: "DOMSans"; font-weight: 200 800; src: url("../assets/fonts/manrope-cyrillic-wght-normal.woff2") format("woff2"); }
+  @font-face { font-family: "DOMSerif"; font-weight: 400 900; src: url("../assets/fonts/playfair-display-cyrillic-wght-normal.woff2") format("woff2"); }
+  html, body { margin: 0; background: #F6F2E9; }
+  .tag { font: 700 20px DOMSans, sans-serif; fill: #4B5563; letter-spacing: 0.08em; text-transform: uppercase; }
+  .h1 { font: 500 46px DOMSerif, serif; fill: #1D2733; }
+  .row { font: 700 19px DOMSans, sans-serif; fill: #1C7A71; letter-spacing: 0.08em; text-transform: uppercase; }
+  .note { font: 500 21px DOMSans, sans-serif; fill: #5B6470; }
+</style>
+</head>
+<body>
+<svg id="s" width="1920" height="1080" viewBox="0 0 1920 1080"></svg>
+<script>
+'use strict';
+// Лист «шаг от 3–7 к 7–10»: лицо — точная геометрия серии (lib.js addFace: глаза 38/62·45, r 4.6; рот M36 59 Q50 71 64 59),
+// взгляд сдвигает лицо целиком. Шаги: брови (эмоции тоньше), руки-точки (действие), вещь-примета (личность), линия по линейке и глубина.
+var NS = 'http://www.w3.org/2000/svg', S = document.getElementById('s');
+function el(t, a, p) { var e = document.createElementNS(NS, t); for (var k in a) e.setAttribute(k, a[k]); (p || S).appendChild(e); return e; }
+function txt(x, y, cls, s, anchor) { var e = el('text', { x: x, y: y, class: cls, 'text-anchor': anchor || 'middle' }); e.textContent = s; return e; }
+var INK = '#2B3440', GRAPH = '#5A5F66', CHILD = '#E4735A', ADULT = '#3E5A78', TEAL = '#26A69A', TEAL_D = '#1C7A71', PAPER = '#FFFDF8';
+var MOUTH = { smile: 'M36 59 Q50 71 64 59', soft: 'M37 61 Q50 67 63 61', flat: 'M38 63 Q50 63 62 63', sad: 'M38 67 Q50 58 62 67', o: 'M45 63 Q50 70 55 63 Q50 58 45 63' };
+var BROW = { calm: ['M30 33 Q38 29 46 32', 'M54 32 Q62 29 70 33'], focus: ['M31 32 Q38 31 45 34', 'M55 34 Q62 31 69 32'],
+  doubt: ['M30 34 Q38 30 46 33', 'M54 29 Q62 26 70 30'], proud: ['M30 30 Q38 24 46 28', 'M54 28 Q62 24 70 30'], sad: ['M31 35 Q38 31 45 29', 'M55 29 Q62 31 69 35'] };
+
+// Герой: круг — весь человек; лицо в коробке 0…100, как в движке серии
+function hero(x, y, r, color, o) {
+  o = o || {};
+  var g = el('g', { transform: 'translate(' + (x - r) + ' ' + (y - r) + ') scale(' + (r / 50) + ')' });
+  if (o.backpack) { el('rect', { x: -26, y: 30, width: 36, height: 50, rx: 10, fill: TEAL, stroke: TEAL_D, 'stroke-width': 3 }, g); el('rect', { x: -18, y: 52, width: 14, height: 9, rx: 3, fill: '#F5D27A', stroke: TEAL_D, 'stroke-width': 2 }, g); }
+  el('circle', { cx: 50, cy: 50, r: 50, fill: color }, g);
+  var f = el('g', { transform: 'translate(' + (o.gx || 0) + ' ' + (o.gy || 0) + ')' }, g); // взгляд — всё лицо целиком
+  el('circle', { cx: 38, cy: 45, r: 4.6, fill: PAPER }, f);
+  el('circle', { cx: 62, cy: 45, r: 4.6, fill: PAPER }, f);
+  el('path', { d: MOUTH[o.mouth || 'smile'], fill: o.mouth === 'o' ? PAPER : 'none', stroke: PAPER, 'stroke-width': 4.2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, f);
+  if (o.brow) BROW[o.brow].forEach(function (d) { el('path', { d: d, fill: 'none', stroke: PAPER, 'stroke-width': 3.2, 'stroke-linecap': 'round' }, f); });
+  if (o.glasses) { [38, 62].forEach(function (cx) { el('circle', { cx: cx, cy: 45, r: 9, fill: 'none', stroke: INK, 'stroke-width': 2.6 }, f); }); el('path', { d: 'M47 45 H53', stroke: INK, 'stroke-width': 2.6 }, f); }
+  if (o.bow) { el('path', { d: 'M66 7 l-15 -10 l0 20 Z M66 7 l15 -10 l0 20 Z', fill: TEAL }, g); el('circle', { cx: 66, cy: 7, r: 5, fill: TEAL_D }, g); }
+  if (o.hands) o.hands.forEach(function (h) { el('circle', { cx: h[0], cy: h[1], r: 9, fill: color }, g); });
+  if (o.pencil) el('path', { d: o.pencil, stroke: '#8B6A45', 'stroke-width': 5, 'stroke-linecap': 'round' }, g);
+  return g;
+}
+function line(d, w, c) { return el('path', { d: d, fill: 'none', stroke: c || INK, 'stroke-width': w || 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }); }
+function arrow(x1, x2, y) { line('M' + x1 + ' ' + y + ' H' + x2 + ' M' + (x2 - 12) + ' ' + (y - 9) + ' L' + x2 + ' ' + y + ' L' + (x2 - 12) + ' ' + (y + 9), 2.6, '#9AA1A6'); }
+
+el('rect', { x: 0, y: 0, width: 1920, height: 1080, fill: '#F6F2E9' });
+txt(140, 110, 'h1', 'Шаг от 3–7 к 7–10', 'start');
+
+// Ряд 1: тот же герой — по шагам
+txt(140, 190, 'row', '1 · герой: что добавляется', 'start');
+var Y = 330;
+hero(230, Y, 66, CHILD, {}); txt(230, Y + 110, 'tag', '3–7'); txt(230, Y + 140, 'note', 'как было');
+arrow(330, 400, Y);
+hero(510, Y, 70, CHILD, { brow: 'calm' }); txt(510, Y + 110, 'tag', '+ брови'); txt(510, Y + 140, 'note', 'эмоции тоньше');
+arrow(610, 680, Y);
+hero(800, Y, 70, CHILD, { brow: 'focus', mouth: 'flat', gy: 4, hands: [[78, 104], [104, 92]], pencil: 'M100 96 L122 66' }); txt(800, Y + 110, 'tag', '+ руки-точки'); txt(800, Y + 140, 'note', 'когда действует');
+arrow(900, 970, Y);
+hero(1100, Y, 70, CHILD, { brow: 'proud', backpack: true }); txt(1100, Y + 110, 'tag', '+ своя вещь'); txt(1100, Y + 140, 'note', 'Миша — ранец');
+hero(1330, Y, 66, CHILD, { brow: 'calm', bow: true }); txt(1330, Y + 110, 'tag', 'Аня — бант');
+hero(1540, Y, 66, CHILD, { brow: 'calm', glasses: true }); txt(1540, Y + 110, 'tag', 'Дима — очки');
+hero(1760, Y - 10, 82, ADULT, { brow: 'calm' }); txt(1760, Y + 110, 'tag', 'Ирина Петровна');
+
+// Ряд 2: брови дают эмоции, которых в 3–7 не было
+txt(140, 560, 'row', '2 · брови: эмоции возраста — сомнение, сосредоточенность, гордость', 'start');
+[['calm', 'smile', 'спокоен'], ['focus', 'flat', 'сосредоточен'], ['doubt', 'soft', 'сомневается'], ['proud', 'smile', 'гордится'], ['sad', 'sad', 'огорчён'], ['doubt', 'o', 'удивлён']].forEach(function (e, i) {
+  var x = 250 + i * 250; hero(x, 680, 58, CHILD, { brow: e[0], mouth: e[1] }); txt(x, 775, 'note', e[2]);
+});
+
+// Ряд 3: линия — от графита 3–7 к чернилам по линейке и глубине
+txt(140, 860, 'row', '3 · окружение: от карандаша 3–7 — к линии по линейке и глубине', 'start');
+// 3–7: стул и стол — тонкий графит, всё на одной линии
+line('M200 990 V910 M200 935 H250 V990 M250 935 V910', 3, GRAPH); hero(232, 908, 26, CHILD, {}); line('M330 940 H420 M340 940 V990 M410 940 V990', 3, GRAPH);
+txt(310, 1016, 'note', '3–7');
+arrow(470, 540, 950);
+// 7–10: два плана — задняя парта меньше и выше, передняя крупнее; ребёнок сидит за партой целиком
+line('M640 910 H760 M652 910 V950 M748 910 V950', 2.4); hero(678, 888, 18, '#EC8A6F', { brow: 'calm' }); hero(722, 888, 18, '#F09A7E', { brow: 'calm' });
+line('M600 962 H820 M616 962 V1010 M804 962 V1010', 3.2); hero(670, 928, 30, CHILD, { brow: 'focus', mouth: 'flat', gy: 4, hands: [[90, 100]] }); hero(752, 928, 30, CHILD, { brow: 'calm', bow: true });
+// тетрадь в клетку на парте
+var nb = el('g', {}); el('rect', { x: 860, y: 900, width: 120, height: 80, fill: PAPER, stroke: INK, 'stroke-width': 2 }, nb);
+for (var i = 1; i < 6; i++) el('path', { d: 'M' + (860 + i * 20) + ' 900 V980', stroke: '#BFD9D4', 'stroke-width': 1 }, nb);
+for (var j = 1; j < 4; j++) el('path', { d: 'M860 ' + (900 + j * 20) + ' H980', stroke: '#BFD9D4', 'stroke-width': 1 }, nb);
+el('path', { d: 'M960 900 V980', stroke: '#D9534F', 'stroke-width': 1.6 }, nb);
+txt(790, 1036, 'note', '7–10: чернила, глубина, клетка местами');
+txt(1010, 910, 'note', 'Серия остаётся: круг — весь человек, цвета ребёнка и взрослого,', 'start');
+txt(1010, 940, 'note', 'лицо из точек, тонкая линия, бумага. Мебель никогда не режет круг.', 'start');
+txt(1010, 970, 'note', 'Новое — то, что появляется у ребёнка 7–10: оттенки чувств,', 'start');
+txt(1010, 1000, 'note', 'действие руками, своя вещь, взгляд «как вижу» (глубина).', 'start');
+</script>
+</body>
+</html>
