@@ -86,6 +86,12 @@
     if (o.boardText) chalk(s, G, b.x + b.w / 2, b.y + b.h / 2 + 16, o.boardText, 56);
     // ряды вдоль класса: ребёнок на стуле, лицом к доске (влево); перед ним — своя парта. Дальний ряд — выше и мельче.
     var rows = o.rows || [{ floor: floor, k: 1, xs: [1000, 1270, 1540, 1810] }, { floor: floor - 190, k: 0.72, xs: [1090, 1300, 1510, 1720] }], seats = [];
+    // стена и пол: плинтус по линии дальнего ряда и светлый пол между рядами — дальние парты стоят на полу, стена читается
+    if (rows.length > 1) {
+      var back = rows[rows.length - 1].floor;
+      s.node(G, 'rect', { x: 0, y: back, width: 1920, height: floor - back, fill: '#EFE6D6' });
+      ln(s, G, 'M0 ' + back + ' H1920', 3, FLOOR);
+    }
     rows.slice().reverse().forEach(function (row) {
       var line = [], k = row.k, r = 54 * k, seatY = row.floor - 78 * k;
       row.xs.forEach(function (x) {
