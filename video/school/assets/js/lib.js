@@ -211,37 +211,76 @@
     f.gx = gx; f.gy = gy;
   }
 
-  // Приметы героев (с эпизода 7–10): рисуются в системе координат тела 0…100, двигаются вместе с ним
-  function addAcc(id, kind) {
-    var a = A[id], S = svg('svg', { 'class': 'acc-' + kind, viewBox: '0 0 100 100', overflow: 'visible' }, a.body);
-    S.style.position = 'absolute'; S.style.inset = '0'; S.style.overflow = 'visible';
-    var INK = '#1D2733';
-    if (kind === 'glasses') {
-      svg('circle', { cx: 37, cy: 45, r: 11, fill: 'none', stroke: INK, 'stroke-width': 3.5 }, S);
-      svg('circle', { cx: 63, cy: 45, r: 11, fill: 'none', stroke: INK, 'stroke-width': 3.5 }, S);
-      svg('path', { d: 'M48 45 H52', stroke: INK, 'stroke-width': 3.5 }, S);
-    } else if (kind === 'bun') {
-      svg('circle', { cx: 50, cy: -6, r: 16, fill: '#6B4A2E' }, S);
-      svg('path', { d: 'M14 30 Q50 -8 86 30 Q50 14 14 30 Z', fill: '#6B4A2E' }, S);
-    } else if (kind === 'moustache') {
+  // Приметы героев (с эпизода 7–10, v3): волосы — «шапочка» по дуге самого круга (r 50, центр 50,50),
+  // поэтому не висят в воздухе; пучок, косички и банты частично закрыты шапочкой; очки — в группе глаз (face.g)
+  var HAIR = { brown: '#6B4A2E', dark: '#4A2F1D', light: '#B7834F', grey: '#9AA1A6', black: '#2E2420' };
+  function cap(S, yL, yR, line, fill) { // дуга по кругу от левой точки (y = yL) до правой (y = yR) + линия роста волос
+    var R = 51.5, xl = 50 - Math.sqrt(R * R - (yL - 50) * (yL - 50)), xr = 50 + Math.sqrt(R * R - (yR - 50) * (yR - 50)); // чуть шире круга — без светлого ободка
+    svg('path', { d: 'M' + xl.toFixed(1) + ' ' + yL + ' A' + R + ' ' + R + ' 0 0 1 ' + xr.toFixed(1) + ' ' + yR + ' ' + line.replace('0.0', xl.toFixed(1)) + ' Z', fill: fill }, S);
+  }
+  function drawHead(S, kind) {
+    var INK = '#1D2733', C = HAIR;
+    if (kind === 'hero') { // Миша: тёмные волосы с вихром, белый воротничок
+      svg('path', { d: 'M48 4 Q42 -16 60 -18 Q52 -6 58 4 Z', fill: C.dark }, S);
+      cap(S, 40, 40, 'Q84 22 66 26 Q58 14 46 22 Q30 16 0.0 40', C.dark);
+      svg('path', { d: 'M26 88 L50 99 L34 108 Z M74 88 L50 99 L66 108 Z', fill: '#FFFDF8', stroke: INK, 'stroke-width': 2 }, S);
+    } else if (kind === 'anya') { // Аня: две косички с бирюзовыми бантами
+      [[-6, 58], [106, 58]].forEach(function (p) { svg('ellipse', { cx: p[0], cy: p[1], rx: 11, ry: 17, fill: C.brown }, S); });
+      cap(S, 52, 52, 'Q84 30 50 26 Q16 30 0.0 52', C.brown);
+      [[2, 40], [98, 40]].forEach(function (p) {
+        svg('path', { d: 'M' + p[0] + ' ' + p[1] + ' l-10 -7 l0 14 Z M' + p[0] + ' ' + p[1] + ' l10 -7 l0 14 Z', fill: '#26A69A' }, S);
+        svg('circle', { cx: p[0], cy: p[1], r: 3.6, fill: '#1C7A71' }, S);
+      });
+    } else if (kind === 'dima') { // Дима: светлая чёлка
+      cap(S, 34, 34, 'Q76 30 62 34 Q50 26 40 34 Q24 30 0.0 34', C.light);
+    } else if (kind === 'bun') { // мама: пучок, прижатый к макушке
+      svg('circle', { cx: 50, cy: 2, r: 15, fill: C.brown }, S);
+      cap(S, 38, 38, 'Q80 18 50 20 Q20 18 0.0 38', C.brown);
+    } else if (kind === 'teacher') { // учитель: седые волосы
+      cap(S, 34, 34, 'Q80 16 50 18 Q20 16 0.0 34', C.grey);
+    } else if (kind === 'dad') { // папа: короткие волосы и усы
+      cap(S, 30, 30, 'Q80 14 50 16 Q20 14 0.0 30', '#7A5A40');
       svg('path', { d: 'M30 60 Q40 52 50 58 Q60 52 70 60 Q60 66 50 61 Q40 66 30 60 Z', fill: '#3E2A1E' }, S);
-    } else if (kind === 'bow') {
-      svg('path', { d: 'M50 4 L30 -10 L30 18 Z M50 4 L70 -10 L70 18 Z', fill: '#26A69A' }, S);
-      svg('circle', { cx: 50, cy: 4, r: 6, fill: '#1C7A71' }, S);
-    } else if (kind === 'beard') {
-      svg('path', { d: 'M14 46 Q50 128 86 46 Q72 72 50 72 Q28 72 14 46 Z', fill: '#4A3426' }, S);
-    } else if (kind === 'cap') {
-      svg('path', { d: 'M10 34 Q50 -14 90 34 Z', fill: '#26A69A' }, S);
-      svg('path', { d: 'M78 30 L112 36', stroke: '#26A69A', 'stroke-width': 10, 'stroke-linecap': 'round' }, S);
-    } else if (kind === 'hero') { // Миша: тёмные волосы с вихром и белый школьный воротничок
-      svg('path', { d: 'M10 40 Q12 2 50 0 Q88 2 90 40 Q80 22 64 26 Q58 12 46 22 Q30 14 10 40 Z', fill: '#4A2F1D' }, S);
-      svg('path', { d: 'M48 2 Q42 -18 60 -20 Q52 -8 58 2 Z', fill: '#4A2F1D' }, S);
-      svg('path', { d: 'M26 86 L50 99 L34 108 Z M74 86 L50 99 L66 108 Z', fill: '#FFFDF8', stroke: '#1D2733', 'stroke-width': 2 }, S);
-    } else if (kind === 'cowlick') {
-      svg('path', { d: 'M44 4 Q40 -16 56 -18 Q48 -8 54 4 Z', fill: '#7A4E2D' }, S);
+    } else if (kind === 'curly') {
+      cap(S, 38, 38, 'Q84 24 72 30 Q64 20 56 28 Q48 18 40 28 Q30 20 22 30 Q12 26 0.0 38', C.black);
+    } else if (kind === 'ponytail') {
+      svg('path', { d: 'M88 22 Q118 30 108 66 Q100 44 82 34 Z', fill: C.light }, S);
+      cap(S, 40, 40, 'Q80 24 50 22 Q20 24 0.0 40', C.light);
+    } else if (kind === 'buzz') {
+      cap(S, 30, 30, 'Q80 22 50 22 Q20 22 0.0 30', C.brown);
+    } else if (kind === 'cap') { // кепка
+      cap(S, 34, 34, 'L0.0 34', '#26A69A');
+      svg('path', { d: 'M80 32 L112 38', stroke: '#26A69A', 'stroke-width': 9, 'stroke-linecap': 'round' }, S);
     }
+  }
+  // Очки — в группе глаз, двигаются вместе со взглядом
+  function drawGlasses(g) {
+    var INK = '#1D2733';
+    svg('circle', { cx: 38, cy: 45, r: 10.5, fill: 'none', stroke: INK, 'stroke-width': 3.2 }, g);
+    svg('circle', { cx: 62, cy: 45, r: 10.5, fill: 'none', stroke: INK, 'stroke-width': 3.2 }, g);
+    svg('path', { d: 'M48.5 45 H51.5', stroke: INK, 'stroke-width': 3.2 }, g);
+  }
+  function addAcc(id, kind) {
+    var a = A[id];
+    if (kind === 'glasses') { var f = addFace(id); drawGlasses(f.g); return f.g; }
+    var S = svg('svg', { 'class': 'acc-' + kind, viewBox: '0 0 100 100', overflow: 'visible' }, a.body);
+    S.style.position = 'absolute'; S.style.inset = '0'; S.style.overflow = 'visible';
+    drawHead(S, kind);
     return S;
   }
+  // Голова-статист (одноклассники в классе, во дворе): круг + лицо + волосы в тех же координатах 0…100
+  Film.head = function (parent, x, y, r, color, kind, o) {
+    o = o || {};
+    var g = svg('g', { transform: 'translate(' + (x - r) + ' ' + (y - r) + ') scale(' + (r / 50) + ')' }, parent);
+    svg('circle', { cx: 50, cy: 50, r: 50, fill: color }, g);
+    var face = svg('g', {}, g);
+    svg('circle', { cx: 38, cy: 45, r: 4.6, fill: '#FFFDF8' }, face);
+    svg('circle', { cx: 62, cy: 45, r: 4.6, fill: '#FFFDF8' }, face);
+    svg('path', { d: MOUTH[o.mouth || 'soft'], fill: 'none', stroke: '#FFFDF8', 'stroke-width': 4.2, 'stroke-linecap': 'round' }, face);
+    if (o.glasses) drawGlasses(face);
+    if (kind) { var S = svg('g', {}, g); drawHead(S, kind); }
+    return g;
+  };
 
   // Сжатие/растяжение «тела» (опора — низ круга)
   function squash(id, sx, sy, t, dur, ease) {

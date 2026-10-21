@@ -1,23 +1,28 @@
-/* Лист рисунков 7–10 (v2): проверить рисунки до сцен */
+/* Лист героев 7–10 (v3): приметы прилегают к голове; лица у всех; проверка в трёх масштабах */
 /* global Film */
 (function () {
   'use strict';
   Film.scene({ id: 'sheet', bars: 2, build: function (s) {
-    var K = Film.school, g = s.svg(), ov = s.over();
+    var K = Film.school, g = s.svg();
     s.rulerOut(0);
-    K.schoolHouse(s, g, 380, 520, 0.8);
-    K.tree(s, g, 820, 520, 0.9); K.bush(s, g, 980, 510, 0.9); K.bench(s, g, 1150, 520, 0.9); K.ball(s, g, 1300, 495, 24);
-    K.knight(s, g, 1460, 520, 1.6, true); K.pawn(s, g, 1540, 520, 1.6, false); K.knight(s, g, 1620, 520, 1.6, false);
-    K.kitchen(s, s.node(g, 'g', { transform: 'translate(0 560) scale(0.5)' }), 960, 1000);
-    var ph = K.phone(s, 1420, 600, 300, 440); ph.add('Учитель верит в ребёнка — и ребёнок умнеет!', 0); ph.add('Не хвалите за ум — это вредно!', 0);
-    s.actor('baby', { x: 300, y: 900, d: 110, o: 1 }, 0, 0.01); s.face('baby', true, 0, 0.01);
-    var bp = s.node(g, 'g', {}); Film.toys.backpack(s, bp, 250, 894, 1.15, '#26A69A', '#1C7A71');
-    s.actor('adult', { x: 480, y: 870, d: 150, o: 1 }, 0, 0.01); s.face('adult', true, 0, 0.01);
-    s.actor('adult2', { x: 680, y: 870, d: 150, o: 1 }, 0, 0.01); s.face('adult2', true, 0, 0.01);
-    s.actor('dad', { x: 880, y: 870, d: 160, o: 1 }, 0, 0.01); s.face('dad', true, 0, 0.01);
-    s.acc('baby','hero'); s.acc('adult','bun'); s.acc('adult2','glasses'); s.acc('dad','moustache');
-    K.tag(s, 'Миша', 300, 970, 0); K.tag(s, 'мама', 480, 960, 0); K.tag(s, 'учитель', 680, 960, 0); K.tag(s, 'папа', 880, 960, 0);
-    K.helmet(s, ov, 1120, 860, 80);
-    s.actor('kid2', { x: 1120, y: 860, d: 110, o: 1 }, 0, 0.01); s.face('kid2', true, 0, 0.01);
+    // Крупно: главные герои и взрослые (актёры — так они живут в сценах)
+    var CAST = [['baby', 'hero', 'Миша'], ['kid2', 'anya', 'Аня'], ['kid3', 'dima', 'Дима'],
+      ['adult', 'bun', 'мама'], ['adult2', 'teacher', 'учитель'], ['dad', 'dad', 'папа']];
+    CAST.forEach(function (c, i) {
+      var x = 190 + i * 300, d = i < 3 ? 150 : 190;
+      s.actor(c[0], { x: x, y: 330, d: d, o: 1 }, 0, 0.01); s.face(c[0], true, 0, 0.01);
+      s.acc(c[0], c[1]);
+      if (c[0] === 'kid3' || c[0] === 'adult2') s.acc(c[0], 'glasses');
+      K.tag(s, c[2], x, 330 + d / 2 + 40, 0);
+    });
+    // Взгляд в сторону: очки едут вместе с глазами
+    s.gaze('kid3', 6, 2, 1, 0.5); s.gaze('adult2', -6, 0, 1, 0.5);
+    // Статисты: класс (r 40) и дальний ряд (r 18) — у всех лица
+    var KINDS = ['curly', 'ponytail', 'buzz', 'cap', 'anya', 'dima', 'bun', 'hero', null, 'curly'];
+    var COL = ['#E4735A', '#EC8A6F', '#D9654B', '#F09A7E', '#C95A44'];
+    KINDS.forEach(function (k, i) {
+      Film.head(g, 160 + i * 170, 720, 40, COL[i % 5], k, { glasses: i === 2 || i === 9 });
+      Film.head(g, 160 + i * 170, 880, 18, COL[(i + 2) % 5], k, { glasses: i === 2 || i === 9 });
+    });
   } });
 })();
