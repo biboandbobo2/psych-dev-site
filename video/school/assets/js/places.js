@@ -51,23 +51,22 @@
     }
     rect(s, G, x - 46 * k, y - 120 * k, 92 * k, 120 * k, PAPER, 2.6, 6);
     ln(s, G, 'M' + x + ' ' + (y - 120 * k) + ' v' + (120 * k), 2.2);
-    ln(s, G, 'M' + (x + W / 2 - 30 * k) + ' ' + (y - H) + ' v' + (-110 * k), 2.6);
-    s.path(G, 'M' + (x + W / 2 - 30 * k) + ' ' + (y - H - 110 * k) + ' l' + (54 * k) + ' ' + (13 * k) + ' l' + (-54 * k) + ' ' + (13 * k) + ' Z', { fill: RED });
+    ln(s, G, 'M' + x + ' ' + (y - H - 100 * k) + ' v' + (-70 * k), 2.6);
+    s.path(G, 'M' + x + ' ' + (y - H - 170 * k) + ' l' + (50 * k) + ' ' + (12 * k) + ' l' + (-50 * k) + ' ' + (12 * k) + ' Z', { fill: RED });
     return G;
   }
   // Дерево: ствол линией, крона — светло-зелёный круг с контуром
   function tree(s, g, x, y, k) {
     var G = s.node(g, 'g', {});
     ln(s, G, 'M' + x + ' ' + y + ' V' + (y - 120 * k), 4);
-    s.node(G, 'circle', Object.assign({ cx: x, cy: y - 170 * k, r: 70 * k }, L(3, LEAF)));
-    s.node(G, 'circle', Object.assign({ cx: x - 46 * k, cy: y - 130 * k, r: 40 * k }, L(3, LEAF)));
+    s.node(G, 'circle', Object.assign({ cx: x, cy: y - 175 * k, r: 78 * k }, L(3, LEAF)));
     return G;
   }
   function bench(s, g, x, y, k) {
     var G = s.node(g, 'g', {}), w = 180 * k;
     rect(s, G, x - w / 2, y - 50 * k, w, 12 * k, WOOD, 2.6, 4);
     rect(s, G, x - w / 2, y - 84 * k, w, 12 * k, WOOD, 2.6, 4);
-    ln(s, G, 'M' + (x - w / 2 + 16 * k) + ' ' + (y - 38 * k) + ' V' + y + ' M' + (x + w / 2 - 16 * k) + ' ' + (y - 38 * k) + ' V' + y + ' M' + (x - w / 2 + 16 * k) + ' ' + (y - 72 * k) + ' V' + (y - 50 * k) + ' M' + (x + w / 2 - 16 * k) + ' ' + (y - 72 * k) + ' V' + (y - 50 * k), 2.6);
+    ln(s, G, 'M' + (x - w / 2 + 16 * k) + ' ' + (y - 84 * k) + ' V' + y + ' M' + (x + w / 2 - 16 * k) + ' ' + (y - 84 * k) + ' V' + y, 2.6);
     return G;
   }
 
@@ -76,30 +75,30 @@
   function classroom(s, g, o) {
     o = o || {};
     var G = s.node(g, 'g', {});
-    var rows = o.rows || [{ y: 880, k: 1.3 }, { y: 690, k: 1 }], cols = o.cols || [990, 1330, 1670], seats = [];
-    var floor = rows[0].y + 72 * rows[0].k;
+    var floor = o.floor || 980;
     ln(s, G, 'M60 ' + floor + ' H1860', 2.4, FLOOR);
-    // окно справа
-    rect(s, G, 1630, 200, 200, 220, GLASS, 3, 6); ln(s, G, 'M1730 200 V420 M1630 310 H1830', 2.4);
-    // часы над доской и рядом — на пустой стене
-    s.node(G, 'circle', Object.assign({ cx: 1180, cy: 230, r: 44 }, L(3, PAPER))); ln(s, G, 'M1180 230 v-28 M1180 230 h20', 3);
-    // доска слева — на уровне детей
-    var b = { x: 100, y: 300, w: 500, h: 290 };
+    rect(s, G, 1640, 170, 200, 220, GLASS, 3, 6); ln(s, G, 'M1740 170 V390 M1640 280 H1840', 2.4);
+    s.node(G, 'circle', Object.assign({ cx: 1240, cy: 200, r: 44 }, L(3, PAPER))); ln(s, G, 'M1240 200 v-28 M1240 200 h20', 3);
+    var b = { x: 100, y: 260, w: 520, h: 300 };
     rect(s, G, b.x - 10, b.y - 10, b.w + 20, b.h + 20, '#C9A27A', 3, 6);
     rect(s, G, b.x, b.y, b.w, b.h, BOARD, 3, 4);
     ln(s, G, 'M' + (b.x + 30) + ' ' + (b.y + b.h + 10) + ' h' + (b.w - 60), 4, '#C9A27A');
-    if (o.boardText) chalk(s, G, b.x + b.w / 2, b.y + b.h / 2 + 14, o.boardText, 54);
-    rows.slice().reverse().forEach(function (row) { // сначала дальний ряд — ближний рисуется поверх
-      var line = [];
-      cols.forEach(function (cx) {
-        var x = cx + (1.3 - row.k) * 60, w = 280 * row.k, r = 46 * row.k;
-        line.push({ x: x - 66 * row.k, y: row.y - r - 2, r: r }, { x: x + 66 * row.k, y: row.y - r - 2, r: r });
-        rect(s, G, x - w / 2, row.y, w, 10 * row.k, WOOD, 2.4, 3);
-        ln(s, G, 'M' + (x - w / 2 + 14 * row.k) + ' ' + (row.y + 10 * row.k) + ' V' + (row.y + 72 * row.k) + ' M' + (x + w / 2 - 14 * row.k) + ' ' + (row.y + 10 * row.k) + ' V' + (row.y + 72 * row.k), 2.4);
+    if (o.boardText) chalk(s, G, b.x + b.w / 2, b.y + b.h / 2 + 16, o.boardText, 56);
+    // ряды вдоль класса: ребёнок на стуле, лицом к доске (влево); перед ним — своя парта. Дальний ряд — выше и мельче.
+    var rows = o.rows || [{ floor: floor, k: 1, xs: [1000, 1270, 1540, 1810] }, { floor: floor - 190, k: 0.72, xs: [1090, 1300, 1510, 1720] }], seats = [];
+    rows.slice().reverse().forEach(function (row) {
+      var line = [], k = row.k, r = 54 * k, seatY = row.floor - 78 * k;
+      row.xs.forEach(function (x) {
+        // парта перед ребёнком (слева): столешница на уровне середины круга, ножки до пола
+        var dx2 = x - r * 0.95, dx1 = dx2 - 150 * k, dy = seatY - r * 0.9;
+        rect(s, G, dx1, dy, dx2 - dx1, 10 * k, WOOD, 2.4, 3);
+        ln(s, G, 'M' + (dx1 + 12 * k) + ' ' + (dy + 10 * k) + ' V' + row.floor + ' M' + (dx2 - 12 * k) + ' ' + (dy + 10 * k) + ' V' + row.floor, 2.4);
+        // стул под ребёнком: сиденье, спинка справа, ножки
+        ln(s, G, 'M' + (x - r * 0.8) + ' ' + seatY + ' H' + (x + r * 0.9) + ' M' + (x + r * 0.9) + ' ' + seatY + ' V' + (seatY - r * 1.25) + ' M' + (x - r * 0.65) + ' ' + seatY + ' V' + row.floor + ' M' + (x + r * 0.8) + ' ' + seatY + ' V' + row.floor, 2.6);
+        line.push({ x: x, y: seatY - r, r: r, desk: { x1: dx1, x2: dx2, y: dy } });
       });
       seats.unshift(line);
     });
-    // учитель стоит на полу у доски: для капсулы d — y = floor − 1,4·d
     return { g: G, board: b, floor: floor, teacher: { x: 700, floor: floor }, seats: seats };
   }
   // y центра лица учителя-капсулы, стоящей на полу (тело: 50 над центром, 140 под ним в единицах 100)
@@ -116,14 +115,16 @@
   // Двор школы: здание сзади слева, деревья, скамейка, классики мелом с цифрами 1–10 на асфальте
   function yard(s, g, o) {
     o = o || {};
-    var G = s.node(g, 'g', {}), ground = o.ground || 820;
-    s.node(G, 'rect', { x: 0, y: ground, width: 1920, height: 1080 - ground, fill: '#D8CFBD' }); // асфальт — темнее бумаги, чтобы мел читался
+    var G = s.node(g, 'g', {}), ground = o.ground || 700;
+    s.node(G, 'circle', Object.assign({ cx: 1660, cy: 170, r: 56 }, L(3, '#F5D27A')));
+    s.path(G, 'M1100 210 q20 -44 70 -30 q30 -40 80 -6 q50 -4 46 36 Z', L(2.6, PAPER));
+    s.node(G, 'rect', { x: 0, y: ground, width: 1920, height: 1080 - ground, fill: '#CFC4AE' }); // асфальт — темнее бумаги, чтобы мел читался
     ln(s, G, 'M0 ' + ground + ' H1920', 2.4, FLOOR);
     school(s, G, o.schoolX || 400, ground, o.schoolK || 1.05);
-    tree(s, G, 1080, ground, 1); tree(s, G, 1780, ground, 1.15);
+    tree(s, G, 1000, ground, 0.95); tree(s, G, 1800, ground, 1.1);
     bench(s, G, 1420, ground, 1);
     var cl = null;
-    if (o.classics !== false) cl = classics(s, G, o.cx || 1000, ground + 130, o.ck || 1.35);
+    if (o.classics !== false) cl = classics(s, G, o.cx || 1060, ground + 200, o.ck || 1.4);
     return { g: G, ground: ground, classics: cl };
   }
   // Классики: клетки 1–10 в перспективе (вид сбоку-сверху), мелом
@@ -133,8 +134,8 @@
     var pts = [];
     cells.forEach(function (q) {
       var cx = x - 3.5 * c + q[0] * c, cy = y + q[1] * h;
-      s.node(G, 'rect', { x: cx - c / 2, y: cy - h / 2, width: c, height: h, fill: 'rgba(255,255,255,0.18)', stroke: '#FFFFFF', 'stroke-width': 4 });
-      var t = s.node(G, 'text', { x: cx, y: cy + 9 * k, 'text-anchor': 'middle', fill: '#FFFFFF', style: 'font-family: var(--kid); font-size: ' + (26 * k) + 'px' }); t.textContent = q[2];
+      s.node(G, 'rect', { x: cx - c / 2, y: cy - h / 2, width: c, height: h, fill: 'rgba(255,255,255,0.22)', stroke: '#FFFFFF', 'stroke-width': 5 });
+      var t = s.node(G, 'text', { x: cx, y: cy + 11 * k, 'text-anchor': 'middle', fill: '#FFFFFF', style: 'font-family: var(--kid); font-weight: 700; font-size: ' + (32 * k) + 'px' }); t.textContent = q[2];
       pts.push({ x: cx, y: cy });
     });
     return { g: G, cells: pts };
@@ -144,41 +145,48 @@
   function kitchen(s, g, o) {
     o = o || {};
     var G = s.node(g, 'g', {}), floor = o.floor || 940;
-    ln(s, G, 'M60 ' + floor + ' H1860', 2.4, FLOOR);
-    ln(s, G, 'M60 110 H1860', 2, FLOOR);
-    rect(s, G, 800, 230, 280, 240, GLASS, 3, 6); ln(s, G, 'M940 230 V470 M800 350 H1080', 2.4);
+    ln(s, G, 'M0 ' + floor + ' H1920', 2.4, FLOOR);
+    ln(s, G, 'M0 110 H1920', 2, FLOOR);
+    rect(s, G, 1380, 230, 280, 240, GLASS, 3, 6); ln(s, G, 'M1520 230 V470 M1380 350 H1660', 2.4);
     // плита слева: корпус, духовка, кастрюля с паром
     var sx = o.stoveX || 260, st = floor - 300;
     rect(s, G, sx - 150, st, 300, 300, PAPER, 3, 8);
     rect(s, G, sx - 112, st + 90, 224, 160, null, 2.4, 6);
-    ln(s, G, 'M' + (sx - 70) + ' ' + (st + 40) + ' h40 M' + (sx + 30) + ' ' + (st + 40) + ' h40', 3);
-    rect(s, G, sx - 80, st - 86, 160, 86, PAPER, 3, 10); ln(s, G, 'M' + (sx - 104) + ' ' + (st - 86) + ' H' + (sx + 104), 3.4);
+    [-50, 50].forEach(function (dx) { s.node(G, 'circle', Object.assign({ cx: sx + dx, cy: st + 44, r: 12 }, L(2.4, PAPER))); }); // ручки плиты
+    rect(s, G, sx - 80, st - 86, 160, 86, PAPER, 3, 10); ln(s, G, 'M' + (sx - 86) + ' ' + (st - 88) + ' H' + (sx + 86) + ' M' + (sx - 100) + ' ' + (st - 60) + ' h20 M' + (sx + 80) + ' ' + (st - 60) + ' h20', 3.4); // крышка и ручки кастрюли
     [0, 1, 2].forEach(function (i) { ln(s, G, 'M' + (sx - 34 + i * 34) + ' ' + (st - 104) + ' q-12 -26 0 -52', 2.2, '#9AA1A6'); });
     // стол справа
-    var tx = o.tableX || 1420, ty = floor - 170;
-    rect(s, G, tx - 300, ty, 600, 16, WOOD, 2.6, 4);
-    ln(s, G, 'M' + (tx - 266) + ' ' + (ty + 16) + ' V' + floor + ' M' + (tx + 266) + ' ' + (ty + 16) + ' V' + floor, 2.6);
+    var tx = o.tableX || 1060, ty = floor - 190;
+    rect(s, G, tx - 220, ty, 440, 16, WOOD, 2.6, 4);
+    ln(s, G, 'M' + (tx - 196) + ' ' + (ty + 16) + ' V' + floor + ' M' + (tx + 196) + ' ' + (ty + 16) + ' V' + floor, 2.6);
+    // стул Миши справа от стола: сиденье, спинка справа
+    var cx = tx + 330, cy = floor - 100;
+    ln(s, G, 'M' + (cx - 60) + ' ' + cy + ' H' + (cx + 60) + ' M' + (cx + 60) + ' ' + cy + ' V' + (cy - 110) + ' M' + (cx - 48) + ' ' + cy + ' V' + floor + ' M' + (cx + 52) + ' ' + cy + ' V' + floor, 2.6);
     // лампа на проводе над столом
-    ln(s, G, 'M' + tx + ' 110 V320', 2.2);
-    s.path(G, 'M' + (tx - 56) + ' 364 Q' + tx + ' 310 ' + (tx + 56) + ' 364 Z', L(2.6, '#F5D27A'));
-    return { g: G, floor: floor, stove: { x: sx, top: st }, table: { x: tx, y: ty } };
+    ln(s, G, 'M' + tx + ' 110 V322', 2.2);
+    s.path(G, 'M' + (tx - 56) + ' 364 Q' + tx + ' 316 ' + (tx + 56) + ' 364 Z', L(2.6, '#F5D27A'));
+    return { g: G, floor: floor, stove: { x: sx, top: st }, table: { x: tx, y: ty }, seat: { x: tx + 330, y: floor - 100 } };
   }
 
   // Три дорожки из трёх домов к одной школе (первая сцена главы 1 и заставки глав)
-  var PATHC = { misha: '#E4735A', anya: '#26A69A', dima: '#4F7CAC' };
+  var PATHC = { misha: '#E4735A', anya: '#E4735A', dima: '#E4735A' };
+  // Вид сбоку на общую землю: три домика слева на разном удалении (дальние выше и мельче), школа справа;
+  // дорожки — пунктир по земле от каждого дома к двери школы. Возвращает точки на дорожках для героев.
   function paths(s, g, o) {
     o = o || {};
-    var G = s.node(g, 'g', {});
-    var homes = { misha: [260, 360], anya: [260, 760], dima: [520, 960] }, door = [1480, 640];
-    school(s, G, 1560, 700, 0.75);
-    var res = {};
+    var G = s.node(g, 'g', {}), ground = o.ground || 560;
+    s.node(G, 'rect', { x: 0, y: ground, width: 1920, height: 1080 - ground, fill: '#ECE3CF' });
+    ln(s, G, 'M0 ' + ground + ' H1920', 2.4, FLOOR);
+    var door = [1500, ground + 20];
+    school(s, G, 1500, ground + 20, 0.8);
+    var homes = { dima: [220, ground + 30, 0.6], anya: [330, ground + 210, 0.8], misha: [200, ground + 430, 1] }, res = {};
     Object.keys(homes).forEach(function (k) {
-      var h = homes[k]; house(s, G, h[0], h[1], 0.75, { roof: PATHC[k] });
-      var d = 'M' + (h[0] + 80) + ' ' + (h[1] - 10) + ' C' + (h[0] + 420) + ' ' + (h[1] - 10) + ' ' + (door[0] - 420) + ' ' + door[1] + ' ' + door[0] + ' ' + door[1];
-      var p = s.path(G, d, { stroke: PATHC[k], 'stroke-width': 8, 'stroke-linecap': 'round', 'stroke-dasharray': '2 16', opacity: 0.85 });
-      res[k] = { path: p, d: d, home: h };
+      var h = homes[k]; house(s, G, h[0], h[1], h[2]);
+      var x0 = h[0] + 90 * h[2], y0 = h[1], d = 'M' + x0 + ' ' + y0 + ' C' + (x0 + 420) + ' ' + y0 + ' ' + (door[0] - 360) + ' ' + (door[1] + 10) + ' ' + (door[0]) + ' ' + (door[1] + 6);
+      s.path(G, d, { stroke: '#2F4A8A', 'stroke-width': 4, 'stroke-linecap': 'round', 'stroke-dasharray': '2 14', opacity: 0.8 });
+      res[k] = { d: d, home: h, start: [x0, y0], k: h[2] };
     });
-    return { g: G, paths: res, door: door };
+    return { g: G, paths: res, door: door, ground: ground };
   }
 
   Film.places = { standY: standY, page: page, house: house, school: school, tree: tree, bench: bench, classroom: classroom, fill: fill, yard: yard, classics: classics, kitchen: kitchen, paths: paths, chalk: chalk, PATHC: PATHC, INK: INK, BOARD: BOARD };

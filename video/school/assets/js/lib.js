@@ -243,20 +243,21 @@
     return S;
   }
   // Руки-точки (7–10): появляются, когда герой действует. pose: 'off' | 'side' | 'up' (рука-линия вверх) | 'desk' (на парте) | 'hold' (держит перед собой)
-  var HANDS = { off: [[50, 80], [50, 80], 0], side: [[-6, 66], [106, 66], 1], up: [[-6, 66], [110, -8], 1], desk: [[22, 94], [78, 94], 1], hold: [[26, 78], [74, 78], 1] };
+  var HANDS = { off: [[50, 80], [50, 80], 0], side: [[-6, 66], [106, 66], 1], up: [[-6, 66], [110, -8], 1], desk: [[-12, 60], [4, 74], 1], hold: [[-10, 70], [110, 70], 1] };
   function handsOf(id) {
     var a = A[id];
     if (a.hands) return a.hands;
     var S = svg('svg', { 'class': 'hands', viewBox: '0 0 100 100', overflow: 'visible' }, a.body);
     S.style.position = 'absolute'; S.style.inset = '0'; S.style.overflow = 'visible';
     var n = 0, col = getComputedStyle(a.body).backgroundColor.replace(/\d+(\.\d+)?/g, function (v) { return n++ < 3 ? Math.round(v * 0.86) : v; }); // руки на тон темнее тела — видны и поверх круга
-    var arm = svg('path', { d: 'M94 62 Q116 30 110 -8', fill: 'none', stroke: col, 'stroke-width': 9, 'stroke-linecap': 'round', opacity: 0 }, S);
-    var l = svg('circle', { cx: 50, cy: 80, r: 11, fill: col, opacity: 0 }, S), r = svg('circle', { cx: 50, cy: 80, r: 11, fill: col, opacity: 0 }, S);
+    var arm = svg('path', { d: 'M90 58 Q118 34 112 -4', fill: 'none', stroke: col, 'stroke-width': 13, 'stroke-linecap': 'round', opacity: 0 }, S);
+    var l = svg('circle', { cx: 50, cy: 80, r: 12, fill: col, opacity: 0 }, S), r = svg('circle', { cx: 50, cy: 80, r: 12, fill: col, opacity: 0 }, S);
     a.hands = { svg: S, arm: arm, l: l, r: r, cur: 'off' };
     return a.hands;
   }
   function hands(id, pose, t, dur) {
-    var h = handsOf(id), p0 = HANDS[h.cur], p = HANDS[pose], d = dur || 0.35;
+    var h = handsOf(id), d = dur || 0.35, dy = id === 'adult2' ? 50 : 0; // капсула учителя: руки на поясе
+    var sh = function (q) { return [[q[0][0], q[0][1] + (q[0][1] > 0 ? dy : 0)], [q[1][0], q[1][1] + (q[1][1] > 0 ? dy : 0)], q[2]]; }, p0 = sh(HANDS[h.cur]), p = sh(HANDS[pose]);
     tl.fromTo(h.l, { attr: { cx: p0[0][0], cy: p0[0][1] }, opacity: p0[2] }, { attr: { cx: p[0][0], cy: p[0][1] }, opacity: p[2], duration: d, ease: 'power2.out', immediateRender: false }, t);
     tl.fromTo(h.r, { attr: { cx: p0[1][0], cy: p0[1][1] }, opacity: p0[2] }, { attr: { cx: p[1][0], cy: p[1][1] }, opacity: p[2], duration: d, ease: 'power2.out', immediateRender: false }, t);
     tl.fromTo(h.arm, { opacity: h.cur === 'up' ? 1 : 0 }, { opacity: pose === 'up' ? 1 : 0, duration: d * 0.6, immediateRender: false }, t + (pose === 'up' ? d * 0.4 : 0));
