@@ -72,7 +72,7 @@
     var ids = [];
     ['misha', 'anya', 'dima'].forEach(function (w) {
       var at = function (t) { var q = P().pathPoint(p, w, t); return { x: q.x + DX, y: q.y - D / 2 }; };
-      var a = at(t0), id = on(s, w, a.x, a.y, D, 0.1, { gx: 6, dur: 0.3, mouth: w === who ? 'smile' : 'soft' });
+      var a = at(t0), id = on(s, w, a.x, a.y, D, 0.1, { gx: 12, dur: 0.3, mouth: w === who ? 'smile' : 'soft' });
       for (var i = 1; i <= 4; i++) {
         var b = at(t0 + (t1 - t0) * i / 4), t = 0.5 + (i - 1) * 0.95;
         s.squash(id, 1.05, 0.95, t, 0.1); s.actor(id, b, t + 0.1, 0.6, 'power1.inOut'); s.squash(id, 1, 1, t + 0.1, 0.25);
@@ -106,17 +106,19 @@
   }
   // мягкий козырёк, как у кепки: ткань сверху на голове-круге (обрезана по кругу) и жёсткий край спереди;
   // поднят — закрывает только макушку; надвинут — закрывает глаза, губы видно. face = +1 (смотрит вправо) | -1
-  function cap(s, ov, cx, cy, r, face, n) {
-    // узкий козырёк-повязка: поднят — на лбу над бровями; надвинут — только на глазах, рот и низ лица видны
+  // мягкий козырёк: лента строго по центру головы, только на глазах (рот и низ лица видны).
+  // Обрезан по кругу головы, рамка обрезки неподвижна: козырёк въезжает сверху и уезжает вверх ровно, без перекоса
+  function cap(s, ov, cx, cy, r, n) {
     var defs = s.node(ov, 'defs', {}), cp = s.node(defs, 'clipPath', { id: 'capc' + n });
-    s.node(cp, 'circle', { cx: cx, cy: cy, r: r + 1.5 });
-    var G = s.node(ov, 'g', {}), top = cy - 1.02 * r, h = 0.44 * r;
-    var mv = s.node(G, 'g', {}), cl = s.node(mv, 'g', { 'clip-path': 'url(#capc' + n + ')' });
-    s.node(cl, 'rect', { x: cx - r - 2, y: top, width: 2 * r + 4, height: h, fill: '#3F7FA8' });
-    ln(s, cl, 'M' + (cx - r) + ' ' + (top + 0.1 * r) + ' H' + (cx + r), 2, '#7FB0D0');
-    var brim = s.node(mv, 'rect', { x: face > 0 ? cx - 0.1 * r : cx - 1.25 * r, y: top + h - 0.06 * r, width: 1.35 * r, height: 0.13 * r, rx: 0.065 * r, fill: '#2D5F80' });
-    void brim;
-    return { g: G, mv: mv, brim: mv, dy: 0.68 * r };
+    s.node(cp, 'circle', { cx: cx, cy: cy, r: r + 1 });
+    var G = s.node(ov, 'g', { 'clip-path': 'url(#capc' + n + ')' }), mv = s.node(G, 'g', {});
+    var top = cy - 0.34 * r, h = 0.44 * r;
+    s.node(mv, 'rect', { x: cx - r - 2, y: top, width: 2 * r + 4, height: h, fill: '#3F7FA8' });
+    s.node(mv, 'rect', { x: cx - r - 2, y: top + h - 0.08 * r, width: 2 * r + 4, height: 0.08 * r, fill: '#2D5F80' });
+    ln(s, mv, 'M' + (cx - r) + ' ' + (top + 0.1 * r) + ' H' + (cx + r), 2, '#7FB0D0');
+    var off = -1.6 * r;
+    s.set(mv, 0, { y: 0 }, { y: off });
+    return { mv: mv, off: off };
   }
   // облачко-ответ с тремя картинками (хвостик — к герою)
   function answer(s, ov, cx, top, kinds, ok, t) {
@@ -178,11 +180,8 @@
       s.tween(badges, 5.0, { opacity: 1 }, { opacity: 0, duration: 0.3 });
       // мягкие козырьки надвигают на глаза — губы видно
       s.gaze('kid3', 0, 0, 5.1, 0.2); s.gaze('baby', 0, 0, 5.1, 0.2);
-      var kD = cap(s, ov, cD.x, cD.y, cD.d / 2, 1, 1), kM = cap(s, ov, cM.x, cM.y, cM.d / 2, -1, 2);
-      [kD, kM].forEach(function (k) {
-        s.tween(k.g, 5.2, { opacity: 0, y: -30 }, { opacity: 1, y: 0, duration: 0.35 });
-        s.tween(k.mv, 5.8, { y: 0 }, { y: k.dy, duration: 0.4, ease: 'power2.inOut' });
-      });
+      var kD = cap(s, ov, cD.x, cD.y, cD.d / 2, 1), kM = cap(s, ov, cM.x, cM.y, cM.d / 2, 2);
+      [kD, kM].forEach(function (k) { s.tween(k.mv, 5.4, { y: k.off }, { y: 0, duration: 0.7, ease: 'power2.out' }); }); // надевают: сверху вниз, ровно
       hudText(s, 'lead', 'Глаза закрыты козырьком, а губы видно: так заметно, повторяет ли ребёнок про себя.', { left: 140, top: 130, width: 1000, fontSize: 38 }, 5.6, 12.0);
       // секундомер в руке у Ирины Петровны: 15 секунд
       var sw = s.node(ov, 'g', {}), SX = TX + 0.56 * TD + 46, SY = TY - 0.5 * TD + 1.16 * TD - 14;
@@ -202,7 +201,7 @@
       [0, 1, 2, 3].forEach(function (j) { s.actor('baby', { x: cM.x + (j % 2 ? -6 : 6) }, 7.6 + j * 0.5, 0.25, 'sine.inOut'); });
       s.actor('baby', { x: cM.x }, 9.6, 0.25);
       // козырьки вверх; сначала результат: Дима — все три по порядку, Миша путается
-      [kD, kM].forEach(function (k) { s.tween(k.mv, 11.3, { y: k.dy }, { y: 0, duration: 0.35, ease: 'power2.out' }); });
+      [kD, kM].forEach(function (k) { s.tween(k.mv, 11.2, { y: 0 }, { y: k.off, duration: 0.6, ease: 'power2.in' }); }); // снимают: вверх, ровно
       s.brow('adult2', 'calm', 11.4, 0.3); s.gaze('adult2', 10, -2, 11.4, 0.3);
       s.gaze('kid3', 4, -6, 11.6, 0.2); s.gaze('baby', -4, -6, 11.6, 0.2);
       var aD = answer(s, ov, cD.x + 60, F - 328, ['ball', 'house', 'fish'], true, 11.8);
@@ -213,7 +212,6 @@
       cite(s, 'rehearsal · Дж. Флейвелл и др., 1966 · Э. Эллиотт и др., 2021 (17 лабораторий): шептали и многие пятилетки — раньше, чем думали', 13.8);
       // козырьки снимают; Миша смотрит на Диму — и сам начинает шептать
       fadeOut(s, [aD, aM], 15.0);
-      s.tween([kD.g, kM.g], 15.2, { opacity: 1, y: 0 }, { opacity: 0, y: -70, duration: 0.7, ease: 'power1.in' }); // козырьки снимают — уходят вверх
       s.gaze('baby', -12, 0, 15.8, 0.3); s.brow('baby', 'doubt', 15.8, 0.3); s.mouth('baby', 'soft', 15.8, 0.3);
       s.gaze('kid3', 12, 0, 16.2, 0.3); s.mouth('kid3', 'smile', 16.2, 0.2);
       s.gaze('baby', -10, 6, 17.0, 0.3); s.brow('baby', 'focus', 17.0, 0.3);
@@ -245,8 +243,8 @@
   // крышка-коробка, которой закрывают доску (и карточку с цифрами)
   function lid(s, g) {
     var G = s.node(g, 'g', {});
-    s.path(G, 'M808 524 L1112 524 L1134 544 L786 544 Z', L(2.6, '#E6CDA8'));
-    s.node(G, 'rect', Object.assign({ x: 786, y: 544, width: 348, height: 146, rx: 4 }, L(2.6, '#D9B98F')));
+    s.path(G, 'M812 526 L1102 526 L1124 544 L790 544 Z', L(2.6, '#E6CDA8'));
+    s.node(G, 'rect', Object.assign({ x: 790, y: 544, width: 334, height: 146, rx: 4 }, L(2.6, '#D9B98F'))); // коробка по размеру доски и листка — часы рядом остаются видны
     return G;
   }
   // шахматные часы на краю стола и подпись «10 секунд» над ними; черта под подписью сокращается
@@ -302,13 +300,13 @@
       var POS = [[0, 1, 'k', 1], [0, 4, 'p', 0], [1, 0, 'p', 0], [1, 2, 'p', 1], [1, 3, 'k', 0], [1, 5, 'p', 0], [2, 1, 'p', 1], [2, 4, 'k', 1], [2, 5, 'p', 0]];
       var pcs = s.node(g, 'g', {});
       POS.forEach(function (p, i) { var q = sq(p[0], p[1]), pg = s.node(pcs, 'g', {}); (p[2] === 'k' ? K().knight : K().pawn)(s, pg, q.x, q.y, q.k, p[3]); s.tween(pg, 0.4 + i * 0.05, { opacity: 0 }, { opacity: 1, duration: 0.2 }); });
-      // шахматные часы на краю стола: два циферблата и две кнопки
+      // шахматные часы на краю стола, справа от коробки: два циферблата и две кнопки
       var ck = s.node(g, 'g', {});
-      s.node(ck, 'rect', Object.assign({ x: 1126, y: 640, width: 74, height: 50, rx: 6 }, L(2.4, '#B98A5E')));
-      [[1144, 1], [1182, 0]].forEach(function (q) {
-        s.node(ck, 'rect', Object.assign({ x: q[0] - 7, y: q[1] ? 630 : 634, width: 14, height: q[1] ? 10 : 6, rx: 2 }, L(2, INK)));
-        s.node(ck, 'circle', Object.assign({ cx: q[0], cy: 664, r: 13 }, L(2, PAPER)));
-        ln(s, ck, 'M' + q[0] + ' 664 V655 M' + q[0] + ' 664 h6', 1.8);
+      s.node(ck, 'rect', Object.assign({ x: 1130, y: 648, width: 50, height: 42, rx: 6 }, L(2.4, '#B98A5E')));
+      [[1143, 1], [1167, 0]].forEach(function (q) {
+        s.node(ck, 'rect', Object.assign({ x: q[0] - 5, y: q[1] ? 639 : 643, width: 10, height: q[1] ? 9 : 5, rx: 2 }, L(2, INK)));
+        s.node(ck, 'circle', Object.assign({ cx: q[0], cy: 670, r: 9.5 }, L(1.8, PAPER)));
+        ln(s, ck, 'M' + q[0] + ' 670 V663 M' + q[0] + ' 670 h5', 1.6);
       });
       s.brow('dad', 'focus', 1.2, 0.3); s.brow('kid3', 'focus', 1.2, 0.3);
       timer(s, ov, 1.2, 2.0);

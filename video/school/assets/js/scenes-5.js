@@ -23,10 +23,10 @@
     build: function (s) {
       var P = Film.places, g = s.svg(), ov = s.over();
       var cr = P.classroom(s, g, {});
-      P.fill(s, g, cr.seats, [cr.heroes.misha, cr.heroes.anya, cr.heroes.dima], 0, -12);
+      P.fill(s, g, cr.seats, [cr.heroes.misha, cr.heroes.anya, cr.heroes.dima], 0, -12); P.bags(s, g, cr.seats, cr.floor, [0]);
       var sp = function (w) { var q = cr.heroes[w].split(':'); return cr.seats[+q[0]][+q[1]]; }, M = sp('misha'), A = sp('anya'), D = sp('dima');
       K().cast(s, 'misha', M.x, M.y, M.r * 2, 0, { dur: 0.01, mouth: 'soft', gx: -10, gy: 6 }); s.gear('baby', 'backpack', false, 0, 0.01);
-      Film.toys.backpack(s, g, M.x + M.r * 0.9 + 34, FLOOR - 38 * 0.62, 0.62, '#26A69A', '#1C7A71'); // ранец на полу у стула
+      Film.toys.backpack(s, g, M.x + M.r * 1.25, FLOOR - 40, 0.9, '#26A69A', '#1C7A71'); // ранец на полу у стула
       K().cast(s, 'anya', A.x, A.y, A.r * 2, 0, { dur: 0.01, gx: -12 });
       K().cast(s, 'dima', D.x, D.y, D.r * 2, 0, { dur: 0.01, gx: -12 });
       var TX = cr.teacher.x, TY = P.standY(FLOOR, 150, true);
@@ -71,7 +71,7 @@
       s.brow('baby', 'proud', 3.9, 0.3); s.mouth('baby', 'smile', 3.9, 0.3);
       // сдаёт тетрадь: Ирина Петровна подходит шагами, Миша отдаёт тетрадь ей в руку
       s.out([ins, cg, sch, merka], 4.5, { dur: 0.4 });
-      var TN = 600, tw = K().walk(s, 'adult2', TN, 4.7, { step: 100, dur: 0.24, hold: 0.06 });
+      s.gaze('adult2', 12, 0, 4.6, 0.15); var TN = 600, tw = K().walk(s, 'adult2', TN, 4.7, { step: 100, dur: 0.24, hold: 0.06 });
       var TH = 4.7 + tw + 0.1;
       s.hands('adult2', 'hold', TH - 0.2, 0.2); s.gaze('baby', -12, -4, TH - 0.4, 0.3);
       s.hands('baby', 'hold', TH, 0.2);
@@ -161,7 +161,7 @@
       var M = [1040, 800, 100], A = [1290, 745, 84], D0 = [1600, 836, 92], D = [1440, 836];
       K().cast(s, 'misha', M[0], M[1], M[2], 0, { dur: 0.01, gx: 8 }); s.gear('baby', 'backpack', false, 0, 0.01);
       K().cast(s, 'anya', A[0], A[1], A[2], 0, { dur: 0.01, gx: -6 });
-      K().cast(s, 'dima', D0[0], D0[1], D0[2], 0, { dur: 0.01, gx: -8 }); s.hands('kid3', 'hold', 0, 0.01);
+      K().cast(s, 'dima', D0[0], D0[1], D0[2], 0, { dur: 0.01, gx: -12 }); s.hands('kid3', 'hold', 0, 0.01);
       // Дима везёт игрушечную лошадку на верёвочке — над ней проступает рисованная лошадь, и она «скачет»
       var toy = s.node(g, 'g', {}), HX = D0[0] + 120, HY = D0[1] + 46;
       K().toyHorse(s, toy, HX, HY, 0.6);

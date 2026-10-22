@@ -39,6 +39,7 @@
   // Шаги к точке (x, y): ровный шаг с остановкой, как K().walk, но и по глубине. Возвращает время окончания
   function walk2(s, id, x, y, lt, step) {
     var f = s.A[id].st, n = Math.max(1, Math.round(Math.hypot(x - f.x, y - f.y) / (step || 110))), x0 = f.x, y0 = f.y, t = lt;
+    if (Math.abs(x - x0) > 20) s.gaze(id, x > x0 ? 12 : -12, 0, lt, 0.15); // лицо — по ходу движения
     for (var i = 1; i <= n; i++) {
       s.squash(id, 1.04, 0.96, t, 0.08);
       s.actor(id, { x: x0 + (x - x0) * i / n, y: y0 + (y - y0) * i / n }, t + 0.08, 0.2, 'power2.inOut');
@@ -84,7 +85,8 @@
   function ball(s, g, x, y) { var b = grpAt(s, g, x, y); K().ball(s, b, 0, 0, 17); return b; }
   var FLOOR = 900; // пол класса в places.classroom (один во всём ролике; сами ряды — по умолчанию)
   // ранец Миши на полу у его стула (справа от спинки)
-  function floorBag(s, g, M) { var k = 0.62; return Film.toys.backpack(s, g, M.x + M.r * 0.9 + 34, FLOOR - 38 * k, k, TEAL, '#1C7A71'); }
+  // ранец Миши на полу у его стула — там же и того же размера, что ранцы первого ряда (places.bags); у остальных — свои ранцы
+  function floorBag(s, g, M, cr) { if (cr) P().bags(s, g, cr.seats, cr.floor, [0]); return Film.toys.backpack(s, g, M.x + M.r * 1.25, FLOOR - 40, 0.9, TEAL, '#1C7A71'); }
   function seat(cr, who) { var q = cr.heroes[who].split(':'); return cr.seats[+q[0]][+q[1]]; }
   function heroSkip(cr) { return [cr.heroes.misha, cr.heroes.anya, cr.heroes.dima]; }
 
@@ -130,7 +132,7 @@
       P().fill(s, cls, cr.seats, heroSkip(cr), 0, -12);
       var M = seat(cr, 'misha'), A = seat(cr, 'anya'), D = seat(cr, 'dima');
       K().cast(s, 'misha', M.x, M.y, M.r * 2, 0, { dur: 0.01, gx: -12 }); s.gear('baby', 'backpack', false, 0, 0.01);
-      floorBag(s, cls, M); // ранец Миши стоит на полу у его стула
+      floorBag(s, cls, M, cr); // ранцы первого ряда у стульев; ранец Миши — бирюзовый
       K().cast(s, 'anya', A.x, A.y, A.r * 2, 0, { dur: 0.01, gx: -12 });
       K().cast(s, 'dima', D.x, D.y, D.r * 2, 0, { dur: 0.01, gx: -12 });
       var TY = P().standY(cr.floor, 150, true), TX = cr.teacher.x;
@@ -139,7 +141,7 @@
       // Ирина Петровна подходит к партам со стопкой и раздаёт: тетради летят из её рук на парты Миши и Ани
       var TN = 590, HX = 92, HY = 105, stack = grpAt(s, cls, TX + HX, TY + HY);
       [0, 1, 2].forEach(function (i) { s.node(stack, 'rect', { x: -34, y: -10 - i * 9, width: 68, height: 9, rx: 2, fill: i === 1 ? '#CFE3EA' : PAPER, stroke: INK, 'stroke-width': 2 }); });
-      var w1 = K().walk(s, 'adult2', TN, 0.1, { step: 95, dur: 0.22, hold: 0.04 });
+      s.gaze('adult2', 12, 0, 0.05, 0.15); var w1 = K().walk(s, 'adult2', TN, 0.1, { step: 95, dur: 0.22, hold: 0.04 });
       move(s, stack, TN + HX, TY + HY, 0.18, w1 - 0.1, 'none');
       var mDesk = [M.desk.x2 - 64, M.desk.y], aDesk = [A.desk.x2 - 64, A.desk.y], T1 = 0.2 + w1;
       var nbM = grpAt(s, cls, TN + HX, TY + HY - 30), nbA = grpAt(s, cls, TN + HX, TY + HY - 30);
@@ -150,7 +152,7 @@
       s.gaze('adult2', 10, 2, T1, 0.2);
       s.gaze('baby', -10, 6, T1 + 0.5, 0.3); s.brow('baby', 'focus', T1 + 0.5, 0.3);
       // учитель возвращается к доске; наезд на две парты
-      K().walk(s, 'adult2', TX, T1 + 1.2, { step: 95, dur: 0.22, hold: 0.04 });
+      s.gaze('adult2', -12, 0, T1 + 1.1, 0.15); var w2b = K().walk(s, 'adult2', TX, T1 + 1.2, { step: 95, dur: 0.22, hold: 0.04 }); s.gaze('adult2', 10, 0, T1 + 1.2 + w2b, 0.2);
       move(s, stack, TX + HX, TY + HY, T1 + 1.28, 0.6, 'none');
       s.cam({ cx: 1150, cy: 760, z: 1.9 }, T1 + 1.0, 1.0, 'power2.inOut');
       var T2 = T1 + 1.6;
@@ -214,11 +216,11 @@
         var t = s.node(yd, 'text', { x: q[0], y: 689, 'text-anchor': 'middle', fill: INK, style: 'font-family: var(--kid); font-size: 30px;' }); t.textContent = q[1];
       });
       [[3, 0, FIN - 260], [8, 2, FIN - 160]].forEach(function (c) {
-        var y0 = LN[c[1]][0], b = grpAt(s, yd, START - 40, y0); K().classmate(b, c[0], 0, 0, LN[c[1]][1], { gx: 8 });
+        var y0 = LN[c[1]][0], b = grpAt(s, yd, START - 40, y0); K().classmate(b, c[0], 0, 0, LN[c[1]][1], { gx: 12 });
         move(s, b, c[2], y0, R0, 1.7, 'power1.inOut');
         for (var i = 0; i < 5; i++) { s.tween(b, R0 + i * 0.34, { y: y0 }, { y: y0 - 14, duration: 0.17, ease: 'power2.out' }); s.tween(b, R0 + 0.17 + i * 0.34, { y: y0 - 14 }, { y: y0, duration: 0.17, ease: 'power2.in' }); }
       });
-      s.actor('baby', { x: START - 40, y: LN[1][0], d: 88 }, sw, 0.01); s.gaze('baby', 10, 0, sw, 0.01); s.brow('baby', 'focus', sw, 0.01); s.mouth('baby', 'flat', sw, 0.01);
+      s.actor('baby', { x: START - 40, y: LN[1][0], d: 88 }, sw, 0.01); s.gaze('baby', 12, 0, sw, 0.01); s.brow('baby', 'focus', sw, 0.01); s.mouth('baby', 'flat', sw, 0.01);
       for (var i = 0; i < 6; i++) { // бег: шаг-подскок без сплющивания
         var xa = START - 40 + (FIN + 70 - START + 40) * (i + 0.5) / 6, xb = START - 40 + (FIN + 70 - START + 40) * (i + 1) / 6, ti = R0 + i * 0.28;
         s.actor('baby', { x: xa, y: LN[1][0] - 18 }, ti, 0.14, 'power2.out'); s.actor('baby', { x: xb, y: LN[1][0] }, ti + 0.14, 0.14, 'power2.in');
@@ -432,7 +434,7 @@
         var id = ri + ':' + pi; if (id === room.heroes.misha || id === room.heroes.anya || id === room.heroes.dima || id === '0:2') return;
         K().classmate(cr, n++, p.x, p.y, p.r, { gx: -12, mouth: n % 2 ? 'flat' : 'soft' });
       }); });
-      floorBag(s, cr, MS);
+      floorBag(s, cr, MS, room);
       // тот, кто смеётся: одноклассник за партой (рот — смех, брови — гордые), подпрыгивает от смеха
       var boy = grpAt(s, cr, B0.x, B0.y); Film.head(boy, 0, 0, B0.r, '#C95A44', null, { mouth: 'smile', brow: 'proud', gx: -10 });
       for (var k2 = 0; k2 < 5; k2++) { s.tween(boy, 4.9 + k2 * 0.24, { y: B0.y }, { y: B0.y - 7, duration: 0.12, ease: 'power2.out' }); s.tween(boy, 5.02 + k2 * 0.24, { y: B0.y - 7 }, { y: B0.y, duration: 0.12, ease: 'power2.in' }); }
@@ -441,26 +443,28 @@
       s.actor('kid3', { x: DS.x, y: DS.y, d: SD }, sw, 0.01); s.actor('kid3', { o: 1 }, sw, 0.01); s.gaze('kid3', -12, 0, sw, 0.01); s.mouth('kid3', 'soft', sw, 0.01);
       s.hands('baby', 'desk', sw, 0.01); s.hands('kid3', 'desk', sw, 0.01);
       // подставка у доски: Аня стоит на ней и дотягивается до примера
-      var STX = 360, STT = FLOOR - 130;
-      s.node(cr, 'rect', { x: STX - 130, y: STT, width: 260, height: 130, rx: 4, fill: '#E9D9BF', stroke: INK, 'stroke-width': 2.6 });
-      s.path(cr, 'M' + (STX - 130) + ' ' + (STT + 14) + ' H' + (STX + 130), { stroke: INK, 'stroke-width': 2 });
-      var AD = 140, AX = STX, AY = STT - AD / 2;
+      // переносная доска на ножках — стоит на полу, на высоте ребёнка: Аня пишет на ней, подняв руку
+      var EX = 285, EW = 230, ET = 636, EB = 800;
+      s.path(cr, 'M' + (EX + 20) + ' ' + EB + ' L' + (EX + 4) + ' ' + FLOOR + ' M' + (EX + EW - 20) + ' ' + EB + ' L' + (EX + EW - 4) + ' ' + FLOOR, { stroke: INK, 'stroke-width': 4 });
+      s.node(cr, 'rect', { x: EX - 8, y: ET - 8, width: EW + 16, height: EB - ET + 16, rx: 5, fill: '#C9A27A', stroke: INK, 'stroke-width': 2.6 });
+      s.node(cr, 'rect', { x: EX, y: ET, width: EW, height: EB - ET, rx: 3, fill: '#3B5E54', stroke: INK, 'stroke-width': 2 });
+      var AD = 140, AX = 200, AY = FLOOR - AD / 2;
       s.actor('kid2', { x: AX, y: AY, d: AD }, sw, 0.01); s.actor('kid2', { o: 1 }, sw, 0.01);
-      s.gaze('kid2', -2, -8, sw, 0.01); s.mouth('kid2', 'soft', sw, 0.01); s.brow('kid2', 'focus', sw, 0.01);
+      s.gaze('kid2', 8, -6, sw, 0.01); s.mouth('kid2', 'soft', sw, 0.01); s.brow('kid2', 'focus', sw, 0.01);
       s.hands('kid2', 'up', sw, 0.01);
       // мел — в руке-точке: у поднятой руки — у доски, опускается вместе с рукой
       var UP = [AX + 0.6 * AD, AY - 0.58 * AD], DN0 = [AX + 0.56 * AD, AY + 0.16 * AD];
       var ck = chalk(s, g, 0, 0); s.set(ck, 0, { opacity: 0 }, { opacity: 0 });
       s.set(ck, sw, { x: UP[0], y: UP[1], opacity: 0 }, { x: UP[0], y: UP[1], opacity: 1 });
-      var bq = s.node(cr, 'text', { x: 384, y: 545, 'text-anchor': 'end', fill: CHALK, style: 'font-family: var(--hand); font-size: 56px;' }); bq.textContent = '9 × 6 =';
-      var ba = s.node(cr, 'text', { x: 398, y: 545, 'text-anchor': 'start', fill: CHALK, style: 'font-family: var(--hand); font-size: 56px;' }); ba.textContent = '52';
+      var bq = s.node(cr, 'text', { x: EX + 140, y: 734, 'text-anchor': 'end', fill: CHALK, style: 'font-family: var(--hand); font-size: 44px;' }); bq.textContent = '9 × 6 =';
+      var ba = s.node(cr, 'text', { x: EX + 152, y: 734, 'text-anchor': 'start', fill: CHALK, style: 'font-family: var(--hand); font-size: 44px;' }); ba.textContent = '52';
       s.tween([bq, ba], sw + 0.15, { opacity: 0 }, { opacity: 1, duration: 0.6 });
       // облачко у смеющегося — хвост ведёт к нему между головами дальнего ряда
       sayTo(s, 'Ты никогда не научишься!', B0.x - 300, 466, [B0.x, B0.y - B0.r - 4], 4.9, 7.1, B0.x + 60);
       s.brow('kid2', 'sad', 5.2, 0.3); s.mouth('kid2', 'sad', 5.2, 0.3); s.gaze('kid2', 3, 6, 5.2, 0.3);
       s.hands('kid2', 'side', 5.6, 0.4); s.tween(ck, 5.6, { x: UP[0], y: UP[1] }, { x: DN0[0], y: DN0[1], duration: 0.4, ease: 'power2.out' }); // опускает мел
       // кадр 3: Миша и Дима встают, выходят в проход и подходят — встают правее Ани, между доской и классом
-      var MN = [548, FLOOR - SD / 2], DN = [643, FLOOR - SD / 2], AISLE = FLOOR + 6;
+      var MN = [586, FLOOR - SD / 2], DN = [730, FLOOR - SD / 2], AISLE = FLOOR + 6; // зазор между ними 36 px
       s.hands('baby', 'off', 6.0, 0.2); s.hands('kid3', 'off', 6.0, 0.2);
       s.actor('baby', { x: MS.x + 10, y: AISLE }, 6.05, 0.4, 'power2.inOut'); s.actor('kid3', { x: DS.x + 10, y: AISLE }, 6.1, 0.4, 'power2.inOut');
       var mw = walk2(s, 'baby', MN[0], AISLE, 6.5, 170); walk2(s, 'baby', MN[0], MN[1], mw, 70);
@@ -474,21 +478,21 @@
       s.gaze('kid2', 8, 2, TD + 0.3, 0.3); s.brow('kid2', 'calm', TD + 0.6, 0.3); s.mouth('kid2', 'soft', TD + 0.6, 0.3);
       // вторая попытка: Аня сама стирает «52» тряпкой и пишет «54»
       var TE = TD + 1.0;
-      s.gaze('kid2', -2, -8, TE, 0.3); s.hands('kid2', 'up', TE, 0.3); s.brow('kid2', 'focus', TE, 0.3);
+      s.gaze('kid2', 8, -6, TE, 0.3); s.hands('kid2', 'up', TE, 0.3); s.brow('kid2', 'focus', TE, 0.3);
       s.tween(ck, TE, { x: DN0[0], y: DN0[1] }, { x: UP[0], y: UP[1], duration: 0.3, ease: 'power2.out' });
       s.set(ck, TE + 0.3, { opacity: 1 }, { opacity: 0 });
       var rag = s.node(cr, 'rect', { x: 0, y: 0, width: 46, height: 24, rx: 6, fill: '#8C7A62', stroke: INK, 'stroke-width': 2 });
-      s.set(rag, 0, { x: 430, y: 512, opacity: 0 }, { x: 430, y: 512, opacity: 0 });
+      s.set(rag, 0, { x: EX + 168, y: 706, opacity: 0 }, { x: EX + 168, y: 706, opacity: 0 });
       s.set(rag, TE + 0.3, { opacity: 0 }, { opacity: 1 });
-      [0, 1].forEach(function (i) { s.tween(rag, TE + 0.35 + i * 0.4, { x: 430 }, { x: 392, duration: 0.2, ease: 'sine.inOut', yoyo: true, repeat: 1 }); });
+      [0, 1].forEach(function (i) { s.tween(rag, TE + 0.35 + i * 0.4, { x: EX + 168 }, { x: EX + 140, duration: 0.2, ease: 'sine.inOut', yoyo: true, repeat: 1 }); });
       s.tween(ba, TE + 0.4, { opacity: 1 }, { opacity: 0, duration: 0.7 });
       s.set(rag, TE + 1.15, { opacity: 1 }, { opacity: 0 }); s.set(ck, TE + 1.15, { opacity: 0 }, { opacity: 1 });
-      var b2 = s.node(cr, 'text', { x: 398, y: 545, 'text-anchor': 'start', fill: CHALK, style: 'font-family: var(--hand); font-size: 56px;' }); b2.textContent = '54';
+      var b2 = s.node(cr, 'text', { x: EX + 152, y: 734, 'text-anchor': 'start', fill: CHALK, style: 'font-family: var(--hand); font-size: 44px;' }); b2.textContent = '54';
       s.tween(b2, TE + 1.25, { opacity: 0 }, { opacity: 1, duration: 0.5 });
       var TOK = TE + 1.9;
       s.hands('kid2', 'side', TOK, 0.3); s.tween(ck, TOK, { x: UP[0], y: UP[1] }, { x: DN0[0], y: DN0[1], duration: 0.3 });
       s.brow('kid2', 'proud', TOK, 0.3); s.mouth('kid2', 'smile', TOK, 0.3); s.gaze('kid2', 6, -3, TOK, 0.3);
-      sayH(s, 'Я могу!', AX - 26, AY - AD / 2 - 104, TOK + 0.1, TOK + 2.3);
+      sayH(s, 'Я могу!', AX + 42 - 200, AY - AD / 2 - 104, TOK + 0.1, TOK + 2.3, 'r');
       s.actor('kid2', { y: AY - 16 }, TOK + 0.2, 0.18, 'power2.out'); s.actor('kid2', { y: AY }, TOK + 0.38, 0.2, 'power2.in');
       s.tween(ck, TOK + 0.2, { y: DN0[1] }, { y: DN0[1] - 16, duration: 0.18, ease: 'power2.out', yoyo: true, repeat: 1 });
       s.mouth('baby', 'smile', TOK, 0.3); s.brow('baby', 'proud', TOK, 0.3); s.mouth('kid3', 'smile', TOK, 0.3);
