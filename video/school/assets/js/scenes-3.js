@@ -313,47 +313,47 @@
       var lb = lid(s, g);
       s.tween(lb, 3.6, { opacity: 0, y: -120 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.in' });
       s.set([cb, pcs], 4.0, { opacity: 1 }, { opacity: 0 });
-      hudText(s, 'h3', 'Кто запомнит больше — Дима или папа? <span class="acc">Угадайте.</span>', { left: 140, top: 130, width: 1640, fontSize: 46 }, 0.4, 6.8);
-      freeze(s, 4.2, 2.5);
+      hudText(s, 'h3', 'Кто запомнит больше — Дима или папа? <span class="acc">Угадайте.</span>', { left: 140, top: 130, width: 1640, fontSize: 46 }, 0.4, 5.9);
+      freeze(s, 4.2, 1.9);
       s.gaze('dad', 2, -6, 4.2, 0.3); s.gaze('kid3', -2, -6, 4.2, 0.3); s.brow('kid3', 'calm', 4.2, 0.3);
       // кадр 2: табло — фигуры: папа 6, Дима 9; папа удивлён (брови вверх, рот «о»)
       var p1 = txt(s, sh, 480, 395, '6', 34), d1 = txt(s, sh, 595, 395, '9', 34, { color: '#13534D' });
-      fadeIn(s, r1, 6.9); fadeIn(s, d1, 7.1); fadeIn(s, p1, 7.4);
+      fadeIn(s, r1, 6.1); fadeIn(s, d1, 6.3); fadeIn(s, p1, 6.5);
       var sc1 = txt(s, sh, 538, 515, '0 : 1', 40);
-      fadeIn(s, r3, 7.7); fadeIn(s, sc1, 7.7); fadeOut(s, sc1, 12.4, 0.2);
-      s.brow('kid3', 'proud', 7.2, 0.2); s.mouth('kid3', 'smile', 7.2, 0.2); s.squash('kid3', 0.94, 1.08, 7.2, 0.1); s.squash('kid3', 1, 1, 7.3, 0.3, 'back.out(3)');
-      s.gaze('dad', 3, -2, 7.5, 0.2); s.brow('dad', 'proud', 7.5, 0.3); s.mouth('dad', 'flat', 7.5, 0.2);
+      fadeIn(s, r3, 6.7); fadeIn(s, sc1, 6.7); fadeOut(s, sc1, 14.2, 0.2);
+      s.brow('kid3', 'proud', 6.3, 0.2); s.mouth('kid3', 'smile', 6.3, 0.2); s.squash('kid3', 0.94, 1.08, 6.3, 0.1); s.squash('kid3', 1, 1, 6.4, 0.3, 'back.out(3)');
+      s.gaze('dad', 3, -2, 6.5, 0.2); s.brow('dad', 'proud', 6.5, 0.3); s.mouth('dad', 'flat', 6.5, 0.2);
       var mo = s.node(ov, 'g', {}), MX = cP.x + 3 * 1.8, MY = cP.y + (63 - 50 - 2) * 1.8;
       s.node(mo, 'ellipse', { cx: MX, cy: MY, rx: 30, ry: 10, fill: '#2C4459' });
       s.node(mo, 'ellipse', { cx: MX, cy: MY, rx: 8, ry: 10, fill: 'none', stroke: '#FFFDF8', 'stroke-width': 4 });
-      s.tween(mo, 7.6, { opacity: 0 }, { opacity: 1, duration: 0.15 });
-      s.tween(mo, 9.4, { opacity: 1 }, { opacity: 0, duration: 0.15 });
-      s.squash('dad', 0.97, 1.05, 7.6, 0.15); s.squash('dad', 1, 1, 7.75, 0.3);
-      s.mouth('dad', 'soft', 9.4, 0.2); s.brow('dad', 'calm', 9.4, 0.2);
-      hudText(s, 'lead', 'Дима знает шахматы и видит на доске знакомые узоры.', { left: 140, top: 130, width: 1640, fontSize: 38 }, 8.0, 12.3);
+      s.tween(mo, 6.6, { opacity: 0 }, { opacity: 1, duration: 0.15 });
+      s.tween(mo, 8.4, { opacity: 1 }, { opacity: 0, duration: 0.15 });
+      s.squash('dad', 0.97, 1.05, 6.6, 0.15); s.squash('dad', 1, 1, 6.75, 0.3);
+      s.mouth('dad', 'soft', 8.4, 0.2); s.brow('dad', 'calm', 8.4, 0.2);
+      hudText(s, 'lead', 'Дима знает шахматы и видит на доске знакомые узоры.', { left: 140, top: 130, width: 1640, fontSize: 38 }, 6.9, 10.7); // гаснет до показа цифр
       // кадр 3: реванш — ряд случайных цифр на карточке, тоже на 10 секунд, закрывается
       var dg = s.node(g, 'g', {});
       ln(s, dg, 'M960 688 L1000 600', 2.4);
       s.node(dg, 'rect', Object.assign({ x: 800, y: 556, width: 320, height: 128, rx: 8 }, L(2.6, PAPER)));
       txt(s, dg, 960, 640, '7 3 9 1 5 8 2 6', 52, { weight: 600 }); // ряд случайных цифр — крупно на листке
-      s.tween(dg, 8.4, { opacity: 0 }, { opacity: 1, duration: 0.01 });
-      s.tween(lb, 8.6, { opacity: 1, y: 0 }, { opacity: 0, y: -120, duration: 0.35, ease: 'power2.out' });
-      s.brow('dad', 'focus', 8.9, 0.3); s.gaze('dad', 10, 6, 8.9, 0.3);
-      s.brow('kid3', 'focus', 8.9, 0.3); s.mouth('kid3', 'soft', 8.9, 0.3); s.gaze('kid3', -10, 6, 8.9, 0.3);
-      timer(s, ov, 9.0, 2.0);
-      s.tween(lb, 11.3, { opacity: 0, y: -120 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.in' });
-      s.set(dg, 11.7, { opacity: 1 }, { opacity: 0 });
-      s.gaze('dad', 2, -6, 11.7, 0.3); s.gaze('kid3', -2, -6, 11.7, 0.3); s.brow('kid3', 'calm', 11.7, 0.3);
+      s.tween(dg, 11.0, { opacity: 0 }, { opacity: 1, duration: 0.01 });
+      s.tween(lb, 11.1, { opacity: 1, y: 0 }, { opacity: 0, y: -120, duration: 0.35, ease: 'power2.out' });
+      s.brow('dad', 'focus', 11.3, 0.3); s.gaze('dad', 10, 6, 11.3, 0.3);
+      s.brow('kid3', 'focus', 11.3, 0.3); s.mouth('kid3', 'soft', 11.3, 0.3); s.gaze('kid3', -10, 6, 11.3, 0.3);
+      timer(s, ov, 11.3, 1.6);
+      s.tween(lb, 13.1, { opacity: 0, y: -120 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.in' });
+      s.set(dg, 13.5, { opacity: 1 }, { opacity: 0 });
+      s.gaze('dad', 2, -6, 13.5, 0.3); s.gaze('kid3', -2, -6, 13.5, 0.3); s.brow('kid3', 'calm', 13.5, 0.3);
       // сначала результат: цифры — папа 8, Дима 6; счёт 1 : 1; только потом объяснение
       var p2 = txt(s, sh, 480, 455, '8', 34, { color: '#13534D' }), d2 = txt(s, sh, 595, 455, '6', 34);
-      fadeIn(s, r2, 12.2); fadeIn(s, p2, 12.4); fadeIn(s, d2, 12.6);
+      fadeIn(s, r2, 13.8); fadeIn(s, p2, 14.0); fadeIn(s, d2, 14.2);
       var sc2 = txt(s, sh, 538, 515, '1 : 1', 40);
-      fadeIn(s, sc2, 12.7);
-      s.brow('dad', 'proud', 12.5, 0.3); s.mouth('dad', 'smile', 12.5, 0.3); s.gaze('dad', 10, 0, 12.5, 0.3);
-      s.mouth('kid3', 'smile', 12.9, 0.3); s.gaze('kid3', -10, 0, 12.9, 0.3);
-      hudText(s, 'lead', 'В цифрах узоров нет — и папа впереди.', { left: 140, top: 130, width: 1640, fontSize: 38 }, 13.1);
-      concl(s, 'память растёт вместе со знаниями.', 16.8);
-      cite(s, 'М. Чи, 1978: дети ~10 лет и взрослые · В. Шнайдер и др., 1993 — повторилось', 17.2);
+      fadeIn(s, sc2, 14.3);
+      s.brow('dad', 'proud', 14.1, 0.3); s.mouth('dad', 'smile', 14.1, 0.3); s.gaze('dad', 10, 0, 14.1, 0.3);
+      s.mouth('kid3', 'smile', 14.5, 0.3); s.gaze('kid3', -10, 0, 14.5, 0.3);
+      hudText(s, 'lead', 'В цифрах узоров нет — и папа впереди.', { left: 140, top: 130, width: 1640, fontSize: 38 }, 14.7);
+      concl(s, 'память растёт вместе со знаниями.', 17.0);
+      cite(s, 'М. Чи, 1978: дети ~10 лет и взрослые · В. Шнайдер и др., 1993 — повторилось', 17.4);
       castOut(s, ['dad', 'kid3']);
     }
   });

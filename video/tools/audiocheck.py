@@ -54,7 +54,7 @@ step = t[1] - t[0]
 k = int(round(.5 / step))
 jumps = []
 for i in range(len(t) - k):
-    if t[i] < 1.0 or t[i] > 306:
+    if t[i] < 1.0 or t[i] > _t - 4:
         continue
     d = M[i + k] - M[i]
     if abs(d) > 6:
@@ -66,10 +66,10 @@ for tt, d in jumps:
         g = groups[-1]; g[1] = tt; g[2] = max(g[2], d, key=abs)
     else:
         groups.append([tt, tt, d])
-print('\n1) скачки моментальной громкости > 6 LU за 0,5 с (t 1–306 с):', len(groups))
+print('\n1) скачки моментальной громкости > 6 LU за 0,5 с (t 1–%g с):' % (_t - 4), len(groups))
 for a, b, d in groups:
     print('   %.1f–%.1f с  %+.1f LU' % (a, b + .5, d))
-print('   кратковременная (3 с): min %.1f, max %.1f LUFS (t 3–305)' % (S[(t > 3) & (t < 305)].min(), S[(t > 3) & (t < 305)].max()))
+print('   кратковременная (3 с): min %.1f, max %.1f LUFS (t 3–%g)' % (S[(t > 3) & (t < _t - 5)].min(), S[(t > 3) & (t < _t - 5)].max(), _t - 5))
 print('   моментальная: max %.1f LUFS' % M.max())
 
 full = pcm(WAV)
@@ -106,7 +106,8 @@ for b, nm in zip(BOUND, NAMES):
 print('   максимум: %+.1f LU (%s)' % max(worst)[0::2])
 
 print('\n5) громкость по главам (энергетическое среднее моментальной, LUFS):')
-for nm, a, b in (('вступление', 1, 25), ('гл. 1', 25, 105), ('гл. 2', 105, 165), ('гл. 3', 165, 212.5),
-                 ('гл. 4', 212.5, 267.5), ('итог/финал', 267.5, 305)):
+# главы — по заставкам ch1…ch4 и первой сцене итога (grow)
+_cut = [1] + [b for b, nm in zip(BOUND, NAMES) if nm in ('ch1', 'ch2', 'ch3', 'ch4', 'grow')] + [_t - 5]
+for nm, a, b in zip(('вступление', 'гл. 1', 'гл. 2', 'гл. 3', 'гл. 4', 'итог/финал'), _cut, _cut[1:]):
     sel = M[(t >= a) & (t < b)]
     print('   %-11s %.1f  (min S %.1f)' % (nm, 10 * np.log10(np.mean(10 ** (sel / 10))), S[(t >= max(a, 3)) & (t < b)].min()))

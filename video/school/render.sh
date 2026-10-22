@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# «От семи до десяти» (7–10 лет, 124 такта = 5:10): полная пересборка ролика —
+# «От семи до десяти» (7–10 лет, 142 такта = 5:55): полная пересборка ролика —
 # музыка (music/compose.py → school.mid) → видео (HyperFrames) → сведение и финальное кодирование.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -7,7 +7,7 @@ mkdir -p renders
 
 SF="${SOUNDFONT:-/usr/share/sounds/sf3/MuseScore_General_Full.sf3}"
 HF="${HYPERFRAMES:-npx --yes hyperframes@0.8.78}"
-PRE="atrim=0:310,asetpts=N/SR/TB,afade=t=in:st=0:d=0.05,afade=t=out:st=306.5:d=3.5,highpass=f=30"
+PRE="atrim=0:355,asetpts=N/SR/TB,afade=t=in:st=0:d=0.05,afade=t=out:st=351.5:d=3.5,highpass=f=30"
 
 echo "▶ Музыка: партитура → MIDI → WAV"
 (cd music && python3 compose.py)
@@ -31,5 +31,5 @@ echo "▶ Сведение и финальное кодирование (H.264 +
 ffmpeg -hide_banner -loglevel error -y -i renders/video.mp4 -i renders/music_master.wav \
   -map 0:v:0 -map 1:a:0 -c:v libx264 -preset slow -crf 18 -tune animation -pix_fmt yuv420p \
   -c:a aac -b:a 192k -movflags +faststart -shortest renders/school-seven-to-ten.mp4
-ffmpeg -hide_banner -loglevel error -y -ss 12.0 -i renders/school-seven-to-ten.mp4 -frames:v 1 renders/poster.png
-echo "✔ Готово: renders/school-seven-to-ten.mp4 (+ кадр обложки на 12 с — титр: renders/poster.png)"
+ffmpeg -hide_banner -loglevel error -y -ss 13.5 -i renders/school-seven-to-ten.mp4 -frames:v 1 renders/poster.png
+echo "✔ Готово: renders/school-seven-to-ten.mp4 (+ кадр обложки на 13,5 с — титр: renders/poster.png)"
