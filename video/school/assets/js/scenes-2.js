@@ -140,7 +140,7 @@
       var g = s.svg(), ov = s.over();
       // кадр 1: Ирина Петровна строит класс по дням рождения — шеренга от неё слева направо, сентябрь → август
       var A = s.node(g, 'g', {}), cr0 = P().classroom(s, A, {}), FL = cr0.floor; // парты пустые: все встали в шеренгу
-      var t1 = s.text('h3', 'В одном классе разница — почти год.', { left: 140, top: 130, width: 1040 });
+      var t1 = s.text('h3', 'В одном классе разница — почти год.', { left: 140, top: 130, width: 1040, fontSize: 40 });
       s.lines(t1, 0.3);
       var TD = 150, TX = cr0.teacher.x, TY = P().standY(FL, TD, true);
       on(s, 'teacher', TX, TY, TD, 0.1, { gx: 10 });
@@ -170,7 +170,6 @@
       s.actor('kid3', { x: pd.x, y: pd.y, d: 2 * pd.r }, sw, 0.01); s.gaze('kid3', GX, 0, sw, 0.01);
       ['baby', 'kid3'].forEach(function (id) { s.hands(id, 'desk', sw, 0.01); });
       // пенал на парте Ани
-      var dk = pa.desk, pen = s.node(B, 'rect', Object.assign({ x: dk.x1 + 70, y: dk.y - 18, width: 58, height: 18, rx: 6 }, L(2.4, '#F5D27A')));
       // Аня вертится
       s.hands('kid2', 'side', sw + 0.4, 0.08); s.brow('kid2', 'doubt', sw + 0.4, 0.2);
       [0, 1, 2, 3].forEach(function (j) {
@@ -180,15 +179,14 @@
       });
       s.actor('kid2', { x: pa.x }, sw + 1.7, 0.2);
       s.gaze('kid2', 10, -4, sw + 0.5, 0.2); s.gaze('kid2', -8, 4, sw + 1.1, 0.2);
-      s.tween(pen, sw + 1.7, { x: 0, y: 0, rotation: 0, svgOrigin: (dk.x1 + 99) + ' ' + (dk.y - 9) }, { x: 30, y: F - dk.y, rotation: 180, duration: 0.5, ease: 'power2.in' });
       s.mouth('kid2', 'flat', sw + 2.1, 0.2); s.gaze('kid2', -4, 8, sw + 2.1, 0.2); s.brow('kid2', 'sad', sw + 2.1, 0.2); s.hands('kid2', 'off', sw + 2.1, 0.08);
       s.brow('adult2', 'doubt', sw + 2.3, 0.3); s.mouth('adult2', 'flat', sw + 2.3, 0.3); s.gaze('adult2', 10, 2, sw + 2.3, 0.3);
       // мысль учителя: облачко над ней, пузырьки ведут к ней
-      var CX = 800, CY = 520, th = s.node(ov, 'g', {});
+      var CX = 820, CY = 600, th = s.node(ov, 'g', {});
       Film.icons.cloud(s, th, CX, CY, 115, 48, { tail: [TX + 30, TY - TD / 2 - 6], at: sw + 2.6, dur: 0.5 });
       var tq = s.node(th, 'text', { x: CX, y: CY + 15, 'text-anchor': 'middle', fill: INK, style: 'font-family: var(--kid); font-weight: 700; font-size: 44px' }); tq.textContent = 'СДВГ?';
       s.tween(tq, sw + 3.0, { opacity: 0 }, { opacity: 1, duration: 0.3 });
-      var t2 = s.text('lead', 'Самым младшим в классе на треть чаще ставят СДВГ — синдром дефицита внимания и гиперактивности.', { left: 140, top: 130, width: 1000, fontSize: 36 });
+      var t2 = s.text('h3', 'Самым младшим в классе на треть чаще ставят СДВГ — синдром дефицита внимания и гиперактивности.', { left: 140, top: 130, width: 1040, fontSize: 36 }); // две строки — не наезжает на доску
       s.lines(t2, sw + 0.3);
       // листок календаря на стене у доски
       var cal = s.node(B, 'g', {}), KX = 760, KY = 250;
@@ -226,9 +224,9 @@
       s.hands('kid2', 'desk', 0.05, 0.01); s.hands('baby', 'desk', 0.05, 0.01); s.hands('kid3', 'desk', 0.05, 0.01);
       var bx = cr.board.x + cr.board.w / 2, by = cr.board.y + cr.board.h / 2 + 22;
       var ex1 = chalk(s, A, bx - 30, by, '3 + 5 =', 76); fadeIn(s, ex1, 0.2);
-      var ta = s.text('h3', 'Аня решает 3 + 5 — то пальцами, то в уме.', { left: 140, top: 130, width: 1040, fontSize: 44 });
+      var ta = s.text('h3', 'Аня решает 3 + 5 — то пальцами, то в уме.', { left: 140, top: 130, width: 1040, fontSize: 40 });
       s.lines(ta, 0.3);
-      var CX = 1130, CY = 455, cl = Film.icons.cloud(s, ov, CX, CY, 195, 78, { tail: [pa.x - 30, pa.y - pa.r - 30], at: 0.6, dur: 0.5 });
+      var CX = 1130, CY = 455, cl = Film.icons.cloud(s, ov, CX, CY, 195, 78, { tail: [1250, 622], at: 0.6, dur: 0.5 }); // пузырьки — в просвет над задними партами, к Ане
       // палочки: | | | + | | | | |
       function sticks(a, b, t0) {
         var G = s.node(ov, 'g', {}), xs = [], n = a + b, w = 30, x0 = CX - ((n - 1) * w + 30) / 2;
@@ -266,7 +264,7 @@
       var ex2 = chalk(s, A, bx - 30, by, '4 + 3 =', 76); fadeIn(s, ex2, 4.5, 0.2);
       s.brow('kid2', 'focus', 4.5, 0.2);
       var S2 = sticks(4, 3, 4.6);
-      var TX2 = 125;
+      var TX2 = 150;
       s.actor('adult2', { x: TX2 }, 4.5, 0.75, 'power1.inOut'); s.gaze('adult2', -12, 0, 4.5, 0.2); // идёт влево — смотрит влево
 
       // кадр 2: «2 класс». Аню вызвали к доске. Числовая прямая 0…1000. Куда поставить 150? Стоп-кадр.
@@ -288,9 +286,9 @@
       s.draw(nl, sw + 0.2, { dur: 0.7 });
       var n0 = chalk(s, B, L0, LY - 26, '0', 34), n1 = chalk(s, B, L1, LY - 26, '1000', 34); // подписи над прямой — Аня у доски их не закрывает
       fadeIn(s, [n0, n1], sw + 0.8);
-      hudText(s, 'h3', 'Числовая прямая: от 0 до 1000. Куда поставить 150?', { left: 140, top: 130, width: 1000, fontSize: 46 }, sw + 0.3, 11.0);
+      hudText(s, 'h3', 'Числовая прямая: от 0 до 1000. Куда поставить 150?', { left: 140, top: 130, width: 1000, fontSize: 40 }, sw + 0.3, 11.0);
       freeze(s, 8.3, 2.6);
-      hudText(s, 'h3 acc', 'Угадайте.', { left: 140, top: 250, fontSize: 46 }, 8.4, 11.0);
+      hudText(s, 'h3 acc', 'Угадайте.', { left: 140, top: 230, fontSize: 40 }, 8.4, 11.0);
       // кадр 3: Аня ставит флажок почти на середину; потом красный флажок учителя у 150; потом объяснение
       // флажок-магнит: из руки (hx, hy) встаёт на прямую; left — полотнище влево; hgt — высота древка
       function flag(color, x, t, hx, hy, left, hgt) {
@@ -307,12 +305,12 @@
       var fa = flag(TEAL, AX, 12.1, AX + 6, AY - 55);
       var la = chalk(s, B, AX + 26, LY - 112, 'Аня', 26); fadeIn(s, la, 12.4);
       s.hands('kid2', 'side', 12.6, 0.3);
-      s.gaze('adult2', 12, 0, 12.5, 0.15); s.actor('adult2', { x: 165 }, 12.6, 0.6, 'power2.inOut'); s.gaze('adult2', 10, -4, 13.2, 0.2);
+      s.gaze('adult2', 12, 0, 12.5, 0.15); s.actor('adult2', { x: 185 }, 12.6, 0.6, 'power2.inOut'); s.gaze('adult2', 10, -4, 13.2, 0.2);
       flag(RED, X(150), 13.3, 290, TY + 40);
       var lr = chalk(s, B, X(150) + 30, LY - 112, 'правильно', 26, { color: '#F5D27A' }); fadeIn(s, lr, 13.5);
       s.brow('kid2', 'sad', 13.7, 0.3); s.mouth('kid2', 'flat', 13.7, 0.3); s.gaze('kid2', -10, -6, 13.7, 0.3); s.hands('kid2', 'off', 13.7, 0.3);
       s.mouth('baby', 'smile', 13.9, 0.2); s.mouth('kid3', 'smile', 13.9, 0.2);
-      hudText(s, 'lead', 'Так ошибаются почти все второклассники: 100 для них — уже огромное число, и маленькие числа в голове «растянуты».', { left: 140, top: 130, width: 1000, fontSize: 36 }, 14.1, 19.0);
+      hudText(s, 'h3', 'Так ошибаются почти все второклассники: 100 для них — уже огромное число, и маленькие числа в голове «растянуты».', { left: 140, top: 130, width: 1000, fontSize: 40 }, 14.1, 19.0);
       cite(s, 'Р. Сиглер, Дж. Опфер, 2003: «растянуто» расставляют числа 91 % второклассников и 3 % взрослых · Дж. Опфер, Р. Сиглер, 2007 · счёт разными способами вперемешку — Р. Сиглер, 1987; 1996', 15.0);
       s.gaze('adult2', -12, 0, 18.3, 0.15); s.actor('adult2', { x: TX2 }, 18.4, 0.7, 'power2.inOut'); s.gaze('adult2', 10, 0, 19.15, 0.15); // учитель отходит — не телепортируется
       // кадр 4: «4 класс» — та же прямая; бледный старый флажок «2 класс», красный «правильно» на месте; Аня ставит почти точно
@@ -328,11 +326,11 @@
       [19.9, 20.2, 20.5].forEach(function (tt) { s.squash('kid2', 1.04, 0.96, tt, 0.1); s.squash('kid2', 1, 1, tt + 0.1, 0.15); });
       s.hands('kid2', 'up', 20.8, 0.12);
       flag(TEAL, NX, 21.0, NX + 2, AY - 55, true, 70);
-      var ln2 = chalk(s, B, NX - 24, LY - 78, 'Аня', 26); fadeIn(s, ln2, 21.3);
+      // флажок 4 класса без подписи: Аня стоит под ним и говорит «Успела!» — подпись налезала на «правильно»
       s.hands('kid2', 'side', 21.4, 0.3); s.brow('kid2', 'proud', 21.4, 0.2); s.mouth('kid2', 'smile', 21.4, 0.2); s.gaze('kid2', 4, -6, 21.4, 0.2);
       s.squash('kid2', 0.94, 1.08, 21.5, 0.1); s.squash('kid2', 1, 1, 21.6, 0.3, 'back.out(3)');
       s.gaze('kid2', 12, 0, 21.75, 0.15); s.actor('kid2', { x: 610 }, 21.8, 0.7, 'power1.inOut'); s.gaze('kid2', 2, -2, 22.55, 0.2);
-      talk(s, ov, 'Успела!', 580, 680, 170, 606, AY - 52, 22.5, 24.4);
+      talk(s, ov, 'Успела!', 535, 668, 150, 600, AY - 52, 22.5, 24.4);
       s.mouth('adult2', 'smile', 21.8, 0.2);
       concl(s, 'к 4 классу числа в голове выстраиваются ровно.', 21.4);
       castOut(s, ['adult2', 'kid2', 'baby', 'kid3']);
@@ -402,7 +400,7 @@
       fadeIn(s, tb, 0.3, 0.4);
       var AY = F - 55, ax = 500;
       on(s, 'anya', ax, AY, 110, 0.2, { gx: -4, gy: -8, brow: 'focus' });
-      var TD = 150, TY = P().standY(F, TD, true), TX = 125;
+      var TD = 150, TY = P().standY(F, TD, true), TX = 150;
       on(s, 'teacher', TX, TY, TD, 0.2, { gx: 8 });
       // Аня раскладывает карточки: каждая — из её поднятой руки на своё место
       function put(c, to, t) {
@@ -449,7 +447,7 @@
       s.hands('kid2', 'side', 13.7, 0.3); s.brow('kid2', 'proud', 13.7, 0.2); s.mouth('kid2', 'smile', 13.7, 0.2);
       s.squash('kid2', 0.94, 1.06, 13.8, 0.1); s.squash('kid2', 1, 1, 13.9, 0.3, 'back.out(3)');
       s.mouth('adult2', 'smile', 13.8, 0.2);
-      hudText(s, 'lead', 'Житейское понятие ребёнок собирает из опыта — по виду. Научное получает готовым определением — в школе.', { left: 140, top: 130, width: 1000, fontSize: 38 }, 11.0);
+      hudText(s, 'h3', 'Житейское понятие ребёнок собирает из опыта — по виду. Научное получает готовым определением — в школе.', { left: 140, top: 130, width: 1000, fontSize: 40 }, 11.0);
       s.gaze('baby', GX, -6, 15.0, 0.4);
       concl(s, 'в школе учатся судить по признакам, а не по тому, как вещь выглядит.', 18.2);
       cite(s, 'Л. С. Выготский, «Мышление и речь», 1934, гл. 6 · scientific concepts · даже из 10–15-летних лишь половина знает, что китёнок питается молоком (М. Кубятко, П. Прокоп, 2009)', 18.8);

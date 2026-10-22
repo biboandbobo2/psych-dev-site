@@ -272,21 +272,21 @@
       floorBag(s, g, sm);
       P().bags(s, g, cr.seats, cr.floor, [0, 3]); floorBag(s, g, sd, ['#8CBF6E', '#5E9443']);
       // две ленты на стене класса под доской — по разные стороны от учительского места, приколоты кнопками
-      var M = 60, RYB = FLOOR - 120, RA = { x: 110, n: 3, c: '#4F7CAC' }, RB = { x: 540, n: 4, c: '#E0A93B' };
+      var M = 55, RYB = FLOOR - 142, RA = { x: 355, n: 3, c: '#4F7CAC' }, RB = { x: 570, n: 4, c: '#E0A93B' }; // выше головы Миши; обе — правее учительницы
       [RA, RB].forEach(function (r, i) {
         var e = s.node(g, 'rect', { x: r.x, y: RYB - 7, width: r.n * M, height: 14, rx: 3, fill: r.c, stroke: INK, 'stroke-width': 1.6 });
         s.grow(e, 0.3 + i * 0.3, { dur: 0.5 });
         [r.x + 6, r.x + r.n * M - 6].forEach(function (px) { var pin = s.node(g, 'circle', { cx: px, cy: RYB, r: 4.5, fill: RED, stroke: INK, 'stroke-width': 1.4 }); s.fade(pin, 0.7 + i * 0.3, { y: 0 }); });
       });
       var pc = s.node(g, 'g', {}); pencilCase(s, pc, sm.desk.x1 + 14, sm.desk.y, 70);
-      var TX = 365, TY = P().standY(FLOOR, 150, true);
+      var TX = 145, TY = P().standY(FLOOR, 150, true);
       K().cast(s, 'teacher', TX, TY, 150, 0, { gx: 10, gy: 0, dur: 0.01 }); s.brow('adult2', 'calm', 0, 0.01);
       s.gear('baby', 'backpack', false, 0, 0.01);
       K().cast(s, 'misha', sm.x, sm.y, sm.r * 2, 0, { gx: GX, dur: 0.01 }); s.brow('baby', 'calm', 0.1, 0.01); s.hands('baby', 'desk', 0.1, 0.01);
       K().cast(s, 'anya', sa.x, sa.y, sa.r * 2, 0, { gx: GX, dur: 0.01 }); s.brow('kid2', 'calm', 0.1, 0.01); s.hands('kid2', 'desk', 0.1, 0.01);
       K().cast(s, 'dima', sd.x, sd.y, sd.r * 2, 0, { gx: GX, mouth: 'soft', dur: 0.01 }); s.hands('kid3', 'desk', 0.1, 0.01);
       // кадр 1: Ирина Петровна шагами выходит к классу и загадывает загадку
-      // Ирина Петровна у доски между лентами (руки-точки у лент); облачко — справа от доски, длинный хвост к ней
+      // Ирина Петровна у левого края доски, в стороне от лент; облачко — справа от доски, длинный хвост к ней
       var qb = K().say(s, 'Как узнать, какая лента длиннее,<br>если их нельзя приложить друг к другу?', 650, 300, 0.6, 7.0);
       var qt = s.node(ov, 'path', { d: 'M686 418 L' + (TX + 50) + ' ' + (TY - 62) + ' L712 418 Z', fill: '#FFFDF8', stroke: INK, 'stroke-width': 2.5, 'stroke-linejoin': 'round' });
       s.tween(qt, 0.6, { opacity: 0 }, { opacity: 1, duration: 0.3 }); s.out(qt, 7.0, { dur: 0.3 });
@@ -309,7 +309,7 @@
       s.hands('baby', 'up', 4.0, 0.35); s.brow('baby', 'proud', 4.0, 0.3);
       s.gaze('adult2', 10, 2, 4.2, 0.3); s.squash('adult2', 1.02, 0.97, 4.4, 0.15); s.squash('adult2', 1, 1, 4.55, 0.3); // кивает
       
-      var SY = FLOOR - sm.r - 8, STY = RYB - 9, HY = SY + 0.2 * sm.r * 2; // стоит на полу; палочка на ленте; в руке
+      var SY = FLOOR - sm.r - 8, STY = RYB - 5, HY = SY + 0.2 * sm.r * 2; // стоит на полу; палочка на ленте; в руке
       var stick = s.node(ov, 'g', {});
       s.path(stick, 'M0 0 H' + M, { stroke: STICK, 'stroke-width': 8 });
       var pos = { x: sm.desk.x1 + 22, y: sm.desk.y - 12 };
@@ -331,7 +331,7 @@
           var t = lt + j * step, sx = r.x + j * M;
           s.tween(stick, t, { x: pos.x, y: pos.y }, { x: sx, y: STY, duration: step * 0.6, ease: 'power2.inOut' }); pos = { x: sx, y: STY };
           if (j) s.actor('baby', { x: sx + M / 2 - HO }, t, step * 0.6, 'power2.inOut');
-          var tk = s.path(ov, 'M' + (sx + M) + ' ' + (RYB - 14) + ' v28', { stroke: INK, 'stroke-width': 3 });
+          var tk = s.path(ov, 'M' + (sx + M) + ' ' + (RYB - 12) + ' v24', { stroke: INK, 'stroke-width': 3 });
           s.draw(tk, t + step * 0.6, { dur: 0.08 });
         }
         s.hands('baby', 'hold', lt + r.n * step, 0.2);
@@ -346,10 +346,10 @@
       go(RB.x + M / 2 - HO, 7.95, 0.9); tally(RA, 'III', 8.15);
       measure(RB, 9.1, 0.3);
       s.mouth('baby', 'smile', 10.35, 0.2); s.gaze('baby', -6, -6, 10.35, 0.2);
-      K().say(s, 'Вторая!', s.A.baby.st.x + 34 - 230, 640, 10.35, 11.85, 'r');
+      K().say(s, 'Вторая!', s.A.baby.st.x + 34 - 230, 640, 10.35, 11.35, 'r'); // гаснет, когда Миша уходит от ленты
       // кадр 3: Миша шагами возвращается за парту; Ирина Петровна подходит, ставит «5» своей рукой и хвалит
       s.out(stick, 11.0, { dur: 0.25 }); s.hands('baby', 'off', 11.0, 0.2);
-      go(515, 11.1, 0.6); tally(RB, 'IIII', 11.4); // подходит к Ирине Петровне (рядом, не в ней)
+      go(TX + 175, 11.35, 0.5); tally(RB, 'IIII', 11.4); // подходит к Ирине Петровне (зазор, не в ней)
       s.gaze('baby', -9, -4, 11.75, 0.2);
       s.squash('adult2', 1.02, 0.98, 11.6, 0.15); s.squash('adult2', 1, 1, 11.75, 0.2); s.gaze('adult2', 10, 6, 11.7, 0.3);
       s.hands('adult2', 'hold', 12.5, 0.3); // её рука-точка с ручкой
@@ -365,9 +365,7 @@
       s.tween(five, 13.05, { opacity: 0, scale: 0.4, transformOrigin: '50% 70%' }, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2)' });
       s.out(pn, 13.4, { dur: 0.3 }); s.hands('adult2', 'side', 13.4, 0.3);
       s.mouth('adult2', 'smile', 13.1, 0.3);
-      K().say(s, 'Молодец, нашёл способ!', 650, 560, 13.15, 15.6); // справа от доски, хвост — к Ирине Петровне
-      var pt = s.node(ov, 'path', { d: 'M668 628 L' + (TX + 55) + ' ' + (TY - 60) + ' L694 628 Z', fill: '#FFFDF8', stroke: INK, 'stroke-width': 2.5, 'stroke-linejoin': 'round' });
-      s.tween(pt, 13.15, { opacity: 0 }, { opacity: 1, duration: 0.3 }); s.out(pt, 15.6, { dur: 0.3 });
+      K().say(s, 'Молодец, нашёл способ!', TX + 15, 516, 13.15, 15.6); // над Ириной Петровной, короткий хвост вниз к ней; задний ряд не закрыт
       s.brow('baby', 'proud', 13.3, 0.3); s.mouth('baby', 'smile', 13.3, 0.2); s.gaze('baby', -8, -6, 13.3, 0.2);
       s.squash('baby', 1.04, 0.96, 13.6, 0.1); s.squash('baby', 1, 1, 13.7, 0.3);
       go(sm.x - 40, 15.7, 0.8); hop2(s, 'baby', sm.x, sm.y, 16.55, 0.35, 20); s.gaze('baby', GX, -2, 16.95, 0.2); s.hands('baby', 'desk', 16.95, 0.2); // возвращается за парту
@@ -513,11 +511,13 @@
       s.mouth('kid3', 'flat', T3 + 2.4, 0.4);
       // --- кадр 3: классики мелом 1–10: Аня прыгает на одной ноге, Миша наступает на линию ---
       s.gaze('kid2', -12, 0, T3, 0.15); s.gaze('baby', -12, 0, T3, 0.15);
+      var bpk = s.acc('baby', 'backpack'), back = function (sx, lt) { s.tween(bpk, lt, { scaleX: -sx, transformOrigin: '50% 50%' }, { scaleX: sx, transformOrigin: '50% 50%', duration: 0.15 }); }; // ранец всегда сзади по ходу
+      back(-1, T3);
       s.actor('kid2', { y: cells[0].y - 50, d: 90 }, T3, 0.3, 'power2.inOut');
       K().walk(s, 'kid2', cells[0].x - 70, T3 + 0.35, { step: 130, dur: 0.12, hold: 0.03 });
       s.actor('baby', { y: cells[0].y - 44, d: 90 }, T3, 0.3, 'power2.inOut');
       K().walk(s, 'baby', cells[0].x - 160, T3 + 0.35, { step: 130, dur: 0.12, hold: 0.03 });
-      s.gaze('baby', 8, 0, T3 + 1.6, 0.2); s.gaze('kid2', 12, 0, T3 + 1.55, 0.15);
+      s.gaze('baby', 8, 0, T3 + 1.6, 0.2); back(1, T3 + 1.6); s.gaze('kid2', 12, 0, T3 + 1.55, 0.15);
       var t = T3 + 1.7;
       [0, 1, 2, 3].forEach(function (ci) { // Аня: 1, 2, 3, 4 — на одной ноге
         var c = cells[ci]; t = hop2(s, 'kid2', c.x, c.y - 50, t, 0.32, 36) + 0.06;
@@ -535,8 +535,8 @@
       K().say(s, 'Ты наступил на линию!', cells[5].x - 40, 438, tm + 0.15, tm + 3.0, 'l'); // выше скамейки, не касается ствола
       s.squash('kid2', 1.04, 0.96, tm + 0.25, 0.1); s.squash('kid2', 1, 1, tm + 0.35, 0.3);
       s.brow('baby', 'calm', tm + 1.8, 0.4); s.mouth('baby', 'soft', tm + 1.8, 0.3);
-      s.gaze('baby', -12, 0, tm + 1.95, 0.15); hop2(s, 'baby', cells[0].x - 160, cells[0].y - 44, tm + 2.0, 0.4, 24); // назад к очереди
-      s.gaze('baby', 9, 0, tm + 2.5, 0.2);
+      s.gaze('baby', -12, 0, tm + 1.95, 0.15); back(-1, tm + 1.95); hop2(s, 'baby', cells[0].x - 160, cells[0].y - 44, tm + 2.0, 0.4, 24); // назад к очереди
+      s.gaze('baby', 9, 0, tm + 2.5, 0.2); back(1, tm + 2.5);
       verdict(s, 'игра не исчезла — ушла на перемену и обросла правилами.', T3 + 6.0);
       small(s, 'Д. Б. Эльконин, 1971: новая ведущая деятельность «не отменяет прежде существовавших» · Ж. Пиаже, 1932: игры по общим правилам — с 7–8 лет · П. Блэтчфорд и др., 2003: на перемене семилетки треть времени играют по правилам', T3 + 6.5, 990).style.color = '#3C4852';
       off(s, ['baby', 'kid2', 'kid3'], s.dur - 0.45);

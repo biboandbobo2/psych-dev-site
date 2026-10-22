@@ -40,9 +40,9 @@
       s.lines(l1, 0.4);
       s.out(l1, 3.3, { dur: 0.3 });
       // кадр 2: лошадь гаснет; палочка падает на тетрадный лист и встаёт в ряд палочек прописи: «| | | |» → «4»
-      s.out(horse, 2.2, { dur: 0.3 });
+      s.out(horse, 2.1, { dur: 0.3 });
       s.out(stick, 2.2, { dur: 0.2 }); // палочка гаснет до появления листа — без полосы на тетради
-      s.out(yard, 2.3, { dur: 0.3 });
+      s.out(yard, 2.1, { dur: 0.3 }); // двор гаснет целиком до листа — ножка скамейки не просвечивает в углу листа
       s.actor('baby', { o: 0 }, 2.3, 0.01); s.hands('baby', 'off', 2.32, 0.01);
       var pg = s.node(g, 'g', {});
       P().page(s, pg, 560, 220, 800, 440, { cell: 44, margin: 132 });
@@ -71,7 +71,7 @@
       s.out(pg, 5.75, { dur: 0.3 });
       s.tween(yard, 5.8, { opacity: 0 }, { opacity: 1, duration: 0.3 });
       var toy = s.node(g, 'g', {}); // лошадка рисуется под ранцем — в ранце она скрывается
-      K().toyHorse(s, toy, 640, GY, 1.15);
+      K().toyHorse(s, toy, 640, GY - 11, 1.15); // колёса стоят на земле
       var bp = s.node(g, 'g', {});
       Film.toys.backpack(s, bp, 1010, GY - 62, 1.6, '#26A69A', '#1C7A71');
       [toy, bp].forEach(function (e) { s.tween(e, 5.8, { opacity: 0 }, { opacity: 1, duration: 0.3 }); });
@@ -145,18 +145,18 @@
       var axis = s.path(g, 'M' + (X(4) - 220) + ' ' + AX + ' H' + (X(8) + 40), { stroke: '#B3A898', 'stroke-width': 3 });
       s.draw(axis, 0.3, { dur: 0.8 });
       // Миша идёт по оси от 4 лет без ранца; ранец лежит на начале полосы «Россия» (6,5 лет — здесь начинается учёба)
-      var D = 70, MY = AX - D / 2 - 8, BTOP = Y0 + 3 * DY - 14, BX = X(6.5) + 190; // ранец — правее подписи «6,5–8»; воротник не ниже оси
+      var D = 70, MY = AX - D / 2 - 8, BTOP = Y0 + 3 * DY - 14, BX = X(6.5) + 240; // ранец — правее подписи «6,5–8»; воротник не ниже оси
       s.gear('baby', 'backpack', false, 0, 0.01);
       var bp = s.node(ov, 'g', {});
       Film.toys.backpack(s, bp, BX, BTOP - 24, 0.62, '#26A69A', '#1C7A71');
       s.tween(bp, 1.3, { opacity: 0 }, { opacity: 1, duration: 0.3 });
       K().cast(s, 'misha', X(4) - 120, MY, D, 0, { gx: 9, gy: 0, dur: 0.01 });
       s.brow('baby', 'calm', 0.8, 0.01);
-      K().walk(s, 'baby', X(6.5) - 40, 1.0, { step: 90, dur: 0.2, hold: 0.06 }); // по оси, лицом по ходу
+      K().walk(s, 'baby', X(6.5) + 100, 1.0, { step: 100, dur: 0.2, hold: 0.06 }); // по оси, лицом по ходу
       s.gaze('baby', 6, -9, 3.3, 0.2); // смотрит на ранец на полосе
       s.squash('baby', 1.04, 0.96, 3.45, 0.08);
-      s.actor('baby', { x: X(6.5) + 40, y: BTOP - D / 2 - 48 }, 3.53, 0.25, 'power2.out'); // запрыгивает на полосу (правее подписи)
-      s.actor('baby', { x: X(6.5) + 112, y: BTOP - D / 2 - 6 }, 3.78, 0.22, 'power2.in');
+      s.actor('baby', { x: X(6.5) + 125, y: BTOP - D / 2 - 48 }, 3.53, 0.25, 'power2.out'); // запрыгивает на полосу правее подписи «6,5–8»
+      s.actor('baby', { x: X(6.5) + 150, y: BTOP - D / 2 - 6 }, 3.78, 0.22, 'power2.in');
       s.squash('baby', 1.04, 0.96, 4.0, 0.06); s.squash('baby', 1, 1, 4.06, 0.15);
       s.gaze('baby', 9, 2, 4.1, 0.2);
       s.hands('baby', 'hold', 4.2, 0.25); // подхватывает ранец руками-точками

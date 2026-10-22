@@ -163,7 +163,7 @@
       var r = 62, cD = chair(s, g, 640, F, r, -1), cM = chair(s, g, 1500, F, r, 1);
       on(s, 'dima', cD.x, cD.y, cD.d, 0.2, { gx: 10, gy: 6 });
       on(s, 'misha', cM.x, cM.y, cM.d, 0.3, { gx: -10, gy: 6, noPack: true }); // ранец снят: опыт — не урок
-      hudText(s, 'lead', 'Опыт Дж. Флейвелла: детям показывают картинки и просят запомнить порядок.', { left: 140, top: 130, width: 1000, fontSize: 38 }, 0.3, 5.4);
+      hudText(s, 'h3', 'Опыт Дж. Флейвелла: детям показывают картинки и просят запомнить порядок.', { left: 140, top: 130, width: 1000, fontSize: 40 }, 0.3, 5.4);
       // показывает три — мяч, дом, рыба; номер — на самой картинке
       var badges = [];
       [1, 3, 5].forEach(function (ci, j) {
@@ -201,13 +201,13 @@
         return b;
       });
       turn(5.0, true);
-      hudText(s, 'lead', 'Глаза закрыты козырьком, а губы видно: так заметно, повторяет ли ребёнок про себя.', { left: 140, top: 130, width: 1000, fontSize: 38 }, 5.6, 12.0);
+      hudText(s, 'h3', 'Глаза закрыты козырьком, а губы видно: так заметно, повторяет ли ребёнок про себя.', { left: 140, top: 130, width: 1000, fontSize: 40 }, 5.6, 12.0);
       // секундомер в руке у Ирины Петровны: 15 секунд
       var sw = s.node(g, 'g', {}), SX = 1338, SY = TB - 4; // секундомер стоит на углу стола
       s.node(sw, 'circle', Object.assign({ cx: SX, cy: SY, r: 18 }, L(2.6, PAPER)));
       s.node(sw, 'rect', { x: SX - 4, y: SY - 26, width: 8, height: 7, rx: 2, fill: INK });
       var hand = ln(s, sw, 'M' + SX + ' ' + SY + ' V' + (SY - 12), 2.4);
-      var swt = s.node(sw, 'text', { x: SX + 4, y: SY - 92, 'text-anchor': 'middle', fill: '#13534D', style: 'font-family: var(--sans); font-weight: 700; font-size: 24px' }); swt.textContent = '15 секунд';
+      var swt = s.node(sw, 'text', { x: SX + 4, y: SY - 92, 'text-anchor': 'middle', fill: INK, style: 'font-family: var(--sans); font-weight: 700; font-size: 28px' }); swt.textContent = '15 секунд';
       void swt;
       s.tween(sw, 6.2, { opacity: 0 }, { opacity: 1, duration: 0.3 });
       s.tween(hand, 6.4, { rotation: 0, svgOrigin: SX + ' ' + SY }, { rotation: 360, duration: 4.4, ease: 'none' });
@@ -228,7 +228,7 @@
       s.brow('kid3', 'proud', 13.0, 0.2); s.mouth('kid3', 'smile', 13.0, 0.2);
       var aM = answer(s, ov, cM.x - 30, F - 310, ['house', 'ball', '?'], false, 12.2);
       s.brow('baby', 'sad', 13.2, 0.2); s.mouth('baby', 'sad', 13.2, 0.2);
-      hudText(s, 'lead', 'Кто повторял про себя, помнил больше. В 5 лет так делают немногие, к 10 — почти все.', { left: 140, top: 130, width: 1000, fontSize: 38 }, 13.4);
+      hudText(s, 'h3', 'Кто повторял про себя, помнил больше. В 5 лет так делают немногие, к 10 — почти все.', { left: 140, top: 130, width: 1000, fontSize: 40 }, 13.4);
       cite(s, 'rehearsal · Дж. Флейвелл и др., 1966 · Э. Эллиотт и др., 2021 (17 лабораторий): шептали и многие пятилетки — раньше, чем думали', 13.8);
       // козырьки снимают; Миша смотрит на Диму — и сам начинает шептать
       fadeOut(s, [aD, aM], 15.0);
@@ -269,7 +269,7 @@
   }
   // шахматные часы на краю стола и подпись «10 секунд» над ними; черта под подписью сокращается
   function timer(s, ov, t0, dur) {
-    var e = s.text('label', '10 секунд', { left: 1136, top: 568, fontSize: 26, fontWeight: 750, color: 'var(--accent-deep)' });
+    var e = s.text('label', '10 секунд', { left: 1128, top: 566, fontSize: 28, fontWeight: 750, color: INK });
     var bar = s.path(ov, 'M1142 618 H1236', { stroke: TEAL, 'stroke-width': 6 });
     s.fade(e, t0, { y: 0, dur: 0.3 }); s.out(e, t0 + dur + 0.2, { dur: 0.2 });
     s.tween(bar, t0, { opacity: 0, scaleX: 1, svgOrigin: '1142 618' }, { opacity: 1, scaleX: 1, duration: 0.2 });
@@ -331,9 +331,10 @@
       s.brow('dad', 'focus', 1.2, 0.3); s.brow('kid3', 'focus', 1.2, 0.3);
       timer(s, ov, 1.2, 2.0);
       var lb = lid(s, g);
-      s.tween(lb, 3.6, { opacity: 0, y: -120 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.in' });
+      s.set(lb, 0, { y: 0 }, { y: -720 }); // коробка ждёт за верхним краем кадра — опускается и поднимается движением, непрозрачная
+      s.tween(lb, 3.6, { y: -720 }, { y: 0, duration: 0.4, ease: 'power2.in' });
       s.set([cb, pcs], 4.0, { opacity: 1 }, { opacity: 0 });
-      hudText(s, 'h3', 'Кто запомнит больше — Дима или папа? <span class="acc">Угадайте.</span>', { left: 140, top: 130, width: 1640, fontSize: 46 }, 0.4, 5.9);
+      hudText(s, 'h3', 'Кто запомнит больше — Дима или папа? <span class="acc">Угадайте.</span>', { left: 140, top: 130, width: 1640, fontSize: 40 }, 0.4, 5.9);
       freeze(s, 4.2, 1.9);
       s.gaze('dad', 2, -6, 4.2, 0.3); s.gaze('kid3', -2, -6, 4.2, 0.3); s.brow('kid3', 'calm', 4.2, 0.3);
       // кадр 2: табло — фигуры: папа 6, Дима 9; папа удивлён (брови вверх, рот «о»)
@@ -350,18 +351,18 @@
       s.tween(mo, 8.4, { opacity: 1 }, { opacity: 0, duration: 0.15 });
       s.squash('dad', 0.97, 1.05, 6.6, 0.15); s.squash('dad', 1, 1, 6.75, 0.3);
       s.mouth('dad', 'soft', 8.4, 0.2); s.brow('dad', 'calm', 8.4, 0.2);
-      hudText(s, 'lead', 'Дима знает шахматы и видит на доске знакомые узоры.', { left: 140, top: 130, width: 1640, fontSize: 38 }, 6.9, 10.7); // гаснет до показа цифр
+      hudText(s, 'h3', 'Дима знает шахматы и видит на доске знакомые узоры.', { left: 140, top: 130, width: 1640, fontSize: 40 }, 6.9, 10.7); // гаснет до показа цифр
       // кадр 3: реванш — ряд случайных цифр на карточке, тоже на 10 секунд, закрывается
       var dg = s.node(g, 'g', {});
       ln(s, dg, 'M960 688 L1000 600', 2.4);
       s.node(dg, 'rect', Object.assign({ x: 800, y: 556, width: 320, height: 128, rx: 8 }, L(2.6, PAPER)));
       txt(s, dg, 960, 640, '7 3 9 1 5 8 2 6', 52, { weight: 600 }); // ряд случайных цифр — крупно на листке
       s.tween(dg, 11.45, { opacity: 0 }, { opacity: 1, duration: 0.01 });
-      s.tween(lb, 11.1, { opacity: 1, y: 0 }, { opacity: 0, y: -120, duration: 0.35, ease: 'power2.out' });
+      s.tween(lb, 11.05, { y: 0 }, { y: -720, duration: 0.4, ease: 'power2.in' });
       s.brow('dad', 'focus', 11.3, 0.3); s.gaze('dad', 10, 6, 11.3, 0.3);
       s.brow('kid3', 'focus', 11.3, 0.3); s.mouth('kid3', 'soft', 11.3, 0.3); s.gaze('kid3', -10, 6, 11.3, 0.3);
       timer(s, ov, 11.45, 1.45);
-      s.tween(lb, 13.1, { opacity: 0, y: -120 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.in' });
+      s.tween(lb, 13.05, { y: -720 }, { y: 0, duration: 0.4, ease: 'power2.in' });
       s.set(dg, 13.5, { opacity: 1 }, { opacity: 0 });
       s.gaze('dad', 2, -6, 13.5, 0.3); s.gaze('kid3', -2, -6, 13.5, 0.3); s.brow('kid3', 'calm', 13.5, 0.3);
       // сначала результат: цифры — папа 8, Дима 6; счёт 1 : 1; только потом объяснение
@@ -371,7 +372,7 @@
       fadeIn(s, sc2, 14.3);
       s.brow('dad', 'proud', 14.1, 0.3); s.mouth('dad', 'smile', 14.1, 0.3); s.gaze('dad', 10, 0, 14.1, 0.3);
       s.mouth('kid3', 'smile', 14.5, 0.3); s.gaze('kid3', -10, 0, 14.5, 0.3);
-      hudText(s, 'lead', 'В цифрах узоров нет — и папа впереди.', { left: 140, top: 130, width: 1640, fontSize: 38 }, 14.7);
+      hudText(s, 'h3', 'В цифрах узоров нет — и папа впереди.', { left: 140, top: 130, width: 1640, fontSize: 40 }, 14.7);
       concl(s, 'память растёт вместе со знаниями.', 17.0);
       cite(s, 'М. Чи, 1978: дети ~10 лет и взрослые · В. Шнайдер и др., 1993 — повторилось', 17.4);
       castOut(s, ['dad', 'kid3']);
