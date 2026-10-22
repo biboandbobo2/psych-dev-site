@@ -107,6 +107,18 @@
     });
     return { g: G, board: b, floor: floor, teacher: { x: 400, floor: floor }, seats: seats, heroes: SEATS };
   }
+  // Ранцы первого ряда (у каждого ребёнка свой цвет) — стоят на полу у стула, справа от него. skip — номера мест без ранца (место Миши: его ранец рисует сцена)
+  var BAGS = [['#E9A23B', '#B97A1E'], ['#7E9CD6', '#4E6FA8'], ['#C77DBB', '#954C88'], ['#8CBF6E', '#5E9443'], ['#E07A6E', '#B24E43']];
+  function bags(s, g, seats, floor, skip) {
+    var res = [];
+    (seats[0] || []).forEach(function (p, i) {
+      if (skip && skip.indexOf(i) >= 0) { res.push(null); return; }
+      var c = BAGS[i % BAGS.length], G = s.node(g, 'g', {});
+      Film.toys.backpack(s, G, p.x + p.r * 1.25, floor - 40, 0.9, c[0], c[1]);
+      res.push({ g: G, x: p.x + p.r * 1.25, y: floor - 40 });
+    });
+    return res;
+  }
   // Постоянные места героев в классе (ряд:место): Миша и Аня рядом в первом ряду, Дима — последним в первом ряду. Не менять между сценами.
   var SEATS = { misha: '0:0', anya: '0:1', dima: '0:3' };
   // y центра лица учителя-капсулы, стоящей на полу (тело: 50 над центром, 140 под ним в единицах 100)
@@ -157,9 +169,9 @@
     ln(s, G, 'M0 110 H1920', 2, FLOOR);
     rect(s, G, 1380, 230, 280, 240, GLASS, 3, 6); ln(s, G, 'M1520 230 V470 M1380 350 H1660', 2.4);
     // плита слева: корпус, духовка, кастрюля с паром
-    var sx = o.stoveX || 260, st = floor - 300;
-    rect(s, G, sx - 150, st, 300, 300, PAPER, 3, 8);
-    rect(s, G, sx - 112, st + 90, 224, 160, null, 2.4, 6);
+    var sx = o.stoveX || 260, st = floor - 220; // плита ниже — мама не тянется к кастрюле
+    rect(s, G, sx - 150, st, 300, 220, PAPER, 3, 8);
+    rect(s, G, sx - 112, st + 74, 224, 120, null, 2.4, 6);
     [-50, 50].forEach(function (dx) { s.node(G, 'circle', Object.assign({ cx: sx + dx, cy: st + 44, r: 12 }, L(2.4, PAPER))); }); // ручки плиты
     rect(s, G, sx - 80, st - 86, 160, 86, PAPER, 3, 10); ln(s, G, 'M' + (sx - 86) + ' ' + (st - 88) + ' H' + (sx + 86) + ' M' + (sx - 100) + ' ' + (st - 60) + ' h20 M' + (sx + 80) + ' ' + (st - 60) + ' h20', 3.4); // крышка и ручки кастрюли
     [0, 1, 2].forEach(function (i) { ln(s, G, 'M' + (sx - 34 + i * 34) + ' ' + (st - 104) + ' q-12 -26 0 -52', 2.2, '#9AA1A6'); });
@@ -203,5 +215,5 @@
     return { x: u * u * u * x0 + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * e[0], y: u * u * u * y0 + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * e[1], k: q.k };
   }
 
-  Film.places = { SEATS: SEATS, pathPoint: pathPoint, standY: standY, page: page, house: house, school: school, tree: tree, bench: bench, classroom: classroom, fill: fill, yard: yard, classics: classics, kitchen: kitchen, paths: paths, chalk: chalk, PATHC: PATHC, INK: INK, BOARD: BOARD };
+  Film.places = { bags: bags, SEATS: SEATS, pathPoint: pathPoint, standY: standY, page: page, house: house, school: school, tree: tree, bench: bench, classroom: classroom, fill: fill, yard: yard, classics: classics, kitchen: kitchen, paths: paths, chalk: chalk, PATHC: PATHC, INK: INK, BOARD: BOARD };
 })();

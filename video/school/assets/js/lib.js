@@ -226,9 +226,12 @@
   function addAcc(id, kind) {
     var a = A[id], f;
     if (kind === 'glasses') {
+      // очки v4 (вариант Б): белая линия, как брови и рот; скруглённые линзы, глаза внутри мельче, рот ниже — лицо не «в кучу»
       f = addFace(id); f.brows.style.display = 'none';
-      [38, 62].forEach(function (cx) { svg('circle', { cx: cx, cy: 45, r: 9.5, fill: 'none', stroke: '#1D2733', 'stroke-width': 2.2 }, f.g); });
-      svg('path', { d: 'M47.5 44 Q50 41.5 52.5 44', fill: 'none', stroke: '#1D2733', 'stroke-width': 2.2 }, f.g);
+      f.g.querySelectorAll('circle').forEach(function (c) { c.setAttribute('r', 3.8); });
+      [37, 63].forEach(function (cx) { svg('rect', { x: cx - 10, y: 37, width: 20, height: 16, rx: 6, fill: 'none', stroke: '#FFFDF8', 'stroke-width': 2.6 }, f.g); });
+      svg('path', { d: 'M47 44 H53', stroke: '#FFFDF8', 'stroke-width': 2.6 }, f.g);
+      f.mouth.setAttribute('transform', 'translate(0 5) scale(1)');
       return f.g;
     }
     var S = svg('svg', { 'class': 'acc-' + kind, viewBox: '0 0 100 100', overflow: 'visible' }, a.body);
@@ -274,9 +277,10 @@
     svg('circle', { cx: 38, cy: 45, r: 4.6, fill: '#FFFDF8' }, face);
     svg('circle', { cx: 62, cy: 45, r: 4.6, fill: '#FFFDF8' }, face);
     svg('path', { d: MOUTH[o.mouth || 'smile'], fill: 'none', stroke: '#FFFDF8', 'stroke-width': 4.2, 'stroke-linecap': 'round' }, face);
-    if (o.glasses || kind === 'glasses') {
-      [38, 62].forEach(function (cx) { svg('circle', { cx: cx, cy: 45, r: 9.5, fill: 'none', stroke: '#1D2733', 'stroke-width': 2.2 }, face); });
-      svg('path', { d: 'M47.5 44 Q50 41.5 52.5 44', fill: 'none', stroke: '#1D2733', 'stroke-width': 2.2 }, face);
+    if (o.glasses || kind === 'glasses') { // очки v4 — как у актёра
+      face.querySelectorAll('circle').forEach(function (c) { c.setAttribute('r', 3.8); });
+      [37, 63].forEach(function (cx) { svg('rect', { x: cx - 10, y: 37, width: 20, height: 16, rx: 6, fill: 'none', stroke: '#FFFDF8', 'stroke-width': 2.6 }, face); });
+      svg('path', { d: 'M47 44 H53', stroke: '#FFFDF8', 'stroke-width': 2.6 }, face);
     } else BROW[o.brow || 'calm'].forEach(function (d) { svg('path', { d: d, fill: 'none', stroke: '#FFFDF8', 'stroke-width': 3.2, 'stroke-linecap': 'round' }, face); });
     if (o.bow || kind === 'bow') { svg('path', { d: 'M70 4 l-15 -10 l0 20 Z M70 4 l15 -10 l0 20 Z', fill: '#26A69A' }, g); svg('circle', { cx: 70, cy: 4, r: 5, fill: '#1C7A71' }, g); }
     return g;

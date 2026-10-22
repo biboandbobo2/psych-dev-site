@@ -1,0 +1,34 @@
+<!doctype html><html lang="ru"><head><meta charset="UTF-8"><title>очки</title>
+<style>@font-face{font-family:"DOMSans";src:url("../assets/fonts/manrope-cyrillic-wght-normal.woff2")}html,body{margin:0;background:#F6F2E9}.n{font:600 26px DOMSans;fill:#4B5563}</style></head><body>
+<svg id="s" width="1920" height="560" viewBox="0 0 1920 560"></svg>
+<script>
+// Варианты очков Димы на лице серии (коробка 0…100): ищем, где лицо не «в кучу»
+var NS='http://www.w3.org/2000/svg',S=document.getElementById('s');
+function el(t,a,p){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);(p||S).appendChild(e);return e;}
+var INK='#1D2733',P='#FFFDF8',C='#D9654B';
+function face(x,y,r,v,label){
+ var g=el('g',{transform:'translate('+(x-r)+' '+(y-r)+') scale('+(r/50)+')'});
+ el('circle',{cx:50,cy:50,r:50,fill:C},g);
+ var eyes=function(dy,rr){[38,62].forEach(function(cx){el('circle',{cx:cx,cy:45+(dy||0),r:rr||4.6,fill:P},g);});};
+ var mouth=function(d){el('path',{d:d||'M36 59 Q50 71 64 59',fill:'none',stroke:P,'stroke-width':4.2,'stroke-linecap':'round'},g);};
+ if(v===0){ // текущий
+  eyes();mouth();[38,62].forEach(function(cx){el('circle',{cx:cx,cy:45,r:9.5,fill:'none',stroke:INK,'stroke-width':2.2},g);});el('path',{d:'M47.5 44 Q50 41.5 52.5 44',fill:'none',stroke:INK,'stroke-width':2.2},g);
+ } else if(v===1){ // тонкие круглые очки пошире, глаза-точки поменьше, рот ниже и меньше
+  eyes(0,3.4);[36,64].forEach(function(cx){el('circle',{cx:cx,cy:45,r:11,fill:'rgba(255,253,248,0.18)',stroke:P,'stroke-width':2.4},g);});
+  el('path',{d:'M47 45 H53',stroke:P,'stroke-width':2.4},g);mouth('M40 66 Q50 74 60 66');
+ } else if(v===2){ // очки белой линией (как брови и рот), глаза внутри, без бровей
+  eyes(0,3.8);[37,63].forEach(function(cx){el('rect',{x:cx-10,y:37,width:20,height:16,rx:6,fill:'none',stroke:P,'stroke-width':2.6},g);});
+  el('path',{d:'M47 44 H53',stroke:P,'stroke-width':2.6},g);mouth('M39 65 Q50 74 61 65');
+ } else if(v===3){ // очки тёмной линией, но тонко и с бровями над ними на расстоянии
+  eyes(2,3.8);[37,63].forEach(function(cx){el('circle',{cx:cx,cy:47,r:9,fill:'none',stroke:INK,'stroke-width':1.8},g);});el('path',{d:'M46 46 H54',stroke:INK,'stroke-width':1.8},g);
+  ['M29 31 Q37 28 45 31','M55 31 Q63 28 71 31'].forEach(function(d){el('path',{d:d,fill:'none',stroke:P,'stroke-width':3,'stroke-linecap':'round'},g);});mouth('M40 66 Q50 74 60 66');
+ } else if(v===4){ // очки только как оправа-линия сверху (полуободок) — легко, без «кругов в кругах»
+  eyes(0,4.2);[37,63].forEach(function(cx){el('path',{d:'M'+(cx-10)+' 44 Q'+cx+' 33 '+(cx+10)+' 44',fill:'none',stroke:INK,'stroke-width':3,'stroke-linecap':'round'},g);});
+  el('path',{d:'M47 41 Q50 39 53 41',fill:'none',stroke:INK,'stroke-width':3},g);mouth();
+ }
+ var t=el('text',{x:x,y:y+r+50,'text-anchor':'middle',class:'n'});t.textContent=label;
+ // маленький масштаб рядом
+ var g2=el('g',{transform:'translate('+(x-26)+' '+(y+r+70)+') scale(0.52)'});g2.innerHTML=g.innerHTML;
+}
+['сейчас','А · белые тонкие','Б · белые «скруглённые»','В · тонкие тёмные + брови','Г · полуободок'].forEach(function(l,i){face(200+i*380,180,110,i,l);});
+</script></body></html>
