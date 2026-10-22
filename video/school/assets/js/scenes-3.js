@@ -11,11 +11,11 @@
   function ln(s, g, d, w, c) { return s.path(g, d, { stroke: c || INK, 'stroke-width': w || 3 }); }
   function txt(s, g, x, y, text, size, o) {
     o = o || {};
-    var t = s.node(g, 'text', { x: x, y: y, 'text-anchor': o.anchor || 'middle', fill: o.color || INK, style: 'font-family: var(--kid); font-weight: ' + (o.weight || 700) + '; font-size: ' + (size || 32) + 'px' });
+    var t = s.node(g, 'text', { x: x, y: y, 'text-anchor': o.anchor || 'middle', fill: o.color || INK, style: 'font-family: var(--' + (o.font || 'kid') + '); font-weight: ' + (o.weight || 700) + '; font-size: ' + (size || 32) + 'px' });
     t.textContent = text; return t;
   }
   function on(s, who, x, y, d, lt, o) {
-    var id = K().cast(s, who, x, y, d, lt, o);
+    var id = K().cast(s, who, x, y, d, 0, Object.assign({}, o, { dur: 0.01 })); // стоят с начала сцены — без проявления «призраком»
     s.brow(id, (o && o.brow) || 'calm', 0, 0.01); if (who !== 'teacher') s.hands(id, 'off', 0, 0.01); // у учителя руки видны всегда
     if (who === 'misha') s.gear(id, 'backpack', !(o && o.noPack), 0, 0.01); // в школе и по дороге ранец на нём
     return id;
@@ -64,8 +64,8 @@
     s.chapterCard(n, title, '');
     var st = s.text('lead', sub, { left: 336, top: 430, width: 900, fontSize: 34 }); // подзаголовок обычным регистром, как в главе 1
     s.fade(st, 0.35, { y: 8 });
-    var g0 = s.svg(), G = 600, DX = 70, D = 84;
-    s.node(g0, 'rect', { x: 0, y: G, width: 100, height: 1080 - G, fill: '#ECE3CF' }); s.path(g0, 'M0 ' + G + ' H100', { stroke: FLOOR, 'stroke-width': 2.4 });
+    var g0 = s.svg(), G = 600, DX = 130, D = 84;
+    s.node(g0, 'rect', { x: 0, y: G, width: 160, height: 1080 - G, fill: '#ECE3CF' }); s.path(g0, 'M0 ' + G + ' H160', { stroke: FLOOR, 'stroke-width': 2.4 });
     var g = s.node(g0, 'g', { transform: 'translate(' + DX + ' 0)' }), p = P().paths(s, g, { ground: G }); // карта сдвинута вправо: школа не задевает название главы
     var hot = s.path(g, p.paths[who].d, { stroke: K().KIDC[who], 'stroke-width': 6 });
     s.draw(hot, 0.2, { dur: 1.8 });
@@ -106,31 +106,32 @@
   }
   // мягкий козырёк, как у кепки: ткань сверху на голове-круге (обрезана по кругу) и жёсткий край спереди;
   // поднят — закрывает только макушку; надвинут — закрывает глаза, губы видно. face = +1 (смотрит вправо) | -1
-  // мягкий козырёк: лента строго по центру головы, только на глазах (рот и низ лица видны).
-  // Обрезан по кругу головы, рамка обрезки неподвижна: козырёк въезжает сверху и уезжает вверх ровно, без перекоса
+  // кепка с козырьком: купол на голове и плоский козырёк над глазами (вид спереди). Надвинута — купол и козырёк
+  // закрывают брови и глаза (не просвечивают), рот и низ лица видны. Приходит сверху ровно по центру головы и уходит вверх
   function cap(s, ov, cx, cy, r, n) {
-    var defs = s.node(ov, 'defs', {}), cp = s.node(defs, 'clipPath', { id: 'capc' + n });
-    s.node(cp, 'circle', { cx: cx, cy: cy, r: r + 1 });
-    var G = s.node(ov, 'g', { 'clip-path': 'url(#capc' + n + ')' }), mv = s.node(G, 'g', {});
-    var top = cy - 0.34 * r, h = 0.44 * r;
-    s.node(mv, 'rect', { x: cx - r - 2, y: top, width: 2 * r + 4, height: h, fill: '#3F7FA8' });
-    s.node(mv, 'rect', { x: cx - r - 2, y: top + h - 0.08 * r, width: 2 * r + 4, height: 0.08 * r, fill: '#2D5F80' });
-    ln(s, mv, 'M' + (cx - r) + ' ' + (top + 0.1 * r) + ' H' + (cx + r), 2, '#7FB0D0');
-    var off = -1.6 * r;
-    s.set(mv, 0, { y: 0 }, { y: off });
+    var mv = s.node(ov, 'g', {}), R = r + 3, y0 = cy + 0.05 * r;
+    s.path(mv, 'M' + (cx - R) + ' ' + y0 + ' A' + R + ' ' + R + ' 0 0 1 ' + (cx + R) + ' ' + y0 + ' Z', { fill: '#3F7FA8', stroke: '#2D5F80', 'stroke-width': 2.5 });
+    ln(s, mv, 'M' + cx + ' ' + (y0 - R) + ' V' + y0 + ' M' + (cx - 0.55 * R) + ' ' + (y0 - 0.82 * R) + ' Q' + (cx - 0.3 * R) + ' ' + (y0 - 0.4 * R) + ' ' + (cx - 0.35 * R) + ' ' + y0 +
+      ' M' + (cx + 0.55 * R) + ' ' + (y0 - 0.82 * R) + ' Q' + (cx + 0.3 * R) + ' ' + (y0 - 0.4 * R) + ' ' + (cx + 0.35 * R) + ' ' + y0, 2, '#2D5F80');
+    s.node(mv, 'circle', { cx: cx, cy: y0 - R, r: 0.09 * r, fill: '#2D5F80' });
+    s.path(mv, 'M' + (cx - 1.08 * R) + ' ' + (y0 - 2) + ' Q' + cx + ' ' + (y0 + 0.26 * r) + ' ' + (cx + 1.08 * R) + ' ' + (y0 - 2) + ' Q' + cx + ' ' + (y0 + 0.08 * r) + ' ' + (cx - 1.08 * R) + ' ' + (y0 - 2) + ' Z', { fill: '#2D5F80', stroke: '#24506C', 'stroke-width': 2 });
+    var off = -2.4 * r;
+    s.set(mv, 0, { y: 0, opacity: 1 }, { y: off, opacity: 0 });
     return { mv: mv, off: off };
   }
+  function capOn(s, k, t) { s.set(k.mv, t, { opacity: 0 }, { opacity: 1 }); s.tween(k.mv, t, { y: k.off }, { y: 0, duration: 0.7, ease: 'power2.out' }); }
+  function capOff(s, k, t) { s.tween(k.mv, t, { y: 0 }, { y: k.off, duration: 0.6, ease: 'power2.in' }); s.set(k.mv, t + 0.6, { opacity: 1 }, { opacity: 0 }); }
   // облачко-ответ с тремя картинками (хвостик — к герою)
   function answer(s, ov, cx, top, kinds, ok, t) {
-    var a = s.node(ov, 'g', {}), w = 300, h = 96;
+    var a = s.node(ov, 'g', {}), w = 360, h = 84;
     s.path(a, 'M' + (cx - w / 2 + 22) + ' ' + top + ' H' + (cx + w / 2 - 22) + ' Q' + (cx + w / 2) + ' ' + top + ' ' + (cx + w / 2) + ' ' + (top + 22) + ' V' + (top + h - 22) + ' Q' + (cx + w / 2) + ' ' + (top + h) + ' ' + (cx + w / 2 - 22) + ' ' + (top + h) +
-      ' H' + (cx + 14) + ' L' + (cx - 4) + ' ' + (top + h + 26) + ' L' + (cx - 14) + ' ' + (top + h) + ' H' + (cx - w / 2 + 22) + ' Q' + (cx - w / 2) + ' ' + (top + h) + ' ' + (cx - w / 2) + ' ' + (top + h - 22) + ' V' + (top + 22) + ' Q' + (cx - w / 2) + ' ' + top + ' ' + (cx - w / 2 + 22) + ' ' + top + ' Z', L(2.6, PAPER));
+      ' H' + (cx + 14) + ' L' + (cx - 4) + ' ' + (top + h + 14) + ' L' + (cx - 14) + ' ' + (top + h) + ' H' + (cx - w / 2 + 22) + ' Q' + (cx - w / 2) + ' ' + (top + h) + ' ' + (cx - w / 2) + ' ' + (top + h - 22) + ' V' + (top + 22) + ' Q' + (cx - w / 2) + ' ' + top + ' ' + (cx - w / 2 + 22) + ' ' + top + ' Z', L(2.6, PAPER));
     kinds.forEach(function (kd, j) {
-      var q = kd === '?' ? txt(s, a, cx + 90, top + 68, '?', 54, { color: RED }) : pic(s, a, kd, cx - 90 + j * 90, top + h / 2, 0.62);
+      var q = kd === '?' ? txt(s, a, cx + 60, top + 62, '?', 50, { color: RED }) : pic(s, a, kd, cx - 120 + j * 90, top + h / 2, 0.62);
       s.tween(q, t + 0.25 + j * 0.3, { opacity: 0 }, { opacity: 1, duration: 0.15 });
     });
     s.tween(a, t, { opacity: 0, scale: 0.7, svgOrigin: cx + ' ' + (top + h) }, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2)' });
-    if (ok) { var ck = s.path(a, 'M' + (cx + w / 2 + 16) + ' ' + (top + 50) + ' l14 16 l28 -32', { stroke: TEAL, 'stroke-width': 7 }); s.draw(ck, t + 1.2, { dur: 0.25 }); }
+    if (ok) { var ck = s.path(a, 'M' + (cx + 108) + ' ' + (top + 44) + ' l14 16 l28 -32', { stroke: TEAL, 'stroke-width': 7 }); s.draw(ck, t + 1.2, { dur: 0.25 }); } // галочка — внутри облачка
     return a;
   }
 
@@ -141,13 +142,14 @@
       var g = s.svg(), ov = s.over();
       // класс после уроков, парты сдвинуты: доска, часы, окно, тот же пол; низкий стол посередине, дети на стульях по краям стола
       var cr = P().classroom(s, g, { rows: [] }), F = cr.floor;
+      s.node(g, 'rect', { x: 0, y: F - 190, width: 1920, height: 190, fill: '#EFE6D6' }); ln(s, g, 'M0 ' + (F - 190) + ' H1920', 3, FLOOR); // полоса пола, как в остальных классах
       var TB = F - 130, TF = F - 94;
       var tbl = s.node(g, 'g', {});
       s.path(tbl, 'M790 ' + TB + ' L1330 ' + TB + ' L1360 ' + TF + ' L760 ' + TF + ' Z', L(2.6, WOOD));
       s.node(tbl, 'rect', Object.assign({ x: 760, y: TF, width: 600, height: 12 }, L(2.6, WOOD)));
       ln(s, tbl, 'M780 ' + (TF + 12) + ' V' + F + ' M1340 ' + (TF + 12) + ' V' + F, 2.6);
       // ряд из семи картинок на столе
-      var ORDER = ['tree', 'ball', 'cube', 'house', 'pyramid', 'fish', 'arrow'], CX = function (i) { return 820 + i * 80; }, CT = F - 182, CW = 70; // мяч, дом, рыба — слева направо
+      var ORDER = ['tree', 'ball', 'cube', 'house', 'pyramid', 'fish', 'arrow'], CX = function (i) { return 800 + i * 78; }, CT = F - 182, CW = 70; // мяч, дом, рыба — слева направо
       var cards = ORDER.map(function (kd, i) {
         var c = s.node(g, 'g', {});
         s.node(c, 'rect', Object.assign({ x: CX(i) - CW / 2, y: CT, width: CW, height: CW, rx: 8 }, L(2.2, PAPER)));
@@ -181,14 +183,31 @@
       // мягкие козырьки надвигают на глаза — губы видно
       s.gaze('kid3', 0, 0, 5.1, 0.2); s.gaze('baby', 0, 0, 5.1, 0.2);
       var kD = cap(s, ov, cD.x, cD.y, cD.d / 2, 1), kM = cap(s, ov, cM.x, cM.y, cM.d / 2, 2);
-      [kD, kM].forEach(function (k) { s.tween(k.mv, 5.4, { y: k.off }, { y: 0, duration: 0.7, ease: 'power2.out' }); }); // надевают: сверху вниз, ровно
+      [kD, kM].forEach(function (k) { capOn(s, k, 5.4); }); // надевают: сверху вниз, ровно по центру
+      // пока козырьки опущены и дети вспоминают, картинки перевёрнуты рубашкой вверх
+      function turn(t, back) {
+        cards.forEach(function (c, i) {
+          var ox = CX(i) + ' ' + (CT + CW / 2);
+          s.tween(c, t + i * 0.04, { scaleX: 1, svgOrigin: ox }, { scaleX: 0.02, duration: 0.12, ease: 'power1.in' });
+          s.set(backs[i], t + i * 0.04 + 0.12, { opacity: back ? 0 : 1 }, { opacity: back ? 1 : 0 });
+          s.tween(c, t + i * 0.04 + 0.12, { scaleX: 0.02, svgOrigin: ox }, { scaleX: 1, duration: 0.12, ease: 'power1.out' });
+        });
+      }
+      var backs = cards.map(function (c, i) {
+        var b = s.node(c, 'g', {});
+        s.node(b, 'rect', Object.assign({ x: CX(i) - CW / 2, y: CT, width: CW, height: CW, rx: 8 }, L(2.2, '#7FA6C4')));
+        s.node(b, 'rect', { x: CX(i) - CW / 2 + 8, y: CT + 8, width: CW - 16, height: CW - 16, rx: 5, fill: 'none', stroke: '#FFFDF8', 'stroke-width': 2 });
+        s.set(b, 0, { opacity: 1 }, { opacity: 0 });
+        return b;
+      });
+      turn(5.0, true);
       hudText(s, 'lead', 'Глаза закрыты козырьком, а губы видно: так заметно, повторяет ли ребёнок про себя.', { left: 140, top: 130, width: 1000, fontSize: 38 }, 5.6, 12.0);
       // секундомер в руке у Ирины Петровны: 15 секунд
-      var sw = s.node(ov, 'g', {}), SX = TX + 0.56 * TD + 46, SY = TY - 0.5 * TD + 1.16 * TD - 14;
+      var sw = s.node(g, 'g', {}), SX = 1338, SY = TB - 4; // секундомер стоит на углу стола
       s.node(sw, 'circle', Object.assign({ cx: SX, cy: SY, r: 18 }, L(2.6, PAPER)));
       s.node(sw, 'rect', { x: SX - 4, y: SY - 26, width: 8, height: 7, rx: 2, fill: INK });
       var hand = ln(s, sw, 'M' + SX + ' ' + SY + ' V' + (SY - 12), 2.4);
-      var swt = txt(s, sw, SX - 6, SY - 32, '15 секунд', 22, { color: '#13534D', weight: 600 });
+      var swt = s.node(sw, 'text', { x: SX + 4, y: SY - 92, 'text-anchor': 'middle', fill: '#13534D', style: 'font-family: var(--sans); font-weight: 700; font-size: 24px' }); swt.textContent = '15 секунд';
       void swt;
       s.tween(sw, 6.2, { opacity: 0 }, { opacity: 1, duration: 0.3 });
       s.tween(hand, 6.4, { rotation: 0, svgOrigin: SX + ' ' + SY }, { rotation: 360, duration: 4.4, ease: 'none' });
@@ -201,12 +220,13 @@
       [0, 1, 2, 3].forEach(function (j) { s.actor('baby', { x: cM.x + (j % 2 ? -6 : 6) }, 7.6 + j * 0.5, 0.25, 'sine.inOut'); });
       s.actor('baby', { x: cM.x }, 9.6, 0.25);
       // козырьки вверх; сначала результат: Дима — все три по порядку, Миша путается
-      [kD, kM].forEach(function (k) { s.tween(k.mv, 11.2, { y: 0 }, { y: k.off, duration: 0.6, ease: 'power2.in' }); }); // снимают: вверх, ровно
+      [kD, kM].forEach(function (k) { capOff(s, k, 11.2); }); // снимают: вверх, ровно
+      turn(13.6, false); // ответы сказаны — картинки открывают для проверки
       s.brow('adult2', 'calm', 11.4, 0.3); s.gaze('adult2', 10, -2, 11.4, 0.3);
       s.gaze('kid3', 4, -6, 11.6, 0.2); s.gaze('baby', -4, -6, 11.6, 0.2);
-      var aD = answer(s, ov, cD.x + 60, F - 328, ['ball', 'house', 'fish'], true, 11.8);
+      var aD = answer(s, ov, cD.x + 60, F - 310, ['ball', 'house', 'fish'], true, 11.8);
       s.brow('kid3', 'proud', 13.0, 0.2); s.mouth('kid3', 'smile', 13.0, 0.2);
-      var aM = answer(s, ov, cM.x - 30, F - 328, ['house', 'ball', '?'], false, 12.2);
+      var aM = answer(s, ov, cM.x - 30, F - 310, ['house', 'ball', '?'], false, 12.2);
       s.brow('baby', 'sad', 13.2, 0.2); s.mouth('baby', 'sad', 13.2, 0.2);
       hudText(s, 'lead', 'Кто повторял про себя, помнил больше. В 5 лет так делают немногие, к 10 — почти все.', { left: 140, top: 130, width: 1000, fontSize: 38 }, 13.4);
       cite(s, 'rehearsal · Дж. Флейвелл и др., 1966 · Э. Эллиотт и др., 2021 (17 лабораторий): шептали и многие пятилетки — раньше, чем думали', 13.8);
@@ -249,7 +269,7 @@
   }
   // шахматные часы на краю стола и подпись «10 секунд» над ними; черта под подписью сокращается
   function timer(s, ov, t0, dur) {
-    var e = s.text('kidhand', '10 секунд', { left: 1140, top: 566, fontSize: 26, color: 'var(--accent-deep)' });
+    var e = s.text('label', '10 секунд', { left: 1136, top: 568, fontSize: 26, fontWeight: 750, color: 'var(--accent-deep)' });
     var bar = s.path(ov, 'M1142 618 H1236', { stroke: TEAL, 'stroke-width': 6 });
     s.fade(e, t0, { y: 0, dur: 0.3 }); s.out(e, t0 + dur + 0.2, { dur: 0.2 });
     s.tween(bar, t0, { opacity: 0, scaleX: 1, svgOrigin: '1142 618' }, { opacity: 1, scaleX: 1, duration: 0.2 });
@@ -290,9 +310,9 @@
       var sh = s.node(g, 'g', {});
       P().page(s, sh, 240, 280, 420, 260, { cell: 30, margin: false });
       [[260, 270], [620, 270]].forEach(function (q) { s.node(sh, 'rect', { x: q[0] - 22, y: q[1], width: 44, height: 18, fill: '#EADFB8', opacity: 0.9, transform: 'rotate(-8 ' + q[0] + ' ' + (q[1] + 9) + ')' }); });
-      txt(s, sh, 480, 330, 'папа', 28); txt(s, sh, 595, 330, 'Дима', 28);
+      txt(s, sh, 480, 330, 'Папа', 26, { font: 'sans' }); txt(s, sh, 595, 330, 'Дима', 26, { font: 'sans' }); // табличка — одним шрифтом
       ln(s, sh, 'M260 346 H640', 2, INK);
-      var r1 = txt(s, sh, 260, 395, 'фигуры', 28, { anchor: 'start', weight: 500 }), r2 = txt(s, sh, 260, 455, 'цифры', 28, { anchor: 'start', weight: 500 }), r3 = txt(s, sh, 260, 515, 'счёт', 28, { anchor: 'start', weight: 500 });
+      var r1 = txt(s, sh, 260, 395, 'фигуры', 26, { anchor: 'start', font: 'sans' }), r2 = txt(s, sh, 260, 455, 'цифры', 26, { anchor: 'start', font: 'sans' }), r3 = txt(s, sh, 260, 515, 'счёт', 26, { anchor: 'start', font: 'sans' });
       fadeIn(s, sh, 0.2, 0.4);
       // кадр 1: позиция на 10 секунд (обычные пешки и кони)
       var cb = chessBoard(s, g);
@@ -302,8 +322,8 @@
       POS.forEach(function (p, i) { var q = sq(p[0], p[1]), pg = s.node(pcs, 'g', {}); (p[2] === 'k' ? K().knight : K().pawn)(s, pg, q.x, q.y, q.k, p[3]); s.tween(pg, 0.4 + i * 0.05, { opacity: 0 }, { opacity: 1, duration: 0.2 }); });
       // шахматные часы на краю стола, справа от коробки: два циферблата и две кнопки
       var ck = s.node(g, 'g', {});
-      s.node(ck, 'rect', Object.assign({ x: 1130, y: 648, width: 50, height: 42, rx: 6 }, L(2.4, '#B98A5E')));
-      [[1143, 1], [1167, 0]].forEach(function (q) {
+      s.node(ck, 'rect', Object.assign({ x: 1134, y: 648, width: 46, height: 42, rx: 6 }, L(2.4, '#B98A5E')));
+      [[1146, 1], [1168, 0]].forEach(function (q) {
         s.node(ck, 'rect', Object.assign({ x: q[0] - 5, y: q[1] ? 639 : 643, width: 10, height: q[1] ? 9 : 5, rx: 2 }, L(2, INK)));
         s.node(ck, 'circle', Object.assign({ cx: q[0], cy: 670, r: 9.5 }, L(1.8, PAPER)));
         ln(s, ck, 'M' + q[0] + ' 670 V663 M' + q[0] + ' 670 h5', 1.6);
@@ -317,9 +337,9 @@
       freeze(s, 4.2, 1.9);
       s.gaze('dad', 2, -6, 4.2, 0.3); s.gaze('kid3', -2, -6, 4.2, 0.3); s.brow('kid3', 'calm', 4.2, 0.3);
       // кадр 2: табло — фигуры: папа 6, Дима 9; папа удивлён (брови вверх, рот «о»)
-      var p1 = txt(s, sh, 480, 395, '6', 34), d1 = txt(s, sh, 595, 395, '9', 34, { color: '#13534D' });
+      var p1 = txt(s, sh, 480, 395, '6', 32, { font: 'sans' }), d1 = txt(s, sh, 595, 395, '9', 32, { color: '#13534D', font: 'sans' });
       fadeIn(s, r1, 6.1); fadeIn(s, d1, 6.3); fadeIn(s, p1, 6.5);
-      var sc1 = txt(s, sh, 538, 515, '0 : 1', 40);
+      var sc1 = txt(s, sh, 538, 515, '0 : 1', 36, { font: 'sans' });
       fadeIn(s, r3, 6.7); fadeIn(s, sc1, 6.7); fadeOut(s, sc1, 14.2, 0.2);
       s.brow('kid3', 'proud', 6.3, 0.2); s.mouth('kid3', 'smile', 6.3, 0.2); s.squash('kid3', 0.94, 1.08, 6.3, 0.1); s.squash('kid3', 1, 1, 6.4, 0.3, 'back.out(3)');
       s.gaze('dad', 3, -2, 6.5, 0.2); s.brow('dad', 'proud', 6.5, 0.3); s.mouth('dad', 'flat', 6.5, 0.2);
@@ -336,18 +356,18 @@
       ln(s, dg, 'M960 688 L1000 600', 2.4);
       s.node(dg, 'rect', Object.assign({ x: 800, y: 556, width: 320, height: 128, rx: 8 }, L(2.6, PAPER)));
       txt(s, dg, 960, 640, '7 3 9 1 5 8 2 6', 52, { weight: 600 }); // ряд случайных цифр — крупно на листке
-      s.tween(dg, 11.0, { opacity: 0 }, { opacity: 1, duration: 0.01 });
+      s.tween(dg, 11.45, { opacity: 0 }, { opacity: 1, duration: 0.01 });
       s.tween(lb, 11.1, { opacity: 1, y: 0 }, { opacity: 0, y: -120, duration: 0.35, ease: 'power2.out' });
       s.brow('dad', 'focus', 11.3, 0.3); s.gaze('dad', 10, 6, 11.3, 0.3);
       s.brow('kid3', 'focus', 11.3, 0.3); s.mouth('kid3', 'soft', 11.3, 0.3); s.gaze('kid3', -10, 6, 11.3, 0.3);
-      timer(s, ov, 11.3, 1.6);
+      timer(s, ov, 11.45, 1.45);
       s.tween(lb, 13.1, { opacity: 0, y: -120 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.in' });
       s.set(dg, 13.5, { opacity: 1 }, { opacity: 0 });
       s.gaze('dad', 2, -6, 13.5, 0.3); s.gaze('kid3', -2, -6, 13.5, 0.3); s.brow('kid3', 'calm', 13.5, 0.3);
       // сначала результат: цифры — папа 8, Дима 6; счёт 1 : 1; только потом объяснение
-      var p2 = txt(s, sh, 480, 455, '8', 34, { color: '#13534D' }), d2 = txt(s, sh, 595, 455, '6', 34);
+      var p2 = txt(s, sh, 480, 455, '8', 32, { color: '#13534D', font: 'sans' }), d2 = txt(s, sh, 595, 455, '6', 32, { font: 'sans' });
       fadeIn(s, r2, 13.8); fadeIn(s, p2, 14.0); fadeIn(s, d2, 14.2);
-      var sc2 = txt(s, sh, 538, 515, '1 : 1', 40);
+      var sc2 = txt(s, sh, 538, 515, '1 : 1', 36, { font: 'sans' });
       fadeIn(s, sc2, 14.3);
       s.brow('dad', 'proud', 14.1, 0.3); s.mouth('dad', 'smile', 14.1, 0.3); s.gaze('dad', 10, 0, 14.1, 0.3);
       s.mouth('kid3', 'smile', 14.5, 0.3); s.gaze('kid3', -10, 0, 14.5, 0.3);

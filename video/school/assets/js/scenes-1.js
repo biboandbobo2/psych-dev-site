@@ -45,9 +45,9 @@
     return lt + dur;
   }
   // Ранец Миши в классе стоит на полу под его партой (сам ранец-примета снят)
-  function floorBag(s, g, sm) {
+  function floorBag(s, g, sm, c) {
     var b = s.node(g, 'g', {});
-    Film.toys.backpack(s, b, (sm.desk.x1 + sm.desk.x2) / 2, FLOOR - 32, 0.8, '#26A69A', '#1C7A71');
+    Film.toys.backpack(s, b, (sm.desk.x1 + sm.desk.x2) / 2, FLOOR - 32, 0.8, c ? c[0] : '#26A69A', c ? c[1] : '#1C7A71');
     return b;
   }
   // Врезка «крупно тетрадь» поверх кадра (слой #ui): лист в клетку с ровной красной линией поля. Возвращает svg врезки
@@ -142,22 +142,23 @@
       // дорожка Миши прорисовывается за ним — герой главы
       var trail = s.path(g, M.paths.misha.d, { stroke: '#E4735A', 'stroke-width': 7, opacity: 0.55 });
       s.draw(trail, 1.2, { dur: 5.2, ease: 'none' });
-      // мама стоит у двери дома (справа от дома, целиком в кадре) и машет Мише рукой-точкой
-      var mh = M.paths.misha.home, MOM = 96;
-      K().cast(s, 'mom', mh[0] + 125, mh[1] - MOM / 2, MOM, 0.3, { gx: 8, gy: -2 });
-      s.brow('adult', 'calm', 0.3, 0.01);
-      [1.0, 1.8, 2.6, 3.4].forEach(function (t) { s.hands('adult', 'up', t, 0.25); s.hands('adult', 'side', t + 0.4, 0.25); });
-      s.actor('adult', { o: 0 }, s.dur - 0.45, 0.3); s.hands('adult', 'off', s.dur - 0.1, 0.01);
-      // трое одного роста выходят из дверей и идут по своим дорожкам; останавливаются перед школой порознь
-      var who = [['misha', 'baby', 0.5, 0.5], ['anya', 'kid2', 0.7, 0.62], ['dima', 'kid3', 0.9, 0.74]], D = 74;
+      // мама стоит в двери дома (окно не закрывает) и машет Мише рукой-точкой сбоку
+      var mh = M.paths.misha.home, MOM = 84, MX0 = mh[0] + 34 * mh[2], MY0 = mh[1] - MOM / 2;
+      K().cast(s, 'mom', MX0, MY0, MOM, 0, { gx: 8, gy: -2, dur: 0.01 });
+      s.brow('adult', 'calm', 0, 0.01); s.hands('adult', 'off', 0, 0.01);
+      var wave = s.node(s.over(), 'circle', { cx: MX0 + 50, cy: MY0 - 6, r: 11, fill: '#304B61' });
+      s.tween(wave, 0.9, { y: 0 }, { y: -16, duration: 0.25, repeat: 9, yoyo: true, ease: 'sine.inOut' });
+      s.out(wave, s.dur - 0.45, { dur: 0.3 });
+      s.actor('adult', { o: 0 }, s.dur - 0.45, 0.3);
+      // трое одного роста стоят у своих домов (рядом, не в дверях) и идут по своим дорожкам лицом вперёд; останавливаются перед школой порознь
+      var who = [['misha', 'baby', 0.5, 0.5], ['anya', 'kid2', 0.7, 0.62], ['dima', 'kid3', 0.9, 0.74]], D = 74, T0 = 0.05;
       who.forEach(function (w) {
-        var h = M.paths[w[0]].home, st = M.paths[w[0]].start, dx = h[0] + 34 * h[2];
-        K().cast(s, w[0], dx, h[1] - D / 2, D, w[2], { gx: 8, gy: -2, dur: 0.35 }); // в двери дома
-        s.brow(w[1], 'calm', w[2], 0.01);
-        K().walk(s, w[1], st[0], w[2] + 0.35, { step: 60, dur: 0.14, hold: 0.04 }); // по отрезку от двери до дорожки
-        var N = 12, t = w[2] + 0.75, dt = (6.4 - t) / N;
+        var p0 = P().pathPoint(M, w[0], T0);
+        K().cast(s, w[0], p0.x, p0.y - D / 2, D, 0, { gx: 10, gy: -2, dur: 0.01 });
+        s.brow(w[1], 'calm', 0, 0.01);
+        var N = 12, t = w[2], dt = (6.4 - t) / N;
         for (var i = 1; i <= N; i++) {
-          var p = P().pathPoint(M, w[0], w[3] * i / N);
+          var p = P().pathPoint(M, w[0], T0 + (w[3] - T0) * i / N);
           s.squash(w[1], 1.04, 0.96, t, 0.08);
           s.actor(w[1], { x: p.x, y: p.y - D / 2 }, t + 0.06, dt - 0.06, 'sine.inOut'); // низ круга — на линии дорожки
           s.squash(w[1], 1, 1, t + 0.08, 0.15);
@@ -185,46 +186,46 @@
       vis(s, f1, 0, T2, 0.01);
       s.gear('baby', 'backpack', false, 0, 0.01); // дома ранец снят
       var MX = kc.seat.x - 14, MY = kc.seat.y - 60;
-      K().cast(s, 'misha', MX, MY, 120, 0.1, { gx: 8, gy: -2 }); // низ круга — на сиденье стула
+      K().cast(s, 'misha', MX, MY, 120, 0, { gx: 8, gy: -2, dur: 0.01 }); // низ круга — на сиденье стула
       s.brow('baby', 'proud', 0.1, 0.01); s.hands('baby', 'desk', 0.2, 0.25);
       var MOMX = 1408, MOMY = P().standY(kc.floor, 220, false); // мама справа от стула, спинка стула её не пересекает
-      K().cast(s, 'mom', MOMX, MOMY, 220, 0.1, { gx: -8, gy: 4 });
+      K().cast(s, 'mom', MOMX, MOMY, 220, 0, { gx: -8, gy: 4, dur: 0.01 });
       s.brow('adult', 'calm', 0.1, 0.01);
       K().say(s, 'Иди сюда, моё солнышко!', MOMX + 20 - 500, 590, 0.5, 3.2, 'r');
-      s.hands('adult', 'hold', 1.0, 0.3); s.hands('baby', 'side', 1.0, 0.3); // левая рука мамы — на Мише
+      s.hands('adult', 'side', 1.0, 0.3); s.hands('baby', 'side', 1.0, 0.3); // левая рука мамы — на Мише
       s.squash('adult', 1.04, 0.97, 1.3, 0.15); s.squash('adult', 1, 1, 1.45, 0.4, 'back.out(2)');
       s.mouth('baby', 'smile', 1.4, 0.2); s.brow('baby', 'calm', 1.4, 0.3); s.gaze('baby', 9, -4, 1.4, 0.3);
       var eve = s.text('kicker', 'Вечер накануне 1 сентября', { left: 140, top: 122 }); s.fade(eve, 0.2, { y: 6 }); s.out(eve, T2 - 0.35, { dur: 0.3 });
       hudLines(s, 'h3', 'Дома любят за то, что ты есть.', { left: 140, top: 158, width: 1000, fontSize: 42 }, 2.0, T2 - 0.35);
-      off(s, ['adult', 'baby'], T2 - 0.3);
+      ['adult', 'baby'].forEach(function (id) { s.actor(id, { o: 0 }, T2, 0.01); s.hands(id, 'off', T2 + 0.02, 0.01); }); // смена кадра — сразу, без полупрозрачных героев
       // --- кадр 2: класс сбоку — доска слева перед детьми, Ирина Петровна у доски; герои на своих местах ---
       var f2 = s.node(g, 'g', {}), cr = P().classroom(s, f2, { boardText: '1 сентября' });
       seatKids(s, f2, cr.seats, heroKeys());
       var sm = heroSeat(cr, 'misha'), sa = heroSeat(cr, 'anya'), sd = heroSeat(cr, 'dima');
       floorBag(s, f2, sm); // ранец Миши стоит на полу под его партой
-      P().bags(s, f2, cr.seats, cr.floor, [0]); // у первого ряда — ранцы у стульев
+      P().bags(s, f2, cr.seats, cr.floor, [0, 3]); // у первого ряда — ранцы у стульев (у Димы — под партой, не у края кадра)
+      floorBag(s, f2, heroSeat(cr, 'dima'), ['#8CBF6E', '#5E9443']);
       deskBook(s, f2, sm.desk.x1 + 30, sm.desk.y, 80);
       vis(s, f2, T2, null, 0.4);
       var TX = cr.teacher.x, TY = P().standY(FLOOR, 150, true);
-      K().cast(s, 'teacher', TX, TY, 150, T2 + 0.1, { gx: 10, gy: 0 });
+      K().cast(s, 'teacher', TX, TY, 150, T2, { gx: 10, gy: 0, dur: 0.01 });
       s.brow('adult2', 'calm', T2, 0.01);
-      K().cast(s, 'anya', sa.x, sa.y, sa.r * 2, T2 + 0.1, { gx: GX });
-      K().cast(s, 'dima', sd.x, sd.y, sd.r * 2, T2 + 0.1, { gx: GX, mouth: 'soft' });
+      K().cast(s, 'anya', sa.x, sa.y, sa.r * 2, T2, { gx: GX, dur: 0.01 });
+      K().cast(s, 'dima', sd.x, sd.y, sd.r * 2, T2, { gx: GX, mouth: 'soft', dur: 0.01 });
       s.hands('kid2', 'desk', T2 + 0.1, 0.01); s.hands('kid3', 'desk', T2 + 0.1, 0.01);
-      s.actor('baby', { x: sm.x, y: sm.y - 40, d: sm.r * 2, o: 0 }, T2 + 0.2, 0.01); s.gaze('baby', GX, -2, T2 + 0.2, 0.01);
-      s.mouth('baby', 'smile', T2 + 0.2, 0.01); s.brow('baby', 'calm', T2 + 0.2, 0.01);
-      s.actor('baby', { o: 1 }, T2 + 0.35, 0.3);
-      s.actor('baby', { y: sm.y }, T2 + 0.7, 0.35, 'power2.inOut'); // садится на стул
+      s.actor('baby', { x: sm.x, y: sm.y, d: sm.r * 2, o: 0 }, T2 + 0.03, 0.01); s.gaze('baby', GX, -2, T2 + 0.03, 0.01);
+      s.mouth('baby', 'smile', T2 + 0.03, 0.01); s.brow('baby', 'calm', T2 + 0.03, 0.01);
+      s.actor('baby', { o: 1 }, T2 + 0.05, 0.01); // сидит на своём месте с начала кадра
       s.squash('baby', 1.04, 0.96, T2 + 1.05, 0.1); s.squash('baby', 1, 1, T2 + 1.15, 0.3);
       s.gaze('baby', 8, 0, T2 + 1.3, 0.25); s.gaze('kid2', -8, 0, T2 + 1.35, 0.25); // переглянулись с Аней
       s.gaze('baby', GX, -2, T2 + 2.0, 0.3); s.gaze('kid2', GX, 0, T2 + 2.0, 0.3);
       s.hands('baby', 'desk', T2 + 1.3, 0.25);
       K().tag(s, 'Ирина Петровна', TX, FLOOR + 8, T2 + 0.5, T3 - 0.3);
       K().tag(s, 'Миша', sm.x, FLOOR + 8, T2 + 0.7, T3 - 0.3);
-      K().tag(s, 'Аня', sa.x, FLOOR + 8, T2 + 0.8, T3 - 0.3); K().tag(s, 'Дима', sd.x - 20, FLOOR + 8, T2 + 0.8, T3 - 0.3);
+      K().tag(s, 'Аня', sa.x, FLOOR + 8, T2 + 0.8, T3 - 0.3); K().tag(s, 'одноклассник', seatOf(cr, '0:2').x, FLOOR + 8, T2 + 0.8, T3 - 0.3); K().tag(s, 'Дима', sd.x - 20, FLOOR + 8, T2 + 0.8, T3 - 0.3);
       // --- кадр 3: Ирина Петровна шагами подходит к парте Миши, подчёркивает палочку и ставит «3» в поле (тетрадь крупно — лист с выноской) ---
-      K().walk(s, 'adult2', 700, T3, { step: 75, dur: 0.16, hold: 0.04 });
-      s.gaze('adult2', 10, 6, T3 + 0.9, 0.3); s.brow('adult2', 'focus', T3 + 0.9, 0.3); s.hands('adult2', 'up', T3 + 1.2, 0.3);
+      K().walk(s, 'adult2', 655, T3, { step: 75, dur: 0.16, hold: 0.04 }); // к парте Миши, но не вплотную
+      s.gaze('adult2', 10, 6, T3 + 0.9, 0.3); s.brow('adult2', 'focus', T3 + 0.9, 0.3); s.hands('adult2', 'hold', T3 + 1.2, 0.3);
       var IX = 660, IY = 240, IW = 500, IH = 290, sv = inset(s, IX, IY, IW, IH, T3 + 0.6, s.dur - 0.5, { cell: 36, margin: 108 });
       leader(s, f2, 1000, IY + IH, sm.desk.x1 + 70, sm.desk.y - 10, T3 + 0.7, T3 + 3.9);
       sticks(s, sv, 50, 90, 5, 68, 130, 7);
@@ -243,8 +244,8 @@
       s.brow('baby', 'sad', T3 + 3.0, 0.4); s.mouth('baby', 'flat', T3 + 3.0, 0.4); s.gaze('baby', -4, 6, T3 + 3.0, 0.4);
       hudLines(s, 'h3', 'В школе оценивают, что ты сделал.', { left: 140, top: 122, width: 1100, fontSize: 42 }, T3 + 3.0);
       // облачко над Мишей (пузырьки — от него): мама дома обнимает его — он вспоминает и успокаивается
-      var cx = 850, cy = 642, cg = s.node(ov, 'g', {});
-      Film.icons.cloud(s, cg, cx, cy, 90, 56, { at: T3 + 4.4, dur: 0.7, seed: 4, tail: [sm.x - 16, sm.y - sm.r] });
+      var cx = 790, cy = 600, cg = s.node(ov, 'g', {});
+      Film.icons.cloud(s, cg, cx, cy, 86, 52, { at: T3 + 4.4, dur: 0.7, seed: 4, tail: [sm.x - 16, sm.y - sm.r] });
       var hug = s.node(ov, 'g', {});
       s.path(hug, 'M' + (cx - 60) + ' ' + (cy - 8) + ' L' + cx + ' ' + (cy - 46) + ' L' + (cx + 60) + ' ' + (cy - 8), { stroke: INK, 'stroke-width': 2.6 }); // крыша — дом
       Film.head(hug, cx - 16, cy + 14, 28, '#385771', null, { mouth: 'smile', gx: 6 });
@@ -269,25 +270,28 @@
       seatKids(s, g, cr.seats, heroKeys());
       var sm = heroSeat(cr, 'misha'), sa = heroSeat(cr, 'anya'), sd = heroSeat(cr, 'dima');
       floorBag(s, g, sm);
-      P().bags(s, g, cr.seats, cr.floor, [0]);
+      P().bags(s, g, cr.seats, cr.floor, [0, 3]); floorBag(s, g, sd, ['#8CBF6E', '#5E9443']);
       // две ленты на стене класса под доской — по разные стороны от учительского места, приколоты кнопками
-      var M = 60, RYB = FLOOR - 120, RA = { x: 110, n: 3, c: '#4F7CAC' }, RB = { x: 520, n: 4, c: '#E0A93B' };
+      var M = 60, RYB = FLOOR - 120, RA = { x: 110, n: 3, c: '#4F7CAC' }, RB = { x: 540, n: 4, c: '#E0A93B' };
       [RA, RB].forEach(function (r, i) {
         var e = s.node(g, 'rect', { x: r.x, y: RYB - 7, width: r.n * M, height: 14, rx: 3, fill: r.c, stroke: INK, 'stroke-width': 1.6 });
         s.grow(e, 0.3 + i * 0.3, { dur: 0.5 });
         [r.x + 6, r.x + r.n * M - 6].forEach(function (px) { var pin = s.node(g, 'circle', { cx: px, cy: RYB, r: 4.5, fill: RED, stroke: INK, 'stroke-width': 1.4 }); s.fade(pin, 0.7 + i * 0.3, { y: 0 }); });
       });
       var pc = s.node(g, 'g', {}); pencilCase(s, pc, sm.desk.x1 + 14, sm.desk.y, 70);
-      var TX = 360, TY = P().standY(FLOOR, 150, true);
-      K().cast(s, 'teacher', TX, TY, 150, 0.1, { gx: 10, gy: 0 }); s.brow('adult2', 'calm', 0.1, 0.01);
+      var TX = 365, TY = P().standY(FLOOR, 150, true);
+      K().cast(s, 'teacher', TX, TY, 150, 0, { gx: 10, gy: 0, dur: 0.01 }); s.brow('adult2', 'calm', 0, 0.01);
       s.gear('baby', 'backpack', false, 0, 0.01);
-      K().cast(s, 'misha', sm.x, sm.y, sm.r * 2, 0.1, { gx: GX }); s.brow('baby', 'calm', 0.1, 0.01); s.hands('baby', 'desk', 0.1, 0.01);
-      K().cast(s, 'anya', sa.x, sa.y, sa.r * 2, 0.1, { gx: GX }); s.brow('kid2', 'calm', 0.1, 0.01); s.hands('kid2', 'desk', 0.1, 0.01);
-      K().cast(s, 'dima', sd.x, sd.y, sd.r * 2, 0.1, { gx: GX, mouth: 'soft' }); s.hands('kid3', 'desk', 0.1, 0.01);
+      K().cast(s, 'misha', sm.x, sm.y, sm.r * 2, 0, { gx: GX, dur: 0.01 }); s.brow('baby', 'calm', 0.1, 0.01); s.hands('baby', 'desk', 0.1, 0.01);
+      K().cast(s, 'anya', sa.x, sa.y, sa.r * 2, 0, { gx: GX, dur: 0.01 }); s.brow('kid2', 'calm', 0.1, 0.01); s.hands('kid2', 'desk', 0.1, 0.01);
+      K().cast(s, 'dima', sd.x, sd.y, sd.r * 2, 0, { gx: GX, mouth: 'soft', dur: 0.01 }); s.hands('kid3', 'desk', 0.1, 0.01);
       // кадр 1: Ирина Петровна шагами выходит к классу и загадывает загадку
-      K().walk(s, 'adult2', 480, 0.15, { step: 60, dur: 0.14, hold: 0.04 }); // к классу, не загораживая ленты
-      K().say(s, 'Как узнать, какая лента длиннее,<br>если их нельзя приложить друг к другу?', 460, 450, 0.6, 7.0);
-      askCloud(s, ov, 1540, 500, 1.4, 4.6); askCloud(s, ov, 1750, 500, 1.7, 4.6); askCloud(s, ov, 1630, 640, 2.0, 4.6);
+      // Ирина Петровна у доски между лентами (руки-точки у лент); облачко — справа от доски, длинный хвост к ней
+      var qb = K().say(s, 'Как узнать, какая лента длиннее,<br>если их нельзя приложить друг к другу?', 650, 300, 0.6, 7.0);
+      var qt = s.node(ov, 'path', { d: 'M686 418 L' + (TX + 50) + ' ' + (TY - 62) + ' L712 418 Z', fill: '#FFFDF8', stroke: INK, 'stroke-width': 2.5, 'stroke-linejoin': 'round' });
+      s.tween(qt, 0.6, { opacity: 0 }, { opacity: 1, duration: 0.3 }); s.out(qt, 7.0, { dur: 0.3 });
+      s.hands('adult2', 'hold', 0.8, 0.3); s.hands('adult2', 'side', 6.0, 0.3);
+      askCloud(s, ov, 1330, 500, 1.4, 4.6); askCloud(s, ov, 1540, 500, 1.7, 4.6); askCloud(s, ov, 1750, 500, 2.0, 4.6); // над головами заднего ряда
       s.brow('kid2', 'focus', 1.7, 0.3); s.gaze('kid2', -8, -6, 1.7, 0.3);
       // у Миши в облачке — схема: палочка, уложенная по ленте, | | |
       s.brow('baby', 'focus', 2.0, 0.3); s.gaze('baby', -8, -8, 2.0, 0.3);
@@ -304,8 +308,8 @@
       // кадр 2: Миша поднимает руку (сидя), Ирина Петровна кивает и отходит к доске; Миша встаёт, берёт палочку из пенала и шагами идёт к ленте
       s.hands('baby', 'up', 4.0, 0.35); s.brow('baby', 'proud', 4.0, 0.3);
       s.gaze('adult2', 10, 2, 4.2, 0.3); s.squash('adult2', 1.02, 0.97, 4.4, 0.15); s.squash('adult2', 1, 1, 4.55, 0.3); // кивает
-      s.gaze('adult2', -10, 0, 4.65, 0.15); K().walk(s, 'adult2', TX, 4.7, { step: 70, dur: 0.14, hold: 0.04 }); s.gaze('adult2', 10, 0, 5.8, 0.3);
-      var SY = FLOOR - sm.r, STY = RYB - 9, HY = SY + 0.2 * sm.r * 2; // стоит на полу; палочка на ленте; в руке
+      
+      var SY = FLOOR - sm.r - 8, STY = RYB - 9, HY = SY + 0.2 * sm.r * 2; // стоит на полу; палочка на ленте; в руке
       var stick = s.node(ov, 'g', {});
       s.path(stick, 'M0 0 H' + M, { stroke: STICK, 'stroke-width': 8 });
       var pos = { x: sm.desk.x1 + 22, y: sm.desk.y - 12 };
@@ -342,16 +346,14 @@
       go(RB.x + M / 2 - HO, 7.95, 0.9); tally(RA, 'III', 8.15);
       measure(RB, 9.1, 0.3);
       s.mouth('baby', 'smile', 10.35, 0.2); s.gaze('baby', -6, -6, 10.35, 0.2);
-      K().say(s, 'Вторая!', s.A.baby.st.x + 34 - 230, 680, 10.35, 11.85, 'r');
+      K().say(s, 'Вторая!', s.A.baby.st.x + 34 - 230, 640, 10.35, 11.85, 'r');
       // кадр 3: Миша шагами возвращается за парту; Ирина Петровна подходит, ставит «5» своей рукой и хвалит
       s.out(stick, 11.0, { dur: 0.25 }); s.hands('baby', 'off', 11.0, 0.2);
-      go(sm.x - 40, 11.1, 0.8); tally(RB, 'IIII', 11.35);
-      hop2(s, 'baby', sm.x, sm.y, 11.95, 0.35, 20); // садится на свой стул
-      s.gaze('baby', GX, -2, 12.35, 0.2); s.hands('baby', 'desk', 12.35, 0.2);
-      K().walk(s, 'adult2', 700, 11.4, { step: 70, dur: 0.14, hold: 0.04 }); s.gaze('adult2', 10, 6, 12.5, 0.3);
-      s.hands('adult2', 'up', 12.6, 0.3);
-      var IX = 1296, IY = 160, IW = 570, IH = 310, nb = inset(s, IX, IY, IW, IH, 12.4, s.dur - 0.5, { cell: 35, margin: 110 });
-      leader(s, g, IX, IY + IH, sm.desk.x1 + 70, sm.desk.y - 10, 12.5, 14.4);
+      go(515, 11.1, 0.6); tally(RB, 'IIII', 11.4); // подходит к Ирине Петровне (рядом, не в ней)
+      s.gaze('baby', -9, -4, 11.75, 0.2);
+      s.squash('adult2', 1.02, 0.98, 11.6, 0.15); s.squash('adult2', 1, 1, 11.75, 0.2); s.gaze('adult2', 10, 6, 11.7, 0.3);
+      s.hands('adult2', 'hold', 12.5, 0.3); // её рука-точка с ручкой
+      var IX = 1310, IY = 160, IW = 560, IH = 310, nb = inset(s, IX, IY, IW, IH, 12.4, s.dur - 0.5, { cell: 35, margin: 110 });
       [[RA, 95], [RB, 185]].forEach(function (q) { // тетрадь Миши: ленты и черты
         s.node(nb, 'rect', { x: 30, y: q[1] - 6, width: 50, height: 12, rx: 3, fill: q[0].c });
         for (var j = 0; j < q[0].n; j++) s.path(nb, 'M' + (110 + j * 26) + ' ' + (q[1] - 24) + ' v48', { stroke: KID_INK, 'stroke-width': 5 });
@@ -363,12 +365,15 @@
       s.tween(five, 13.05, { opacity: 0, scale: 0.4, transformOrigin: '50% 70%' }, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2)' });
       s.out(pn, 13.4, { dur: 0.3 }); s.hands('adult2', 'side', 13.4, 0.3);
       s.mouth('adult2', 'smile', 13.1, 0.3);
-      K().say(s, 'Молодец, нашёл способ!', 674, 480, 13.15, 15.6);
+      K().say(s, 'Молодец, нашёл способ!', 650, 560, 13.15, 15.6); // справа от доски, хвост — к Ирине Петровне
+      var pt = s.node(ov, 'path', { d: 'M668 628 L' + (TX + 55) + ' ' + (TY - 60) + ' L694 628 Z', fill: '#FFFDF8', stroke: INK, 'stroke-width': 2.5, 'stroke-linejoin': 'round' });
+      s.tween(pt, 13.15, { opacity: 0 }, { opacity: 1, duration: 0.3 }); s.out(pt, 15.6, { dur: 0.3 });
       s.brow('baby', 'proud', 13.3, 0.3); s.mouth('baby', 'smile', 13.3, 0.2); s.gaze('baby', -8, -6, 13.3, 0.2);
       s.squash('baby', 1.04, 0.96, 13.6, 0.1); s.squash('baby', 1, 1, 13.7, 0.3);
-      s.gaze('adult2', -10, 0, 15.75, 0.15); K().walk(s, 'adult2', TX, 15.8, { step: 75, dur: 0.16, hold: 0.04 }); s.gaze('adult2', 10, 0, 16.9, 0.3);
-      var rule = s.text('h3', 'Длиннее та, по которой мерка уложилась больше раз. Так палочка становится числом.', { left: 140, top: 124, width: 1120, fontSize: 40 });
+      go(sm.x - 40, 15.7, 0.8); hop2(s, 'baby', sm.x, sm.y, 16.55, 0.35, 20); s.gaze('baby', GX, -2, 16.95, 0.2); s.hands('baby', 'desk', 16.95, 0.2); // возвращается за парту
+      var rule = s.text('h3', 'Длиннее та, по которой мерка уложилась больше раз. Так палочка становится числом.', { left: 140, top: 124, width: 1060, fontSize: 40 });
       s.lines(rule, 10.6); // правило — сразу после результата «Вторая!», дочитывается до вывода
+      s.out(rule, 16.4, { dur: 0.3 }); // гаснет, когда появляется вывод (не три блока сразу)
       verdict(s, 'в школе учат не готовому ответу, а способу его найти. Это <b class="acc">учебная деятельность</b> — главное занятие возраста.', 16.6);
       small(s, 'learning activity · В. В. Давыдов, «Виды обобщения в обучении», 1972 · независимых сравнений системы почти нет', 17.2, 1000);
       off(s, ['baby', 'kid2', 'kid3', 'adult2'], s.dur - 0.45);
@@ -384,22 +389,24 @@
       // --- кадр 1: урок; из ранца у стула Миши выглядывает лошадка (целиком), Аня замечает и улыбается ---
       var f1 = s.node(g, 'g', {}), cr = P().classroom(s, f1, {});
       // дверь класса справа (за последней партой) — на перемену все выходят в неё; над дверью звонок на стене
-      var DX = 1868, dr = s.node(f1, 'g', {});
-      s.node(dr, 'rect', { x: DX, y: FLOOR - 230, width: 100, height: 230, rx: 4, fill: '#F3EBDD', stroke: INK, 'stroke-width': 2.6 });
-      s.node(dr, 'circle', { cx: DX + 16, cy: FLOOR - 112, r: 5, fill: INK });
-      s.path(f1, 'M' + (DX + 26) + ' ' + (FLOOR - 250) + ' V' + (FLOOR - 270), { stroke: INK, 'stroke-width': 2.6 });
+      // дверь — в задней стене справа, за последней партой заднего ряда (с отступом от края кадра); над ней звонок
+      var DB = FLOOR - 190, DX = 1772, dr = s.node(f1, 'g', {});
+      s.node(dr, 'rect', { x: DX, y: DB - 220, width: 86, height: 220, rx: 4, fill: '#F3EBDD', stroke: INK, 'stroke-width': 2.6 });
+      s.node(dr, 'circle', { cx: DX + 14, cy: DB - 108, r: 5, fill: INK });
+      s.path(f1, 'M' + (DX + 43) + ' ' + (DB - 232) + ' V' + (DB - 250), { stroke: INK, 'stroke-width': 2.6 });
       var bell = s.node(f1, 'g', {});
-      s.path(bell, 'M' + (DX + 8) + ' ' + (FLOOR - 270) + ' Q' + (DX + 8) + ' ' + (FLOOR - 312) + ' ' + (DX + 26) + ' ' + (FLOOR - 312) + ' Q' + (DX + 44) + ' ' + (FLOOR - 312) + ' ' + (DX + 44) + ' ' + (FLOOR - 270) + ' Z', { fill: '#F5D27A', stroke: INK, 'stroke-width': 2.4 });
-      s.node(bell, 'circle', { cx: DX + 26, cy: FLOOR - 266, r: 5, fill: INK });
+      s.path(bell, 'M' + (DX + 25) + ' ' + (DB - 250) + ' Q' + (DX + 25) + ' ' + (DB - 292) + ' ' + (DX + 43) + ' ' + (DB - 292) + ' Q' + (DX + 61) + ' ' + (DB - 292) + ' ' + (DX + 61) + ' ' + (DB - 250) + ' Z', { fill: '#F5D27A', stroke: INK, 'stroke-width': 2.4 });
+      s.node(bell, 'circle', { cx: DX + 43, cy: DB - 246, r: 5, fill: INK });
       var kids = seatKids(s, f1, cr.seats, heroKeys());
-      var bagsF = P().bags(s, f1, cr.seats, cr.floor, [0]); // ранцы первого ряда у стульев; ранец Миши — свой, под партой
+      var bagsF = P().bags(s, f1, cr.seats, cr.floor, [0, 3]); // ранцы первого ряда у стульев; ранцы Миши и Димы — под их партами
       vis(s, f1, 0, null, 0.01); s.out(f1, TY2, { dur: 0.3 });
       var sm = heroSeat(cr, 'misha'), sa = heroSeat(cr, 'anya'), sd = heroSeat(cr, 'dima');
+      var dBag = floorBag(s, f1, sd, ['#8CBF6E', '#5E9443']);
       var TX = cr.teacher.x, TYc = P().standY(FLOOR, 150, true);
-      K().cast(s, 'teacher', TX, TYc, 150, 0.05, { gx: 10 }); s.brow('adult2', 'calm', 0.05, 0.01);
-      K().cast(s, 'misha', sm.x, sm.y, sm.r * 2, 0.05, { gx: GX }); s.brow('baby', 'calm', 0.05, 0.01); s.hands('baby', 'desk', 0.05, 0.01);
-      K().cast(s, 'anya', sa.x, sa.y, sa.r * 2, 0.05, { gx: GX }); s.brow('kid2', 'calm', 0.05, 0.01); s.hands('kid2', 'desk', 0.05, 0.01);
-      K().cast(s, 'dima', sd.x, sd.y, sd.r * 2, 0.05, { gx: GX, mouth: 'soft' }); s.hands('kid3', 'desk', 0.05, 0.01);
+      K().cast(s, 'teacher', TX, TYc, 150, 0, { gx: 10, dur: 0.01 }); s.brow('adult2', 'calm', 0, 0.01);
+      K().cast(s, 'misha', sm.x, sm.y, sm.r * 2, 0, { gx: GX, dur: 0.01 }); s.brow('baby', 'calm', 0.05, 0.01); s.hands('baby', 'desk', 0.05, 0.01);
+      K().cast(s, 'anya', sa.x, sa.y, sa.r * 2, 0, { gx: GX, dur: 0.01 }); s.brow('kid2', 'calm', 0.05, 0.01); s.hands('kid2', 'desk', 0.05, 0.01);
+      K().cast(s, 'dima', sd.x, sd.y, sd.r * 2, 0, { gx: GX, mouth: 'soft', dur: 0.01 }); s.hands('kid3', 'desk', 0.05, 0.01);
       // ранец Миши стоит на полу у его стула (ранец-примету на спине прячем)
       s.gear('baby', 'backpack', false, 0, 0.01);
       var BX = (sm.desk.x1 + sm.desk.x2) / 2, BY = FLOOR - 32;
@@ -425,7 +432,7 @@
       // --- кадр 2: звонок; все встают со стульев, выходят вперёд в проход и идут в одну сторону — к двери ---
       s.tween(bell, T2, { rotation: 0, transformOrigin: '50% 0%' }, { rotation: 16, duration: 0.08, repeat: 11, yoyo: true });
       [0, 1].forEach(function (i) {
-        var a = s.path(f1, 'M' + (DX + 26 + (i ? 30 : -30)) + ' ' + (FLOOR - 296) + ' q' + (i ? 10 : -10) + ' 14 0 28', { stroke: INK, 'stroke-width': 2.4 });
+        var a = s.path(f1, 'M' + (DX + 43 + (i ? 30 : -30)) + ' ' + (DB - 276) + ' q' + (i ? 10 : -10) + ' 14 0 28', { stroke: INK, 'stroke-width': 2.4 });
         s.tween(a, T2, { opacity: 0 }, { opacity: 1, duration: 0.15, repeat: 5, yoyo: true });
         s.set(a, T2 + 0.9, { opacity: 1 }, { opacity: 0 });
       });
@@ -433,38 +440,46 @@
       s.out(bp, T2 + 0.9, { dur: 0.25 }); s.out(toy, T2 + 0.9, { dur: 0.01 });
       s.gear('baby', 'backpack', true, T2 + 0.9, 0.25); // ранец — на спину
       s.hands('baby', 'off', T2 + 0.9, 0.2); s.hands('kid2', 'off', T2 + 0.9, 0.2); s.hands('kid3', 'off', T2 + 0.9, 0.2);
-      var EXIT = DX + 20;
+      // все встают на пол, поворачиваются к двери, идут вправо; передний ряд у конца прохода поднимается к двери в задней стене;
+      // в двери исчезают сразу (без полупрозрачных детей)
+      var DXC = DX + 43, AISLE = 1690;
       kids.slice().sort(function (a, b) { return b.x - a.x; }).forEach(function (k, i) {
-        var t = T2 + 0.8 + i * 0.12, dx = EXIT - k.x, rowFloor = k.row ? FLOOR - 190 : FLOOR, stand = rowFloor - k.r + (k.row ? 22 : 40) - k.y, wd = 0.6 + dx / 1400;
-        s.tween(k.g, t, { y: 0 }, { y: stand, duration: 0.3, ease: 'power2.inOut' }); // встал и вышел вперёд, в проход
+        var t = T2 + 0.8 + i * 0.12, rowFloor = k.row ? DB : FLOOR, sy = rowFloor - k.r - k.y, dy = DB - k.r * (k.row ? 1 : 0.72) - k.y;
+        var wx = (k.row ? DXC : AISLE) - k.x, wd = 0.5 + Math.abs(wx) / 1400;
+        s.tween(k.g, t, { y: 0 }, { y: sy, duration: 0.3, ease: 'power2.inOut' }); // встал на пол
         s.set(k.fl, t + 0.3, { opacity: 1 }, { opacity: 0 }); s.set(k.fr, t + 0.3, { opacity: 0 }, { opacity: 1 }); // повернулся лицом к двери
-        if (!k.row && bagsF[k.seat]) s.out(bagsF[k.seat].g, t + 0.2, { dur: 0.2 }); // ранец забрал с собой
-        s.tween(k.g, t + 0.35, { x: 0 }, { x: dx, duration: wd, ease: 'power1.in' });
-        s.tween(k.g, t + 0.2 + wd, { opacity: 1 }, { opacity: 0, duration: 0.15 });
+        if (!k.row && bagsF[k.seat]) s.set(bagsF[k.seat].g, t + 0.3, { opacity: 1 }, { opacity: 0 }); // ранец забрал с собой
+        s.tween(k.g, t + 0.35, { x: 0 }, { x: wx, duration: wd, ease: 'power1.inOut' });
+        var tEnd = t + 0.35 + wd;
+        if (!k.row) { s.tween(k.g, tEnd, { x: wx, y: sy }, { x: DXC - k.x, y: dy, duration: 0.4, ease: 'power1.inOut' }); tEnd += 0.4; }
+        s.set(k.g, tEnd, { opacity: 1 }, { opacity: 0 }); // вошёл в дверь
       });
-      [['kid3', sd, 0.15], ['kid2', sa, 0.4], ['baby', sm, 0.65]].forEach(function (q) {
-        var id = q[0], t = T2 + 0.8 + q[2], wd = 0.6 + (EXIT - q[1].x) / 1400;
+      [['kid3', sd, 0.1], ['kid2', sa, 0.25], ['baby', sm, 0.4]].forEach(function (q) {
+        var id = q[0], t = T2 + 0.8 + q[2], wd = 0.4 + Math.max(0, AISLE - q[1].x) / 1800;
         s.gaze(id, 12, 0, t, 0.2);
-        if (id === 'kid3') s.out(bagsF[3].g, t + 0.2, { dur: 0.2 });
-        if (id === 'kid2') { s.out(bagTop, t + 0.2, { dur: 0.2 }); s.out(bun, t + 0.2, { dur: 0.2 }); s.out(ab.g, t + 0.2, { dur: 0.2 }); }
-        hop2(s, id, q[1].x + 20, FLOOR - q[1].r + 40, t, 0.35, 16); // встаёт со стула и выходит вперёд, в проход
-        s.actor(id, { x: EXIT }, t + 0.45, wd, 'power1.in');
-        s.actor(id, { o: 0 }, t + 0.3 + wd, 0.15);
+        if (id === 'kid3') s.set(dBag, t + 0.3, { opacity: 1 }, { opacity: 0 });
+        if (id === 'kid2') [bagTop, bun, ab.g].forEach(function (e) { s.set(e, t + 0.3, { opacity: 1 }, { opacity: 0 }); });
+        hop2(s, id, q[1].x + 20, FLOOR - q[1].r, t, 0.35, 16); // встаёт со стула на пол
+        if (q[1].x < AISLE) s.actor(id, { x: AISLE }, t + 0.45, wd, 'power1.inOut');
+        var tu = t + 0.45 + (q[1].x < AISLE ? wd : 0);
+        s.actor(id, { x: DXC, y: DB - q[1].r * 0.72, d: q[1].r * 2 * 0.8 }, tu, 0.35, 'power1.inOut'); // к двери в задней стене
+        s.actor(id, { o: 0 }, tu + 0.35, 0.01);
       });
       s.gaze('adult2', 9, 0, T2 + 1.0, 0.3);
-      s.actor('adult2', { o: 0 }, TY2 - 0.4, 0.3);
+      s.actor('adult2', { o: 0 }, TY2, 0.01);
       // --- двор: дети выходят из двери школы и идут вправо; Миша и Аня играют лошадкой — над ней проступает рисованный слой 3–7 ---
       var f3 = s.node(g, 'g', {}), Y = P().yard(s, f3, { ground: 600 });
       vis(s, f3, TY2, null, 0.4);
       var cells = Y.classics.cells, GD = Y.ground, SD = 400;
       // очередь стоит у классиков, у первой клетки
-      var queue = s.node(g, 'g', {}), QX = cells[0].x - 250;
+      var queue = s.node(g, 'g', {}), QX = cells[0].x - 290;
       [[QX, 3], [QX - 90, 6], [QX - 180, 11]].forEach(function (q) { K().classmate(queue, q[1], q[0], cells[0].y - 40, 40, { gx: 6 }); });
-      s.tween(queue, TY2 + 0.5, { opacity: 0, x: -100 }, { opacity: 1, x: 0, duration: 1.0, ease: 'power2.out' });
+      s.tween(queue, 0, { opacity: 0 }, { opacity: 0, duration: 0.01 }); s.set(queue, TY2, { opacity: 0, x: -480 }, { opacity: 1, x: -480 });
+      s.tween(queue, TY2 + 0.3, { x: -480 }, { x: 0, duration: 1.3, ease: 'power1.out' }); // входят шагом из-за левого края
       var PX = 1560, PY = 700; // место игры с лошадкой
       [['baby', PX - 130, 0.2, 9], ['kid2', PX + 210, 0.5, -9]].forEach(function (q) { // из двери школы — вниз, на асфальт, и вправо к месту игры
         s.actor(q[0], { x: SD, y: GD - 40, d: 80, o: 0 }, TY2 + q[2], 0.01); s.gaze(q[0], 8, 0, TY2 + q[2], 0.01);
-        s.actor(q[0], { o: 1 }, TY2 + q[2] + 0.05, 0.3);
+        s.actor(q[0], { o: 1 }, TY2 + q[2] + 0.05, 0.01); // выходят из двери школы
         s.actor(q[0], { y: GD + 80, d: 92 }, TY2 + q[2] + 0.15, 0.35, 'power2.out');
         s.actor(q[0], { x: q[1], y: PY, d: 100 }, TY2 + q[2] + 0.5, 0.8, 'power2.inOut');
         s.gaze(q[0], q[3], 2, TY2 + q[2] + 1.2, 0.2);
@@ -491,8 +506,8 @@
       s.hands('baby', 'off', T3 - 0.1, 0.2); s.hands('kid2', 'off', T3 - 0.1, 0.2);
       // Дима выходит последним и встаёт у стены школы (на асфальте, ниже окон, не у двери) — его не зовут
       s.actor('kid3', { x: SD, y: GD - 40, d: 80, o: 0 }, TY2 + 0.9, 0.01); s.gaze('kid3', 8, 0, TY2 + 0.9, 0.01); s.mouth('kid3', 'soft', TY2 + 0.9, 0.01);
-      s.actor('kid3', { o: 1 }, TY2 + 0.95, 0.3);
-      s.actor('kid3', { y: GD + 40, d: 96 }, TY2 + 1.2, 0.35, 'power2.out');
+      s.actor('kid3', { o: 1 }, TY2 + 0.95, 0.01);
+      s.actor('kid3', { y: GD + 64, d: 96 }, TY2 + 1.2, 0.35, 'power2.out'); // стоит на земле перед стеной, не «из цоколя»
       s.gaze('kid3', -10, 0, TY2 + 1.55, 0.15); s.actor('kid3', { x: 220 }, TY2 + 1.6, 0.6, 'power2.inOut');
       s.gaze('kid3', 8, 2, TY2 + 2.3, 0.3);
       s.mouth('kid3', 'flat', T3 + 2.4, 0.4);
@@ -507,7 +522,7 @@
       [0, 1, 2, 3].forEach(function (ci) { // Аня: 1, 2, 3, 4 — на одной ноге
         var c = cells[ci]; t = hop2(s, 'kid2', c.x, c.y - 50, t, 0.32, 36) + 0.06;
       });
-      t = hop2(s, 'kid2', cells[3].x, cells[3].y - 104, t, 0.3, 24) + 0.05; // спрыгивает с классиков на асфальт — цифры видны
+      t = hop2(s, 'kid2', cells[5].x, cells[3].y - 104, t, 0.3, 24) + 0.05; // спрыгивает с классиков на асфальт — цифры видны, дерево не у банта
       s.mouth('kid2', 'smile', t, 0.2); s.gaze('kid2', -8, 4, t + 0.1, 0.2);
       // Миша прыгает и попадает на черту между 1 и 2
       var tm = t + 0.1;
@@ -517,7 +532,7 @@
       var hit = s.path(ov, 'M' + lx + ' ' + (cells[1].y - 37) + ' V' + (cells[1].y + 37), { stroke: RED, 'stroke-width': 8 });
       s.tween(hit, tm, { opacity: 0 }, { opacity: 1, duration: 0.12, repeat: 3, yoyo: true });
       s.brow('baby', 'sad', tm + 0.1, 0.3);
-      K().say(s, 'Ты наступил на линию!', cells[3].x - 520, cells[3].y - 104 - 45 - 86, tm + 0.15, tm + 3.0, 'r');
+      K().say(s, 'Ты наступил на линию!', cells[5].x - 40, 438, tm + 0.15, tm + 3.0, 'l'); // выше скамейки, не касается ствола
       s.squash('kid2', 1.04, 0.96, tm + 0.25, 0.1); s.squash('kid2', 1, 1, tm + 0.35, 0.3);
       s.brow('baby', 'calm', tm + 1.8, 0.4); s.mouth('baby', 'soft', tm + 1.8, 0.3);
       s.gaze('baby', -12, 0, tm + 1.95, 0.15); hop2(s, 'baby', cells[0].x - 160, cells[0].y - 44, tm + 2.0, 0.4, 24); // назад к очереди
@@ -541,40 +556,40 @@
       s.gear('baby', 'backpack', false, 0, 0.01); // дома ранец снят
       // мама у плиты: левая рука-точка с ложкой в кастрюле, правая — с телефоном
       var MX = 500, MD = 240, MY = P().standY(kc.floor, MD, false), HC = '#304B61';
-      K().cast(s, 'mom', MX, MY, MD, 0.2, { gx: 8, gy: 4 }); s.brow('adult', 'calm', 0.2, 0.01); s.hands('adult', 'off', 0.2, 0.01);
-      var lh = s.node(ov, 'g', {}), sp = s.node(lh, 'g', {}), LX = 388, LY = 676; // плита ниже — рука с ложкой короткая
+      K().cast(s, 'mom', MX, MY, MD, 0, { gx: 8, gy: 4, dur: 0.01 }); s.brow('adult', 'calm', 0, 0.01); s.hands('adult', 'off', 0, 0.01);
+      var lh = s.node(ov, 'g', {}), sp = s.node(lh, 'g', {}), LX = MX - 72, LY = MY - 112; // рука-точка у самого тела, над плитой, ложка — в кастрюлю
       s.path(sp, 'M' + LX + ' ' + LY + ' L' + (kc.stove.x + 52) + ' ' + (kc.stove.top - 92), { stroke: '#B9874F', 'stroke-width': 8 }); // ложка: ручка уходит в кастрюлю
       s.node(lh, 'circle', { cx: LX, cy: LY, r: 24, fill: HC });
-      s.path(lh, 'M' + (MX - 80) + ' ' + (MY - 86) + ' Q' + (LX + 22) + ' ' + (LY + 20) + ' ' + (LX + 10) + ' ' + (LY + 10), { stroke: HC, 'stroke-width': 12, fill: 'none' });
-      s.tween(lh, 0.3, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+      s.tween(lh, 0, { opacity: 0 }, { opacity: 1, duration: 0.01 });
       s.tween(sp, 0.8, { rotation: -6, svgOrigin: LX + ' ' + LY }, { rotation: 6, svgOrigin: LX + ' ' + LY, duration: 0.6, repeat: 37, yoyo: true, ease: 'sine.inOut' }); // мешает
-      var hx = MX + 130, hy = MY - 20, tp = s.node(ov, 'g', {});
+      var hx = MX + 128, hy = MY + 34, tp = s.node(ov, 'g', {}); // телефон в руке на уровне груди, не у уха
       s.node(tp, 'rect', { x: hx - 18, y: hy - 70, width: 36, height: 60, rx: 7, fill: '#1D2733', stroke: INK, 'stroke-width': 2 });
       s.node(tp, 'rect', { x: hx - 12, y: hy - 63, width: 24, height: 42, rx: 3, fill: '#DCEFEA' });
       s.node(tp, 'circle', { cx: hx, cy: hy, r: 24, fill: HC });
-      s.tween(tp, 0.55, { opacity: 0 }, { opacity: 1, duration: 0.25 });
+      s.tween(tp, 0, { opacity: 0 }, { opacity: 1, duration: 0.01 });
       // Миша за столом перед прописью делает уроки
       var seat = kc.seat;
-      K().cast(s, 'misha', seat.x - 14, seat.y - 62, 124, 0.3, { gx: -8, gy: 6, mouth: 'soft' }); s.brow('baby', 'focus', 0.3, 0.01);
+      K().cast(s, 'misha', seat.x - 14, seat.y - 62, 124, 0, { gx: -8, gy: 6, mouth: 'soft', dur: 0.01 }); s.brow('baby', 'focus', 0, 0.01);
       // рука-точка с карандашом пишет в тетради на столе
-      var wh = s.node(ov, 'g', {}), WX = 1122, WY = kc.table.y - 12;
+      var wh = s.node(ov, 'g', {}), WX = 1132, WY = kc.table.y - 12; // кисть у тела
       s.path(wh, 'M' + (WX - 30) + ' ' + (WY + 6) + ' L' + (WX + 2) + ' ' + (WY - 26), { stroke: '#E0A93B', 'stroke-width': 6 });
       s.path(wh, 'M' + (WX - 30) + ' ' + (WY + 6) + ' l6 -10', { stroke: INK, 'stroke-width': 4 });
       s.node(wh, 'circle', { cx: WX + 6, cy: WY - 10, r: 15, fill: '#C9634C' });
-      s.tween(wh, 0.4, { opacity: 0 }, { opacity: 1, duration: 0.3 });
-      s.tween(wh, 0.8, { x: -30 }, { x: 0, duration: 0.5, repeat: 45, yoyo: true, ease: 'sine.inOut' }); // пишет — рука ходит по строке
+      s.tween(wh, 0, { opacity: 0 }, { opacity: 1, duration: 0.01 });
+      s.tween(wh, 0.8, { x: -22 }, { x: 0, duration: 0.5, repeat: 45, yoyo: true, ease: 'sine.inOut' }); // пишет — рука ходит по строке
       [1.2, 1.5, 3.0, 3.3, 6.0, 6.3, 9.5, 9.8, 14.0, 14.3, 18.5, 18.8].forEach(function (tt) { s.squash('baby', 1.03, 0.97, tt, 0.1); s.squash('baby', 1, 1, tt + 0.1, 0.12); }); // пишет
       // экран телефона крупно справа — выноска от телефона в руке мамы (над столом и под лампой)
       var ph = K().phone(s, 1320, 120, 540, 860);
-      s.tween(ph.el, 0.6, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' });
+      s.tween(ph.el, 0, { opacity: 0 }, { opacity: 1, duration: 0.01 });
+      var hi = ph.add('Добрый вечер всем!', 0.4); hi.style.top = '20px'; // экран не пустой с начала
       var ld = s.path(ov, 'M' + (hx + 20) + ' ' + (hy - 70) + ' L1320 140 M' + (hx + 20) + ' ' + (hy - 66) + ' L1320 420', { stroke: INK, 'stroke-width': 2, 'stroke-dasharray': '6 8', opacity: 0 });
-      s.tween(ld, 0.7, { opacity: 0 }, { opacity: 0.35, duration: 0.4 });
+      s.tween(ld, 0.3, { opacity: 0 }, { opacity: 0.35, duration: 0.4 });
       var items = [
         ['Учитель верит в ребёнка — и ребёнок умнеет!', 'так бывает, только пока учитель ещё не знает детей.', 3.3, 7.0],
         ['Не хвалите за ум — это вредно!', 'вреда почти не нашли.', 11.8, 15.0],
         ['Ваш ребёнок визуал — учите картинками!', 'учить «под стиль» не помогает.', 17.8, 20.7]
       ];
-      var y = 20;
+      var y = 20 + hi.offsetHeight + 24;
       items.forEach(function (it, i) {
         var m = ph.add(it[0], it[2]);
         m.style.top = y + 'px';
@@ -583,13 +598,17 @@
         y += m.offsetHeight + 14 + st.offsetHeight + 34; // равные зазоры между блоками
         s.tween(st, it[3], { opacity: 0, scale: 1.5, rotation: -10, transformOrigin: '30% 50%' }, { opacity: 1, scale: 1, rotation: -2, duration: 0.25, ease: 'power3.in' });
         s.gaze('adult', 9, 6, it[2] + 0.3, 0.3); s.mouth('adult', 'soft', it[3] + 0.4, 0.3);
+        s.gaze('baby', -9, -4, it[3] + 0.3, 0.3); s.mouth('baby', 'smile', it[3] + 0.4, 0.2); // поднял голову от тетради, смотрит на маму
+        s.gaze('baby', -8, 6, it[3] + 1.8, 0.3); s.mouth('baby', 'soft', it[3] + 1.9, 0.2);
         s.tween(tp, it[2] - 0.2, { rotation: 0, transformOrigin: '50% 100%' }, { rotation: 6, duration: 0.06, repeat: 5, yoyo: true }); // звякнул
       });
       // Миша поднимает голову и смеётся, мама улыбается ему
       s.gaze('baby', -9, -2, 22.0, 0.3); s.mouth('baby', 'smile', 22.2, 0.2);
       [22.4, 22.9].forEach(function (t) { s.squash('baby', 1.05, 0.95, t, 0.1); s.squash('baby', 1, 1, t + 0.1, 0.25); });
       s.gaze('adult', 8, 0, 23.0, 0.3); s.mouth('adult', 'smile', 23.2, 0.3);
-      small(s, 'эффект Пигмалиона — Р. Раунденбуш, 1984 · установка на рост — Ю. Ли, Т. Бейтс, 2019 · стили обучения — Х. Пашлер и др., 2008', 8.0, 990, false, 1120);
+      // сноска раскрывается по мере проверок
+      var fn = s.text('cite', '<span>эффект Пигмалиона — Р. Раунденбуш, 1984</span><span> · установка на рост — Ю. Ли, Т. Бейтс, 2019</span><span> · стили обучения — Х. Пашлер и др., 2008</span>', { left: 140, top: 990, width: 1120, fontSize: 20 });
+      Array.prototype.forEach.call(fn.children, function (sp2, i) { s.tween(sp2, items[i][3] + 0.6, { opacity: 0 }, { opacity: 1, duration: 0.5 }); });
       s.out([lh, tp, wh], s.dur - 0.45, { dur: 0.3 }); s.out(ld, s.dur - 0.45, { dur: 0.3, from: 0.35 });
       off(s, ['baby', 'adult'], s.dur - 0.45);
     }
