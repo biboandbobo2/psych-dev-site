@@ -236,9 +236,10 @@
     }
     var S = svg('svg', { 'class': 'acc-' + kind, viewBox: '0 0 100 100', overflow: 'visible' }, a.body);
     S.style.position = 'absolute'; S.style.inset = '0'; S.style.overflow = 'visible';
-    if (kind === 'backpack') { a.body.insertBefore(S, a.body.firstChild); S.style.zIndex = '-1';
-      svg('rect', { x: -24, y: 34, width: 38, height: 52, rx: 11, fill: '#26A69A', stroke: '#1C7A71', 'stroke-width': 3 }, S);
-      svg('rect', { x: -16, y: 58, width: 15, height: 10, rx: 3, fill: '#F5D27A', stroke: '#1C7A71', 'stroke-width': 2 }, S);
+    var BAGC = { backpack: ['#26A69A', '#1C7A71'], bagBlue: ['#7E9CD6', '#4E6FA8'], bagGreen: ['#8CBF6E', '#5E9443'] }; // ранцы: Миша, Аня, Дима (как у парт)
+    if (BAGC[kind]) { a.body.insertBefore(S, a.body.firstChild); S.style.zIndex = '-1'; S.style.transformOrigin = '50% 50%';
+      svg('rect', { x: -24, y: 34, width: 38, height: 52, rx: 11, fill: BAGC[kind][0], stroke: BAGC[kind][1], 'stroke-width': 3 }, S);
+      svg('rect', { x: -16, y: 58, width: 15, height: 10, rx: 3, fill: '#F5D27A', stroke: BAGC[kind][1], 'stroke-width': 2 }, S);
     } else if (kind === 'collar') { // Миша: белый школьный воротничок — узнаётся и без ранца
       svg('path', { d: 'M30 90 L50 100 L38 108 Z M70 90 L50 100 L62 108 Z', fill: '#FFFDF8', stroke: '#1D2733', 'stroke-width': 2 }, S);
     } else if (kind === 'bow') {

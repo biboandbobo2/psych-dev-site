@@ -100,7 +100,7 @@
         rect(s, G, dx1, dy, dx2 - dx1, 10 * k, WOOD, 2.4, 3);
         ln(s, G, 'M' + (dx1 + 12 * k) + ' ' + (dy + 10 * k) + ' V' + row.floor + ' M' + (dx2 - 12 * k) + ' ' + (dy + 10 * k) + ' V' + row.floor, 2.4);
         // стул под ребёнком: сиденье, спинка справа, ножки
-        ln(s, G, 'M' + (x - r * 0.8) + ' ' + seatY + ' H' + (x + r * 0.9) + ' M' + (x + r * 0.9) + ' ' + seatY + ' V' + (seatY - r * 1.25) + ' M' + (x - r * 0.65) + ' ' + seatY + ' V' + row.floor + ' M' + (x + r * 0.8) + ' ' + seatY + ' V' + row.floor, 2.6);
+        ln(s, G, 'M' + (x - r * 0.8) + ' ' + seatY + ' H' + (x + r * 1.12) + ' M' + (x + r * 1.12) + ' ' + seatY + ' V' + (seatY - r * 1.25) + /* спинка за краем круга — ничего «сквозь» */ ' M' + (x - r * 0.65) + ' ' + seatY + ' V' + row.floor + ' M' + (x + r * 0.8) + ' ' + seatY + ' V' + row.floor, 2.6);
         line.push({ x: x, y: seatY - r, r: r, desk: { x1: dx1, x2: dx2, y: dy } });
       });
       seats.unshift(line);
@@ -125,11 +125,12 @@
   function standY(floor, d, capsule) { return floor - (capsule ? 1.4 : 0.5) * d; }
   // Посадить одноклассников-статистов на места, кроме занятых героями (skip — массив 'ряд:место')
   function fill(s, g, seats, skip, start, gx) {
-    var n = start || 0;
+    var n = start || 0, out = [];
     seats.forEach(function (row, ri) { row.forEach(function (p, pi) {
       if (skip && skip.indexOf(ri + ':' + pi) >= 0) return;
-      Film.school.classmate(g, n++, p.x, p.y, p.r, { gx: gx == null ? -6 : gx });
+      var w = Film.school.classmate(g, n++, p.x, p.y, p.r, { gx: gx == null ? -6 : gx }); w.__seat = ri + ':' + pi; out.push(w);
     }); });
+    return out; // одноклассники-обёртки: при звонке их можно поднять и увести к двери
   }
 
   // Двор школы: здание сзади слева, деревья, скамейка, классики мелом с цифрами 1–10 на асфальте
@@ -252,9 +253,12 @@
       var pos = function (i) { var q = r.pts[i], f = i / n, w = together.indexOf(k) >= 0 ? side[k] * Math.min(1, Math.max(0, (i - 6) / 4)) : 0, sc = r.k0 + (0.8 - r.k0) * f; return { x: q[0] + w, y: q[1] - 46 * sc, d: base * sc }; };
       var p0 = pos(0);
       Film.school.cast(s, k, p0.x, p0.y, p0.d, Math.max(0, t0 - 0.3), { dur: 0.01, gx: 10 });
+      var bag = { misha: 'backpack', anya: 'bagBlue', dima: 'bagGreen' }[k]; // в школу все идут с ранцами
+      s.acc(id, bag); s.gear(id, bag, true, Math.max(0, t0 - 0.3), 0.01);
       for (var i = 1; i <= n; i++) { var p = pos(i); s.actor(id, { x: p.x, y: p.y, d: p.d }, t0 + (i - 1) * dt, dt, 'none'); }
       s.tween(s.A[id].body, t0, { y: 0 }, { y: -6, duration: kd / (2 * Math.max(4, Math.round(n / 3))), ease: 'sine.inOut', yoyo: true, repeat: 2 * Math.max(4, Math.round(n / 3)) - 1 });
       s.actor(id, { o: 0 }, t0 + kd + 0.05, 0.01); // вошли в дверь
+      if (k !== 'misha') s.gear(id, bag, false, t0 + kd + 0.06, 0.01); // ранцы Ани и Димы — только по дороге
     });
     return { g: G, door: E };
   }

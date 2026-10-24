@@ -74,6 +74,9 @@
     o = o || {};
     var x0 = s.A[id].st.x, step = o.step || 96, n = Math.max(1, Math.round(Math.abs(x1 - x0) / step)), total = n * ((o.dur || 0.26) + (o.hold || 0.14));
     s.actor(id, { x: x1 }, lt, total, 'sine.inOut');
+    // ранец — сзади по ходу: идёт влево — ранец справа (зеркально), вправо — слева
+    var accs = s.A[id].accs || {};
+    ['backpack', 'bagBlue', 'bagGreen'].forEach(function (k) { if (accs[k]) s.tween(accs[k], lt, { scaleX: x1 < x0 ? 1 : -1 }, { scaleX: x1 < x0 ? -1 : 1, duration: 0.01 }); });
     if (o.carry) s.tween(o.carry, lt, { x: o.cx || 0 }, { x: (o.cx || 0) + (x1 - x0), duration: total, ease: 'sine.inOut' });
     var body = s.A[id].body, half = total / (2 * n), h = o.skip ? 14 : 5;
     s.tween(body, lt, { y: 0 }, { y: -h, duration: half, ease: 'sine.inOut', yoyo: true, repeat: 2 * n - 1 });
@@ -268,9 +271,12 @@
   var ROSTER = [ // v3.2: одноклассники — простые круги разных оттенков; брови — у всех
     [null, 0, false], [null, 1, false], [null, 2, false], [null, 3, false], [null, 4, false], [null, 1, false], [null, 3, false], [null, 0, false],
     [null, 2, false], [null, 4, false], [null, 0, false], [null, 4, false], [null, 2, false], [null, 3, false], [null, 1, false], [null, 0, false], [null, 2, false]];
+  function s0(g) { var e = document.createElementNS('http://www.w3.org/2000/svg', 'g'); g.appendChild(e); return e; }
   function classmate(g, i, x, y, r, o) {
-    var m = ROSTER[i % ROSTER.length];
-    return Film.head(g, x, y, r, KIDS[m[1]], m[0], { glasses: m[2], mouth: (o && o.mouth) || 'smile', gx: o && o.gx, gy: o && o.gy });
+    var m = ROSTER[i % ROSTER.length], w = s0(g); // обёртка: одноклассника можно двигать (s.tween(w, …, {x, y}))
+    Film.head(w, x, y, r, KIDS[m[1]], m[0], { glasses: m[2], mouth: (o && o.mouth) || 'smile', gx: o && o.gx, gy: o && o.gy });
+    w.__x = x; w.__y = y; w.__r = r;
+    return w;
   }
 
   // Игрушечная лошадка — палочка-лошадка 3–7 в миниатюре, предмет видимого поля (плоская заливка, тёмный контур).

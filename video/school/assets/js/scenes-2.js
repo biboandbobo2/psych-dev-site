@@ -26,7 +26,7 @@
   function on(s, who, x, y, d, lt, o) {
     var id = K().cast(s, who, x, y, d, 0, Object.assign({}, o, { dur: 0.01 })); // стоят с начала сцены — без проявления «призраком»
     s.brow(id, (o && o.brow) || 'calm', 0, 0.01); if (who !== 'teacher') s.hands(id, 'off', 0, 0.01); // у учителя руки видны всегда
-    if (who === 'misha') s.gear(id, 'backpack', !(o && o.noPack), 0, 0.01); // в школе и по дороге ранец на нём
+    if (who === 'misha') s.gear(id, 'backpack', !!(o && o.pack), 0, 0.01); // в классе ранец не на Мише — стоит у стула
     return id;
   }
   function castOut(s, ids) { ids.forEach(function (id) { s.actor(id, { o: 0 }, s.dur - 0.4, 0.3); if (id !== 'adult2') s.hands(id, 'off', s.dur - 0.4, 0.3); }); }
@@ -131,12 +131,13 @@
     build: function (s) {
       var g = s.svg(), ov = s.over();
       // кадр 1: Ирина Петровна строит класс по дням рождения — шеренга от неё слева направо, сентябрь → август
-      var A = s.node(g, 'g', {}), cr0 = P().classroom(s, A, {}), FL = cr0.floor; // парты пустые: все встали в шеренгу
+      var A = s.node(g, 'g', {}), cr0 = P().classroom(s, A, { rows: [] }), FL = cr0.floor; // парты сдвинуты: все встали в шеренгу на свободном полу
+      s.node(A, 'rect', { x: 0, y: FL - 190, width: 1920, height: 190, fill: '#EFE6D6' }); ln(s, A, 'M0 ' + (FL - 190) + ' H1920', 3, FLOOR); // полоса пола, как в остальных классах
       var t1 = s.text('h3', 'В одном классе разница — почти год.', { left: 140, top: 130, width: 1040, fontSize: 40 });
       s.lines(t1, 0.3);
       var TD = 150, TX = cr0.teacher.x, TY = P().standY(FL, TD, true);
       on(s, 'teacher', TX, TY, TD, 0.1, { gx: 10 });
-      var N = 10, X = function (i) { return 600 + i * 132 + (i >= 6 ? 24 : 0); }, D = function (i) { return 112 - i * 2.6; };
+      var N = 10, X = function (i) { return 600 + i * 132 + (i >= 6 ? 24 : 0); }, D = function (i) { return i === 9 ? 74 : 112 - i * 2.6; }; // Аня (последняя, август) заметно меньше всех
       var who = { 3: 'dima', 6: 'misha', 9: 'anya' }, m = 0;
       for (var i = 0; i < N; i++) {
         var t = 0.6 + i * 0.17;
@@ -208,7 +209,7 @@
       var A = s.node(g, 'g', {});
       var cr = klass(s, A), F1 = cr.floor;
       var pm = seatOf(cr, 'misha'), pa = seatOf(cr, 'anya'), pd = seatOf(cr, 'dima');
-      on(s, 'misha', pm.x, pm.y, 2 * pm.r, 0.05, { gx: GX, dur: 0.01, noPack: true });
+      on(s, 'misha', pm.x, pm.y, 2 * pm.r, 0.05, { gx: GX, dur: 0.01 });
       on(s, 'anya', pa.x, pa.y, 2 * pa.r, 0.05, { gx: GX, dur: 0.01, brow: 'focus' });
       on(s, 'dima', pd.x, pd.y, 2 * pd.r, 0.05, { gx: GX, dur: 0.01 });
       var TD = 150, TY = P().standY(F1, TD, true);
@@ -380,7 +381,7 @@
       var cr = klass(s, g), F = cr.floor;
       lowBoard(s, g, 230, 380, 560, 440); // та же большая доска, что в «150»
       var pm = seatOf(cr, 'misha'), pd = seatOf(cr, 'dima');
-      on(s, 'misha', pm.x, pm.y, 2 * pm.r, 0.1, { gx: GX, noPack: true }); s.hands('baby', 'desk', 0.1, 0.01);
+      on(s, 'misha', pm.x, pm.y, 2 * pm.r, 0.1, { gx: GX }); s.hands('baby', 'desk', 0.1, 0.01);
       on(s, 'dima', pd.x, pd.y, 2 * pd.r, 0.1, { gx: GX }); s.hands('kid3', 'desk', 0.1, 0.01);
       // нижняя часть доски — таблица мелом «рыбы | звери» (до неё Аня дотягивается); верхняя — рисунки учителя
       var COL = { f: [300, 400], b: [528, 626, 724] }, RY = 694;

@@ -5,6 +5,12 @@
   'use strict';
   var K = function () { return Film.school; };
   var INK = '#1D2733';
+  // Ранец Ани (bagBlue) / Димы (bagGreen) — своя вещь на спине: on — надет, иначе снят (лежит у парты или дома).
+  // Снимается тиканьем 0 → 0, чтобы до первого появления ранец нигде не проступал
+  function bag(s, id, on, lt) {
+    var k = { kid2: 'bagBlue', kid3: 'bagGreen' }[id], e = s.acc(id, k);
+    if (on) s.tween(e, lt, { opacity: 0 }, { opacity: 1, duration: 0.01 }); else s.set(e, lt, { opacity: 0 }, { opacity: 0 });
+  }
   var FLOOR = 900; // пол класса в places.classroom
   // плавный прыжок: вверх — вниз, без сжатия рывком
   function jump2(s, id, x, y, lt, dur, h) {
@@ -27,6 +33,7 @@
       Film.toys.backpack(s, g, M.x + M.r * 1.25, FLOOR - 40, 0.9, '#26A69A', '#1C7A71'); // ранец на полу у стула
       K().cast(s, 'anya', A.x, A.y, A.r * 2, 0, { dur: 0.01, gx: -12 });
       K().cast(s, 'dima', D.x, D.y, D.r * 2, 0, { dur: 0.01, gx: -12 });
+      bag(s, 'kid2', false, 0); bag(s, 'kid3', false, 0); // в классе ранцы у парт
       var TX = cr.teacher.x, TY = P.standY(FLOOR, 150, true);
       K().cast(s, 'teacher', TX, TY, 150, 0, { dur: 0.01, gx: 10 });
       s.hands('baby', 'desk', 0, 0.01); s.hands('kid2', 'desk', 0, 0.01); s.hands('kid3', 'desk', 0, 0.01);
@@ -80,11 +87,15 @@
       s.tween(nb, TH + 0.1, { x: NX, y: NY }, { x: TN + 84, y: TY + 100, duration: 0.5, ease: 'power2.inOut' }); // тетрадь — в руке учителя
       s.mouth('adult2', 'smile', TH + 0.6, 0.3); s.hands('baby', 'off', TH + 0.8, 0.2);
       // строчки глав сходятся в четыре слова
+      // четыре плашки в ряд — по главам 1–4: номер главы в бирюзовом кружке и слово; появляются по одной
       var row = ['по правилу', 'в уме', 'нарочно', 'со стороны'].map(function (w, i) {
-        return '<span class="label' + (i === 3 ? ' acc' : '') + '" style="font-size:40px;">' + w + '</span>';
+        return '<div class="grow-card" style="display:flex;align-items:center;gap:14px;padding:8px 22px 8px 10px;background:#FFFDF8;border:1.5px solid #D8CFC0;border-radius:12px;">' +
+          '<span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:#26A69A;color:#FFFDF8;font-family:DOMSans;font-weight:700;font-size:24px;">' + (i + 1) + '</span>' +
+          '<span class="label" style="font-size:34px;color:var(--ink);">' + w + '</span></div>';
       }).join('');
-      var words = s.div('', { left: 140, top: 914, width: 1640 }, null, '<div class="label" style="font-size:26px;color:var(--accent-deep);">Что вырастает</div><div style="display:flex;gap:60px;margin-top:4px;align-items:center;">' + row + '</div>');
-      s.fade(words, 0.3, { y: 6 });
+      var words = s.div('', { left: 140, top: 906, width: 1640 }, null, '<div class="label grow-title" style="font-size:30px;color:var(--accent-deep);">Что вырастает</div><div style="display:flex;gap:24px;margin-top:8px;">' + row + '</div>');
+      s.fade(words.querySelector('.grow-title'), 0.3, { y: 6 });
+      s.fade(words.querySelectorAll('.grow-card'), 0.6, { y: 8, stagger: 0.35 });
       var t1 = s.text('h3', 'Главное, что вырастает, — <span class="acc">рефлексия</span>: умение посмотреть на себя со стороны и проверить, как я думаю и учусь.', { left: 140, top: 124, width: 1040, fontSize: 34 });
       s.lines(t1, 4.3);
       var c = s.text('cite', 'на Западе это называют метапознанием — metacognition (Дж. Флейвелл, 1979)', { left: 140, top: 1036, width: 1640, fontSize: 20 });
@@ -159,6 +170,7 @@
       K().cast(s, 'misha', M[0], M[1], M[2], 0, { dur: 0.01, gx: 8 }); s.gear('baby', 'backpack', false, 0, 0.01);
       K().cast(s, 'anya', A[0], A[1], A[2], 0, { dur: 0.01, gx: -6 });
       K().cast(s, 'dima', D0[0], D0[1], D0[2], 0, { dur: 0.01, gx: -12 }); s.hands('kid3', 'hold', 0, 0.01);
+      bag(s, 'kid2', false, 0); bag(s, 'kid3', false, 0); // в финале ранцы сняты
       // Дима везёт игрушечную лошадку на верёвочке — и она «скачет»; лошадка и верёвка в одной группе, едут вместе с Димой
       var rig = s.node(g, 'g', {}), toy = s.node(rig, 'g', {}), HX = D0[0] + 120, HY = D0[1] + 46;
       K().toyHorse(s, toy, HX, HY, 0.6);
@@ -229,7 +241,7 @@
       var cur = s.CFG.series.current, nx = s.CFG.series.next;
       var cx = M.x(cur) + M.segW / 2, nxX = M.x(nx) + M.segW / 2, DM = 56, Y = s.RY - 14 - DM / 2; // над полоской карты, не на ней
       s.face('baby', true, 0, 0.01); s.mouth('baby', 'smile', 0, 0.01); s.brow('baby', 'calm', 0, 0.01); s.gaze('baby', 6, 0, 0, 0.01);
-      s.hands('baby', 'off', 0, 0.01);
+      s.hands('baby', 'off', 0, 0.01); s.gear('baby', 'backpack', false, 0, 0.01);
       s.actor('baby', { x: cx, y: Y, d: DM, o: 0 }, 0, 0.01); s.actor('baby', { o: 1 }, 0, 0.01); // стоит с начала сцены
       // чёлка (10–13): появляется на Мише в прыжке — следующий возраст рисуется по-новому
       var fr = Film.svg('svg', { viewBox: '0 0 100 100', overflow: 'visible' }, s.A.baby.body);

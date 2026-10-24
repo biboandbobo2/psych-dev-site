@@ -17,7 +17,7 @@
   function on(s, who, x, y, d, lt, o) {
     var id = K().cast(s, who, x, y, d, 0, Object.assign({}, o, { dur: 0.01 })); // стоят с начала сцены — без проявления «призраком»
     s.brow(id, (o && o.brow) || 'calm', 0, 0.01); if (who !== 'teacher') s.hands(id, 'off', 0, 0.01); // у учителя руки видны всегда
-    if (who === 'misha') s.gear(id, 'backpack', !(o && o.noPack), 0, 0.01); // в школе и по дороге ранец на нём
+    if (who === 'misha') s.gear(id, 'backpack', !!(o && o.pack), 0, 0.01); // в классе ранец не на Мише — стоит у стула
     return id;
   }
   function castOut(s, ids) { ids.forEach(function (id) { s.actor(id, { o: 0 }, s.dur - 0.4, 0.3); if (id !== 'adult2') s.hands(id, 'off', s.dur - 0.4, 0.3); }); }
@@ -154,7 +154,7 @@
       on(s, 'teacher', TX, TY, TD, 0.1, { gx: 10, gy: 4 });
       var r = 62, cD = chair(s, g, 640, F, r, -1), cM = chair(s, g, 1500, F, r, 1);
       on(s, 'dima', cD.x, cD.y, cD.d, 0.2, { gx: 10, gy: 6 });
-      on(s, 'misha', cM.x, cM.y, cM.d, 0.3, { gx: -10, gy: 6, noPack: true }); // ранец снят: опыт — не урок
+      on(s, 'misha', cM.x, cM.y, cM.d, 0.3, { gx: -10, gy: 6 }); // ранец снят: опыт — не урок
       hudText(s, 'h3', 'Опыт Дж. Флейвелла: детям показывают картинки и просят запомнить порядок.', { left: 140, top: 130, width: 1000, fontSize: 40 }, 0.3, 5.4);
       // Ирина Петровна объясняет — облачко у неё; потом по очереди показывает мяч, дом, рыбу; номер загорается в момент показа
       K().say(s, 'Я покажу три картинки. Запомни, в каком порядке!', 452, TY - 0.5 * TD - 92, 0.4, 3.7);

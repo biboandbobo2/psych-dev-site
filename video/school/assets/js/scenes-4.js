@@ -40,7 +40,11 @@
   // длительность прежняя (n × 0,26 с) — тайминги не меняются. Возвращает время окончания
   function walk2(s, id, x, y, lt, step) {
     var f = s.A[id].st, n = Math.max(1, Math.round(Math.hypot(x - f.x, y - f.y) / (step || 110))), total = n * 0.26;
-    if (Math.abs(x - f.x) > 20) s.gaze(id, x > f.x ? 12 : -12, 0, lt, 0.15); // лицо — по ходу движения
+    if (Math.abs(x - f.x) > 20) {
+      s.gaze(id, x > f.x ? 12 : -12, 0, lt, 0.15); // лицо — по ходу движения, ранец — сзади
+      var accs = s.A[id].accs || {};
+      ['backpack', 'bagBlue', 'bagGreen'].forEach(function (k) { if (accs[k]) s.tween(accs[k], lt, { scaleX: x < f.x ? 1 : -1 }, { scaleX: x < f.x ? -1 : 1, duration: 0.01 }); });
+    }
     s.actor(id, { x: x, y: y }, lt, total, 'sine.inOut');
     s.tween(s.A[id].body, lt, { y: 0 }, { y: -5, duration: total / (2 * n), ease: 'sine.inOut', yoyo: true, repeat: 2 * n - 1 });
     return lt + total;
@@ -86,6 +90,12 @@
   }
   // Мяч (центр в 0, 0)
   function ball(s, g, x, y) { var b = grpAt(s, g, x, y); K().ball(s, b, 0, 0, 17); return b; }
+  // Ранец Ани (bagBlue) / Димы (bagGreen) — своя вещь на спине: on — надет, иначе снят (лежит у парты или дома).
+  // Снимается тиканьем 0 → 0, чтобы до первого появления ранец нигде не проступал
+  function bag(s, id, on, lt) {
+    var k = { kid2: 'bagBlue', kid3: 'bagGreen' }[id], e = s.acc(id, k);
+    if (on) s.tween(e, lt, { opacity: 0 }, { opacity: 1, duration: 0.01 }); else s.set(e, lt, { opacity: 0 }, { opacity: 0 });
+  }
   var FLOOR = 900; // пол класса в places.classroom (один во всём ролике; сами ряды — по умолчанию)
   // ранец Миши на полу у его стула (справа от спинки)
   // ранец Миши на полу у его стула — там же и того же размера, что ранцы первого ряда (places.bags); у остальных — свои ранцы
@@ -118,6 +128,7 @@
       floorBag(s, cls, M, cr); // ранцы первого ряда у стульев; ранец Миши — бирюзовый
       K().cast(s, 'anya', A.x, A.y, A.r * 2, 0, { dur: 0.01, gx: -12 });
       K().cast(s, 'dima', D.x, D.y, D.r * 2, 0, { dur: 0.01, gx: -12 });
+      bag(s, 'kid2', false, 0); bag(s, 'kid3', false, 0); // в классе ранцы у парт
       var TY = P().standY(cr.floor, 150, true), TX = cr.teacher.x;
       K().cast(s, 'teacher', TX, TY, 150, 0, { dur: 0.01, gx: 10 });
       s.hands('adult2', 'hold', 0, 0.01); s.hands('baby', 'desk', 0, 0.01); s.hands('kid2', 'desk', 0, 0.01); s.hands('kid3', 'desk', 0, 0.01);
@@ -251,6 +262,7 @@
       var cl = [0, 1, 2, 3].map(function (i) { var b = grpAt(s, kg, W[0].c[i][0], W[0].c[i][1]); K().classmate(b, [2, 5, 9, 12][i], 0, 0, R, { gx: -6 }); return b; });
       K().cast(s, 'misha', W[0].m[0], W[0].m[1], 2 * R, 0, { dur: 0.01, gx: -6 }); s.gear('baby', 'backpack', true, 0, 0.01); // на перемене ранец на Мише
       K().cast(s, 'anya', W[0].a[0], W[0].a[1], 2 * R, 0, { dur: 0.01, gx: 6 });
+      bag(s, 'kid2', true, 0); bag(s, 'kid3', true, 0); // во дворе ранцы у всех троих на спине
       var ob = s.over(), HB = function (p) { return [p[0] + 62, p[1] + 16]; }; // мяч — поверх детей, у руки
       var bl = ball(s, ob, HB(W[0].c[0])[0], HB(W[0].c[0])[1]), links = [];
       // передача: мяч летит от одного к другому — и между ними остаётся линия
@@ -311,7 +323,8 @@
       arc(s, tb, HB(w2.a)[0], HB(w2.a)[1], TW - 0.3, 0.45, 70); // мяч — Ане: у Миши руки нужны для лошадки
       var mw = walk2(s, 'baby', MN[0], MN[1], TW + 0.2, 20); // два шага — время реплики не сдвигается
       var aw = walk2(s, 'kid2', AN[0], AN[1], TW + 0.2, 30);
-      move(s, tb, HB(AN)[0], HB(AN)[1], TW + 0.2, aw - TW - 0.2, 'none');
+      var HL = function (p) { return [p[0] - 62, p[1] + 16]; }; // у Ани ранец справа (сзади по ходу) — мяч в левой руке
+      move(s, tb, HL(AN)[0], HL(AN)[1], TW + 0.2, aw - TW - 0.2, 'none');
       s.gaze('baby', -10, 0, TW, 0.3); s.gaze('kid2', -10, 0, TW, 0.3);
       s.gaze('kid3', 8, -1, TW + 0.4, 0.3);
       // Миша достаёт лошадку из ранца — она у него в руке — и протягивает Диме
@@ -320,16 +333,16 @@
       move(s, horse, MN[0] - 100, MN[1] + 56, mw + 0.05, 0.3);
       var TS = mw + 0.3;
       sayH(s, 'Пойдём с нами! Будешь считать очки — ты же всё запоминаешь.', MN[0] - 26, 600, TS, TS + 4.6, 'l', { w: 470, fs: 34 });
-      arc(s, horse, DM[0] - 84, DM[1] + 46, TS + 0.9, 1.0, 50); // видно, как лошадка переходит из рук Миши к Диме
+      arc(s, horse, DM[0] - 112, DM[1] + 46, TS + 0.9, 1.0, 50); // видно, как лошадка переходит из рук Миши к Диме
       s.hands('kid3', 'hold', TS + 1.7, 0.3); s.hands('baby', 'off', TS + 1.9, 0.2);
       s.mouth('kid3', 'smile', TS + 1.6, 0.4);
       // Дима отходит от стены с лошадкой; мяч — Диме, Ане, Мише: линии сходятся к нему
       s.actor('kid3', { x: DN[0], y: DN[1] }, TS + 2.2, 0.5, 'power2.out');
-      move(s, horse, DN[0] - 84, DN[1] + 46, TS + 2.2, 0.5, 'power2.out'); // лошадка слева от Димы — линии её не пересекают
+      move(s, horse, DN[0] - 112, DN[1] + 46, TS + 2.2, 0.5, 'power2.out'); // лошадка слева от Димы — линии её не пересекают
       var TP = TS + 2.8;
       arc(s, tb, HB(DN)[0], HB(DN)[1], TP, 0.5, 70); link(s, nets[3], AN, DN, TP, 0.5, 44);
       arc(s, tb, HB(MN)[0], HB(MN)[1], TP + 0.6, 0.5, 70); link(s, nets[3], DN, MN, TP + 0.6, 0.5, 44);
-      arc(s, tb, HB(AN)[0], HB(AN)[1], TP + 1.2, 0.5, 70); link(s, nets[3], MN, AN, TP + 1.2, 0.5, 44);
+      arc(s, tb, HL(AN)[0], HL(AN)[1], TP + 1.2, 0.5, 70); link(s, nets[3], MN, AN, TP + 1.2, 0.5, 44);
       s.gaze('kid3', 8, -1, TP, 0.2); s.gaze('kid2', -8, 0, TP + 0.6, 0.2);
       concl(s, 'из этой роли помогают выйти взрослые — и друзья.', TS + 4.6);
       cite(s, 'Дж. Коуи, К. Додж, Х. Коппотелли, 1982: популярные · отвергаемые · пренебрегаемые · противоречивые · средние', TS + 5.2);
@@ -376,7 +389,7 @@
       s.path(tri, 'M720 ' + GA + ' H1200', { stroke: '#C9BBA2', 'stroke-width': 2.4 });
       var ex = s.node(bd, 'text', { x: 1000, y: 612, 'text-anchor': 'middle', fill: CHALK, style: 'font-family: var(--hand); font-size: 60px;' }); ex.textContent = '7 × 8 = 56';
       s.tween(ex, 0.4, { opacity: 0 }, { opacity: 1, duration: 0.8 });
-      K().cast(s, 'anya', 1060, GA - 64, 128, 0, { mouth: 'soft', gx: -8, gy: -6, dur: 0.01 }); s.brow('kid2', 'focus', 0, 0.01);
+      K().cast(s, 'anya', 1060, GA - 64, 128, 0, { mouth: 'soft', gx: -8, gy: -6, dur: 0.01 }); s.brow('kid2', 'focus', 0, 0.01); bag(s, 'kid2', false, 0);
       s.hands('kid2', 'up', 0, 0.01);
       chalk(s, tri, 1060 + 0.6 * 128, GA - 64 - 0.58 * 128); // мел в поднятой руке — у примера
       s.mouth('kid2', 'smile', 1.3, 0.3); s.brow('kid2', 'proud', 1.3, 0.3);
@@ -397,7 +410,7 @@
       s.path(king, 'M1590 618 v-18 M1582 608 h16', { stroke: INK, 'stroke-width': 3.5 });
       var kn = s.node(ch, 'g', {}); K().knight(s, kn, 1450, 684, 1.0, true);
       s.tween(kn, 1.3, { x: 0, y: 0 }, { x: 90, y: -14, duration: 0.5, ease: 'power2.inOut' });
-      K().cast(s, 'dima', 1334, GA - 46, 92, 0, { mouth: 'soft', gx: 8, gy: 0, dur: 0.01 }); s.hands('kid3', 'side', 1.2, 0.3);
+      K().cast(s, 'dima', 1334, GA - 46, 92, 0, { mouth: 'soft', gx: 8, gy: 0, dur: 0.01 }); s.hands('kid3', 'side', 1.2, 0.3); bag(s, 'kid3', false, 0);
       K().cast(s, 'dad', 1688, GA - 58, 116, 0, { mouth: 'soft', gx: -8, gy: 5, dur: 0.01 });
       var papa = K().tag(s, 'папа', 1688, 648, 0.2);
       s.mouth('kid3', 'smile', 1.8, 0.3); s.mouth('dad', 'flat', 1.8, 0.3); s.brow('dad', 'doubt', 1.8, 0.3);

@@ -75,7 +75,7 @@
       s.hands('baby', 'hold', 5.8, 0.2);
       s.tween(toy, 6.05, { x: 0, y: 0 }, { x: 0, y: -50, duration: 0.35, ease: 'power2.out' }); // поднимает рукой
       s.gaze('baby', 9, 2, 6.35, 0.2);
-      Film.glide(s, 'baby', 1150, 6.4, { step: 360, dur: 0.5, hold: 0, carry: toy });
+      Film.glide(s, 'baby', 1150, 6.4, { step: 360, dur: 0.5, hold: 0.0001, carry: toy });
       s.tween(toy, 6.9, { y: -50 }, { y: 0, duration: 0.22, ease: 'power2.in' });
       s.set(toy, 7.12, { opacity: 1 }, { opacity: 0 });
       s.mouth('baby', 'smile', 7.0, 0.2);
