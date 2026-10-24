@@ -129,43 +129,22 @@
   Film.scene({
     id: 'ch1', bars: 3,
     build: function (s) {
-      var g = s.svg(), M = P().paths(s, g, { ground: 600 });
-      // от двери каждого дома — короткий отрезок дорожки до общей дорожки
-      ['misha', 'anya', 'dima'].forEach(function (w) {
-        var h = M.paths[w].home, st = M.paths[w].start;
-        s.path(g, 'M' + (h[0] + 34 * h[2]) + ' ' + h[1] + ' H' + st[0], { stroke: '#2F4A8A', 'stroke-width': 4, 'stroke-linecap': 'round', 'stroke-dasharray': '2 14', opacity: 0.8 });
-      });
+      var g = s.svg(), GR = 600;
+      // дорога в школу, стадия 1: каждый идёт своей дорожкой; дети доходят до двери школы и входят к концу сцены
+      P().schoolRoad(s, g, 1, 'misha', 0.3, s.dur - 0.75, { ground: GR });
       s.chapterCard(1, 'Новое место', '');
       var sub = s.text('lead', 'Миша хочет, чтобы его хвалили, как дома', { left: 336, top: 430, width: 900, fontSize: 34 });
       s.fade(sub, 0.35, { y: 8 });
       s.chapter(1, 'Новое место', 0.4, CH - 0.6);
-      // дорожка Миши прорисовывается за ним — герой главы
-      var trail = s.path(g, M.paths.misha.d, { stroke: '#E4735A', 'stroke-width': 7, opacity: 0.55 });
-      s.draw(trail, 1.2, { dur: 5.2, ease: 'none' });
-      // мама стоит в двери дома (окно не закрывает) и машет Мише рукой-точкой сбоку
-      var mh = M.paths.misha.home, MOM = 84, MX0 = mh[0] + 34 * mh[2], MY0 = mh[1] - MOM / 2;
-      K().cast(s, 'mom', MX0, MY0, MOM, 0, { gx: 8, gy: -2, dur: 0.01 });
+      // мама выходит в дверь дома, когда Миша уже отошёл (не наезжает на него), и машет ему рукой-точкой сбоку
+      var mh = [200, GR + 430, 1], MOM = 84, MX0 = mh[0] + 34 * mh[2], MY0 = mh[1] - MOM / 2; // дом Миши — нижний (как в schoolRoad)
+      K().cast(s, 'mom', MX0, MY0, MOM, 0.95, { gx: 8, gy: -2, dur: 0.01 });
       s.brow('adult', 'calm', 0, 0.01); s.hands('adult', 'off', 0, 0.01);
       var wave = s.node(s.over(), 'circle', { cx: MX0 + 50, cy: MY0 - 6, r: 11, fill: '#304B61' });
-      s.tween(wave, 0.9, { y: 0 }, { y: -16, duration: 0.25, repeat: 9, yoyo: true, ease: 'sine.inOut' });
+      s.tween(wave, 0.95, { opacity: 0 }, { opacity: 1, duration: 0.01 });
+      s.tween(wave, 1.1, { y: 0 }, { y: -16, duration: 0.25, repeat: 9, yoyo: true, ease: 'sine.inOut' });
       s.out(wave, s.dur - 0.45, { dur: 0.3 });
       s.actor('adult', { o: 0 }, s.dur - 0.45, 0.3);
-      // трое одного роста стоят у своих домов (рядом, не в дверях) и идут по своим дорожкам лицом вперёд; останавливаются перед школой порознь
-      var who = [['misha', 'baby', 0.5, 0.5], ['anya', 'kid2', 0.7, 0.62], ['dima', 'kid3', 0.9, 0.74]], D = 74, T0 = 0.05;
-      who.forEach(function (w) {
-        var p0 = P().pathPoint(M, w[0], T0);
-        K().cast(s, w[0], p0.x, p0.y - D / 2, D, 0, { gx: 10, gy: -2, dur: 0.01 });
-        s.brow(w[1], 'calm', 0, 0.01);
-        var N = 12, t = w[2], dt = (6.4 - t) / N;
-        for (var i = 1; i <= N; i++) {
-          var p = P().pathPoint(M, w[0], T0 + (w[3] - T0) * i / N);
-          s.squash(w[1], 1.04, 0.96, t, 0.08);
-          s.actor(w[1], { x: p.x, y: p.y - D / 2 }, t + 0.06, dt - 0.06, 'sine.inOut'); // низ круга — на линии дорожки
-          s.squash(w[1], 1, 1, t + 0.08, 0.15);
-          t += dt;
-        }
-        s.actor(w[1], { o: 0 }, s.dur - 0.45, 0.3);
-      });
     }
   });
 

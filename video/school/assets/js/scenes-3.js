@@ -64,37 +64,23 @@
     var dx = Math.abs(x1 - s.A[id].st.x), n = Math.max(1, Math.round(dx / 110));
     return Film.glide(s, id, x1, lt, Object.assign({ step: Math.max(1, dx / n), dur: T / n, hold: 0 }, o || {}));
   }
-  // Заставка главы: карта трёх дорожек (places.paths), трое одного роста идут к школе; дорожка героя главы — в его цвете, герой машет
-  function trio(s, n, title, sub, who, t0, t1) {
-    s.chapterCard(n, title, '');
-    var st = s.text('lead', sub, { left: 336, top: 430, width: 900, fontSize: 34 }); // подзаголовок обычным регистром, как в главе 1
-    s.fade(st, 0.35, { y: 8 });
-    var g0 = s.svg(), G = 600, DX = 130, D = 84;
-    s.node(g0, 'rect', { x: 0, y: G, width: 160, height: 1080 - G, fill: '#ECE3CF' }); s.path(g0, 'M0 ' + G + ' H160', { stroke: FLOOR, 'stroke-width': 2.4 });
-    var g = s.node(g0, 'g', { transform: 'translate(' + DX + ' 0)' }), p = P().paths(s, g, { ground: G }); // карта сдвинута вправо: школа не задевает название главы
-    var hot = s.path(g, p.paths[who].d, { stroke: K().KIDC[who], 'stroke-width': 6 });
-    s.draw(hot, 0.2, { dur: 1.8 });
-    var ids = [];
-    ['misha', 'anya', 'dima'].forEach(function (w) {
-      var at = function (t) { var q = P().pathPoint(p, w, t); return { x: q.x + DX, y: q.y - D / 2 }; };
-      var a = at(t0), id = on(s, w, a.x, a.y, D, 0.1, { gx: 12, dur: 0.3, mouth: w === who ? 'smile' : 'soft' });
-      for (var i = 1; i <= 4; i++) { // плавно по дорожке: отрезки подряд, без рывков
-        var b = at(t0 + (t1 - t0) * i / 4);
-        s.actor(id, b, 0.6 + (i - 1) * 0.875, 0.875, i === 1 ? 'sine.in' : (i === 4 ? 'sine.out' : 'none'));
-      }
-      s.tween(s.A[id].body, 0.6, { y: 0 }, { y: -5, duration: 0.4375, ease: 'sine.inOut', yoyo: true, repeat: 7 }); // мягкое покачивание
-      ids.push(id);
-    });
-    var hid = K().CAST[who][0];
-    s.hands(hid, 'up', 1.0, 0.3); s.hands(hid, 'side', 2.2, 0.3);
-    castOut(s, ids);
+  // Заставка главы: общая «дорога в школу» (places.schoolRoad) — трое доходят до двери, герой главы выделен
+  function trio(s, n, title, sub, who) {
+    // подпись главы выше обычной — не наезжает на школу общей карты
+    var num = s.text('display acc', String(n), { left: 140, top: 140, fontSize: 250, lineHeight: 1 }); s.pop(num, 0.02, { from: 0.8, dur: 0.9 });
+    var tt = s.text('h1', title, { left: 330, top: 196, width: 1000 }); s.lines(tt, 0.12, { dur: 1.0 });
+    var st = s.text('lead', sub, { left: 336, top: 312, width: 900, fontSize: 34 }); s.fade(st, 0.35, { y: 8 }); // подзаголовок обычным регистром, как в главе 1
+    s.gear('baby', 'backpack', true, 0, 0.01); // по дороге ранец на Мише
+    ['baby', 'kid2', 'kid3'].forEach(function (id) { s.brow(id, 'calm', 0, 0.01); s.hands(id, 'off', 0, 0.01); });
+    P().schoolRoad(s, s.svg(), n, who, 0.4, 3.8);
     s.chapter(n, title, 0.4, LEN - 0.6);
   }
+
 
   // 3:15 — заставка главы (20 тактов = 50 с)
   Film.scene({
     id: 'ch3', bars: 2,
-    build: function (s) { trio(s, 3, 'Помнить нарочно', 'Дима всё запоминает — но играть его не зовут', 'dima', 0.4, 0.5); }
+    build: function (s) { trio(s, 3, 'Помнить нарочно', 'Дима всё запоминает — но играть его не зовут', 'dima'); }
   });
 
   // ---------- «Козырёк» ----------
@@ -170,7 +156,8 @@
       on(s, 'dima', cD.x, cD.y, cD.d, 0.2, { gx: 10, gy: 6 });
       on(s, 'misha', cM.x, cM.y, cM.d, 0.3, { gx: -10, gy: 6, noPack: true }); // ранец снят: опыт — не урок
       hudText(s, 'h3', 'Опыт Дж. Флейвелла: детям показывают картинки и просят запомнить порядок.', { left: 140, top: 130, width: 1000, fontSize: 40 }, 0.3, 5.4);
-      // показывает три — мяч, дом, рыба; номер — на самой картинке
+      // Ирина Петровна объясняет — облачко у неё; потом по очереди показывает мяч, дом, рыбу; номер загорается в момент показа
+      K().say(s, 'Я покажу три картинки. Запомни, в каком порядке!', 452, TY - 0.5 * TD - 92, 0.4, 3.7);
       var badges = [];
       [1, 3, 5].forEach(function (ci, j) {
         var t = 1.3 + j * 0.8;
@@ -219,6 +206,7 @@
       s.tween(hand, 6.4, { rotation: 0, svgOrigin: SX + ' ' + SY }, { rotation: 360, duration: 4.4, ease: 'none' });
       s.tween(sw, 11.0, { opacity: 1 }, { opacity: 0, duration: 0.3 });
       // Ирина Петровна смотрит на губы; Дима шепчет, Миша молчит
+      K().say(s, 'Назови по порядку!', 452, TY - 0.5 * TD - 92, 10.65, 11.7); // после 15 секунд — просит назвать
       s.gaze('adult2', 10, 2, 6.8, 0.3); s.brow('adult2', 'focus', 6.8, 0.3);
       whisper(s, 'kid3', 7.2, 10.4);
       K().say(s, 'мяч, дом, рыба…', 700, F - 290, 7.4, 10.6);

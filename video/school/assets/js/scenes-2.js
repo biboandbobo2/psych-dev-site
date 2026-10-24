@@ -75,37 +75,23 @@
     var dx = Math.abs(x1 - s.A[id].st.x), n = Math.max(1, Math.round(dx / 110));
     return Film.glide(s, id, x1, lt, Object.assign({ step: Math.max(1, dx / n), dur: T / n, hold: 0 }, o || {}));
   }
-  // Заставка главы: карта трёх дорожек (places.paths), трое одного роста идут к школе; дорожка героя главы — в его цвете, герой машет
-  function trio(s, n, title, sub, who, t0, t1) {
-    s.chapterCard(n, title, '');
-    var st = s.text('lead', sub, { left: 336, top: 430, width: 900, fontSize: 34 }); // подзаголовок обычным регистром, как в главе 1
-    s.fade(st, 0.35, { y: 8 });
-    var g0 = s.svg(), G = 600, DX = 130, D = 84;
-    s.node(g0, 'rect', { x: 0, y: G, width: 160, height: 1080 - G, fill: '#ECE3CF' }); s.path(g0, 'M0 ' + G + ' H160', { stroke: FLOOR, 'stroke-width': 2.4 });
-    var g = s.node(g0, 'g', { transform: 'translate(' + DX + ' 0)' }), p = P().paths(s, g, { ground: G }); // карта сдвинута вправо: школа не задевает название главы
-    var hot = s.path(g, p.paths[who].d, { stroke: K().KIDC[who], 'stroke-width': 6 });
-    s.draw(hot, 0.2, { dur: 1.8 });
-    var ids = [];
-    ['misha', 'anya', 'dima'].forEach(function (w) {
-      var at = function (t) { var q = P().pathPoint(p, w, t); return { x: q.x + DX, y: q.y - D / 2 }; };
-      var a = at(t0), id = on(s, w, a.x, a.y, D, 0.1, { gx: 12, dur: 0.3, mouth: w === who ? 'smile' : 'soft' });
-      for (var i = 1; i <= 4; i++) { // плавно по дорожке: отрезки подряд, без рывков
-        var b = at(t0 + (t1 - t0) * i / 4);
-        s.actor(id, b, 0.6 + (i - 1) * 0.875, 0.875, i === 1 ? 'sine.in' : (i === 4 ? 'sine.out' : 'none'));
-      }
-      s.tween(s.A[id].body, 0.6, { y: 0 }, { y: -5, duration: 0.4375, ease: 'sine.inOut', yoyo: true, repeat: 7 }); // мягкое покачивание
-      ids.push(id);
-    });
-    var hid = K().CAST[who][0];
-    s.hands(hid, 'up', 1.0, 0.3); s.hands(hid, 'side', 2.2, 0.3);
-    castOut(s, ids);
+  // Заставка главы: общая «дорога в школу» (places.schoolRoad) — трое доходят до двери, герой главы выделен
+  function trio(s, n, title, sub, who) {
+    // подпись главы выше обычной — не наезжает на школу общей карты
+    var num = s.text('display acc', String(n), { left: 140, top: 140, fontSize: 250, lineHeight: 1 }); s.pop(num, 0.02, { from: 0.8, dur: 0.9 });
+    var tt = s.text('h1', title, { left: 330, top: 196, width: 1000 }); s.lines(tt, 0.12, { dur: 1.0 });
+    var st = s.text('lead', sub, { left: 336, top: 312, width: 900, fontSize: 34 }); s.fade(st, 0.35, { y: 8 }); // подзаголовок обычным регистром, как в главе 1
+    s.gear('baby', 'backpack', true, 0, 0.01); // по дороге ранец на Мише
+    ['baby', 'kid2', 'kid3'].forEach(function (id) { s.brow(id, 'calm', 0, 0.01); s.hands(id, 'off', 0, 0.01); });
+    P().schoolRoad(s, s.svg(), n, who, 0.4, 3.8);
     s.chapter(n, title, 0.4, LEN - 0.6);
   }
+
 
   // 2:07,5 — заставка главы (27 тактов = 67,5 с)
   Film.scene({
     id: 'ch2', bars: 2,
-    build: function (s) { trio(s, 2, 'Думать по правилам', 'Аня — младше всех и боится отстать', 'anya', 0.28, 0.4); }
+    build: function (s) { trio(s, 2, 'Думать по правилам', 'Аня — младше всех и боится отстать', 'anya'); }
   });
 
 
@@ -353,9 +339,8 @@
   function whaleD(s, g, x, y, k, st) {
     var P2 = function (a, b) { return (x + a * k).toFixed(1) + ' ' + (y + b * k).toFixed(1); };
     var d = 'M' + P2(-46, 4) + ' Q' + P2(-44, -30) + ' ' + P2(0, -32) + ' Q' + P2(50, -32) + ' ' + P2(58, 0) + ' Q' + P2(58, 22) + ' ' + P2(24, 22) + ' L' + P2(-24, 22) + ' Q' + P2(-44, 20) + ' ' + P2(-46, 4) + ' Z' +
-      ' M' + P2(-45, 2) + ' Q' + P2(-62, 0) + ' ' + P2(-66, -18) + ' L' + P2(-60, -18) + ' Q' + P2(-56, -4) + ' ' + P2(-45, -6) +
-      ' M' + P2(-63, -18) + ' Q' + P2(-78, -18) + ' ' + P2(-88, -30) + ' Q' + P2(-72, -34) + ' ' + P2(-63, -18) + ' Z' +
-      ' M' + P2(-63, -18) + ' Q' + P2(-62, -34) + ' ' + P2(-50, -42) + ' Q' + P2(-48, -26) + ' ' + P2(-63, -18) + ' Z';
+      ' M' + P2(-45, 6) + ' L' + P2(-64, 0) + ' L' + P2(-64, 8) + ' Z' +
+      ' M' + P2(-62, 4) + ' L' + P2(-88, -20) + ' L' + P2(-78, 4) + ' L' + P2(-88, 26) + ' Z'; // хвост-«ласточка»
     var b = s.path(g, d, st);
     var e = s.node(g, 'circle', { cx: x + 34 * k, cy: y - 8 * k, r: 3.5 * k, fill: st.stroke });
     return [b, e];
@@ -378,10 +363,11 @@
     s.node(g, 'ellipse', { cx: x, cy: y + 8 * k, rx: 5 * k, ry: 3.6 * k, fill: INK });
   }
   // карточка 88 × 64 с картинкой (магнит на доске)
-  function card(s, parent, x, y, draw) {
+  function card(s, parent, x, y, draw, name) {
     var c = s.node(parent, 'g', {});
-    s.node(c, 'rect', Object.assign({ x: x - 44, y: y - 32, width: 88, height: 64, rx: 8 }, L(2.2, PAPER)));
+    s.node(c, 'rect', Object.assign({ x: x - 46, y: y - 36, width: 92, height: 72, rx: 8 }, L(2.2, PAPER)));
     draw(c, x, y);
+    if (name) chalk(s, c, x, y + 64, name, 24); // подпись мелом под карточкой — едет вместе с ней
     return c;
   }
 
@@ -397,10 +383,11 @@
       on(s, 'misha', pm.x, pm.y, 2 * pm.r, 0.1, { gx: GX, noPack: true }); s.hands('baby', 'desk', 0.1, 0.01);
       on(s, 'dima', pd.x, pd.y, 2 * pd.r, 0.1, { gx: GX }); s.hands('kid3', 'desk', 0.1, 0.01);
       // нижняя часть доски — таблица мелом «рыбы | звери» (до неё Аня дотягивается); верхняя — рисунки учителя
-      var COL = { f: [310, 410], b: [545, 640, 735] }, RY = 700;
+      var COL = { f: [300, 400], b: [528, 626, 724] }, RY = 694;
       var tb = s.node(g, 'g', {});
-      ln(s, tb, 'M485 590 V780 M250 620 H775', 3, CHALK);
-      chalk(s, tb, 360, 608, 'рыбы', 30); chalk(s, tb, 640, 608, 'звери', 30);
+      ln(s, tb, 'M464 610 V800 M250 640 H775', 3, CHALK);
+      chalk(s, tb, 350, 630, 'рыбы', 30); chalk(s, tb, 626, 630, 'звери', 30);
+      chalk(s, tb, 510, 428, 'Разложи: рыбы или звери?', 36); // задание — видно с начала сцены
       fadeIn(s, tb, 0.3, 0.4);
       var AY = F - 55, ax = 500;
       on(s, 'anya', ax, AY, 110, 0.2, { gx: -4, gy: -8, brow: 'focus' });
@@ -413,35 +400,35 @@
         s.tween(c, t + 0.12, { x: fx, y: fy, scale: 0.6 }, { x: 0, y: 0, scale: 1, duration: 0.5, ease: 'power2.inOut' });
       }
       s.hands('kid2', 'up', 0.6, 0.12);
-      put(card(s, g, COL.f[0], RY, function (c, x, y) { fishD(s, c, x + 6, y, 0.85, L(2.4, '#F5B97A')); }), COL.f[0], 0.7);
-      put(card(s, g, COL.b[0], RY, function (c, x, y) { catD(s, c, x, y + 4, 0.85); }), COL.b[0], 1.3);
-      put(card(s, g, COL.b[1], RY, function (c, x, y) { dogD(s, c, x, y + 4, 0.85); }), COL.b[1], 1.9);
-      var wc = card(s, g, COL.f[1], RY, function (c, x, y) { whaleD(s, c, x + 12, y + 12, 0.5, L(2.2, '#BFD4E8')); spout(s, c, x + 22, y - 4, 0.5, '#5E8FB0', 2.4); });
+      put(card(s, g, COL.f[0], RY, function (c, x, y) { fishD(s, c, x + 6, y, 0.9, L(2.4, '#F5B97A')); }, 'рыба'), COL.f[0], 0.7);
+      put(card(s, g, COL.b[0], RY, function (c, x, y) { catD(s, c, x, y + 4, 0.9); }, 'кошка'), COL.b[0], 1.3);
+      put(card(s, g, COL.b[1], RY, function (c, x, y) { dogD(s, c, x, y + 4, 0.9); }, 'собака'), COL.b[1], 1.9);
+      var wc = card(s, g, COL.f[1], RY, function (c, x, y) { whaleD(s, c, x + 10, y + 12, 0.55, L(2.2, '#BFD4E8')); spout(s, c, x + 21, y - 6, 0.6, '#5E8FB0', 2.6); }, 'кит');
       put(wc, COL.f[1], 2.5);
       s.hands('kid2', 'side', 3.1, 0.3); s.brow('kid2', 'proud', 3.0, 0.2); s.mouth('kid2', 'smile', 3.0, 0.2); s.gaze('kid2', 6, -6, 3.0, 0.2);
       s.squash('kid2', 0.94, 1.06, 3.0, 0.1); s.squash('kid2', 1, 1, 3.1, 0.3, 'back.out(3)');
-      talk(s, ov, 'Он же плавает!', 459, 470, 260, ax, AY - 50, 3.1, 5.4); // хвост — в просвет между карточками
+      talk(s, ov, 'Он же плавает!', 440, 470, 260, 468, AY - 50, 3.1, 5.4); // хвост — в просвет между карточками
       // Ирина Петровна стоит сбоку доски, показывает рукой и рисует наверху: рыба с жабрами, кит у поверхности с фонтаном, мама-кит с китёнком
       s.gaze('kid2', -2, -10, 5.6, 0.3); s.brow('kid2', 'calm', 5.6, 0.3);
       var CH = { fill: 'none', stroke: CHALK, 'stroke-width': 3.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
       s.gaze('adult2', 10, -6, 6.0, 0.3); s.hands('adult2', 'up', 6.5, 0.3);
-      var w0 = s.path(g, 'M265 430 q22 -9 44 0 t44 0 t44 0', { stroke: WATER, 'stroke-width': 3.5 });
+      var w0 = s.path(g, 'M265 470 q22 -9 44 0 t44 0 t44 0', { stroke: WATER, 'stroke-width': 3.5 });
       s.draw(w0, 6.7, { dur: 0.3 });
-      var f1 = fishD(s, g, 330, 470, 1.0, CH);
+      var f1 = fishD(s, g, 330, 505, 0.9, CH);
       s.draw(f1[0], 6.9, { dur: 0.6 }); fadeIn(s, f1[1], 7.4);
-      var gills = s.path(g, 'M334 461 q-5 9 0 18 M341 459 q-5 11 0 22', { stroke: '#F2A39E', 'stroke-width': 3.2 });
+      var gills = s.path(g, 'M334 497 q-4 8 0 16 M340 495 q-4 10 0 20', { stroke: '#F2A39E', 'stroke-width': 3.2 });
       s.draw(gills, 7.5, { dur: 0.3 });
-      var l1 = chalk(s, g, 325, 540, 'дышит в воде', 23); fadeIn(s, l1, 7.7);
-      var w1w = s.path(g, 'M430 482 q22 -9 44 0 t44 0 t44 0 t44 0', { stroke: WATER, 'stroke-width': 3.5 });
+      var l1 = chalk(s, g, 325, 574, 'дышит в воде', 23); fadeIn(s, l1, 7.7);
+      var w1w = s.path(g, 'M430 516 q22 -9 44 0 t44 0 t44 0 t44 0', { stroke: WATER, 'stroke-width': 3.5 });
       s.draw(w1w, 8.0, { dur: 0.3 });
-      var w1 = whaleD(s, g, 520, 480, 0.85, CH);
+      var w1 = whaleD(s, g, 520, 514, 0.75, CH);
       s.draw(w1[0], 8.2, { dur: 0.6 }); fadeIn(s, w1[1], 8.7);
-      var fn = spout(s, g, 537, 453, 1.0, WATER, 3.5);
+      var fn = spout(s, g, 535, 490, 0.85, WATER, 3.5);
       s.draw(fn, 8.8, { dur: 0.3 });
-      var l2 = chalk(s, g, 518, 540, 'дышит воздухом', 23); fadeIn(s, l2, 9.0);
-      var w2 = whaleD(s, g, 700, 465, 0.6, CH), w3 = whaleD(s, g, 722, 496, 0.3, CH);
+      var l2 = chalk(s, g, 518, 574, 'дышит воздухом', 23); fadeIn(s, l2, 9.0);
+      var w2 = whaleD(s, g, 700, 502, 0.55, CH), w3 = whaleD(s, g, 722, 530, 0.28, CH);
       s.draw(w2[0], 9.3, { dur: 0.5 }); s.draw(w3[0], 9.7, { dur: 0.3 }); fadeIn(s, [w2[1], w3[1]], 9.8);
-      var l3 = chalk(s, g, 698, 540, 'кормит молоком', 23); fadeIn(s, l3, 10.0);
+      var l3 = chalk(s, g, 698, 574, 'кормит молоком', 23); fadeIn(s, l3, 10.0);
       s.hands('adult2', 'side', 10.4, 0.3); s.gaze('adult2', 8, -2, 10.5, 0.3);
       // Аня сама переносит кита к зверям: подходит, берёт рукой и несёт
       s.gaze('kid2', -12, 0, 11.1, 0.15); glideT(s, 'kid2', COL.f[1] - 66, 11.2, 0.8); s.gaze('kid2', 6, -8, 12.0, 0.2); s.brow('kid2', 'focus', 11.2, 0.2); s.mouth('kid2', 'soft', 11.2, 0.2);

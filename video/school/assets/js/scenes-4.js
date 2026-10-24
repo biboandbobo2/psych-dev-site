@@ -93,36 +93,14 @@
   function seat(cr, who) { var q = cr.heroes[who].split(':'); return cr.seats[+q[0]][+q[1]]; }
   function heroSkip(cr) { return [cr.heroes.misha, cr.heroes.anya, cr.heroes.dima]; }
 
-  // 4:05 — Заставка: карта трёх дорожек; Миша и Аня идут рядом (между ними — линия «дружат»), Дима — ещё отдельно
+  // 4:05 — Заставка «дорога в школу»: трое сходятся на одну общую дорожку и вместе доходят до двери
   Film.scene({
     id: 'ch4', bars: 2,
     build: function (s) {
       s.chapterCard(4, '«Я могу»', '');
       var sub = s.text('lead', 'Миша, Аня и Дима среди других', { left: 336, top: 430, width: 900, fontSize: 34 });
       s.fade(sub, 0.35, { y: 8 });
-      var g = s.svg(), G = 600, DX = 130; // горизонт и сдвиг карты — как на заставках глав 2–3: «4» не задевает дом
-      s.node(g, 'rect', { x: 0, y: G, width: 160, height: 1080 - G, fill: '#ECE3CF' }); s.path(g, 'M0 ' + G + ' H160', { stroke: '#C9BBA2', 'stroke-width': 2.4 });
-      var m = P().paths(s, s.node(g, 'g', { transform: 'translate(' + DX + ' 0)' }), { ground: G });
-      var pp = function (w, t) { var q = P().pathPoint(m, w, t); return { x: q.x + DX, y: q.y }; };
-      var at = { misha: [0.5, 0.68], anya: [0.58, 0.76], dima: [0.2, 0.34] }, ids = {}, ends = {};
-      ['misha', 'anya', 'dima'].forEach(function (w) {
-        var p0 = pp(w, at[w][0]), d = 74; // трое одного роста, как на заставке главы 1
-        ids[w] = K().cast(s, w, p0.x, p0.y - d / 2, d, 0, { gx: 6, dur: 0.01 }); // стоят с начала сцены
-        for (var i = 1; i <= 5; i++) { // шагают по своей дорожке
-          var q = pp(w, at[w][0] + (at[w][1] - at[w][0]) * i / 5), t = 0.5 + (i - 1) * 0.3;
-          s.actor(ids[w], { x: q.x, y: q.y - d / 2 }, t, 0.3, i === 1 ? 'sine.in' : i === 5 ? 'sine.out' : 'none'); // плавно, без рывков
-        }
-        s.tween(s.A[ids[w]].body, 0.5, { y: 0 }, { y: -5, duration: 0.15, ease: 'sine.inOut', yoyo: true, repeat: 9 });
-        var e = pp(w, at[w][1]); ends[w] = [e.x, e.y - d / 2];
-      });
-      s.gaze('baby', 8, -2, 2.1, 0.3); s.gaze('kid2', -8, -2, 2.1, 0.3); // Миша и Аня переглядываются
-      link(s, g, ends.misha, ends.anya, 2.2, 0.5);
-      var mx = (ends.misha[0] + ends.anya[0]) / 2, my = (ends.misha[1] + ends.anya[1]) / 2;
-      var lb = s.node(g, 'text', { x: mx + 70, y: my + 92, 'text-anchor': 'start', style: 'font-family: DOMSans; font-weight: 650; font-size: 22px; fill: #13534D;' });
-      lb.textContent = 'дружат';
-      var lbl = s.path(g, 'M' + (mx + 66) + ' ' + (my + 74) + ' L' + (mx + 4) + ' ' + (my + 6), { stroke: '#13534D', 'stroke-width': 2 });
-      s.tween([lb, lbl], 2.6, { opacity: 0 }, { opacity: 1, duration: 0.4 });
-      s.gaze('kid3', 6, 2, 2.4, 0.4);
+      P().schoolRoad(s, s.svg(), 4, null, 0.4, 3.8); // «дорога в школу», стадия 4: все трое сходятся на одну дорожку и доходят до двери
       s.chapter(4, '«Я могу»', 0.4, CH - 0.6);
       off(s, ['baby', 'kid2', 'kid3'], s.dur - 0.4);
     }

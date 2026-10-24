@@ -246,14 +246,15 @@
     // дети идут: по 20 отрезкам, без рывков; вместе идущие — рядом (сдвиг поперёк дорожки), масштаб к школе уменьшается
     var side = stage >= 4 ? { misha: 0, anya: -95, dima: -190 } : { misha: 0, anya: -95, dima: 0 }; // на общей дорожке идут друг за другом (сдвиг по ходу), не друг на друге
     Object.keys(routes).forEach(function (k) {
-      var r = routes[k], id = Film.school.CAST[k][0], n = r.pts.length - 1, dt = dur / n;
+      var alone = together.length && together.indexOf(k) < 0, kd = alone ? dur * 0.78 : dur; // кто идёт отдельно — приходит раньше и входит, у двери никто не толпится
+      var r = routes[k], id = Film.school.CAST[k][0], n = r.pts.length - 1, dt = kd / n;
       var base = 84 * (k === hero ? 1.12 : 1);
       var pos = function (i) { var q = r.pts[i], f = i / n, w = together.indexOf(k) >= 0 ? side[k] * Math.min(1, Math.max(0, (i - 6) / 4)) : 0, sc = r.k0 + (0.8 - r.k0) * f; return { x: q[0] + w, y: q[1] - 46 * sc, d: base * sc }; };
       var p0 = pos(0);
       Film.school.cast(s, k, p0.x, p0.y, p0.d, Math.max(0, t0 - 0.3), { dur: 0.01, gx: 10 });
       for (var i = 1; i <= n; i++) { var p = pos(i); s.actor(id, { x: p.x, y: p.y, d: p.d }, t0 + (i - 1) * dt, dt, 'none'); }
-      s.tween(s.A[id].body, t0, { y: 0 }, { y: -6, duration: dur / (2 * Math.max(4, Math.round(n / 3))), ease: 'sine.inOut', yoyo: true, repeat: 2 * Math.max(4, Math.round(n / 3)) - 1 });
-      s.actor(id, { o: 0 }, t0 + dur + 0.05, 0.01); // вошли в дверь
+      s.tween(s.A[id].body, t0, { y: 0 }, { y: -6, duration: kd / (2 * Math.max(4, Math.round(n / 3))), ease: 'sine.inOut', yoyo: true, repeat: 2 * Math.max(4, Math.round(n / 3)) - 1 });
+      s.actor(id, { o: 0 }, t0 + kd + 0.05, 0.01); // вошли в дверь
     });
     return { g: G, door: E };
   }
