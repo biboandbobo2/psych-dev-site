@@ -10,7 +10,7 @@
       s.rulerOut(0);
       var cells = s.div('cells', { left: 1180, top: 0, width: 740, height: 1080 });
       var g = s.svg(), ov = s.over();
-      K.schoolHouse(s, g, 1560, 860, 0.85);
+      Film.places.school(s, g, 1560, 860, 0.85); // та же школа, что в ролике
       s.path(g, 'M1180 120 V1000', { stroke: K.RED, 'stroke-width': 5 });
       s.path(g, 'M900 862 H1920', { stroke: '#CDC3B4', 'stroke-width': 4 });
       s.brandIn(0);
@@ -19,10 +19,9 @@
       s.text('display', 'От семи<br>до десяти', { left: 112, top: 302, fontSize: 180, lineHeight: 1.0 });
       s.div('', { left: 122, top: 720, height: 76, padding: '0 34px', borderRadius: '38px', background: '#26A69A', color: '#1D2733', display: 'flex', alignItems: 'center', fontFamily: 'DOMSans', fontWeight: 750, fontSize: 42 }, null, 'Младший школьный возраст · 7–10 лет'); // тёмный текст на бирюзовом — контраст ≥ 4,5 : 1
       // Миша с ранцем шагает через линию
-      var CX = 1200, CY = 700;
-      var bp = s.node(g, 'g', {}); Film.toys.backpack(s, bp, CX - 130, CY - 10, 2.6, '#26A69A', '#1C7A71');
-      s.actor('baby', { x: CX, y: CY, d: 250, o: 1 }, 0, 0.01);
-      s.face('baby', true, 0, 0.01); s.mouth('baby', 'smile', 0, 0.01); s.gaze('baby', 8, -3, 0, 0.01); s.acc('baby', 'hero');
+      var CX = 1200, CY = 734; // низ круга — на линии земли (862)
+      K.cast(s, 'misha', CX, CY, 250, 0, { gx: 8, gy: -3, dur: 0.01 }); // рисовка ролика: ранец и воротничок — из cast
+      s.brow('baby', 'calm', 0, 0.01); s.hands('baby', 'side', 0, 0.01);
       var w = s.text('kidhand', '1 класс', { left: 1300, top: 260, fontSize: 72, color: '#13534D' });
     }
   });
