@@ -228,8 +228,8 @@
     ln(s, G, 'M0 ' + ground + ' H1920', 2.4, FLOOR);
     var E = [1500, ground + 26];
     school(s, G, 1500, ground + 20, 0.8);
-    var homes = { dima: [220, ground + 30, 0.6], anya: [330, ground + 210, 0.8], misha: [200, ground + 430, 1] };
-    var M = [900, ground + 250]; // точка, где сходятся дорожки
+    var homes = { dima: [350, ground + 30, 0.6], anya: [400, ground + 210, 0.8], misha: [270, ground + 430, 1] }; // дома правее — номер главы их не закрывает
+    var M = [960, ground + 250]; // точка, где сходятся дорожки
     var together = stage >= 4 ? ['misha', 'anya', 'dima'] : stage >= 2 ? ['misha', 'anya'] : [];
     var shared = sample(M, [M[0] + 260, M[1]], [E[0] - 260, E[1] + 10], E, 10), routes = {};
     Object.keys(homes).forEach(function (k) {
@@ -244,7 +244,7 @@
     });
     if (together.length) s.path(G, dOf(shared), { stroke: '#2F4A8A', 'stroke-width': 6, 'stroke-linecap': 'round', opacity: 0.85 }); // общая дорожка — сплошная
     // дети идут: по 20 отрезкам, без рывков; вместе идущие — рядом (сдвиг поперёк дорожки), масштаб к школе уменьшается
-    var side = stage >= 4 ? { misha: 0, anya: -70, dima: -140 } : { misha: 0, anya: -70, dima: 0 }; // на общей дорожке идут друг за другом (сдвиг по ходу), не друг на друге
+    var side = stage >= 4 ? { misha: 0, anya: -95, dima: -190 } : { misha: 0, anya: -95, dima: 0 }; // на общей дорожке идут друг за другом (сдвиг по ходу), не друг на друге
     Object.keys(routes).forEach(function (k) {
       var r = routes[k], id = Film.school.CAST[k][0], n = r.pts.length - 1, dt = dur / n;
       var base = 84 * (k === hero ? 1.12 : 1);
