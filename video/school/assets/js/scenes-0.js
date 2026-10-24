@@ -29,13 +29,8 @@
       var horse = s.node(ov, 'g', {});
       Film.icons.horse(s, horse, HX, HY, 0.6, { at: 0.3, dur: 0.8, seed: 5 });
       // «галоп» шагами по земле: короткий шаг вперёд и упругое покачивание
-      var step = 0, x = CX;
-      for (var t = 0.8; t < 2.1; t += 0.45) { // три спокойных шага
-        s.squash('baby', 1.05, 0.95, t, 0.08); s.actor('baby', { x: x + 40 }, t + 0.05, 0.36, 'sine.inOut'); s.squash('baby', 1, 1, t + 0.13, 0.2);
-        [stick, horse].forEach(function (e) { s.tween(e, t + 0.05, { x: step }, { x: step + 40, duration: 0.36, ease: 'sine.inOut' }); });
-        s.tween(horse, t + 0.05, { y: 0 }, { y: -8, duration: 0.18, ease: 'sine.out', yoyo: true, repeat: 1 });
-        x += 40; step += 40;
-      }
+      Film.glide(s, 'baby', CX + 120, 0.85, { step: 40, dur: 0.36, hold: 0.09, skip: true, carry: [stick, horse] }); // вприпрыжку, плавно
+      for (var t = 0.85; t < 2.1; t += 0.45) s.tween(horse, t, { y: 0 }, { y: -8, duration: 0.18, ease: 'sine.out', yoyo: true, repeat: 1 });
       var l1 = s.text('statement', 'Палочка была лошадью.', { left: 160, top: 790, width: 1600, textAlign: 'center' });
       s.lines(l1, 0.4);
       s.out(l1, 3.3, { dur: 0.3 });
@@ -80,8 +75,7 @@
       s.hands('baby', 'hold', 5.8, 0.2);
       s.tween(toy, 6.05, { x: 0, y: 0 }, { x: 0, y: -50, duration: 0.35, ease: 'power2.out' }); // поднимает рукой
       s.gaze('baby', 9, 2, 6.35, 0.2);
-      s.actor('baby', { x: 1150 }, 6.4, 0.5, 'power2.inOut');
-      s.tween(toy, 6.4, { x: 0 }, { x: 370, duration: 0.5, ease: 'power2.inOut' });
+      Film.glide(s, 'baby', 1150, 6.4, { step: 360, dur: 0.5, hold: 0, carry: toy });
       s.tween(toy, 6.9, { y: -50 }, { y: 0, duration: 0.22, ease: 'power2.in' });
       s.set(toy, 7.12, { opacity: 1 }, { opacity: 0 });
       s.mouth('baby', 'smile', 7.0, 0.2);

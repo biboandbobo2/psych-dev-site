@@ -60,3 +60,13 @@
     ['misha', 'anya', 'dima'].forEach(function (w) { var q = p.paths[w]; K().cast(s, w, q.start[0] + 160 * q.k, q.start[1] - 46 * q.k, 92 * q.k, 0, { dur: 0.01, gx: 6 }); });
   } });
 })();
+/* Проба заставок «дорога в школу» по стадиям (v3.6) */
+(function () {
+  'use strict';
+  [[1, 'misha'], [2, 'anya'], [3, 'dima'], [4, null]].forEach(function (c) {
+    Film.scene({ id: 'road' + c[0], bars: 2, build: function (s) {
+      ['baby', 'kid2', 'kid3', 'adult', 'adult2', 'dad'].forEach(function (id) { s.actor(id, { o: 0 }, 0, 0.01); s.hands(id, 'off', 0, 0.01); });
+      Film.places.schoolRoad(s, s.svg(), c[0], c[1], 0.4, 3.8);
+    } });
+  });
+})();

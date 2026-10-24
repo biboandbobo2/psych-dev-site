@@ -215,5 +215,48 @@
     return { x: u * u * u * x0 + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * e[0], y: u * u * u * y0 + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * e[1], k: q.k };
   }
 
-  Film.places = { bags: bags, SEATS: SEATS, pathPoint: pathPoint, standY: standY, page: page, house: house, school: school, tree: tree, bench: bench, classroom: classroom, fill: fill, yard: yard, classics: classics, kitchen: kitchen, paths: paths, chalk: chalk, PATHC: PATHC, INK: INK, BOARD: BOARD };
+  // Заставка главы «дорога в школу» (v3.6): дорожки меняются с возрастом.
+  // stage 1 — каждый идёт своей дорожкой; 2–3 — дорожки Миши и Ани сходятся, к школе они идут вместе; 4 — к ним присоединяется Дима.
+  // Все трое успевают дойти до двери за [t0, t0 + dur]; hero — герой главы (его дорожка ярче, он чуть крупнее). Возвращает { g, door }.
+  function bez(a, c1, c2, b, t) { var u = 1 - t; return [u * u * u * a[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * b[0], u * u * u * a[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * b[1]]; }
+  function sample(a, c1, c2, b, n) { var r = []; for (var i = 0; i <= n; i++) r.push(bez(a, c1, c2, b, i / n)); return r; }
+  function dOf(pts) { return pts.map(function (q, i) { return (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1); }).join(' '); }
+  function schoolRoad(s, g, stage, hero, t0, dur, o) {
+    o = o || {};
+    var G = s.node(g, 'g', {}), ground = o.ground || 560;
+    s.node(G, 'rect', { x: 0, y: ground, width: 1920, height: 1080 - ground, fill: '#ECE3CF' });
+    ln(s, G, 'M0 ' + ground + ' H1920', 2.4, FLOOR);
+    var E = [1500, ground + 26];
+    school(s, G, 1500, ground + 20, 0.8);
+    var homes = { dima: [220, ground + 30, 0.6], anya: [330, ground + 210, 0.8], misha: [200, ground + 430, 1] };
+    var M = [900, ground + 250]; // точка, где сходятся дорожки
+    var together = stage >= 4 ? ['misha', 'anya', 'dima'] : stage >= 2 ? ['misha', 'anya'] : [];
+    var shared = sample(M, [M[0] + 260, M[1]], [E[0] - 260, E[1] + 10], E, 10), routes = {};
+    Object.keys(homes).forEach(function (k) {
+      var h = homes[k]; house(s, G, h[0], h[1], h[2]);
+      var S = [h[0] + 90 * h[2], h[1]];
+      var pts = together.indexOf(k) >= 0
+        ? sample(S, [S[0] + 280, S[1]], [M[0] - 220, M[1]], M, 10).concat(shared.slice(1))
+        : sample(S, [S[0] + 420, S[1]], [E[0] - 360, E[1] + 10], E, 20);
+      var hot = k === hero || (stage === 4 && !hero);
+      s.path(G, dOf(pts.slice(0, together.indexOf(k) >= 0 ? 11 : 21)), { stroke: '#2F4A8A', 'stroke-width': hot ? 5 : 4, 'stroke-linecap': 'round', 'stroke-dasharray': '2 14', opacity: hot ? 0.95 : 0.55 });
+      routes[k] = { pts: pts, k0: h[2] };
+    });
+    if (together.length) s.path(G, dOf(shared), { stroke: '#2F4A8A', 'stroke-width': 6, 'stroke-linecap': 'round', opacity: 0.85 }); // общая дорожка — сплошная
+    // дети идут: по 20 отрезкам, без рывков; вместе идущие — рядом (сдвиг поперёк дорожки), масштаб к школе уменьшается
+    var side = stage >= 4 ? { misha: 0, anya: -70, dima: -140 } : { misha: 0, anya: -70, dima: 0 }; // на общей дорожке идут друг за другом (сдвиг по ходу), не друг на друге
+    Object.keys(routes).forEach(function (k) {
+      var r = routes[k], id = Film.school.CAST[k][0], n = r.pts.length - 1, dt = dur / n;
+      var base = 84 * (k === hero ? 1.12 : 1);
+      var pos = function (i) { var q = r.pts[i], f = i / n, w = together.indexOf(k) >= 0 ? side[k] * Math.min(1, Math.max(0, (i - 6) / 4)) : 0, sc = r.k0 + (0.8 - r.k0) * f; return { x: q[0] + w, y: q[1] - 46 * sc, d: base * sc }; };
+      var p0 = pos(0);
+      Film.school.cast(s, k, p0.x, p0.y, p0.d, Math.max(0, t0 - 0.3), { dur: 0.01, gx: 10 });
+      for (var i = 1; i <= n; i++) { var p = pos(i); s.actor(id, { x: p.x, y: p.y, d: p.d }, t0 + (i - 1) * dt, dt, 'none'); }
+      s.tween(s.A[id].body, t0, { y: 0 }, { y: -6, duration: dur / (2 * Math.max(4, Math.round(n / 3))), ease: 'sine.inOut', yoyo: true, repeat: 2 * Math.max(4, Math.round(n / 3)) - 1 });
+      s.actor(id, { o: 0 }, t0 + dur + 0.05, 0.01); // вошли в дверь
+    });
+    return { g: G, door: E };
+  }
+
+  Film.places = { schoolRoad: schoolRoad, bags: bags, SEATS: SEATS, pathPoint: pathPoint, standY: standY, page: page, house: house, school: school, tree: tree, bench: bench, classroom: classroom, fill: fill, yard: yard, classics: classics, kitchen: kitchen, paths: paths, chalk: chalk, PATHC: PATHC, INK: INK, BOARD: BOARD };
 })();

@@ -6,13 +6,11 @@
   var K = function () { return Film.school; };
   var INK = '#1D2733';
   var FLOOR = 900; // пол класса в places.classroom
-  // прыжок без сплющивания ниже 0,9: подсесть — вверх — вниз
+  // плавный прыжок: вверх — вниз, без сжатия рывком
   function jump2(s, id, x, y, lt, dur, h) {
     var f = s.A[id].st;
-    s.squash(id, 1.06, 0.94, lt, 0.08); s.squash(id, 0.96, 1.04, lt + 0.08, 0.1);
-    s.actor(id, { x: (f.x + x) / 2, y: Math.min(f.y, y) - h }, lt + 0.08, dur / 2, 'power2.out');
-    s.actor(id, { x: x, y: y }, lt + 0.08 + dur / 2, dur / 2, 'power2.in');
-    s.squash(id, 1.06, 0.94, lt + 0.08 + dur, 0.08); s.squash(id, 1, 1, lt + 0.16 + dur, 0.25);
+    s.actor(id, { x: (f.x + x) / 2, y: Math.min(f.y, y) - h }, lt + 0.08, dur / 2, 'sine.out'); // плавно, без сжатия
+    s.actor(id, { x: x, y: y }, lt + 0.08 + dur / 2, dur / 2, 'sine.in');
     return lt + 0.08 + dur;
   }
 
@@ -81,15 +79,9 @@
       s.hands('baby', 'hold', TH, 0.2);
       s.tween(nb, TH + 0.1, { x: NX, y: NY }, { x: TN + 84, y: TY + 100, duration: 0.5, ease: 'power2.inOut' }); // тетрадь — в руке учителя
       s.mouth('adult2', 'smile', TH + 0.6, 0.3); s.hands('baby', 'off', TH + 0.8, 0.2);
-      // строчки глав сходятся в четыре слова — со значками
-      var IC = {
-        ruler: '<rect x="2" y="12" width="32" height="12" rx="2" fill="#E9D9BF" stroke="#2B3440" stroke-width="2"/><path d="M8 12v5M14 12v4M20 12v5M26 12v4" stroke="#2B3440" stroke-width="2"/>',
-        cloud: '<path d="M6 26 q-5 -8 4 -12 q2 -9 11 -7 q8 -5 12 4 q6 2 2 10 Z" fill="#FFFDF8" stroke="#2B3440" stroke-width="2"/><path d="M13 21h12M13 16h8" stroke="#2B3440" stroke-width="2"/>',
-        whisper: '<path d="M4 18 q9 -7 18 0 q-9 7 -18 0 Z" fill="#E4735A" stroke="#2B3440" stroke-width="2"/><path d="M26 12 q4 6 0 12M31 9 q5 9 0 18" fill="none" stroke="#2B3440" stroke-width="2"/>',
-        eye: '<path d="M2 18 q16 -14 32 0 q-16 14 -32 0 Z" fill="#FFFDF8" stroke="#2B3440" stroke-width="2"/><circle cx="18" cy="18" r="5" fill="#2B3440"/>'
-      };
-      var row = [['ruler', 'по правилу'], ['cloud', 'в уме'], ['whisper', 'нарочно'], ['eye', 'со стороны']].map(function (w, i) {
-        return '<span style="display:inline-flex;align-items:center;gap:14px;"><span style="display:inline-flex;flex-direction:column;align-items:center;"><svg width="60" height="54" viewBox="0 0 36 36">' + IC[w[0]] + '</svg>' + (w[0] === 'whisper' ? '<span class="label" style="font-size:22px;line-height:1;">шёпот</span>' : '') + '</span><span class="label' + (i === 3 ? ' acc' : '') + '" style="font-size:40px;">' + w[1] + '</span></span>';
+      // строчки глав сходятся в четыре слова
+      var row = ['по правилу', 'в уме', 'нарочно', 'со стороны'].map(function (w, i) {
+        return '<span class="label' + (i === 3 ? ' acc' : '') + '" style="font-size:40px;">' + w + '</span>';
       }).join('');
       var words = s.div('', { left: 140, top: 914, width: 1640 }, null, '<div class="label" style="font-size:26px;color:var(--accent-deep);">Что вырастает</div><div style="display:flex;gap:60px;margin-top:4px;align-items:center;">' + row + '</div>');
       s.fade(words, 0.3, { y: 6 });
@@ -167,15 +159,18 @@
       K().cast(s, 'misha', M[0], M[1], M[2], 0, { dur: 0.01, gx: 8 }); s.gear('baby', 'backpack', false, 0, 0.01);
       K().cast(s, 'anya', A[0], A[1], A[2], 0, { dur: 0.01, gx: -6 });
       K().cast(s, 'dima', D0[0], D0[1], D0[2], 0, { dur: 0.01, gx: -12 }); s.hands('kid3', 'hold', 0, 0.01);
-      // Дима везёт игрушечную лошадку на верёвочке — и она «скачет»
-      var toy = s.node(g, 'g', {}), HX = D0[0] + 120, HY = D0[1] + 46;
+      // Дима везёт игрушечную лошадку на верёвочке — и она «скачет»; лошадка и верёвка в одной группе, едут вместе с Димой
+      var rig = s.node(g, 'g', {}), toy = s.node(rig, 'g', {}), HX = D0[0] + 120, HY = D0[1] + 46;
       K().toyHorse(s, toy, HX, HY, 0.6);
-      var str = s.node(g, 'line', { x1: D0[0] + 56, y1: D0[1] + 18, x2: HX - 26, y2: HY - 10, stroke: '#2B3440', 'stroke-width': 2 });
-      K().walk(s, 'kid3', D[0], 0.4, { step: 80, dur: 0.24, hold: 0.06 });
-      var dx = D[0] - D0[0];
-      [0.48, 0.78].forEach(function (t, i) { Film.ride(s, toy, dx / 2, t + i * 0.0, 0.24, 18); });
-      s.tween(str, 0.48, { attr: { x1: D0[0] + 56, x2: HX - 26 } }, { attr: { x1: D[0] + 56, x2: HX - 26 + dx }, duration: 0.6, ease: 'power2.inOut' });
-      [1.4, 1.9].forEach(function (t) { Film.ride(s, toy, 0, t, 0.4, 34); });
+      var str = s.node(rig, 'line', { x1: D0[0] + 56, y1: D0[1] + 18, x2: HX - 26, y2: HY - 10, stroke: '#2B3440', 'stroke-width': 2 });
+      var wt = K().walk(s, 'kid3', D[0], 0.4, { step: 80, dur: 0.24, hold: 0.06 });
+      s.tween(rig, 0.4, { x: 0 }, { x: D[0] - D0[0], duration: wt, ease: 'sine.inOut' }); // так же, как идёт Дима
+      var hop = function (t, dur, h) { // лошадка подскакивает — конец верёвки у неё поднимается вместе с ней
+        s.tween(toy, t, { y: 0 }, { y: -h, duration: dur / 2, ease: 'sine.out' }); s.tween(toy, t + dur / 2, { y: -h }, { y: 0, duration: dur / 2, ease: 'sine.in' });
+        s.tween(str, t, { attr: { y2: HY - 10 } }, { attr: { y2: HY - 10 - h }, duration: dur / 2, ease: 'sine.out' });
+        s.tween(str, t + dur / 2, { attr: { y2: HY - 10 - h } }, { attr: { y2: HY - 10 }, duration: dur / 2, ease: 'sine.in' });
+      };
+      hop(0.57, 0.24, 18); hop(0.87, 0.24, 18); hop(1.49, 0.4, 34); hop(1.99, 0.4, 34);
       s.mouth('kid3', 'smile', 1.0, 0.3);
       // Миша прыгает — а потом выше всех; наезд на него
       [0.9, 1.5].forEach(function (t) { jump2(s, 'baby', M[0], M[1], t, 0.4, 50); });
@@ -188,7 +183,7 @@
       s.gaze('baby', 8, 0, 3.1, 0.3); s.gaze('kid2', -6, 2, 3.1, 0.3); s.gaze('kid3', -8, 0, 3.1, 0.3);
       // линии между тремя: все трое теперь вместе
       var net = s.node(g, 'g', {});
-      g.insertBefore(net, toy);
+      g.insertBefore(net, rig);
       [[[M[0], M[1]], [A[0], A[1]]], [[A[0], A[1]], D], [[M[0], M[1]], D]].forEach(function (p, i) {
         var l = s.path(net, 'M' + p[0][0] + ' ' + p[0][1] + ' L' + p[1][0] + ' ' + p[1][1], { stroke: '#2B8F84', 'stroke-width': 3.2 });
         s.draw(l, 2.95 + i * 0.12, { dur: 0.45, ease: 'power1.inOut' });

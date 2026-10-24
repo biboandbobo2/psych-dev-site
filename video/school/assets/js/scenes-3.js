@@ -59,6 +59,11 @@
     return { x: x, y: sy - r, d: 2 * r };
   }
 
+  // плавная ходьба той же общей длительности T (Film.glide: одно движение + мягкое покачивание)
+  function glideT(s, id, x1, lt, T, o) {
+    var dx = Math.abs(x1 - s.A[id].st.x), n = Math.max(1, Math.round(dx / 110));
+    return Film.glide(s, id, x1, lt, Object.assign({ step: Math.max(1, dx / n), dur: T / n, hold: 0 }, o || {}));
+  }
   // Заставка главы: карта трёх дорожек (places.paths), трое одного роста идут к школе; дорожка героя главы — в его цвете, герой машет
   function trio(s, n, title, sub, who, t0, t1) {
     s.chapterCard(n, title, '');
@@ -73,10 +78,11 @@
     ['misha', 'anya', 'dima'].forEach(function (w) {
       var at = function (t) { var q = P().pathPoint(p, w, t); return { x: q.x + DX, y: q.y - D / 2 }; };
       var a = at(t0), id = on(s, w, a.x, a.y, D, 0.1, { gx: 12, dur: 0.3, mouth: w === who ? 'smile' : 'soft' });
-      for (var i = 1; i <= 4; i++) {
-        var b = at(t0 + (t1 - t0) * i / 4), t = 0.5 + (i - 1) * 0.95;
-        s.squash(id, 1.05, 0.95, t, 0.1); s.actor(id, b, t + 0.1, 0.6, 'power1.inOut'); s.squash(id, 1, 1, t + 0.1, 0.25);
+      for (var i = 1; i <= 4; i++) { // плавно по дорожке: отрезки подряд, без рывков
+        var b = at(t0 + (t1 - t0) * i / 4);
+        s.actor(id, b, 0.6 + (i - 1) * 0.875, 0.875, i === 1 ? 'sine.in' : (i === 4 ? 'sine.out' : 'none'));
       }
+      s.tween(s.A[id].body, 0.6, { y: 0 }, { y: -5, duration: 0.4375, ease: 'sine.inOut', yoyo: true, repeat: 7 }); // мягкое покачивание
       ids.push(id);
     });
     var hid = K().CAST[who][0];

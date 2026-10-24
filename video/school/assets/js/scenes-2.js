@@ -70,6 +70,11 @@
   }
   // одноклассник в обёртке-группе (чтобы двигать)
   function mate(s, g, i, x, y, r, gx) { var w = s.node(g, 'g', {}); K().classmate(w, i, x, y, r, { gx: gx == null ? GX : gx }); return w; }
+  // плавная ходьба той же общей длительности T (Film.glide: одно движение + мягкое покачивание)
+  function glideT(s, id, x1, lt, T, o) {
+    var dx = Math.abs(x1 - s.A[id].st.x), n = Math.max(1, Math.round(dx / 110));
+    return Film.glide(s, id, x1, lt, Object.assign({ step: Math.max(1, dx / n), dur: T / n, hold: 0 }, o || {}));
+  }
   // Заставка главы: карта трёх дорожек (places.paths), трое одного роста идут к школе; дорожка героя главы — в его цвете, герой машет
   function trio(s, n, title, sub, who, t0, t1) {
     s.chapterCard(n, title, '');
@@ -84,10 +89,11 @@
     ['misha', 'anya', 'dima'].forEach(function (w) {
       var at = function (t) { var q = P().pathPoint(p, w, t); return { x: q.x + DX, y: q.y - D / 2 }; };
       var a = at(t0), id = on(s, w, a.x, a.y, D, 0.1, { gx: 12, dur: 0.3, mouth: w === who ? 'smile' : 'soft' });
-      for (var i = 1; i <= 4; i++) {
-        var b = at(t0 + (t1 - t0) * i / 4), t = 0.5 + (i - 1) * 0.95;
-        s.squash(id, 1.05, 0.95, t, 0.1); s.actor(id, b, t + 0.1, 0.6, 'power1.inOut'); s.squash(id, 1, 1, t + 0.1, 0.25);
+      for (var i = 1; i <= 4; i++) { // плавно по дорожке: отрезки подряд, без рывков
+        var b = at(t0 + (t1 - t0) * i / 4);
+        s.actor(id, b, 0.6 + (i - 1) * 0.875, 0.875, i === 1 ? 'sine.in' : (i === 4 ? 'sine.out' : 'none'));
       }
+      s.tween(s.A[id].body, 0.6, { y: 0 }, { y: -5, duration: 0.4375, ease: 'sine.inOut', yoyo: true, repeat: 7 }); // мягкое покачивание
       ids.push(id);
     });
     var hid = K().CAST[who][0];
@@ -265,7 +271,7 @@
       s.brow('kid2', 'focus', 4.5, 0.2);
       var S2 = sticks(4, 3, 4.6);
       var TX2 = 150;
-      s.actor('adult2', { x: TX2 }, 4.5, 0.75, 'power1.inOut'); s.gaze('adult2', -12, 0, 4.5, 0.2); // идёт влево — смотрит влево
+      glideT(s, 'adult2', TX2, 4.5, 0.75); s.gaze('adult2', -12, 0, 4.5, 0.2); // идёт влево — смотрит влево
 
       // кадр 2: «2 класс». Аню вызвали к доске. Числовая прямая 0…1000. Куда поставить 150? Стоп-кадр.
       var sw = flip(s, 5.3);
@@ -299,20 +305,19 @@
         return f;
       }
       var AX = X(470);
-      s.gaze('kid2', -12, 0, 10.9, 0.15); s.actor('kid2', { x: AX - 62 }, 11.0, 0.8, 'power1.inOut');
-      [11.0, 11.27, 11.54].forEach(function (tt) { s.squash('kid2', 1.04, 0.96, tt, 0.1); s.squash('kid2', 1, 1, tt + 0.1, 0.15); });
+      s.gaze('kid2', -12, 0, 10.9, 0.15); glideT(s, 'kid2', AX - 62, 11.0, 0.8);
       s.brow('kid2', 'proud', 11.9, 0.2); s.hands('kid2', 'up', 11.9, 0.12); s.gaze('kid2', 6, -8, 11.9, 0.2);
       var fa = flag(TEAL, AX, 12.1, AX + 6, AY - 55);
       var la = chalk(s, B, AX + 26, LY - 112, 'Аня', 26); fadeIn(s, la, 12.4);
       s.hands('kid2', 'side', 12.6, 0.3);
-      s.gaze('adult2', 12, 0, 12.5, 0.15); s.actor('adult2', { x: 185 }, 12.6, 0.6, 'power2.inOut'); s.gaze('adult2', 10, -4, 13.2, 0.2);
+      s.gaze('adult2', 12, 0, 12.5, 0.15); glideT(s, 'adult2', 185, 12.6, 0.6); s.gaze('adult2', 10, -4, 13.2, 0.2);
       flag(RED, X(150), 13.3, 290, TY + 40);
       var lr = chalk(s, B, X(150) + 30, LY - 112, 'правильно', 26, { color: '#F5D27A' }); fadeIn(s, lr, 13.5);
       s.brow('kid2', 'sad', 13.7, 0.3); s.mouth('kid2', 'flat', 13.7, 0.3); s.gaze('kid2', -10, -6, 13.7, 0.3); s.hands('kid2', 'off', 13.7, 0.3);
       s.mouth('baby', 'smile', 13.9, 0.2); s.mouth('kid3', 'smile', 13.9, 0.2);
       hudText(s, 'h3', 'Так ошибаются почти все второклассники: 100 для них — уже огромное число, и маленькие числа в голове «растянуты».', { left: 140, top: 130, width: 1000, fontSize: 40 }, 14.1, 19.0);
       cite(s, 'Р. Сиглер, Дж. Опфер, 2003: «растянуто» расставляют числа 91 % второклассников и 3 % взрослых · Дж. Опфер, Р. Сиглер, 2007 · счёт разными способами вперемешку — Р. Сиглер, 1987; 1996', 15.0);
-      s.gaze('adult2', -12, 0, 18.3, 0.15); s.actor('adult2', { x: TX2 }, 18.4, 0.7, 'power2.inOut'); s.gaze('adult2', 10, 0, 19.15, 0.15); // учитель отходит — не телепортируется
+      s.gaze('adult2', -12, 0, 18.3, 0.15); glideT(s, 'adult2', TX2, 18.4, 0.7); s.gaze('adult2', 10, 0, 19.15, 0.15); // учитель отходит — не телепортируется
       // кадр 4: «4 класс» — та же прямая; бледный старый флажок «2 класс», красный «правильно» на месте; Аня ставит почти точно
       var sw2 = flip(s, 19.4);
       hide(s, [c2, la], sw2);
@@ -322,14 +327,13 @@
       s.mouth('adult2', 'smile', sw2, 0.01); s.brow('adult2', 'calm', sw2, 0.01);
       s.actor('kid2', { x: 600 }, sw2, 0.01); s.brow('kid2', 'focus', sw2, 0.01); s.mouth('kid2', 'soft', sw2, 0.01); s.gaze('kid2', -10, -4, sw2, 0.01);
       var NX = X(160);
-      s.gaze('kid2', -12, 0, 19.8, 0.15); s.actor('kid2', { x: NX - 66 }, 19.9, 0.9, 'power1.inOut');
-      [19.9, 20.2, 20.5].forEach(function (tt) { s.squash('kid2', 1.04, 0.96, tt, 0.1); s.squash('kid2', 1, 1, tt + 0.1, 0.15); });
+      s.gaze('kid2', -12, 0, 19.8, 0.15); glideT(s, 'kid2', NX - 66, 19.9, 0.9);
       s.hands('kid2', 'up', 20.8, 0.12);
       flag(TEAL, NX, 21.0, NX + 2, AY - 55, true, 70);
       // флажок 4 класса без подписи: Аня стоит под ним и говорит «Успела!» — подпись налезала на «правильно»
       s.hands('kid2', 'side', 21.4, 0.3); s.brow('kid2', 'proud', 21.4, 0.2); s.mouth('kid2', 'smile', 21.4, 0.2); s.gaze('kid2', 4, -6, 21.4, 0.2);
       s.squash('kid2', 0.94, 1.08, 21.5, 0.1); s.squash('kid2', 1, 1, 21.6, 0.3, 'back.out(3)');
-      s.gaze('kid2', 12, 0, 21.75, 0.15); s.actor('kid2', { x: 610 }, 21.8, 0.7, 'power1.inOut'); s.gaze('kid2', 2, -2, 22.55, 0.2);
+      s.gaze('kid2', 12, 0, 21.75, 0.15); glideT(s, 'kid2', 610, 21.8, 0.7); s.gaze('kid2', 2, -2, 22.55, 0.2);
       talk(s, ov, 'Успела!', 535, 668, 150, 600, AY - 52, 22.5, 24.4);
       s.mouth('adult2', 'smile', 21.8, 0.2);
       concl(s, 'к 4 классу числа в голове выстраиваются ровно.', 21.4);
@@ -440,10 +444,9 @@
       var l3 = chalk(s, g, 698, 540, 'кормит молоком', 23); fadeIn(s, l3, 10.0);
       s.hands('adult2', 'side', 10.4, 0.3); s.gaze('adult2', 8, -2, 10.5, 0.3);
       // Аня сама переносит кита к зверям: подходит, берёт рукой и несёт
-      s.gaze('kid2', -12, 0, 11.1, 0.15); s.actor('kid2', { x: COL.f[1] - 66 }, 11.2, 0.8, 'power1.inOut'); s.gaze('kid2', 6, -8, 12.0, 0.2); s.brow('kid2', 'focus', 11.2, 0.2); s.mouth('kid2', 'soft', 11.2, 0.2);
+      s.gaze('kid2', -12, 0, 11.1, 0.15); glideT(s, 'kid2', COL.f[1] - 66, 11.2, 0.8); s.gaze('kid2', 6, -8, 12.0, 0.2); s.brow('kid2', 'focus', 11.2, 0.2); s.mouth('kid2', 'soft', 11.2, 0.2);
       s.hands('kid2', 'up', 12.1, 0.12);
-      s.gaze('kid2', 12, -4, 12.35, 0.15); s.actor('kid2', { x: COL.b[2] - 66 }, 12.4, 1.2, 'power1.inOut'); s.gaze('kid2', 4, -6, 13.65, 0.2);
-      s.tween(wc, 12.4, { x: 0 }, { x: COL.b[2] - COL.f[1], duration: 1.2, ease: 'power1.inOut' });
+      s.gaze('kid2', 12, -4, 12.35, 0.15); glideT(s, 'kid2', COL.b[2] - 66, 12.4, 1.2, { carry: wc, cx: 0 }); // кит едет вместе с рукой Ани s.gaze('kid2', 4, -6, 13.65, 0.2);
       s.hands('kid2', 'side', 13.7, 0.3); s.brow('kid2', 'proud', 13.7, 0.2); s.mouth('kid2', 'smile', 13.7, 0.2);
       s.squash('kid2', 0.94, 1.06, 13.8, 0.1); s.squash('kid2', 1, 1, 13.9, 0.3, 'back.out(3)');
       s.mouth('adult2', 'smile', 13.8, 0.2);

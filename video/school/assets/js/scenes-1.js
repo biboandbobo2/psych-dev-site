@@ -318,11 +318,11 @@
       s.hands('baby', 'hold', 4.95, 0.25); s.brow('baby', 'focus', 5.0, 0.3);
       hop2(s, 'baby', sm.x - 40, SY, 5.1, 0.4, 24); // встаёт со стула на пол
       s.tween(stick, 5.1, { x: pos.x, y: pos.y }, { x: sm.x - 20, y: HY, duration: 0.4, ease: 'power2.inOut' }); pos = { x: sm.x - 20, y: HY };
-      function go(x, lt, dur) { // идёт ровными шагами, палочка в руке
+      function go(x, lt, dur) { // идёт плавно, палочка в руке
         var n = Math.max(3, Math.round(Math.abs(x - s.A.baby.st.x) / 110)), dx = (x - s.A.baby.st.x) / n, d = dur / n;
         s.gaze('baby', x < s.A.baby.st.x ? -9 : 9, -2, lt, 0.2);
-        for (var i = 0; i < n; i++) { s.squash('baby', 1.04, 0.96, lt + i * d, 0.06); s.actor('baby', { x: s.A.baby.st.x + dx }, lt + i * d + 0.04, d - 0.04, 'sine.inOut'); s.squash('baby', 1, 1, lt + i * d + 0.06, 0.12); }
-        s.tween(stick, lt, { x: pos.x, y: pos.y }, { x: x + 20, y: HY, duration: dur, ease: 'none' }); pos = { x: x + 20, y: HY };
+        s.tween(stick, lt, { x: pos.x, y: pos.y }, { x: x + 20, y: HY, duration: dur, ease: 'sine.inOut' }); pos = { x: x + 20, y: HY };
+        Film.glide(s, 'baby', x, lt, { step: Math.abs(dx), dur: d, hold: 0 }); // плавно, та же длительность
       }
       var HO = 58; // рука вверх — правее центра на 58
       function measure(r, lt, step) { // палочка шаг за шагом по ленте; черта на ленте после каждого шага
@@ -458,7 +458,7 @@
         if (id === 'kid3') s.set(dBag, t + 0.3, { opacity: 1 }, { opacity: 0 });
         if (id === 'kid2') [bagTop, bun, ab.g].forEach(function (e) { s.set(e, t + 0.3, { opacity: 1 }, { opacity: 0 }); });
         hop2(s, id, q[1].x + 20, FLOOR - q[1].r, t, 0.35, 16); // встаёт со стула на пол
-        if (q[1].x < AISLE) s.actor(id, { x: AISLE }, t + 0.45, wd, 'power1.inOut');
+        if (q[1].x < AISLE) { var nw = Math.max(1, Math.round((AISLE - q[1].x - 20) / 140)); Film.glide(s, id, AISLE, t + 0.45, { step: (AISLE - q[1].x - 20) / nw, dur: wd / nw, hold: 0 }); }
         var tu = t + 0.45 + (q[1].x < AISLE ? wd : 0);
         s.actor(id, { x: DXC, y: DB - q[1].r * 0.72, d: q[1].r * 2 * 0.8 }, tu, 0.35, 'power1.inOut'); // к двери в задней стене
         s.actor(id, { o: 0 }, tu + 0.35, 0.01);
@@ -474,33 +474,46 @@
       [[QX, 3], [QX - 90, 6], [QX - 180, 11]].forEach(function (q) { K().classmate(queue, q[1], q[0], cells[0].y - 40, 40, { gx: 6 }); });
       s.tween(queue, 0, { opacity: 0 }, { opacity: 0, duration: 0.01 }); s.set(queue, TY2, { opacity: 0, x: -480 }, { opacity: 1, x: -480 });
       s.tween(queue, TY2 + 0.3, { x: -480 }, { x: 0, duration: 1.3, ease: 'power1.out' }); // входят шагом из-за левого края
-      var PX = 1560, PY = 700; // место игры с лошадкой
-      [['baby', PX - 130, 0.2, 9], ['kid2', PX + 210, 0.5, -9]].forEach(function (q) { // из двери школы — вниз, на асфальт, и вправо к месту игры
+      var PX = 1520, PY = 700; // место игры с лошадкой
+      [['baby', PX - 130, 0.3, 9, 0.7], ['kid2', PX + 210, 0.0, -9, 0.95]].forEach(function (q) { // из двери школы — вниз и вправо к месту игры; Аня выходит первой — ей дальше
         s.actor(q[0], { x: SD, y: GD - 40, d: 80, o: 0 }, TY2 + q[2], 0.01); s.gaze(q[0], 8, 0, TY2 + q[2], 0.01);
         s.actor(q[0], { o: 1 }, TY2 + q[2] + 0.05, 0.01); // выходят из двери школы
         s.actor(q[0], { y: GD + 80, d: 92 }, TY2 + q[2] + 0.15, 0.35, 'power2.out');
-        s.actor(q[0], { x: q[1], y: PY, d: 100 }, TY2 + q[2] + 0.5, 0.8, 'power2.inOut');
-        s.gaze(q[0], q[3], 2, TY2 + q[2] + 1.2, 0.2);
+        s.actor(q[0], { x: q[1], y: PY, d: 100 }, TY2 + q[2] + 0.5, q[4], 'sine.inOut');
+        s.gaze(q[0], q[3], 2, TY2 + q[2] + 0.5 + q[4] - 0.1, 0.2);
       });
-      var yt = s.node(ov, 'g', {});
-      K().toyHorse(s, yt, PX, PY + 50, 0.9);
-      s.tween(yt, TY2 + 1.2, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: 'back.out(2)' }); // Миша достал лошадку из ранца
-      s.hands('baby', 'hold', TY2 + 1.2, 0.25); s.hands('kid2', 'hold', TY2 + 1.4, 0.25);
-      var yb = s.node(ov, 'g', {}); Film.toys.bunny(s, yb, PX + 118, PY + 50, 0.42); // Анин зайка — тоже играет
-      s.tween(yb, TY2 + 1.4, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: 'back.out(2)' });
-      [[TY2 + 2.25, 14], [TY2 + 2.75, -14]].forEach(function (q) { Film.ride(s, yb, q[1], q[0], 0.4, 30); });
+      // игрушки и ранцы лежат на земле у классиков (справа от последней клетки) до конца сцены; дети проходят перед ними
+      var mb = s.node(g, 'g', {}); Film.toys.backpack(s, mb, PX - 185, PY + 50 - 23, 0.6, '#26A69A', '#1C7A71'); // ранец Миши — снял и поставил за собой
+      s.tween(mb, 0, { opacity: 0 }, { opacity: 0, duration: 0.01 }); s.set(mb, TY2 + 1.5, { opacity: 0, y: -14 }, { opacity: 1, y: -14 });
+      s.tween(mb, TY2 + 1.5, { y: -14 }, { y: 0, duration: 0.2, ease: 'power2.in' });
+      s.gear('baby', 'backpack', false, TY2 + 1.5, 0.01);
+      var yt = s.node(g, 'g', {});
+      K().toyHorse(s, yt, PX, PY + 50 - 8, 0.9); // колёса на земле
+      s.tween(yt, TY2 + 1.5, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: 'back.out(2)' }); // Миша достал лошадку из ранца
+      s.hands('baby', 'hold', TY2 + 1.5, 0.25);
+      // Аня несёт свой ранец в руке (сзади по ходу), ставит на землю и вынимает из него зайку
+      var BKX = PX + 120, BKY = PY + 50 - 23, yb = s.node(g, 'g', {}); Film.toys.bunny(s, yb, BKX, PY + 50, 0.42);
+      var ayb = s.node(g, 'g', {}); Film.toys.backpack(s, ayb, 0, 0, 0.6, '#7E9CD6', '#4E6FA8'); // поверх зайки — зайка в ранце
+      s.tween(ayb, 0, { opacity: 0 }, { opacity: 0, duration: 0.01 });
+      s.set(ayb, TY2 + 0.05, { opacity: 0, x: SD - 52, y: GD - 20 }, { opacity: 1, x: SD - 52, y: GD - 20 });
+      s.tween(ayb, TY2 + 0.15, { y: GD - 20 }, { y: GD + 100, duration: 0.35, ease: 'power2.out' });
+      s.tween(ayb, TY2 + 0.5, { x: SD - 52, y: GD + 100 }, { x: PX + 210 - 56, y: PY + 20, duration: 0.95, ease: 'sine.inOut' });
+      s.tween(ayb, TY2 + 1.5, { x: PX + 210 - 56, y: PY + 20 }, { x: BKX, y: BKY, duration: 0.15, ease: 'power2.in' }); // поставила на землю
+      s.hands('kid2', 'hold', TY2 + 1.5, 0.25);
+      s.tween(yb, 0, { opacity: 0 }, { opacity: 0, duration: 0.01 }); s.set(yb, TY2 + 1.7, { opacity: 0, y: 34 }, { opacity: 1, y: 34 });
+      s.tween(yb, TY2 + 1.7, { y: 34 }, { y: -12, duration: 0.3, ease: 'power2.out' }); // вынимает из ранца
+      s.tween(yb, TY2 + 2.0, { y: -12 }, { y: 0, duration: 0.2, ease: 'power2.in' }); // ставит перед ранцем
+      [[TY2 + 2.25, 8], [TY2 + 2.75, -8]].forEach(function (q) { Film.ride(s, yb, q[1], q[0], 0.4, 30); });
       var sk = s.node(ov, 'g', {});
-      Film.icons.horse(s, sk, PX - 10, PY + 6, 0.72, { at: TY2 + 1.5, dur: 0.5, seed: 7 });
-      s.tween(yt, TY2 + 1.6, { opacity: 1 }, { opacity: 0.35, duration: 0.3 });
+      Film.icons.horse(s, sk, PX - 10, PY - 2, 0.72, { at: TY2 + 1.65, dur: 0.5, seed: 7 });
+      s.tween(yt, TY2 + 1.8, { opacity: 1 }, { opacity: 0.35, duration: 0.3 });
       [[TY2 + 2.0, 40], [TY2 + 2.5, -40]].forEach(function (q) {
         Film.ride(s, yt, q[1], q[0], 0.4, 36); Film.ride(s, sk, q[1], q[0], 0.4, 36);
       });
-      hop2(s, 'kid2', PX + 210, PY, TY2 + 2.05, 0.4, 24); hop2(s, 'baby', PX - 130, PY, TY2 + 2.55, 0.4, 24);
+      Film.glide(s, 'kid2', PX + 210, TY2 + 2.05, { dur: 0.3, hold: 0.1, skip: true }); Film.glide(s, 'baby', PX - 130, TY2 + 2.55, { dur: 0.3, hold: 0.1, skip: true }); // подпрыгивают на месте
       s.out(sk, T3 - 0.6, { dur: 0.3 });
       s.tween(yt, T3 - 0.6, { opacity: 0.35 }, { opacity: 1, duration: 0.2 });
-      // лошадку — обратно в ранец Миши, они идут к классикам
-      s.tween(yt, T3 - 0.35, { x: 0, y: 0, opacity: 1 }, { x: -170, y: -20, opacity: 0, duration: 0.35, ease: 'power2.in' });
-      s.tween(yb, T3 - 0.35, { opacity: 1 }, { opacity: 0, duration: 0.3 }); // Аня убирает зайку
+      // игрушки остаются на земле у классиков — дети отпускают их и идут к очереди
       s.hands('baby', 'off', T3 - 0.1, 0.2); s.hands('kid2', 'off', T3 - 0.1, 0.2);
       // Дима выходит последним и встаёт у стены школы (на асфальте, ниже окон, не у двери) — его не зовут
       s.actor('kid3', { x: SD, y: GD - 40, d: 80, o: 0 }, TY2 + 0.9, 0.01); s.gaze('kid3', 8, 0, TY2 + 0.9, 0.01); s.mouth('kid3', 'soft', TY2 + 0.9, 0.01);
@@ -511,32 +524,29 @@
       s.mouth('kid3', 'flat', T3 + 2.4, 0.4);
       // --- кадр 3: классики мелом 1–10: Аня прыгает на одной ноге, Миша наступает на линию ---
       s.gaze('kid2', -12, 0, T3, 0.15); s.gaze('baby', -12, 0, T3, 0.15);
-      var bpk = s.acc('baby', 'backpack'), back = function (sx, lt) { s.tween(bpk, lt, { scaleX: -sx, transformOrigin: '50% 50%' }, { scaleX: sx, transformOrigin: '50% 50%', duration: 0.15 }); }; // ранец всегда сзади по ходу
-      back(-1, T3);
       s.actor('kid2', { y: cells[0].y - 50, d: 90 }, T3, 0.3, 'power2.inOut');
       K().walk(s, 'kid2', cells[0].x - 70, T3 + 0.35, { step: 130, dur: 0.12, hold: 0.03 });
       s.actor('baby', { y: cells[0].y - 44, d: 90 }, T3, 0.3, 'power2.inOut');
       K().walk(s, 'baby', cells[0].x - 160, T3 + 0.35, { step: 130, dur: 0.12, hold: 0.03 });
-      s.gaze('baby', 8, 0, T3 + 1.6, 0.2); back(1, T3 + 1.6); s.gaze('kid2', 12, 0, T3 + 1.55, 0.15);
+      s.gaze('baby', 8, 0, T3 + 1.6, 0.2); s.gaze('kid2', 12, 0, T3 + 1.55, 0.15);
       var t = T3 + 1.7;
-      [0, 1, 2, 3].forEach(function (ci) { // Аня: 1, 2, 3, 4 — на одной ноге
-        var c = cells[ci]; t = hop2(s, 'kid2', c.x, c.y - 50, t, 0.32, 36) + 0.06;
-      });
+      var da = cells[2].x - (cells[0].x - 70); // Аня: 1, 2, 3 — вприпрыжку на одной ноге, потом прыжок на 4
+      t += Film.glide(s, 'kid2', cells[2].x, t, { step: da / 3, dur: 0.32, hold: 0.06, skip: true });
+      t = hop2(s, 'kid2', cells[3].x, cells[3].y - 50, t, 0.32, 36) + 0.06;
       t = hop2(s, 'kid2', cells[5].x, cells[3].y - 104, t, 0.3, 24) + 0.05; // спрыгивает с классиков на асфальт — цифры видны, дерево не у банта
       s.mouth('kid2', 'smile', t, 0.2); s.gaze('kid2', -8, 4, t + 0.1, 0.2);
       // Миша прыгает и попадает на черту между 1 и 2
       var tm = t + 0.1;
-      tm = hop2(s, 'baby', cells[0].x, cells[0].y - 44, tm, 0.32, 36) + 0.06;
       var lx = (cells[0].x + cells[1].x) / 2;
-      tm = hop2(s, 'baby', lx, cells[1].y - 44, tm, 0.32, 36);
+      tm += Film.glide(s, 'baby', lx, tm, { step: (lx - (cells[0].x - 160)) / 2, dur: 0.32, hold: 0.03, skip: true }); // два прыжка: в 1 и на черту
       var hit = s.path(ov, 'M' + lx + ' ' + (cells[1].y - 37) + ' V' + (cells[1].y + 37), { stroke: RED, 'stroke-width': 8 });
       s.tween(hit, tm, { opacity: 0 }, { opacity: 1, duration: 0.12, repeat: 3, yoyo: true });
       s.brow('baby', 'sad', tm + 0.1, 0.3);
       K().say(s, 'Ты наступил на линию!', cells[5].x - 40, 438, tm + 0.15, tm + 3.0, 'l'); // выше скамейки, не касается ствола
       s.squash('kid2', 1.04, 0.96, tm + 0.25, 0.1); s.squash('kid2', 1, 1, tm + 0.35, 0.3);
       s.brow('baby', 'calm', tm + 1.8, 0.4); s.mouth('baby', 'soft', tm + 1.8, 0.3);
-      s.gaze('baby', -12, 0, tm + 1.95, 0.15); back(-1, tm + 1.95); hop2(s, 'baby', cells[0].x - 160, cells[0].y - 44, tm + 2.0, 0.4, 24); // назад к очереди
-      s.gaze('baby', 9, 0, tm + 2.5, 0.2); back(1, tm + 2.5);
+      s.gaze('baby', -12, 0, tm + 1.95, 0.15); Film.glide(s, 'baby', cells[0].x - 160, tm + 2.0, { step: 400, dur: 0.3, hold: 0.1, skip: true }); // назад к очереди
+      s.gaze('baby', 9, 0, tm + 2.5, 0.2);
       verdict(s, 'игра не исчезла — ушла на перемену и обросла правилами.', T3 + 6.0);
       small(s, 'Д. Б. Эльконин, 1971: новая ведущая деятельность «не отменяет прежде существовавших» · Ж. Пиаже, 1932: игры по общим правилам — с 7–8 лет · П. Блэтчфорд и др., 2003: на перемене семилетки треть времени играют по правилам', T3 + 6.5, 990).style.color = '#3C4852';
       off(s, ['baby', 'kid2', 'kid3'], s.dur - 0.45);

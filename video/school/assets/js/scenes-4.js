@@ -36,17 +36,14 @@
     s.tween(b, at + dur / 2, { y: top }, { y: y, duration: dur / 2, ease: 'power2.in' });
     b.__p = { x: x, y: y };
   }
-  // Шаги к точке (x, y): ровный шаг с остановкой, как K().walk, но и по глубине. Возвращает время окончания
+  // Плавный ход к точке (x, y), как Film.glide, но и по глубине: одно движение с мягким покачиванием,
+  // длительность прежняя (n × 0,26 с) — тайминги не меняются. Возвращает время окончания
   function walk2(s, id, x, y, lt, step) {
-    var f = s.A[id].st, n = Math.max(1, Math.round(Math.hypot(x - f.x, y - f.y) / (step || 110))), x0 = f.x, y0 = f.y, t = lt;
-    if (Math.abs(x - x0) > 20) s.gaze(id, x > x0 ? 12 : -12, 0, lt, 0.15); // лицо — по ходу движения
-    for (var i = 1; i <= n; i++) {
-      s.squash(id, 1.04, 0.96, t, 0.08);
-      s.actor(id, { x: x0 + (x - x0) * i / n, y: y0 + (y - y0) * i / n }, t + 0.08, 0.2, 'power2.inOut');
-      s.squash(id, 1, 1, t + 0.08, 0.18);
-      t += 0.26;
-    }
-    return t;
+    var f = s.A[id].st, n = Math.max(1, Math.round(Math.hypot(x - f.x, y - f.y) / (step || 110))), total = n * 0.26;
+    if (Math.abs(x - f.x) > 20) s.gaze(id, x > f.x ? 12 : -12, 0, lt, 0.15); // лицо — по ходу движения
+    s.actor(id, { x: x, y: y }, lt, total, 'sine.inOut');
+    s.tween(s.A[id].body, lt, { y: 0 }, { y: -5, duration: total / (2 * n), ease: 'sine.inOut', yoyo: true, repeat: 2 * n - 1 });
+    return lt + total;
   }
   // Линия отношений между двумя детьми (центры кругов): прорисовывается за dur
   function link(s, g, a, b, at, dur, r) { // от края круга до края круга (r — радиус)
@@ -113,10 +110,9 @@
         ids[w] = K().cast(s, w, p0.x, p0.y - d / 2, d, 0, { gx: 6, dur: 0.01 }); // стоят с начала сцены
         for (var i = 1; i <= 5; i++) { // шагают по своей дорожке
           var q = pp(w, at[w][0] + (at[w][1] - at[w][0]) * i / 5), t = 0.5 + (i - 1) * 0.3;
-          s.squash(ids[w], 1.04, 0.96, t, 0.08);
-          s.actor(ids[w], { x: q.x, y: q.y - d / 2 }, t + 0.08, 0.22, 'power2.inOut');
-          s.squash(ids[w], 1, 1, t + 0.08, 0.2);
+          s.actor(ids[w], { x: q.x, y: q.y - d / 2 }, t, 0.3, i === 1 ? 'sine.in' : i === 5 ? 'sine.out' : 'none'); // плавно, без рывков
         }
+        s.tween(s.A[ids[w]].body, 0.5, { y: 0 }, { y: -5, duration: 0.15, ease: 'sine.inOut', yoyo: true, repeat: 9 });
         var e = pp(w, at[w][1]); ends[w] = [e.x, e.y - d / 2];
       });
       s.gaze('baby', 8, -2, 2.1, 0.3); s.gaze('kid2', -8, -2, 2.1, 0.3); // Миша и Аня переглядываются
@@ -226,13 +222,12 @@
       [[3, 0, FIN - 260, 560], [8, 1, FIN - 150, 650]].forEach(function (c) {
         var y0 = LN[c[1]][0], b = grpAt(s, yd, c[3], y0); K().classmate(b, c[0], 0, 0, LN[c[1]][1], { gx: 12 });
         move(s, b, c[2], y0, R0, 1.7, 'power1.inOut');
-        for (var i = 0; i < 5; i++) { s.tween(b, R0 + i * 0.34, { y: y0 }, { y: y0 - 14, duration: 0.17, ease: 'power2.out' }); s.tween(b, R0 + 0.17 + i * 0.34, { y: y0 - 14 }, { y: y0, duration: 0.17, ease: 'power2.in' }); }
+        for (var i = 0; i < 5; i++) { s.tween(b, R0 + i * 0.34, { y: y0 }, { y: y0 - 14, duration: 0.17, ease: 'sine.out' }); s.tween(b, R0 + 0.17 + i * 0.34, { y: y0 - 14 }, { y: y0, duration: 0.17, ease: 'sine.in' }); }
       });
       s.actor('baby', { x: 735, y: LN[2][0], d: 88 }, sw, 0.01); s.gaze('baby', 12, 0, sw, 0.01); s.brow('baby', 'focus', sw, 0.01); s.mouth('baby', 'flat', sw, 0.01);
-      for (var i = 0; i < 6; i++) { // бег: шаг-подскок без сплющивания
-        var xa = 735 + (FIN + 100 - 735) * (i + 0.5) / 6, xb = 735 + (FIN + 100 - 735) * (i + 1) / 6, ti = R0 + i * 0.28;
-        s.actor('baby', { x: xa, y: LN[2][0] - 18 }, ti, 0.14, 'power2.out'); s.actor('baby', { x: xb, y: LN[2][0] }, ti + 0.14, 0.14, 'power2.in');
-      }
+      // бег вприпрыжку: одно плавное движение и ровная волна подскоков
+      s.actor('baby', { x: FIN + 100, y: LN[2][0] }, R0, 1.68, 'power1.inOut');
+      s.tween(s.A.baby.body, R0, { y: 0 }, { y: -18, duration: 0.14, ease: 'sine.inOut', yoyo: true, repeat: 11 });
       var RF = R0 + 1.75;
       s.brow('baby', 'proud', RF, 0.3); s.mouth('baby', 'smile', RF, 0.3); s.hands('baby', 'up', RF, 0.3);
       // растёт только «спорт» — пунктир «в среднем» на месте
@@ -343,11 +338,11 @@
       s.gaze('kid3', 8, -1, TW + 0.4, 0.3);
       // Миша достаёт лошадку из ранца — она у него в руке — и протягивает Диме
       s.hands('baby', 'hold', mw, 0.2);
-      jump(s, horse, MN[0] - 40, MN[1] + 30, mw); s.tween(horse, mw + 0.05, { opacity: 0 }, { opacity: 1, duration: 0.25 });
-      move(s, horse, MN[0] - 56, MN[1] + 46, mw + 0.05, 0.3);
+      jump(s, horse, MN[0] - 86, MN[1] + 44, mw); s.tween(horse, mw + 0.05, { opacity: 0 }, { opacity: 1, duration: 0.25 }); // левее ранца — не накладываются
+      move(s, horse, MN[0] - 100, MN[1] + 56, mw + 0.05, 0.3);
       var TS = mw + 0.3;
       sayH(s, 'Пойдём с нами! Будешь считать очки — ты же всё запоминаешь.', MN[0] - 26, 600, TS, TS + 4.6, 'l', { w: 470, fs: 34 });
-      arc(s, horse, DM[0] - 58, DM[1] + 46, TS + 0.9, 1.0, 50); // видно, как лошадка переходит из рук Миши к Диме
+      arc(s, horse, DM[0] - 84, DM[1] + 46, TS + 0.9, 1.0, 50); // видно, как лошадка переходит из рук Миши к Диме
       s.hands('kid3', 'hold', TS + 1.7, 0.3); s.hands('baby', 'off', TS + 1.9, 0.2);
       s.mouth('kid3', 'smile', TS + 1.6, 0.4);
       // Дима отходит от стены с лошадкой; мяч — Диме, Ане, Мише: линии сходятся к нему
