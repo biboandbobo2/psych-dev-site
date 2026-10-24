@@ -62,7 +62,7 @@
   // плавная ходьба той же общей длительности T (Film.glide: одно движение + мягкое покачивание)
   function glideT(s, id, x1, lt, T, o) {
     var dx = Math.abs(x1 - s.A[id].st.x), n = Math.max(1, Math.round(dx / 110));
-    return Film.glide(s, id, x1, lt, Object.assign({ step: Math.max(1, dx / n), dur: T / n, hold: 0 }, o || {}));
+    return Film.glide(s, id, x1, lt, Object.assign({ step: Math.max(1, dx / n), dur: T / n, hold: 0.14 }, o || {})); // 0,14 — как было при ловушке «hold: 0 = по умолчанию»; с ним собран опубликованный ролик
   }
   // Заставка главы: общая «дорога в школу» (places.schoolRoad) — трое доходят до двери, герой главы выделен
   function trio(s, n, title, sub, who) {

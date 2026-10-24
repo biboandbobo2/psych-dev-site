@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Проверки эпизода до показа автору.
 
-  python3 tools/check.py preschool            хронометраж: сцены в JS ↔ compose.py ↔ index.html ↔ render.sh ↔ SCRIPT.md
+  python3 tools/check.py preschool            хронометраж: сцены в JS ↔ compose.py ↔ index.html ↔ render.sh ↔ SCRIPT.md ↔ главы YOUTUBE.md
   python3 tools/check.py preschool --frames   + лист кадров: начало (+0,1 с) и конец (−0,3 с) каждой сцены
   python3 tools/check.py preschool --frames --at 31.5,32,32.5   + свои моменты (частые кадры сложной анимации)
 
@@ -73,10 +73,29 @@ def main():
         errors.append(f'render.sh atrim=0:{trim and trim.group(1)}, нужно {total:g}')
     if not fade or float(fade.group(1)) + float(fade.group(2)) != total:
         errors.append(f'render.sh: затухание должно кончаться на {total:g} с')
-    script = ep / 'SCRIPT.md'
-    m = re.search(r'(\d+) такт\w* = (\d+):(\d+)', script.read_text()) if script.exists() else None
-    if m and (int(m.group(1)) * BAR != total or int(m.group(2)) * 60 + int(m.group(3)) != total):
-        errors.append(f'SCRIPT.md: «{m.group(0)}», а сцен {total / BAR:g} тактов = {int(total // 60)}:{int(total % 60):02d}')
+    for f in (ep / 'SCRIPT.md', ep / 'render.sh'):
+        m = re.search(r'(\d+) такт\w* = (\d+):(\d+)', f.read_text()) if f.exists() else None
+        if m and (int(m.group(1)) * BAR != total or int(m.group(2)) * 60 + int(m.group(3)) != total):
+            errors.append(f'{f.name}: «{m.group(0)}», а сцен {total / BAR:g} тактов = {int(total // 60)}:{int(total % 60):02d}')
+    # шестое место хронометража — проверка числа тактов внутри compose.py
+    m = re.search(r'assert NBARS == (\d+)', (ep / 'music/compose.py').read_text())
+    if m and int(m.group(1)) * BAR != total:
+        errors.append(f'compose.py: assert NBARS == {m.group(1)}, а сцен {total / BAR:g} тактов')
+    # главы в YOUTUBE.md — на началах сцен, первая 0:00, не короче 10 с (правило YouTube)
+    yt = ep / 'YOUTUBE.md'
+    starts, t = set(), 0.0
+    for _, b in scenes:
+        starts.add(int(t)); t += b * BAR
+    chapters = [int(mm) * 60 + int(ss) for mm, ss in re.findall(r'^(\d+):(\d\d) \S', yt.read_text(), re.M)] if yt.exists() else []
+    if chapters:
+        if chapters[0] != 0:
+            errors.append('YOUTUBE.md: первая глава должна быть 0:00')
+        for c in chapters:
+            if c not in starts:
+                errors.append(f'YOUTUBE.md: глава {c // 60}:{c % 60:02d} не на начале сцены')
+        for c1, c2 in zip(chapters, chapters[1:]):  # последнюю короткую YouTube принимает (7–10: 7,5 с)
+            if c2 - c1 < 10:
+                errors.append(f'YOUTUBE.md: глава {c1 // 60}:{c1 % 60:02d} короче 10 с')
 
     t = 0.0
     print(f'{"сцена":<12} {"такты":>5}  начало   конец')

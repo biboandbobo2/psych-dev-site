@@ -72,7 +72,7 @@
     // v3.6: плавная походка — одно движение с мягким покачиванием (раньше — шаги-рывки); общая длительность прежняя, тайминги сцен не меняются.
     // o.skip — вприпрыжку: покачивание выше и реже
     o = o || {};
-    var x0 = s.A[id].st.x, step = o.step || 96, n = Math.max(1, Math.round(Math.abs(x1 - x0) / step)), total = n * ((o.dur || 0.26) + (o.hold || 0.14));
+    var x0 = s.A[id].st.x, step = o.step || 96, n = Math.max(1, Math.round(Math.abs(x1 - x0) / step)), total = n * ((o.dur == null ? 0.26 : o.dur) + (o.hold == null ? 0.14 : o.hold));
     s.actor(id, { x: x1 }, lt, total, 'sine.inOut');
     // ранец — сзади по ходу: идёт влево — ранец справа (зеркально), вправо — слева
     var accs = s.A[id].accs || {};
