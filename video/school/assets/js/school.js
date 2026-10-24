@@ -69,17 +69,17 @@
   // Шаги по клеткам: ровный шаг с остановкой, короткая подготовка — сдержанная анимация возраста.
   // o.carry — элементы, которые едут вместе с героем (ранец)
   function walk(s, id, x1, lt, o) {
+    // v3.6: плавная походка — одно движение с мягким покачиванием (раньше — шаги-рывки); общая длительность прежняя, тайминги сцен не меняются.
+    // o.skip — вприпрыжку: покачивание выше и реже
     o = o || {};
-    var x0 = s.A[id].st.x, step = o.step || 96, n = Math.max(1, Math.round(Math.abs(x1 - x0) / step)), d = (x1 - x0) / n, t = lt, dur = o.dur || 0.26;
-    for (var i = 0; i < n; i++) {
-      s.squash(id, 1.04, 0.96, t, 0.08);
-      s.actor(id, { x: x0 + d * (i + 1) }, t + 0.08, dur, 'power2.inOut');
-      if (o.carry) s.tween(o.carry, t + 0.08, { x: (o.cx || 0) + d * i }, { x: (o.cx || 0) + d * (i + 1), duration: dur, ease: 'power2.inOut' });
-      s.squash(id, 1, 1, t + 0.08, 0.2);
-      t += dur + (o.hold || 0.14);
-    }
-    return t - lt;
+    var x0 = s.A[id].st.x, step = o.step || 96, n = Math.max(1, Math.round(Math.abs(x1 - x0) / step)), total = n * ((o.dur || 0.26) + (o.hold || 0.14));
+    s.actor(id, { x: x1 }, lt, total, 'sine.inOut');
+    if (o.carry) s.tween(o.carry, lt, { x: o.cx || 0 }, { x: (o.cx || 0) + (x1 - x0), duration: total, ease: 'sine.inOut' });
+    var body = s.A[id].body, half = total / (2 * n), h = o.skip ? 14 : 5;
+    s.tween(body, lt, { y: 0 }, { y: -h, duration: half, ease: 'sine.inOut', yoyo: true, repeat: 2 * n - 1 });
+    return total;
   }
+  Film.glide = walk; // для сцен: Film.glide(s, id, x1, lt, {step, dur, hold, skip, carry, cx})
   // Реплика прописью в облачке; tail: 'l' | 'r'
   function say(s, text, x, y, at, out, tail) {
     var b = s.div('bubble say tail-' + (tail || 'l'), { left: x, top: y }, null, text);
