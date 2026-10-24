@@ -563,7 +563,7 @@
 
   // ---------- 1:45 — Родительский чат: мама у плиты мешает ложкой в кастрюле и читает телефон, Миша делает уроки ----------
   Film.scene({
-    id: 'chat', bars: 8, // 20 с: советы и штампы плотнее; каждый «Проверили» читается ≥ 4 с
+    id: 'chat', bars: 6, // 15 с: советы и штампы плотнее
     build: function (s) {
       var g = s.svg(), ov = s.over();
       var kc = P().kitchen(s, g, KIT);
@@ -579,7 +579,7 @@
       s.path(sp, 'M' + LX + ' ' + LY + ' L' + (kc.stove.x + 52) + ' ' + (kc.stove.top - 92), { stroke: '#B9874F', 'stroke-width': 8 }); // ложка: ручка уходит в кастрюлю
       s.node(lh, 'circle', { cx: LX, cy: LY, r: 24, fill: HC });
       s.tween(lh, 0, { opacity: 0 }, { opacity: 1, duration: 0.01 });
-      s.tween(sp, 0.8, { rotation: -6, svgOrigin: LX + ' ' + LY }, { rotation: 6, svgOrigin: LX + ' ' + LY, duration: 0.6, repeat: 37, yoyo: true, ease: 'sine.inOut' }); // мешает
+      s.tween(sp, 0.8, { rotation: -6, svgOrigin: LX + ' ' + LY }, { rotation: 6, svgOrigin: LX + ' ' + LY, duration: 0.6, repeat: 22, yoyo: true, ease: 'sine.inOut' }); // мешает
       var hx = MX + 128, hy = MY + 34, tp = s.node(ov, 'g', {}); // телефон в руке на уровне груди, не у уха
       s.node(tp, 'rect', { x: hx - 18, y: hy - 70, width: 36, height: 60, rx: 7, fill: '#1D2733', stroke: INK, 'stroke-width': 2 });
       s.node(tp, 'rect', { x: hx - 12, y: hy - 63, width: 24, height: 42, rx: 3, fill: '#DCEFEA' });
@@ -594,8 +594,8 @@
       s.path(wh, 'M' + (WX - 30) + ' ' + (WY + 6) + ' l6 -10', { stroke: INK, 'stroke-width': 4 });
       s.node(wh, 'circle', { cx: WX + 6, cy: WY - 10, r: 15, fill: '#C9634C' });
       s.tween(wh, 0, { opacity: 0 }, { opacity: 1, duration: 0.01 });
-      s.tween(wh, 0.8, { x: -22 }, { x: 0, duration: 0.5, repeat: 45, yoyo: true, ease: 'sine.inOut' }); // пишет — рука ходит по строке
-      [1.2, 1.5, 3.0, 3.3, 6.0, 6.3, 7.4, 7.7, 12.0, 12.3].forEach(function (tt) { s.squash('baby', 1.03, 0.97, tt, 0.1); s.squash('baby', 1, 1, tt + 0.1, 0.12); }); // пишет
+      s.tween(wh, 0.8, { x: -22 }, { x: 0, duration: 0.5, repeat: 27, yoyo: true, ease: 'sine.inOut' }); // пишет — рука ходит по строке
+      [1.0, 1.3, 5.4, 5.7, 9.8, 10.1].forEach(function (tt) { s.squash('baby', 1.03, 0.97, tt, 0.1); s.squash('baby', 1, 1, tt + 0.1, 0.12); }); // пишет
       // экран телефона крупно справа — выноска от телефона в руке мамы (над столом и под лампой)
       var ph = K().phone(s, 1320, 120, 540, 860);
       s.tween(ph.el, 0, { opacity: 0 }, { opacity: 1, duration: 0.01 });
@@ -603,9 +603,9 @@
       var ld = s.path(ov, 'M' + (hx + 20) + ' ' + (hy - 70) + ' L1320 140 M' + (hx + 20) + ' ' + (hy - 66) + ' L1320 420', { stroke: INK, 'stroke-width': 2, 'stroke-dasharray': '6 8', opacity: 0 });
       s.tween(ld, 0.3, { opacity: 0 }, { opacity: 0.35, duration: 0.4 });
       var items = [
-        ['Учитель верит в ребёнка — и ребёнок умнеет!', 'так бывает, только пока учитель ещё не знает детей.', 2.0, 4.1],
-        ['Не хвалите за ум — это вредно!', 'вреда почти не нашли.', 8.1, 9.6],
-        ['Ваш ребёнок визуал — учите картинками!', 'учить «под стиль» не помогает.', 13.6, 15.0]
+        ['Учитель верит в ребёнка — и ребёнок умнеет!', 'так бывает, только пока учитель ещё не знает детей.', 1.4, 3.1],
+        ['Не хвалите за ум — это вредно!', 'вреда почти не нашли.', 6.4, 7.6],
+        ['Ваш ребёнок визуал — учите картинками!', 'учить «под стиль» не помогает.', 10.6, 11.8]
       ];
       var y = 20 + hi.offsetHeight + 24;
       items.forEach(function (it, i) {
@@ -621,9 +621,9 @@
         s.tween(tp, it[2] - 0.2, { rotation: 0, transformOrigin: '50% 100%' }, { rotation: 6, duration: 0.06, repeat: 5, yoyo: true }); // звякнул
       });
       // Миша поднимает голову и смеётся, мама улыбается ему
-      s.gaze('baby', -9, -2, 17.0, 0.3); s.mouth('baby', 'smile', 17.2, 0.2);
-      [17.4, 17.9].forEach(function (t) { s.squash('baby', 1.05, 0.95, t, 0.1); s.squash('baby', 1, 1, t + 0.1, 0.25); });
-      s.gaze('adult', 8, 0, 18.0, 0.3); s.mouth('adult', 'smile', 18.2, 0.3);
+      s.gaze('baby', -9, -2, 13.0, 0.3); s.mouth('baby', 'smile', 13.2, 0.2);
+      [13.4, 13.9].forEach(function (t) { s.squash('baby', 1.05, 0.95, t, 0.1); s.squash('baby', 1, 1, t + 0.1, 0.25); });
+      s.gaze('adult', 8, 0, 13.9, 0.3); s.mouth('adult', 'smile', 14.0, 0.3);
       // сноска раскрывается по мере проверок
       var fn = s.text('cite', '<span>эффект Пигмалиона — Р. Раунденбуш, 1984</span><span> · установка на рост — Ю. Ли, Т. Бейтс, 2019</span><span> · стили обучения — Х. Пашлер и др., 2008</span>', { left: 140, top: 990, width: 1120, fontSize: 20 });
       Array.prototype.forEach.call(fn.children, function (sp2, i) { s.tween(sp2, items[i][3] + 0.6, { opacity: 0 }, { opacity: 1, duration: 0.5 }); });

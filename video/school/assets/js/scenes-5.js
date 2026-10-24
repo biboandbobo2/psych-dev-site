@@ -93,10 +93,10 @@
           '<span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:#26A69A;color:#FFFDF8;font-family:DOMSans;font-weight:700;font-size:24px;">' + (i + 1) + '</span>' +
           '<span class="label" style="font-size:34px;color:var(--ink);">' + w + '</span></div>';
       }).join('');
-      var words = s.div('', { left: 140, top: 906, width: 1640 }, null, '<div class="label grow-title" style="font-size:30px;color:var(--accent-deep);">Что вырастает</div><div style="display:flex;gap:24px;margin-top:8px;">' + row + '</div>');
+      var words = s.div('', { left: 140, top: 906, width: 1640 }, null, '<div class="label grow-title" style="font-size:30px;color:var(--accent-deep);">Что развивается</div><div style="display:flex;gap:24px;margin-top:8px;">' + row + '</div>');
       s.fade(words.querySelector('.grow-title'), 0.3, { y: 6 });
       s.fade(words.querySelectorAll('.grow-card'), 0.6, { y: 8, stagger: 0.35 });
-      var t1 = s.text('h3', 'Главное, что вырастает, — <span class="acc">рефлексия</span>: умение посмотреть на себя со стороны и проверить, как я думаю и учусь.', { left: 140, top: 124, width: 1040, fontSize: 34 });
+      var t1 = s.text('h3', 'Главное, что развивается, — <span class="acc">рефлексия</span>: умение посмотреть на себя со стороны и проверить, как я думаю и учусь.', { left: 140, top: 124, width: 1040, fontSize: 34 });
       s.lines(t1, 4.3);
       var c = s.text('cite', 'на Западе это называют метапознанием — metacognition (Дж. Флейвелл, 1979)', { left: 140, top: 1036, width: 1640, fontSize: 20 });
       s.fade(c, 5.0, { y: 4 });

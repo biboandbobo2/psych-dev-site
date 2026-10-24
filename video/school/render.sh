@@ -7,7 +7,7 @@ mkdir -p renders
 
 SF="${SOUNDFONT:-/usr/share/sounds/sf3/MuseScore_General_Full.sf3}"
 HF="${HYPERFRAMES:-npx --yes hyperframes@0.8.78}"
-PRE="atrim=0:350,asetpts=N/SR/TB,afade=t=in:st=0:d=0.05,afade=t=out:st=346.5:d=3.5,highpass=f=30"
+PRE="atrim=0:345,asetpts=N/SR/TB,afade=t=in:st=0:d=0.05,afade=t=out:st=341.5:d=3.5,highpass=f=30"
 
 echo "▶ Музыка: партитура → MIDI → WAV"
 (cd music && python3 compose.py)

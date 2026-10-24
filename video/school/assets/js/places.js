@@ -105,6 +105,8 @@
       });
       seats.unshift(line);
     });
+    var dq = SEATS.dima.split(':'), ds = seats[+dq[0]] && seats[+dq[0]][+dq[1]];
+    if (ds) ds.y -= 6; // Дима в очках со светлым ободком визуально «садится» глубже — чуть выше, как у других
     return { g: G, board: b, floor: floor, teacher: { x: 400, floor: floor }, seats: seats, heroes: SEATS };
   }
   // Ранцы первого ряда (у каждого ребёнка свой цвет) — стоят на полу у стула, справа от него. skip — номера мест без ранца (место Миши: его ранец рисует сцена)
