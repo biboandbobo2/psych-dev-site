@@ -133,7 +133,7 @@ export function TimelineLeftPanel({
       >
         <div className="flex items-center gap-2 pr-6">
           <Link
-            to="/profile"
+            to="/development/intro"
             className="flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 px-3 py-2 text-amber-900 shadow-md transition-all duration-200 hover:border-amber-300 hover:from-amber-100 hover:to-yellow-100"
           >
             <span className="text-sm">←</span>
