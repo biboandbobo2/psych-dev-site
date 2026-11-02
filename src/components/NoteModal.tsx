@@ -9,7 +9,7 @@ interface NoteModalProps {
   isOpen: boolean;
   noteId?: string;
   /**
-   * Конспект лекции: курс, занятие и заголовок заданы лекцией и не
+   * Конспект лекции: курс и занятие заданы лекцией и не
    * редактируются; `lessonPath` — ссылка «Открыть в лекции» (deep-link в
    * режим конспекта), null — путь неизвестен.
    */
@@ -123,7 +123,6 @@ export function NoteModal({
           {lecture ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-card2 px-4 py-3 text-sm">
               <div>
-                <p className="font-semibold text-fg">{title}</p>
                 <p className="text-muted">
                   {periodTitle} · правки попадут и в конспект под видео
                 </p>

@@ -132,10 +132,10 @@ export default function Notes() {
     }
 
     if (editingNote?.noteScope === 'lecture') {
-      // Конспект: курс, занятие и заголовок принадлежат лекции; правится
-      // только текст, и он же пересобирается в сегменты (иначе оверлей
+      // Курс и занятие принадлежат лекции; текст пересобирается в сегменты (иначе оверлей
       // показал бы старые сегменты и перетёр бы правку автосейвом).
       await updateNote(editingNote.id, {
+        title: data.title.trim(),
         content: data.content,
         lectureSegments: buildLectureSegmentsFromContent(
           data.content,

@@ -226,7 +226,6 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
       const noteRef = doc(db, 'notes', lectureDocId);
       const payload: Record<string, unknown> = {
         userId: user.uid,
-        title: context.lectureTitle || 'Без названия',
         content: content || '',
         ageRange: normalizedAgeRange,
         periodId: context.periodId,
@@ -255,6 +254,9 @@ export function useNotes(periodFilter?: string | null, options: UseNotesOptions 
       if (!knownLectureDocIdsRef.current.has(lectureDocId)) {
         const existingNote = await getDoc(noteRef);
         if (!existingNote.exists()) {
+          // Название лекции — только начальный заголовок заметки. При merge
+          // не трогаем title: владелец мог переименовать заметку в /notes.
+          payload.title = context.lectureTitle || 'Без названия';
           payload.createdAt = serverTimestamp();
         }
       }

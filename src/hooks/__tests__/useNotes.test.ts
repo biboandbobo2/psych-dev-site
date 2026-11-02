@@ -189,9 +189,9 @@ describe('useNotes', () => {
     );
   });
 
-  it('обновляет существующую lecture note через merge, не перезаписывая createdAt', async () => {
+  it('обновляет существующую lecture note, сохраняя её заголовок и createdAt', async () => {
     authMock.mockReturnValue({ user: { uid: 'user-123' } } as ReturnType<typeof useAuth>);
-    getDocMock.mockResolvedValue({ exists: () => true } as never);
+    getDocMock.mockResolvedValue({ exists: () => true, data: () => ({ title: 'Мои выводы по семинару' }) } as never);
 
     const { result } = renderHook(() => useNotes(null, { subscribe: false }));
 
@@ -239,7 +239,52 @@ describe('useNotes', () => {
       expect.not.objectContaining({ createdAt: expect.anything() }),
       { merge: true }
     );
+    expect(setDocMock.mock.calls[0]?.[1]).not.toHaveProperty('title');
     expect(updateDocMock).not.toHaveBeenCalled();
+  });
+
+  it('после переименования продолжает сохранять тот же конспект без сброса заголовка', async () => {
+    authMock.mockReturnValue({ user: { uid: 'user-123' } } as ReturnType<typeof useAuth>);
+    const saved: Record<string, unknown> = {};
+    getDocMock.mockImplementation(async () => ({
+      exists: () => Object.keys(saved).length > 0,
+      data: () => ({ ...saved }),
+    }) as never);
+    setDocMock.mockImplementation(async (_ref, payload) => { Object.assign(saved, payload); });
+    updateDocMock.mockImplementation(async (_ref, payload) => { Object.assign(saved, payload); });
+    const { result, unmount } = renderHook(() => useNotes(null, { subscribe: false }));
+    const context = {
+      courseId: 'development',
+      periodId: 'seminary',
+      periodTitle: 'Семинары',
+      lectureTitle: 'Семинары',
+      lectureVideoId: 'eGCP_Fk7AeU',
+    };
+
+    const id = await result.current.upsertLectureNote('Первый абзац', context);
+    expect(saved.title).toBe('Семинары');
+    await result.current.updateNote(id, { title: 'Мои выводы по семинару' });
+    await result.current.upsertLectureNote('Продолжение конспекта', {
+      ...context, lectureTitle: 'Новое название видео',
+    }, { lectureSegments: [{ id: 's1', startMs: 65000, text: 'Продолжение конспекта' }] });
+
+    expect(saved).toMatchObject({
+      title: 'Мои выводы по семинару',
+      content: 'Продолжение конспекта',
+      lectureVideoId: context.lectureVideoId,
+      lectureKey: buildLectureNoteKey(context),
+      noteScope: 'lecture',
+      createdAt: 'ts',
+      lectureSegments: [{ id: 's1', startMs: 65000, text: 'Продолжение конспекта' }],
+    });
+    expect(getDocMock).toHaveBeenCalledTimes(1);
+    unmount();
+
+    const reopened = renderHook(() => useNotes(null, { subscribe: false }));
+    expect(await reopened.result.current.upsertLectureNote('После повторного открытия', context)).toBe(id);
+    expect(saved.title).toBe('Мои выводы по семинару');
+    expect(saved.content).toBe('После повторного открытия');
+    expect(getDocMock).toHaveBeenCalledTimes(2);
   });
 
   it('не перечитывает документ перед повторными сохранениями той же лекции', async () => {
@@ -289,7 +334,7 @@ describe('useNotes', () => {
     // существование и записать createdAt (регрессия BPT-ревью 2026-07-12).
     expect(getDocMock).toHaveBeenCalledTimes(2);
     expect(setDocMock.mock.calls[1]?.[1]).toEqual(
-      expect.objectContaining({ createdAt: 'ts' })
+      expect.objectContaining({ createdAt: 'ts', title: context.lectureTitle })
     );
   });
 

@@ -10,7 +10,7 @@ interface NoteFormFieldsProps {
   titlePlaceholder?: string;
   contentPlaceholder?: string;
   contentLabel?: string;
-  /** false — конспект лекции: курс/занятие и заголовок заданы лекцией и не редактируются. */
+  /** false — курс и занятие заданы лекцией и не редактируются. */
   showContext?: boolean;
   onTitleChange: (value: string) => void;
   onContentChange: (value: string) => void;
@@ -37,32 +37,30 @@ export function NoteFormFields({
   return (
     <div className="space-y-4">
       {showContext ? (
-        <>
-          <NoteContextSelector
-            selectedCourseId={selectedCourseId}
-            selectedPeriodId={selectedPeriodId}
-            saving={saving}
-            onCourseChange={onCourseChange}
-            onPeriodChange={onPeriodChange}
-          />
-
-          <div>
-            <label htmlFor="note-title" className="mb-2 block text-sm font-medium text-fg">
-              Заголовок заметки
-            </label>
-            <input
-              id="note-title"
-              type="text"
-              value={title}
-              onChange={(event) => onTitleChange(event.target.value)}
-              placeholder={titlePlaceholder}
-              className={NOTE_FIELD_CLASS}
-              disabled={saving}
-              autoFocus={autoFocus}
-            />
-          </div>
-        </>
+        <NoteContextSelector
+          selectedCourseId={selectedCourseId}
+          selectedPeriodId={selectedPeriodId}
+          saving={saving}
+          onCourseChange={onCourseChange}
+          onPeriodChange={onPeriodChange}
+        />
       ) : null}
+
+      <div>
+        <label htmlFor="note-title" className="mb-2 block text-sm font-medium text-fg">
+          Заголовок заметки
+        </label>
+        <input
+          id="note-title"
+          type="text"
+          value={title}
+          onChange={(event) => onTitleChange(event.target.value)}
+          placeholder={titlePlaceholder}
+          className={NOTE_FIELD_CLASS}
+          disabled={saving}
+          autoFocus={autoFocus}
+        />
+      </div>
 
       <div>
         <label htmlFor="note-content" className="mb-2 block text-sm font-medium text-fg">
@@ -75,7 +73,6 @@ export function NoteFormFields({
           placeholder={contentPlaceholder}
           className={`${NOTE_FIELD_CLASS} min-h-[300px] resize-y`}
           disabled={saving}
-          autoFocus={autoFocus && !showContext}
         />
       </div>
     </div>
