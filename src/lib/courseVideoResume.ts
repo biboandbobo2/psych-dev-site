@@ -95,29 +95,30 @@ export function saveCourseVideoResumePoint({
 export function getCourseVideoResumePoint(courseId: string): CourseVideoResumePoint | null {
   if (!courseId) return null;
   const cloud = readCloudProgress(courseId)?.videoResume;
-  if (
+  const validCloud =
     cloud &&
     cloud.path &&
     cloud.videoId &&
     Number.isFinite(cloud.timeSec)
-  ) {
-    return {
-      path: cloud.path,
-      videoId: cloud.videoId,
-      timeSec: cloud.timeSec,
-      lessonLabel: cloud.lessonLabel,
-      videoTitle: cloud.videoTitle,
-      updatedAt: cloud.updatedAt,
-    };
-  }
+      ? cloud
+      : null;
   const current = readStorage();
   const item = current[courseId];
+  const validLocal =
+    item && item.path && item.videoId && Number.isFinite(item.timeSec) ? item : null;
 
-  if (!item || !item.path || !item.videoId || !Number.isFinite(item.timeSec)) {
-    return null;
+  if (!validCloud) return validLocal;
+  if (!validLocal) return validCloud;
+
+  const cloudUpdatedAt = Date.parse(validCloud.updatedAt);
+  const localUpdatedAt = Date.parse(validLocal.updatedAt);
+  const cloudHasValidDate = Number.isFinite(cloudUpdatedAt);
+  const localHasValidDate = Number.isFinite(localUpdatedAt);
+
+  if (localHasValidDate && (!cloudHasValidDate || localUpdatedAt > cloudUpdatedAt)) {
+    return validLocal;
   }
-
-  return item;
+  return validCloud;
 }
 
 export function buildCourseContinuePath(courseId: string, fallbackPath: string): string {

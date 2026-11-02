@@ -5,6 +5,7 @@ import { getYouTubeVideoId } from '../../../lib/videoTranscripts';
 import { EMPTY_LECTURE_NOTE_DRAFT, type LectureNoteDraft } from '../../../types/notes';
 import { isUrlString, normalizeVideoEntry } from '../utils/media';
 import { getLessonVideoKey } from '../utils/lessonVideos';
+import { parseYouTubeEmbedConfig } from '../utils/youtubePlayer';
 import { VideoResourceLinks } from './VideoResourceLinks';
 import { VideoStudyOverlay } from './VideoStudyOverlay';
 import {
@@ -22,7 +23,7 @@ import {
   recordVideoOpenedExternally,
   recordVideoPlayback,
 } from '../../../lib/courseVideoStats';
-import { saveCourseVideoResumePoint } from '../../../lib/courseVideoResume';
+import { getCourseVideoResumePoint, saveCourseVideoResumePoint } from '../../../lib/courseVideoResume';
 import { trackFeatureEvent } from '../../../lib/telemetry';
 
 interface VideoSectionProps {
@@ -67,7 +68,7 @@ export function VideoSection({
     return {
       ...normalized,
       deckUrl: effectiveDeckUrl,
-      key: `${slug}-video-${index}`,
+      key: `${courseId}-${periodId ?? ''}-${slug}-video-${index}-${normalized.originalUrl}`,
       videoKey: getLessonVideoKey(entry),
     };
   });
@@ -180,6 +181,16 @@ function VideoSectionCard({
   const isStudyLaunchTarget =
     Boolean(studyLaunch?.requestedVideoId) &&
     youtubeVideoId === studyLaunch?.requestedVideoId;
+  // Снимок при открытии карточки: дальнейшие сохранения не должны перематывать
+  // уже запущенное видео. Явный таймкод в ссылке важнее последней позиции.
+  const [initialResumeMs] = useState(() => {
+    if (!youtubeVideoId || isStudyLaunchTarget) return null;
+    if (parseYouTubeEmbedConfig(embedUrl)?.playerVars.start !== undefined) return null;
+    const resume = getCourseVideoResumePoint(courseId);
+    const path = typeof window !== 'undefined' ? window.location.pathname.replace(/\/$/, '') : '';
+    if (resume?.videoId !== youtubeVideoId || resume.path !== path) return null;
+    return Math.max(0, resume.timeSec * 1000);
+  });
   const studyLaunchKey = isStudyLaunchTarget
     ? `${studyLaunch?.requestedVideoId ?? ''}::${studyLaunch?.initialPanel ?? 'notes'}::${studyLaunch?.initialSeekMs ?? 'none'}`
     : null;
@@ -215,6 +226,10 @@ function VideoSectionCard({
       currentTimeMs: null,
       paused: true,
     };
+    // У ещё не запущенного cued-плеера YouTube может вернуть 0 даже при start.
+    if (snapshot.paused && !snapshot.currentTimeMs && lastSavedPlaybackMsRef.current === null) {
+      snapshot.currentTimeMs = initialResumeMs;
+    }
     inlinePlayerRef.current?.pause();
     setStudyEntry(snapshot);
     setMode('study');
@@ -350,6 +365,8 @@ function VideoSectionCard({
             ref={inlinePlayerRef}
             title={effectiveVideoTitle}
             embedUrl={embedUrl}
+            initialSeekMs={initialResumeMs}
+            initialPaused
             onPlayedSpan={handlePlayedSpan}
             onOpenedExternally={handleOpenedExternally}
             onPlaybackProgressMs={handlePlaybackProgress}
