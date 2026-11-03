@@ -200,3 +200,42 @@ it("позволяет отключить подключённый аккаун�
     }),
   );
 });
+
+describe("неподтверждённая посещаемость", () => {
+  it("не утверждает отсутствие при нулевых минутах", async () => {
+    api.getMyAttendance.mockResolvedValue({
+      enabled: true,
+      status: "ready",
+      minutes: 0,
+      percent: 0,
+      present: false,
+    });
+    render(<MyZoomAttendance groupId="g" eventId="e" />);
+    expect(
+      await screen.findByText(/Присутствие пока не подтверждено/),
+    ).toHaveTextContent("попросите преподавателя привязать ваше имя в Zoom");
+    expect(screen.queryByText(/Не зачтено/)).not.toBeInTheDocument();
+  });
+  it("сохраняет незачёт при положительных минутах ниже порога", async () => {
+    api.getMyAttendance.mockResolvedValue({
+      enabled: true,
+      status: "ready",
+      minutes: 20,
+      percent: 30,
+      present: false,
+    });
+    render(<MyZoomAttendance groupId="g" eventId="e" />);
+    expect(
+      await screen.findByText(/20 мин.*30%.*Не зачтено/),
+    ).toBeInTheDocument();
+  });
+  it("показывает число непривязанных подключений перед списком студентов", async () => {
+    render(<GroupZoomAttendancePanel groupId="g" />);
+    fireEvent.change(await screen.findByLabelText("Завершившееся занятие"), {
+      target: { value: "e1" },
+    });
+    expect(
+      await screen.findByText(/Непривязанных подключений: 1/),
+    ).toHaveTextContent("Минуты студентов до привязки могут быть неполными");
+  });
+});

@@ -169,6 +169,9 @@ export function GroupZoomAttendancePanel({ groupId }: { groupId: string }) {
     }
   };
   const selected = current?.events.find((event) => event.id === eventId);
+  const unmatchedCount =
+    current?.participants.filter((participant) => !participant.studentId)
+      .length ?? 0;
   return (
     <section
       className="rounded-2xl border border-[#DDE5EE] bg-white p-4 sm:p-5"
@@ -322,6 +325,12 @@ export function GroupZoomAttendancePanel({ groupId }: { groupId: string }) {
                   )}
                   {selected.status === "ready" && (
                     <>
+                      {unmatchedCount > 0 && (
+                        <p className="text-sm text-[#556476]">
+                          Непривязанных подключений: {unmatchedCount}. Минуты
+                          студентов до привязки могут быть неполными.
+                        </p>
+                      )}
                       <div>
                         <h3 className="font-semibold text-[#2C3E50]">
                           Студенты

@@ -49,6 +49,13 @@ export function MyZoomAttendance({
         Отчёт о посещаемости недоступен.
       </p>
     );
+  if (value.minutes === 0 && value.present === false)
+    return (
+      <p className="mt-3 text-sm text-fg">
+        Присутствие пока не подтверждено. Если вы были на занятии, попросите
+        преподавателя привязать ваше имя в Zoom.
+      </p>
+    );
   return (
     <p className="mt-3 text-sm text-fg">
       Посещаемость: {value.minutes ?? 0} мин. · {value.percent ?? 0}% ·{" "}
