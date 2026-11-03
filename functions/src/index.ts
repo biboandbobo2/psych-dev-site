@@ -215,3 +215,7 @@ export { biographyImport } from './biographyImport.js';
 export { bookExamSlot, cancelExamBooking } from './exams.js';
 export { onExamSlotWrite } from './examNotifications.js';
 export { apiProxy } from './apiProxy.js';
+export {
+  getZoomAttendance, setZoomAttendanceConnection, syncZoomAttendance,
+  matchZoomAttendanceParticipant, getMyZoomAttendance, pollZoomAttendance,
+} from './zoomAttendance/index.js';

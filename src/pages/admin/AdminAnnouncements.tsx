@@ -22,6 +22,7 @@ import {
   type FeedFilterKind,
 } from './announcements/AdminFeedFilters';
 import { AdminFeedList } from './announcements/AdminFeedList';
+import { GroupZoomAttendancePanel } from '../../features/zoomAttendance';
 
 const GROUP_ACCENTS = [
   'border-l-2 border-indigo-400',
@@ -208,6 +209,10 @@ export default function AdminAnnouncements() {
                 })
               }
             />
+          )}
+
+          {availableGroups.some((group) => group.id === selectedGroupId && !group.isSystem) && (
+            <GroupZoomAttendancePanel key={selectedGroupId} groupId={selectedGroupId} />
           )}
 
           <section className="space-y-3">

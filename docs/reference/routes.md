@@ -236,7 +236,7 @@
 |---------|-----------|------|----------|------|
 | `/admin/topics` | `AdminTopics` | Admin | Управление темами для заметок | ✅ |
 | `/admin/books` | `AdminBooks` | Admin | Управление книгами для RAG-поиска | ✅ |
-| `/admin/announcements` | `AdminAnnouncements` | Admin | События/объявления (calendar-style UX) | ✅ |
+| `/admin/announcements` | `AdminAnnouncements` | Admin | События/объявления (calendar-style UX); посещаемость Zoom выбранной группы для её назначенного админа/super-admin | ✅ |
 | `/admin/groups` | — (редирект) | Super Admin / Co-admin | `<Navigate to="/admin/users?tab=streams">` — потоки переехали во вкладку | — |
 | `/admin/content/course-intro/:courseId` | `AdminCourseIntro` | Admin | Редактор вводной страницы курса | ✅ |
 | `/superadmin/pages` | `AdminPagesList` | флаг `coAdmin` (включая super-admin) | Список редактируемых статических страниц (`/about` + проекты) | ✅ |

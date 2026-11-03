@@ -615,6 +615,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Raw Zoom reports, mappings and account references are server-only.
+    // Callables check the group and return either its admin report or one's own result.
+    match /zoomAttendanceGroups/{document=**} {
+      allow read, write: if false;
+    }
+
     // Продуктовая телеметрия (PT-1): сырые события использования фич.
     // Агрегаты, не слежка: клиент пишет усечённый SHA-256 от uid, тексты
     // запросов/заметок не сохраняются. Пишут авторизованные (fire-and-forget

@@ -217,6 +217,31 @@ interface Group {
 
 См. [docs/guides/multi-course.md](../guides/multi-course.md).
 
+### `zoomAttendanceGroups/{groupId}`
+
+Серверные настройки Zoom-посещаемости: `accountKey: string | null`,
+`minPercent: number` (1–100), `updatedAtMs`, `lastPolledAtMs`.
+Credentials хранятся отдельно в Secret Manager, а не в Firestore.
+
+- `sessions/{eventId}` — `accountKey`, `meetingId`, `eventStartMs`, `eventEndMs`,
+  `status: pending | ready | error`, безопасное `message`, `syncedAtMs`,
+  `lastAttemptMs`, `retryAfterMs`, `activeSnapshot`, `leaseId`, `leaseUntilMs`.
+- `sessions/{eventId}/snapshots/{snapshotId}` — `createdAtMs`, `meetingUuids`,
+  `rowCount`; подколлекция `participants/{key}` содержит имя, email (или null),
+  `aliasKey` (или null) и интервалы `{startMs, endMs}` в пределах занятия.
+  `key`/`aliasKey` — SHA-256 с областью аккаунта; гостевые ключи также включают
+  UUID сессии/подключение. Snapshot становится активным после полной записи.
+- `sessions/{eventId}/overrides/{key}` — ручная привязка конкретного участника:
+  `studentId: string | null`, `updatedAtMs`, `updatedBy`.
+- `aliases/{hash}` — такой же контракт сохранённой привязки стабильного
+  Zoom-профиля/email. Область — конкретная группа и аккаунт; имена не ключи.
+
+Всё дерево `zoomAttendanceGroups` рекурсивно **server-only**, без прямого
+чтения/записи клиентом, включая super-admin. Callable проверяет назначенного
+админа группы; студент получает только свой агрегат при текущем членстве.
+Группа `everyone`/системные группы не подключаются. Старые snapshots не
+удаляются автоматически. Подробнее: [Zoom-посещаемость](../guides/zoom-attendance.md).
+
 ### `accessRequests/{requestId}` (AC-2)
 
 Заявка на доступ к курсу, отправленная зарегистрированным гостем с `/home`

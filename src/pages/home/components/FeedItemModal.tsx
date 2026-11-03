@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { GroupFeedItem } from '../../../types/groupFeed';
 import { formatDueDateRu } from '../utils';
 import { MarkdownView } from '../../../lib/MarkdownView';
+import { MyZoomAttendance } from '../../../features/zoomAttendance';
 
 interface FeedItemModalProps {
   item: GroupFeedItem | null;
@@ -84,6 +85,9 @@ export function FeedItemModal({ item, onClose }: FeedItemModalProps) {
               </a>
             ) : null}
           </div>
+        )}
+        {item.kind === 'event' && item.zoomLink && (
+          <MyZoomAttendance groupId={item.groupId} eventId={item.id.startsWith('e:') ? item.id.slice(2) : item.id} />
         )}
         {item.longText ? (
           <MarkdownView

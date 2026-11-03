@@ -326,6 +326,15 @@ firebase deploy --only firestore:rules,storage:rules
 
 ## 📚 Ключевые подсистемы
 
+### Посещаемость Zoom
+
+Отчёты прошедших занятий импортирует `pollZoomAttendance` (Cloud Functions,
+каждые 30 минут) из подключённых Server-to-Server OAuth аккаунтов. Привязка
+к событию группы — по meeting ID, UUID сессии и времени; новые snapshots
+публикуются целиком. Все отчёты и сопоставления server-only, клиент работает
+через callable с проверкой группы; студенту возвращается только его результат.
+Credentials — в Secret Manager. [Настройка и ограничения](../guides/zoom-attendance.md).
+
 ### 1. Система тестирования
 - Динамическое создание тестов через UI
 - Цепочки тестов с prerequisite

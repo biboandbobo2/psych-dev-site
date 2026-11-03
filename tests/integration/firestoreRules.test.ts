@@ -1889,3 +1889,44 @@ describe('courses.guestHome: показ на гостевой главной м�
     await assertSucceeds(updateDoc(doc(superAdmin(), 'courses', 'ext-course'), { guestHome: false }));
   });
 });
+
+describe('zoomAttendanceGroups: сырые данные посещаемости доступны только серверу', () => {
+  const roles = ['anonymous', 'member', 'assigned group admin', 'super-admin'] as const;
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await Promise.all([
+        setDoc(doc(db, 'groups', 'g1'), {
+          name: 'Первый поток', memberIds: ['alice'], announcementAdminIds: ['assigned-admin'],
+        }),
+        setDoc(doc(db, 'zoomAttendanceGroups', 'g1'), { accountKey: 'account-one', minPercent: 50 }),
+        setDoc(doc(db, 'zoomAttendanceGroups', 'g1', 'sessions', 'event-1'), {
+          status: 'ready', participants: [{ name: 'Private participant', email: 'private@example.test' }],
+        }),
+      ]);
+    });
+  });
+
+  it.each(roles)('%s cannot get, list, or write configs and nested sessions', async (role) => {
+    const db = role === 'anonymous'
+      ? testEnv.unauthenticatedContext().firestore()
+      : role === 'member'
+        ? testEnv.authenticatedContext('alice').firestore()
+        : role === 'assigned group admin'
+          ? testEnv.authenticatedContext('assigned-admin', { role: 'admin' }).firestore()
+          : testEnv.authenticatedContext('super-uid', { email: SUPER_ADMIN_EMAIL }).firestore();
+    const config = doc(db, 'zoomAttendanceGroups', 'g1');
+    const configs = collection(db, 'zoomAttendanceGroups');
+    const session = doc(db, 'zoomAttendanceGroups', 'g1', 'sessions', 'event-1');
+    const sessions = collection(db, 'zoomAttendanceGroups', 'g1', 'sessions');
+
+    await assertFails(getDoc(config));
+    await assertFails(getDocs(configs));
+    await assertFails(getDoc(session));
+    await assertFails(getDocs(sessions));
+    await assertFails(setDoc(doc(db, 'zoomAttendanceGroups', 'g1', 'sessions', 'new-event'), { status: 'ready' }));
+    await assertFails(updateDoc(config, { minPercent: 80 }));
+    await assertFails(deleteDoc(session));
+  });
+});
