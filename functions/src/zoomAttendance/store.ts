@@ -161,5 +161,6 @@ export async function resolveStoredAttendance(
     overrides,
     event,
     minPercent,
+    session.accountKey,
   );
 }

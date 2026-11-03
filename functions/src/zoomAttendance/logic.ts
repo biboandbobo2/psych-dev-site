@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { hashKey, nameAliasOptions } from "./identity.js";
 import type {
   ZoomAttendanceParticipant,
   ZoomAttendanceStudent,
@@ -14,10 +14,6 @@ import type {
 
 export const MINUTE = 60_000;
 export const DAY = 24 * 60 * MINUTE;
-
-export function hashKey(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
 
 export function extractMeetingId(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -98,6 +94,7 @@ export function resolveAttendance(
   overrides: Map<string, AttendanceOverride>,
   event: AttendanceEvent,
   minPercent: number,
+  accountKey: string,
 ): {
   participants: ZoomAttendanceParticipant[];
   attendance: ZoomStudentAttendance[];
@@ -108,8 +105,8 @@ export function resolveAttendance(
     const email = student.email.trim().toLowerCase();
     if (email) byEmail.set(email, [...(byEmail.get(email) ?? []), student.uid]);
   }
-  const intervalsByStudent = new Map<string, AttendanceInterval[]>();
-  const participants = rows.map((row): ZoomAttendanceParticipant => {
+  const nameOptions = nameAliasOptions(rows, accountKey);
+  const primaryMatches = new Map(rows.map((row) => {
     const manual = overrides.get(row.key);
     const saved = row.aliasKey ? aliases.get(row.aliasKey) : undefined;
     const emails = row.email ? (byEmail.get(row.email) ?? []) : [];
@@ -121,8 +118,34 @@ export function resolveAttendance(
           ? { uid: saved.studentId, source: "saved" as const }
           : {
               uid: emails.length === 1 ? emails[0] : null,
-              source: "email" as const,
+              source: emails.length ? "email" as const : null,
             };
+    return [row.key, {
+      ...match,
+      decided: manual !== undefined || saved !== undefined || emails.length > 0,
+    }] as const;
+  }));
+  const knownByName = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const key = nameOptions.get(row.key)?.key;
+    const uid = primaryMatches.get(row.key)?.uid;
+    if (key && uid && memberIds.has(uid)) {
+      const ids = knownByName.get(key) ?? new Set<string>();
+      ids.add(uid);
+      knownByName.set(key, ids);
+    }
+  }
+  const intervalsByStudent = new Map<string, AttendanceInterval[]>();
+  const participants = rows.map((row): ZoomAttendanceParticipant => {
+    const option = nameOptions.get(row.key)!;
+    const primary = primaryMatches.get(row.key)!;
+    const nameMatch = option.key ? aliases.get(option.key) : undefined;
+    const conflicts = option.key && nameMatch?.studentId
+      ? [...(knownByName.get(option.key) ?? [])].some((uid) => uid !== nameMatch.studentId)
+      : false;
+    const match = !primary.decided && nameMatch !== undefined && !conflicts
+      ? { uid: nameMatch.studentId, source: "name" as const }
+      : primary;
     const studentId = match.uid && memberIds.has(match.uid) ? match.uid : null;
     if (studentId)
       intervalsByStudent.set(studentId, [
@@ -137,6 +160,8 @@ export function resolveAttendance(
       studentId,
       matchSource: studentId ? match.source : null,
       canRemember: !!row.aliasKey,
+      canRememberByName: !row.aliasKey && !!option.key,
+      nameMatchingIssue: row.aliasKey ? null : option.issue,
     };
   });
   const duration = (event.endAtMs - event.startAtMs) / 1000;

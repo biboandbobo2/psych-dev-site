@@ -31,6 +31,7 @@ import {
 } from "./store.js";
 import { syncEvent } from "./sync.js";
 import { MINUTE } from "./logic.js";
+import { nameAliasOptions } from "./identity.js";
 
 const OPTIONS = {
   ...CALLABLE_OPTS,
@@ -234,6 +235,16 @@ export const matchZoomAttendanceParticipant = onCall(
         "invalid-argument",
         "Укажите, сохранять ли привязку.",
       );
+    const rememberName = request.data?.rememberName === undefined
+      ? false : request.data.rememberName;
+    if (
+      typeof rememberName !== "boolean" ||
+      (rememberName && request.data.remember)
+    ) {
+      throw new HttpsError(
+        "invalid-argument", "Выберите один способ сохранения привязки.",
+      );
+    }
     const config = await readConfig(groupId);
     const event = (await loadEvents(groupId)).find((e) => e.id === eventId);
     const ref = sessionRef(groupId, eventId);
@@ -248,9 +259,8 @@ export const matchZoomAttendanceParticipant = onCall(
         "Сначала получите отчёт этого занятия.",
       );
     }
-    const row = (await loadRows(groupId, eventId, session)).find(
-      (r) => r.key === key,
-    );
+    const rows = await loadRows(groupId, eventId, session);
+    const row = rows.find((r) => r.key === key);
     if (!row) throw new HttpsError("not-found", "Участник не найден в отчёте.");
     if (request.data.remember && !row.aliasKey) {
       throw new HttpsError(
@@ -258,6 +268,17 @@ export const matchZoomAttendanceParticipant = onCall(
         "Для гостя без email и Zoom-профиля возможна привязка только к этому занятию.",
       );
     }
+    const nameOption = nameAliasOptions(rows, session.accountKey).get(key)!;
+    if (rememberName && !nameOption.key) {
+      throw new HttpsError(
+        "failed-precondition",
+        nameOption.issue === "ambiguous"
+          ? "Имя неоднозначно в этом отчёте. Привяжите подключение только к этому занятию."
+          : "Это имя нельзя запомнить: укажите личное имя в Zoom.",
+      );
+    }
+    const rememberedKey = rememberName
+      ? nameOption.key : request.data.remember ? row.aliasKey : null;
     await getFirestore().runTransaction(async (tx) => {
       const [current, settings, currentGroup] = await Promise.all([
         tx.get(ref),
@@ -293,9 +314,9 @@ export const matchZoomAttendanceParticipant = onCall(
         updatedBy: request.auth!.uid,
       };
       tx.set(ref.collection("overrides").doc(key), payload);
-      if (request.data.remember && row.aliasKey)
+      if (rememberedKey)
         tx.set(
-          groupRef(groupId).collection("aliases").doc(row.aliasKey),
+          groupRef(groupId).collection("aliases").doc(rememberedKey),
           payload,
         );
     });

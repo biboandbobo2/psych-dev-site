@@ -239,3 +239,105 @@ describe("неподтверждённая посещаемость", () => {
     ).toHaveTextContent("Минуты студентов до привязки могут быть неполными");
   });
 });
+
+describe("запоминание имени Zoom", () => {
+  const showParticipant = async (
+    changes: Partial<ZoomAttendanceResponse["participants"][number]>,
+  ) => {
+    api.getAttendance.mockResolvedValue({
+      ...response,
+      participants: [{ ...response.participants[0], ...changes }],
+    });
+    render(<GroupZoomAttendancePanel groupId="g" />);
+    fireEvent.change(await screen.findByLabelText("Завершившееся занятие"), {
+      target: { value: "e1" },
+    });
+    fireEvent.change(await screen.findByLabelText("Студент для Гость"), {
+      target: { value: "s1" },
+    });
+  };
+  it("запоминает имя только после явного выбора", async () => {
+    await showParticipant({ canRememberByName: true });
+    expect(
+      screen.getByText(/применяется к другим отчётам/),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Запомнить имя в группе/ }),
+    );
+    expect(api.matchParticipant).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await waitFor(() =>
+      expect(api.matchParticipant).toHaveBeenCalledWith({
+        groupId: "g",
+        eventId: "e1",
+        participantKey: "p1",
+        studentId: "s1",
+        remember: false,
+        rememberName: true,
+      }),
+    );
+  });
+  it("не передаёт rememberName без явного выбора", async () => {
+    await showParticipant({ canRememberByName: true });
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await waitFor(() =>
+      expect(api.matchParticipant).toHaveBeenCalledWith({
+        groupId: "g",
+        eventId: "e1",
+        participantKey: "p1",
+        studentId: "s1",
+        remember: false,
+      }),
+    );
+  });
+  it("показывает источник автоматической привязки по имени", async () => {
+    await showParticipant({
+      canRememberByName: true,
+      matchSource: "name",
+      studentId: "s1",
+    });
+    expect(screen.getByText("По сохранённому имени")).toBeInTheDocument();
+  });
+  it.each([
+    ["ambiguous", /одинаковые имена/],
+    ["generic", /укажите личное имя в Zoom/],
+  ] as const)(
+    "запрещает запомнить имя при %s, но сохраняет привязку к занятию",
+    async (issue, message) => {
+      await showParticipant({
+        canRememberByName: true,
+        nameMatchingIssue: issue,
+      });
+      expect(screen.getByText(message)).toBeInTheDocument();
+      expect(
+        screen.queryByRole("checkbox", { name: /Запомнить имя/ }),
+      ).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+      await waitFor(() =>
+        expect(api.matchParticipant).toHaveBeenCalledWith({
+          groupId: "g",
+          eventId: "e1",
+          participantKey: "p1",
+          studentId: "s1",
+          remember: false,
+        }),
+      );
+    },
+  );
+  it("сохраняет прежний формат запроса для профиля", async () => {
+    await showParticipant({ canRemember: true });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Запомнить профиль" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await waitFor(() =>
+      expect(api.matchParticipant).toHaveBeenCalledWith({
+        groupId: "g",
+        eventId: "e1",
+        participantKey: "p1",
+        studentId: "s1",
+        remember: true,
+      }),
+    );
+  });
+});

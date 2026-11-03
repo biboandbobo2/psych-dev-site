@@ -21,6 +21,8 @@ const safeMessages: Record<string, readonly string[]> = {
     "Zoom-аккаунт не настроен на сервере.",
     "Дождитесь 30 минут после окончания занятия.",
     "Сначала получите отчёт этого занятия.",
+    "Имя неоднозначно в этом отчёте. Привяжите подключение только к этому занятию.",
+    "Это имя нельзя запомнить: укажите личное имя в Zoom.",
   ],
   "functions/resource-exhausted": [
     "Обновление уже выполняется или запускалось менее 10 минут назад.",
@@ -60,7 +62,7 @@ function ParticipantRow({
   }, [participant.studentId, participant.key]);
   return (
     <div className="flex flex-wrap items-center gap-2 border-t border-[#E8EDF3] py-3 text-sm">
-      <div className="w-full min-w-0 break-words sm:w-auto sm:flex-1">
+      <div className="w-full min-w-0 break-words sm:min-w-40 sm:w-auto sm:flex-1">
         <span className="font-medium">{participant.name || "Без имени"}</span>
         {participant.email && (
           <span className="block text-xs text-[#556476]">
@@ -70,6 +72,11 @@ function ParticipantRow({
         <span className="block text-xs text-[#556476]">
           {participant.minutes} мин.
         </span>
+        {participant.matchSource === "name" && (
+          <span className="block text-xs text-[#556476]">
+            По сохранённому имени
+          </span>
+        )}
       </div>
       <label className="sr-only" htmlFor={`participant-${participant.key}`}>
         Студент для {participant.name}
@@ -78,7 +85,10 @@ function ParticipantRow({
         id={`participant-${participant.key}`}
         className={`${control} w-full sm:w-auto`}
         value={studentId}
-        onChange={(e) => setStudentId(e.target.value)}
+        onChange={(e) => {
+          setStudentId(e.target.value);
+          setRemember(false);
+        }}
       >
         <option value="">Не привязан</option>
         {students.map((student) => (
@@ -87,19 +97,31 @@ function ParticipantRow({
           </option>
         ))}
       </select>
-      {participant.canRemember ? (
-        <label className="flex items-center gap-1 text-xs">
+      {participant.canRemember ||
+      (participant.canRememberByName && !participant.nameMatchingIssue) ? (
+        <label className="flex max-w-full items-start gap-1 text-xs sm:max-w-72">
           <input
             type="checkbox"
+            className="mt-0.5 shrink-0"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
             disabled={!studentId}
-          />{" "}
-          Запомнить
+          />
+          <span>
+            {participant.canRemember
+              ? "Запомнить профиль"
+              : "Запомнить имя в группе"}
+            {!participant.canRemember &&
+              " — применяется к другим отчётам. Имя должно быть постоянным и уникальным в группе."}
+          </span>
         </label>
       ) : (
-        <span className="text-xs text-[#556476]">
-          Привязка только для этого занятия
+        <span className="max-w-full text-xs text-[#556476] sm:max-w-72">
+          {participant.nameMatchingIssue === "ambiguous"
+            ? "В отчёте есть одинаковые имена. Возможна привязка только для этого занятия."
+            : participant.nameMatchingIssue === "generic"
+              ? "Чтобы запомнить имя, укажите личное имя в Zoom. Сейчас привязка только для этого занятия."
+              : "Привязка только для этого занятия"}
         </span>
       )}
       <button
@@ -378,7 +400,13 @@ export function GroupZoomAttendancePanel({ groupId }: { groupId: string }) {
                                   eventId,
                                   participantKey: participant.key,
                                   studentId,
-                                  remember,
+                                  remember: participant.canRemember && remember,
+                                  ...(!participant.canRemember &&
+                                  participant.canRememberByName &&
+                                  !participant.nameMatchingIssue &&
+                                  remember
+                                    ? { rememberName: true }
+                                    : {}),
                                 }),
                               )
                             }

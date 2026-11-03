@@ -33,8 +33,10 @@ export interface ZoomAttendanceParticipant {
   email: string | null;
   minutes: number;
   studentId: string | null;
-  matchSource: "email" | "saved" | "manual" | null;
+  matchSource: "email" | "saved" | "manual" | "name" | null;
   canRemember: boolean;
+  canRememberByName?: boolean;
+  nameMatchingIssue?: "generic" | "ambiguous" | null;
 }
 
 export interface ZoomStudentAttendance {
@@ -70,6 +72,7 @@ export interface MatchZoomAttendanceParticipant {
   participantKey: string;
   studentId: string | null;
   remember: boolean;
+  rememberName?: boolean;
 }
 
 export interface MyZoomAttendanceResponse {
